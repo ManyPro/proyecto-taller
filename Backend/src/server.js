@@ -42,6 +42,19 @@ app.use(
 // JSON
 app.use(express.json({ limit: "20mb" }));
 
+import path from "path";
+import filesRoutes from "./routes/files.routes.js";
+
+// ...
+app.set("trust proxy", 1); // para que req.protocol sea "https" en Render
+
+// Servir los archivos subidos
+import express from "express";
+app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
+
+// Montar rutas de archivos dentro de /api/v1
+app.use("/api/v1", filesRoutes);
+
 // Salud
 app.head("/", (_, res) => res.status(200).send("OK"));
 app.get("/", (_, res) => res.status(200).send("OK"));

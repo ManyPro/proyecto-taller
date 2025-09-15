@@ -1,101 +1,103 @@
 // Backend/src/routes/files.routes.js
 import { Router } from "express";
-import mongoose from "mongoose";
-import { ObjectId } from "mongodb";
-import { authCompany } from "../middlewares/auth.js";   // <— OJO: import nombrado
-import upload from "../lib/upload.js";                  // multer-gridfs-storage con bucket "uploads"
+import multer from "multer";
+import fs from "fs";
+import path from "path";
+import { authCompany } from "../middlewares/auth.js"; // <- IMPORTACIÓN CORRECTA (nombrada)
 
+// --- Config básica de almacenamiento en disco ---
 const router = Router();
 
-// Helpers
-const bucket = () =>
-  new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: "uploads" });
+const UPLOAD_DIR =
+  process.env.UPLOAD_DIR && process.env.UPLOAD_DIR.trim().length > 0
+    ? process.env.UPLOAD_DIR.trim()
+    : "uploads";
 
-const toId = (id) => {
-  try { return new ObjectId(id); } catch { return null; }
-};
+// Asegura que la carpeta de subidas exista
+const uploadRoot = path.resolve(process.cwd(), UPLOAD_DIR);
+fs.mkdirSync(uploadRoot, { recursive: true });
 
-// --------------------------------------------------------------------------------------
-// 1) SUBIR archivos (array)  -> campo "files"
-//    Endpoints: /media/upload  y  /files/upload
-// --------------------------------------------------------------------------------------
-router.post(
-  ["/media/upload", "/files/upload"],
-  authCompany,
-  upload.array("files", 12),
-  async (req, res) => {
-    const files = (req.files || []).map((f) => {
-      const fid = f.id || f._id || f.fileId || f.filename;
-      return {
-        id: String(fid),
-        filename: f.filename,
-        mimetype: f.mimetype || f.contentType || "application/octet-stream",
-        size: f.size ?? 0,
-        url: `/api/v1/media/${String(fid)}/download`,
-      };
+// Nombre de archivo “seguro”
+function safeName(str) {
+  return (
+    str
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9._-]/g, "_")
+      .toLowerCase() || "file"
+  );
+}
+
+// Multer: destino + nombre
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadRoot),
+  filename: (req, file, cb) => {
+    const company = (req.companyId || "common").toString();
+    const base = safeName(file.originalname);
+    const stamp = Date.now();
+    cb(null, `${company}-${stamp}-${base}`);
+  },
+});
+
+// 15 MB máx. y aceptamos imágenes y vídeo
+const upload = multer({
+  storage,
+  limits: { fileSize: 15 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ok = /^image\/|^video\//.test(file.mimetype);
+    if (!ok) return cb(new Error("Tipo de archivo no permitido"));
+    cb(null, true);
+  },
+});
+
+// Construye URL pública hacia /uploads/<filename>
+function buildPublicUrl(req, filename) {
+  const base =
+    process.env.BASE_URL?.replace(/\/+$/, "") ||
+    `${req.protocol}://${req.get("host")}`;
+  return `${base}/uploads/${encodeURIComponent(filename)}`;
+}
+
+/**
+ * Sube 1 o varios archivos.
+ * Acepta tanto 'file' (uno) como 'files' (múltiples).
+ * Respuesta:
+ * { ok:true, files:[{filename, url, mimetype, size, originalname}] }
+ */
+router.post("/files/upload", authCompany, upload.any(), (req, res) => {
+  const files = (req.files || []).map((f) => ({
+    filename: f.filename,
+    originalname: f.originalname,
+    mimetype: f.mimetype,
+    size: f.size,
+    url: buildPublicUrl(req, f.filename),
+  }));
+
+  if (files.length === 0) {
+    return res.status(400).json({ ok: false, message: "No se envió archivo" });
+  }
+
+  return res.json({ ok: true, files });
+});
+
+/**
+ * Elimina un archivo por nombre
+ */
+router.delete("/files/:filename", authCompany, (req, res) => {
+  const filePath = path.join(uploadRoot, req.params.filename);
+  fs.stat(filePath, (err, stat) => {
+    if (err || !stat?.isFile()) {
+      return res.status(404).json({ ok: false, message: "Archivo no existe" });
+    }
+    fs.unlink(filePath, (err2) => {
+      if (err2) {
+        return res
+          .status(500)
+          .json({ ok: false, message: "No se pudo eliminar" });
+      }
+      return res.json({ ok: true });
     });
-    res.json({ ok: true, files });
-  }
-);
-
-// --------------------------------------------------------------------------------------
-// 2) DESCARGAR (attachment): /media/:id/download  y  /files/:id/download
-// --------------------------------------------------------------------------------------
-router.get(["/media/:id/download", "/files/:id/download"], authCompany, async (req, res) => {
-  const id = toId(req.params.id);
-  if (!id) return res.status(400).json({ error: "ID inválido" });
-
-  const dl = bucket().openDownloadStream(id);
-
-  let headersSet = false;
-  dl.on("file", (file) => {
-    if (headersSet) return;
-    headersSet = true;
-    res.setHeader("Content-Type", file.contentType || "application/octet-stream");
-    res.setHeader(
-      "Content-Disposition",
-      `attachment; filename="${encodeURIComponent(file.filename || "archivo")}"`
-    );
   });
-
-  dl.on("error", () => res.status(404).json({ error: "Archivo no encontrado" }));
-  dl.pipe(res);
-});
-
-// --------------------------------------------------------------------------------------
-// 3) VER inline: /media/:id  y  /files/:id
-// --------------------------------------------------------------------------------------
-router.get(["/media/:id", "/files/:id"], authCompany, async (req, res) => {
-  const id = toId(req.params.id);
-  if (!id) return res.status(400).json({ error: "ID inválido" });
-
-  const dl = bucket().openDownloadStream(id);
-
-  let headersSet = false;
-  dl.on("file", (file) => {
-    if (headersSet) return;
-    headersSet = true;
-    res.setHeader("Content-Type", file.contentType || "application/octet-stream");
-    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
-  });
-
-  dl.on("error", () => res.status(404).json({ error: "Archivo no encontrado" }));
-  dl.pipe(res);
-});
-
-// --------------------------------------------------------------------------------------
-// 4) ELIMINAR: /media/:id  y  /files/:id
-// --------------------------------------------------------------------------------------
-router.delete(["/media/:id", "/files/:id"], authCompany, async (req, res) => {
-  const id = toId(req.params.id);
-  if (!id) return res.status(400).json({ error: "ID inválido" });
-
-  try {
-    await bucket().delete(id);
-    res.status(204).end();
-  } catch {
-    res.status(404).json({ error: "Archivo no encontrado" });
-  }
 });
 
 export default router;
