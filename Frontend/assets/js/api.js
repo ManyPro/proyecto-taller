@@ -1,4 +1,6 @@
-// Frontend/assets/js/api.js
+// =======================
+// API BASE CONFIG
+// =======================
 const API_BASE = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
 
 const TOKEN_KEY = 'taller.token';
@@ -23,7 +25,6 @@ async function coreRequest(method, path, data, extraHeaders = {}) {
     body: data == null ? undefined : (isForm ? data : JSON.stringify(data))
   });
 
-  // Intentar parsear JSON; si viene HTML (404/500 de Express), devolver texto
   const text = await res.text();
   let body;
   try { body = JSON.parse(text); } catch { body = text; }
@@ -35,10 +36,9 @@ async function coreRequest(method, path, data, extraHeaders = {}) {
   return body;
 }
 
-// Helpers básicos
 const http = {
-  get:  (path)            => coreRequest('GET',  path, null),
-  post: (path, payload)   => coreRequest('POST', path, payload),
+  get:  (path)          => coreRequest('GET',  path, null),
+  post: (path, payload) => coreRequest('POST', path, payload),
   upload: (path, files) => {
     const fd = new FormData();
     for (const f of files) fd.append('files[]', f);
@@ -46,29 +46,38 @@ const http = {
   }
 };
 
-// Objeto API con métodos de negocio
+// =======================
+// API público
+// =======================
 const API = {
   base: API_BASE,
   token: tokenStore,
 
-  // Auth empresa
+  // --- Canonical (nombres nuevos) ---
   companyRegister: (payload) => http.post('/api/v1/auth/company/register', payload),
   companyLogin:    (payload) => http.post('/api/v1/auth/company/login', payload),
   companyMe:       ()        => http.get('/api/v1/auth/company/me'),
 
-  // Notas
-  notesList:   (queryString = '') => http.get(`/api/v1/notes${queryString}`),
-  notesCreate: (payload)          => http.post('/api/v1/notes', payload),
+  notesList:       (q = '')  => http.get(`/api/v1/notes${q}`),
+  notesCreate:     (payload) => http.post('/api/v1/notes', payload),
 
-  // Media
-  mediaUpload: (files) => http.upload('/api/v1/media/upload', files),
+  mediaUpload:     (files)   => http.upload('/api/v1/media/upload', files),
 
-  // Accesos de bajo nivel (si los usas en otras partes del front)
+  // --- Aliases retrocompatibles (para código viejo) ---
+  register:        (payload) => http.post('/api/v1/auth/company/register', payload),
+  login:           (payload) => http.post('/api/v1/auth/company/login', payload),
+  me:              ()        => http.get('/api/v1/auth/company/me'),
+
+  listNotes:       (q = '')  => http.get(`/api/v1/notes${q}`),
+  createNote:      (payload) => http.post('/api/v1/notes', payload),
+  uploadMedia:     (files)   => http.upload('/api/v1/media/upload', files),
+
+  // Accesos de bajo nivel
   get: http.get,
   post: http.post,
-  upload: http.upload,
+  upload: http.upload
 };
 
-// Exports: named y default (para cubrir cualquier import existente)
+// Exports (named y default)
 export { API, tokenStore as authToken };
 export default API;
