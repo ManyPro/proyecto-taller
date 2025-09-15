@@ -17,12 +17,16 @@ const NoteSchema = new mongoose.Schema(
     amount: { type: Number, default: 0 },
     technician: { type: String, uppercase: true, trim: true },
     media: [MediaSchema],
-    companyId: { type: String },
-    userId: { type: String }
+
+    // ✅ multi-tenant consistente con el resto de modelos
+    companyId: { type: mongoose.Types.ObjectId, required: true, index: true },
+    userId: { type: mongoose.Types.ObjectId }
   },
   { timestamps: true }
 );
 
-NoteSchema.index({ plate: 1, createdAt: -1 });
+// índices útiles
+NoteSchema.index({ companyId: 1, createdAt: -1 });
+NoteSchema.index({ companyId: 1, plate: 1, createdAt: -1 });
 
 export default mongoose.model('Note', NoteSchema);

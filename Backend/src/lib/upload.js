@@ -17,12 +17,19 @@ if (DRIVER === 'cloudinary') {
     api_secret: process.env.CLOUDINARY_API_SECRET
   });
 
+  const baseFolder = process.env.CLD_FOLDER || 'taller';
+
   const storage = new CloudinaryStorage({
     cloudinary,
-    params: async (req, file) => ({
-      folder: process.env.CLD_FOLDER || 'taller',
-      resource_type: 'auto' // permite imágenes, video, pdf, etc.
-    })
+    params: async (req, file) => {
+      // 👇 subcarpeta por empresa
+      const companyId = (req.company?.id || 'public').toString();
+      return {
+        folder: `${baseFolder}/${companyId}`,
+        resource_type: 'auto',
+        public_id: `${Date.now()}_${crypto.randomUUID().replace(/-/g, '')}`
+      };
+    }
   });
 
   uploader = multer({
@@ -33,11 +40,16 @@ if (DRIVER === 'cloudinary') {
   // Local disk
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
-  const dir = path.join(__dirname, '..', '..', 'uploads');
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  const rootDir = path.join(__dirname, '..', '..', 'uploads');
 
   const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, dir),
+    destination: (req, file, cb) => {
+      // 👇 subcarpeta por empresa
+      const companyId = (req.company?.id || 'public').toString();
+      const dir = path.join(rootDir, companyId);
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
     filename: (req, file, cb) => {
       const ext = path.extname(file.originalname) || '';
       const name = crypto.randomUUID().replace(/-/g, '');
