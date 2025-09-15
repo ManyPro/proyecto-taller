@@ -1,27 +1,26 @@
 // Backend/src/routes/files.routes.js
-import express from "express";
+import { Router } from "express";
 import multer from "multer";
 import mongoose from "mongoose";
-import { Readable } from "stream";
-import { authCompany } from "../middlewares/auth.js"; // 👈 import nombrado
+import { Readable } from "node:stream";
+import { authCompany } from "../middlewares/auth.js";
 
-const router = express.Router();
+const router = Router();
 
-// Subimos a memoria y luego lo escribimos a GridFS
+// Subida en memoria -> luego escribir a GridFS (bucket "uploads")
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { files: 10, fileSize: 50 * 1024 * 1024 }, // 50 MB por archivo
+  limits: { files: 10, fileSize: 50 * 1024 * 1024 }, // 50MB por archivo
 });
 
-// Helper para obtener el bucket "uploads"
 function getBucket() {
   const db = mongoose.connection.db;
   if (!db) throw new Error("MongoDB no conectado");
   return new mongoose.mongo.GridFSBucket(db, { bucketName: "uploads" });
 }
 
-// === POST /upload  -> guarda 1..n archivos en GridFS
-router.post("/upload", authCompany, upload.array("files", 10), async (req, res) => {
+// --------------------------- Handlers comunes ---------------------------
+async function handleUpload(req, res) {
   try {
     const files = req.files || [];
     if (!files.length) return res.status(400).json({ error: "No se recibieron archivos" });
@@ -40,12 +39,10 @@ router.post("/upload", authCompany, upload.array("files", 10), async (req, res) 
               uploadedAt: new Date(),
               mimetype: f.mimetype,
             };
-
             const ws = bucket.openUploadStream(f.originalname, {
               metadata: meta,
               contentType: f.mimetype,
             });
-
             Readable.from(f.buffer)
               .pipe(ws)
               .on("error", reject)
@@ -63,45 +60,37 @@ router.post("/upload", authCompany, upload.array("files", 10), async (req, res) 
 
     res.status(201).json({ files: saves });
   } catch (e) {
-    console.error(e);
+    console.error("Upload error:", e);
     res.status(500).json({ error: "Error subiendo archivos" });
   }
-});
+}
 
-// === GET /:id  -> sirve el archivo (con control por empresa)
-router.get("/:id", authCompany, async (req, res) => {
+async function handleGet(req, res) {
   try {
     const id = new mongoose.Types.ObjectId(req.params.id);
     const bucket = getBucket();
     const companyId = new mongoose.Types.ObjectId(req.companyId);
 
-    // Validamos que el archivo pertenezca a la compañía
-    const files = await bucket
-      .find({ _id: id, "metadata.companyId": companyId })
-      .toArray();
-
+    const files = await bucket.find({ _id: id, "metadata.companyId": companyId }).toArray();
     if (!files.length) return res.status(404).send("Archivo no encontrado");
 
     const file = files[0];
     if (file.contentType) res.set("Content-Type", file.contentType);
+    res.set("Cache-Control", "public, max-age=31536000, immutable");
 
     bucket.openDownloadStream(id).pipe(res);
-  } catch (e) {
+  } catch {
     res.status(404).send("Archivo no encontrado");
   }
-});
+}
 
-// === DELETE /:id  -> elimina el archivo (mismo control por empresa)
-router.delete("/:id", authCompany, async (req, res) => {
+async function handleDelete(req, res) {
   try {
     const id = new mongoose.Types.ObjectId(req.params.id);
     const bucket = getBucket();
     const companyId = new mongoose.Types.ObjectId(req.companyId);
 
-    // comprobamos propiedad
-    const files = await bucket
-      .find({ _id: id, "metadata.companyId": companyId })
-      .toArray();
+    const files = await bucket.find({ _id: id, "metadata.companyId": companyId }).toArray();
     if (!files.length) return res.status(404).json({ error: "Archivo no encontrado" });
 
     await bucket.delete(id);
@@ -110,6 +99,16 @@ router.delete("/:id", authCompany, async (req, res) => {
     console.error(e);
     res.status(500).json({ error: "No se pudo eliminar" });
   }
-});
+}
+
+// --------------------------- Rutas oficiales (/files/*) ---------------------------
+router.post("/files/upload", authCompany, upload.array("files", 10), handleUpload);
+router.get("/files/:id", authCompany, handleGet);
+router.delete("/files/:id", authCompany, handleDelete);
+
+// --------------------------- Alias compatibilidad (/media/*) ----------------------
+router.post("/media/upload", authCompany, upload.array("files", 10), handleUpload);
+router.get("/media/:id", authCompany, handleGet);
+router.delete("/media/:id", authCompany, handleDelete);
 
 export default router;
