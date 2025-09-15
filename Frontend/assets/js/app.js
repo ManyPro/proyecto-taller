@@ -14,6 +14,7 @@ const loginBtn = document.getElementById("loginBtn");
 const registerBtn = document.getElementById("registerBtn");
 
 function setLoggedIn(emailStr, token) {
+  document.getElementById("modal")?.classList.add("hidden");
   if (token) localStorage.setItem("token", token);
   loginSection.classList.add("hidden");
   appSection.classList.remove("hidden");

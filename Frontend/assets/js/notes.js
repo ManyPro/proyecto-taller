@@ -115,11 +115,38 @@ export function initNotes() {
   };
 
   // modal
-  const modal = document.getElementById("modal");
-  const modalBody = document.getElementById("modalBody");
-  const modalClose = document.getElementById("modalClose");
-  modalClose.onclick = () => modal.classList.add("hidden");
-  window.openModal = (html) => { modalBody.innerHTML = html; modal.classList.remove("hidden"); };
+const modal = document.getElementById("modal");
+const modalBody = document.getElementById("modalBody");
+const modalClose = document.getElementById("modalClose");
+
+// función centralizada para cerrar
+const hardHideModal = () => {
+  if (!modal) return;
+  modalBody.innerHTML = "";
+  modal.classList.add("hidden");
+};
+
+// botón X
+modalClose.onclick = hardHideModal;
+
+// clic fuera del contenido
+modal.addEventListener("click", (e) => {
+  if (e.target === modal) hardHideModal();
+});
+
+// tecla ESC
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") hardHideModal();
+});
+
+// asegúrate que arranca cerrado
+hardHideModal();
+
+// abrir (se usa al hacer click en miniaturas de imágenes)
+window.openModal = (html) => {
+  modalBody.innerHTML = html;
+  modal.classList.remove("hidden");
+};
 
   // init
   const todayISO = new Date().toISOString().slice(0,10);
