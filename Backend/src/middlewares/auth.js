@@ -1,37 +1,34 @@
-// Backend/src/middlewares/auth.js
-import jwt from "jsonwebtoken";
+import jwt from 'jsonwebtoken';
 
-export const authCompany = (req, res, next) => {
+function parseBearer(req) {
+  const h = req.headers.authorization || '';
+  const [scheme, token] = h.split(' ');
+  return scheme?.toLowerCase() === 'bearer' ? token : null;
+}
+
+export function authUser(req, res, next) {
   try {
-    const auth = req.headers.authorization || "";
-    const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
-    if (!token) return res.status(401).json({ error: "Token requerido" });
-
+    const token = parseBearer(req);
+    if (!token) return res.status(401).json({ error: 'Missing Bearer token' });
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    if (!payload?.companyId) {
-      return res.status(401).json({ error: "Token inválido" });
-    }
-    req.companyId = payload.companyId;
+    req.user = { id: payload.sub, ...payload }; // flexible
     next();
-  } catch (err) {
-    return res.status(401).json({ error: "No autorizado" });
+  } catch (e) {
+    return res.status(401).json({ error: 'Invalid token' });
   }
-};
+}
 
-// (Opcional) si más adelante quieres auth de usuario:
-export const authUser = (req, res, next) => {
+// Si manejas multi-empresa por "companyId" en el token:
+export function authCompany(req, res, next) {
   try {
-    const auth = req.headers.authorization || "";
-    const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
-    if (!token) return res.status(401).json({ error: "Token requerido" });
-
+    const token = parseBearer(req);
+    if (!token) return res.status(401).json({ error: 'Missing Bearer token' });
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    if (!payload?.userId) {
-      return res.status(401).json({ error: "Token inválido" });
-    }
-    req.userId = payload.userId;
+    if (!payload.companyId) return res.status(403).json({ error: 'No company in token' });
+    req.company = { id: payload.companyId };
+    req.user = { id: payload.sub, ...payload };
     next();
-  } catch (err) {
-    return res.status(401).json({ error: "No autorizado" });
+  } catch (e) {
+    return res.status(401).json({ error: 'Invalid token' });
   }
-};
+}

@@ -1,25 +1,28 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
-const mediaSchema = new mongoose.Schema({
-  fileId: { type: mongoose.Types.ObjectId, required: true },
-  filename: String,
-  mimetype: String,
-  size: Number,
-}, { _id: false });
+const MediaSchema = new mongoose.Schema(
+  {
+    url: { type: String, required: true },
+    publicId: { type: String },
+    mimetype: { type: String }
+  },
+  { _id: false }
+);
 
-const noteSchema = new mongoose.Schema({
-  companyId: { type: mongoose.Types.ObjectId, required: true, index: true },
-  plate: { type: String, required: true, uppercase: true, index: true, trim: true },
-  type: { type: String, enum: ["GENERICA", "PAGO"], required: true, index: true },
-  content: { type: String, required: true, trim: true },
-  media: { type: [mediaSchema], default: [] },
+const NoteSchema = new mongoose.Schema(
+  {
+    plate: { type: String, required: true, uppercase: true, trim: true },
+    type: { type: String, enum: ['GENERICA', 'PAGO'], default: 'GENERICA' },
+    text: { type: String, default: '' },
+    amount: { type: Number, default: 0 },
+    technician: { type: String, uppercase: true, trim: true },
+    media: [MediaSchema],
+    companyId: { type: String },
+    userId: { type: String }
+  },
+  { timestamps: true }
+);
 
-  // NUEVO: info de pago (solo se usa si type = "PAGO")
-  paymentAmount: { type: Number, min: 0 },
-  paymentMethod: { type: String, enum: ["EFECTIVO","TRANSFERENCIA","TARJETA","DEPOSITO","CHEQUE","OTRO"] },
-}, { timestamps: true });
+NoteSchema.index({ plate: 1, createdAt: -1 });
 
-noteSchema.index({ companyId: 1, createdAt: -1 });
-noteSchema.index({ companyId: 1, plate: 1, createdAt: -1 });
-
-export default mongoose.model("Note", noteSchema);
+export default mongoose.model('Note', NoteSchema);

@@ -1,61 +1,56 @@
-// Backend/src/lib/upload.js
-import multer from "multer";
-import path from "path";
-import { fileURLToPath } from "url";
+import multer from 'multer';
+import { v2 as cloudinary } from 'cloudinary';
+import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import crypto from 'node:crypto';
 
-export const driver = (process.env.UPLOAD_DRIVER || "local").toLowerCase();
+const DRIVER = (process.env.UPLOAD_DRIVER || 'cloudinary').toLowerCase();
+let uploader;
 
-let upload;
-let uploadsRoot = null;
-
-function safeName(name) {
-  return name.replace(/\s+/g, "_").replace(/[^\w.\-]/g, "");
-}
-
-if (driver === "cloudinary") {
-  // Cloudinary
-  const { v2: cloudinary } = await import("cloudinary");
-  const { CloudinaryStorage } = await import("multer-storage-cloudinary");
-
+if (DRIVER === 'cloudinary') {
+  // Config Cloudinary desde env
   cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET,
+    api_secret: process.env.CLOUDINARY_API_SECRET
   });
 
   const storage = new CloudinaryStorage({
     cloudinary,
     params: async (req, file) => ({
-      folder: process.env.CLD_FOLDER || "taller",
-      resource_type: file.mimetype.startsWith("video/") ? "video" : "image",
-      public_id: `${Date.now()}-${safeName(file.originalname)}`,
-      overwrite: false,
-    }),
+      folder: process.env.CLD_FOLDER || 'taller',
+      resource_type: 'auto' // permite imágenes, video, pdf, etc.
+    })
   });
 
-  upload = multer({ storage });
+  uploader = multer({
+    storage,
+    limits: { fileSize: 100 * 1024 * 1024 } // 100MB
+  });
 } else {
-  // Local
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  uploadsRoot = path.resolve(__dirname, "../../uploads");
+  // Local disk
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const dir = path.join(__dirname, '..', '..', 'uploads');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
   const storage = multer.diskStorage({
-    destination: uploadsRoot,
+    destination: (req, file, cb) => cb(null, dir),
     filename: (req, file, cb) => {
-      cb(null, `${Date.now()}-${safeName(file.originalname)}`);
-    },
+      const ext = path.extname(file.originalname) || '';
+      const name = crypto.randomUUID().replace(/-/g, '');
+      cb(null, `${Date.now()}_${name}${ext}`);
+    }
   });
 
-  upload = multer({ storage });
+  uploader = multer({
+    storage,
+    limits: { fileSize: 100 * 1024 * 1024 }
+  });
 }
 
-export { upload, uploadsRoot };
-
-export function normalizeFiles(files = []) {
-  const arr = Array.isArray(files) ? files : Object.values(files || {});
-  return arr.map((f) =>
-    driver === "cloudinary"
-      ? { url: f.path, publicId: f.filename, mimetype: f.mimetype }
-      : { url: `/uploads/${path.basename(f.path)}`, publicId: path.basename(f.path), mimetype: f.mimetype }
-  );
-}
+export const uploadArray = uploader.array('files[]', 12);
+export const isCloudinary = DRIVER === 'cloudinary';
+export { cloudinary };

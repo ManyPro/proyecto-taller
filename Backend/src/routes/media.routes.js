@@ -1,22 +1,34 @@
-// Backend/src/routes/media.routes.js
-import { Router } from "express";
-import { authCompany } from "../middlewares/auth.js";
-import { upload, normalizeFiles } from "../lib/upload.js";
+import { Router } from 'express';
+import { authUser } from '../middlewares/auth.js';
+import { uploadArray, isCloudinary } from '../lib/upload.js';
 
 const router = Router();
 
-// Acepta hasta 10 archivos; usa el mismo nombre de campo que el frontend
-// Si tu <input type="file"> usa "media" cámbialo aquí si hiciera falta.
-const uploader = upload.array("media", 10);
+// POST /api/v1/media/upload
+router.post('/upload', authUser, (req, res, next) => {
+  uploadArray(req, res, async (err) => {
+    if (err) return next(err);
 
-router.post("/media/upload", authCompany, uploader, (req, res) => {
-  try {
-    const items = normalizeFiles(req.files);
-    return res.json({ ok: true, items });
-  } catch (err) {
-    console.error("upload failed:", err);
-    return res.status(500).json({ ok: false, error: "UPLOAD_FAILED" });
-  }
+    const base = `${req.protocol}://${req.get('host')}`;
+
+    const files = (req.files || []).map(f => {
+      if (isCloudinary) {
+        return {
+          url: f.path,                 // https://res.cloudinary.com/...
+          publicId: f.filename,        // public_id
+          mimetype: f.mimetype
+        };
+      }
+      // local: servir desde /uploads
+      return {
+        url: `${base}/uploads/${f.filename}`,
+        publicId: f.filename,
+        mimetype: f.mimetype
+      };
+    });
+
+    return res.json({ files });
+  });
 });
 
 export default router;
