@@ -4,22 +4,33 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 
-// Helper para __dirname en ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const DRIVER = process.env.UPLOAD_DRIVER || "local";
+// Driver: "cloudinary" (producción) o "local" (dev)
+export const driver = process.env.UPLOAD_DRIVER || "local";
 
-// Multer en memoria (sirve tanto para local como cloudinary)
-export const uploadMiddleware = multer({
+// Carpeta física para driver local
+export const uploadsRoot = path.resolve(__dirname, "../../uploads");
+
+// Límite de tamaño y número de archivos (configurables por ENV)
+const MAX_BYTES = Number(process.env.UPLOAD_MAX_BYTES || 10 * 1024 * 1024); // 10MB
+const MAX_FILES = Number(process.env.UPLOAD_MAX_FILES || 6);
+
+// Multer en memoria (sirve tanto para cloudinary como para local)
+export const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024, files: 5 }, // 10MB, máximo 5 archivos
-}).array("files", 5);
+  limits: { fileSize: MAX_BYTES, files: MAX_FILES },
+}).array("files", MAX_FILES);
 
-// Guarda un archivo y devuelve { url, publicId }
-export async function saveUploadedFile(file, companyId = "inventory_unsigned") {
-  if (DRIVER === "cloudinary") {
-    // import dinámico: solo carga cloudinary si lo vas a usar
+/**
+ * Sube los buffers recibidos por Multer y devuelve
+ * un array normalizado [{ id, url, filename, mimetype, size, provider }]
+ */
+export async function normalizeFiles(files, companyId = "inventory_unsigned") {
+  if (!Array.isArray(files) || files.length === 0) return [];
+
+  if (driver === "cloudinary") {
     const { v2: cloudinary } = await import("cloudinary");
     cloudinary.config({
       cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -28,42 +39,61 @@ export async function saveUploadedFile(file, companyId = "inventory_unsigned") {
     });
 
     const folder = process.env.CLD_FOLDER || "taller";
-    const publicIdBase = `${companyId}/${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2, 8)}`;
+    const out = [];
 
-    const buffer = file.buffer;
-    const res = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        { folder, public_id: publicIdBase, resource_type: "image" },
-        (err, result) => (err ? reject(err) : resolve(result))
-      );
-      stream.end(buffer);
-    });
+    for (const f of files) {
+      const publicId = `${companyId}/${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}`;
 
-    return { url: res.secure_url, publicId: res.public_id };
+      const result = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { folder, public_id: publicId, resource_type: "image" },
+          (err, res) => (err ? reject(err) : resolve(res))
+        );
+        stream.end(f.buffer);
+      });
+
+      out.push({
+        id: result.public_id,
+        url: result.secure_url,
+        filename: f.originalname,
+        mimetype: f.mimetype,
+        size: f.size,
+        provider: "cloudinary",
+      });
+    }
+
+    return out;
   }
 
-  // --- Modo local ---
-  const uploadsDir = path.resolve(__dirname, "../../uploads");
-  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+  // ----- DRIVER LOCAL -----
+  if (!fs.existsSync(uploadsRoot)) fs.mkdirSync(uploadsRoot, { recursive: true });
 
-  const ext = path.extname(file.originalname || "").toLowerCase() || ".bin";
-  const safeName = `${Date.now()}-${Math.random()
-    .toString(36)
-    .slice(2, 8)}${ext}`;
-  const target = path.join(uploadsDir, safeName);
-
-  fs.writeFileSync(target, file.buffer);
   const baseUrl = process.env.PUBLIC_BASE_URL || "http://localhost:4000";
-  const url = `${baseUrl}/uploads/${safeName}`;
 
-  return { url, publicId: `local:${safeName}` };
+  return files.map((f) => {
+    const ext = path.extname(f.originalname || "") || ".bin";
+    const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`;
+    const target = path.join(uploadsRoot, safeName);
+    fs.writeFileSync(target, f.buffer);
+
+    return {
+      id: safeName,
+      url: `${baseUrl}/uploads/${safeName}`,
+      filename: f.originalname,
+      mimetype: f.mimetype,
+      size: f.size,
+      provider: "local",
+    };
+  });
 }
 
-export async function deleteRemoteFile(publicId) {
-  if (DRIVER !== "cloudinary") return;
-
+/**
+ * Eliminación en Cloudinary (no hace nada en local)
+ */
+export async function deleteRemote(publicId) {
+  if (driver !== "cloudinary" || !publicId) return;
   const { v2: cloudinary } = await import("cloudinary");
   cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -74,7 +104,6 @@ export async function deleteRemoteFile(publicId) {
   try {
     await cloudinary.uploader.destroy(publicId, { resource_type: "image" });
   } catch (e) {
-    // No rompas el flujo si falla la eliminación
     console.warn("Cloudinary delete error:", e?.message || e);
   }
 }

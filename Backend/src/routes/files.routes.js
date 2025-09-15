@@ -9,27 +9,28 @@ const router = express.Router();
 
 /**
  * POST /api/v1/media/upload
- * Campo de formulario: "files" (múltiples)
+ * Campo de formulario: "files" (array)
  * Respuesta: { files: [{ id, url, filename, mimetype, size, provider }] }
  */
-router.post(
-  "/media/upload",
-  authCompany,
-  upload.array("files", 10),
-  async (req, res, next) => {
+router.post("/media/upload", authCompany, (req, res) => {
+  upload(req, res, async (err) => {
+    if (err) return res.status(400).json({ error: err.message || "Upload error" });
+
     try {
-      const files = await normalizeFiles(req.files || [], req);
+      const companyId = req.company?._id?.toString?.() || "inventory_unsigned";
+      const files = await normalizeFiles(req.files || [], companyId);
       return res.json({ files });
-    } catch (err) {
-      next(err);
+    } catch (e) {
+      console.error("Upload fail:", e);
+      return res.status(500).json({ error: "Upload failed" });
     }
-  }
-);
+  });
+});
 
 /**
  * GET /api/v1/media/:id
- * Solo para modo "local" (stream del archivo desde /uploads).
- * En Cloudinary usa directamente la URL devuelta al subir.
+ * Solo útil para modo "local" (sirve archivo desde /uploads).
+ * En Cloudinary usa la URL devuelta al subir.
  */
 router.get("/media/:id", (req, res) => {
   if (driver !== "local") {
