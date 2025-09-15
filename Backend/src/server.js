@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import mongoose from 'mongoose';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
 import companyAuthRouter from './routes/auth.routes.js';
 import healthRouter from './routes/health.js';
 import mediaRouter from './routes/media.routes.js';
@@ -35,6 +36,11 @@ app.use(morgan('tiny'));
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
+// ✅ Ruta raíz para evitar 404 en los health checks de Render
+app.get('/', (_req, res) => {
+  res.status(200).json({ ok: true, name: 'taller-backend', ts: new Date().toISOString() });
+});
 
 // --- Rutas ---
 app.use('/api/v1/health', healthRouter);

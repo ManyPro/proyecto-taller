@@ -10,6 +10,7 @@ const CompanySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-CompanySchema.index({ email: 1 }, { unique: true });
+// ✅ Importante: NO declarar de nuevo el índice con `CompanySchema.index(...)`
+// para evitar el warning de índice duplicado.
 
 export default mongoose.model('Company', CompanySchema);
