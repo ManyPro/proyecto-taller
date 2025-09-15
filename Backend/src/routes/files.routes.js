@@ -1,23 +1,48 @@
 // Backend/src/routes/files.routes.js
 import { Router } from "express";
 import mongoose from "mongoose";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { authCompany } from "../middlewares/auth.js";
 import { upload } from "../lib/upload.js";
 
 const router = Router();
 
 /**
- * Sube múltiples archivos (campo 'files') -> GridFS (bucket 'uploads')
- * Devuelve [{ fileId, filename, mimetype, size }]
+ * Sube múltiples archivos (campo 'files') a GridFS (bucket 'uploads')
+ * Respuesta: { files: [{ fileId, filename, mimetype, size }] }
  */
-router.post("/files/upload", authCompany, upload.array("files", 12), (req, res) => {
-  const files = (req.files || []).map(f => ({
-    fileId: (f.id || f._id)?.toString(),
-    filename: f.filename,
-    mimetype: f.mimetype,
-    size: f.size,
-  }));
-  res.json({ files });
+router.post("/files/upload", authCompany, upload.array("files", 12), async (req, res) => {
+  try {
+    const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+      bucketName: "uploads",
+    });
+
+    const out = [];
+    for (const f of req.files || []) {
+      const src = Readable.from(f.buffer);
+      const uploadStream = bucket.openUploadStream(f.originalname, {
+        contentType: f.mimetype,
+        metadata: {
+          companyId: req.companyId || null,
+          userId: req.userId || null,
+        },
+      });
+
+      await pipeline(src, uploadStream); // Espera a que termine de escribir
+      out.push({
+        fileId: uploadStream.id.toString(),
+        filename: f.originalname,
+        mimetype: f.mimetype,
+        size: f.size,
+      });
+    }
+
+    res.json({ files: out });
+  } catch (err) {
+    console.error("Upload error:", err);
+    res.status(500).json({ error: "No se pudo subir el archivo" });
+  }
 });
 
 /**
