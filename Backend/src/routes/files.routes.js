@@ -2,8 +2,8 @@
 import { Router } from "express";
 import mongoose from "mongoose";
 import { ObjectId } from "mongodb";
-import authCompany from "../middlewares/auth.js";          // si exportas nombrado, usa: { authCompany }
-import upload from "../lib/upload.js";                     // usa multer-gridfs-storage con bucket "uploads"
+import { authCompany } from "../middlewares/auth.js";   // <— OJO: import nombrado
+import upload from "../lib/upload.js";                  // multer-gridfs-storage con bucket "uploads"
 
 const router = Router();
 
@@ -16,8 +16,8 @@ const toId = (id) => {
 };
 
 // --------------------------------------------------------------------------------------
-// 1) SUBIR archivos (array)  -> usa el campo de formulario:  "files"
-//    Endpoints mantenidos por compatibilidad: /media/upload  y  /files/upload
+// 1) SUBIR archivos (array)  -> campo "files"
+//    Endpoints: /media/upload  y  /files/upload
 // --------------------------------------------------------------------------------------
 router.post(
   ["/media/upload", "/files/upload"],
@@ -25,7 +25,7 @@ router.post(
   upload.array("files", 12),
   async (req, res) => {
     const files = (req.files || []).map((f) => {
-      const fid = f.id || f._id || f.fileId || f.filename; // lib expone .id normalmente
+      const fid = f.id || f._id || f.fileId || f.filename;
       return {
         id: String(fid),
         filename: f.filename,
@@ -39,8 +39,7 @@ router.post(
 );
 
 // --------------------------------------------------------------------------------------
-// 2) DESCARGAR archivo (attachment)
-//    Endpoints compatibles: /media/:id/download  y  /files/:id/download
+// 2) DESCARGAR (attachment): /media/:id/download  y  /files/:id/download
 // --------------------------------------------------------------------------------------
 router.get(["/media/:id/download", "/files/:id/download"], authCompany, async (req, res) => {
   const id = toId(req.params.id);
@@ -64,8 +63,7 @@ router.get(["/media/:id/download", "/files/:id/download"], authCompany, async (r
 });
 
 // --------------------------------------------------------------------------------------
-// 3) VER archivo inline (útil para <img> o previsualización)
-//    Endpoints: /media/:id  y  /files/:id
+// 3) VER inline: /media/:id  y  /files/:id
 // --------------------------------------------------------------------------------------
 router.get(["/media/:id", "/files/:id"], authCompany, async (req, res) => {
   const id = toId(req.params.id);
@@ -86,8 +84,7 @@ router.get(["/media/:id", "/files/:id"], authCompany, async (req, res) => {
 });
 
 // --------------------------------------------------------------------------------------
-// 4) ELIMINAR archivo
-//    Endpoints: /media/:id  y  /files/:id
+// 4) ELIMINAR: /media/:id  y  /files/:id
 // --------------------------------------------------------------------------------------
 router.delete(["/media/:id", "/files/:id"], authCompany, async (req, res) => {
   const id = toId(req.params.id);
@@ -96,7 +93,7 @@ router.delete(["/media/:id", "/files/:id"], authCompany, async (req, res) => {
   try {
     await bucket().delete(id);
     res.status(204).end();
-  } catch (e) {
+  } catch {
     res.status(404).json({ error: "Archivo no encontrado" });
   }
 });
