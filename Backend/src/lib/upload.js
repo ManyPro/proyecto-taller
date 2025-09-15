@@ -3,99 +3,78 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { v2 as cloudinary } from "cloudinary";
 
+// Helper para __dirname en ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export const driver = (process.env.UPLOAD_DRIVER || "local").toLowerCase();
-const limits = {
-  fileSize: Number(process.env.UPLOAD_MAX_BYTES || 20 * 1024 * 1024), // 20MB
-};
+const DRIVER = process.env.UPLOAD_DRIVER || "local";
 
-let upload;           // middleware base de multer
-let uploadsRoot = ""; // usado en modo local
+// Multer en memoria (sirve tanto para local como cloudinary)
+export const uploadMiddleware = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 5 }, // 10MB, máximo 5 archivos
+}).array("files", 5);
 
-if (driver === "cloudinary") {
-  // Recibe buffers; luego los mandamos a Cloudinary
-  upload = multer({ storage: multer.memoryStorage(), limits });
+// Guarda un archivo y devuelve { url, publicId }
+export async function saveUploadedFile(file, companyId = "inventory_unsigned") {
+  if (DRIVER === "cloudinary") {
+    // import dinámico: solo carga cloudinary si lo vas a usar
+    const { v2: cloudinary } = await import("cloudinary");
+    cloudinary.config({
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      api_secret: process.env.CLOUDINARY_API_SECRET,
+    });
 
-  cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME || process.env.CLD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY || process.env.CLD_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET || process.env.CLD_SECRET,
-    secure: true,
-  });
-} else {
-  // Modo local: escribe en /uploads (junto al proyecto)
-  uploadsRoot = path.resolve(__dirname, "../../uploads");
-  fs.mkdirSync(uploadsRoot, { recursive: true });
+    const folder = process.env.CLD_FOLDER || "taller";
+    const publicIdBase = `${companyId}/${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 8)}`;
 
-  const storage = multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadsRoot),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname || "").toLowerCase();
-      const base = Date.now() + "-" + Math.round(Math.random() * 1e9);
-      cb(null, base + ext);
-    },
-  });
+    const buffer = file.buffer;
+    const res = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder, public_id: publicIdBase, resource_type: "image" },
+        (err, result) => (err ? reject(err) : resolve(result))
+      );
+      stream.end(buffer);
+    });
 
-  upload = multer({ storage, limits });
-}
-
-/** Sube un buffer a Cloudinary y devuelve el resultado */
-function cloudinaryUpload(buffer, originalname) {
-  const folder = process.env.CLD_FOLDER || "taller";
-  const publicId =
-    (originalname || "file").replace(/\.[^.]+$/, "") +
-    "-" +
-    Math.round(Math.random() * 1e9);
-
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      { folder, public_id: publicId, resource_type: "auto" },
-      (err, result) => (err ? reject(err) : resolve(result))
-    );
-    stream.end(buffer);
-  });
-}
-
-/**
- * Normaliza la salida: [{ id, url, filename, mimetype, size, provider }]
- * - en local arma la URL pública con el host de la request o PUBLIC_BASE_URL
- * - en cloudinary usa secure_url y public_id
- */
-export async function normalizeFiles(files, req) {
-  if (!Array.isArray(files) || files.length === 0) return [];
-
-  if (driver === "cloudinary") {
-    const out = [];
-    for (const f of files) {
-      const r = await cloudinaryUpload(f.buffer, f.originalname);
-      out.push({
-        id: r.public_id,
-        url: r.secure_url,
-        filename: f.originalname,
-        mimetype: f.mimetype,
-        size: f.size,
-        provider: "cloudinary",
-      });
-    }
-    return out;
+    return { url: res.secure_url, publicId: res.public_id };
   }
 
-  // Local
-  const base =
-    process.env.PUBLIC_BASE_URL ||
-    `${req.protocol}://${req.get("host")}`.replace(/\/$/, "");
-  return files.map((f) => ({
-    id: path.basename(f.filename),
-    url: `${base}/uploads/${encodeURIComponent(path.basename(f.filename))}`,
-    filename: f.originalname,
-    mimetype: f.mimetype,
-    size: f.size,
-    provider: "local",
-  }));
+  // --- Modo local ---
+  const uploadsDir = path.resolve(__dirname, "../../uploads");
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+  const ext = path.extname(file.originalname || "").toLowerCase() || ".bin";
+  const safeName = `${Date.now()}-${Math.random()
+    .toString(36)
+    .slice(2, 8)}${ext}`;
+  const target = path.join(uploadsDir, safeName);
+
+  fs.writeFileSync(target, file.buffer);
+  const baseUrl = process.env.PUBLIC_BASE_URL || "http://localhost:4000";
+  const url = `${baseUrl}/uploads/${safeName}`;
+
+  return { url, publicId: `local:${safeName}` };
 }
 
-export { upload, uploadsRoot };
+export async function deleteRemoteFile(publicId) {
+  if (DRIVER !== "cloudinary") return;
+
+  const { v2: cloudinary } = await import("cloudinary");
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+
+  try {
+    await cloudinary.uploader.destroy(publicId, { resource_type: "image" });
+  } catch (e) {
+    // No rompas el flujo si falla la eliminación
+    console.warn("Cloudinary delete error:", e?.message || e);
+  }
+}
