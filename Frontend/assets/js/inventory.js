@@ -1,9 +1,8 @@
+// Frontend/assets/js/inventory.js
 import { API } from "./api.js";
 import { upper } from "./utils.js";
 
-const state = {
-  intakes: [], // entradas de vehículo
-};
+const state = { intakes: [] }; // entradas de vehículo
 
 function makeIntakeLabel(v) {
   return `${(v?.brand || "").trim()} ${(v?.model || "").trim()} ${(v?.engine || "").trim()}`
@@ -16,6 +15,67 @@ const fmtMoney = (n) => {
   const v = Math.round((n || 0) * 100) / 100;
   try { return v.toLocaleString(); } catch { return String(v); }
 };
+
+// --------- Pequeño cliente para Inventory (sin depender de API.request) ----------
+const apiBase = API.base || "";
+const authHeader = () => {
+  const t = API.token?.get?.();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+};
+async function request(path, { method = "GET", json } = {}) {
+  const headers = { ...authHeader() };
+  if (json !== undefined) headers["Content-Type"] = "application/json";
+
+  const res = await fetch(`${apiBase}${path}`, {
+    method,
+    headers,
+    body: json !== undefined ? JSON.stringify(json) : undefined
+  });
+  const text = await res.text();
+  let body; try { body = JSON.parse(text); } catch { body = text; }
+  if (!res.ok) throw new Error(body?.error || (typeof body === "string" ? body : res.statusText));
+  return body;
+}
+function toQuery(params = {}) {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && String(v).trim() !== "") qs.set(k, v);
+  });
+  const s = qs.toString();
+  return s ? `?${s}` : "";
+}
+
+const invAPI = {
+  // Vehicle intakes
+  listVehicleIntakes: async () => {
+    const r = await request("/api/v1/inventory/vehicle-intakes");
+    const data = Array.isArray(r) ? r : (r.items || r.data || []);
+    return { data };
+  },
+  saveVehicleIntake: (body) =>
+    request("/api/v1/inventory/vehicle-intakes", { method: "POST", json: body }),
+  updateVehicleIntake: (id, body) =>
+    request(`/api/v1/inventory/vehicle-intakes/${id}`, { method: "PUT", json: body }),
+  deleteVehicleIntake: (id) =>
+    request(`/api/v1/inventory/vehicle-intakes/${id}`, { method: "DELETE" }),
+  recalcVehicleIntake: (id) =>
+    request(`/api/v1/inventory/vehicle-intakes/${id}/recalc`, { method: "POST" }),
+
+  // Items
+  listItems: async (params = {}) => {
+    const r = await request(`/api/v1/inventory/items${toQuery(params)}`);
+    const data = Array.isArray(r) ? r : (r.items || r.data || []);
+    return { data };
+  },
+  saveItem: (body) =>
+    request("/api/v1/inventory/items", { method: "POST", json: body }),
+  updateItem: (id, body) =>
+    request(`/api/v1/inventory/items/${id}`, { method: "PUT", json: body }),
+  deleteItem: (id) =>
+    request(`/api/v1/inventory/items/${id}`, { method: "DELETE" })
+};
+
+// =================================================================================
 
 export function initInventory() {
   // ---- Entradas: crear ----
@@ -47,7 +107,7 @@ export function initInventory() {
 
   // ====== Entradas: fetch y render ======
   async function refreshIntakes() {
-    const { data } = await API.listVehicleIntakes();
+    const { data } = await invAPI.listVehicleIntakes();
     state.intakes = data || [];
 
     // llenar select del formulario de ítems
@@ -107,13 +167,10 @@ export function initInventory() {
         const priceStr = prompt("Precio de entrada del vehículo", vi.entryPrice);
         if (priceStr == null) return;
 
-        await API.request(`/api/v1/inventory/vehicle-intakes/${vi._id}`, {
-          method: "PUT",
-          json: {
-            brand, model, engine,
-            intakeDate: dateStr,
-            entryPrice: parseFloat(priceStr || "0"),
-          },
+        await invAPI.updateVehicleIntake(vi._id, {
+          brand, model, engine,
+          intakeDate: dateStr,
+          entryPrice: parseFloat(priceStr || "0"),
         });
         await refreshIntakes();
         await refreshItems({});
@@ -123,7 +180,7 @@ export function initInventory() {
       row.querySelector("[data-del]").onclick = async () => {
         if (!confirm("¿Eliminar esta entrada de vehículo? (debe no tener ítems vinculados)")) return;
         try {
-          await API.request(`/api/v1/inventory/vehicle-intakes/${vi._id}`, { method: "DELETE" });
+          await invAPI.deleteVehicleIntake(vi._id);
           await refreshIntakes();
           await refreshItems({});
         } catch (e) {
@@ -132,7 +189,7 @@ export function initInventory() {
       };
 
       row.querySelector("[data-recalc]").onclick = async () => {
-        await API.request(`/api/v1/inventory/vehicle-intakes/${vi._id}/recalc`, { method: "POST" });
+        await invAPI.recalcVehicleIntake(vi._id);
         await refreshItems({});
         alert("Prorrateo recalculado.");
       };
@@ -143,7 +200,7 @@ export function initInventory() {
 
   // ====== Ítems: list ======
   async function refreshItems(params = {}) {
-    const { data } = await API.listItems(params);
+    const { data } = await invAPI.listItems(params);
     itemsList.innerHTML = "";
     (data || []).forEach((it) => {
       const div = document.createElement("div");
@@ -176,17 +233,14 @@ export function initInventory() {
       edit.onclick = async () => {
         const nv = prompt("Nuevo precio de venta:", it.salePrice);
         if (nv == null) return;
-        await API.request("/api/v1/inventory/items/" + it._id, {
-          method: "PUT",
-          json: { salePrice: +nv },
-        });
+        await invAPI.updateItem(it._id, { salePrice: +nv });
         refreshItems(params);
       };
 
       del.onclick = async () => {
         if (!confirm("¿Eliminar ítem? (stock debe ser 0)")) return;
         try {
-          await API.request("/api/v1/inventory/items/" + it._id, { method: "DELETE" });
+          await invAPI.deleteItem(it._id);
           refreshItems(params);
         } catch (e) {
           alert("Error: " + e.message);
@@ -208,7 +262,7 @@ export function initInventory() {
     };
     if (!body.brand || !body.model || !body.engine || !body.entryPrice)
       return alert("Completa marca, modelo, cilindraje y precio de entrada");
-    await API.saveVehicleIntake(body);
+    await invAPI.saveVehicleIntake(body);
     await refreshIntakes();
     alert("Entrada de vehículo creada");
   };
@@ -255,7 +309,7 @@ export function initInventory() {
     if (!body.sku || !body.name || !body.salePrice)
       return alert("Completa SKU, nombre y precio de venta");
 
-    await API.saveItem(body);
+    await invAPI.saveItem(body);
 
     // reset
     itSku.value = "";
