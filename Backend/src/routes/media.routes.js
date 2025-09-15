@@ -1,7 +1,6 @@
 // Backend/src/routes/media.routes.js
 import { Router } from "express";
 import { authCompany } from "../middlewares/auth.js";
-import { authUser } from "../middlewares/auth.js";
 import { upload, normalizeFiles } from "../lib/upload.js";
 
 const router = Router();
