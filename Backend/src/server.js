@@ -1,6 +1,5 @@
 import "dotenv/config";
 import express from "express";
-import cors from "cors";
 import morgan from "morgan";
 import { connectDB } from "./db.js";
 import authRoutes from "./routes/auth.routes.js";
@@ -8,7 +7,6 @@ import notesRoutes from "./routes/notes.routes.js";
 import mediaRoutes from "./routes/media.routes.js";
 import inventoryRoutes from "./routes/inventory.routes.js";
 import ordersRoutes from "./routes/orders.routes.js";
-// --- CORS (deja este bloque tal cual) ---
 import cors from "cors";
 
 const ALLOWED = (process.env.ALLOWED_ORIGINS || "")
