@@ -1,19 +1,15 @@
-// Backend/src/controllers/inventory.controller.js
 import mongoose from "mongoose";
+import * as XLSX from "xlsx";
 import VehicleIntake from "../models/VehicleIntake.js";
 import Item from "../models/Item.js";
 
-// ------ helpers ------
+// ===== Helpers =====
 function makeIntakeLabel(vi) {
   return `${(vi?.brand || "").trim()} ${(vi?.model || "").trim()} ${(vi?.engine || "").trim()}`
-    .replace(/\s+/g, " ")
-    .trim()
-    .toUpperCase();
+    .replace(/\s+/g, " ").trim().toUpperCase();
 }
 
-// Prorratea el costo del vehículo entre ítems "AUTO" ponderando por STOCK.
-// - Los ítems con precio MANUAL se respetan, descontando su costo total (entryPrice * stock) del vehículo.
-// - Los ítems AUTO reciben un precio UNITARIO = remaining / sumStockAuto (misma unidad para todos).
+// Prorrateo por STOCK (unitario = remanente / sum(stock AUTO))
 async function recalcAutoEntryPrices(companyId, vehicleIntakeId) {
   if (!vehicleIntakeId) return;
 
@@ -28,18 +24,10 @@ async function recalcAutoEntryPrices(companyId, vehicleIntakeId) {
 
   const manualTotal = manual.reduce((s, it) => s + (it.entryPrice || 0) * Math.max(0, it.stock || 0), 0);
   const vehicleTotal = intake.entryPrice || 0;
-  let remaining = Math.max(vehicleTotal - manualTotal, 0);
+  const remaining = Math.max(vehicleTotal - manualTotal, 0);
 
-  // Suma de stocks de los AUTO
   const autoStockTotal = auto.reduce((s, it) => s + Math.max(0, it.stock || 0), 0);
-
-  if (!auto.length) return;
-
-  // Si no hay stock en AUTO, precio unitario = 0 (o divide igualitario si prefieres)
-  let unit = 0;
-  if (autoStockTotal > 0) {
-    unit = Math.round((remaining / autoStockTotal) * 100) / 100; // 2 decimales
-  }
+  const unit = autoStockTotal > 0 ? Math.round((remaining / autoStockTotal) * 100) / 100 : 0;
 
   for (const it of auto) {
     it.entryPrice = unit;
@@ -48,8 +36,7 @@ async function recalcAutoEntryPrices(companyId, vehicleIntakeId) {
   }
 }
 
-// ============ ENTRADAS DE VEHÍCULO ============
-
+// ===== Entradas de vehículo =====
 export const listVehicleIntakes = async (req, res) => {
   const q = { companyId: new mongoose.Types.ObjectId(req.companyId) };
   const data = await VehicleIntake.find(q).sort({ intakeDate: -1, createdAt: -1 });
@@ -88,7 +75,6 @@ export const updateVehicleIntake = async (req, res) => {
     { new: true }
   );
 
-  // Si cambió marca/modelo/cilindraje -> sincroniza etiqueta en ítems ligados
   const oldLabel = makeIntakeLabel(before);
   const newLabel = makeIntakeLabel(updated);
   if (oldLabel !== newLabel) {
@@ -98,7 +84,6 @@ export const updateVehicleIntake = async (req, res) => {
     );
   }
 
-  // Si cambió el precio de entrada -> recalcular prorrateo
   if ((before.entryPrice || 0) !== (updated.entryPrice || 0)) {
     await recalcAutoEntryPrices(req.companyId, updated._id);
   }
@@ -108,21 +93,16 @@ export const updateVehicleIntake = async (req, res) => {
 
 export const deleteVehicleIntake = async (req, res) => {
   const { id } = req.params;
-
   const linked = await Item.countDocuments({ companyId: req.companyId, vehicleIntakeId: id });
   if (linked > 0) {
-    return res.status(400).json({
-      error: `No se puede eliminar: hay ${linked} ítem(s) vinculados a esta entrada.`,
-    });
+    return res.status(400).json({ error: `No se puede eliminar: hay ${linked} ítem(s) vinculados.` });
   }
-
   const del = await VehicleIntake.findOneAndDelete({ _id: id, companyId: req.companyId });
   if (!del) return res.status(404).json({ error: "Entrada no encontrada" });
   res.status(204).end();
 };
 
-// ======================= ÍTEMS ========================
-
+// ===== Ítems =====
 export const listItems = async (req, res) => {
   const { name, sku, vehicleTarget } = req.query;
   const q = { companyId: new mongoose.Types.ObjectId(req.companyId) };
@@ -140,7 +120,6 @@ export const createItem = async (req, res) => {
   if (b.sku)  b.sku  = b.sku.toUpperCase().trim();
   if (b.name) b.name = b.name.toUpperCase().trim();
 
-  // Si hay entrada y destino vacío/VITRINAS -> usar la etiqueta de la entrada
   if (b.vehicleIntakeId) {
     const vi = await VehicleIntake.findOne({ _id: b.vehicleIntakeId, companyId: req.companyId });
     if (vi && (!b.vehicleTarget || b.vehicleTarget === "VITRINAS")) {
@@ -148,7 +127,6 @@ export const createItem = async (req, res) => {
     }
   }
 
-  // entryPrice: vacío => AUTO (si hay entrada)
   if ((b.entryPrice === undefined || b.entryPrice === null || b.entryPrice === "") && b.vehicleIntakeId) {
     b.entryPrice = null;
     b.entryPriceIsAuto = true;
@@ -156,6 +134,10 @@ export const createItem = async (req, res) => {
     b.entryPrice = +b.entryPrice;
     b.entryPriceIsAuto = false;
   }
+
+  const image = req.file || null;
+  const imageFileId = image?.id || image?._id || null;
+  const imageUrl = imageFileId ? `/api/v1/files/${imageFileId}` : null;
 
   const item = await Item.create({
     companyId: req.companyId,
@@ -168,6 +150,7 @@ export const createItem = async (req, res) => {
     salePrice: +b.salePrice || 0,
     original: !!b.original,
     stock: Number.isFinite(+b.stock) ? +b.stock : 0,
+    imageFileId, imageUrl,
   });
 
   if (item.vehicleIntakeId) {
@@ -210,8 +193,6 @@ export const updateItem = async (req, res) => {
   if (!item) return res.status(404).json({ error: "Item no encontrado" });
 
   const intakeToRecalc = item.vehicleIntakeId || before?.vehicleIntakeId;
-
-  // Si cambió stock, entrada o precio manual/auto -> recalcular
   if (intakeToRecalc) {
     await recalcAutoEntryPrices(req.companyId, intakeToRecalc);
   }
@@ -230,8 +211,86 @@ export const deleteItem = async (req, res) => {
   res.status(204).end();
 };
 
-// (Opcional) recálculo manual
+// (opcional) recálculo manual
 export const recalcIntakePrices = async (req, res) => {
   await recalcAutoEntryPrices(req.companyId, req.params.id);
   res.json({ ok: true });
+};
+
+// ===== Export / Import Excel =====
+export const exportItemsXlsx = async (req, res) => {
+  const items = await Item.find({ companyId: req.companyId }).lean();
+
+  const rows = items.map(it => ({
+    sku: it.sku,
+    name: it.name,
+    vehicleTarget: it.vehicleTarget,
+    vehicleIntakeId: it.vehicleIntakeId?.toString() || "",
+    entryPrice: it.entryPrice ?? "",
+    entryPriceIsAuto: it.entryPriceIsAuto ? "TRUE" : "FALSE",
+    salePrice: it.salePrice,
+    original: it.original ? "TRUE" : "FALSE",
+    stock: it.stock,
+    imageFileId: it.imageFileId?.toString() || "",
+    imageUrl: it.imageUrl || "",
+    createdAt: it.createdAt,
+    updatedAt: it.updatedAt,
+  }));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, "Inventario");
+  const buf = XLSX.write(wb, { bookType: "xlsx", type: "buffer" });
+
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", "attachment; filename=inventario.xlsx");
+  res.send(buf);
+};
+
+export const importItemsXlsx = async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: "Sube un archivo .xlsx" });
+
+  const wb = XLSX.read(req.file.buffer, { type: "buffer" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+
+  const upserts = [];
+  for (const r of rows) {
+    const b = {
+      companyId: req.companyId,
+      sku: String(r.sku || "").toUpperCase().trim(),
+      name: String(r.name || "").toUpperCase().trim(),
+      vehicleTarget: String(r.vehicleTarget || "VITRINAS").toUpperCase().trim(),
+      vehicleIntakeId: r.vehicleIntakeId ? new mongoose.Types.ObjectId(r.vehicleIntakeId) : null,
+      salePrice: +r.salePrice || 0,
+      original: String(r.original).toUpperCase() === "TRUE",
+      stock: +r.stock || 0,
+    };
+
+    // Si no viene entryPrice y hay entrada -> AUTO
+    if ((r.entryPrice === "" || r.entryPrice === null || r.entryPrice === undefined) && b.vehicleIntakeId) {
+      b.entryPrice = null; b.entryPriceIsAuto = true;
+    } else {
+      b.entryPrice = r.entryPrice === "" ? null : +r.entryPrice;
+      b.entryPriceIsAuto = String(r.entryPriceIsAuto).toUpperCase() === "TRUE";
+    }
+
+    if (!b.sku || !b.name) continue; // mínima validación
+
+    upserts.push(
+      Item.findOneAndUpdate(
+        { companyId: req.companyId, sku: b.sku },
+        b,
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      )
+    );
+  }
+
+  const saved = await Promise.all(upserts);
+
+  // Recalcular prorrateos por cada entrada afectada
+  const intakeIds = [...new Set(saved.map(x => x?.vehicleIntakeId?.toString()).filter(Boolean))];
+  await Promise.all(intakeIds.map(id => recalcAutoEntryPrices(req.companyId, id)));
+
+  res.json({ ok: true, upserted: saved.length });
 };

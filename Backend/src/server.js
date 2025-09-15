@@ -8,6 +8,8 @@ import notesRoutes from "./routes/notes.routes.js";
 import mediaRoutes from "./routes/media.routes.js";
 import inventoryRoutes from "./routes/inventory.routes.js";
 import ordersRoutes from "./routes/orders.routes.js";
+import filesRoutes from "./routes/files.routes.js";
+app.use("/api/v1", filesRoutes);
 
 const app = express();
 

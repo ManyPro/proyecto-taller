@@ -42,5 +42,12 @@ footer { text-align:center; color: var(--muted); padding: 20px; }
 #inventory-top .card { height: 100%; }
 #vi-card-lista { min-height: 420px; }
 .span-2 { grid-column: 1 / -1; }
+.thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
 
 

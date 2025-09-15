@@ -1,24 +1,17 @@
 import { API } from "./api.js";
+import { API_EXTRAS } from "./api.js";
 import { upper } from "./utils.js";
 
-const state = {
-  intakes: [], // entradas de vehículo
-};
+const state = { intakes: [] };
 
 function makeIntakeLabel(v) {
   return `${(v?.brand || "").trim()} ${(v?.model || "").trim()} ${(v?.engine || "").trim()}`
-    .replace(/\s+/g, " ")
-    .trim()
-    .toUpperCase();
+    .replace(/\s+/g, " ").trim().toUpperCase();
 }
-
-const fmtMoney = (n) => {
-  const v = Math.round((n || 0) * 100) / 100;
-  try { return v.toLocaleString(); } catch { return String(v); }
-};
+const fmtMoney = (n) => { const v = Math.round((n || 0) * 100) / 100; try { return v.toLocaleString(); } catch { return String(v); } };
 
 export function initInventory() {
-  // ---- Entradas: crear ----
+  // ---- Entradas crear ----
   const viBrand = document.getElementById("vi-brand"); upper(viBrand);
   const viModel = document.getElementById("vi-model"); upper(viModel);
   const viEngine = document.getElementById("vi-engine"); upper(viEngine);
@@ -26,7 +19,7 @@ export function initInventory() {
   const viPrice = document.getElementById("vi-price");
   const viSave = document.getElementById("vi-save");
 
-  // ---- Entradas: lista ----
+  // ---- Entradas lista ----
   const viList = document.getElementById("vi-list");
 
   // ---- Nuevo ítem ----
@@ -38,33 +31,25 @@ export function initInventory() {
   const itSalePrice = document.getElementById("it-salePrice");
   const itOriginal = document.getElementById("it-original");
   const itStock = document.getElementById("it-stock");
+  const itImage = document.getElementById("it-image");
   const itSave = document.getElementById("it-save");
 
-  // ---- Listado de ítems ----
+  // ---- Inventario ----
   const itemsList = document.getElementById("itemsList");
   const qName = document.getElementById("q-name");
   const qApply = document.getElementById("q-apply");
+  const btnExport = document.getElementById("btn-export");
+  const btnImport = document.getElementById("btn-import");
+  const importFile = document.getElementById("import-file");
 
-  // ====== Entradas: fetch y render ======
+  // ===== Entradas =====
   async function refreshIntakes() {
     const { data } = await API.listVehicleIntakes();
     state.intakes = data || [];
-
-    // llenar select del formulario de ítems
     itVehicleIntakeId.innerHTML =
       `<option value="">(opcional)</option>` +
-      state.intakes
-        .map(
-          (v) =>
-            `<option value="${v._id}">
-              ${v.brand} ${v.model} ${v.engine} - ${new Date(v.intakeDate).toLocaleDateString()}
-            </option>`
-        )
-        .join("");
-
+      state.intakes.map(v => `<option value="${v._id}">${v.brand} ${v.model} ${v.engine} - ${new Date(v.intakeDate).toLocaleDateString()}</option>`).join("");
     renderIntakesList();
-
-    // disparar cambio para autocompletar destino si hay selección
     itVehicleIntakeId.dispatchEvent(new Event("change"));
   }
 
@@ -74,7 +59,6 @@ export function initInventory() {
       viList.innerHTML = `<div class="muted">No hay ingresos aún.</div>`;
       return;
     }
-
     viList.innerHTML = "";
     state.intakes.forEach((vi) => {
       const row = document.createElement("div");
@@ -94,54 +78,31 @@ export function initInventory() {
           <button class="danger" data-del="${vi._id}">Eliminar</button>
         </div>
       `;
-
       row.querySelector("[data-edit]").onclick = async () => {
-        const brand = prompt("Marca", vi.brand);
-        if (brand == null) return;
-        const model = prompt("Modelo", vi.model);
-        if (model == null) return;
-        const engine = prompt("Cilindraje", vi.engine);
-        if (engine == null) return;
-        const dateStr = prompt("Fecha (YYYY-MM-DD)", new Date(vi.intakeDate).toISOString().slice(0, 10));
-        if (dateStr == null) return;
-        const priceStr = prompt("Precio de entrada del vehículo", vi.entryPrice);
-        if (priceStr == null) return;
-
-        await API.request(`/api/v1/inventory/vehicle-intakes/${vi._id}`, {
-          method: "PUT",
-          json: {
-            brand, model, engine,
-            intakeDate: dateStr,
-            entryPrice: parseFloat(priceStr || "0"),
-          },
-        });
-        await refreshIntakes();
-        await refreshItems({});
-        alert("Entrada actualizada.");
+        const brand = prompt("Marca", vi.brand); if (brand == null) return;
+        const model = prompt("Modelo", vi.model); if (model == null) return;
+        const engine = prompt("Cilindraje", vi.engine); if (engine == null) return;
+        const dateStr = prompt("Fecha (YYYY-MM-DD)", new Date(vi.intakeDate).toISOString().slice(0, 10)); if (dateStr == null) return;
+        const priceStr = prompt("Precio de entrada del vehículo", vi.entryPrice); if (priceStr == null) return;
+        await API.request(`/api/v1/inventory/vehicle-intakes/${vi._id}`, { method: "PUT", json: { brand, model, engine, intakeDate: dateStr, entryPrice: parseFloat(priceStr || "0") } });
+        await refreshIntakes(); await refreshItems({}); alert("Entrada actualizada.");
       };
-
       row.querySelector("[data-del]").onclick = async () => {
-        if (!confirm("¿Eliminar esta entrada de vehículo? (debe no tener ítems vinculados)")) return;
+        if (!confirm("¿Eliminar esta entrada? (sin ítems vinculados)")) return;
         try {
           await API.request(`/api/v1/inventory/vehicle-intakes/${vi._id}`, { method: "DELETE" });
-          await refreshIntakes();
-          await refreshItems({});
-        } catch (e) {
-          alert("No se pudo eliminar: " + e.message);
-        }
+          await refreshIntakes(); await refreshItems({});
+        } catch (e) { alert("No se pudo eliminar: " + e.message); }
       };
-
       row.querySelector("[data-recalc]").onclick = async () => {
         await API.request(`/api/v1/inventory/vehicle-intakes/${vi._id}/recalc`, { method: "POST" });
-        await refreshItems({});
-        alert("Prorrateo recalculado.");
+        await refreshItems({}); alert("Prorrateo recalculado.");
       };
-
       viList.appendChild(row);
     });
   }
 
-  // ====== Ítems: list ======
+  // ===== Inventario =====
   async function refreshItems(params = {}) {
     const { data } = await API.listItems(params);
     itemsList.innerHTML = "";
@@ -149,16 +110,17 @@ export function initInventory() {
       const div = document.createElement("div");
       div.className = "note";
 
-      // Entrada TOTAL = unitario * stock; mostrar también unitario
       const unit = it.entryPrice ?? 0;
       const total = unit * Math.max(0, it.stock || 0);
-      const entradaTxt =
-        `${fmtMoney(total)}${it.entryPriceIsAuto ? " (prorrateado)" : ""} - unit: ${fmtMoney(unit)}`;
+      const entradaTxt = `${fmtMoney(total)}${it.entryPriceIsAuto ? " (prorrateado)" : ""} - unit: ${fmtMoney(unit)}`;
 
       div.innerHTML = `
-        <div>
-          <div><b>${it.sku}</b></div>
-          <div>${it.name}</div>
+        <div style="display:flex;gap:10px;align-items:center">
+          ${it.imageUrl ? `<img src="${API_EXTRAS.base()}${it.imageUrl}" class="thumb" alt="img" />` : ""}
+          <div>
+            <div><b>${it.sku}</b></div>
+            <div>${it.name}</div>
+          </div>
         </div>
         <div class="content">
           <div>Vehículo: ${it.vehicleTarget}${it.vehicleIntakeId ? " (entrada)" : ""}</div>
@@ -169,35 +131,22 @@ export function initInventory() {
           <button class="secondary" data-edit="${it._id}">Editar</button>
           <button class="danger" data-del="${it._id}">Eliminar</button>
         </div>`;
-
-      const edit = div.querySelector("[data-edit]");
-      const del = div.querySelector("[data-del]");
-
-      edit.onclick = async () => {
+      div.querySelector("[data-edit]").onclick = async () => {
         const nv = prompt("Nuevo precio de venta:", it.salePrice);
         if (nv == null) return;
-        await API.request("/api/v1/inventory/items/" + it._id, {
-          method: "PUT",
-          json: { salePrice: +nv },
-        });
+        await API.request("/api/v1/inventory/items/" + it._id, { method: "PUT", json: { salePrice: +nv } });
         refreshItems(params);
       };
-
-      del.onclick = async () => {
+      div.querySelector("[data-del]").onclick = async () => {
         if (!confirm("¿Eliminar ítem? (stock debe ser 0)")) return;
-        try {
-          await API.request("/api/v1/inventory/items/" + it._id, { method: "DELETE" });
-          refreshItems(params);
-        } catch (e) {
-          alert("Error: " + e.message);
-        }
+        try { await API.request("/api/v1/inventory/items/" + it._id, { method: "DELETE" }); refreshItems(params); }
+        catch (e) { alert("Error: " + e.message); }
       };
-
       itemsList.appendChild(div);
     });
   }
 
-  // ====== Guardar entrada de vehículo ======
+  // ===== Crear entrada =====
   viSave.onclick = async () => {
     const body = {
       brand: viBrand.value.trim(),
@@ -206,75 +155,77 @@ export function initInventory() {
       intakeDate: viDate.value ? new Date(viDate.value).toISOString() : undefined,
       entryPrice: parseFloat(viPrice.value || "0"),
     };
-    if (!body.brand || !body.model || !body.engine || !body.entryPrice)
-      return alert("Completa marca, modelo, cilindraje y precio de entrada");
+    if (!body.brand || !body.model || !body.engine || !body.entryPrice) return alert("Completa marca, modelo, cilindraje y precio de entrada");
     await API.saveVehicleIntake(body);
-    await refreshIntakes();
-    alert("Entrada de vehículo creada");
+    await refreshIntakes(); alert("Entrada creada");
   };
 
-  // ====== Auto-relleno de destino cuando se elige una entrada ======
+  // ===== Auto-destino al elegir entrada =====
   itVehicleIntakeId.addEventListener("change", () => {
     const id = itVehicleIntakeId.value;
-    if (!id) {
-      itVehicleTarget.value = "VITRINAS";
-      itVehicleTarget.readOnly = false;
-      return;
-    }
-    const vi = state.intakes.find((v) => v._id === id);
-    if (vi) {
-      itVehicleTarget.value = makeIntakeLabel(vi);
-      itVehicleTarget.readOnly = true;
-    } else {
-      itVehicleTarget.readOnly = false;
-    }
+    if (!id) { itVehicleTarget.value = "VITRINAS"; itVehicleTarget.readOnly = false; return; }
+    const vi = state.intakes.find(v => v._id === id);
+    if (vi) { itVehicleTarget.value = makeIntakeLabel(vi); itVehicleTarget.readOnly = true; } else { itVehicleTarget.readOnly = false; }
   });
 
-  // ====== Guardar ítem ======
+  // ===== Guardar ítem (multipart con imagen) =====
   itSave.onclick = async () => {
     let vehicleTargetValue = (itVehicleTarget.value || "").trim();
     const selectedIntakeId = itVehicleIntakeId.value || undefined;
-
     if (selectedIntakeId && (!vehicleTargetValue || vehicleTargetValue === "VITRINAS")) {
-      const vi = state.intakes.find((v) => v._id === selectedIntakeId);
+      const vi = state.intakes.find(v => v._id === selectedIntakeId);
       if (vi) vehicleTargetValue = makeIntakeLabel(vi);
     }
     if (!vehicleTargetValue) vehicleTargetValue = "VITRINAS";
 
-    const body = {
-      sku: itSku.value.trim(),
-      name: itName.value.trim(),
-      vehicleTarget: vehicleTargetValue,
-      vehicleIntakeId: selectedIntakeId,
-      entryPrice: itEntryPrice.value ? parseFloat(itEntryPrice.value) : undefined, // undefined => AUTO
-      salePrice: parseFloat(itSalePrice.value || "0"),
-      original: itOriginal.value === "true",
-      stock: parseInt(itStock.value || "0", 10),
-    };
-
-    if (!body.sku || !body.name || !body.salePrice)
+    if (!itSku.value.trim() || !itName.value.trim() || !itSalePrice.value) {
       return alert("Completa SKU, nombre y precio de venta");
+    }
 
-    await API.saveItem(body);
+    const fd = new FormData();
+    fd.append("sku", itSku.value.trim());
+    fd.append("name", itName.value.trim());
+    fd.append("vehicleTarget", vehicleTargetValue);
+    if (selectedIntakeId) fd.append("vehicleIntakeId", selectedIntakeId);
+    if (itEntryPrice.value) fd.append("entryPrice", itEntryPrice.value);
+    fd.append("salePrice", itSalePrice.value || "0");
+    fd.append("original", itOriginal.value);
+    fd.append("stock", itStock.value || "0");
+    if (itImage.files && itImage.files[0]) fd.append("image", itImage.files[0]);
+
+    await API_EXTRAS.upload("/api/v1/inventory/items", fd, "POST");
 
     // reset
-    itSku.value = "";
-    itName.value = "";
-    itVehicleTarget.value = "";
-    itVehicleIntakeId.value = "";
-    itEntryPrice.value = "";
-    itSalePrice.value = "";
-    itOriginal.value = "false";
-    itStock.value = "";
-    itVehicleTarget.readOnly = false;
+    itSku.value = itName.value = itVehicleTarget.value = itEntryPrice.value = itSalePrice.value = itStock.value = "";
+    itVehicleIntakeId.value = ""; itOriginal.value = "false"; itImage.value = ""; itVehicleTarget.readOnly = false;
 
     await refreshItems({});
   };
 
-  // ====== Búsqueda ======
+  // ===== Búsqueda =====
   qApply.onclick = () => refreshItems({ name: qName.value.trim() });
 
-  // ====== Init ======
+  // ===== Export/Import Excel =====
+  btnExport.onclick = async () => {
+    try { await API_EXTRAS.download("/api/v1/inventory/items/export.xlsx", "inventario.xlsx"); }
+    catch (e) { alert("No se pudo exportar: " + e.message); }
+  };
+  btnImport.onclick = () => importFile.click();
+  importFile.onchange = async () => {
+    if (!importFile.files || !importFile.files[0]) return;
+    const fd = new FormData();
+    fd.append("file", importFile.files[0]);
+    try {
+      await API_EXTRAS.upload("/api/v1/inventory/items/import", fd, "POST");
+      importFile.value = "";
+      await refreshItems({});
+      alert("Importación completa.");
+    } catch (e) {
+      alert("No se pudo importar: " + e.message);
+    }
+  };
+
+  // ===== Init =====
   refreshIntakes();
   refreshItems({});
 }
