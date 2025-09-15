@@ -13,9 +13,9 @@ import {
   recalcIntakePrices,
 } from "../controllers/inventory.controller.js";
 
-router.delete("/inventory/vehicle-intakes/:id", authCompany, deleteVehicleIntake);
-
 const router = Router();
+
+router.delete("/inventory/vehicle-intakes/:id", authCompany, deleteVehicleIntake);
 
 // Entradas de vehículo
 router.get("/inventory/vehicle-intakes", authCompany, listVehicleIntakes);
