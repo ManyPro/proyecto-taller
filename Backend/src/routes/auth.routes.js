@@ -18,28 +18,27 @@ function signCompany(company) {
 
 /**
  * POST /api/v1/auth/company/register
- * body: { name, email, password }
+ * body: { name?, email, password }
  */
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password } = req.body || {};
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: 'name, email y password son requeridos' });
+    let { name, email, password } = req.body || {};
+    email = String(email || '').toLowerCase().trim();
+    name = String(name || '').trim() || (email ? email.split('@')[0].toUpperCase() : '');
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'email y password son requeridos' });
     }
-    const exists = await Company.findOne({ email: String(email).toLowerCase() }).lean();
+    const exists = await Company.findOne({ email }).lean();
     if (exists) return res.status(409).json({ error: 'El email ya está registrado' });
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const company = await Company.create({ name, email, passwordHash });
+    const company = await Company.create({ name: name || 'EMPRESA', email, passwordHash });
 
     const token = signCompany(company);
     return res.status(201).json({
       token,
-      company: {
-        id: company._id,
-        name: company.name,
-        email: company.email
-      }
+      company: { id: company._id, name: company.name, email: company.email }
     });
   } catch (e) {
     return res.status(500).json({ error: 'Error al registrar empresa' });
@@ -52,11 +51,12 @@ router.post('/register', async (req, res) => {
  */
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body || {};
+    const email = String((req.body?.email || '')).toLowerCase().trim();
+    const password = String(req.body?.password || '');
     if (!email || !password) {
       return res.status(400).json({ error: 'email y password son requeridos' });
     }
-    const company = await Company.findOne({ email: String(email).toLowerCase() });
+    const company = await Company.findOne({ email });
     if (!company) return res.status(401).json({ error: 'Credenciales inválidas' });
 
     const ok = await bcrypt.compare(password, company.passwordHash);
@@ -65,11 +65,7 @@ router.post('/login', async (req, res) => {
     const token = signCompany(company);
     return res.json({
       token,
-      company: {
-        id: company._id,
-        name: company.name,
-        email: company.email
-      }
+      company: { id: company._id, name: company.name, email: company.email }
     });
   } catch (e) {
     return res.status(500).json({ error: 'Error en login' });

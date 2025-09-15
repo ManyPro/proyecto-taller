@@ -6,7 +6,9 @@ import mongoose from 'mongoose';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+// ✅ usa el router real
 import companyAuthRouter from './routes/auth.routes.js';
+
 import healthRouter from './routes/health.js';
 import mediaRouter from './routes/media.routes.js';
 import notesRouter from './routes/notes.routes.js';
@@ -29,7 +31,11 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// ✅ Acepta JSON y también forms/urlencoded (por si el front manda <form>)
 app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
 app.use(morgan('tiny'));
 
 // --- /uploads estático si driver local ---
@@ -37,7 +43,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
-// ✅ Ruta raíz para evitar 404 en los health checks de Render
+// Ruta raíz para health simple
 app.get('/', (_req, res) => {
   res.status(200).json({ ok: true, name: 'taller-backend', ts: new Date().toISOString() });
 });
@@ -47,6 +53,15 @@ app.use('/api/v1/health', healthRouter);
 app.use('/api/v1/media', mediaRouter);
 app.use('/api/v1/notes', notesRouter);
 app.use('/api/v1/auth/company', companyAuthRouter);
+
+// --- Manejo unificado de errores (incluye JSON malformado) ---
+app.use((err, req, res, _next) => {
+  const isJsonParse =
+    err?.type === 'entity.parse.failed' || (err instanceof SyntaxError && 'body' in err);
+  const status = isJsonParse ? 400 : (err.status || 500);
+  const msg = isJsonParse ? 'JSON inválido o cuerpo no soportado' : (err.message || 'Internal error');
+  if (!res.headersSent) res.status(status).json({ error: msg });
+});
 
 // --- DB ---
 const { MONGODB_URI } = process.env;
