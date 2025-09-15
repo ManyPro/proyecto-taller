@@ -3,7 +3,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { upload, normalizeFiles, driver, uploadsRoot } from "../lib/upload.js";
-import { authCompany } from "../middlewares/auth.js"; // export nombrado
+import { authCompany } from "../middlewares/auth.js";
 
 const router = express.Router();
 
