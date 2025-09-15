@@ -50,21 +50,25 @@ registerBtn.onclick = async () => {
 };
 logoutBtn.onclick = () => setLoggedOut();
 
-// Tabs
-const tabs = document.querySelectorAll(".tabs button");
-const tabSections = document.querySelectorAll(".tab");
+// Tabs (reemplazo robusto)
+const tabsRoot = document.querySelector(".tabs");
+const panes = Array.from(document.querySelectorAll(".tab"));
 
-tabs.forEach(btn => {
-  btn.onclick = () => {
-    tabs.forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    tabSections.forEach(s => s.classList.remove("active"));
-    document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
-  };
+function showTab(name) {
+  panes.forEach(p => p.classList.toggle("active", p.id === `tab-${name}`));
+}
+
+tabsRoot.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-tab]");
+  if (!btn) return;
+  tabsRoot.querySelectorAll("button[data-tab]").forEach(b => b.classList.toggle("active", b === btn));
+  showTab(btn.dataset.tab);
 });
 
-// Al abrir sesión, arrancar en Notas
-document.querySelector('button[data-tab="notas"]')?.click();
+// Asegurar que inicia solo Notas visible
+const initial = document.querySelector('.tabs button.active')?.dataset.tab || 'notas';
+showTab(initial);
+
 
 
 // Try auto-login
