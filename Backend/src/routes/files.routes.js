@@ -1,44 +1,21 @@
-// Backend/src/routes/files.routes.js
-import express from "express";
-import path from "path";
-import fs from "fs";
-import { upload, normalizeFiles, driver, uploadsRoot } from "../lib/upload.js";
-import { authCompany } from "../middlewares/auth.js";
+import { Router } from "express";
+import authCompany from "../middlewares/auth.js";
+import { upload, normalizeFiles } from "../lib/upload.js";
 
-const router = express.Router();
+const router = Router();
 
-/**
- * POST /api/v1/media/upload
- * Campo de formulario: "files" (array)
- * Respuesta: { files: [{ id, url, filename, mimetype, size, provider }] }
- */
-router.post("/media/upload", authCompany, (req, res) => {
-  upload(req, res, async (err) => {
-    if (err) return res.status(400).json({ error: err.message || "Upload error" });
-
+// Subida de varios archivos (campo "files")
+router.post("/files/upload",
+  authCompany,
+  upload.array("files", 15),
+  async (req, res, next) => {
     try {
-      const companyId = req.company?._id?.toString?.() || "inventory_unsigned";
-      const files = await normalizeFiles(req.files || [], companyId);
-      return res.json({ files });
-    } catch (e) {
-      console.error("Upload fail:", e);
-      return res.status(500).json({ error: "Upload failed" });
+      const out = await normalizeFiles(req); // [{fileId, filename, mimetype, size, url}]
+      res.json({ files: out });
+    } catch (err) {
+      next(err);
     }
-  });
-});
-
-/**
- * GET /api/v1/media/:id
- * Solo útil para modo "local" (sirve archivo desde /uploads).
- * En Cloudinary usa la URL devuelta al subir.
- */
-router.get("/media/:id", (req, res) => {
-  if (driver !== "local") {
-    return res.status(404).json({ error: "No disponible con Cloudinary" });
   }
-  const file = path.join(uploadsRoot, path.basename(req.params.id));
-  if (!fs.existsSync(file)) return res.sendStatus(404);
-  return res.sendFile(file);
-});
+);
 
 export default router;

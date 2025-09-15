@@ -67,22 +67,39 @@ export function initNotes() {
       // media thumbnails
       if (row.media?.length) {
         const wrap = document.createElement("div");
-        wrap.style.display = "flex"; wrap.style.gap = "8px"; wrap.style.flexWrap = "wrap"; wrap.style.marginTop = "6px";
-        row.media.forEach(m => {
-          const url = API.mediaUrl(m.fileId);
+        wrap.style.display = "flex";
+        wrap.style.gap = "8px";
+        wrap.style.flexWrap = "wrap";
+        wrap.style.marginTop = "6px";
+
+        row.media.forEach((m) => {
+          // Usa la URL directa si viene del backend (Cloudinary). 
+          // Si no existe, recurre al endpoint local con id/fileId.
+          const url = m.url || API.mediaUrl(m.fileId || m.id);
+
           if ((m.mimetype || "").startsWith("image/")) {
             const img = document.createElement("img");
-            img.src = url; img.style.width = "80px"; img.style.height = "80px"; img.style.objectFit = "cover"; img.style.cursor = "pointer"; img.title = m.filename;
+            img.src = url;
+            img.style.width = "80px";
+            img.style.height = "80px";
+            img.style.objectFit = "cover";
+            img.style.cursor = "pointer";
+            img.title = m.filename;
             img.onclick = () => openModal(`<img src="${url}" style="max-width:100%;height:auto" />`);
             wrap.appendChild(img);
           } else if ((m.mimetype || "").startsWith("video/")) {
             const vid = document.createElement("video");
-            vid.src = url; vid.style.width = "120px"; vid.controls = true; vid.title = m.filename;
+            vid.src = url;
+            vid.style.width = "120px";
+            vid.controls = true;
+            vid.title = m.filename;
             wrap.appendChild(vid);
           }
         });
+
         content.appendChild(wrap);
       }
+
 
       const actions = document.createElement("div");
       actions.className = "actions";
