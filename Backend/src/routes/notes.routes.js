@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authCompany } from "../middlewares/auth.js";
+import { authUser } from "../middlewares/auth.js";
 import { listNotes, createNote, updateNote, deleteNote } from "../controllers/notes.controller.js";
 const router = Router();
 router.use(authCompany);

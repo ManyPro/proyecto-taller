@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { authCompany } from "../middlewares/auth.js";
+import { authUser } from "../middlewares/auth.js";
+
 
 import {
   listVehicleIntakes,
