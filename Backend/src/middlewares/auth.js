@@ -11,14 +11,13 @@ export function authUser(req, res, next) {
     const token = parseBearer(req);
     if (!token) return res.status(401).json({ error: 'Missing Bearer token' });
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = { id: payload.sub, ...payload }; // flexible
+    req.user = { id: payload.sub, ...payload };
     next();
-  } catch (e) {
+  } catch {
     return res.status(401).json({ error: 'Invalid token' });
   }
 }
 
-// Si manejas multi-empresa por "companyId" en el token:
 export function authCompany(req, res, next) {
   try {
     const token = parseBearer(req);
@@ -28,7 +27,7 @@ export function authCompany(req, res, next) {
     req.company = { id: payload.companyId };
     req.user = { id: payload.sub, ...payload };
     next();
-  } catch (e) {
+  } catch {
     return res.status(401).json({ error: 'Invalid token' });
   }
 }

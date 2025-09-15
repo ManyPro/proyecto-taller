@@ -1,17 +1,15 @@
-import mongoose from "mongoose";
-import bcrypt from "bcryptjs";
+import mongoose from 'mongoose';
 
-const companySchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true, uppercase: true },
-  email: { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
-  passwordHash: { type: String, required: true },
-}, { timestamps: true });
+const CompanySchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    email: { type: String, required: true, lowercase: true, trim: true, unique: true },
+    passwordHash: { type: String, required: true },
+    active: { type: Boolean, default: true }
+  },
+  { timestamps: true }
+);
 
-companySchema.methods.setPassword = async function(password) {
-  this.passwordHash = await bcrypt.hash(password, 10);
-};
-companySchema.methods.validatePassword = async function(password) {
-  return bcrypt.compare(password, this.passwordHash);
-};
+CompanySchema.index({ email: 1 }, { unique: true });
 
-export default mongoose.model("Company", companySchema);
+export default mongoose.model('Company', CompanySchema);

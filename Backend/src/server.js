@@ -5,7 +5,7 @@ import morgan from 'morgan';
 import mongoose from 'mongoose';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-
+import companyAuthRouter from './routes/auth.routes.js';
 import healthRouter from './routes/health.js';
 import mediaRouter from './routes/media.routes.js';
 import notesRouter from './routes/notes.routes.js';
@@ -40,6 +40,7 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use('/api/v1/health', healthRouter);
 app.use('/api/v1/media', mediaRouter);
 app.use('/api/v1/notes', notesRouter);
+app.use('/api/v1/auth/company', companyAuthRouter);
 
 // --- DB ---
 const { MONGODB_URI } = process.env;
