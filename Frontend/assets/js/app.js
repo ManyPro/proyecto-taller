@@ -16,23 +16,12 @@ const registerBtn = document.getElementById("registerBtn");
 function setLoggedIn(emailStr, token) {
   document.getElementById("modal")?.classList.add("hidden");
   if (token) localStorage.setItem("token", token);
-
   loginSection.classList.add("hidden");
   appSection.classList.remove("hidden");
+  document.querySelector('button[data-tab="notas"]').click();
   companyEmail.textContent = emailStr;
   logoutBtn.classList.remove("hidden");
-
-  // Inicializa módulos una sola vez
-  if (!window.__modulesBooted) {
-    initNotes();
-    initInventory();
-    window.__modulesBooted = true;
-  }
-
-  // Muestra pestaña Notas por defecto
-  document.querySelector('button[data-tab="notas"]')?.click();
 }
-
 function setLoggedOut() {
   localStorage.removeItem("token");
   loginSection.classList.remove("hidden");
@@ -49,7 +38,6 @@ loginBtn.onclick = async () => {
     alert("Error: " + e.message);
   }
 };
-
 registerBtn.onclick = async () => {
   try {
     const name = prompt("Nombre de la empresa:");
@@ -60,27 +48,30 @@ registerBtn.onclick = async () => {
     alert("Error: " + e.message);
   }
 };
-
 logoutBtn.onclick = () => setLoggedOut();
 
-// ----- Tabs -----
+// Tabs (reemplazo robusto)
 const tabsRoot = document.querySelector(".tabs");
 const panes = Array.from(document.querySelectorAll(".tab"));
+
 function showTab(name) {
   panes.forEach(p => p.classList.toggle("active", p.id === `tab-${name}`));
 }
+
 tabsRoot.addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-tab]");
   if (!btn) return;
-  tabsRoot.querySelectorAll("button[data-tab]")
-    .forEach(b => b.classList.toggle("active", b === btn));
+  tabsRoot.querySelectorAll("button[data-tab]").forEach(b => b.classList.toggle("active", b === btn));
   showTab(btn.dataset.tab);
 });
-// Asegura Notas como inicial visible si ya tiene la clase
+
+// Asegurar que inicia solo Notas visible
 const initial = document.querySelector('.tabs button.active')?.dataset.tab || 'notas';
 showTab(initial);
 
-// ----- Auto-login -----
+
+
+// Try auto-login
 (async function boot() {
   const t = API.token();
   if (t) {
@@ -92,5 +83,10 @@ showTab(initial);
     }
   } else {
     setLoggedOut();
+  }
+
+  if (!appSection.classList.contains("hidden")) {
+    initNotes();
+    initInventory();
   }
 })();

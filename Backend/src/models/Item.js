@@ -1,36 +1,21 @@
-// Backend/src/models/Item.js
 import mongoose from "mongoose";
 
-const ItemSchema = new mongoose.Schema(
-  {
-    companyId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Company",
-      index: true,
-      required: true,
-    },
+const itemSchema = new mongoose.Schema({
+  companyId: { type: mongoose.Types.ObjectId, required: true, index: true },
+  sku: { type: String, required: true, uppercase: true, trim: true },
+  name: { type: String, required: true, uppercase: true, trim: true },
+  vehicleTarget: { type: String, required: true, uppercase: true, trim: true, default: "VITRINAS" },
+  vehicleIntakeId: { type: mongoose.Types.ObjectId, ref: "VehicleIntake", default: null },
 
-    sku: { type: String, required: true, trim: true },
-    name: { type: String, required: true, trim: true },
+  entryPrice: { type: Number, default: null, min: 0 },      // precio de entrada del ítem
+  entryPriceIsAuto: { type: Boolean, default: false },      // true si está prorrateado
 
-    // Tu lógica actual
-    vehicleDest: { type: String, default: "VITRINAS" },
-    vehicleIntake: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "VehicleIntake",
-      default: null,
-    },
+  salePrice: { type: Number, default: 0, min: 0 },
+  original: { type: Boolean, default: false },
+  stock: { type: Number, default: 0, min: 0 },
+}, { timestamps: true });
 
-    entryPrice: { type: Number, default: 0 },
-    salePrice: { type: Number, required: true },
-    original: { type: Boolean, default: false },
-    stock: { type: Number, default: 0 },
+itemSchema.index({ companyId: 1, sku: 1 }, { unique: true });
+itemSchema.index({ companyId: 1, vehicleIntakeId: 1 });
 
-    // NUEVO: campos de imagen (vacíos por defecto)
-    imageUrl: { type: String, default: "" },
-    imagePublicId: { type: String, default: "" },
-  },
-  { timestamps: true }
-);
-
-export default mongoose.model("Item", ItemSchema);
+export default mongoose.model("Item", itemSchema);
