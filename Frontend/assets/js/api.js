@@ -1,55 +1,74 @@
-const API_BASE = window.API_BASE || '';
+// Frontend/assets/js/api.js
+const API_BASE = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
 
 const TOKEN_KEY = 'taller.token';
-export const auth = {
-  getToken: () => localStorage.getItem(TOKEN_KEY) || '',
-  setToken: (t) => localStorage.setItem(TOKEN_KEY, t),
-  clear: () => localStorage.removeItem(TOKEN_KEY)
+const tokenStore = {
+  get: () => (typeof localStorage !== 'undefined' ? (localStorage.getItem(TOKEN_KEY) || '') : ''),
+  set: (t) => { try { localStorage.setItem(TOKEN_KEY, t); } catch {} },
+  clear: () => { try { localStorage.removeItem(TOKEN_KEY); } catch {} }
 };
 
-async function request(method, path, data, extraHeaders = {}) {
+async function coreRequest(method, path, data, extraHeaders = {}) {
+  const isForm = (typeof FormData !== 'undefined') && (data instanceof FormData);
   const headers = { ...extraHeaders };
-  if (data && !(data instanceof FormData)) headers['Content-Type'] = 'application/json';
 
-  const token = auth.getToken();
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  if (!isForm && data != null) headers['Content-Type'] = 'application/json';
+
+  const tok = tokenStore.get();
+  if (tok) headers['Authorization'] = `Bearer ${tok}`;
 
   const res = await fetch(`${API_BASE}${path}`, {
     method,
     headers,
-    body: data
-      ? (data instanceof FormData ? data : JSON.stringify(data))
-      : undefined
+    body: data == null ? undefined : (isForm ? data : JSON.stringify(data))
   });
 
-  // Intenta parsear JSON; si viene HTML (404 Express), lánzalo como texto para debug
-  const ct = res.headers.get('content-type') || '';
-  const body = ct.includes('application/json') ? await res.json() : await res.text();
+  // Intentar parsear JSON; si viene HTML (404/500 de Express), devolver texto
+  const text = await res.text();
+  let body;
+  try { body = JSON.parse(text); } catch { body = text; }
 
   if (!res.ok) {
-    const msg = typeof body === 'string' ? body : (body?.error || JSON.stringify(body));
-    throw new Error(msg);
+    const msg = (body && body.error) ? body.error : (typeof body === 'string' ? body : res.statusText);
+    throw new Error(msg || `HTTP ${res.status}`);
   }
   return body;
 }
 
-// ---- Endpoints de empresa ----
-export const companyAPI = {
-  register: (payload) => request('POST', '/api/v1/auth/company/register', payload),
-  login:    (payload) => request('POST', '/api/v1/auth/company/login', payload),
-  me:       () => request('GET', '/api/v1/auth/company/me')
-};
-
-// ---- Notas / Media (ya presentes en tu backend) ----
-export const notesAPI = {
-  list:   (q) => request('GET', `/api/v1/notes${q ? q : ''}`),
-  create: (payload) => request('POST', '/api/v1/notes', payload)
-};
-
-export const mediaAPI = {
-  upload: (files) => {
+// Helpers básicos
+const http = {
+  get:  (path)            => coreRequest('GET',  path, null),
+  post: (path, payload)   => coreRequest('POST', path, payload),
+  upload: (path, files) => {
     const fd = new FormData();
     for (const f of files) fd.append('files[]', f);
-    return request('POST', '/api/v1/media/upload', fd);
+    return coreRequest('POST', path, fd);
   }
 };
+
+// Objeto API con métodos de negocio
+const API = {
+  base: API_BASE,
+  token: tokenStore,
+
+  // Auth empresa
+  companyRegister: (payload) => http.post('/api/v1/auth/company/register', payload),
+  companyLogin:    (payload) => http.post('/api/v1/auth/company/login', payload),
+  companyMe:       ()        => http.get('/api/v1/auth/company/me'),
+
+  // Notas
+  notesList:   (queryString = '') => http.get(`/api/v1/notes${queryString}`),
+  notesCreate: (payload)          => http.post('/api/v1/notes', payload),
+
+  // Media
+  mediaUpload: (files) => http.upload('/api/v1/media/upload', files),
+
+  // Accesos de bajo nivel (si los usas en otras partes del front)
+  get: http.get,
+  post: http.post,
+  upload: http.upload,
+};
+
+// Exports: named y default (para cubrir cualquier import existente)
+export { API, tokenStore as authToken };
+export default API;
