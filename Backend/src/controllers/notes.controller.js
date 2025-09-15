@@ -16,6 +16,21 @@ export const createNote = async (req, res) => {
   const body = req.body;
   body.companyId = req.companyId;
   body.plate = body.plate.toUpperCase().trim();
+
+  if (body.type === "PAGO") {
+    if (body.paymentAmount === undefined || isNaN(+body.paymentAmount)) {
+      return res.status(400).json({ error: "Monto de pago requerido" });
+    }
+    if (!body.paymentMethod) {
+      return res.status(400).json({ error: "Método de pago requerido" });
+    }
+    body.paymentAmount = +body.paymentAmount;
+    body.paymentMethod = body.paymentMethod.toUpperCase();
+  } else {
+    delete body.paymentAmount;
+    delete body.paymentMethod;
+  }
+
   const note = await Note.create(body);
   res.status(201).json({ note });
 };
@@ -24,6 +39,15 @@ export const updateNote = async (req, res) => {
   const { id } = req.params;
   const body = req.body;
   if (body.plate) body.plate = body.plate.toUpperCase().trim();
+
+  if (body.type === "PAGO") {
+    if (body.paymentAmount !== undefined) body.paymentAmount = +body.paymentAmount;
+    if (body.paymentMethod) body.paymentMethod = body.paymentMethod.toUpperCase();
+  } else if (body.type === "GENERICA") {
+    body.paymentAmount = undefined;
+    body.paymentMethod = undefined;
+  }
+
   const note = await Note.findOneAndUpdate({ _id: id, companyId: req.companyId }, body, { new: true });
   if (!note) return res.status(404).json({ error: "Nota no encontrada" });
   res.json({ note });

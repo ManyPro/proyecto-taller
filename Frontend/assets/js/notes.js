@@ -11,6 +11,25 @@ export function initNotes() {
   const nFiles = document.getElementById("n-files");
   const nSave = document.getElementById("n-save");
 
+  // NUEVO: refs de fecha/hora y pago
+  const nWhen = document.getElementById("n-when");
+  const payBox = document.getElementById("pay-box");
+  const nPayAmount = document.getElementById("n-pay-amount");
+  const nPayMethod = document.getElementById("n-pay-method");
+
+  // Fecha/hora auto (solo visual)
+  const tick = () => { if (nWhen) nWhen.value = new Date().toLocaleString(); };
+  tick(); setInterval(tick, 1000);
+
+  // Mostrar/ocultar caja de pago según tipo
+  const togglePay = () => {
+    if (!payBox) return;
+    payBox.classList.toggle("hidden", nType.value !== "PAGO");
+  };
+  nType.addEventListener("change", togglePay);
+  togglePay();
+
+
   const fPlate = document.getElementById("f-plate"); upper(fPlate);
   const fFrom = document.getElementById("f-from");
   const fTo = document.getElementById("f-to");
@@ -18,7 +37,7 @@ export function initNotes() {
 
   const list = document.getElementById("notesList");
 
-  async function refresh(params={}) {
+  async function refresh(params = {}) {
     notesState.lastFilters = params;
     const { data } = await API.listNotes(params);
     list.innerHTML = "";
@@ -38,7 +57,12 @@ export function initNotes() {
 
       const content = document.createElement("div");
       content.className = "content";
-      content.innerHTML = `<div><b>${row.type}</b> — ${fmt(row.createdAt)}</div><div>${row.content}</div>`;
+      let header = `<b>${row.type}</b> — ${fmt(row.createdAt)}`;
+      if (row.type === "PAGO" && typeof row.paymentAmount === "number" && row.paymentMethod) {
+        header += ` — Pago: $${row.paymentAmount.toFixed(2)} — ${row.paymentMethod}`;
+      }
+      content.innerHTML = `<div>${header}</div><div>${row.content}</div>`;
+
 
       // media thumbnails
       if (row.media?.length) {
@@ -46,12 +70,12 @@ export function initNotes() {
         wrap.style.display = "flex"; wrap.style.gap = "8px"; wrap.style.flexWrap = "wrap"; wrap.style.marginTop = "6px";
         row.media.forEach(m => {
           const url = API.mediaUrl(m.fileId);
-          if ((m.mimetype||"").startsWith("image/")) {
+          if ((m.mimetype || "").startsWith("image/")) {
             const img = document.createElement("img");
             img.src = url; img.style.width = "80px"; img.style.height = "80px"; img.style.objectFit = "cover"; img.style.cursor = "pointer"; img.title = m.filename;
             img.onclick = () => openModal(`<img src="${url}" style="max-width:100%;height:auto" />`);
             wrap.appendChild(img);
-          } else if ((m.mimetype||"").startsWith("video/")) {
+          } else if ((m.mimetype || "").startsWith("video/")) {
             const vid = document.createElement("video");
             vid.src = url; vid.style.width = "120px"; vid.controls = true; vid.title = m.filename;
             wrap.appendChild(vid);
@@ -98,6 +122,16 @@ export function initNotes() {
         media
       };
       if (!payload.plate || !payload.content) return alert("Placa y contenido son obligatorios");
+      if (payload.type === "PAGO") {
+        const amt = parseFloat(nPayAmount.value);
+        const method = nPayMethod.value;
+        if (!method || isNaN(amt)) {
+          return alert("Completa monto y método de pago");
+        }
+        payload.paymentAmount = amt;
+        payload.paymentMethod = method;
+      }
+
       await API.createNote(payload);
       nContent.value = ""; nFiles.value = ""; // reset
       refresh(notesState.lastFilters);
@@ -115,41 +149,41 @@ export function initNotes() {
   };
 
   // modal
-const modal = document.getElementById("modal");
-const modalBody = document.getElementById("modalBody");
-const modalClose = document.getElementById("modalClose");
+  const modal = document.getElementById("modal");
+  const modalBody = document.getElementById("modalBody");
+  const modalClose = document.getElementById("modalClose");
 
-// función centralizada para cerrar
-const hardHideModal = () => {
-  if (!modal) return;
-  modalBody.innerHTML = "";
-  modal.classList.add("hidden");
-};
+  // función centralizada para cerrar
+  const hardHideModal = () => {
+    if (!modal) return;
+    modalBody.innerHTML = "";
+    modal.classList.add("hidden");
+  };
 
-// botón X
-modalClose.onclick = hardHideModal;
+  // botón X
+  modalClose.onclick = hardHideModal;
 
-// clic fuera del contenido
-modal.addEventListener("click", (e) => {
-  if (e.target === modal) hardHideModal();
-});
+  // clic fuera del contenido
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) hardHideModal();
+  });
 
-// tecla ESC
-document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") hardHideModal();
-});
+  // tecla ESC
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hardHideModal();
+  });
 
-// asegúrate que arranca cerrado
-hardHideModal();
+  // asegúrate que arranca cerrado
+  hardHideModal();
 
-// abrir (se usa al hacer click en miniaturas de imágenes)
-window.openModal = (html) => {
-  modalBody.innerHTML = html;
-  modal.classList.remove("hidden");
-};
+  // abrir (se usa al hacer click en miniaturas de imágenes)
+  window.openModal = (html) => {
+    modalBody.innerHTML = html;
+    modal.classList.remove("hidden");
+  };
 
   // init
-  const todayISO = new Date().toISOString().slice(0,10);
+  const todayISO = new Date().toISOString().slice(0, 10);
   document.getElementById("vi-date").value = todayISO;
   refresh({});
 }

@@ -38,5 +38,6 @@ footer { text-align:center; color: var(--muted); padding: 20px; }
 .tab { display: none; }
 .tab.active { display: block; }
 .tabs button.active { background: var(--accent); }
+.hidden { display:none !important; }
 
 

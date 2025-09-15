@@ -13,6 +13,10 @@ const noteSchema = new mongoose.Schema({
   type: { type: String, enum: ["GENERICA", "PAGO"], required: true, index: true },
   content: { type: String, required: true, trim: true },
   media: { type: [mediaSchema], default: [] },
+
+  // NUEVO: info de pago (solo se usa si type = "PAGO")
+  paymentAmount: { type: Number, min: 0 },
+  paymentMethod: { type: String, enum: ["EFECTIVO","TRANSFERENCIA","TARJETA","DEPOSITO","CHEQUE","OTRO"] },
 }, { timestamps: true });
 
 noteSchema.index({ companyId: 1, createdAt: -1 });
