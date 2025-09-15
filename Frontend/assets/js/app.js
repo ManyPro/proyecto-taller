@@ -13,17 +13,27 @@ const password = document.getElementById("password");
 const loginBtn = document.getElementById("loginBtn");
 const registerBtn = document.getElementById("registerBtn");
 
+let modulesReady = false;
+function ensureModules() {
+  if (!modulesReady) {
+    initNotes();
+    initInventory();
+    modulesReady = true;
+  }
+}
+
 function setLoggedIn(emailStr, token) {
   document.getElementById("modal")?.classList.add("hidden");
-  if (token) localStorage.setItem("token", token);
+  if (token) API.token.set(token);           // ✅ usa el token store del API
   loginSection.classList.add("hidden");
   appSection.classList.remove("hidden");
   document.querySelector('button[data-tab="notas"]').click();
   companyEmail.textContent = emailStr;
   logoutBtn.classList.remove("hidden");
+  ensureModules();                           // ✅ inicializa módulos al loguear manualmente
 }
 function setLoggedOut() {
-  localStorage.removeItem("token");
+  API.token.clear();                         // ✅ limpia token vía API
   loginSection.classList.remove("hidden");
   appSection.classList.add("hidden");
   companyEmail.textContent = "";
@@ -32,7 +42,10 @@ function setLoggedOut() {
 
 loginBtn.onclick = async () => {
   try {
-    const r = await API.login(email.value.trim(), password.value);
+    const r = await API.login({               // ✅ envía objeto JSON
+      email: email.value.trim(),
+      password: password.value
+    });
     setLoggedIn(r.company.email, r.token);
   } catch (e) {
     alert("Error: " + e.message);
@@ -42,7 +55,11 @@ registerBtn.onclick = async () => {
   try {
     const name = prompt("Nombre de la empresa:");
     if (!name) return;
-    const r = await API.register(name, email.value.trim(), password.value);
+    const r = await API.register({            // ✅ envía objeto JSON
+      name,
+      email: email.value.trim(),
+      password: password.value
+    });
     setLoggedIn(r.company.email, r.token);
   } catch (e) {
     alert("Error: " + e.message);
@@ -69,15 +86,13 @@ tabsRoot.addEventListener("click", (e) => {
 const initial = document.querySelector('.tabs button.active')?.dataset.tab || 'notas';
 showTab(initial);
 
-
-
 // Try auto-login
 (async function boot() {
-  const t = API.token();
+  const t = API.token.get();                 // ✅ usa API.token.get()
   if (t) {
     try {
-      const me = await API.me();
-      setLoggedIn(me.email, t);
+      const meResp = await API.me();         // { company: {...} }
+      setLoggedIn(meResp.company.email, t);  // ✅ toma email desde company
     } catch {
       setLoggedOut();
     }
@@ -86,7 +101,6 @@ showTab(initial);
   }
 
   if (!appSection.classList.contains("hidden")) {
-    initNotes();
-    initInventory();
+    ensureModules();
   }
 })();
