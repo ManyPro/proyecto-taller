@@ -29,6 +29,9 @@ button.danger { background: var(--danger); }
 #companyEmail { color: var(--muted); font-size: 12px; }
 footer { text-align:center; color: var(--muted); padding: 20px; }
 @media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } .note { grid-template-columns: 1fr; } }
-/* Cerrar el modal de forma contundente */
 .modal.hidden { display: none !important; }
-.modal { z-index: 9999; } /* que quede arriba del resto */
+.modal { z-index: 9999; } 
+.tab { display: none; }
+.tab.active { display: block; }
+.tabs button.active { background: var(--accent); }
+

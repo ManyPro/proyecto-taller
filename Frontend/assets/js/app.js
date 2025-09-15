@@ -53,14 +53,19 @@ logoutBtn.onclick = () => setLoggedOut();
 // Tabs
 const tabs = document.querySelectorAll(".tabs button");
 const tabSections = document.querySelectorAll(".tab");
+
 tabs.forEach(btn => {
   btn.onclick = () => {
     tabs.forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     tabSections.forEach(s => s.classList.remove("active"));
-    document.getElementById("tab-"+btn.dataset.tab).classList.add("active");
+    document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
   };
 });
+
+// Al abrir sesión, arrancar en Notas
+document.querySelector('button[data-tab="notas"]')?.click();
+
 
 // Try auto-login
 (async function boot() {
