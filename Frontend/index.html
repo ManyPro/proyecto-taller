@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Taller App</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Taller Automotriz</h1>
+    <div id="authBox">
+      <span id="companyEmail"></span>
+      <button id="logoutBtn" class="secondary hidden">Salir</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="loginSection">
+      <h2>Ingreso de Empresa</h2>
+      <div class="card">
+        <label>Correo de empresa</label>
+        <input type="email" id="email" placeholder="empresa@correo.com" />
+        <label>Contraseña</label>
+        <input type="password" id="password" placeholder="********" />
+        <div class="row">
+          <button id="loginBtn">Entrar</button>
+          <button id="registerBtn" class="secondary">Registrar empresa</button>
+        </div>
+        <small>Se crea un entorno aislado por empresa.</small>
+      </div>
+    </section>
+
+    <section id="appSection" class="hidden">
+      <nav class="tabs">
+        <button data-tab="notas" class="active">Notas</button>
+        <button data-tab="inventario">Inventario</button>
+      </nav>
+
+      <section id="tab-notas" class="tab active">
+        <div class="grid-2">
+          <div class="card">
+            <h3>Nueva Nota</h3>
+            <label>Placa</label>
+            <input id="n-plate" placeholder="ABC123" />
+            <label>Tipo</label>
+            <select id="n-type">
+              <option value="GENERICA">GENERICA</option>
+              <option value="PAGO">PAGO</option>
+            </select>
+            <label>Contenido</label>
+            <textarea id="n-content" rows="4"></textarea>
+            <label>Imágenes/Videos</label>
+            <input id="n-files" type="file" multiple />
+            <button id="n-save">Guardar Nota</button>
+          </div>
+
+          <div class="card">
+            <h3>Filtros</h3>
+            <label>Placa</label>
+            <input id="f-plate" placeholder="ABC123" />
+            <label>Desde</label>
+            <input id="f-from" type="date" />
+            <label>Hasta</label>
+            <input id="f-to" type="date" />
+            <button id="f-apply" class="secondary">Aplicar</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Historial</h3>
+          <div id="notesList" class="list"></div>
+        </div>
+
+        <div id="modal" class="modal hidden">
+          <div class="modal-content">
+            <button id="modalClose" class="close">&times;</button>
+            <div id="modalBody"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-inventario" class="tab">
+        <div class="grid-2">
+          <div class="card">
+            <h3>Entrada de vehículo</h3>
+            <label>Marca</label><input id="vi-brand" />
+            <label>Modelo</label><input id="vi-model" />
+            <label>Cilindraje</label><input id="vi-engine" />
+            <label>Fecha ingreso</label><input id="vi-date" type="date" />
+            <label>Precio de entrada</label><input id="vi-price" type="number" min="0" step="0.01" />
+            <button id="vi-save">Guardar Entrada</button>
+          </div>
+
+          <div class="card">
+            <h3>Nuevo Ítem</h3>
+            <label>SKU</label><input id="it-sku" />
+            <label>Nombre</label><input id="it-name" />
+            <label>Vehículo destino</label><input id="it-vehicleTarget" placeholder="VITRINAS" />
+            <label>Entrada de vehículo</label>
+            <select id="it-vehicleIntakeId"></select>
+            <label>Precio entrada (opcional)</label><input id="it-entryPrice" type="number" min="0" step="0.01" />
+            <label>Precio venta</label><input id="it-salePrice" type="number" min="0" step="0.01" />
+            <label>Original</label>
+            <select id="it-original">
+              <option value="false">No</option>
+              <option value="true">Sí</option>
+            </select>
+            <label>Stock inicial</label><input id="it-stock" type="number" min="0" step="1" />
+            <button id="it-save">Guardar Ítem</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Inventario</h3>
+          <div class="row">
+            <input id="q-name" placeholder="filtrar por nombre..." />
+            <button id="q-apply" class="secondary">Buscar</button>
+          </div>
+          <div id="itemsList" class="list"></div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <footer>
+    <small>© Taller App</small>
+  </footer>
+
+  <script src="assets/config.js"></script>
+  <script type="module" src="assets/js/app.js"></script>
+</body>
+</html>

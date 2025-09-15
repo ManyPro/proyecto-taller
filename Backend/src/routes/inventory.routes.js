@@ -1,0 +1,13 @@
+import { Router } from "express";
+import { authCompany } from "../middlewares/auth.js";
+import { createVehicleIntake, listVehicleIntakes, createItem, listItems, updateItem, deleteItem, moveStock } from "../controllers/inventory.controller.js";
+const router = Router();
+router.use(authCompany);
+router.post("/vehicle-intakes", createVehicleIntake);
+router.get("/vehicle-intakes", listVehicleIntakes);
+router.post("/items", createItem);
+router.get("/items", listItems);
+router.put("/items/:id", updateItem);
+router.delete("/items/:id", deleteItem);
+router.post("/stock-moves", moveStock);
+export default router;
