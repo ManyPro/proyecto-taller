@@ -2,7 +2,6 @@ import { Router } from "express";
 import { authCompany } from "../middlewares/auth.js";
 import { authUser } from "../middlewares/auth.js";
 
-
 import {
   listVehicleIntakes,
   createVehicleIntake,
@@ -15,26 +14,25 @@ import {
   recalcIntakePrices,
 } from "../controllers/inventory.controller.js";
 
-// IMPORTANTE: primero crea el router
 const router = Router();
 
 /**
- * ¡NO repitas "/inventory" aquí!
- * Ya montas este router en /api/v1/inventory desde server.js,
- * así que los paths de aquí empiezan directo por "/vehicle-intakes" y "/items".
+ * Importante: aquí NO repitas "/inventory".
+ * Este router se monta en /api/v1/inventory desde server.js,
+ * así que los paths empiezan por "/vehicle-intakes" y "/items".
  */
 
 // Entradas de vehículo
-router.get("/vehicle-intakes", authCompany, listVehicleIntakes);
-router.post("/vehicle-intakes", authCompany, createVehicleIntake);
-router.put("/vehicle-intakes/:id", authCompany, updateVehicleIntake);
-router.delete("/vehicle-intakes/:id", authCompany, deleteVehicleIntake);
-router.post("/vehicle-intakes/:id/recalc", authCompany, recalcIntakePrices);
+router.get("/vehicle-intakes", listVehicleIntakes);
+router.post("/vehicle-intakes", createVehicleIntake);
+router.put("/vehicle-intakes/:id", updateVehicleIntake);
+router.delete("/vehicle-intakes/:id", deleteVehicleIntake);
+router.post("/vehicle-intakes/:id/recalc", recalcIntakePrices);
 
 // Ítems
-router.get("/items", authCompany, listItems);
-router.post("/items", authCompany, createItem);
-router.put("/items/:id", authCompany, updateItem);
-router.delete("/items/:id", authCompany, deleteItem);
+router.get("/items", listItems);
+router.post("/items", createItem);
+router.put("/items/:id", updateItem);
+router.delete("/items/:id", deleteItem);
 
 export default router;
