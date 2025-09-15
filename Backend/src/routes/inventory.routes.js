@@ -1,11 +1,11 @@
-// Backend/src/routes/inventory.routes.js
 import { Router } from "express";
 import { authCompany } from "../middlewares/auth.js";
+
 import {
   listVehicleIntakes,
   createVehicleIntake,
   updateVehicleIntake,
-  deleteVehicleIntake,   // <-- importado
+  deleteVehicleIntake,
   listItems,
   createItem,
   updateItem,
@@ -13,23 +13,26 @@ import {
   recalcIntakePrices,
 } from "../controllers/inventory.controller.js";
 
+// IMPORTANTE: primero crea el router
 const router = Router();
 
-router.delete("/inventory/vehicle-intakes/:id", authCompany, deleteVehicleIntake);
+/**
+ * ¡NO repitas "/inventory" aquí!
+ * Ya montas este router en /api/v1/inventory desde server.js,
+ * así que los paths de aquí empiezan directo por "/vehicle-intakes" y "/items".
+ */
 
 // Entradas de vehículo
-router.get("/inventory/vehicle-intakes", authCompany, listVehicleIntakes);
-router.post("/inventory/vehicle-intakes", authCompany, createVehicleIntake);
-router.put("/inventory/vehicle-intakes/:id", authCompany, updateVehicleIntake);
-router.delete("/inventory/vehicle-intakes/:id", authCompany, deleteVehicleIntake);
+router.get("/vehicle-intakes", authCompany, listVehicleIntakes);
+router.post("/vehicle-intakes", authCompany, createVehicleIntake);
+router.put("/vehicle-intakes/:id", authCompany, updateVehicleIntake);
+router.delete("/vehicle-intakes/:id", authCompany, deleteVehicleIntake);
+router.post("/vehicle-intakes/:id/recalc", authCompany, recalcIntakePrices);
 
 // Ítems
-router.get("/inventory/items", authCompany, listItems);
-router.post("/inventory/items", authCompany, createItem);
-router.put("/inventory/items/:id", authCompany, updateItem);
-router.delete("/inventory/items/:id", authCompany, deleteItem);
-
-// Recalcular prorrateo de una entrada (opcional)
-router.post("/inventory/vehicle-intakes/:id/recalc", authCompany, recalcIntakePrices);
+router.get("/items", authCompany, listItems);
+router.post("/items", authCompany, createItem);
+router.put("/items/:id", authCompany, updateItem);
+router.delete("/items/:id", authCompany, deleteItem);
 
 export default router;
