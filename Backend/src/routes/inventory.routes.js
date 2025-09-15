@@ -1,17 +1,19 @@
 // Backend/src/routes/inventory.routes.js
 import { Router } from "express";
-import { authCompany } from "../middlewares/authCompany.js";
+import { authCompany } from "../middlewares/auth.js";
 import {
   listVehicleIntakes,
   createVehicleIntake,
   updateVehicleIntake,
-  deleteVehicleIntake,
+  deleteVehicleIntake,   // <-- importado
   listItems,
   createItem,
   updateItem,
   deleteItem,
   recalcIntakePrices,
 } from "../controllers/inventory.controller.js";
+
+router.delete("/inventory/vehicle-intakes/:id", authCompany, deleteVehicleIntake);
 
 const router = Router();
 
