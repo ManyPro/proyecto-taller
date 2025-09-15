@@ -55,11 +55,11 @@
             <label>Contenido</label>
             <textarea id="n-content" rows="4"></textarea>
 
-            <!-- ⬇️ NUEVO: fecha/hora auto (solo visual) -->
+            
             <label>Fecha y hora (auto)</label>
             <input id="n-when" disabled />
 
-            <!-- ⬇️ NUEVO: datos de pago, visibles solo si Tipo = PAGO -->
+            
             <div id="pay-box" class="hidden">
               <label>Monto del pago</label>
               <input id="n-pay-amount" type="number" min="0" step="0.01" />
@@ -114,6 +114,11 @@
             <label>Fecha ingreso</label><input id="vi-date" type="date" />
             <label>Precio de entrada</label><input id="vi-price" type="number" min="0" step="0.01" />
             <button id="vi-save">Guardar Entrada</button>
+          </div>
+        
+          <div class="card" id="vi-card-lista" style="margin-top:16px">
+            <h3>Ingresos de vehículo</h3>
+            <div id="vi-list"></div>
           </div>
 
           <div class="card">
