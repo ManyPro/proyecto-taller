@@ -1,5 +1,8 @@
 // Backend/src/server.js
 import 'dotenv/config';
+// Captura errores en handlers async automáticamente
+import 'express-async-errors';
+
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
@@ -14,7 +17,7 @@ import mediaRouter from './routes/media.routes.js';
 import notesRouter from './routes/notes.routes.js';
 import inventoryRouter from './routes/inventory.routes.js';
 
-// <-- IMPORTANTE: auth para leer empresa del token
+// Lee empresa/usuario del JWT
 import { authCompany } from './middlewares/auth.js';
 
 const app = express();
@@ -25,7 +28,7 @@ const allowList = (process.env.ALLOWED_ORIGINS || '')
 
 const corsOptions = {
   origin(origin, cb) {
-    if (!origin) return cb(null, true);
+    if (!origin) return cb(null, true);             // Postman/cURL
     if (allowList.includes(origin)) return cb(null, true);
     return cb(new Error('Not allowed by CORS'));
   },
@@ -35,6 +38,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+// Responder preflights de todo
 app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' }));
@@ -60,22 +64,28 @@ app.use('/api/v1/auth/company', companyAuthRouter);
 // ---- INYECTA companyId/userId AUTOMÁTICAMENTE EN INVENTORY ----
 function withCompanyDefaults(req, _res, next) {
   if (req.company?.id) {
+    // 👉 agrega estas dos propiedades que usan tus controllers
+    req.companyId = String(req.company.id);
+    if (req.user?.id) req.userId = String(req.user.id);
+
+    // GET: añade filtro por empresa
     if (req.method === 'GET') {
-      req.query = { ...req.query, companyId: String(req.company.id) };
+      req.query = { ...req.query, companyId: req.companyId };
     }
+    // Escrituras: asegura empresa/usuario en body
     if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
       req.body ||= {};
-      if (!req.body.companyId) req.body.companyId = String(req.company.id);
-      if (!req.body.userId && req.user?.id) req.body.userId = String(req.user.id);
+      if (!req.body.companyId) req.body.companyId = req.companyId;
+      if (!req.body.userId && req.userId) req.body.userId = req.userId;
     }
   }
   next();
 }
 
-// inventario protegido y con inyección de empresa
+// inventario protegido + defaults de empresa
 app.use('/api/v1/inventory', authCompany, withCompanyDefaults, inventoryRouter);
 
-// manejo de errores
+// manejo de errores unificado
 app.use((err, _req, res, _next) => {
   const isJsonParse = err?.type === 'entity.parse.failed' || (err instanceof SyntaxError && 'body' in err);
   const status = isJsonParse ? 400 : (err.status || 500);
