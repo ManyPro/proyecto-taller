@@ -11,17 +11,16 @@ export function initNotes() {
   const nFiles = document.getElementById("n-files");
   const nSave = document.getElementById("n-save");
 
-  // NUEVO: refs de fecha/hora y pago
-  const nWhen = document.getElementById("n-when");
-  const payBox = document.getElementById("pay-box");
-  const nPayAmount = document.getElementById("n-pay-amount");
-  const nPayMethod = document.getElementById("n-pay-method");
-
   // Fecha/hora auto (solo visual)
+  const nWhen = document.getElementById("n-when");
   const tick = () => { if (nWhen) nWhen.value = new Date().toLocaleString(); };
   tick(); setInterval(tick, 1000);
 
-  // Mostrar/ocultar caja de pago según tipo
+  // Pago
+  const payBox = document.getElementById("pay-box");
+  const nPayAmount = document.getElementById("n-pay-amount");
+  const nPayMethod = document.getElementById("n-pay-method"); // hoy no se persiste; opcional
+
   const togglePay = () => {
     if (!payBox) return;
     payBox.classList.toggle("hidden", nType.value !== "PAGO");
@@ -29,7 +28,7 @@ export function initNotes() {
   nType.addEventListener("change", togglePay);
   togglePay();
 
-
+  // Filtros
   const fPlate = document.getElementById("f-plate"); upper(fPlate);
   const fFrom = document.getElementById("f-from");
   const fTo = document.getElementById("f-to");
@@ -37,11 +36,23 @@ export function initNotes() {
 
   const list = document.getElementById("notesList");
 
+  function toQuery(params = {}) {
+    const qs = new URLSearchParams();
+    if (params.plate) qs.set("plate", params.plate);
+    if (params.from) qs.set("from", params.from);
+    if (params.to) qs.set("to", params.to);
+    if (params.limit) qs.set("limit", params.limit);
+    const s = qs.toString();
+    return s ? `?${s}` : "";
+  }
+
   async function refresh(params = {}) {
     notesState.lastFilters = params;
-    const { data } = await API.listNotes(params);
+    const res = await API.notesList(toQuery(params));
+    const rows = res?.items || [];
     list.innerHTML = "";
-    data.forEach(row => {
+
+    rows.forEach(row => {
       const div = document.createElement("div");
       div.className = "note";
 
@@ -58,13 +69,13 @@ export function initNotes() {
       const content = document.createElement("div");
       content.className = "content";
       let header = `<b>${row.type}</b> — ${fmt(row.createdAt)}`;
-      if (row.type === "PAGO" && typeof row.paymentAmount === "number" && row.paymentMethod) {
-        header += ` — Pago: $${row.paymentAmount.toFixed(2)} — ${row.paymentMethod}`;
+      if (row.type === "PAGO" && typeof row.amount === "number" && row.amount > 0) {
+        header += ` — Pago: $${row.amount.toLocaleString()}`;
       }
-      content.innerHTML = `<div>${header}</div><div>${row.content}</div>`;
+      const text = row.text || ""; // <-- el campo real en el backend
+      content.innerHTML = `<div>${header}</div><div>${text}</div>`;
 
-
-      // media thumbnails
+      // media thumbnails (usa URL directa si viene de Cloudinary)
       if (row.media?.length) {
         const wrap = document.createElement("div");
         wrap.style.display = "flex";
@@ -73,9 +84,8 @@ export function initNotes() {
         wrap.style.marginTop = "6px";
 
         row.media.forEach((m) => {
-          // Usa la URL directa si viene del backend (Cloudinary). 
-          // Si no existe, recurre al endpoint local con id/fileId.
-          const url = m.url || API.mediaUrl(m.fileId || m.id);
+          const url = m.url; // nuestro backend ya devuelve url
+          if (!url) return;
 
           if ((m.mimetype || "").startsWith("image/")) {
             const img = document.createElement("img");
@@ -84,7 +94,7 @@ export function initNotes() {
             img.style.height = "80px";
             img.style.objectFit = "cover";
             img.style.cursor = "pointer";
-            img.title = m.filename;
+            img.title = m.filename || "";
             img.onclick = () => openModal(`<img src="${url}" style="max-width:100%;height:auto" />`);
             wrap.appendChild(img);
           } else if ((m.mimetype || "").startsWith("video/")) {
@@ -92,7 +102,7 @@ export function initNotes() {
             vid.src = url;
             vid.style.width = "120px";
             vid.controls = true;
-            vid.title = m.filename;
+            vid.title = m.filename || "";
             wrap.appendChild(vid);
           }
         });
@@ -100,27 +110,36 @@ export function initNotes() {
         content.appendChild(wrap);
       }
 
-
+      // Acciones (solo si el API las tiene)
       const actions = document.createElement("div");
       actions.className = "actions";
-      const editBtn = document.createElement("button"); editBtn.className = "secondary"; editBtn.textContent = "Editar";
-      const delBtn = document.createElement("button"); delBtn.className = "danger"; delBtn.textContent = "Eliminar";
-
-      editBtn.onclick = async () => {
-        const nuevo = prompt("Editar contenido de la nota:", row.content);
-        if (nuevo == null) return;
-        await API.updateNote(row._id, { content: nuevo });
-        refresh(notesState.lastFilters);
-      };
-      delBtn.onclick = async () => {
-        if (!confirm("¿Eliminar nota?")) return;
-        await API.deleteNote(row._id);
-        refresh(notesState.lastFilters);
-      };
+      if (typeof API.updateNote === "function") {
+        const editBtn = document.createElement("button");
+        editBtn.className = "secondary";
+        editBtn.textContent = "Editar";
+        editBtn.onclick = async () => {
+          const nuevo = prompt("Editar contenido de la nota:", text);
+          if (nuevo == null) return;
+          await API.updateNote(row._id, { text: nuevo });
+          refresh(notesState.lastFilters);
+        };
+        actions.appendChild(editBtn);
+      }
+      if (typeof API.deleteNote === "function") {
+        const delBtn = document.createElement("button");
+        delBtn.className = "danger";
+        delBtn.textContent = "Eliminar";
+        delBtn.onclick = async () => {
+          if (!confirm("¿Eliminar nota?")) return;
+          await API.deleteNote(row._id);
+          refresh(notesState.lastFilters);
+        };
+        actions.appendChild(delBtn);
+      }
 
       div.appendChild(plate);
       div.appendChild(content);
-      div.appendChild(actions);
+      if (actions.childNodes.length) div.appendChild(actions);
       list.appendChild(div);
     });
   }
@@ -129,29 +148,29 @@ export function initNotes() {
     try {
       let media = [];
       if (nFiles.files.length) {
-        const up = await API.upload(nFiles.files);
-        media = up.files;
+        const up = await API.mediaUpload(nFiles.files); // <--
+        media = up.files || [];
       }
       const payload = {
         plate: nPlate.value.trim(),
         type: nType.value,
-        content: nContent.value.trim(),
+        text: nContent.value.trim(),          // <-- se guarda en "text"
         media
       };
-      if (!payload.plate || !payload.content) return alert("Placa y contenido son obligatorios");
+      if (!payload.plate || !payload.text) {
+        return alert("Placa y contenido son obligatorios");
+      }
       if (payload.type === "PAGO") {
-        const amt = parseFloat(nPayAmount.value);
-        const method = nPayMethod.value;
-        if (!method || isNaN(amt)) {
-          return alert("Completa monto y método de pago");
-        }
-        payload.paymentAmount = amt;
-        payload.paymentMethod = method;
+        const amt = parseFloat(nPayAmount?.value ?? "");
+        if (isNaN(amt)) return alert("Completa el monto del pago");
+        payload.amount = amt;                 // <-- modelo usa "amount"
+        // Si quieres guardar el método de pago, hoy no hay campo; puedes concatenarlo en text:
+        if (nPayMethod?.value) payload.text += ` [PAGO: ${nPayMethod.value}]`;
       }
 
-      await API.createNote(payload);
-      nPayAmount.value = "";
-      nPayMethod.value = "EFECTIVO";
+      await API.notesCreate(payload);         // <--
+      if (nPayAmount) nPayAmount.value = "";
+      if (nPayMethod) nPayMethod.value = "EFECTIVO";
       nContent.value = ""; nFiles.value = ""; // reset
       refresh(notesState.lastFilters);
     } catch (e) {
@@ -172,27 +191,14 @@ export function initNotes() {
   const modalBody = document.getElementById("modalBody");
   const modalClose = document.getElementById("modalClose");
 
-  // función centralizada para cerrar
   const hardHideModal = () => {
     if (!modal) return;
     modalBody.innerHTML = "";
     modal.classList.add("hidden");
   };
-
-  // botón X
   modalClose.onclick = hardHideModal;
-
-  // clic fuera del contenido
-  modal.addEventListener("click", (e) => {
-    if (e.target === modal) hardHideModal();
-  });
-
-  // tecla ESC
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") hardHideModal();
-  });
-
-  // asegúrate que arranca cerrado
+  modal.addEventListener("click", (e) => { if (e.target === modal) hardHideModal(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hardHideModal(); });
   hardHideModal();
 
   // abrir (se usa al hacer click en miniaturas de imágenes)
@@ -202,7 +208,5 @@ export function initNotes() {
   };
 
   // init
-  const todayISO = new Date().toISOString().slice(0, 10);
-  document.getElementById("vi-date").value = todayISO;
   refresh({});
 }
