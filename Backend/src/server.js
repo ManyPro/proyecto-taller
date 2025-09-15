@@ -3,6 +3,7 @@ import "dotenv/config.js";
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
+import path from "path";
 
 // Rutas
 import authRoutes from "./routes/auth.routes.js";
@@ -21,8 +22,9 @@ console.log("MongoDB conectado");
 
 // --- App ---
 const app = express();
+app.set("trust proxy", 1); // necesario en Render para detectar https
 
-// CORS con whitelist por coma
+// --- CORS con whitelist (coma separada) ---
 const origins = (process.env.ALLOWED_ORIGINS || "*")
   .split(",")
   .map(s => s.trim())
@@ -31,7 +33,7 @@ const origins = (process.env.ALLOWED_ORIGINS || "*")
 app.use(
   cors({
     origin: (origin, cb) => {
-      if (!origin) return cb(null, true); // curl/postman
+      if (!origin) return cb(null, true); // curl / Postman
       if (origins.includes("*") || origins.includes(origin)) return cb(null, true);
       return cb(new Error(`Origen no permitido: ${origin}`), false);
     },
@@ -39,36 +41,26 @@ app.use(
   })
 );
 
-// JSON
+// --- JSON ---
 app.use(express.json({ limit: "20mb" }));
 
-import path from "path";
-import filesRoutes from "./routes/files.routes.js";
-
-// ...
-app.set("trust proxy", 1); // para que req.protocol sea "https" en Render
-
-// Servir los archivos subidos
-import express from "express";
+// --- Archivos estáticos subidos ---
 app.use("/uploads", express.static(path.resolve(process.cwd(), "uploads")));
 
-// Montar rutas de archivos dentro de /api/v1
-app.use("/api/v1", filesRoutes);
-
-// Salud
+// --- Salud ---
 app.head("/", (_, res) => res.status(200).send("OK"));
-app.get("/", (_, res) => res.status(200).send("OK"));
+app.get("/",  (_, res) => res.status(200).send("OK"));
 
-// Montaje de rutas de API v1
+// --- API v1 ---
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1", notesRoutes);
 app.use("/api/v1", inventoryRoutes);
-app.use("/api/v1", filesRoutes); // /files/* y alias /media/*
+app.use("/api/v1", filesRoutes); // /files/* y (si definiste) /media/* dentro del router
 
-// 404
+// --- 404 ---
 app.use((req, res) => res.status(404).json({ error: "Not found" }));
 
-// Start
+// --- Start ---
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`API en http://localhost:${PORT}`);
