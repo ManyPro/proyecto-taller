@@ -8,11 +8,8 @@ import { upload } from "../lib/upload.js";
 
 const router = Router();
 
-/**
- * Sube múltiples archivos (campo 'files') a GridFS (bucket 'uploads')
- * Respuesta: { files: [{ fileId, filename, mimetype, size }] }
- */
-router.post("/files/upload", authCompany, upload.array("files", 12), async (req, res) => {
+// --- Handlers compartidos --- //
+async function handleUpload(req, res) {
   try {
     const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
       bucketName: "uploads",
@@ -21,38 +18,31 @@ router.post("/files/upload", authCompany, upload.array("files", 12), async (req,
     const out = [];
     for (const f of req.files || []) {
       const src = Readable.from(f.buffer);
-      const uploadStream = bucket.openUploadStream(f.originalname, {
+      const up = bucket.openUploadStream(f.originalname, {
         contentType: f.mimetype,
-        metadata: {
-          companyId: req.companyId || null,
-          userId: req.userId || null,
-        },
+        metadata: { companyId: req.companyId || null, userId: req.userId || null },
       });
-
-      await pipeline(src, uploadStream); // Espera a que termine de escribir
+      await pipeline(src, up); // escribe el buffer en GridFS
       out.push({
-        fileId: uploadStream.id.toString(),
+        fileId: up.id.toString(),
         filename: f.originalname,
         mimetype: f.mimetype,
         size: f.size,
       });
     }
-
     res.json({ files: out });
   } catch (err) {
     console.error("Upload error:", err);
     res.status(500).json({ error: "No se pudo subir el archivo" });
   }
-});
+}
 
-/**
- * Sirve un archivo por id desde GridFS
- * GET /api/v1/files/:id
- */
-router.get("/files/:id", async (req, res) => {
+async function handleGetFile(req, res) {
   try {
     const id = new mongoose.Types.ObjectId(req.params.id);
-    const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: "uploads" });
+    const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
+      bucketName: "uploads",
+    });
     const stream = bucket.openDownloadStream(id);
 
     stream.on("file", (f) => {
@@ -63,6 +53,14 @@ router.get("/files/:id", async (req, res) => {
   } catch {
     res.status(400).end("Bad id");
   }
-});
+}
+
+// --- Rutas oficiales (/files/*) --- //
+router.post("/files/upload", authCompany, upload.array("files", 12), handleUpload);
+router.get("/files/:id", handleGetFile);
+
+// --- Alias compatibles (/media/*) --- //
+router.post("/media/upload", authCompany, upload.array("files", 12), handleUpload);
+router.get("/media/:id", handleGetFile);
 
 export default router;
