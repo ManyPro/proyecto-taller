@@ -39,11 +39,12 @@ app.use(express.json({ limit: '20mb' })); // JSON del front
 app.use(morgan('dev'));
 
 /* -------------------- Rutas API v1 -------------------- */
-app.use('/api/v1', authRoutes);
-app.use('/api/v1', inventoryRoutes);
-app.use('/api/v1', notesRoutes);
+// src/server.js (fragmento)
+app.use("/api/v1/auth", authRoutes);   // <-- SIN middleware
+app.use("/api/v1", inventoryRoutes);   // protegidas por middleware dentro del router
+app.use("/api/v1", notesRoutes);
+app.use("/api/v1/files", filesRoutes);
 app.use('/api/v1', ordersRoutes);
-app.use('/api/v1', filesRoutes); // <- /media/upload y /media/:id
 
 /* -------------------- Archivos estáticos locales -------------------- */
 // Solo sirve /uploads si el driver de archivos es "local" (no Cloudinary).
