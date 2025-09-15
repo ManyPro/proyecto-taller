@@ -133,6 +133,8 @@ export function initNotes() {
       }
 
       await API.createNote(payload);
+      nPayAmount.value = "";
+      nPayMethod.value = "EFECTIVO";
       nContent.value = ""; nFiles.value = ""; // reset
       refresh(notesState.lastFilters);
     } catch (e) {
