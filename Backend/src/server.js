@@ -7,8 +7,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import healthRouter from './routes/health.js';
-import mediaRouter from './routes/media.js';
-import notesRouter from './routes/notes.js';
+import mediaRouter from './routes/media.routes.js';
+import notesRouter from './routes/notes.routes.js';
 
 const app = express();
 
