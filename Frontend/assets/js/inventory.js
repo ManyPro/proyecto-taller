@@ -183,24 +183,27 @@ export function initInventory() {
         return alert("Completa SKU, nombre y precio de venta");
       }
 
+      // ... dentro del handler de "Guardar Ítem"
       const fd = new FormData();
       fd.append("sku", itSku.value.trim());
       fd.append("name", itName.value.trim());
-      fd.append("vehicleTarget", vehicleTargetValue);
-      if (selectedIntakeId) fd.append("vehicleIntakeId", selectedIntakeId);
-      if (itEntryPrice.value) fd.append("entryPrice", itEntryPrice.value);
-      fd.append("salePrice", itSalePrice.value || "0");
-      fd.append("original", itOriginal.value);
-      fd.append("stock", itStock.value || "0");
-      if (itImage.files && itImage.files[0]) fd.append("image", itImage.files[0]);
+      fd.append("vehicleTarget", itVehicleDest.value.trim());
+      fd.append("vehicleIntakeId", itIntake.value || "");
+      fd.append("entryPrice", itEntryPrice.value || "");
+      fd.append("salePrice", itSalePrice.value || "");
+      fd.append("isOriginal", itOriginal.value);
+      fd.append("initialStock", itInitialStock.value || "0");
 
-      await API_EXTRAS.upload("/api/v1/inventory/items", fd, "POST");
+      // imagen opcional
+      if (itImage.files && itImage.files[0]) {
+        fd.append("image", itImage.files[0]);   // <-- campo "image" (igual que en el backend)
+      }
 
-      // reset
-      itSku.value = itName.value = itVehicleTarget.value = itEntryPrice.value = itSalePrice.value = itStock.value = "";
-      itVehicleIntakeId.value = ""; itOriginal.value = "false"; itImage.value = ""; itVehicleTarget.readOnly = false;
+      // ahora POST como FormData
+      await API.request("/inventory/items", "POST", fd, true);
 
-      await refreshItems({});
+      // refresca lista y limpia el form como ya lo haces
+
     } catch (e) {
       alert("No se pudo guardar el ítem: " + e.message);
     }

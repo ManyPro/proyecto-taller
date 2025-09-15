@@ -113,7 +113,9 @@ export function initNotes() {
       let media = [];
       if (nFiles.files.length) {
         const up = await API.upload(nFiles.files);
-        media = up.files;
+        body.attachments = up.files.map(f => ({
+          id: f.id, name: f.filename, size: f.size
+        }));
       }
       const payload = {
         plate: nPlate.value.trim(),

@@ -1,66 +1,104 @@
 // Backend/src/routes/files.routes.js
 import { Router } from "express";
 import mongoose from "mongoose";
-import { Readable } from "node:stream";
-import { pipeline } from "node:stream/promises";
-import { authCompany } from "../middlewares/auth.js";
-import { upload } from "../lib/upload.js";
+import { ObjectId } from "mongodb";
+import authCompany from "../middlewares/auth.js";          // si exportas nombrado, usa: { authCompany }
+import upload from "../lib/upload.js";                     // usa multer-gridfs-storage con bucket "uploads"
 
 const router = Router();
 
-// --- Handlers compartidos --- //
-async function handleUpload(req, res) {
-  try {
-    const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
-      bucketName: "uploads",
-    });
+// Helpers
+const bucket = () =>
+  new mongoose.mongo.GridFSBucket(mongoose.connection.db, { bucketName: "uploads" });
 
-    const out = [];
-    for (const f of req.files || []) {
-      const src = Readable.from(f.buffer);
-      const up = bucket.openUploadStream(f.originalname, {
-        contentType: f.mimetype,
-        metadata: { companyId: req.companyId || null, userId: req.userId || null },
-      });
-      await pipeline(src, up); // escribe el buffer en GridFS
-      out.push({
-        fileId: up.id.toString(),
-        filename: f.originalname,
-        mimetype: f.mimetype,
-        size: f.size,
-      });
-    }
-    res.json({ files: out });
-  } catch (err) {
-    console.error("Upload error:", err);
-    res.status(500).json({ error: "No se pudo subir el archivo" });
+const toId = (id) => {
+  try { return new ObjectId(id); } catch { return null; }
+};
+
+// --------------------------------------------------------------------------------------
+// 1) SUBIR archivos (array)  -> usa el campo de formulario:  "files"
+//    Endpoints mantenidos por compatibilidad: /media/upload  y  /files/upload
+// --------------------------------------------------------------------------------------
+router.post(
+  ["/media/upload", "/files/upload"],
+  authCompany,
+  upload.array("files", 12),
+  async (req, res) => {
+    const files = (req.files || []).map((f) => {
+      const fid = f.id || f._id || f.fileId || f.filename; // lib expone .id normalmente
+      return {
+        id: String(fid),
+        filename: f.filename,
+        mimetype: f.mimetype || f.contentType || "application/octet-stream",
+        size: f.size ?? 0,
+        url: `/api/v1/media/${String(fid)}/download`,
+      };
+    });
+    res.json({ ok: true, files });
   }
-}
+);
 
-async function handleGetFile(req, res) {
+// --------------------------------------------------------------------------------------
+// 2) DESCARGAR archivo (attachment)
+//    Endpoints compatibles: /media/:id/download  y  /files/:id/download
+// --------------------------------------------------------------------------------------
+router.get(["/media/:id/download", "/files/:id/download"], authCompany, async (req, res) => {
+  const id = toId(req.params.id);
+  if (!id) return res.status(400).json({ error: "ID inválido" });
+
+  const dl = bucket().openDownloadStream(id);
+
+  let headersSet = false;
+  dl.on("file", (file) => {
+    if (headersSet) return;
+    headersSet = true;
+    res.setHeader("Content-Type", file.contentType || "application/octet-stream");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${encodeURIComponent(file.filename || "archivo")}"`
+    );
+  });
+
+  dl.on("error", () => res.status(404).json({ error: "Archivo no encontrado" }));
+  dl.pipe(res);
+});
+
+// --------------------------------------------------------------------------------------
+// 3) VER archivo inline (útil para <img> o previsualización)
+//    Endpoints: /media/:id  y  /files/:id
+// --------------------------------------------------------------------------------------
+router.get(["/media/:id", "/files/:id"], authCompany, async (req, res) => {
+  const id = toId(req.params.id);
+  if (!id) return res.status(400).json({ error: "ID inválido" });
+
+  const dl = bucket().openDownloadStream(id);
+
+  let headersSet = false;
+  dl.on("file", (file) => {
+    if (headersSet) return;
+    headersSet = true;
+    res.setHeader("Content-Type", file.contentType || "application/octet-stream");
+    res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+  });
+
+  dl.on("error", () => res.status(404).json({ error: "Archivo no encontrado" }));
+  dl.pipe(res);
+});
+
+// --------------------------------------------------------------------------------------
+// 4) ELIMINAR archivo
+//    Endpoints: /media/:id  y  /files/:id
+// --------------------------------------------------------------------------------------
+router.delete(["/media/:id", "/files/:id"], authCompany, async (req, res) => {
+  const id = toId(req.params.id);
+  if (!id) return res.status(400).json({ error: "ID inválido" });
+
   try {
-    const id = new mongoose.Types.ObjectId(req.params.id);
-    const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db, {
-      bucketName: "uploads",
-    });
-    const stream = bucket.openDownloadStream(id);
-
-    stream.on("file", (f) => {
-      if (f?.contentType) res.setHeader("Content-Type", f.contentType);
-    });
-    stream.on("error", () => res.status(404).end("Not found"));
-    stream.pipe(res);
-  } catch {
-    res.status(400).end("Bad id");
+    await bucket().delete(id);
+    res.status(204).end();
+  } catch (e) {
+    res.status(404).json({ error: "Archivo no encontrado" });
   }
-}
-
-// --- Rutas oficiales (/files/*) --- //
-router.post("/files/upload", authCompany, upload.array("files", 12), handleUpload);
-router.get("/files/:id", handleGetFile);
-
-// --- Alias compatibles (/media/*) --- //
-router.post("/media/upload", authCompany, upload.array("files", 12), handleUpload);
-router.get("/media/:id", handleGetFile);
+});
 
 export default router;

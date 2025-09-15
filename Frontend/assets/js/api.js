@@ -70,15 +70,14 @@ export const API_EXTRAS = {
     return {};
   },
 
-  async download(path, filename) {
-    const res = await fetch(`${this.base()}${path}`, {
-      headers: { Authorization: `Bearer ${this.token()}` },
-    });
-    if (!res.ok) throw new Error(await res.text());
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
+  async download(path, displayName = "archivo") {
+    const url = `${API.base}${path}`;   // <-- antes ponía this.base()
     const a = document.createElement("a");
-    a.href = url; a.download = filename; a.click();
-    URL.revokeObjectURL(url);
+    a.href = url;
+    a.download = displayName;
+    a.target = "_blank";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   },
 };
