@@ -168,39 +168,44 @@ export function initInventory() {
     if (vi) { itVehicleTarget.value = makeIntakeLabel(vi); itVehicleTarget.readOnly = true; } else { itVehicleTarget.readOnly = false; }
   });
 
-  // ===== Guardar ítem (multipart con imagen) =====
+  // inventory.js -> dentro de initInventory(), reemplaza el itSave.onclick por:
   itSave.onclick = async () => {
-    let vehicleTargetValue = (itVehicleTarget.value || "").trim();
-    const selectedIntakeId = itVehicleIntakeId.value || undefined;
-    if (selectedIntakeId && (!vehicleTargetValue || vehicleTargetValue === "VITRINAS")) {
-      const vi = state.intakes.find(v => v._id === selectedIntakeId);
-      if (vi) vehicleTargetValue = makeIntakeLabel(vi);
+    try {
+      let vehicleTargetValue = (itVehicleTarget.value || "").trim();
+      const selectedIntakeId = itVehicleIntakeId.value || undefined;
+      if (selectedIntakeId && (!vehicleTargetValue || vehicleTargetValue === "VITRINAS")) {
+        const vi = state.intakes.find(v => v._id === selectedIntakeId);
+        if (vi) vehicleTargetValue = makeIntakeLabel(vi);
+      }
+      if (!vehicleTargetValue) vehicleTargetValue = "VITRINAS";
+
+      if (!itSku.value.trim() || !itName.value.trim() || !itSalePrice.value) {
+        return alert("Completa SKU, nombre y precio de venta");
+      }
+
+      const fd = new FormData();
+      fd.append("sku", itSku.value.trim());
+      fd.append("name", itName.value.trim());
+      fd.append("vehicleTarget", vehicleTargetValue);
+      if (selectedIntakeId) fd.append("vehicleIntakeId", selectedIntakeId);
+      if (itEntryPrice.value) fd.append("entryPrice", itEntryPrice.value);
+      fd.append("salePrice", itSalePrice.value || "0");
+      fd.append("original", itOriginal.value);
+      fd.append("stock", itStock.value || "0");
+      if (itImage.files && itImage.files[0]) fd.append("image", itImage.files[0]);
+
+      await API_EXTRAS.upload("/api/v1/inventory/items", fd, "POST");
+
+      // reset
+      itSku.value = itName.value = itVehicleTarget.value = itEntryPrice.value = itSalePrice.value = itStock.value = "";
+      itVehicleIntakeId.value = ""; itOriginal.value = "false"; itImage.value = ""; itVehicleTarget.readOnly = false;
+
+      await refreshItems({});
+    } catch (e) {
+      alert("No se pudo guardar el ítem: " + e.message);
     }
-    if (!vehicleTargetValue) vehicleTargetValue = "VITRINAS";
-
-    if (!itSku.value.trim() || !itName.value.trim() || !itSalePrice.value) {
-      return alert("Completa SKU, nombre y precio de venta");
-    }
-
-    const fd = new FormData();
-    fd.append("sku", itSku.value.trim());
-    fd.append("name", itName.value.trim());
-    fd.append("vehicleTarget", vehicleTargetValue);
-    if (selectedIntakeId) fd.append("vehicleIntakeId", selectedIntakeId);
-    if (itEntryPrice.value) fd.append("entryPrice", itEntryPrice.value);
-    fd.append("salePrice", itSalePrice.value || "0");
-    fd.append("original", itOriginal.value);
-    fd.append("stock", itStock.value || "0");
-    if (itImage.files && itImage.files[0]) fd.append("image", itImage.files[0]);
-
-    await API_EXTRAS.upload("/api/v1/inventory/items", fd, "POST");
-
-    // reset
-    itSku.value = itName.value = itVehicleTarget.value = itEntryPrice.value = itSalePrice.value = itStock.value = "";
-    itVehicleIntakeId.value = ""; itOriginal.value = "false"; itImage.value = ""; itVehicleTarget.readOnly = false;
-
-    await refreshItems({});
   };
+
 
   // ===== Búsqueda =====
   qApply.onclick = () => refreshItems({ name: qName.value.trim() });
