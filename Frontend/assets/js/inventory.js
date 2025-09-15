@@ -38,6 +38,7 @@ export function initInventory() {
   const itSalePrice = document.getElementById("it-salePrice");
   const itOriginal = document.getElementById("it-original");
   const itStock = document.getElementById("it-stock");
+  const itImage = document.getElementById("it-image"); // <--- NUEVO
   const itSave = document.getElementById("it-save");
 
   // ---- Listado de ítems ----
@@ -230,7 +231,7 @@ export function initInventory() {
     }
   });
 
-  // ====== Guardar ítem ======
+  // ====== Guardar ítem (con imagen opcional) ======
   itSave.onclick = async () => {
     let vehicleTargetValue = (itVehicleTarget.value || "").trim();
     const selectedIntakeId = itVehicleIntakeId.value || undefined;
@@ -241,21 +242,24 @@ export function initInventory() {
     }
     if (!vehicleTargetValue) vehicleTargetValue = "VITRINAS";
 
-    const body = {
-      sku: itSku.value.trim(),
-      name: itName.value.trim(),
-      vehicleTarget: vehicleTargetValue,
-      vehicleIntakeId: selectedIntakeId,
-      entryPrice: itEntryPrice.value ? parseFloat(itEntryPrice.value) : undefined, // undefined => AUTO
-      salePrice: parseFloat(itSalePrice.value || "0"),
-      original: itOriginal.value === "true",
-      stock: parseInt(itStock.value || "0", 10),
-    };
+    // construimos FormData
+    const fd = new FormData();
+    fd.append("sku", itSku.value.trim());
+    fd.append("name", itName.value.trim());
+    fd.append("vehicleTarget", vehicleTargetValue);
+    if (selectedIntakeId) fd.append("vehicleIntakeId", selectedIntakeId);
+    if (itEntryPrice.value) fd.append("entryPrice", parseFloat(itEntryPrice.value));
+    fd.append("salePrice", parseFloat(itSalePrice.value || "0"));
+    fd.append("original", itOriginal.value === "true" ? "true" : "false");
+    fd.append("stock", parseInt(itStock.value || "0", 10).toString());
+    if (itImage && itImage.files && itImage.files[0]) {
+      fd.append("image", itImage.files[0]); // <--- nombre de campo que espera el backend
+    }
 
-    if (!body.sku || !body.name || !body.salePrice)
+    if (!fd.get("sku") || !fd.get("name") || !fd.get("salePrice"))
       return alert("Completa SKU, nombre y precio de venta");
 
-    await API.saveItem(body);
+    await API.request("/api/v1/inventory/items", { method: "POST", formData: fd });
 
     // reset
     itSku.value = "";
@@ -266,6 +270,7 @@ export function initInventory() {
     itSalePrice.value = "";
     itOriginal.value = "false";
     itStock.value = "";
+    if (itImage) itImage.value = "";
     itVehicleTarget.readOnly = false;
 
     await refreshItems({});

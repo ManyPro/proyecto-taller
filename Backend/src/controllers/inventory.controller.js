@@ -3,7 +3,9 @@ import mongoose from "mongoose";
 import VehicleIntake from "../models/VehicleIntake.js";
 import Item from "../models/Item.js";
 
-// ------ helpers ------
+// ---------------------------------------------
+// helpers
+// ---------------------------------------------
 function makeIntakeLabel(vi) {
   return `${(vi?.brand || "").trim()} ${(vi?.model || "").trim()} ${(vi?.engine || "").trim()}`
     .replace(/\s+/g, " ")
@@ -11,9 +13,42 @@ function makeIntakeLabel(vi) {
     .toUpperCase();
 }
 
-// Prorratea el costo del vehículo entre ítems "AUTO" ponderando por STOCK.
-// - Los ítems con precio MANUAL se respetan, descontando su costo total (entryPrice * stock) del vehículo.
-// - Los ítems AUTO reciben un precio UNITARIO = remaining / sumStockAuto (misma unidad para todos).
+/**
+ * Extrae datos de imagen desde req.file (si existe) o desde el body.
+ * Soporta varios adaptadores de subida (Cloudinary, S3/multer, local, GridFS).
+ * Prioridad: req.file > body.imageUrl/imagePublicId
+ */
+function extractImageFromReq(req, body = {}) {
+  let imageUrl = body.imageUrl ?? null;
+  let imagePublicId = body.imagePublicId ?? null;
+
+  const f = req.file;
+  if (f) {
+    // Cloudinary (multer-storage-cloudinary)
+    if (f.secure_url || f.path) {
+      imageUrl = f.secure_url || f.path;
+      imagePublicId = f.public_id || imagePublicId || null;
+    }
+    // S3 (aws-sdk, multer-s3)
+    else if (f.location) {
+      imageUrl = f.location;
+      imagePublicId = f.key || f.filename || imagePublicId || null;
+    }
+    // Multer (disco) / GridFS genérico
+    else if (f.filename || f.id) {
+      // Ajusta según tu endpoint público si lo tienes (p.ej. /api/v1/files/:id)
+      imageUrl = f.path || imageUrl;
+      imagePublicId = f.filename || f.id || imagePublicId || null;
+    }
+  }
+  return { imageUrl, imagePublicId };
+}
+
+// --------------------------------------------------------------------
+// Recalcula prorrateo de entrada ponderado por STOCK en ítems AUTO.
+// - Ítems MANUAL: respetados (entryPrice * stock) y descontados del total.
+// - Ítems AUTO: reciben precio unitario = remaining / sumStockAuto.
+// --------------------------------------------------------------------
 async function recalcAutoEntryPrices(companyId, vehicleIntakeId) {
   if (!vehicleIntakeId) return;
 
@@ -23,19 +58,19 @@ async function recalcAutoEntryPrices(companyId, vehicleIntakeId) {
   const items = await Item.find({ companyId, vehicleIntakeId });
   if (!items.length) return;
 
-  const manual = items.filter(it => !it.entryPriceIsAuto && it.entryPrice != null);
-  const auto   = items.filter(it => it.entryPriceIsAuto || it.entryPrice == null);
+  const manual = items.filter((it) => !it.entryPriceIsAuto && it.entryPrice != null);
+  const auto = items.filter((it) => it.entryPriceIsAuto || it.entryPrice == null);
 
-  const manualTotal = manual.reduce((s, it) => s + (it.entryPrice || 0) * Math.max(0, it.stock || 0), 0);
+  const manualTotal = manual.reduce(
+    (s, it) => s + (it.entryPrice || 0) * Math.max(0, it.stock || 0),
+    0
+  );
   const vehicleTotal = intake.entryPrice || 0;
   let remaining = Math.max(vehicleTotal - manualTotal, 0);
 
-  // Suma de stocks de los AUTO
   const autoStockTotal = auto.reduce((s, it) => s + Math.max(0, it.stock || 0), 0);
-
   if (!auto.length) return;
 
-  // Si no hay stock en AUTO, precio unitario = 0 (o divide igualitario si prefieres)
   let unit = 0;
   if (autoStockTotal > 0) {
     unit = Math.round((remaining / autoStockTotal) * 100) / 100; // 2 decimales
@@ -48,7 +83,7 @@ async function recalcAutoEntryPrices(companyId, vehicleIntakeId) {
   }
 }
 
-// ============ ENTRADAS DE VEHÍCULO ============
+// ====================== ENTRADAS DE VEHÍCULO ======================
 
 export const listVehicleIntakes = async (req, res) => {
   const q = { companyId: new mongoose.Types.ObjectId(req.companyId) };
@@ -79,8 +114,8 @@ export const updateVehicleIntake = async (req, res) => {
   const updated = await VehicleIntake.findOneAndUpdate(
     { _id: id, companyId: req.companyId },
     {
-      ...(b.brand  !== undefined ? { brand:  (b.brand  || "").toUpperCase().trim() } : {}),
-      ...(b.model  !== undefined ? { model:  (b.model  || "").toUpperCase().trim() } : {}),
+      ...(b.brand !== undefined ? { brand: (b.brand || "").toUpperCase().trim() } : {}),
+      ...(b.model !== undefined ? { model: (b.model || "").toUpperCase().trim() } : {}),
       ...(b.engine !== undefined ? { engine: (b.engine || "").toUpperCase().trim() } : {}),
       ...(b.intakeDate !== undefined ? { intakeDate: new Date(b.intakeDate) } : {}),
       ...(b.entryPrice !== undefined ? { entryPrice: +b.entryPrice || 0 } : {}),
@@ -88,7 +123,6 @@ export const updateVehicleIntake = async (req, res) => {
     { new: true }
   );
 
-  // Si cambió marca/modelo/cilindraje -> sincroniza etiqueta en ítems ligados
   const oldLabel = makeIntakeLabel(before);
   const newLabel = makeIntakeLabel(updated);
   if (oldLabel !== newLabel) {
@@ -98,7 +132,6 @@ export const updateVehicleIntake = async (req, res) => {
     );
   }
 
-  // Si cambió el precio de entrada -> recalcular prorrateo
   if ((before.entryPrice || 0) !== (updated.entryPrice || 0)) {
     await recalcAutoEntryPrices(req.companyId, updated._id);
   }
@@ -121,13 +154,13 @@ export const deleteVehicleIntake = async (req, res) => {
   res.status(204).end();
 };
 
-// ======================= ÍTEMS ========================
+// =========================== ÍTEMS ============================
 
 export const listItems = async (req, res) => {
   const { name, sku, vehicleTarget } = req.query;
   const q = { companyId: new mongoose.Types.ObjectId(req.companyId) };
   if (name) q.name = new RegExp((name || "").trim().toUpperCase(), "i");
-  if (sku)  q.sku  = new RegExp((sku  || "").trim().toUpperCase(), "i");
+  if (sku) q.sku = new RegExp((sku || "").trim().toUpperCase(), "i");
   if (vehicleTarget) q.vehicleTarget = new RegExp((vehicleTarget || "").trim().toUpperCase(), "i");
 
   const data = await Item.find(q).sort({ createdAt: -1 });
@@ -137,10 +170,10 @@ export const listItems = async (req, res) => {
 export const createItem = async (req, res) => {
   const b = req.body;
 
-  if (b.sku)  b.sku  = b.sku.toUpperCase().trim();
+  if (b.sku) b.sku = b.sku.toUpperCase().trim();
   if (b.name) b.name = b.name.toUpperCase().trim();
 
-  // Si hay entrada y destino vacío/VITRINAS -> usar la etiqueta de la entrada
+  // Si hay entrada y el destino está vacío/VITRINAS -> usa etiqueta de la entrada
   if (b.vehicleIntakeId) {
     const vi = await VehicleIntake.findOne({ _id: b.vehicleIntakeId, companyId: req.companyId });
     if (vi && (!b.vehicleTarget || b.vehicleTarget === "VITRINAS")) {
@@ -148,7 +181,7 @@ export const createItem = async (req, res) => {
     }
   }
 
-  // entryPrice: vacío => AUTO (si hay entrada)
+  // entryPrice AUTO si viene vacío y hay entrada
   if ((b.entryPrice === undefined || b.entryPrice === null || b.entryPrice === "") && b.vehicleIntakeId) {
     b.entryPrice = null;
     b.entryPriceIsAuto = true;
@@ -156,6 +189,9 @@ export const createItem = async (req, res) => {
     b.entryPrice = +b.entryPrice;
     b.entryPriceIsAuto = false;
   }
+
+  // --- NUEVO: imagen ---
+  const { imageUrl, imagePublicId } = extractImageFromReq(req, b);
 
   const item = await Item.create({
     companyId: req.companyId,
@@ -168,6 +204,9 @@ export const createItem = async (req, res) => {
     salePrice: +b.salePrice || 0,
     original: !!b.original,
     stock: Number.isFinite(+b.stock) ? +b.stock : 0,
+    // imagen
+    imageUrl: imageUrl || null,
+    imagePublicId: imagePublicId || null,
   });
 
   if (item.vehicleIntakeId) {
@@ -181,7 +220,7 @@ export const updateItem = async (req, res) => {
   const { id } = req.params;
   const b = req.body;
 
-  if (b.sku)  b.sku  = b.sku.toUpperCase().trim();
+  if (b.sku) b.sku = b.sku.toUpperCase().trim();
   if (b.name) b.name = b.name.toUpperCase().trim();
 
   if (b.vehicleIntakeId) {
@@ -201,17 +240,23 @@ export const updateItem = async (req, res) => {
     }
   }
 
+  // --- NUEVO: imagen ---
+  const img = extractImageFromReq(req, b);
+  const toSet = {
+    ...b,
+  };
+  if (img.imageUrl !== undefined) toSet.imageUrl = img.imageUrl || null;
+  if (img.imagePublicId !== undefined) toSet.imagePublicId = img.imagePublicId || null;
+
   const before = await Item.findOne({ _id: id, companyId: req.companyId });
   const item = await Item.findOneAndUpdate(
     { _id: id, companyId: req.companyId },
-    b,
+    toSet,
     { new: true }
   );
   if (!item) return res.status(404).json({ error: "Item no encontrado" });
 
   const intakeToRecalc = item.vehicleIntakeId || before?.vehicleIntakeId;
-
-  // Si cambió stock, entrada o precio manual/auto -> recalcular
   if (intakeToRecalc) {
     await recalcAutoEntryPrices(req.companyId, intakeToRecalc);
   }
@@ -227,6 +272,8 @@ export const deleteItem = async (req, res) => {
   if (doc.vehicleIntakeId) {
     await recalcAutoEntryPrices(req.companyId, doc.vehicleIntakeId);
   }
+
+  // Si más adelante usas Cloudinary/S3, aquí podrías borrar el asset con doc.imagePublicId
   res.status(204).end();
 };
 
