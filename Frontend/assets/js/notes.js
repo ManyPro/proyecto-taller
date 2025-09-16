@@ -3,6 +3,48 @@ import { plateColor, fmt, upper } from "./utils.js";
 
 const notesState = { page: 1, limit: 50, lastFilters: {} };
 
+// -------- helpers HTTP locales (no dependen de API.updateNote) --------
+const apiBase = API.base || "";
+const authHeader = () => {
+  const t = API.token?.get?.();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+};
+async function request(path, { method = "GET", json } = {}) {
+  const headers = { ...authHeader() };
+  if (json !== undefined) headers["Content-Type"] = "application/json";
+
+  const res = await fetch(`${apiBase}${path}`, {
+    method,
+    headers,
+    body: json !== undefined ? JSON.stringify(json) : undefined,
+  });
+
+  const raw = await res.text();
+  let body;
+  try { body = JSON.parse(raw); } catch { body = raw; }
+  if (!res.ok) {
+    throw new Error(body?.error || (typeof body === "string" ? body : res.statusText));
+  }
+  return body;
+}
+const http = {
+  updateNote: (id, body) => request(`/api/v1/notes/${id}`, { method: "PUT", json: body }),
+  deleteNote: (id) => request(`/api/v1/notes/${id}`, { method: "DELETE" }),
+};
+
+// -------- modal util --------
+function openModal(innerHTML) {
+  const modal = document.getElementById("modal");
+  const body = document.getElementById("modalBody");
+  const close = document.getElementById("modalClose");
+  body.innerHTML = innerHTML;
+  modal.classList.remove("hidden");
+  close.onclick = () => modal.classList.add("hidden");
+}
+function closeModal() {
+  document.getElementById("modal")?.classList.add("hidden");
+}
+
 export function initNotes() {
   // Inputs
   const nPlate = document.getElementById("n-plate"); upper(nPlate);
@@ -17,11 +59,10 @@ export function initNotes() {
   const tick = () => { if (nWhen) nWhen.value = new Date().toLocaleString(); };
   tick(); setInterval(tick, 1000);
 
-  // Pago
+  // Pago (UI)
   const payBox = document.getElementById("pay-box");
   const nPayAmount = document.getElementById("n-pay-amount");
-  const nPayMethod = document.getElementById("n-pay-method"); // hoy no se persiste; opcional
-
+  const nPayMethod = document.getElementById("n-pay-method"); // no se persiste (si quieres, concatenamos en texto)
   const togglePay = () => {
     if (!payBox) return;
     payBox.classList.toggle("hidden", nType.value !== "PAGO");
@@ -75,17 +116,16 @@ export function initNotes() {
       const content = document.createElement("div");
       content.className = "content";
       let header = `<b>${row.type}</b> — ${fmt(row.createdAt)}`;
-      // Encargado
       if (row.responsible) {
         header += ` — Encargado: ${niceName(row.responsible)}`;
       }
       if (row.type === "PAGO" && typeof row.amount === "number" && row.amount > 0) {
         header += ` — Pago: $${row.amount.toLocaleString()}`;
       }
-      const text = row.text || ""; // <-- el campo real en el backend
+      const text = row.text || "";
       content.innerHTML = `<div>${header}</div><div>${text}</div>`;
 
-      // media thumbnails (usa URL directa si viene de Cloudinary)
+      // media thumbnails
       if (row.media?.length) {
         const wrap = document.createElement("div");
         wrap.style.display = "flex";
@@ -94,7 +134,7 @@ export function initNotes() {
         wrap.style.marginTop = "6px";
 
         row.media.forEach((m) => {
-          const url = m.url; // nuestro backend ya devuelve url
+          const url = m.url;
           if (!url) return;
 
           if ((m.mimetype || "").startsWith("image/")) {
@@ -120,53 +160,126 @@ export function initNotes() {
         content.appendChild(wrap);
       }
 
-      // Acciones (solo si el API las tiene)
+      // Acciones: Editar / Eliminar
       const actions = document.createElement("div");
       actions.className = "actions";
-      if (typeof API.updateNote === "function") {
-        const editBtn = document.createElement("button");
-        editBtn.className = "secondary";
-        editBtn.textContent = "Editar";
-        editBtn.onclick = async () => {
-          const nuevo = prompt("Editar contenido de la nota:", text);
-          if (nuevo == null) return;
-          await API.updateNote(row._id, { text: nuevo });
+
+      const editBtn = document.createElement("button");
+      editBtn.className = "secondary";
+      editBtn.textContent = "Editar";
+      editBtn.onclick = () => openEditNote(row);
+
+      const delBtn = document.createElement("button");
+      delBtn.className = "danger";
+      delBtn.textContent = "Eliminar";
+      delBtn.style.marginLeft = "6px";
+      delBtn.onclick = async () => {
+        if (!confirm("¿Eliminar esta nota?")) return;
+        try {
+          await http.deleteNote(row._id);
           refresh(notesState.lastFilters);
-        };
-        actions.appendChild(editBtn);
-      }
-      if (typeof API.deleteNote === "function") {
-        const delBtn = document.createElement("button");
-        delBtn.className = "danger";
-        delBtn.textContent = "Eliminar";
-        delBtn.onclick = async () => {
-          if (!confirm("¿Eliminar nota?")) return;
-          await API.deleteNote(row._id);
-          refresh(notesState.lastFilters);
-        };
-        actions.appendChild(delBtn);
-      }
+        } catch (e) {
+          alert("Error: " + e.message);
+        }
+      };
+
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
 
       div.appendChild(plate);
       div.appendChild(content);
-      if (actions.childNodes.length) div.appendChild(actions);
+      div.appendChild(actions);
       list.appendChild(div);
     });
   }
 
+  // ------- Modal de edición -------
+  function openEditNote(row) {
+    const isPago = row.type === "PAGO";
+    const respOptions = ["DAVID","VALENTIN","SEBASTIAN","GIOVANNY","SANDRA","CEDIEL"];
+    const currentResp = String(row.responsible || "").toUpperCase();
+
+    openModal(`
+      <h3>Editar nota</h3>
+
+      <label>Tipo</label>
+      <select id="e-type">
+        <option value="GENERICA" ${!isPago ? "selected" : ""}>GENERICA</option>
+        <option value="PAGO" ${isPago ? "selected" : ""}>PAGO</option>
+      </select>
+
+      <label>Persona encargada</label>
+      <select id="e-resp">
+        <option value="">Selecciona...</option>
+        ${respOptions.map(n => `<option value="${n}" ${currentResp===n?"selected":""}>${n.charAt(0)}${n.slice(1).toLowerCase()}</option>`).join("")}
+      </select>
+
+      <label>Contenido</label>
+      <textarea id="e-text" rows="4">${row.text || ""}</textarea>
+
+      <div id="e-paybox" ${isPago ? "" : 'class="hidden"'}>
+        <label>Monto del pago</label>
+        <input id="e-amount" type="number" min="0" step="0.01" value="${Number(row.amount || 0)}" />
+      </div>
+
+      <div style="margin-top:10px; display:flex; gap:8px;">
+        <button id="e-save">Guardar cambios</button>
+        <button id="e-cancel" class="secondary">Cancelar</button>
+      </div>
+    `);
+
+    const eType = document.getElementById("e-type");
+    const eResp = document.getElementById("e-resp");
+    const eText = document.getElementById("e-text");
+    const ePay = document.getElementById("e-paybox");
+    const eAmount = document.getElementById("e-amount");
+    const eSave = document.getElementById("e-save");
+    const eCancel = document.getElementById("e-cancel");
+
+    const syncPayBox = () => ePay.classList.toggle("hidden", eType.value !== "PAGO");
+    eType.addEventListener("change", syncPayBox);
+    syncPayBox();
+
+    eCancel.onclick = closeModal;
+
+    eSave.onclick = async () => {
+      try {
+        const body = {
+          type: eType.value,
+          text: eText.value.trim(),
+          responsible: (eResp.value || "").toUpperCase() || undefined
+        };
+        if (eType.value === "PAGO") {
+          body.amount = Number(eAmount?.value || 0);
+        } else {
+          body.amount = 0;
+        }
+        if (!body.responsible) {
+          return alert("Selecciona la persona encargada");
+        }
+        await http.updateNote(row._id, body);
+        closeModal();
+        await refresh(notesState.lastFilters);
+      } catch (e) {
+        alert("Error: " + e.message);
+      }
+    };
+  }
+
+  // ------- Crear nota -------
   nSave.onclick = async () => {
     try {
       let media = [];
       if (nFiles.files.length) {
-        const up = await API.mediaUpload(nFiles.files); // <--
+        const up = await API.mediaUpload(nFiles.files); // backend devuelve { files: [{ url, mimetype, publicId }, ...] }
         media = up.files || [];
       }
 
       const payload = {
         plate: nPlate.value.trim(),
         type: nType.value,
-        responsible: (nResponsible?.value || "").toUpperCase(), // <-- NUEVO
-        text: nContent.value.trim(),          // <-- se guarda en "text"
+        responsible: (nResponsible?.value || "").toUpperCase(),
+        text: nContent.value.trim(),
         media
       };
       if (!payload.plate || !payload.text) {
@@ -178,21 +291,21 @@ export function initNotes() {
       if (payload.type === "PAGO") {
         const amt = parseFloat(nPayAmount?.value ?? "");
         if (isNaN(amt)) return alert("Completa el monto del pago");
-        payload.amount = amt;                 // <-- modelo usa "amount"
-        // Si quieres guardar el método de pago, hoy no hay campo; puedes concatenarlo en text:
+        payload.amount = amt;
         if (nPayMethod?.value) payload.text += ` [PAGO: ${nPayMethod.value}]`;
       }
 
-      await API.notesCreate(payload);         // <--
+      await API.notesCreate(payload);
       if (nPayAmount) nPayAmount.value = "";
       if (nPayMethod) nPayMethod.value = "EFECTIVO";
-      nContent.value = ""; nFiles.value = ""; // reset
+      nContent.value = ""; nFiles.value = "";
       refresh(notesState.lastFilters);
     } catch (e) {
       alert("Error: " + e.message);
     }
   };
 
+  // ------- Filtros -------
   fApply.onclick = () => {
     const p = {};
     if (fPlate.value.trim()) p.plate = fPlate.value.trim();
@@ -201,7 +314,7 @@ export function initNotes() {
     refresh(p);
   };
 
-  // modal
+  // ------- Modal base (close, esc, click afuera) -------
   const modal = document.getElementById("modal");
   const modalBody = document.getElementById("modalBody");
   const modalClose = document.getElementById("modalClose");
@@ -216,7 +329,7 @@ export function initNotes() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hardHideModal(); });
   hardHideModal();
 
-  // abrir (se usa al hacer click en miniaturas de imágenes)
+  // (para ver imágenes en grande reutilizamos openModal)
   window.openModal = (html) => {
     modalBody.innerHTML = html;
     modal.classList.remove("hidden");
