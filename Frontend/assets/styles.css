@@ -64,3 +64,76 @@ footer { text-align:center; color: var(--muted); padding: 20px; }
 @media (max-width: 900px) {
   #notes-filters .filters-bar { grid-template-columns: 1fr; }
 }
+
+/* ===== Inventario: media como thumbnails ===== */
+
+/* Columna izquierda de cada .note (SKU, nombre, miniatura) */
+.note > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Miniatura única en la lista de inventario */
+.note .thumb {
+  width: 100px;
+  height: 100px;
+  overflow: hidden;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  background: #0b1220;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.note .thumb img,
+.note .thumb video {
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+}
+
+/* Galería de miniaturas dentro del modal de edición */
+.thumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.thumbs .thumb {
+  position: relative;
+  width: 90px;
+  height: 90px;
+  cursor: pointer;
+}
+.thumbs .thumb img,
+.thumbs .thumb video {
+  max-width: 100%;
+  max-height: 100%;
+  display: block;
+}
+.thumbs .thumb .del {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: #00000088;
+  border: 1px solid #334155;
+  color: #e5e7eb;
+  border-radius: 6px;
+  line-height: 20px;
+  padding: 0 6px;
+}
+
+/* Visor (imagen/video grande) dentro de modales */
+.viewer {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+.viewer img,
+.viewer video {
+  max-width: 100%;
+  border-radius: 10px;
+  border: 1px solid #1f2937;
+}
