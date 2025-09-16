@@ -42,29 +42,35 @@ function setLoggedOut() {
 
 loginBtn.onclick = async () => {
   try {
-    const r = await API.login({               // ✅ envía objeto JSON
+    const r = await API.login({
       email: email.value.trim(),
       password: password.value
     });
-    setLoggedIn(r.company.email, r.token);
+    // ⬇️ Guarda token y refresca la SPA para entrar "limpio"
+    API.token.set(r.token);
+    setTimeout(() => window.location.reload(), 50);
   } catch (e) {
     alert("Error: " + e.message);
   }
 };
+
 registerBtn.onclick = async () => {
   try {
     const name = prompt("Nombre de la empresa:");
     if (!name) return;
-    const r = await API.register({            // ✅ envía objeto JSON
+    const r = await API.register({
       name,
       email: email.value.trim(),
       password: password.value
     });
-    setLoggedIn(r.company.email, r.token);
+    // ⬇️ Guarda token y refresca la SPA
+    API.token.set(r.token);
+    setTimeout(() => window.location.reload(), 50);
   } catch (e) {
     alert("Error: " + e.message);
   }
 };
+
 logoutBtn.onclick = () => setLoggedOut();
 
 // Tabs (reemplazo robusto)
@@ -86,9 +92,9 @@ tabsRoot.addEventListener("click", (e) => {
 const initial = document.querySelector('.tabs button.active')?.dataset.tab || 'notas';
 showTab(initial);
 
-// Try auto-login
+// Try auto-login (NO recarga aquí para evitar loop)
 (async function boot() {
-  const t = API.token.get();                 // ✅ usa API.token.get()
+  const t = API.token.get();
   if (t) {
     try {
       const meResp = await API.me();         // { company: {...} }

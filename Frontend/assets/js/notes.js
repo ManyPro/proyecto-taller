@@ -7,6 +7,7 @@ export function initNotes() {
   // Inputs
   const nPlate = document.getElementById("n-plate"); upper(nPlate);
   const nType = document.getElementById("n-type");
+  const nResponsible = document.getElementById("n-responsible"); // <-- NUEVO
   const nContent = document.getElementById("n-content");
   const nFiles = document.getElementById("n-files");
   const nSave = document.getElementById("n-save");
@@ -46,6 +47,11 @@ export function initNotes() {
     return s ? `?${s}` : "";
   }
 
+  const niceName = (s) => {
+    const m = String(s || '').toLowerCase();
+    return m ? m.charAt(0).toUpperCase() + m.slice(1) : '';
+  };
+
   async function refresh(params = {}) {
     notesState.lastFilters = params;
     const res = await API.notesList(toQuery(params));
@@ -69,6 +75,10 @@ export function initNotes() {
       const content = document.createElement("div");
       content.className = "content";
       let header = `<b>${row.type}</b> — ${fmt(row.createdAt)}`;
+      // Encargado
+      if (row.responsible) {
+        header += ` — Encargado: ${niceName(row.responsible)}`;
+      }
       if (row.type === "PAGO" && typeof row.amount === "number" && row.amount > 0) {
         header += ` — Pago: $${row.amount.toLocaleString()}`;
       }
@@ -151,14 +161,19 @@ export function initNotes() {
         const up = await API.mediaUpload(nFiles.files); // <--
         media = up.files || [];
       }
+
       const payload = {
         plate: nPlate.value.trim(),
         type: nType.value,
+        responsible: (nResponsible?.value || "").toUpperCase(), // <-- NUEVO
         text: nContent.value.trim(),          // <-- se guarda en "text"
         media
       };
       if (!payload.plate || !payload.text) {
         return alert("Placa y contenido son obligatorios");
+      }
+      if (!payload.responsible) {
+        return alert("Selecciona la persona encargada");
       }
       if (payload.type === "PAGO") {
         const amt = parseFloat(nPayAmount?.value ?? "");

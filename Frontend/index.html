@@ -50,18 +50,30 @@
             <h3>Nueva Nota</h3>
             <label>Placa</label>
             <input id="n-plate" placeholder="ABC123" />
+
             <label>Tipo</label>
             <select id="n-type">
               <option value="GENERICA">GENERICA</option>
               <option value="PAGO">PAGO</option>
             </select>
+
+            <!-- NUEVO: Persona encargada -->
+            <label>Persona encargada</label>
+            <select id="n-responsible">
+              <option value="">Selecciona...</option>
+              <option value="DAVID">David</option>
+              <option value="VALENTIN">Valentín</option>
+              <option value="SEBASTIAN">Sebastián</option>
+              <option value="GIOVANNY">Giovanny</option>
+              <option value="SANDRA">Sandra</option>
+              <option value="CEDIEL">Cediel</option>
+            </select>
+
             <label>Contenido</label>
             <textarea id="n-content" rows="4"></textarea>
 
-
             <label>Fecha y hora (auto)</label>
             <input id="n-when" disabled />
-
 
             <div id="pay-box" class="hidden">
               <label>Monto del pago</label>

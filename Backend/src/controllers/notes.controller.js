@@ -1,6 +1,9 @@
 import Note from "../models/Note.js";
 import mongoose from "mongoose";
 
+const ALLOWED_RESP = ['DAVID', 'VALENTIN', 'SEBASTIAN', 'GIOVANNY', 'SANDRA', 'CEDIEL'];
+const normResp = (v) => String(v || '').trim().toUpperCase();
+
 export const listNotes = async (req, res) => {
   const { plate, from, to, page = 1, limit = 50 } = req.query;
 
@@ -24,12 +27,17 @@ export const listNotes = async (req, res) => {
 
 export const createNote = async (req, res) => {
   const { plate, text, type, amount, technician, media } = req.body || {};
+  const responsible = normResp(req.body?.responsible);
   if (!plate) return res.status(400).json({ error: "plate requerido" });
+  if (!ALLOWED_RESP.includes(responsible)) {
+    return res.status(400).json({ error: "responsible inválido" });
+  }
 
   const doc = await Note.create({
     plate: String(plate).toUpperCase().trim(),
     text: text || "",
     type: type || "GENERICA",
+    responsible,
     amount: type === "PAGO" ? Number(amount || 0) : 0,
     technician: technician ? String(technician).toUpperCase().trim() : undefined,
     media: Array.isArray(media) ? media : [],
@@ -46,6 +54,13 @@ export const updateNote = async (req, res) => {
 
   if (body.plate) body.plate = String(body.plate).toUpperCase().trim();
   if (body.technician) body.technician = String(body.technician).toUpperCase().trim();
+
+  if (body.responsible !== undefined) {
+    const r = normResp(body.responsible);
+    if (!ALLOWED_RESP.includes(r)) return res.status(400).json({ error: "responsible inválido" });
+    body.responsible = r;
+  }
+
   if (body.type === "PAGO" && body.amount !== undefined) body.amount = Number(body.amount);
   if (body.type === "GENERICA") body.amount = 0;
 
