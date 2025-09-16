@@ -137,3 +137,27 @@ footer { text-align:center; color: var(--muted); padding: 20px; }
   border-radius: 10px;
   border: 1px solid #1f2937;
 }
+
+/* ===== Inventario: Ingresos de vehículo con scroll ===== */
+
+/* El contenedor donde pintas la lista (id que ya usas desde inventory.js) */
+#viList {
+  /* limita la altura del listado, el resto del card no cambia de tamaño */
+  max-height: min(48vh, 420px);
+  overflow: auto;
+  padding-right: 4px;           /* deja espacio para la scrollbar */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ===== Inventario: espaciados entre bloques ===== */
+
+/* La fila que contiene "Entrada de vehículo" y "Ingresos de vehículo" */
+#tab-inventario .grid {
+  gap: 24px;                    /* ya usas este gap entre columnas */
+  margin-bottom: 24px;          /* el mismo gap hacia abajo */
+}
+
+/* Cualquier card que venga después de esa fila (p. ej. "Nuevo ítem") */
+#tab-inventario .grid + .card {
+  margin-top: 24px;             /* mismo espaciado que entre columnas */
+}
