@@ -49,7 +49,7 @@ export function initNotes() {
   // Inputs
   const nPlate = document.getElementById("n-plate"); upper(nPlate);
   const nType = document.getElementById("n-type");
-  const nResponsible = document.getElementById("n-responsible"); // <-- NUEVO
+  const nResponsible = document.getElementById("n-responsible");
   const nContent = document.getElementById("n-content");
   const nFiles = document.getElementById("n-files");
   const nSave = document.getElementById("n-save");
@@ -62,7 +62,7 @@ export function initNotes() {
   // Pago (UI)
   const payBox = document.getElementById("pay-box");
   const nPayAmount = document.getElementById("n-pay-amount");
-  const nPayMethod = document.getElementById("n-pay-method"); // no se persiste (si quieres, concatenamos en texto)
+  const nPayMethod = document.getElementById("n-pay-method"); // se conserva en texto
   const togglePay = () => {
     if (!payBox) return;
     payBox.classList.toggle("hidden", nType.value !== "PAGO");
@@ -197,7 +197,12 @@ export function initNotes() {
   function openEditNote(row) {
     const isPago = row.type === "PAGO";
     const respOptions = ["DAVID","VALENTIN","SEBASTIAN","GIOVANNY","SANDRA","CEDIEL"];
-    const currentResp = String(row.responsible || "").toUpperCase();
+
+    // Detectar método de pago actual desde el texto: [PAGO: XXX]
+    const methodOptions = ["EFECTIVO","TRANSFERENCIA","TARJETA","DEPOSITO","CHEQUE","OTRO"];
+    const match = /\[PAGO:\s*([^\]]+)\]/i.exec(row.text || "");
+    let currentMethod = (match && match[1] && match[1].toUpperCase().trim()) || "EFECTIVO";
+    if (!methodOptions.includes(currentMethod)) currentMethod = "EFECTIVO";
 
     openModal(`
       <h3>Editar nota</h3>
@@ -211,7 +216,7 @@ export function initNotes() {
       <label>Persona encargada</label>
       <select id="e-resp">
         <option value="">Selecciona...</option>
-        ${respOptions.map(n => `<option value="${n}" ${currentResp===n?"selected":""}>${n.charAt(0)}${n.slice(1).toLowerCase()}</option>`).join("")}
+        ${respOptions.map(n => `<option value="${n}" ${String(row.responsible||"").toUpperCase()===n?"selected":""}>${n.charAt(0)}${n.slice(1).toLowerCase()}</option>`).join("")}
       </select>
 
       <label>Contenido</label>
@@ -220,6 +225,11 @@ export function initNotes() {
       <div id="e-paybox" ${isPago ? "" : 'class="hidden"'}>
         <label>Monto del pago</label>
         <input id="e-amount" type="number" min="0" step="0.01" value="${Number(row.amount || 0)}" />
+
+        <label>Método de pago</label>
+        <select id="e-method">
+          ${methodOptions.map(m => `<option value="${m}" ${currentMethod===m?"selected":""}>${m.charAt(0)}${m.slice(1).toLowerCase()}</option>`).join("")}
+        </select>
       </div>
 
       <div style="margin-top:10px; display:flex; gap:8px;">
@@ -233,6 +243,7 @@ export function initNotes() {
     const eText = document.getElementById("e-text");
     const ePay = document.getElementById("e-paybox");
     const eAmount = document.getElementById("e-amount");
+    const eMethod = document.getElementById("e-method");
     const eSave = document.getElementById("e-save");
     const eCancel = document.getElementById("e-cancel");
 
@@ -244,19 +255,24 @@ export function initNotes() {
 
     eSave.onclick = async () => {
       try {
+        // limpiar tag [PAGO: ...] previo y reescribir con el método seleccionado
+        let newText = eText.value.trim();
+        newText = newText.replace(/\s*\[PAGO:[^\]]+\]/ig, "").trim();
+
         const body = {
           type: eType.value,
-          text: eText.value.trim(),
+          text: newText,
           responsible: (eResp.value || "").toUpperCase() || undefined
         };
         if (eType.value === "PAGO") {
           body.amount = Number(eAmount?.value || 0);
+          const m = (eMethod?.value || "EFECTIVO").toUpperCase();
+          body.text = `${body.text} [PAGO: ${m}]`;
         } else {
           body.amount = 0;
         }
-        if (!body.responsible) {
-          return alert("Selecciona la persona encargada");
-        }
+        if (!body.responsible) return alert("Selecciona la persona encargada");
+
         await http.updateNote(row._id, body);
         closeModal();
         await refresh(notesState.lastFilters);
@@ -271,7 +287,7 @@ export function initNotes() {
     try {
       let media = [];
       if (nFiles.files.length) {
-        const up = await API.mediaUpload(nFiles.files); // backend devuelve { files: [{ url, mimetype, publicId }, ...] }
+        const up = await API.mediaUpload(nFiles.files);
         media = up.files || [];
       }
 
