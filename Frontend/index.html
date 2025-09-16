@@ -1,78 +1,84 @@
 <!doctype html>
 <html lang="es">
+
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Taller App</title>
-
-  <!-- estilos -->
-  <link rel="stylesheet" href="assets/styles.css" />
-  <link rel="icon" href="data:," />
-
-  <!-- config / lógica existente -->
+  <link rel="stylesheet" href="assets/styles.css?" />
   <script src="./assets/js/config.js"></script>
   <script type="module" src="./assets/js/api.js"></script>
   <script type="module" src="./assets/js/app.js"></script>
   <script type="module" src="./assets/js/notes.js"></script>
-  <script type="module" src="./assets/js/inventory.js"></script>
-  <!-- NUEVO: lógica de cotizaciones (crea este archivo) -->
-  <script type="module" src="./assets/js/quotes.js"></script>
+  <link rel="icon" href="data:,">
 </head>
 
 <body>
   <header>
-    <div class="brand"><strong>Taller</strong> App</div>
-    <div class="spacer"></div>
-    <div class="user">
+    <h1>Taller Automotriz</h1>
+    <div id="authBox">
       <span id="companyEmail"></span>
       <button id="logoutBtn" class="secondary hidden">Salir</button>
     </div>
   </header>
 
   <main>
-    <!-- ========== LOGIN ========== -->
-    <section id="loginSection" class="section">
-      <div class="card login">
-        <h2>Ingreso de Empresa</h2>
+    <section id="loginSection">
+      <h2>Ingreso de Empresa</h2>
+      <div class="card">
         <label>Correo de empresa</label>
-        <input id="email" type="email" placeholder="empresa@correo.com" />
+        <input type="email" id="email" placeholder="empresa@correo.com" />
         <label>Contraseña</label>
-        <input id="password" type="password" placeholder="********" />
-        <div class="actions">
-          <button id="loginBtn" class="primary">Entrar</button>
+        <input type="password" id="password" placeholder="********" />
+        <div class="row">
+          <button id="loginBtn">Entrar</button>
           <button id="registerBtn" class="secondary">Registrar empresa</button>
         </div>
-        <p class="muted">Se crea un entorno aislado por empresa.</p>
+        <small>Se crea un entorno aislado por empresa.</small>
       </div>
     </section>
 
-    <!-- ========== APP ========== -->
-    <section id="appSection" class="section hidden">
+    <section id="appSection" class="hidden">
       <nav class="tabs">
         <button data-tab="notas" class="active">Notas</button>
         <button data-tab="inventario">Inventario</button>
-        <button data-tab="cotizaciones">Cotizaciones</button>
       </nav>
-
-      <!-- Modal GLOBAL (para todas las pestañas) -->
+      <!-- MODAL GLOBAL (fuera de las tabs para que sirva en Notas e Inventario) -->
       <div id="modal" class="modal hidden">
-        <div class="modal-backdrop" id="modalBackdrop"></div>
-        <div class="modal-dialog">
-          <div class="modal-header">
-            <h4 id="modalTitle">Vista</h4>
-            <button id="modalClose" class="icon">✕</button>
-          </div>
-          <div id="modalBody" class="modal-body"></div>
+        <div class="modal-content">
+          <button id="modalClose" class="close">&times;</button>
+          <div id="modalBody"></div>
         </div>
       </div>
 
       <!-- ========== NOTAS ========== -->
       <section id="tab-notas" class="tab active">
-        <!-- (tu contenido actual de Notas permanece igual) -->
-        <div class="grid-2">
-          <div class="card">
-            <h3>Nueva Nota</h3>
+        <!-- Barra superior de filtros -->
+        <div class="card" id="notes-filters">
+          <h3>Filtros</h3>
+          <div class="filters-bar">
+            <div class="field">
+              <label>Placa</label>
+              <input id="f-plate" placeholder="ABC123" />
+            </div>
+            <div class="field">
+              <label>Desde</label>
+              <input id="f-from" type="date" />
+            </div>
+            <div class="field">
+              <label>Hasta</label>
+              <input id="f-to" type="date" />
+            </div>
+            <div class="field apply-field">
+              <button id="f-apply" class="secondary">Aplicar</button>
+            </div>
+          </div>
+        </div>
 
+        <!-- Cuerpo: Nueva nota (izquierda) + Historial (derecha) -->
+        <div class="grid-2" id="notes-body">
+          <div class="card" id="notes-new">
+            <h3>Nueva Nota</h3>
             <label>Placa</label>
             <input id="n-plate" placeholder="ABC123" />
 
@@ -82,15 +88,16 @@
               <option value="PAGO">PAGO</option>
             </select>
 
+            <!-- Persona encargada -->
             <label>Persona encargada</label>
-            <select id="n-owner">
-              <option value="">— Selecciona —</option>
-              <option>David</option>
-              <option>Valentin</option>
-              <option>Sebastian</option>
-              <option>Giovanny</option>
-              <option>Sandra</option>
-              <option>Cediel</option>
+            <select id="n-responsible">
+              <option value="">Selecciona...</option>
+              <option value="DAVID">David</option>
+              <option value="VALENTIN">Valentín</option>
+              <option value="SEBASTIAN">Sebastián</option>
+              <option value="GIOVANNY">Gio</option>
+              <option value="SANDRA">Sandra</option>
+              <option value="CEDIEL">Cediel</option>
             </select>
 
             <label>Contenido</label>
@@ -99,214 +106,90 @@
             <label>Fecha y hora (auto)</label>
             <input id="n-when" disabled />
 
-            <div class="actions">
-              <button id="n-save" class="primary">Guardar Nota</button>
-              <label class="file">
-                <input id="n-files" type="file" multiple />
-                Elegir archivos
-              </label>
+            <div id="pay-box" class="hidden">
+              <label>Monto del pago</label>
+              <input id="n-pay-amount" type="number" min="0" step="0.01" />
+              <label>Método de pago</label>
+              <select id="n-pay-method">
+                <option value="EFECTIVO">EFECTIVO</option>
+                <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                <option value="TARJETA">TARJETA</option>
+                <option value="DEPOSITO">DEPOSITO</option>
+                <option value="CHEQUE">CHEQUE</option>
+                <option value="OTRO">OTRO</option>
+              </select>
             </div>
+
+            <label>Imágenes/Videos</label>
+            <input id="n-files" type="file" multiple />
+            <button id="n-save">Guardar Nota</button>
           </div>
 
-          <div class="card">
-            <h3>Filtros</h3>
-            <div class="filters-bar">
-              <div class="field">
-                <label>Placa</label>
-                <input id="f-plate" placeholder="ABC123" />
-              </div>
-              <div class="field">
-                <label>Tipo</label>
-                <select id="f-type">
-                  <option value="">Todos</option>
-                  <option value="GENERICA">GENERICA</option>
-                  <option value="PAGO">PAGO</option>
-                </select>
-              </div>
-              <div class="field">
-                <label>Encargado</label>
-                <select id="f-owner">
-                  <option value="">Todos</option>
-                  <option>David</option>
-                  <option>Valentin</option>
-                  <option>Sebastian</option>
-                  <option>Giovanny</option>
-                  <option>Sandra</option>
-                  <option>Cediel</option>
-                </select>
-              </div>
-              <div class="field">
-                <label>Desde</label>
-                <input id="f-from" type="date" />
-              </div>
-              <div class="field">
-                <label>Hasta</label>
-                <input id="f-to" type="date" />
-              </div>
-              <button id="f-apply" class="secondary">Aplicar</button>
-            </div>
+          <div class="card" id="notes-history">
+            <h3>Historial</h3>
+            <div id="notesList" class="list"></div>
           </div>
-        </div>
-
-        <div class="card">
-          <h3>Historial</h3>
-          <div id="notesList" class="list"></div>
         </div>
       </section>
       <!-- ========== /NOTAS ========== -->
 
       <!-- ========== INVENTARIO ========== -->
       <section id="tab-inventario" class="tab">
-        <!-- (tu contenido actual de Inventario; no lo cambio aquí para no pisar nada) -->
-        <div class="card">
+        <div id="inventory-top">
+          <div class="card" id="vi-card-form">
+            <h3>Entrada de vehículo</h3>
+            <label>Marca</label><input id="vi-brand" />
+            <label>Modelo</label><input id="vi-model" />
+            <label>Cilindraje</label><input id="vi-engine" />
+            <label>Fecha ingreso</label><input id="vi-date" type="date" />
+            <label>Precio de entrada</label><input id="vi-price" type="number" min="0" step="0.01" />
+            <button id="vi-save">Guardar Entrada</button>
+          </div>
+          <div class="card" id="vi-card-lista">
+            <h3>Ingresos de vehículo</h3>
+            <div id="vi-list"></div>
+          </div>
+        </div>
+
+        <div class="card span-2" id="item-form">
+          <h3>Nuevo Ítem</h3>
+          <label>SKU</label><input id="it-sku" />
+          <label>Nombre</label><input id="it-name" />
+          <label>Vehículo destino</label><input id="it-vehicleTarget" placeholder="VITRINAS" />
+          <label>Entrada de vehículo</label>
+          <select id="it-vehicleIntakeId"></select>
+          <label>Precio entrada (opcional)</label><input id="it-entryPrice" type="number" min="0" step="0.01" />
+          <label>Precio venta</label><input id="it-salePrice" type="number" min="0" step="0.01" />
+          <label>Original</label>
+          <select id="it-original">
+            <option value="false">No</option>
+            <option value="true">Sí</option>
+          </select>
+          <label>Stock inicial</label><input id="it-stock" type="number" min="0" step="1" />
+
+          <!-- NUEVO: múltiples imágenes del ítem -->
+          <label>Imágenes/Videos del ítem</label>
+          <input id="it-files" type="file" multiple />
+
+          <button id="it-save">Guardar Ítem</button>
+        </div>
+
+        <!-- Inventario con filtros: nombre, SKU, entrada -->
+        <div class="card span-2" id="inventory-list">
           <h3>Inventario</h3>
-          <p class="muted">Contenido existente del inventario (sin cambios en este archivo).</p>
+          <div class="row" id="items-filters">
+            <input id="q-name" placeholder="Filtrar por nombre..." />
+            <input id="q-sku" placeholder="SKU..." />
+            <select id="q-intakeId">
+              <option value="">Todas las entradas</option>
+            </select>
+            <button id="q-apply" class="secondary">Buscar</button>
+            <button id="q-clear" class="secondary">Limpiar</button>
+          </div>
+          <div id="itemsList" class="list"></div>
         </div>
       </section>
       <!-- ========== /INVENTARIO ========== -->
-
-      <!-- ========== COTIZACIONES ========== -->
-      <section id="tab-cotizaciones" class="tab">
-        <!-- Layout 3 columnas (inline para no tocar tu CSS): -->
-        <div style="display:grid;grid-template-columns:minmax(280px,1fr) minmax(520px,1.4fr) minmax(320px,1fr);gap:16px;align-items:start;">
-
-          <!-- Columna izquierda — Datos del vehículo y cliente -->
-          <div class="card">
-            <h3>Datos del vehículo y cliente</h3>
-
-            <div class="grid-2">
-              <div class="field">
-                <label>No. Cotización</label>
-                <input id="q-number" readonly />
-              </div>
-              <div class="field">
-                <label>Fecha/hora</label>
-                <input id="q-when" readonly />
-              </div>
-            </div>
-
-            <label>Placa <span class="required">*</span></label>
-            <input id="q-plate" placeholder="ABC123" />
-
-            <label>Cliente</label>
-            <input id="q-owner" placeholder="Nombre del cliente" />
-
-            <div class="grid-2">
-              <div class="field">
-                <label>Teléfono (opcional)</label>
-                <input id="q-phone" />
-              </div>
-              <div class="field">
-                <label>Correo (opcional)</label>
-                <input id="q-email" type="email" />
-              </div>
-            </div>
-
-            <div class="grid-2">
-              <div class="field">
-                <label>Marca</label>
-                <input id="q-make" />
-              </div>
-              <div class="field">
-                <label>Línea/Modelo</label>
-                <input id="q-line" />
-              </div>
-            </div>
-
-            <div class="grid-2">
-              <div class="field">
-                <label>Año</label>
-                <input id="q-year" />
-              </div>
-              <div class="field">
-                <label>Cilindraje</label>
-                <input id="q-cc" />
-              </div>
-            </div>
-
-            <label>Validez (opcional)</label>
-            <input id="q-validity" placeholder="8 días" />
-
-            <div class="actions" style="margin-top:8px;">
-              <button id="q-save-draft" class="secondary">Guardar borrador</button>
-            </div>
-
-            <p class="muted">Los valores son <strong>SIN IVA</strong>.</p>
-          </div>
-
-          <!-- Columna central — Ítems -->
-          <div class="card">
-            <h3>Ítems</h3>
-
-            <div class="table-wrap">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th style="width:115px">Tipo</th>
-                    <th>Descripción</th>
-                    <th style="width:90px">Cant.</th>
-                    <th style="width:130px">Precio unit.</th>
-                    <th style="width:130px">Subtotal</th>
-                    <th style="width:100px">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody id="q-items-body"><!-- filas dinámicas --></tbody>
-                <tfoot>
-                  <tr>
-                    <td colspan="4" class="right">Subtotal Productos</td>
-                    <td id="q-subtotal-products" class="monetary">$0</td>
-                    <td></td>
-                  </tr>
-                  <tr>
-                    <td colspan="4" class="right">Subtotal Servicios</td>
-                    <td id="q-subtotal-services" class="monetary">$0</td>
-                    <td></td>
-                  </tr>
-                  <tr>
-                    <td colspan="4" class="right"><strong>Total</strong></td>
-                    <td id="q-total" class="monetary"><strong>$0</strong></td>
-                    <td></td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-
-            <div class="actions" style="justify-content:space-between;gap:8px;margin-top:10px">
-              <button id="q-add-row" class="secondary">+ Agregar línea</button>
-              <div style="margin-left:auto;font-weight:700">Total: <span id="q-total-inline">$0</span></div>
-            </div>
-          </div>
-
-          <!-- Columna derecha — Resumen y acciones -->
-          <div class="card">
-            <h3>Resumen / Acciones</h3>
-
-            <div class="totals-box">
-              <div><small>Cotización</small></div>
-              <div id="q-number-big" class="big">00001</div>
-              <div style="margin-top:8px"><small>Total</small></div>
-              <div id="q-total-big" class="big">$0</div>
-            </div>
-
-            <label>Vista previa de WhatsApp</label>
-            <pre id="q-wa-preview" class="wa-preview" style="min-height:160px;white-space:pre-wrap"></pre>
-
-            <div class="actions" style="gap:8px;margin-top:8px">
-              <button id="q-wa" class="primary">Enviar por WhatsApp</button>
-              <button id="q-pdf" class="secondary">Exportar PDF</button>
-              <button id="q-reset" class="danger">Borrar todo</button>
-            </div>
-          </div>
-
-        </div>
-
-        <!-- Historial -->
-        <div class="card" style="margin-top:16px">
-          <h3>Historial de cotizaciones</h3>
-          <div id="quotesList" class="list"><!-- render dinámico --></div>
-        </div>
-      </section>
-      <!-- ========== /COTIZACIONES ========== -->
 
     </section>
   </main>
