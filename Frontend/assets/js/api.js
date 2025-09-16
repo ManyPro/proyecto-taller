@@ -75,7 +75,13 @@ const API = {
   // Accesos de bajo nivel
   get: http.get,
   post: http.post,
-  upload: http.upload
+  upload: http.upload,
+
+  quotesList:   (q='')      => http.get(`/api/v1/quotes${q}`),
+  quoteCreate:  (payload)   => http.post('/api/v1/quotes', payload),
+  quoteUpdate:  (id,payload)=> http.post(`/api/v1/quotes/${id}`, payload),
+  quotePatch:   (id,payload)=> coreRequest('PATCH', `/api/v1/quotes/${id}`, payload),
+  quoteDelete:  (id)        => coreRequest('DELETE', `/api/v1/quotes/${id}`),
 };
 
 // Exports (named y default)

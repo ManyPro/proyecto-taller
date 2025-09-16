@@ -102,3 +102,9 @@ mongoose.connect(MONGODB_URI, { dbName: process.env.MONGODB_DB || 'taller' })
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`API escuchando en :${PORT}`));
+
+// 1) import
+import quotesRouter from './routes/quotes.routes.js';
+
+// 2) usar (protegido e inyectando companyId/userId como en inventario)
+app.use('/api/v1/quotes', authCompany, withCompanyDefaults, quotesRouter);
