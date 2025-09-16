@@ -43,7 +43,13 @@
         <button data-tab="notas" class="active">Notas</button>
         <button data-tab="inventario">Inventario</button>
       </nav>
-
+      <!-- MODAL GLOBAL (vívela fuera de las tabs para que sirva en Notas e Inventario) -->
+      <div id="modal" class="modal hidden">
+        <div class="modal-content">
+          <button id="modalClose" class="close">&times;</button>
+          <div id="modalBody"></div>
+        </div>
+      </div>
       <!-- ========== NOTAS ========== -->
       <section id="tab-notas" class="tab active">
         <!-- Barra superior de filtros -->
@@ -193,4 +199,5 @@
     <small>© Taller App</small>
   </footer>
 </body>
+
 </html>
