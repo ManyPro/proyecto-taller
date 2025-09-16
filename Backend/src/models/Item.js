@@ -1,5 +1,11 @@
 import mongoose from "mongoose";
 
+const mediaSchema = new mongoose.Schema({
+  url: { type: String, required: true, trim: true },
+  publicId: { type: String, required: true, trim: true },
+  mimetype: { type: String, required: true, trim: true }
+}, { _id: false });
+
 const itemSchema = new mongoose.Schema({
   companyId: { type: mongoose.Types.ObjectId, required: true, index: true },
   sku: { type: String, required: true, uppercase: true, trim: true },
@@ -13,6 +19,9 @@ const itemSchema = new mongoose.Schema({
   salePrice: { type: Number, default: 0, min: 0 },
   original: { type: Boolean, default: false },
   stock: { type: Number, default: 0, min: 0 },
+
+  // NUEVO: múltiples medios (imágenes/videos) asociados al ítem
+  images: { type: [mediaSchema], default: [] },
 }, { timestamps: true });
 
 itemSchema.index({ companyId: 1, sku: 1 }, { unique: true });

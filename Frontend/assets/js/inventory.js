@@ -16,7 +16,7 @@ const fmtMoney = (n) => {
   try { return v.toLocaleString(); } catch { return String(v); }
 };
 
-// --------- Pequeño cliente para Inventory (sin depender de API.request) ----------
+// --------- HTTP local ----------
 const apiBase = API.base || "";
 const authHeader = () => {
   const t = API.token?.get?.();
@@ -46,7 +46,6 @@ function toQuery(params = {}) {
 }
 
 const invAPI = {
-  // Vehicle intakes
   listVehicleIntakes: async () => {
     const r = await request("/api/v1/inventory/vehicle-intakes");
     const data = Array.isArray(r) ? r : (r.items || r.data || []);
@@ -61,7 +60,6 @@ const invAPI = {
   recalcVehicleIntake: (id) =>
     request(`/api/v1/inventory/vehicle-intakes/${id}/recalc`, { method: "POST" }),
 
-  // Items
   listItems: async (params = {}) => {
     const r = await request(`/api/v1/inventory/items${toQuery(params)}`);
     const data = Array.isArray(r) ? r : (r.items || r.data || []);
@@ -75,8 +73,7 @@ const invAPI = {
     request(`/api/v1/inventory/items/${id}`, { method: "DELETE" })
 };
 
-// =================================================================================
-// --------------------------- util de modal local --------------------------------
+// --------------------------- modal utils --------------------------------
 function invOpenModal(innerHTML) {
   const modal = document.getElementById("modal");
   const body = document.getElementById("modalBody");
@@ -96,6 +93,23 @@ function invCloseModal() {
   const body  = document.getElementById("modalBody");
   if (body) body.innerHTML = "";
   if (modal) modal.classList.add("hidden");
+}
+
+function openLightbox(m) {
+  const isVideo = (m.mimetype || "").startsWith("video/");
+  invOpenModal(`
+    <h3>Vista previa</h3>
+    <div class="viewer">
+      ${isVideo
+        ? `<video controls src="${m.url}"></video>`
+        : `<img src="${m.url}" alt="media" />`
+      }
+    </div>
+    <div class="row">
+      <button class="secondary" id="lb-close">Cerrar</button>
+    </div>
+  `);
+  document.getElementById("lb-close").onclick = invCloseModal;
 }
 
 // =================================================================================
@@ -121,6 +135,7 @@ export function initInventory() {
   const itSalePrice = document.getElementById("it-salePrice");
   const itOriginal = document.getElementById("it-original");
   const itStock = document.getElementById("it-stock");
+  const itFiles = document.getElementById("it-files");
   const itSave = document.getElementById("it-save");
 
   // ---- Listado de ítems ----
@@ -128,7 +143,6 @@ export function initInventory() {
   const qName = document.getElementById("q-name");
   const qApply = document.getElementById("q-apply");
 
-  // NUEVOS filtros
   const qSku = document.getElementById("q-sku");
   const qIntake = document.getElementById("q-intakeId");
   const qClear = document.getElementById("q-clear");
@@ -138,35 +152,21 @@ export function initInventory() {
     const { data } = await invAPI.listVehicleIntakes();
     state.intakes = data || [];
 
-    // llenar select del formulario de ítems
     itVehicleIntakeId.innerHTML =
       `<option value="">(opcional)</option>` +
       state.intakes
-        .map(
-          (v) =>
-            `<option value="${v._id}">
-              ${v.brand} ${v.model} ${v.engine} - ${new Date(v.intakeDate).toLocaleDateString()}
-            </option>`
-        )
+        .map(v => `<option value="${v._id}">${v.brand} ${v.model} ${v.engine} - ${new Date(v.intakeDate).toLocaleDateString()}</option>`)
         .join("");
 
-    // llenar select de filtros (inventario)
     if (qIntake) {
       qIntake.innerHTML =
         `<option value="">Todas las entradas</option>` +
         state.intakes
-          .map(
-            (v) =>
-              `<option value="${v._id}">
-                ${v.brand} ${v.model} ${v.engine} - ${new Date(v.intakeDate).toLocaleDateString()}
-              </option>`
-          )
+          .map(v => `<option value="${v._id}">${v.brand} ${v.model} ${v.engine} - ${new Date(v.intakeDate).toLocaleDateString()}</option>`)
           .join("");
     }
 
     renderIntakesList();
-
-    // disparar cambio para autocompletar destino si hay selección
     itVehicleIntakeId.dispatchEvent(new Event("change"));
   }
 
@@ -196,27 +196,20 @@ export function initInventory() {
           <button class="danger" data-del="${vi._id}">Eliminar</button>
         </div>
       `;
-
-      // --- modal editar ENTRADA ---
       row.querySelector("[data-edit]").onclick = () => openEditVehicleIntake(vi);
-
       row.querySelector("[data-del]").onclick = async () => {
         if (!confirm("¿Eliminar esta entrada de vehículo? (debe no tener ítems vinculados)")) return;
         try {
           await invAPI.deleteVehicleIntake(vi._id);
           await refreshIntakes();
           await refreshItems({});
-        } catch (e) {
-          alert("No se pudo eliminar: " + e.message);
-        }
+        } catch (e) { alert("No se pudo eliminar: " + e.message); }
       };
-
       row.querySelector("[data-recalc]").onclick = async () => {
         await invAPI.recalcVehicleIntake(vi._id);
         await refreshItems({});
         alert("Prorrateo recalculado.");
       };
-
       viList.appendChild(row);
     });
   }
@@ -230,16 +223,25 @@ export function initInventory() {
       const div = document.createElement("div");
       div.className = "note";
 
-      // Entrada TOTAL = unitario * stock; mostrar también unitario
       const unit = it.entryPrice ?? 0;
       const total = unit * Math.max(0, it.stock || 0);
-      const entradaTxt =
-        `${fmtMoney(total)}${it.entryPriceIsAuto ? " (prorrateado)" : ""} - unit: ${fmtMoney(unit)}`;
+      const entradaTxt = `${fmtMoney(total)}${it.entryPriceIsAuto ? " (prorrateado)" : ""} - unit: ${fmtMoney(unit)}`;
+
+      // primer thumbnail si existe
+      const first = (it.images && it.images[0]) ? it.images[0] : null;
+      const thumbHTML = first
+        ? `<div class="thumb" style="cursor:pointer" title="Ver media">
+             ${first.mimetype?.startsWith("video/")
+               ? `<video src="${first.url}" muted></video>`
+               : `<img src="${first.url}" alt="thumb" />`}
+           </div>`
+        : "";
 
       div.innerHTML = `
         <div>
           <div><b>${it.sku}</b></div>
           <div>${it.name}</div>
+          ${thumbHTML}
         </div>
         <div class="content">
           <div>Vehículo: ${it.vehicleTarget}${it.vehicleIntakeId ? " (entrada)" : ""}</div>
@@ -254,17 +256,21 @@ export function initInventory() {
       const edit = div.querySelector("[data-edit]");
       const del = div.querySelector("[data-del]");
 
-      // --- modal editar ÍTEM ---
+      // abrir modal de edición
       edit.onclick = () => openEditItem(it);
+
+      // abrir lightbox del primer medio
+      if (first) {
+        const t = div.querySelector(".thumb");
+        t.onclick = () => openLightbox(first);
+      }
 
       del.onclick = async () => {
         if (!confirm("¿Eliminar ítem? (stock debe ser 0)")) return;
         try {
           await invAPI.deleteItem(it._id);
           refreshItems(state.lastItemsParams);
-        } catch (e) {
-          alert("Error: " + e.message);
-        }
+        } catch (e) { alert("Error: " + e.message); }
       };
 
       itemsList.appendChild(div);
@@ -287,7 +293,7 @@ export function initInventory() {
     alert("Entrada de vehículo creada");
   };
 
-  // ====== Auto-relleno de destino cuando se elige una entrada ======
+  // ====== Auto-relleno de destino ======
   itVehicleIntakeId.addEventListener("change", () => {
     const id = itVehicleIntakeId.value;
     if (!id) {
@@ -304,7 +310,7 @@ export function initInventory() {
     }
   });
 
-  // ====== Guardar ítem ======
+  // ====== Guardar ítem (con imágenes) ======
   itSave.onclick = async () => {
     let vehicleTargetValue = (itVehicleTarget.value || "").trim();
     const selectedIntakeId = itVehicleIntakeId.value || undefined;
@@ -315,6 +321,13 @@ export function initInventory() {
     }
     if (!vehicleTargetValue) vehicleTargetValue = "VITRINAS";
 
+    // subimos medios si hay
+    let images = [];
+    if (itFiles && itFiles.files && itFiles.files.length > 0) {
+      const up = await API.mediaUpload(itFiles.files);
+      images = (up && up.files) ? up.files : [];
+    }
+
     const body = {
       sku: itSku.value.trim(),
       name: itName.value.trim(),
@@ -324,6 +337,7 @@ export function initInventory() {
       salePrice: parseFloat(itSalePrice.value || "0"),
       original: itOriginal.value === "true",
       stock: parseInt(itStock.value || "0", 10),
+      images
     };
 
     if (!body.sku || !body.name || !body.salePrice)
@@ -340,6 +354,7 @@ export function initInventory() {
     itSalePrice.value = "";
     itOriginal.value = "false";
     itStock.value = "";
+    if (itFiles) itFiles.value = "";
     itVehicleTarget.readOnly = false;
 
     await refreshItems({});
@@ -366,8 +381,7 @@ export function initInventory() {
   );
   qIntake.addEventListener("change", doSearch);
 
-  // ====== Editar: MODALES ======
-
+  // ====== Editar: ENTRADA ======
   function openEditVehicleIntake(vi) {
     const d = new Date(vi.intakeDate);
     const ymd = isFinite(d) ? d.toISOString().slice(0, 10) : "";
@@ -423,6 +437,7 @@ export function initInventory() {
     };
   }
 
+  // ====== Editar: ÍTEM (con imágenes) ======
   function openEditItem(it) {
     const optionsIntakes = [
       `<option value="">(sin entrada)</option>`,
@@ -432,6 +447,8 @@ export function initInventory() {
         </option>`
       )
     ].join("");
+
+    const images = Array.isArray(it.images) ? [...it.images] : [];
 
     invOpenModal(`
       <h3>Editar ítem</h3>
@@ -463,6 +480,12 @@ export function initInventory() {
       <label>Stock</label>
       <input id="e-it-stock" type="number" step="1" min="0" value="${parseInt(it.stock || 0, 10)}" />
 
+      <label>Imágenes/Videos</label>
+      <div id="e-it-thumbs" class="thumbs"></div>
+      <input id="e-it-files" type="file" multiple />
+
+      <div class="viewer" id="e-it-viewer" style="display:none"></div>
+
       <div style="margin-top:10px; display:flex; gap:8px;">
         <button id="e-it-save">Guardar cambios</button>
         <button id="e-it-cancel" class="secondary">Cancelar</button>
@@ -477,8 +500,41 @@ export function initInventory() {
     const sale = document.getElementById("e-it-sale");
     const original = document.getElementById("e-it-original");
     const stock = document.getElementById("e-it-stock");
+    const files = document.getElementById("e-it-files");
+    const thumbs = document.getElementById("e-it-thumbs");
+    const viewer = document.getElementById("e-it-viewer");
     const save = document.getElementById("e-it-save");
     const cancel = document.getElementById("e-it-cancel");
+
+    function renderThumbs() {
+      thumbs.innerHTML = "";
+      images.forEach((m, idx) => {
+        const d = document.createElement("div");
+        d.className = "thumb";
+        d.innerHTML = `
+          ${m.mimetype?.startsWith("video/")
+            ? `<video src="${m.url}" muted></video>`
+            : `<img src="${m.url}" alt="thumb" />`}
+          <button class="del" title="Quitar" data-del="${idx}">×</button>
+        `;
+        d.onclick = (ev) => {
+          const btn = ev.target.closest("button.del");
+          if (btn) return; // evitar abrir visor al quitar
+          // vista previa dentro del modal
+          viewer.style.display = "block";
+          viewer.innerHTML = m.mimetype?.startsWith("video/")
+            ? `<video controls src="${m.url}"></video>`
+            : `<img src="${m.url}" alt="media" />`;
+        };
+        d.querySelector("button.del").onclick = () => {
+          images.splice(idx, 1);
+          renderThumbs();
+          if (viewer.style.display !== "none") viewer.innerHTML = "";
+        };
+        thumbs.appendChild(d);
+      });
+    }
+    renderThumbs();
 
     // cuando se seleccione una entrada, autocompletamos el destino y bloqueamos edición
     intake.addEventListener("change", () => {
@@ -493,6 +549,20 @@ export function initInventory() {
       }
     });
 
+    // subir y anexar nuevas imágenes
+    files.addEventListener("change", async () => {
+      if (!files.files?.length) return;
+      try {
+        const up = await API.mediaUpload(files.files);
+        const list = (up && up.files) ? up.files : [];
+        images.push(...list);
+        files.value = "";
+        renderThumbs();
+      } catch (e) {
+        alert("No se pudieron subir los archivos: " + e.message);
+      }
+    });
+
     cancel.onclick = invCloseModal;
     save.onclick = async () => {
       try {
@@ -501,11 +571,11 @@ export function initInventory() {
           name: (name.value || "").trim().toUpperCase(),
           vehicleIntakeId: intake.value || null,
           vehicleTarget: (target.value || "VITRINAS").trim().toUpperCase(),
-          // si el campo queda vacío => enviamos "" para que el backend ponga AUTO cuando haya entrada
           entryPrice: entry.value === "" ? "" : parseFloat(entry.value),
           salePrice: parseFloat(sale.value || "0"),
           original: original.value === "true",
-          stock: parseInt(stock.value || "0", 10)
+          stock: parseInt(stock.value || "0", 10),
+          images // reemplazo completo en backend
         };
         await invAPI.updateItem(it._id, body);
         invCloseModal();

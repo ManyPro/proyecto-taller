@@ -43,13 +43,14 @@
         <button data-tab="notas" class="active">Notas</button>
         <button data-tab="inventario">Inventario</button>
       </nav>
-      <!-- MODAL GLOBAL (vívela fuera de las tabs para que sirva en Notas e Inventario) -->
+      <!-- MODAL GLOBAL (fuera de las tabs para que sirva en Notas e Inventario) -->
       <div id="modal" class="modal hidden">
         <div class="modal-content">
           <button id="modalClose" class="close">&times;</button>
           <div id="modalBody"></div>
         </div>
       </div>
+
       <!-- ========== NOTAS ========== -->
       <section id="tab-notas" class="tab active">
         <!-- Barra superior de filtros -->
@@ -94,7 +95,7 @@
               <option value="DAVID">David</option>
               <option value="VALENTIN">Valentín</option>
               <option value="SEBASTIAN">Sebastián</option>
-              <option value="GIOVANNY">Giovanny</option>
+              <option value="GIOVANNY">Gio</option>
               <option value="SANDRA">Sandra</option>
               <option value="CEDIEL">Cediel</option>
             </select>
@@ -127,13 +128,6 @@
           <div class="card" id="notes-history">
             <h3>Historial</h3>
             <div id="notesList" class="list"></div>
-          </div>
-        </div>
-
-        <div id="modal" class="modal hidden">
-          <div class="modal-content">
-            <button id="modalClose" class="close">&times;</button>
-            <div id="modalBody"></div>
           </div>
         </div>
       </section>
@@ -172,6 +166,11 @@
             <option value="true">Sí</option>
           </select>
           <label>Stock inicial</label><input id="it-stock" type="number" min="0" step="1" />
+
+          <!-- NUEVO: múltiples imágenes del ítem -->
+          <label>Imágenes/Videos del ítem</label>
+          <input id="it-files" type="file" multiple />
+
           <button id="it-save">Guardar Ítem</button>
         </div>
 
@@ -199,5 +198,4 @@
     <small>© Taller App</small>
   </footer>
 </body>
-
 </html>

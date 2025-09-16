@@ -11,9 +11,19 @@ function makeIntakeLabel(vi) {
     .toUpperCase();
 }
 
+function sanitizeMediaList(arr) {
+  const out = [];
+  for (const m of (Array.isArray(arr) ? arr : [])) {
+    if (!m) continue;
+    const url = (m.url || "").trim();
+    const publicId = (m.publicId || "").trim();
+    const mimetype = (m.mimetype || "").trim();
+    if (url && publicId && mimetype) out.push({ url, publicId, mimetype });
+  }
+  return out;
+}
+
 // Prorratea el costo del vehículo entre ítems "AUTO" ponderando por STOCK.
-// - Los ítems con precio MANUAL se respetan, descontando su costo total (entryPrice * stock) del vehículo.
-// - Los ítems AUTO reciben un precio UNITARIO = remaining / sumStockAuto (misma unidad para todos).
 async function recalcAutoEntryPrices(companyId, vehicleIntakeId) {
   if (!vehicleIntakeId) return;
 
@@ -30,15 +40,12 @@ async function recalcAutoEntryPrices(companyId, vehicleIntakeId) {
   const vehicleTotal = intake.entryPrice || 0;
   let remaining = Math.max(vehicleTotal - manualTotal, 0);
 
-  // Suma de stocks de los AUTO
   const autoStockTotal = auto.reduce((s, it) => s + Math.max(0, it.stock || 0), 0);
-
   if (!auto.length) return;
 
-  // Si no hay stock en AUTO, precio unitario = 0 (o divide igualitario si prefieres)
   let unit = 0;
   if (autoStockTotal > 0) {
-    unit = Math.round((remaining / autoStockTotal) * 100) / 100; // 2 decimales
+    unit = Math.round((remaining / autoStockTotal) * 100) / 100;
   }
 
   for (const it of auto) {
@@ -88,7 +95,6 @@ export const updateVehicleIntake = async (req, res) => {
     { new: true }
   );
 
-  // Si cambió marca/modelo/cilindraje -> sincroniza etiqueta en ítems ligados
   const oldLabel = makeIntakeLabel(before);
   const newLabel = makeIntakeLabel(updated);
   if (oldLabel !== newLabel) {
@@ -98,7 +104,6 @@ export const updateVehicleIntake = async (req, res) => {
     );
   }
 
-  // Si cambió el precio de entrada -> recalcular prorrateo
   if ((before.entryPrice || 0) !== (updated.entryPrice || 0)) {
     await recalcAutoEntryPrices(req.companyId, updated._id);
   }
@@ -130,11 +135,9 @@ export const listItems = async (req, res) => {
   if (name) q.name = new RegExp((name || "").trim().toUpperCase(), "i");
   if (sku)  q.sku  = new RegExp((sku  || "").trim().toUpperCase(), "i");
 
-  // NUEVO: si llega vehicleIntakeId válido, filtramos por ese ObjectId
   if (vehicleIntakeId && mongoose.Types.ObjectId.isValid(vehicleIntakeId)) {
     q.vehicleIntakeId = new mongoose.Types.ObjectId(vehicleIntakeId);
   } else if (vehicleTarget) {
-    // compatibilidad con el filtro anterior por texto de vehicleTarget
     q.vehicleTarget = new RegExp((vehicleTarget || "").trim().toUpperCase(), "i");
   }
 
@@ -148,7 +151,6 @@ export const createItem = async (req, res) => {
   if (b.sku)  b.sku  = b.sku.toUpperCase().trim();
   if (b.name) b.name = b.name.toUpperCase().trim();
 
-  // Si hay entrada y destino vacío/VITRINAS -> usar la etiqueta de la entrada
   if (b.vehicleIntakeId) {
     const vi = await VehicleIntake.findOne({ _id: b.vehicleIntakeId, companyId: req.companyId });
     if (vi && (!b.vehicleTarget || b.vehicleTarget === "VITRINAS")) {
@@ -156,7 +158,6 @@ export const createItem = async (req, res) => {
     }
   }
 
-  // entryPrice: vacío => AUTO (si hay entrada)
   if ((b.entryPrice === undefined || b.entryPrice === null || b.entryPrice === "") && b.vehicleIntakeId) {
     b.entryPrice = null;
     b.entryPriceIsAuto = true;
@@ -164,6 +165,8 @@ export const createItem = async (req, res) => {
     b.entryPrice = +b.entryPrice;
     b.entryPriceIsAuto = false;
   }
+
+  const images = sanitizeMediaList(b.images);
 
   const item = await Item.create({
     companyId: req.companyId,
@@ -176,6 +179,7 @@ export const createItem = async (req, res) => {
     salePrice: +b.salePrice || 0,
     original: !!b.original,
     stock: Number.isFinite(+b.stock) ? +b.stock : 0,
+    images
   });
 
   if (item.vehicleIntakeId) {
@@ -210,16 +214,35 @@ export const updateItem = async (req, res) => {
   }
 
   const before = await Item.findOne({ _id: id, companyId: req.companyId });
+  if (!before) return res.status(404).json({ error: "Item no encontrado" });
+
+  // ---- imágenes ----
+  // 1) Reemplazo total si llega 'images'
+  let images = undefined;
+  if (Array.isArray(b.images)) {
+    images = sanitizeMediaList(b.images);
+  } else {
+    // 2) Incremental: addImages / removePublicIds
+    const add = sanitizeMediaList(b.addImages);
+    const removeSet = new Set((Array.isArray(b.removePublicIds) ? b.removePublicIds : []).map(String));
+    images = [
+      ...before.images.filter(m => !removeSet.has(String(m.publicId))),
+      ...add
+    ];
+  }
+
+  const updateDoc = {
+    ...b,
+    ...(images ? { images } : {})
+  };
+
   const item = await Item.findOneAndUpdate(
     { _id: id, companyId: req.companyId },
-    b,
+    updateDoc,
     { new: true }
   );
-  if (!item) return res.status(404).json({ error: "Item no encontrado" });
 
   const intakeToRecalc = item.vehicleIntakeId || before?.vehicleIntakeId;
-
-  // Si cambió stock, entrada o precio manual/auto -> recalcular
   if (intakeToRecalc) {
     await recalcAutoEntryPrices(req.companyId, intakeToRecalc);
   }
@@ -238,7 +261,6 @@ export const deleteItem = async (req, res) => {
   res.status(204).end();
 };
 
-// (Opcional) recálculo manual
 export const recalcIntakePrices = async (req, res) => {
   await recalcAutoEntryPrices(req.companyId, req.params.id);
   res.json({ ok: true });
