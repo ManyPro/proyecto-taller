@@ -28,19 +28,39 @@ button.danger { background: var(--danger); }
 #authBox { display:flex; gap:8px; align-items:center; }
 #companyEmail { color: var(--muted); font-size: 12px; }
 footer { text-align:center; color: var(--muted); padding: 20px; }
-@media (max-width: 900px) { .grid-2 { grid-template-columns: 1fr; } .note { grid-template-columns: 1fr; } }
+
+/* Responsive base */
+@media (max-width: 900px) { 
+  .grid-2 { grid-template-columns: 1fr; } 
+  .note { grid-template-columns: 1fr; } 
+}
+
+/* Modal override */
 .modal.hidden { display: none !important; }
 .modal { z-index: 9999; } 
+
+/* Tabs */
 .tab { display: none; }
 .tab.active { display: block; }
 .tabs button.active { background: var(--accent); }
-.tab { display: none; }
-.tab.active { display: block; }
-.tabs button.active { background: var(--accent); }
+
+/* Inventory */
 .hidden { display:none !important; }
 #inventory-top { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: stretch; }
 #inventory-top .card { height: 100%; }
 #vi-card-lista { min-height: 420px; }
 .span-2 { grid-column: 1 / -1; }
 
+/* ===== Notas: barra de filtros ancha ===== */
+#notes-filters .filters-bar {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+#notes-filters .filters-bar .field label { margin-top: 0; }
+#notes-filters .filters-bar .apply-field button { margin-top: 0; }
 
+@media (max-width: 900px) {
+  #notes-filters .filters-bar { grid-template-columns: 1fr; }
+}

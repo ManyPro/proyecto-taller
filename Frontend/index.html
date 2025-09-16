@@ -44,9 +44,33 @@
         <button data-tab="inventario">Inventario</button>
       </nav>
 
+      <!-- ========== NOTAS ========== -->
       <section id="tab-notas" class="tab active">
-        <div class="grid-2">
-          <div class="card">
+        <!-- Barra superior de filtros -->
+        <div class="card" id="notes-filters">
+          <h3>Filtros</h3>
+          <div class="filters-bar">
+            <div class="field">
+              <label>Placa</label>
+              <input id="f-plate" placeholder="ABC123" />
+            </div>
+            <div class="field">
+              <label>Desde</label>
+              <input id="f-from" type="date" />
+            </div>
+            <div class="field">
+              <label>Hasta</label>
+              <input id="f-to" type="date" />
+            </div>
+            <div class="field apply-field">
+              <button id="f-apply" class="secondary">Aplicar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cuerpo: Nueva nota (izquierda) + Historial (derecha) -->
+        <div class="grid-2" id="notes-body">
+          <div class="card" id="notes-new">
             <h3>Nueva Nota</h3>
             <label>Placa</label>
             <input id="n-plate" placeholder="ABC123" />
@@ -57,7 +81,7 @@
               <option value="PAGO">PAGO</option>
             </select>
 
-            <!-- NUEVO: Persona encargada -->
+            <!-- Persona encargada -->
             <label>Persona encargada</label>
             <select id="n-responsible">
               <option value="">Selecciona...</option>
@@ -94,21 +118,10 @@
             <button id="n-save">Guardar Nota</button>
           </div>
 
-          <div class="card">
-            <h3>Filtros</h3>
-            <label>Placa</label>
-            <input id="f-plate" placeholder="ABC123" />
-            <label>Desde</label>
-            <input id="f-from" type="date" />
-            <label>Hasta</label>
-            <input id="f-to" type="date" />
-            <button id="f-apply" class="secondary">Aplicar</button>
+          <div class="card" id="notes-history">
+            <h3>Historial</h3>
+            <div id="notesList" class="list"></div>
           </div>
-        </div>
-
-        <div class="card">
-          <h3>Historial</h3>
-          <div id="notesList" class="list"></div>
         </div>
 
         <div id="modal" class="modal hidden">
@@ -118,11 +131,11 @@
           </div>
         </div>
       </section>
+      <!-- ========== /NOTAS ========== -->
 
+      <!-- ========== INVENTARIO (sin cambios) ========== -->
       <section id="tab-inventario" class="tab">
-        <!-- fila superior: dos columnas iguales -->
         <div id="inventory-top">
-          <!-- izquierda: entrada de vehículo -->
           <div class="card" id="vi-card-form">
             <h3>Entrada de vehículo</h3>
             <label>Marca</label><input id="vi-brand" />
@@ -132,15 +145,12 @@
             <label>Precio de entrada</label><input id="vi-price" type="number" min="0" step="0.01" />
             <button id="vi-save">Guardar Entrada</button>
           </div>
-
-          <!-- derecha: lista de ingresos -->
           <div class="card" id="vi-card-lista">
             <h3>Ingresos de vehículo</h3>
             <div id="vi-list"></div>
           </div>
         </div>
 
-        <!-- segunda fila: tarjetas a todo el ancho -->
         <div class="card span-2" id="item-form">
           <h3>Nuevo Ítem</h3>
           <label>SKU</label><input id="it-sku" />
@@ -168,6 +178,7 @@
           <div id="itemsList" class="list"></div>
         </div>
       </section>
+      <!-- ========== /INVENTARIO ========== -->
 
     </section>
   </main>
@@ -176,5 +187,4 @@
     <small>© Taller App</small>
   </footer>
 </body>
-
 </html>
