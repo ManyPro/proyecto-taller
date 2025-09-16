@@ -7,6 +7,26 @@
   <title>Taller App</title>
   <link rel="stylesheet" href="assets/styles.css?" />
   <script src="./assets/js/config.js"></script>
+
+  <!-- ======== Librerías externas para Cotizaciones (PDF/fechas) ======== -->
+  <!-- jsPDF (UMD) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <!-- AutoTable (plugin de jsPDF para tablas) -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+  <!-- dayjs (utilidad de fechas, liviana) -->
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <!-- Claves globales para Cotizaciones -->
+  <script>
+    // Claves de almacenamiento local para correlativo y borrador de cotizaciones.
+    // Las dejamos disponibles como constante global.
+    window.QUOTES_KEYS = {
+      lastNumber: 'quotes:lastNumber', // correlativo por empresa
+      draft: 'quotes:current'          // borrador actual
+    };
+  </script>
+  <!-- ================================================================ -->
+
+  <!-- Módulos de la app (se mantienen) -->
   <script type="module" src="./assets/js/api.js"></script>
   <script type="module" src="./assets/js/app.js"></script>
   <script type="module" src="./assets/js/notes.js"></script>
