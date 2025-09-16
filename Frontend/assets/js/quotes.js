@@ -1,400 +1,466 @@
-// assets/js/quotes.js
-import { API } from "./api.js";
+/* assets/js/quotes.js
+   Inicializador del módulo de Cotizaciones.
+   - Numeración por empresa (scoped por email)
+   - Borrador local
+   - Renglones dinámicos
+   - Vista previa WhatsApp
+   - Envío WhatsApp
+   - Exportar PDF (jsPDF + AutoTable)
+*/
 
-/**
- * Cotizaciones (frontend)
- * - Numeración por empresa (scoped por email).
- * - Borrador en localStorage.
- * - Items con totals, WA y PDF.
- */
-
-export function initQuotes(ctx = {}) {
-  // -------- helpers de contexto/empresa
-  const getEmail = () =>
-    (typeof ctx.getCompanyEmail === "function" ? ctx.getCompanyEmail() : "").trim();
-
-  const key = (suffix) => `quotes:${suffix}::${getEmail() || "anon"}`;
-
-  // -------- formateo de dinero (estilo CO)
-  const money = (n) =>
-    isFinite(n) ? "$" + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "$0";
-
-  const parsePrice = (v) =>
-    Number(String(v || "0").replace(/[^\d]/g, "")) || 0;
-
-  // -------- DOM refs (coinciden con tu index.html)
+export function initQuotes({ getCompanyEmail }) {
+  // ====== Helpers de DOM ======
   const $ = (sel) => document.querySelector(sel);
+  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
-  // Columna izquierda (datos)
-  const noInput       = $("#q_no");
-  const dtInput       = $("#q_datetime");
-  const clientInput   = $("#q_clientName");
-  const phoneInput    = $("#q_phone");
-  const emailInput    = $("#q_email");
-  const plateInput    = $("#q_plate");
-  const brandInput    = $("#q_brand");
-  const modelInput    = $("#q_model");
-  const ccInput       = $("#q_cc");
-  const saveLocalBtn  = $("#q_saveLocal");
+  // ====== Estado ======
+  let inited = false;
+  let emailScope = ''; // para scoping del localStorage
+  const KEYS = (window.QUOTES_KEYS || {
+    lastNumber: 'quotes:lastNumber',
+    draft: 'quotes:current',
+  });
 
-  // Items
-  const itemsBox      = $("#q_items");
-  const addLineBtn    = $("#q_addLine");
-  const subPSpan      = $("#q_subP");
-  const subSSpan      = $("#q_subS");
-  const totalSpan     = $("#q_total");
+  // ====== Nodos ======
+  const tab = $('#tab-cotizaciones');
+  const iNumber = $('#q-number');
+  const iNumberBig = $('#q-number-big');
+  const iDatetime = $('#q-datetime');
 
-  // Acciones
-  const sendWA        = $("#q_sendWhats");
-  const exportPdf     = $("#q_exportPdf");
+  const iClientName = $('#q-client-name');
+  const iClientPhone = $('#q-client-phone');
+  const iClientEmail = $('#q-client-email');
 
-  // Columna derecha
-  const noBig         = $("#q_no_big");
-  const validDays     = $("#q_validDays");
-  const waPreview     = $("#q_whatsPreview");
-  const clearAllBtn   = $("#q_clearAll");
+  const iPlate = $('#q-plate');
+  const iBrand = $('#q-brand');
+  const iLine = $('#q-line');
+  const iYear = $('#q-year');
+  const iCc = $('#q-cc');
 
-  // Seguridad: si no existe la sección (por si cambiaste tab), salgo.
-  if (!noInput || !itemsBox) return;
+  const iSaveDraft = $('#q-saveDraft');
 
-  // -----------------------------------------------------------
-  // Estado local
-  // -----------------------------------------------------------
-  let state = {
-    meta: {
-      no: "", date: "", client: "", phone: "", email: "",
-      plate: "", brand: "", model: "", cc: "", validDays: ""
-    },
-    items: [] // { type: 'Producto'|'Servicio', desc:'', qty:'', price: number }
+  const rowsBox = $('#q-rows');
+  const rowTemplate = $('#q-row-template');
+  const btnAddRow = $('#q-addRow');
+
+  const lblSubtotalProducts = $('#q-subtotal-products');
+  const lblSubtotalServices = $('#q-subtotal-services');
+  const lblTotal = $('#q-total');
+
+  const iValidDays = $('#q-valid-days');
+  const previewWA = $('#q-whatsappPreview');
+  const btnWA = $('#q-sendWhatsApp');
+  const btnPDF = $('#q-exportPdf');
+  const btnClear = $('#q-clearAll');
+
+  // ====== Utils ======
+  const pad5 = (n) => String(n).padStart(5, '0');
+  const money = (n) => {
+    const x = Math.round(Number(n || 0));
+    return '$' + x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+  const todayIso = () => {
+    try {
+      return (window.dayjs ? window.dayjs() : new Date()).format
+        ? window.dayjs().format('YYYY-MM-DD HH:mm')
+        : new Date().toLocaleString();
+    } catch {
+      return new Date().toLocaleString();
+    }
   };
 
-  // -----------------------------------------------------------
-  // Carga inicial: borrador o asigna nuevo número
-  // -----------------------------------------------------------
-  function ensureDateNow() {
-    if (!dtInput.value) {
-      const now = new Date();
-      dtInput.value = now.toLocaleString();
-    }
+  // keys por empresa
+  const kLast = () => `${KEYS.lastNumber}:${emailScope}`;
+  const kDraft = () => `${KEYS.draft}:${emailScope}`;
+
+  // ====== Carga inicial ======
+  function ensureInit() {
+    if (inited) return;
+    inited = true;
+
+    emailScope = (getCompanyEmail?.() || '').trim().toLowerCase();
+    // Número
+    iNumber.value = nextNumber();
+    iNumberBig.textContent = iNumber.value;
+
+    // Fecha auto
+    iDatetime.value = todayIso();
+
+    // Fila inicial
+    clearRows();
+    addRow();
+
+    // Intentar cargar borrador
+    loadDraft();
+
+    // Calcular totales/preview
+    recalcAll();
+
+    // Eventos de UI
+    bindUI();
   }
 
-  function loadDraft() {
-    const raw = localStorage.getItem(key("current"));
-    if (!raw) return false;
-    try {
-      const d = JSON.parse(raw);
-      if (!d || !d.meta) return false;
-      state = d;
-      paintFromState();
-      return true;
-    } catch (_) { return false; }
-  }
-
+  // ====== Numeración por empresa ======
   function nextNumber() {
-    const last = Number(localStorage.getItem(key("last")) || "0");
-    const next = (last + 1);
-    localStorage.setItem(key("last"), String(last)); // aún no lo avanzo hasta que exista draft
-    return String(next).padStart(5, "0");
+    const raw = localStorage.getItem(kLast());
+    let n = Number(raw || 0);
+    n = isNaN(n) ? 0 : n;
+    // NO lo incrementamos aquí; incrementamos al exportar/enviar si quieres.
+    // Por ahora solo mostramos el próximo correlativo "n+1".
+    const cand = n + 1;
+    return pad5(cand);
+  }
+  function advanceNumber() {
+    // guarda el último usado
+    const shown = Number(iNumber.value || '1');
+    localStorage.setItem(kLast(), String(shown));
   }
 
-  function newDraftIfNeeded() {
-    // Si no había borrador, creo uno nuevo con el siguiente número
-    if (loadDraft()) return;
-    state.meta.no = nextNumber();
-    state.items = [emptyLine()];
-    // pinto y guardo
-    paintFromState();
-    persist();
+  // ====== Borrador ======
+  function getDraftData() {
+    return {
+      number: iNumber.value,
+      datetime: iDatetime.value,
+      clientName: iClientName.value,
+      clientPhone: iClientPhone.value,
+      clientEmail: iClientEmail.value,
+      plate: iPlate.value,
+      brand: iBrand.value,
+      line: iLine.value,
+      year: iYear.value,
+      cc: iCc.value,
+      validDays: iValidDays.value,
+      rows: readRows(),
+    };
+  }
+  function saveDraft() {
+    const data = getDraftData();
+    localStorage.setItem(kDraft(), JSON.stringify(data));
+    toast('Borrador guardado.');
+  }
+  function loadDraft() {
+    const raw = localStorage.getItem(kDraft());
+    if (!raw) return;
+    try {
+      const data = JSON.parse(raw);
+      // Solo si coincide correlativo mostrado (para no traer otro número viejo)
+      iNumber.value = data.number || iNumber.value;
+      iNumberBig.textContent = iNumber.value;
+      iDatetime.value = data.datetime || iDatetime.value;
+      iClientName.value = data.clientName || '';
+      iClientPhone.value = data.clientPhone || '';
+      iClientEmail.value = data.clientEmail || '';
+      iPlate.value = data.plate || '';
+      iBrand.value = data.brand || '';
+      iLine.value = data.line || '';
+      iYear.value = data.year || '';
+      iCc.value = data.cc || '';
+      iValidDays.value = data.validDays || '';
+
+      clearRows();
+      (data.rows || []).forEach(addRowFromData);
+    } catch {}
+  }
+  function clearDraft() {
+    localStorage.removeItem(kDraft());
   }
 
-  // -----------------------------------------------------------
-  // Pintado y persistencia
-  // -----------------------------------------------------------
-  function emptyLine() {
-    return { type: "Producto", desc: "", qty: "", price: 0 };
+  // ====== Filas ======
+  function clearRows() {
+    rowsBox.innerHTML = '';
   }
-
-  function setInput(el, v) { if (el) el.value = v ?? ""; }
-
-  function paintFromState() {
-    // meta
-    setInput(noInput, state.meta.no);
-    setInput(noBig,  state.meta.no);
-    ensureDateNow(); // si está vacío coloca ahora
-    setInput(clientInput, state.meta.client);
-    setInput(phoneInput,  state.meta.phone);
-    setInput(emailInput,  state.meta.email);
-    setInput(plateInput,  state.meta.plate);
-    setInput(brandInput,  state.meta.brand);
-    setInput(modelInput,  state.meta.model);
-    setInput(ccInput,     state.meta.cc);
-    setInput(validDays,   state.meta.validDays);
-
-    // items
-    renderItems();
-    recalc();
+  function addRowFromData(r) {
+    const row = cloneRow();
+    row.querySelector('select').value = r.type || 'PRODUCTO';
+    row.querySelectorAll('input')[0].value = r.desc || '';
+    row.querySelectorAll('input')[1].value = r.qty || '';
+    row.querySelectorAll('input')[2].value = r.price || '';
+    // Subtotal disabled
+    updateRowSubtotal(row);
+    rowsBox.appendChild(row);
   }
-
-  function readMetaFromInputs() {
-    state.meta.no       = (noInput.value || "").trim();
-    state.meta.date     = dtInput.value;
-    state.meta.client   = clientInput.value.trim();
-    state.meta.phone    = phoneInput.value.trim();
-    state.meta.email    = emailInput.value.trim();
-    state.meta.plate    = plateInput.value.trim();
-    state.meta.brand    = brandInput.value.trim();
-    state.meta.model    = modelInput.value.trim();
-    state.meta.cc       = ccInput.value.trim();
-    state.meta.validDays= validDays.value.trim();
+  function addRow() {
+    const row = cloneRow();
+    rowsBox.appendChild(row);
   }
-
-  function persist() {
-    readMetaFromInputs();
-    localStorage.setItem(key("current"), JSON.stringify(state));
-    // reservar número si es nuevo
-    const last = Number(localStorage.getItem(key("last")) || "0");
-    const curN = Number(state.meta.no || "0");
-    if (curN > last) localStorage.setItem(key("last"), String(curN));
-  }
-
-  // -----------------------------------------------------------
-  // Render de items
-  // -----------------------------------------------------------
-  function itemRowTpl(it, idx) {
-    const id = (s) => `q_item_${s}_${idx}`;
-    return `
-      <div class="q-row" data-idx="${idx}">
-        <select id="${id('type')}" class="q-cell">
-          <option value="Producto"${it.type === 'Producto' ? ' selected' : ''}>Producto</option>
-          <option value="Servicio"${it.type === 'Servicio' ? ' selected' : ''}>Servicio</option>
-        </select>
-        <input id="${id('desc')}" class="q-cell" placeholder="Descripción" value="${escapeHtml(it.desc)}"/>
-        <input id="${id('qty')}"  class="q-cell" placeholder="Cant." value="${escapeHtml(it.qty ?? "")}"/>
-        <input id="${id('price')}" class="q-cell" placeholder="Precio unit." value="${it.price ? money(it.price) : ''}"/>
-        <div class="q-cell q-sub" id="${id('sub')}">${money(lineSubtotal(it))}</div>
-        <button class="q-del" title="Eliminar" data-del="${idx}">×</button>
-      </div>`;
-  }
-
-  function lineSubtotal(it) {
-    const q = Number(String(it.qty || "").replace(/[^\d]/g, "")) || 0;
-    return (q > 0 ? q : 1) * (Number(it.price) || 0);
-  }
-
-  function renderItems() {
-    const head = `
-      <div class="q-head">
-        <div class="q-h">Tipo</div>
-        <div class="q-h">Descripción</div>
-        <div class="q-h">Cant.</div>
-        <div class="q-h">Precio</div>
-        <div class="q-h">Subtotal</div>
-        <div class="q-h"></div>
-      </div>`;
-    itemsBox.innerHTML = head + state.items.map(itemRowTpl).join("");
-  }
-
-  function connectRowEvents() {
-    itemsBox.querySelectorAll(".q-row").forEach(row => {
-      const idx = Number(row.dataset.idx);
-      const typeEl  = row.querySelector("select");
-      const descEl  = row.querySelector('input[id*="_desc_"]');
-      const qtyEl   = row.querySelector('input[id*="_qty_"]');
-      const priceEl = row.querySelector('input[id*="_price_"]');
-      const subEl   = row.querySelector(".q-sub");
-      const delBtn  = row.querySelector(".q-del");
-
-      const update = () => {
-        state.items[idx].type  = typeEl.value;
-        state.items[idx].desc  = descEl.value;
-        state.items[idx].qty   = qtyEl.value;
-        state.items[idx].price = parsePrice(priceEl.value);
-        subEl.textContent = money(lineSubtotal(state.items[idx]));
-        recalc();
-        persist();
-      };
-
-      typeEl.onchange = update;
-      descEl.oninput = update;
-      qtyEl.oninput = update;
-      priceEl.oninput = update;
-
-      delBtn.onclick = () => {
-        state.items.splice(idx, 1);
-        if (state.items.length === 0) state.items.push(emptyLine());
-        renderItems(); connectRowEvents(); recalc(); persist();
-      };
+  function cloneRow() {
+    const n = rowTemplate.cloneNode(true);
+    n.classList.remove('hidden');
+    n.removeAttribute('id');
+    n.removeAttribute('data-template');
+    const inputs = n.querySelectorAll('input, select');
+    inputs.forEach((el) => {
+      el.addEventListener('input', () => {
+        updateRowSubtotal(n);
+        recalcAll();
+      });
     });
+    const btnQuitar = n.querySelector('button');
+    btnQuitar.addEventListener('click', () => {
+      n.remove();
+      recalcAll();
+    });
+    return n;
+  }
+  function readRows() {
+    const rows = [];
+    rowsBox.querySelectorAll('.tr:not([data-template])').forEach((r) => {
+      const type = r.querySelector('select').value;
+      const desc = r.querySelectorAll('input')[0].value;
+      const qty = Number(r.querySelectorAll('input')[1].value || 0);
+      const price = Number(r.querySelectorAll('input')[2].value || 0);
+      if (!desc && !price && !qty) return; // ignora vacías
+      rows.push({ type, desc, qty, price });
+    });
+    return rows;
+  }
+  function updateRowSubtotal(r) {
+    const qty = Number(r.querySelectorAll('input')[1].value || 0);
+    const price = Number(r.querySelectorAll('input')[2].value || 0);
+    const subtotal = (qty > 0 ? qty : 1) * (price || 0);
+    const out = r.querySelectorAll('input')[3];
+    out.value = money(subtotal);
   }
 
-  function recalc() {
+  // ====== Totales & Preview ======
+  function recalcAll() {
+    const rows = readRows();
     let subP = 0, subS = 0;
-    for (const it of state.items) {
-      const sub = lineSubtotal(it);
-      if (it.type === "Servicio") subS += sub; else subP += sub;
+    rows.forEach(({ type, qty, price }) => {
+      const q = qty > 0 ? qty : 1;
+      const st = q * (price || 0);
+      if ((type || 'PRODUCTO') === 'PRODUCTO') subP += st;
+      else subS += st;
+    });
+    const total = subP + subS;
+
+    lblSubtotalProducts.textContent = money(subP);
+    lblSubtotalServices.textContent = money(subS);
+    lblTotal.textContent = money(total);
+
+    previewWA.textContent = buildWhatsAppText(rows, subP, subS, total);
+  }
+
+  function buildWhatsAppText(rows, subP, subS, total) {
+    const num = iNumber.value;
+    const cliente = iClientName.value || '—';
+    const veh = `${iBrand.value || ''} ${iLine.value || ''} ${iYear.value || ''}`.trim();
+    const placa = iPlate.value || '—';
+    const cc = iCc.value || '—';
+    const val = iValidDays.value ? `\nValidez: ${iValidDays.value} días` : '';
+
+    let lines = [];
+    lines.push(`*Cotización ${num}*`);
+    lines.push(`Cliente: ${cliente}`);
+    lines.push(`Vehículo: ${veh} — Placa: ${placa} — Cilindraje: ${cc}`);
+    lines.push('');
+
+    rows.forEach(({ type, desc, qty, price }) => {
+      const q = qty > 0 ? qty : 1;
+      const st = q * (price || 0);
+      // Línea de descripción
+      const tipo = (type === 'SERVICIO') ? 'Servicio' : 'Producto';
+      const cantSuffix = (qty && Number(qty) > 0) ? ` x${q}` : '';
+      lines.push(`✅ ${desc || tipo}${cantSuffix}`);
+      lines.push(`${money(st)}`);
+    });
+
+    lines.push('');
+    lines.push(`Subtotal Productos: ${money(subP)}`);
+    lines.push(`Subtotal Servicios: ${money(subS)}`);
+    lines.push(`*TOTAL: ${money(subP + subS)}*`);
+    lines.push(`Valores SIN IVA`);
+    lines.push(val.trim());
+
+    return lines.join('\n').replace(/\n{3,}/g, '\n\n');
+  }
+
+  // ====== Export PDF ======
+  function exportPDF() {
+    const rows = readRows();
+    const subP = parseMoney(lblSubtotalProducts.textContent);
+    const subS = parseMoney(lblSubtotalServices.textContent);
+    const tot = parseMoney(lblTotal.textContent);
+
+    const { jsPDF } = window.jspdf || {};
+    if (!jsPDF || !window.jspdf?.autoTable) {
+      alert('No se encontraron librerías jsPDF/AutoTable.');
+      return;
     }
-    const tot = subP + subS;
-    subPSpan.textContent  = money(subP);
-    subSSpan.textContent  = money(subS);
-    totalSpan.textContent = money(tot);
+    const doc = new jsPDF('p', 'pt', 'a4');
 
-    // preview WhatsApp
-    waPreview.value = buildWhatsText();
+    // Encabezado
+    const gold = '#d4c389';
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(gold);
+    doc.setFontSize(22);
+    doc.text('CASA RENAULT H&H', 60, 60);
+
+    // "logo": rectángulo amarillo con texto RENAULT
+    doc.setFillColor('#ffcc00');
+    doc.rect(470, 35, 32, 32, 'F');
+    doc.setFontSize(8);
+    doc.setTextColor('#000000');
+    doc.text('RENAULT', 486, 55, { angle: 90 });
+
+    // Título
+    doc.setFontSize(16);
+    doc.setTextColor('#000000');
+    doc.text('COTIZACIÓN', 440, 90);
+
+    // Marca de agua (texto muy tenue)
+    doc.saveGraphicsState();
+    doc.setGState(new doc.GState({ opacity: 0.06 }));
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(120);
+    doc.setTextColor('#000000');
+    doc.text('RENAULT', 140, 360, { angle: -12 });
+    doc.restoreGraphicsState();
+
+    // Cabecera info
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    const leftInfo = [
+      'CASA RENAULT H&H — Servicio Automotriz',
+      'Nit: 901717790-7 • Bogotá D.C',
+      `No. Cotización: ${iNumber.value}`,
+      `Cliente: ${iClientName.value || '—'}`,
+      `Vehículo: ${[iBrand.value, iLine.value, iYear.value].filter(Boolean).join(' ')} —  Placa: ${iPlate.value || '—'}`,
+      `Cilindraje: ${iCc.value || '—'}`
+    ];
+    const rightInfo = [
+      `Fecha: ${iDatetime.value || todayIso()}`,
+      `Tel: 311 555 0012 • Email: ${iClientEmail.value || 'contacto@ejemplo.com'}`
+    ];
+    leftInfo.forEach((t, idx) => doc.text(t, 60, 120 + idx * 14));
+    rightInfo.forEach((t, idx) => doc.text(t, 370, 120 + idx * 14));
+
+    // Tabla
+    const body = rows.map(({ type, desc, qty, price }) => {
+      const q = qty > 0 ? qty : 1;
+      const st = q * (price || 0);
+      return [
+        (type === 'SERVICIO') ? 'Servicio' : 'Producto',
+        desc || '',
+        q,
+        money(price || 0),
+        money(st)
+      ];
+    });
+
+    doc.autoTable({
+      startY: 200,
+      head: [['Tipo', 'Descripción', 'Cant.', 'Precio unit.', 'Subtotal']],
+      body,
+      styles: { fontSize: 10, cellPadding: 6 },
+      headStyles: { fillColor: [230, 230, 230], textColor: 0 },
+      columnStyles: {
+        0: { cellWidth: 90 },
+        1: { cellWidth: 260 },
+        2: { cellWidth: 50, halign: 'right' },
+        3: { cellWidth: 90, halign: 'right' },
+        4: { cellWidth: 90, halign: 'right' },
+      }
+    });
+
+    let y = doc.lastAutoTable.finalY + 16;
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Subtotal Productos: ${money(subP)}`, 60, y); y += 14;
+    doc.text(`Subtotal Servicios: ${money(subS)}`, 60, y); y += 14;
+    doc.setFont('helvetica', 'bold');
+    doc.text(`TOTAL: ${money(tot)}`, 60, y); y += 18;
+    doc.setFont('helvetica', 'normal');
+    doc.text('Valores SIN IVA', 60, y);
+    if (iValidDays.value) {
+      doc.text(`Validez: ${iValidDays.value} días`, 180, y);
+    }
+
+    // Pie de página
+    y += 28;
+    doc.setFontSize(9);
+    doc.text('Calle 69° No. 87-39 • Cel: 301 205 9320 • Bogotá D.C • Contacto: HUGO MANRIQUE 311 513 1603', 60, y);
+
+    const filename = `cotizacion_${iNumber.value}.pdf`;
+    doc.save(filename);
+
+    // una vez que se exporta/”usa” la cotización, avanzamos correlativo
+    advanceNumber();
+    // y dejamos listo el siguiente número en la UI
+    iNumber.value = nextNumber();
+    iNumberBig.textContent = iNumber.value;
+    // limpiamos borrador (opcional)
+    clearDraft();
   }
 
-  // -----------------------------------------------------------
-  // WA / PDF
-  // -----------------------------------------------------------
-  function buildWhatsText() {
-    const m = state.meta;
-    const title = `*Cotización ${m.no}*`;
-    const veh = (m.brand || m.model || m.plate || m.cc)
-      ? `\nVehículo: ${[m.brand, m.model].filter(Boolean).join(" ")}${m.plate ? ` — Placa: ${m.plate}` : ""}${m.cc ? ` — Cilindraje: ${m.cc}` : ""}`
-      : "";
-
-    const rows = state.items.map(it => {
-      const q = Number(String(it.qty || "").replace(/[^\d]/g, "")) || 0;
-      const sub = lineSubtotal(it);
-      const qtyTxt = q > 0 ? ` x ${q}` : "";
-      return `✅ ${it.desc}${qtyTxt}\n${money(sub)}`;
-    }).join("\n\n");
-
-    const tot = subPSpan.textContent && subSSpan.textContent && totalSpan.textContent
-      ? `\n\nSubtotal Productos: ${subPSpan.textContent}\nSubtotal Servicios: ${subSSpan.textContent}\n*TOTAL:* ${totalSpan.textContent}`
-      : "";
-
-    const valid = state.meta.validDays ? `\nValidez: ${state.meta.validDays} días` : "";
-    return `${title}${veh}\n\n${rows}${tot}\n\n_Valores SIN IVA_${valid}`;
+  function parseMoney(str) {
+    // "$1.234.567" -> 1234567
+    return Number((str || '').replace(/\D+/g, '') || 0);
   }
 
-  function onSendWhats() {
-    persist();
-    const txt = encodeURIComponent(buildWhatsText());
-    window.open(`https://wa.me/?text=${txt}`, "_blank");
+  // ====== WhatsApp ======
+  function openWhatsApp() {
+    const text = previewWA.textContent || '';
+    if (!text.trim()) return;
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+
+    // Avanza correlativo al "usar" la cotización.
+    advanceNumber();
+    iNumber.value = nextNumber();
+    iNumberBig.textContent = iNumber.value;
+    clearDraft();
   }
 
-  function onExportPdf() {
-    persist();
-    const m = state.meta;
+  // ====== UI ======
+  function bindUI() {
+    btnAddRow?.addEventListener('click', () => {
+      addRow();
+      recalcAll();
+    });
+    iSaveDraft?.addEventListener('click', saveDraft);
+    btnWA?.addEventListener('click', openWhatsApp);
+    btnPDF?.addEventListener('click', exportPDF);
+    btnClear?.addEventListener('click', () => {
+      if (!confirm('¿Borrar todo el contenido de la cotización actual?')) return;
+      // resetea campos
+      [iClientName, iClientPhone, iClientEmail, iPlate, iBrand, iLine, iYear, iCc, iValidDays].forEach(i => i.value = '');
+      clearRows();
+      addRow();
+      recalcAll();
+      clearDraft();
+    });
 
-    const rows = state.items.map(it => {
-      const q = Number(String(it.qty || "").replace(/[^\d]/g, "")) || 0;
-      const qtyTxt = q > 0 ? q : 1;
-      return `
-        <tr>
-          <td>${it.type}</td>
-          <td>${escapeHtml(it.desc)}</td>
-          <td style="text-align:center">${qtyTxt}</td>
-          <td style="text-align:right">${money(Number(it.price) || 0)}</td>
-          <td style="text-align:right">${money(lineSubtotal(it))}</td>
-        </tr>`;
-    }).join("");
-
-    const html = `
-<!doctype html><html><head><meta charset="utf-8"/>
-<title>Cotización ${m.no}</title>
-<style>
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto; margin:20mm;}
-  .hdr{display:flex; align-items:center; justify-content:space-between; margin-bottom:14mm;}
-  .brand{font-size:22px; letter-spacing:.5px; color:#b39100; font-weight:700;}
-  .title{font-size:20px; font-weight:800;}
-  .logo{width:28mm;height:auto;}
-  .wm{position:fixed; left:5%; right:5%; top:32%; opacity:.06; font-size:120px; color:#000; text-align:center; user-select:none;}
-  table{width:100%; border-collapse:collapse; font-size:12px;}
-  th, td{border:1px solid #ccc; padding:6px;}
-  th{background:#f5f5f5; text-align:left;}
-  .r{text-align:right}
-  .foot{margin-top:8mm; font-size:11px}
-</style>
-</head><body>
-  <div class="hdr">
-    <div class="brand">CASA RENAULT H&H</div>
-    <img class="logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Renault_2021.svg/512px-Renault_2021.svg.png" />
-  </div>
-
-  <div style="margin-bottom:6mm">
-    <div class="title">COTIZACIÓN</div>
-    <div style="margin-top:2mm; font-size:12px">
-      <strong>No.</strong> ${m.no} &nbsp;&nbsp; <strong>Fecha:</strong> ${m.date || dtInput.value}
-      <br/>
-      <strong>Cliente:</strong> ${escapeHtml(m.client || "")}
-      &nbsp;&nbsp; <strong>Tel:</strong> ${escapeHtml(m.phone || "")}
-      &nbsp;&nbsp; <strong>Email:</strong> ${escapeHtml(m.email || "")}
-      <br/>
-      <strong>Vehículo:</strong> ${[m.brand, m.model].filter(Boolean).join(" ") || "-"}
-      ${m.plate ? ` &nbsp;&nbsp; <strong>Placa:</strong> ${escapeHtml(m.plate)}` : ""}
-      ${m.cc ? ` &nbsp;&nbsp; <strong>Cilindraje:</strong> ${escapeHtml(m.cc)}` : ""}
-    </div>
-  </div>
-
-  <table>
-    <thead>
-      <tr><th>Tipo</th><th>Descripción</th><th>Cant.</th><th class="r">Precio unit.</th><th class="r">Subtotal</th></tr>
-    </thead>
-    <tbody>${rows}</tbody>
-    <tfoot>
-      <tr><td colspan="4" class="r"><strong>Subtotal Productos</strong></td><td class="r">${subPSpan.textContent}</td></tr>
-      <tr><td colspan="4" class="r"><strong>Subtotal Servicios</strong></td><td class="r">${subSSpan.textContent}</td></tr>
-      <tr><td colspan="4" class="r"><strong>TOTAL</strong></td><td class="r">${totalSpan.textContent}</td></tr>
-    </tfoot>
-  </table>
-
-  <div class="foot">
-    Valores <strong>SIN IVA</strong>${m.validDays ? ` — Validez: ${m.validDays} días` : ""}<br/>
-    Calle 69° No. 87-39 • Cel: 301 205 9320 • Bogotá D.C • Contacto: HUGO MANRIQUE 311 513 1603
-  </div>
-
-  <div class="wm">RENAULT</div>
-  <script>window.onload=()=>{setTimeout(()=>window.print(),200)}</script>
-</body></html>`;
-    const w = window.open("", "_blank");
-    w.document.open(); w.document.write(html); w.document.close();
+    // Recalcular al cambiar inputs de cabecera
+    [iClientName, iClientPhone, iClientEmail, iPlate, iBrand, iLine, iYear, iCc, iValidDays]
+      .forEach(el => el?.addEventListener('input', recalcAll));
   }
 
-  // -----------------------------------------------------------
-  // Eventos globales
-  // -----------------------------------------------------------
-  function onAddLine() {
-    state.items.push(emptyLine());
-    renderItems(); connectRowEvents(); persist();
+  // ====== Hook de activación por tab ======
+  // Se llama cuando la pestaña Cotizaciones se muestra
+  function onTabActivated() {
+    ensureInit();
   }
 
-  function onSaveLocal() {
-    persist();
-    alert("Borrador guardado localmente.");
+  // Observa los clicks del nav (sin romper tu app)
+  document.addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button[data-tab]');
+    if (!btn) return;
+    if (btn.dataset.tab === 'cotizaciones') onTabActivated();
+  });
+
+  // Si ya está activa al entrar (por recarga)
+  if (tab && !tab.classList.contains('hidden') && tab.classList.contains('tab')) {
+    // si tu app deja la tab activa desde el servidor, nos activamos
+    if (document.querySelector('.tabs button[data-tab="cotizaciones"]')?.classList.contains('active')) {
+      onTabActivated();
+    }
   }
 
-  function onClearAll() {
-    if (!confirm("Borrar todo el borrador de esta empresa?")) return;
-    localStorage.removeItem(key("current"));
-    // el last se conserva; el próximo arranque usará last+1
-    state = { meta: { no: nextNumber() }, items: [emptyLine()] };
-    paintFromState(); persist();
-  }
-
-  // Entradas que disparan persist
-  [clientInput, phoneInput, emailInput, plateInput, brandInput, modelInput, ccInput, validDays]
-    .forEach(el => el && (el.oninput = () => { persist(); recalc(); }));
-
-  // Botones
-  addLineBtn && (addLineBtn.onclick = onAddLine);
-  saveLocalBtn && (saveLocalBtn.onclick = onSaveLocal);
-  clearAllBtn  && (clearAllBtn.onclick = onClearAll);
-  sendWA      && (sendWA.onclick = onSendWhats);
-  exportPdf   && (exportPdf.onclick = onExportPdf);
-
-  // Render/boot
-  renderItems(); connectRowEvents(); newDraftIfNeeded();
-
-  // Para recalcular después de render
-  recalc();
-
-  // util
-  function escapeHtml(s) {
-    return String(s == null ? "" : s)
-      .replace(/&/g,"&amp;")
-      .replace(/</g,"&lt;")
-      .replace(/>/g,"&gt;")
-      .replace(/"/g,"&quot;");
+  // helper de UX
+  function toast(msg) {
+    try {
+      // usa tu modal global si quieres; por ahora alert
+      console.log(msg);
+    } catch { /* nop */ }
   }
 }
