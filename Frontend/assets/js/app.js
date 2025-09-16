@@ -1,6 +1,7 @@
 import { API } from "./api.js";
 import { initNotes } from "./notes.js";
 import { initInventory } from "./inventory.js";
+import { initQuotes } from "./quotes.js"; // ⬅️ NUEVO
 
 const loginSection = document.getElementById("loginSection");
 const appSection = document.getElementById("appSection");
@@ -18,6 +19,10 @@ function ensureModules() {
   if (!modulesReady) {
     initNotes();
     initInventory();
+    // ⬇️ Inicializa Cotizaciones y le pasamos cómo leer el email de empresa para "scopear" localStorage por empresa
+    initQuotes({
+      getCompanyEmail: () => document.getElementById("companyEmail")?.textContent || ""
+    });
     modulesReady = true;
   }
 }

@@ -161,3 +161,24 @@ footer { text-align:center; color: var(--muted); padding: 20px; }
 #tab-inventario .grid + .card {
   margin-top: 24px;             /* mismo espaciado que entre columnas */
 }
+
+/* Cotizaciones: grid simple para las filas */
+.q-head, .q-row{
+  display:grid;
+  grid-template-columns: 120px 1fr 90px 160px 160px 40px;
+  gap: 8px;
+  align-items:center;
+}
+.q-h{ font-weight:600; color:var(--muted,#9aa1ac); }
+.q-cell{
+  padding:8px;
+  background:#0f1a27;
+  border:1px solid #1e2a3a;
+  border-radius:8px;
+  color:#e6edf3;
+}
+.q-sub{ text-align:right; font-variant-numeric: tabular-nums; }
+.q-del{
+  background:#2a3546; border:0; color:#ff9aa2; border-radius:8px; width:32px; height:32px; cursor:pointer;
+}
+#q_whatsPreview{ width:100%; min-height:220px; resize:vertical; }
