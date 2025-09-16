@@ -4,14 +4,14 @@ import { listNotes, createNote, updateNote, deleteNote } from '../controllers/no
 
 const router = Router();
 
-// ✅ multi-tenant: del token → req.companyId / req.userId
+// El token trae companyId y userId → los inyectamos para los controladores
 router.use(authCompany, (req, _res, next) => {
   req.companyId = req.company?.id;
   req.userId = req.user?.id;
   next();
 });
 
-// Rutas
+// Rutas (todas ya quedan scopiadas por empresa)
 router.get('/', listNotes);
 router.post('/', createNote);
 router.put('/:id', updateNote);

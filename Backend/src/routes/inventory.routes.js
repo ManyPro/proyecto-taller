@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { authCompany } from "../middlewares/auth.js";
-import { authUser } from "../middlewares/auth.js";
 
 import {
   listVehicleIntakes,
@@ -17,10 +16,21 @@ import {
 const router = Router();
 
 /**
- * Importante: aquí NO repitas "/inventory".
  * Este router se monta en /api/v1/inventory desde server.js,
- * así que los paths empiezan por "/vehicle-intakes" y "/items".
+ * así que no repitas "/inventory" en los paths.
  */
+
+// 🔒 Scope por empresa desde el token (blindaje adicional)
+router.use(authCompany, (req, _res, next) => {
+  req.companyId = req.company?.id;
+  req.userId = req.user?.id;
+  if (["POST", "PUT", "PATCH"].includes(req.method)) {
+    req.body ||= {};
+    if (!req.body.companyId) req.body.companyId = req.companyId;
+    if (!req.body.userId && req.userId) req.body.userId = req.userId;
+  }
+  next();
+});
 
 // Entradas de vehículo
 router.get("/vehicle-intakes", listVehicleIntakes);
