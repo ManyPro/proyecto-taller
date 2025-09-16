@@ -10,6 +10,9 @@
   <script type="module" src="./assets/js/api.js"></script>
   <script type="module" src="./assets/js/app.js"></script>
   <script type="module" src="./assets/js/notes.js"></script>
+  <!-- Cuando te comparta la lógica, activamos este import
+  <script type="module" src="./assets/js/quotes.js"></script>
+  -->
   <link rel="icon" href="data:,">
 </head>
 
@@ -42,8 +45,10 @@
       <nav class="tabs">
         <button data-tab="notas" class="active">Notas</button>
         <button data-tab="inventario">Inventario</button>
+        <button data-tab="cotizaciones">Cotizaciones</button>
       </nav>
-      <!-- MODAL GLOBAL (fuera de las tabs para que sirva en Notas e Inventario) -->
+
+      <!-- MODAL GLOBAL (fuera de las tabs para que sirva en Notas, Inventario y Cotizaciones) -->
       <div id="modal" class="modal hidden">
         <div class="modal-content">
           <button id="modalClose" class="close">&times;</button>
@@ -167,7 +172,7 @@
           </select>
           <label>Stock inicial</label><input id="it-stock" type="number" min="0" step="1" />
 
-          <!-- NUEVO: múltiples imágenes del ítem -->
+          <!-- Múltiples imágenes del ítem -->
           <label>Imágenes/Videos del ítem</label>
           <input id="it-files" type="file" multiple />
 
@@ -190,6 +195,120 @@
         </div>
       </section>
       <!-- ========== /INVENTARIO ========== -->
+
+      <!-- ========== COTIZACIONES ========== -->
+      <section id="tab-cotizaciones" class="tab">
+        <!-- Estructura 2 columnas: izquierda (datos + items) / derecha (resumen) -->
+        <div class="grid-2" id="quotes-body">
+
+          <!-- Columna izquierda -->
+          <div>
+            <!-- Datos del vehículo y cliente -->
+            <div class="card" id="q-data">
+              <h3>Nueva Cotización</h3>
+
+              <div class="row">
+                <div class="field">
+                  <label>N.º cotización</label>
+                  <input id="q-number" disabled placeholder="00001" />
+                </div>
+                <div class="field">
+                  <label>Fecha y hora</label>
+                  <input id="q-datetime" disabled />
+                </div>
+              </div>
+
+              <label>Cliente</label>
+              <input id="q-client-name" placeholder="Nombre del cliente" />
+              <div class="row">
+                <input id="q-client-phone" placeholder="Teléfono (opcional)" />
+                <input id="q-client-email" placeholder="Correo (opcional)" />
+              </div>
+
+              <label>Placa</label>
+              <input id="q-plate" placeholder="ABC123" />
+
+              <div class="row">
+                <input id="q-brand" placeholder="Marca" />
+                <input id="q-line" placeholder="Línea/Modelo" />
+              </div>
+              <div class="row">
+                <input id="q-year" placeholder="Año" />
+                <input id="q-cc" placeholder="Cilindraje" />
+              </div>
+
+              <button id="q-saveDraft" class="secondary">Guardar borrador (local)</button>
+            </div>
+
+            <!-- Ítems -->
+            <div class="card" id="q-items-card">
+              <h3>Ítems</h3>
+
+              <div class="table like-table">
+                <div class="thead">
+                  <div>Tipo</div>
+                  <div>Descripción</div>
+                  <div class="small">Cant.</div>
+                  <div class="small">Precio</div>
+                  <div class="small">Subtotal</div>
+                  <div class="small"></div>
+                </div>
+                <div id="q-rows" class="tbody">
+                  <!-- Las filas se inyectan por JS. Dejamos una plantilla oculta para referencia -->
+                  <div class="tr hidden" id="q-row-template" data-template>
+                    <div>
+                      <select>
+                        <option value="PRODUCTO">Producto</option>
+                        <option value="SERVICIO">Servicio</option>
+                      </select>
+                    </div>
+                    <div><input placeholder="Descripción" /></div>
+                    <div class="small"><input type="number" min="0" step="1" placeholder="Cant." /></div>
+                    <div class="small"><input type="number" min="0" step="0.01" placeholder="Precio" /></div>
+                    <div class="small"><input disabled placeholder="$0" /></div>
+                    <div class="small"><button class="secondary">Quitar</button></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row">
+                <button id="q-addRow">+ Agregar línea</button>
+              </div>
+
+              <div class="totals">
+                <div>Subtotal Productos: <strong id="q-subtotal-products">$0</strong></div>
+                <div>Subtotal Servicios: <strong id="q-subtotal-services">$0</strong></div>
+                <div>Total: <strong id="q-total">$0</strong></div>
+              </div>
+
+              <div class="row">
+                <button id="q-sendWhatsApp">Enviar por WhatsApp</button>
+                <button id="q-exportPdf" class="secondary">Exportar PDF</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Columna derecha -->
+          <div>
+            <div class="card" id="q-summary">
+              <h3>Resumen / Acciones</h3>
+              <p><small>No. cotización</small><br /><span id="q-number-big" style="font-size:1.4rem;font-weight:700;">00001</span></p>
+
+              <label>Validez (días, opcional)</label>
+              <input id="q-valid-days" type="number" min="0" step="1" placeholder="p. ej. 8" />
+
+              <label>Vista previa WhatsApp</label>
+              <pre id="q-whatsappPreview" style="min-height:220px;white-space:pre-wrap;"></pre>
+
+              <div class="row">
+                <button id="q-clearAll" class="secondary">Borrar todo</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+      <!-- ========== /COTIZACIONES ========== -->
 
     </section>
   </main>
