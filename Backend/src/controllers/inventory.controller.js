@@ -124,11 +124,19 @@ export const deleteVehicleIntake = async (req, res) => {
 // ======================= ÍTEMS ========================
 
 export const listItems = async (req, res) => {
-  const { name, sku, vehicleTarget } = req.query;
+  const { name, sku, vehicleTarget, vehicleIntakeId } = req.query;
   const q = { companyId: new mongoose.Types.ObjectId(req.companyId) };
+
   if (name) q.name = new RegExp((name || "").trim().toUpperCase(), "i");
   if (sku)  q.sku  = new RegExp((sku  || "").trim().toUpperCase(), "i");
-  if (vehicleTarget) q.vehicleTarget = new RegExp((vehicleTarget || "").trim().toUpperCase(), "i");
+
+  // NUEVO: si llega vehicleIntakeId válido, filtramos por ese ObjectId
+  if (vehicleIntakeId && mongoose.Types.ObjectId.isValid(vehicleIntakeId)) {
+    q.vehicleIntakeId = new mongoose.Types.ObjectId(vehicleIntakeId);
+  } else if (vehicleTarget) {
+    // compatibilidad con el filtro anterior por texto de vehicleTarget
+    q.vehicleTarget = new RegExp((vehicleTarget || "").trim().toUpperCase(), "i");
+  }
 
   const data = await Item.find(q).sort({ createdAt: -1 });
   res.json({ data });

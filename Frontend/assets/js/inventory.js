@@ -105,6 +105,11 @@ export function initInventory() {
   const qName = document.getElementById("q-name");
   const qApply = document.getElementById("q-apply");
 
+  // NUEVOS filtros
+  const qSku = document.getElementById("q-sku");
+  const qIntake = document.getElementById("q-intakeId");
+  const qClear = document.getElementById("q-clear");
+
   // ====== Entradas: fetch y render ======
   async function refreshIntakes() {
     const { data } = await invAPI.listVehicleIntakes();
@@ -121,6 +126,20 @@ export function initInventory() {
             </option>`
         )
         .join("");
+
+    // llenar select de filtros (inventario)
+    if (qIntake) {
+      qIntake.innerHTML =
+        `<option value="">Todas las entradas</option>` +
+        state.intakes
+          .map(
+            (v) =>
+              `<option value="${v._id}">
+                ${v.brand} ${v.model} ${v.engine} - ${new Date(v.intakeDate).toLocaleDateString()}
+              </option>`
+          )
+          .join("");
+    }
 
     renderIntakesList();
 
@@ -326,7 +345,25 @@ export function initInventory() {
   };
 
   // ====== Búsqueda ======
-  qApply.onclick = () => refreshItems({ name: qName.value.trim() });
+  function doSearch() {
+    const params = {
+      name: qName.value.trim(),
+      sku: qSku.value.trim(),
+      vehicleIntakeId: qIntake.value || undefined,
+    };
+    refreshItems(params);
+  }
+  qApply.onclick = doSearch;
+  qClear.onclick = () => {
+    qName.value = "";
+    qSku.value = "";
+    qIntake.value = "";
+    refreshItems({});
+  };
+  [qName, qSku].forEach((el) =>
+    el.addEventListener("keydown", (e) => e.key === "Enter" && doSearch())
+  );
+  qIntake.addEventListener("change", doSearch);
 
   // ====== Init ======
   refreshIntakes();

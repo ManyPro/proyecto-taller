@@ -133,7 +133,7 @@
       </section>
       <!-- ========== /NOTAS ========== -->
 
-      <!-- ========== INVENTARIO (sin cambios) ========== -->
+      <!-- ========== INVENTARIO ========== -->
       <section id="tab-inventario" class="tab">
         <div id="inventory-top">
           <div class="card" id="vi-card-form">
@@ -169,11 +169,17 @@
           <button id="it-save">Guardar Ítem</button>
         </div>
 
+        <!-- Inventario con filtros: nombre, SKU, entrada -->
         <div class="card span-2" id="inventory-list">
           <h3>Inventario</h3>
-          <div class="row">
-            <input id="q-name" placeholder="filtrar por nombre..." />
+          <div class="row" id="items-filters">
+            <input id="q-name" placeholder="Filtrar por nombre..." />
+            <input id="q-sku" placeholder="SKU..." />
+            <select id="q-intakeId">
+              <option value="">Todas las entradas</option>
+            </select>
             <button id="q-apply" class="secondary">Buscar</button>
+            <button id="q-clear" class="secondary">Limpiar</button>
           </div>
           <div id="itemsList" class="list"></div>
         </div>
