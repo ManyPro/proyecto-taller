@@ -2,7 +2,7 @@
 import { API } from "./api.js";
 import { upper } from "./utils.js";
 
-const state = { intakes: [] }; // entradas de vehículo
+const state = { intakes: [], lastItemsParams: {} }; // entradas de vehículo y filtros actuales
 
 function makeIntakeLabel(v) {
   return `${(v?.brand || "").trim()} ${(v?.model || "").trim()} ${(v?.engine || "").trim()}`
@@ -74,6 +74,29 @@ const invAPI = {
   deleteItem: (id) =>
     request(`/api/v1/inventory/items/${id}`, { method: "DELETE" })
 };
+
+// =================================================================================
+// --------------------------- util de modal local --------------------------------
+function invOpenModal(innerHTML) {
+  const modal = document.getElementById("modal");
+  const body = document.getElementById("modalBody");
+  const close = document.getElementById("modalClose");
+  if (!modal || !body || !close) return alert("No se encontró el modal en el DOM.");
+  body.innerHTML = innerHTML;
+  modal.classList.remove("hidden");
+  close.onclick = () => invCloseModal();
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) invCloseModal();
+  }, { once: true });
+  document.addEventListener("keydown", escListener, { once: true });
+  function escListener(e){ if (e.key === "Escape") invCloseModal(); }
+}
+function invCloseModal() {
+  const modal = document.getElementById("modal");
+  const body  = document.getElementById("modalBody");
+  if (body) body.innerHTML = "";
+  if (modal) modal.classList.add("hidden");
+}
 
 // =================================================================================
 
@@ -174,27 +197,8 @@ export function initInventory() {
         </div>
       `;
 
-      row.querySelector("[data-edit]").onclick = async () => {
-        const brand = prompt("Marca", vi.brand);
-        if (brand == null) return;
-        const model = prompt("Modelo", vi.model);
-        if (model == null) return;
-        const engine = prompt("Cilindraje", vi.engine);
-        if (engine == null) return;
-        const dateStr = prompt("Fecha (YYYY-MM-DD)", new Date(vi.intakeDate).toISOString().slice(0, 10));
-        if (dateStr == null) return;
-        const priceStr = prompt("Precio de entrada del vehículo", vi.entryPrice);
-        if (priceStr == null) return;
-
-        await invAPI.updateVehicleIntake(vi._id, {
-          brand, model, engine,
-          intakeDate: dateStr,
-          entryPrice: parseFloat(priceStr || "0"),
-        });
-        await refreshIntakes();
-        await refreshItems({});
-        alert("Entrada actualizada.");
-      };
+      // --- modal editar ENTRADA ---
+      row.querySelector("[data-edit]").onclick = () => openEditVehicleIntake(vi);
 
       row.querySelector("[data-del]").onclick = async () => {
         if (!confirm("¿Eliminar esta entrada de vehículo? (debe no tener ítems vinculados)")) return;
@@ -219,6 +223,7 @@ export function initInventory() {
 
   // ====== Ítems: list ======
   async function refreshItems(params = {}) {
+    state.lastItemsParams = params;
     const { data } = await invAPI.listItems(params);
     itemsList.innerHTML = "";
     (data || []).forEach((it) => {
@@ -249,18 +254,14 @@ export function initInventory() {
       const edit = div.querySelector("[data-edit]");
       const del = div.querySelector("[data-del]");
 
-      edit.onclick = async () => {
-        const nv = prompt("Nuevo precio de venta:", it.salePrice);
-        if (nv == null) return;
-        await invAPI.updateItem(it._id, { salePrice: +nv });
-        refreshItems(params);
-      };
+      // --- modal editar ÍTEM ---
+      edit.onclick = () => openEditItem(it);
 
       del.onclick = async () => {
         if (!confirm("¿Eliminar ítem? (stock debe ser 0)")) return;
         try {
           await invAPI.deleteItem(it._id);
-          refreshItems(params);
+          refreshItems(state.lastItemsParams);
         } catch (e) {
           alert("Error: " + e.message);
         }
@@ -364,6 +365,157 @@ export function initInventory() {
     el.addEventListener("keydown", (e) => e.key === "Enter" && doSearch())
   );
   qIntake.addEventListener("change", doSearch);
+
+  // ====== Editar: MODALES ======
+
+  function openEditVehicleIntake(vi) {
+    const d = new Date(vi.intakeDate);
+    const ymd = isFinite(d) ? d.toISOString().slice(0, 10) : "";
+
+    invOpenModal(`
+      <h3>Editar entrada de vehículo</h3>
+
+      <label>Marca</label>
+      <input id="e-vi-brand" value="${(vi.brand || "").toUpperCase()}" />
+
+      <label>Modelo</label>
+      <input id="e-vi-model" value="${(vi.model || "").toUpperCase()}" />
+
+      <label>Cilindraje</label>
+      <input id="e-vi-engine" value="${(vi.engine || "").toUpperCase()}" />
+
+      <label>Fecha</label>
+      <input id="e-vi-date" type="date" value="${ymd}" />
+
+      <label>Precio de entrada (vehículo)</label>
+      <input id="e-vi-price" type="number" step="0.01" min="0" value="${Number(vi.entryPrice || 0)}" />
+
+      <div style="margin-top:10px; display:flex; gap:8px;">
+        <button id="e-vi-save">Guardar cambios</button>
+        <button id="e-vi-cancel" class="secondary">Cancelar</button>
+      </div>
+    `);
+
+    const b = document.getElementById("e-vi-brand");
+    const m = document.getElementById("e-vi-model");
+    const e = document.getElementById("e-vi-engine");
+    const dt = document.getElementById("e-vi-date");
+    const pr = document.getElementById("e-vi-price");
+    const save = document.getElementById("e-vi-save");
+    const cancel = document.getElementById("e-vi-cancel");
+
+    cancel.onclick = invCloseModal;
+    save.onclick = async () => {
+      try {
+        await invAPI.updateVehicleIntake(vi._id, {
+          brand: (b.value || "").toUpperCase().trim(),
+          model: (m.value || "").toUpperCase().trim(),
+          engine: (e.value || "").toUpperCase().trim(),
+          intakeDate: dt.value || undefined,
+          entryPrice: parseFloat(pr.value || "0"),
+        });
+        invCloseModal();
+        await refreshIntakes();
+        await refreshItems(state.lastItemsParams);
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    };
+  }
+
+  function openEditItem(it) {
+    const optionsIntakes = [
+      `<option value="">(sin entrada)</option>`,
+      ...state.intakes.map(v =>
+        `<option value="${v._id}" ${String(it.vehicleIntakeId || "") === String(v._id) ? "selected" : ""}>
+          ${v.brand} ${v.model} ${v.engine} - ${new Date(v.intakeDate).toLocaleDateString()}
+        </option>`
+      )
+    ].join("");
+
+    invOpenModal(`
+      <h3>Editar ítem</h3>
+
+      <label>SKU</label>
+      <input id="e-it-sku" value="${it.sku || ""}" />
+
+      <label>Nombre</label>
+      <input id="e-it-name" value="${it.name || ""}" />
+
+      <label>Entrada de vehículo</label>
+      <select id="e-it-intake">${optionsIntakes}</select>
+
+      <label>Vehículo destino</label>
+      <input id="e-it-target" value="${it.vehicleTarget || ""}" />
+
+      <label>Precio entrada (opcional)</label>
+      <input id="e-it-entry" type="number" step="0.01" placeholder="vacío = AUTO si hay entrada" value="${it.entryPrice ?? ""}" />
+
+      <label>Precio venta</label>
+      <input id="e-it-sale" type="number" step="0.01" min="0" value="${Number(it.salePrice || 0)}" />
+
+      <label>Original</label>
+      <select id="e-it-original">
+        <option value="false" ${!it.original ? "selected" : ""}>No</option>
+        <option value="true"  ${it.original ? "selected" : ""}>Sí</option>
+      </select>
+
+      <label>Stock</label>
+      <input id="e-it-stock" type="number" step="1" min="0" value="${parseInt(it.stock || 0, 10)}" />
+
+      <div style="margin-top:10px; display:flex; gap:8px;">
+        <button id="e-it-save">Guardar cambios</button>
+        <button id="e-it-cancel" class="secondary">Cancelar</button>
+      </div>
+    `);
+
+    const sku = document.getElementById("e-it-sku");
+    const name = document.getElementById("e-it-name");
+    const intake = document.getElementById("e-it-intake");
+    const target = document.getElementById("e-it-target");
+    const entry = document.getElementById("e-it-entry");
+    const sale = document.getElementById("e-it-sale");
+    const original = document.getElementById("e-it-original");
+    const stock = document.getElementById("e-it-stock");
+    const save = document.getElementById("e-it-save");
+    const cancel = document.getElementById("e-it-cancel");
+
+    // cuando se seleccione una entrada, autocompletamos el destino y bloqueamos edición
+    intake.addEventListener("change", () => {
+      const id = intake.value;
+      if (!id) { target.readOnly = false; return; }
+      const vi = state.intakes.find(v => v._id === id);
+      if (vi) {
+        target.value = makeIntakeLabel(vi);
+        target.readOnly = true;
+      } else {
+        target.readOnly = false;
+      }
+    });
+
+    cancel.onclick = invCloseModal;
+    save.onclick = async () => {
+      try {
+        const body = {
+          sku: (sku.value || "").trim().toUpperCase(),
+          name: (name.value || "").trim().toUpperCase(),
+          vehicleIntakeId: intake.value || null,
+          vehicleTarget: (target.value || "VITRINAS").trim().toUpperCase(),
+          // si el campo queda vacío => enviamos "" para que el backend ponga AUTO cuando haya entrada
+          entryPrice: entry.value === "" ? "" : parseFloat(entry.value),
+          salePrice: parseFloat(sale.value || "0"),
+          original: original.value === "true",
+          stock: parseInt(stock.value || "0", 10)
+        };
+        await invAPI.updateItem(it._id, body);
+        invCloseModal();
+        await refreshIntakes();                  // por si cambió la entrada (etiqueta destino)
+        await refreshItems(state.lastItemsParams);
+      } catch (err) {
+        alert("Error: " + err.message);
+      }
+    };
+  }
 
   // ====== Init ======
   refreshIntakes();
