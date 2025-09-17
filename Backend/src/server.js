@@ -22,9 +22,21 @@ import { authCompany } from './middlewares/auth.js';
 
 const app = express();
 
-// --- CORS por ALLOWED_ORIGINS ---
-const allowList = (process.env.ALLOWED_ORIGINS || '')
-  .split(',').map(s => s.trim()).filter(Boolean);
+// --- CORS con allowlist ---
+// Si no defines ALLOWED_ORIGINS, usamos un fallback seguro (Netlify + localhost)
+const envAllow = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
+const defaultAllow = [
+  'https://proyecto-taller.netlify.app',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
+
+const allowList = envAllow.length ? envAllow : defaultAllow;
+console.log('[CORS] allowList:', allowList);
 
 const corsOptions = {
   origin(origin, cb) {
