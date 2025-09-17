@@ -17,6 +17,7 @@
   <script type="module" src="./assets/js/app.js"></script>
   <script type="module" src="./assets/js/notes.js"></script>
   <script type="module" src="./assets/js/quotes.js"></script>
+  <script type="module" src="./assets/js/prices.js"></script>
   <link rel="icon" href="data:,">
 </head>
 
@@ -52,6 +53,7 @@
         <button data-tab="notas" class="active">Notas</button>
         <button data-tab="inventario">Inventario</button>
         <button data-tab="cotizaciones">Cotizaciones</button>
+        <button data-tab="precios">Lista de precios</button> <!-- NUEVO -->
       </nav>
 
       <!-- MODAL GLOBAL -->
@@ -309,6 +311,36 @@
         </div>
       </section>
       <!-- ========== /COTIZACIONES ========== -->
+      <!-- ========== /PRECIOS ========== -->
+      <section id="tab-precios" class="tab">
+        <div class="card">
+          <h3>Lista de precios</h3>
+          <div class="row" id="svc-bar">
+            <select id="svc-select"></select>
+            <button id="svc-vars" class="secondary">Variables del servicio</button>
+            <button id="svc-new" class="secondary">Crear servicio base</button>
+          </div>
+          <div class="row" id="filters-bar">
+            <input id="pf-brand" placeholder="Marca…" />
+            <input id="pf-line" placeholder="Línea…" />
+            <input id="pf-engine" placeholder="Motor…" />
+            <input id="pf-year" placeholder="Año…" type="number" />
+            <button id="pf-search" class="secondary">Buscar</button>
+            <button id="pf-clear" class="secondary">Limpiar</button>
+            <button id="pe-new">Nueva fila</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="table-wrap">
+            <table class="table" id="pe-table">
+              <thead id="pe-head"></thead>
+              <tbody id="pe-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <!-- ========== /PRECIOS ========== -->
     </section>
   </main>
 

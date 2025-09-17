@@ -101,3 +101,11 @@ footer { text-align:center; color: var(--muted); padding: 20px; }
 }
 .qh-item .meta { color: var(--muted); font-size: 12px; }
 .qh-item .actions { display:flex; gap:6px; justify-content:flex-end; }
+
+/* === Lista de precios (MVP) === */
+.table-wrap { overflow:auto; }
+.table { width:100%; border-collapse: collapse; font-size:14px; }
+.table th, .table td { border:1px solid #1f2937; padding:8px; }
+.table th { background:#0b1220; position:sticky; top:0; z-index:1; }
+.table input, .table select { width:100%; }
+.table .actions { display:flex; gap:6px; justify-content:flex-end; }

@@ -12,13 +12,13 @@ const SCOPE = scopeFromBase(API_BASE);
 
 // Claves de storage
 const ACTIVE_KEY = `taller.activeCompany:${SCOPE}`;                  // empresa activa (email)
-const tokenKeyFor = (email) => `taller.token:${SCOPE}:${String(email||'').toLowerCase()}`;
+const tokenKeyFor = (email) => `taller.token:${SCOPE}:${String(email || '').toLowerCase()}`;
 
 // Empresa activa en localStorage
 const activeCompany = {
   get: () => (typeof localStorage !== 'undefined' ? (localStorage.getItem(ACTIVE_KEY) || '') : ''),
-  set: (email) => { try { localStorage.setItem(ACTIVE_KEY, String(email||'').toLowerCase()); } catch {} },
-  clear: () => { try { localStorage.removeItem(ACTIVE_KEY); } catch {} }
+  set: (email) => { try { localStorage.setItem(ACTIVE_KEY, String(email || '').toLowerCase()); } catch { } },
+  clear: () => { try { localStorage.removeItem(ACTIVE_KEY); } catch { } }
 };
 
 // Token por empresa (usa la empresa activa por defecto)
@@ -27,8 +27,8 @@ const tokenStore = {
     const em = (email || activeCompany.get());
     return (typeof localStorage !== 'undefined') ? (localStorage.getItem(tokenKeyFor(em)) || '') : '';
   },
-  set: (t, email) => { try { localStorage.setItem(tokenKeyFor(email || activeCompany.get()), t || ''); } catch {} },
-  clear: (email) => { try { localStorage.removeItem(tokenKeyFor(email || activeCompany.get())); } catch {} }
+  set: (t, email) => { try { localStorage.setItem(tokenKeyFor(email || activeCompany.get()), t || ''); } catch { } },
+  clear: (email) => { try { localStorage.removeItem(tokenKeyFor(email || activeCompany.get())); } catch { } }
 };
 
 // ===== HTTP core =====
@@ -60,7 +60,7 @@ async function coreRequest(method, path, data, extraHeaders = {}) {
 }
 
 const http = {
-  get:  (path)          => coreRequest('GET',  path, null),
+  get: (path) => coreRequest('GET', path, null),
   post: (path, payload) => coreRequest('POST', path, payload),
   upload: (path, files) => {
     const fd = new FormData();
@@ -93,30 +93,47 @@ const API = {
   },
   companyMe: () => http.get('/api/v1/auth/company/me'),
   async logout() {
-    try { await http.post('/api/v1/auth/company/logout', {}); } catch {}
+    try { await http.post('/api/v1/auth/company/logout', {}); } catch { }
     tokenStore.clear();
     activeCompany.clear();
   },
 
   // --- Notas / Media ---
-  notesList:   (q = '')  => http.get(`/api/v1/notes${q}`),
+  notesList: (q = '') => http.get(`/api/v1/notes${q}`),
   notesCreate: (payload) => http.post('/api/v1/notes', payload),
-  mediaUpload: (files)   => http.upload('/api/v1/media/upload', files),
+  mediaUpload: (files) => http.upload('/api/v1/media/upload', files),
 
   // --- Aliases retro ---
-  register:        (payload) => http.post('/api/v1/auth/company/register', payload),
-  login:           (payload) => API.companyLogin(payload),
-  me:              ()        => API.companyMe(),
+  register: (payload) => http.post('/api/v1/auth/company/register', payload),
+  login: (payload) => API.companyLogin(payload),
+  me: () => API.companyMe(),
   registerCompany: (payload) => http.post('/api/v1/auth/company/register', payload),
-  loginCompany:    (payload) => API.companyLogin(payload),
+  loginCompany: (payload) => API.companyLogin(payload),
 
   // --- Cotizaciones ---
-  quotesList:    (q='')       => http.get(`/api/v1/quotes${q}`),
-  quoteCreate:   (payload)    => http.post('/api/v1/quotes', payload),
-  quoteUpdate:   (id,payload) => http.post(`/api/v1/quotes/${id}`, payload),
-  quotePatch:    (id,payload) => coreRequest('PATCH', `/api/v1/quotes/${id}`, payload),
-  quoteDelete:   (id)         => coreRequest('DELETE', `/api/v1/quotes/${id}`)
+  quotesList: (q = '') => http.get(`/api/v1/quotes${q}`),
+  quoteCreate: (payload) => http.post('/api/v1/quotes', payload),
+  quoteUpdate: (id, payload) => http.post(`/api/v1/quotes/${id}`, payload),
+  quotePatch: (id, payload) => coreRequest('PATCH', `/api/v1/quotes/${id}`, payload),
+  quoteDelete: (id) => coreRequest('DELETE', `/api/v1/quotes/${id}`)
 };
+
+// === Services ===
+API.servicesList = () => http.get('/api/v1/services');
+API.serviceCreate = (payload) => http.post('/api/v1/services', payload);
+API.serviceUpdate = (id, body) => coreRequest('PUT', `/api/v1/services/${id}`, body);
+API.serviceDelete = (id) => coreRequest('DELETE', `/api/v1/services/${id}`);
+
+// === Prices ===
+function toQuery(params = {}) {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && String(v).trim() !== '') qs.set(k, v); });
+  const s = qs.toString(); return s ? `?${s}` : '';
+}
+API.pricesList = (params = {}) => http.get(`/api/v1/prices${toQuery(params)}`);
+API.priceCreate = (payload) => http.post('/api/v1/prices', payload);
+API.priceUpdate = (id, body) => coreRequest('PUT', `/api/v1/prices/${id}`, body);
+API.priceDelete = (id) => coreRequest('DELETE', `/api/v1/prices/${id}`);
 
 // Exports
 export { API, tokenStore as authToken };

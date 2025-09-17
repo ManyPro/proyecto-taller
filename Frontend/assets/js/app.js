@@ -6,6 +6,7 @@ import { initNotes } from "./notes.js";
 import { initInventory } from "./inventory.js";
 import { initQuotes } from "./quotes.js";
 import { API } from "./api.js";
+import { initPrices } from "./prices.js"; // NUEVO
 
 let modulesReady = false;
 
@@ -37,6 +38,15 @@ function ensureModules() {
     getCompanyEmail: () => document.getElementById("companyEmail")?.textContent || ""
   });
 
+  modulesReady = true;
+}
+
+function ensureModules() {
+  if (modulesReady) return;
+  initNotes();
+  initInventory();
+  initQuotes({ getCompanyEmail: () => document.getElementById("companyEmail")?.textContent || "" });
+  initPrices(); // NUEVO
   modulesReady = true;
 }
 
@@ -73,7 +83,7 @@ loginBtn?.addEventListener('click', () => doLogin(false));
 registerBtn?.addEventListener('click', () => doLogin(true));
 
 logoutBtn?.addEventListener('click', async () => {
-  try { await API.logout(); } catch {}
+  try { await API.logout(); } catch { }
   emailSpan.textContent = '';
   sectionApp.classList.add('hidden');
   sectionLogin.classList.remove('hidden');
