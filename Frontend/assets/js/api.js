@@ -3,31 +3,35 @@
 // =======================
 const API_BASE = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
 
-// ---- Token namespaced por entorno (host del API) ----
+// ---- Scopes por entorno (host del API) + empresa (email) ----
 function scopeFromBase(base) {
   try { return new URL(base || (typeof window !== 'undefined' ? window.location.origin : '')).host || 'local'; }
   catch { return (base || 'local') || 'local'; }
 }
 const SCOPE = scopeFromBase(API_BASE);
-const TOKEN_KEY_SCOPED = `taller.token:${SCOPE}`;
-const LEGACY_TOKEN_KEY = 'taller.token';
 
-// Migración automática desde la clave vieja (si existe)
-try {
-  const old = (typeof localStorage !== 'undefined') ? localStorage.getItem(LEGACY_TOKEN_KEY) : null;
-  const cur = (typeof localStorage !== 'undefined') ? localStorage.getItem(TOKEN_KEY_SCOPED) : null;
-  if (old && !cur) {
-    localStorage.setItem(TOKEN_KEY_SCOPED, old);
-    localStorage.removeItem(LEGACY_TOKEN_KEY);
-  }
-} catch {}
+// Claves de storage
+const ACTIVE_KEY = `taller.activeCompany:${SCOPE}`;                  // empresa activa (email)
+const tokenKeyFor = (email) => `taller.token:${SCOPE}:${String(email||'').toLowerCase()}`;
 
-const tokenStore = {
-  get: () => (typeof localStorage !== 'undefined' ? (localStorage.getItem(TOKEN_KEY_SCOPED) || '') : ''),
-  set: (t) => { try { localStorage.setItem(TOKEN_KEY_SCOPED, t); } catch {} },
-  clear: () => { try { localStorage.removeItem(TOKEN_KEY_SCOPED); } catch {} }
+// Empresa activa en localStorage
+const activeCompany = {
+  get: () => (typeof localStorage !== 'undefined' ? (localStorage.getItem(ACTIVE_KEY) || '') : ''),
+  set: (email) => { try { localStorage.setItem(ACTIVE_KEY, String(email||'').toLowerCase()); } catch {} },
+  clear: () => { try { localStorage.removeItem(ACTIVE_KEY); } catch {} }
 };
 
+// Token por empresa (usa la empresa activa por defecto)
+const tokenStore = {
+  get: (email) => {
+    const em = (email || activeCompany.get());
+    return (typeof localStorage !== 'undefined') ? (localStorage.getItem(tokenKeyFor(em)) || '') : '';
+  },
+  set: (t, email) => { try { localStorage.setItem(tokenKeyFor(email || activeCompany.get()), t || ''); } catch {} },
+  clear: (email) => { try { localStorage.removeItem(tokenKeyFor(email || activeCompany.get())); } catch {} }
+};
+
+// ===== HTTP core =====
 async function coreRequest(method, path, data, extraHeaders = {}) {
   const isForm = (typeof FormData !== 'undefined') && (data instanceof FormData);
   const headers = { ...extraHeaders };
@@ -41,13 +45,12 @@ async function coreRequest(method, path, data, extraHeaders = {}) {
     method,
     headers,
     body: data == null ? undefined : (isForm ? data : JSON.stringify(data)),
-    cache: 'no-store',     // <-- sin header Cache-Control; esto evita caches del navegador
-    credentials: 'omit'    // el token va en Authorization, no en cookies
+    cache: 'no-store',
+    credentials: 'omit'
   });
 
   const text = await res.text();
-  let body;
-  try { body = JSON.parse(text); } catch { body = text; }
+  let body; try { body = JSON.parse(text); } catch { body = text; }
 
   if (!res.ok) {
     const msg = (body && body.error) ? body.error : (typeof body === 'string' ? body : res.statusText);
@@ -73,34 +76,41 @@ const API = {
   base: API_BASE,
   token: tokenStore,
 
-  // --- Canonical ---
+  // Empresa activa
+  setActiveCompany: (email) => activeCompany.set(email),
+  getActiveCompany: () => activeCompany.get(),
+
+  // --- Auth empresa ---
   companyRegister: (payload) => http.post('/api/v1/auth/company/register', payload),
-  companyLogin:    (payload) => http.post('/api/v1/auth/company/login', payload),
-  companyMe:       ()        => http.get('/api/v1/auth/company/me'),
+  async companyLogin(payload) {
+    // Esperamos { token, email, ... }
+    const res = await http.post('/api/v1/auth/company/login', payload);
+    const email = String(res?.email || payload?.email || '').toLowerCase();
+    if (!res?.token || !email) throw new Error('Login inválido');
+    activeCompany.set(email);
+    tokenStore.set(res.token, email);
+    return res;
+  },
+  companyMe: () => http.get('/api/v1/auth/company/me'),
+  async logout() {
+    try { await http.post('/api/v1/auth/company/logout', {}); } catch {}
+    tokenStore.clear();
+    activeCompany.clear();
+  },
 
-  notesList:       (q = '')  => http.get(`/api/v1/notes${q}`),
-  notesCreate:     (payload) => http.post('/api/v1/notes', payload),
+  // --- Notas / Media ---
+  notesList:   (q = '')  => http.get(`/api/v1/notes${q}`),
+  notesCreate: (payload) => http.post('/api/v1/notes', payload),
+  mediaUpload: (files)   => http.upload('/api/v1/media/upload', files),
 
-  mediaUpload:     (files)   => http.upload('/api/v1/media/upload', files),
+  // --- Aliases retro ---
+  register:        (payload) => http.post('/api/v1/auth/company/register', payload),
+  login:           (payload) => API.companyLogin(payload),
+  me:              ()        => API.companyMe(),
+  registerCompany: (payload) => http.post('/api/v1/auth/company/register', payload),
+  loginCompany:    (payload) => API.companyLogin(payload),
 
-  // --- Aliases retrocompatibles ---
-  register:           (payload) => http.post('/api/v1/auth/company/register', payload),
-  login:              (payload) => http.post('/api/v1/auth/company/login', payload),
-  me:                 ()        => http.get('/api/v1/auth/company/me'),
-
-  registerCompany:    (payload) => http.post('/api/v1/auth/company/register', payload),
-  loginCompany:       (payload) => http.post('/api/v1/auth/company/login', payload),
-
-  listNotes:          (q = '')  => http.get(`/api/v1/notes${q}`),
-  createNote:         (payload) => http.post('/api/v1/notes', payload),
-  uploadMedia:        (files)   => http.upload('/api/v1/media/upload', files),
-
-  // Accesos de bajo nivel
-  get: http.get,
-  post: http.post,
-  upload: http.upload,
-
-  // Cotizaciones
+  // --- Cotizaciones ---
   quotesList:    (q='')       => http.get(`/api/v1/quotes${q}`),
   quoteCreate:   (payload)    => http.post('/api/v1/quotes', payload),
   quoteUpdate:   (id,payload) => http.post(`/api/v1/quotes/${id}`, payload),

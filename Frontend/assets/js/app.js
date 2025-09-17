@@ -45,7 +45,7 @@ const loginBtn = document.getElementById('loginBtn');
 const registerBtn = document.getElementById('registerBtn');
 
 async function doLogin(isRegister = false) {
-  const email = (document.getElementById('email').value || '').trim();
+  const email = (document.getElementById('email').value || '').trim().toLowerCase();
   const password = (document.getElementById('password').value || '').trim();
   if (!email || !password) {
     alert('Ingresa correo y contraseña');
@@ -55,9 +55,10 @@ async function doLogin(isRegister = false) {
     if (isRegister) {
       await API.registerCompany({ email, password });
     }
-    await API.loginCompany({ email, password });
+    const res = await API.loginCompany({ email, password }); // guarda token y setActiveCompany
     // UI
-    emailSpan.textContent = email;
+    emailSpan.textContent = (res?.email || email);
+    API.setActiveCompany(emailSpan.textContent); // redundante pero seguro
     sectionLogin.classList.add('hidden');
     sectionApp.classList.remove('hidden');
     logoutBtn.classList.remove('hidden');
@@ -72,9 +73,7 @@ loginBtn?.addEventListener('click', () => doLogin(false));
 registerBtn?.addEventListener('click', () => doLogin(true));
 
 logoutBtn?.addEventListener('click', async () => {
-  try {
-    await API.logout();
-  } catch {}
+  try { await API.logout(); } catch {}
   emailSpan.textContent = '';
   sectionApp.classList.add('hidden');
   sectionLogin.classList.remove('hidden');
@@ -89,17 +88,25 @@ tabsNav?.addEventListener('click', (ev) => {
   showTab(tab);
 });
 
-// Si ya estás autenticado (por ejemplo por cookie), levantar módulos
+// Reanudar sesión si hay token+empresa activos
 (async () => {
   try {
-    const me = await API.me();
+    const me = await API.me(); // requiere token
     if (me?.email) {
+      API.setActiveCompany(me.email);
       emailSpan.textContent = me.email;
       sectionLogin.classList.add('hidden');
       sectionApp.classList.remove('hidden');
       logoutBtn.classList.remove('hidden');
       ensureModules();
       showTab('notas');
+    } else {
+      // Si no hay /me, pero quedó empresa activa guardada, muéstrala (opcional)
+      const active = API.getActiveCompany?.();
+      if (active) emailSpan.textContent = active;
     }
-  } catch {}
+  } catch {
+    const active = API.getActiveCompany?.();
+    if (active) emailSpan.textContent = active;
+  }
 })();
