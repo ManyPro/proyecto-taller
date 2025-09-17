@@ -271,11 +271,8 @@ export function initQuotes({ getCompanyEmail }) {
         total: parseMoney(lblTotal.textContent)
       }
     });
-    // Avanza correlativo al "usar" la cotización
-    advanceNumber();
-    iNumber.value = nextNumber();
-    iNumberBig.textContent = iNumber.value;
-    clearDraft();
+    // >>> YA NO avanzamos ni tocamos el correlativo aquí.
+    // >>> Tampoco borramos el borrador: el usuario puede seguir editando tras exportar.
     syncSummaryHeight();
   }
 
@@ -297,21 +294,32 @@ export function initQuotes({ getCompanyEmail }) {
     const d = new jsPDFClass('p', 'pt', 'a4');
     if (typeof d.autoTable !== 'function') { alert('No se encontró AutoTable.'); return; }
 
-    // Encabezado ejemplo (idéntico al tuyo)
+    // Encabezado / branding
     const gold = '#d4c389';
     d.setFont('helvetica', 'bold'); d.setTextColor(gold); d.setFontSize(22);
     d.text('CASA RENAULT H&H', 60, 60);
+
+    // Sello amarillo "RENAULT"
     d.setFillColor('#ffcc00'); d.rect(470, 35, 32, 32, 'F');
     d.setFontSize(8); d.setTextColor('#000'); d.text('RENAULT', 486, 55, { angle: 90 });
+
     d.setFontSize(16); d.setTextColor('#000'); d.text('COTIZACIÓN', 440, 90);
 
-    // Efecto de opacidad (solo si está disponible)
-    if (d.saveGraphicsState && d.setGState && d.GState) {
-      d.saveGraphicsState(); d.setGState(new d.GState({ opacity: 0.06 }));
-      d.setFont('helvetica', 'bold'); d.setFontSize(120); d.setTextColor('#000'); d.text('RENAULT', 140, 360, { angle: -12 });
+    // Marca de agua (con fallback si no hay GState)
+    const supportsOpacity = !!(d.saveGraphicsState && d.setGState && d.GState);
+    if (supportsOpacity) {
+      d.saveGraphicsState();
+      d.setGState(new d.GState({ opacity: 0.06 }));
+      d.setFont('helvetica', 'bold'); d.setFontSize(120); d.setTextColor('#000');
+      d.text('RENAULT', 140, 360, { angle: -12 });
       d.restoreGraphicsState();
+    } else {
+      d.setFont('helvetica', 'bold'); d.setFontSize(110); d.setTextColor(220);
+      d.text('RENAULT', 140, 360, { angle: -12 });
+      d.setTextColor('#000');
     }
 
+    // Bloques de info
     d.setFontSize(10); d.setFont('helvetica', 'normal');
     const leftInfo = [
       'CASA RENAULT H&H — Servicio Automotriz',
@@ -328,21 +336,31 @@ export function initQuotes({ getCompanyEmail }) {
     leftInfo.forEach((t, i) => d.text(t, 60, 120 + i * 14));
     rightInfo.forEach((t, i) => d.text(t, 370, 120 + i * 14));
 
+    // Tabla
     d.autoTable({
       startY: 200,
       head: [['Tipo', 'Descripción', 'Cant.', 'Precio unit.', 'Subtotal']],
       body: rows,
       styles: { fontSize: 10, cellPadding: 6 },
       headStyles: { fillColor: [230, 230, 230], textColor: 0 },
-      columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 260 }, 2: { cellWidth: 50, halign: 'right' }, 3: { cellWidth: 90, halign: 'right' }, 4: { cellWidth: 90, halign: 'right' } }
+      columnStyles: {
+        0: { cellWidth: 90 },
+        1: { cellWidth: 260 },             // descripción amplia y con wrap
+        2: { cellWidth: 50, halign: 'right' },
+        3: { cellWidth: 90, halign: 'right' },
+        4: { cellWidth: 90, halign: 'right' }
+      }
     });
 
+    // Totales
     let y = d.lastAutoTable.finalY + 16;
     d.text(`Subtotal Productos: ${money(subP)}`, 60, y); y += 14;
     d.text(`Subtotal Servicios: ${money(subS)}`, 60, y); y += 14;
     d.setFont('helvetica', 'bold'); d.text(`TOTAL: ${money(tot)}`, 60, y); y += 18;
     d.setFont('helvetica', 'normal'); d.text('Valores SIN IVA', 60, y);
     if (doc.validity) d.text(`Validez: ${doc.validity} días`, 180, y);
+
+    // Pie
     y += 28; d.setFontSize(9);
     d.text('Calle 69° No. 87-39 • Cel: 301 205 9320 • Bogotá D.C • Contacto: HUGO MANRIQUE 311 513 1603', 60, y);
 
@@ -354,9 +372,8 @@ export function initQuotes({ getCompanyEmail }) {
     const text = previewWA.textContent || '';
     if (!text.trim()) return;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-    advanceNumber();
-    iNumber.value = nextNumber(); iNumberBig.textContent = iNumber.value;
-    clearDraft(); syncSummaryHeight();
+    // >>> YA NO avanzamos el correlativo aquí.
+    syncSummaryHeight();
   }
 
   // ====== Backend (crear / actualizar) ======
@@ -461,8 +478,6 @@ export function initQuotes({ getCompanyEmail }) {
     });
   }
 
-  // ... (resto del archivo igual que te entregué) ...
-
   function setUIFromQuote(d) {
     currentQuoteId = d?._id || null;
     iNumber.value = d?.number || nextNumber();
@@ -495,8 +510,6 @@ export function initQuotes({ getCompanyEmail }) {
     recalcAll();
     window.scrollTo({ top: tab.offsetTop, behavior: 'smooth' });
   }
-
-  // ... (resto del archivo igual) ...
 
   function exportPDFFromDoc(d) {
     exportPDFFromData({
