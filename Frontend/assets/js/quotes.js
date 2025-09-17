@@ -294,75 +294,101 @@ export function initQuotes({ getCompanyEmail }) {
     const d = new jsPDFClass('p', 'pt', 'a4');
     if (typeof d.autoTable !== 'function') { alert('No se encontró AutoTable.'); return; }
 
-    // Encabezado / branding
+    // ====== Márgenes y ancho ======
+    const pageW = d.internal.pageSize.getWidth();
+    const pageH = d.internal.pageSize.getHeight();
+    const left = 60;
+    const right = 60;
+    const contentW = pageW - left - right;
+
+    // ====== Encabezado ======
     const gold = '#d4c389';
-    d.setFont('helvetica', 'bold'); d.setTextColor(gold); d.setFontSize(22);
-    d.text('CASA RENAULT H&H', 60, 60);
+    d.setFont('helvetica', 'bold'); d.setTextColor(gold); d.setFontSize(26);
+    d.text('CASA RENAULT H&H', left, 70);
 
-    // Sello amarillo "RENAULT"
-    d.setFillColor('#ffcc00'); d.rect(470, 35, 32, 32, 'F');
-    d.setFontSize(8); d.setTextColor('#000'); d.text('RENAULT', 486, 55, { angle: 90 });
+    // Cuadro amarillo "RENAULT" (horizontal, no rotado)
+    const bX = left + 285, bY = 46, bW = 46, bH = 38;
+    d.setFillColor('#ffcc00');
+    d.rect(bX, bY, bW, bH, 'F');
+    d.setDrawColor(0); d.rect(bX, bY, bW, bH); // borde fino
+    d.setFontSize(9); d.setTextColor('#000');
+    d.text('RENAULT', bX + bW / 2, bY + bH / 2 + 3, { align: 'center' });
 
-    d.setFontSize(16); d.setTextColor('#000'); d.text('COTIZACIÓN', 440, 90);
+    // Título centrado
+    d.setFontSize(18); d.setTextColor('#000'); d.setFont('helvetica', 'bold');
+    d.text('COTIZACIÓN', pageW / 2, 140, { align: 'center' });
 
-    // Marca de agua (con fallback si no hay GState)
+    // ====== Bloque de datos (como el PDF de ejemplo) ======
+    d.setFont('helvetica', 'normal'); d.setFontSize(10);
+
+    // línea superior informativa (razón social) - izquierda
+    d.text('CASA RENAULT H&H — Servicio Automotriz', left, 165);
+    d.text('Nit: 901717790-7 • Bogotá D.C', left, 179);
+
+    // derecha: fecha + contacto
+    d.text(`Fecha: ${doc.datetime || todayIso()}`, pageW - right, 165, { align: 'right' });
+    d.text(`Tel: 311 555 0012 • Email: ${doc.customer?.email || 'contacto@ejemplo.com'}`, pageW - right, 179, { align: 'right' });
+
+    // fila: N° y Fecha (ya pusimos arriba la fecha a la derecha)
+    d.setFont('helvetica', 'normal');
+    d.text(`No. Cotización: ${doc.number || '—'}`, left, 203);
+
+    // fila: Cliente vs contacto (ya impreso arriba contacto)
+    d.text(`Cliente: ${doc.customer?.name || '—'}`, left, 217);
+
+    // fila: Vehículo / Placa y Cilindraje
+    const veh = [doc.vehicle?.make, doc.vehicle?.line, doc.vehicle?.modelYear].filter(Boolean).join(' ');
+    d.text(`Vehículo: ${veh || '—'}  —  Placa: ${doc.vehicle?.plate || '—'} —`, left, 231);
+    d.text(`Cilindraje: ${doc.vehicle?.displacement || '—'}`, left, 245);
+
+    // ====== Marca de agua centrada (baja opacidad) ======
     const supportsOpacity = !!(d.saveGraphicsState && d.setGState && d.GState);
     if (supportsOpacity) {
       d.saveGraphicsState();
       d.setGState(new d.GState({ opacity: 0.06 }));
       d.setFont('helvetica', 'bold'); d.setFontSize(120); d.setTextColor('#000');
-      d.text('RENAULT', 140, 360, { angle: -12 });
+      d.text('RENAULT', pageW / 2, 420, { angle: -12, align: 'center' });
       d.restoreGraphicsState();
     } else {
       d.setFont('helvetica', 'bold'); d.setFontSize(110); d.setTextColor(220);
-      d.text('RENAULT', 140, 360, { angle: -12 });
+      d.text('RENAULT', pageW / 2, 420, { angle: -12, align: 'center' });
       d.setTextColor('#000');
     }
 
-    // Bloques de info
-    d.setFontSize(10); d.setFont('helvetica', 'normal');
-    const leftInfo = [
-      'CASA RENAULT H&H — Servicio Automotriz',
-      'Nit: 901717790-7 • Bogotá D.C',
-      `No. Cotización: ${doc.number || '—'}`,
-      `Cliente: ${doc.customer?.name || '—'}`,
-      `Vehículo: ${[doc.vehicle?.make, doc.vehicle?.line, doc.vehicle?.modelYear].filter(Boolean).join(' ')} —  Placa: ${doc.vehicle?.plate || '—'}`,
-      `Cilindraje: ${doc.vehicle?.displacement || '—'}`
-    ];
-    const rightInfo = [
-      `Fecha: ${doc.datetime || todayIso()}`,
-      `Tel: 311 555 0012 • Email: ${doc.customer?.email || 'contacto@ejemplo.com'}`
-    ];
-    leftInfo.forEach((t, i) => d.text(t, 60, 120 + i * 14));
-    rightInfo.forEach((t, i) => d.text(t, 370, 120 + i * 14));
-
-    // Tabla
+    // ====== Tabla ======
     d.autoTable({
-      startY: 200,
+      startY: 270,
       head: [['Tipo', 'Descripción', 'Cant.', 'Precio unit.', 'Subtotal']],
       body: rows,
-      styles: { fontSize: 10, cellPadding: 6 },
-      headStyles: { fillColor: [230, 230, 230], textColor: 0 },
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 6, lineColor: [180, 180, 180], lineWidth: 0.25 },
+      headStyles: { fillColor: [242, 242, 242], textColor: 0, lineColor: [150, 150, 150], lineWidth: 0.4 },
       columnStyles: {
         0: { cellWidth: 90 },
-        1: { cellWidth: 260 },             // descripción amplia y con wrap
-        2: { cellWidth: 50, halign: 'right' },
-        3: { cellWidth: 90, halign: 'right' },
-        4: { cellWidth: 90, halign: 'right' }
-      }
+        1: { cellWidth: contentW - (90 + 55 + 95 + 95), valign: 'middle' }, // resto para descripción
+        2: { cellWidth: 55, halign: 'right' },
+        3: { cellWidth: 95, halign: 'right' },
+        4: { cellWidth: 95, halign: 'right' }
+      },
+      margin: { left, right }
     });
 
-    // Totales
-    let y = d.lastAutoTable.finalY + 16;
-    d.text(`Subtotal Productos: ${money(subP)}`, 60, y); y += 14;
-    d.text(`Subtotal Servicios: ${money(subS)}`, 60, y); y += 14;
-    d.setFont('helvetica', 'bold'); d.text(`TOTAL: ${money(tot)}`, 60, y); y += 18;
-    d.setFont('helvetica', 'normal'); d.text('Valores SIN IVA', 60, y);
-    if (doc.validity) d.text(`Validez: ${doc.validity} días`, 180, y);
+    // ====== Totales y notas ======
+    let y = d.lastAutoTable.finalY + 18;
 
-    // Pie
-    y += 28; d.setFontSize(9);
-    d.text('Calle 69° No. 87-39 • Cel: 301 205 9320 • Bogotá D.C • Contacto: HUGO MANRIQUE 311 513 1603', 60, y);
+    // Notas a la izquierda
+    d.setFont('helvetica', 'italic'); d.setFontSize(10);
+    d.text('Valores SIN IVA', left, y); y += 14;
+    if (doc.validity) d.text(`Validez: ${doc.validity} días`, left, y);
+
+    // TOTAL a la derecha (alineado al margen derecho)
+    d.setFont('helvetica', 'bold'); d.setFontSize(11);
+    d.text(`TOTAL: ${money(tot)}`, pageW - right, d.lastAutoTable.finalY + 18, { align: 'right' });
+
+    // Pie de página
+    const footY = (doc.validity ? y + 28 : d.lastAutoTable.finalY + 36);
+    d.setFont('helvetica', 'normal'); d.setFontSize(9);
+    d.text('Calle 69° No. 87-39 • Cel: 301 205 9320 • Bogotá D.C • Contacto: HUGO MANRIQUE 311 513 1603', left, footY);
 
     d.save(`cotizacion_${doc.number || 'sin_numero'}.pdf`);
   }
