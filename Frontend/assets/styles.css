@@ -66,103 +66,37 @@ footer { text-align:center; color: var(--muted); padding: 20px; }
 }
 
 /* ===== Inventario: media como thumbnails ===== */
-
-/* Columna izquierda de cada .note (SKU, nombre, miniatura) */
-.note > div:first-child {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-/* Miniatura única en la lista de inventario */
+.note > div:first-child { display: flex; flex-direction: column; gap: 6px; }
 .note .thumb {
-  width: 100px;
-  height: 100px;
-  overflow: hidden;
-  border: 1px solid #1f2937;
-  border-radius: 8px;
-  background: #0b1220;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
+  width: 100px; height: 100px; overflow: hidden; border: 1px solid #1f2937; border-radius: 8px;
+  background: #0b1220; display: flex; align-items: center; justify-content: center; cursor: pointer;
 }
-.note .thumb img,
-.note .thumb video {
-  max-width: 100%;
-  max-height: 100%;
-  display: block;
-}
-
-/* Galería de miniaturas dentro del modal de edición */
-.thumbs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 6px;
-}
-.thumbs .thumb {
-  position: relative;
-  width: 90px;
-  height: 90px;
-  cursor: pointer;
-}
-.thumbs .thumb img,
-.thumbs .thumb video {
-  max-width: 100%;
-  max-height: 100%;
-  display: block;
-}
+.note .thumb img, .note .thumb video { max-width: 100%; max-height: 100%; display: block; }
+.thumbs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.thumbs .thumb { position: relative; width: 90px; height: 90px; cursor: pointer; }
+.thumbs .thumb img, .thumbs .thumb video { max-width: 100%; max-height: 100%; display: block; }
 .thumbs .thumb .del {
-  position: absolute;
-  top: 2px;
-  right: 2px;
-  background: #00000088;
-  border: 1px solid #334155;
-  color: #e5e7eb;
-  border-radius: 6px;
-  line-height: 20px;
-  padding: 0 6px;
+  position: absolute; top: 2px; right: 2px; background: #00000088; border: 1px solid #334155;
+  color: #e5e7eb; border-radius: 6px; line-height: 20px; padding: 0 6px;
 }
+.viewer { margin-top: 10px; display: flex; justify-content: center; }
+.viewer img, .viewer video { max-width: 100%; border-radius: 10px; border: 1px solid #1f2937; }
 
-/* Visor (imagen/video grande) dentro de modales */
-.viewer {
-  margin-top: 10px;
-  display: flex;
-  justify-content: center;
-}
-.viewer img,
-.viewer video {
-  max-width: 100%;
-  border-radius: 10px;
-  border: 1px solid #1f2937;
-}
-
-/* ===== Inventario: Ingresos de vehículo con scroll ===== */
-
-/* El contenedor donde pintas la lista (id que ya usas desde inventory.js) */
+/* ===== Inventario: Ingresos con scroll ===== */
 #viList {
-  /* limita la altura del listado, el resto del card no cambia de tamaño */
   max-height: min(48vh, 420px);
   overflow: auto;
-  padding-right: 4px;           /* deja espacio para la scrollbar */
+  padding-right: 4px;
   -webkit-overflow-scrolling: touch;
 }
 
-/* ===== Inventario: espaciados entre bloques ===== */
+/* ===== Inventario: espaciados ===== */
+#tab-inventario .grid { gap: 24px; margin-bottom: 24px; }
+#tab-inventario .grid + .card { margin-top: 24px; }
 
-/* La fila que contiene "Entrada de vehículo" y "Ingresos de vehículo" */
-#tab-inventario .grid {
-  gap: 24px;                    /* ya usas este gap entre columnas */
-  margin-bottom: 24px;          /* el mismo gap hacia abajo */
-}
+/* ===== Cotizaciones ===== */
 
-/* Cualquier card que venga después de esa fila (p. ej. "Nuevo ítem") */
-#tab-inventario .grid + .card {
-  margin-top: 24px;             /* mismo espaciado que entre columnas */
-}
-
-/* Cotizaciones: grid simple para las filas */
+/* Estructura de filas de ítems (manteniendo tu estilo) */
 .q-head, .q-row{
   display:grid;
   grid-template-columns: 120px 1fr 90px 160px 160px 40px;
@@ -170,37 +104,24 @@ footer { text-align:center; color: var(--muted); padding: 20px; }
   align-items:center;
 }
 .q-h{ font-weight:600; color:var(--muted,#9aa1ac); }
-.q-cell{
-  padding:8px;
-  background:#0f1a27;
-  border:1px solid #1e2a3a;
-  border-radius:8px;
-  color:#e6edf3;
-}
+.q-cell{ padding:8px; background:#0f1a27; border:1px solid #1e2a3a; border-radius:8px; color:#e6edf3; }
 .q-sub{ text-align:right; font-variant-numeric: tabular-nums; }
-.q-del{
-  background:#2a3546; border:0; color:#ff9aa2; border-radius:8px; width:32px; height:32px; cursor:pointer;
-}
+.q-del{ background:#2a3546; border:0; color:#ff9aa2; border-radius:8px; width:32px; height:32px; cursor:pointer; }
 #q_whatsPreview{ width:100%; min-height:220px; resize:vertical; }
 
-/* === Cotizaciones: ocultar encabezados de la tabla de ítems === */
-#q-items-card .like-table .thead {
-  display: none;
-}
+/* Ocultar encabezado tipo tabla en Ítems (sigues usando inputs) */
+#q-items-card .like-table .thead { display: none; }
 
-/* Cuerpo de la fila (inputs) sigue igual; no tocamos tus estilos previos */
-
-/* === Resumen / Acciones === */
+/* Resumen / Acciones: scrollbar fino y temático */
 #q-summary {
-  /* La altura se sincroniza por JS para igualar a #q-data */
-  overflow: auto;              /* si el contenido excede, scroll interno */
+  overflow: auto; /* la altura la sincroniza JS */
+  scrollbar-width: thin;                     /* Firefox */
+  scrollbar-color: #334155 #0b1220;          /* thumb / track */
 }
-
-#q-summary .q-no {
-  margin: 0 0 8px 0;
-  font-size: 1rem;
+#q-summary::-webkit-scrollbar { width: 8px; } /* Chrome/Edge */
+#q-summary::-webkit-scrollbar-track { background: #0b1220; border-radius: 8px; }
+#q-summary::-webkit-scrollbar-thumb {
+  background: #334155; border-radius: 8px; border: 2px solid #0b1220;
 }
-#q-summary .q-no strong {
-  font-size: 1.2rem;
-  font-weight: 700;
-}
+#q-summary .q-no { margin: 0 0 8px 0; font-size: 1rem; }
+#q-summary .q-no strong { font-size: 1.2rem; font-weight: 700; }
