@@ -32,7 +32,7 @@ footer { text-align:center; color: var(--muted); padding: 20px; }
 .tab.active { display: block; }
 .tabs button.active { background: var(--accent); }
 
-/* ===== Inventario (igual que tenías) ===== */
+/* ===== Inventario ===== */
 #inventory-top { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: stretch; }
 #inventory-top .card { height: 100%; }
 #vi-card-lista { min-height: 420px; }
@@ -59,24 +59,35 @@ footer { text-align:center; color: var(--muted); padding: 20px; }
 #q-summary .q-no { margin: 0 0 8px 0; font-size: 1rem; }
 #q-summary .q-no strong { font-size: 1.2rem; font-weight: 700; }
 
-/* Ítems en 2 columnas (dentro de la tarjeta Ítems) */
+/* Contenedor Ítems: 2 columnas de tarjetas */
 .q-grid-2cols {
   display:grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap:12px;
+  gap:16px;
 }
 @media (max-width: 900px) {
   .q-grid-2cols { grid-template-columns: 1fr; }
 }
 
-/* Tarjeta de cada ítem */
+/* Tarjeta de cada ítem (APILADA VERTICALMENTE) */
+/* Aumento de especificidad frente a estilos previos de .tr */
+.tr.q-row-card,
 .q-row-card {
-  display:grid;
-  grid-template-columns: 120px 1fr 80px 120px 120px 44px;
-  gap:8px; align-items:center;
-  padding:10px; border:1px solid #1f2937; border-radius:10px; background:#0b1220;
+  display:flex !important;
+  flex-direction:column !important;
+  gap:8px;
+  padding:12px;
+  border:1px solid #1f2937;
+  border-radius:10px;
+  background:#0b1220;
 }
+
+/* Cada bloque dentro de la tarjeta toma todo el ancho */
+.q-row-card > div { width: 100%; }
+
+/* Alineaciones útiles */
 .q-row-card .small input { text-align:right; }
+.q-row-card .small:last-child { display:flex; justify-content:flex-end; }
 
 /* Totales */
 #q-items-card .totals { display:flex; gap:16px; flex-wrap:wrap; margin-top:6px; }
