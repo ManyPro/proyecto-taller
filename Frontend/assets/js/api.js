@@ -64,24 +64,29 @@ const API = {
   mediaUpload:     (files)   => http.upload('/api/v1/media/upload', files),
 
   // --- Aliases retrocompatibles (para código viejo) ---
-  register:        (payload) => http.post('/api/v1/auth/company/register', payload),
-  login:           (payload) => http.post('/api/v1/auth/company/login', payload),
-  me:              ()        => http.get('/api/v1/auth/company/me'),
+  register:           (payload) => http.post('/api/v1/auth/company/register', payload),
+  login:              (payload) => http.post('/api/v1/auth/company/login', payload),
+  me:                 ()        => http.get('/api/v1/auth/company/me'),
 
-  listNotes:       (q = '')  => http.get(`/api/v1/notes${q}`),
-  createNote:      (payload) => http.post('/api/v1/notes', payload),
-  uploadMedia:     (files)   => http.upload('/api/v1/media/upload', files),
+  // ✅ NUEVOS alias para mantener compatibilidad con llamadas antiguas:
+  registerCompany:    (payload) => http.post('/api/v1/auth/company/register', payload),
+  loginCompany:       (payload) => http.post('/api/v1/auth/company/login', payload),
+
+  listNotes:          (q = '')  => http.get(`/api/v1/notes${q}`),
+  createNote:         (payload) => http.post('/api/v1/notes', payload),
+  uploadMedia:        (files)   => http.upload('/api/v1/media/upload', files),
 
   // Accesos de bajo nivel
   get: http.get,
   post: http.post,
   upload: http.upload,
 
-  quotesList:   (q='')      => http.get(`/api/v1/quotes${q}`),
-  quoteCreate:  (payload)   => http.post('/api/v1/quotes', payload),
-  quoteUpdate:  (id,payload)=> http.post(`/api/v1/quotes/${id}`, payload),
-  quotePatch:   (id,payload)=> coreRequest('PATCH', `/api/v1/quotes/${id}`, payload),
-  quoteDelete:  (id)        => coreRequest('DELETE', `/api/v1/quotes/${id}`),
+  // Cotizaciones
+  quotesList:    (q='')       => http.get(`/api/v1/quotes${q}`),
+  quoteCreate:   (payload)    => http.post('/api/v1/quotes', payload),
+  quoteUpdate:   (id,payload) => http.post(`/api/v1/quotes/${id}`, payload),
+  quotePatch:    (id,payload) => coreRequest('PATCH', `/api/v1/quotes/${id}`, payload),
+  quoteDelete:   (id)         => coreRequest('DELETE', `/api/v1/quotes/${id}`)
 };
 
 // Exports (named y default)
