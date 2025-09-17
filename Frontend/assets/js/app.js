@@ -26,20 +26,6 @@ function showTab(name) {
   if (btn) btn.classList.add('active');
 }
 
-// Boot de módulos (se llama tras login OK)
-function ensureModules() {
-  if (modulesReady) return;
-
-  initNotes();
-  initInventory();
-
-  // Inicializa Cotizaciones con un callback para conocer el email de la empresa.
-  initQuotes({
-    getCompanyEmail: () => document.getElementById("companyEmail")?.textContent || ""
-  });
-
-  modulesReady = true;
-}
 
 function ensureModules() {
   if (modulesReady) return;
