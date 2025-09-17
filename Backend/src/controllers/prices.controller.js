@@ -1,5 +1,6 @@
 import PriceEntry from '../models/PriceEntry.js';
 import Service from '../models/Service.js';
+import xlsx from 'xlsx';
 
 // Eval seguro/sencillo: solo números, (), +-*/ y variables A_Z0-9_
 function safeEval(expr, vars = {}) {
