@@ -33,8 +33,6 @@ async function coreRequest(method, path, data, extraHeaders = {}) {
   const headers = { ...extraHeaders };
 
   if (!isForm && data != null) headers['Content-Type'] = 'application/json';
-  // Anti cache intermedio
-  headers['Cache-Control'] = 'no-store';
 
   const tok = tokenStore.get();
   if (tok) headers['Authorization'] = `Bearer ${tok}`;
@@ -43,8 +41,8 @@ async function coreRequest(method, path, data, extraHeaders = {}) {
     method,
     headers,
     body: data == null ? undefined : (isForm ? data : JSON.stringify(data)),
-    cache: 'no-store',
-    credentials: 'omit' // el token va en Authorization, no en cookies
+    cache: 'no-store',     // <-- sin header Cache-Control; esto evita caches del navegador
+    credentials: 'omit'    // el token va en Authorization, no en cookies
   });
 
   const text = await res.text();
