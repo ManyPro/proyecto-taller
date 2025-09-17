@@ -291,9 +291,11 @@ export function initQuotes({ getCompanyEmail }) {
     const subS = (doc.items || []).filter(i => i.kind === 'SERVICIO').reduce((a, i) => a + (i.subtotal || 0), 0);
     const tot = subP + subS;
 
-    const { jsPDF } = window.jspdf || {};
-    if (!jsPDF || !window.jspdf?.autoTable) { alert('No se encontraron librerías jsPDF/AutoTable.'); return; }
-    const d = new jsPDF('p', 'pt', 'a4');
+    // === DETECCIÓN CORRECTA (UMD) ===
+    const jsPDFClass = window.jspdf?.jsPDF;
+    if (!jsPDFClass) { alert('No se encontró jsPDF.'); return; }
+    const d = new jsPDFClass('p', 'pt', 'a4');
+    if (typeof d.autoTable !== 'function') { alert('No se encontró AutoTable.'); return; }
 
     // Encabezado ejemplo (idéntico al tuyo)
     const gold = '#d4c389';
@@ -303,9 +305,12 @@ export function initQuotes({ getCompanyEmail }) {
     d.setFontSize(8); d.setTextColor('#000'); d.text('RENAULT', 486, 55, { angle: 90 });
     d.setFontSize(16); d.setTextColor('#000'); d.text('COTIZACIÓN', 440, 90);
 
-    d.saveGraphicsState(); d.setGState(new d.GState({ opacity: 0.06 }));
-    d.setFont('helvetica', 'bold'); d.setFontSize(120); d.setTextColor('#000'); d.text('RENAULT', 140, 360, { angle: -12 });
-    d.restoreGraphicsState();
+    // Efecto de opacidad (solo si está disponible)
+    if (d.saveGraphicsState && d.setGState && d.GState) {
+      d.saveGraphicsState(); d.setGState(new d.GState({ opacity: 0.06 }));
+      d.setFont('helvetica', 'bold'); d.setFontSize(120); d.setTextColor('#000'); d.text('RENAULT', 140, 360, { angle: -12 });
+      d.restoreGraphicsState();
+    }
 
     d.setFontSize(10); d.setFont('helvetica', 'normal');
     const leftInfo = [
@@ -372,21 +377,28 @@ export function initQuotes({ getCompanyEmail }) {
 
   async function saveToBackend() {
     try {
+      const creating = !currentQuoteId;
       let doc;
-      if (currentQuoteId) {
-        doc = await API.quotePatch(currentQuoteId, payloadFromUI());
-      } else {
+      if (creating) {
         doc = await API.quoteCreate(payloadFromUI());
+      } else {
+        doc = await API.quotePatch(currentQuoteId, payloadFromUI());
       }
       // Ajusta correlativo UI al real
       if (doc?.number) {
         iNumber.value = doc.number;
         iNumberBig.textContent = doc.number;
-        localStorage.setItem(kLast(), String(Number(doc.seq || 0))); // opcional si llega seq
+        if (typeof doc.seq === 'number') {
+          localStorage.setItem(kLast(), String(doc.seq)); // para que nextNumber arranque en seq+1
+        }
       }
       currentQuoteId = doc?._id || currentQuoteId;
       toast('Cotización guardada en historial.');
       loadHistory();
+
+      // >>> Limpia para nueva cotización SOLO si era creación
+      if (creating) resetQuoteForm();
+
     } catch (e) {
       alert(e?.message || 'Error guardando la cotización');
     }
@@ -486,7 +498,6 @@ export function initQuotes({ getCompanyEmail }) {
 
   // ... (resto del archivo igual) ...
 
-
   function exportPDFFromDoc(d) {
     exportPDFFromData({
       number: d.number,
@@ -525,6 +536,31 @@ export function initQuotes({ getCompanyEmail }) {
 
     const url = `https://wa.me/?text=${encodeURIComponent(prev)}`;
     window.open(url, '_blank');
+  }
+
+  // ====== Reset de formulario (post-crear) ======
+  function resetQuoteForm() {
+    // limpia campos
+    [iClientName, iClientPhone, iClientEmail, iPlate, iBrand, iLine, iYear, iCc, iValidDays]
+      .forEach(i => { if (i) i.value = ''; });
+
+    // nueva línea vacía y totales
+    clearRows(); addRow();
+    lblSubtotalProducts.textContent = '$0';
+    lblSubtotalServices.textContent = '$0';
+    lblTotal.textContent = '$0';
+    previewWA.textContent = '';
+
+    // fecha actual y siguiente número
+    iDatetime.value = todayIso();
+    iNumber.value = nextNumber();
+    iNumberBig.textContent = iNumber.value;
+
+    // reset estado
+    currentQuoteId = null;
+    clearDraft();
+    syncSummaryHeight();
+    try { window.scrollTo({ top: qData?.offsetTop || 0, behavior: 'smooth' }); } catch {}
   }
 
   // ====== UI Bindings ======
