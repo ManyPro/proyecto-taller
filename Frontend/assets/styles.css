@@ -182,3 +182,25 @@ footer { text-align:center; color: var(--muted); padding: 20px; }
   background:#2a3546; border:0; color:#ff9aa2; border-radius:8px; width:32px; height:32px; cursor:pointer;
 }
 #q_whatsPreview{ width:100%; min-height:220px; resize:vertical; }
+
+/* === Cotizaciones: ocultar encabezados de la tabla de ítems === */
+#q-items-card .like-table .thead {
+  display: none;
+}
+
+/* Cuerpo de la fila (inputs) sigue igual; no tocamos tus estilos previos */
+
+/* === Resumen / Acciones === */
+#q-summary {
+  /* La altura se sincroniza por JS para igualar a #q-data */
+  overflow: auto;              /* si el contenido excede, scroll interno */
+}
+
+#q-summary .q-no {
+  margin: 0 0 8px 0;
+  font-size: 1rem;
+}
+#q-summary .q-no strong {
+  font-size: 1.2rem;
+  font-weight: 700;
+}

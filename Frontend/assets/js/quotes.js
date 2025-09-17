@@ -53,6 +53,10 @@ export function initQuotes({ getCompanyEmail }) {
   const btnPDF = $('#q-exportPdf');
   const btnClear = $('#q-clearAll');
 
+  // === ALTURA RESUMEN ===
+  const qData = $('#q-data');
+  const qSummary = $('#q-summary');
+
   // ====== Utils ======
   const pad5 = (n) => String(n).padStart(5, '0');
   const money = (n) => {
@@ -98,6 +102,20 @@ export function initQuotes({ getCompanyEmail }) {
 
     // Eventos de UI
     bindUI();
+
+    // === ALTURA RESUMEN ===
+    syncSummaryHeight();
+    window.addEventListener('resize', syncSummaryHeight);
+  }
+
+  // === ALTURA RESUMEN ===
+  function syncSummaryHeight() {
+    if (!qData || !qSummary) return;
+    const h = qData.offsetHeight;         // igualamos la altura del formulario
+    if (h) {
+      qSummary.style.maxHeight = h + 'px';
+      qSummary.style.overflowY = 'auto';  // si se pasa, scroll interno
+    }
   }
 
   // ====== Numeración por empresa ======
@@ -239,6 +257,9 @@ export function initQuotes({ getCompanyEmail }) {
     lblTotal.textContent = money(total);
 
     previewWA.textContent = buildWhatsAppText(rows, subP, subS, total);
+
+    // === ALTURA RESUMEN ===
+    syncSummaryHeight();
   }
 
   function buildWhatsAppText(rows, subP, subS, total) {
@@ -390,6 +411,9 @@ export function initQuotes({ getCompanyEmail }) {
     iNumberBig.textContent = iNumber.value;
     // limpiamos borrador (opcional)
     clearDraft();
+
+    // === ALTURA RESUMEN ===
+    syncSummaryHeight();
   }
 
   function parseMoney(str) {
@@ -409,6 +433,9 @@ export function initQuotes({ getCompanyEmail }) {
     iNumber.value = nextNumber();
     iNumberBig.textContent = iNumber.value;
     clearDraft();
+
+    // === ALTURA RESUMEN ===
+    syncSummaryHeight();
   }
 
   // ====== UI ======
@@ -459,7 +486,7 @@ export function initQuotes({ getCompanyEmail }) {
   // helper de UX
   function toast(msg) {
     try {
-      // usa tu modal global si quieres; por ahora alert
+      // usa tu modal global si quieres; por ahora console
       console.log(msg);
     } catch { /* nop */ }
   }

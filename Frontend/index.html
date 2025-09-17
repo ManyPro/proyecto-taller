@@ -12,8 +12,8 @@
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
   <script>
     window.QUOTES_KEYS = {
-      lastNumber: 'quotes:lastNumber', 
-      draft: 'quotes:current'          
+      lastNumber: 'quotes:lastNumber',
+      draft: 'quotes:current'
     };
   </script>
   <script type="module" src="./assets/js/api.js"></script>
@@ -299,7 +299,12 @@
           <div>
             <div class="card" id="q-summary">
               <h3>Resumen / Acciones</h3>
-              <p><small>No. cotización</small><br /><span id="q-number-big" style="font-size:1.4rem;font-weight:700;">00001</span></p>
+
+              <!-- una línea: No. cotización: XXXXX -->
+              <p class="q-no">
+                <span>No. cotización: </span>
+                <strong id="q-number-big">00001</strong>
+              </p>
 
               <label>Validez (días, opcional)</label>
               <input id="q-valid-days" type="number" min="0" step="1" placeholder="p. ej. 8" />
@@ -311,9 +316,9 @@
                 <button id="q-clearAll" class="secondary">Borrar todo</button>
               </div>
             </div>
-          </div>
 
-        </div>
+
+          </div>
       </section>
       <!-- ========== /COTIZACIONES ========== -->
 
@@ -324,4 +329,5 @@
     <small>© Taller App</small>
   </footer>
 </body>
+
 </html>
