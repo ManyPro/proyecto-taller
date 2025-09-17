@@ -327,7 +327,7 @@ export function initQuotes({ getCompanyEmail }) {
 
     // derecha: fecha + contacto
     d.text(`Fecha: ${doc.datetime || todayIso()}`, pageW - right, 165, { align: 'right' });
-    d.text(`Tel: 311 555 0012 • Email: ${doc.customer?.email || 'contacto@ejemplo.com'}`, pageW - right, 179, { align: 'right' });
+    d.text(`Tel: 3115131603 • Email:'casarenault23@gmail.com'}`, pageW - right, 179, { align: 'right' });
 
     // fila: N° y Fecha (ya pusimos arriba la fecha a la derecha)
     d.setFont('helvetica', 'normal');
