@@ -135,6 +135,20 @@ API.priceCreate = (payload) => http.post('/api/v1/prices', payload);
 API.priceUpdate = (id, body) => coreRequest('PUT', `/api/v1/prices/${id}`, body);
 API.priceDelete = (id) => coreRequest('DELETE', `/api/v1/prices/${id}`);
 
+// === Prices: Import / Export ===
+API.pricesImport = (formData) => coreRequest('POST', `/api/v1/prices/import`, formData);
+API.pricesExport = async (params = {}) => {
+  const tok = tokenStore.get();
+  const res = await fetch(`${API_BASE}/api/v1/prices/export${toQuery(params)}`, {
+    method: 'GET',
+    headers: tok ? { 'Authorization': `Bearer ${tok}` } : {},
+    cache: 'no-store',
+    credentials: 'omit'
+  });
+  if (!res.ok) throw new Error('No se pudo exportar CSV');
+  return await res.blob();
+};
+
 // Exports
 export { API, tokenStore as authToken };
 export default API;

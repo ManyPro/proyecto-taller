@@ -36,6 +36,19 @@ export function initPrices(){
   const head = $('#pe-head');
   const body = $('#pe-body');
 
+  // NUEVO: botones importar/exportar
+  const filtersBar = document.getElementById('filters-bar');
+  const btnImport = document.createElement('button');
+  btnImport.id = 'pe-import';
+  btnImport.className = 'secondary';
+  btnImport.textContent = 'Importar XLSX';
+  const btnExport = document.createElement('button');
+  btnExport.id = 'pe-export';
+  btnExport.className = 'secondary';
+  btnExport.textContent = 'Exportar CSV';
+  filtersBar?.appendChild(btnImport);
+  filtersBar?.appendChild(btnExport);
+
   let services = [];
   let currentService = null;
 
@@ -164,12 +177,92 @@ export function initPrices(){
   svcVarsBtn.onclick = () => openVarsModal();
   svcNewBtn.onclick  = async () => { await API.serviceCreate(DEFAULT_SERVICE); await ensureService(); await loadPrices(); };
 
+  // ====== NUEVO: IMPORTAR / EXPORTAR ======
+  btnImport.onclick = () => openImportModal();
+  btnExport.onclick = async () => {
+    if(!currentService) return alert('Selecciona un servicio');
+    const params = {
+      serviceId: currentService._id,
+      brand: fBrand.value.trim(), line: fLine.value.trim(),
+      engine: fEngine.value.trim(), year: fYear.value.trim()
+    };
+    const blob = await API.pricesExport(params);
+    const a = document.createElement('a');
+    const ts = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    a.href = URL.createObjectURL(blob);
+    a.download = `precios_${currentService.key}_${ts}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  function openImportModal(){
+    if(!currentService) return alert('Selecciona un servicio');
+    const modal = document.getElementById('modal');
+    const bodyM = document.getElementById('modalBody');
+    const closeBtn = document.getElementById('modalClose');
+
+    const example = {
+      brand: "marca",
+      line: "linea",
+      engine: "motor",
+      year: "año",
+      values: Object.fromEntries((currentService.variables||[]).map(v=>[v.key, v.key.toLowerCase()]))
+    };
+
+    bodyM.innerHTML = `
+      <h3>Importar XLSX a ${currentService.name}</h3>
+      <p>1) Selecciona un archivo .xlsx (primera hoja).<br>
+         2) Ajusta el mapeo (encabezados exactos tal como vienen en el Excel).<br>
+         3) Modo: <b>upsert</b> actualiza por (marca, línea, motor, año); <b>overwrite</b> borra todo el servicio y reimporta.</p>
+      <div class="row"><input type="file" id="imp-file" accept=".xlsx" /></div>
+      <label>Mapeo columnas → campos (JSON)</label>
+      <textarea id="imp-map" rows="8">${JSON.stringify(example, null, 2)}</textarea>
+      <div class="row">
+        <select id="imp-mode">
+          <option value="upsert" selected>upsert (recomendado)</option>
+          <option value="overwrite">overwrite (borra y vuelve a cargar)</option>
+        </select>
+        <button id="imp-run">Importar</button>
+        <button id="imp-cancel" class="secondary">Cancelar</button>
+      </div>
+      <div id="imp-res" class="list"></div>
+    `;
+    modal.classList.remove('hidden');
+    const closeAll = () => modal.classList.add('hidden');
+    closeBtn.onclick = closeAll;
+    document.getElementById('imp-cancel').onclick = closeAll;
+
+    document.getElementById('imp-run').onclick = async () => {
+      const f = document.getElementById('imp-file').files[0];
+      if(!f) return alert('Selecciona un archivo .xlsx');
+      let mapping;
+      try { mapping = JSON.parse(document.getElementById('imp-map').value || '{}'); }
+      catch { return alert('JSON de mapeo inválido'); }
+      const mode = document.getElementById('imp-mode').value || 'upsert';
+
+      const fd = new FormData();
+      fd.append('file', f);
+      fd.append('serviceId', currentService._id);
+      fd.append('mode', mode);
+      fd.append('mapping', JSON.stringify(mapping));
+
+      try {
+        const res = await API.pricesImport(fd);
+        document.getElementById('imp-res').innerHTML =
+          `<div class="card">Insertados: <b>${res.inserted||0}</b> — Actualizados: <b>${res.updated||0}</b> — Errores: <b>${(res.errors||[]).length}</b></div>`;
+        await loadPrices();
+      } catch(e) {
+        alert(e?.message || 'Fallo la importación');
+      }
+    };
+  }
+
   // ----- Modal Variables -----
   function openVarsModal(){
     if(!currentService) return;
     const modal = document.getElementById('modal');
     const bodyM = document.getElementById('modalBody');
-    const close = document.getElementById('modalClose');
+    const closeBtn = document.getElementById('modalClose');
 
     const rows = (currentService.variables||[]).map((v,i)=>`
       <tr>
@@ -203,7 +296,7 @@ export function initPrices(){
       </div>`;
     modal.classList.remove('hidden');
     const closeAll = () => modal.classList.add('hidden');
-    close.onclick = closeAll;
+    closeBtn.onclick = closeAll;
     document.getElementById('vars-close').onclick = closeAll;
 
     document.getElementById('vars-add').onclick = () => {
@@ -211,7 +304,7 @@ export function initPrices(){
       (currentService.variables||[]).push({ key:'VAR_'+(i+1), label:'Variable '+(i+1), type:'number', defaultValue:0 });
       openVarsModal();
     };
-    bodyM.querySelectorAll('button[data-del]').forEach(b=>{
+    document.getElementById('vars-body').querySelectorAll('button[data-del]').forEach(b=>{
       b.onclick = () => {
         const i = Number(b.dataset.del);
         currentService.variables.splice(i,1);
@@ -221,7 +314,7 @@ export function initPrices(){
 
     document.getElementById('vars-save').onclick = async () => {
       const vars = [];
-      bodyM.querySelectorAll('#vars-body tr').forEach(tr=>{
+      document.querySelectorAll('#vars-body tr').forEach(tr=>{
         const g = (f)=> tr.querySelector(`[data-f="${f}"]`)?.value || '';
         vars.push({
           label: g('label').trim(),
@@ -237,7 +330,7 @@ export function initPrices(){
       if (idx>=0) services[idx] = currentService;
       renderTableHeader();
       await loadPrices();
-      closeAll();
+      modal.classList.add('hidden');
     };
   }
 
