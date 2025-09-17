@@ -13,7 +13,7 @@ const ServiceSchema = new mongoose.Schema({
   name:      { type: String, required: true, trim: true },               // "Cambio de aceite"
   key:       { type: String, required: true, uppercase: true, trim: true, index: true },
   variables: { type: [VariableSchema], default: [] },
-  formula:   { type: String, default: '' }, // p.ej. ACEITE_CERT + ACEITE_SELLADO + FILTRO_ACEITE + FILTRO_AIRE + MO
+  formula:   { type: String, default: '' }, // p.ej. ACEITE_CERT + FILTRO_ACEITE + MO
   createdBy: { type: String }
 }, { timestamps: true });
 

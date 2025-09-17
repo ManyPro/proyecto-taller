@@ -6,12 +6,11 @@ const PriceEntrySchema = new mongoose.Schema({
 
   brand:  { type: String, trim: true, uppercase: true, index: true }, // RENAULT
   line:   { type: String, trim: true, uppercase: true, index: true }, // DUSTER
-  model:  { type: String, trim: true, uppercase: true },              // opcional (variante)
-  engine: { type: String, trim: true, uppercase: true, index: true }, // 1.6 / 2.0 / DIÉSEL...
+  model:  { type: String, trim: true, uppercase: true },              // opcional
+  engine: { type: String, trim: true, uppercase: true, index: true }, // 1.6 / 2.3 / DIÉSEL…
   year:   { type: Number, index: true },
 
-  // valores por variable (clave=>valor)
-  variables: { type: Map, of: mongoose.Schema.Types.Mixed, default: {} },
+  variables: { type: Map, of: mongoose.Schema.Types.Mixed, default: {} }, // valores por variable
   total:     { type: Number, default: 0 },
 
   createdBy: { type: String }
