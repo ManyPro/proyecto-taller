@@ -219,7 +219,7 @@ export function initQuotes({ getCompanyEmail }) {
       const q=qty>0?qty:1; const st=q*(price||0);
       const tipo=(type==='SERVICIO')?'Servicio':'Producto';
       const cantSuffix=(qty&&Number(qty)>0)?` x${q}`:'';
-      lines.push(`✅ ${desc||tipo}${cantSuffix}`);
+      lines.push(`🔧 ${desc||tipo}${cantSuffix}`);
       lines.push(`${money(st)}`);
     });
     lines.push('');
