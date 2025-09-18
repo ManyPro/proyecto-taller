@@ -3,6 +3,9 @@ import mongoose from "mongoose";
 import VehicleIntake from "../models/VehicleIntake.js";
 import Item from "../models/Item.js";
 
+// 👉 nuevo: generador PNG
+import QRCode from "qrcode";
+
 // ------ helpers ------
 function makeIntakeLabel(vi) {
   return `${(vi?.brand || "").trim()} ${(vi?.model || "").trim()} ${(vi?.engine || "").trim()}`
@@ -21,6 +24,12 @@ function sanitizeMediaList(arr) {
     if (url && publicId && mimetype) out.push({ url, publicId, mimetype });
   }
   return out;
+}
+
+// NUEVO: genera el payload estable del QR
+function makeQrData({ companyId, item }) {
+  // Estructura: IT:<companyId>:<itemId>:<sku>
+  return `IT:${companyId}:${item._id}:${(item.sku || "").toUpperCase()}`;
 }
 
 // Prorratea el costo del vehículo entre ítems "AUTO" ponderando por STOCK.
@@ -179,8 +188,15 @@ export const createItem = async (req, res) => {
     salePrice: +b.salePrice || 0,
     original: !!b.original,
     stock: Number.isFinite(+b.stock) ? +b.stock : 0,
-    images
+    images,
+    qrData: "" // inicial, lo llenamos abajo
   });
+
+  // Si aún no tiene QR, lo generamos y guardamos
+  if (!item.qrData) {
+    item.qrData = makeQrData({ companyId: req.companyId, item });
+    await item.save();
+  }
 
   if (item.vehicleIntakeId) {
     await recalcAutoEntryPrices(req.companyId, item.vehicleIntakeId);
@@ -217,12 +233,10 @@ export const updateItem = async (req, res) => {
   if (!before) return res.status(404).json({ error: "Item no encontrado" });
 
   // ---- imágenes ----
-  // 1) Reemplazo total si llega 'images'
   let images = undefined;
   if (Array.isArray(b.images)) {
     images = sanitizeMediaList(b.images);
   } else {
-    // 2) Incremental: addImages / removePublicIds
     const add = sanitizeMediaList(b.addImages);
     const removeSet = new Set((Array.isArray(b.removePublicIds) ? b.removePublicIds : []).map(String));
     images = [
@@ -236,11 +250,17 @@ export const updateItem = async (req, res) => {
     ...(images ? { images } : {})
   };
 
-  const item = await Item.findOneAndUpdate(
+  let item = await Item.findOneAndUpdate(
     { _id: id, companyId: req.companyId },
     updateDoc,
     { new: true }
   );
+
+  // Asegura que tenga qrData
+  if (!item.qrData) {
+    item.qrData = makeQrData({ companyId: req.companyId, item });
+    item = await item.save();
+  }
 
   const intakeToRecalc = item.vehicleIntakeId || before?.vehicleIntakeId;
   if (intakeToRecalc) {
@@ -264,4 +284,26 @@ export const deleteItem = async (req, res) => {
 export const recalcIntakePrices = async (req, res) => {
   await recalcAutoEntryPrices(req.companyId, req.params.id);
   res.json({ ok: true });
+};
+
+// ===== NUEVO =====
+// Devuelve un PNG con el QR del item
+export const itemQrPng = async (req, res) => {
+  const { id } = req.params;
+  const size = Math.min(Math.max(parseInt(req.query.size || "220", 10), 120), 1024);
+
+  const item = await Item.findOne({ _id: id, companyId: req.companyId });
+  if (!item) return res.status(404).json({ error: "Item no encontrado" });
+
+  const payload = item.qrData || makeQrData({ companyId: req.companyId, item });
+  const png = await QRCode.toBuffer(payload, {
+    errorCorrectionLevel: "M",
+    type: "png",
+    width: size,
+    margin: 1
+  });
+
+  res.setHeader("Content-Type", "image/png");
+  res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+  return res.end(png);
 };

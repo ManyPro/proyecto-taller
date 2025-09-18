@@ -121,6 +121,43 @@ function openLightbox(media) {
   document.getElementById("lb-close").onclick = invCloseModal;
 }
 
+// ========= NUEVO: helpers para QR =========
+function buildQrUrl(itemId, size = 256) {
+  // backend: GET /api/v1/inventory/items/:id/qr.png?size=...
+  return `${apiBase}/api/v1/inventory/items/${itemId}/qr.png?size=${size}`;
+}
+function buildQrPayload(companyId, item) {
+  // Por si quieres copiarlo; lo mismo que codifica el backend
+  return `IT:${companyId}:${item._id}:${(item.sku || "").toUpperCase()}`;
+}
+function openQrModal(item, companyId) {
+  const qrUrl = buildQrUrl(item._id, 300);
+  const payload = buildQrPayload(companyId || (API.companyId?.get?.() || ""), item);
+
+  invOpenModal(`
+    <h3>QR del ítem</h3>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:8px;">
+      <img src="${qrUrl}" alt="QR ${item.sku || item._id}" style="width:300px;height:300px;background:#fff;padding:8px;border-radius:10px;border:1px solid #1f2937" />
+      <div class="row" style="gap:8px;">
+        <a class="secondary" id="qr-download" href="${buildQrUrl(item._id, 720)}" download="QR_${item.sku || item._id}.png">Descargar PNG</a>
+        <button class="secondary" id="qr-copy">Copiar payload</button>
+      </div>
+      <code style="font-size:12px;opacity:.8;word-break:break-all;">${payload}</code>
+    </div>
+  `);
+
+  const btnCopy = document.getElementById("qr-copy");
+  btnCopy.onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(payload);
+      btnCopy.textContent = "¡Copiado!";
+      setTimeout(() => (btnCopy.textContent = "Copiar payload"), 1200);
+    } catch {
+      alert("No se pudo copiar");
+    }
+  };
+}
+
 // =================================================================================
 
 export function initInventory() {
@@ -256,6 +293,11 @@ export function initInventory() {
 
       const thumbs = buildThumbGrid(it);
 
+      // ====== NUEVO: botón QR en acciones y mini bloque con enlace de descarga ======
+      const companyId = API.companyId?.get?.() || ""; // por si quieres armar el payload a mano
+      const qrImgSmall = `<img src="${buildQrUrl(it._id, 140)}" alt="QR ${it.sku || it._id}" style="width:140px;height:140px;background:#fff;padding:6px;border-radius:8px;border:1px solid #1f2937" />`;
+      const qrDownload = `<a class="secondary" href="${buildQrUrl(it._id, 720)}" download="QR_${it.sku || it._id}.png">Descargar QR</a>`;
+
       div.innerHTML = `
         <div>
           <div><b>${it.sku}</b></div>
@@ -266,6 +308,13 @@ export function initInventory() {
           <div>Vehículo: ${it.vehicleTarget}${it.vehicleIntakeId ? " (entrada)" : ""}</div>
           <div>Entrada: ${entradaTxt} | Venta: ${fmtMoney(it.salePrice)}</div>
           <div>Stock: <b>${it.stock}</b> | Original: ${it.original ? "Sí" : "No"}</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+            ${qrImgSmall}
+            <div class="row" style="gap:8px;">
+              ${qrDownload}
+              <button class="secondary" data-qr="${it._id}">Ver grande</button>
+            </div>
+          </div>
         </div>
         <div class="actions">
           <button class="secondary" data-edit="${it._id}">Editar</button>
@@ -274,8 +323,8 @@ export function initInventory() {
 
       const edit = div.querySelector("[data-edit]");
       const del = div.querySelector("[data-del]");
+      const btnQr = div.querySelector("[data-qr]");
 
-      // abrir modal de edición
       edit.onclick = () => openEditItem(it);
 
       del.onclick = async () => {
@@ -285,6 +334,9 @@ export function initInventory() {
           refreshItems(state.lastItemsParams);
         } catch (e) { alert("Error: " + e.message); }
       };
+
+      // Ver QR en grande (modal) + copiar payload
+      btnQr.onclick = () => openQrModal(it, companyId);
 
       itemsList.appendChild(div);
     });

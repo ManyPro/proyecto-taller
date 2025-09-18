@@ -13,15 +13,17 @@ const itemSchema = new mongoose.Schema({
   vehicleTarget: { type: String, required: true, uppercase: true, trim: true, default: "VITRINAS" },
   vehicleIntakeId: { type: mongoose.Types.ObjectId, ref: "VehicleIntake", default: null },
 
-  entryPrice: { type: Number, default: null, min: 0 },      // precio de entrada del ítem
-  entryPriceIsAuto: { type: Boolean, default: false },      // true si está prorrateado
+  entryPrice: { type: Number, default: null, min: 0 },
+  entryPriceIsAuto: { type: Boolean, default: false },
 
   salePrice: { type: Number, default: 0, min: 0 },
   original: { type: Boolean, default: false },
   stock: { type: Number, default: 0, min: 0 },
 
-  // NUEVO: múltiples medios (imágenes/videos) asociados al ítem
   images: { type: [mediaSchema], default: [] },
+
+  // NUEVO: payload estable del QR
+  qrData: { type: String, default: "", trim: true }
 }, { timestamps: true });
 
 itemSchema.index({ companyId: 1, sku: 1 }, { unique: true });

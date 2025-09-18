@@ -11,16 +11,12 @@ import {
   updateItem,
   deleteItem,
   recalcIntakePrices,
+  itemQrPng // 👈 nuevo
 } from "../controllers/inventory.controller.js";
 
 const router = Router();
 
-/**
- * Este router se monta en /api/v1/inventory desde server.js,
- * así que no repitas "/inventory" en los paths.
- */
-
-// 🔒 Scope por empresa desde el token (blindaje adicional)
+// Shield por empresa
 router.use(authCompany, (req, _res, next) => {
   req.companyId = req.company?.id;
   req.userId = req.user?.id;
@@ -44,5 +40,8 @@ router.get("/items", listItems);
 router.post("/items", createItem);
 router.put("/items/:id", updateItem);
 router.delete("/items/:id", deleteItem);
+
+// QR del ítem (PNG)
+router.get("/items/:id/qr.png", itemQrPng);
 
 export default router;
