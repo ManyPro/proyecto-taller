@@ -77,33 +77,41 @@ const invAPI = {
 function invOpenModal(innerHTML) {
   const modal = document.getElementById("modal");
   const body = document.getElementById("modalBody");
-  const close = document.getElementById("modalClose");;
+  const close = document.getElementById("modalClose");
   if (!modal || !body || !close) return alert("No se encontró el modal en el DOM.");
   body.innerHTML = innerHTML;
   modal.classList.remove("hidden");
-  close.onclick = () => invCloseModal();
+
+  // bloquear scroll mientras el modal está abierto
+  document.body.classList.add("modal-open");
+
+  const closeAll = () => invCloseModal();
+
+  close.onclick = closeAll;
   modal.addEventListener("click", (e) => {
-    if (e.target === modal) invCloseModal();
+    if (e.target === modal) closeAll();
   }, { once: true });
+
+  function escListener(e) { if (e.key === "Escape") closeAll(); }
   document.addEventListener("keydown", escListener, { once: true });
-  function escListener(e) { if (e.key === "Escape") invCloseModal(); }
 }
 function invCloseModal() {
-    const modal = document.getElementById("modal");
-    const body = document.getElementById("modalBody");
-    if (body) body.innerHTML = "";
-    if (modal) modal.classList.add("hidden");
+  const modal = document.getElementById("modal");
+  const body = document.getElementById("modalBody");
+  if (body) body.innerHTML = "";
+  if (modal) modal.classList.add("hidden");
+  // reactivar scroll siempre
+  document.body.classList.remove("modal-open");
 }
 
-
-function openLightbox(m) {
-  const isVideo = (m.mimetype || "").startsWith("video/");
+function openLightbox(media) {
+  const isVideo = (media.mimetype || "").startsWith("video/");
   invOpenModal(`
     <h3>Vista previa</h3>
     <div class="viewer">
       ${isVideo
-      ? `<video controls src="${m.url}"></video>`
-      : `<img src="${m.url}" alt="media" />`
+      ? `<video controls src="${media.url}"></video>`
+      : `<img src="${media.url}" alt="media" />`
     }
     </div>
     <div class="row">
@@ -216,6 +224,24 @@ export function initInventory() {
   }
 
   // ====== Ítems: list ======
+  function buildThumbGrid(it) {
+    const media = Array.isArray(it.images) ? it.images : [];
+    if (!media.length) return "";
+
+    const cells = media.map((m, i) => {
+      const isVid = (m.mimetype || "").startsWith("video/");
+      const type = isVid ? "video" : "image";
+      const src = m.url;
+
+      // Miniatura uniforme; para videos usamos <video> como thumb.
+      return isVid
+        ? `<video class="item-thumb" data-full="${src}" data-type="${type}" src="${src}" muted playsinline></video>`
+        : `<img class="item-thumb" data-full="${src}" data-type="${type}" src="${src}" alt="${(it.name || "imagen") + " " + (i + 1)}" loading="lazy">`;
+    }).join("");
+
+    return `<div class="item-media">${cells}</div>`;
+  }
+
   async function refreshItems(params = {}) {
     state.lastItemsParams = params;
     const { data } = await invAPI.listItems(params);
@@ -228,21 +254,13 @@ export function initInventory() {
       const total = unit * Math.max(0, it.stock || 0);
       const entradaTxt = `${fmtMoney(total)}${it.entryPriceIsAuto ? " (prorrateado)" : ""} - unit: ${fmtMoney(unit)}`;
 
-      // primer thumbnail si existe
-      const first = (it.images && it.images[0]) ? it.images[0] : null;
-      const thumbHTML = first
-        ? `<div class="thumb" style="cursor:pointer" title="Ver media">
-             ${first.mimetype?.startsWith("video/")
-          ? `<video src="${first.url}" muted></video>`
-          : `<img src="${first.url}" alt="thumb" />`}
-           </div>`
-        : "";
+      const thumbs = buildThumbGrid(it);
 
       div.innerHTML = `
         <div>
           <div><b>${it.sku}</b></div>
           <div>${it.name}</div>
-          ${thumbHTML}
+          ${thumbs}
         </div>
         <div class="content">
           <div>Vehículo: ${it.vehicleTarget}${it.vehicleIntakeId ? " (entrada)" : ""}</div>
@@ -260,12 +278,6 @@ export function initInventory() {
       // abrir modal de edición
       edit.onclick = () => openEditItem(it);
 
-      // abrir lightbox del primer medio
-      if (first) {
-        const t = div.querySelector(".thumb");
-        t.onclick = () => openLightbox(first);
-      }
-
       del.onclick = async () => {
         if (!confirm("¿Eliminar ítem? (stock debe ser 0)")) return;
         try {
@@ -275,6 +287,17 @@ export function initInventory() {
       };
 
       itemsList.appendChild(div);
+    });
+  }
+
+  // Delegación: abrir lightbox al hacer click en miniaturas
+  if (itemsList) {
+    itemsList.addEventListener("click", (e) => {
+      const el = e.target.closest(".item-thumb");
+      if (!el) return;
+      const url = el.dataset.full || el.currentSrc || el.src;
+      const type = el.dataset.type || "image";
+      openLightbox({ url, mimetype: type === "video" ? "video/*" : "image/*" });
     });
   }
 
