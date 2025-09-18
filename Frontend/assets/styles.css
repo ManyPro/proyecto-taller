@@ -558,3 +558,57 @@ footer {
 .it-text .it-line span{
   opacity: .75;
 }
+
+/* === Stickers: barra y checks === */
+.sticker-toolbar {
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+}
+
+.sticker-check {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.sticker-check input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.note.item-card {
+  background: var(--card);
+  border: 1px solid #1f2937;
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.note.item-card .sku-title {
+  margin: 0 0 2px 0;
+}
+
+.note.item-card .muted {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.item-media {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.item-thumb {
+  width: 100%;
+  aspect-ratio: 1/1;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid #1f2937;
+  background: #0b1220;
+  cursor: zoom-in;
+}

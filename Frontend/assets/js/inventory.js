@@ -457,7 +457,7 @@ export function initInventory() {
     await refreshItems({});
   };
 
-  // ====== Búsqueda ======
+  // ====== Búsqueda / Init (UNIFICADO) ======
   function doSearch() {
     const params = {
       name: qName.value.trim(),
@@ -681,27 +681,7 @@ export function initInventory() {
     };
   }
 
-  // ====== Búsqueda / Init ======
-  function doSearch() {
-    const params = {
-      name: qName.value.trim(),
-      sku: qSku.value.trim(),
-      vehicleIntakeId: qIntake.value || undefined,
-    };
-    refreshItems(params);
-  }
-  qApply.onclick = doSearch;
-  qClear.onclick = () => {
-    qName.value = "";
-    qSku.value = "";
-    qIntake.value = "";
-    refreshItems({});
-  };
-  [qName, qSku].forEach((el) =>
-    el.addEventListener("keydown", (e) => e.key === "Enter" && doSearch())
-  );
-  qIntake.addEventListener("change", doSearch);
-
+  // ====== Init ======
   refreshIntakes();
   refreshItems({});
 }
