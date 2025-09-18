@@ -2,7 +2,7 @@
 import { API } from "./api.js";
 import { upper } from "./utils.js";
 
-const state = { intakes: [], lastItemsParams: {} }; // entradas de vehículo y filtros actuales
+const state = { intakes: [], lastItemsParams: {} };
 
 function makeIntakeLabel(v) {
   return `${(v?.brand || "").trim()} ${(v?.model || "").trim()} ${(v?.engine || "").trim()}`
@@ -81,12 +81,9 @@ function invOpenModal(innerHTML) {
   if (!modal || !body || !close) return alert("No se encontró el modal en el DOM.");
   body.innerHTML = innerHTML;
   modal.classList.remove("hidden");
-
-  // bloquear scroll mientras el modal está abierto
   document.body.classList.add("modal-open");
 
   const closeAll = () => invCloseModal();
-
   close.onclick = closeAll;
   modal.addEventListener("click", (e) => {
     if (e.target === modal) closeAll();
@@ -100,7 +97,6 @@ function invCloseModal() {
   const body = document.getElementById("modalBody");
   if (body) body.innerHTML = "";
   if (modal) modal.classList.add("hidden");
-  // reactivar scroll siempre
   document.body.classList.remove("modal-open");
 }
 
@@ -121,30 +117,59 @@ function openLightbox(media) {
   document.getElementById("lb-close").onclick = invCloseModal;
 }
 
-// ========= NUEVO: helpers para QR =========
-function buildQrUrl(itemId, size = 256) {
-  // backend: GET /api/v1/inventory/items/:id/qr.png?size=...
-  return `${apiBase}/api/v1/inventory/items/${itemId}/qr.png?size=${size}`;
+// ========= NUEVO: helpers para QR (con fetch + Bearer) =========
+function buildQrPath(itemId, size = 256) {
+  return `/api/v1/inventory/items/${itemId}/qr.png?size=${size}`;
+}
+async function fetchQrBlob(itemId, size = 256) {
+  const res = await fetch(`${apiBase}${buildQrPath(itemId, size)}`, {
+    headers: { ...authHeader() }
+  });
+  if (!res.ok) throw new Error("No se pudo generar el QR");
+  return await res.blob();
+}
+async function setImgWithQrBlob(imgEl, itemId, size = 256) {
+  try {
+    const blob = await fetchQrBlob(itemId, size);
+    const url = URL.createObjectURL(blob);
+    imgEl.src = url;
+    imgEl.dataset.blobUrl = url; // para revocarlo si hace falta
+  } catch (e) {
+    imgEl.alt = "Error al cargar QR";
+  }
+}
+async function downloadQrPng(itemId, size = 720, filename = "qr.png") {
+  const blob = await fetchQrBlob(itemId, size);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function buildQrPayload(companyId, item) {
-  // Por si quieres copiarlo; lo mismo que codifica el backend
   return `IT:${companyId}:${item._id}:${(item.sku || "").toUpperCase()}`;
 }
 function openQrModal(item, companyId) {
-  const qrUrl = buildQrUrl(item._id, 300);
-  const payload = buildQrPayload(companyId || (API.companyId?.get?.() || ""), item);
-
   invOpenModal(`
     <h3>QR del ítem</h3>
     <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:8px;">
-      <img src="${qrUrl}" alt="QR ${item.sku || item._id}" style="width:300px;height:300px;background:#fff;padding:8px;border-radius:10px;border:1px solid #1f2937" />
+      <img id="qr-big" alt="QR ${item.sku || item._id}" style="width:300px;height:300px;background:#fff;padding:8px;border-radius:10px;border:1px solid #1f2937" />
       <div class="row" style="gap:8px;">
-        <a class="secondary" id="qr-download" href="${buildQrUrl(item._id, 720)}" download="QR_${item.sku || item._id}.png">Descargar PNG</a>
+        <button class="secondary" id="qr-download">Descargar PNG</button>
         <button class="secondary" id="qr-copy">Copiar payload</button>
       </div>
-      <code style="font-size:12px;opacity:.8;word-break:break-all;">${payload}</code>
+      <code style="font-size:12px;opacity:.8;word-break:break-all;" id="qr-payload"></code>
     </div>
   `);
+
+  const img = document.getElementById("qr-big");
+  setImgWithQrBlob(img, item._id, 300);
+
+  const payload = buildQrPayload(companyId || (API.companyId?.get?.() || ""), item);
+  document.getElementById("qr-payload").textContent = payload;
 
   const btnCopy = document.getElementById("qr-copy");
   btnCopy.onclick = async () => {
@@ -156,6 +181,9 @@ function openQrModal(item, companyId) {
       alert("No se pudo copiar");
     }
   };
+
+  document.getElementById("qr-download").onclick = () =>
+    downloadQrPng(item._id, 720, `QR_${item.sku || item._id}.png`);
 }
 
 // =================================================================================
@@ -270,7 +298,6 @@ export function initInventory() {
       const type = isVid ? "video" : "image";
       const src = m.url;
 
-      // Miniatura uniforme; para videos usamos <video> como thumb.
       return isVid
         ? `<video class="item-thumb" data-full="${src}" data-type="${type}" src="${src}" muted playsinline></video>`
         : `<img class="item-thumb" data-full="${src}" data-type="${type}" src="${src}" alt="${(it.name || "imagen") + " " + (i + 1)}" loading="lazy">`;
@@ -293,10 +320,7 @@ export function initInventory() {
 
       const thumbs = buildThumbGrid(it);
 
-      // ====== NUEVO: botón QR en acciones y mini bloque con enlace de descarga ======
-      const companyId = API.companyId?.get?.() || ""; // por si quieres armar el payload a mano
-      const qrImgSmall = `<img src="${buildQrUrl(it._id, 140)}" alt="QR ${it.sku || it._id}" style="width:140px;height:140px;background:#fff;padding:6px;border-radius:8px;border:1px solid #1f2937" />`;
-      const qrDownload = `<a class="secondary" href="${buildQrUrl(it._id, 720)}" download="QR_${it.sku || it._id}.png">Descargar QR</a>`;
+      const companyId = API.companyId?.get?.() || "";
 
       div.innerHTML = `
         <div>
@@ -309,9 +333,9 @@ export function initInventory() {
           <div>Entrada: ${entradaTxt} | Venta: ${fmtMoney(it.salePrice)}</div>
           <div>Stock: <b>${it.stock}</b> | Original: ${it.original ? "Sí" : "No"}</div>
           <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
-            ${qrImgSmall}
+            <img id="qr-${it._id}" alt="QR ${it.sku || it._id}" style="width:140px;height:140px;background:#fff;padding:6px;border-radius:8px;border:1px solid #1f2937" />
             <div class="row" style="gap:8px;">
-              ${qrDownload}
+              <button class="secondary" data-qr-dl="${it._id}">Descargar QR</button>
               <button class="secondary" data-qr="${it._id}">Ver grande</button>
             </div>
           </div>
@@ -321,9 +345,14 @@ export function initInventory() {
           <button class="danger" data-del="${it._id}">Eliminar</button>
         </div>`;
 
+      // Cargar QR (con Bearer) en el <img>
+      const imgQr = div.querySelector(`#qr-${it._id}`);
+      setImgWithQrBlob(imgQr, it._id, 140);
+
       const edit = div.querySelector("[data-edit]");
       const del = div.querySelector("[data-del]");
       const btnQr = div.querySelector("[data-qr]");
+      const btnQrDl = div.querySelector("[data-qr-dl]");
 
       edit.onclick = () => openEditItem(it);
 
@@ -335,8 +364,8 @@ export function initInventory() {
         } catch (e) { alert("Error: " + e.message); }
       };
 
-      // Ver QR en grande (modal) + copiar payload
       btnQr.onclick = () => openQrModal(it, companyId);
+      btnQrDl.onclick = () => downloadQrPng(it._id, 720, `QR_${it.sku || it._id}.png`);
 
       itemsList.appendChild(div);
     });
@@ -397,7 +426,6 @@ export function initInventory() {
     }
     if (!vehicleTargetValue) vehicleTargetValue = "VITRINAS";
 
-    // subimos medios si hay
     let images = [];
     if (itFiles && itFiles.files && itFiles.files.length > 0) {
       const up = await API.mediaUpload(itFiles.files);
@@ -409,7 +437,7 @@ export function initInventory() {
       name: itName.value.trim(),
       vehicleTarget: vehicleTargetValue,
       vehicleIntakeId: selectedIntakeId,
-      entryPrice: itEntryPrice.value ? parseFloat(itEntryPrice.value) : undefined, // undefined => AUTO
+      entryPrice: itEntryPrice.value ? parseFloat(itEntryPrice.value) : undefined,
       salePrice: parseFloat(itSalePrice.value || "0"),
       original: itOriginal.value === "true",
       stock: parseInt(itStock.value || "0", 10),
@@ -421,7 +449,6 @@ export function initInventory() {
 
     await invAPI.saveItem(body);
 
-    // reset
     itSku.value = "";
     itName.value = "";
     itVehicleTarget.value = "";
@@ -513,7 +540,7 @@ export function initInventory() {
     };
   }
 
-  // ====== Editar: ÍTEM (con imágenes) ======
+  // ====== Editar: ÍTEM ======
   function openEditItem(it) {
     const optionsIntakes = [
       `<option value="">(sin entrada)</option>`,
@@ -595,8 +622,7 @@ export function initInventory() {
         `;
         d.onclick = (ev) => {
           const btn = ev.target.closest("button.del");
-          if (btn) return; // evitar abrir visor al quitar
-          // vista previa dentro del modal
+          if (btn) return;
           viewer.style.display = "block";
           viewer.innerHTML = m.mimetype?.startsWith("video/")
             ? `<video controls src="${m.url}"></video>`
@@ -612,7 +638,6 @@ export function initInventory() {
     }
     renderThumbs();
 
-    // cuando se seleccione una entrada, autocompletamos el destino y bloqueamos edición
     intake.addEventListener("change", () => {
       const id = intake.value;
       if (!id) { target.readOnly = false; return; }
@@ -625,7 +650,6 @@ export function initInventory() {
       }
     });
 
-    // subir y anexar nuevas imágenes
     files.addEventListener("change", async () => {
       if (!files.files?.length) return;
       try {
@@ -651,11 +675,11 @@ export function initInventory() {
           salePrice: parseFloat(sale.value || "0"),
           original: original.value === "true",
           stock: parseInt(stock.value || "0", 10),
-          images // reemplazo completo en backend
+          images
         };
         await invAPI.updateItem(it._id, body);
         invCloseModal();
-        await refreshIntakes();                  // por si cambió la entrada (etiqueta destino)
+        await refreshIntakes();
         await refreshItems(state.lastItemsParams);
       } catch (err) {
         alert("Error: " + err.message);
@@ -663,7 +687,27 @@ export function initInventory() {
     };
   }
 
-  // ====== Init ======
+  // ====== Búsqueda / Init ======
+  function doSearch() {
+    const params = {
+      name: qName.value.trim(),
+      sku: qSku.value.trim(),
+      vehicleIntakeId: qIntake.value || undefined,
+    };
+    refreshItems(params);
+  }
+  qApply.onclick = doSearch;
+  qClear.onclick = () => {
+    qName.value = "";
+    qSku.value = "";
+    qIntake.value = "";
+    refreshItems({});
+  };
+  [qName, qSku].forEach((el) =>
+    el.addEventListener("keydown", (e) => e.key === "Enter" && doSearch())
+  );
+  qIntake.addEventListener("change", doSearch);
+
   refreshIntakes();
   refreshItems({});
 }
