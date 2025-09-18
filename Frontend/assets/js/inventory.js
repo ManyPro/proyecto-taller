@@ -77,12 +77,10 @@ const invAPI = {
 function invOpenModal(innerHTML) {
   const modal = document.getElementById("modal");
   const body = document.getElementById("modalBody");
-  const close = document.getElementById("modalClose");
-  document.body.classList.remove('modal-open');
+  const close = document.getElementById("modalClose");;
   if (!modal || !body || !close) return alert("No se encontró el modal en el DOM.");
   body.innerHTML = innerHTML;
   modal.classList.remove("hidden");
-  document.body.classList.add('modal-open');
   close.onclick = () => invCloseModal();
   modal.addEventListener("click", (e) => {
     if (e.target === modal) invCloseModal();
@@ -91,14 +89,10 @@ function invOpenModal(innerHTML) {
   function escListener(e) { if (e.key === "Escape") invCloseModal(); }
 }
 function invCloseModal() {
-  try {
     const modal = document.getElementById("modal");
     const body = document.getElementById("modalBody");
     if (body) body.innerHTML = "";
     if (modal) modal.classList.add("hidden");
-  } finally {
-    document.body.classList.remove('modal-open');
-  }
 }
 
 

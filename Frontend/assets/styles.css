@@ -154,7 +154,7 @@ footer { text-align:center; color: var(--muted); padding: 20px; }
 #modal .close:hover { background: #0b1220; }
 
 /* (Opcional) bloquear scroll del body cuando modal está abierto */
-body.modal-open { overflow: hidden; }
+
 
 /* ============ NOTAS: placa como BADGE ============ */
 /* Contenedor de cada nota (estructura generada en JS) */
