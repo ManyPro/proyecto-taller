@@ -174,37 +174,27 @@ body.modal-open { overflow: hidden; }
   letter-spacing: .5px;
   margin-bottom: 8px;
 }
-/* ====== Mejora de legibilidad del badge de placa ====== */
+/* ====== NOTAS → Badge de placa: alto contraste ====== */
+/* Sobrescribe estilos previos del badge */
 .note .plate{
-  /* mantiene tu color dinámico */
-  --plate-color: var(--plate-color, #6d28d9);
-  color: var(--plate-color);
-  border: 2px solid var(--plate-color);
-  background: rgba(255,255,255,0.04); /* leve contraste sin perder el color */
+  /* color de borde dinámico ya definido como --plate-color */
+  color: #fff !important;                         /* texto totalmente blanco */
+  -webkit-text-fill-color: #fff !important;       /* por si quedó de antes */
+  background: rgba(0, 0, 0, 0.66) !important;     /* fondo más sólido y oscuro */
+  border: 2px solid var(--plate-color) !important;
+  text-shadow: 0 1px 1px rgba(0,0,0,.6) !important; /* leve realce oscuro */
+  /* mantiene la forma/paddings del badge anterior */
   display: inline-block;
   padding: 3px 10px;
   border-radius: 9999px;
   font-weight: 800;
   letter-spacing: .5px;
   margin-bottom: 8px;
-
-  /* Fallback universal: “contorno” con sombras */
-  text-shadow:
-    -1px  0   #fff,
-     0    1px #fff,
-     1px  0   #fff,
-     0   -1px #fff,
-    -1px -1px #fff,
-     1px -1px #fff,
-    -1px  1px #fff,
-     1px  1px #fff;
 }
 
-/* Mejora en motores WebKit/Blink: contorno real */
+/* Desactiva contorno blanco anterior (si hay soporte WebKit) */
 @supports (-webkit-text-stroke: 1px #fff) {
   .note .plate{
-    text-shadow: none;                          /* ya no hace falta el fallback */
-    -webkit-text-stroke: 1.2px #ffffff;         /* borde blanco */
-    -webkit-text-fill-color: var(--plate-color); /* relleno con tu color */
+    -webkit-text-stroke: 0 !important;  /* sin borde blanco ahora */
   }
 }
