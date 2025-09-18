@@ -39,6 +39,7 @@ function openModal(innerHTML) {
   const close = document.getElementById("modalClose");
   body.innerHTML = innerHTML;
   modal.classList.remove("hidden");
+  document.body.classList.add('modal-open');
   close.onclick = () => modal.classList.add("hidden");
 }
 function closeModal() {
@@ -334,6 +335,7 @@ export function initNotes() {
   const modal = document.getElementById("modal");
   const modalBody = document.getElementById("modalBody");
   const modalClose = document.getElementById("modalClose");
+  document.body.classList.remove('modal-open');
 
   const hardHideModal = () => {
     if (!modal) return;

@@ -109,3 +109,49 @@ footer { text-align:center; color: var(--muted); padding: 20px; }
 .table th { background:#0b1220; position:sticky; top:0; z-index:1; }
 .table input, .table select { width:100%; }
 .table .actions { display:flex; gap:6px; justify-content:flex-end; }
+
+/* ============== MODAL GLOBAL ============== */
+#modal.modal {
+  position: fixed;
+  inset: 0;
+  display: none;                 /* .hidden lo oculta */
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(2, 6, 23, 0.55);  /* overlay */
+  backdrop-filter: blur(4px);        /* desenfoque del fondo */
+  z-index: 10000;                    /* por encima de todo */
+}
+#modal.modal:not(.hidden) { display: flex; }
+
+#modal .modal-content {
+  position: relative;
+  width: min(800px, 100%);
+  max-height: 85vh;
+  overflow: auto;                   /* scroll interno si se alarga */
+  background: var(--card, #0b1220); /* usa tu token si existe */
+  border: 1px solid #1f2937;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 10px 35px rgba(0,0,0,.45);
+}
+
+/* Botón cerrar */
+#modal .close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: transparent;
+  border: 0;
+  color: #cbd5e1;
+  font-size: 22px;
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+#modal .close:hover { background: #0b1220; }
+
+/* (Opcional) bloquear scroll del body cuando modal está abierto */
+body.modal-open { overflow: hidden; }

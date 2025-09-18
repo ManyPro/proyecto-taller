@@ -78,9 +78,11 @@ function invOpenModal(innerHTML) {
   const modal = document.getElementById("modal");
   const body = document.getElementById("modalBody");
   const close = document.getElementById("modalClose");
+  document.body.classList.remove('modal-open');
   if (!modal || !body || !close) return alert("No se encontró el modal en el DOM.");
   body.innerHTML = innerHTML;
   modal.classList.remove("hidden");
+  document.body.classList.add('modal-open');
   close.onclick = () => invCloseModal();
   modal.addEventListener("click", (e) => {
     if (e.target === modal) invCloseModal();
