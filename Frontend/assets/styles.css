@@ -155,3 +155,22 @@ footer { text-align:center; color: var(--muted); padding: 20px; }
 
 /* (Opcional) bloquear scroll del body cuando modal está abierto */
 body.modal-open { overflow: hidden; }
+
+/* ============ NOTAS: placa como BADGE ============ */
+/* Contenedor de cada nota (estructura generada en JS) */
+.note { border:1px solid #1f2937; border-radius:10px; padding:12px; background:#0b1220; }
+.note .actions { margin-top:8px; }
+
+/* Badge de placa: píldora con borde del color dinámico */
+.note .plate {
+  --plate-color: #6d28d9;         /* fallback */
+  display: inline-block;
+  padding: 3px 10px;
+  border: 2px solid var(--plate-color);
+  color: var(--plate-color);
+  background: transparent;        /* sin relleno */
+  border-radius: 9999px;          /* súper redondo */
+  font-weight: 700;
+  letter-spacing: .5px;
+  margin-bottom: 8px;
+}

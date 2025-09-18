@@ -107,7 +107,10 @@ export function initNotes() {
       const plate = document.createElement("div");
       plate.className = "plate";
       plate.textContent = row.plate;
-      plate.style.background = plateColor(row.plate);
+      // === antes poníamos background → causaba barra completa
+      // ahora pasamos el color como variable y usamos borde
+      const color = plateColor(row.plate);
+      plate.style.setProperty('--plate-color', color);
       plate.style.cursor = "pointer";
       plate.onclick = () => {
         fPlate.value = row.plate;
