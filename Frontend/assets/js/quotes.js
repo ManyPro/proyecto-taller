@@ -262,7 +262,7 @@ export function initQuotes({ getCompanyEmail }) {
     await exportPDFFromData({
       number:iNumber.value,
       datetime:iDatetime.value||todayIso(),
-      customer:{ name:iClientName.value,phonenumber:iClientPhone.value, email:iClientEmail.value },
+      customer:{ name:iClientName.value,clientPhone:iClientPhone.value, email:iClientEmail.value },
       vehicle:{ make:iBrand.value, line:iLine.value, modelYear:iYear.value, plate:iPlate.value, displacement:iCc.value },
       validity:iValidDays.value,
       items:readRows().map(r=>({
