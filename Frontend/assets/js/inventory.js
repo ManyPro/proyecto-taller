@@ -95,6 +95,7 @@ function invCloseModal() {
   const body  = document.getElementById("modalBody");
   if (body) body.innerHTML = "";
   if (modal) modal.classList.add("hidden");
+  document.body.classList.remove('modal-open');
 }
 
 function openLightbox(m) {

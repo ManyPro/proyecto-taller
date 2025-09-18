@@ -44,6 +44,7 @@ function openModal(innerHTML) {
 }
 function closeModal() {
   document.getElementById("modal")?.classList.add("hidden");
+  document.body.classList.remove('modal-open');
 }
 
 export function initNotes() {
