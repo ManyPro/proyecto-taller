@@ -133,7 +133,7 @@ async function setImgWithQrBlob(imgEl, itemId, size = 256) {
     const blob = await fetchQrBlob(itemId, size);
     const url = URL.createObjectURL(blob);
     imgEl.src = url;
-    imgEl.dataset.blobUrl = url; // para revocarlo si hace falta
+    imgEl.dataset.blobUrl = url;
   } catch (e) {
     imgEl.alt = "Error al cargar QR";
   }
@@ -288,11 +288,9 @@ export function initInventory() {
     });
   }
 
-  // ====== Ítems: list ======
+  // ====== Ítems: thumbs ======
   function buildThumbGrid(it) {
     const media = Array.isArray(it.images) ? it.images : [];
-    if (!media.length) return "";
-
     const cells = media.map((m, i) => {
       const isVid = (m.mimetype || "").startsWith("video/");
       const type = isVid ? "video" : "image";
@@ -303,7 +301,10 @@ export function initInventory() {
         : `<img class="item-thumb" data-full="${src}" data-type="${type}" src="${src}" alt="${(it.name || "imagen") + " " + (i + 1)}" loading="lazy">`;
     }).join("");
 
-    return `<div class="item-media">${cells}</div>`;
+    // Reservamos un hueco para el QR como otra miniatura (se cargará con fetch)
+    const qrCell = `<img id="qr-${it._id}" class="item-thumb qr-thumb" alt="QR ${it.sku || it._id}" loading="lazy" />`;
+
+    return `<div class="item-media">${cells}${qrCell}</div>`;
   }
 
   async function refreshItems(params = {}) {
@@ -332,22 +333,17 @@ export function initInventory() {
           <div>Vehículo: ${it.vehicleTarget}${it.vehicleIntakeId ? " (entrada)" : ""}</div>
           <div>Entrada: ${entradaTxt} | Venta: ${fmtMoney(it.salePrice)}</div>
           <div>Stock: <b>${it.stock}</b> | Original: ${it.original ? "Sí" : "No"}</div>
-          <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
-            <img id="qr-${it._id}" alt="QR ${it.sku || it._id}" style="width:140px;height:140px;background:#fff;padding:6px;border-radius:8px;border:1px solid #1f2937" />
-            <div class="row" style="gap:8px;">
-              <button class="secondary" data-qr-dl="${it._id}">Descargar QR</button>
-              <button class="secondary" data-qr="${it._id}">Ver grande</button>
-            </div>
-          </div>
         </div>
         <div class="actions">
           <button class="secondary" data-edit="${it._id}">Editar</button>
           <button class="danger" data-del="${it._id}">Eliminar</button>
+          <button class="secondary" data-qr-dl="${it._id}">Descargar QR</button>
+          <button class="secondary" data-qr="${it._id}">Expandir código QR</button>
         </div>`;
 
-      // Cargar QR (con Bearer) en el <img>
+      // Cargar QR en la miniatura reservada
       const imgQr = div.querySelector(`#qr-${it._id}`);
-      setImgWithQrBlob(imgQr, it._id, 140);
+      if (imgQr) setImgWithQrBlob(imgQr, it._id, 180);
 
       const edit = div.querySelector("[data-edit]");
       const del = div.querySelector("[data-del]");
@@ -367,18 +363,16 @@ export function initInventory() {
       btnQr.onclick = () => openQrModal(it, companyId);
       btnQrDl.onclick = () => downloadQrPng(it._id, 720, `QR_${it.sku || it._id}.png`);
 
-      itemsList.appendChild(div);
-    });
-  }
+      // lightbox para miniaturas
+      div.addEventListener("click", (e) => {
+        const el = e.target.closest(".item-thumb");
+        if (!el || el.id === `qr-${it._id}`) return; // el QR no abre lightbox (se expande con el botón)
+        const url = el.dataset.full || el.currentSrc || el.src;
+        const type = el.dataset.type || "image";
+        openLightbox({ url, mimetype: type === "video" ? "video/*" : "image/*" });
+      });
 
-  // Delegación: abrir lightbox al hacer click en miniaturas
-  if (itemsList) {
-    itemsList.addEventListener("click", (e) => {
-      const el = e.target.closest(".item-thumb");
-      if (!el) return;
-      const url = el.dataset.full || el.currentSrc || el.src;
-      const type = el.dataset.type || "image";
-      openLightbox({ url, mimetype: type === "video" ? "video/*" : "image/*" });
+      itemsList.appendChild(div);
     });
   }
 
