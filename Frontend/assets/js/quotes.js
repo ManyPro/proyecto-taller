@@ -322,7 +322,7 @@ export function initQuotes({ getCompanyEmail }) {
     d.text('Nit: 901717790-7 • Bogotá D.C', left, 179);
 
     d.text(`Fecha: ${doc.datetime || todayIso()}`, pageW - right, 165, { align:'right' });
-    d.text(`Tel: ${doc.customer?.phonenumber || 'XXX XXX XXXX'} • Email: ${doc.customer?.email || 'email.contacto@gmail.com'}`, pageW - right, 179, { align:'right' });
+    d.text(`Tel: ${doc.customer?.clientPhone || 'XXX XXX XXXX'} • Email: ${doc.customer?.email || 'email.contacto@gmail.com'}`, pageW - right, 179, { align:'right' });
 
     d.setFont('helvetica','normal');
     d.text(`No. Cotización: ${doc.number || '—'}`, left, 203);
