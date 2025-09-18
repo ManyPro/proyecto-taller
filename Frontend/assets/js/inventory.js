@@ -88,15 +88,19 @@ function invOpenModal(innerHTML) {
     if (e.target === modal) invCloseModal();
   }, { once: true });
   document.addEventListener("keydown", escListener, { once: true });
-  function escListener(e){ if (e.key === "Escape") invCloseModal(); }
+  function escListener(e) { if (e.key === "Escape") invCloseModal(); }
 }
 function invCloseModal() {
-  const modal = document.getElementById("modal");
-  const body  = document.getElementById("modalBody");
-  if (body) body.innerHTML = "";
-  if (modal) modal.classList.add("hidden");
-  document.body.classList.remove('modal-open');
+  try {
+    const modal = document.getElementById("modal");
+    const body = document.getElementById("modalBody");
+    if (body) body.innerHTML = "";
+    if (modal) modal.classList.add("hidden");
+  } finally {
+    document.body.classList.remove('modal-open');
+  }
 }
+
 
 function openLightbox(m) {
   const isVideo = (m.mimetype || "").startsWith("video/");
@@ -104,9 +108,9 @@ function openLightbox(m) {
     <h3>Vista previa</h3>
     <div class="viewer">
       ${isVideo
-        ? `<video controls src="${m.url}"></video>`
-        : `<img src="${m.url}" alt="media" />`
-      }
+      ? `<video controls src="${m.url}"></video>`
+      : `<img src="${m.url}" alt="media" />`
+    }
     </div>
     <div class="row">
       <button class="secondary" id="lb-close">Cerrar</button>
@@ -235,8 +239,8 @@ export function initInventory() {
       const thumbHTML = first
         ? `<div class="thumb" style="cursor:pointer" title="Ver media">
              ${first.mimetype?.startsWith("video/")
-               ? `<video src="${first.url}" muted></video>`
-               : `<img src="${first.url}" alt="thumb" />`}
+          ? `<video src="${first.url}" muted></video>`
+          : `<img src="${first.url}" alt="thumb" />`}
            </div>`
         : "";
 

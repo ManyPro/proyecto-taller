@@ -42,10 +42,17 @@ function openModal(innerHTML) {
   document.body.classList.add('modal-open');
   close.onclick = () => modal.classList.add("hidden");
 }
-function closeModal() {
-  document.getElementById("modal")?.classList.add("hidden");
-  document.body.classList.remove('modal-open');
+function invCloseModal() {
+  try {
+    const modal = document.getElementById("modal");
+    const body = document.getElementById("modalBody");
+    if (body) body.innerHTML = "";
+    if (modal) modal.classList.add("hidden");
+  } finally {
+    document.body.classList.remove('modal-open');
+  }
 }
+
 
 export function initNotes() {
   // Inputs
@@ -201,10 +208,10 @@ export function initNotes() {
   // ------- Modal de edición -------
   function openEditNote(row) {
     const isPago = row.type === "PAGO";
-    const respOptions = ["DAVID","VALENTIN","SEBASTIAN","GIOVANNY","SANDRA","CEDIEL"];
+    const respOptions = ["DAVID", "VALENTIN", "SEBASTIAN", "GIOVANNY", "SANDRA", "CEDIEL"];
 
     // Detectar método de pago actual desde el texto: [PAGO: XXX]
-    const methodOptions = ["EFECTIVO","TRANSFERENCIA","TARJETA","DEPOSITO","CHEQUE","OTRO"];
+    const methodOptions = ["EFECTIVO", "TRANSFERENCIA", "TARJETA", "DEPOSITO", "CHEQUE", "OTRO"];
     const match = /\[PAGO:\s*([^\]]+)\]/i.exec(row.text || "");
     let currentMethod = (match && match[1] && match[1].toUpperCase().trim()) || "EFECTIVO";
     if (!methodOptions.includes(currentMethod)) currentMethod = "EFECTIVO";
@@ -221,7 +228,7 @@ export function initNotes() {
       <label>Persona encargada</label>
       <select id="e-resp">
         <option value="">Selecciona...</option>
-        ${respOptions.map(n => `<option value="${n}" ${String(row.responsible||"").toUpperCase()===n?"selected":""}>${n.charAt(0)}${n.slice(1).toLowerCase()}</option>`).join("")}
+        ${respOptions.map(n => `<option value="${n}" ${String(row.responsible || "").toUpperCase() === n ? "selected" : ""}>${n.charAt(0)}${n.slice(1).toLowerCase()}</option>`).join("")}
       </select>
 
       <label>Contenido</label>
@@ -233,7 +240,7 @@ export function initNotes() {
 
         <label>Método de pago</label>
         <select id="e-method">
-          ${methodOptions.map(m => `<option value="${m}" ${currentMethod===m?"selected":""}>${m.charAt(0)}${m.slice(1).toLowerCase()}</option>`).join("")}
+          ${methodOptions.map(m => `<option value="${m}" ${currentMethod === m ? "selected" : ""}>${m.charAt(0)}${m.slice(1).toLowerCase()}</option>`).join("")}
         </select>
       </div>
 
