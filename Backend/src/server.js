@@ -20,7 +20,7 @@ import inventoryRouter from './routes/inventory.routes.js';
 // Lee empresa/usuario del JWT
 import { authCompany } from './middlewares/auth.js';
 import servicesRouter from './routes/services.routes.js';
-import pricesRouter from './routes/prices.routes.js';
+import pricesRoutes from './routes/prices.routes.js';
 
 const app = express();
 
@@ -124,4 +124,4 @@ import quotesRouter from './routes/quotes.routes.js';
 app.use('/api/v1/quotes', authCompany, withCompanyDefaults, quotesRouter);
 
 app.use('/api/v1/services', authCompany, withCompanyDefaults, servicesRouter);
-app.use('/api/v1/prices',   authCompany, withCompanyDefaults, pricesRouter);
+app.use('/api/v1/prices',   authCompany, withCompanyDefaults, pricesRoutes);

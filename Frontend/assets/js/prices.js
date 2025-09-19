@@ -18,6 +18,50 @@ const DEFAULT_SERVICE = {
 const $ = (s) => document.querySelector(s);
 const money = (n)=>'$'+Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 
+// ===== util modal: scroll-lock + cerrar con ESC/overlay =====
+function openModal() {
+  const modal = $('#modal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  const onKey = (e)=>{ if (e.key === 'Escape') closeModal(); };
+  const onOverlay = (e)=>{ if (e.target === modal) closeModal(); };
+  document.addEventListener('keydown', onKey);
+  modal.addEventListener('click', onOverlay, { once:true });
+  modal.dataset._onKey = true;
+  document.body.style.overflow = 'hidden';
+  // devuelve un cleanup para usos puntuales
+  return () => {
+    document.removeEventListener('keydown', onKey);
+  };
+}
+function closeModal() {
+  const modal = $('#modal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function normalizeNumber(v){
+  if (v == null || v === '') return 0;
+  if (typeof v === 'number') return v;
+  const s = String(v).replace(/\s+/g,'').replace(/\$/g,'').replace(/\./g,'').replace(/,/g,'.');
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+// ===== eval seguro en front (coincide con backend) =====
+function safeEvalFront(expr, vars = {}) {
+  const cleaned = String(expr || '').trim().toUpperCase();
+  if (!cleaned) return 0;
+  if (!/^[\d+\-*/().\sA-Z0-9_]+$/.test(cleaned)) return 0;
+  const replaced = cleaned.replace(/[A-Z_][A-Z0-9_]*/g, (k) => {
+    const v = Number(vars[k] ?? 0);
+    return Number.isFinite(v) ? String(v) : '0';
+  });
+  // eslint-disable-next-line no-new-func
+  try { return Function(`"use strict"; return (${replaced});`)(); } catch { return 0; }
+}
+
 export function initPrices(){
   const tab = $('#tab-precios'); if(!tab) return;
 
@@ -53,6 +97,7 @@ export function initPrices(){
   let currentService = null;
 
   function renderSvcOptions(){
+    if (!svcSelect) return;
     svcSelect.innerHTML = (services||[]).map(s=>`<option value="${s._id}">${s.name}</option>`).join('');
   }
 
@@ -99,7 +144,7 @@ export function initPrices(){
     }
     currentService = svc;
     renderSvcOptions();
-    svcSelect.value = svc._id;
+    if (svcSelect) svcSelect.value = svc._id;
   }
 
   async function loadPrices(){
@@ -115,7 +160,32 @@ export function initPrices(){
     bindRowActions();
   }
 
+  function collectRow(tr){
+    const get = (sel)=> tr.querySelector(sel)?.value || '';
+    const vars = {};
+    tr.querySelectorAll('input[data-k]').forEach(i=>{
+      const k = i.dataset.k;
+      vars[k] = (i.type === 'number') ? normalizeNumber(i.value) : i.value;
+    });
+    return {
+      brand:  get('input[data-f="brand"]').toUpperCase(),
+      line:   get('input[data-f="line"]').toUpperCase(),
+      engine: get('input[data-f="engine"]').toUpperCase(),
+      year:   Number(get('input[data-f="year"]')||0),
+      variables: vars
+    };
+  }
+
+  function previewTotal(tr){
+    if(!currentService) return;
+    const data = collectRow(tr);
+    const map = Object.fromEntries(Object.entries(data.variables||{}).map(([k,v])=>[String(k).toUpperCase(), Number(v)||0]));
+    const t = safeEvalFront(currentService.formula || '', map);
+    const td = tr.querySelector('.t'); if (td) td.textContent = money(t);
+  }
+
   function bindRowActions(){
+    // botones CRUD
     body.querySelectorAll('button[data-act]').forEach(btn=>{
       btn.onclick = async () => {
         const tr = btn.closest('tr'); const id = tr.dataset.id || null;
@@ -138,25 +208,16 @@ export function initPrices(){
         }
       };
     });
-  }
-
-  function collectRow(tr){
-    const get = (sel)=> tr.querySelector(sel)?.value || '';
-    const vars = {};
-    tr.querySelectorAll('input[data-k]').forEach(i=>{
-      const k = i.dataset.k;
-      vars[k] = (i.type === 'number') ? Number(i.value||0) : i.value;
+    // vista previa de total en vivo
+    body.querySelectorAll('tr').forEach(tr=>{
+      tr.querySelectorAll('input').forEach(inp=>{
+        inp.oninput = () => previewTotal(tr);
+      });
     });
-    return {
-      brand:  get('input[data-f="brand"]').toUpperCase(),
-      line:   get('input[data-f="line"]').toUpperCase(),
-      engine: get('input[data-f="engine"]').toUpperCase(),
-      year:   Number(get('input[data-f="year"]')||0),
-      variables: vars
-    };
   }
 
-  btnNew.onclick = () => {
+  // Acciones UI
+  const btnNewHandler = () => {
     if(!currentService) return alert('Selecciona un servicio');
     const fake = { brand:'', line:'', engine:'', year:'', variables: {}, total: 0 };
     const tr = document.createElement('tr');
@@ -164,22 +225,25 @@ export function initPrices(){
     body.prepend(tr);
     bindRowActions();
   };
+  if (btnNew) btnNew.onclick = btnNewHandler;
 
-  fSearch.onclick = loadPrices;
-  fClear.onclick = ()=>{ fBrand.value=''; fLine.value=''; fEngine.value=''; fYear.value=''; loadPrices(); };
+  if (fSearch) fSearch.onclick = loadPrices;
+  if (fClear)  fClear.onclick = ()=>{ fBrand.value=''; fLine.value=''; fEngine.value=''; fYear.value=''; loadPrices(); };
+  // Enter para buscar
+  [fBrand,fLine,fEngine,fYear].forEach(el=> el?.addEventListener('keydown', e=>{ if(e.key==='Enter') fSearch?.click(); }));
 
-  svcSelect.onchange = () => {
+  if (svcSelect) svcSelect.onchange = () => {
     const id = svcSelect.value;
     currentService = services.find(s=>s._id===id) || currentService;
     renderTableHeader(); loadPrices();
   };
 
-  svcVarsBtn.onclick = () => openVarsModal();
-  svcNewBtn.onclick  = async () => { await API.serviceCreate(DEFAULT_SERVICE); await ensureService(); await loadPrices(); };
+  if (svcVarsBtn) svcVarsBtn.onclick = () => openVarsModal();
+  if (svcNewBtn)  svcNewBtn.onclick  = async () => { await API.serviceCreate(DEFAULT_SERVICE); await ensureService(); await loadPrices(); };
 
-  // ====== NUEVO: IMPORTAR / EXPORTAR ======
-  btnImport.onclick = () => openImportModal();
-  btnExport.onclick = async () => {
+  // ====== IMPORTAR / EXPORTAR ======
+  if (btnImport) btnImport.onclick = () => openImportModal();
+  if (btnExport) btnExport.onclick = async () => {
     if(!currentService) return alert('Selecciona un servicio');
     const params = {
       serviceId: currentService._id,
@@ -197,9 +261,9 @@ export function initPrices(){
 
   function openImportModal(){
     if(!currentService) return alert('Selecciona un servicio');
-    const modal = document.getElementById('modal');
-    const bodyM = document.getElementById('modalBody');
-    const closeBtn = document.getElementById('modalClose');
+    const modal = $('#modal');
+    const bodyM = $('#modalBody');
+    const closeBtn = $('#modalClose');
 
     const example = {
       brand: "marca",
@@ -227,18 +291,19 @@ export function initPrices(){
       </div>
       <div id="imp-res" class="list"></div>
     `;
-    modal.classList.remove('hidden');
-    const closeAll = () => modal.classList.add('hidden');
-    closeBtn.onclick = closeAll;
-    document.getElementById('imp-cancel').onclick = closeAll;
 
-    document.getElementById('imp-run').onclick = async () => {
-      const f = document.getElementById('imp-file').files[0];
+    const cleanupKey = openModal();
+    closeBtn.onclick = () => { cleanupKey?.(); closeModal(); };
+
+    $('#imp-cancel').onclick = () => { cleanupKey?.(); closeModal(); };
+
+    $('#imp-run').onclick = async () => {
+      const f = $('#imp-file').files[0];
       if(!f) return alert('Selecciona un archivo .xlsx');
       let mapping;
-      try { mapping = JSON.parse(document.getElementById('imp-map').value || '{}'); }
+      try { mapping = JSON.parse($('#imp-map').value || '{}'); }
       catch { return alert('JSON de mapeo inválido'); }
-      const mode = document.getElementById('imp-mode').value || 'upsert';
+      const mode = $('#imp-mode').value || 'upsert';
 
       const fd = new FormData();
       fd.append('file', f);
@@ -248,7 +313,7 @@ export function initPrices(){
 
       try {
         const res = await API.pricesImport(fd);
-        document.getElementById('imp-res').innerHTML =
+        $('#imp-res').innerHTML =
           `<div class="card">Insertados: <b>${res.inserted||0}</b> — Actualizados: <b>${res.updated||0}</b> — Errores: <b>${(res.errors||[]).length}</b></div>`;
         await loadPrices();
       } catch(e) {
@@ -260,9 +325,9 @@ export function initPrices(){
   // ----- Modal Variables -----
   function openVarsModal(){
     if(!currentService) return;
-    const modal = document.getElementById('modal');
-    const bodyM = document.getElementById('modalBody');
-    const closeBtn = document.getElementById('modalClose');
+    const modal = $('#modal');
+    const bodyM = $('#modalBody');
+    const closeBtn = $('#modalClose');
 
     const rows = (currentService.variables||[]).map((v,i)=>`
       <tr>
@@ -289,22 +354,23 @@ export function initPrices(){
         <button id="vars-add" class="secondary">Añadir variable</button>
       </div>
       <label>Fórmula (usa las CLAVES)</label>
-      <input id="formula" value="${currentService.formula || ''}">
+      <input id="formula" value="${(currentService.formula || '').toUpperCase()}">
       <div class="row">
         <button id="vars-save">Guardar</button>
         <button id="vars-close" class="secondary">Cancelar</button>
       </div>`;
-    modal.classList.remove('hidden');
-    const closeAll = () => modal.classList.add('hidden');
-    closeBtn.onclick = closeAll;
-    document.getElementById('vars-close').onclick = closeAll;
 
-    document.getElementById('vars-add').onclick = () => {
+    const cleanupKey = openModal();
+    closeBtn.onclick = () => { cleanupKey?.(); closeModal(); };
+    $('#vars-close').onclick = () => { cleanupKey?.(); closeModal(); };
+
+    $('#vars-add').onclick = () => {
       const i = (currentService.variables||[]).length;
       (currentService.variables||[]).push({ key:'VAR_'+(i+1), label:'Variable '+(i+1), type:'number', defaultValue:0 });
       openVarsModal();
     };
-    document.getElementById('vars-body').querySelectorAll('button[data-del]').forEach(b=>{
+
+    $('#vars-body').querySelectorAll('button[data-del]').forEach(b=>{
       b.onclick = () => {
         const i = Number(b.dataset.del);
         currentService.variables.splice(i,1);
@@ -312,7 +378,7 @@ export function initPrices(){
       };
     });
 
-    document.getElementById('vars-save').onclick = async () => {
+    $('#vars-save').onclick = async () => {
       const vars = [];
       document.querySelectorAll('#vars-body tr').forEach(tr=>{
         const g = (f)=> tr.querySelector(`[data-f="${f}"]`)?.value || '';
@@ -321,7 +387,7 @@ export function initPrices(){
           key:   g('key').trim().toUpperCase(),
           type:  g('type') || 'number',
           unit:  g('unit') || '',
-          defaultValue: (g('type')==='number') ? Number(g('defaultValue')||0) : (g('defaultValue')||'')
+          defaultValue: (g('type')==='number') ? normalizeNumber(g('defaultValue')) : (g('defaultValue')||'')
         });
       });
       const formula = (document.getElementById('formula').value || '').toUpperCase();
@@ -330,7 +396,7 @@ export function initPrices(){
       if (idx>=0) services[idx] = currentService;
       renderTableHeader();
       await loadPrices();
-      modal.classList.add('hidden');
+      closeModal();
     };
   }
 
