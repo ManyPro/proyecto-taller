@@ -1,9 +1,8 @@
-import { API } from "./api.js";
+import { API, authToken } from "./api.js";
 
-// Servicio por defecto “Cambio de aceite”
-const DEFAULT_SERVICE = {
-  name: "Cambio de aceite",
-  key: "CAMBIO_ACEITE",
+const DEFAULT_CERT = {
+  name: "Cambio de Aceite Certificado",
+  key: "CAMBIO_ACEITE_CERT",
   variables: [
     { key:"VISCOSIDAD",    label:"Viscosidad", type:"text",   defaultValue:"5W-30" },
     { key:"ACEITE_CERT",   label:"Aceite certificado", type:"number", defaultValue:0 },
@@ -12,35 +11,36 @@ const DEFAULT_SERVICE = {
     { key:"FILTRO_ACEITE", label:"Filtro de aceite",  type:"number", defaultValue:0 },
     { key:"MO",            label:"Mano de obra",      type:"number", defaultValue:0 }
   ],
-  formula: "ACEITE_CERT + ACEITE_SELLADO + FILTRO_ACEITE + FILTRO_AIRE + MO"
+  // Para el certificado, usualmente cuenta ACEITE_CERT
+  formula: "ACEITE_CERT + FILTRO_ACEITE + FILTRO_AIRE + MO"
 };
+
+const DEFAULT_SELLADO = (baseVars) => ({
+  name: "Cambio de Aceite Sellado",
+  key: "CAMBIO_ACEITE_SELLADO",
+  variables: baseVars || DEFAULT_CERT.variables,
+  // Para sellado, cuenta ACEITE_SELLADO
+  formula: "ACEITE_SELLADO + FILTRO_ACEITE + FILTRO_AIRE + MO"
+});
 
 const $ = (s) => document.querySelector(s);
 const money = (n)=>'$'+Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 
-// ===== util modal: scroll-lock + cerrar con ESC/overlay =====
 function openModal() {
-  const modal = $('#modal');
-  if (!modal) return;
+  const modal = $('#modal'); if (!modal) return;
   modal.classList.remove('hidden');
   const onKey = (e)=>{ if (e.key === 'Escape') closeModal(); };
   const onOverlay = (e)=>{ if (e.target === modal) closeModal(); };
   document.addEventListener('keydown', onKey);
   modal.addEventListener('click', onOverlay, { once:true });
-  modal.dataset._onKey = true;
   document.body.style.overflow = 'hidden';
-  // devuelve un cleanup para usos puntuales
-  return () => {
-    document.removeEventListener('keydown', onKey);
-  };
+  return () => document.removeEventListener('keydown', onKey);
 }
 function closeModal() {
-  const modal = $('#modal');
-  if (!modal) return;
+  const modal = $('#modal'); if (!modal) return;
   modal.classList.add('hidden');
   document.body.style.overflow = '';
 }
-
 function normalizeNumber(v){
   if (v == null || v === '') return 0;
   if (typeof v === 'number') return v;
@@ -48,8 +48,6 @@ function normalizeNumber(v){
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
 }
-
-// ===== eval seguro en front (coincide con backend) =====
 function safeEvalFront(expr, vars = {}) {
   const cleaned = String(expr || '').trim().toUpperCase();
   if (!cleaned) return 0;
@@ -58,7 +56,6 @@ function safeEvalFront(expr, vars = {}) {
     const v = Number(vars[k] ?? 0);
     return Number.isFinite(v) ? String(v) : '0';
   });
-  // eslint-disable-next-line no-new-func
   try { return Function(`"use strict"; return (${replaced});`)(); } catch { return 0; }
 }
 
@@ -80,18 +77,24 @@ export function initPrices(){
   const head = $('#pe-head');
   const body = $('#pe-body');
 
-  // NUEVO: botones importar/exportar
-  const filtersBar = document.getElementById('filters-bar');
+  // Barra de filtros (inyectamos acciones nuevas)
+  const filtersBar = document.getElementById('filters-bar') || svcSelect?.closest('.row') || tab;
   const btnImport = document.createElement('button');
-  btnImport.id = 'pe-import';
-  btnImport.className = 'secondary';
-  btnImport.textContent = 'Importar XLSX';
+  btnImport.id = 'pe-import'; btnImport.className = 'secondary'; btnImport.textContent = 'Importar XLSX';
   const btnExport = document.createElement('button');
-  btnExport.id = 'pe-export';
-  btnExport.className = 'secondary';
-  btnExport.textContent = 'Exportar CSV';
+  btnExport.id = 'pe-export'; btnExport.className = 'secondary'; btnExport.textContent = 'Exportar CSV';
+  const btnRename = document.createElement('button');
+  btnRename.id = 'svc-rename'; btnRename.className = 'secondary'; btnRename.textContent = 'Renombrar servicio';
+  const btnClearAll = document.createElement('button');
+  btnClearAll.id = 'svc-clear'; btnClearAll.className = 'danger'; btnClearAll.textContent = 'Vaciar servicio';
+  const btnNewSellado = document.createElement('button');
+  btnNewSellado.id = 'svc-new-sellado'; btnNewSellado.className = 'secondary'; btnNewSellado.textContent = 'Crear servicio (Sellado)';
+
   filtersBar?.appendChild(btnImport);
   filtersBar?.appendChild(btnExport);
+  filtersBar?.appendChild(btnRename);
+  filtersBar?.appendChild(btnClearAll);
+  filtersBar?.appendChild(btnNewSellado);
 
   let services = [];
   let currentService = null;
@@ -136,12 +139,25 @@ export function initPrices(){
 
   async function ensureService(){
     const res = await API.servicesList();
-    services = res?.items || [];
-    let svc = services.find(s=>String(s.key).toUpperCase()==='CAMBIO_ACEITE');
+    services = res?.items || res || [];
+    // Preferimos un servicio "Cambio de Aceite Certificado"; si no existe, usamos cualquiera
+    let svc = services.find(s => String(s.name).toUpperCase().includes('ACEITE') ) || services[0];
+
+    // Si NO hay ningún servicio, creamos el base CERT
     if(!svc){
-      svc = await API.serviceCreate(DEFAULT_SERVICE);
+      svc = await API.serviceCreate(DEFAULT_CERT);
       services.push(svc);
     }
+
+    // Si existe pero no se llama exactamente así, lo renombramos (tu requerimiento)
+    if (svc && svc.name !== DEFAULT_CERT.name) {
+      svc = await API.serviceUpdate(svc._id, { name: DEFAULT_CERT.name }); // sólo nombre, NO tocamos key para no romper datos
+      const idx = services.findIndex(x=>x._id===svc._id); if (idx>=0) services[idx]=svc;
+    }
+
+    // Si no existe un servicio "Sellado", ofrecemos crearlo rápido (no automático para evitar sorpresas)
+    // (El botón dedicado lo hará bajo demanda)
+
     currentService = svc;
     renderSvcOptions();
     if (svcSelect) svcSelect.value = svc._id;
@@ -168,9 +184,9 @@ export function initPrices(){
       vars[k] = (i.type === 'number') ? normalizeNumber(i.value) : i.value;
     });
     return {
-      brand:  get('input[data-f="brand"]').toUpperCase(),
-      line:   get('input[data-f="line"]').toUpperCase(),
-      engine: get('input[data-f="engine"]').toUpperCase(),
+      brand:  (get('input[data-f="brand"]') || '').toUpperCase(),
+      line:   (get('input[data-f="line"]') || '').toUpperCase(),
+      engine: (get('input[data-f="engine"]') || '').toUpperCase(),
       year:   Number(get('input[data-f="year"]')||0),
       variables: vars
     };
@@ -185,7 +201,6 @@ export function initPrices(){
   }
 
   function bindRowActions(){
-    // botones CRUD
     body.querySelectorAll('button[data-act]').forEach(btn=>{
       btn.onclick = async () => {
         const tr = btn.closest('tr'); const id = tr.dataset.id || null;
@@ -208,7 +223,6 @@ export function initPrices(){
         }
       };
     });
-    // vista previa de total en vivo
     body.querySelectorAll('tr').forEach(tr=>{
       tr.querySelectorAll('input').forEach(inp=>{
         inp.oninput = () => previewTotal(tr);
@@ -216,8 +230,8 @@ export function initPrices(){
     });
   }
 
-  // Acciones UI
-  const btnNewHandler = () => {
+  // --------- Botones base existentes ----------
+  if (btnNew) btnNew.onclick = () => {
     if(!currentService) return alert('Selecciona un servicio');
     const fake = { brand:'', line:'', engine:'', year:'', variables: {}, total: 0 };
     const tr = document.createElement('tr');
@@ -225,11 +239,9 @@ export function initPrices(){
     body.prepend(tr);
     bindRowActions();
   };
-  if (btnNew) btnNew.onclick = btnNewHandler;
 
   if (fSearch) fSearch.onclick = loadPrices;
   if (fClear)  fClear.onclick = ()=>{ fBrand.value=''; fLine.value=''; fEngine.value=''; fYear.value=''; loadPrices(); };
-  // Enter para buscar
   [fBrand,fLine,fEngine,fYear].forEach(el=> el?.addEventListener('keydown', e=>{ if(e.key==='Enter') fSearch?.click(); }));
 
   if (svcSelect) svcSelect.onchange = () => {
@@ -239,11 +251,130 @@ export function initPrices(){
   };
 
   if (svcVarsBtn) svcVarsBtn.onclick = () => openVarsModal();
-  if (svcNewBtn)  svcNewBtn.onclick  = async () => { await API.serviceCreate(DEFAULT_SERVICE); await ensureService(); await loadPrices(); };
+  if (svcNewBtn)  svcNewBtn.onclick  = async () => {
+    const name = prompt('Nombre del nuevo servicio:', 'Cambio de Aceite Certificado');
+    if (!name) return;
+    const key = (prompt('Clave (MAYÚSCULAS_SIN_ESPACIOS):', name.replace(/\s+/g,'_').toUpperCase()) || '').toUpperCase();
+    const base = (currentService?.variables && currentService.variables.length) ? currentService.variables : DEFAULT_CERT.variables;
+    const formula = prompt('Fórmula (usa las CLAVES en mayúsculas):', currentService?.formula || DEFAULT_CERT.formula) || DEFAULT_CERT.formula;
+    const svc = await API.serviceCreate({ name, key, variables: base, formula });
+    services.push(svc);
+    renderSvcOptions();
+    if (svcSelect) svcSelect.value = svc._id;
+    currentService = svc;
+    await loadPrices();
+  };
+
+  // --------- NUEVOS botones ----------
+  btnRename.onclick = async () => {
+    if (!currentService) return;
+    const svc = await API.serviceUpdate(currentService._id, { name: DEFAULT_CERT.name });
+    const idx = services.findIndex(s=>s._id===svc._id); if (idx>=0) services[idx] = svc;
+    currentService = svc;
+    renderSvcOptions();
+    if (svcSelect) svcSelect.value = svc._id;
+    alert('Servicio renombrado a: ' + DEFAULT_CERT.name);
+  };
+
+  btnClearAll.onclick = async () => {
+    if (!currentService) return;
+    if (!confirm(`Esto eliminará TODOS los registros de "${currentService.name}". ¿Continuar?`)) return;
+    const BASE = (typeof window!=='undefined' && window.API_BASE) ? window.API_BASE : '';
+    const tok = (authToken && typeof authToken.get==='function') ? authToken.get() : null;
+    const res = await fetch(`${BASE}/api/v1/prices?serviceId=${encodeURIComponent(currentService._id)}`, {
+      method: 'DELETE',
+      headers: tok ? { 'Authorization': `Bearer ${tok}` } : {},
+      cache: 'no-store',
+      credentials: 'omit'
+    });
+    const body = await res.json().catch(()=> ({}));
+    if (!res.ok) return alert(body?.error || 'No se pudo borrar');
+    alert(`Eliminados: ${body.deleted || 0}`);
+    await loadPrices();
+  };
+
+  btnNewSellado.onclick = async () => {
+    const baseVars = (currentService?.variables && currentService.variables.length) ? currentService.variables : DEFAULT_CERT.variables;
+    const svc = await API.serviceCreate(DEFAULT_SELLADO(baseVars));
+    services.push(svc);
+    renderSvcOptions();
+    if (svcSelect) svcSelect.value = svc._id;
+    currentService = svc;
+    await loadPrices();
+    alert('Servicio creado: "Cambio de Aceite Sellado"');
+  };
+
+  // ----- Modal Variables -----
+  function openVarsModal(){
+    if(!currentService) return;
+    const modal = $('#modal'), bodyM = $('#modalBody'), closeBtn = $('#modalClose');
+    const rows = (currentService.variables||[]).map((v,i)=>`
+      <tr>
+        <td><input data-i="${i}" data-f="label" value="${v.label}"></td>
+        <td><input data-i="${i}" data-f="key"   value="${v.key}"></td>
+        <td>
+          <select data-i="${i}" data-f="type">
+            <option value="number" ${v.type==='number'?'selected':''}>Número</option>
+            <option value="text"   ${v.type==='text'  ?'selected':''}>Texto</option>
+          </select>
+        </td>
+        <td><input data-i="${i}" data-f="unit" value="${v.unit||''}"></td>
+        <td><input data-i="${i}" data-f="defaultValue" value="${v.defaultValue??''}"></td>
+        <td><button data-del="${i}">Eliminar</button></td>
+      </tr>`).join('');
+    bodyM.innerHTML = `
+      <h3>Variables de ${currentService.name}</h3>
+      <table class="table">
+        <thead><tr><th>Etiqueta</th><th>Clave</th><th>Tipo</th><th>Unidad</th><th>Default</th><th></th></tr></thead>
+        <tbody id="vars-body">${rows || '<tr><td colspan="6">Sin variables</td></tr>'}</tbody>
+      </table>
+      <div class="row"><button id="vars-add" class="secondary">Añadir variable</button></div>
+      <label>Fórmula (usa las CLAVES)</label>
+      <input id="formula" value="${(currentService.formula || '').toUpperCase()}">
+      <div class="row">
+        <button id="vars-save">Guardar</button>
+        <button id="vars-close" class="secondary">Cancelar</button>
+      </div>`;
+    const cleanupKey = openModal();
+    closeBtn.onclick = () => { cleanupKey?.(); closeModal(); };
+    $('#vars-close').onclick = () => { cleanupKey?.(); closeModal(); };
+    $('#vars-add').onclick = () => {
+      const i = (currentService.variables||[]).length;
+      (currentService.variables||[]).push({ key:'VAR_'+(i+1), label:'Variable '+(i+1), type:'number', defaultValue:0 });
+      openVarsModal();
+    };
+    $('#vars-body').querySelectorAll('button[data-del]').forEach(b=>{
+      b.onclick = () => {
+        const i = Number(b.dataset.del);
+        currentService.variables.splice(i,1);
+        openVarsModal();
+      };
+    });
+    $('#vars-save').onclick = async () => {
+      const vars = [];
+      document.querySelectorAll('#vars-body tr').forEach(tr=>{
+        const g = (f)=> tr.querySelector(`[data-f="${f}"]`)?.value || '';
+        vars.push({
+          label: g('label').trim(),
+          key:   g('key').trim().toUpperCase(),
+          type:  g('type') || 'number',
+          unit:  g('unit') || '',
+          defaultValue: (g('type')==='number') ? normalizeNumber(g('defaultValue')) : (g('defaultValue')||'')
+        });
+      });
+      const formula = (document.getElementById('formula').value || '').toUpperCase();
+      currentService = await API.serviceUpdate(currentService._id, { variables: vars, formula });
+      const idx = services.findIndex(s=>s._id===currentService._id);
+      if (idx>=0) services[idx] = currentService;
+      renderTableHeader();
+      await loadPrices();
+      closeModal();
+    };
+  }
 
   // ====== IMPORTAR / EXPORTAR ======
-  if (btnImport) btnImport.onclick = () => openImportModal();
-  if (btnExport) btnExport.onclick = async () => {
+  btnImport.onclick = () => openImportModal();
+  btnExport.onclick = async () => {
     if(!currentService) return alert('Selecciona un servicio');
     const params = {
       serviceId: currentService._id,
@@ -254,17 +385,14 @@ export function initPrices(){
     const a = document.createElement('a');
     const ts = new Date().toISOString().slice(0,10).replace(/-/g,'');
     a.href = URL.createObjectURL(blob);
-    a.download = `precios_${currentService.key}_${ts}.csv`;
+    a.download = `precios_${currentService.key || currentService._id}_${ts}.csv`;
     a.click();
     URL.revokeObjectURL(a.href);
   };
 
   function openImportModal(){
     if(!currentService) return alert('Selecciona un servicio');
-    const modal = $('#modal');
-    const bodyM = $('#modalBody');
-    const closeBtn = $('#modalClose');
-
+    const modal = $('#modal'), bodyM = $('#modalBody'), closeBtn = $('#modalClose');
     const example = {
       brand: "marca",
       line: "linea",
@@ -272,7 +400,6 @@ export function initPrices(){
       year: "año",
       values: Object.fromEntries((currentService.variables||[]).map(v=>[v.key, v.key.toLowerCase()]))
     };
-
     bodyM.innerHTML = `
       <h3>Importar XLSX a ${currentService.name}</h3>
       <p>1) Selecciona un archivo .xlsx (primera hoja).<br>
@@ -291,12 +418,9 @@ export function initPrices(){
       </div>
       <div id="imp-res" class="list"></div>
     `;
-
     const cleanupKey = openModal();
     closeBtn.onclick = () => { cleanupKey?.(); closeModal(); };
-
     $('#imp-cancel').onclick = () => { cleanupKey?.(); closeModal(); };
-
     $('#imp-run').onclick = async () => {
       const f = $('#imp-file').files[0];
       if(!f) return alert('Selecciona un archivo .xlsx');
@@ -317,86 +441,8 @@ export function initPrices(){
           `<div class="card">Insertados: <b>${res.inserted||0}</b> — Actualizados: <b>${res.updated||0}</b> — Errores: <b>${(res.errors||[]).length}</b></div>`;
         await loadPrices();
       } catch(e) {
-        alert(e?.message || 'Fallo la importación');
+        alert(e?.message || 'Falló la importación');
       }
-    };
-  }
-
-  // ----- Modal Variables -----
-  function openVarsModal(){
-    if(!currentService) return;
-    const modal = $('#modal');
-    const bodyM = $('#modalBody');
-    const closeBtn = $('#modalClose');
-
-    const rows = (currentService.variables||[]).map((v,i)=>`
-      <tr>
-        <td><input data-i="${i}" data-f="label" value="${v.label}"></td>
-        <td><input data-i="${i}" data-f="key"   value="${v.key}"></td>
-        <td>
-          <select data-i="${i}" data-f="type">
-            <option value="number" ${v.type==='number'?'selected':''}>Número</option>
-            <option value="text"   ${v.type==='text'  ?'selected':''}>Texto</option>
-          </select>
-        </td>
-        <td><input data-i="${i}" data-f="unit" value="${v.unit||''}"></td>
-        <td><input data-i="${i}" data-f="defaultValue" value="${v.defaultValue??''}"></td>
-        <td><button data-del="${i}">Eliminar</button></td>
-      </tr>`).join('');
-
-    bodyM.innerHTML = `
-      <h3>Variables de ${currentService.name}</h3>
-      <table class="table">
-        <thead><tr><th>Etiqueta</th><th>Clave</th><th>Tipo</th><th>Unidad</th><th>Default</th><th></th></tr></thead>
-        <tbody id="vars-body">${rows || '<tr><td colspan="6">Sin variables</td></tr>'}</tbody>
-      </table>
-      <div class="row">
-        <button id="vars-add" class="secondary">Añadir variable</button>
-      </div>
-      <label>Fórmula (usa las CLAVES)</label>
-      <input id="formula" value="${(currentService.formula || '').toUpperCase()}">
-      <div class="row">
-        <button id="vars-save">Guardar</button>
-        <button id="vars-close" class="secondary">Cancelar</button>
-      </div>`;
-
-    const cleanupKey = openModal();
-    closeBtn.onclick = () => { cleanupKey?.(); closeModal(); };
-    $('#vars-close').onclick = () => { cleanupKey?.(); closeModal(); };
-
-    $('#vars-add').onclick = () => {
-      const i = (currentService.variables||[]).length;
-      (currentService.variables||[]).push({ key:'VAR_'+(i+1), label:'Variable '+(i+1), type:'number', defaultValue:0 });
-      openVarsModal();
-    };
-
-    $('#vars-body').querySelectorAll('button[data-del]').forEach(b=>{
-      b.onclick = () => {
-        const i = Number(b.dataset.del);
-        currentService.variables.splice(i,1);
-        openVarsModal();
-      };
-    });
-
-    $('#vars-save').onclick = async () => {
-      const vars = [];
-      document.querySelectorAll('#vars-body tr').forEach(tr=>{
-        const g = (f)=> tr.querySelector(`[data-f="${f}"]`)?.value || '';
-        vars.push({
-          label: g('label').trim(),
-          key:   g('key').trim().toUpperCase(),
-          type:  g('type') || 'number',
-          unit:  g('unit') || '',
-          defaultValue: (g('type')==='number') ? normalizeNumber(g('defaultValue')) : (g('defaultValue')||'')
-        });
-      });
-      const formula = (document.getElementById('formula').value || '').toUpperCase();
-      currentService = await API.serviceUpdate(currentService._id, { variables: vars, formula });
-      const idx = services.findIndex(s=>s._id===currentService._id);
-      if (idx>=0) services[idx] = currentService;
-      renderTableHeader();
-      await loadPrices();
-      closeModal();
     };
   }
 
