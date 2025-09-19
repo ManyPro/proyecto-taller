@@ -2,7 +2,7 @@
 import { API } from "./api.js";
 import { upper } from "./utils.js";
 
-const state = { intakes: [], lastItemsParams: {} };
+const state = { intakes: [], lastItemsParams: {}, items: [], selected: new Set() };
 
 function makeIntakeLabel(v) {
   return `${(v?.brand || "").trim()} ${(v?.model || "").trim()} ${(v?.engine || "").trim()}`
@@ -117,7 +117,7 @@ function openLightbox(media) {
   document.getElementById("lb-close").onclick = invCloseModal;
 }
 
-// ========= NUEVO: helpers para QR (con fetch + Bearer) =========
+// ========= helpers QR =========
 function buildQrPath(itemId, size = 256) {
   return `/api/v1/inventory/items/${itemId}/qr.png?size=${size}`;
 }
@@ -186,6 +186,26 @@ function openQrModal(item, companyId) {
     downloadQrPng(item._id, 720, `QR_${item.sku || item._id}.png`);
 }
 
+// ====== jsPDF para Stickers ======
+function ensureJsPDF() {
+  return new Promise((resolve, reject) => {
+    if (window.jspdf?.jsPDF) return resolve(window.jspdf.jsPDF);
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js";
+    s.onload = () => resolve(window.jspdf?.jsPDF);
+    s.onerror = () => reject(new Error("No se pudo cargar jsPDF"));
+    document.head.appendChild(s);
+  });
+}
+function blobToDataURL(blob) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(blob);
+  });
+}
+
 // =================================================================================
 
 export function initInventory() {
@@ -220,6 +240,47 @@ export function initInventory() {
   const qSku = document.getElementById("q-sku");
   const qIntake = document.getElementById("q-intakeId");
   const qClear = document.getElementById("q-clear");
+
+  // ---- Barra de selección (se inyecta sobre la lista) ----
+  const selectionBar = document.createElement("div");
+  selectionBar.id = "stickersBar";
+  selectionBar.style.cssText = "display:none;gap:8px;align-items:center;margin:10px 0;flex-wrap:wrap";
+  itemsList.parentNode.insertBefore(selectionBar, itemsList);
+
+  function updateSelectionBar() {
+    const n = state.selected.size;
+    if (!n) {
+      selectionBar.style.display = "none";
+      selectionBar.innerHTML = "";
+      return;
+    }
+    selectionBar.style.display = "flex";
+    selectionBar.innerHTML = `
+      <div class="muted" style="font-weight:600;">Seleccionados: ${n}</div>
+      <button class="secondary" id="sel-clear">Limpiar selección</button>
+      <button class="secondary" id="sel-page">Seleccionar todos (página)</button>
+      <button id="sel-stickers">Generar PDF stickers</button>
+    `;
+    selectionBar.querySelector("#sel-clear").onclick = () => {
+      state.selected.clear();
+      Array.from(itemsList.querySelectorAll('input[type="checkbox"][data-id]')).forEach(ch => ch.checked = false);
+      updateSelectionBar();
+    };
+    selectionBar.querySelector("#sel-page").onclick = () => {
+      Array.from(itemsList.querySelectorAll('input[type="checkbox"][data-id]')).forEach(ch => {
+        ch.checked = true;
+        state.selected.add(ch.dataset.id);
+      });
+      updateSelectionBar();
+    };
+    selectionBar.querySelector("#sel-stickers").onclick = generateStickersFromSelection;
+  }
+
+  function toggleSelected(id, checked) {
+    if (checked) state.selected.add(id);
+    else state.selected.delete(id);
+    updateSelectionBar();
+  }
 
   // ====== Entradas: fetch y render ======
   async function refreshIntakes() {
@@ -301,7 +362,7 @@ export function initInventory() {
         : `<img class="item-thumb" data-full="${src}" data-type="${type}" src="${src}" alt="${(it.name || "imagen") + " " + (i + 1)}" loading="lazy">`;
     }).join("");
 
-    // Reservamos un hueco para el QR como otra miniatura (se cargará con fetch)
+    // QR como otra miniatura (se carga por fetch)
     const qrCell = `<img id="qr-${it._id}" class="item-thumb qr-thumb" alt="QR ${it.sku || it._id}" loading="lazy" />`;
 
     return `<div class="item-media">${cells}${qrCell}</div>`;
@@ -310,8 +371,10 @@ export function initInventory() {
   async function refreshItems(params = {}) {
     state.lastItemsParams = params;
     const { data } = await invAPI.listItems(params);
+    state.items = data || [];
     itemsList.innerHTML = "";
-    (data || []).forEach((it) => {
+
+    (state.items).forEach((it) => {
       const div = document.createElement("div");
       div.className = "note";
 
@@ -325,7 +388,10 @@ export function initInventory() {
 
       div.innerHTML = `
         <div>
-          <div><b>${it.sku}</b></div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" data-id="${it._id}" ${state.selected.has(it._id) ? "checked" : ""} />
+            <div><b>${it.sku}</b></div>
+          </div>
           <div>${it.name}</div>
           ${thumbs}
         </div>
@@ -341,7 +407,11 @@ export function initInventory() {
           <button class="secondary" data-qr="${it._id}">Expandir código QR</button>
         </div>`;
 
-      // Cargar QR en la miniatura reservada
+      // selección
+      div.querySelector(`input[type="checkbox"][data-id]`).onchange = (e) =>
+        toggleSelected(it._id, e.target.checked);
+
+      // Cargar QR en miniatura
       const imgQr = div.querySelector(`#qr-${it._id}`);
       if (imgQr) setImgWithQrBlob(imgQr, it._id, 180);
 
@@ -356,7 +426,9 @@ export function initInventory() {
         if (!confirm("¿Eliminar ítem? (stock debe ser 0)")) return;
         try {
           await invAPI.deleteItem(it._id);
+          state.selected.delete(it._id);
           refreshItems(state.lastItemsParams);
+          updateSelectionBar();
         } catch (e) { alert("Error: " + e.message); }
       };
 
@@ -374,6 +446,8 @@ export function initInventory() {
 
       itemsList.appendChild(div);
     });
+
+    updateSelectionBar();
   }
 
   // ====== Guardar entrada de vehículo ======
@@ -457,7 +531,7 @@ export function initInventory() {
     await refreshItems({});
   };
 
-  // ====== Búsqueda / Init (UNIFICADO) ======
+  // ====== Búsqueda / Init ======
   function doSearch() {
     const params = {
       name: qName.value.trim(),
@@ -679,6 +753,80 @@ export function initInventory() {
         alert("Error: " + err.message);
       }
     };
+  }
+
+  // ====== PDF de stickers (Carta, 6×4 cm, 18 por página) ======
+  async function generateStickersFromSelection() {
+    if (!state.selected.size) return;
+    const ids = Array.from(state.selected);
+    const items = ids
+      .map(id => state.items.find(it => String(it._id) === String(id)))
+      .filter(Boolean);
+
+    if (!items.length) return;
+
+    const jsPDF = await ensureJsPDF();
+    const doc = new jsPDF({ unit: "cm", format: "letter" });
+
+    // Parámetros de layout
+    const margin = 0.5;         // cm
+    const w = 6, h = 4;         // sticker 6 x 4 cm
+    const gapX = 1.0;           // cm
+    const gapY = 0.5;           // cm
+    const cols = 3, rows = 6;   // 3 x 6 = 18 por página
+    const perPage = cols * rows;
+
+    // Pre-descarga de QRs como dataURL para mayor nitidez en PDF
+    const payloads = await Promise.all(items.map(async it => {
+      const blob = await fetchQrBlob(it._id, 600); // alta resolución
+      const dataUrl = await blobToDataURL(blob);
+      return { it, dataUrl };
+    }));
+
+    for (let i = 0; i < Math.max(items.length, 1); i++) {
+      const pageIndex = Math.floor(i / perPage);
+      const idxInPage = i % perPage;
+      if (i > 0 && idxInPage === 0) doc.addPage();
+
+      const col = idxInPage % cols;
+      const row = Math.floor(idxInPage / cols);
+
+      const x = margin + col * (w + gapX);
+      const y = margin + row * (h + gapY);
+
+      // Marco del sticker (opcional, muy sutil)
+      doc.setDrawColor(230);
+      doc.roundedRect(x, y, w, h, 0.15, 0.15);
+
+      const { it, dataUrl } = payloads[i] || { it: {}, dataUrl: "" };
+
+      // Layout interno: QR a la izquierda, SKU centrado a la derecha
+      const pad = 0.25;           // acolchado interno
+      const qrSize = 3.1;         // tamaño del QR
+      const qrX = x + pad;
+      const qrY = y + (h - qrSize) / 2;
+
+      if (dataUrl) doc.addImage(dataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+
+      // Texto SKU (blanco, sólido sobre fondo oscuro)
+      doc.setTextColor(255, 255, 255);
+      // para asegurar legibilidad, dibujamos un rectángulo oscuro detrás del texto
+      const skuBoxX = qrX + qrSize + 0.25;
+      const skuBoxY = y + 0.5;
+      const skuBoxW = x + w - skuBoxX - pad;
+      const skuBoxH = h - 1.0;
+      doc.setFillColor(19, 27, 41);
+      doc.roundedRect(skuBoxX, skuBoxY, skuBoxW, skuBoxH, 0.1, 0.1, "F");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.text((it?.sku || "").toUpperCase(), skuBoxX + skuBoxW / 2, skuBoxY + skuBoxH / 2, {
+        align: "center", baseline: "middle"
+      });
+    }
+
+    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    doc.save(`stickers_${ts}.pdf`);
   }
 
   // ====== Init ======
