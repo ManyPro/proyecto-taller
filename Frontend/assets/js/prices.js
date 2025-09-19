@@ -15,14 +15,6 @@ const DEFAULT_CERT = {
   formula: "ACEITE_CERT + FILTRO_ACEITE + FILTRO_AIRE + MO"
 };
 
-const DEFAULT_SELLADO = (baseVars) => ({
-  name: "Cambio de Aceite Sellado",
-  key: "CAMBIO_ACEITE_SELLADO",
-  variables: baseVars || DEFAULT_CERT.variables,
-  // Para sellado, cuenta ACEITE_SELLADO
-  formula: "ACEITE_SELLADO + FILTRO_ACEITE + FILTRO_AIRE + MO"
-});
-
 const $ = (s) => document.querySelector(s);
 const money = (n)=>'$'+Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 
@@ -77,7 +69,7 @@ export function initPrices(){
   const head = $('#pe-head');
   const body = $('#pe-body');
 
-  // Barra de filtros (inyectamos acciones nuevas)
+  // Barra de filtros (inyectamos acciones necesarias)
   const filtersBar = document.getElementById('filters-bar') || svcSelect?.closest('.row') || tab;
   const btnImport = document.createElement('button');
   btnImport.id = 'pe-import'; btnImport.className = 'secondary'; btnImport.textContent = 'Importar XLSX';
@@ -87,14 +79,11 @@ export function initPrices(){
   btnRename.id = 'svc-rename'; btnRename.className = 'secondary'; btnRename.textContent = 'Renombrar servicio';
   const btnClearAll = document.createElement('button');
   btnClearAll.id = 'svc-clear'; btnClearAll.className = 'danger'; btnClearAll.textContent = 'Vaciar servicio';
-  const btnNewSellado = document.createElement('button');
-  btnNewSellado.id = 'svc-new-sellado'; btnNewSellado.className = 'secondary'; btnNewSellado.textContent = 'Crear servicio (Sellado)';
 
   filtersBar?.appendChild(btnImport);
   filtersBar?.appendChild(btnExport);
   filtersBar?.appendChild(btnRename);
   filtersBar?.appendChild(btnClearAll);
-  filtersBar?.appendChild(btnNewSellado);
 
   let services = [];
   let currentService = null;
@@ -149,14 +138,11 @@ export function initPrices(){
       services.push(svc);
     }
 
-    // Si existe pero no se llama exactamente así, lo renombramos (tu requerimiento)
+    // Si existe pero no se llama exactamente así, lo renombramos
     if (svc && svc.name !== DEFAULT_CERT.name) {
-      svc = await API.serviceUpdate(svc._id, { name: DEFAULT_CERT.name }); // sólo nombre, NO tocamos key para no romper datos
+      svc = await API.serviceUpdate(svc._id, { name: DEFAULT_CERT.name }); // sólo nombre
       const idx = services.findIndex(x=>x._id===svc._id); if (idx>=0) services[idx]=svc;
     }
-
-    // Si no existe un servicio "Sellado", ofrecemos crearlo rápido (no automático para evitar sorpresas)
-    // (El botón dedicado lo hará bajo demanda)
 
     currentService = svc;
     renderSvcOptions();
@@ -265,7 +251,7 @@ export function initPrices(){
     await loadPrices();
   };
 
-  // --------- NUEVOS botones ----------
+  // --------- Botones necesarios ----------
   btnRename.onclick = async () => {
     if (!currentService) return;
     const svc = await API.serviceUpdate(currentService._id, { name: DEFAULT_CERT.name });
@@ -291,17 +277,6 @@ export function initPrices(){
     if (!res.ok) return alert(body?.error || 'No se pudo borrar');
     alert(`Eliminados: ${body.deleted || 0}`);
     await loadPrices();
-  };
-
-  btnNewSellado.onclick = async () => {
-    const baseVars = (currentService?.variables && currentService.variables.length) ? currentService.variables : DEFAULT_CERT.variables;
-    const svc = await API.serviceCreate(DEFAULT_SELLADO(baseVars));
-    services.push(svc);
-    renderSvcOptions();
-    if (svcSelect) svcSelect.value = svc._id;
-    currentService = svc;
-    await loadPrices();
-    alert('Servicio creado: "Cambio de Aceite Sellado"');
   };
 
   // ----- Modal Variables -----
