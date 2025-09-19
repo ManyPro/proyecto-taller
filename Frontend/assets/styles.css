@@ -612,3 +612,57 @@ footer {
   background: #0b1220;
   cursor: zoom-in;
 }
+
+/* === Pack de legibilidad: Lista de Precios === */
+#tab-precios {
+  overflow-x: auto;              /* permite scroll horizontal si se necesita */
+}
+
+#tab-precios table.table {
+  min-width: 1280px;             /* evita que se comprima de más */
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+#tab-precios th,
+#tab-precios td {
+  white-space: nowrap;           /* conserva las columnas en una sola línea */
+  padding: 6px 8px;
+}
+
+/* Inputs más legibles */
+#tab-precios td input {
+  height: 28px;
+  padding: 2px 6px;
+  font-size: 0.95rem;
+  text-transform: none;          /* no convertir números a mayúsculas por estilos globales */
+  border-radius: 8px;
+}
+
+#tab-precios td input[type="number"] {
+  width: 8ch;                    /* ancho cómodo para 5–6 dígitos */
+  min-width: 6ch;
+  max-width: 12ch;
+  text-align: right;             /* números a la derecha */
+}
+
+#tab-precios td .actions button {
+  margin: 0 2px;
+}
+
+/* Cabecera siempre visible (si ya usas sticky, esto lo refuerza) */
+#tab-precios thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+/* Fijar solo la primera columna (opcional, seguro) */
+/* Si no te interesa fijar columnas, borra este bloque */
+#tab-precios td:first-child,
+#tab-precios th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: inherit;           /* mantiene el color del tema */
+}
