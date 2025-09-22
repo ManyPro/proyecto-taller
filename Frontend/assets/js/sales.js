@@ -19,6 +19,28 @@ function closeModal(){
   document.body.style.overflow = '';
 }
 
+// ===== Helpers de imagen QR (requiere Bearer) =====
+const qrCache = new Map(); // itemId -> objectURL
+async function getQRObjectURL(itemId, size=128){
+  if(qrCache.has(itemId)) return qrCache.get(itemId);
+  const tok = API.token.get();
+  const res = await fetch(`${API.base}/api/v1/inventory/items/${itemId}/qr.png?size=${size}`, {
+    headers: tok ? { 'Authorization': `Bearer ${tok}` } : {},
+    cache: 'no-store',
+    credentials: 'omit'
+  });
+  if(!res.ok) throw new Error('QR no disponible');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  qrCache.set(itemId, url);
+  return url;
+}
+function downloadBlobUrl(url, filename='qr.png'){
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+}
+
+// ====== UI Ventas ======
 export function initSales(){
   const tab = document.getElementById('tab-ventas');
   if(!tab) return; // si no existe la sección, no arranca
@@ -136,7 +158,7 @@ export function initSales(){
     render();
   };
 
-  // ====== Slice 2: PICKERS ======
+  // ====== Slice 2: PICKERS (mejorados) ======
   $('#sales-add-inv').onclick = () => openInventoryPicker();
   $('#sales-add-prices').onclick = () => openPricesPicker();
 
@@ -154,7 +176,11 @@ export function initSales(){
       </div>
       <div class="picker-table table-wrap">
         <table class="table">
-          <thead><tr><th>SKU</th><th>Nombre</th><th>Stock</th><th>Precio</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <th>Vista</th><th>SKU</th><th>Nombre</th><th>Stock</th><th>Precio</th><th>QR</th><th></th>
+            </tr>
+          </thead>
           <tbody id="p-inv-body"></tbody>
         </table>
       </div>
@@ -168,24 +194,55 @@ export function initSales(){
 
     let all = []; let shown = 0; const PAGE = 20;
 
-    const renderSlice = ()=>{
+    const renderSlice = async ()=>{
       const chunk = all.slice(0, shown);
-      $('#p-inv-body').innerHTML = chunk.map(it=>`
-        <tr>
-          <td>${it.sku||''}</td>
-          <td>${it.name||''}</td>
-          <td>${Number(it.stock||0)}</td>
-          <td>${money(it.salePrice||0)}</td>
-          <td><button data-add="${it._id}">Agregar</button></td>
-        </tr>
-      `).join('') || `<tr><td colspan="99">Sin resultados</td></tr>`;
+      const rows = await Promise.all(chunk.map(async it => {
+        // Miniatura del ítem (primer archivo si existe)
+        let thumb = '';
+        try {
+          const f = Array.isArray(it.files) ? it.files[0] : null;
+          const url = f?.url || f?.secureUrl || f?.path || null;
+          if (url) thumb = `<img src="${url}" alt="img" class="thumb">`;
+        } catch {}
+
+        // QR (objectURL con Bearer, miniatura clickeable para descargar)
+        let qrCell = '—';
+        try {
+          const qrUrl = await getQRObjectURL(it._id, 96);
+          qrCell = `<img src="${qrUrl}" alt="QR" class="thumb-qr" title="Click para descargar" data-qr="${it._id}">`;
+        } catch {}
+
+        return `
+          <tr>
+            <td class="w-fit">${thumb || '—'}</td>
+            <td>${it.sku||''}</td>
+            <td>${it.name||''}</td>
+            <td>${Number(it.stock||0)}</td>
+            <td>${money(it.salePrice||0)}</td>
+            <td class="w-fit">${qrCell}</td>
+            <td><button data-add="${it._id}">Agregar</button></td>
+          </tr>
+        `;
+      }));
+      $('#p-inv-body').innerHTML = rows.join('') || `<tr><td colspan="99">Sin resultados</td></tr>`;
       $('#p-inv-count').textContent = chunk.length ? `${chunk.length}/${all.length}` : '';
-      // binds
+
+      // binds agregar
       $('#p-inv-body').querySelectorAll('button[data-add]').forEach(btn=>{
         btn.onclick = async ()=>{
           const id = btn.getAttribute('data-add');
           current = await API.sales.addItem(current._id, { source:'inventory', refId: id, qty: 1 });
           render();
+        };
+      });
+      // binds QR download
+      $('#p-inv-body').querySelectorAll('img[data-qr]').forEach(img=>{
+        img.onclick = async ()=>{
+          const id = img.getAttribute('data-qr');
+          try {
+            const url = await getQRObjectURL(id, 256);
+            downloadBlobUrl(url, `qr_${id}.png`);
+          } catch(e){ alert('No se pudo descargar el QR'); }
         };
       });
     };
@@ -194,11 +251,10 @@ export function initSales(){
       const sku = String($('#p-inv-sku').value||'').trim();
       const name = String($('#p-inv-name').value||'').trim();
       try {
-        // Si tu backend ignora paginación, hacemos paginado en cliente
         const res = await API.inventory.itemsList({ sku, name });
         all = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
         shown = Math.min(PAGE, all.length);
-        renderSlice();
+        await renderSlice();
       } catch(e) {
         alert(e?.message || 'No se pudo buscar inventario');
       }
@@ -207,7 +263,7 @@ export function initSales(){
     $('#p-inv-search').onclick = doSearch;
     $('#p-inv-sku').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doSearch(); });
     $('#p-inv-name').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doSearch(); });
-    $('#p-inv-more').onclick = ()=>{ shown = Math.min(shown + PAGE, all.length); renderSlice(); };
+    $('#p-inv-more').onclick = async ()=>{ shown = Math.min(shown + PAGE, all.length); await renderSlice(); };
 
     // Primer load vacío
     doSearch();
@@ -221,6 +277,9 @@ export function initSales(){
     // Traer servicios para filtrar por servicio
     let services = [];
     try { services = (await API.servicesList())?.items || (await API.servicesList()) || []; } catch {}
+
+    // Servicio seleccionado y sus variables (para columnas dinámicas)
+    let selectedSvc = services[0] || { variables: [] };
 
     bodyM.innerHTML = `
       <h3>Agregar de Lista de Precios</h3>
@@ -241,8 +300,8 @@ export function initSales(){
       </div>
 
       <div class="picker-table table-wrap">
-        <table class="table">
-          <thead><tr><th>Marca</th><th>Línea</th><th>Motor</th><th>Año</th><th>Total</th><th></th></tr></thead>
+        <table class="table" id="p-pr-table">
+          <thead><tr id="p-pr-head"></tr></thead>
           <tbody id="p-pr-body"></tbody>
         </table>
       </div>
@@ -254,20 +313,37 @@ export function initSales(){
     const cleanupKey = openModal();
     closeBtn && (closeBtn.onclick = () => { cleanupKey?.(); closeModal(); });
 
+    const headEl = $('#p-pr-head');
+    const renderHead = ()=>{
+      const vars = selectedSvc?.variables || [];
+      headEl.innerHTML = `
+        <th>Marca</th><th>Línea</th><th>Motor</th><th>Año</th>
+        ${vars.map(v=>`<th>${v.label}</th>`).join('')}
+        <th>Total</th><th></th>`;
+    };
+
     let all = []; let shown = 0; const PAGE = 20;
 
     const renderSlice = ()=>{
+      const vars = selectedSvc?.variables || [];
       const chunk = all.slice(0, shown);
-      $('#p-pr-body').innerHTML = chunk.map(pe=>`
-        <tr>
-          <td>${pe.brand||''}</td>
-          <td>${pe.line||''}</td>
-          <td>${pe.engine||''}</td>
-          <td>${pe.year ?? ''}</td>
-          <td>${money(pe.total||0)}</td>
-          <td><button data-add="${pe._id}">Agregar</button></td>
-        </tr>
-      `).join('') || `<tr><td colspan="99">Sin resultados</td></tr>`;
+      $('#p-pr-body').innerHTML = chunk.map(pe=>{
+        const cells = vars.map(v => {
+          const val = pe.variables?.[v.key] ?? (v.type==='number' ? 0 : '');
+          return `<td>${v.type==='number' ? money(val) : (val||'')}</td>`;
+        }).join('');
+        return `
+          <tr>
+            <td>${pe.brand||''}</td>
+            <td>${pe.line||''}</td>
+            <td>${pe.engine||''}</td>
+            <td>${pe.year ?? ''}</td>
+            ${cells}
+            <td>${money(pe.total||0)}</td>
+            <td><button data-add="${pe._id}">Agregar</button></td>
+          </tr>
+        `;
+      }).join('') || `<tr><td colspan="99">Sin resultados</td></tr>`;
       $('#p-pr-count').textContent = chunk.length ? `${chunk.length}/${all.length}` : '';
       // binds
       $('#p-pr-body').querySelectorAll('button[data-add]').forEach(btn=>{
@@ -281,6 +357,8 @@ export function initSales(){
 
     const doSearch = async ()=>{
       const serviceId = ($('#p-pr-svc')?.value || '').trim();
+      selectedSvc = services.find(s=>s._id===serviceId) || selectedSvc;
+      renderHead();
       const brand  = String($('#p-pr-brand').value||'').trim();
       const line   = String($('#p-pr-line').value||'').trim();
       const engine = String($('#p-pr-engine').value||'').trim();
@@ -304,6 +382,7 @@ export function initSales(){
     $('#p-pr-more').onclick = ()=>{ shown = Math.min(shown + PAGE, all.length); renderSlice(); };
 
     // Primer load
+    renderHead();
     doSearch();
   }
 
