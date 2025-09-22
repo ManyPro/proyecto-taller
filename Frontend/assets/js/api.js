@@ -150,7 +150,6 @@ API.pricesExport = async (params = {}) => {
 };
 
 // === Inventory ===
-// === Inventory ===
 API.inventory = {
   itemsList: async (params = {}) => {
     const r = await http.get(`/api/v1/inventory/items${toQuery(params)}`);
