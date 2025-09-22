@@ -17,7 +17,6 @@ import mediaRouter from './routes/media.routes.js';
 import notesRouter from './routes/notes.routes.js';
 import inventoryRouter from './routes/inventory.routes.js';
 import salesRouter from './routes/sales.routes.js';
-import salesRouter from './routes/sales.routes.js';
 
 // Lee empresa/usuario del JWT
 import { authCompany } from './middlewares/auth.js';
@@ -76,7 +75,6 @@ app.use('/api/v1/health', healthRouter);
 app.use('/api/v1/media', mediaRouter);
 app.use('/api/v1/notes', authCompany, withCompanyDefaults, notesRouter);
 app.use('/api/v1/auth/company', companyAuthRouter);
-app.use('/api/v1/sales', authCompany, withCompanyDefaults, salesRouter);
 app.use('/api/v1/sales', authCompany, withCompanyDefaults, salesRouter);
 // ---- INYECTA companyId/userId AUTOMÁTICAMENTE EN INVENTORY ----
 function withCompanyDefaults(req, _res, next) {
