@@ -16,12 +16,12 @@ import healthRouter from './routes/health.js';
 import mediaRouter from './routes/media.routes.js';
 import notesRouter from './routes/notes.routes.js';
 import inventoryRouter from './routes/inventory.routes.js';
+import salesRouter from './routes/sales.routes.js';
 
 // Lee empresa/usuario del JWT
 import { authCompany } from './middlewares/auth.js';
 import servicesRouter from './routes/services.routes.js';
 import pricesRoutes from './routes/prices.routes.js';
-import salesRoutes from './routes/sales.routes.js';
 
 const app = express();
 

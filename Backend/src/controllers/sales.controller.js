@@ -1,15 +1,14 @@
 import Sale from '../models/Sale.js';
-import Item from '../models/Item.js';           // Inventario (para source=inventory)
-import PriceEntry from '../models/PriceEntry.js'; // Lista de precios (para source=price)
+import Item from '../models/Item.js';
+import PriceEntry from '../models/PriceEntry.js';
 
-function num(n){ const x = Number(n); return Number.isFinite(x) ? x : 0; }
+const num = (n)=> Number.isFinite(Number(n)) ? Number(n) : 0;
 
 function computeTotals(sale){
   const subtotal = (sale.items||[]).reduce((a,it)=> a + num(it.total), 0);
-  const tax = 0; // placeholder: si luego aplicas IVA, se calcula aquí
   sale.subtotal = Math.round(subtotal);
-  sale.tax = Math.round(tax);
-  sale.total = Math.round(subtotal + tax);
+  sale.tax = 0; // ajusta si aplicas IVA
+  sale.total = Math.round(sale.subtotal + sale.tax);
 }
 
 export const startSale = async (req,res)=>{
@@ -24,30 +23,32 @@ export const getSale = async (req,res)=>{
 };
 
 export const addItem = async (req,res)=>{
-  const { id } = req.params; // saleId
+  const { id } = req.params;
   const { source, refId, sku, qty=1, unitPrice } = req.body || {};
   const sale = await Sale.findOne({ _id:id, companyId: req.companyId });
   if(!sale) return res.status(404).json({ error:'Venta no encontrada' });
   if(sale.status !== 'open') return res.status(400).json({ error:'Venta cerrada' });
 
-  let itemData = { source, qty: num(qty) || 1, unitPrice: 0, total: 0, sku:'', name:'' };
+  let itemData = { source, qty: num(qty)||1, unitPrice: 0, total: 0, sku:'', name:'' };
 
   if(source === 'inventory'){
     let it = null;
     if(refId) it = await Item.findOne({ _id: refId, companyId: req.companyId }).lean();
     if(!it && sku) it = await Item.findOne({ sku: String(sku).trim().toUpperCase(), companyId: req.companyId }).lean();
     if(!it) return res.status(404).json({ error:'Item inventario no encontrado' });
-    itemData.refId = it._id;
-    itemData.sku = it.sku;
-    itemData.name = it.name || it.sku;
-    itemData.unitPrice = num(unitPrice ?? it.salePrice);
+    itemData = { ...itemData,
+      refId: it._id, sku: it.sku, name: it.name || it.sku,
+      unitPrice: num(unitPrice ?? it.salePrice)
+    };
   } else if (source === 'price'){
     const pe = await PriceEntry.findOne({ _id: refId, companyId: req.companyId }).lean();
     if(!pe) return res.status(404).json({ error:'Entrada de precios no encontrada' });
-    itemData.refId = pe._id;
-    itemData.sku = `${pe.brand}-${pe.line}-${pe.engine}-${pe.year||''}`.toUpperCase();
-    itemData.name = `SERVICIO: ${pe.brand} ${pe.line} ${pe.engine} ${pe.year||''}`.trim();
-    itemData.unitPrice = num(unitPrice ?? pe.total);
+    itemData = { ...itemData,
+      refId: pe._id,
+      sku: `${pe.brand}-${pe.line}-${pe.engine}-${pe.year||''}`.toUpperCase(),
+      name: `SERVICIO: ${pe.brand} ${pe.line} ${pe.engine} ${pe.year||''}`.trim(),
+      unitPrice: num(unitPrice ?? pe.total)
+    };
   } else {
     return res.status(400).json({ error:'source inválido' });
   }
@@ -117,11 +118,9 @@ export const closeSale = async (req,res)=>{
   sale.status = 'closed';
   computeTotals(sale);
   await sale.save();
-  // Placeholder: aquí puedes generar PDF/Factura y link de WhatsApp.
   res.json({ ok:true, sale: sale.toObject(), pdfUrl: null });
 };
 
-// Add by QR: espera { saleId, code } donde code mapea a Item.sku
 export const addByQR = async (req,res)=>{
   const { saleId, code } = req.body || {};
   if(!saleId || !code) return res.status(400).json({ error:'saleId y code requeridos' });

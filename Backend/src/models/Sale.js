@@ -1,8 +1,8 @@
 import mongoose from 'mongoose';
 
 const SaleItemSchema = new mongoose.Schema({
-  source: { type: String, enum: ['inventory', 'price'], required: true }, // de inventario o lista de precios
-  refId: { type: mongoose.Types.ObjectId, required: false },               // Item._id o PriceEntry._id (opcional)
+  source: { type: String, enum: ['inventory', 'price'], required: true },
+  refId: { type: mongoose.Types.ObjectId, required: false },
   sku:   { type: String, trim: true, uppercase: true },
   name:  { type: String, trim: true },
   qty:   { type: Number, default: 1, min: 0 },
@@ -17,7 +17,7 @@ const SaleSchema = new mongoose.Schema({
   items: { type: [SaleItemSchema], default: [] },
 
   customer: {
-    type: { type: String, trim: true },      // NATURAL / JURIDICA (opcional por ahora)
+    type: { type: String, trim: true },
     idNumber: { type: String, trim: true },
     name: { type: String, trim: true },
     phone: { type: String, trim: true },
@@ -31,7 +31,7 @@ const SaleSchema = new mongoose.Schema({
     line:  { type: String, trim: true, uppercase: true },
     engine:{ type: String, trim: true, uppercase: true },
     year:  { type: Number },
-    mileage: { type: Number } // se captura por orden; no se “auto-completa” fijo
+    mileage: { type: Number }
   },
 
   notes: { type: String, trim: true },
