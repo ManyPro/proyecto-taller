@@ -666,3 +666,17 @@ footer {
   z-index: 2;
   background: inherit;           /* mantiene el color del tema */
 }
+
+/* === Ventas: pickers (Inventario / Lista de Precios) === */
+.picker-head {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 8px;
+}
+@media (max-width: 900px) {
+  .picker-head { grid-template-columns: 1fr; }
+}
+.picker-table table { min-width: 900px; }
+.picker-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }

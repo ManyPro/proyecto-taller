@@ -1,7 +1,23 @@
-import { API } from "./api.js"; // asumimos que ya gestiona Bearer
+import { API } from "./api.js"; // gestiona Bearer
 
 const $ = (s)=>document.querySelector(s);
 const money = (n)=>'$'+Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+
+function openModal() {
+  const modal = $('#modal'); if (!modal) return () => {};
+  modal.classList.remove('hidden');
+  const onKey = (e)=>{ if (e.key === 'Escape') closeModal(); };
+  const onOverlay = (e)=>{ if (e.target === modal) closeModal(); };
+  document.addEventListener('keydown', onKey);
+  modal.addEventListener('click', onOverlay, { once:true });
+  document.body.style.overflow = 'hidden';
+  return () => document.removeEventListener('keydown', onKey);
+}
+function closeModal(){
+  const modal = $('#modal'); if(!modal) return;
+  modal.classList.add('hidden');
+  document.body.style.overflow = '';
+}
 
 export function initSales(){
   const tab = document.getElementById('tab-ventas');
@@ -105,7 +121,7 @@ export function initSales(){
     });
   }
 
-  // Actions
+  // Actions base
   $('#sales-start').onclick = async ()=>{
     current = await API.sales.start();
     render();
@@ -120,8 +136,176 @@ export function initSales(){
     render();
   };
 
-  $('#sales-add-inv').onclick = ()=> alert('TODO: selector desde Inventario');
-  $('#sales-add-prices').onclick = ()=> alert('TODO: selector desde Lista de Precios');
+  // ====== Slice 2: PICKERS ======
+  $('#sales-add-inv').onclick = () => openInventoryPicker();
+  $('#sales-add-prices').onclick = () => openPricesPicker();
+
+  async function openInventoryPicker(){
+    if(!current) return alert('Crea primero una venta');
+    const modal = $('#modal'), bodyM = $('#modalBody'), closeBtn = $('#modalClose');
+    if(!modal || !bodyM) return alert('No se encontró el modal global');
+
+    bodyM.innerHTML = `
+      <h3>Agregar de Inventario</h3>
+      <div class="picker-head">
+        <div><label>SKU</label><input id="p-inv-sku" placeholder="SKU exacto"></div>
+        <div><label>Nombre</label><input id="p-inv-name" placeholder="Buscar por nombre"></div>
+        <div><button id="p-inv-search">Buscar</button></div>
+      </div>
+      <div class="picker-table table-wrap">
+        <table class="table">
+          <thead><tr><th>SKU</th><th>Nombre</th><th>Stock</th><th>Precio</th><th></th></tr></thead>
+          <tbody id="p-inv-body"></tbody>
+        </table>
+      </div>
+      <div class="picker-actions row">
+        <button id="p-inv-more" class="secondary">Cargar más</button>
+        <span class="muted" id="p-inv-count"></span>
+      </div>
+    `;
+    const cleanupKey = openModal();
+    closeBtn && (closeBtn.onclick = () => { cleanupKey?.(); closeModal(); });
+
+    let all = []; let shown = 0; const PAGE = 20;
+
+    const renderSlice = ()=>{
+      const chunk = all.slice(0, shown);
+      $('#p-inv-body').innerHTML = chunk.map(it=>`
+        <tr>
+          <td>${it.sku||''}</td>
+          <td>${it.name||''}</td>
+          <td>${Number(it.stock||0)}</td>
+          <td>${money(it.salePrice||0)}</td>
+          <td><button data-add="${it._id}">Agregar</button></td>
+        </tr>
+      `).join('') || `<tr><td colspan="99">Sin resultados</td></tr>`;
+      $('#p-inv-count').textContent = chunk.length ? `${chunk.length}/${all.length}` : '';
+      // binds
+      $('#p-inv-body').querySelectorAll('button[data-add]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const id = btn.getAttribute('data-add');
+          current = await API.sales.addItem(current._id, { source:'inventory', refId: id, qty: 1 });
+          render();
+        };
+      });
+    };
+
+    const doSearch = async ()=>{
+      const sku = String($('#p-inv-sku').value||'').trim();
+      const name = String($('#p-inv-name').value||'').trim();
+      try {
+        // Si tu backend ignora paginación, hacemos paginado en cliente
+        const res = await API.inventory.itemsList({ sku, name });
+        all = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
+        shown = Math.min(PAGE, all.length);
+        renderSlice();
+      } catch(e) {
+        alert(e?.message || 'No se pudo buscar inventario');
+      }
+    };
+
+    $('#p-inv-search').onclick = doSearch;
+    $('#p-inv-sku').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doSearch(); });
+    $('#p-inv-name').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doSearch(); });
+    $('#p-inv-more').onclick = ()=>{ shown = Math.min(shown + PAGE, all.length); renderSlice(); };
+
+    // Primer load vacío
+    doSearch();
+  }
+
+  async function openPricesPicker(){
+    if(!current) return alert('Crea primero una venta');
+    const modal = $('#modal'), bodyM = $('#modalBody'), closeBtn = $('#modalClose');
+    if(!modal || !bodyM) return alert('No se encontró el modal global');
+
+    // Traer servicios para filtrar por servicio
+    let services = [];
+    try { services = (await API.servicesList())?.items || (await API.servicesList()) || []; } catch {}
+
+    bodyM.innerHTML = `
+      <h3>Agregar de Lista de Precios</h3>
+      <div class="picker-head">
+        <div>
+          <label>Servicio</label>
+          <select id="p-pr-svc">
+            ${services.map(s=>`<option value="${s._id}">${s.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="row" style="gap:8px; align-items:end;">
+          <div><label>Marca</label><input id="p-pr-brand" placeholder="Ej. RENAULT"></div>
+          <div><label>Línea</label><input id="p-pr-line" placeholder="Ej. LOGAN"></div>
+          <div><label>Motor</label><input id="p-pr-engine" placeholder="Ej. 1.6"></div>
+          <div><label>Año</label><input id="p-pr-year" type="number" placeholder="Ej. 2020"></div>
+          <div><button id="p-pr-search">Buscar</button></div>
+        </div>
+      </div>
+
+      <div class="picker-table table-wrap">
+        <table class="table">
+          <thead><tr><th>Marca</th><th>Línea</th><th>Motor</th><th>Año</th><th>Total</th><th></th></tr></thead>
+          <tbody id="p-pr-body"></tbody>
+        </table>
+      </div>
+      <div class="picker-actions row">
+        <button id="p-pr-more" class="secondary">Cargar más</button>
+        <span class="muted" id="p-pr-count"></span>
+      </div>
+    `;
+    const cleanupKey = openModal();
+    closeBtn && (closeBtn.onclick = () => { cleanupKey?.(); closeModal(); });
+
+    let all = []; let shown = 0; const PAGE = 20;
+
+    const renderSlice = ()=>{
+      const chunk = all.slice(0, shown);
+      $('#p-pr-body').innerHTML = chunk.map(pe=>`
+        <tr>
+          <td>${pe.brand||''}</td>
+          <td>${pe.line||''}</td>
+          <td>${pe.engine||''}</td>
+          <td>${pe.year ?? ''}</td>
+          <td>${money(pe.total||0)}</td>
+          <td><button data-add="${pe._id}">Agregar</button></td>
+        </tr>
+      `).join('') || `<tr><td colspan="99">Sin resultados</td></tr>`;
+      $('#p-pr-count').textContent = chunk.length ? `${chunk.length}/${all.length}` : '';
+      // binds
+      $('#p-pr-body').querySelectorAll('button[data-add]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const id = btn.getAttribute('data-add');
+          current = await API.sales.addItem(current._id, { source:'price', refId: id, qty: 1 });
+          render();
+        };
+      });
+    };
+
+    const doSearch = async ()=>{
+      const serviceId = ($('#p-pr-svc')?.value || '').trim();
+      const brand  = String($('#p-pr-brand').value||'').trim();
+      const line   = String($('#p-pr-line').value||'').trim();
+      const engine = String($('#p-pr-engine').value||'').trim();
+      const year   = String($('#p-pr-year').value||'').trim();
+      try {
+        const params = { serviceId, brand, line, engine, year };
+        const res = await API.pricesList(params);
+        all = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
+        shown = Math.min(PAGE, all.length);
+        renderSlice();
+      } catch(e) {
+        alert(e?.message || 'No se pudo buscar lista de precios');
+      }
+    };
+
+    $('#p-pr-search').onclick = doSearch;
+    ['p-pr-brand','p-pr-line','p-pr-engine','p-pr-year'].forEach(id=>{
+      document.getElementById(id).addEventListener('keydown', (e)=>{ if(e.key==='Enter') doSearch(); });
+    });
+    $('#p-pr-svc')?.addEventListener('change', doSearch);
+    $('#p-pr-more').onclick = ()=>{ shown = Math.min(shown + PAGE, all.length); renderSlice(); };
+
+    // Primer load
+    doSearch();
+  }
 
   $('#sales-save-cv').onclick = async ()=>{
     if(!current) return alert('Crea primero una venta');
