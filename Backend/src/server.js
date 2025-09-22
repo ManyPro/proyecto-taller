@@ -21,6 +21,7 @@ import inventoryRouter from './routes/inventory.routes.js';
 import { authCompany } from './middlewares/auth.js';
 import servicesRouter from './routes/services.routes.js';
 import pricesRoutes from './routes/prices.routes.js';
+import salesRoutes from './routes/sales.routes.js';
 
 const app = express();
 
