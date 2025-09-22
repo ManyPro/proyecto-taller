@@ -680,3 +680,29 @@ footer {
 }
 .picker-table table { min-width: 900px; }
 .picker-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+
+/* === Ventas: pickers === */
+.picker-head {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  align-items: end;
+  margin-bottom: 8px;
+}
+@media (max-width: 900px) {
+  .picker-head { grid-template-columns: 1fr; }
+}
+.picker-table table { min-width: 980px; }
+.picker-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; }
+.table .thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; display: inline-block; }
+.table .thumb-qr { width: 44px; height: 44px; object-fit: contain; background: #111; border-radius: 6px; cursor: pointer; }
+.w-fit { white-space: nowrap; }
+
+/* === Ventas: Lector QR (Slice 4) === */
+.qrbar { justify-content: space-between; margin-bottom: 8px; }
+.qrwrap { position: relative; background: #0d1117; border-radius: 8px; padding: 8px; display: flex; justify-content: center; }
+.qrwrap video { width: 100%; max-height: 320px; border-radius: 6px; background: #000; }
+.qrwrap .qr-hud {
+  position: absolute; inset: 8px; border: 2px dashed rgba(255,255,255,.2); border-radius: 6px; pointer-events: none;
+}
+.qr-history { margin-top: 6px; max-height: 120px; overflow: auto; font-size: .9rem; opacity: .8; }

@@ -55,7 +55,8 @@ export function initSales(){
         </select>
         <button id="sales-start">Nueva venta</button>
       </div>
-      <div>
+      <div class="row" style="gap:8px;">
+        <button id="sales-scan-qr" class="secondary">Escanear QR</button>
         <button id="sales-print" class="secondary">Imprimir</button>
         <button id="sales-close" class="danger">Cerrar venta</button>
       </div>
@@ -162,6 +163,150 @@ export function initSales(){
   $('#sales-add-inv').onclick = () => openInventoryPicker();
   $('#sales-add-prices').onclick = () => openPricesPicker();
 
+  // ====== LECTOR DE QR (Slice 4) ======
+  $('#sales-scan-qr').onclick = () => openQRScanner();
+
+  async function openQRScanner(){
+    if(!current) return alert('Crea primero una venta');
+
+    const modal = $('#modal'), bodyM = $('#modalBody'), closeBtn = $('#modalClose');
+    if(!modal || !bodyM) return alert('No se encontró el modal global');
+
+    bodyM.innerHTML = `
+      <h3>Lector de QR</h3>
+      <div class="qrbar row">
+        <div class="row" style="gap:8px;align-items:center;">
+          <label>Camara</label>
+          <select id="qr-cam"></select>
+          <label class="row" style="gap:6px;"><input type="checkbox" id="qr-autoclose" checked> Cerrar al agregar</label>
+        </div>
+        <div class="row" style="gap:8px;">
+          <button id="qr-start" class="secondary">Iniciar</button>
+          <button id="qr-stop" class="secondary">Detener</button>
+        </div>
+      </div>
+      <div class="qrwrap">
+        <video id="qr-video" playsinline muted></video>
+        <div class="qr-hud"></div>
+      </div>
+      <div class="row" style="gap:8px;margin-top:8px;">
+        <input id="qr-manual" placeholder="Ingresar código manualmente (fallback)">
+        <button id="qr-add-manual">Agregar</button>
+      </div>
+      <div class="muted" id="qr-msg" style="margin-top:6px;">Permite la cámara para escanear. Compatibilidad óptima en Chrome/Edge/Android.</div>
+      <ul id="qr-history" class="qr-history"></ul>
+    `;
+    const cleanupKey = openModal();
+    closeBtn && (closeBtn.onclick = () => { cleanupKey?.(); stopStream(); closeModal(); });
+
+    const video = $('#qr-video');
+    const sel = $('#qr-cam');
+    const msg = $('#qr-msg');
+    const list = $('#qr-history');
+    const autoclose = $('#qr-autoclose');
+
+    let stream = null;
+    let running = false;
+    let detector = null;
+
+    async function enumerateCams(){
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cams = devices.filter(d => d.kind === 'videoinput');
+        sel.innerHTML = cams.map((d,i)=>`<option value="${d.deviceId}">${d.label || 'Cam '+(i+1)}</option>`).join('');
+      } catch(e){
+        sel.innerHTML = `<option value="">(cámara)</option>`;
+      }
+    }
+
+    async function startStream(){
+      try {
+        if (!('BarcodeDetector' in window)) {
+          msg.textContent = 'Este navegador no soporta BarcodeDetector. Puedes ingresar el código manualmente.';
+        } else {
+          detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+        }
+      } catch {
+        detector = null;
+      }
+
+      try {
+        stopStream();
+        const deviceId = sel.value || undefined;
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' },
+          audio: false
+        });
+        video.srcObject = stream;
+        await video.play();
+        running = true;
+        tick();
+        msg.textContent = 'Escanea un código QR…';
+      } catch (e) {
+        msg.textContent = 'No se pudo abrir la cámara. Revisa permisos.';
+      }
+    }
+
+    function stopStream(){
+      running = false;
+      if (video) try { video.pause(); } catch {}
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+    }
+
+    async function handleCode(code){
+      const codeStr = String(code||'').trim();
+      if(!codeStr) return;
+      // añade al historial visual
+      const li = document.createElement('li');
+      li.textContent = `QR: ${codeStr}`;
+      list.prepend(li);
+
+      try {
+        const res = await API.sales.addByQR(current._id, codeStr);
+        if (res && res._id) {
+          current = res;
+          render();
+        } else if (res && res.sale) {
+          current = res.sale;
+          render();
+        }
+        msg.textContent = 'Agregado correctamente.';
+        if (autoclose.checked) { stopStream(); closeModal(); }
+      } catch (e) {
+        msg.textContent = e?.message || 'No se pudo agregar por QR';
+      }
+    }
+
+    async function tick(){
+      if(!running) return;
+      try {
+        if (detector) {
+          const codes = await detector.detect(video);
+          if (codes && codes.length) {
+            await handleCode(codes[0].rawValue || codes[0].rawValue || codes[0].rawValue);
+            // Espera un poco antes de seguir (evitar múltiples lecturas)
+            await new Promise(r => setTimeout(r, 700));
+          }
+        }
+      } catch {}
+      requestAnimationFrame(tick);
+    }
+
+    $('#qr-start').onclick = startStream;
+    $('#qr-stop').onclick = () => { stopStream(); msg.textContent = 'Cámara detenida.'; };
+    $('#qr-add-manual').onclick = () => handleCode($('#qr-manual').value);
+
+    await enumerateCams();
+    // autostart si hay camaras
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      startStream();
+    }
+  }
+
+  // ====== PICKER: Inventario ======
   async function openInventoryPicker(){
     if(!current) return alert('Crea primero una venta');
     const modal = $('#modal'), bodyM = $('#modalBody'), closeBtn = $('#modalClose');
@@ -302,6 +447,7 @@ export function initSales(){
     doSearch();
   }
 
+  // ====== PICKER: Precios ======
   async function openPricesPicker(){
     if(!current) return alert('Crea primero una venta');
     const modal = $('#modal'), bodyM = $('#modalBody'), closeBtn = $('#modalClose');
