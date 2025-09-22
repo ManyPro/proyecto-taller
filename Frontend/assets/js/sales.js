@@ -103,8 +103,10 @@ export function initSales() {
       <div class="row" style="gap:8px;">
         <button id="sales-scan-qr" class="secondary">Escanear QR</button>
         <button id="sales-print" class="secondary">Imprimir</button>
-        <button id="sales-close" class="danger">Cerrar venta</button>
+         <button id="sales-share-wa" class="secondary">WhatsApp</button> <!-- nuevo -->
+         <button id="sales-close" class="danger">Cerrar venta</button>
       </div>
+
     </div>
 
     <div class="row">
@@ -220,6 +222,40 @@ export function initSales() {
       console.error(e);
       alert('No se pudo generar el PDF');
     }
+  };
+  // Info básica de la empresa (opcional, si falla igual comparte)
+  async function fetchCompanySafe() {
+    try {
+      const tok = API.token.get?.();
+      const r = await fetch(`${API.base}/api/v1/auth/company/me`, {
+        headers: tok ? { 'Authorization': `Bearer ${tok}` } : {},
+        cache: 'no-store',
+        credentials: 'omit'
+      });
+      if (!r.ok) return null;
+      return await r.json();
+    } catch { return null; }
+  }
+
+  $('#sales-share-wa').onclick = async () => {
+    if (!current) return alert('Crea primero una venta');
+
+    const company = await fetchCompanySafe(); // puede ser null
+    const nro = current.number ? String(current.number).padStart(5, '0')
+      : (current._id || '').slice(-6).toUpperCase();
+    const when = window.dayjs ? dayjs(current.createdAt).format('DD/MM/YYYY HH:mm')
+      : new Date().toLocaleString();
+
+    const lines = (current.items || []).map(it =>
+      `• ${it.sku || ''} x${it.qty || 1} — ${it.name || ''} — ${money(it.total || 0)}`
+    );
+
+    const header = `*${company?.name || 'Taller'}*%0A*Venta No.* ${nro} — ${when}`;
+    const body = lines.join('%0A') || '— sin ítems —';
+    const footer = `%0A*TOTAL:* ${money(current.total || 0)}`;
+
+    const url = `https://wa.me/?text=${header}%0A%0A${body}%0A%0A${footer}`;
+    window.open(url, '_blank'); // abre selector de contacto en WhatsApp
   };
 
   async function openQRScanner() {
