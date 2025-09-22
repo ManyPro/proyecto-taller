@@ -149,6 +149,39 @@ API.pricesExport = async (params = {}) => {
   return await res.blob();
 };
 
+// === Sales (VENTAS) ===
+// Endpoints esperados en backend:
+// POST /api/v1/sales/start
+// GET  /api/v1/sales/:id
+// POST /api/v1/sales/:id/items
+// PUT  /api/v1/sales/:id/items/:itemId
+// DELETE /api/v1/sales/:id/items/:itemId
+// PUT  /api/v1/sales/:id/customer
+// POST /api/v1/sales/:id/close
+// POST /api/v1/sales/addByQR
+API.sales = {
+  start: () => coreRequest('POST', '/api/v1/sales/start', {}),
+  get:   (id) => http.get(`/api/v1/sales/${id}`),
+
+  addItem: (id, payload) =>
+    coreRequest('POST', `/api/v1/sales/${id}/items`, payload),
+
+  updateItem: (id, itemId, payload) =>
+    coreRequest('PUT', `/api/v1/sales/${id}/items/${itemId}`, payload),
+
+  removeItem: (id, itemId) =>
+    coreRequest('DELETE', `/api/v1/sales/${id}/items/${itemId}`),
+
+  setCustomerVehicle: (id, payload) =>
+    coreRequest('PUT', `/api/v1/sales/${id}/customer`, payload),
+
+  close: (id) =>
+    coreRequest('POST', `/api/v1/sales/${id}/close`, {}),
+
+  addByQR: (saleId, code) =>
+    coreRequest('POST', `/api/v1/sales/addByQR`, { saleId, code })
+};
+
 // Exports
 export { API, tokenStore as authToken };
 export default API;
