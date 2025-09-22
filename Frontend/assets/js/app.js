@@ -7,6 +7,7 @@ import { initInventory } from "./inventory.js";
 import { initQuotes } from "./quotes.js";
 import { API } from "./api.js";
 import { initPrices } from "./prices.js"; // NUEVO
+import { initSales } from "./sales.js";   // NUEVO
 
 let modulesReady = false;
 
@@ -26,13 +27,13 @@ function showTab(name) {
   if (btn) btn.classList.add('active');
 }
 
-
 function ensureModules() {
   if (modulesReady) return;
   initNotes();
   initInventory();
   initQuotes({ getCompanyEmail: () => document.getElementById("companyEmail")?.textContent || "" });
   initPrices(); // NUEVO
+  initSales();  // NUEVO
   modulesReady = true;
 }
 
