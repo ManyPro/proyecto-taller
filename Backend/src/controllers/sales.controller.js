@@ -3,16 +3,16 @@ import Item from '../models/Item.js';
 import PriceEntry from '../models/PriceEntry.js';
 import Counter from '../models/Counter.js';
 
-const asNum = (n)=> Number.isFinite(Number(n)) ? Number(n) : 0;
+const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
 
-function computeTotals(sale){
-  const subtotal = (sale.items||[]).reduce((a,it)=> a + asNum(it.total), 0);
+function computeTotals(sale) {
+  const subtotal = (sale.items || []).reduce((a, it) => a + asNum(it.total), 0);
   sale.subtotal = Math.round(subtotal);
   sale.tax = 0; // ajusta IVA si aplica
   sale.total = Math.round(sale.subtotal + sale.tax);
 }
 
-async function getNextSaleNumber(companyId){
+async function getNextSaleNumber(companyId) {
   const c = await Counter.findOneAndUpdate(
     { companyId },
     { $inc: { saleSeq: 1 } },
@@ -21,22 +21,22 @@ async function getNextSaleNumber(companyId){
   return c.saleSeq;
 }
 
-export const startSale = async (req,res)=>{
+export const startSale = async (req, res) => {
   const sale = await Sale.create({ companyId: req.companyId, status: 'open' });
   res.json(sale.toObject());
 };
 
-export const getSale = async (req,res)=>{
+export const getSale = async (req, res) => {
   const sale = await Sale.findOne({ _id: req.params.id, companyId: req.companyId });
-  if(!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
   res.json(sale.toObject());
 };
 
-export const addItem = async (req,res)=>{
+export const addItem = async (req, res) => {
   const sale = await Sale.findOne({ _id: req.params.id, companyId: req.companyId });
-  if(!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
 
-  const { source, refId, sku, qty=1, unitPrice } = req.body || {};
+  const { source, refId, sku, qty = 1, unitPrice } = req.body || {};
   if (!source) return res.status(400).json({ error: 'source is required' });
 
   let itemData = null;
@@ -76,7 +76,7 @@ export const addItem = async (req,res)=>{
       source: 'price',
       refId: pe._id,
       sku: `SRV-${String(pe._id).slice(-6)}`,
-      name: `${pe.brand||''} ${pe.line||''} ${pe.engine||''} ${pe.year||''}`.trim(),
+      name: `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim(),
       qty: q,
       unitPrice: up,
       total: Math.round(q * up)
@@ -91,12 +91,12 @@ export const addItem = async (req,res)=>{
   res.json(sale.toObject());
 };
 
-export const updateItem = async (req,res)=>{
+export const updateItem = async (req, res) => {
   const sale = await Sale.findOne({ _id: req.params.id, companyId: req.companyId });
-  if(!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
 
   const it = sale.items.id(req.params.itemId);
-  if(!it) return res.status(404).json({ error: 'Item not found' });
+  if (!it) return res.status(404).json({ error: 'Item not found' });
 
   const { qty, unitPrice } = req.body || {};
   if (Number.isFinite(Number(qty))) it.qty = asNum(qty);
@@ -108,12 +108,12 @@ export const updateItem = async (req,res)=>{
   res.json(sale.toObject());
 };
 
-export const removeItem = async (req,res)=>{
+export const removeItem = async (req, res) => {
   const sale = await Sale.findOne({ _id: req.params.id, companyId: req.companyId });
-  if(!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
 
   const it = sale.items.id(req.params.itemId);
-  if(!it) return res.status(404).json({ error: 'Item not found' });
+  if (!it) return res.status(404).json({ error: 'Item not found' });
 
   it.remove();
   computeTotals(sale);
@@ -121,22 +121,22 @@ export const removeItem = async (req,res)=>{
   res.json(sale.toObject());
 };
 
-export const setCustomerVehicle = async (req,res)=>{
+export const setCustomerVehicle = async (req, res) => {
   const sale = await Sale.findOne({ _id: req.params.id, companyId: req.companyId });
-  if(!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
 
   const { customer, vehicle, notes } = req.body || {};
-  if (customer) sale.customer = { ...(sale.customer||{}), ...customer };
-  if (vehicle)  sale.vehicle  = { ...(sale.vehicle ||{}), ...vehicle };
+  if (customer) sale.customer = { ...(sale.customer || {}), ...customer };
+  if (vehicle) sale.vehicle = { ...(sale.vehicle || {}), ...vehicle };
   if (typeof notes === 'string') sale.notes = notes;
 
   await sale.save();
   res.json(sale.toObject());
 };
 
-export const closeSale = async (req,res)=>{
+export const closeSale = async (req, res) => {
   const sale = await Sale.findOne({ _id: req.params.id, companyId: req.companyId });
-  if(!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
 
   computeTotals(sale);
 
@@ -148,22 +148,22 @@ export const closeSale = async (req,res)=>{
     }
     await sale.save();
   }
-  res.json({ ok:true, sale: sale.toObject() });
+  res.json({ ok: true, sale: sale.toObject() });
 };
 
 // --- addByQR robusto: acepta IT:<itemId> | IT:<companyId>:<itemId> | SKU ---
-export const addByQR = async (req,res)=>{
+export const addByQR = async (req, res) => {
   const { saleId, payload } = req.body || {};
   if (!saleId || !payload) return res.status(400).json({ error: 'saleId and payload are required' });
 
   const sale = await Sale.findOne({ _id: saleId, companyId: req.companyId });
-  if(!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
 
-  const s = String(payload||'').trim();
+  const s = String(payload || '').trim();
 
   // IT:...
   if (s.toUpperCase().startsWith('IT:')) {
-    const parts = s.split(':').map(p=>p.trim()).filter(Boolean);
+    const parts = s.split(':').map(p => p.trim()).filter(Boolean);
     let itemId = null;
     if (parts.length === 2) itemId = parts[1];
     if (parts.length >= 3) itemId = parts[2];
@@ -207,4 +207,40 @@ export const addByQR = async (req,res)=>{
   computeTotals(sale);
   await sale.save();
   res.json(sale.toObject());
+};
+
+// LISTAR ventas (paginado + filtros)
+export const listSales = async (req, res) => {
+  const { status, from, to, page = 1, limit = 50 } = req.query || {};
+  const q = { companyId: req.companyId };
+  if (status) q.status = String(status);
+  if (from || to) {
+    q.createdAt = {};
+    if (from) q.createdAt.$gte = new Date(from);
+    if (to) q.createdAt.$lte = new Date(`${to}T23:59:59.999Z`);
+  }
+  const pg = Math.max(1, Number(page || 1));
+  const lim = Math.max(1, Math.min(500, Number(limit || 50)));
+  const [items, total] = await Promise.all([
+    Sale.find(q).sort({ createdAt: -1 }).skip((pg - 1) * lim).limit(lim),
+    Sale.countDocuments(q)
+  ]);
+  res.json({ items, page: pg, limit: lim, total });
+};
+
+// RESUMEN de caja (solo cerradas)
+export const summarySales = async (req, res) => {
+  const { from, to } = req.query || {};
+  const q = { companyId: req.companyId, status: 'closed' };
+  if (from || to) {
+    q.createdAt = {};
+    if (from) q.createdAt.$gte = new Date(from);
+    if (to) q.createdAt.$lte = new Date(`${to}T23:59:59.999Z`);
+  }
+  const rows = await Sale.aggregate([
+    { $match: q },
+    { $group: { _id: null, count: { $sum: 1 }, total: { $sum: { $ifNull: ['$total', 0] } } } }
+  ]);
+  const agg = rows[0] || { count: 0, total: 0 };
+  res.json({ count: agg.count, total: agg.total });
 };

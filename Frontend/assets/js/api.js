@@ -180,8 +180,13 @@ API.sales = {
     coreRequest('POST', `/api/v1/sales/${id}/close`, {}),
 
   addByQR: (saleId, code) =>
-    coreRequest('POST', `/api/v1/sales/addByQR`, { saleId, code })
+    coreRequest('POST', `/api/v1/sales/addByQR`, { saleId, code }),
+
+  // NEW
+  list:    (params = {}) => http.get(`/api/v1/sales${toQuery(params)}`),
+  summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`)
 };
+
 
 // Exports
 export { API, tokenStore as authToken };

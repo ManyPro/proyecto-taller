@@ -706,3 +706,14 @@ footer {
   position: absolute; inset: 8px; border: 2px dashed rgba(255,255,255,.2); border-radius: 6px; pointer-events: none;
 }
 .qr-history { margin-top: 6px; max-height: 120px; overflow: auto; font-size: .9rem; opacity: .8; }
+
+/* --- Ventas: tabs internos (multi-pestaña) --- */
+.sales-tabs{display:flex;gap:6px;margin:8px 0;overflow:auto}
+.sales-tab{padding:6px 10px;border-radius:999px;background:#1f2a37;cursor:pointer;white-space:nowrap}
+.sales-tab.active{background:#0ea5e9;color:#081018}
+.sales-tab .close{margin-left:6px;opacity:.8;cursor:pointer}
+
+/* --- Caja --- */
+.cash-summary{display:flex;gap:16px;align-items:center;margin:8px 0}
+.cash-summary .pill{padding:6px 10px;border-radius:999px;background:#1f2a37}
+.t-right{text-align:right}

@@ -152,6 +152,10 @@ export function initSales() {
     </div>
   `;
 
+  tab.querySelector('.row.between')?.insertAdjacentHTML('afterend',
+    `<div id="saleTabs" class="sales-tabs"></div>`
+  );
+
   let current = null; // venta actual
   const body = $('#sales-body');
   const totalEl = $('#sales-total');
@@ -192,6 +196,7 @@ export function initSales() {
   // -------- acciones base --------
   $('#sales-start').onclick = async () => {
     current = await API.sales.start();
+    addOpen(current._id);    // <-- NUEVO
     render();
   };
 
@@ -258,6 +263,7 @@ export function initSales() {
     window.open(url, '_blank'); // abre selector de contacto en WhatsApp
   };
 
+
   async function openQRScanner() {
     if (!current) return alert('Crea primero una venta');
 
@@ -289,6 +295,37 @@ export function initSales() {
       <div class="muted" id="qr-msg" style="margin-top:6px;">Permite la cámara para escanear. Si no hay soporte nativo, uso jsQR.</div>
       <ul id="qr-history" class="qr-history"></ul>
     `;
+
+    const OPEN_KEY = `sales:openTabs:${API.getActiveCompany?.() || 'default'}`;
+    let openTabs = [];
+    try { openTabs = JSON.parse(localStorage.getItem(OPEN_KEY) || '[]'); } catch { openTabs = []; }
+
+    function saveTabs() { try { localStorage.setItem(OPEN_KEY, JSON.stringify(openTabs)); } catch { } }
+    function addOpen(id) { if (!openTabs.includes(id)) { openTabs.push(id); saveTabs(); } renderSaleTabs(); }
+    function removeOpen(id) { openTabs = openTabs.filter(x => x !== id); saveTabs(); renderSaleTabs(); }
+
+    async function switchTo(id) {
+      current = await API.sales.get(id);
+      addOpen(id);
+      render();
+    }
+
+    function renderSaleTabs() {
+      const wrap = document.getElementById('saleTabs');
+      if (!wrap) return;
+      wrap.innerHTML = openTabs.map(id => `
+    <span class="sales-tab ${current && current._id === id ? 'active' : ''}" data-id="${id}">
+      Vta ${String(id).slice(-4).toUpperCase()} <b class="close" data-x="${id}">×</b>
+    </span>
+  `).join('') || `<span class="sales-tab">— sin ventas abiertas —</span>`;
+      wrap.querySelectorAll('.sales-tab').forEach(el => {
+        el.onclick = (e) => { const id = el.dataset.id; if (id) switchTo(id); };
+      });
+      wrap.querySelectorAll('[data-x]').forEach(el => {
+        el.onclick = (e) => { e.stopPropagation(); removeOpen(el.dataset.x); };
+      });
+    }
+
     const cleanupKey = openModal();
     closeBtn && (closeBtn.onclick = () => { cleanupKey?.(); stopStream(); closeModal(); });
 
@@ -680,9 +717,63 @@ export function initSales() {
 
   $('#sales-close').onclick = async () => {
     if (!current) return;
-    const res = await API.sales.close(current._id);
-    if (res?.ok) { alert('Venta cerrada'); current = res.sale; render(); }
+    await API.sales.close(current._id);
+    removeOpen(current._id); // <-- NUEVO
+    current = null;
+    render();
   };
+  renderSaleTabs();
+}
+
+export async function initCash() {
+  const tab = document.getElementById('tab-caja');
+  if (!tab) return;
+
+  tab.innerHTML = `
+    <div class="row" style="gap:8px;align-items:center">
+      <label>Desde</label><input type="date" id="cash-from">
+      <label>Hasta</label><input type="date" id="cash-to">
+      <button id="cash-apply">Aplicar</button>
+    </div>
+
+    <div class="cash-summary">
+      <span class="pill">Ventas cerradas: <b id="cash-count">0</b></span>
+      <span class="pill">Total: <b id="cash-total">$0</b></span>
+    </div>
+
+    <div class="card">
+      <table class="table">
+        <thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th class="t-right">Total</th></tr></thead>
+        <tbody id="cash-body"></tbody>
+      </table>
+    </div>
+  `;
+
+  async function load() {
+    const from = document.getElementById('cash-from').value;
+    const to = document.getElementById('cash-to').value;
+
+    const [sum, list] = await Promise.all([
+      API.sales.summary({ from, to }),
+      API.sales.list({ status: 'closed', from, to, limit: 200 })
+    ]);
+
+    document.getElementById('cash-count').textContent = String(sum?.count || 0);
+    document.getElementById('cash-total').textContent = money(sum?.total || 0);
+
+    const rows = (list?.items || list || []).map(s => `
+      <tr>
+        <td>${String(s.number || '').padStart(5, '0')}</td>
+        <td>${new Date(s.createdAt).toLocaleString()}</td>
+        <td>${(s.customer?.name || '').toUpperCase()}</td>
+        <td class="t-right">${money(s.total || 0)}</td>
+      </tr>
+    `).join('');
+    document.getElementById('cash-body').innerHTML = rows || `<tr><td colspan="4">Sin resultados</td></tr>`;
+  }
+
+  document.getElementById('cash-apply').onclick = load;
+  load();
 }
 
 // ===== PDF helpers =====
