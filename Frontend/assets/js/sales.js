@@ -3,6 +3,7 @@ import { API } from "./api.js"; // gestiona Bearer
 const $ = (s)=>document.querySelector(s);
 const money = (n)=>'$'+Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 
+// ---- helpers modal ----
 function openModal() {
   const modal = $('#modal'); if (!modal) return () => {};
   modal.classList.remove('hidden');
@@ -19,11 +20,11 @@ function closeModal(){
   document.body.style.overflow = '';
 }
 
-// ===== Helpers de imagen QR (requiere Bearer) =====
+// ---- QR PNG (miniatura/descarga) ----
 const qrCache = new Map(); // itemId -> objectURL
 async function getQRObjectURL(itemId, size=128){
   if(qrCache.has(itemId)) return qrCache.get(itemId);
-  const tok = API.token.get();
+  const tok = API.token.get?.();
   const res = await fetch(`${API.base}/api/v1/inventory/items/${itemId}/qr.png?size=${size}`, {
     headers: tok ? { 'Authorization': `Bearer ${tok}` } : {},
     cache: 'no-store',
@@ -40,10 +41,47 @@ function downloadBlobUrl(url, filename='qr.png'){
   a.href = url; a.download = filename; a.click();
 }
 
+// ---- util: detectar soporte BarcodeDetector para QR ----
+async function isNativeQRSupported(){
+  if (!('BarcodeDetector' in window)) return false;
+  try {
+    const fmts = await window.BarcodeDetector.getSupportedFormats?.();
+    if (Array.isArray(fmts)) return fmts.includes('qr_code');
+    return true; // algunos navegadores no exponen getSupportedFormats
+  } catch {
+    return true;
+  }
+}
+
+// ---- util: cargar jsQR on-demand (fallback) ----
+let jsQRPromise = null;
+function ensureJsQR(){
+  if (window.jsQR) return Promise.resolve(window.jsQR);
+  if (jsQRPromise) return jsQRPromise;
+  jsQRPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+    s.async = true;
+    s.onload = () => resolve(window.jsQR);
+    s.onerror = () => reject(new Error('No se pudo cargar jsQR'));
+    document.head.appendChild(s);
+  });
+  return jsQRPromise;
+}
+
+// ---- parseo de payload IT:<companyId>:<itemId>:<sku> ----
+function parseInventoryCode(raw=''){
+  const s = String(raw||'').trim();
+  if (!s.startsWith('IT:')) return null;
+  const parts = s.split(':');
+  if (parts.length < 4) return null;
+  return { companyId: parts[1], itemId: parts[2], sku: (parts[3]||'').toUpperCase() };
+}
+
 // ====== UI Ventas ======
 export function initSales(){
   const tab = document.getElementById('tab-ventas');
-  if(!tab) return; // si no existe la sección, no arranca
+  if(!tab) return;
 
   tab.innerHTML = `
     <div class="row between">
@@ -106,7 +144,6 @@ export function initSales(){
   `;
 
   let current = null; // venta actual
-
   const body = $('#sales-body');
   const totalEl = $('#sales-total');
 
@@ -124,7 +161,6 @@ export function initSales(){
     `).join('');
     totalEl.textContent = money(current.total||0);
 
-    // Bind qty/unit updates
     body.querySelectorAll('tr').forEach(tr=>{
       const itemId = tr.dataset.id;
       tr.querySelector('.qty').onchange = async (e)=>{
@@ -144,7 +180,7 @@ export function initSales(){
     });
   }
 
-  // Actions base
+  // -------- acciones base --------
   $('#sales-start').onclick = async ()=>{
     current = await API.sales.start();
     render();
@@ -152,18 +188,18 @@ export function initSales(){
 
   $('#sales-add-sku').onclick = async ()=>{
     if(!current) return alert('Crea primero una venta');
-    const sku = String($('#sales-sku').value||'').trim().toUpperCase(); // normalizamos a MAYÚSCULAS
+    const sku = String($('#sales-sku').value||'').trim().toUpperCase();
     if(!sku) return;
     current = await API.sales.addItem(current._id, { source:'inventory', sku, qty:1 });
     $('#sales-sku').value = '';
     render();
   };
 
-  // ====== PICKERS (Inventario / Precios) ======
+  // -------- pickers --------
   $('#sales-add-inv').onclick = () => openInventoryPicker();
   $('#sales-add-prices').onclick = () => openPricesPicker();
 
-  // ====== LECTOR DE QR (Slice 4) ======
+  // -------- LECTOR DE QR (con fallback jsQR) --------
   $('#sales-scan-qr').onclick = () => openQRScanner();
 
   async function openQRScanner(){
@@ -187,19 +223,22 @@ export function initSales(){
       </div>
       <div class="qrwrap">
         <video id="qr-video" playsinline muted></video>
+        <canvas id="qr-canvas" style="display:none;"></canvas>
         <div class="qr-hud"></div>
       </div>
       <div class="row" style="gap:8px;margin-top:8px;">
         <input id="qr-manual" placeholder="Ingresar código manualmente (fallback)">
         <button id="qr-add-manual">Agregar</button>
       </div>
-      <div class="muted" id="qr-msg" style="margin-top:6px;">Permite la cámara para escanear. Compatibilidad óptima en Chrome/Edge/Android.</div>
+      <div class="muted" id="qr-msg" style="margin-top:6px;">Permite la cámara para escanear. Si no hay soporte nativo, uso jsQR.</div>
       <ul id="qr-history" class="qr-history"></ul>
     `;
     const cleanupKey = openModal();
     closeBtn && (closeBtn.onclick = () => { cleanupKey?.(); stopStream(); closeModal(); });
 
     const video = $('#qr-video');
+    const canvas = $('#qr-canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const sel = $('#qr-cam');
     const msg = $('#qr-msg');
     const list = $('#qr-history');
@@ -207,6 +246,7 @@ export function initSales(){
 
     let stream = null;
     let running = false;
+    let useNative = await isNativeQRSupported();
     let detector = null;
 
     async function enumerateCams(){
@@ -214,22 +254,12 @@ export function initSales(){
         const devices = await navigator.mediaDevices.enumerateDevices();
         const cams = devices.filter(d => d.kind === 'videoinput');
         sel.innerHTML = cams.map((d,i)=>`<option value="${d.deviceId}">${d.label || 'Cam '+(i+1)}</option>`).join('');
-      } catch(e){
+      } catch {
         sel.innerHTML = `<option value="">(cámara)</option>`;
       }
     }
 
     async function startStream(){
-      try {
-        if (!('BarcodeDetector' in window)) {
-          msg.textContent = 'Este navegador no soporta BarcodeDetector. Puedes ingresar el código manualmente.';
-        } else {
-          detector = new window.BarcodeDetector({ formats: ['qr_code'] });
-        }
-      } catch {
-        detector = null;
-      }
-
       try {
         stopStream();
         const deviceId = sel.value || undefined;
@@ -239,41 +269,68 @@ export function initSales(){
         });
         video.srcObject = stream;
         await video.play();
+
         running = true;
+
+        if (useNative) {
+          try { detector = new window.BarcodeDetector({ formats: ['qr_code'] }); }
+          catch { useNative = false; }
+        }
+        if (!useNative) {
+          // Fallback: jsQR
+          try { await ensureJsQR(); }
+          catch { msg.textContent = 'No fue posible cargar jsQR. Usa el campo manual.'; }
+        }
+
+        msg.textContent = useNative ? 'Escanea un código QR…' : 'Escaneo con jsQR activo…';
         tick();
-        msg.textContent = 'Escanea un código QR…';
       } catch (e) {
-        msg.textContent = 'No se pudo abrir la cámara. Revisa permisos.';
+        msg.textContent = 'No se pudo abrir la cámara. Revisa permisos/HTTPS.';
       }
     }
 
     function stopStream(){
       running = false;
       if (video) try { video.pause(); } catch {}
-      if (stream) {
-        stream.getTracks().forEach(t => t.stop());
-        stream = null;
-      }
+      if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
     }
 
-    async function handleCode(code){
-      const codeStr = String(code||'').trim();
+    async function handleCode(raw){
+      const codeStr = String(raw||'').trim();
       if(!codeStr) return;
-      // añade al historial visual
+
+      // Historial visual
       const li = document.createElement('li');
       li.textContent = `QR: ${codeStr}`;
       list.prepend(li);
 
       try {
-        const res = await API.sales.addByQR(current._id, codeStr);
-        if (res && res._id) {
-          current = res;
+        // 1) Si es un código del inventario (IT:company:item:sku), agregamos por refId directo
+        const parsed = parseInventoryCode(codeStr);
+        if (parsed) {
+          current = await API.sales.addItem(current._id, { source:'inventory', refId: parsed.itemId, qty: 1 });
           render();
-        } else if (res && res.sale) {
-          current = res.sale;
-          render();
+          msg.textContent = `Agregado por QR (Ítem ${parsed.sku}).`;
+          if (autoclose.checked) { stopStream(); closeModal(); }
+          return;
         }
-        msg.textContent = 'Agregado correctamente.';
+
+        // 2) Si no, probamos el endpoint addByQR (si el backend lo resolvió)
+        if (API.sales?.addByQR) {
+          const res = await API.sales.addByQR(current._id, codeStr);
+          if (res && (res._id || res.sale)) {
+            current = res.sale || res;
+            render();
+            msg.textContent = 'Agregado por QR.';
+            if (autoclose.checked) { stopStream(); closeModal(); }
+            return;
+          }
+        }
+
+        // 3) Último intento: usar el código como SKU
+        current = await API.sales.addItem(current._id, { source:'inventory', sku: codeStr.toUpperCase(), qty: 1 });
+        render();
+        msg.textContent = 'Agregado por SKU leído.';
         if (autoclose.checked) { stopStream(); closeModal(); }
       } catch (e) {
         msg.textContent = e?.message || 'No se pudo agregar por QR';
@@ -283,12 +340,24 @@ export function initSales(){
     async function tick(){
       if(!running) return;
       try {
-        if (detector) {
+        if (useNative && detector) {
           const codes = await detector.detect(video);
           if (codes && codes.length) {
-            await handleCode(codes[0].rawValue || codes[0].rawValue || codes[0].rawValue);
-            // Espera un poco antes de seguir (evitar múltiples lecturas)
+            await handleCode(codes[0].rawValue || codes[0].rawValue);
             await new Promise(r => setTimeout(r, 700));
+          }
+        } else if (window.jsQR && video.readyState >= 2) {
+          // Capturar frame a canvas
+          const w = video.videoWidth, h = video.videoHeight;
+          if (w && h) {
+            canvas.width = w; canvas.height = h;
+            ctx.drawImage(video, 0, 0, w, h);
+            const img = ctx.getImageData(0, 0, w, h);
+            const result = window.jsQR(img.data, w, h, { inversionAttempts: 'attemptBoth' });
+            if (result && result.data) {
+              await handleCode(result.data);
+              await new Promise(r => setTimeout(r, 700));
+            }
           }
         }
       } catch {}
@@ -300,10 +369,7 @@ export function initSales(){
     $('#qr-add-manual').onclick = () => handleCode($('#qr-manual').value);
 
     await enumerateCams();
-    // autostart si hay camaras
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      startStream();
-    }
+    if (navigator.mediaDevices?.getUserMedia) startStream();
   }
 
   // ====== PICKER: Inventario ======
@@ -342,7 +408,6 @@ export function initSales(){
     const renderSlice = async ()=>{
       const chunk = all.slice(0, shown);
       const rows = await Promise.all(chunk.map(async it => {
-        // Miniatura del ítem (primer archivo si existe)
         let thumb = '';
         try {
           const f = Array.isArray(it.files) ? it.files[0] : null;
@@ -350,7 +415,6 @@ export function initSales(){
           if (url) thumb = `<img src="${url}" alt="img" class="thumb">`;
         } catch {}
 
-        // QR (objectURL con Bearer, miniatura clickeable para descargar)
         let qrCell = '—';
         try {
           const qrUrl = await getQRObjectURL(it._id, 96);
@@ -372,7 +436,6 @@ export function initSales(){
       $('#p-inv-body').innerHTML = rows.join('') || `<tr><td colspan="99">Sin resultados</td></tr>`;
       $('#p-inv-count').textContent = chunk.length ? `${chunk.length}/${all.length}` : '';
 
-      // binds agregar
       $('#p-inv-body').querySelectorAll('button[data-add]').forEach(btn=>{
         btn.onclick = async ()=>{
           const id = btn.getAttribute('data-add');
@@ -380,7 +443,6 @@ export function initSales(){
           render();
         };
       });
-      // binds QR download
       $('#p-inv-body').querySelectorAll('img[data-qr]').forEach(img=>{
         img.onclick = async ()=>{
           const id = img.getAttribute('data-qr');
@@ -392,7 +454,7 @@ export function initSales(){
       });
     };
 
-    // --- Helper normalizado: siempre devuelve array (r | r.items | r.data) ---
+    // helper normalizado: siempre array (r | r.items | r.data)
     async function fetchItems(params){
       const r = await API.inventory.itemsList(params);
       return Array.isArray(r) ? r : (r.items || r.data || []);
@@ -400,26 +462,15 @@ export function initSales(){
 
     const doSearch = async ()=>{
       const rawSku = String($('#p-inv-sku').value||'').trim();
-      const sku = rawSku.toUpperCase();            // normalizar a mayúsculas
+      const sku = rawSku.toUpperCase();
       const name = String($('#p-inv-name').value||'').trim();
 
       try {
-        // 1) intento directo con sku/name
         let list = await fetchItems({ sku, name });
-
-        // 2) si no hay, intenta con 'q'
         if (!list.length && (sku || name)) {
           const q = [sku, name].filter(Boolean).join(' ');
-          list = await fetchItems({ q });
+          list = await fetchItems({ q }) || await fetchItems({ text: q });
         }
-
-        // 3) si no hay, intenta con 'text'
-        if (!list.length && (sku || name)) {
-          const q = [sku, name].filter(Boolean).join(' ');
-          list = await fetchItems({ text: q });
-        }
-
-        // 4) si sigue vacío, trae todo y filtra en cliente
         if (!list.length && (sku || name)) {
           const allSrv = await fetchItems({});
           const needle = (sku || name).toLowerCase();
@@ -429,7 +480,6 @@ export function initSales(){
             return s.includes(needle) || n.includes(needle);
           });
         }
-
         all = list || [];
         shown = Math.min(PAGE, all.length);
         await renderSlice();
@@ -443,8 +493,7 @@ export function initSales(){
     $('#p-inv-name').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doSearch(); });
     $('#p-inv-more').onclick = async ()=>{ shown = Math.min(shown + PAGE, all.length); await renderSlice(); };
 
-    // Primer load vacío
-    doSearch();
+    doSearch(); // primer load
   }
 
   // ====== PICKER: Precios ======
@@ -453,11 +502,8 @@ export function initSales(){
     const modal = $('#modal'), bodyM = $('#modalBody'), closeBtn = $('#modalClose');
     if(!modal || !bodyM) return alert('No se encontró el modal global');
 
-    // Traer servicios para filtrar por servicio
     let services = [];
     try { services = (await API.servicesList())?.items || (await API.servicesList()) || []; } catch {}
-
-    // Servicio seleccionado y sus variables (para columnas dinámicas)
     let selectedSvc = services[0] || { variables: [] };
 
     bodyM.innerHTML = `
@@ -524,7 +570,6 @@ export function initSales(){
         `;
       }).join('') || `<tr><td colspan="99">Sin resultados</td></tr>`;
       $('#p-pr-count').textContent = chunk.length ? `${chunk.length}/${all.length}` : '';
-      // binds
       $('#p-pr-body').querySelectorAll('button[data-add]').forEach(btn=>{
         btn.onclick = async ()=>{
           const id = btn.getAttribute('data-add');
@@ -560,11 +605,11 @@ export function initSales(){
     $('#p-pr-svc')?.addEventListener('change', doSearch);
     $('#p-pr-more').onclick = ()=>{ shown = Math.min(shown + PAGE, all.length); renderSlice(); };
 
-    // Primer load
     renderHead();
     doSearch();
   }
 
+  // -------- cliente/vehículo & cierre --------
   $('#sales-save-cv').onclick = async ()=>{
     if(!current) return alert('Crea primero una venta');
     const customer = {
