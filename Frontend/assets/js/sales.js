@@ -41,19 +41,17 @@ function downloadBlobUrl(url, filename='qr.png'){
   a.href = url; a.download = filename; a.click();
 }
 
-// ---- util: detectar soporte BarcodeDetector para QR ----
+// ---- util: soporte BarcodeDetector ----
 async function isNativeQRSupported(){
   if (!('BarcodeDetector' in window)) return false;
   try {
     const fmts = await window.BarcodeDetector.getSupportedFormats?.();
     if (Array.isArray(fmts)) return fmts.includes('qr_code');
-    return true; // algunos navegadores no exponen getSupportedFormats
-  } catch {
     return true;
-  }
+  } catch { return true; }
 }
 
-// ---- util: cargar jsQR on-demand (fallback) ----
+// ---- util: jsQR (fallback) ----
 let jsQRPromise = null;
 function ensureJsQR(){
   if (window.jsQR) return Promise.resolve(window.jsQR);
@@ -69,13 +67,22 @@ function ensureJsQR(){
   return jsQRPromise;
 }
 
-// ---- parseo de payload IT:<companyId>:<itemId>:<sku> ----
+// ---- parseo flexible de IT:... ----
+// Acepta:
+//   IT:<itemId>
+//   IT:<companyId>:<itemId>
+//   IT:<companyId>:<itemId>:<sku?>
 function parseInventoryCode(raw=''){
   const s = String(raw||'').trim();
-  if (!s.startsWith('IT:')) return null;
-  const parts = s.split(':');
-  if (parts.length < 4) return null;
-  return { companyId: parts[1], itemId: parts[2], sku: (parts[3]||'').toUpperCase() };
+  if (!s.toUpperCase().startsWith('IT:')) return null;
+  const parts = s.split(':').map(p=>p.trim()).filter(Boolean);
+  // ejemplos:
+  // ['IT','<itemId>']  -> itemId = parts[1]
+  // ['IT','<companyId>','<itemId>'] -> itemId = parts[2]
+  // ['IT','<companyId>','<itemId>','<sku?>'] -> idem + sku
+  if (parts.length === 2) return { itemId: parts[1], companyId: null, sku: null };
+  if (parts.length >= 3) return { companyId: parts[1] || null, itemId: parts[2] || null, sku: (parts[3]||'').toUpperCase() || null };
+  return null;
 }
 
 // ====== UI Ventas ======
@@ -199,7 +206,7 @@ export function initSales(){
   $('#sales-add-inv').onclick = () => openInventoryPicker();
   $('#sales-add-prices').onclick = () => openPricesPicker();
 
-  // -------- LECTOR DE QR (con fallback jsQR) --------
+  // -------- LECTOR DE QR (nativo + fallback jsQR) --------
   $('#sales-scan-qr').onclick = () => openQRScanner();
 
   async function openQRScanner(){
@@ -277,7 +284,6 @@ export function initSales(){
           catch { useNative = false; }
         }
         if (!useNative) {
-          // Fallback: jsQR
           try { await ensureJsQR(); }
           catch { msg.textContent = 'No fue posible cargar jsQR. Usa el campo manual.'; }
         }
@@ -305,17 +311,17 @@ export function initSales(){
       list.prepend(li);
 
       try {
-        // 1) Si es un código del inventario (IT:company:item:sku), agregamos por refId directo
+        // 1) Si es un código del inventario (IT:...), agregamos por refId (itemId)
         const parsed = parseInventoryCode(codeStr);
-        if (parsed) {
+        if (parsed && parsed.itemId) {
           current = await API.sales.addItem(current._id, { source:'inventory', refId: parsed.itemId, qty: 1 });
           render();
-          msg.textContent = `Agregado por QR (Ítem ${parsed.sku}).`;
+          msg.textContent = `Agregado por QR (ítem ${parsed.sku || parsed.itemId}).`;
           if (autoclose.checked) { stopStream(); closeModal(); }
           return;
         }
 
-        // 2) Si no, probamos el endpoint addByQR (si el backend lo resolvió)
+        // 2) Si no, endpoint addByQR (si existe en tu backend)
         if (API.sales?.addByQR) {
           const res = await API.sales.addByQR(current._id, codeStr);
           if (res && (res._id || res.sale)) {
@@ -327,7 +333,7 @@ export function initSales(){
           }
         }
 
-        // 3) Último intento: usar el código como SKU
+        // 3) Último intento: usarlo como SKU
         current = await API.sales.addItem(current._id, { source:'inventory', sku: codeStr.toUpperCase(), qty: 1 });
         render();
         msg.textContent = 'Agregado por SKU leído.';
@@ -347,7 +353,6 @@ export function initSales(){
             await new Promise(r => setTimeout(r, 700));
           }
         } else if (window.jsQR && video.readyState >= 2) {
-          // Capturar frame a canvas
           const w = video.videoWidth, h = video.videoHeight;
           if (w && h) {
             canvas.width = w; canvas.height = h;
