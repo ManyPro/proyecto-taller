@@ -150,9 +150,15 @@ API.pricesExport = async (params = {}) => {
 };
 
 // === Inventory ===
+// === Inventory ===
 API.inventory = {
-  itemsList: (params = {}) => http.get(`/api/v1/inventory/items${toQuery(params)}`)
+  itemsList: async (params = {}) => {
+    const r = await http.get(`/api/v1/inventory/items${toQuery(params)}`);
+    // normaliza forma de respuesta a array
+    return Array.isArray(r) ? r : (r.items || r.data || []);
+  }
 };
+
 
 // === Sales (VENTAS) ===
 API.sales = {

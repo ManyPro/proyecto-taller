@@ -151,14 +151,14 @@ export function initSales(){
 
   $('#sales-add-sku').onclick = async ()=>{
     if(!current) return alert('Crea primero una venta');
-    const sku = String($('#sales-sku').value||'').trim();
+    const sku = String($('#sales-sku').value||'').trim().toUpperCase(); // normalizamos a MAYÚSCULAS
     if(!sku) return;
     current = await API.sales.addItem(current._id, { source:'inventory', sku, qty:1 });
     $('#sales-sku').value = '';
     render();
   };
 
-  // ====== Slice 2: PICKERS (mejorados) ======
+  // ====== PICKERS (Inventario / Precios) ======
   $('#sales-add-inv').onclick = () => openInventoryPicker();
   $('#sales-add-prices').onclick = () => openPricesPicker();
 
@@ -247,12 +247,45 @@ export function initSales(){
       });
     };
 
+    // --- Helper normalizado: siempre devuelve array (r | r.items | r.data) ---
+    async function fetchItems(params){
+      const r = await API.inventory.itemsList(params);
+      return Array.isArray(r) ? r : (r.items || r.data || []);
+    }
+
     const doSearch = async ()=>{
-      const sku = String($('#p-inv-sku').value||'').trim();
+      const rawSku = String($('#p-inv-sku').value||'').trim();
+      const sku = rawSku.toUpperCase();            // normalizar a mayúsculas
       const name = String($('#p-inv-name').value||'').trim();
+
       try {
-        const res = await API.inventory.itemsList({ sku, name });
-        all = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
+        // 1) intento directo con sku/name
+        let list = await fetchItems({ sku, name });
+
+        // 2) si no hay, intenta con 'q'
+        if (!list.length && (sku || name)) {
+          const q = [sku, name].filter(Boolean).join(' ');
+          list = await fetchItems({ q });
+        }
+
+        // 3) si no hay, intenta con 'text'
+        if (!list.length && (sku || name)) {
+          const q = [sku, name].filter(Boolean).join(' ');
+          list = await fetchItems({ text: q });
+        }
+
+        // 4) si sigue vacío, trae todo y filtra en cliente
+        if (!list.length && (sku || name)) {
+          const allSrv = await fetchItems({});
+          const needle = (sku || name).toLowerCase();
+          list = (allSrv || []).filter(it => {
+            const s = String(it.sku||'').toLowerCase();
+            const n = String(it.name||'').toLowerCase();
+            return s.includes(needle) || n.includes(needle);
+          });
+        }
+
+        all = list || [];
         shown = Math.min(PAGE, all.length);
         await renderSlice();
       } catch(e) {
