@@ -1,26 +1,25 @@
 import { Router } from 'express';
 import {
   startSale, getSale, addItem, updateItem, removeItem,
-  setCustomerVehicle, closeSale, addByQR,
-  listSales, summarySales
+  setCustomerVehicle, closeSale, addByQR, listSales, summarySales
 } from '../controllers/sales.controller.js';
 
-const r = Router();
+const router = Router();
 
-// Caja / listados
-r.get('/', listSales);
-r.get('/summary', summarySales);
+// CRUD básico de la venta en curso
+router.post('/start', startSale);
+router.get('/:id', getSale);
+router.post('/:id/items', addItem);
+router.put('/:id/items/:itemId', updateItem);
+router.delete('/:id/items/:itemId', removeItem);
+router.put('/:id/customer-vehicle', setCustomerVehicle);
+router.post('/:id/close', closeSale);
 
-// Flujo principal
-r.post('/start', startSale);
-r.get('/:id', getSale);
-r.post('/:id/items', addItem);
-r.put('/:id/items/:itemId', updateItem);
-r.delete('/:id/items/:itemId', removeItem);
-r.put('/:id/customer', setCustomerVehicle);
-r.post('/:id/close', closeSale);
+// QR
+router.post('/addByQR', addByQR);
 
-// QR -> agrega ítem por código (IT:...)
-r.post('/addByQR', addByQR);
+// Listado / Resumen (Caja)
+router.get('/', listSales);
+router.get('/summary', summarySales);
 
-export default r;
+export default router;

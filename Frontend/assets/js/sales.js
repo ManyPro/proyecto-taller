@@ -47,7 +47,7 @@ async function isNativeQRSupported(){
   try {
     const fmts = await window.BarcodeDetector.getSupportedFormats?.();
     if (Array.isArray(fmts)) return fmts.includes('qr_code');
-    return true; // algunos navegadores no exponen getSupportedFormats
+    return true;
   } catch {
     return true;
   }
@@ -203,7 +203,7 @@ export function initSales(){
       </div>
       <div class="row" style="gap:8px;">
         <button id="sales-scan-qr" class="secondary">Escanear QR</button>
-        <button id="sales-print" class="secondary">Imprimir</button>
+        <button id="sales-print" class="secondary">PDF</button>
         <button id="sales-share-wa" class="secondary">WhatsApp</button>
         <button id="sales-close" class="danger">Cerrar venta</button>
       </div>
@@ -256,11 +256,10 @@ export function initSales(){
 
   let current = null; // venta actual
 
-  // ===== Multi-pestaña (scope superior de initSales) =====
+  // ===== Multi-pestaña =====
   const OPEN_KEY = `sales:openTabs:${API.getActiveCompany?.() || 'default'}`;
   let openTabs = [];
   try { openTabs = JSON.parse(localStorage.getItem(OPEN_KEY) || '[]'); } catch { openTabs = []; }
-
   function saveTabs(){ try { localStorage.setItem(OPEN_KEY, JSON.stringify(openTabs)); } catch {} }
   function addOpen(id){ if(!openTabs.includes(id)){ openTabs.push(id); saveTabs(); } renderSaleTabs(); }
   function removeOpen(id){ openTabs = openTabs.filter(x => x !== id); saveTabs(); renderSaleTabs(); }
@@ -280,13 +279,12 @@ export function initSales(){
       </span>
     `).join('') || `<span class="sales-tab">— sin ventas abiertas —</span>`;
     wrap.querySelectorAll('.sales-tab').forEach(el => {
-      el.onclick = (e)=>{ const id = el.dataset.id; if(id) switchTo(id); };
+      el.onclick = ()=>{ const id = el.dataset.id; if(id) switchTo(id); };
     });
     wrap.querySelectorAll('[data-x]').forEach(el => {
-      el.onclick = (e)=>{ e.stopPropagation(); removeOpen(el.dataset.x); };
+      el.onclick = (e)=>{ e.stopPropagation(); removeOpen(el.dataset.x); if (current?._id===el.dataset.x){ current=null; render(); } };
     });
   }
-  // ========================================================
 
   const body = $('#sales-body');
   const totalEl = $('#sales-total');
@@ -752,7 +750,7 @@ export function initSales(){
     doSearch();
   }
 
-  // -------- Imprimir / WhatsApp --------
+  // -------- PDF / WhatsApp --------
   $('#sales-print').onclick = async ()=>{
     if(!current) return alert('Crea primero una venta');
     try {
@@ -814,5 +812,6 @@ export function initSales(){
     }
   };
 
+  // inicio
   renderSaleTabs();
 }

@@ -17,8 +17,8 @@ const tokenKeyFor = (email) => `taller.token:${SCOPE}:${String(email || '').toLo
 // Empresa activa en localStorage
 const activeCompany = {
   get: () => (typeof localStorage !== 'undefined' ? (localStorage.getItem(ACTIVE_KEY) || '') : ''),
-  set: (email) => { try { localStorage.setItem(ACTIVE_KEY, String(email || '').toLowerCase()); } catch { } },
-  clear: () => { try { localStorage.removeItem(ACTIVE_KEY); } catch { } }
+  set: (email) => { try { localStorage.setItem(ACTIVE_KEY, String(email || '').toLowerCase()); } catch {} },
+  clear: () => { try { localStorage.removeItem(ACTIVE_KEY); } catch {} }
 };
 
 // Token por empresa (usa la empresa activa por defecto)
@@ -27,8 +27,8 @@ const tokenStore = {
     const em = (email || activeCompany.get());
     return (typeof localStorage !== 'undefined') ? (localStorage.getItem(tokenKeyFor(em)) || '') : '';
   },
-  set: (t, email) => { try { localStorage.setItem(tokenKeyFor(email || activeCompany.get()), t || ''); } catch { } },
-  clear: (email) => { try { localStorage.removeItem(tokenKeyFor(email || activeCompany.get())); } catch { } }
+  set: (t, email) => { try { localStorage.setItem(tokenKeyFor(email || activeCompany.get()), t || ''); } catch {} },
+  clear: (email) => { try { localStorage.removeItem(tokenKeyFor(email || activeCompany.get())); } catch {} }
 };
 
 // ===== HTTP core =====
@@ -62,12 +62,21 @@ async function coreRequest(method, path, data, extraHeaders = {}) {
 const http = {
   get: (path) => coreRequest('GET', path, null),
   post: (path, payload) => coreRequest('POST', path, payload),
+  put: (path, payload) => coreRequest('PUT', path, payload),
+  del: (path) => coreRequest('DELETE', path, null),
   upload: (path, files) => {
     const fd = new FormData();
     for (const f of files) fd.append('files[]', f);
     return coreRequest('POST', path, fd);
   }
 };
+
+// ===== Utils =====
+function toQuery(params = {}) {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && String(v).trim() !== '') qs.set(k, v); });
+  const s = qs.toString(); return s ? `?${s}` : '';
+}
 
 // =======================
 // API público
@@ -83,8 +92,7 @@ const API = {
   // --- Auth empresa ---
   companyRegister: (payload) => http.post('/api/v1/auth/company/register', payload),
   async companyLogin(payload) {
-    // Esperamos { token, email, ... }
-    const res = await http.post('/api/v1/auth/company/login', payload);
+    const res = await http.post('/api/v1/auth/company/login', payload); // { token, email, ... }
     const email = String(res?.email || payload?.email || '').toLowerCase();
     if (!res?.token || !email) throw new Error('Login inválido');
     activeCompany.set(email);
@@ -93,100 +101,89 @@ const API = {
   },
   companyMe: () => http.get('/api/v1/auth/company/me'),
   async logout() {
-    try { await http.post('/api/v1/auth/company/logout', {}); } catch { }
+    try { await http.post('/api/v1/auth/company/logout', {}); } catch {}
     tokenStore.clear();
     activeCompany.clear();
   },
 
-  // --- Notas / Media ---
-  notesList: (q = '') => http.get(`/api/v1/notes${q}`),
-  notesCreate: (payload) => http.post('/api/v1/notes', payload),
-  mediaUpload: (files) => http.upload('/api/v1/media/upload', files),
-
-  // --- Aliases retro ---
+  // Aliases retro-compatibles
   register: (payload) => http.post('/api/v1/auth/company/register', payload),
   login: (payload) => API.companyLogin(payload),
   me: () => API.companyMe(),
   registerCompany: (payload) => http.post('/api/v1/auth/company/register', payload),
   loginCompany: (payload) => API.companyLogin(payload),
 
+  // --- Notas / Media ---
+  notesList: (q = '') => http.get(`/api/v1/notes${q}`),
+  notesCreate: (payload) => http.post('/api/v1/notes', payload),
+  mediaUpload: (files) => http.upload('/api/v1/media/upload', files),
+
   // --- Cotizaciones ---
   quotesList: (q = '') => http.get(`/api/v1/quotes${q}`),
   quoteCreate: (payload) => http.post('/api/v1/quotes', payload),
   quoteUpdate: (id, payload) => http.post(`/api/v1/quotes/${id}`, payload),
-  quotePatch: (id, payload) => coreRequest('PATCH', `/api/v1/quotes/${id}`, payload),
-  quoteDelete: (id) => coreRequest('DELETE', `/api/v1/quotes/${id}`)
-};
+  quotePatch: (id, payload) => http.put(`/api/v1/quotes/${id}`, payload),
+  quoteDelete: (id) => http.del(`/api/v1/quotes/${id}`),
 
-// === Services ===
-API.servicesList = () => http.get('/api/v1/services');
-API.serviceCreate = (payload) => http.post('/api/v1/services', payload);
-API.serviceUpdate = (id, body) => coreRequest('PUT', `/api/v1/services/${id}`, body);
-API.serviceDelete = (id) => coreRequest('DELETE', `/api/v1/services/${id}`);
+  // --- Servicios ---
+  servicesList: () => http.get('/api/v1/services'),
+  serviceCreate: (payload) => http.post('/api/v1/services', payload),
+  serviceUpdate: (id, body) => http.put(`/api/v1/services/${id}`, body),
+  serviceDelete: (id) => http.del(`/api/v1/services/${id}`),
 
-// === Prices ===
-function toQuery(params = {}) {
-  const qs = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && String(v).trim() !== '') qs.set(k, v); });
-  const s = qs.toString(); return s ? `?${s}` : '';
-}
-API.pricesList = (params = {}) => http.get(`/api/v1/prices${toQuery(params)}`);
-API.priceCreate = (payload) => http.post('/api/v1/prices', payload);
-API.priceUpdate = (id, body) => coreRequest('PUT', `/api/v1/prices/${id}`, body);
-API.priceDelete = (id) => coreRequest('DELETE', `/api/v1/prices/${id}`);
+  // --- Lista de precios ---
+  pricesList: (params = {}) => http.get(`/api/v1/prices${toQuery(params)}`),
+  priceCreate: (payload) => http.post('/api/v1/prices', payload),
+  priceUpdate: (id, body) => http.put(`/api/v1/prices/${id}`, body),
+  priceDelete: (id) => http.del(`/api/v1/prices/${id}`),
+  pricesImport: (formData) => coreRequest('POST', `/api/v1/prices/import`, formData),
+  pricesExport: async (params = {}) => {
+    const tok = tokenStore.get();
+    const res = await fetch(`${API_BASE}/api/v1/prices/export${toQuery(params)}`, {
+      method: 'GET',
+      headers: tok ? { 'Authorization': `Bearer ${tok}` } : {},
+      cache: 'no-store',
+      credentials: 'omit'
+    });
+    if (!res.ok) throw new Error('No se pudo exportar CSV');
+    return await res.blob();
+  },
 
-// === Prices: Import / Export ===
-API.pricesImport = (formData) => coreRequest('POST', `/api/v1/prices/import`, formData);
-API.pricesExport = async (params = {}) => {
-  const tok = tokenStore.get();
-  const res = await fetch(`${API_BASE}/api/v1/prices/export${toQuery(params)}`, {
-    method: 'GET',
-    headers: tok ? { 'Authorization': `Bearer ${tok}` } : {},
-    cache: 'no-store',
-    credentials: 'omit'
-  });
-  if (!res.ok) throw new Error('No se pudo exportar CSV');
-  return await res.blob();
-};
+  // --- Inventario ---
+  inventory: {
+    itemsList: async (params = {}) => {
+      const r = await http.get(`/api/v1/inventory/items${toQuery(params)}`);
+      return Array.isArray(r) ? r : (r.items || r.data || []);
+    }
+  },
 
-// === Inventory ===
-API.inventory = {
-  itemsList: async (params = {}) => {
-    const r = await http.get(`/api/v1/inventory/items${toQuery(params)}`);
-    // normaliza forma de respuesta a array
-    return Array.isArray(r) ? r : (r.items || r.data || []);
+  // --- Ventas ---
+  sales: {
+    start: () => http.post('/api/v1/sales/start', {}),
+    get: (id) => http.get(`/api/v1/sales/${id}`),
+
+    addItem: (id, payload) =>
+      http.post(`/api/v1/sales/${id}/items`, payload),
+
+    updateItem: (id, itemId, payload) =>
+      http.put(`/api/v1/sales/${id}/items/${itemId}`, payload),
+
+    removeItem: (id, itemId) =>
+      http.del(`/api/v1/sales/${id}/items/${itemId}`),
+
+    setCustomerVehicle: (id, payload) =>
+      http.put(`/api/v1/sales/${id}/customer-vehicle`, payload),
+
+    close: (id) =>
+      http.post(`/api/v1/sales/${id}/close`, {}),
+
+    addByQR: (saleId, payload) =>
+      http.post(`/api/v1/sales/addByQR`, { saleId, payload }),
+
+    list: (params = {}) => http.get(`/api/v1/sales${toQuery(params)}`),
+    summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`)
   }
 };
-
-
-// === Sales (VENTAS) ===
-API.sales = {
-  start: () => coreRequest('POST', '/api/v1/sales/start', {}),
-  get:   (id) => http.get(`/api/v1/sales/${id}`),
-
-  addItem: (id, payload) =>
-    coreRequest('POST', `/api/v1/sales/${id}/items`, payload),
-
-  updateItem: (id, itemId, payload) =>
-    coreRequest('PUT', `/api/v1/sales/${id}/items/${itemId}`, payload),
-
-  removeItem: (id, itemId) =>
-    coreRequest('DELETE', `/api/v1/sales/${id}/items/${itemId}`),
-
-  setCustomerVehicle: (id, payload) =>
-    coreRequest('PUT', `/api/v1/sales/${id}/customer`, payload),
-
-  close: (id) =>
-    coreRequest('POST', `/api/v1/sales/${id}/close`, {}),
-
-  addByQR: (saleId, code) =>
-    coreRequest('POST', `/api/v1/sales/addByQR`, { saleId, code }),
-
-  // NEW
-  list:    (params = {}) => http.get(`/api/v1/sales${toQuery(params)}`),
-  summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`)
-};
-
 
 // Exports
 export { API, tokenStore as authToken };
