@@ -1,500 +1,794 @@
-// Frontend/assets/js/sales.js
-// Ventas multi-pestaña + QR + PDF + WhatsApp + Cotizaciones mini → Venta + Orden de trabajo.
+/* assets/js/sales.js
+   Ventas (panel derecho) + Cotizaciones mini y Orden de Trabajo (panel izquierdo)
+   - No inyecta HTML; se conecta a IDs definidos en index.html
+*/
 
-import { API } from './api.js';
+import { API } from "./api.js";
 
-// ---------- helpers ----------
-const $  = (s, r = document) => r.querySelector(s);
-const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
-const money = (n) => '$' + Math.round(Number(n || 0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+/* ===================== helpers ===================== */
+const $  = (s, root=document) => root.querySelector(s);
+const $$ = (s, root=document) => Array.from(root.querySelectorAll(s));
+const money = (n) => '$' + Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 
-function openModal() {
-  const m = $('#modal'); if (!m) return ()=>{};
-  m.classList.remove('hidden');
-  const onKey = (e)=>{ if (e.key === 'Escape') closeModal(); };
-  document.addEventListener('keydown', onKey);
+function openModal(){
+  const modal = $('#modal'); if(!modal) return ()=>{};
+  modal.classList.remove('hidden');
   document.body.style.overflow = 'hidden';
+  const onKey = (e)=>{ if(e.key==='Escape') closeModal(); };
+  document.addEventListener('keydown', onKey);
   return ()=>document.removeEventListener('keydown', onKey);
 }
 function closeModal(){
-  const m = $('#modal'); if (!m) return;
-  m.classList.add('hidden'); document.body.style.overflow = '';
-}
-async function fetchCompanySafe(){ try{ return await API.me(); }catch{ return null; } }
-
-// ---------- estado ventas ----------
-const state = {
-  current: null,           // venta activa
-  cache: new Map(),        // id -> sale
-  openTabs: [],            // ids abiertas
-  titles: {},              // id -> título custom
-  quote: null,             // cotización cargada en panel izquierdo
-
-  keyTabs()  { return `sales:openTabs:${API.getActiveCompany?.()||'default'}`; },
-  keyTitles(){ return `sales:titles:${API.getActiveCompany?.()||'default'}`; },
-
-  load(){
-    try{ this.openTabs = JSON.parse(localStorage.getItem(this.keyTabs())||'[]'); }catch{ this.openTabs = []; }
-    try{ this.titles   = JSON.parse(localStorage.getItem(this.keyTitles())||'{}'); }catch{ this.titles = {}; }
-  },
-  saveTabs(){ try{ localStorage.setItem(this.keyTabs(), JSON.stringify(this.openTabs)); }catch{} },
-  saveTitles(){ try{ localStorage.setItem(this.keyTitles(), JSON.stringify(this.titles)); }catch{} },
-  addTab(id){ if (!this.openTabs.includes(id)) { this.openTabs.push(id); this.saveTabs(); } renderTabs(); },
-  removeTab(id){ this.openTabs = this.openTabs.filter(x=>x!==id); this.saveTabs(); renderTabs(); },
-};
-
-function computeTitle(sale){
-  const custom = state.titles[sale?._id];
-  if (custom) return custom;
-  const plate = sale?.vehicle?.plate?.toUpperCase();
-  if (plate) return `Venta (${plate})`;
-  const nro = sale?.number ? String(sale.number).padStart(4,'0') : (sale?._id||'').slice(-4).toUpperCase();
-  return `Vta ${nro}`;
+  const modal = $('#modal'); if(!modal) return;
+  modal.classList.add('hidden');
+  document.body.style.overflow = '';
 }
 
-// ---------- render pestañas ----------
-function renderTabs(){
-  const wrap = $('#saleTabs'); if (!wrap) return;
-  wrap.innerHTML = state.openTabs.map(id=>{
-    const s = state.cache.get(id);
-    const title = s ? computeTitle(s) : `Vta ${String(id).slice(-4).toUpperCase()}`;
-    const act = state.current?._id===id ? 'active' : '';
-    return `<span class="sale-tab ${act}" data-id="${id}" title="${title}">
-      ${title} <b class="close" data-x="${id}">×</b>
-    </span>`;
-  }).join('') || `<span class="sale-tab muted">— sin ventas abiertas —</span>`;
-
-  $$('#saleTabs [data-id]').forEach(el=>{
-    el.onclick = ()=>switchTo(el.dataset.id);
-    el.ondblclick = async ()=>{
-      const id = el.dataset.id;
-      const s = state.cache.get(id);
-      const current = state.titles[id] || computeTitle(s || {});
-      const name = prompt('Nombre de la venta', current || '');
-      if (name && name.trim()){
-        try{
-          state.titles[id] = name.trim(); state.saveTitles(); renderTabs();
-          // si quieres persistir en BD:
-          await API.sales.update(id, { title: name.trim() });
-          // refrescar cache
-          const updated = await API.sales.get(id); state.cache.set(id, updated); if (state.current?._id===id) state.current = updated;
-          renderMini(); renderTabs();
-        }catch(e){ console.warn(e); }
-      }
-    };
-  });
-  $$('#saleTabs [data-x]').forEach(el=>{
-    el.onclick = (ev)=>{ ev.stopPropagation(); const id = el.dataset.x;
-      if (state.current?._id === id) state.current = null;
-      state.removeTab(id); renderSale();
-    };
-  });
-}
-
-// ---------- render venta ----------
-const bodyEl = $('#sales-body'); const totalEl = $('#sales-total');
-
-function renderMini(){
-  const s = state.current;
-  $('#sv-mini-plate').textContent = s?.vehicle?.plate?.toUpperCase() || '—';
-  $('#sv-mini-name').textContent  = 'Cliente: ' + (s?.customer?.name || '—');
-  $('#sv-mini-phone').textContent = 'Cel: ' + (s?.customer?.phone || '—');
-}
-
-function bindRow(tr, itemId){
-  tr.querySelector('.qty').onchange = async (e)=>{
-    const qty = Number(e.target.value||0);
-    state.current = await API.sales.updateItem(state.current._id, itemId, { qty });
-    state.cache.set(state.current._id, state.current); renderSale();
-  };
-  tr.querySelector('.u').onchange = async (e)=>{
-    const unitPrice = Number(e.target.value||0);
-    state.current = await API.sales.updateItem(state.current._id, itemId, { unitPrice });
-    state.cache.set(state.current._id, state.current); renderSale();
-  };
-  tr.querySelector('[data-del]').onclick = async ()=>{
-    state.current = await API.sales.removeItem(state.current._id, itemId);
-    state.cache.set(state.current._id, state.current); renderSale();
-  };
-}
-
-function renderSale(){
-  if (!state.current){
-    bodyEl.innerHTML = ''; totalEl.textContent = '$0';
-    renderMini(); renderTabs(); renderOT(); return;
-  }
-  const rows = (state.current.items||[]).map(it=>`
-    <tr data-id="${it._id}">
-      <td>${it.sku || ''}</td>
-      <td>${it.name || ''}</td>
-      <td><input type="number" class="qty" min="0" step="1" value="${it.qty||1}"></td>
-      <td><input type="number" class="u"   min="0" step="1" value="${it.unitPrice||0}"></td>
-      <td>${money(it.total||0)}</td>
-      <td><button class="danger" data-del>Eliminar</button></td>
-    </tr>
-  `).join('');
-  bodyEl.innerHTML = rows || `<tr><td colspan="99" class="muted">— sin ítems —</td></tr>`;
-  totalEl.textContent = money(state.current.total||0);
-
-  $$('#sales-body tr').forEach(tr=>{
-    const id = tr.getAttribute('data-id');
-    if (id) bindRow(tr, id);
-  });
-
-  renderMini();
-  state.cache.set(state.current._id, state.current);
-  renderTabs();
-  renderOT(); // Orden de trabajo se alimenta de la venta
-}
-
-// ---------- Orden de trabajo (usa la venta activa) ----------
-function renderOT(){
-  const tb = $('#ot-body'); if (!tb) return;
-  const items = state.current?.items || [];
-  tb.innerHTML = items.map(it=>`
-    <tr>
-      <td>${it.name || it.sku || ''}</td>
-      <td>${it.qty || 1}</td>
-    </tr>
-  `).join('') || `<tr><td colspan="2" class="muted">— sin ítems —</td></tr>`;
-}
-function printOT(){
-  if (!state.current) return alert('No hay venta activa');
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit:'mm', format:'a4' });
-  const company = $('#appTitle')?.textContent || 'Taller Automotriz';
-  doc.setFontSize(16); doc.text('ORDEN DE TRABAJO', 105, 14, { align:'center' });
-  doc.setFontSize(11);
-  const v = state.current.vehicle || {}, c = state.current.customer || {};
-  doc.text(`Empresa: ${company}`, 14, 26);
-  doc.text(`Cliente: ${c.name||'-'}  |  Cel: ${c.phone||'-'}`, 14, 33);
-  doc.text(`Vehículo: ${v.plate||'-'}  ${v.brand||''} ${v.line||''} ${v.engine||''} ${v.year||''}`, 14, 40);
-
-  const body = (state.current.items||[]).map((it,i)=>[i+1, it.name||it.sku||'', String(it.qty||1)]);
-  doc.autoTable({ startY: 48, head:[['#','Descripción','Cant.']], body, styles:{ fontSize:10 }, theme:'grid' });
-  doc.setFontSize(9); doc.text('Firma técnico: ___________________________', 14, 280);
-  doc.save(`OT_${(state.current._id||'').slice(-6)}.pdf`);
-}
-
-// ---------- acciones de venta ----------
-async function switchTo(id){
-  state.current = await API.sales.get(id);
-  state.cache.set(id, state.current); state.addTab(id); renderSale();
-}
-async function startSale(){
-  const s = await API.sales.start();
-  state.current = s; state.cache.set(s._id, s); state.addTab(s._id); renderSale();
-}
-
-// ---------- QR (nativo + jsQR fallback) ----------
+/* ========= QR tools (nativo + fallback jsQR) ========= */
 async function isNativeQRSupported(){
   if (!('BarcodeDetector' in window)) return false;
-  try{ const fmts = await window.BarcodeDetector.getSupportedFormats?.(); return Array.isArray(fmts) ? fmts.includes('qr_code') : true; }catch{return true;}
+  try {
+    const fmts = await window.BarcodeDetector.getSupportedFormats?.();
+    if (Array.isArray(fmts)) return fmts.includes('qr_code');
+    return true;
+  } catch { return true; }
 }
-let jsQRPromise=null;
+let jsQRPromise = null;
 function ensureJsQR(){
   if (window.jsQR) return Promise.resolve(window.jsQR);
   if (jsQRPromise) return jsQRPromise;
   jsQRPromise = new Promise((resolve,reject)=>{
     const s = document.createElement('script');
     s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
-    s.onload = ()=>resolve(window.jsQR); s.onerror=()=>reject(new Error('jsQR load error'));
+    s.async = true;
+    s.onload = ()=> resolve(window.jsQR);
+    s.onerror = ()=> reject(new Error('No se pudo cargar jsQR'));
     document.head.appendChild(s);
-  }); return jsQRPromise;
+  });
+  return jsQRPromise;
 }
 function parseInventoryCode(raw=''){
-  const s = String(raw||'').trim(); if (!s.toUpperCase().startsWith('IT:')) return null;
-  const p = s.split(':').filter(Boolean); if (p.length===2) return { itemId:p[1] };
-  if (p.length>=3) return { companyId:p[1]||null, itemId:p[2]||null, sku:(p[3]||'').toUpperCase()||null };
+  const s = String(raw||'').trim();
+  if (!s.toUpperCase().startsWith('IT:')) return null;
+  const parts = s.split(':').map(p=>p.trim()).filter(Boolean);
+  if (parts.length === 2) return { itemId: parts[1], companyId: null, sku: null };
+  if (parts.length >= 3) return { companyId: parts[1] || null, itemId: parts[2] || null, sku: (parts[3]||'').toUpperCase() || null };
   return null;
 }
-async function openQRScanner(){
-  if (!state.current) return alert('Crea primero una venta');
-  const cleanup = openModal();
-  $('#modalBody').innerHTML = `
-    <h3>Lector de QR</h3>
-    <div class="qrbar">
-      <button id="qr-start" class="secondary">Iniciar</button>
-      <button id="qr-stop"  class="secondary">Detener</button>
-      <label style="margin-left:8px;"><input id="qr-autoclose" type="checkbox" checked> Cerrar al agregar</label>
-    </div>
-    <video id="qr-video" playsinline muted style="width:100%;max-height:300px;background:#000;border-radius:8px;margin-top:8px;"></video>
-    <canvas id="qr-canvas" style="display:none;"></canvas>
-    <div class="row" style="gap:8px;margin-top:8px;">
-      <input id="qr-manual" placeholder="Ingresar código manualmente (fallback)">
-      <button id="qr-add-manual">Agregar</button>
-    </div>
-    <div id="qr-msg" class="muted" style="margin-top:6px;">Permite la cámara para escanear</div>
-  `;
-  $('#modalClose').onclick = ()=>{ stop(); cleanup?.(); closeModal(); };
 
-  const video = $('#qr-video'); const canvas=$('#qr-canvas'); const ctx=canvas.getContext('2d',{willReadFrequently:true});
-  let stream=null, running=false, native=await isNativeQRSupported(), detector=null;
-
-  async function start(){
-    try{
-      stop();
-      stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'environment' }, audio:false });
-      video.srcObject = stream; await video.play(); running=true;
-      if (native){ try{ detector = new window.BarcodeDetector({ formats:['qr_code'] }); }catch{ native=false; } }
-      if (!native){ try{ await ensureJsQR(); }catch{} }
-      $('#qr-msg').textContent = native ? 'Escanea un QR…' : 'Escaneo con jsQR activo…';
-      tick();
-    }catch{ $('#qr-msg').textContent='No se pudo abrir la cámara'; }
-  }
-  function stop(){ running=false; try{video.pause();}catch{} if (stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } }
-  async function handle(code){
-    const s = String(code||'').trim(); if (!s) return;
-    const parsed = parseInventoryCode(s);
-    try{
-      if (parsed?.itemId){
-        state.current = await API.sales.addItem(state.current._id, { source:'inventory', refId: parsed.itemId, qty:1 });
-      } else {
-        state.current = await API.sales.addItem(state.current._id, { source:'inventory', sku: s.toUpperCase(), qty:1 });
-      }
-      state.cache.set(state.current._id, state.current); renderSale();
-      if ($('#qr-autoclose').checked){ stop(); cleanup?.(); closeModal(); }
-    }catch(e){ $('#qr-msg').textContent = e?.message || 'No se pudo agregar'; }
-  }
-  async function tick(){
-    if (!running) return;
-    try{
-      if (native && detector){
-        const codes = await detector.detect(video);
-        if (codes?.length){ await handle(codes[0].rawValue || codes[0].rawValue); await new Promise(r=>setTimeout(r,700)); }
-      } else if (window.jsQR && video.readyState >= 2){
-        const w=video.videoWidth,h=video.videoHeight; if (w && h){
-          canvas.width=w; canvas.height=h; ctx.drawImage(video,0,0,w,h);
-          const img = ctx.getImageData(0,0,w,h); const res = window.jsQR(img.data,w,h,{inversionAttempts:'attemptBoth'});
-          if (res?.data){ await handle(res.data); await new Promise(r=>setTimeout(r,700)); }
-        }
-      }
-    }catch{}
-    requestAnimationFrame(tick);
-  }
-  $('#qr-start').onclick = start; $('#qr-stop').onclick = stop;
-  $('#qr-add-manual').onclick = ()=>handle($('#qr-manual').value);
-  if (navigator.mediaDevices?.getUserMedia) start();
-}
-
-// ---------- Cotizaciones MINI (panel izquierdo) ----------
-function renderQuotePanel(){
-  const legend = $('#q-legend');
-  const tb = $('#q-body');
-  if (!legend || !tb) return;
-  if (!state.quote){
-    legend.textContent = '— ninguna cotización cargada —';
-    tb.innerHTML = '';
-    return;
-  }
-  legend.textContent = `Cotización: ${state.quote.number ? `#${String(state.quote.number).padStart(4,'0')}` : (state.quote._id||'').slice(-6).toUpperCase()} — ${state.quote.customer?.name || ''}`;
-  const items = state.quote.items || [];
-  tb.innerHTML = items.map((it, i)=>`
-    <tr>
-      <td>${it.type?.toUpperCase?.() || (it.inventoryRefId ? 'INV' : (it.priceRefId ? 'PRC' : 'CUS'))}</td>
-      <td>${it.description || it.name || it.sku || ''}</td>
-      <td>${it.qty || 1}</td>
-      <td>${money(it.unitPrice || 0)}</td>
-      <td>${money((it.qty||1)*(it.unitPrice||0))}</td>
-      <td><button data-pass="${i}">→ Venta</button></td>
-    </tr>
-  `).join('') || `<tr><td colspan="99" class="muted">— sin ítems —</td></tr>`;
-  $$('#q-body [data-pass]').forEach(btn=>{
-    btn.onclick = ()=>passQuoteLineToSale(items[Number(btn.dataset.pass)]);
+/* ========= QR PNG (preview/descarga desde backend) ========= */
+const qrCache = new Map(); // itemId -> objectURL
+async function getQRObjectURL(itemId, size=128){
+  if(qrCache.has(itemId)) return qrCache.get(itemId);
+  const tok = API.token.get?.();
+  const res = await fetch(`${API.base}/api/v1/inventory/items/${itemId}/qr.png?size=${size}`, {
+    headers: tok ? { 'Authorization': `Bearer ${tok}` } : {},
+    cache: 'no-store',
+    credentials: 'omit'
   });
+  if(!res.ok) throw new Error('QR no disponible');
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  qrCache.set(itemId, url);
+  return url;
 }
-async function passQuoteLineToSale(line){
-  if (!state.current) return alert('Primero crea/abre una venta (pestaña derecha).');
+function downloadBlobUrl(url, filename='qr.png'){
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+}
+
+/* ========= PDF helpers ========= */
+async function fetchCompanySafe(){
   try{
-    // inventario
-    if (line.inventoryRefId){
-      state.current = await API.sales.addItem(state.current._id, {
-        source: 'inventory',
-        refId: line.inventoryRefId,
-        qty: line.qty || 1
-      });
-    }
-    // precio (servicio/tabla)
-    else if (line.priceRefId){
-      state.current = await API.sales.addItem(state.current._id, {
-        source: 'price',
-        refId: line.priceRefId,
-        qty: line.qty || 1
-      });
-    }
-    // custom/libre
-    else{
-      state.current = await API.sales.addItem(state.current._id, {
-        source: 'custom',
-        name: line.description || line.name || '',
-        sku:  line.sku || '',
-        unitPrice: line.unitPrice || 0,
-        qty: line.qty || 1
-      });
-    }
-    state.cache.set(state.current._id, state.current);
-    renderSale();
-  }catch(e){ alert(e?.message || 'No se pudo pasar a venta'); }
+    const tok = API.token.get?.();
+    const r = await fetch(`${API.base}/api/v1/auth/company/me`, {
+      headers: tok ? { 'Authorization': `Bearer ${tok}` } : {},
+      cache:'no-store', credentials:'omit'
+    });
+    if (!r.ok) return null;
+    return await r.json();
+  }catch{ return null; }
 }
-async function passQuoteAllToSale(){
-  if (!state.quote) return;
-  for (const line of (state.quote.items||[])) await passQuoteLineToSale(line);
-}
+function numberToMoney(n){ return money(n); }
+async function buildSalePdf(sale){
+  const jsPDF = window.jspdf?.jsPDF;
+  if(!jsPDF){ alert('No se encontró jsPDF'); return; }
+  const doc = new jsPDF('p','mm','a4');
 
-async function openQuotePicker(){
-  const tpl = $('#tpl-quote-picker'); if (!tpl) return alert('Falta plantilla de modal para buscar cotizaciones');
-  const frag = tpl.content.cloneNode(true);
-  $('#modalBody').innerHTML=''; $('#modalBody').appendChild(frag);
-  const cleanup = openModal();
-  $('#modalClose').onclick = ()=>{ cleanup?.(); closeModal(); };
-
-  const qInput = $('#qp-q'); const listEl = $('#qp-list'); const moreBtn = $('#qp-more');
-  let page=1, pageSize=10, lastQ='';
-  async function load(reset=false){
-    try{
-      const q = String(qInput.value||'').trim();
-      if (reset){ page=1; lastQ=q; listEl.innerHTML=''; }
-      const res = await API.quotes.search({ q, page, pageSize });
-      const items = Array.isArray(res?.items) ? res.items : [];
-      listEl.insertAdjacentHTML('beforeend', items.map(it=>`
-        <tr>
-          <td>${it.number ? '#'+String(it.number).padStart(4,'0') : (it._id||'').slice(-6).toUpperCase()}</td>
-          <td>${it.customer?.name || ''}</td>
-          <td>${(it.items?.length || 0)}</td>
-          <td>${money(it.total || 0)}</td>
-          <td><button data-use="${it._id}">Usar</button></td>
-        </tr>
-      `).join(''));
-      $$('#qp-list [data-use]').forEach(btn=>{
-        btn.onclick = async ()=>{
-          try{
-            const q = await API.quotes.get(btn.dataset.use);
-            state.quote = q; renderQuotePanel();
-            cleanup?.(); closeModal();
-          }catch(e){ alert(e?.message || 'No se pudo cargar la cotización'); }
-        };
-      });
-      page += 1;
-    }catch(e){ alert(e?.message || 'No se pudo buscar'); }
-  }
-  $('#qp-search').onclick = ()=>load(true);
-  qInput.addEventListener('keydown', e=>{ if (e.key==='Enter') load(true); });
-  moreBtn.onclick = ()=>load(false);
-  load(true);
-}
-
-// ---------- PDF & WhatsApp ----------
-function numberToMoney(n){ return '$' + Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.'); }
-function buildSalePdf(sale, company){
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit:'mm', format:'a4' });
-  const C = { name:company?.name||'Taller Automotriz', email:company?.email||'', nit:company?.nit||'', phone:company?.phone||'' };
-  doc.setFontSize(14); doc.text(C.name, 14, 16);
-  doc.setFontSize(10); if (C.nit) doc.text(`NIT: ${C.nit}`,14,22); if (C.phone) doc.text(`Tel: ${C.phone}`,14,27); if (C.email) doc.text(C.email,14,32);
-  doc.setFontSize(16); doc.text('VENTA', 196, 16, { align:'right' });
-  const nro = sale.number ? String(sale.number).padStart(5,'0') : (sale._id||'').slice(-6).toUpperCase();
-  doc.setFontSize(10); doc.text(`No: ${nro}`,196,22,{align:'right'}); doc.text(`Estado: ${sale.status?.toUpperCase()||'OPEN'}`,196,27,{align:'right'});
-
-  const y0=40; const c=sale.customer||{}, v=sale.vehicle||{};
-  doc.setFontSize(11); doc.text('Cliente',14,y0); doc.text('Vehículo',110,y0);
+  const when = window.dayjs ? dayjs(sale.createdAt).format('DD/MM/YYYY HH:mm') : new Date().toLocaleString();
+  const nro = sale.number ? String(sale.number).padStart(5,'0') : (sale._id || '').slice(-6).toUpperCase();
+  doc.setFontSize(14); doc.text('FACTURA / COMPROBANTE', 14, 16);
   doc.setFontSize(10);
-  doc.text([`Nombre: ${c.name||'-'}`,`Identificación: ${c.idNumber||'-'}`,`Tel: ${c.phone||'-'}`,`Email: ${c.email||'-'}`,`Dirección: ${c.address||'-'}`],14,y0+6);
-  doc.text([`Placa: ${v.plate||'-'}`,`Marca: ${v.brand||'-'}`,`Línea: ${v.line||'-'}`,`Motor: ${v.engine||'-'}`,`Año: ${v.year||'-'}  |  Km: ${v.mileage??'-'}`],110,y0+6);
+  doc.text(`No: ${nro}`, 196, 22, { align: 'right' });
+  doc.text(`Fecha: ${when}`, 196, 27, { align: 'right' });
+  doc.text(`Estado: ${sale.status?.toUpperCase() || 'OPEN'}`, 196, 32, { align: 'right' });
+
+  const y0=40; doc.setFontSize(11); doc.text('Cliente',14,y0); doc.text('Vehículo',110,y0);
+  const c = sale.customer || {}, v = sale.vehicle || {};
+  doc.setFontSize(10);
+  doc.text([`Nombre: ${c.name||'-'}`, `Identificación: ${c.idNumber||'-'}`, `Tel: ${c.phone||'-'}`, `Email: ${c.email||'-'}`, `Dirección: ${c.address||'-'}`], 14, y0+6);
+  doc.text([`Placa: ${v.plate||'-'}`, `Marca: ${v.brand||'-'}`, `Línea: ${v.line||'-'}`, `Motor: ${v.engine||'-'}`, `Año: ${v.year||'-'}  |  Km: ${v.mileage ?? '-'}`], 110, y0+6);
 
   const head=[['SKU','Descripción','Cant.','Unit','Total']];
   const body=(sale.items||[]).map(it=>[it.sku||'',it.name||'',String(it.qty||1),numberToMoney(it.unitPrice||0),numberToMoney(it.total||0)]);
-  doc.autoTable({ startY:y0+36, head, body, styles:{fontSize:9, cellPadding:2}, headStyles:{fillColor:[15,23,42]}, theme:'grid' });
-
-  const endY=doc.lastAutoTable.finalY||y0+36;
-  doc.setFontSize(11);
-  doc.text(`Subtotal: ${numberToMoney(sale.subtotal||0)}`,196,endY+8,{align:'right'});
-  doc.text(`Impuestos: ${numberToMoney(sale.tax||0)}`,196,endY+14,{align:'right'});
-  doc.setFontSize(13); doc.text(`TOTAL: ${numberToMoney(sale.total||0)}`,196,endY+22,{align:'right'});
+  const startY=y0+36;
+  if(typeof doc.autoTable==='function'){
+    doc.autoTable({startY, head, body, styles:{fontSize:9,cellPadding:2}, headStyles:{fillColor:[15,23,42]}, theme:'grid'});
+    const endY = doc.lastAutoTable.finalY || (startY+10);
+    const right = (x)=>196-x;
+    doc.setFontSize(11);
+    doc.text(`Subtotal: ${numberToMoney(sale.subtotal||0)}`, right(0), endY+8, {align:'right'});
+    doc.text(`Impuestos: ${numberToMoney(sale.tax||0)}`, right(0), endY+14, {align:'right'});
+    doc.setFontSize(13);
+    doc.text(`TOTAL: ${numberToMoney(sale.total||0)}`, right(0), endY+22, {align:'right'});
+  }
+  doc.setFontSize(9); doc.text('Gracias por su compra.', 14, 290);
   return doc;
 }
 
-// ---------- init ----------
+/* ===================== Estado de ventas ===================== */
+let current = null; // venta activa
+
+const OPEN_KEY = `sales:openTabs:${API.getActiveCompany?.() || 'default'}`;
+let openTabs = [];
+try { openTabs = JSON.parse(localStorage.getItem(OPEN_KEY) || '[]'); } catch { openTabs = []; }
+function saveTabs(){ try { localStorage.setItem(OPEN_KEY, JSON.stringify(openTabs)); } catch{} }
+function addOpen(id){ if(!openTabs.includes(id)){ openTabs.push(id); saveTabs(); } renderSaleTabs(); }
+function removeOpen(id){ openTabs = openTabs.filter(x => x !== id); saveTabs(); renderSaleTabs(); }
+
+/* ======================== UI Ventas ======================== */
 export function initSales(){
-  state.load(); renderTabs();
+  const tab = document.getElementById('tab-ventas');
+  if(!tab) return;
 
-  // barra superior
-  $('#sales-start')    && ($('#sales-start').onclick    = startSale);
-  $('#sales-scan-qr')  && ($('#sales-scan-qr').onclick  = openQRScanner);
-  $('#sales-add-sku')  && ($('#sales-add-sku').onclick  = async ()=>{
-    if (!state.current) return alert('Crea primero una venta');
-    const sku = String($('#sales-sku').value||'').trim().toUpperCase(); if (!sku) return;
-    state.current = await API.sales.addItem(state.current._id, { source:'inventory', sku, qty:1 });
-    $('#sales-sku').value='';
-    state.cache.set(state.current._id, state.current); renderSale();
-  });
-  $('#sales-share-wa') && ($('#sales-share-wa').onclick = async ()=>{
-    if (!state.current) return alert('Crea primero una venta');
-    const company = await fetchCompanySafe();
-    const nro = state.current.number ? String(state.current.number).padStart(5,'0') : (state.current._id||'').slice(-6).toUpperCase();
-    const lines = (state.current.items||[]).map(it=>`• ${it.sku||''} x${it.qty||1} — ${it.name||''} — ${money(it.total||0)}`).join('%0A') || '— sin ítems —';
-    const url = `https://wa.me/?text=*${encodeURIComponent(company?.name||'Taller')}*%0A*Venta No.* ${nro}%0A%0A${lines}%0A%0A*TOTAL:* ${money(state.current.total||0)}`;
-    window.open(url,'_blank');
-  });
-  $('#sales-print') && ($('#sales-print').onclick = async ()=>{
-    if (!state.current) return alert('Crea primero una venta');
-    const doc = buildSalePdf(state.current, await fetchCompanySafe());
-    const nro = state.current.number ? String(state.current.number).padStart(5,'0') : (state.current._id||'').slice(-6).toUpperCase();
-    doc.save(`venta_${nro}.pdf`);
-  });
-  $('#sales-close') && ($('#sales-close').onclick = async ()=>{
-    if (!state.current) return alert('No hay venta activa');
-    if (!confirm('¿Cerrar la venta actual?')) return;
-    await API.sales.close(state.current._id);
-    const closedId = state.current._id; state.current = null; state.removeTab(closedId); renderSale();
-  });
+  /* refs Ventas (derecha) */
+  const tableBody = $('#sales-body');
+  const totalEl   = $('#sales-total');
 
-  // editar cliente / vehículo
-  $('#sv-edit-cv') && ($('#sv-edit-cv').onclick = ()=>{
-    if (!state.current) return alert('Crea primero una venta');
-    const t = $('#sales-cv-template'); if (!t) return;
-    const frag = t.content.cloneNode(true);
-    $('#modalBody').innerHTML=''; $('#modalBody').appendChild(frag); const cleanup=openModal();
-    $('#modalClose').onclick = ()=>{ cleanup?.(); closeModal(); };
+  async function switchTo(id){
+    current = await API.sales.get(id);
+    addOpen(id);
+    renderSale(); renderMiniCustomer(); renderWorkOrder();
+  }
 
-    // prefill
-    $('#c-name').value = state.current.customer?.name || '';
-    $('#c-id').value   = state.current.customer?.idNumber || '';
-    $('#c-phone').value= state.current.customer?.phone || '';
-    $('#c-email').value= state.current.customer?.email || '';
-    $('#c-address').value= state.current.customer?.address || '';
+  function renderSaleTabs(){
+    const wrap = document.getElementById('saleTabs');
+    if(!wrap) return;
+    wrap.innerHTML = openTabs.map(id => `
+      <span class="sales-tab ${current && current._id===id ? 'active':''}" data-id="${id}">
+        Vta ${String(id).slice(-4).toUpperCase()} <b class="close" data-x="${id}">×</b>
+      </span>
+    `).join('') || `<span class="sales-tab">— sin ventas abiertas —</span>`;
+    wrap.querySelectorAll('.sales-tab').forEach(el => {
+      el.onclick = () => { const id = el.dataset.id; if(id) switchTo(id); };
+    });
+    wrap.querySelectorAll('[data-x]').forEach(el => {
+      el.onclick = (e)=>{ e.stopPropagation(); removeOpen(el.dataset.x); if (current?._id===el.dataset.x){ current=null; renderSale(); } };
+    });
+  }
 
-    $('#v-plate').value = state.current.vehicle?.plate || '';
-    $('#v-brand').value = state.current.vehicle?.brand || '';
-    $('#v-line').value  = state.current.vehicle?.line || '';
-    $('#v-engine').value= state.current.vehicle?.engine || '';
-    $('#v-year').value  = state.current.vehicle?.year || '';
-    $('#v-mile').value  = state.current.vehicle?.mileage ?? '';
+  function renderSale(){
+    if(!current){ tableBody.innerHTML=''; totalEl.textContent='$0'; return; }
+    tableBody.innerHTML = (current.items||[]).map(it=>`
+      <tr data-id="${it._id}">
+        <td>${it.sku||''}</td>
+        <td>${it.name||''}</td>
+        <td><input type="number" min="0" step="1" value="${it.qty||1}" class="qty"></td>
+        <td><input type="number" min="0" step="1" value="${it.unitPrice||0}" class="u"></td>
+        <td>${money(it.total||0)}</td>
+        <td><button class="danger" data-del>Eliminar</button></td>
+      </tr>
+    `).join('');
+    totalEl.textContent = money(current.total||0);
+
+    tableBody.querySelectorAll('tr').forEach(tr=>{
+      const itemId = tr.dataset.id;
+      tr.querySelector('.qty').onchange = async (e)=>{ 
+        const qty = Number(e.target.value||0);
+        current = await API.sales.updateItem(current._id, itemId, { qty });
+        renderSale(); renderWorkOrder();
+      };
+      tr.querySelector('.u').onchange = async (e)=>{ 
+        const unitPrice = Number(e.target.value||0);
+        current = await API.sales.updateItem(current._id, itemId, { unitPrice });
+        renderSale(); renderWorkOrder();
+      };
+      tr.querySelector('[data-del]').onclick = async ()=>{ 
+        current = await API.sales.removeItem(current._id, itemId);
+        renderSale(); renderWorkOrder();
+      };
+    });
+  }
+
+  /* ===== mini cliente/vehículo (preview) + modal edición ===== */
+  function renderMiniCustomer(){
+    const c = current?.customer || {};
+    const v = current?.vehicle || {};
+    $('#sv-mini-plate').textContent = v?.plate ? v.plate.toUpperCase() : '—';
+    $('#sv-mini-name').textContent  = `Cliente: ${c?.name || '—'}`;
+    $('#sv-mini-phone').textContent = `Cel: ${c?.phone || '—'}`;
+  }
+
+  function openCVModal(){
+    const modal = $('#modal'), bodyM = $('#modalBody'), closeBtn = $('#modalClose');
+    if(!modal || !bodyM) return alert('No se encontró el modal global');
+    bodyM.innerHTML = '';
+    const tpl = $('#sales-cv-template');
+    const node = tpl.content.cloneNode(true);
+    bodyM.appendChild(node);
+
+    const c = current?.customer || {}, v = current?.vehicle || {};
+    $('#c-name').value = c.name || ''; $('#c-id').value = c.idNumber || '';
+    $('#c-phone').value= c.phone || ''; $('#c-email').value= c.email || '';
+    $('#c-address').value = c.address || '';
+    $('#v-plate').value = v.plate || ''; $('#v-brand').value = v.brand || '';
+    $('#v-line').value  = v.line  || ''; $('#v-engine').value = v.engine || '';
+    $('#v-year').value  = v.year  || ''; $('#v-mile').value   = v.mileage || '';
 
     $('#sales-save-cv').onclick = async ()=>{
+      if(!current) return;
       const customer = {
         name: $('#c-name').value, idNumber: $('#c-id').value,
         phone: $('#c-phone').value, email: $('#c-email').value, address: $('#c-address').value
       };
       const vehicle = {
         plate: $('#v-plate').value, brand: $('#v-brand').value, line: $('#v-line').value,
-        engine: $('#v-engine').value, year: $('#v-year').value, mileage: Number($('#v-mile').value||0) || undefined
+        engine: $('#v-engine').value, year: Number($('#v-year').value || 0) || null, mileage: Number($('#v-mile').value || 0) || null
       };
-      state.current = await API.sales.setCustomerVehicle(state.current._id, { customer, vehicle });
-      state.cache.set(state.current._id, state.current); renderSale(); cleanup?.(); closeModal();
+      current = await API.sales.setCustomerVehicle(current._id, { customer, vehicle });
+      renderMiniCustomer();
+      closeModal();
     };
-  });
 
-  // cotizaciones mini
-  $('#q-use-existing') && ($('#q-use-existing').onclick = openQuotePicker);
-  $('#q-create-new')  && ($('#q-create-new').onclick = async ()=>{
+    const cleanupKey = openModal();
+    closeBtn && (closeBtn.onclick = () => { cleanupKey?.(); closeModal(); });
+  }
+
+  $('#sv-edit-cv').onclick = openCVModal;
+
+  /* ===== acciones base ventas ===== */
+  $('#sales-start').onclick = async ()=>{ current = await API.sales.start(); addOpen(current._id); renderSale(); renderMiniCustomer(); renderWorkOrder(); };
+
+  $('#sales-add-sku').onclick = async ()=>{
+    if(!current) return alert('Crea primero una venta');
+    const sku = String($('#sales-sku').value||'').trim().toUpperCase();
+    if(!sku) return;
+    current = await API.sales.addItem(current._id, { source:'inventory', sku, qty:1 });
+    $('#sales-sku').value = '';
+    renderSale(); renderWorkOrder();
+  };
+
+  $('#sales-share-wa').onclick = async ()=>{
+    if(!current) return;
+    const company = await fetchCompanySafe();
+    const nro = current.number ? String(current.number).padStart(5,'0') : (current._id || '').slice(-6).toUpperCase();
+    const when = window.dayjs ? dayjs(current.createdAt).format('DD/MM/YYYY HH:mm') : new Date().toLocaleString();
+    const lines = (current.items||[]).map(it => `• ${it.sku||''} x${it.qty||1} — ${it.name||''} — ${money(it.total||0)}`);
+    const header = `*${company?.name || 'Taller'}*%0A*Venta No.* ${nro} — ${when}`;
+    const body   = lines.join('%0A') || '— sin ítems —';
+    const footer = `%0A*TOTAL:* ${money(current.total||0)}`;
+    const url = `https://wa.me/?text=${header}%0A%0A${body}%0A%0A${footer}`;
+    window.open(url, '_blank');
+  };
+
+  $('#sales-print').onclick = async ()=>{ if(!current) return; const doc = await buildSalePdf(current); doc.save(`venta_${current.number||current._id}.pdf`); };
+
+  $('#sales-close').onclick = async ()=>{
+    if(!current) return;
     try{
-      const q = await API.quotes.create({ items: [] });
-      state.quote = q; renderQuotePanel();
-    }catch(e){ alert(e?.message || 'No se pudo crear cotización'); }
-  });
-  $('#q-pass-all') && ($('#q-pass-all').onclick = passQuoteAllToSale);
+      await API.sales.close(current._id); // asigna secuencia/estado en backend
+      removeOpen(current._id);
+      current = null;
+      renderSale(); renderMiniCustomer(); renderWorkOrder();
+    }catch(e){ alert(e?.message || 'No se pudo cerrar'); }
+  };
 
-  // pestaña por defecto
-  if (state.openTabs.length){ switchTo(state.openTabs[state.openTabs.length-1]).catch(()=>renderTabs()); }
-  else { renderQuotePanel(); renderOT(); }
-}
+  renderSaleTabs();
+
+  /* =================== Panel izquierdo =================== */
+  // ------ Cotizaciones mini ------
+  let miniQuote = null;
+
+  async function quotesSearch(text=''){
+    // Usa API.quotesList si existe, si no, fetch directo a /api/v1/quotes (protegido).
+    if (API.quotesList) {
+      const r = await API.quotesList(`?q=${encodeURIComponent(text)}&limit=50`);
+      return Array.isArray(r?.data) ? r.data : (Array.isArray(r) ? r : []);
+    }
+    const tok = API.token.get?.();
+    const res = await fetch(`${API.base}/api/v1/quotes?q=${encodeURIComponent(text)}&limit=50`, {
+      headers: tok ? { 'Authorization': `Bearer ${tok}` } : {}
+    });
+    if (!res.ok) throw new Error('No se pudo listar cotizaciones');
+    return await res.json();
+  }
+
+  $('#sv-loadQuote').onclick = async ()=>{
+    const q = prompt('Buscar por placa o cliente (deja vacío para ver recientes):') || '';
+    try{
+      const list = await quotesSearch(q); // rutas /api/v1/quotes protegidas por authCompany :contentReference[oaicite:1]{index=1}
+      if(!list.length){ alert('Sin resultados'); return; }
+      const options = list.map((it, i)=>`${i+1}. ${it.number || '—'} — ${it.vehicle?.plate || '—'} — ${it.customer?.name || '—'} — ${new Date(it.createdAt).toLocaleString()}`).join('\n');
+      const pick = prompt(`Selecciona (1-${list.length}):\n\n${options}`);
+      const idx = Number(pick||0)-1;
+      if(idx>=0 && idx<list.length){ miniQuote = list[idx]; renderMiniQuote(); }
+    }catch(e){ alert(e?.message || 'No se pudo cargar'); }
+  };
+
+  $('#sv-newQuote').onclick = ()=>{
+    miniQuote = { number: 'NUEVA', items: [], customer:{}, vehicle:{} };
+    renderMiniQuote();
+  };
+
+  function renderMiniQuote(){
+    const hdr = $('#sv-q-header'), tbody = $('#sv-q-body');
+    if(!miniQuote){ hdr.textContent = '— ninguna cotización cargada —'; tbody.innerHTML=''; return; }
+    hdr.textContent = `Cotización ${miniQuote.number || '—'} — ${miniQuote.vehicle?.plate || '—'} — ${miniQuote.customer?.name || '—'}`;
+
+    const rows = (miniQuote.items||[]).map((r,i)=>`
+      <tr data-i="${i}">
+        <td>${String(r.kind||'').toUpperCase().startsWith('SERV') ? 'Serv.' : 'Prod.'}</td>
+        <td>${r.description || ''}</td>
+        <td class="t-center">${r.qty || 1}</td>
+        <td class="t-right">${money(r.unitPrice||0)}</td>
+        <td class="t-right">${money(r.subtotal || ((r.qty||1)*(r.unitPrice||0)))}</td>
+        <td class="t-center"><button class="secondary" data-pass>→</button></td>
+      </tr>
+    `).join('');
+    tbody.innerHTML = rows;
+
+    // pasar individual (te pido equivalencia desde inventario)
+    tbody.querySelectorAll('[data-pass]').forEach(btn=>{
+      btn.onclick = ()=>{
+        if(!current) return alert('Crea primero una venta');
+        openInventoryPicker();
+      };
+    });
+    renderWorkOrder();
+  }
+
+  // ---- Orden de trabajo (imprime los ítems de la venta actual) ----
+  function renderWorkOrder(){
+    const tbody = $('#sv-wo-body');
+    const items = current?.items || [];
+    tbody.innerHTML = items.map(it=>`
+      <tr><td>${it.name || ''}</td><td class="t-center">${it.qty || 1}</td></tr>
+    `).join('');
+  }
+
+  $('#sv-q-to-sale').onclick = ()=>{
+    if(!current) return alert('Crea primero una venta');
+    if(!miniQuote?.items?.length) return alert('No hay ítems en la cotización');
+    // estrategia segura: abre el picker para mapear equivalentes
+    openPricesPicker();
+  };
+
+  $('#sv-print-wo').onclick = ()=>{
+    if(!current) return alert('Crea primero una venta');
+    const jsPDF = window.jspdf?.jsPDF;
+    if(!jsPDF) return alert('No se encontró jsPDF');
+    const doc = new jsPDF('p','mm','a4');
+    doc.setFontSize(16); doc.text('ORDEN DE TRABAJO', 14, 18);
+    const c = current.customer || {}, v = current.vehicle || {};
+    doc.setFontSize(11);
+    doc.text(`Cliente: ${c.name||'-'}`, 14, 28);
+    doc.text(`Tel: ${c.phone||'-'}  •  Email: ${c.email||'-'}`, 14, 34);
+    doc.text(`Placa: ${v.plate||'-'}  •  Vehículo: ${[v.brand,v.line,v.year].filter(Boolean).join(' ')||'-'}`, 14, 40);
+
+    const head = [['Descripción','Cant.']];
+    const body = (current.items||[]).map(it => [it.name||'', String(it.qty||1)]);
+    const startY = 48;
+    if(typeof doc.autoTable==='function'){
+      doc.autoTable({ startY, head, body, styles:{fontSize:10, cellPadding:2}, headStyles:{ fillColor:[15,23,42] }, theme:'grid' });
+    }else{
+      let y = startY;
+      body.forEach(r=>{ doc.text(`${r[0]}  —  ${r[1]}`, 14, y); y+=6; });
+    }
+    doc.save(`OT_${(current.number||'OPEN')}.pdf`);
+  };
+
+  /* =================== Pickers e Integraciones =================== */
+
+  // INVENTARIO
+  async function openInventoryPicker(){
+    if(!current) return alert('Crea primero una venta');
+
+    const modal = $('#modal'), bodyM = $('#modalBody'), closeBtn = $('#modalClose');
+    if(!modal || !bodyM) return alert('No se encontró el modal global');
+
+    bodyM.innerHTML = `
+      <h3>Agregar de Inventario</h3>
+      <div class="picker-head">
+        <div><label>SKU</label><input id="p-inv-sku" placeholder="SKU exacto"></div>
+        <div><label>Nombre</label><input id="p-inv-name" placeholder="Buscar por nombre"></div>
+        <div><button id="p-inv-search">Buscar</button></div>
+      </div>
+      <div class="picker-table table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Vista</th><th>SKU</th><th>Nombre</th><th>Stock</th><th>Precio</th><th>QR</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="p-inv-body"></tbody>
+        </table>
+      </div>
+      <div class="picker-actions row">
+        <button id="p-inv-more" class="secondary">Cargar más</button>
+        <span class="muted" id="p-inv-count"></span>
+      </div>
+    `;
+    const cleanupKey = openModal();
+    closeBtn && (closeBtn.onclick = () => { cleanupKey?.(); closeModal(); });
+
+    let all = []; let shown = 0; const PAGE = 20;
+
+    async function fetchItems(params){
+      const r = await API.inventory.itemsList(params);
+      return Array.isArray(r) ? r : (r.items || r.data || []);
+    }
+
+    const renderSlice = async ()=>{
+      const chunk = all.slice(0, shown);
+      const rows = await Promise.all(chunk.map(async it => {
+        let thumb = '';
+        try {
+          const f = Array.isArray(it.files) ? it.files[0] : null;
+          const url = f?.url || f?.secureUrl || f?.path || null;
+          if (url) thumb = `<img src="${url}" alt="img" class="thumb">`;
+        } catch {}
+
+        let qrCell = '—';
+        try {
+          const qrUrl = await getQRObjectURL(it._id, 96);
+          qrCell = `<img src="${qrUrl}" alt="QR" class="thumb-qr" title="Click para descargar" data-qr="${it._id}">`;
+        } catch {}
+
+        return `
+          <tr>
+            <td class="w-fit">${thumb || '—'}</td>
+            <td>${it.sku||''}</td>
+            <td>${it.name||''}</td>
+            <td>${Number(it.stock||0)}</td>
+            <td>${money(it.salePrice||0)}</td>
+            <td class="w-fit">${qrCell}</td>
+            <td><button data-add="${it._id}">Agregar</button></td>
+          </tr>
+        `;
+      }));
+      $('#p-inv-body').innerHTML = rows.join('') || `<tr><td colspan="99">Sin resultados</td></tr>`;
+      $('#p-inv-count').textContent = chunk.length ? `${chunk.length}/${all.length}` : '';
+
+      $('#p-inv-body').querySelectorAll('button[data-add]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const id = btn.getAttribute('data-add');
+          current = await API.sales.addItem(current._id, { source:'inventory', refId: id, qty: 1 });
+          renderSale(); renderWorkOrder();
+        };
+      });
+      $('#p-inv-body').querySelectorAll('img[data-qr]').forEach(img=>{
+        img.onclick = async ()=>{
+          const id = img.getAttribute('data-qr');
+          try {
+            const url = await getQRObjectURL(id, 256);
+            downloadBlobUrl(url, `qr_${id}.png`);
+          } catch(e){ alert('No se pudo descargar el QR'); }
+        };
+      });
+    };
+
+    const doSearch = async ()=>{
+      const rawSku = String($('#p-inv-sku').value||'').trim();
+      const sku = rawSku.toUpperCase();
+      const name = String($('#p-inv-name').value||'').trim();
+
+      try {
+        let list = await fetchItems({ sku, name });
+        if (!list.length && (sku || name)) {
+          const q = [sku, name].filter(Boolean).join(' ');
+          list = await fetchItems({ q }) || await fetchItems({ text: q });
+        }
+        if (!list.length && (sku || name)) {
+          const allSrv = await fetchItems({});
+          const needle = (sku || name).toLowerCase();
+          list = (allSrv || []).filter(it => {
+            const s = String(it.sku||'').toLowerCase();
+            const n = String(it.name||'').toLowerCase();
+            return s.includes(needle) || n.includes(needle);
+          });
+        }
+        all = list || [];
+        shown = Math.min(PAGE, all.length);
+        await renderSlice();
+      } catch(e) { alert(e?.message || 'No se pudo buscar inventario'); }
+    };
+
+    $('#p-inv-search').onclick = doSearch;
+    $('#p-inv-sku').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doSearch(); });
+    $('#p-inv-name').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doSearch(); });
+    $('#p-inv-more').onclick = async ()=>{ shown = Math.min(shown + PAGE, all.length); await renderSlice(); };
+
+    doSearch();
+  }
+
+  // LISTA DE PRECIOS
+  async function openPricesPicker(){
+    if(!current) return alert('Crea primero una venta');
+    const modal = $('#modal'), bodyM = $('#modalBody'), closeBtn = $('#modalClose');
+    if(!modal || !bodyM) return alert('No se encontró el modal global');
+
+    let services = [];
+    try { services = (await API.servicesList())?.items || (await API.servicesList()) || []; } catch {}
+    let selectedSvc = services[0] || { variables: [] };
+
+    bodyM.innerHTML = `
+      <h3>Agregar de Lista de Precios</h3>
+      <div class="picker-head">
+        <div>
+          <label>Servicio</label>
+          <select id="p-pr-svc">
+            ${services.map(s=>`<option value="${s._id}">${s.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="row" style="gap:8px; align-items:end;">
+          <div><label>Marca</label><input id="p-pr-brand" placeholder="Ej. RENAULT"></div>
+          <div><label>Línea</label><input id="p-pr-line" placeholder="Ej. LOGAN"></div>
+          <div><label>Motor</label><input id="p-pr-engine" placeholder="Ej. 1.6"></div>
+          <div><label>Año</label><input id="p-pr-year" type="number" placeholder="Ej. 2020"></div>
+          <div><button id="p-pr-search">Buscar</button></div>
+        </div>
+      </div>
+
+      <div class="picker-table table-wrap">
+        <table class="table" id="p-pr-table">
+          <thead><tr id="p-pr-head"></tr></thead>
+          <tbody id="p-pr-body"></tbody>
+        </table>
+      </div>
+      <div class="picker-actions row">
+        <button id="p-pr-more" class="secondary">Cargar más</button>
+        <span class="muted" id="p-pr-count"></span>
+      </div>
+    `;
+    const cleanupKey = openModal();
+    closeBtn && (closeBtn.onclick = () => { cleanupKey?.(); closeModal(); });
+
+    const headEl = $('#p-pr-head');
+    const renderHead = ()=>{
+      const vars = selectedSvc?.variables || [];
+      headEl.innerHTML = `
+        <th>Marca</th><th>Línea</th><th>Motor</th><th>Año</th>
+        ${vars.map(v=>`<th>${v.label}</th>`).join('')}
+        <th>Total</th><th></th>`;
+    };
+
+    let all = []; let shown = 0; const PAGE = 20;
+
+    const renderSlice = ()=>{
+      const vars = selectedSvc?.variables || [];
+      const chunk = all.slice(0, shown);
+      $('#p-pr-body').innerHTML = chunk.map(pe=>{
+        const cells = vars.map(v => {
+          const val = pe.variables?.[v.key] ?? (v.type==='number' ? 0 : '');
+          return `<td>${v.type==='number' ? money(val) : (val||'')}</td>`;
+        }).join('');
+        return `
+          <tr>
+            <td>${pe.brand||''}</td>
+            <td>${pe.line||''}</td>
+            <td>${pe.engine||''}</td>
+            <td>${pe.year ?? ''}</td>
+            ${cells}
+            <td>${money(pe.total||0)}</td>
+            <td><button data-add="${pe._id}">Agregar</button></td>
+          </tr>
+        `;
+      }).join('') || `<tr><td colspan="99">Sin resultados</td></tr>`;
+      $('#p-pr-count').textContent = chunk.length ? `${chunk.length}/${all.length}` : '';
+      $('#p-pr-body').querySelectorAll('button[data-add]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const id = btn.getAttribute('data-add');
+          current = await API.sales.addItem(current._id, { source:'price', refId: id, qty: 1 });
+          renderSale(); renderWorkOrder();
+        };
+      });
+    };
+
+    const doSearch = async ()=>{
+      const serviceId = ($('#p-pr-svc')?.value || '').trim();
+      selectedSvc = services.find(s=>s._id===serviceId) || selectedSvc;
+      renderHead();
+      const brand  = String($('#p-pr-brand').value||'').trim();
+      const line   = String($('#p-pr-line').value||'').trim();
+      const engine = String($('#p-pr-engine').value||'').trim();
+      const year   = String($('#p-pr-year').value||'').trim();
+      try {
+        const params = { serviceId, brand, line, engine, year };
+        const res = await API.pricesList(params);
+        const items = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
+        all = items || [];
+        shown = Math.min(PAGE, all.length);
+        renderSlice();
+      } catch(e) { alert(e?.message || 'No se pudo buscar lista de precios'); }
+    };
+
+    $('#p-pr-search').onclick = doSearch;
+    ['p-pr-brand','p-pr-line','p-pr-engine','p-pr-year'].forEach(id=>{
+      document.getElementById(id).addEventListener('keydown', (e)=>{ if(e.key==='Enter') doSearch(); });
+    });
+    $('#p-pr-svc')?.addEventListener('change', doSearch);
+    $('#p-pr-more').onclick = ()=>{ shown = Math.min(shown + PAGE, all.length); renderSlice(); };
+
+    renderHead();
+    doSearch();
+  }
+
+  // LECTOR QR
+  async function openQRScanner(){
+    if(!current) return alert('Crea primero una venta');
+
+    const modal = $('#modal'), bodyM = $('#modalBody'), closeBtn = $('#modalClose');
+    if(!modal || !bodyM) return alert('No se encontró el modal global');
+
+    bodyM.innerHTML = `
+      <h3>Lector de QR</h3>
+      <div class="qrbar row">
+        <div class="row" style="gap:8px;align-items:center;">
+          <label>Camara</label>
+          <select id="qr-cam"></select>
+          <label class="row" style="gap:6px;"><input type="checkbox" id="qr-autoclose" checked> Cerrar al agregar</label>
+        </div>
+        <div class="row" style="gap:8px;">
+          <button id="qr-start" class="secondary">Iniciar</button>
+          <button id="qr-stop" class="secondary">Detener</button>
+        </div>
+      </div>
+      <div class="qrwrap">
+        <video id="qr-video" playsinline muted></video>
+        <canvas id="qr-canvas" style="display:none;"></canvas>
+        <div class="qr-hud"></div>
+      </div>
+      <div class="row" style="gap:8px;margin-top:8px;">
+        <input id="qr-manual" placeholder="Ingresar código manualmente (fallback)">
+        <button id="qr-add-manual">Agregar</button>
+      </div>
+      <div class="muted" id="qr-msg" style="margin-top:6px;">Permite la cámara para escanear. Si no hay soporte nativo, uso jsQR.</div>
+      <ul id="qr-history" class="qr-history"></ul>
+    `;
+    const cleanupKey = openModal();
+    closeBtn && (closeBtn.onclick = () => { cleanupKey?.(); stopStream(); closeModal(); });
+
+    const video = $('#qr-video');
+    const canvas = $('#qr-canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const sel = $('#qr-cam');
+    const msg = $('#qr-msg');
+    const list = $('#qr-history');
+    const autoclose = $('#qr-autoclose');
+
+    let stream = null;
+    let running = false;
+    let useNative = await isNativeQRSupported();
+    let detector = null;
+
+    async function enumerateCams(){
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cams = devices.filter(d => d.kind === 'videoinput');
+        sel.innerHTML = cams.map((d,i)=>`<option value="${d.deviceId}">${d.label || 'Cam '+(i+1)}</option>`).join('');
+      } catch { sel.innerHTML = `<option value="">(cámara)</option>`; }
+    }
+
+    async function startStream(){
+      try {
+        stopStream();
+        const deviceId = sel.value || undefined;
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' },
+          audio: false
+        });
+        video.srcObject = stream;
+        await video.play();
+
+        running = true;
+
+        if (useNative) {
+          try { detector = new window.BarcodeDetector({ formats: ['qr_code'] }); }
+          catch { useNative = false; }
+        }
+        if (!useNative) {
+          try { await ensureJsQR(); }
+          catch { msg.textContent = 'No fue posible cargar jsQR. Usa el campo manual.'; }
+        }
+
+        msg.textContent = useNative ? 'Escanea un código QR…' : 'Escaneo con jsQR activo…';
+        tick();
+      } catch (e) {
+        msg.textContent = 'No se pudo abrir la cámara. Revisa permisos/HTTPS.';
+      }
+    }
+
+    function stopStream(){
+      running = false;
+      if (video) try { video.pause(); } catch {}
+      if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    }
+
+    async function handleCode(raw){
+      const codeStr = String(raw||'').trim();
+      if(!codeStr) return;
+
+      const li = document.createElement('li');
+      li.textContent = `QR: ${codeStr}`;
+      list.prepend(li);
+
+      try {
+        const parsed = parseInventoryCode(codeStr);
+        if (parsed && parsed.itemId) {
+          current = await API.sales.addItem(current._id, { source:'inventory', refId: parsed.itemId, qty: 1 });
+          renderSale(); renderWorkOrder();
+          msg.textContent = `Agregado por QR (ítem ${parsed.sku || parsed.itemId}).`;
+          if (autoclose.checked) { stopStream(); closeModal(); }
+          return;
+        }
+
+        if (API.sales?.addByQR) { // endpoint /sales/addByQR en tus rutas :contentReference[oaicite:2]{index=2}
+          const res = await API.sales.addByQR(current._id, codeStr);
+          if (res && (res._id || res.sale)) {
+            current = res.sale || res;
+            renderSale(); renderWorkOrder();
+            msg.textContent = 'Agregado por QR.';
+            if (autoclose.checked) { stopStream(); closeModal(); }
+            return;
+          }
+        }
+
+        current = await API.sales.addItem(current._id, { source:'inventory', sku: codeStr.toUpperCase(), qty: 1 });
+        renderSale(); renderWorkOrder();
+        msg.textContent = 'Agregado por SKU leído.';
+        if (autoclose.checked) { stopStream(); closeModal(); }
+      } catch (e) {
+        msg.textContent = e?.message || 'No se pudo agregar por QR';
+      }
+    }
+
+    async function tick(){
+      if(!running) return;
+      try {
+        if (useNative && detector) {
+          const codes = await detector.detect(video);
+          if (codes && codes.length) {
+            await handleCode(codes[0].rawValue || codes[0].rawValue);
+            await new Promise(r => setTimeout(r, 700));
+          }
+        } else if (window.jsQR && video.readyState >= 2) {
+          const w = video.videoWidth, h = video.videoHeight;
+          if (w && h) {
+            canvas.width = w; canvas.height = h;
+            ctx.drawImage(video, 0, 0, w, h);
+            const img = ctx.getImageData(0, 0, w, h);
+            const result = window.jsQR(img.data, w, h, { inversionAttempts: 'attemptBoth' });
+            if (result && result.data) {
+              await handleCode(result.data);
+              await new Promise(r => setTimeout(r, 700));
+            }
+          }
+        }
+      } catch {}
+      requestAnimationFrame(tick);
+    }
+
+    $('#qr-start').onclick = startStream;
+    $('#qr-stop').onclick = () => { stopStream(); msg.textContent = 'Cámara detenida.'; };
+    $('#qr-add-manual').onclick = () => handleCode($('#qr-manual').value);
+
+    await enumerateCams();
+    if (navigator.mediaDevices?.getUserMedia) startStream();
+  }
+
+  // hooks
+  $('#sales-add-inv').onclick = () => openInventoryPicker();
+  $('#sales-add-prices').onclick = () => openPricesPicker();
+  $('#sales-scan-qr').onclick = () => openQRScanner();
+
+} // end initSales
