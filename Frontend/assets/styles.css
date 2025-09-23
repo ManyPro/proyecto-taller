@@ -763,7 +763,7 @@ footer {
 .sales-tab .close{ margin-left:6px; opacity:.8; cursor:pointer; }
 
 .avatar{ width:42px; height:42px; border-radius:50%; background:#1b2640; }
-.plate.chip{ display:inline-block; background:#152033; padding:4px 10px; border-radius:999px; color:#fff; font-weight:600; }
+.plate.chip{ display:inline-block; background:#152033; padding:4px 10px; border-radius:999px; color:#152033; font-weight:600; }
 .cols-2{ display:grid; grid-template-columns: 1fr 1fr; }
 .cols-2 .col > input{ width:100%; }
 .t-center{ text-align:center; }
