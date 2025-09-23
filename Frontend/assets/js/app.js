@@ -1,77 +1,108 @@
-// Frontend/assets/js/app.js
-import { API } from './api.js';
+/* assets/js/app.js
+   Orquestador de la UI: login, tabs y boot de módulos (notas, inventario, cotizaciones, precios, ventas)
+*/
 
-function qs(sel, root=document){ return root.querySelector(sel); }
+import { initNotes } from "./notes.js";
+import { initInventory } from "./inventory.js";
+import { initQuotes } from "./quotes.js";
+import { API } from "./api.js";
+import { initPrices } from "./prices.js";
+import { initSales } from "./sales.js";
 
-function isLogged(){ return !!API.token.get(); }
+let modulesReady = false;
 
-function showLogin(){
-  const card = qs('#loginCard');
-  const app  = qs('#appRoot');
-  if (card) card.hidden = false;
-  if (app)  app.hidden  = true;
+// Tabs simples
+const tabsNav = document.querySelector('.tabs');
+const sectionLogin = document.getElementById('loginSection');
+const sectionApp = document.getElementById('appSection');
+const emailSpan = document.getElementById('companyEmail');
+const logoutBtn = document.getElementById('logoutBtn');
+
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
+  const tab = document.getElementById(`tab-${name}`);
+  const btn = document.querySelector(`.tabs button[data-tab="${name}"]`);
+  if (tab) tab.classList.add('active');
+  if (btn) btn.classList.add('active');
 }
 
-function showApp(){
-  const card = qs('#loginCard');
-  const app  = qs('#appRoot');
-  if (card) card.hidden = true;
-  if (app)  app.hidden  = false;
+function ensureModules() {
+  if (modulesReady) return;
+  initNotes();
+  initInventory();
+  initQuotes({ getCompanyEmail: () => document.getElementById("companyEmail")?.textContent || "" });
+  initPrices();
+  initSales();
+  modulesReady = true;
 }
 
-async function bootAfterLogin(){
-  showApp();
+// Login simple (usa tu API)
+const loginBtn = document.getElementById('loginBtn');
+const registerBtn = document.getElementById('registerBtn');
 
-  // Carga diferida de módulos para evitar llamadas sin token
+async function doLogin(isRegister = false) {
+  const email = (document.getElementById('email').value || '').trim().toLowerCase();
+  const password = (document.getElementById('password').value || '').trim();
+  if (!email || !password) {
+    alert('Ingresa correo y contraseña');
+    return;
+  }
   try {
-    const [{ initNotes }]      = await Promise.all([ import('./notes.js').catch(()=>({})) ]);
-    const [{ initInventory }]  = await Promise.all([ import('./inventory.js').catch(()=>({})) ]);
-    const [{ initPrices }]     = await Promise.all([ import('./prices.js').catch(()=>({})) ]);
-    const [{ initQuotes }]     = await Promise.all([ import('./quotes.js').catch(()=>({})) ]);
-    const [{ initSales, initCash }] = await Promise.all([ import('./sales.js').catch(()=>({})) ]);
-
-    // Inicializa si existen (según tu app)
-    initNotes && initNotes();
-    initInventory && initInventory();
-    initPrices && initPrices();
-    initQuotes && initQuotes();
-    initSales && initSales();
-    initCash && initCash();
-
-  } catch(e){
-    console.error('[boot] error inicializando módulos', e);
-    alert('Ocurrió un error cargando los módulos. Revisa la consola.');
+    if (isRegister) {
+      await API.registerCompany({ email, password });
+    }
+    const res = await API.loginCompany({ email, password }); // guarda token y setActiveCompany
+    // UI
+    emailSpan.textContent = (res?.email || email);
+    API.setActiveCompany(emailSpan.textContent); // redundante pero seguro
+    sectionLogin.classList.add('hidden');
+    sectionApp.classList.remove('hidden');
+    logoutBtn.classList.remove('hidden');
+    ensureModules();
+    showTab('notas');
+  } catch (e) {
+    alert(e?.message || 'Error');
   }
 }
 
-async function handleLogin(e){
-  e?.preventDefault?.();
-  const email = qs('#loginEmail')?.value?.trim();
-  const pass  = qs('#loginPass')?.value?.trim();
-  if (!email || !pass){ alert('Correo y contraseña requeridos'); return; }
+loginBtn?.addEventListener('click', () => doLogin(false));
+registerBtn?.addEventListener('click', () => doLogin(true));
 
-  try {
-    await API.loginCompany(email, pass); // alias retro-compat
-    await API.companyMe().catch(()=>null); // opcional
-    await bootAfterLogin();
-  } catch(err){
-    console.error(err);
-    alert(err?.message || 'No fue posible iniciar sesión');
-  }
-}
-
-window.addEventListener('DOMContentLoaded', async () => {
-  // API base por meta (si quieres forzarlo desde HTML, ya está soportado en api.js)
-  // const meta = document.querySelector('meta[name="api-base"]')?.content;
-  // if (meta) API.setBase(meta);
-
-  // Botón del login
-  qs('#btnLogin')?.addEventListener('click', handleLogin);
-  qs('#formLogin')?.addEventListener('submit', handleLogin);
-
-  if (isLogged()){
-    await bootAfterLogin();
-  } else {
-    showLogin();
-  }
+logoutBtn?.addEventListener('click', async () => {
+  try { await API.logout(); } catch {}
+  emailSpan.textContent = '';
+  sectionApp.classList.add('hidden');
+  sectionLogin.classList.remove('hidden');
+  logoutBtn.classList.add('hidden');
 });
+
+// Tabs
+tabsNav?.addEventListener('click', (ev) => {
+  const btn = ev.target.closest('button[data-tab]');
+  if (!btn) return;
+  const tab = btn.dataset.tab;
+  showTab(tab);
+});
+
+// Reanudar sesión si hay token+empresa activos
+(async () => {
+  try {
+    const me = await API.me(); // requiere token
+    if (me?.email) {
+      API.setActiveCompany(me.email);
+      emailSpan.textContent = me.email;
+      sectionLogin.classList.add('hidden');
+      sectionApp.classList.remove('hidden');
+      logoutBtn.classList.remove('hidden');
+      ensureModules();
+      showTab('notas');
+    } else {
+      const active = API.getActiveCompany?.();
+      if (active) emailSpan.textContent = active;
+    }
+  } catch {
+    const active = API.getActiveCompany?.();
+    if (active) emailSpan.textContent = active;
+  }
+})();
