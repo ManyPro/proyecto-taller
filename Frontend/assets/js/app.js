@@ -1,13 +1,13 @@
 /* assets/js/app.js
-   Orquestador de la UI: login, tabs y boot de módulos (notas, inventario, cotizaciones)
+   Orquestador de la UI: login, tabs y boot de módulos (notas, inventario, cotizaciones, precios, ventas)
 */
 
 import { initNotes } from "./notes.js";
 import { initInventory } from "./inventory.js";
 import { initQuotes } from "./quotes.js";
 import { API } from "./api.js";
-import { initPrices } from "./prices.js"; // NUEVO
-import { initSales } from "./sales.js";   // NUEVO
+import { initPrices } from "./prices.js";
+import { initSales } from "./sales.js";
 
 let modulesReady = false;
 
@@ -32,8 +32,8 @@ function ensureModules() {
   initNotes();
   initInventory();
   initQuotes({ getCompanyEmail: () => document.getElementById("companyEmail")?.textContent || "" });
-  initPrices(); // NUEVO
-  initSales();  // NUEVO
+  initPrices();
+  initSales();
   modulesReady = true;
 }
 
@@ -70,7 +70,7 @@ loginBtn?.addEventListener('click', () => doLogin(false));
 registerBtn?.addEventListener('click', () => doLogin(true));
 
 logoutBtn?.addEventListener('click', async () => {
-  try { await API.logout(); } catch { }
+  try { await API.logout(); } catch {}
   emailSpan.textContent = '';
   sectionApp.classList.add('hidden');
   sectionLogin.classList.remove('hidden');
@@ -98,7 +98,6 @@ tabsNav?.addEventListener('click', (ev) => {
       ensureModules();
       showTab('notas');
     } else {
-      // Si no hay /me, pero quedó empresa activa guardada, muéstrala (opcional)
       const active = API.getActiveCompany?.();
       if (active) emailSpan.textContent = active;
     }
