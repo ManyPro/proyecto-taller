@@ -40,7 +40,8 @@ export function initNotes(){
       const plate = ($('#f-plate')?.value||'').trim(); if(plate) params.plate = plate.toUpperCase();
       if($('#f-from')?.value) params.from = $('#f-from').value;
       if($('#f-to')?.value)   params.to   = $('#f-to').value;
-      const res = await API.notesList?.(params);
+      const qs = new URLSearchParams(Object.entries(params).filter(([k,v])=>v!=null && v!==''));
+      const res = await API.notesList?.(qs.toString() ? `?${qs.toString()}` : '');
       const rows = Array.isArray(res?.data) ? res.data : (Array.isArray(res) ? res : []);
       renderList(rows);
     }catch(e){ alert(e?.message||'No se pudo cargar'); }

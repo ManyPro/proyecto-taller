@@ -193,7 +193,124 @@
 
       <!-- ========== COTIZACIONES ========== -->
       <section id="tab-cotizaciones" class="tab">
-        <!-- … (igual que tu archivo original) … -->
+        <!-- Arriba: 2 columnas -->
+        <div class="grid-2" id="quotes-body">
+          <!-- Izquierda: Datos -->
+          <div class="card" id="q-data">
+            <h3>Nueva Cotización</h3>
+
+            <div class="row">
+              <div class="field">
+                <label>N.º cotización</label>
+                <input id="q-number" disabled placeholder="00001" />
+              </div>
+              <div class="field">
+                <label>Fecha y hora</label>
+                <input id="q-datetime" disabled />
+              </div>
+            </div>
+
+            <label>Cliente</label>
+            <input id="q-client-name" placeholder="Nombre del cliente" />
+            <div class="row">
+              <input id="q-client-phone" placeholder="Teléfono (opcional)" />
+              <input id="q-client-email" placeholder="Correo (opcional)" />
+            </div>
+
+            <label>Placa</label>
+            <input id="q-plate" placeholder="ABC123" />
+            <div class="row">
+              <input id="q-brand" placeholder="Marca" />
+              <input id="q-line" placeholder="Línea/Modelo" />
+            </div>
+            <div class="row">
+              <input id="q-year" placeholder="Año" />
+              <input id="q-cc" placeholder="Cilindraje" />
+            </div>
+
+            <button id="q-saveDraft" class="secondary">Guardar borrador (local)</button>
+          </div>
+
+          <!-- Derecha: Resumen / Acciones -->
+          <div class="card" id="q-summary">
+            <h3>Resumen / Acciones</h3>
+            <p class="q-no"><span>No. cotización: </span><strong id="q-number-big">00001</strong></p>
+            <label>Validez (días, opcional)</label>
+            <input id="q-valid-days" type="number" min="0" step="1" placeholder="p. ej. 8" />
+            <label>Vista previa WhatsApp</label>
+            <pre id="q-whatsappPreview" style="min-height:220px;white-space:pre-wrap;"></pre>
+            <div class="row">
+              <button id="q-clearAll" class="secondary">Borrar todo</button>
+            </div>
+          </div>
+
+          <!-- Abajo: Ítems (a todo el ancho) -->
+          <div class="card span-2" id="q-items-card">
+            <h3>Ítems</h3>
+
+            <!-- Contenedor de ítems en 2 columnas -->
+            <div id="q-rows" class="q-grid-2cols">
+              <!-- Plantilla oculta de Ítem -->
+              <div class="tr q-row-card hidden" id="q-row-template" data-template>
+                <div>
+                  <label class="sr-only">Tipo</label>
+                  <select>
+                    <option value="PRODUCTO">Producto</option>
+                    <option value="SERVICIO">Servicio</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="sr-only">Descripción</label>
+                  <input placeholder="Descripción" />
+                </div>
+                <div class="small">
+                  <label class="sr-only">Cant.</label>
+                  <input type="number" min="0" step="1" placeholder="Cant." />
+                </div>
+                <div class="small">
+                  <label class="sr-only">Precio</label>
+                  <input type="number" min="0" step="0.01" placeholder="Precio" />
+                </div>
+                <div class="small">
+                  <label class="sr-only">Subtotal</label>
+                  <input disabled placeholder="$0" />
+                </div>
+                <div class="small">
+                  <button class="secondary">Quitar</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <button id="q-addRow">+ Agregar línea</button>
+            </div>
+
+            <div class="totals">
+              <div>Subtotal Productos: <strong id="q-subtotal-products">$0</strong></div>
+              <div>Subtotal Servicios: <strong id="q-subtotal-services">$0</strong></div>
+              <div>Total: <strong id="q-total">$0</strong></div>
+            </div>
+
+            <div class="row">
+              <button id="q-saveBackend">Guardar en historial</button>
+              <button id="q-sendWhatsApp">Enviar por WhatsApp</button>
+              <button id="q-exportPdf" class="secondary">Exportar PDF</button>
+            </div>
+          </div>
+
+          <!-- Debajo de Ítems: Historial (a todo el ancho) -->
+          <div class="card span-2" id="q-history-card">
+            <h3>Historial de cotizaciones</h3>
+            <div class="row wrap" id="q-history-filters">
+              <input id="qh-text" placeholder="Buscar por cliente o placa..." />
+              <input id="qh-from" type="date" />
+              <input id="qh-to" type="date" />
+              <button id="qh-apply" class="secondary">Buscar</button>
+              <button id="qh-clear" class="secondary">Limpiar</button>
+            </div>
+            <div id="q-history-list" class="q-history-list"></div>
+          </div>
+        </div>
       </section>
 
       <!-- ========== PRECIOS ========== -->
