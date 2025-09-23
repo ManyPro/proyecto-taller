@@ -124,6 +124,9 @@ const API = {
   quoteUpdate: (id, payload) => http.post(`/api/v1/quotes/${id}`, payload),
   quotePatch: (id, payload) => http.put(`/api/v1/quotes/${id}`, payload),
   quoteDelete: (id) => http.del(`/api/v1/quotes/${id}`),
+    // --- Cotizaciones (búsqueda por parámetros) ---
+  quotesSearch: (params = {}) => http.get(`/api/v1/quotes${toQuery(params)}`),
+
 
   // --- Servicios ---
   servicesList: () => http.get('/api/v1/services'),
@@ -183,6 +186,7 @@ const API = {
     list: (params = {}) => http.get(`/api/v1/sales${toQuery(params)}`),
     summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`)
   }
+  
 };
 
 // Exports

@@ -226,3 +226,13 @@ button.danger{ background:var(--danger); }
 }
 .t-right{ text-align:right; }
 .muted{ color:var(--muted); }
+
+/* ===== Picker de cotizaciones (modal) ===== */
+.picker-two{
+  display:grid; grid-template-columns: 1fr 320px; gap:12px; align-items:start; margin-top:8px;
+}
+@media (max-width: 900px){
+  .picker-two{ grid-template-columns:1fr; }
+}
+.picker-side{ position:sticky; top:8px; }
+#pq-items td, #pq-items th{ font-size:13px; }
