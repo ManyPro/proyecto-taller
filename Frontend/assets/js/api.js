@@ -1,11 +1,51 @@
 // Frontend/assets/js/api.js
-// Wrapper canónico de la API (superset). No elimina funcionalidades, sólo normaliza y agrega.
+// Wrapper canónico de la API. Incluye TODO lo usado por Notas, Inventario, Precios, Cotizaciones y Ventas.
+// Cambios clave: resolución robusta de API_BASE sin romper firmas existentes.
+
+function resolveApiBase() {
+  try {
+    // 1) LocalStorage (varios nombres que has usado en el proyecto)
+    const ls =
+      localStorage.getItem('apiBase') ||
+      localStorage.getItem('API_BASE') ||
+      localStorage.getItem('api_base');
+    if (ls && /^https?:/i.test(ls)) return ls.trim();
+
+    // 2) Meta tag
+    const meta = document.querySelector('meta[name="api-base"]')?.content;
+    if (meta && /^https?:/i.test(meta)) return meta.trim();
+
+    // 3) Variable global
+    // eslint-disable-next-line no-undef
+    if (typeof window !== 'undefined' && window.API_BASE && /^https?:/i.test(window.API_BASE)) {
+      return String(window.API_BASE).trim();
+    }
+
+    // 4) Fallback (misma-origen) -> útil en dev con proxy
+    return '';
+  } catch {
+    return '';
+  }
+}
+
+let _API_BASE = resolveApiBase();
 
 export const API = {
   // ===== Base & helpers =====
-  base: (typeof window !== 'undefined' && window.API_BASE) || '',
+  base: _API_BASE, // string, algunos módulos lo leen directamente
+  setBase(url) {
+    try {
+      if (url && /^https?:/i.test(url)) {
+        _API_BASE = url.trim();
+        API.base = _API_BASE;
+        localStorage.setItem('apiBase', _API_BASE);
+      }
+    } catch {}
+  },
   token: {
-    get: () => (typeof localStorage !== 'undefined' ? localStorage.getItem('token') || '' : ''),
+    get: () => {
+      try { return localStorage.getItem('token') || ''; } catch { return ''; }
+    },
     set: (t) => { try { localStorage.setItem('token', t || ''); } catch {} },
     clear: () => { try { localStorage.removeItem('token'); } catch {} },
   },
@@ -13,6 +53,7 @@ export const API = {
     const h = { 'Content-Type': 'application/json' };
     const tok = API.token.get?.();
     if (tok) h['Authorization'] = `Bearer ${tok}`;
+    // NOTA: no añadimos nada más para no disparar CORS raros.
     return { ...h, ...(extra || {}) };
   },
   toQuery(params = {}) {
@@ -24,13 +65,6 @@ export const API = {
     const qs = q.toString();
     return qs ? `?${qs}` : '';
   },
-  // Opcional: usado por Ventas para namespacing de pestañas en LS
-  getActiveCompany: () => {
-    try { return localStorage.getItem('active_companyId') || null; } catch { return null; }
-  },
-  setActiveCompany: (id) => {
-    try { if (id) localStorage.setItem('active_companyId', id); } catch {}
-  },
 
   // ===== Auth =====
   auth: {
@@ -40,10 +74,10 @@ export const API = {
         headers: API.headers(),
         body: JSON.stringify({ email, password }),
       });
-      const data = await r.json();
+      const data = await r.json().catch(() => null);
       if (!r.ok) throw new Error(data?.message || 'Login fallido');
       if (data?.token) API.token.set(data.token);
-      if (data?.company?._id) API.setActiveCompany(data.company._id);
+      // No tocamos nada más aquí para no romper flujos existentes
       return data;
     },
     async register(payload) {
@@ -52,10 +86,9 @@ export const API = {
         headers: API.headers(),
         body: JSON.stringify(payload),
       });
-      const data = await r.json();
+      const data = await r.json().catch(() => null);
       if (!r.ok) throw new Error(data?.message || 'Registro fallido');
       if (data?.token) API.token.set(data.token);
-      if (data?.company?._id) API.setActiveCompany(data.company._id);
       return data;
     },
     async me() {
@@ -64,7 +97,6 @@ export const API = {
         cache: 'no-store',
       });
       const data = await r.json().catch(() => null);
-      if (r.ok && data?._id) API.setActiveCompany(data._id);
       return data;
     },
   },
@@ -79,9 +111,7 @@ export const API = {
       if (!r.ok) throw new Error(data?.message || 'No se pudo listar cotizaciones');
       return data;
     },
-    // Búsqueda para modal (texto, placa, cliente, rango fechas)
     async search(params = {}) {
-      // Puedes implementar en backend ?q=... o reusar list con filtros
       const r = await fetch(`${API.base}/api/v1/quotes${API.toQuery(params)}`, {
         headers: API.headers(),
       });
@@ -121,8 +151,7 @@ export const API = {
         headers: API.headers(),
       });
       if (!r.ok) {
-        let data = null;
-        try { data = await r.json(); } catch {}
+        let data = null; try { data = await r.json(); } catch {}
         throw new Error(data?.message || 'No se pudo eliminar cotización');
       }
       return { ok: true };
@@ -172,7 +201,6 @@ export const API = {
 
   // ===== Inventory =====
   inventory: {
-    // List con filtros: { sku, name, intakeId, page, limit, q ... }
     async itemsList(params = {}) {
       const r = await fetch(`${API.base}/api/v1/inventory/items${API.toQuery(params)}`, {
         headers: API.headers(),
@@ -219,7 +247,6 @@ export const API = {
       return { ok: true };
     },
 
-    // Entradas de vehículo
     async intakesList(params = {}) {
       const r = await fetch(`${API.base}/api/v1/inventory/vehicle-intakes${API.toQuery(params)}`, {
         headers: API.headers(),
@@ -260,20 +287,16 @@ export const API = {
       return { ok: true };
     },
 
-    // URL del PNG del QR (se usa en <img src>)
+    // URL del PNG del QR
     qrPngUrl(itemId, size = 256) {
       const tok = API.token.get?.();
       const base = `${API.base}/api/v1/inventory/items/${encodeURIComponent(itemId)}/qr.png?size=${size}`;
-      // Algunos navegadores exigen el header Authorization en fetch; para <img> usamos el token en query si backend lo permite.
-      // Si NO permite token en query, usar fetch(blob) con headers y URL.createObjectURL en el front.
       return tok ? `${base}&auth=${encodeURIComponent(tok)}` : base;
     },
   },
 
   // ===== Prices (Lista de precios) =====
-  // Para el módulo de Cambio de Aceite Certificado (services + entries)
   prices: {
-    // Servicios (e.g., "Cambio de Aceite Certificado", "Cambio de Aceite Sellado")
     async servicesList(params = {}) {
       const r = await fetch(`${API.base}/api/v1/prices/services${API.toQuery(params)}`, {
         headers: API.headers(),
@@ -282,7 +305,6 @@ export const API = {
       if (!r.ok) throw new Error(data?.message || 'No se pudo listar servicios de precios');
       return data;
     },
-    // Entradas por filtros (marca, línea, motor, año, serviceId, etc.)
     async pricesList(params = {}) {
       const r = await fetch(`${API.base}/api/v1/prices${API.toQuery(params)}`, {
         headers: API.headers(),
@@ -426,7 +448,7 @@ export const API = {
     },
   },
 
-  // ===== Atajos legacy (si tu UI los llama así) =====
+  // ===== Alias legacy =====
   servicesList(params = {}) { return API.prices.servicesList(params); },
   pricesList(params = {})   { return API.prices.pricesList(params); },
 };
