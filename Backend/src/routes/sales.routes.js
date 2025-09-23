@@ -6,6 +6,10 @@ import {
 
 const router = Router();
 
+// ⚠️ Importante: las rutas “no-ID” primero (para que /summary no lo capture :id)
+router.get('/summary', summarySales);
+router.get('/', listSales);
+
 // CRUD básico de la venta en curso
 router.post('/start', startSale);
 router.get('/:id', getSale);
@@ -17,9 +21,5 @@ router.post('/:id/close', closeSale);
 
 // QR
 router.post('/addByQR', addByQR);
-
-// Listado / Resumen (Caja)
-router.get('/', listSales);
-router.get('/summary', summarySales);
 
 export default router;

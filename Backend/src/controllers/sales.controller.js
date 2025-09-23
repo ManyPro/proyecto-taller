@@ -34,10 +34,10 @@ export const getSale = async (req, res) => {
   res.json(sale.toObject());
 };
 
-// Agregar ítem (source='inventory' | 'price')
+// Agregar ítem (source='inventory' | 'price' | 'custom')
 export const addItem = async (req, res) => {
   const { id } = req.params;
-  const { source, refId, sku, qty = 1, unitPrice } = req.body || {};
+  const { source, refId, sku, qty = 1, unitPrice, name } = req.body || {};
 
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
@@ -76,6 +76,21 @@ export const addItem = async (req, res) => {
       refId: pe._id,
       sku: `SRV-${String(pe._id).slice(-6)}`,
       name: `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim(),
+      qty: q,
+      unitPrice: up,
+      total: Math.round(q * up)
+    };
+  } else if (source === 'custom') {
+    // ✅ servicio/ítem libre proveniente de una cotización o ingreso manual
+    const q = asNum(qty) || 1;
+    const up = asNum(unitPrice);
+    if (!name) return res.status(400).json({ error: 'name is required for custom source' });
+
+    itemData = {
+      source: 'custom',
+      // sin refId
+      sku: (sku || '').toString().toUpperCase(),
+      name: String(name),
       qty: q,
       unitPrice: up,
       total: Math.round(q * up)
@@ -151,7 +166,7 @@ export const setCustomerVehicle = async (req, res) => {
   res.json(sale.toObject());
 };
 
-// Cerrar venta → asigna número secuencial por empresa
+// 🔒 Cerrar venta → asigna número y descuenta stock (solo inventory) una vez
 export const closeSale = async (req, res) => {
   const { id } = req.params;
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
@@ -160,15 +175,49 @@ export const closeSale = async (req, res) => {
 
   computeTotals(sale);
 
+  // 1) Asignar número y marcar cerrada
   if (sale.status !== 'closed') {
     sale.status = 'closed';
     sale.closedAt = new Date();
     if (!Number.isFinite(Number(sale.number))) {
       sale.number = await getNextSaleNumber(req.companyId);
     }
-    await sale.save();
   }
 
+  // 2) Descontar inventario solo una vez por venta
+  if (!sale.stockAdjusted) {
+    const invItems = (sale.items || []).filter(i => i.source === 'inventory' && i.refId);
+    if (invItems.length) {
+      // agrupar por refId
+      const totals = new Map();
+      for (const it of invItems) {
+        const q = asNum(it.qty) || 1;
+        totals.set(String(it.refId), (totals.get(String(it.refId)) || 0) + q);
+      }
+
+      const ids = Array.from(totals.keys());
+      const docs = await Item.find({ _id: { $in: ids }, companyId: req.companyId });
+
+      const ops = [];
+      for (const d of docs) {
+        const need = totals.get(String(d._id)) || 0;
+        const newStock = Math.max(0, asNum(d.stock) - need);
+        if (newStock !== d.stock) {
+          ops.push({
+            updateOne: {
+              filter: { _id: d._id, companyId: req.companyId },
+              update: { $set: { stock: newStock } }
+            }
+          });
+        }
+      }
+      if (ops.length) await Item.bulkWrite(ops);
+    }
+
+    sale.stockAdjusted = true;
+  }
+
+  await sale.save();
   res.json({ ok: true, sale: sale.toObject() });
 };
 

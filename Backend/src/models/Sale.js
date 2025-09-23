@@ -1,8 +1,10 @@
 import mongoose from 'mongoose';
 
 const SaleItemSchema = new mongoose.Schema({
-  source: { type: String, enum: ['inventory', 'price'], required: true },
-  refId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  // ✅ ahora también permitimos 'custom' (servicio suelto)
+  source: { type: String, enum: ['inventory', 'price', 'custom'], required: true },
+  // refId es obligatorio para inventory/price; opcional en custom
+  refId: { type: mongoose.Schema.Types.ObjectId, required: false },
   sku: { type: String, default: '' },
   name: { type: String, default: '' },
   qty: { type: Number, default: 1 },
@@ -15,6 +17,10 @@ const SaleSchema = new mongoose.Schema({
   number: { type: Number, index: true },       // se asigna al cerrar
   status: { type: String, default: 'open', enum: ['open', 'closed'] },
   items: { type: [SaleItemSchema], default: [] },
+
+  // Título opcional para mostrar en pestañas (no rompe nada si no lo usas)
+  title: { type: String, default: '' },
+
   customer: {
     type: { type: String, default: '' },
     idNumber: { type: String, default: '' },
@@ -32,10 +38,14 @@ const SaleSchema = new mongoose.Schema({
     mileage: { type: Number, default: null }
   },
   notes: { type: String, default: '' },
+
   subtotal: { type: Number, default: 0 },
   tax: { type: Number, default: 0 },
   total: { type: Number, default: 0 },
-  closedAt: { type: Date }
+  closedAt: { type: Date },
+
+  // ✅ marca si ya se ajustó inventario para evitar dobles descuentos
+  stockAdjusted: { type: Boolean, default: false }
 }, { timestamps: true });
 
 export default mongoose.model('Sale', SaleSchema);
