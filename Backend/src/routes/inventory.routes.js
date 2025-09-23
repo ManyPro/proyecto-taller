@@ -1,32 +1,21 @@
 import { Router } from "express";
 import { authCompany } from "../middlewares/auth.js";
-
 import {
   listVehicleIntakes,
   createVehicleIntake,
   updateVehicleIntake,
   deleteVehicleIntake,
+  recalcIntakePrices,
   listItems,
   createItem,
   updateItem,
   deleteItem,
-  recalcIntakePrices,
-  itemQrPng // 👈 nuevo
+  itemQrPng
 } from "../controllers/inventory.controller.js";
 
 const router = Router();
 
-// Shield por empresa
-router.use(authCompany, (req, _res, next) => {
-  req.companyId = req.company?.id;
-  req.userId = req.user?.id;
-  if (["POST", "PUT", "PATCH"].includes(req.method)) {
-    req.body ||= {};
-    if (!req.body.companyId) req.body.companyId = req.companyId;
-    if (!req.body.userId && req.userId) req.body.userId = req.userId;
-  }
-  next();
-});
+router.use(authCompany);
 
 // Entradas de vehículo
 router.get("/vehicle-intakes", listVehicleIntakes);
