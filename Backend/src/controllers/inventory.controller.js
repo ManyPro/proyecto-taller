@@ -141,7 +141,7 @@ export const listItems = async (req, res) => {
   const { name, sku, vehicleTarget, vehicleIntakeId } = req.query;
   const q = { companyId: new mongoose.Types.ObjectId(req.companyId) };
 
-  if (name) q.name = new RegExp((name || "").trim().toUpperCase(), "i");
+  if (name) q.$or = [{ name: new RegExp((name || "").trim().toUpperCase(), "i") }, { internalName: new RegExp((name || "").trim().toUpperCase(), "i") }];
   if (sku)  q.sku  = new RegExp((sku  || "").trim().toUpperCase(), "i");
 
   if (vehicleIntakeId && mongoose.Types.ObjectId.isValid(vehicleIntakeId)) {
@@ -159,6 +159,10 @@ export const createItem = async (req, res) => {
 
   if (b.sku)  b.sku  = b.sku.toUpperCase().trim();
   if (b.name) b.name = b.name.toUpperCase().trim();
+  if (b.internalName) b.internalName = b.internalName.toUpperCase().trim();
+  if (b.location) b.location = b.location.toUpperCase().trim();
+  if (b.internalName) b.internalName = b.internalName.toUpperCase().trim();
+  if (b.location) b.location = b.location.toUpperCase().trim();
 
   if (b.vehicleIntakeId) {
     const vi = await VehicleIntake.findOne({ _id: b.vehicleIntakeId, companyId: req.companyId });
@@ -188,6 +192,8 @@ export const createItem = async (req, res) => {
     salePrice: +b.salePrice || 0,
     original: !!b.original,
     stock: Number.isFinite(+b.stock) ? +b.stock : 0,
+    internalName: b.internalName || "",
+    location: b.location || "",
     images,
     qrData: "" // inicial, lo llenamos abajo
   });
@@ -211,6 +217,10 @@ export const updateItem = async (req, res) => {
 
   if (b.sku)  b.sku  = b.sku.toUpperCase().trim();
   if (b.name) b.name = b.name.toUpperCase().trim();
+  if (b.internalName) b.internalName = b.internalName.toUpperCase().trim();
+  if (b.location) b.location = b.location.toUpperCase().trim();
+  if (b.internalName) b.internalName = b.internalName.toUpperCase().trim();
+  if (b.location) b.location = b.location.toUpperCase().trim();
 
   if (b.vehicleIntakeId) {
     const vi = await VehicleIntake.findOne({ _id: b.vehicleIntakeId, companyId: req.companyId });

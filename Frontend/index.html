@@ -158,6 +158,8 @@
           <h3>Nuevo Ítem</h3>
           <label>SKU</label><input id="it-sku" />
           <label>Nombre</label><input id="it-name" />
+            <label>Nombre interno (opcional)</label><input id="it-internal" />
+            <label>Ubicación (opcional)</label><input id="it-location" />
           <label>Vehículo destino</label><input id="it-vehicleTarget" placeholder="VITRINAS" />
           <label>Entrada de vehículo</label>
           <select id="it-vehicleIntakeId"></select>
@@ -763,6 +765,8 @@
       </div>
     </div>
     <div class="content">
+      <div>Ubicación: <span class="location"></span></div>
+      <div>Interno: <span class="internal"></span></div>
       <div>Stock: <b class="stock"></b></div>
       <div>Entrada: <span class="entry"></span></div>
       <div>Venta: <span class="sale"></span></div>
@@ -777,6 +781,8 @@
     <h3>Editar ítem</h3>
     <label>SKU</label><input id="e-it-sku" />
     <label>Nombre</label><input id="e-it-name" />
+    <label>Nombre interno</label><input id="e-it-internal" />
+    <label>Ubicación</label><input id="e-it-location" />
     <label>Entrada vehículo</label><select id="e-it-intake"></select>
     <label>Vehículo destino</label><input id="e-it-target" />
     <label>Precio entrada</label><input id="e-it-entry" type="number" step="0.01" />

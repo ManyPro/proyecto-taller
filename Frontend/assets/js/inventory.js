@@ -35,7 +35,7 @@ const invAPI = {
     const data = Array.isArray(r) ? r : (r.items || r.data || []);
     return { data };
   },
-  createItem: (formData) => fetch(`${apiBase}/api/v1/inventory/items`, { method: "POST", headers: authHeader(), body: formData }).then(r=>r.json()),
+  createItem: (body) => request(`/api/v1/inventory/items`, { method: "POST", json: body }),
   updateItem: (id, body) => request(`/api/v1/inventory/items/${id}`, { method: "PUT", json: body }),
   deleteItem: (id) => request(`/api/v1/inventory/items/${id}`, { method: "DELETE" }),
 };
@@ -137,6 +137,8 @@ export function initInventory(){
   // Nuevo ítem
   const itSku = document.getElementById("it-sku"); upper(itSku);
   const itName = document.getElementById("it-name"); upper(itName);
+  const itInternal = document.getElementById("it-internal");
+  const itLocation = document.getElementById("it-location");
   const itVehicleTarget = document.getElementById("it-vehicleTarget"); upper(itVehicleTarget);
   const itVehicleIntakeId = document.getElementById("it-vehicleIntakeId");
   const itEntryPrice = document.getElementById("it-entryPrice");
@@ -224,6 +226,8 @@ export function initInventory(){
       node.querySelector('.name').textContent = it.name || '';
       node.querySelector('.sku').textContent  = (it.sku || '').toUpperCase();
       node.querySelector('.stock').textContent = String(it.stock||0);
+      const locEl = node.querySelector('.location'); if(locEl) locEl.textContent = it.location || '-';
+      const intEl = node.querySelector('.internal'); if(intEl) intEl.textContent = it.internalName || '-';
       node.querySelector('.entry').textContent = `${fmtMoney(it.entryPrice ?? 0)}${it.entryPriceIsAuto ? " (prorrateado)" : ""}`;
       node.querySelector('.sale').textContent  = fmtMoney(it.salePrice ?? 0);
       node.querySelector('.target').textContent= it.vehicleTarget || '';
@@ -268,10 +272,11 @@ export function initInventory(){
 
     const sku = $('#e-it-sku'); const name=$('#e-it-name'); const intake=$('#e-it-intake');
     const target=$('#e-it-target'); const entry=$('#e-it-entry'); const sale=$('#e-it-sale');
+    const internal=$('#e-it-internal'); const location=$('#e-it-location');
     const original=$('#e-it-original'); const stock=$('#e-it-stock'); const thumbs=$('#e-it-thumbs'); const files=$('#e-it-files'); const viewer=$('#e-it-viewer');
 
     // cargar valores
-    sku.value = it.sku || ''; name.value = it.name || ''; target.value = it.vehicleTarget || '';
+    sku.value = it.sku || ''; name.value = it.name || ''; if(internal) internal.value = it.internalName || ''; if(location) location.value = it.location || ''; target.value = it.vehicleTarget || '';
     entry.value = it.entryPrice ?? 0; sale.value = it.salePrice ?? 0;
     original.value = it.original ? 'true' : 'false'; stock.value = parseInt(it.stock||0,10);
     intake.replaceChildren(...state.intakes.map(v=>{ const o=document.createElement('option'); o.value=v._id; o.textContent=makeIntakeLabel(v); return o; }));
@@ -292,6 +297,8 @@ export function initInventory(){
         sku: sku.value.trim().toUpperCase(),
         name: name.value.trim().toUpperCase(),
         vehicleIntakeId: intake.value || null,
+        internalName: (internal?.value||'').trim(),
+        location: (location?.value||'').trim(),
         vehicleTarget: target.value.trim().toUpperCase(),
         entryPrice: Number(entry.value||0),
         salePrice: Number(sale.value||0),
@@ -313,18 +320,20 @@ export function initInventory(){
 
   // Crear ítem
   itSave.onclick = async ()=>{
-    const fd = new FormData();
-    fd.append('sku', (itSku.value||'').trim().toUpperCase());
-    fd.append('name', (itName.value||'').trim().toUpperCase());
-    fd.append('vehicleTarget', (itVehicleTarget.value||'').trim().toUpperCase());
-    fd.append('vehicleIntakeId', itVehicleIntakeId.value||'');
-    fd.append('entryPrice', itEntryPrice.value||0);
-    fd.append('salePrice', itSalePrice.value||0);
-    fd.append('original', itOriginal.value==='true');
-    fd.append('stock', itStock.value||0);
-    Array.from(itFiles.files||[]).forEach(f=> fd.append('files', f));
-    await invAPI.createItem(fd);
-    itSku.value=''; itName.value=''; itVehicleTarget.value=''; itEntryPrice.value=''; itSalePrice.value=''; itOriginal.value='false'; itStock.value='0'; itFiles.value='';
+    const body = {
+      sku: (itSku.value||"").trim().toUpperCase(),
+      name: (itName.value||"").trim().toUpperCase(),
+      internalName: (itInternal?.value||"").trim(),
+      location: (itLocation?.value||"").trim(),
+      vehicleTarget: (itVehicleTarget.value||"").trim().toUpperCase(),
+      vehicleIntakeId: itVehicleIntakeId.value||"",
+      entryPrice: itEntryPrice.value||0,
+      salePrice: itSalePrice.value||0,
+      original: itOriginal.value==='true',
+      stock: itStock.value||0
+    };
+    await invAPI.createItem(body);
+    itSku.value=''; itName.value=''; if(itInternal) itInternal.value=''; if(itLocation) itLocation.value=''; itVehicleTarget.value=''; itEntryPrice.value=''; itSalePrice.value=''; itOriginal.value='false'; itStock.value='0'; if(itFiles) itFiles.value='';
     await refreshItems(state.lastItemsParams);
   };
 
