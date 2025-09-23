@@ -1,199 +1,432 @@
-/* assets/js/api.js
-   Capa API unificada + alias de compatibilidad (loginCompany, registerCompany, getToken, authToken)
-*/
+// Frontend/assets/js/api.js
+// Wrapper canónico de la API (superset). No elimina funcionalidades, sólo normaliza y agrega.
 
-// ========= Base =========
-const API_BASE =
-  (typeof window !== 'undefined' && window.API_BASE) ||
-  (typeof location !== 'undefined' ? `${location.origin}` : '');
-
-const TOKEN_KEY = 'token';
-const COMPANY_KEY = 'activeCompanyEmail';
-
-// ========= Stores =========
-const tokenStore = {
-  get() {
-    try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; }
-  },
-  set(tok) {
-    try { localStorage.setItem(TOKEN_KEY, tok || ''); } catch {}
-    return tok;
-  },
-  clear() {
-    try { localStorage.removeItem(TOKEN_KEY); } catch {}
-  }
-};
-
-const companyStore = {
-  get() { try { return localStorage.getItem(COMPANY_KEY) || ''; } catch { return ''; } },
-  set(email) { try { localStorage.setItem(COMPANY_KEY, email || ''); } catch {} },
-  clear() { try { localStorage.removeItem(COMPANY_KEY); } catch {} }
-};
-
-// ========= Helpers =========
-function headers(extra = {}) {
-  const h = { 'Content-Type': 'application/json', ...extra };
-  const tok = tokenStore.get();
-  if (tok) h['Authorization'] = `Bearer ${tok}`;
-  return h;
-}
-
-function toQuery(params = {}) {
-  const qs = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => {
-    if (v === undefined || v === null) return;
-    const s = String(v).trim();
-    if (s !== '') qs.set(k, s);
-  });
-  const s = qs.toString();
-  return s ? `?${s}` : '';
-}
-
-async function coreRequest(method, path, body) {
-  const isForm = (typeof FormData !== 'undefined') && (body instanceof FormData);
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers: isForm ? { Authorization: headers().Authorization } : headers(),
-    body: body == null ? undefined : (isForm ? body : JSON.stringify(body)),
-    cache: 'no-store',
-    credentials: 'omit'
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
-  return data;
-}
-
-const http = {
-  get: (path)         => coreRequest('GET', path),
-  post: (path, body)  => coreRequest('POST', path, body),
-  put: (path, body)   => coreRequest('PUT', path, body),
-  patch: (path, body) => coreRequest('PATCH', path, body),
-  del: (path)         => coreRequest('DELETE', path),
-};
-
-// ========= API =========
 export const API = {
-  base: API_BASE,
-
-  // Estado
-  token: tokenStore,
-  getActiveCompany: () => companyStore.get(),
-  setActiveCompany: (email) => companyStore.set(email || ''),
-  clearActiveCompany: () => companyStore.clear(),
+  // ===== Base & helpers =====
+  base: (typeof window !== 'undefined' && window.API_BASE) || '',
+  token: {
+    get: () => (typeof localStorage !== 'undefined' ? localStorage.getItem('token') || '' : ''),
+    set: (t) => { try { localStorage.setItem('token', t || ''); } catch {} },
+    clear: () => { try { localStorage.removeItem('token'); } catch {} },
+  },
+  headers(extra) {
+    const h = { 'Content-Type': 'application/json' };
+    const tok = API.token.get?.();
+    if (tok) h['Authorization'] = `Bearer ${tok}`;
+    return { ...h, ...(extra || {}) };
+  },
+  toQuery(params = {}) {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v === undefined || v === null || v === '') return;
+      q.set(k, String(v));
+    });
+    const qs = q.toString();
+    return qs ? `?${qs}` : '';
+  },
+  // Opcional: usado por Ventas para namespacing de pestañas en LS
+  getActiveCompany: () => {
+    try { return localStorage.getItem('active_companyId') || null; } catch { return null; }
+  },
+  setActiveCompany: (id) => {
+    try { if (id) localStorage.setItem('active_companyId', id); } catch {}
+  },
 
   // ===== Auth =====
   auth: {
-    async register({ email, password }) {
-      const r = await http.post('/api/v1/auth/register', { email, password });
-      return r;
+    async login(email, password) {
+      const r = await fetch(`${API.base}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: API.headers(),
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'Login fallido');
+      if (data?.token) API.token.set(data.token);
+      if (data?.company?._id) API.setActiveCompany(data.company._id);
+      return data;
     },
-    async login({ email, password }) {
-      const r = await http.post('/api/v1/auth/login', { email, password });
-      if (r?.token) tokenStore.set(r.token);
-      if (r?.email) companyStore.set(r.email);
-      return r;
+    async register(payload) {
+      const r = await fetch(`${API.base}/api/v1/auth/register`, {
+        method: 'POST',
+        headers: API.headers(),
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'Registro fallido');
+      if (data?.token) API.token.set(data.token);
+      if (data?.company?._id) API.setActiveCompany(data.company._id);
+      return data;
     },
     async me() {
-      return http.get('/api/v1/auth/company/me');
+      const r = await fetch(`${API.base}/api/v1/auth/company/me`, {
+        headers: API.headers(),
+        cache: 'no-store',
+      });
+      const data = await r.json().catch(() => null);
+      if (r.ok && data?._id) API.setActiveCompany(data._id);
+      return data;
     },
-    async logout() {
-      tokenStore.clear();
-      companyStore.clear();
+  },
+
+  // ===== Quotes (Cotizaciones) =====
+  quotes: {
+    async list(params = {}) {
+      const r = await fetch(`${API.base}/api/v1/quotes${API.toQuery(params)}`, {
+        headers: API.headers(),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo listar cotizaciones');
+      return data;
+    },
+    // Búsqueda para modal (texto, placa, cliente, rango fechas)
+    async search(params = {}) {
+      // Puedes implementar en backend ?q=... o reusar list con filtros
+      const r = await fetch(`${API.base}/api/v1/quotes${API.toQuery(params)}`, {
+        headers: API.headers(),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo buscar cotizaciones');
+      return data;
+    },
+    async get(id) {
+      const r = await fetch(`${API.base}/api/v1/quotes/${id}`, { headers: API.headers() });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo obtener cotización');
+      return data;
+    },
+    async create(payload) {
+      const r = await fetch(`${API.base}/api/v1/quotes`, {
+        method: 'POST',
+        headers: API.headers(),
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo crear cotización');
+      return data;
+    },
+    async update(id, payload) {
+      const r = await fetch(`${API.base}/api/v1/quotes/${id}`, {
+        method: 'PUT',
+        headers: API.headers(),
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo actualizar cotización');
+      return data;
+    },
+    async remove(id) {
+      const r = await fetch(`${API.base}/api/v1/quotes/${id}`, {
+        method: 'DELETE',
+        headers: API.headers(),
+      });
+      if (!r.ok) {
+        let data = null;
+        try { data = await r.json(); } catch {}
+        throw new Error(data?.message || 'No se pudo eliminar cotización');
+      }
       return { ok: true };
-    }
+    },
   },
 
   // ===== Notes =====
   notes: {
-    list:   (params = {}) => http.get(`/api/v1/notes${toQuery(params)}`),
-    create: (payload = {}) => http.post('/api/v1/notes', payload),
-    update: (id, body={})  => http.put(`/api/v1/notes/${id}`, body),
-    remove: (id)           => http.del(`/api/v1/notes/${id}`),
+    async list(params = {}) {
+      const r = await fetch(`${API.base}/api/v1/notes${API.toQuery(params)}`, { headers: API.headers() });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo listar notas');
+      return data;
+    },
+    async create(payload) {
+      const r = await fetch(`${API.base}/api/v1/notes`, {
+        method: 'POST',
+        headers: API.headers(),
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo crear nota');
+      return data;
+    },
+    async update(id, payload) {
+      const r = await fetch(`${API.base}/api/v1/notes/${id}`, {
+        method: 'PUT',
+        headers: API.headers(),
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo actualizar nota');
+      return data;
+    },
+    async remove(id) {
+      const r = await fetch(`${API.base}/api/v1/notes/${id}`, {
+        method: 'DELETE',
+        headers: API.headers(),
+      });
+      if (!r.ok) {
+        let data = null; try { data = await r.json(); } catch {}
+        throw new Error(data?.message || 'No se pudo eliminar nota');
+      }
+      return { ok: true };
+    },
   },
 
   // ===== Inventory =====
   inventory: {
-    // Items
-    itemsList: (params = {}) => http.get(`/api/v1/inventory/items${toQuery(params)}`),
-    itemGet:   (id)          => http.get(`/api/v1/inventory/items/${id}`),
-    itemCreate:(body={})     => http.post('/api/v1/inventory/items', body),
-    itemUpdate:(id, body={}) => http.put(`/api/v1/inventory/items/${id}`, body),
-    itemDelete:(id)          => http.del(`/api/v1/inventory/items/${id}`),
+    // List con filtros: { sku, name, intakeId, page, limit, q ... }
+    async itemsList(params = {}) {
+      const r = await fetch(`${API.base}/api/v1/inventory/items${API.toQuery(params)}`, {
+        headers: API.headers(),
+      });
+      const data = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(data?.message || 'No se pudo listar items de inventario');
+      return data;
+    },
+    async itemGet(id) {
+      const r = await fetch(`${API.base}/api/v1/inventory/items/${id}`, { headers: API.headers() });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo obtener item');
+      return data;
+    },
+    async itemCreate(payload) {
+      const r = await fetch(`${API.base}/api/v1/inventory/items`, {
+        method: 'POST',
+        headers: API.headers(),
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo crear item');
+      return data;
+    },
+    async itemUpdate(id, payload) {
+      const r = await fetch(`${API.base}/api/v1/inventory/items/${id}`, {
+        method: 'PUT',
+        headers: API.headers(),
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo actualizar item');
+      return data;
+    },
+    async itemRemove(id) {
+      const r = await fetch(`${API.base}/api/v1/inventory/items/${id}`, {
+        method: 'DELETE',
+        headers: API.headers(),
+      });
+      if (!r.ok) {
+        let data = null; try { data = await r.json(); } catch {}
+        throw new Error(data?.message || 'No se pudo eliminar item');
+      }
+      return { ok: true };
+    },
 
     // Entradas de vehículo
-    listVehicleIntakes: (params={}) => http.get(`/api/v1/inventory/vehicle-intakes${toQuery(params)}`),
+    async intakesList(params = {}) {
+      const r = await fetch(`${API.base}/api/v1/inventory/vehicle-intakes${API.toQuery(params)}`, {
+        headers: API.headers(),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo listar entradas de vehículo');
+      return data;
+    },
+    async intakeCreate(payload) {
+      const r = await fetch(`${API.base}/api/v1/inventory/vehicle-intakes`, {
+        method: 'POST',
+        headers: API.headers(),
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo crear entrada de vehículo');
+      return data;
+    },
+    async intakeUpdate(id, payload) {
+      const r = await fetch(`${API.base}/api/v1/inventory/vehicle-intakes/${id}`, {
+        method: 'PUT',
+        headers: API.headers(),
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo actualizar entrada de vehículo');
+      return data;
+    },
+    async intakeRemove(id) {
+      const r = await fetch(`${API.base}/api/v1/inventory/vehicle-intakes/${id}`, {
+        method: 'DELETE',
+        headers: API.headers(),
+      });
+      if (!r.ok) {
+        let data = null; try { data = await r.json(); } catch {}
+        throw new Error(data?.message || 'No se pudo eliminar entrada de vehículo');
+      }
+      return { ok: true };
+    },
 
-    // QR PNG URL helper
-    qrPngUrl(itemId, size=256) {
-      const tok = tokenStore.get();
-      const u = new URL(`${API_BASE}/api/v1/inventory/items/${itemId}/qr.png`, location.origin);
-      u.searchParams.set('size', String(size));
-      return { url: u.toString(), headers: tok ? { Authorization: `Bearer ${tok}` } : {} };
-    }
+    // URL del PNG del QR (se usa en <img src>)
+    qrPngUrl(itemId, size = 256) {
+      const tok = API.token.get?.();
+      const base = `${API.base}/api/v1/inventory/items/${encodeURIComponent(itemId)}/qr.png?size=${size}`;
+      // Algunos navegadores exigen el header Authorization en fetch; para <img> usamos el token en query si backend lo permite.
+      // Si NO permite token en query, usar fetch(blob) con headers y URL.createObjectURL en el front.
+      return tok ? `${base}&auth=${encodeURIComponent(tok)}` : base;
+    },
   },
 
-  // ===== Quotes =====
-  quotes: {
-    list:   (params={}) => http.get(`/api/v1/quotes${toQuery(params)}`),
-    search: (q='')      => http.get(`/api/v1/quotes${toQuery({ q })}`),
-    get:    (id)        => http.get(`/api/v1/quotes/${id}`),
-    create: (body={})   => http.post('/api/v1/quotes', body),
-    update: (id, b={})  => http.put(`/api/v1/quotes/${id}`, b),
-    remove: (id)        => http.del(`/api/v1/quotes/${id}`),
-  },
-
-  // ===== Prices / Services =====
-  servicesList: (params = {}) => http.get(`/api/v1/services${toQuery(params)}`),
-  serviceCreate: (body={})    => http.post('/api/v1/services', body),
-  serviceUpdate: (id, b={})   => http.put(`/api/v1/services/${id}`, b),
-  serviceDelete: (id)         => http.del(`/api/v1/services/${id}`),
-
-  pricesList:   (params = {}) => http.get(`/api/v1/prices${toQuery(params)}`),
-  priceCreate:  (body={})     => http.post('/api/v1/prices', body),
-  priceUpdate:  (id, b={})    => http.put(`/api/v1/prices/${id}`, b),
-  priceDelete:  (id)          => http.del(`/api/v1/prices/${id}`),
-  pricesImport: (formData)    => coreRequest('POST', `/api/v1/prices/import`, formData),
-  async pricesExport(params = {}) {
-    const tok = tokenStore.get();
-    const res = await fetch(`${API_BASE}/api/v1/prices/export${toQuery(params)}`, {
-      method: 'GET',
-      headers: tok ? { 'Authorization': `Bearer ${tok}` } : {},
-      cache: 'no-store',
-      credentials: 'omit'
-    });
-    if (!res.ok) throw new Error('No se pudo exportar CSV');
-    return await res.blob();
+  // ===== Prices (Lista de precios) =====
+  // Para el módulo de Cambio de Aceite Certificado (services + entries)
+  prices: {
+    // Servicios (e.g., "Cambio de Aceite Certificado", "Cambio de Aceite Sellado")
+    async servicesList(params = {}) {
+      const r = await fetch(`${API.base}/api/v1/prices/services${API.toQuery(params)}`, {
+        headers: API.headers(),
+      });
+      const data = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(data?.message || 'No se pudo listar servicios de precios');
+      return data;
+    },
+    // Entradas por filtros (marca, línea, motor, año, serviceId, etc.)
+    async pricesList(params = {}) {
+      const r = await fetch(`${API.base}/api/v1/prices${API.toQuery(params)}`, {
+        headers: API.headers(),
+      });
+      const data = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(data?.message || 'No se pudo listar precios');
+      return data;
+    },
+    async get(id) {
+      const r = await fetch(`${API.base}/api/v1/prices/${id}`, { headers: API.headers() });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo obtener precio');
+      return data;
+    },
+    async create(payload) {
+      const r = await fetch(`${API.base}/api/v1/prices`, {
+        method: 'POST',
+        headers: API.headers(),
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo crear precio');
+      return data;
+    },
+    async update(id, payload) {
+      const r = await fetch(`${API.base}/api/v1/prices/${id}`, {
+        method: 'PUT',
+        headers: API.headers(),
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo actualizar precio');
+      return data;
+    },
+    async remove(id) {
+      const r = await fetch(`${API.base}/api/v1/prices/${id}`, {
+        method: 'DELETE',
+        headers: API.headers(),
+      });
+      if (!r.ok) {
+        let data = null; try { data = await r.json(); } catch {}
+        throw new Error(data?.message || 'No se pudo eliminar precio');
+      }
+      return { ok: true };
+    },
   },
 
   // ===== Sales (Ventas) =====
   sales: {
-    start:            ()                 => http.post('/api/v1/sales/start', {}),
-    get:              (id)               => http.get(`/api/v1/sales/${id}`),
-    addItem:          (id, body={})      => http.post(`/api/v1/sales/${id}/items`, body),
-    updateItem:       (id, itemId, b={}) => http.put(`/api/v1/sales/${id}/items/${itemId}`, b),
-    removeItem:       (id, itemId)       => http.del(`/api/v1/sales/${id}/items/${itemId}`),
-    setCustomerVehicle:(id, body={})     => http.put(`/api/v1/sales/${id}/customer`, body),
-    close:            (id)               => http.post(`/api/v1/sales/${id}/close`, {}),
-    addByQR:          (saleId, code)     => http.post(`/api/v1/sales/addByQR`, { saleId, code }),
+    async list(params = {}) {
+      const r = await fetch(`${API.base}/api/v1/sales${API.toQuery(params)}`, {
+        headers: API.headers(),
+      });
+      const data = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(data?.message || 'No se pudo listar ventas');
+      return data;
+    },
+    async start() {
+      const r = await fetch(`${API.base}/api/v1/sales/start`, {
+        method: 'POST',
+        headers: API.headers(),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo iniciar venta');
+      return data;
+    },
+    async get(id) {
+      const r = await fetch(`${API.base}/api/v1/sales/${id}`, { headers: API.headers() });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo obtener venta');
+      return data;
+    },
+    async update(id, payload) {
+      const r = await fetch(`${API.base}/api/v1/sales/${id}`, {
+        method: 'PATCH',
+        headers: API.headers(),
+        body: JSON.stringify(payload),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo actualizar venta');
+      return data;
+    },
+    async setCustomerVehicle(id, { customer, vehicle }) {
+      const r = await fetch(`${API.base}/api/v1/sales/${id}/customer-vehicle`, {
+        method: 'PATCH',
+        headers: API.headers(),
+        body: JSON.stringify({ customer, vehicle }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo guardar cliente/vehículo');
+      return data;
+    },
+    // body: { source:'inventory'|'price'|'custom', refId?, sku?, name?, qty, unitPrice }
+    async addItem(id, body) {
+      const r = await fetch(`${API.base}/api/v1/sales/${id}/items`, {
+        method: 'POST',
+        headers: API.headers(),
+        body: JSON.stringify(body || {}),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo agregar ítem');
+      return data;
+    },
+    async updateItem(id, itemId, body) {
+      const r = await fetch(`${API.base}/api/v1/sales/${id}/items/${itemId}`, {
+        method: 'PATCH',
+        headers: API.headers(),
+        body: JSON.stringify(body || {}),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo actualizar ítem');
+      return data;
+    },
+    async removeItem(id, itemId) {
+      const r = await fetch(`${API.base}/api/v1/sales/${id}/items/${itemId}`, {
+        method: 'DELETE',
+        headers: API.headers(),
+      });
+      const data = await r.json().catch(() => ({ ok: r.ok }));
+      if (!r.ok) throw new Error(data?.message || 'No se pudo eliminar ítem');
+      return data;
+    },
+    async addByQR(id, rawPayload) {
+      const r = await fetch(`${API.base}/api/v1/sales/addByQR`, {
+        method: 'POST',
+        headers: API.headers(),
+        body: JSON.stringify({ saleId: id, payload: rawPayload }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo agregar por QR');
+      return data;
+    },
+    async close(id) {
+      const r = await fetch(`${API.base}/api/v1/sales/${id}/close`, {
+        method: 'POST',
+        headers: API.headers(),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.message || 'No se pudo cerrar la venta');
+      return data;
+    },
   },
 
-  // ===== Media (opcional; usado por inventory.js si existe) =====
-  async mediaUpload(fileList) {
-    const fd = new FormData();
-    Array.from(fileList || []).forEach(f => fd.append('files', f));
-    return coreRequest('POST', '/api/v1/media/upload', fd);
-  },
-
-  // ===== Alias de compatibilidad para front heredado =====
-  loginCompany(payload)        { return API.auth.login(payload); },
-  registerCompany(payload)     { return API.auth.register(payload); },
-  getToken()                   { return API.token.get(); },
-  me()                         { return API.auth.me(); },
-  logout()                     { return API.auth.logout(); },
+  // ===== Atajos legacy (si tu UI los llama así) =====
+  servicesList(params = {}) { return API.prices.servicesList(params); },
+  pricesList(params = {})   { return API.prices.pricesList(params); },
 };
-
-// Export nombrado esperado por algunos módulos antiguos
-export function authToken() { return tokenStore.get(); }
-
-// Default
-export default API;
