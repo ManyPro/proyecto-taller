@@ -1,10 +1,9 @@
 import { API } from "./api.js"; // gestiona Bearer
 
-// ========== helpers base ==========
 const $ = (s)=>document.querySelector(s);
 const money = (n)=>'$'+Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 
-// ---- helpers modal global ----
+// ---- helpers modal ----
 function openModal() {
   const modal = $('#modal'); if (!modal) return () => {};
   modal.classList.remove('hidden');
@@ -42,17 +41,19 @@ function downloadBlobUrl(url, filename='qr.png'){
   a.href = url; a.download = filename; a.click();
 }
 
-// ---- util: soporte BarcodeDetector nativo ----
+// ---- util: detectar soporte BarcodeDetector para QR ----
 async function isNativeQRSupported(){
   if (!('BarcodeDetector' in window)) return false;
   try {
     const fmts = await window.BarcodeDetector.getSupportedFormats?.();
     if (Array.isArray(fmts)) return fmts.includes('qr_code');
+    return true; // algunos navegadores no exponen getSupportedFormats
+  } catch {
     return true;
-  } catch { return true; }
+  }
 }
 
-// ---- util: jsQR (fallback) ----
+// ---- util: cargar jsQR on-demand (fallback) ----
 let jsQRPromise = null;
 function ensureJsQR(){
   if (window.jsQR) return Promise.resolve(window.jsQR);
@@ -68,8 +69,7 @@ function ensureJsQR(){
   return jsQRPromise;
 }
 
-// ---- parseo flexible de IT:... ----
-// Acepta: IT:<itemId> | IT:<companyId>:<itemId> | IT:<companyId>:<itemId>:<sku?>
+// ---- parseo de payload IT:<itemId> | IT:<companyId>:<itemId> | IT:<companyId>:<itemId>:<sku?> ----
 function parseInventoryCode(raw=''){
   const s = String(raw||'').trim();
   if (!s.toUpperCase().startsWith('IT:')) return null;
@@ -92,7 +92,10 @@ async function fetchCompanySafe() {
     return await r.json();
   } catch { return null; }
 }
-function numberToMoney(n){ const v = Math.round(Number(n||0)); return '$'+v.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.'); }
+function numberToMoney(n){
+  const v = Math.round(Number(n||0));
+  return '$' + v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
 function buildSalePdf(sale, company){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'mm', format:'a4' });
@@ -108,13 +111,16 @@ function buildSalePdf(sale, company){
   const when = created ? created.format('DD/MM/YYYY HH:mm') : (new Date()).toLocaleString();
 
   // Encabezado
-  doc.setFontSize(14);  doc.text(C.name, 14, 16);
+  doc.setFontSize(14);
+  doc.text(C.name, 14, 16);
   doc.setFontSize(10);
-  if (C.nit)   doc.text(`NIT: ${C.nit}`, 14, 22);
+  if (C.nit) doc.text(`NIT: ${C.nit}`, 14, 22);
   if (C.phone) doc.text(`Tel: ${C.phone}`, 14, 27);
   if (C.email) doc.text(C.email, 14, 32);
 
-  doc.setFontSize(16);  doc.text('VENTA', 196, 16, { align: 'right' });
+  doc.setFontSize(16);
+  doc.text('VENTA', 196, 16, { align: 'right' });
+
   const nro = sale.number ? String(sale.number).padStart(5,'0') : (sale._id || '').slice(-6).toUpperCase();
   doc.setFontSize(10);
   doc.text(`No: ${nro}`, 196, 22, { align: 'right' });
@@ -172,11 +178,15 @@ function buildSalePdf(sale, company){
   doc.text(`Impuestos: ${numberToMoney(sale.tax||0)}`, right(0), endY + 14, { align: 'right' });
   doc.setFontSize(13);
   doc.text(`TOTAL: ${numberToMoney(sale.total||0)}`, right(0), endY + 22, { align: 'right' });
-  doc.setFontSize(9);  doc.text('Gracias por su compra.', 14, 290);
+
+  // Pie
+  doc.setFontSize(9);
+  doc.text('Gracias por su compra.', 14, 290);
+
   return doc;
 }
 
-// ========== UI Ventas ==========
+// ====== UI Ventas ======
 export function initSales(){
   const tab = document.getElementById('tab-ventas');
   if(!tab) return;
@@ -244,26 +254,39 @@ export function initSales(){
     </div>
   `;
 
-  // ===== Multi-pestaña (definido en el scope superior de initSales) =====
-  let current = null; // venta activa
+  let current = null; // venta actual
+
+  // ===== Multi-pestaña (scope superior de initSales) =====
   const OPEN_KEY = `sales:openTabs:${API.getActiveCompany?.() || 'default'}`;
   let openTabs = [];
   try { openTabs = JSON.parse(localStorage.getItem(OPEN_KEY) || '[]'); } catch { openTabs = []; }
+
   function saveTabs(){ try { localStorage.setItem(OPEN_KEY, JSON.stringify(openTabs)); } catch {} }
   function addOpen(id){ if(!openTabs.includes(id)){ openTabs.push(id); saveTabs(); } renderSaleTabs(); }
   function removeOpen(id){ openTabs = openTabs.filter(x => x !== id); saveTabs(); renderSaleTabs(); }
-  async function switchTo(id){ current = await API.sales.get(id); addOpen(id); render(); }
+
+  async function switchTo(id){
+    current = await API.sales.get(id);
+    addOpen(id);
+    render();
+  }
+
   function renderSaleTabs(){
-    const wrap = document.getElementById('saleTabs'); if(!wrap) return;
+    const wrap = document.getElementById('saleTabs');
+    if(!wrap) return;
     wrap.innerHTML = openTabs.map(id => `
       <span class="sales-tab ${current && current._id===id ? 'active':''}" data-id="${id}">
         Vta ${String(id).slice(-4).toUpperCase()} <b class="close" data-x="${id}">×</b>
       </span>
     `).join('') || `<span class="sales-tab">— sin ventas abiertas —</span>`;
-    wrap.querySelectorAll('.sales-tab').forEach(el => { el.onclick = ()=>{ const id = el.dataset.id; if(id) switchTo(id); }; });
-    wrap.querySelectorAll('[data-x]').forEach(el => { el.onclick = (e)=>{ e.stopPropagation(); removeOpen(el.dataset.x); }; });
+    wrap.querySelectorAll('.sales-tab').forEach(el => {
+      el.onclick = (e)=>{ const id = el.dataset.id; if(id) switchTo(id); };
+    });
+    wrap.querySelectorAll('[data-x]').forEach(el => {
+      el.onclick = (e)=>{ e.stopPropagation(); removeOpen(el.dataset.x); };
+    });
   }
-  // ======================================================================
+  // ========================================================
 
   const body = $('#sales-body');
   const totalEl = $('#sales-total');
@@ -304,7 +327,7 @@ export function initSales(){
   // -------- acciones base --------
   $('#sales-start').onclick = async ()=>{
     current = await API.sales.start();
-    addOpen(current._id);         // ← registra pestaña
+    addOpen(current._id);
     render();
   };
 
@@ -321,7 +344,7 @@ export function initSales(){
   $('#sales-add-inv').onclick = () => openInventoryPicker();
   $('#sales-add-prices').onclick = () => openPricesPicker();
 
-  // -------- LECTOR DE QR (nativo + fallback jsQR) --------
+  // -------- LECTOR DE QR (con fallback jsQR) --------
   $('#sales-scan-qr').onclick = () => openQRScanner();
 
   async function openQRScanner(){
@@ -393,6 +416,7 @@ export function initSales(){
         await video.play();
 
         running = true;
+
         if (useNative) {
           try { detector = new window.BarcodeDetector({ formats: ['qr_code'] }); }
           catch { useNative = false; }
@@ -401,6 +425,7 @@ export function initSales(){
           try { await ensureJsQR(); }
           catch { msg.textContent = 'No fue posible cargar jsQR. Usa el campo manual.'; }
         }
+
         msg.textContent = useNative ? 'Escanea un código QR…' : 'Escaneo con jsQR activo…';
         tick();
       } catch (e) {
@@ -424,7 +449,7 @@ export function initSales(){
       list.prepend(li);
 
       try {
-        // 1) IT:... → agregar por refId
+        // 1) Si es un código del inventario (IT:...), agregamos por refId (itemId)
         const parsed = parseInventoryCode(codeStr);
         if (parsed && parsed.itemId) {
           current = await API.sales.addItem(current._id, { source:'inventory', refId: parsed.itemId, qty: 1 });
@@ -434,7 +459,7 @@ export function initSales(){
           return;
         }
 
-        // 2) Backend addByQR (acepta payload o code)
+        // 2) Si no, endpoint addByQR (si existe en tu backend)
         if (API.sales?.addByQR) {
           const res = await API.sales.addByQR(current._id, codeStr);
           if (res && (res._id || res.sale)) {
@@ -446,7 +471,7 @@ export function initSales(){
           }
         }
 
-        // 3) Fallback → tratar como SKU
+        // 3) Último intento: usarlo como SKU
         current = await API.sales.addItem(current._id, { source:'inventory', sku: codeStr.toUpperCase(), qty: 1 });
         render();
         msg.textContent = 'Agregado por SKU leído.';
@@ -523,6 +548,12 @@ export function initSales(){
 
     let all = []; let shown = 0; const PAGE = 20;
 
+    // helper normalizado: siempre array (r | r.items | r.data)
+    async function fetchItems(params){
+      const r = await API.inventory.itemsList(params);
+      return Array.isArray(r) ? r : (r.items || r.data || []);
+    }
+
     const renderSlice = async ()=>{
       const chunk = all.slice(0, shown);
       const rows = await Promise.all(chunk.map(async it => {
@@ -532,11 +563,13 @@ export function initSales(){
           const url = f?.url || f?.secureUrl || f?.path || null;
           if (url) thumb = `<img src="${url}" alt="img" class="thumb">`;
         } catch {}
+
         let qrCell = '—';
         try {
           const qrUrl = await getQRObjectURL(it._id, 96);
           qrCell = `<img src="${qrUrl}" alt="QR" class="thumb-qr" title="Click para descargar" data-qr="${it._id}">`;
         } catch {}
+
         return `
           <tr>
             <td class="w-fit">${thumb || '—'}</td>
@@ -551,6 +584,7 @@ export function initSales(){
       }));
       $('#p-inv-body').innerHTML = rows.join('') || `<tr><td colspan="99">Sin resultados</td></tr>`;
       $('#p-inv-count').textContent = chunk.length ? `${chunk.length}/${all.length}` : '';
+
       $('#p-inv-body').querySelectorAll('button[data-add]').forEach(btn=>{
         btn.onclick = async ()=>{
           const id = btn.getAttribute('data-add');
@@ -561,17 +595,13 @@ export function initSales(){
       $('#p-inv-body').querySelectorAll('img[data-qr]').forEach(img=>{
         img.onclick = async ()=>{
           const id = img.getAttribute('data-qr');
-          try { const url = await getQRObjectURL(id, 256); downloadBlobUrl(url, `qr_${id}.png`); }
-          catch(e){ alert('No se pudo descargar el QR'); }
+          try {
+            const url = await getQRObjectURL(id, 256);
+            downloadBlobUrl(url, `qr_${id}.png`);
+          } catch(e){ alert('No se pudo descargar el QR'); }
         };
       });
     };
-
-    // helper normalizado: siempre array (r | r.items | r.data)
-    async function fetchItems(params){
-      const r = await API.inventory.itemsList(params);
-      return Array.isArray(r) ? r : (r.items || r.data || []);
-    }
 
     const doSearch = async ()=>{
       const rawSku = String($('#p-inv-sku').value||'').trim();
@@ -703,8 +733,7 @@ export function initSales(){
       try {
         const params = { serviceId, brand, line, engine, year };
         const res = await API.pricesList(params);
-        const items = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
-        all = items || [];
+        all = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
         shown = Math.min(PAGE, all.length);
         renderSlice();
       } catch(e) {
@@ -722,6 +751,41 @@ export function initSales(){
     renderHead();
     doSearch();
   }
+
+  // -------- Imprimir / WhatsApp --------
+  $('#sales-print').onclick = async ()=>{
+    if(!current) return alert('Crea primero una venta');
+    try {
+      const company = await fetchCompanySafe();
+      const doc = buildSalePdf(current, company);
+      const nro = current.number ? String(current.number).padStart(5,'0') : (current._id||'').slice(-6).toUpperCase();
+      doc.save(`venta_${nro}.pdf`);
+    } catch (e) {
+      console.error(e);
+      alert('No se pudo generar el PDF');
+    }
+  };
+
+  $('#sales-share-wa').onclick = async ()=>{
+    if(!current) return alert('Crea primero una venta');
+
+    const company = await fetchCompanySafe();
+    const nro = current.number ? String(current.number).padStart(5,'0')
+                               : (current._id||'').slice(-6).toUpperCase();
+    const when = window.dayjs ? dayjs(current.createdAt).format('DD/MM/YYYY HH:mm')
+                              : new Date().toLocaleString();
+
+    const lines = (current.items||[]).map(it =>
+      `• ${it.sku||''} x${it.qty||1} — ${it.name||''} — ${money(it.total||0)}`
+    );
+
+    const header = `*${company?.name || 'Taller'}*%0A*Venta No.* ${nro} — ${when}`;
+    const body   = lines.join('%0A') || '— sin ítems —';
+    const footer = `%0A*TOTAL:* ${money(current.total||0)}`;
+
+    const url = `https://wa.me/?text=${header}%0A%0A${body}%0A%0A${footer}`;
+    window.open(url, '_blank');
+  };
 
   // -------- cliente/vehículo & cierre --------
   $('#sales-save-cv').onclick = async ()=>{
@@ -741,88 +805,14 @@ export function initSales(){
   $('#sales-close').onclick = async ()=>{
     if(!current) return;
     const res = await API.sales.close(current._id);
-    if(res?.ok){ alert('Venta cerrada'); current = res.sale; }
-    removeOpen(current?._id); // quita pestaña de abiertas
-    current = null;
-    render();
-  };
-
-  // Imprimir / Descargar PDF
-  $('#sales-print').onclick = async ()=>{
-    if(!current) return alert('Crea primero una venta');
-    try {
-      const company = await fetchCompanySafe(); // no rompe si falla
-      const doc = buildSalePdf(current, company);
-      const nro = current.number ? String(current.number).padStart(5,'0') : (current._id||'').slice(-6).toUpperCase();
-      doc.save(`venta_${nro}.pdf`);
-    } catch (e) {
-      console.error(e); alert('No se pudo generar el PDF');
+    if(res?.ok){
+      current = res.sale;
+      removeOpen(current._id);
+      alert('Venta cerrada');
+      current = null;
+      render();
     }
   };
 
-  // Compartir por WhatsApp
-  $('#sales-share-wa').onclick = async ()=>{
-    if(!current) return alert('Crea primero una venta');
-    const company = await fetchCompanySafe();
-    const nro = current.number ? String(current.number).padStart(5,'0') : (current._id||'').slice(-6).toUpperCase();
-    const when = window.dayjs ? dayjs(current.createdAt).format('DD/MM/YYYY HH:mm') : new Date().toLocaleString();
-    const lines = (current.items||[]).map(it => `• ${it.sku||''} x${it.qty||1} — ${it.name||''} — ${money(it.total||0)}`);
-    const header = `*${company?.name || 'Taller'}*%0A*Venta No.* ${nro} — ${when}`;
-    const body   = lines.join('%0A') || '— sin ítems —';
-    const footer = `%0A*TOTAL:* ${money(current.total||0)}`;
-    const url = `https://wa.me/?text=${header}%0A%0A${body}%0A%0A${footer}`;
-    window.open(url, '_blank');
-  };
-
-  // inicio
   renderSaleTabs();
-}
-
-// ========== UI Caja ==========
-export async function initCash(){
-  const tab = document.getElementById('tab-caja');
-  if(!tab) return;
-
-  tab.innerHTML = `
-    <div class="row" style="gap:8px;align-items:center">
-      <label>Desde</label><input type="date" id="cash-from">
-      <label>Hasta</label><input type="date" id="cash-to">
-      <button id="cash-apply">Aplicar</button>
-    </div>
-
-    <div class="cash-summary">
-      <span class="pill">Ventas cerradas: <b id="cash-count">0</b></span>
-      <span class="pill">Total: <b id="cash-total">$0</b></span>
-    </div>
-
-    <div class="card">
-      <table class="table">
-        <thead><tr><th>#</th><th>Fecha</th><th>Cliente</th><th class="t-right">Total</th></tr></thead>
-        <tbody id="cash-body"></tbody>
-      </table>
-    </div>
-  `;
-
-  async function load(){
-    const from = document.getElementById('cash-from').value;
-    const to   = document.getElementById('cash-to').value;
-    const [sum, list] = await Promise.all([
-      API.sales.summary({ from, to }),
-      API.sales.list({ status:'closed', from, to, limit:200 })
-    ]);
-    document.getElementById('cash-count').textContent = String(sum?.count || 0);
-    document.getElementById('cash-total').textContent = money(sum?.total || 0);
-    const rows = (list?.items || list || []).map(s => `
-      <tr>
-        <td>${String(s.number || '').padStart(5,'0')}</td>
-        <td>${new Date(s.createdAt).toLocaleString()}</td>
-        <td>${(s.customer?.name || '').toUpperCase()}</td>
-        <td class="t-right">${money(s.total || 0)}</td>
-      </tr>
-    `).join('');
-    document.getElementById('cash-body').innerHTML = rows || `<tr><td colspan="4">Sin resultados</td></tr>`;
-  }
-
-  document.getElementById('cash-apply').onclick = load;
-  load();
 }
