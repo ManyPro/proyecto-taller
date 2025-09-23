@@ -4,7 +4,7 @@
 
 function resolveApiBase() {
   try {
-    // 1) LocalStorage (varios nombres que has usado en el proyecto)
+    // 1) LocalStorage
     const ls =
       localStorage.getItem('apiBase') ||
       localStorage.getItem('API_BASE') ||
@@ -16,12 +16,11 @@ function resolveApiBase() {
     if (meta && /^https?:/i.test(meta)) return meta.trim();
 
     // 3) Variable global
-    // eslint-disable-next-line no-undef
     if (typeof window !== 'undefined' && window.API_BASE && /^https?:/i.test(window.API_BASE)) {
       return String(window.API_BASE).trim();
     }
 
-    // 4) Fallback (misma-origen) -> útil en dev con proxy
+    // 4) Fallback (misma-origen)
     return '';
   } catch {
     return '';
@@ -32,7 +31,7 @@ let _API_BASE = resolveApiBase();
 
 export const API = {
   // ===== Base & helpers =====
-  base: _API_BASE, // string, algunos módulos lo leen directamente
+  base: _API_BASE,
   setBase(url) {
     try {
       if (url && /^https?:/i.test(url)) {
@@ -53,7 +52,6 @@ export const API = {
     const h = { 'Content-Type': 'application/json' };
     const tok = API.token.get?.();
     if (tok) h['Authorization'] = `Bearer ${tok}`;
-    // NOTA: no añadimos nada más para no disparar CORS raros.
     return { ...h, ...(extra || {}) };
   },
   toQuery(params = {}) {
@@ -77,7 +75,6 @@ export const API = {
       const data = await r.json().catch(() => null);
       if (!r.ok) throw new Error(data?.message || 'Login fallido');
       if (data?.token) API.token.set(data.token);
-      // No tocamos nada más aquí para no romper flujos existentes
       return data;
     },
     async register(payload) {
@@ -452,3 +449,11 @@ export const API = {
   servicesList(params = {}) { return API.prices.servicesList(params); },
   pricesList(params = {})   { return API.prices.pricesList(params); },
 };
+
+/* ===== Retrocompatibilidad =====
+   Algunos módulos antiguos importaban un named export `authToken` desde './api.js'.
+   Lo exponemos aquí sin romper el wrapper moderno basado en API.token.get().
+*/
+export function authToken() {
+  try { return localStorage.getItem('token') || ''; } catch { return ''; }
+}
