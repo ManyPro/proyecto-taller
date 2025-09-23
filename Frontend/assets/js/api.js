@@ -1,30 +1,21 @@
 // Frontend/assets/js/api.js
 // Wrapper canónico de la API. Incluye TODO lo usado por Notas, Inventario, Precios, Cotizaciones y Ventas.
-// Cambios clave: resolución robusta de API_BASE sin romper firmas existentes.
+// Con alias de compatibilidad: loginCompany, registerCompany, getToken y export nombrado authToken.
 
 function resolveApiBase() {
   try {
-    // 1) LocalStorage
     const ls =
       localStorage.getItem('apiBase') ||
       localStorage.getItem('API_BASE') ||
       localStorage.getItem('api_base');
     if (ls && /^https?:/i.test(ls)) return ls.trim();
-
-    // 2) Meta tag
     const meta = document.querySelector('meta[name="api-base"]')?.content;
     if (meta && /^https?:/i.test(meta)) return meta.trim();
-
-    // 3) Variable global
     if (typeof window !== 'undefined' && window.API_BASE && /^https?:/i.test(window.API_BASE)) {
       return String(window.API_BASE).trim();
     }
-
-    // 4) Fallback (misma-origen)
     return '';
-  } catch {
-    return '';
-  }
+  } catch { return ''; }
 }
 
 let _API_BASE = resolveApiBase();
@@ -42,9 +33,7 @@ export const API = {
     } catch {}
   },
   token: {
-    get: () => {
-      try { return localStorage.getItem('token') || ''; } catch { return ''; }
-    },
+    get: () => { try { return localStorage.getItem('token') || ''; } catch { return ''; } },
     set: (t) => { try { localStorage.setItem('token', t || ''); } catch {} },
     clear: () => { try { localStorage.removeItem('token'); } catch {} },
   },
@@ -101,17 +90,13 @@ export const API = {
   // ===== Quotes (Cotizaciones) =====
   quotes: {
     async list(params = {}) {
-      const r = await fetch(`${API.base}/api/v1/quotes${API.toQuery(params)}`, {
-        headers: API.headers(),
-      });
+      const r = await fetch(`${API.base}/api/v1/quotes${API.toQuery(params)}`, { headers: API.headers() });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo listar cotizaciones');
       return data;
     },
     async search(params = {}) {
-      const r = await fetch(`${API.base}/api/v1/quotes${API.toQuery(params)}`, {
-        headers: API.headers(),
-      });
+      const r = await fetch(`${API.base}/api/v1/quotes${API.toQuery(params)}`, { headers: API.headers() });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo buscar cotizaciones');
       return data;
@@ -147,11 +132,8 @@ export const API = {
         method: 'DELETE',
         headers: API.headers(),
       });
-      if (!r.ok) {
-        let data = null; try { data = await r.json(); } catch {}
-        throw new Error(data?.message || 'No se pudo eliminar cotización');
-      }
-      return { ok: true };
+      if (!r.ok) { let data=null; try{data=await r.json();}catch{}; throw new Error(data?.message||'No se pudo eliminar cotización'); }
+      return { ok:true };
     },
   },
 
@@ -164,45 +146,29 @@ export const API = {
       return data;
     },
     async create(payload) {
-      const r = await fetch(`${API.base}/api/v1/notes`, {
-        method: 'POST',
-        headers: API.headers(),
-        body: JSON.stringify(payload),
-      });
+      const r = await fetch(`${API.base}/api/v1/notes`, { method:'POST', headers: API.headers(), body: JSON.stringify(payload) });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo crear nota');
       return data;
     },
     async update(id, payload) {
-      const r = await fetch(`${API.base}/api/v1/notes/${id}`, {
-        method: 'PUT',
-        headers: API.headers(),
-        body: JSON.stringify(payload),
-      });
+      const r = await fetch(`${API.base}/api/v1/notes/${id}`, { method:'PUT', headers: API.headers(), body: JSON.stringify(payload) });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo actualizar nota');
       return data;
     },
     async remove(id) {
-      const r = await fetch(`${API.base}/api/v1/notes/${id}`, {
-        method: 'DELETE',
-        headers: API.headers(),
-      });
-      if (!r.ok) {
-        let data = null; try { data = await r.json(); } catch {}
-        throw new Error(data?.message || 'No se pudo eliminar nota');
-      }
-      return { ok: true };
+      const r = await fetch(`${API.base}/api/v1/notes/${id}`, { method:'DELETE', headers: API.headers() });
+      if (!r.ok) { let data=null; try{data=await r.json();}catch{}; throw new Error(data?.message||'No se pudo eliminar nota'); }
+      return { ok:true };
     },
   },
 
   // ===== Inventory =====
   inventory: {
     async itemsList(params = {}) {
-      const r = await fetch(`${API.base}/api/v1/inventory/items${API.toQuery(params)}`, {
-        headers: API.headers(),
-      });
-      const data = await r.json().catch(() => null);
+      const r = await fetch(`${API.base}/api/v1/inventory/items${API.toQuery(params)}`, { headers: API.headers() });
+      const data = await r.json().catch(()=>null);
       if (!r.ok) throw new Error(data?.message || 'No se pudo listar items de inventario');
       return data;
     },
@@ -213,78 +179,47 @@ export const API = {
       return data;
     },
     async itemCreate(payload) {
-      const r = await fetch(`${API.base}/api/v1/inventory/items`, {
-        method: 'POST',
-        headers: API.headers(),
-        body: JSON.stringify(payload),
-      });
+      const r = await fetch(`${API.base}/api/v1/inventory/items`, { method:'POST', headers: API.headers(), body: JSON.stringify(payload) });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo crear item');
       return data;
     },
     async itemUpdate(id, payload) {
-      const r = await fetch(`${API.base}/api/v1/inventory/items/${id}`, {
-        method: 'PUT',
-        headers: API.headers(),
-        body: JSON.stringify(payload),
-      });
+      const r = await fetch(`${API.base}/api/v1/inventory/items/${id}`, { method:'PUT', headers: API.headers(), body: JSON.stringify(payload) });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo actualizar item');
       return data;
     },
     async itemRemove(id) {
-      const r = await fetch(`${API.base}/api/v1/inventory/items/${id}`, {
-        method: 'DELETE',
-        headers: API.headers(),
-      });
-      if (!r.ok) {
-        let data = null; try { data = await r.json(); } catch {}
-        throw new Error(data?.message || 'No se pudo eliminar item');
-      }
-      return { ok: true };
+      const r = await fetch(`${API.base}/api/v1/inventory/items/${id}`, { method:'DELETE', headers: API.headers() });
+      if (!r.ok) { let data=null; try{data=await r.json();}catch{}; throw new Error(data?.message||'No se pudo eliminar item'); }
+      return { ok:true };
     },
 
     async intakesList(params = {}) {
-      const r = await fetch(`${API.base}/api/v1/inventory/vehicle-intakes${API.toQuery(params)}`, {
-        headers: API.headers(),
-      });
+      const r = await fetch(`${API.base}/api/v1/inventory/vehicle-intakes${API.toQuery(params)}`, { headers: API.headers() });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo listar entradas de vehículo');
       return data;
     },
     async intakeCreate(payload) {
-      const r = await fetch(`${API.base}/api/v1/inventory/vehicle-intakes`, {
-        method: 'POST',
-        headers: API.headers(),
-        body: JSON.stringify(payload),
-      });
+      const r = await fetch(`${API.base}/api/v1/inventory/vehicle-intakes`, { method:'POST', headers: API.headers(), body: JSON.stringify(payload) });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo crear entrada de vehículo');
       return data;
     },
     async intakeUpdate(id, payload) {
-      const r = await fetch(`${API.base}/api/v1/inventory/vehicle-intakes/${id}`, {
-        method: 'PUT',
-        headers: API.headers(),
-        body: JSON.stringify(payload),
-      });
+      const r = await fetch(`${API.base}/api/v1/inventory/vehicle-intakes/${id}`, { method:'PUT', headers: API.headers(), body: JSON.stringify(payload) });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo actualizar entrada de vehículo');
       return data;
     },
     async intakeRemove(id) {
-      const r = await fetch(`${API.base}/api/v1/inventory/vehicle-intakes/${id}`, {
-        method: 'DELETE',
-        headers: API.headers(),
-      });
-      if (!r.ok) {
-        let data = null; try { data = await r.json(); } catch {}
-        throw new Error(data?.message || 'No se pudo eliminar entrada de vehículo');
-      }
-      return { ok: true };
+      const r = await fetch(`${API.base}/api/v1/inventory/vehicle-intakes/${id}`, { method:'DELETE', headers: API.headers() });
+      if (!r.ok) { let data=null; try{data=await r.json();}catch{}; throw new Error(data?.message||'No se pudo eliminar entrada de vehículo'); }
+      return { ok:true };
     },
 
-    // URL del PNG del QR
     qrPngUrl(itemId, size = 256) {
       const tok = API.token.get?.();
       const base = `${API.base}/api/v1/inventory/items/${encodeURIComponent(itemId)}/qr.png?size=${size}`;
@@ -295,18 +230,14 @@ export const API = {
   // ===== Prices (Lista de precios) =====
   prices: {
     async servicesList(params = {}) {
-      const r = await fetch(`${API.base}/api/v1/prices/services${API.toQuery(params)}`, {
-        headers: API.headers(),
-      });
-      const data = await r.json().catch(() => null);
+      const r = await fetch(`${API.base}/api/v1/prices/services${API.toQuery(params)}`, { headers: API.headers() });
+      const data = await r.json().catch(()=>null);
       if (!r.ok) throw new Error(data?.message || 'No se pudo listar servicios de precios');
       return data;
     },
     async pricesList(params = {}) {
-      const r = await fetch(`${API.base}/api/v1/prices${API.toQuery(params)}`, {
-        headers: API.headers(),
-      });
-      const data = await r.json().catch(() => null);
+      const r = await fetch(`${API.base}/api/v1/prices${API.toQuery(params)}`, { headers: API.headers() });
+      const data = await r.json().catch(()=>null);
       if (!r.ok) throw new Error(data?.message || 'No se pudo listar precios');
       return data;
     },
@@ -317,53 +248,34 @@ export const API = {
       return data;
     },
     async create(payload) {
-      const r = await fetch(`${API.base}/api/v1/prices`, {
-        method: 'POST',
-        headers: API.headers(),
-        body: JSON.stringify(payload),
-      });
+      const r = await fetch(`${API.base}/api/v1/prices`, { method:'POST', headers: API.headers(), body: JSON.stringify(payload) });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo crear precio');
       return data;
     },
     async update(id, payload) {
-      const r = await fetch(`${API.base}/api/v1/prices/${id}`, {
-        method: 'PUT',
-        headers: API.headers(),
-        body: JSON.stringify(payload),
-      });
+      const r = await fetch(`${API.base}/api/v1/prices/${id}`, { method:'PUT', headers: API.headers(), body: JSON.stringify(payload) });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo actualizar precio');
       return data;
     },
     async remove(id) {
-      const r = await fetch(`${API.base}/api/v1/prices/${id}`, {
-        method: 'DELETE',
-        headers: API.headers(),
-      });
-      if (!r.ok) {
-        let data = null; try { data = await r.json(); } catch {}
-        throw new Error(data?.message || 'No se pudo eliminar precio');
-      }
-      return { ok: true };
+      const r = await fetch(`${API.base}/api/v1/prices/${id}`, { method:'DELETE', headers: API.headers() });
+      if (!r.ok) { let data=null; try{data=await r.json();}catch{}; throw new Error(data?.message||'No se pudo eliminar precio'); }
+      return { ok:true };
     },
   },
 
   // ===== Sales (Ventas) =====
   sales: {
     async list(params = {}) {
-      const r = await fetch(`${API.base}/api/v1/sales${API.toQuery(params)}`, {
-        headers: API.headers(),
-      });
-      const data = await r.json().catch(() => null);
+      const r = await fetch(`${API.base}/api/v1/sales${API.toQuery(params)}`, { headers: API.headers() });
+      const data = await r.json().catch(()=>null);
       if (!r.ok) throw new Error(data?.message || 'No se pudo listar ventas');
       return data;
     },
     async start() {
-      const r = await fetch(`${API.base}/api/v1/sales/start`, {
-        method: 'POST',
-        headers: API.headers(),
-      });
+      const r = await fetch(`${API.base}/api/v1/sales/start`, { method:'POST', headers: API.headers() });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo iniciar venta');
       return data;
@@ -375,85 +287,61 @@ export const API = {
       return data;
     },
     async update(id, payload) {
-      const r = await fetch(`${API.base}/api/v1/sales/${id}`, {
-        method: 'PATCH',
-        headers: API.headers(),
-        body: JSON.stringify(payload),
-      });
+      const r = await fetch(`${API.base}/api/v1/sales/${id}`, { method:'PATCH', headers: API.headers(), body: JSON.stringify(payload) });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo actualizar venta');
       return data;
     },
     async setCustomerVehicle(id, { customer, vehicle }) {
-      const r = await fetch(`${API.base}/api/v1/sales/${id}/customer-vehicle`, {
-        method: 'PATCH',
-        headers: API.headers(),
-        body: JSON.stringify({ customer, vehicle }),
-      });
+      const r = await fetch(`${API.base}/api/v1/sales/${id}/customer-vehicle`, { method:'PATCH', headers: API.headers(), body: JSON.stringify({ customer, vehicle }) });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo guardar cliente/vehículo');
       return data;
     },
     // body: { source:'inventory'|'price'|'custom', refId?, sku?, name?, qty, unitPrice }
     async addItem(id, body) {
-      const r = await fetch(`${API.base}/api/v1/sales/${id}/items`, {
-        method: 'POST',
-        headers: API.headers(),
-        body: JSON.stringify(body || {}),
-      });
+      const r = await fetch(`${API.base}/api/v1/sales/${id}/items`, { method:'POST', headers: API.headers(), body: JSON.stringify(body||{}) });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo agregar ítem');
       return data;
     },
     async updateItem(id, itemId, body) {
-      const r = await fetch(`${API.base}/api/v1/sales/${id}/items/${itemId}`, {
-        method: 'PATCH',
-        headers: API.headers(),
-        body: JSON.stringify(body || {}),
-      });
+      const r = await fetch(`${API.base}/api/v1/sales/${id}/items/${itemId}`, { method:'PATCH', headers: API.headers(), body: JSON.stringify(body||{}) });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo actualizar ítem');
       return data;
     },
     async removeItem(id, itemId) {
-      const r = await fetch(`${API.base}/api/v1/sales/${id}/items/${itemId}`, {
-        method: 'DELETE',
-        headers: API.headers(),
-      });
-      const data = await r.json().catch(() => ({ ok: r.ok }));
+      const r = await fetch(`${API.base}/api/v1/sales/${id}/items/${itemId}`, { method:'DELETE', headers: API.headers() });
+      const data = await r.json().catch(()=>({ ok:r.ok }));
       if (!r.ok) throw new Error(data?.message || 'No se pudo eliminar ítem');
       return data;
     },
     async addByQR(id, rawPayload) {
-      const r = await fetch(`${API.base}/api/v1/sales/addByQR`, {
-        method: 'POST',
-        headers: API.headers(),
-        body: JSON.stringify({ saleId: id, payload: rawPayload }),
-      });
+      const r = await fetch(`${API.base}/api/v1/sales/addByQR`, { method:'POST', headers: API.headers(), body: JSON.stringify({ saleId:id, payload:rawPayload }) });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo agregar por QR');
       return data;
     },
     async close(id) {
-      const r = await fetch(`${API.base}/api/v1/sales/${id}/close`, {
-        method: 'POST',
-        headers: API.headers(),
-      });
+      const r = await fetch(`${API.base}/api/v1/sales/${id}/close`, { method:'POST', headers: API.headers() });
       const data = await r.json();
       if (!r.ok) throw new Error(data?.message || 'No se pudo cerrar la venta');
       return data;
     },
   },
 
-  // ===== Alias legacy =====
+  // ===== Alias/Compatibilidad (para no tocar tu front actual) =====
+  loginCompany(email, password) { return API.auth.login(email, password); },
+  registerCompany(payload)     { return API.auth.register(payload); },
+  getToken()                   { return API.token.get(); },
+
+  // Alias legacy del módulo de precios
   servicesList(params = {}) { return API.prices.servicesList(params); },
   pricesList(params = {})   { return API.prices.pricesList(params); },
 };
 
-/* ===== Retrocompatibilidad =====
-   Algunos módulos antiguos importaban un named export `authToken` desde './api.js'.
-   Lo exponemos aquí sin romper el wrapper moderno basado en API.token.get().
-*/
+// Export nombrado para compatibilidad con módulos antiguos
 export function authToken() {
   try { return localStorage.getItem('token') || ''; } catch { return ''; }
 }
