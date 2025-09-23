@@ -1,194 +1,155 @@
-// =======================
-// API BASE CONFIG
-// =======================
-const API_BASE = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
+// Frontend/assets/js/api.js
+// Helpers de fetch con token, y endpoints normalizados para ventas, cotizaciones, inventario y precios.
 
-// ---- Scopes por entorno (host del API) + empresa (email) ----
-function scopeFromBase(base) {
-  try { return new URL(base || (typeof window !== 'undefined' ? window.location.origin : '')).host || 'local'; }
-  catch { return (base || 'local') || 'local'; }
-}
-const SCOPE = scopeFromBase(API_BASE);
-
-// Claves de storage
-const ACTIVE_KEY = `taller.activeCompany:${SCOPE}`;                  // empresa activa (email)
-const tokenKeyFor = (email) => `taller.token:${SCOPE}:${String(email || '').toLowerCase()}`;
-
-// Empresa activa en localStorage
-const activeCompany = {
-  get: () => (typeof localStorage !== 'undefined' ? (localStorage.getItem(ACTIVE_KEY) || '') : ''),
-  set: (email) => { try { localStorage.setItem(ACTIVE_KEY, String(email || '').toLowerCase()); } catch {} },
-  clear: () => { try { localStorage.removeItem(ACTIVE_KEY); } catch {} }
-};
-
-// Token por empresa (usa la empresa activa por defecto)
-const tokenStore = {
-  get: (email) => {
-    const em = (email || activeCompany.get());
-    return (typeof localStorage !== 'undefined') ? (localStorage.getItem(tokenKeyFor(em)) || '') : '';
+export const API = {
+  base: (typeof window !== 'undefined' && window.API_BASE) || '',
+  token: {
+    get: () => localStorage.getItem('token') || '',
+    set: (t) => localStorage.setItem('token', t || ''),
   },
-  set: (t, email) => { try { localStorage.setItem(tokenKeyFor(email || activeCompany.get()), t || ''); } catch {} },
-  clear: (email) => { try { localStorage.removeItem(tokenKeyFor(email || activeCompany.get())); } catch {} }
-};
-
-// ===== HTTP core =====
-async function coreRequest(method, path, data, extraHeaders = {}) {
-  const isForm = (typeof FormData !== 'undefined') && (data instanceof FormData);
-  const headers = { ...extraHeaders };
-
-  if (!isForm && data != null) headers['Content-Type'] = 'application/json';
-
-  const tok = tokenStore.get();
-  if (tok) headers['Authorization'] = `Bearer ${tok}`;
-
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers,
-    body: data == null ? undefined : (isForm ? data : JSON.stringify(data)),
-    cache: 'no-store',
-    credentials: 'omit'
-  });
-
-  const text = await res.text();
-  let body; try { body = JSON.parse(text); } catch { body = text; }
-
-  if (!res.ok) {
-    const msg = (body && body.error) ? body.error : (typeof body === 'string' ? body : res.statusText);
-    throw new Error(msg || `HTTP ${res.status}`);
-  }
-  return body;
-}
-
-const http = {
-  get: (path) => coreRequest('GET', path, null),
-  post: (path, payload) => coreRequest('POST', path, payload),
-  put: (path, payload) => coreRequest('PUT', path, payload),
-  del: (path) => coreRequest('DELETE', path, null),
-  upload: (path, files) => {
-    const fd = new FormData();
-    for (const f of files) fd.append('files[]', f);
-    return coreRequest('POST', path, fd);
-  }
-};
-
-// ===== Utils =====
-function toQuery(params = {}) {
-  const qs = new URLSearchParams();
-  Object.entries(params).forEach(([k, v]) => { if (v !== undefined && v !== null && String(v).trim() !== '') qs.set(k, v); });
-  const s = qs.toString(); return s ? `?${s}` : '';
-}
-
-// =======================
-// API público
-// =======================
-const API = {
-  base: API_BASE,
-  token: tokenStore,
-
-  // Empresa activa
-  setActiveCompany: (email) => activeCompany.set(email),
-  getActiveCompany: () => activeCompany.get(),
-
-  // --- Auth empresa ---
-  companyRegister: (payload) => http.post('/api/v1/auth/company/register', payload),
-  async companyLogin(payload) {
-    const res = await http.post('/api/v1/auth/company/login', payload); // { token, email, ... }
-    const email = String(res?.email || payload?.email || '').toLowerCase();
-    if (!res?.token || !email) throw new Error('Login inválido');
-    activeCompany.set(email);
-    tokenStore.set(res.token, email);
-    return res;
+  headers() {
+    const h = { 'Content-Type': 'application/json' };
+    const tok = API.token.get();
+    if (tok) h['Authorization'] = `Bearer ${tok}`;
+    return h;
   },
-  companyMe: () => http.get('/api/v1/auth/company/me'),
-  async logout() {
-    try { await http.post('/api/v1/auth/company/logout', {}); } catch {}
-    tokenStore.clear();
-    activeCompany.clear();
-  },
-
-  // Aliases retro-compatibles
-  register: (payload) => http.post('/api/v1/auth/company/register', payload),
-  login: (payload) => API.companyLogin(payload),
-  me: () => API.companyMe(),
-  registerCompany: (payload) => http.post('/api/v1/auth/company/register', payload),
-  loginCompany: (payload) => API.companyLogin(payload),
-
-  // --- Notas / Media ---
-  notesList: (q = '') => http.get(`/api/v1/notes${q}`),
-  notesCreate: (payload) => http.post('/api/v1/notes', payload),
-  mediaUpload: (files) => http.upload('/api/v1/media/upload', files),
-
-  // --- Cotizaciones ---
-  quotesList: (q = '') => http.get(`/api/v1/quotes${q}`),
-  quoteCreate: (payload) => http.post('/api/v1/quotes', payload),
-  quoteUpdate: (id, payload) => http.post(`/api/v1/quotes/${id}`, payload),
-  quotePatch: (id, payload) => http.put(`/api/v1/quotes/${id}`, payload),
-  quoteDelete: (id) => http.del(`/api/v1/quotes/${id}`),
-    // --- Cotizaciones (búsqueda por parámetros) ---
-  quotesSearch: (params = {}) => http.get(`/api/v1/quotes${toQuery(params)}`),
-
-
-  // --- Servicios ---
-  servicesList: () => http.get('/api/v1/services'),
-  serviceCreate: (payload) => http.post('/api/v1/services', payload),
-  serviceUpdate: (id, body) => http.put(`/api/v1/services/${id}`, body),
-  serviceDelete: (id) => http.del(`/api/v1/services/${id}`),
-
-  // --- Lista de precios ---
-  pricesList: (params = {}) => http.get(`/api/v1/prices${toQuery(params)}`),
-  priceCreate: (payload) => http.post('/api/v1/prices', payload),
-  priceUpdate: (id, body) => http.put(`/api/v1/prices/${id}`, body),
-  priceDelete: (id) => http.del(`/api/v1/prices/${id}`),
-  pricesImport: (formData) => coreRequest('POST', `/api/v1/prices/import`, formData),
-  pricesExport: async (params = {}) => {
-    const tok = tokenStore.get();
-    const res = await fetch(`${API_BASE}/api/v1/prices/export${toQuery(params)}`, {
-      method: 'GET',
-      headers: tok ? { 'Authorization': `Bearer ${tok}` } : {},
-      cache: 'no-store',
-      credentials: 'omit'
+  toQuery(params = {}) {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v === undefined || v === null || v === '') return;
+      q.set(k, String(v));
     });
-    if (!res.ok) throw new Error('No se pudo exportar CSV');
-    return await res.blob();
+    const s = q.toString();
+    return s ? `?${s}` : '';
   },
 
-  // --- Inventario ---
+  // --------- AUTH / COMPANY ---------
+  me() {
+    const tok = API.token.get();
+    return fetch(`${API.base}/api/v1/auth/company/me`, {
+      headers: tok ? { Authorization: `Bearer ${tok}` } : {},
+      cache: 'no-store',
+    }).then(r => r.ok ? r.json() : null);
+  },
+
+  // --------- INVENTORY ---------
   inventory: {
-    itemsList: async (params = {}) => {
-      const r = await http.get(`/api/v1/inventory/items${toQuery(params)}`);
-      return Array.isArray(r) ? r : (r.items || r.data || []);
+    async itemsList(params = {}) {
+      const r = await fetch(`${API.base}/api/v1/inventory/items${API.toQuery(params)}`, {
+        headers: API.headers(), cache: 'no-store'
+      });
+      if (!r.ok) throw await r.json().catch(() => new Error('Error inventario'));
+      const data = await r.json();
+      // normalizar a array
+      return Array.isArray(data) ? data : (data.items || data.data || []);
     }
   },
 
-  // --- Ventas ---
+  // --------- PRICES / SERVICES (si los usas) ---------
+  async servicesList() {
+    const r = await fetch(`${API.base}/api/v1/prices/services`, { headers: API.headers(), cache: 'no-store' });
+    return r.ok ? r.json() : [];
+  },
+  async pricesList(params = {}) {
+    const r = await fetch(`${API.base}/api/v1/prices${API.toQuery(params)}`, { headers: API.headers(), cache: 'no-store' });
+    if (!r.ok) throw await r.json().catch(()=>new Error('Error precios'));
+    const data = await r.json();
+    return Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
+  },
+
+  // --------- QUOTES ---------
+  quotes: {
+    async search(params = {}) {
+      const r = await fetch(`${API.base}/api/v1/quotes/search${API.toQuery(params)}`, {
+        headers: API.headers(), cache: 'no-store'
+      });
+      if (!r.ok) throw await r.json().catch(()=>new Error('Error búsqueda de cotizaciones'));
+      return await r.json(); // {items, total, page, pageSize}
+    },
+    async get(id) {
+      const r = await fetch(`${API.base}/api/v1/quotes/${id}`, { headers: API.headers(), cache: 'no-store' });
+      if (!r.ok) throw await r.json().catch(()=>new Error('No se pudo cargar la cotización'));
+      return await r.json();
+    },
+    async create(payload = {}) {
+      const r = await fetch(`${API.base}/api/v1/quotes`, {
+        method: 'POST', headers: API.headers(), body: JSON.stringify(payload)
+      });
+      if (!r.ok) throw await r.json().catch(()=>new Error('No se pudo crear la cotización'));
+      return await r.json();
+    }
+  },
+
+  // --------- SALES ---------
   sales: {
-    start: () => http.post('/api/v1/sales/start', {}),
-    get: (id) => http.get(`/api/v1/sales/${id}`),
+    async start() {
+      const r = await fetch(`${API.base}/api/v1/sales/start`, {
+        method: 'POST', headers: API.headers()
+      });
+      if (!r.ok) throw await r.json().catch(()=>new Error('No se pudo iniciar la venta'));
+      return await r.json();
+    },
+    async get(id) {
+      const r = await fetch(`${API.base}/api/v1/sales/${id}`, { headers: API.headers(), cache: 'no-store' });
+      if (!r.ok) throw await r.json().catch(()=>new Error('No se pudo cargar la venta'));
+      return await r.json();
+    },
+    async update(id, body) {
+      const r = await fetch(`${API.base}/api/v1/sales/${id}`, {
+        method: 'PATCH', headers: API.headers(), body: JSON.stringify(body || {})
+      });
+      if (!r.ok) throw await r.json().catch(()=>new Error('No se pudo actualizar la venta'));
+      return await r.json();
+    },
+    async setCustomerVehicle(id, body) {
+      const r = await fetch(`${API.base}/api/v1/sales/${id}/cv`, {
+        method: 'PATCH', headers: API.headers(), body: JSON.stringify(body || {})
+      });
+      if (!r.ok) throw await r.json().catch(()=>new Error('No se pudo actualizar cliente/vehículo'));
+      return await r.json();
+    },
+    async addItem(id, payload) {
+      const r = await fetch(`${API.base}/api/v1/sales/${id}/items`, {
+        method: 'POST', headers: API.headers(), body: JSON.stringify(payload || {})
+      });
+      if (!r.ok) throw await r.json().catch(()=>new Error('No se pudo agregar ítem'));
+      return await r.json();
+    },
+    async updateItem(id, itemId, body) {
+      const r = await fetch(`${API.base}/api/v1/sales/${id}/items/${itemId}`, {
+        method: 'PATCH', headers: API.headers(), body: JSON.stringify(body || {})
+      });
+      if (!r.ok) throw await r.json().catch(()=>new Error('No se pudo actualizar ítem'));
+      return await r.json();
+    },
+    async removeItem(id, itemId) {
+      const r = await fetch(`${API.base}/api/v1/sales/${id}/items/${itemId}`, {
+        method: 'DELETE', headers: API.headers()
+      });
+      if (!r.ok) throw await r.json().catch(()=>new Error('No se pudo eliminar ítem'));
+      return await r.json();
+    },
+    async close(id) {
+      const r = await fetch(`${API.base}/api/v1/sales/${id}/close`, {
+        method: 'POST', headers: API.headers()
+      });
+      if (!r.ok) throw await r.json().catch(()=>new Error('No se pudo cerrar la venta'));
+      return await r.json();
+    },
+    // opcional si usas endpoint de QR resolver
+    async addByQR(id, payload) {
+      const r = await fetch(`${API.base}/api/v1/sales/addByQR`, {
+        method: 'POST',
+        headers: API.headers(),
+        body: JSON.stringify({ saleId: id, payload })
+      });
+      if (!r.ok) throw await r.json().catch(()=>new Error('QR no reconocido'));
+      return await r.json();
+    }
+  },
 
-    addItem: (id, payload) =>
-      http.post(`/api/v1/sales/${id}/items`, payload),
-
-    updateItem: (id, itemId, payload) =>
-      http.put(`/api/v1/sales/${id}/items/${itemId}`, payload),
-
-    removeItem: (id, itemId) =>
-      http.del(`/api/v1/sales/${id}/items/${itemId}`),
-
-    setCustomerVehicle: (id, payload) =>
-      http.put(`/api/v1/sales/${id}/customer-vehicle`, payload),
-
-    close: (id) =>
-      http.post(`/api/v1/sales/${id}/close`, {}),
-
-    addByQR: (saleId, payload) =>
-      http.post(`/api/v1/sales/addByQR`, { saleId, payload }),
-
-    list: (params = {}) => http.get(`/api/v1/sales${toQuery(params)}`),
-    summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`)
+  // helper: por si guardas empresa activa en LS
+  getActiveCompany() {
+    try { return localStorage.getItem('companyId') || ''; } catch { return ''; }
   }
-  
 };
-
-// Exports
-export { API, tokenStore as authToken };
-export default API;

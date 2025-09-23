@@ -371,223 +371,159 @@
       </section>
       <!-- ========== /PRECIOS ========== -->
 
-      <!-- ========== VENTAS ========== -->
-      <section id="tab-ventas" class="tab">
-        <div class="ventas-grid">
-
-          <!-- Columna izquierda: Cotizaciones mini + Orden de trabajo -->
-          <div class="ventas-left">
-
-            <!-- Cotizaciones mini -->
-            <div class="card">
-              <div class="row between" style="gap:8px; align-items:center;">
-                <h3 style="margin:0">Cotizaciones</h3>
-                <div class="row" style="gap:6px;">
-                  <button id="sv-loadQuote" class="secondary">Usar cotización creada</button>
-                  <button id="sv-newQuote" class="secondary">Crear cotización</button>
-                </div>
-              </div>
-
-              <div class="muted" id="sv-q-header" style="margin-top:6px;">— ninguna cotización cargada —</div>
-
-              <div class="table-wrap small" style="margin-top:8px;">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th>Tipo</th>
-                      <th>Descripción</th>
-                      <th class="t-center">Cant.</th>
-                      <th class="t-right">Unit</th>
-                      <th class="t-right">Total</th>
-                      <th class="t-center">→ Venta</th>
-                    </tr>
-                  </thead>
-                  <tbody id="sv-q-body"></tbody>
-                </table>
-              </div>
-
-              <div class="row right" style="margin-top:8px; gap:8px;">
-                <button id="sv-q-to-sale" class="secondary">Pasar TODO a venta…</button>
-              </div>
+      <section id="tab-ventas" class="tab" hidden>
+        <div class="grid grid-ventas">
+          <!-- IZQUIERDA: Cotizaciones + Orden de trabajo -->
+          <div class="panel">
+            <h2>Cotizaciones</h2>
+            <div class="row" style="gap:8px;margin-bottom:10px;">
+              <button id="q-use-existing" class="secondary">Usar cotización creada</button>
+              <button id="q-create-new">Crear cotización</button>
             </div>
-
-            <!-- Orden de Trabajo (se imprime) -->
-            <div class="card">
-              <div class="row between" style="gap:8px; align-items:center;">
-                <h3 style="margin:0">Orden de trabajo</h3>
-                <button id="sv-print-wo" class="secondary">Imprimir OT</button>
-              </div>
-              <div class="table-wrap small" style="margin-top:8px;">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th>Descripción</th>
-                      <th class="t-center">Cant.</th>
-                    </tr>
-                  </thead>
-                  <tbody id="sv-wo-body"></tbody>
-                </table>
-              </div>
-            </div>
-
-          </div>
-
-          <!-- Columna derecha: Ventas -->
-          <div class="ventas-right">
-
-            <!-- barra superior de ventas -->
-            <div class="card">
-              <div class="row between" style="gap:8px; align-items:center;">
-                <div class="row" id="saleTabs" style="gap:6px; flex-wrap:wrap;"></div>
-                <div class="row" style="gap:6px;">
-                  <button id="sales-start">Nueva venta</button>
-                  <button id="sales-scan-qr" class="secondary">Escanear QR</button>
-                  <button id="sales-share-wa" class="secondary">WhatsApp</button>
-                  <button id="sales-print" class="secondary">PDF</button>
-                  <button id="sales-close" class="danger">Cerrar</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- preview compacto del cliente/vehículo -->
-            <div class="card" id="sv-customer-mini">
-              <div class="row between" style="gap:8px; align-items:center;">
-                <div class="row" style="gap:10px; align-items:center;">
-                  <div class="avatar"></div>
-                  <div>
-                    <div id="sv-mini-plate" class="plate chip">—</div>
-                    <div class="muted" id="sv-mini-name">Cliente: —</div>
-                    <div class="muted" id="sv-mini-phone">Cel: —</div>
-                  </div>
-                </div>
-                <button id="sv-edit-cv" class="secondary">Editar datos…</button>
-              </div>
-            </div>
-
-            <!-- acciones de agregar items -->
-            <div class="card">
-              <div class="row" style="gap:6px; flex-wrap:wrap;">
-                <input id="sales-sku" placeholder="SKU…" style="min-width:180px;">
-                <button id="sales-add-sku">Agregar SKU</button>
-                <button id="sales-add-inv" class="secondary">Agregar desde Inventario</button>
-                <button id="sales-add-prices" class="secondary">Agregar desde Lista de precios</button>
-              </div>
-            </div>
-
-            <!-- tabla de la venta -->
-            <div class="card">
-              <div class="table-wrap">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th>SKU</th>
-                      <th>Descripción</th>
-                      <th>Cant.</th>
-                      <th>Unit</th>
-                      <th>Total</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody id="sales-body"></tbody>
-                  <tfoot>
-                    <tr>
-                      <td colspan="4" class="t-right">Total</td>
-                      <td id="sales-total">$0</td>
-                      <td></td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            </div>
-
-            <!-- plantilla oculta para modal de cliente/vehículo (se clona) -->
-            <template id="sales-cv-template">
-              <div class="card">
-                <h3>Cliente y vehículo</h3>
-                <div class="cols-2" style="gap:8px;">
-                  <div class="col">
-                    <input id="c-name" placeholder="Nombre/Empresa">
-                    <input id="c-id" placeholder="Identificación">
-                    <input id="c-phone" placeholder="Teléfono">
-                    <input id="c-email" placeholder="Email">
-                    <input id="c-address" placeholder="Dirección">
-                  </div>
-                  <div class="col">
-                    <input id="v-plate" placeholder="Placa (ABC123)">
-                    <input id="v-brand" placeholder="Marca">
-                    <input id="v-line" placeholder="Línea">
-                    <input id="v-engine" placeholder="Motor">
-                    <input id="v-year" placeholder="Año" type="number">
-                    <input id="v-mile" placeholder="Kilometraje" type="number">
-                  </div>
-                </div>
-                <div class="row right" style="margin-top:8px;">
-                  <button id="sales-save-cv">Guardar</button>
-                </div>
-              </div>
-            </template>
-
-          </div>
-        </div>
-        <!-- ===== Template: Picker de Cotizaciones (modal) ===== -->
-        <template id="pick-quote-template">
-          <h3>Buscar cotización</h3>
-
-          <div class="picker-head">
-            <div><label>Placa / Cliente</label><input id="pq-text" placeholder="Ej. ABC123 o Juan Pérez"></div>
-            <div><label>Desde</label><input id="pq-from" type="date"></div>
-            <div><label>Hasta</label><input id="pq-to" type="date"></div>
-            <div class="row" style="gap:8px;align-items:end;">
-              <button id="pq-search">Buscar</button>
-              <button id="pq-clear" class="secondary">Limpiar</button>
-            </div>
-          </div>
-
-          <div class="picker-two">
-            <div class="picker-main table-wrap">
+            <div id="q-legend" class="muted">— ninguna cotización cargada —</div>
+            <div class="table-wrap" style="margin-top:8px;">
               <table class="table">
                 <thead>
                   <tr>
-                    <th>No.</th>
-                    <th>Fecha</th>
-                    <th>Placa</th>
-                    <th>Cliente</th>
-                    <th class="t-right">Ítems</th>
-                    <th class="t-right">Total</th>
+                    <th>Tipo</th>
+                    <th>Descripción</th>
+                    <th>Cant.</th>
+                    <th>Unit</th>
+                    <th>Total</th>
+                    <th>→ Venta</th>
+                  </tr>
+                </thead>
+                <tbody id="q-body"></tbody>
+              </table>
+            </div>
+            <div style="margin-top:8px;">
+              <button id="q-pass-all" class="secondary">Pasar TODO a venta…</button>
+            </div>
+
+            <h2 style="margin-top:20px;">Orden de trabajo</h2>
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Descripción</th>
+                    <th>Cant.</th>
+                  </tr>
+                </thead>
+                <tbody id="ot-body"></tbody>
+              </table>
+            </div>
+            <div style="margin-top:8px;">
+              <button id="ot-print" class="secondary"
+                onclick="(window.sales && window.sales.printOT ? window.sales.printOT() : null)">Imprimir OT</button>
+            </div>
+          </div>
+
+          <!-- DERECHA: Ventas -->
+          <div class="panel">
+            <div id="saleTabs" class="sale-tabs"></div>
+
+            <div class="row" style="gap:8px; flex-wrap:wrap; margin-top:8px;">
+              <button id="sales-start">Nueva venta</button>
+              <button id="sales-scan-qr" class="secondary">Escanear QR</button>
+              <button id="sales-share-wa" class="secondary">WhatsApp</button>
+              <button id="sales-print" class="secondary">PDF</button>
+              <button id="sales-close" class="danger">Cerrar</button>
+            </div>
+
+            <div class="mini-customer">
+              <div class="avatar">—</div>
+              <div>
+                <div id="sv-mini-plate" class="plate">—</div>
+                <div id="sv-mini-name" class="muted">Cliente: —</div>
+                <div id="sv-mini-phone" class="muted">Cel: —</div>
+              </div>
+              <button id="sv-edit-cv" class="secondary" style="margin-left:auto;">Editar datos…</button>
+            </div>
+
+            <div class="row" style="gap:8px; margin:8px 0;">
+              <input id="sales-sku" placeholder="SKU…">
+              <button id="sales-add-sku">Agregar SKU</button>
+            </div>
+
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>Descripción</th>
+                    <th>Cant.</th>
+                    <th>Unit</th>
+                    <th>Total</th>
                     <th></th>
                   </tr>
                 </thead>
-                <tbody id="pq-body"></tbody>
+                <tbody id="sales-body"></tbody>
               </table>
-              <div class="picker-actions row">
-                <button id="pq-more" class="secondary">Cargar más</button>
-                <span id="pq-count" class="muted"></span>
-              </div>
             </div>
 
-            <aside id="pq-preview" class="picker-side card">
-              <h4 style="margin:0 0 6px 0;">Vista previa</h4>
-              <div id="pq-meta" class="muted" style="margin-bottom:8px;"></div>
-              <div class="table-wrap" style="max-height:300px;">
-                <table class="table">
-                  <thead>
-                    <tr>
-                      <th>Tipo</th>
-                      <th>Descripción</th>
-                      <th class="t-center">Cant.</th>
-                      <th class="t-right">Unit</th>
-                      <th class="t-right">Subt.</th>
-                    </tr>
-                  </thead>
-                  <tbody id="pq-items"></tbody>
-                </table>
-              </div>
-            </aside>
+            <div class="totals">
+              <span>Total:</span>
+              <b id="sales-total">$0</b>
+            </div>
+          </div>
+        </div>
+
+        <!-- Template para editar cliente/vehículo -->
+        <template id="sales-cv-template">
+          <h3>Cliente y Vehículo</h3>
+          <div class="grid grid-2" style="margin-top:8px;">
+            <div>
+              <h4>Cliente</h4>
+              <label>Nombre</label><input id="c-name">
+              <label>Identificación</label><input id="c-id">
+              <label>Teléfono</label><input id="c-phone">
+              <label>Email</label><input id="c-email">
+              <label>Dirección</label><input id="c-address">
+            </div>
+            <div>
+              <h4>Vehículo</h4>
+              <label>Placa</label><input id="v-plate">
+              <label>Marca</label><input id="v-brand">
+              <label>Línea</label><input id="v-line">
+              <label>Motor</label><input id="v-engine">
+              <label>Año</label><input id="v-year" type="number">
+              <label>Kilometraje</label><input id="v-mile" type="number">
+            </div>
+          </div>
+          <div class="row" style="gap:8px; margin-top:10px;">
+            <button id="sales-save-cv">Guardar</button>
+            <button id="modalClose" class="secondary">Cerrar</button>
           </div>
         </template>
 
+        <!-- Template modal: buscador de cotizaciones -->
+        <template id="tpl-quote-picker">
+          <h3>Buscar cotizaciones</h3>
+          <div class="row" style="gap:8px;">
+            <input id="qp-q" placeholder="Placa / Cliente / Texto…">
+            <button id="qp-search">Buscar</button>
+          </div>
+          <div class="table-wrap" style="margin-top:8px;">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Cliente</th>
+                  <th>Ítems</th>
+                  <th>Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="qp-list"></tbody>
+            </table>
+          </div>
+          <div class="row" style="gap:8px;margin-top:8px;">
+            <button id="qp-more" class="secondary">Cargar más</button>
+            <button id="modalClose" class="secondary">Cerrar</button>
+          </div>
+        </template>
       </section>
-      <!-- ========== /VENTAS ========== -->
+
 
     </section>
   </main>
