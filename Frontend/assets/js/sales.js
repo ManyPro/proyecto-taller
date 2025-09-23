@@ -1,18 +1,22 @@
-import { API } from "./api.js"; // gestiona Bearer
+/* assets/js/sales.js
+   Ventas (panel derecho) + Cotizaciones mini y Orden de Trabajo (panel izquierdo)
+   - No inyecta HTML; se conecta a IDs definidos en index.html
+*/
 
-const $ = (s)=>document.querySelector(s);
-const money = (n)=>'$'+Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+import { API } from "./api.js";
 
-// ---- helpers modal ----
-function openModal() {
-  const modal = $('#modal'); if (!modal) return () => {};
+/* ===================== helpers ===================== */
+const $  = (s, root=document) => root.querySelector(s);
+const $$ = (s, root=document) => Array.from(root.querySelectorAll(s));
+const money = (n) => '$' + Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+
+function openModal(){
+  const modal = $('#modal'); if(!modal) return ()=>{};
   modal.classList.remove('hidden');
-  const onKey = (e)=>{ if (e.key === 'Escape') closeModal(); };
-  const onOverlay = (e)=>{ if (e.target === modal) closeModal(); };
-  document.addEventListener('keydown', onKey);
-  modal.addEventListener('click', onOverlay, { once:true });
   document.body.style.overflow = 'hidden';
-  return () => document.removeEventListener('keydown', onKey);
+  const onKey = (e)=>{ if(e.key==='Escape') closeModal(); };
+  document.addEventListener('keydown', onKey);
+  return ()=>document.removeEventListener('keydown', onKey);
 }
 function closeModal(){
   const modal = $('#modal'); if(!modal) return;
@@ -20,7 +24,39 @@ function closeModal(){
   document.body.style.overflow = '';
 }
 
-// ---- QR PNG (miniatura/descarga) ----
+/* ========= QR tools (nativo + fallback jsQR) ========= */
+async function isNativeQRSupported(){
+  if (!('BarcodeDetector' in window)) return false;
+  try {
+    const fmts = await window.BarcodeDetector.getSupportedFormats?.();
+    if (Array.isArray(fmts)) return fmts.includes('qr_code');
+    return true;
+  } catch { return true; }
+}
+let jsQRPromise = null;
+function ensureJsQR(){
+  if (window.jsQR) return Promise.resolve(window.jsQR);
+  if (jsQRPromise) return jsQRPromise;
+  jsQRPromise = new Promise((resolve,reject)=>{
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+    s.async = true;
+    s.onload = ()=> resolve(window.jsQR);
+    s.onerror = ()=> reject(new Error('No se pudo cargar jsQR'));
+    document.head.appendChild(s);
+  });
+  return jsQRPromise;
+}
+function parseInventoryCode(raw=''){
+  const s = String(raw||'').trim();
+  if (!s.toUpperCase().startsWith('IT:')) return null;
+  const parts = s.split(':').map(p=>p.trim()).filter(Boolean);
+  if (parts.length === 2) return { itemId: parts[1], companyId: null, sku: null };
+  if (parts.length >= 3) return { companyId: parts[1] || null, itemId: parts[2] || null, sku: (parts[3]||'').toUpperCase() || null };
+  return null;
+}
+
+/* ========= QR PNG (preview/descarga desde backend) ========= */
 const qrCache = new Map(); // itemId -> objectURL
 async function getQRObjectURL(itemId, size=128){
   if(qrCache.has(itemId)) return qrCache.get(itemId);
@@ -41,233 +77,78 @@ function downloadBlobUrl(url, filename='qr.png'){
   a.href = url; a.download = filename; a.click();
 }
 
-// ---- util: detectar soporte BarcodeDetector para QR ----
-async function isNativeQRSupported(){
-  if (!('BarcodeDetector' in window)) return false;
-  try {
-    const fmts = await window.BarcodeDetector.getSupportedFormats?.();
-    if (Array.isArray(fmts)) return fmts.includes('qr_code');
-    return true;
-  } catch {
-    return true;
-  }
-}
-
-// ---- util: cargar jsQR on-demand (fallback) ----
-let jsQRPromise = null;
-function ensureJsQR(){
-  if (window.jsQR) return Promise.resolve(window.jsQR);
-  if (jsQRPromise) return jsQRPromise;
-  jsQRPromise = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
-    s.async = true;
-    s.onload = () => resolve(window.jsQR);
-    s.onerror = () => reject(new Error('No se pudo cargar jsQR'));
-    document.head.appendChild(s);
-  });
-  return jsQRPromise;
-}
-
-// ---- parseo de payload IT:<itemId> | IT:<companyId>:<itemId> | IT:<companyId>:<itemId>:<sku?> ----
-function parseInventoryCode(raw=''){
-  const s = String(raw||'').trim();
-  if (!s.toUpperCase().startsWith('IT:')) return null;
-  const parts = s.split(':').map(p=>p.trim()).filter(Boolean);
-  if (parts.length === 2) return { itemId: parts[1], companyId: null, sku: null };
-  if (parts.length >= 3) return { companyId: parts[1] || null, itemId: parts[2] || null, sku: (parts[3]||'').toUpperCase() || null };
-  return null;
-}
-
-// ===== PDF helpers =====
-async function fetchCompanySafe() {
-  try {
+/* ========= PDF helpers ========= */
+async function fetchCompanySafe(){
+  try{
     const tok = API.token.get?.();
     const r = await fetch(`${API.base}/api/v1/auth/company/me`, {
       headers: tok ? { 'Authorization': `Bearer ${tok}` } : {},
-      cache: 'no-store',
-      credentials: 'omit'
+      cache:'no-store', credentials:'omit'
     });
     if (!r.ok) return null;
     return await r.json();
-  } catch { return null; }
+  }catch{ return null; }
 }
-function numberToMoney(n){
-  const v = Math.round(Number(n||0));
-  return '$' + v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-}
-function buildSalePdf(sale, company){
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit:'mm', format:'a4' });
+function numberToMoney(n){ return money(n); }
+async function buildSalePdf(sale){
+  const jsPDF = window.jspdf?.jsPDF;
+  if(!jsPDF){ alert('No se encontró jsPDF'); return; }
+  const doc = new jsPDF('p','mm','a4');
 
-  const C = {
-    name: company?.name || 'Taller Automotriz',
-    email: company?.email || '',
-    nit: company?.nit || '',
-    phone: company?.phone || ''
-  };
-
-  const created = (window.dayjs ? dayjs(sale.createdAt) : null);
-  const when = created ? created.format('DD/MM/YYYY HH:mm') : (new Date()).toLocaleString();
-
-  // Encabezado
-  doc.setFontSize(14);
-  doc.text(C.name, 14, 16);
-  doc.setFontSize(10);
-  if (C.nit) doc.text(`NIT: ${C.nit}`, 14, 22);
-  if (C.phone) doc.text(`Tel: ${C.phone}`, 14, 27);
-  if (C.email) doc.text(C.email, 14, 32);
-
-  doc.setFontSize(16);
-  doc.text('VENTA', 196, 16, { align: 'right' });
-
+  const when = window.dayjs ? dayjs(sale.createdAt).format('DD/MM/YYYY HH:mm') : new Date().toLocaleString();
   const nro = sale.number ? String(sale.number).padStart(5,'0') : (sale._id || '').slice(-6).toUpperCase();
+  doc.setFontSize(14); doc.text('FACTURA / COMPROBANTE', 14, 16);
   doc.setFontSize(10);
   doc.text(`No: ${nro}`, 196, 22, { align: 'right' });
   doc.text(`Fecha: ${when}`, 196, 27, { align: 'right' });
   doc.text(`Estado: ${sale.status?.toUpperCase() || 'OPEN'}`, 196, 32, { align: 'right' });
 
-  // Cliente / Vehículo
-  const y0 = 40;
-  doc.setFontSize(11);
-  doc.text('Cliente', 14, y0);
-  doc.text('Vehículo', 110, y0);
-
+  const y0=40; doc.setFontSize(11); doc.text('Cliente',14,y0); doc.text('Vehículo',110,y0);
+  const c = sale.customer || {}, v = sale.vehicle || {};
   doc.setFontSize(10);
-  const c = sale.customer || {};
-  const v = sale.vehicle || {};
-  doc.text([
-    `Nombre: ${c.name||'-'}`,
-    `Identificación: ${c.idNumber||'-'}`,
-    `Tel: ${c.phone||'-'}`,
-    `Email: ${c.email||'-'}`,
-    `Dirección: ${c.address||'-'}`
-  ], 14, y0+6);
+  doc.text([`Nombre: ${c.name||'-'}`, `Identificación: ${c.idNumber||'-'}`, `Tel: ${c.phone||'-'}`, `Email: ${c.email||'-'}`, `Dirección: ${c.address||'-'}`], 14, y0+6);
+  doc.text([`Placa: ${v.plate||'-'}`, `Marca: ${v.brand||'-'}`, `Línea: ${v.line||'-'}`, `Motor: ${v.engine||'-'}`, `Año: ${v.year||'-'}  |  Km: ${v.mileage ?? '-'}`], 110, y0+6);
 
-  doc.text([
-    `Placa: ${v.plate||'-'}`,
-    `Marca: ${v.brand||'-'}`,
-    `Línea: ${v.line||'-'}`,
-    `Motor: ${v.engine||'-'}`,
-    `Año: ${v.year||'-'}  |  Km: ${v.mileage ?? '-'}`,
-  ], 110, y0+6);
-
-  // Ítems
-  const head = [['SKU', 'Descripción', 'Cant.', 'Unit', 'Total']];
-  const body = (sale.items||[]).map(it => [
-    it.sku || '', it.name || '',
-    String(it.qty ?? 1),
-    numberToMoney(it.unitPrice || 0),
-    numberToMoney(it.total || 0)
-  ]);
-
-  const startY = y0 + 36;
-  doc.autoTable({
-    startY,
-    head, body,
-    styles: { fontSize: 9, cellPadding: 2 },
-    headStyles: { fillColor: [15, 23, 42] },
-    theme: 'grid'
-  });
-
-  // Totales
-  const endY = doc.lastAutoTable.finalY || startY;
-  const right = (x) => 196 - x;
-  doc.setFontSize(11);
-  doc.text(`Subtotal: ${numberToMoney(sale.subtotal||0)}`, right(0), endY + 8, { align: 'right' });
-  doc.text(`Impuestos: ${numberToMoney(sale.tax||0)}`, right(0), endY + 14, { align: 'right' });
-  doc.setFontSize(13);
-  doc.text(`TOTAL: ${numberToMoney(sale.total||0)}`, right(0), endY + 22, { align: 'right' });
-
-  // Pie
-  doc.setFontSize(9);
-  doc.text('Gracias por su compra.', 14, 290);
-
+  const head=[['SKU','Descripción','Cant.','Unit','Total']];
+  const body=(sale.items||[]).map(it=>[it.sku||'',it.name||'',String(it.qty||1),numberToMoney(it.unitPrice||0),numberToMoney(it.total||0)]);
+  const startY=y0+36;
+  if(typeof doc.autoTable==='function'){
+    doc.autoTable({startY, head, body, styles:{fontSize:9,cellPadding:2}, headStyles:{fillColor:[15,23,42]}, theme:'grid'});
+    const endY = doc.lastAutoTable.finalY || (startY+10);
+    const right = (x)=>196-x;
+    doc.setFontSize(11);
+    doc.text(`Subtotal: ${numberToMoney(sale.subtotal||0)}`, right(0), endY+8, {align:'right'});
+    doc.text(`Impuestos: ${numberToMoney(sale.tax||0)}`, right(0), endY+14, {align:'right'});
+    doc.setFontSize(13);
+    doc.text(`TOTAL: ${numberToMoney(sale.total||0)}`, right(0), endY+22, {align:'right'});
+  }
+  doc.setFontSize(9); doc.text('Gracias por su compra.', 14, 290);
   return doc;
 }
 
-// ====== UI Ventas ======
+/* ===================== Estado de ventas ===================== */
+let current = null; // venta activa
+
+const OPEN_KEY = `sales:openTabs:${API.getActiveCompany?.() || 'default'}`;
+let openTabs = [];
+try { openTabs = JSON.parse(localStorage.getItem(OPEN_KEY) || '[]'); } catch { openTabs = []; }
+function saveTabs(){ try { localStorage.setItem(OPEN_KEY, JSON.stringify(openTabs)); } catch{} }
+function addOpen(id){ if(!openTabs.includes(id)){ openTabs.push(id); saveTabs(); } renderSaleTabs(); }
+function removeOpen(id){ openTabs = openTabs.filter(x => x !== id); saveTabs(); renderSaleTabs(); }
+
+/* ======================== UI Ventas ======================== */
 export function initSales(){
   const tab = document.getElementById('tab-ventas');
   if(!tab) return;
 
-  tab.innerHTML = `
-    <div class="row between">
-      <div>
-        <label>Destino:</label>
-        <select id="sales-dest">
-          <option value="sale" selected>Venta</option>
-          <option value="quote">Cotización</option>
-        </select>
-        <button id="sales-start">Nueva venta</button>
-      </div>
-      <div class="row" style="gap:8px;">
-        <button id="sales-scan-qr" class="secondary">Escanear QR</button>
-        <button id="sales-print" class="secondary">PDF</button>
-        <button id="sales-share-wa" class="secondary">WhatsApp</button>
-        <button id="sales-close" class="danger">Cerrar venta</button>
-      </div>
-    </div>
-
-    <div id="saleTabs" class="sales-tabs"></div>
-
-    <div class="row">
-      <input id="sales-sku" placeholder="Escanea/ingresa SKU o QR" />
-      <button id="sales-add-sku">Agregar</button>
-      <button id="sales-add-inv" class="secondary">Agregar de Inventario</button>
-      <button id="sales-add-prices" class="secondary">Agregar de Lista de Precios</button>
-    </div>
-
-    <div class="grid">
-      <div>
-        <table class="table" id="sales-table">
-          <thead>
-            <tr><th>SKU</th><th>Descripción</th><th>Cant.</th><th>Unit</th><th>Total</th><th></th></tr>
-          </thead>
-          <tbody id="sales-body"></tbody>
-          <tfoot>
-            <tr><td colspan="4" class="t-right">Total</td><td id="sales-total">$0</td><td></td></tr>
-          </tfoot>
-        </table>
-      </div>
-      <aside>
-        <div class="card">
-          <h3>Cliente & Vehículo</h3>
-          <div class="col">
-            <input id="c-name" placeholder="Nombre/Empresa">
-            <input id="c-id" placeholder="Identificación">
-            <input id="c-phone" placeholder="Teléfono">
-            <input id="c-email" placeholder="Email">
-            <input id="c-address" placeholder="Dirección">
-          </div>
-          <div class="col">
-            <input id="v-plate" placeholder="Placa (ABC123)">
-            <input id="v-brand" placeholder="Marca">
-            <input id="v-line" placeholder="Línea">
-            <input id="v-engine" placeholder="Motor">
-            <input id="v-year" placeholder="Año" type="number">
-            <input id="v-mile" placeholder="Kilometraje" type="number">
-          </div>
-          <button id="sales-save-cv">Guardar Cliente/Auto</button>
-        </div>
-      </aside>
-    </div>
-  `;
-
-  let current = null; // venta actual
-
-  // ===== Multi-pestaña =====
-  const OPEN_KEY = `sales:openTabs:${API.getActiveCompany?.() || 'default'}`;
-  let openTabs = [];
-  try { openTabs = JSON.parse(localStorage.getItem(OPEN_KEY) || '[]'); } catch { openTabs = []; }
-  function saveTabs(){ try { localStorage.setItem(OPEN_KEY, JSON.stringify(openTabs)); } catch {} }
-  function addOpen(id){ if(!openTabs.includes(id)){ openTabs.push(id); saveTabs(); } renderSaleTabs(); }
-  function removeOpen(id){ openTabs = openTabs.filter(x => x !== id); saveTabs(); renderSaleTabs(); }
+  /* refs Ventas (derecha) */
+  const tableBody = $('#sales-body');
+  const totalEl   = $('#sales-total');
 
   async function switchTo(id){
     current = await API.sales.get(id);
     addOpen(id);
-    render();
+    renderSale(); renderMiniCustomer(); renderWorkOrder();
   }
 
   function renderSaleTabs(){
@@ -279,19 +160,16 @@ export function initSales(){
       </span>
     `).join('') || `<span class="sales-tab">— sin ventas abiertas —</span>`;
     wrap.querySelectorAll('.sales-tab').forEach(el => {
-      el.onclick = ()=>{ const id = el.dataset.id; if(id) switchTo(id); };
+      el.onclick = () => { const id = el.dataset.id; if(id) switchTo(id); };
     });
     wrap.querySelectorAll('[data-x]').forEach(el => {
-      el.onclick = (e)=>{ e.stopPropagation(); removeOpen(el.dataset.x); if (current?._id===el.dataset.x){ current=null; render(); } };
+      el.onclick = (e)=>{ e.stopPropagation(); removeOpen(el.dataset.x); if (current?._id===el.dataset.x){ current=null; renderSale(); } };
     });
   }
 
-  const body = $('#sales-body');
-  const totalEl = $('#sales-total');
-
-  function render(){
-    if(!current){ body.innerHTML=''; totalEl.textContent='$0'; return; }
-    body.innerHTML = (current.items||[]).map(it=>`
+  function renderSale(){
+    if(!current){ tableBody.innerHTML=''; totalEl.textContent='$0'; return; }
+    tableBody.innerHTML = (current.items||[]).map(it=>`
       <tr data-id="${it._id}">
         <td>${it.sku||''}</td>
         <td>${it.name||''}</td>
@@ -303,31 +181,73 @@ export function initSales(){
     `).join('');
     totalEl.textContent = money(current.total||0);
 
-    body.querySelectorAll('tr').forEach(tr=>{
+    tableBody.querySelectorAll('tr').forEach(tr=>{
       const itemId = tr.dataset.id;
-      tr.querySelector('.qty').onchange = async (e)=>{
+      tr.querySelector('.qty').onchange = async (e)=>{ 
         const qty = Number(e.target.value||0);
         current = await API.sales.updateItem(current._id, itemId, { qty });
-        render();
+        renderSale(); renderWorkOrder();
       };
-      tr.querySelector('.u').onchange = async (e)=>{
+      tr.querySelector('.u').onchange = async (e)=>{ 
         const unitPrice = Number(e.target.value||0);
         current = await API.sales.updateItem(current._id, itemId, { unitPrice });
-        render();
+        renderSale(); renderWorkOrder();
       };
-      tr.querySelector('[data-del]').onclick = async ()=>{
+      tr.querySelector('[data-del]').onclick = async ()=>{ 
         current = await API.sales.removeItem(current._id, itemId);
-        render();
+        renderSale(); renderWorkOrder();
       };
     });
   }
 
-  // -------- acciones base --------
-  $('#sales-start').onclick = async ()=>{
-    current = await API.sales.start();
-    addOpen(current._id);
-    render();
-  };
+  /* ===== mini cliente/vehículo (preview) + modal edición ===== */
+  function renderMiniCustomer(){
+    const c = current?.customer || {};
+    const v = current?.vehicle || {};
+    $('#sv-mini-plate').textContent = v?.plate ? v.plate.toUpperCase() : '—';
+    $('#sv-mini-name').textContent  = `Cliente: ${c?.name || '—'}`;
+    $('#sv-mini-phone').textContent = `Cel: ${c?.phone || '—'}`;
+  }
+
+  function openCVModal(){
+    const modal = $('#modal'), bodyM = $('#modalBody'), closeBtn = $('#modalClose');
+    if(!modal || !bodyM) return alert('No se encontró el modal global');
+    bodyM.innerHTML = '';
+    const tpl = $('#sales-cv-template');
+    const node = tpl.content.cloneNode(true);
+    bodyM.appendChild(node);
+
+    const c = current?.customer || {}, v = current?.vehicle || {};
+    $('#c-name').value = c.name || ''; $('#c-id').value = c.idNumber || '';
+    $('#c-phone').value= c.phone || ''; $('#c-email').value= c.email || '';
+    $('#c-address').value = c.address || '';
+    $('#v-plate').value = v.plate || ''; $('#v-brand').value = v.brand || '';
+    $('#v-line').value  = v.line  || ''; $('#v-engine').value = v.engine || '';
+    $('#v-year').value  = v.year  || ''; $('#v-mile').value   = v.mileage || '';
+
+    $('#sales-save-cv').onclick = async ()=>{
+      if(!current) return;
+      const customer = {
+        name: $('#c-name').value, idNumber: $('#c-id').value,
+        phone: $('#c-phone').value, email: $('#c-email').value, address: $('#c-address').value
+      };
+      const vehicle = {
+        plate: $('#v-plate').value, brand: $('#v-brand').value, line: $('#v-line').value,
+        engine: $('#v-engine').value, year: Number($('#v-year').value || 0) || null, mileage: Number($('#v-mile').value || 0) || null
+      };
+      current = await API.sales.setCustomerVehicle(current._id, { customer, vehicle });
+      renderMiniCustomer();
+      closeModal();
+    };
+
+    const cleanupKey = openModal();
+    closeBtn && (closeBtn.onclick = () => { cleanupKey?.(); closeModal(); });
+  }
+
+  $('#sv-edit-cv').onclick = openCVModal;
+
+  /* ===== acciones base ventas ===== */
+  $('#sales-start').onclick = async ()=>{ current = await API.sales.start(); addOpen(current._id); renderSale(); renderMiniCustomer(); renderWorkOrder(); };
 
   $('#sales-add-sku').onclick = async ()=>{
     if(!current) return alert('Crea primero una venta');
@@ -335,187 +255,144 @@ export function initSales(){
     if(!sku) return;
     current = await API.sales.addItem(current._id, { source:'inventory', sku, qty:1 });
     $('#sales-sku').value = '';
-    render();
+    renderSale(); renderWorkOrder();
   };
 
-  // -------- pickers --------
-  $('#sales-add-inv').onclick = () => openInventoryPicker();
-  $('#sales-add-prices').onclick = () => openPricesPicker();
+  $('#sales-share-wa').onclick = async ()=>{
+    if(!current) return;
+    const company = await fetchCompanySafe();
+    const nro = current.number ? String(current.number).padStart(5,'0') : (current._id || '').slice(-6).toUpperCase();
+    const when = window.dayjs ? dayjs(current.createdAt).format('DD/MM/YYYY HH:mm') : new Date().toLocaleString();
+    const lines = (current.items||[]).map(it => `• ${it.sku||''} x${it.qty||1} — ${it.name||''} — ${money(it.total||0)}`);
+    const header = `*${company?.name || 'Taller'}*%0A*Venta No.* ${nro} — ${when}`;
+    const body   = lines.join('%0A') || '— sin ítems —';
+    const footer = `%0A*TOTAL:* ${money(current.total||0)}`;
+    const url = `https://wa.me/?text=${header}%0A%0A${body}%0A%0A${footer}`;
+    window.open(url, '_blank');
+  };
 
-  // -------- LECTOR DE QR (con fallback jsQR) --------
-  $('#sales-scan-qr').onclick = () => openQRScanner();
+  $('#sales-print').onclick = async ()=>{ if(!current) return; const doc = await buildSalePdf(current); doc.save(`venta_${current.number||current._id}.pdf`); };
 
-  async function openQRScanner(){
-    if(!current) return alert('Crea primero una venta');
+  $('#sales-close').onclick = async ()=>{
+    if(!current) return;
+    try{
+      await API.sales.close(current._id); // asigna secuencia/estado en backend
+      removeOpen(current._id);
+      current = null;
+      renderSale(); renderMiniCustomer(); renderWorkOrder();
+    }catch(e){ alert(e?.message || 'No se pudo cerrar'); }
+  };
 
-    const modal = $('#modal'), bodyM = $('#modalBody'), closeBtn = $('#modalClose');
-    if(!modal || !bodyM) return alert('No se encontró el modal global');
+  renderSaleTabs();
 
-    bodyM.innerHTML = `
-      <h3>Lector de QR</h3>
-      <div class="qrbar row">
-        <div class="row" style="gap:8px;align-items:center;">
-          <label>Camara</label>
-          <select id="qr-cam"></select>
-          <label class="row" style="gap:6px;"><input type="checkbox" id="qr-autoclose" checked> Cerrar al agregar</label>
-        </div>
-        <div class="row" style="gap:8px;">
-          <button id="qr-start" class="secondary">Iniciar</button>
-          <button id="qr-stop" class="secondary">Detener</button>
-        </div>
-      </div>
-      <div class="qrwrap">
-        <video id="qr-video" playsinline muted></video>
-        <canvas id="qr-canvas" style="display:none;"></canvas>
-        <div class="qr-hud"></div>
-      </div>
-      <div class="row" style="gap:8px;margin-top:8px;">
-        <input id="qr-manual" placeholder="Ingresar código manualmente (fallback)">
-        <button id="qr-add-manual">Agregar</button>
-      </div>
-      <div class="muted" id="qr-msg" style="margin-top:6px;">Permite la cámara para escanear. Si no hay soporte nativo, uso jsQR.</div>
-      <ul id="qr-history" class="qr-history"></ul>
-    `;
-    const cleanupKey = openModal();
-    closeBtn && (closeBtn.onclick = () => { cleanupKey?.(); stopStream(); closeModal(); });
+  /* =================== Panel izquierdo =================== */
+  // ------ Cotizaciones mini ------
+  let miniQuote = null;
 
-    const video = $('#qr-video');
-    const canvas = $('#qr-canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    const sel = $('#qr-cam');
-    const msg = $('#qr-msg');
-    const list = $('#qr-history');
-    const autoclose = $('#qr-autoclose');
-
-    let stream = null;
-    let running = false;
-    let useNative = await isNativeQRSupported();
-    let detector = null;
-
-    async function enumerateCams(){
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const cams = devices.filter(d => d.kind === 'videoinput');
-        sel.innerHTML = cams.map((d,i)=>`<option value="${d.deviceId}">${d.label || 'Cam '+(i+1)}</option>`).join('');
-      } catch {
-        sel.innerHTML = `<option value="">(cámara)</option>`;
-      }
+  async function quotesSearch(text=''){
+    // Usa API.quotesList si existe, si no, fetch directo a /api/v1/quotes (protegido).
+    if (API.quotesList) {
+      const r = await API.quotesList(`?q=${encodeURIComponent(text)}&limit=50`);
+      return Array.isArray(r?.data) ? r.data : (Array.isArray(r) ? r : []);
     }
-
-    async function startStream(){
-      try {
-        stopStream();
-        const deviceId = sel.value || undefined;
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' },
-          audio: false
-        });
-        video.srcObject = stream;
-        await video.play();
-
-        running = true;
-
-        if (useNative) {
-          try { detector = new window.BarcodeDetector({ formats: ['qr_code'] }); }
-          catch { useNative = false; }
-        }
-        if (!useNative) {
-          try { await ensureJsQR(); }
-          catch { msg.textContent = 'No fue posible cargar jsQR. Usa el campo manual.'; }
-        }
-
-        msg.textContent = useNative ? 'Escanea un código QR…' : 'Escaneo con jsQR activo…';
-        tick();
-      } catch (e) {
-        msg.textContent = 'No se pudo abrir la cámara. Revisa permisos/HTTPS.';
-      }
-    }
-
-    function stopStream(){
-      running = false;
-      if (video) try { video.pause(); } catch {}
-      if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-    }
-
-    async function handleCode(raw){
-      const codeStr = String(raw||'').trim();
-      if(!codeStr) return;
-
-      // Historial visual
-      const li = document.createElement('li');
-      li.textContent = `QR: ${codeStr}`;
-      list.prepend(li);
-
-      try {
-        // 1) Si es un código del inventario (IT:...), agregamos por refId (itemId)
-        const parsed = parseInventoryCode(codeStr);
-        if (parsed && parsed.itemId) {
-          current = await API.sales.addItem(current._id, { source:'inventory', refId: parsed.itemId, qty: 1 });
-          render();
-          msg.textContent = `Agregado por QR (ítem ${parsed.sku || parsed.itemId}).`;
-          if (autoclose.checked) { stopStream(); closeModal(); }
-          return;
-        }
-
-        // 2) Si no, endpoint addByQR (si existe en tu backend)
-        if (API.sales?.addByQR) {
-          const res = await API.sales.addByQR(current._id, codeStr);
-          if (res && (res._id || res.sale)) {
-            current = res.sale || res;
-            render();
-            msg.textContent = 'Agregado por QR.';
-            if (autoclose.checked) { stopStream(); closeModal(); }
-            return;
-          }
-        }
-
-        // 3) Último intento: usarlo como SKU
-        current = await API.sales.addItem(current._id, { source:'inventory', sku: codeStr.toUpperCase(), qty: 1 });
-        render();
-        msg.textContent = 'Agregado por SKU leído.';
-        if (autoclose.checked) { stopStream(); closeModal(); }
-      } catch (e) {
-        msg.textContent = e?.message || 'No se pudo agregar por QR';
-      }
-    }
-
-    async function tick(){
-      if(!running) return;
-      try {
-        if (useNative && detector) {
-          const codes = await detector.detect(video);
-          if (codes && codes.length) {
-            await handleCode(codes[0].rawValue || codes[0].rawValue);
-            await new Promise(r => setTimeout(r, 700));
-          }
-        } else if (window.jsQR && video.readyState >= 2) {
-          const w = video.videoWidth, h = video.videoHeight;
-          if (w && h) {
-            canvas.width = w; canvas.height = h;
-            ctx.drawImage(video, 0, 0, w, h);
-            const img = ctx.getImageData(0, 0, w, h);
-            const result = window.jsQR(img.data, w, h, { inversionAttempts: 'attemptBoth' });
-            if (result && result.data) {
-              await handleCode(result.data);
-              await new Promise(r => setTimeout(r, 700));
-            }
-          }
-        }
-      } catch {}
-      requestAnimationFrame(tick);
-    }
-
-    $('#qr-start').onclick = startStream;
-    $('#qr-stop').onclick = () => { stopStream(); msg.textContent = 'Cámara detenida.'; };
-    $('#qr-add-manual').onclick = () => handleCode($('#qr-manual').value);
-
-    await enumerateCams();
-    if (navigator.mediaDevices?.getUserMedia) startStream();
+    const tok = API.token.get?.();
+    const res = await fetch(`${API.base}/api/v1/quotes?q=${encodeURIComponent(text)}&limit=50`, {
+      headers: tok ? { 'Authorization': `Bearer ${tok}` } : {}
+    });
+    if (!res.ok) throw new Error('No se pudo listar cotizaciones');
+    return await res.json();
   }
 
-  // ====== PICKER: Inventario ======
+  $('#sv-loadQuote').onclick = async ()=>{
+    const q = prompt('Buscar por placa o cliente (deja vacío para ver recientes):') || '';
+    try{
+      const list = await quotesSearch(q); // rutas /api/v1/quotes protegidas por authCompany :contentReference[oaicite:1]{index=1}
+      if(!list.length){ alert('Sin resultados'); return; }
+      const options = list.map((it, i)=>`${i+1}. ${it.number || '—'} — ${it.vehicle?.plate || '—'} — ${it.customer?.name || '—'} — ${new Date(it.createdAt).toLocaleString()}`).join('\n');
+      const pick = prompt(`Selecciona (1-${list.length}):\n\n${options}`);
+      const idx = Number(pick||0)-1;
+      if(idx>=0 && idx<list.length){ miniQuote = list[idx]; renderMiniQuote(); }
+    }catch(e){ alert(e?.message || 'No se pudo cargar'); }
+  };
+
+  $('#sv-newQuote').onclick = ()=>{
+    miniQuote = { number: 'NUEVA', items: [], customer:{}, vehicle:{} };
+    renderMiniQuote();
+  };
+
+  function renderMiniQuote(){
+    const hdr = $('#sv-q-header'), tbody = $('#sv-q-body');
+    if(!miniQuote){ hdr.textContent = '— ninguna cotización cargada —'; tbody.innerHTML=''; return; }
+    hdr.textContent = `Cotización ${miniQuote.number || '—'} — ${miniQuote.vehicle?.plate || '—'} — ${miniQuote.customer?.name || '—'}`;
+
+    const rows = (miniQuote.items||[]).map((r,i)=>`
+      <tr data-i="${i}">
+        <td>${String(r.kind||'').toUpperCase().startsWith('SERV') ? 'Serv.' : 'Prod.'}</td>
+        <td>${r.description || ''}</td>
+        <td class="t-center">${r.qty || 1}</td>
+        <td class="t-right">${money(r.unitPrice||0)}</td>
+        <td class="t-right">${money(r.subtotal || ((r.qty||1)*(r.unitPrice||0)))}</td>
+        <td class="t-center"><button class="secondary" data-pass>→</button></td>
+      </tr>
+    `).join('');
+    tbody.innerHTML = rows;
+
+    // pasar individual (te pido equivalencia desde inventario)
+    tbody.querySelectorAll('[data-pass]').forEach(btn=>{
+      btn.onclick = ()=>{
+        if(!current) return alert('Crea primero una venta');
+        openInventoryPicker();
+      };
+    });
+    renderWorkOrder();
+  }
+
+  // ---- Orden de trabajo (imprime los ítems de la venta actual) ----
+  function renderWorkOrder(){
+    const tbody = $('#sv-wo-body');
+    const items = current?.items || [];
+    tbody.innerHTML = items.map(it=>`
+      <tr><td>${it.name || ''}</td><td class="t-center">${it.qty || 1}</td></tr>
+    `).join('');
+  }
+
+  $('#sv-q-to-sale').onclick = ()=>{
+    if(!current) return alert('Crea primero una venta');
+    if(!miniQuote?.items?.length) return alert('No hay ítems en la cotización');
+    // estrategia segura: abre el picker para mapear equivalentes
+    openPricesPicker();
+  };
+
+  $('#sv-print-wo').onclick = ()=>{
+    if(!current) return alert('Crea primero una venta');
+    const jsPDF = window.jspdf?.jsPDF;
+    if(!jsPDF) return alert('No se encontró jsPDF');
+    const doc = new jsPDF('p','mm','a4');
+    doc.setFontSize(16); doc.text('ORDEN DE TRABAJO', 14, 18);
+    const c = current.customer || {}, v = current.vehicle || {};
+    doc.setFontSize(11);
+    doc.text(`Cliente: ${c.name||'-'}`, 14, 28);
+    doc.text(`Tel: ${c.phone||'-'}  •  Email: ${c.email||'-'}`, 14, 34);
+    doc.text(`Placa: ${v.plate||'-'}  •  Vehículo: ${[v.brand,v.line,v.year].filter(Boolean).join(' ')||'-'}`, 14, 40);
+
+    const head = [['Descripción','Cant.']];
+    const body = (current.items||[]).map(it => [it.name||'', String(it.qty||1)]);
+    const startY = 48;
+    if(typeof doc.autoTable==='function'){
+      doc.autoTable({ startY, head, body, styles:{fontSize:10, cellPadding:2}, headStyles:{ fillColor:[15,23,42] }, theme:'grid' });
+    }else{
+      let y = startY;
+      body.forEach(r=>{ doc.text(`${r[0]}  —  ${r[1]}`, 14, y); y+=6; });
+    }
+    doc.save(`OT_${(current.number||'OPEN')}.pdf`);
+  };
+
+  /* =================== Pickers e Integraciones =================== */
+
+  // INVENTARIO
   async function openInventoryPicker(){
     if(!current) return alert('Crea primero una venta');
+
     const modal = $('#modal'), bodyM = $('#modalBody'), closeBtn = $('#modalClose');
     if(!modal || !bodyM) return alert('No se encontró el modal global');
 
@@ -546,7 +423,6 @@ export function initSales(){
 
     let all = []; let shown = 0; const PAGE = 20;
 
-    // helper normalizado: siempre array (r | r.items | r.data)
     async function fetchItems(params){
       const r = await API.inventory.itemsList(params);
       return Array.isArray(r) ? r : (r.items || r.data || []);
@@ -587,7 +463,7 @@ export function initSales(){
         btn.onclick = async ()=>{
           const id = btn.getAttribute('data-add');
           current = await API.sales.addItem(current._id, { source:'inventory', refId: id, qty: 1 });
-          render();
+          renderSale(); renderWorkOrder();
         };
       });
       $('#p-inv-body').querySelectorAll('img[data-qr]').forEach(img=>{
@@ -624,9 +500,7 @@ export function initSales(){
         all = list || [];
         shown = Math.min(PAGE, all.length);
         await renderSlice();
-      } catch(e) {
-        alert(e?.message || 'No se pudo buscar inventario');
-      }
+      } catch(e) { alert(e?.message || 'No se pudo buscar inventario'); }
     };
 
     $('#p-inv-search').onclick = doSearch;
@@ -634,10 +508,10 @@ export function initSales(){
     $('#p-inv-name').addEventListener('keydown', (e)=>{ if(e.key==='Enter') doSearch(); });
     $('#p-inv-more').onclick = async ()=>{ shown = Math.min(shown + PAGE, all.length); await renderSlice(); };
 
-    doSearch(); // primer load
+    doSearch();
   }
 
-  // ====== PICKER: Precios ======
+  // LISTA DE PRECIOS
   async function openPricesPicker(){
     if(!current) return alert('Crea primero una venta');
     const modal = $('#modal'), bodyM = $('#modalBody'), closeBtn = $('#modalClose');
@@ -715,7 +589,7 @@ export function initSales(){
         btn.onclick = async ()=>{
           const id = btn.getAttribute('data-add');
           current = await API.sales.addItem(current._id, { source:'price', refId: id, qty: 1 });
-          render();
+          renderSale(); renderWorkOrder();
         };
       });
     };
@@ -731,12 +605,11 @@ export function initSales(){
       try {
         const params = { serviceId, brand, line, engine, year };
         const res = await API.pricesList(params);
-        all = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
+        const items = Array.isArray(res?.items) ? res.items : (Array.isArray(res) ? res : []);
+        all = items || [];
         shown = Math.min(PAGE, all.length);
         renderSlice();
-      } catch(e) {
-        alert(e?.message || 'No se pudo buscar lista de precios');
-      }
+      } catch(e) { alert(e?.message || 'No se pudo buscar lista de precios'); }
     };
 
     $('#p-pr-search').onclick = doSearch;
@@ -750,68 +623,172 @@ export function initSales(){
     doSearch();
   }
 
-  // -------- PDF / WhatsApp --------
-  $('#sales-print').onclick = async ()=>{
+  // LECTOR QR
+  async function openQRScanner(){
     if(!current) return alert('Crea primero una venta');
-    try {
-      const company = await fetchCompanySafe();
-      const doc = buildSalePdf(current, company);
-      const nro = current.number ? String(current.number).padStart(5,'0') : (current._id||'').slice(-6).toUpperCase();
-      doc.save(`venta_${nro}.pdf`);
-    } catch (e) {
-      console.error(e);
-      alert('No se pudo generar el PDF');
+
+    const modal = $('#modal'), bodyM = $('#modalBody'), closeBtn = $('#modalClose');
+    if(!modal || !bodyM) return alert('No se encontró el modal global');
+
+    bodyM.innerHTML = `
+      <h3>Lector de QR</h3>
+      <div class="qrbar row">
+        <div class="row" style="gap:8px;align-items:center;">
+          <label>Camara</label>
+          <select id="qr-cam"></select>
+          <label class="row" style="gap:6px;"><input type="checkbox" id="qr-autoclose" checked> Cerrar al agregar</label>
+        </div>
+        <div class="row" style="gap:8px;">
+          <button id="qr-start" class="secondary">Iniciar</button>
+          <button id="qr-stop" class="secondary">Detener</button>
+        </div>
+      </div>
+      <div class="qrwrap">
+        <video id="qr-video" playsinline muted></video>
+        <canvas id="qr-canvas" style="display:none;"></canvas>
+        <div class="qr-hud"></div>
+      </div>
+      <div class="row" style="gap:8px;margin-top:8px;">
+        <input id="qr-manual" placeholder="Ingresar código manualmente (fallback)">
+        <button id="qr-add-manual">Agregar</button>
+      </div>
+      <div class="muted" id="qr-msg" style="margin-top:6px;">Permite la cámara para escanear. Si no hay soporte nativo, uso jsQR.</div>
+      <ul id="qr-history" class="qr-history"></ul>
+    `;
+    const cleanupKey = openModal();
+    closeBtn && (closeBtn.onclick = () => { cleanupKey?.(); stopStream(); closeModal(); });
+
+    const video = $('#qr-video');
+    const canvas = $('#qr-canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const sel = $('#qr-cam');
+    const msg = $('#qr-msg');
+    const list = $('#qr-history');
+    const autoclose = $('#qr-autoclose');
+
+    let stream = null;
+    let running = false;
+    let useNative = await isNativeQRSupported();
+    let detector = null;
+
+    async function enumerateCams(){
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const cams = devices.filter(d => d.kind === 'videoinput');
+        sel.innerHTML = cams.map((d,i)=>`<option value="${d.deviceId}">${d.label || 'Cam '+(i+1)}</option>`).join('');
+      } catch { sel.innerHTML = `<option value="">(cámara)</option>`; }
     }
-  };
 
-  $('#sales-share-wa').onclick = async ()=>{
-    if(!current) return alert('Crea primero una venta');
+    async function startStream(){
+      try {
+        stopStream();
+        const deviceId = sel.value || undefined;
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' },
+          audio: false
+        });
+        video.srcObject = stream;
+        await video.play();
 
-    const company = await fetchCompanySafe();
-    const nro = current.number ? String(current.number).padStart(5,'0')
-                               : (current._id||'').slice(-6).toUpperCase();
-    const when = window.dayjs ? dayjs(current.createdAt).format('DD/MM/YYYY HH:mm')
-                              : new Date().toLocaleString();
+        running = true;
 
-    const lines = (current.items||[]).map(it =>
-      `• ${it.sku||''} x${it.qty||1} — ${it.name||''} — ${money(it.total||0)}`
-    );
+        if (useNative) {
+          try { detector = new window.BarcodeDetector({ formats: ['qr_code'] }); }
+          catch { useNative = false; }
+        }
+        if (!useNative) {
+          try { await ensureJsQR(); }
+          catch { msg.textContent = 'No fue posible cargar jsQR. Usa el campo manual.'; }
+        }
 
-    const header = `*${company?.name || 'Taller'}*%0A*Venta No.* ${nro} — ${when}`;
-    const body   = lines.join('%0A') || '— sin ítems —';
-    const footer = `%0A*TOTAL:* ${money(current.total||0)}`;
-
-    const url = `https://wa.me/?text=${header}%0A%0A${body}%0A%0A${footer}`;
-    window.open(url, '_blank');
-  };
-
-  // -------- cliente/vehículo & cierre --------
-  $('#sales-save-cv').onclick = async ()=>{
-    if(!current) return alert('Crea primero una venta');
-    const customer = {
-      name: $('#c-name').value, idNumber: $('#c-id').value,
-      phone: $('#c-phone').value, email: $('#c-email').value, address: $('#c-address').value
-    };
-    const vehicle = {
-      plate: $('#v-plate').value, brand: $('#v-brand').value, line: $('#v-line').value,
-      engine: $('#v-engine').value, year: Number($('#v-year').value||0)||null, mileage: Number($('#v-mile').value||0)||null
-    };
-    current = await API.sales.setCustomerVehicle(current._id, { customer, vehicle });
-    render();
-  };
-
-  $('#sales-close').onclick = async ()=>{
-    if(!current) return;
-    const res = await API.sales.close(current._id);
-    if(res?.ok){
-      current = res.sale;
-      removeOpen(current._id);
-      alert('Venta cerrada');
-      current = null;
-      render();
+        msg.textContent = useNative ? 'Escanea un código QR…' : 'Escaneo con jsQR activo…';
+        tick();
+      } catch (e) {
+        msg.textContent = 'No se pudo abrir la cámara. Revisa permisos/HTTPS.';
+      }
     }
-  };
 
-  // inicio
-  renderSaleTabs();
-}
+    function stopStream(){
+      running = false;
+      if (video) try { video.pause(); } catch {}
+      if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    }
+
+    async function handleCode(raw){
+      const codeStr = String(raw||'').trim();
+      if(!codeStr) return;
+
+      const li = document.createElement('li');
+      li.textContent = `QR: ${codeStr}`;
+      list.prepend(li);
+
+      try {
+        const parsed = parseInventoryCode(codeStr);
+        if (parsed && parsed.itemId) {
+          current = await API.sales.addItem(current._id, { source:'inventory', refId: parsed.itemId, qty: 1 });
+          renderSale(); renderWorkOrder();
+          msg.textContent = `Agregado por QR (ítem ${parsed.sku || parsed.itemId}).`;
+          if (autoclose.checked) { stopStream(); closeModal(); }
+          return;
+        }
+
+        if (API.sales?.addByQR) { // endpoint /sales/addByQR en tus rutas :contentReference[oaicite:2]{index=2}
+          const res = await API.sales.addByQR(current._id, codeStr);
+          if (res && (res._id || res.sale)) {
+            current = res.sale || res;
+            renderSale(); renderWorkOrder();
+            msg.textContent = 'Agregado por QR.';
+            if (autoclose.checked) { stopStream(); closeModal(); }
+            return;
+          }
+        }
+
+        current = await API.sales.addItem(current._id, { source:'inventory', sku: codeStr.toUpperCase(), qty: 1 });
+        renderSale(); renderWorkOrder();
+        msg.textContent = 'Agregado por SKU leído.';
+        if (autoclose.checked) { stopStream(); closeModal(); }
+      } catch (e) {
+        msg.textContent = e?.message || 'No se pudo agregar por QR';
+      }
+    }
+
+    async function tick(){
+      if(!running) return;
+      try {
+        if (useNative && detector) {
+          const codes = await detector.detect(video);
+          if (codes && codes.length) {
+            await handleCode(codes[0].rawValue || codes[0].rawValue);
+            await new Promise(r => setTimeout(r, 700));
+          }
+        } else if (window.jsQR && video.readyState >= 2) {
+          const w = video.videoWidth, h = video.videoHeight;
+          if (w && h) {
+            canvas.width = w; canvas.height = h;
+            ctx.drawImage(video, 0, 0, w, h);
+            const img = ctx.getImageData(0, 0, w, h);
+            const result = window.jsQR(img.data, w, h, { inversionAttempts: 'attemptBoth' });
+            if (result && result.data) {
+              await handleCode(result.data);
+              await new Promise(r => setTimeout(r, 700));
+            }
+          }
+        }
+      } catch {}
+      requestAnimationFrame(tick);
+    }
+
+    $('#qr-start').onclick = startStream;
+    $('#qr-stop').onclick = () => { stopStream(); msg.textContent = 'Cámara detenida.'; };
+    $('#qr-add-manual').onclick = () => handleCode($('#qr-manual').value);
+
+    await enumerateCams();
+    if (navigator.mediaDevices?.getUserMedia) startStream();
+  }
+
+  // hooks
+  $('#sales-add-inv').onclick = () => openInventoryPicker();
+  $('#sales-add-prices').onclick = () => openPricesPicker();
+  $('#sales-scan-qr').onclick = () => openQRScanner();
+
+} // end initSales

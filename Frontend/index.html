@@ -179,8 +179,8 @@
         <div class="card span-2" id="inventory-list">
           <h3>Inventario</h3>
           <div class="row" id="items-filters">
-          <!-- Barra de selección/acción de stickers -->
-          <div id="stickerBar" class="row sticker-toolbar"></div>
+            <!-- Barra de selección/acción de stickers -->
+            <div id="stickerBar" class="row sticker-toolbar"></div>
             <input id="q-name" placeholder="Filtrar por nombre..." />
             <input id="q-sku" placeholder="SKU..." />
             <select id="q-intakeId">
@@ -348,8 +348,166 @@
       <!-- ========== /PRECIOS ========== -->
 
       <!-- ========== VENTAS ========== -->
-      <section id="tab-ventas" class="tab"></section>
+      <section id="tab-ventas" class="tab">
+        <div class="ventas-grid">
+
+          <!-- Columna izquierda: Cotizaciones mini + Orden de trabajo -->
+          <div class="ventas-left">
+
+            <!-- Cotizaciones mini -->
+            <div class="card">
+              <div class="row between" style="gap:8px; align-items:center;">
+                <h3 style="margin:0">Cotizaciones</h3>
+                <div class="row" style="gap:6px;">
+                  <button id="sv-loadQuote" class="secondary">Usar cotización creada</button>
+                  <button id="sv-newQuote" class="secondary">Crear cotización</button>
+                </div>
+              </div>
+
+              <div class="muted" id="sv-q-header" style="margin-top:6px;">— ninguna cotización cargada —</div>
+
+              <div class="table-wrap small" style="margin-top:8px;">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Tipo</th>
+                      <th>Descripción</th>
+                      <th class="t-center">Cant.</th>
+                      <th class="t-right">Unit</th>
+                      <th class="t-right">Total</th>
+                      <th class="t-center">→ Venta</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sv-q-body"></tbody>
+                </table>
+              </div>
+
+              <div class="row right" style="margin-top:8px; gap:8px;">
+                <button id="sv-q-to-sale" class="secondary">Pasar TODO a venta…</button>
+              </div>
+            </div>
+
+            <!-- Orden de Trabajo (se imprime) -->
+            <div class="card">
+              <div class="row between" style="gap:8px; align-items:center;">
+                <h3 style="margin:0">Orden de trabajo</h3>
+                <button id="sv-print-wo" class="secondary">Imprimir OT</button>
+              </div>
+              <div class="table-wrap small" style="margin-top:8px;">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Descripción</th>
+                      <th class="t-center">Cant.</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sv-wo-body"></tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Columna derecha: Ventas -->
+          <div class="ventas-right">
+
+            <!-- barra superior de ventas -->
+            <div class="card">
+              <div class="row between" style="gap:8px; align-items:center;">
+                <div class="row" id="saleTabs" style="gap:6px; flex-wrap:wrap;"></div>
+                <div class="row" style="gap:6px;">
+                  <button id="sales-start">Nueva venta</button>
+                  <button id="sales-scan-qr" class="secondary">Escanear QR</button>
+                  <button id="sales-share-wa" class="secondary">WhatsApp</button>
+                  <button id="sales-print" class="secondary">PDF</button>
+                  <button id="sales-close" class="danger">Cerrar</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- preview compacto del cliente/vehículo -->
+            <div class="card" id="sv-customer-mini">
+              <div class="row between" style="gap:8px; align-items:center;">
+                <div class="row" style="gap:10px; align-items:center;">
+                  <div class="avatar"></div>
+                  <div>
+                    <div id="sv-mini-plate" class="plate chip">—</div>
+                    <div class="muted" id="sv-mini-name">Cliente: —</div>
+                    <div class="muted" id="sv-mini-phone">Cel: —</div>
+                  </div>
+                </div>
+                <button id="sv-edit-cv" class="secondary">Editar datos…</button>
+              </div>
+            </div>
+
+            <!-- acciones de agregar items -->
+            <div class="card">
+              <div class="row" style="gap:6px; flex-wrap:wrap;">
+                <input id="sales-sku" placeholder="SKU…" style="min-width:180px;">
+                <button id="sales-add-sku">Agregar SKU</button>
+                <button id="sales-add-inv" class="secondary">Agregar desde Inventario</button>
+                <button id="sales-add-prices" class="secondary">Agregar desde Lista de precios</button>
+              </div>
+            </div>
+
+            <!-- tabla de la venta -->
+            <div class="card">
+              <div class="table-wrap">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>SKU</th>
+                      <th>Descripción</th>
+                      <th>Cant.</th>
+                      <th>Unit</th>
+                      <th>Total</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="sales-body"></tbody>
+                  <tfoot>
+                    <tr>
+                      <td colspan="4" class="t-right">Total</td>
+                      <td id="sales-total">$0</td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            <!-- plantilla oculta para modal de cliente/vehículo (se clona) -->
+            <template id="sales-cv-template">
+              <div class="card">
+                <h3>Cliente y vehículo</h3>
+                <div class="cols-2" style="gap:8px;">
+                  <div class="col">
+                    <input id="c-name" placeholder="Nombre/Empresa">
+                    <input id="c-id" placeholder="Identificación">
+                    <input id="c-phone" placeholder="Teléfono">
+                    <input id="c-email" placeholder="Email">
+                    <input id="c-address" placeholder="Dirección">
+                  </div>
+                  <div class="col">
+                    <input id="v-plate" placeholder="Placa (ABC123)">
+                    <input id="v-brand" placeholder="Marca">
+                    <input id="v-line" placeholder="Línea">
+                    <input id="v-engine" placeholder="Motor">
+                    <input id="v-year" placeholder="Año" type="number">
+                    <input id="v-mile" placeholder="Kilometraje" type="number">
+                  </div>
+                </div>
+                <div class="row right" style="margin-top:8px;">
+                  <button id="sales-save-cv">Guardar</button>
+                </div>
+              </div>
+            </template>
+
+          </div>
+        </div>
+      </section>
       <!-- ========== /VENTAS ========== -->
+
     </section>
   </main>
 
