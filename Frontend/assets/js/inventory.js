@@ -103,113 +103,121 @@ function closeModal() {
 /* =================== Carga Inicial =================== */
 export async function initInventory() {
   // -------- form: Nuevo ítem --------
-  const itSku = $("it-sku"); upper(itSku);
-  const itName = $("it-name"); upper(itName);
-  const itInternalName = $("it-internalName"); if (itInternalName) upper(itInternalName);
-  const itStorageLocation = $("it-storageLocation"); if (itStorageLocation) upper(itStorageLocation);
-  const itVehicleTarget = $("it-vehicleTarget"); upper(itVehicleTarget);
-  const itVehicleIntakeId = $("it-vehicleIntakeId");
-  const itEntryPrice = $("it-entryPrice");
-  const itSalePrice = $("it-salePrice");
-  const itOriginal = $("it-original");
-  const itStock = $("it-stock");
-  const itFiles = $("it-files");
-  const itSave = $("it-save");
-
-  // -------- filtros --------
-  const qName = $("q-name");
-  const qSku = $("q-sku");
-  const qIntake = $("q-intakeId");
-  const qApply = $("q-apply");
-  const qClear = $("q-clear");
-
-  // -------- stickers toolbar --------
-  renderStickerToolbar();
-
-  // -------- cargar entradas --------
-  state.intakes = await invAPI.listVehicleIntakes();
-  if (qIntake) {
-    qIntake.innerHTML = `<option value="">Todas las entradas</option>` +
-      state.intakes.map(v =>
-        `<option value="${v._id}">${makeIntakeLabel(v)} - ${new Date(v.intakeDate || v.createdAt).toLocaleDateString()}</option>`
-      ).join("");
-  }
-  if (itVehicleIntakeId) {
-    itVehicleIntakeId.innerHTML = `<option value="">(sin entrada)</option>` +
-      state.intakes.map(v =>
-        `<option value="${v._id}">${makeIntakeLabel(v)} - ${new Date(v.intakeDate || v.createdAt).toLocaleDateString()}</option>`
-      ).join("");
+  if (!API.token.get()) {
+    return;
   }
 
-  // -------- guardar nuevo ítem --------
-  itSave.onclick = async () => {
-    let vehicleTargetValue = (itVehicleTarget.value || "").trim();
-    const selectedIntakeId = itVehicleIntakeId.value || undefined;
+  try {
+    const itSku = $("it-sku"); upper(itSku);
+    const itName = $("it-name"); upper(itName);
+    const itInternalName = $("it-internalName"); if (itInternalName) upper(itInternalName);
+    const itStorageLocation = $("it-storageLocation"); if (itStorageLocation) upper(itStorageLocation);
+    const itVehicleTarget = $("it-vehicleTarget"); upper(itVehicleTarget);
+    const itVehicleIntakeId = $("it-vehicleIntakeId");
+    const itEntryPrice = $("it-entryPrice");
+    const itSalePrice = $("it-salePrice");
+    const itOriginal = $("it-original");
+    const itStock = $("it-stock");
+    const itFiles = $("it-files");
+    const itSave = $("it-save");
 
-    if (selectedIntakeId && (!vehicleTargetValue || vehicleTargetValue === "VITRINAS")) {
-      const vi = state.intakes.find(v => v._id === selectedIntakeId);
-      if (vi) vehicleTargetValue = makeIntakeLabel(vi);
+    // -------- filtros --------
+    const qName = $("q-name");
+    const qSku = $("q-sku");
+    const qIntake = $("q-intakeId");
+    const qApply = $("q-apply");
+    const qClear = $("q-clear");
+
+    // -------- stickers toolbar --------
+    renderStickerToolbar();
+
+    // -------- cargar entradas --------
+    state.intakes = await invAPI.listVehicleIntakes();
+    if (qIntake) {
+      qIntake.innerHTML = `<option value="">Todas las entradas</option>` +
+        state.intakes.map(v =>
+          `<option value="${v._id}">${makeIntakeLabel(v)} - ${new Date(v.intakeDate || v.createdAt).toLocaleDateString()}</option>`
+        ).join("");
     }
-    if (!vehicleTargetValue) vehicleTargetValue = "VITRINAS";
-
-    let images = [];
-    if (itFiles && itFiles.files && itFiles.files.length > 0 && API.mediaUpload) {
-      try {
-        const up = await API.mediaUpload(itFiles.files);
-        images = Array.isArray(up?.files) ? up.files : [];
-      } catch { images = []; }
+    if (itVehicleIntakeId) {
+      itVehicleIntakeId.innerHTML = `<option value="">(sin entrada)</option>` +
+        state.intakes.map(v =>
+          `<option value="${v._id}">${makeIntakeLabel(v)} - ${new Date(v.intakeDate || v.createdAt).toLocaleDateString()}</option>`
+        ).join("");
     }
 
-    const body = {
-      sku: itSku.value.trim(),
-      name: itName.value.trim(),
-      internalName: itInternalName?.value ? itInternalName.value.trim() : undefined,
-      storageLocation: itStorageLocation?.value ? itStorageLocation.value.trim() : undefined,
-      vehicleTarget: vehicleTargetValue,
-      vehicleIntakeId: selectedIntakeId,
-      entryPrice: itEntryPrice.value ? parseFloat(itEntryPrice.value) : undefined,
-      salePrice: parseFloat(itSalePrice.value || "0"),
-      original: itOriginal.value === "true",
-      stock: parseInt(itStock.value || "0", 10),
-      images
+    // -------- guardar nuevo ítem --------
+    itSave.onclick = async () => {
+      let vehicleTargetValue = (itVehicleTarget.value || "").trim();
+      const selectedIntakeId = itVehicleIntakeId.value || undefined;
+
+      if (selectedIntakeId && (!vehicleTargetValue || vehicleTargetValue === "VITRINAS")) {
+        const vi = state.intakes.find(v => v._id === selectedIntakeId);
+        if (vi) vehicleTargetValue = makeIntakeLabel(vi);
+      }
+      if (!vehicleTargetValue) vehicleTargetValue = "VITRINAS";
+
+      let images = [];
+      if (itFiles && itFiles.files && itFiles.files.length > 0 && API.mediaUpload) {
+        try {
+          const up = await API.mediaUpload(itFiles.files);
+          images = Array.isArray(up?.files) ? up.files : [];
+        } catch { images = []; }
+      }
+
+      const body = {
+        sku: itSku.value.trim(),
+        name: itName.value.trim(),
+        internalName: itInternalName?.value ? itInternalName.value.trim() : undefined,
+        storageLocation: itStorageLocation?.value ? itStorageLocation.value.trim() : undefined,
+        vehicleTarget: vehicleTargetValue,
+        vehicleIntakeId: selectedIntakeId,
+        entryPrice: itEntryPrice.value ? parseFloat(itEntryPrice.value) : undefined,
+        salePrice: parseFloat(itSalePrice.value || "0"),
+        original: itOriginal.value === "true",
+        stock: parseInt(itStock.value || "0", 10),
+        images
+      };
+
+      if (!body.sku || !body.name || !Number.isFinite(body.salePrice)) {
+        alert("Completa SKU, Nombre y Precio de venta.");
+        return;
+      }
+
+      await invAPI.saveItem(body);
+
+      // limpiar
+      itSku.value = "";
+      itName.value = "";
+      if (itInternalName) itInternalName.value = "";
+      if (itStorageLocation) itStorageLocation.value = "";
+      itVehicleTarget.value = "";
+      itVehicleIntakeId.value = "";
+      itEntryPrice.value = "";
+      itSalePrice.value = "";
+      itOriginal.value = "false";
+      itStock.value = "";
+      if (itFiles) itFiles.value = "";
+
+      await refreshItems({});
     };
 
-    if (!body.sku || !body.name || !Number.isFinite(body.salePrice)) {
-      alert("Completa SKU, Nombre y Precio de venta.");
-      return;
-    }
+    // -------- filtros: buscar / limpiar --------
+    const doSearch = () => refreshItems({
+      name: qName.value.trim(),        // backend matchea name + internalName
+      sku: qSku.value.trim(),
+      vehicleIntakeId: qIntake.value || undefined
+    });
+    qApply.onclick = doSearch;
+    qClear.onclick = () => { qName.value = ""; qSku.value = ""; qIntake.value = ""; refreshItems({}); };
+    [qName, qSku].forEach(el => el.addEventListener("keydown", (e) => e.key === "Enter" && doSearch()));
+    qIntake.addEventListener("change", doSearch);
 
-    await invAPI.saveItem(body);
-
-    // limpiar
-    itSku.value = "";
-    itName.value = "";
-    if (itInternalName) itInternalName.value = "";
-    if (itStorageLocation) itStorageLocation.value = "";
-    itVehicleTarget.value = "";
-    itVehicleIntakeId.value = "";
-    itEntryPrice.value = "";
-    itSalePrice.value = "";
-    itOriginal.value = "false";
-    itStock.value = "";
-    if (itFiles) itFiles.value = "";
-
+    // -------- primera carga --------
     await refreshItems({});
-  };
-
-  // -------- filtros: buscar / limpiar --------
-  const doSearch = () => refreshItems({
-    name: qName.value.trim(),        // backend matchea name + internalName
-    sku: qSku.value.trim(),
-    vehicleIntakeId: qIntake.value || undefined
-  });
-  qApply.onclick = doSearch;
-  qClear.onclick = () => { qName.value = ""; qSku.value = ""; qIntake.value = ""; refreshItems({}); };
-  [qName, qSku].forEach(el => el.addEventListener("keydown", (e) => e.key === "Enter" && doSearch()));
-  qIntake.addEventListener("change", doSearch);
-
-  // -------- primera carga --------
-  await refreshItems({});
+  } catch (e) {
+    console.error('[inventory] init error', e);
+  }
 }
 
 /* =================== Listado / selección =================== */
