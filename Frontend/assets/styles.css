@@ -298,3 +298,20 @@ button.danger{ background:var(--danger); }
 /* === Pequeñas utilidades === */
 .thumb{ width:40px; height:40px; object-fit:cover; border-radius:8px; }
 .w-fit{ width:1%; white-space:nowrap; }
+
+/* ===== Inventario – galería y thumbnail (FIX tamaño) ===== */
+.it-gallery{
+  display:block;            /* columna con una miniatura grande */
+}
+
+.it-gallery img,
+.it-gallery .item-thumb{
+  width:100%;
+  height:auto;
+  aspect-ratio:1 / 1;       /* cuadrado perfecto */
+  object-fit:cover;         /* recorta sin deformar */
+  display:block;
+  border-radius:10px;
+  border:1px solid #1f2937;
+  background:#0b1220;
+}
