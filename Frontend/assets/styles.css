@@ -1,11 +1,12 @@
 :root {
-  --bg: #0f172a;
-  --card: #111827;
+  --bg: #0b1220;     /* fondo global “oscuro” anterior */
+  --card: #0f172a;   /* tarjetas / paneles */
   --text: #e5e7eb;
   --muted: #9ca3af;
   --accent: #2563eb;
   --danger: #ef4444;
 }
+
 
 * {
   box-sizing: border-box;
