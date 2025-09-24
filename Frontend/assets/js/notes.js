@@ -258,7 +258,7 @@ export function initNotes() {
     eType.addEventListener("change", syncPayBox);
     syncPayBox();
 
-    eCancel.onclick = closeModal;
+    eCancel.onclick = hardHideModal;
 
     eSave.onclick = async () => {
       try {
@@ -281,7 +281,7 @@ export function initNotes() {
         if (!body.responsible) return alert("Selecciona la persona encargada");
 
         await http.updateNote(row._id, body);
-        closeModal();
+        hardHideModal();
         await refresh(notesState.lastFilters);
       } catch (e) {
         alert("Error: " + e.message);
