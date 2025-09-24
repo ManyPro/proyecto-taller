@@ -156,7 +156,43 @@ export function initInventory(){
   const qApply = document.getElementById("q-apply");
   const qClear = document.getElementById("q-clear");
 
-  function renderIntakesList(){
+  
+  function openEditIntake(vi){
+    const body = document.getElementById('modalBody');
+    const btnClose = document.getElementById('modalClose');
+    body.replaceChildren();
+    const tpl = document.getElementById('tpl-vi-edit');
+    if (!tpl) { console.warn('tpl-vi-edit no encontrado'); return; }
+    const node = tpl.content.firstElementChild.cloneNode(true);
+    body.appendChild(node);
+    const cleanup = openModal(); btnClose.onclick = ()=>{ cleanup?.(); closeModal(); };
+
+    const eBrand = document.getElementById('e-vi-brand');
+    const eModel = document.getElementById('e-vi-model');
+    const eEngine= document.getElementById('e-vi-engine');
+    const eDate  = document.getElementById('e-vi-date');
+    const ePrice = document.getElementById('e-vi-price');
+    eBrand.value = vi.brand || '';
+    eModel.value = vi.model || '';
+    eEngine.value= vi.engine || '';
+    try{ eDate.value = vi.intakeDate ? new Date(vi.intakeDate).toISOString().slice(0,10) : ''; }catch(_){ eDate.value=''; }
+    ePrice.value = vi.entryPrice ?? 0;
+
+    document.getElementById('e-vi-save').onclick = async ()=>{
+      const body = {
+        brand: (eBrand.value||'').trim().toUpperCase(),
+        model: (eModel.value||'').trim().toUpperCase(),
+        engine:(eEngine.value||'').trim().toUpperCase(),
+        intakeDate: eDate.value || vi.intakeDate,
+        entryPrice: Number(ePrice.value||0)
+      };
+      await invAPI.updateVehicleIntake(vi._id, body);
+      closeModal();
+      await refreshIntakes();
+    };
+    document.getElementById('e-vi-cancel').onclick = closeModal;
+  }
+function renderIntakesList(){
     if(!viList) return;
     viList.replaceChildren();
     if(!state.intakes.length){
@@ -169,12 +205,7 @@ export function initInventory(){
       node.querySelector('.engine').textContent = vi.engine||'';
       node.querySelector('.date').textContent = new Date(vi.intakeDate).toLocaleDateString();
       node.querySelector('.price').textContent = fmtMoney(vi.entryPrice || 0);
-      node.querySelector('.edit').onclick = async ()=>{
-        const newPrice = prompt('Nuevo precio de entrada:', vi.entryPrice ?? 0);
-        if(newPrice==null) return;
-        await invAPI.updateVehicleIntake(vi._id, { entryPrice: Number(newPrice) });
-        await refreshIntakes();
-      };
+      node.querySelector('.edit').onclick = ()=> openEditIntake(vi);
       node.querySelector('.delete').onclick = async ()=>{
         if(!confirm('¿Eliminar ingreso?')) return;
         await invAPI.deleteVehicleIntake(vi._id);
@@ -205,7 +236,15 @@ export function initInventory(){
     state.intakes = data || [];
     // combos
     if(itVehicleIntakeId){
-      itVehicleIntakeId.replaceChildren(...state.intakes.map(v=>{ const o=document.createElement('option'); o.value=v._id; o.textContent=`${v.brand} ${v.model} ${v.engine} - ${new Date(v.intakeDate).toLocaleDateString()}`; return o; }));
+      itVehicleIntakeId.replaceChildren(...state.intakes.map(v=>{ const o=document.createElement('option'); o.value=v._id; o.textContent=`${v.brand} ${v.model} ${v.engine} - ${new Date(v.intakeDate).toLocaleDateString()}`; o.dataset.label = makeIntakeLabel(v); return o; }));
+      // default de Procedencia final
+      if (itVehicleTarget && (!itVehicleIntakeId.value || itVehicleIntakeId.value === '')) { itVehicleTarget.value = 'GENERAL'; }
+      // espejo: cuando cambie Procedencia, autocompletar Procedencia final
+      itVehicleIntakeId.onchange = ()=>{
+        const opt = itVehicleIntakeId.selectedOptions[0];
+        if (opt && opt.value) { itVehicleTarget.value = (opt.dataset.label||opt.textContent||'').trim().toUpperCase(); }
+        else { itVehicleTarget.value = 'GENERAL'; }
+      };
     }
     if(qIntake){
       const first = document.createElement('option'); first.value=''; first.textContent='Todas las entradas';
