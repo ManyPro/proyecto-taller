@@ -486,7 +486,7 @@ export function initInventory() {
   itVehicleIntakeId.addEventListener("change", () => {
     const id = itVehicleIntakeId.value;
     if (!id) {
-      itVehicleTarget.value = "VITRINAS";
+      itVehicleTarget.value = "GENERAL";
       itVehicleTarget.readOnly = false;
       return;
     }
@@ -504,11 +504,11 @@ export function initInventory() {
     let vehicleTargetValue = (itVehicleTarget.value || "").trim();
     const selectedIntakeId = itVehicleIntakeId.value || undefined;
 
-    if (selectedIntakeId && (!vehicleTargetValue || vehicleTargetValue === "VITRINAS")) {
+    if (selectedIntakeId && (!vehicleTargetValue || vehicleTargetValue === "GENERAL")) {
       const vi = state.intakes.find((v) => v._id === selectedIntakeId);
       if (vi) vehicleTargetValue = makeIntakeLabel(vi);
     }
-    if (!vehicleTargetValue) vehicleTargetValue = "VITRINAS";
+    if (!vehicleTargetValue) vehicleTargetValue = "GENERAL";
 
     let images = [];
     if (itFiles && itFiles.files && itFiles.files.length > 0) {
@@ -754,7 +754,7 @@ export function initInventory() {
           sku: (sku.value || "").trim().toUpperCase(),
           name: (name.value || "").trim().toUpperCase(),
           vehicleIntakeId: intake.value || null,
-          vehicleTarget: (target.value || "VITRINAS").trim().toUpperCase(),
+          vehicleTarget: (target.value || "GENERAL").trim().toUpperCase(),
           entryPrice: entry.value === "" ? "" : parseFloat(entry.value),
           salePrice: parseFloat(sale.value || "0"),
           original: original.value === "true",
