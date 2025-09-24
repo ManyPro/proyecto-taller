@@ -1,6 +1,3 @@
-
-app.use('/api/v1/events', eventsRouter);
-// Backend/src/server.js
 import 'dotenv/config';
 // Captura errores en handlers async automáticamente
 import 'express-async-errors';
