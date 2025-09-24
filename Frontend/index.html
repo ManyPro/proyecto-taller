@@ -139,17 +139,41 @@
       <!-- ========== INVENTARIO ========== -->
       <section id="tab-inventario" class="tab">
         <div id="inventory-top">
+          <!-- INGRESO: ahora con dos tipos -->
           <div class="card" id="vi-card-form">
-            <h3>Procedencia</h3>
-            <label>Marca</label><input id="vi-brand" />
-            <label>Modelo</label><input id="vi-model" />
-            <label>Cilindraje</label><input id="vi-engine" />
-            <label>Fecha ingreso</label><input id="vi-date" type="date" />
-            <label>Precio de entrada</label><input id="vi-price" type="number" min="0" step="0.01" />
-            <button id="vi-save">Guardar Entrada</button>
+            <h3>Ingreso</h3>
+            <div class="row">
+              <label class="row" style="gap:6px;margin-top:0;">
+                <input type="radio" name="vi-kind" id="vi-kind-vehicle" value="vehicle" checked>
+                Ingreso de vehículo
+              </label>
+              <label class="row" style="gap:6px;margin-top:0;">
+                <input type="radio" name="vi-kind" id="vi-kind-purchase" value="purchase">
+                Ingreso de compra
+              </label>
+            </div>
+
+            <!-- Sub-form: Vehículo -->
+            <div id="vi-form-vehicle">
+              <label>Marca</label><input id="vi-brand" />
+              <label>Modelo</label><input id="vi-model" />
+              <label>Cilindraje</label><input id="vi-engine" />
+              <label>Fecha ingreso</label><input id="vi-date" type="date" />
+              <label>Precio de entrada</label><input id="vi-price" type="number" min="0" step="0.01" />
+            </div>
+
+            <!-- Sub-form: Compra -->
+            <div id="vi-form-purchase" class="hidden">
+              <label>Lugar de compra</label><input id="vi-p-place" />
+              <label>Fecha</label><input id="vi-p-date" type="date" />
+              <label>Precio de entrada</label><input id="vi-p-price" type="number" min="0" step="0.01" />
+            </div>
+
+            <button id="vi-save">Guardar Ingreso</button>
           </div>
+
           <div class="card" id="vi-card-lista">
-            <h3>Ingresos de vehículo</h3>
+            <h3>Ingresos</h3>
             <div id="vi-list"></div>
           </div>
         </div>
@@ -158,8 +182,8 @@
           <h3>Nuevo Ítem</h3>
           <label>SKU</label><input id="it-sku" />
           <label>Nombre</label><input id="it-name" />
-            <label>Nombre interno (opcional)</label><input id="it-internal" />
-            <label>Ubicación (opcional)</label><input id="it-location" />
+          <label>Nombre interno (opcional)</label><input id="it-internal" />
+          <label>Ubicación (opcional)</label><input id="it-location" />
           <label>Procedencia final</label><input id="it-vehicleTarget" placeholder="GENERAL" />
           <label>Procedencia</label>
           <select id="it-vehicleIntakeId"></select>
@@ -702,28 +726,6 @@
         </tr>
       </template>
 
-      <!-- Importar XLSX (tab precios) -->
-      <template id="tpl-import-prices">
-        <div class="card">
-          <h3 id="imp-title">Importar XLSX</h3>
-          <p>1) Selecciona un archivo .xlsx (primera hoja).<br>
-             2) Ajusta el mapeo (encabezados exactos tal como vienen en el Excel).<br>
-             3) Modo: <b>upsert</b> actualiza por (marca, línea, motor, año); <b>overwrite</b> borra todo el servicio y reimporta.</p>
-          <div class="row"><input type="file" id="imp-file" accept=".xlsx" /></div>
-          <label>Mapeo columnas → campos (JSON)</label>
-          <textarea id="imp-map" rows="8"></textarea>
-          <div class="row" style="gap:6px;">
-            <select id="imp-mode">
-              <option value="upsert" selected>upsert (recomendado)</option>
-              <option value="overwrite">overwrite (borra y vuelve a cargar)</option>
-            </select>
-            <button id="imp-run">Importar</button>
-            <button id="imp-cancel" class="secondary">Cancelar</button>
-          </div>
-          <div id="imp-res" class="list"></div>
-        </div>
-      </template>
-
     </section>
   </main>
 
@@ -808,7 +810,7 @@
 <!-- === Modal: Editar entrada de vehículo === -->
 <template id="tpl-vi-edit">
   <div class="card">
-    <h3>Editar entrada de vehículo</h3>
+    <h3>Editar ingreso</h3>
     <label>Marca</label><input id="e-vi-brand" />
     <label>Modelo</label><input id="e-vi-model" />
     <label>Motor</label><input id="e-vi-engine" />

@@ -7,6 +7,34 @@ const clone = (id)=>{ const t=document.getElementById(id); return t?.content?.fi
 function openModal(){ const m=$('#modal'); if(!m) return; m.classList.remove('hidden'); document.body.style.overflow='hidden'; const onKey=(e)=>{ if(e.key==='Escape') closeModal(); }; document.addEventListener('keydown', onKey); return ()=>document.removeEventListener('keydown', onKey); }
 function closeModal(){ const m=$('#modal'); if(!m) return; m.classList.add('hidden'); document.body.style.overflow=''; }
 
+/* ===================== Helpers QR/SKU ===================== */
+function parseScanText(raw){
+  if(!raw) return null;
+  let t = String(raw).trim();
+  // Si es URL, toma el último segmento
+  try{
+    if(/^https?:\/\//i.test(t)){ const u=new URL(t); const last=u.pathname.split('/').filter(Boolean).pop(); if(last) t=last; }
+  }catch{}
+  // IT:<id>[:<companyId>]  (aceptamos ambos órdenes, devolveremos el que parezca itemId)
+  const m = /^IT:([a-f0-9]{24})(?::([a-f0-9]{24}))?$/i.exec(t);
+  if(m){
+    const a=m[1], b=m[2];
+    if(b && /^[a-f0-9]{24}$/i.test(b)) return { type:'id', value:b }; // common: IT:<companyId>:<itemId>
+    return { type:'id', value:a };
+  }
+  // ObjectId suelto
+  if(/^[a-f0-9]{24}$/i.test(t)) return { type:'id', value:t };
+  // SKU alfanumérico
+  if(/^[A-Z0-9\-_]+$/i.test(t)) return { type:'sku', value:t.toUpperCase() };
+  return null;
+}
+let _lastScan=null, _lastTs=0;
+function shouldProcessScan(val){
+  const now=Date.now();
+  if(val===_lastScan && (now-_lastTs)<2000) return false;
+  _lastScan=val; _lastTs=now; return true;
+}
+
 /* ===================== Estado de ventas ===================== */
 let current=null;
 const OPEN_KEY = `sales:openTabs:${API.getActiveCompany?.() || 'default'}`;
@@ -170,7 +198,7 @@ export function initSales(){
         tr.querySelector('[data-year]').textContent  = it.year||'';
         tr.querySelector('[data-price]').textContent = money(it.price||it.values?.PRICE||0);
         tr.querySelector('button.add').onclick = async ()=>{
-          current = await API.sales.addItem(current._id, { source:'prices', priceId: it._id, svcId:iSvc.value, qty:1 });
+          current = await API.sales.addItem(current._id, { source:'prices', priceId: it._id, qty:1 });
           renderSale(); renderWorkOrder();
         };
         tbody.appendChild(tr);
@@ -225,15 +253,43 @@ export function initSales(){
     }
     function stopStream(){ try{ video.pause(); }catch{}; try{ (stream?.getTracks()||[]).forEach(t=>t.stop()); }catch{}; running=false; }
     async function isNativeQRSupported(){ try{ return !!(window.BarcodeDetector); }catch{ return false; } }
-    function onCode(code){
-      const li=document.createElement('li'); li.textContent=code; list.prepend(li);
-      API.sales.addByQR(current._id, { code }).then(()=>{ if(autoclose.checked){ cleanup?.(); stopStream(); closeModal(); } renderSale(); renderWorkOrder(); });
+
+    async function addByScan(raw){
+      if(!raw || !shouldProcessScan(raw)) return;
+      const li=document.createElement('li'); li.textContent=raw; list.prepend(li);
+      const parsed = parseScanText(raw);
+      if(!parsed){ msg.textContent='Código no reconocido'; return; }
+
+      try{
+        if(parsed.type==='id'){
+          // Agrego directo por itemId
+          current = await API.sales.addItem(current._id, { source:'inventory', itemId: parsed.value, qty:1 });
+          msg.textContent = 'Ítem agregado por ID';
+        }else if(parsed.type==='sku'){
+          // Búsqueda exacta por SKU y agregar por itemId (preferible) o por sku
+          const items = await API.inventory.itemsList({ sku: parsed.value });
+          const exact = Array.isArray(items) ? items.find(it=>String(it.sku).toUpperCase()===parsed.value) : null;
+          if(exact){
+            current = await API.sales.addItem(current._id, { source:'inventory', itemId: exact._id, qty:1 });
+            msg.textContent = `Ítem agregado: ${exact.sku}`;
+          }else{
+            // fallback: el endpoint de ventas también acepta {sku}
+            current = await API.sales.addItem(current._id, { source:'inventory', sku: parsed.value, qty:1 });
+            msg.textContent = `Ítem agregado por SKU: ${parsed.value}`;
+          }
+        }
+        renderSale(); renderWorkOrder();
+        if(autoclose.checked){ const cl=cleanup; stopStream(); closeModal(); cl?.(); }
+      }catch(e){
+        msg.textContent = e?.message || 'No se pudo agregar el ítem';
+      }
     }
+
     async function tickNative(){
       if(!running) return;
       try{
         const codes=await detector.detect(video);
-        if(codes?.[0]?.rawValue){ onCode(codes[0].rawValue); }
+        if(codes?.[0]?.rawValue){ addByScan(codes[0].rawValue); }
       }catch{}
       requestAnimationFrame(tickNative);
     }
@@ -243,14 +299,17 @@ export function initSales(){
         const w=video.videoWidth, h=video.videoHeight;
         if(!w || !h) return requestAnimationFrame(tickCanvas);
         canvas.width=w; canvas.height=h; ctx.drawImage(video,0,0,w,h);
-        // jsQR fallback omitido por brevedad en esta refactor (se puede agregar)
+        // Aquí podríamos integrar jsQR si lo tienes cargado globalmente:
+        // const imgData = ctx.getImageData(0,0,w,h);
+        // const qr = window.jsQR && window.jsQR(imgData.data, w, h);
+        // if(qr?.data) addByScan(qr.data);
       }catch{}
       requestAnimationFrame(tickCanvas);
     }
 
     $('#qr-start').onclick = start;
     $('#qr-stop').onclick  = ()=>{ stopStream(); };
-    $('#qr-add-manual').onclick = ()=>{ const code=$('#qr-manual').value||''; if(!code) return; onCode(code); };
+    $('#qr-add-manual').onclick = ()=>{ const code=$('#qr-manual').value||''; if(!code) return; addByScan(code); };
 
     enumerateCams();
   }
