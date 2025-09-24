@@ -2,6 +2,7 @@ import Sale from '../models/Sale.js';
 import Item from '../models/Item.js';
 import PriceEntry from '../models/PriceEntry.js';
 import Counter from '../models/Counter.js';
+import { publish } from '../lib/pubsub.js';
 
 const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
 
@@ -24,6 +25,7 @@ async function getNextSaleNumber(companyId) {
 // Crear venta vacía (status=open)
 export const startSale = async (req, res) => {
   const sale = await Sale.create({ companyId: req.companyId, status: 'open', items: [] });
+  publish(req.companyId, 'sales:create', sale.toObject ? sale.toObject() : sale);
   res.json(sale.toObject());
 };
 
@@ -31,6 +33,7 @@ export const startSale = async (req, res) => {
 export const getSale = async (req, res) => {
   const sale = await Sale.findOne({ _id: req.params.id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  publish(req.companyId, 'sales:update', sale.toObject ? sale.toObject() : sale);
   res.json(sale.toObject());
 };
 
@@ -87,6 +90,7 @@ export const addItem = async (req, res) => {
   sale.items.push(itemData);
   computeTotals(sale);
   await sale.save();
+  publish(req.companyId, 'sales:update', sale.toObject ? sale.toObject() : sale);
   res.json(sale.toObject());
 };
 
@@ -107,6 +111,7 @@ export const updateItem = async (req, res) => {
 
   computeTotals(sale);
   await sale.save();
+  publish(req.companyId, 'sales:update', sale.toObject ? sale.toObject() : sale);
   res.json(sale.toObject());
 };
 
@@ -119,6 +124,7 @@ export const removeItem = async (req, res) => {
   sale.items.id(itemId)?.deleteOne();
   computeTotals(sale);
   await sale.save();
+  publish(req.companyId, 'sales:update', sale.toObject ? sale.toObject() : sale);
   res.json(sale.toObject());
 };
 
@@ -148,6 +154,7 @@ export const setCustomerVehicle = async (req, res) => {
   if (typeof notes === 'string') sale.notes = notes;
 
   await sale.save();
+  publish(req.companyId, 'sales:update', sale.toObject ? sale.toObject() : sale);
   res.json(sale.toObject());
 };
 
@@ -169,6 +176,7 @@ export const closeSale = async (req, res) => {
     await sale.save();
   }
 
+  publish(req.companyId, 'sales:close', sale.toObject ? sale.toObject() : sale);
   res.json({ ok: true, sale: sale.toObject() });
 };
 
@@ -206,7 +214,8 @@ export const addByQR = async (req, res) => {
       });
       computeTotals(sale);
       await sale.save();
-      return res.json(sale.toObject());
+      return publish(req.companyId, 'sales:update', sale.toObject ? sale.toObject() : sale);
+  res.json(sale.toObject());
     }
   }
 
@@ -227,6 +236,7 @@ export const addByQR = async (req, res) => {
   });
   computeTotals(sale);
   await sale.save();
+  publish(req.companyId, 'sales:update', sale.toObject ? sale.toObject() : sale);
   res.json(sale.toObject());
 };
 

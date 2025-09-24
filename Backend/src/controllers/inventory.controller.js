@@ -5,6 +5,7 @@ import Item from "../models/Item.js";
 
 // 👉 nuevo: generador PNG
 import QRCode from "qrcode";
+import { publish } from '../lib/pubsub.js';
 
 // ------ helpers ------
 function makeIntakeLabel(vi) {
@@ -132,6 +133,7 @@ export const deleteVehicleIntake = async (req, res) => {
 
   const del = await VehicleIntake.findOneAndDelete({ _id: id, companyId: req.companyId });
   if (!del) return res.status(404).json({ error: "Entrada no encontrada" });
+  publish(req.companyId, 'inventory:item:delete', { _id: id });
   res.status(204).end();
 };
 
@@ -141,7 +143,7 @@ export const listItems = async (req, res) => {
   const { name, sku, vehicleTarget, vehicleIntakeId } = req.query;
   const q = { companyId: new mongoose.Types.ObjectId(req.companyId) };
 
-  if (name) q.$or = [{ name: new RegExp((name || "").trim().toUpperCase(), "i") }, { internalName: new RegExp((name || "").trim().toUpperCase(), "i") }];
+  if (name) q.name = new RegExp((name || "").trim().toUpperCase(), "i");
   if (sku)  q.sku  = new RegExp((sku  || "").trim().toUpperCase(), "i");
 
   if (vehicleIntakeId && mongoose.Types.ObjectId.isValid(vehicleIntakeId)) {
@@ -159,10 +161,6 @@ export const createItem = async (req, res) => {
 
   if (b.sku)  b.sku  = b.sku.toUpperCase().trim();
   if (b.name) b.name = b.name.toUpperCase().trim();
-  if (b.internalName) b.internalName = b.internalName.toUpperCase().trim();
-  if (b.location) b.location = b.location.toUpperCase().trim();
-  if (b.internalName) b.internalName = b.internalName.toUpperCase().trim();
-  if (b.location) b.location = b.location.toUpperCase().trim();
 
   if (b.vehicleIntakeId) {
     const vi = await VehicleIntake.findOne({ _id: b.vehicleIntakeId, companyId: req.companyId });
@@ -192,8 +190,6 @@ export const createItem = async (req, res) => {
     salePrice: +b.salePrice || 0,
     original: !!b.original,
     stock: Number.isFinite(+b.stock) ? +b.stock : 0,
-    internalName: b.internalName || "",
-    location: b.location || "",
     images,
     qrData: "" // inicial, lo llenamos abajo
   });
@@ -217,10 +213,6 @@ export const updateItem = async (req, res) => {
 
   if (b.sku)  b.sku  = b.sku.toUpperCase().trim();
   if (b.name) b.name = b.name.toUpperCase().trim();
-  if (b.internalName) b.internalName = b.internalName.toUpperCase().trim();
-  if (b.location) b.location = b.location.toUpperCase().trim();
-  if (b.internalName) b.internalName = b.internalName.toUpperCase().trim();
-  if (b.location) b.location = b.location.toUpperCase().trim();
 
   if (b.vehicleIntakeId) {
     const vi = await VehicleIntake.findOne({ _id: b.vehicleIntakeId, companyId: req.companyId });

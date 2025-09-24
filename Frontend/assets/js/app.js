@@ -10,6 +10,32 @@ import { initPrices } from "./prices.js";
 import { initSales } from "./sales.js";
 
 let modulesReady = false;
+let liveES = null;
+function startLive() {
+  try {
+    if (liveES) return;
+    const base = API.base || '';
+    const tok = API.token?.get?.();
+    if (!tok || !base) return;
+    const url = `${base}/api/v1/events/stream?token=${encodeURIComponent(tok)}`;
+    liveES = new EventSource(url);
+    liveES.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        window.__notesOnEvent?.(msg);
+        window.__inventoryOnEvent?.(msg);
+        window.__quotesOnEvent?.(msg);
+        window.__salesOnEvent?.(msg);
+      } catch {}
+    };
+    liveES.onerror = () => {
+      try { liveES?.close(); } catch {}
+      liveES = null;
+      setTimeout(startLive, 2000);
+    };
+  } catch {}
+}
+
 
 // Tabs simples
 const tabsNav = document.querySelector('.tabs');
@@ -59,7 +85,7 @@ async function doLogin(isRegister = false) {
     sectionLogin.classList.add('hidden');
     sectionApp.classList.remove('hidden');
     logoutBtn.classList.remove('hidden');
-    ensureModules();
+    ensureModules(); startLive();
     showTab('notas');
   } catch (e) {
     alert(e?.message || 'Error');
@@ -95,7 +121,7 @@ tabsNav?.addEventListener('click', (ev) => {
       sectionLogin.classList.add('hidden');
       sectionApp.classList.remove('hidden');
       logoutBtn.classList.remove('hidden');
-      ensureModules();
+      ensureModules(); startLive();
       showTab('notas');
     } else {
       const active = API.getActiveCompany?.();

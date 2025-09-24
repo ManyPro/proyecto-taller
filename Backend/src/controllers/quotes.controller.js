@@ -1,6 +1,7 @@
 // Backend/src/controllers/quotes.controller.js
 import Counter from '../models/Counter.js';
 import Quote from '../models/Quote.js';
+import { publish } from '../lib/pubsub.js';
 
 /** Normaliza el tipo recibido desde el Frontend:
  *  'PRODUCTO'|'Servicio' -> 'Producto' ; 'SERVICIO'|'Servicio' -> 'Servicio'
@@ -94,6 +95,7 @@ export async function listQuotes(req, res) {
   }
 
   const docs = await Quote.find(q).sort({ createdAt: -1 }).limit(200);
+  publish(req.companyId, 'quotes:create', doc.toObject ? doc.toObject() : doc);
   res.json(docs);
 }
 
@@ -129,6 +131,7 @@ export async function updateQuote(req, res) {
   exists.total = total;
 
   await exists.save();
+  publish(req.companyId, 'quotes:update', exists.toObject ? exists.toObject() : exists);
   res.json(exists);
 }
 
@@ -136,5 +139,6 @@ export async function deleteQuote(req, res) {
   const companyId = req.companyId || req.company?.id;
   const r = await Quote.deleteOne({ _id: req.params.id, companyId });
   if (!r.deletedCount) return res.status(404).json({ error: 'No encontrada' });
+  publish(req.companyId, 'quotes:delete', { _id: req.params.id });
   res.json({ ok: true });
 }

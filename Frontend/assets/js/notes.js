@@ -100,7 +100,7 @@ export function initNotes() {
   async function refresh(params = {}) {
     notesState.lastFilters = params;
     const res = await API.notesList(toQuery(params));
-    const rows = Array.isArray(res) ? res : (res?.items || res?.data || []);
+    const rows = res?.items || [];
     list.innerHTML = "";
 
     rows.forEach(row => {
@@ -258,7 +258,7 @@ export function initNotes() {
     eType.addEventListener("change", syncPayBox);
     syncPayBox();
 
-    eCancel.onclick = hardHideModal;
+    eCancel.onclick = closeModal;
 
     eSave.onclick = async () => {
       try {
@@ -281,7 +281,7 @@ export function initNotes() {
         if (!body.responsible) return alert("Selecciona la persona encargada");
 
         await http.updateNote(row._id, body);
-        hardHideModal();
+        closeModal();
         await refresh(notesState.lastFilters);
       } catch (e) {
         alert("Error: " + e.message);
@@ -360,4 +360,5 @@ export function initNotes() {
 
   // init
   refresh({});
+  window.__notesOnEvent = (msg)=>{ if(msg?.entity==='notes'){ refresh(notesState.lastFilters||{}); } };
 }

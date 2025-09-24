@@ -1,5 +1,6 @@
 import Note from "../models/Note.js";
 import mongoose from "mongoose";
+import { publish } from '../lib/pubsub.js';
 
 const ALLOWED_RESP = ['DAVID', 'VALENTIN', 'SEBASTIAN', 'GIOVANNY', 'SANDRA', 'CEDIEL'];
 const normResp = (v) => String(v || '').trim().toUpperCase();
@@ -45,6 +46,7 @@ export const createNote = async (req, res) => {
     userId: req.userId ? new mongoose.Types.ObjectId(req.userId) : undefined
   });
 
+  publish(req.companyId, 'notes:create', doc.toObject ? doc.toObject() : doc);
   res.status(201).json({ item: doc });
 };
 
@@ -70,6 +72,7 @@ export const updateNote = async (req, res) => {
     { new: true }
   );
   if (!note) return res.status(404).json({ error: "Nota no encontrada" });
+  publish(req.companyId, 'notes:update', note.toObject ? note.toObject() : note);
   res.json({ item: note });
 };
 
@@ -80,5 +83,6 @@ export const deleteNote = async (req, res) => {
     companyId: new mongoose.Types.ObjectId(req.companyId),
   });
   if (!del) return res.status(404).json({ error: "Nota no encontrada" });
+  publish(req.companyId, 'notes:delete', { _id: id });
   res.status(204).end();
 };

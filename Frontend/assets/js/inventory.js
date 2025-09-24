@@ -756,126 +756,61 @@ export function initInventory() {
   }
 
   // ====== PDF de stickers (Carta, 6×4 cm, 18 por página) ======
-
-  // ====== PDF de stickers (Carta, 6×4 cm, 18 por página) ======
   async function generateStickersFromSelection() {
     if (!state.selected.size) return;
     const ids = Array.from(state.selected);
     const items = ids
       .map(id => state.items.find(it => String(it._id) === String(id)))
       .filter(Boolean);
+
     if (!items.length) return;
 
-    // 1) Modal para ajustar cantidades a imprimir (default = stock)
-    invOpenModal(`
-      <h3>Generar stickers</h3>
-      <p class="muted">Ajusta cuántos stickers imprimir por ítem (por defecto = stock actual).</p>
-      <div class="table-wrap small">
-        <table class="table">
-          <thead><tr><th>SKU</th><th>Nombre</th><th class="t-center">Stock</th><th class="t-center">Imprimir</th></tr></thead>
-          <tbody id="stk-rows"></tbody>
-        </table>
-      </div>
-      <div class="row right" style="gap:8px;">
-        <button class="secondary" id="stk-fill-stock">Usar stock</button>
-        <button class="secondary" id="stk-clear">Poner 0</button>
-        <button id="stk-generate">Generar PDF</button>
-      </div>
-    `);
-
-    const rows = document.getElementById('stk-rows');
-    rows.innerHTML = items.map(it => `
-      <tr data-id="${it._id}">
-        <td>${(it.sku||'')}</td>
-        <td>${(it.name||'')}</td>
-        <td class="t-center">${it.stock ?? 0}</td>
-        <td class="t-center"><input type="number" min="0" step="1" value="${parseInt(it.stock||0,10)}" class="qty" style="width:90px"/></td>
-      </tr>
-    `).join("");
-
-    document.getElementById('stk-fill-stock').onclick = () => {
-      rows.querySelectorAll('tr').forEach(tr => {
-        const id = tr.dataset.id;
-        const it = items.find(x => String(x._id) === String(id));
-        tr.querySelector('.qty').value = parseInt(it?.stock||0,10);
-      });
-    };
-    document.getElementById('stk-clear').onclick = () => {
-      rows.querySelectorAll('.qty').forEach(inp => inp.value = 0);
-    };
-
-    document.getElementById('stk-generate').onclick = async () => {
-      // construir arreglo expandido según cantidades
-      const list = [];
-      rows.querySelectorAll('tr').forEach(tr => {
-        const id = tr.dataset.id;
-        const count = parseInt(tr.querySelector('.qty').value || '0', 10);
-        const it = items.find(x => String(x._id) === String(id));
-        if (it && count > 0) list.push({ it, count });
-      });
-      if (!list.length) { alert('Coloca al menos 1 sticker.'); return; }
-      await generateStickersPdf(list);
-      invCloseModal();
-    };
-  }
-
-  async function generateStickersPdf(list) {
     const jsPDF = await ensureJsPDF();
     const doc = new jsPDF({ unit: "cm", format: "letter" });
 
-    // Layout
+    // Parámetros de layout
     const margin = 0.5;         // cm
-    const w = 6, h = 4;         // sticker 6x4 cm
-    const gapX = 1.0, gapY = 0.5;
+    const w = 6, h = 4;         // sticker 6 x 4 cm
+    const gapX = 1.0;           // cm
+    const gapY = 0.5;           // cm
     const cols = 3, rows = 6;   // 3 x 6 = 18 por página
     const perPage = cols * rows;
 
-    // Pre-descarga de QRs únicos (evita pedir el mismo varias veces)
-    const uniq = {};
-    list.forEach(({it}) => { uniq[it._id] = it; });
-    const qrMap = {};
-    for (const id of Object.keys(uniq)) {
-      try {
-        const blob = await fetchQrBlob(id, 600);
-        qrMap[id] = await blobToDataURL(blob);
-      } catch { qrMap[id] = ""; }
-    }
+    // Pre-descarga de QRs como dataURL para mayor nitidez en PDF
+    const payloads = await Promise.all(items.map(async it => {
+      const blob = await fetchQrBlob(it._id, 600); // alta resolución
+      const dataUrl = await blobToDataURL(blob);
+      return { it, dataUrl };
+    }));
 
-    // Expandir a una lista plana de stickers
-    const flat = [];
-    list.forEach(({it, count}) => {
-      for (let i=0; i<count; i++) flat.push(it);
-    });
-
-    for (let i = 0; i < flat.length; i++) {
+    for (let i = 0; i < Math.max(items.length, 1); i++) {
+      const pageIndex = Math.floor(i / perPage);
       const idxInPage = i % perPage;
       if (i > 0 && idxInPage === 0) doc.addPage();
 
       const col = idxInPage % cols;
       const row = Math.floor(idxInPage / cols);
+
       const x = margin + col * (w + gapX);
       const y = margin + row * (h + gapY);
 
-      // Marco
+      // Marco del sticker (opcional, muy sutil)
       doc.setDrawColor(230);
       doc.roundedRect(x, y, w, h, 0.15, 0.15);
 
-      const it = flat[i] || {};
-      const dataUrl = qrMap[it._id] || "";
+      const { it, dataUrl } = payloads[i] || { it: {}, dataUrl: "" };
 
-      const pad = 0.25;
-      const qrSize = 2.6;
+      // Layout interno: QR a la izquierda, SKU centrado a la derecha
+      const pad = 0.25;           // acolchado interno
+      const qrSize = 3.1;         // tamaño del QR
       const qrX = x + pad;
       const qrY = y + (h - qrSize) / 2;
 
-      if (dataUrl) {
-        doc.addImage(dataUrl, "PNG", qrX, qrY, qrSize, qrSize);
-      } else {
-        doc.setFontSize(10);
-        doc.text("QR", qrX + qrSize/2, qrY + qrSize/2, { align:"center", baseline:"middle" });
-      }
+      if (dataUrl) doc.addImage(dataUrl, "PNG", qrX, qrY, qrSize, qrSize);
 
-      // Caja SKU
+      // Texto SKU (blanco, sólido sobre fondo oscuro)
+      doc.setTextColor(255, 255, 255);
+      // para asegurar legibilidad, dibujamos un rectángulo oscuro detrás del texto
       const skuBoxX = qrX + qrSize + 0.25;
       const skuBoxY = y + 0.5;
       const skuBoxW = x + w - skuBoxX - pad;
@@ -885,16 +820,24 @@ export function initInventory() {
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(16);
-      doc.setTextColor(255,255,255);
-      doc.text((it?.sku || "").toUpperCase(), skuBoxX + skuBoxW/2, skuBoxY + skuBoxH/2, { align:"center", baseline:"middle" });
+      doc.text((it?.sku || "").toUpperCase(), skuBoxX + skuBoxW / 2, skuBoxY + skuBoxH / 2, {
+        align: "center", baseline: "middle"
+      });
     }
 
-    const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
+    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
     doc.save(`stickers_${ts}.pdf`);
   }
-
 
   // ====== Init ======
   refreshIntakes();
   refreshItems({});
+
+  window.__inventoryOnEvent = (msg)=>{
+    if(!msg) return;
+    if(msg.entity==='inventory'){
+      refreshItems(state.lastItemsParams || {});
+      refreshIntakes();
+    }
+  };
 }

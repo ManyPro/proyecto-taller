@@ -1,3 +1,5 @@
+
+app.use('/api/v1/events', eventsRouter);
 // Backend/src/server.js
 import 'dotenv/config';
 // Captura errores en handlers async automáticamente
@@ -11,6 +13,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Routers
+import eventsRouter from './routes/events.routes.js';
 import companyAuthRouter from './routes/auth.routes.js';
 import healthRouter from './routes/health.js';
 import mediaRouter from './routes/media.routes.js';
