@@ -230,20 +230,6 @@ export function initInventory() {
   const itOriginal = document.getElementById("it-original");
   const itStock = document.getElementById("it-stock");
   const itFiles = document.getElementById("it-files");
-  // Autocompletar "Procedencia final" al cambiar "Procedencia"
-  if (itVehicleIntakeId && itVehicleTarget) {
-    itVehicleIntakeId.addEventListener('change', () => {
-      const opt = itVehicleIntakeId.options[itVehicleIntakeId.selectedIndex];
-      if (opt && opt.value) {
-        const txt = (opt.textContent || '').trim();
-        const label = txt.split(' - ')[0].trim().toUpperCase();
-        itVehicleTarget.value = label || 'GENERAL';
-      } else {
-        itVehicleTarget.value = 'GENERAL';
-      }
-    });
-  }
-
   const itSave = document.getElementById("it-save");
 
   // ---- Listado de ítems ----
@@ -306,8 +292,6 @@ export function initInventory() {
       state.intakes
         .map(v => `<option value="${v._id}">${v.brand} ${v.model} ${v.engine} - ${new Date(v.intakeDate).toLocaleDateString()}</option>`)
         .join("");
-
-    if (itVehicleTarget && (!itVehicleIntakeId.value || itVehicleIntakeId.value === '')) { itVehicleTarget.value = 'GENERAL'; }
 
     if (qIntake) {
       qIntake.innerHTML =
@@ -486,7 +470,7 @@ export function initInventory() {
   itVehicleIntakeId.addEventListener("change", () => {
     const id = itVehicleIntakeId.value;
     if (!id) {
-      itVehicleTarget.value = "GENERAL";
+      itVehicleTarget.value = "VITRINAS";
       itVehicleTarget.readOnly = false;
       return;
     }
@@ -504,11 +488,11 @@ export function initInventory() {
     let vehicleTargetValue = (itVehicleTarget.value || "").trim();
     const selectedIntakeId = itVehicleIntakeId.value || undefined;
 
-    if (selectedIntakeId && (!vehicleTargetValue || vehicleTargetValue === "GENERAL")) {
+    if (selectedIntakeId && (!vehicleTargetValue || vehicleTargetValue === "VITRINAS")) {
       const vi = state.intakes.find((v) => v._id === selectedIntakeId);
       if (vi) vehicleTargetValue = makeIntakeLabel(vi);
     }
-    if (!vehicleTargetValue) vehicleTargetValue = "GENERAL";
+    if (!vehicleTargetValue) vehicleTargetValue = "VITRINAS";
 
     let images = [];
     if (itFiles && itFiles.files && itFiles.files.length > 0) {
@@ -754,7 +738,7 @@ export function initInventory() {
           sku: (sku.value || "").trim().toUpperCase(),
           name: (name.value || "").trim().toUpperCase(),
           vehicleIntakeId: intake.value || null,
-          vehicleTarget: (target.value || "GENERAL").trim().toUpperCase(),
+          vehicleTarget: (target.value || "VITRINAS").trim().toUpperCase(),
           entryPrice: entry.value === "" ? "" : parseFloat(entry.value),
           salePrice: parseFloat(sale.value || "0"),
           original: original.value === "true",
@@ -772,61 +756,126 @@ export function initInventory() {
   }
 
   // ====== PDF de stickers (Carta, 6×4 cm, 18 por página) ======
+
+  // ====== PDF de stickers (Carta, 6×4 cm, 18 por página) ======
   async function generateStickersFromSelection() {
     if (!state.selected.size) return;
     const ids = Array.from(state.selected);
     const items = ids
       .map(id => state.items.find(it => String(it._id) === String(id)))
       .filter(Boolean);
-
     if (!items.length) return;
 
+    // 1) Modal para ajustar cantidades a imprimir (default = stock)
+    invOpenModal(`
+      <h3>Generar stickers</h3>
+      <p class="muted">Ajusta cuántos stickers imprimir por ítem (por defecto = stock actual).</p>
+      <div class="table-wrap small">
+        <table class="table">
+          <thead><tr><th>SKU</th><th>Nombre</th><th class="t-center">Stock</th><th class="t-center">Imprimir</th></tr></thead>
+          <tbody id="stk-rows"></tbody>
+        </table>
+      </div>
+      <div class="row right" style="gap:8px;">
+        <button class="secondary" id="stk-fill-stock">Usar stock</button>
+        <button class="secondary" id="stk-clear">Poner 0</button>
+        <button id="stk-generate">Generar PDF</button>
+      </div>
+    `);
+
+    const rows = document.getElementById('stk-rows');
+    rows.innerHTML = items.map(it => `
+      <tr data-id="${it._id}">
+        <td>${(it.sku||'')}</td>
+        <td>${(it.name||'')}</td>
+        <td class="t-center">${it.stock ?? 0}</td>
+        <td class="t-center"><input type="number" min="0" step="1" value="${parseInt(it.stock||0,10)}" class="qty" style="width:90px"/></td>
+      </tr>
+    `).join("");
+
+    document.getElementById('stk-fill-stock').onclick = () => {
+      rows.querySelectorAll('tr').forEach(tr => {
+        const id = tr.dataset.id;
+        const it = items.find(x => String(x._id) === String(id));
+        tr.querySelector('.qty').value = parseInt(it?.stock||0,10);
+      });
+    };
+    document.getElementById('stk-clear').onclick = () => {
+      rows.querySelectorAll('.qty').forEach(inp => inp.value = 0);
+    };
+
+    document.getElementById('stk-generate').onclick = async () => {
+      // construir arreglo expandido según cantidades
+      const list = [];
+      rows.querySelectorAll('tr').forEach(tr => {
+        const id = tr.dataset.id;
+        const count = parseInt(tr.querySelector('.qty').value || '0', 10);
+        const it = items.find(x => String(x._id) === String(id));
+        if (it && count > 0) list.push({ it, count });
+      });
+      if (!list.length) { alert('Coloca al menos 1 sticker.'); return; }
+      await generateStickersPdf(list);
+      invCloseModal();
+    };
+  }
+
+  async function generateStickersPdf(list) {
     const jsPDF = await ensureJsPDF();
     const doc = new jsPDF({ unit: "cm", format: "letter" });
 
-    // Parámetros de layout
+    // Layout
     const margin = 0.5;         // cm
-    const w = 6, h = 4;         // sticker 6 x 4 cm
-    const gapX = 1.0;           // cm
-    const gapY = 0.5;           // cm
+    const w = 6, h = 4;         // sticker 6x4 cm
+    const gapX = 1.0, gapY = 0.5;
     const cols = 3, rows = 6;   // 3 x 6 = 18 por página
     const perPage = cols * rows;
 
-    // Pre-descarga de QRs como dataURL para mayor nitidez en PDF
-    const payloads = await Promise.all(items.map(async it => {
-      const blob = await fetchQrBlob(it._id, 600); // alta resolución
-      const dataUrl = await blobToDataURL(blob);
-      return { it, dataUrl };
-    }));
+    // Pre-descarga de QRs únicos (evita pedir el mismo varias veces)
+    const uniq = {};
+    list.forEach(({it}) => { uniq[it._id] = it; });
+    const qrMap = {};
+    for (const id of Object.keys(uniq)) {
+      try {
+        const blob = await fetchQrBlob(id, 600);
+        qrMap[id] = await blobToDataURL(blob);
+      } catch { qrMap[id] = ""; }
+    }
 
-    for (let i = 0; i < Math.max(items.length, 1); i++) {
-      const pageIndex = Math.floor(i / perPage);
+    // Expandir a una lista plana de stickers
+    const flat = [];
+    list.forEach(({it, count}) => {
+      for (let i=0; i<count; i++) flat.push(it);
+    });
+
+    for (let i = 0; i < flat.length; i++) {
       const idxInPage = i % perPage;
       if (i > 0 && idxInPage === 0) doc.addPage();
 
       const col = idxInPage % cols;
       const row = Math.floor(idxInPage / cols);
-
       const x = margin + col * (w + gapX);
       const y = margin + row * (h + gapY);
 
-      // Marco del sticker (opcional, muy sutil)
+      // Marco
       doc.setDrawColor(230);
       doc.roundedRect(x, y, w, h, 0.15, 0.15);
 
-      const { it, dataUrl } = payloads[i] || { it: {}, dataUrl: "" };
+      const it = flat[i] || {};
+      const dataUrl = qrMap[it._id] || "";
 
-      // Layout interno: QR a la izquierda, SKU centrado a la derecha
-      const pad = 0.25;           // acolchado interno
-      const qrSize = 3.1;         // tamaño del QR
+      const pad = 0.25;
+      const qrSize = 2.6;
       const qrX = x + pad;
       const qrY = y + (h - qrSize) / 2;
 
-      if (dataUrl) doc.addImage(dataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+      if (dataUrl) {
+        doc.addImage(dataUrl, "PNG", qrX, qrY, qrSize, qrSize);
+      } else {
+        doc.setFontSize(10);
+        doc.text("QR", qrX + qrSize/2, qrY + qrSize/2, { align:"center", baseline:"middle" });
+      }
 
-      // Texto SKU (blanco, sólido sobre fondo oscuro)
-      doc.setTextColor(255, 255, 255);
-      // para asegurar legibilidad, dibujamos un rectángulo oscuro detrás del texto
+      // Caja SKU
       const skuBoxX = qrX + qrSize + 0.25;
       const skuBoxY = y + 0.5;
       const skuBoxW = x + w - skuBoxX - pad;
@@ -836,14 +885,14 @@ export function initInventory() {
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(16);
-      doc.text((it?.sku || "").toUpperCase(), skuBoxX + skuBoxW / 2, skuBoxY + skuBoxH / 2, {
-        align: "center", baseline: "middle"
-      });
+      doc.setTextColor(255,255,255);
+      doc.text((it?.sku || "").toUpperCase(), skuBoxX + skuBoxW/2, skuBoxY + skuBoxH/2, { align:"center", baseline:"middle" });
     }
 
-    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
     doc.save(`stickers_${ts}.pdf`);
   }
+
 
   // ====== Init ======
   refreshIntakes();
