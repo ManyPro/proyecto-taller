@@ -1,27 +1,48 @@
-// Frontend/assets/js/inventory.js
+// Frontend/assets/inventory.js
 import { API } from "./api.js";
 import { upper } from "./utils.js";
 
-const state = { intakes: [], lastItemsParams: {}, items: [], selected: new Set() };
+// ---- State ----
+const state = {
+  intakes: [],
+  lastItemsParams: {},
+  items: [],
+  selected: new Set(),
+};
 
+// ---- Helpers ----
 function makeIntakeLabel(v) {
+  if (!v) return "GENERAL";
+  const kind = (v.intakeKind || "vehicle").toLowerCase();
+
+  if (kind === "purchase") {
+    const place = (v.purchasePlace || "").trim();
+    const d = v.intakeDate ? new Date(v.intakeDate) : null;
+    const ymd = d && isFinite(d) ? d.toISOString().slice(0, 10) : "";
+    return `COMPRA: ${place}${ymd ? " " + ymd : ""}`.trim().toUpperCase();
+  }
+
   return `${(v?.brand || "").trim()} ${(v?.model || "").trim()} ${(v?.engine || "").trim()}`
     .replace(/\s+/g, " ")
     .trim()
-    .toUpperCase();
+    .toUpperCase() || "GENERAL";
 }
 
 const fmtMoney = (n) => {
   const v = Math.round((n || 0) * 100) / 100;
-  try { return v.toLocaleString(); } catch { return String(v); }
+  try {
+    return v.toLocaleString();
+  } catch {
+    return String(v);
+  }
 };
 
-// --------- HTTP local ----------
 const apiBase = API.base || "";
 const authHeader = () => {
   const t = API.token?.get?.();
   return t ? { Authorization: `Bearer ${t}` } : {};
 };
+
 async function request(path, { method = "GET", json } = {}) {
   const headers = { ...authHeader() };
   if (json !== undefined) headers["Content-Type"] = "application/json";
@@ -29,13 +50,20 @@ async function request(path, { method = "GET", json } = {}) {
   const res = await fetch(`${apiBase}${path}`, {
     method,
     headers,
-    body: json !== undefined ? JSON.stringify(json) : undefined
+    body: json !== undefined ? JSON.stringify(json) : undefined,
   });
+
   const text = await res.text();
-  let body; try { body = JSON.parse(text); } catch { body = text; }
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = text;
+  }
   if (!res.ok) throw new Error(body?.error || (typeof body === "string" ? body : res.statusText));
   return body;
 }
+
 function toQuery(params = {}) {
   const qs = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => {
@@ -45,7 +73,9 @@ function toQuery(params = {}) {
   return s ? `?${s}` : "";
 }
 
+// ---- API Facade ----
 const invAPI = {
+  // Vehicle Intakes
   listVehicleIntakes: async () => {
     const r = await request("/api/v1/inventory/vehicle-intakes");
     const data = Array.isArray(r) ? r : (r.items || r.data || []);
@@ -60,25 +90,26 @@ const invAPI = {
   recalcVehicleIntake: (id) =>
     request(`/api/v1/inventory/vehicle-intakes/${id}/recalc`, { method: "POST" }),
 
+  // Items
   listItems: async (params = {}) => {
     const r = await request(`/api/v1/inventory/items${toQuery(params)}`);
     const data = Array.isArray(r) ? r : (r.items || r.data || []);
     return { data };
   },
-  saveItem: (body) =>
-    request("/api/v1/inventory/items", { method: "POST", json: body }),
-  updateItem: (id, body) =>
-    request(`/api/v1/inventory/items/${id}`, { method: "PUT", json: body }),
-  deleteItem: (id) =>
-    request(`/api/v1/inventory/items/${id}`, { method: "DELETE" })
+  saveItem: (body) => request("/api/v1/inventory/items", { method: "POST", json: body }),
+  updateItem: (id, body) => request(`/api/v1/inventory/items/${id}`, { method: "PUT", json: body }),
+  deleteItem: (id) => request(`/api/v1/inventory/items/${id}`, { method: "DELETE" }),
+
+  mediaUpload: (files) => API.mediaUpload(files),
 };
 
-// --------------------------- modal utils --------------------------------
+// ---- Modal helpers ----
 function invOpenModal(innerHTML) {
   const modal = document.getElementById("modal");
   const body = document.getElementById("modalBody");
   const close = document.getElementById("modalClose");
   if (!modal || !body || !close) return alert("No se encontró el modal en el DOM.");
+
   body.innerHTML = innerHTML;
   modal.classList.remove("hidden");
   document.body.classList.add("modal-open");
@@ -89,9 +120,12 @@ function invOpenModal(innerHTML) {
     if (e.target === modal) closeAll();
   }, { once: true });
 
-  function escListener(e) { if (e.key === "Escape") closeAll(); }
+  function escListener(e) {
+    if (e.key === "Escape") closeAll();
+  }
   document.addEventListener("keydown", escListener, { once: true });
 }
+
 function invCloseModal() {
   const modal = document.getElementById("modal");
   const body = document.getElementById("modalBody");
@@ -102,32 +136,27 @@ function invCloseModal() {
 
 function openLightbox(media) {
   const isVideo = (media.mimetype || "").startsWith("video/");
-  invOpenModal(`
-    <h3>Vista previa</h3>
-    <div class="viewer">
-      ${isVideo
-      ? `<video controls src="${media.url}"></video>`
-      : `<img src="${media.url}" alt="media" />`
-    }
-    </div>
-    <div class="row">
-      <button class="secondary" id="lb-close">Cerrar</button>
-    </div>
-  `);
+  invOpenModal(
+    `<h3>Vista previa</h3>
+     <div class="viewer">
+       ${isVideo ? `<video controls src="${media.url}"></video>` : `<img src="${media.url}" alt="media" />`}
+     </div>
+     <div class="row"><button class="secondary" id="lb-close">Cerrar</button></div>`
+  );
   document.getElementById("lb-close").onclick = invCloseModal;
 }
 
-// ========= helpers QR =========
+// ---- QR helpers ----
 function buildQrPath(itemId, size = 256) {
   return `/api/v1/inventory/items/${itemId}/qr.png?size=${size}`;
 }
+
 async function fetchQrBlob(itemId, size = 256) {
-  const res = await fetch(`${apiBase}${buildQrPath(itemId, size)}`, {
-    headers: { ...authHeader() }
-  });
+  const res = await fetch(`${apiBase}${buildQrPath(itemId, size)}`, { headers: { ...authHeader() } });
   if (!res.ok) throw new Error("No se pudo generar el QR");
   return await res.blob();
 }
+
 async function setImgWithQrBlob(imgEl, itemId, size = 256) {
   try {
     const blob = await fetchQrBlob(itemId, size);
@@ -138,6 +167,7 @@ async function setImgWithQrBlob(imgEl, itemId, size = 256) {
     imgEl.alt = "Error al cargar QR";
   }
 }
+
 async function downloadQrPng(itemId, size = 720, filename = "qr.png") {
   const blob = await fetchQrBlob(itemId, size);
   const url = URL.createObjectURL(blob);
@@ -149,21 +179,24 @@ async function downloadQrPng(itemId, size = 720, filename = "qr.png") {
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
 function buildQrPayload(companyId, item) {
   return `IT:${companyId}:${item._id}:${(item.sku || "").toUpperCase()}`;
 }
+
 function openQrModal(item, companyId) {
-  invOpenModal(`
-    <h3>QR del ítem</h3>
-    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:8px;">
-      <img id="qr-big" alt="QR ${item.sku || item._id}" style="width:300px;height:300px;background:#fff;padding:8px;border-radius:10px;border:1px solid #1f2937" />
-      <div class="row" style="gap:8px;">
-        <button class="secondary" id="qr-download">Descargar PNG</button>
-        <button class="secondary" id="qr-copy">Copiar payload</button>
-      </div>
-      <code style="font-size:12px;opacity:.8;word-break:break-all;" id="qr-payload"></code>
-    </div>
-  `);
+  invOpenModal(
+    `<h3>QR del ítem</h3>
+     <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:8px;">
+       <img id="qr-big" alt="QR ${item.sku || item._id}"
+            style="width:300px;height:300px;background:#fff;padding:8px;border-radius:10px;border:1px solid #1f2937"/>
+       <div class="row" style="gap:8px;">
+         <button class="secondary" id="qr-download">Descargar PNG</button>
+         <button class="secondary" id="qr-copy">Copiar payload</button>
+       </div>
+       <code style="font-size:12px;opacity:.8;word-break:break-all;" id="qr-payload"></code>
+     </div>`
+  );
 
   const img = document.getElementById("qr-big");
   setImgWithQrBlob(img, item._id, 300);
@@ -186,7 +219,6 @@ function openQrModal(item, companyId) {
     downloadQrPng(item._id, 720, `QR_${item.sku || item._id}.png`);
 }
 
-// ====== jsPDF para Stickers ======
 function ensureJsPDF() {
   return new Promise((resolve, reject) => {
     if (window.jspdf?.jsPDF) return resolve(window.jspdf.jsPDF);
@@ -197,6 +229,7 @@ function ensureJsPDF() {
     document.head.appendChild(s);
   });
 }
+
 function blobToDataURL(blob) {
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -206,23 +239,39 @@ function blobToDataURL(blob) {
   });
 }
 
-// =================================================================================
-
+// ---- Init ----
 export function initInventory() {
-  // ---- Entradas: crear ----
-  const viBrand = document.getElementById("vi-brand"); upper(viBrand);
-  const viModel = document.getElementById("vi-model"); upper(viModel);
+  // Ingreso
+  const viBrand = document.getElementById("vi-brand");  upper(viBrand);
+  const viModel = document.getElementById("vi-model");  upper(viModel);
   const viEngine = document.getElementById("vi-engine"); upper(viEngine);
   const viDate = document.getElementById("vi-date");
   const viPrice = document.getElementById("vi-price");
   const viSave = document.getElementById("vi-save");
 
-  // ---- Entradas: lista ----
+  const viKindVehicle = document.getElementById("vi-kind-vehicle");
+  const viKindPurchase = document.getElementById("vi-kind-purchase");
+  const viFormVehicle = document.getElementById("vi-form-vehicle");
+  const viFormPurchase = document.getElementById("vi-form-purchase");
+  const viPPlace = document.getElementById("vi-p-place"); if (viPPlace) upper(viPPlace);
+  const viPDate = document.getElementById("vi-p-date");
+  const viPPrice = document.getElementById("vi-p-price");
+
+  function updateIntakeKindUI() {
+    const isPurchase = viKindPurchase?.checked;
+    viFormPurchase?.classList.toggle("hidden", !isPurchase);
+    viFormVehicle?.classList.toggle("hidden", !!isPurchase);
+  }
+  [viKindVehicle, viKindPurchase].forEach((el) => el && el.addEventListener("change", updateIntakeKindUI));
+  updateIntakeKindUI();
+
   const viList = document.getElementById("vi-list");
 
-  // ---- Nuevo ítem ----
+  // Item: crear
   const itSku = document.getElementById("it-sku"); upper(itSku);
   const itName = document.getElementById("it-name"); upper(itName);
+  const itInternal = document.getElementById("it-internal"); if (itInternal) upper(itInternal);
+  const itLocation = document.getElementById("it-location"); if (itLocation) upper(itLocation);
   const itVehicleTarget = document.getElementById("it-vehicleTarget"); upper(itVehicleTarget);
   const itVehicleIntakeId = document.getElementById("it-vehicleIntakeId");
   const itEntryPrice = document.getElementById("it-entryPrice");
@@ -232,16 +281,16 @@ export function initInventory() {
   const itFiles = document.getElementById("it-files");
   const itSave = document.getElementById("it-save");
 
-  // ---- Listado de ítems ----
   const itemsList = document.getElementById("itemsList");
+
+  // Filtros
   const qName = document.getElementById("q-name");
   const qApply = document.getElementById("q-apply");
-
   const qSku = document.getElementById("q-sku");
   const qIntake = document.getElementById("q-intakeId");
   const qClear = document.getElementById("q-clear");
 
-  // ---- Barra de selección (se inyecta sobre la lista) ----
+  // Mini-toolbar selección stickers
   const selectionBar = document.createElement("div");
   selectionBar.id = "stickersBar";
   selectionBar.style.cssText = "display:none;gap:8px;align-items:center;margin:10px 0;flex-wrap:wrap";
@@ -263,11 +312,11 @@ export function initInventory() {
     `;
     selectionBar.querySelector("#sel-clear").onclick = () => {
       state.selected.clear();
-      Array.from(itemsList.querySelectorAll('input[type="checkbox"][data-id]')).forEach(ch => ch.checked = false);
+      Array.from(itemsList.querySelectorAll('input[type="checkbox"][data-id]')).forEach((ch) => (ch.checked = false));
       updateSelectionBar();
     };
     selectionBar.querySelector("#sel-page").onclick = () => {
-      Array.from(itemsList.querySelectorAll('input[type="checkbox"][data-id]')).forEach(ch => {
+      Array.from(itemsList.querySelectorAll('input[type="checkbox"][data-id]')).forEach((ch) => {
         ch.checked = true;
         state.selected.add(ch.dataset.id);
       });
@@ -282,22 +331,22 @@ export function initInventory() {
     updateSelectionBar();
   }
 
-  // ====== Entradas: fetch y render ======
+  // ---- Intakes ----
   async function refreshIntakes() {
     const { data } = await invAPI.listVehicleIntakes();
     state.intakes = data || [];
 
     itVehicleIntakeId.innerHTML =
-      `<option value="">(opcional)</option>` +
+      `<option value="">— Sin procedencia —</option>` +
       state.intakes
-        .map(v => `<option value="${v._id}">${v.brand} ${v.model} ${v.engine} - ${new Date(v.intakeDate).toLocaleDateString()}</option>`)
+        .map((v) => `<option value="${v._id}">${makeIntakeLabel(v)} • ${new Date(v.intakeDate).toLocaleDateString()}</option>`)
         .join("");
 
     if (qIntake) {
       qIntake.innerHTML =
         `<option value="">Todas las entradas</option>` +
         state.intakes
-          .map(v => `<option value="${v._id}">${v.brand} ${v.model} ${v.engine} - ${new Date(v.intakeDate).toLocaleDateString()}</option>`)
+          .map((v) => `<option value="${v._id}">${makeIntakeLabel(v)} • ${new Date(v.intakeDate).toLocaleDateString()}</option>`)
           .join("");
     }
 
@@ -311,60 +360,60 @@ export function initInventory() {
       viList.innerHTML = `<div class="muted">No hay ingresos aún.</div>`;
       return;
     }
-
     viList.innerHTML = "";
     state.intakes.forEach((vi) => {
       const row = document.createElement("div");
       row.className = "note";
       row.innerHTML = `
         <div>
-          <div><b>${vi.brand} ${vi.model}</b></div>
-          <div>${vi.engine}</div>
+          <div><b>${(vi.brand || "") + (vi.model ? " " + vi.model : "")}</b></div>
+          <div>${vi.engine || ""}</div>
         </div>
         <div class="content">
           <div>Fecha: ${new Date(vi.intakeDate).toLocaleDateString()}</div>
-          <div>Precio entrada (vehículo): <b>${fmtMoney(vi.entryPrice)}</b></div>
+          <div>Precio entrada: <b>${fmtMoney(vi.entryPrice)}</b></div>
         </div>
         <div class="actions">
           <button class="secondary" data-edit="${vi._id}">Editar</button>
           <button class="secondary" data-recalc="${vi._id}">Recalcular</button>
           <button class="danger" data-del="${vi._id}">Eliminar</button>
-        </div>
-      `;
+        </div>`;
+
       row.querySelector("[data-edit]").onclick = () => openEditVehicleIntake(vi);
       row.querySelector("[data-del]").onclick = async () => {
-        if (!confirm("¿Eliminar esta entrada de vehículo? (debe no tener ítems vinculados)")) return;
+        if (!confirm("¿Eliminar esta entrada? (debe no tener ítems vinculados)")) return;
         try {
           await invAPI.deleteVehicleIntake(vi._id);
           await refreshIntakes();
           await refreshItems({});
-        } catch (e) { alert("No se pudo eliminar: " + e.message); }
+        } catch (e) {
+          alert("No se pudo eliminar: " + e.message);
+        }
       };
       row.querySelector("[data-recalc]").onclick = async () => {
         await invAPI.recalcVehicleIntake(vi._id);
         await refreshItems({});
         alert("Prorrateo recalculado.");
       };
+
       viList.appendChild(row);
     });
   }
 
-  // ====== Ítems: thumbs ======
+  // ---- Items list ----
   function buildThumbGrid(it) {
     const media = Array.isArray(it.images) ? it.images : [];
-    const cells = media.map((m, i) => {
-      const isVid = (m.mimetype || "").startsWith("video/");
-      const type = isVid ? "video" : "image";
-      const src = m.url;
-
-      return isVid
-        ? `<video class="item-thumb" data-full="${src}" data-type="${type}" src="${src}" muted playsinline></video>`
-        : `<img class="item-thumb" data-full="${src}" data-type="${type}" src="${src}" alt="${(it.name || "imagen") + " " + (i + 1)}" loading="lazy">`;
-    }).join("");
-
-    // QR como otra miniatura (se carga por fetch)
-    const qrCell = `<img id="qr-${it._id}" class="item-thumb qr-thumb" alt="QR ${it.sku || it._id}" loading="lazy" />`;
-
+    const cells = media
+      .map((m, i) => {
+        const isVid = (m.mimetype || "").startsWith("video/");
+        const type = isVid ? "video" : "image";
+        const src = m.url;
+        return isVid
+          ? `<video class="item-thumb" data-full="${src}" data-type="${type}" src="${src}" muted playsinline></video>`
+          : `<img class="item-thumb" data-full="${src}" data-type="${type}" src="${src}" alt="${(it.name || "imagen") + " " + (i + 1)}" loading="lazy">`;
+      })
+      .join("");
+    const qrCell = `<img id="qr-${it._id}" class="item-thumb qr-thumb" alt="QR ${it.sku || it._id}" loading="lazy"/>`;
     return `<div class="item-media">${cells}${qrCell}</div>`;
   }
 
@@ -372,9 +421,9 @@ export function initInventory() {
     state.lastItemsParams = params;
     const { data } = await invAPI.listItems(params);
     state.items = data || [];
-    itemsList.innerHTML = "";
 
-    (state.items).forEach((it) => {
+    itemsList.innerHTML = "";
+    state.items.forEach((it) => {
       const div = document.createElement("div");
       div.className = "note";
 
@@ -383,20 +432,19 @@ export function initInventory() {
       const entradaTxt = `${fmtMoney(total)}${it.entryPriceIsAuto ? " (prorrateado)" : ""} - unit: ${fmtMoney(unit)}`;
 
       const thumbs = buildThumbGrid(it);
-
       const companyId = API.companyId?.get?.() || "";
 
       div.innerHTML = `
         <div>
           <div style="display:flex;align-items:center;gap:8px;">
-            <input type="checkbox" data-id="${it._id}" ${state.selected.has(it._id) ? "checked" : ""} />
+            <input type="checkbox" data-id="${it._id}" ${state.selected.has(it._id) ? "checked" : ""}/>
             <div><b>${it.sku}</b></div>
           </div>
           <div>${it.name}</div>
           ${thumbs}
         </div>
         <div class="content">
-          <div>Vehículo: ${it.vehicleTarget}${it.vehicleIntakeId ? " (entrada)" : ""}</div>
+          <div>Destino: ${it.vehicleTarget}${it.vehicleIntakeId ? " (entrada)" : ""}</div>
           <div>Entrada: ${entradaTxt} | Venta: ${fmtMoney(it.salePrice)}</div>
           <div>Stock: <b>${it.stock}</b> | Original: ${it.original ? "Sí" : "No"}</div>
         </div>
@@ -407,38 +455,29 @@ export function initInventory() {
           <button class="secondary" data-qr="${it._id}">Expandir código QR</button>
         </div>`;
 
-      // selección
-      div.querySelector(`input[type="checkbox"][data-id]`).onchange = (e) =>
-        toggleSelected(it._id, e.target.checked);
+      div.querySelector(`input[type="checkbox"][data-id]`).onchange = (e) => toggleSelected(it._id, e.target.checked);
 
-      // Cargar QR en miniatura
       const imgQr = div.querySelector(`#qr-${it._id}`);
       if (imgQr) setImgWithQrBlob(imgQr, it._id, 180);
 
-      const edit = div.querySelector("[data-edit]");
-      const del = div.querySelector("[data-del]");
-      const btnQr = div.querySelector("[data-qr]");
-      const btnQrDl = div.querySelector("[data-qr-dl]");
-
-      edit.onclick = () => openEditItem(it);
-
-      del.onclick = async () => {
+      div.querySelector("[data-edit]").onclick = () => openEditItem(it);
+      div.querySelector("[data-del]").onclick = async () => {
         if (!confirm("¿Eliminar ítem? (stock debe ser 0)")) return;
         try {
           await invAPI.deleteItem(it._id);
           state.selected.delete(it._id);
           refreshItems(state.lastItemsParams);
           updateSelectionBar();
-        } catch (e) { alert("Error: " + e.message); }
+        } catch (e) {
+          alert("Error: " + e.message);
+        }
       };
+      div.querySelector("[data-qr]").onclick = () => openQrModal(it, companyId);
+      div.querySelector("[data-qr-dl]").onclick = () => downloadQrPng(it._id, 720, `QR_${it.sku || it._id}.png`);
 
-      btnQr.onclick = () => openQrModal(it, companyId);
-      btnQrDl.onclick = () => downloadQrPng(it._id, 720, `QR_${it.sku || it._id}.png`);
-
-      // lightbox para miniaturas
       div.addEventListener("click", (e) => {
         const el = e.target.closest(".item-thumb");
-        if (!el || el.id === `qr-${it._id}`) return; // el QR no abre lightbox (se expande con el botón)
+        if (!el || el.id === `qr-${it._id}`) return;
         const url = el.dataset.full || el.currentSrc || el.src;
         const type = el.dataset.type || "image";
         openLightbox({ url, mimetype: type === "video" ? "video/*" : "image/*" });
@@ -450,27 +489,47 @@ export function initInventory() {
     updateSelectionBar();
   }
 
-  // ====== Guardar entrada de vehículo ======
+  // ---- Crear entrada ----
   viSave.onclick = async () => {
-    const body = {
-      brand: viBrand.value.trim(),
-      model: viModel.value.trim(),
-      engine: viEngine.value.trim(),
-      intakeDate: viDate.value ? new Date(viDate.value).toISOString() : undefined,
-      entryPrice: parseFloat(viPrice.value || "0"),
-    };
-    if (!body.brand || !body.model || !body.engine || !body.entryPrice)
-      return alert("Completa marca, modelo, cilindraje y precio de entrada");
+    const isPurchase = viKindPurchase?.checked;
+    const body = { intakeKind: isPurchase ? "purchase" : "vehicle" };
+
+    if (isPurchase) {
+      if (!viPPlace.value.trim()) return alert("Indica el lugar de compra");
+      body.purchasePlace = viPPlace.value.trim();
+      body.intakeDate = viPDate.value || undefined;
+      body.entryPrice = viPPrice.value ? parseFloat(viPPrice.value) : undefined;
+    } else {
+      if (!viBrand.value.trim() || !viModel.value.trim() || !viEngine.value.trim())
+        return alert("Completa Marca / Modelo / Cilindraje");
+
+      body.brand = viBrand.value.trim();
+      body.model = viModel.value.trim();
+      body.engine = viEngine.value.trim();
+      body.intakeDate = viDate.value || undefined;
+      body.entryPrice = viPrice.value ? parseFloat(viPrice.value) : undefined;
+    }
+
     await invAPI.saveVehicleIntake(body);
+
+    [viBrand, viModel, viEngine, viDate, viPrice, viPPlace, viPDate, viPPrice].forEach((el) => {
+      if (el) el.value = "";
+    });
+
+    if (viKindVehicle) {
+      viKindVehicle.checked = true;
+      updateIntakeKindUI();
+    }
+
     await refreshIntakes();
-    alert("Entrada de vehículo creada");
+    alert("Ingreso creado");
   };
 
-  // ====== Auto-relleno de destino ======
+  // ---- Autorelleno de destino al cambiar procedencia ----
   itVehicleIntakeId.addEventListener("change", () => {
     const id = itVehicleIntakeId.value;
     if (!id) {
-      itVehicleTarget.value = "VITRINAS";
+      itVehicleTarget.value = "GENERAL";
       itVehicleTarget.readOnly = false;
       return;
     }
@@ -483,43 +542,47 @@ export function initInventory() {
     }
   });
 
-  // ====== Guardar ítem (con imágenes) ======
+  // ---- Guardar ítem ----
   itSave.onclick = async () => {
     let vehicleTargetValue = (itVehicleTarget.value || "").trim();
     const selectedIntakeId = itVehicleIntakeId.value || undefined;
 
-    if (selectedIntakeId && (!vehicleTargetValue || vehicleTargetValue === "VITRINAS")) {
+    if (selectedIntakeId && (!vehicleTargetValue || vehicleTargetValue === "GENERAL")) {
       const vi = state.intakes.find((v) => v._id === selectedIntakeId);
       if (vi) vehicleTargetValue = makeIntakeLabel(vi);
     }
-    if (!vehicleTargetValue) vehicleTargetValue = "VITRINAS";
+    if (!vehicleTargetValue) vehicleTargetValue = "GENERAL";
 
     let images = [];
     if (itFiles && itFiles.files && itFiles.files.length > 0) {
-      const up = await API.mediaUpload(itFiles.files);
+      const up = await invAPI.mediaUpload(itFiles.files);
       images = (up && up.files) ? up.files : [];
     }
 
     const body = {
       sku: itSku.value.trim(),
       name: itName.value.trim(),
+      internalName: itInternal ? itInternal.value.trim() : undefined,
+      location: itLocation ? itLocation.value.trim() : undefined,
       vehicleTarget: vehicleTargetValue,
       vehicleIntakeId: selectedIntakeId,
       entryPrice: itEntryPrice.value ? parseFloat(itEntryPrice.value) : undefined,
       salePrice: parseFloat(itSalePrice.value || "0"),
       original: itOriginal.value === "true",
       stock: parseInt(itStock.value || "0", 10),
-      images
+      images,
     };
 
-    if (!body.sku || !body.name || !body.salePrice)
-      return alert("Completa SKU, nombre y precio de venta");
+    if (!body.sku || !body.name || !body.salePrice) return alert("Completa SKU, nombre y precio de venta");
 
     await invAPI.saveItem(body);
 
+    // Reset form
     itSku.value = "";
     itName.value = "";
-    itVehicleTarget.value = "";
+    if (itInternal) itInternal.value = "";
+    if (itLocation) itLocation.value = "";
+    itVehicleTarget.value = "GENERAL";
     itVehicleIntakeId.value = "";
     itEntryPrice.value = "";
     itSalePrice.value = "";
@@ -531,7 +594,7 @@ export function initInventory() {
     await refreshItems({});
   };
 
-  // ====== Búsqueda / Init ======
+  // ---- Filtros ----
   function doSearch() {
     const params = {
       name: qName.value.trim(),
@@ -540,6 +603,7 @@ export function initInventory() {
     };
     refreshItems(params);
   }
+
   qApply.onclick = doSearch;
   qClear.onclick = () => {
     qName.value = "";
@@ -547,58 +611,78 @@ export function initInventory() {
     qIntake.value = "";
     refreshItems({});
   };
-  [qName, qSku].forEach((el) =>
-    el.addEventListener("keydown", (e) => e.key === "Enter" && doSearch())
-  );
-  qIntake.addEventListener("change", doSearch);
+  [qName, qSku].forEach((el) => el && el.addEventListener("keydown", (e) => e.key === "Enter" && doSearch()));
+  qIntake && qIntake.addEventListener("change", doSearch);
 
-  // ====== Editar: ENTRADA ======
+  // ---- Editar Ingreso ----
   function openEditVehicleIntake(vi) {
     const d = new Date(vi.intakeDate);
     const ymd = isFinite(d) ? d.toISOString().slice(0, 10) : "";
 
     invOpenModal(`
-      <h3>Editar entrada de vehículo</h3>
+      <h3>Editar entrada</h3>
+      <label>Tipo</label>
+      <select id="e-vi-kind">
+        <option value="vehicle" ${vi.intakeKind === "vehicle" ? "selected" : ""}>Vehículo</option>
+        <option value="purchase" ${vi.intakeKind === "purchase" ? "selected" : ""}>Compra</option>
+      </select>
 
-      <label>Marca</label>
-      <input id="e-vi-brand" value="${(vi.brand || "").toUpperCase()}" />
+      <div id="e-vi-box-vehicle" class="${vi.intakeKind === "purchase" ? "hidden" : ""}">
+        <label>Marca</label><input id="e-vi-brand" value="${(vi.brand || "").toUpperCase()}"/>
+        <label>Modelo</label><input id="e-vi-model" value="${(vi.model || "").toUpperCase()}"/>
+        <label>Cilindraje</label><input id="e-vi-engine" value="${(vi.engine || "").toUpperCase()}"/>
+      </div>
 
-      <label>Modelo</label>
-      <input id="e-vi-model" value="${(vi.model || "").toUpperCase()}" />
+      <div id="e-vi-box-purchase" class="${vi.intakeKind === "vehicle" ? "hidden" : ""}">
+        <label>Lugar de compra</label><input id="e-vi-place" value="${(vi.purchasePlace || "").toUpperCase()}"/>
+      </div>
 
-      <label>Cilindraje</label>
-      <input id="e-vi-engine" value="${(vi.engine || "").toUpperCase()}" />
+      <label>Fecha</label><input id="e-vi-date" type="date" value="${ymd}"/>
+      <label>Precio de entrada</label><input id="e-vi-price" type="number" step="0.01" min="0" value="${Number(vi.entryPrice || 0)}"/>
 
-      <label>Fecha</label>
-      <input id="e-vi-date" type="date" value="${ymd}" />
-
-      <label>Precio de entrada (vehículo)</label>
-      <input id="e-vi-price" type="number" step="0.01" min="0" value="${Number(vi.entryPrice || 0)}" />
-
-      <div style="margin-top:10px; display:flex; gap:8px;">
+      <div style="margin-top:10px;display:flex;gap:8px;">
         <button id="e-vi-save">Guardar cambios</button>
         <button id="e-vi-cancel" class="secondary">Cancelar</button>
       </div>
     `);
 
+    const kind = document.getElementById("e-vi-kind");
+    const boxV = document.getElementById("e-vi-box-vehicle");
+    const boxP = document.getElementById("e-vi-box-purchase");
     const b = document.getElementById("e-vi-brand");
     const m = document.getElementById("e-vi-model");
     const e = document.getElementById("e-vi-engine");
+    const place = document.getElementById("e-vi-place");
     const dt = document.getElementById("e-vi-date");
     const pr = document.getElementById("e-vi-price");
     const save = document.getElementById("e-vi-save");
     const cancel = document.getElementById("e-vi-cancel");
 
+    upper(b); upper(m); upper(e); upper(place);
+
+    kind.onchange = () => {
+      const isP = kind.value === "purchase";
+      boxP.classList.toggle("hidden", !isP);
+      boxV.classList.toggle("hidden", isP);
+    };
+
     cancel.onclick = invCloseModal;
+
     save.onclick = async () => {
       try {
-        await invAPI.updateVehicleIntake(vi._id, {
-          brand: (b.value || "").toUpperCase().trim(),
-          model: (m.value || "").toUpperCase().trim(),
-          engine: (e.value || "").toUpperCase().trim(),
+        const payload = {
+          intakeKind: kind.value,
           intakeDate: dt.value || undefined,
           entryPrice: parseFloat(pr.value || "0"),
-        });
+        };
+        if (kind.value === "purchase") {
+          payload.purchasePlace = (place.value || "").toUpperCase().trim();
+        } else {
+          payload.brand = (b.value || "").toUpperCase().trim();
+          payload.model = (m.value || "").toUpperCase().trim();
+          payload.engine = (e.value || "").toUpperCase().trim();
+        }
+        await invAPI.updateVehicleIntake(vi._id, payload);
         invCloseModal();
         await refreshIntakes();
         await refreshItems(state.lastItemsParams);
@@ -608,56 +692,41 @@ export function initInventory() {
     };
   }
 
-  // ====== Editar: ÍTEM ======
+  // ---- Editar Ítem ----
   function openEditItem(it) {
     const optionsIntakes = [
       `<option value="">(sin entrada)</option>`,
-      ...state.intakes.map(v =>
-        `<option value="${v._id}" ${String(it.vehicleIntakeId || "") === String(v._id) ? "selected" : ""}>
-          ${v.brand} ${v.model} ${v.engine} - ${new Date(v.intakeDate).toLocaleDateString()}
-        </option>`
-      )
+      ...state.intakes.map(
+        (v) =>
+          `<option value="${v._id}" ${String(it.vehicleIntakeId || "") === String(v._id) ? "selected" : ""}>
+            ${makeIntakeLabel(v)} • ${new Date(v.intakeDate).toLocaleDateString()}
+          </option>`
+      ),
     ].join("");
 
     const images = Array.isArray(it.images) ? [...it.images] : [];
 
     invOpenModal(`
       <h3>Editar ítem</h3>
-
-      <label>SKU</label>
-      <input id="e-it-sku" value="${it.sku || ""}" />
-
-      <label>Nombre</label>
-      <input id="e-it-name" value="${it.name || ""}" />
-
-      <label>Entrada de vehículo</label>
-      <select id="e-it-intake">${optionsIntakes}</select>
-
-      <label>Vehículo destino</label>
-      <input id="e-it-target" value="${it.vehicleTarget || ""}" />
-
-      <label>Precio entrada (opcional)</label>
-      <input id="e-it-entry" type="number" step="0.01" placeholder="vacío = AUTO si hay entrada" value="${it.entryPrice ?? ""}" />
-
-      <label>Precio venta</label>
-      <input id="e-it-sale" type="number" step="0.01" min="0" value="${Number(it.salePrice || 0)}" />
-
+      <label>SKU</label><input id="e-it-sku" value="${it.sku || ""}"/>
+      <label>Nombre</label><input id="e-it-name" value="${it.name || ""}"/>
+      <label>Entrada</label><select id="e-it-intake">${optionsIntakes}</select>
+      <label>Destino</label><input id="e-it-target" value="${it.vehicleTarget || "GENERAL"}"/>
+      <label>Precio entrada (opcional)</label><input id="e-it-entry" type="number" step="0.01" placeholder="vacío = AUTO si hay entrada" value="${it.entryPrice ?? ""}"/>
+      <label>Precio venta</label><input id="e-it-sale" type="number" step="0.01" min="0" value="${Number(it.salePrice || 0)}"/>
       <label>Original</label>
       <select id="e-it-original">
         <option value="false" ${!it.original ? "selected" : ""}>No</option>
-        <option value="true"  ${it.original ? "selected" : ""}>Sí</option>
+        <option value="true" ${it.original ? "selected" : ""}>Sí</option>
       </select>
-
-      <label>Stock</label>
-      <input id="e-it-stock" type="number" step="1" min="0" value="${parseInt(it.stock || 0, 10)}" />
+      <label>Stock</label><input id="e-it-stock" type="number" step="1" min="0" value="${parseInt(it.stock || 0, 10)}"/>
 
       <label>Imágenes/Videos</label>
       <div id="e-it-thumbs" class="thumbs"></div>
-      <input id="e-it-files" type="file" multiple />
-
+      <input id="e-it-files" type="file" multiple/>
       <div class="viewer" id="e-it-viewer" style="display:none"></div>
 
-      <div style="margin-top:10px; display:flex; gap:8px;">
+      <div style="margin-top:10px;display:flex;gap:8px;">
         <button id="e-it-save">Guardar cambios</button>
         <button id="e-it-cancel" class="secondary">Cancelar</button>
       </div>
@@ -682,25 +751,27 @@ export function initInventory() {
       images.forEach((m, idx) => {
         const d = document.createElement("div");
         d.className = "thumb";
-        d.innerHTML = `
-          ${m.mimetype?.startsWith("video/")
+        d.innerHTML = `${
+          m.mimetype?.startsWith("video/")
             ? `<video src="${m.url}" muted></video>`
-            : `<img src="${m.url}" alt="thumb" />`}
-          <button class="del" title="Quitar" data-del="${idx}">×</button>
-        `;
+            : `<img src="${m.url}" alt="thumb"/>`
+        }<button class="del" title="Quitar" data-del="${idx}">×</button>`;
+
         d.onclick = (ev) => {
           const btn = ev.target.closest("button.del");
           if (btn) return;
           viewer.style.display = "block";
           viewer.innerHTML = m.mimetype?.startsWith("video/")
             ? `<video controls src="${m.url}"></video>`
-            : `<img src="${m.url}" alt="media" />`;
+            : `<img src="${m.url}" alt="media"/>`;
         };
+
         d.querySelector("button.del").onclick = () => {
           images.splice(idx, 1);
           renderThumbs();
           if (viewer.style.display !== "none") viewer.innerHTML = "";
         };
+
         thumbs.appendChild(d);
       });
     }
@@ -708,8 +779,11 @@ export function initInventory() {
 
     intake.addEventListener("change", () => {
       const id = intake.value;
-      if (!id) { target.readOnly = false; return; }
-      const vi = state.intakes.find(v => v._id === id);
+      if (!id) {
+        target.readOnly = false;
+        return;
+      }
+      const vi = state.intakes.find((v) => v._id === id);
       if (vi) {
         target.value = makeIntakeLabel(vi);
         target.readOnly = true;
@@ -721,7 +795,7 @@ export function initInventory() {
     files.addEventListener("change", async () => {
       if (!files.files?.length) return;
       try {
-        const up = await API.mediaUpload(files.files);
+        const up = await invAPI.mediaUpload(files.files);
         const list = (up && up.files) ? up.files : [];
         images.push(...list);
         files.value = "";
@@ -732,18 +806,19 @@ export function initInventory() {
     });
 
     cancel.onclick = invCloseModal;
+
     save.onclick = async () => {
       try {
         const body = {
           sku: (sku.value || "").trim().toUpperCase(),
           name: (name.value || "").trim().toUpperCase(),
           vehicleIntakeId: intake.value || null,
-          vehicleTarget: (target.value || "VITRINAS").trim().toUpperCase(),
+          vehicleTarget: (target.value || "GENERAL").trim().toUpperCase(),
           entryPrice: entry.value === "" ? "" : parseFloat(entry.value),
           salePrice: parseFloat(sale.value || "0"),
           original: original.value === "true",
           stock: parseInt(stock.value || "0", 10),
-          images
+          images,
         };
         await invAPI.updateItem(it._id, body);
         invCloseModal();
@@ -755,65 +830,70 @@ export function initInventory() {
     };
   }
 
-  // ====== PDF de stickers (Carta, 6×4 cm, 18 por página) ======
-
-  // ====== PDF de stickers (Carta, 6×4 cm, 18 por página) ======
+  // ---- Stickers ----
   async function generateStickersFromSelection() {
     if (!state.selected.size) return;
     const ids = Array.from(state.selected);
     const items = ids
-      .map(id => state.items.find(it => String(it._id) === String(id)))
+      .map((id) => state.items.find((it) => String(it._id) === String(id)))
       .filter(Boolean);
     if (!items.length) return;
 
-    // 1) Modal para ajustar cantidades a imprimir (default = stock)
-    invOpenModal(`
-      <h3>Generar stickers</h3>
-      <p class="muted">Ajusta cuántos stickers imprimir por ítem (por defecto = stock actual).</p>
-      <div class="table-wrap small">
-        <table class="table">
-          <thead><tr><th>SKU</th><th>Nombre</th><th class="t-center">Stock</th><th class="t-center">Imprimir</th></tr></thead>
-          <tbody id="stk-rows"></tbody>
-        </table>
-      </div>
-      <div class="row right" style="gap:8px;">
-        <button class="secondary" id="stk-fill-stock">Usar stock</button>
-        <button class="secondary" id="stk-clear">Poner 0</button>
-        <button id="stk-generate">Generar PDF</button>
-      </div>
-    `);
+    invOpenModal(
+      `<h3>Generar stickers</h3>
+       <p class="muted">Ajusta cuántos stickers imprimir por ítem (por defecto = stock actual).</p>
+       <div class="table-wrap small">
+         <table class="table">
+           <thead>
+             <tr><th>SKU</th><th>Nombre</th><th class="t-center">Stock</th><th class="t-center">Imprimir</th></tr>
+           </thead>
+           <tbody id="stk-rows"></tbody>
+         </table>
+       </div>
+       <div class="row right" style="gap:8px;">
+         <button class="secondary" id="stk-fill-stock">Usar stock</button>
+         <button class="secondary" id="stk-clear">Poner 0</button>
+         <button id="stk-generate">Generar PDF</button>
+       </div>`
+    );
 
-    const rows = document.getElementById('stk-rows');
-    rows.innerHTML = items.map(it => `
-      <tr data-id="${it._id}">
-        <td>${(it.sku||'')}</td>
-        <td>${(it.name||'')}</td>
-        <td class="t-center">${it.stock ?? 0}</td>
-        <td class="t-center"><input type="number" min="0" step="1" value="${parseInt(it.stock||0,10)}" class="qty" style="width:90px"/></td>
-      </tr>
-    `).join("");
+    const rows = document.getElementById("stk-rows");
+    rows.innerHTML = items
+      .map(
+        (it) => `
+        <tr data-id="${it._id}">
+          <td>${it.sku || ""}</td>
+          <td>${it.name || ""}</td>
+          <td class="t-center">${it.stock ?? 0}</td>
+          <td class="t-center"><input type="number" min="0" step="1" value="${parseInt(it.stock || 0, 10)}" class="qty" style="width:90px"/></td>
+        </tr>`
+      )
+      .join("");
 
-    document.getElementById('stk-fill-stock').onclick = () => {
-      rows.querySelectorAll('tr').forEach(tr => {
+    document.getElementById("stk-fill-stock").onclick = () => {
+      rows.querySelectorAll("tr").forEach((tr) => {
         const id = tr.dataset.id;
-        const it = items.find(x => String(x._id) === String(id));
-        tr.querySelector('.qty').value = parseInt(it?.stock||0,10);
+        const it = items.find((x) => String(x._id) === String(id));
+        tr.querySelector(".qty").value = parseInt(it?.stock || 0, 10);
       });
     };
-    document.getElementById('stk-clear').onclick = () => {
-      rows.querySelectorAll('.qty').forEach(inp => inp.value = 0);
+
+    document.getElementById("stk-clear").onclick = () => {
+      rows.querySelectorAll(".qty").forEach((inp) => (inp.value = 0));
     };
 
-    document.getElementById('stk-generate').onclick = async () => {
-      // construir arreglo expandido según cantidades
+    document.getElementById("stk-generate").onclick = async () => {
       const list = [];
-      rows.querySelectorAll('tr').forEach(tr => {
+      rows.querySelectorAll("tr").forEach((tr) => {
         const id = tr.dataset.id;
-        const count = parseInt(tr.querySelector('.qty').value || '0', 10);
-        const it = items.find(x => String(x._id) === String(id));
+        const count = parseInt(tr.querySelector(".qty").value || "0", 10);
+        const it = items.find((x) => String(x._id) === String(id));
         if (it && count > 0) list.push({ it, count });
       });
-      if (!list.length) { alert('Coloca al menos 1 sticker.'); return; }
+      if (!list.length) {
+        alert("Coloca al menos 1 sticker.");
+        return;
+      }
       await generateStickersPdf(list);
       invCloseModal();
     };
@@ -823,28 +903,31 @@ export function initInventory() {
     const jsPDF = await ensureJsPDF();
     const doc = new jsPDF({ unit: "cm", format: "letter" });
 
-    // Layout
-    const margin = 0.5;         // cm
-    const w = 6, h = 4;         // sticker 6x4 cm
+    // Hoja 21.59 × 27.94 cm (Letter)
+    const margin = 0.5;
+    const w = 6, h = 4;
     const gapX = 1.0, gapY = 0.5;
-    const cols = 3, rows = 6;   // 3 x 6 = 18 por página
+    const cols = 3, rows = 6;
     const perPage = cols * rows;
 
-    // Pre-descarga de QRs únicos (evita pedir el mismo varias veces)
+    // Precachear QR como dataURL
     const uniq = {};
-    list.forEach(({it}) => { uniq[it._id] = it; });
+    list.forEach(({ it }) => { uniq[it._id] = it; });
+
     const qrMap = {};
     for (const id of Object.keys(uniq)) {
       try {
         const blob = await fetchQrBlob(id, 600);
         qrMap[id] = await blobToDataURL(blob);
-      } catch { qrMap[id] = ""; }
+      } catch {
+        qrMap[id] = "";
+      }
     }
 
-    // Expandir a una lista plana de stickers
+    // Flatten según cantidades
     const flat = [];
-    list.forEach(({it, count}) => {
-      for (let i=0; i<count; i++) flat.push(it);
+    list.forEach(({ it, count }) => {
+      for (let i = 0; i < count; i++) flat.push(it);
     });
 
     for (let i = 0; i < flat.length; i++) {
@@ -863,38 +946,40 @@ export function initInventory() {
       const it = flat[i] || {};
       const dataUrl = qrMap[it._id] || "";
 
+      // QR
       const pad = 0.25;
       const qrSize = 2.6;
       const qrX = x + pad;
       const qrY = y + (h - qrSize) / 2;
-
       if (dataUrl) {
         doc.addImage(dataUrl, "PNG", qrX, qrY, qrSize, qrSize);
       } else {
         doc.setFontSize(10);
-        doc.text("QR", qrX + qrSize/2, qrY + qrSize/2, { align:"center", baseline:"middle" });
+        doc.text("QR", qrX + qrSize / 2, qrY + qrSize / 2, { align: "center", baseline: "middle" });
       }
 
-      // Caja SKU
+      // SKU banda
       const skuBoxX = qrX + qrSize + 0.25;
       const skuBoxY = y + 0.5;
       const skuBoxW = x + w - skuBoxX - pad;
       const skuBoxH = h - 1.0;
+
       doc.setFillColor(19, 27, 41);
       doc.roundedRect(skuBoxX, skuBoxY, skuBoxW, skuBoxH, 0.1, 0.1, "F");
-
       doc.setFont("helvetica", "bold");
       doc.setFontSize(16);
-      doc.setTextColor(255,255,255);
-      doc.text((it?.sku || "").toUpperCase(), skuBoxX + skuBoxW/2, skuBoxY + skuBoxH/2, { align:"center", baseline:"middle" });
+      doc.setTextColor(255, 255, 255);
+      doc.text((it?.sku || "").toUpperCase(), skuBoxX + skuBoxW / 2, skuBoxY + skuBoxH / 2, {
+        align: "center",
+        baseline: "middle",
+      });
     }
 
-    const ts = new Date().toISOString().slice(0,19).replace(/[:T]/g,"-");
+    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
     doc.save(`stickers_${ts}.pdf`);
   }
 
-
-  // ====== Init ======
+  // ---- Boot ----
   refreshIntakes();
   refreshItems({});
 }

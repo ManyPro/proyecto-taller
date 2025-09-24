@@ -8,11 +8,23 @@ import QRCode from "qrcode";
 
 // ------ helpers ------
 function makeIntakeLabel(vi) {
+  if (!vi) return "GENERAL";
+  const kind = (vi.intakeKind || "vehicle").toLowerCase();
+
+  if (kind === "purchase") {
+    const place = (vi.purchasePlace || "").trim();
+    const d = vi.intakeDate ? new Date(vi.intakeDate) : null;
+    const ymd = d && isFinite(d) ? d.toISOString().slice(0, 10) : "";
+    return `COMPRA: ${place}${ymd ? " " + ymd : ""}`.trim().toUpperCase();
+  }
+
+  // vehicle (por defecto)
   return `${(vi?.brand || "").trim()} ${(vi?.model || "").trim()} ${(vi?.engine || "").trim()}`
     .replace(/\s+/g, " ")
     .trim()
-    .toUpperCase();
+    .toUpperCase() || "GENERAL";
 }
+
 
 function sanitizeMediaList(arr) {
   const out = [];
@@ -43,7 +55,7 @@ async function recalcAutoEntryPrices(companyId, vehicleIntakeId) {
   if (!items.length) return;
 
   const manual = items.filter(it => !it.entryPriceIsAuto && it.entryPrice != null);
-  const auto   = items.filter(it => it.entryPriceIsAuto || it.entryPrice == null);
+  const auto = items.filter(it => it.entryPriceIsAuto || it.entryPrice == null);
 
   const manualTotal = manual.reduce((s, it) => s + (it.entryPrice || 0) * Math.max(0, it.stock || 0), 0);
   const vehicleTotal = intake.entryPrice || 0;
@@ -73,17 +85,38 @@ export const listVehicleIntakes = async (req, res) => {
 };
 
 export const createVehicleIntake = async (req, res) => {
-  const b = req.body;
-  const doc = await VehicleIntake.create({
+  const b = req.body || {};
+  const kind = (b.intakeKind || "vehicle").toLowerCase();
+
+  const base = {
     companyId: req.companyId,
+    intakeKind: kind === "purchase" ? "purchase" : "vehicle",
+    intakeDate: b.intakeDate ? new Date(b.intakeDate) : new Date(),
+    entryPrice: +b.entryPrice || 0,
+  };
+
+  if (base.intakeKind === "purchase") {
+    if (!b.purchasePlace) return res.status(400).json({ error: "Falta 'purchasePlace' para ingreso de compra" });
+    const doc = await VehicleIntake.create({
+      ...base,
+      purchasePlace: (b.purchasePlace || "").toUpperCase().trim(),
+    });
+    return res.status(201).json({ intake: doc });
+  }
+
+  // vehicle
+  if (!b.brand || !b.model || !b.engine) {
+    return res.status(400).json({ error: "Faltan campos de vehículo: brand, model, engine" });
+  }
+  const doc = await VehicleIntake.create({
+    ...base,
     brand: (b.brand || "").toUpperCase().trim(),
     model: (b.model || "").toUpperCase().trim(),
     engine: (b.engine || "").toUpperCase().trim(),
-    intakeDate: b.intakeDate ? new Date(b.intakeDate) : new Date(),
-    entryPrice: +b.entryPrice || 0,
   });
   res.status(201).json({ intake: doc });
 };
+
 
 export const updateVehicleIntake = async (req, res) => {
   const { id } = req.params;
@@ -95,10 +128,11 @@ export const updateVehicleIntake = async (req, res) => {
   const updated = await VehicleIntake.findOneAndUpdate(
     { _id: id, companyId: req.companyId },
     {
-      ...(b.brand  !== undefined ? { brand:  (b.brand  || "").toUpperCase().trim() } : {}),
-      ...(b.model  !== undefined ? { model:  (b.model  || "").toUpperCase().trim() } : {}),
+      ...(b.brand !== undefined ? { brand: (b.brand || "").toUpperCase().trim() } : {}),
+      ...(b.model !== undefined ? { model: (b.model || "").toUpperCase().trim() } : {}),
       ...(b.engine !== undefined ? { engine: (b.engine || "").toUpperCase().trim() } : {}),
-      ...(b.intakeDate !== undefined ? { intakeDate: new Date(b.intakeDate) } : {}),
+      ...(b.intakeKind !== undefined ? { intakeKind: (b.intakeKind === "purchase" ? "purchase" : "vehicle") } : {}),
+      ...(b.purchasePlace !== undefined ? { purchasePlace: (b.purchasePlace || "").toUpperCase().trim() } : {}),
       ...(b.entryPrice !== undefined ? { entryPrice: +b.entryPrice || 0 } : {}),
     },
     { new: true }
@@ -142,7 +176,7 @@ export const listItems = async (req, res) => {
   const q = { companyId: new mongoose.Types.ObjectId(req.companyId) };
 
   if (name) q.$or = [{ name: new RegExp((name || "").trim().toUpperCase(), "i") }, { internalName: new RegExp((name || "").trim().toUpperCase(), "i") }];
-  if (sku)  q.sku  = new RegExp((sku  || "").trim().toUpperCase(), "i");
+  if (sku) q.sku = new RegExp((sku || "").trim().toUpperCase(), "i");
 
   if (vehicleIntakeId && mongoose.Types.ObjectId.isValid(vehicleIntakeId)) {
     q.vehicleIntakeId = new mongoose.Types.ObjectId(vehicleIntakeId);
@@ -157,7 +191,7 @@ export const listItems = async (req, res) => {
 export const createItem = async (req, res) => {
   const b = req.body;
 
-  if (b.sku)  b.sku  = b.sku.toUpperCase().trim();
+  if (b.sku) b.sku = b.sku.toUpperCase().trim();
   if (b.name) b.name = b.name.toUpperCase().trim();
   if (b.internalName) b.internalName = b.internalName.toUpperCase().trim();
   if (b.location) b.location = b.location.toUpperCase().trim();
@@ -185,15 +219,15 @@ export const createItem = async (req, res) => {
     companyId: req.companyId,
     sku: b.sku,
     name: b.name,
-    vehicleTarget: (b.vehicleTarget || "VITRINAS").toUpperCase().trim(),
+    internalName: (b.internalName || "").toUpperCase().trim(),
+    location: (b.location || "").toUpperCase().trim(),
+    vehicleTarget: (b.vehicleTarget || "GENERAL").toUpperCase().trim(),
     vehicleIntakeId: b.vehicleIntakeId || null,
     entryPrice: b.entryPrice ?? null,
     entryPriceIsAuto: !!b.entryPriceIsAuto,
     salePrice: +b.salePrice || 0,
     original: !!b.original,
     stock: Number.isFinite(+b.stock) ? +b.stock : 0,
-    internalName: b.internalName || "",
-    location: b.location || "",
     images,
     qrData: "" // inicial, lo llenamos abajo
   });
@@ -215,7 +249,7 @@ export const updateItem = async (req, res) => {
   const { id } = req.params;
   const b = req.body;
 
-  if (b.sku)  b.sku  = b.sku.toUpperCase().trim();
+  if (b.sku) b.sku = b.sku.toUpperCase().trim();
   if (b.name) b.name = b.name.toUpperCase().trim();
   if (b.internalName) b.internalName = b.internalName.toUpperCase().trim();
   if (b.location) b.location = b.location.toUpperCase().trim();
@@ -224,7 +258,7 @@ export const updateItem = async (req, res) => {
 
   if (b.vehicleIntakeId) {
     const vi = await VehicleIntake.findOne({ _id: b.vehicleIntakeId, companyId: req.companyId });
-    if (vi && (!b.vehicleTarget || b.vehicleTarget === "VITRINAS")) {
+    if (vi && (!b.vehicleTarget || b.vehicleTarget === "GENERAL")) {
       b.vehicleTarget = makeIntakeLabel(vi);
     }
   }

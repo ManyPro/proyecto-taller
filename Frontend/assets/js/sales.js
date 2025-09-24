@@ -13,26 +13,32 @@ function parseScanText(raw){
   let t = String(raw).trim();
   // Si es URL, toma el último segmento
   try{
-    if(/^https?:\/\//i.test(t)){ const u=new URL(t); const last=u.pathname.split('/').filter(Boolean).pop(); if(last) t=last; }
+    if(/^https?:\/\//i.test(t)){
+      const u = new URL(t);
+      const last = u.pathname.split('/').filter(Boolean).pop();
+      if(last) t = last;
+    }
   }catch{}
-  // IT:<id>[:<companyId>]  (aceptamos ambos órdenes, devolveremos el que parezca itemId)
+  // IT:<id>[:<companyId>]
   const m = /^IT:([a-f0-9]{24})(?::([a-f0-9]{24}))?$/i.exec(t);
   if(m){
     const a=m[1], b=m[2];
-    if(b && /^[a-f0-9]{24}$/i.test(b)) return { type:'id', value:b }; // common: IT:<companyId>:<itemId>
+    // Heurística: si hay 2 ids, tomamos el segundo como itemId (común IT:<companyId>:<itemId>)
+    if(b && /^[a-f0-9]{24}$/i.test(b)) return { type:'id', value:b };
     return { type:'id', value:a };
   }
   // ObjectId suelto
   if(/^[a-f0-9]{24}$/i.test(t)) return { type:'id', value:t };
-  // SKU alfanumérico
+  // SKU alfanumérico (REFAI01, etc.)
   if(/^[A-Z0-9\-_]+$/i.test(t)) return { type:'sku', value:t.toUpperCase() };
   return null;
 }
-let _lastScan=null, _lastTs=0;
+let __lastScan = null, __lastTs = 0;
 function shouldProcessScan(val){
-  const now=Date.now();
-  if(val===_lastScan && (now-_lastTs)<2000) return false;
-  _lastScan=val; _lastTs=now; return true;
+  const now = Date.now();
+  if(val === __lastScan && (now - __lastTs) < 2000) return false; // evita duplicados en 2s
+  __lastScan = val; __lastTs = now;
+  return true;
 }
 
 /* ===================== Estado de ventas ===================== */
@@ -254,42 +260,46 @@ export function initSales(){
     function stopStream(){ try{ video.pause(); }catch{}; try{ (stream?.getTracks()||[]).forEach(t=>t.stop()); }catch{}; running=false; }
     async function isNativeQRSupported(){ try{ return !!(window.BarcodeDetector); }catch{ return false; } }
 
-    async function addByScan(raw){
-      if(!raw || !shouldProcessScan(raw)) return;
-      const li=document.createElement('li'); li.textContent=raw; list.prepend(li);
-      const parsed = parseScanText(raw);
+    // ✅ NUEVO: resolver por ID o por SKU; NO usa /sales/addByQR
+    function onCode(code){
+      // historial visual
+      const li=document.createElement('li'); li.textContent=code; list.prepend(li);
+      if(!shouldProcessScan(code)) return;
+
+      const parsed = parseScanText(code);
       if(!parsed){ msg.textContent='Código no reconocido'; return; }
 
-      try{
-        if(parsed.type==='id'){
-          // Agrego directo por itemId
-          current = await API.sales.addItem(current._id, { source:'inventory', itemId: parsed.value, qty:1 });
-          msg.textContent = 'Ítem agregado por ID';
-        }else if(parsed.type==='sku'){
-          // Búsqueda exacta por SKU y agregar por itemId (preferible) o por sku
-          const items = await API.inventory.itemsList({ sku: parsed.value });
-          const exact = Array.isArray(items) ? items.find(it=>String(it.sku).toUpperCase()===parsed.value) : null;
-          if(exact){
-            current = await API.sales.addItem(current._id, { source:'inventory', itemId: exact._id, qty:1 });
-            msg.textContent = `Ítem agregado: ${exact.sku}`;
-          }else{
-            // fallback: el endpoint de ventas también acepta {sku}
-            current = await API.sales.addItem(current._id, { source:'inventory', sku: parsed.value, qty:1 });
-            msg.textContent = `Ítem agregado por SKU: ${parsed.value}`;
+      (async()=>{
+        try{
+          if(parsed.type==='id'){
+            current = await API.sales.addItem(current._id, { source:'inventory', itemId: parsed.value, qty:1 });
+            msg.textContent = 'Ítem agregado por ID';
+          }else if(parsed.type==='sku'){
+            // buscar exacto por SKU en inventario y agregar por _id
+            const items = await API.inventory.itemsList({ sku: parsed.value });
+            const exact = Array.isArray(items) ? items.find(it => String(it.sku).toUpperCase()===parsed.value) : null;
+            if(exact){
+              current = await API.sales.addItem(current._id, { source:'inventory', itemId: exact._id, qty:1 });
+              msg.textContent = `Ítem agregado: ${exact.sku}`;
+            }else{
+              // fallback: si tu backend admite { sku } en addItem
+              current = await API.sales.addItem(current._id, { source:'inventory', sku: parsed.value, qty:1 });
+              msg.textContent = `Ítem agregado por SKU: ${parsed.value}`;
+            }
           }
+          renderSale(); renderWorkOrder();
+          if(autoclose.checked){ stopStream(); closeModal(); }
+        }catch(e){
+          msg.textContent = e?.message || 'No se pudo agregar el ítem';
         }
-        renderSale(); renderWorkOrder();
-        if(autoclose.checked){ const cl=cleanup; stopStream(); closeModal(); cl?.(); }
-      }catch(e){
-        msg.textContent = e?.message || 'No se pudo agregar el ítem';
-      }
+      })();
     }
 
     async function tickNative(){
       if(!running) return;
       try{
         const codes=await detector.detect(video);
-        if(codes?.[0]?.rawValue){ addByScan(codes[0].rawValue); }
+        if(codes?.[0]?.rawValue){ onCode(codes[0].rawValue); }
       }catch{}
       requestAnimationFrame(tickNative);
     }
@@ -299,17 +309,17 @@ export function initSales(){
         const w=video.videoWidth, h=video.videoHeight;
         if(!w || !h) return requestAnimationFrame(tickCanvas);
         canvas.width=w; canvas.height=h; ctx.drawImage(video,0,0,w,h);
-        // Aquí podríamos integrar jsQR si lo tienes cargado globalmente:
+        // Si usas jsQR global, puedes habilitarlo:
         // const imgData = ctx.getImageData(0,0,w,h);
         // const qr = window.jsQR && window.jsQR(imgData.data, w, h);
-        // if(qr?.data) addByScan(qr.data);
+        // if(qr?.data) onCode(qr.data);
       }catch{}
       requestAnimationFrame(tickCanvas);
     }
 
     $('#qr-start').onclick = start;
     $('#qr-stop').onclick  = ()=>{ stopStream(); };
-    $('#qr-add-manual').onclick = ()=>{ const code=$('#qr-manual').value||''; if(!code) return; addByScan(code); };
+    $('#qr-add-manual').onclick = ()=>{ const code=$('#qr-manual').value||''; if(!code) return; onCode(code); };
 
     enumerateCams();
   }
@@ -337,3 +347,4 @@ export function initSales(){
 
   renderSaleTabs();
 }
+  

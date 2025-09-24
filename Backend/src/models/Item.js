@@ -12,7 +12,7 @@ const itemSchema = new mongoose.Schema({
   name: { type: String, required: true, uppercase: true, trim: true },
   internalName: { type: String, uppercase: true, trim: true, default: "" },
   location: { type: String, uppercase: true, trim: true, default: "" },
-  vehicleTarget: { type: String, required: true, uppercase: true, trim: true, default: "VITRINAS" },
+  vehicleTarget: { type: String, required: true, uppercase: true, trim: true, default: "GENERAL" },
   vehicleIntakeId: { type: mongoose.Types.ObjectId, ref: "VehicleIntake", default: null },
 
   entryPrice: { type: Number, default: null, min: 0 },
