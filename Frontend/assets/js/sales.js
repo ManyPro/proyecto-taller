@@ -8,10 +8,15 @@ function openModal(){ const m=$('#modal'); if(!m) return; m.classList.remove('hi
 function closeModal(){ const m=$('#modal'); if(!m) return; m.classList.add('hidden'); document.body.style.overflow=''; }
 
 /* ===================== Helpers QR/SKU ===================== */
+// 👇 Parser tolerante: acepta IT:<...>, ObjectId en cualquier parte, SKU, URLs, etc.
 function parseScanText(raw){
   if(!raw) return null;
   let t = String(raw).trim();
-  // Si es URL, toma el último segmento
+
+  // Normalizar espacios y caracteres invisibles
+  t = t.replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+
+  // URL → tomar último segmento
   try{
     if(/^https?:\/\//i.test(t)){
       const u = new URL(t);
@@ -19,20 +24,26 @@ function parseScanText(raw){
       if(last) t = last;
     }
   }catch{}
-  // IT:<id>[:<companyId>]
-  const m = /^IT:([a-f0-9]{24})(?::([a-f0-9]{24}))?$/i.exec(t);
-  if(m){
-    const a=m[1], b=m[2];
-    // Heurística: si hay 2 ids, tomamos el segundo como itemId (común IT:<companyId>:<itemId>)
-    if(b && /^[a-f0-9]{24}$/i.test(b)) return { type:'id', value:b };
-    return { type:'id', value:a };
+
+  // Si contiene prefijo IT: (pero puede venir con cosas raras), saco TODOS los 24-hex y uso el ÚLTIMO
+  if (/IT:/i.test(t)) {
+    const ids = t.match(/[a-f0-9]{24}/ig);
+    if (ids && ids.length) {
+      return { type: 'id', value: ids[ids.length - 1] }; // normalmente <companyId>:<itemId> → tomo itemId
+    }
+    // Si no hay 24-hex, caigo al resto de casos
   }
-  // ObjectId suelto
-  if(/^[a-f0-9]{24}$/i.test(t)) return { type:'id', value:t };
+
+  // Cualquier ObjectId en la cadena
+  const anyId = t.match(/[a-f0-9]{24}/i);
+  if (anyId) return { type: 'id', value: anyId[0] };
+
   // SKU alfanumérico (REFAI01, etc.)
-  if(/^[A-Z0-9\-_]+$/i.test(t)) return { type:'sku', value:t.toUpperCase() };
+  if (/^[A-Z0-9\-_]+$/i.test(t)) return { type:'sku', value:t.toUpperCase() };
+
   return null;
 }
+
 let __lastScan = null, __lastTs = 0;
 function shouldProcessScan(val){
   const now = Date.now();
@@ -260,9 +271,8 @@ export function initSales(){
     function stopStream(){ try{ video.pause(); }catch{}; try{ (stream?.getTracks()||[]).forEach(t=>t.stop()); }catch{}; running=false; }
     async function isNativeQRSupported(){ try{ return !!(window.BarcodeDetector); }catch{ return false; } }
 
-    // ✅ NUEVO: resolver por ID o por SKU; NO usa /sales/addByQR
+    // Resolver por ID o por SKU; NO usa /sales/addByQR
     function onCode(code){
-      // historial visual
       const li=document.createElement('li'); li.textContent=code; list.prepend(li);
       if(!shouldProcessScan(code)) return;
 
@@ -275,14 +285,12 @@ export function initSales(){
             current = await API.sales.addItem(current._id, { source:'inventory', itemId: parsed.value, qty:1 });
             msg.textContent = 'Ítem agregado por ID';
           }else if(parsed.type==='sku'){
-            // buscar exacto por SKU en inventario y agregar por _id
             const items = await API.inventory.itemsList({ sku: parsed.value });
             const exact = Array.isArray(items) ? items.find(it => String(it.sku).toUpperCase()===parsed.value) : null;
             if(exact){
               current = await API.sales.addItem(current._id, { source:'inventory', itemId: exact._id, qty:1 });
               msg.textContent = `Ítem agregado: ${exact.sku}`;
             }else{
-              // fallback: si tu backend admite { sku } en addItem
               current = await API.sales.addItem(current._id, { source:'inventory', sku: parsed.value, qty:1 });
               msg.textContent = `Ítem agregado por SKU: ${parsed.value}`;
             }
@@ -309,7 +317,7 @@ export function initSales(){
         const w=video.videoWidth, h=video.videoHeight;
         if(!w || !h) return requestAnimationFrame(tickCanvas);
         canvas.width=w; canvas.height=h; ctx.drawImage(video,0,0,w,h);
-        // Si usas jsQR global, puedes habilitarlo:
+        // Si usas jsQR global, descomenta:
         // const imgData = ctx.getImageData(0,0,w,h);
         // const qr = window.jsQR && window.jsQR(imgData.data, w, h);
         // if(qr?.data) onCode(qr.data);
@@ -347,4 +355,3 @@ export function initSales(){
 
   renderSaleTabs();
 }
-  
