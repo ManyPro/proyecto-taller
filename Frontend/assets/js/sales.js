@@ -253,44 +253,85 @@ export function initSales() {
   }
 
   // ===== Lector QR =====
+  // ===== Lector QR (reemplazar toda la función) =====
   async function openQRScanner() {
     if (!current) return alert('Crea primero una venta');
-    const body = $('#modalBody'), btnClose = $('#modalClose');
-    body.replaceChildren(); body.appendChild(clone('tpl-qr-scanner'));
-    const cleanup = openModal(); btnClose.onclick = () => { cleanup?.(); stopStream(); closeModal(); };
 
-    const video = $('#qr-video'), canvas = $('#qr-canvas'), ctx = canvas.getContext('2d', { willReadFrequently: true });
-    const sel = $('#qr-cam'), msg = $('#qr-msg'), list = $('#qr-history'), autoclose = $('#qr-autoclose');
-    let useNative = await isNativeQRSupported();
-    if (!useNative && !window.jsQR) {
-      // Si no hay detector nativo ni jsQR, seguimos en canvas (no detecta) pero avisamos:
-      msg.textContent = 'No hay detector nativo; usando fallback. (jsQR no cargó)';
-    }
+    const body = $('#modalBody');
+    const btnClose = $('#modalClose');
 
+    body.replaceChildren();
+    body.appendChild(clone('tpl-qr-scanner'));
+
+    const cleanup = openModal();
+    btnClose.onclick = () => { try { stopStream(); } catch { } cleanup?.(); closeModal(); };
+
+    const video = $('#qr-video');
+    const canvas = $('#qr-canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const sel = $('#qr-cam');
+    const msg = $('#qr-msg');
+    const list = $('#qr-history');
+    const autoclose = $('#qr-autoclose');
+
+    // ✅ variables de estado definidas ANTES de usarlas en stopStream()
+    let stream = null;
+    let running = false;
+    let detector = null;
+
+    function setMsg(t) { msg.textContent = t || ''; }
 
     async function enumerateCams() {
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
         const cams = devices.filter(d => d.kind === 'videoinput');
-        sel.replaceChildren(...cams.map((c, i) => { const o = document.createElement('option'); o.value = c.deviceId; o.textContent = c.label || ('Cam ' + (i + 1)); return o; }));
-      } catch (e) { msg.textContent = 'No se pudo enumerar cámaras'; }
+        sel.replaceChildren(...cams.map((c, i) => {
+          const o = document.createElement('option');
+          o.value = c.deviceId;
+          o.textContent = c.label || `Cámara ${i + 1}`;
+          return o;
+        }));
+      } catch (e) {
+        setMsg('No se pudo enumerar cámaras.');
+      }
     }
+
+    function stopStream() {
+      try { video.pause(); } catch { }
+      try { (stream?.getTracks() || []).forEach(t => t.stop()); } catch { }
+      running = false;
+    }
+
     async function start() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setMsg('Tu navegador no permite abrir la cámara.');
+        return;
+      }
       try {
-        stopStream();
-        const constraints = { video: sel.value ? { deviceId: { exact: sel.value } } : { facingMode: 'environment' }, audio: false };
+        stopStream(); // limpia si había algo
+        const constraints = {
+          video: sel.value ? { deviceId: { exact: sel.value } } : { facingMode: 'environment' },
+          audio: false
+        };
         stream = await navigator.mediaDevices.getUserMedia(constraints);
-        video.srcObject = stream; await video.play(); running = true;
-        if (useNative) {
+        video.srcObject = stream;
+        await video.play();
+        running = true;
+
+        // Soporte nativo si está disponible
+        if (window.BarcodeDetector) {
           detector = new BarcodeDetector({ formats: ['qr_code'] });
           tickNative();
         } else {
           tickCanvas();
         }
-      } catch (e) { msg.textContent = 'No se pudo abrir cámara'; }
+        setMsg('');
+      } catch (e) {
+        stopStream();
+        // Muestra motivo real (muy útil para permisos/HTTPS)
+        setMsg('No se pudo abrir cámara: ' + (e?.name || e?.message || 'desconocido'));
+      }
     }
-    function stopStream() { try { video.pause(); } catch { }; try { (stream?.getTracks() || []).forEach(t => t.stop()); } catch { }; running = false; }
-    async function isNativeQRSupported() { try { return !!(window.BarcodeDetector); } catch { return false; } }
 
     function onCode(code) {
       // historial visual
@@ -298,65 +339,45 @@ export function initSales() {
       li.textContent = code;
       list.prepend(li);
 
-      // Normalizar
-      let raw = String(code || '').trim().replace(/\u00A0/g, ' ').replace(/\s+/g, ' ').trim();
+      // anti-duplicado
+      if (!shouldProcessScan(code)) return;
 
-      // Si es URL, tomar último segmento
-      try {
-        if (/^https?:\/\//i.test(raw)) {
-          const u = new URL(raw);
-          const last = u.pathname.split('/').filter(Boolean).pop();
-          if (last) raw = last;
-        }
-      } catch { }
-
-      // 1) ¿Hay ObjectId de 24 hex? (si hay varios, uso el ÚLTIMO → normalmente itemId)
-      const ids = raw.match(/[a-f0-9]{24}/ig);
-      const hasId = ids && ids.length;
-      const skuCandidate = !hasId && /^[A-Z0-9\-_]+$/i.test(raw) ? raw.toUpperCase() : null;
+      const parsed = parseScanText(code);
+      if (!parsed) { setMsg('Código no reconocido'); return; }
 
       (async () => {
         try {
-          if (hasId) {
-            const itemId = ids[ids.length - 1];
-            current = await API.sales.addItem(current._id, { source: 'inventory', itemId, qty: 1 });
-            msg.textContent = 'Ítem agregado por ID';
-          } else if (skuCandidate) {
-            // Intento buscar por SKU en inventario para obtener _id
-            const listRes = await API.inventory.itemsList({ sku: skuCandidate });
-            const exact = Array.isArray(listRes) ? listRes.find(it => String(it.sku || '').toUpperCase() === skuCandidate) : null;
-
+          if (parsed.type === 'id') {
+            current = await API.sales.addItem(current._id, { source: 'inventory', itemId: parsed.value, qty: 1 });
+            setMsg('Ítem agregado por ID');
+          } else if (parsed.type === 'sku') {
+            const items = await API.inventory.itemsList({ sku: parsed.value });
+            const exact = Array.isArray(items) ? items.find(it => String(it.sku || '').toUpperCase() === parsed.value) : null;
             if (exact) {
               current = await API.sales.addItem(current._id, { source: 'inventory', itemId: exact._id, qty: 1 });
-              msg.textContent = `Ítem agregado: ${exact.sku}`;
+              setMsg(`Ítem agregado: ${exact.sku}`);
             } else {
-              // Fallback: si tu backend acepta { sku } directamente en addItem
-              current = await API.sales.addItem(current._id, { source: 'inventory', sku: skuCandidate, qty: 1 });
-              msg.textContent = `Ítem agregado por SKU: ${skuCandidate}`;
+              current = await API.sales.addItem(current._id, { source: 'inventory', sku: parsed.value, qty: 1 });
+              setMsg(`Ítem agregado por SKU: ${parsed.value}`);
             }
-          } else {
-            msg.textContent = 'Código no reconocido';
-            return;
           }
-
-          renderSale();
-          renderWorkOrder();
-          if (autoclose.checked) { stopStream(); closeModal(); }
+          renderSale(); renderWorkOrder();
+          if (autoclose.checked) { stopStream(); cleanup?.(); closeModal(); }
         } catch (e) {
-          msg.textContent = e?.message || 'No se pudo agregar el ítem';
+          setMsg(e?.message || 'No se pudo agregar el ítem');
         }
       })();
     }
-
 
     async function tickNative() {
       if (!running) return;
       try {
         const codes = await detector.detect(video);
-        if (codes?.[0]?.rawValue) { onCode(codes[0].rawValue); }
+        if (codes?.[0]?.rawValue) onCode(codes[0].rawValue);
       } catch { }
       requestAnimationFrame(tickNative);
     }
+
     function tickCanvas() {
       if (!running) return;
       try {
@@ -365,24 +386,28 @@ export function initSales() {
         canvas.width = w; canvas.height = h;
         ctx.drawImage(video, 0, 0, w, h);
 
-        // ✅ Fallback: jsQR si no hay BarcodeDetector
+        // Fallback con jsQR (asegúrate de tenerlo en index.html)
         if (window.jsQR) {
-          const imgData = ctx.getImageData(0, 0, w, h);
-          const qr = window.jsQR(imgData.data, w, h);
-          if (qr && qr.data) onCode(qr.data);
+          const img = ctx.getImageData(0, 0, w, h);
+          const qr = window.jsQR(img.data, w, h);
+          if (qr?.data) onCode(qr.data);
         }
       } catch { }
       requestAnimationFrame(tickCanvas);
     }
 
-
-
     $('#qr-start').onclick = start;
-    $('#qr-stop').onclick = () => { stopStream(); };
-    $('#qr-add-manual').onclick = () => { const code = $('#qr-manual').value || ''; if (!code) return; onCode(code); };
+    $('#qr-stop').onclick = () => { stopStream(); setMsg(''); };
+    $('#qr-add-manual').onclick = () => {
+      const code = ($('#qr-manual').value || '').trim();
+      if (!code) return;
+      onCode(code);
+    };
 
+    // Inicializar listado de cámaras
     enumerateCams();
   }
+
 
   // ===== Botones =====
   $('#sv-edit-cv').onclick = openCVModal;
