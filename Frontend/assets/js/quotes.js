@@ -108,7 +108,6 @@ export function initQuotes({ getCompanyEmail }) {
     window.addEventListener('resize', syncSummaryHeight);
 
     loadHistory();
-    window.__quotesOnEvent = (msg)=>{ if(msg?.entity==='quotes'){ loadHistory(); } };
   }
 
   // ====== Numeración local ======
@@ -419,7 +418,6 @@ export function initQuotes({ getCompanyEmail }) {
       currentQuoteId = doc?._id || currentQuoteId;
       toast('Cotización guardada en historial.');
       loadHistory();
-    window.__quotesOnEvent = (msg)=>{ if(msg?.entity==='quotes'){ loadHistory(); } };
 
       if(creating) resetQuoteForm();
     }catch(e){
@@ -468,8 +466,7 @@ export function initQuotes({ getCompanyEmail }) {
       el.querySelector('[data-act="pdf"]')?.addEventListener('click',()=>exportPDFFromDoc(d));
       el.querySelector('[data-act="del"]')?.addEventListener('click',async ()=>{
         if(!confirm('¿Eliminar cotización?')) return;
-        try{ await API.quoteDelete(d._id); loadHistory();
-    window.__quotesOnEvent = (msg)=>{ if(msg?.entity==='quotes'){ loadHistory(); } }; }catch(e){ alert(e?.message||'Error al eliminar'); }
+        try{ await API.quoteDelete(d._id); loadHistory(); }catch(e){ alert(e?.message||'Error al eliminar'); }
       });
       qhList.appendChild(el);
     });
@@ -573,8 +570,7 @@ export function initQuotes({ getCompanyEmail }) {
     [iClientName,iClientPhone,iClientEmail,iPlate,iBrand,iLine,iYear,iCc,iValidDays].forEach(el=>el?.addEventListener('input',recalcAll));
 
     qhApply?.addEventListener('click',loadHistory);
-    qhClear?.addEventListener('click',()=>{ qhText.value=''; qhFrom.value=''; qhTo.value=''; loadHistory();
-    window.__quotesOnEvent = (msg)=>{ if(msg?.entity==='quotes'){ loadHistory(); } }; });
+    qhClear?.addEventListener('click',()=>{ qhText.value=''; qhFrom.value=''; qhTo.value=''; loadHistory(); });
   }
 
   // ===== Altura panel derecho =====
