@@ -1,5 +1,3 @@
-
-app.use('/api/v1/events', eventsRouter);
 // Backend/src/server.js
 import 'dotenv/config';
 // Captura errores en handlers async automáticamente
@@ -76,6 +74,7 @@ app.get('/', (_req, res) =>
 // rutas públicas
 app.use('/api/v1/health', healthRouter);
 app.use('/api/v1/media', mediaRouter);
+app.use('/api/v1/events', eventsRouter);
 app.use('/api/v1/notes', authCompany, withCompanyDefaults, notesRouter);
 app.use('/api/v1/auth/company', companyAuthRouter);
 app.use('/api/v1/sales', authCompany, withCompanyDefaults, salesRouter);
