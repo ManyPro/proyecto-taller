@@ -8,7 +8,7 @@ function openModal(){ const m=$('#modal'); if(!m) return; m.classList.remove('hi
 function closeModal(){ const m=$('#modal'); if(!m) return; m.classList.add('hidden'); document.body.style.overflow=''; }
 
 /* ===================== Helpers QR/SKU ===================== */
-// 👇 Parser tolerante: acepta IT:<...>, ObjectId en cualquier parte, SKU, URLs, etc.
+// Parser tolerante: acepta IT:<...>, ObjectId en cualquier parte, SKU, URLs, etc.
 function parseScanText(raw){
   if(!raw) return null;
   let t = String(raw).trim();
@@ -25,18 +25,15 @@ function parseScanText(raw){
     }
   }catch{}
 
-  // Si contiene prefijo IT: (pero puede venir con cosas raras), saco TODOS los 24-hex y uso el ÚLTIMO
+  // Si contiene IT:, extraigo todos los 24-hex y uso el ÚLTIMO (suele ser itemId)
   if (/IT:/i.test(t)) {
     const ids = t.match(/[a-f0-9]{24}/ig);
-    if (ids && ids.length) {
-      return { type: 'id', value: ids[ids.length - 1] }; // normalmente <companyId>:<itemId> → tomo itemId
-    }
-    // Si no hay 24-hex, caigo al resto de casos
+    if (ids && ids.length) return { type:'id', value: ids[ids.length-1] };
   }
 
   // Cualquier ObjectId en la cadena
   const anyId = t.match(/[a-f0-9]{24}/i);
-  if (anyId) return { type: 'id', value: anyId[0] };
+  if (anyId) return { type:'id', value:anyId[0] };
 
   // SKU alfanumérico (REFAI01, etc.)
   if (/^[A-Z0-9\-_]+$/i.test(t)) return { type:'sku', value:t.toUpperCase() };
@@ -52,20 +49,25 @@ function shouldProcessScan(val){
   return true;
 }
 
-/* ===================== Estado de ventas ===================== */
-let current=null;
+/* ===================== Estado persistente de pestañas ===================== */
+let current = null;
 const OPEN_KEY = `sales:openTabs:${API.getActiveCompany?.() || 'default'}`;
-let openTabs=[]; try{ openTabs=JSON.parse(localStorage.getItem(OPEN_KEY)||'[]'); }catch{ openTabs=[]; }
+let openTabs = [];
+try{ openTabs = JSON.parse(localStorage.getItem(OPEN_KEY) || '[]'); }catch{ openTabs = []; }
 function saveTabs(){ try{ localStorage.setItem(OPEN_KEY, JSON.stringify(openTabs)); }catch{} }
-function addOpen(id){ if(!openTabs.includes(id)){ openTabs.push(id); saveTabs(); } renderSaleTabs(); }
-function removeOpen(id){ openTabs=openTabs.filter(x=>x!==id); saveTabs(); renderSaleTabs(); }
 
 /* ======================== UI Ventas ======================== */
 export function initSales(){
   const tab = document.getElementById('tab-ventas'); if(!tab) return;
   const tableBody = $('#sales-body'); const totalEl = $('#sales-total');
 
-  async function switchTo(id){ current = await API.sales.get(id); addOpen(id); renderSale(); renderMiniCustomer(); renderWorkOrder(); }
+  async function switchTo(id){
+    current = await API.sales.get(id);
+    addOpen(id);
+    renderSale();
+    renderMiniCustomer();
+    renderWorkOrder();
+  }
 
   function renderSaleTabs(){
     const wrap = document.getElementById('saleTabs'); if(!wrap) return;
@@ -75,9 +77,23 @@ export function initSales(){
       n.querySelector('.label').textContent = id.slice(-6).toUpperCase();
       if(current && current._id===id) n.classList.add('active');
       n.onclick = ()=>switchTo(id);
-      n.querySelector('.close').onclick = (e)=>{ e.stopPropagation(); removeOpen(id); if(current && current._id===id){ current=null; renderSale(); renderMiniCustomer(); renderWorkOrder(); } };
+      n.querySelector('.close').onclick = (e)=>{ 
+        e.stopPropagation(); 
+        removeOpen(id); 
+        if(current && current._id===id){ current=null; renderSale(); renderMiniCustomer(); renderWorkOrder(); }
+      };
       wrap.appendChild(n);
     }
+  }
+
+  function addOpen(id){
+    if(!openTabs.includes(id)){ openTabs.push(id); saveTabs(); }
+    renderSaleTabs();
+  }
+  function removeOpen(id){
+    openTabs = openTabs.filter(x=>x!==id);
+    saveTabs();
+    renderSaleTabs();
   }
 
   function renderSale(){
@@ -271,7 +287,6 @@ export function initSales(){
     function stopStream(){ try{ video.pause(); }catch{}; try{ (stream?.getTracks()||[]).forEach(t=>t.stop()); }catch{}; running=false; }
     async function isNativeQRSupported(){ try{ return !!(window.BarcodeDetector); }catch{ return false; } }
 
-    // Resolver por ID o por SKU; NO usa /sales/addByQR
     function onCode(code){
       const li=document.createElement('li'); li.textContent=code; list.prepend(li);
       if(!shouldProcessScan(code)) return;
@@ -334,8 +349,19 @@ export function initSales(){
 
   // ===== Botones =====
   $('#sv-edit-cv').onclick = openCVModal;
-  $('#sales-start').onclick = async ()=>{ current = await API.sales.start(); addOpen(current._id); renderSale(); renderMiniCustomer(); renderWorkOrder(); };
-  $('#sales-add-sku').onclick = async ()=>{ if(!current) return alert('Crea primero una venta'); const sku=String($('#sales-sku').value||'').trim().toUpperCase(); if(!sku) return; current = await API.sales.addItem(current._id,{source:'inventory',sku,qty:1}); $('#sales-sku').value=''; renderSale(); renderWorkOrder(); };
+  $('#sales-start').onclick = async ()=>{
+    current = await API.sales.start();
+    addOpen(current._id);
+    renderSale(); renderMiniCustomer(); renderWorkOrder();
+  };
+  $('#sales-add-sku').onclick = async ()=>{
+    if(!current) return alert('Crea primero una venta');
+    const sku=String($('#sales-sku').value||'').trim().toUpperCase();
+    if(!sku) return;
+    current = await API.sales.addItem(current._id,{source:'inventory',sku,qty:1});
+    $('#sales-sku').value='';
+    renderSale(); renderWorkOrder();
+  };
   $('#sales-share-wa').onclick = async ()=>{
     if(!current) return;
     const company = await (typeof fetchCompanySafe==='function' ? fetchCompanySafe() : Promise.resolve(null));
@@ -347,11 +373,24 @@ export function initSales(){
     const footer = `%0A*TOTAL:* ${money(current.total||0)}`;
     window.open(`https://wa.me/?text=${header}%0A%0A${body}%0A%0A${footer}`, '_blank');
   };
-  $('#sales-print').onclick = async ()=>{ if(!current) return; const doc = await buildSalePdf(current); doc.save(`venta_${current.number||current._id}.pdf`); };
-  $('#sales-close').onclick = async ()=>{ if(!current) return; try{ await API.sales.close(current._id); removeOpen(current._id); current=null; renderSale(); renderMiniCustomer(); renderWorkOrder(); }catch(e){ alert(e?.message||'No se pudo cerrar'); } };
+  $('#sales-print').onclick = async ()=>{
+    if(!current) return;
+    const doc = await buildSalePdf(current);
+    doc.save(`venta_${current.number||current._id}.pdf`);
+  };
+  $('#sales-close').onclick = async ()=>{
+    if(!current) return;
+    try{
+      await API.sales.close(current._id);
+      removeOpen(current._id);
+      current=null;
+      renderSale(); renderMiniCustomer(); renderWorkOrder();
+    }catch(e){ alert(e?.message||'No se pudo cerrar'); }
+  };
   $('#sales-add-inv').onclick = openInventoryPicker;
   $('#sales-add-prices').onclick = openPricesPicker;
   $('#sales-scan-qr').onclick = openQRScanner;
 
+  // Inicial
   renderSaleTabs();
 }
