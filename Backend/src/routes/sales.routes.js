@@ -1,29 +1,16 @@
 import { Router } from 'express';
-import {
-  startSale, getSale, addItem, updateItem, removeItem,
-  setCustomerVehicle, closeSale, addByQR, listSales, summarySales
-, patchSale, cancelSale } from '../controllers/sales.controller.js';
-
-const router = Router();
-
-// CRUD básico de la venta en curso
-router.post('/start', startSale);
-router.get('/:id', getSale);
-router.post('/:id/items', addItem);
-router.put('/:id/items/:itemId', updateItem);
-router.delete('/:id/items/:itemId', removeItem);
-router.put('/:id/customer-vehicle', setCustomerVehicle);
-router.post('/:id/close', closeSale);
-// actualizar metadatos
-router.patch('/:id', patchSale);
-// cancelar
-router.post('/:id/cancel', cancelSale);
-
-// QR
-router.post('/addByQR', addByQR);
-
-// Listado / Resumen (Caja)
-router.get('/', listSales);
-router.get('/summary', summarySales);
-
-export default router;
+import * as ctrl from '../controllers/sales.controller.js';
+const r=Router();
+r.post('/sales/start', ctrl.startSale);
+r.get('/sales', ctrl.listSales);
+r.get('/sales/summary', ctrl.summarySales);
+r.get('/sales/:id', ctrl.getSale);
+r.patch('/sales/:id', ctrl.patchSale);
+r.post('/sales/:id/items', ctrl.addItem);
+r.patch('/sales/:id/items/:lineId', ctrl.updateItem);
+r.delete('/sales/:id/items/:lineId', ctrl.removeItem);
+r.post('/sales/:id/setCustomerVehicle', ctrl.setCustomerVehicle);
+r.post('/sales/:id/addByQR', ctrl.addByQR);
+r.post('/sales/:id/close', ctrl.closeSale);
+r.post('/sales/:id/cancel', ctrl.cancelSale);
+export default r;

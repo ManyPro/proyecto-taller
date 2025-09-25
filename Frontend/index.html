@@ -2,20 +2,86 @@
 <html lang="es">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Taller App</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Taller Automotriz</title>
   <link rel="stylesheet" href="./assets/styles.css"/>
-  <!-- jsPDF para PDFs -->
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
 <body>
-  <!-- ... tu HTML existente ... -->
+  <main id="app">
+    <section id="ventas">
+      <div class="actions row">
+        <button id="sales-start">Nueva venta</button>
+        <button id="btn-use-quote">Usar cotización</button>
+        <button id="sales-scan-qr">Escanear QR</button>
+        <button id="sales-add-general">Agregar</button>
+        <button id="sales-add-manual">Agregar manual</button>
+        <button id="sv-print-wo">Imprimir OT</button>
+        <button id="sales-print">Imprimir factura</button>
+        <button id="sales-close" class="danger">Cerrar</button>
+      </div>
+      <div class="row"><div id="saleTabs" class="caps"></div></div>
+      <div class="card">
+        <div class="mini row">
+          <span id="sv-mini-plate">—</span>
+          <span id="sv-mini-name">Cliente: —</span>
+          <span id="sv-mini-phone">Cel: —</span>
+        </div>
+      </div>
+      <div class="card">
+        <input id="sales-sku" placeholder="SKU/Serv..."/>
+        <button id="sales-add-sku">Agregar SKU</button>
+      </div>
+      <div class="card">
+        <table class="w100">
+          <thead><tr><th>SKU</th><th>Descripción</th><th>Cant.</th><th>Unit</th><th>Total</th><th></th></tr></thead>
+          <tbody id="sales-body"></tbody>
+          <tfoot><tr><td colspan="4" class="tright">Total</td><td id="sales-total">$0</td><td></td></tr></tfoot>
+        </table>
+      </div>
+      <div class="card">
+        <div class="row between">
+          <h3>Orden de trabajo</h3>
+          <button id="sv-print-wo">Imprimir OT</button>
+        </div>
+        <table class="w100">
+          <thead><tr><th>Descripción</th><th class="t-center">Cant.</th></tr></thead>
+          <tbody id="sv-wo-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
 
-  <!-- Módulos -->
+  <div id="modal" class="hidden">
+    <div class="modal">
+      <button id="modalClose" class="close">×</button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <template id="tpl-sale-tab">
+    <button class="cap">
+      <span class="label">VENTA</span>
+      <span class="close">×</span>
+    </button>
+  </template>
+  <template id="tpl-sale-row">
+    <tr>
+      <td data-sku></td>
+      <td data-name></td>
+      <td><input class="qty" type="number" min="1" value="1"/></td>
+      <td data-unit></td>
+      <td data-total></td>
+      <td class="actions"></td>
+    </tr>
+  </template>
+
+  <script type="module" src="./assets/js/pdf.js?v=2"></script>
   <script type="module">
-    import { initSales } from './assets/js/sales.js?v=ventas-safe-1';
-    // Inicializa ventas sólo si existe su tab
-    try { initSales(); } catch(e){ console.warn('Ventas init skipped:', e); }
+    import API from './assets/js/api.js?v=2';
+    import { initSales } from './assets/js/sales.js?v=2';
+    try{ initSales(); }catch(e){ console.warn('initSales error', e); }
   </script>
 </body>
 </html>

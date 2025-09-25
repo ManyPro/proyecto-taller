@@ -1,180 +1,56 @@
-// ventas.js — parche seguro (scope y null-safety) + botones renombrados
+// assets/js/sales.js
 import API from './api.js';
 import { buildWorkOrderPdf, buildInvoicePdf } from './pdf.js';
-
-const $ = (s)=>document.querySelector(s);
-const money = (n)=> new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n||0));
-const clone = (id)=>{ const t=document.getElementById(id); return t?.content?.firstElementChild?.cloneNode(true); };
-
-// ===== INIT (no tocar DOM si no es la pestaña de ventas) =====
-export function initSales(){
-  const tab = document.getElementById('tab-ventas');
-  if(!tab) return; // <- evita errores en login u otras vistas
-
-  // --- Estado (solo dentro de init) ---
-  let current = null;
-  const OPEN_KEY = `sales:openTabs:${API.getActiveCompany?.() || 'default'}`;
-  let openTabs = []; try{ openTabs = JSON.parse(localStorage.getItem(OPEN_KEY)||'[]'); }catch{ openTabs=[]; }
-  const saveTabs = ()=>{ try{ localStorage.setItem(OPEN_KEY, JSON.stringify(openTabs)); }catch{} };
-
-  // --- Helpers modal (ya existen en tu app, fallback aquí) ---
-  const openModal = ()=>{
-    const m=$('#modal'); if(!m) return ()=>{};
-    m.classList.remove('hidden'); document.body.style.overflow='hidden';
-    const onKey=(e)=>{ if(e.key==='Escape') closeModal(); };
-    document.addEventListener('keydown', onKey);
-    return ()=>document.removeEventListener('keydown', onKey);
-  };
-  const closeModal = ()=>{ const m=$('#modal'); if(!m) return; m.classList.add('hidden'); document.body.style.overflow=''; };
-
-  // --- Cápsulas ---
-  function renderSaleTabs(){
-    const wrap = document.getElementById('saleTabs'); if(!wrap) return;
-    wrap.replaceChildren();
-    for(const id of openTabs){
-      const n = clone('tpl-sale-tab') || document.createElement('button');
-      (n.querySelector?.('.label')||n).textContent = (current && current._id===id) ? `• ${id.slice(-6).toUpperCase()}` : id.slice(-6).toUpperCase();
-      n.classList.toggle?.('active', !!(current && current._id===id));
-      n.onclick = ()=>switchTo(id);
-      const x = n.querySelector?.('.close');
-      if(x){ x.onclick = (e)=>{ e.stopPropagation(); onCancelCapsule(id); }; }
-      wrap.appendChild(n);
-    }
+const $=(s)=>document.querySelector(s);
+const money=(n)=>new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n||0));
+const clone=(id)=>{const t=document.getElementById(id);return t?.content?.firstElementChild?.cloneNode(true);};
+let __lastScan=null,__lastTs=0; const should=(v)=>{const n=Date.now();if(v===__lastScan&&(n-__lastTs)<2000)return false;__lastScan=v;__lastTs=n;return true;};
+function parse(raw){ if(!raw) return null; let t=String(raw).trim().replace(/\u00A0/g,' ').replace(/\s+/g,' ').trim();
+  try{ if(/^https?:\/\//i.test(t)){ const u=new URL(t); const last=u.pathname.split('/').filter(Boolean).pop(); if(last) t=last; } }catch{}
+  const ids=t.match(/[a-f0-9]{24}/ig); if(ids?.length) return {type:'id',value:ids[ids.length-1]}; if(/^[A-Z0-9\-_]+$/i.test(t)) return {type:'sku',value:t.toUpperCase()}; return null; }
+export function initSales(){ const tab=document.getElementById('ventas'); if(!tab) return;
+  let current=null; const KEY=`sales:openTabs:${API.getActiveCompany?.()||'default'}`; let open=[]; try{open=JSON.parse(localStorage.getItem(KEY)||'[]');}catch{open=[];}
+  const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(open));}catch{}};
+  function tabs(){ const w=document.getElementById('saleTabs'); if(!w) return; w.replaceChildren(); for(const id of open){ const n=clone('tpl-sale-tab'); n.querySelector('.label').textContent=id.slice(-6).toUpperCase(); if(current&&current._id===id) n.classList.add('active'); n.onclick=()=>sw(id); n.querySelector('.close').onclick=(e)=>{e.stopPropagation();cancel(id);}; w.appendChild(n);} }
+  function addTab(id){ if(!open.includes(id)){open.push(id);save();} tabs(); } function rmTab(id){ open=open.filter(x=>x!==id); save(); tabs(); }
+  async function sw(id){ current=await API.sales.get(id); addTab(id); render(); mini(); wo(); }
+  async function cancel(id){ if(!confirm('¿Deseas cancelar la venta?'))return; await API.sales.cancel(id); rmTab(id); if(current&&current._id===id){current=null; render(); mini(); wo();} }
+  const body=$('#sales-body'), tot=$('#sales-total');
+  function render(){ if(!body) return; body.replaceChildren(); (current?.items||[]).forEach(it=>{ const row=clone('tpl-sale-row'); row.querySelector('[data-sku]').textContent=it.sku||''; row.querySelector('[data-name]').textContent=it.name||'';
+      const qty=row.querySelector('.qty'); qty.value=String(it.qty||1); row.querySelector('[data-unit]').textContent=money(it.unitPrice||0); row.querySelector('[data-total]').textContent=money(it.total||0);
+      qty.onchange=async()=>{ const v=Number(qty.value||1)||1; current=await API.sales.updateItem(current._id,it._id,{qty:v}); render(); wo(); };
+      const act=row.querySelector('.actions'); const bE=document.createElement('button'); bE.textContent='Editar'; bE.onclick=async()=>{ const v=prompt('Nuevo precio unitario:',String(it.unitPrice||0)); if(v==null)return; const up=Number(v)||0; current=await API.sales.updateItem(current._id,it._id,{unitPrice:up}); render(); wo(); };
+      const bZ=document.createElement('button'); bZ.textContent='Precio 0'; bZ.onclick=async()=>{ current=await API.sales.updateItem(current._id,it._id,{unitPrice:0}); render(); wo(); };
+      const bD=document.createElement('button'); bD.textContent='Quitar'; bD.onclick=async()=>{ await API.sales.removeItem(current._id,it._id); current=await API.sales.get(current._id); render(); wo(); };
+      act.append(bE,' ',bZ,' ',bD); body.appendChild(row); }); if(tot) tot.textContent=money(current?.total||0); }
+  function mini(){ const c=current?.customer||{}, v=current?.vehicle||{}; const lp=$('#sv-mini-plate'),ln=$('#sv-mini-name'),lr=$('#sv-mini-phone'); if(lp) lp.textContent=v.plate||'—'; if(ln) ln.textContent=`Cliente: ${c.name||'—'}`; if(lr) lr.textContent=`Cel: ${c.phone||'—'}`; }
+  function wo(){ const b=$('#sv-wo-body'); if(!b) return; b.replaceChildren(); for(const it of (current?.items||[])){ const tr=document.createElement('tr'), t1=document.createElement('td'), t2=document.createElement('td'); t2.className='t-center'; t1.textContent=it.name||''; t2.textContent=String(it.qty||1); tr.append(t1,t2); b.appendChild(tr);} }
+  $('#sales-start')?.addEventListener('click',async()=>{ current=await API.sales.start(); if(!current.name) current.name=`Venta · ${String(current._id).slice(-6).toUpperCase()}`; addTab(current._id); render(); mini(); wo(); });
+  $('#sales-add-sku')?.addEventListener('click',async()=>{ if(!current) return alert('Crea primero una venta'); const sku=String($('#sales-sku').value||'').trim().toUpperCase(); if(!sku) return; current=await API.sales.addItem(current._id,{source:'inventory',sku,qty:1}); $('#sales-sku').value=''; render(); wo(); });
+  $('#sv-print-wo')?.addEventListener('click',async()=>{ if(!current) return; await buildWorkOrderPdf(current); });
+  $('#sales-print')?.addEventListener('click',async()=>{ if(!current) return; await buildInvoicePdf(current); });
+  $('#sales-close')?.addEventListener('click',async()=>{ if(!current) return; try{ current=await API.sales.close(current._id); alert('Venta cerrada'); rmTab(current._id); current=null; render(); mini(); wo(); }catch(e){ alert(e?.message||'No se pudo cerrar'); } });
+  $('#sales-scan-qr')?.addEventListener('click',()=>openQR());
+  async function openQR(){ if(!current) return alert('Crea primero una venta'); const body=$('#modalBody'), btnClose=$('#modalClose'); openM(); body.innerHTML=`
+      <div class="qr"><div class="row"><select id="qr-cam"></select><button id="qr-start">Iniciar</button><button id="qr-stop">Detener</button></div>
+      <label><input id="qr-autoclose" type="checkbox" checked/> Cerrar al agregar</label>
+      <video id="qr-video" autoplay playsinline></video><canvas id="qr-canvas" class="hidden"></canvas>
+      <input id="qr-manual" placeholder="Ingresar código manualmente (fallback)"/><button id="qr-add-manual">Agregar</button>
+      <div id="qr-msg" class="muted"></div><ul id="qr-history" class="muted small"></ul></div>`;
+    btnClose.onclick=()=>{ stop(); closeM(); };
+    const video=$('#qr-video'), canvas=$('#qr-canvas'), ctx=canvas.getContext('2d',{willReadFrequently:true});
+    const sel=$('#qr-cam'), msg=$('#qr-msg'), list=$('#qr-history'), ac=$('#qr-autoclose'); let stream=null, running=false, det=null;
+    async function cams(){ try{ const d=await navigator.mediaDevices.enumerateDevices(); const cams=d.filter(x=>x.kind==='videoinput'); sel.replaceChildren(...cams.map((c,i)=>{ const o=document.createElement('option'); o.value=c.deviceId; o.textContent=c.label||('Cam '+(i+1)); return o; })); }catch{} }
+    function stop(){ try{ video.pause(); }catch{}; try{ (stream?.getTracks()||[]).forEach(t=>t.stop()); }catch{}; running=false; }
+    async function start(){ try{ stop(); const cs={video: sel.value?{deviceId:{exact:sel.value}}:{facingMode:'environment'}, audio:false}; stream=await navigator.mediaDevices.getUserMedia(cs); video.srcObject=stream; await video.play(); running=true; if(window.BarcodeDetector){ det=new BarcodeDetector({formats:['qr_code']}); tickN(); } else { tickC(); } msg.textContent=''; }catch(e){ stop(); msg.textContent='No se pudo abrir cámara: '+(e?.name||e?.message||'desconocido'); } }
+    function onCode(code){ const li=document.createElement('li'); li.textContent=code; list.prepend(li); if(!should(code)) return; const p=parse(code); if(!p){ msg.textContent='Código no reconocido'; return; }
+      (async()=>{ try{ if(p.type==='id'){ current=await API.sales.addItem(current._id,{source:'inventory',refId:p.value,qty:1}); } else { current=await API.sales.addItem(current._id,{source:'inventory',sku:p.value,qty:1}); } render(); wo(); if(ac.checked){ stop(); closeM(); } }catch(e){ msg.textContent=e?.message||'No se pudo agregar'; } })(); }
+    async function tickN(){ if(!running) return; try{ const codes=await det.detect(video); if(codes?.[0]?.rawValue) onCode(codes[0].rawValue); }catch{} requestAnimationFrame(tickN); }
+    function tickC(){ if(!running) return; try{ const w=video.videoWidth,h=video.videoHeight; if(!w||!h) return requestAnimationFrame(tickC); canvas.width=w; canvas.height=h; ctx.drawImage(video,0,0,w,h); if(window.jsQR){ const img=ctx.getImageData(0,0,w,h); const qr=window.jsQR(img.data,w,h); if(qr?.data) onCode(qr.data);} }catch{} requestAnimationFrame(tickC); }
+    $('#qr-start').onclick=start; $('#qr-stop').onclick=()=>{ stop(); }; $('#qr-add-manual').onclick=()=>{ const v=($('#qr-manual').value||'').trim(); if(!v) return; onCode(v); };
+    cams();
   }
-  function addOpen(id){ if(!openTabs.includes(id)){ openTabs.push(id); saveTabs(); } renderSaleTabs(); }
-  function removeOpen(id){ openTabs = openTabs.filter(x=>x!==id); saveTabs(); renderSaleTabs(); }
-
-  async function switchTo(id){
-    try{
-      current = await API.sales.get(id);
-      addOpen(id);
-      renderSale(); renderMiniCustomer(); renderWorkOrder();
-    }catch{}
-  }
-  async function onCancelCapsule(id){
-    const ok = confirm('¿Deseas cancelar la venta?');
-    if(!ok) return;
-    try{
-      await API.sales.cancel(id);
-      removeOpen(id);
-      if(current && current._id===id){ current=null; renderSale(); renderMiniCustomer(); renderWorkOrder(); }
-    }catch(e){ alert(e?.message||'No se pudo cancelar'); }
-  }
-
-  // --- Render principal ---
-  const tableBody = $('#sales-body'); const totalEl = $('#sales-total');
-  function renderSale(){
-    if(!tableBody) return;
-    tableBody.replaceChildren();
-    const items = current?.items || [];
-    for(const it of items){
-      const row = clone('tpl-sale-row') || document.createElement('tr');
-      const tdSku = row.querySelector?.('[data-sku]') || row.appendChild(document.createElement('td'));
-      const tdName= row.querySelector?.('[data-name]')|| row.appendChild(document.createElement('td'));
-      const tdQty = row.querySelector?.('.qty')      || (()=>{const i=document.createElement('input');i.type='number';i.className='qty';row.appendChild(document.createElement('td')).appendChild(i);return i;})();
-      const tdUnit= row.querySelector?.('[data-unit]')|| row.appendChild(document.createElement('td'));
-      const tdTot = row.querySelector?.('[data-total]')|| row.appendChild(document.createElement('td'));
-      const tdAct = row.querySelector?.('.actions')|| row.appendChild(document.createElement('td'));
-
-      tdSku.textContent = it.sku||'';
-      tdName.textContent = it.name||'';
-      tdQty.value = String(it.qty||1);
-      tdUnit.textContent = money(it.unitPrice||0);
-      tdTot.textContent  = money(it.total||0);
-
-      tdQty.onchange = async ()=>{
-        const v=Number(tdQty.value||1)||1;
-        current = await API.sales.updateItem(current._id, it._id, { qty:v });
-        renderSale(); renderWorkOrder();
-      };
-
-      // Botones editar precio y precio 0
-      const bEdit = document.createElement('button'); bEdit.textContent='Editar';
-      bEdit.onclick = async ()=>{
-        const v = prompt('Nuevo precio unitario:', String(it.unitPrice||0));
-        if(v==null) return;
-        const up = Number(v)||0;
-        current = await API.sales.updateItem(current._id, it._id, { unitPrice: up });
-        renderSale(); renderWorkOrder();
-      };
-      const bZero = document.createElement('button'); bZero.textContent='Precio 0';
-      bZero.onclick = async ()=>{
-        current = await API.sales.updateItem(current._id, it._id, { unitPrice: 0 });
-        renderSale(); renderWorkOrder();
-      };
-      const bDel = document.createElement('button'); bDel.textContent='Quitar';
-      bDel.onclick = async ()=>{
-        await API.sales.removeItem(current._id, it._id);
-        current = await API.sales.get(current._id);
-        renderSale(); renderWorkOrder();
-      };
-      tdAct.replaceChildren(bEdit,' ',bZero,' ',bDel);
-
-      tableBody.appendChild(row);
-    }
-    if(totalEl) totalEl.textContent = money(current?.total || 0);
-  }
-
-  function renderMiniCustomer(){
-    const c = current?.customer || {}, v=current?.vehicle||{};
-    const lp=$('#sv-mini-plate'), ln=$('#sv-mini-name'), lr=$('#sv-mini-phone');
-    if(lp) lp.textContent = v.plate || '—';
-    if(ln) ln.textContent  = `Cliente: ${c.name||'—'}`;
-    if(lr) lr.textContent  = `Cel: ${c.phone||'—'}`;
-  }
-
-  function renderWorkOrder(){
-    const body = $('#sv-wo-body'); if(!body) return;
-    body.replaceChildren();
-    for(const it of (current?.items||[])){
-      const tr = document.createElement('tr');
-      const td1=document.createElement('td'); td1.textContent = it.name||'';
-      const td2=document.createElement('td'); td2.className='t-center'; td2.textContent=String(it.qty||1);
-      tr.append(td1, td2); body.appendChild(tr);
-    }
-  }
-
-  // --- Botones de barra (renombrar / ocultar según plan) ---
-  const bNew = $('#sales-start');
-  const bQR  = $('#sales-scan-qr');
-  const bWA  = $('#sales-share-wa'); if(bWA) bWA.parentElement?.remove(); // fuera del plan
-  const bPdf = $('#sales-print'); if(bPdf){ bPdf.textContent='Imprimir factura'; }
-  const bClose = $('#sales-close');
-
-  // Nuevo: usar cotización (si existe el botón)
-  const bQuote = $('#btn-use-quote');
-  if (bQuote) {
-    bQuote.onclick = async ()=>{
-      alert('Abriré el modal de cotizaciones en el siguiente pase. Endpoint listo.');
-    };
-  }
-
-  if(bNew) bNew.onclick = async ()=>{
-    current = await API.sales.start();
-    if(!current.name) current.name = `Venta · ${String(current._id).slice(-6).toUpperCase()}`;
-    addOpen(current._id);
-    renderSale(); renderMiniCustomer(); renderWorkOrder();
-  };
-
-  if(bPdf) bPdf.onclick = async ()=>{
-    if(!current) return alert('Crea primero una venta');
-    await buildInvoicePdf(current);
-  };
-
-  if(bClose) bClose.onclick = async ()=>{
-    if(!current) return;
-    try{
-      current = await API.sales.close(current._id);
-      alert('Venta cerrada');
-      removeOpen(current._id);
-      current=null;
-      renderSale(); renderMiniCustomer(); renderWorkOrder();
-    }catch(e){ alert(e?.message || 'No se pudo cerrar'); }
-  };
-
-  // Cambiar el texto del botón PDF en OT (ya existe)
-  const bOT=$('#sv-print-wo'); if(bOT){ bOT.onclick = async ()=>{ if(!current) return; await buildWorkOrderPdf(current); }; }
-
-  // Inicial
-  renderSaleTabs();
+  function openM(){ const m=$('#modal'); if(!m) return; m.classList.remove('hidden'); document.body.style.overflow='hidden'; }
+  function closeM(){ const m=$('#modal'); if(!m) return; m.classList.add('hidden'); document.body.style.overflow=''; }
+  tabs();
 }
