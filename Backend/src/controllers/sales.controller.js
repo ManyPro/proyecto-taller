@@ -1,8 +1,11 @@
+import mongoose from 'mongoose';
 import Sale from '../models/Sale.js';
 import Item from '../models/Item.js';
 import PriceEntry from '../models/PriceEntry.js';
 import Counter from '../models/Counter.js';
+import StockMove from '../models/StockMove.js';
 
+// Helpers
 const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
 
 function computeTotals(sale) {
@@ -21,31 +24,32 @@ async function getNextSaleNumber(companyId) {
   return c.saleSeq;
 }
 
-// Crear venta vacía (status=draft)
+// ===== CRUD base =====
 export const startSale = async (req, res) => {
-  const sale = await Sale.create({ companyId: req.companyId, status: 'draft', items: [] });
+  const sale = await Sale.create({ companyId: req.companyId, status: 'open', items: [] });
   res.json(sale.toObject());
 };
 
-// Obtener venta por id (filtrada por companyId)
 export const getSale = async (req, res) => {
   const sale = await Sale.findOne({ _id: req.params.id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
   res.json(sale.toObject());
 };
 
-// Agregar ítem (source='inventory' | 'price' | 'service')
 export const addItem = async (req, res) => {
   const { id } = req.params;
   const { source, refId, sku, qty = 1, unitPrice } = req.body || {};
 
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not in draft' });
+  if (sale.status !== 'open') return res.status(400).json({ error: 'Sale not open' });
 
   let itemData = null;
 
-  if (source === 'inventory') {
+  // El schema permite 'inventory' y 'price'. Si viene 'service' desde el front, lo mapeamos a 'price' con refId sintético.
+  const src = (source === 'service') ? 'price' : source;
+
+  if (src === 'inventory') {
     let it = null;
     if (refId) it = await Item.findOne({ _id: refId, companyId: req.companyId });
     if (!it && sku) it = await Item.findOne({ sku: String(sku).trim().toUpperCase(), companyId: req.companyId });
@@ -63,35 +67,35 @@ export const addItem = async (req, res) => {
       unitPrice: up,
       total: Math.round(q * up)
     };
-  } else if (source === 'price') {
-    if (!refId) return res.status(400).json({ error: 'refId is required for price source' });
-    const pe = await PriceEntry.findOne({ _id: refId, companyId: String(req.companyId) });
-    if (!pe) return res.status(404).json({ error: 'PriceEntry not found' });
-
-    const q = asNum(qty) || 1;
-    const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNum(pe.total);
-
-    itemData = {
-      source: 'price',
-      refId: pe._id,
-      sku: `SRV-${String(pe._id).slice(-6)}`,
-      name: `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim(),
-      qty: q,
-      unitPrice: up,
-      total: Math.round(q * up)
-    };
-  } else if (source === 'service') {
-    const q = asNum(qty) || 1;
-    const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : 0;
-    itemData = {
-      source: 'service',
-      refId: req.body?.refId || null,
-      sku: req.body?.sku || '',
-      name: req.body?.name || 'Servicio',
-      qty: q,
-      unitPrice: up,
-      total: Math.round(q * up)
-    };
+  } else if (src === 'price') {
+    if (refId) {
+      const pe = await PriceEntry.findOne({ _id: refId, companyId: String(req.companyId) });
+      if (!pe) return res.status(404).json({ error: 'PriceEntry not found' });
+      const q = asNum(qty) || 1;
+      const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNum(pe.total || pe.price);
+      itemData = {
+        source: 'price',
+        refId: pe._id,
+        sku: `SRV-${String(pe._id).slice(-6)}`,
+        name: `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim(),
+        qty: q,
+        unitPrice: up,
+        total: Math.round(q * up)
+      };
+    } else {
+      // Línea manual de servicio (sin PriceEntry)
+      const q = asNum(qty) || 1;
+      const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : 0;
+      itemData = {
+        source: 'price',
+        refId: new mongoose.Types.ObjectId(), // marcador
+        sku: (sku || '').toString(),
+        name: (req.body?.name || 'Servicio'),
+        qty: q,
+        unitPrice: up,
+        total: Math.round(q * up)
+      };
+    }
   } else {
     return res.status(400).json({ error: 'unsupported source' });
   }
@@ -102,14 +106,12 @@ export const addItem = async (req, res) => {
   res.json(sale.toObject());
 };
 
-// Actualizar ítem (qty, unitPrice)
 export const updateItem = async (req, res) => {
   const { id, itemId } = req.params;
   const { qty, unitPrice } = req.body || {};
 
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
-
   const it = sale.items.id(itemId);
   if (!it) return res.status(404).json({ error: 'Item not found' });
 
@@ -122,7 +124,6 @@ export const updateItem = async (req, res) => {
   res.json(sale.toObject());
 };
 
-// Eliminar ítem
 export const removeItem = async (req, res) => {
   const { id, itemId } = req.params;
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
@@ -134,7 +135,6 @@ export const removeItem = async (req, res) => {
   res.json(sale.toObject());
 };
 
-// Cliente / Vehículo
 export const setCustomerVehicle = async (req, res) => {
   const { id } = req.params;
   const { customer = {}, vehicle = {}, notes } = req.body || {};
@@ -163,35 +163,71 @@ export const setCustomerVehicle = async (req, res) => {
   res.json(sale.toObject());
 };
 
-// Cerrar venta → asigna número secuencial por empresa
+// ===== Cierre: descuenta inventario con transacción =====
 export const closeSale = async (req, res) => {
   const { id } = req.params;
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
-  if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (!sale.items?.length) return res.status(400).json({ error: 'Sale has no items' });
+  const session = await mongoose.startSession();
+  try {
+    await session.withTransaction(async () => {
+      const sale = await Sale.findOne({ _id: id, companyId: req.companyId }).session(session);
+      if (!sale) throw new Error('Sale not found');
+      if (sale.status !== 'open') throw new Error('Sale not open');
+      if (!sale.items?.length) throw new Error('Sale has no items');
 
-  computeTotals(sale);
+      // Descuento de inventario para líneas inventory
+      for (const it of sale.items) {
+        if (String(it.source) !== 'inventory') continue;
+        const q = asNum(it.qty) || 0;
+        if (q <= 0) continue;
 
-  if (sale.status !== 'closed') {
-    sale.status = 'closed';
-    sale.closedAt = new Date();
-    if (!Number.isFinite(Number(sale.number))) {
-      sale.number = await getNextSaleNumber(req.companyId);
-    }
-    await sale.save();
+        const upd = await Item.updateOne(
+          { _id: it.refId, companyId: req.companyId, stock: { $gte: q } },
+          { $inc: { stock: -q } }
+        ).session(session);
+
+        if (upd.matchedCount === 0) {
+          // Verifico si el item existe para reportar mensaje claro
+          const exists = await Item.findOne({ _id: it.refId, companyId: req.companyId }).session(session);
+          if (!exists) throw new Error(`Inventory item not found (${it.sku || it.refId})`);
+          throw new Error(`Insufficient stock for ${exists.sku || exists.name}`);
+        }
+
+        await StockMove.create([{
+          companyId: req.companyId,
+          itemId: it.refId,
+          qty: q,
+          reason: 'OUT',
+          meta: { saleId: sale._id, sku: it.sku, name: it.name }
+        }], { session });
+      }
+
+      computeTotals(sale);
+      sale.status = 'closed';
+      sale.closedAt = new Date();
+      if (!Number.isFinite(Number(sale.number))) {
+        sale.number = await getNextSaleNumber(req.companyId);
+      }
+      await sale.save({ session });
+    });
+
+    const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+    res.json({ ok: true, sale: sale.toObject() });
+  } catch (err) {
+    await session.abortTransaction().catch(()=>{});
+    res.status(400).json({ error: err?.message || 'Cannot close sale' });
+  } finally {
+    session.endSession();
   }
-
-  res.json({ ok: true, sale: sale.toObject() });
 };
 
-// Agregar por QR (acepta IT:<itemId> | IT:<companyId>:<itemId> | SKU)
+// ===== QR helpers =====
 export const addByQR = async (req, res) => {
   const { saleId, payload } = req.body || {};
   if (!saleId || !payload) return res.status(400).json({ error: 'saleId and payload are required' });
 
   const sale = await Sale.findOne({ _id: saleId, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not in draft' });
+  if (sale.status !== 'open') return res.status(400).json({ error: 'Sale not open' });
 
   const s = String(payload || '').trim();
 
@@ -242,7 +278,7 @@ export const addByQR = async (req, res) => {
   res.json(sale.toObject());
 };
 
-// Listado (paginado + filtros básicos)
+// ===== Listado y resumen =====
 export const listSales = async (req, res) => {
   const { status, from, to, page = 1, limit = 50 } = req.query || {};
   const q = { companyId: req.companyId };
@@ -262,7 +298,6 @@ export const listSales = async (req, res) => {
   res.json({ items, page: pg, limit: lim, total });
 };
 
-// Resumen de Caja (solo cerradas)
 export const summarySales = async (req, res) => {
   const { from, to } = req.query || {};
   const q = { companyId: req.companyId, status: 'closed' };
@@ -277,15 +312,4 @@ export const summarySales = async (req, res) => {
   ]);
   const agg = rows[0] || { count: 0, total: 0 };
   res.json({ count: agg.count, total: agg.total });
-};
-
-export const cancelSale = async (req, res) => {
-  const { id } = req.params;
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
-  if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (sale.status === 'closed') return res.status(400).json({ error: 'Sale already closed' });
-  sale.status = 'cancelled';
-  sale.cancelledAt = new Date();
-  await sale.save();
-  res.json(sale.toObject());
 };
