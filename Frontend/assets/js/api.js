@@ -181,10 +181,18 @@ const API = {
       http.post(`/api/v1/sales/addByQR`, { saleId, payload }),
 
     list: (params = {}) => http.get(`/api/v1/sales${toQuery(params)}`),
-    summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`)
+    summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`),
+    cancel: (id) => http.post(`/api/v1/sales/${id}/cancel`, {})
   }
 };
 
+
+  ,
+
+  // --- Clientes (ficha por placa) ---
+  customers: {
+    getByPlate: (plate) => http.get(`/api/v1/customers/plate/${encodeURIComponent(plate || '').toUpperCase()}`)
+  }
 // Exports
 export { API, tokenStore as authToken };
 export default API;
