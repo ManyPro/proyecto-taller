@@ -21,9 +21,9 @@ async function getNextSaleNumber(companyId) {
   return c.saleSeq;
 }
 
-// Crear venta vacía (status=open)
+// Crear venta vacía (status=draft)
 export const startSale = async (req, res) => {
-  const sale = await Sale.create({ companyId: req.companyId, status: 'open', items: [] });
+  const sale = await Sale.create({ companyId: req.companyId, status: 'draft', items: [] });
   res.json(sale.toObject());
 };
 
@@ -34,14 +34,14 @@ export const getSale = async (req, res) => {
   res.json(sale.toObject());
 };
 
-// Agregar ítem (source='inventory' | 'price')
+// Agregar ítem (source='inventory' | 'price' | 'service')
 export const addItem = async (req, res) => {
   const { id } = req.params;
   const { source, refId, sku, qty = 1, unitPrice } = req.body || {};
 
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (sale.status !== 'open') return res.status(400).json({ error: 'Sale is closed' });
+  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not in draft' });
 
   let itemData = null;
 
@@ -76,6 +76,18 @@ export const addItem = async (req, res) => {
       refId: pe._id,
       sku: `SRV-${String(pe._id).slice(-6)}`,
       name: `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim(),
+      qty: q,
+      unitPrice: up,
+      total: Math.round(q * up)
+    };
+  } else if (source === 'service') {
+    const q = asNum(qty) || 1;
+    const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : 0;
+    itemData = {
+      source: 'service',
+      refId: req.body?.refId || null,
+      sku: req.body?.sku || '',
+      name: req.body?.name || 'Servicio',
       qty: q,
       unitPrice: up,
       total: Math.round(q * up)
@@ -179,7 +191,7 @@ export const addByQR = async (req, res) => {
 
   const sale = await Sale.findOne({ _id: saleId, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (sale.status !== 'open') return res.status(400).json({ error: 'Sale is closed' });
+  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not in draft' });
 
   const s = String(payload || '').trim();
 
@@ -266,7 +278,6 @@ export const summarySales = async (req, res) => {
   const agg = rows[0] || { count: 0, total: 0 };
   res.json({ count: agg.count, total: agg.total });
 };
-
 
 export const cancelSale = async (req, res) => {
   const { id } = req.params;
