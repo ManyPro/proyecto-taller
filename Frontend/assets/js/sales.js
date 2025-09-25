@@ -280,10 +280,10 @@ function renderQuoteMini(q){
   body.innerHTML='';
   (q?.items||[]).forEach(it=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${it.type||'—'}</td><td>${it.description||it.name||''}</td><td class="t-center">${it.qty||1}</td><td class="t-right">${fmt(it.unit||0)}</td><td class="t-right">${fmt((it.qty||1)*(it.unit||0))}</td><td class="t-center"><button class="add secondary">→</button></td>`;
+    tr.innerHTML=`<td>${it.type||'—'}</td><td>${it.description||it.name||''}</td><td class="t-center">${it.qty||1}</td><td class="t-right">${fmt(it.unitPrice||0)}</td><td class="t-right">${fmt((it.qty||1)*(it.unitPrice||0))}</td><td class="t-center"><button class="add secondary">→</button></td>`;
     tr.querySelector('button.add').onclick=async()=>{
       if(!current) current = await API.sales.start();
-      current = await API.sales.addItem(current._id, { source: (it.source||'service')==='product'?'inventory':'service', sku: it.sku||'', name: it.description||it.name||'Servicio', qty: it.qty||1, unitPrice: it.unit||0 });
+      current = await API.sales.addItem(current._id, { source: (it.source||'service')==='product'?'inventory':'service', sku: it.sku||'', name: it.description||it.name||'Servicio', qty: it.qty||1, unitPrice: it.unitPrice||0 });
       render(); renderWO();
     };
     body.appendChild(tr);
@@ -293,7 +293,7 @@ function renderQuoteMini(q){
     if(!q?.items?.length) return;
     if(!current) current = await API.sales.start();
     for(const it of q.items){
-      current = await API.sales.addItem(current._id, { source: (it.source||'service')==='product'?'inventory':'service', sku: it.sku||'', name: it.description||it.name||'Servicio', qty: it.qty||1, unitPrice: it.unit||0 });
+      current = await API.sales.addItem(current._id, { source: (it.source||'service')==='product'?'inventory':'service', sku: it.sku||'', name: it.description||it.name||'Servicio', qty: it.qty||1, unitPrice: it.unitPrice||0 });
     }
     render(); renderWO();
   };}
@@ -308,9 +308,12 @@ export function initSales(){
   loadTabs(); renderTabs();
 
   byId('sales-start')?.addEventListener('click', async()=>{
-    current = await API.sales.start();
-    if(!openTabs.includes(current._id)) openTabs.push(current._id);
-    saveTabs(); renderTabs(); render(); renderWO();
+    try{
+      const s = await API.sales.start();
+      current = s;
+      if(!openTabs.includes(current._id)) openTabs.push(current._id);
+      saveTabs(); renderTabs(); render(); renderWO();
+    }catch(e){ console.error('start sale error', e); alert(e?.message||'No se pudo crear la venta'); }
   });
 
   byId('sales-scan-qr')?.addEventListener('click', openQR);
