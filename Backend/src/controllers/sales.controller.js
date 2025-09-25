@@ -1,108 +1,159 @@
 import Sale from '../models/Sale.js';
 import Item from '../models/Item.js';
+import StockMove from '../models/StockMove.js';
 import PriceEntry from '../models/PriceEntry.js';
 import Counter from '../models/Counter.js';
-import StockMove from '../models/StockMove.js';
 
+/** Helpers **/
 const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
 
 function computeTotals(sale) {
   const subtotal = (sale.items || []).reduce((a, it) => a + asNum(it.total), 0);
   sale.subtotal = Math.round(subtotal);
-  sale.tax = 0; // Ajusta IVA si aplica
+  sale.tax = 0; // Ajusta IVA/IVA incluido si aplica
   sale.total = Math.round(sale.subtotal + sale.tax);
 }
 
 async function getNextSaleNumber(companyId) {
   const c = await Counter.findOneAndUpdate(
-    { companyId },
-    { $inc: { saleSeq: 1 } },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
+    { companyId, key: 'sale_number' },
+    { $inc: { seq: 1 } },
+    { upsert: true, new: true }
   );
-  return c.saleSeq;
+  return c.seq || 1;
 }
 
-// Crear venta vacía (status=open)
+/** START: crea venta draft persistente */
 export const startSale = async (req, res) => {
-  const sale = await Sale.create({ companyId: req.companyId, status: 'draft', items: [] });
+  const companyId = req.companyId;
+  const sale = await Sale.create({
+    companyId,
+    status: 'draft',
+    name: '', // se definirá luego por placa o id corto
+    items: []
+  });
   if (!sale.name) sale.name = `Venta · ${String(sale._id).slice(-6).toUpperCase()}`;
   await sale.save();
-  res.json(sale.toObject());
+  return res.json(sale.toObject());
 };
 
-// Obtener venta por id (filtrada por companyId)
+/** GET una venta */
 export const getSale = async (req, res) => {
   const sale = await Sale.findOne({ _id: req.params.id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  res.json(sale.toObject());
+  return res.json(sale.toObject());
 };
 
-// Agregar ítem (source='inventory' | 'price')
+/** PATCH metadatos: por ahora name (y notas si existiera) */
+export const patchSale = async (req, res) => {
+  const { id } = req.params;
+  const { name, notes } = req.body || {};
+  const set = {};
+  if (name != null) set.name = String(name);
+  if (notes != null) set.notes = String(notes);
+  const sale = await Sale.findOneAndUpdate(
+    { _id: id, companyId: req.companyId },
+    { $set: set },
+    { new: true }
+  );
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  return res.json(sale.toObject());
+};
+
+/** Listar ventas (soporta ?status=draft|closed|cancelled) */
+export const listSales = async (req, res) => {
+  const { status } = req.query || {};
+  const q = { companyId: req.companyId };
+  if (status) q.status = status;
+  const items = await Sale.find(q).sort({ updatedAt: -1 });
+  return res.json({ data: items });
+};
+
+/** setCustomerVehicle: guarda cliente/vehículo y renombra por placa */
+export const setCustomerVehicle = async (req, res) => {
+  const { id } = req.params;
+  const { customer, vehicle } = req.body || {};
+  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (customer) sale.customer = customer;
+  if (vehicle) {
+    sale.vehicle = vehicle;
+    const plate = (vehicle.plate || '').trim().toUpperCase();
+    if (plate) sale.name = `Venta · ${plate}`;
+    else if (!sale.name) sale.name = `Venta · ${String(sale._id).slice(-6).toUpperCase()}`;
+  }
+  await sale.save();
+  return res.json(sale.toObject());
+};
+
+/** Agregar ítem a la venta */
 export const addItem = async (req, res) => {
   const { id } = req.params;
-  const { source, refId, sku, qty = 1, unitPrice } = req.body || {};
-
+  const { source, refId, sku, qty } = req.body || {};
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale is closed' });
+  if (!source) return res.status(400).json({ error: 'source required' });
 
-  let itemData = null;
+  const q = asNum(qty) || 1;
 
   if (source === 'inventory') {
-    let it = null;
-    if (refId) it = await Item.findOne({ _id: refId, companyId: req.companyId });
-    if (!it && sku) it = await Item.findOne({ sku: String(sku).trim().toUpperCase(), companyId: req.companyId });
-    if (!it) return res.status(404).json({ error: 'Item not found' });
+    let itemDoc = null;
+    if (refId) itemDoc = await Item.findOne({ _id: refId, companyId: req.companyId });
+    else if (sku) itemDoc = await Item.findOne({ sku: String(sku).toUpperCase(), companyId: req.companyId });
+    if (!itemDoc) return res.status(404).json({ error: 'Item not found' });
 
-    const q = asNum(qty) || 1;
-    const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNum(it.salePrice);
-
-    itemData = {
+    const up = asNum(itemDoc.salePrice || itemDoc.price || 0);
+    sale.items.push({
       source: 'inventory',
-      refId: it._id,
-      sku: it.sku,
-      name: it.name || it.sku,
+      refId: itemDoc._id,
+      sku: itemDoc.sku,
+      name: itemDoc.name || itemDoc.sku,
       qty: q,
       unitPrice: up,
       total: Math.round(q * up)
-    };
+    });
   } else if (source === 'price') {
-    if (!refId) return res.status(400).json({ error: 'refId is required for price source' });
-    const pe = await PriceEntry.findOne({ _id: refId, companyId: String(req.companyId) });
-    if (!pe) return res.status(404).json({ error: 'PriceEntry not found' });
-
-    const q = asNum(qty) || 1;
-    const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNum(pe.total);
-
-    itemData = {
+    const pe = await PriceEntry.findOne({ _id: refId, companyId: req.companyId });
+    if (!pe) return res.status(404).json({ error: 'Price entry not found' });
+    const up = asNum(pe.price || pe.values?.PRICE || 0);
+    sale.items.push({
       source: 'price',
       refId: pe._id,
-      sku: `SRV-${String(pe._id).slice(-6)}`,
-      name: `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim(),
+      sku: pe.code || '',
+      name: pe.name || pe.description || pe.code || 'Precio',
       qty: q,
       unitPrice: up,
       total: Math.round(q * up)
-    };
+    });
+  } else if (source === 'service') {
+    // Si tienes un modelo Service, cámbialo; por ahora línea libre por refId/sku + name en body
+    const up = asNum(req.body.unitPrice || 0);
+    sale.items.push({
+      source: 'service',
+      refId: refId || null,
+      sku: sku || '',
+      name: req.body.name || 'Servicio',
+      qty: q,
+      unitPrice: up,
+      total: Math.round(q * up)
+    });
   } else {
-    return res.status(400).json({ error: 'unsupported source' });
+    return res.status(400).json({ error: 'invalid source' });
   }
 
-  sale.items.push(itemData);
   computeTotals(sale);
   await sale.save();
-  res.json(sale.toObject());
+  return res.json(sale.toObject());
 };
 
-// Actualizar ítem (qty, unitPrice)
+/** Actualizar ítem (qty / unitPrice) */
 export const updateItem = async (req, res) => {
-  const { id, itemId } = req.params;
+  const { id, lineId } = req.params;
   const { qty, unitPrice } = req.body || {};
-
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
-
-  const it = sale.items.id(itemId);
-  if (!it) return res.status(404).json({ error: 'Item not found' });
+  const it = sale.items.id(lineId);
+  if (!it) return res.status(404).json({ error: 'Line not found' });
 
   if (qty != null && Number.isFinite(Number(qty))) it.qty = asNum(qty);
   if (unitPrice != null && Number.isFinite(Number(unitPrice))) it.unitPrice = asNum(unitPrice);
@@ -110,172 +161,103 @@ export const updateItem = async (req, res) => {
 
   computeTotals(sale);
   await sale.save();
-  res.json(sale.toObject());
+  return res.json(sale.toObject());
 };
 
-// Eliminar ítem
+/** Eliminar ítem */
 export const removeItem = async (req, res) => {
-  const { id, itemId } = req.params;
+  const { id, lineId } = req.params;
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
-
-  sale.items.id(itemId)?.deleteOne();
+  const it = sale.items.id(lineId);
+  if (!it) return res.status(404).json({ error: 'Line not found' });
+  it.deleteOne();
   computeTotals(sale);
   await sale.save();
-  res.json(sale.toObject());
+  return res.json(sale.toObject());
 };
 
-// Cliente / Vehículo
-export const setCustomerVehicle = async (req, res) => {
+/** addByQR (compatibilidad) – resuelve a inventory por refId/sku */
+export const addByQR = async (req, res) => {
   const { id } = req.params;
-  const { customer = {}, vehicle = {}, notes } = req.body || {};
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
-  if (!sale) return res.status(404).json({ error: 'Sale not found' });
-
-  sale.customer = {
-    type: customer.type || sale.customer?.type || '',
-    idNumber: (customer.idNumber || '').trim(),
-    name: (customer.name || '').trim(),
-    phone: (customer.phone || '').trim(),
-    email: (customer.email || '').trim(),
-    address: (customer.address || '').trim()
-  };
-  sale.vehicle = {
-    plate: (vehicle.plate || '').toUpperCase(),
-    brand: (vehicle.brand || '').toUpperCase(),
-    line: (vehicle.line || '').toUpperCase(),
-    engine: (vehicle.engine || '').toUpperCase(),
-    year: vehicle.year ?? null,
-    mileage: vehicle.mileage ?? null
-  };
-  if (typeof notes === 'string') sale.notes = notes;
-
-  await sale.save();
-  res.json(sale.toObject());
+  const raw = String(req.body?.code || '').trim();
+  if (!raw) return res.status(400).json({ error: 'code required' });
+  // extrae último ObjectId o usa como SKU
+  const ids = raw.match(/[a-f0-9]{24}/ig);
+  const refId = ids?.length ? ids[ids.length - 1] : null;
+  const sku = !refId && /^[A-Z0-9\-_]+$/i.test(raw) ? raw.toUpperCase() : null;
+  req.body = { source: 'inventory', refId, sku, qty: 1 };
+  return addItem(req, res);
 };
 
-// Cerrar venta → asigna número secuencial por empresa
-
+/** Cerrar venta: fija totales, descuenta stock y numera */
 export const closeSale = async (req, res) => {
   const { id } = req.params;
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (!sale.items?.length) return res.status(400).json({ error: 'Sale has no items' });
   if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not in draft' });
 
-  // Totales
-  let subtotal = 0;
-  for (const it of sale.items) subtotal += (Number(it.unitPrice||0) * Number(it.qty||1));
-  sale.subtotal = Math.round(subtotal); sale.tax = 0; sale.total = sale.subtotal;
+  computeTotals(sale);
 
   const session = await Sale.startSession();
   session.startTransaction();
   try {
-    // Descontar stock de líneas de inventario
-    for (const line of (sale.items||[])) {
+    for (const line of sale.items) {
       if (line.source !== 'inventory' || !line.refId) continue;
-      const q = Number(line.qty||1);
-      const upd = await Item.updateOne({ _id: line.refId, companyId: req.companyId, stock: { $gte: q } }, { $inc: { stock: -q } }).session(session);
-      if (upd.modifiedCount !== 1) {
+      const qty = asNum(line.qty || 1);
+      const upd = await Item.updateOne(
+        { _id: line.refId, companyId: req.companyId, stock: { $gte: qty } },
+        { $inc: { stock: -qty } }
+      ).session(session);
+      if (upd.matchedCount === 0 || upd.modifiedCount === 0) {
         throw new Error(`Stock insuficiente para ${line.sku || line.name}`);
       }
       await StockMove.create([{
         companyId: req.companyId,
         itemId: line.refId,
-        qty: q,
-        reason: 'OUT',
-        meta: { saleId: sale._id }
+        qty: -qty,
+        type: 'sale',
+        direction: 'out',
+        saleId: sale._id,
+        ts: new Date()
       }], { session });
     }
 
     sale.status = 'closed';
     sale.closedAt = new Date();
-    if (!Number.isFinite(Number(sale.number))) {
-      sale.number = await getNextSaleNumber(req.companyId);
-    }
+    if (!sale.number) sale.number = await getNextSaleNumber(req.companyId);
     await sale.save({ session });
+
     await session.commitTransaction();
-    res.json({ ok: true, sale: sale.toObject() });
+    session.endSession();
+    return res.json(sale.toObject());
   } catch (err) {
     await session.abortTransaction();
-    res.status(400).json({ error: err.message || 'No se pudo cerrar la venta' });
-  } finally {
     session.endSession();
+    return res.status(400).json({ error: err.message || 'No se pudo cerrar la venta' });
   }
 };
-};
 
-// Agregar por QR (acepta IT:<itemId> | IT:<companyId>:<itemId> | SKU)
-export const addByQR = async (req, res) => {
-  const { saleId, payload } = req.body || {};
-  if (!saleId || !payload) return res.status(400).json({ error: 'saleId and payload are required' });
-
-  const sale = await Sale.findOne({ _id: saleId, companyId: req.companyId });
+/** Cancelar venta (endpoint dedicado) */
+export const cancelSale = async (req, res) => {
+  const { id } = req.params;
+  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale is closed' });
-
-  const s = String(payload || '').trim();
-
-  if (s.toUpperCase().startsWith('IT:')) {
-    const parts = s.split(':').map(p => p.trim()).filter(Boolean);
-    let itemId = null;
-    if (parts.length === 2) itemId = parts[1];
-    if (parts.length >= 3) itemId = parts[2];
-
-    if (itemId) {
-      const it = await Item.findOne({ _id: itemId, companyId: req.companyId });
-      if (!it) return res.status(404).json({ error: 'Item not found for QR' });
-
-      const q = 1;
-      const up = asNum(it.salePrice);
-      sale.items.push({
-        source: 'inventory',
-        refId: it._id,
-        sku: it.sku,
-        name: it.name || it.sku,
-        qty: q,
-        unitPrice: up,
-        total: Math.round(q * up)
-      });
-      computeTotals(sale);
-      await sale.save();
-      return res.json(sale.toObject());
-    }
-  }
-
-  // Fallback: tratar como SKU
-  const it = await Item.findOne({ sku: s.toUpperCase(), companyId: req.companyId });
-  if (!it) return res.status(404).json({ error: 'SKU not found' });
-
-  const q = 1;
-  const up = asNum(it.salePrice);
-  sale.items.push({
-    source: 'inventory',
-    refId: it._id,
-    sku: it.sku,
-    name: it.name || it.sku,
-    qty: q,
-    unitPrice: up,
-    total: Math.round(q * up)
-  });
-  computeTotals(sale);
+  if (sale.status === 'closed') return res.status(400).json({ error: 'Sale already closed' });
+  if (sale.status === 'cancelled') return res.json(sale.toObject());
+  sale.status = 'cancelled';
+  sale.cancelledAt = new Date();
   await sale.save();
-  res.json(sale.toObject());
+  return res.json(sale.toObject());
 };
 
-// Listado (paginado + filtros básicos)
-export const listSales = async (req, res) => {
-  const { status, from, to, page = 1, limit = 50 } = req.query || {};
+/** Paginado opcional (por si lo usas en dashboard) */
+export const listSalesPaged = async (req, res) => {
+  const { page = 1, limit = 50, status } = req.query || {};
+  const pg = Math.max(1, Number(page));
+  const lim = Math.min(200, Math.max(1, Number(limit)));
   const q = { companyId: req.companyId };
-  if (status) q.status = String(status);
-  if (from || to) {
-    q.createdAt = {};
-    if (from) q.createdAt.$gte = new Date(from);
-    if (to) q.createdAt.$lte = new Date(`${to}T23:59:59.999Z`);
-  }
-  const pg = Math.max(1, Number(page || 1));
-  const lim = Math.max(1, Math.min(500, Number(limit || 50)));
-
+  if (status) q.status = status;
   const [items, total] = await Promise.all([
     Sale.find(q).sort({ createdAt: -1 }).skip((pg - 1) * lim).limit(lim),
     Sale.countDocuments(q)
@@ -283,7 +265,7 @@ export const listSales = async (req, res) => {
   res.json({ items, page: pg, limit: lim, total });
 };
 
-// Resumen de Caja (solo cerradas)
+/** Resumen de ventas cerradas (conteo/total) */
 export const summarySales = async (req, res) => {
   const { from, to } = req.query || {};
   const q = { companyId: req.companyId, status: 'closed' };
@@ -298,27 +280,4 @@ export const summarySales = async (req, res) => {
   ]);
   const agg = rows[0] || { count: 0, total: 0 };
   res.json({ count: agg.count, total: agg.total });
-};
-
-
-export const patchSale = async (req, res) => {
-  const { id } = req.params;
-  const { name, notes } = req.body || {};
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
-  if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (typeof name === 'string') sale.name = name;
-  if (typeof notes === 'string') sale.notes = notes;
-  await sale.save();
-  res.json(sale.toObject());
-};
-
-export const cancelSale = async (req, res) => {
-  const { id } = req.params;
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
-  if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (sale.status === 'closed') return res.status(400).json({ error: 'Sale already closed' });
-  sale.status = 'cancelled';
-  sale.cancelledAt = new Date();
-  await sale.save();
-  res.json(sale.toObject());
 };
