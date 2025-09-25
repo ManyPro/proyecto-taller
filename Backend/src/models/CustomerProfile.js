@@ -11,21 +11,15 @@ const CustomerProfileSchema = new mongoose.Schema({
     address:  { type: String, default: '' }
   },
   vehicle: {
-    // NOTA: mantenemos 'required: true' porque el controller solo upsertea si hay placa;
-    // el índice abajo es parcial para permitir docs sin placa sin colisión.
     plate:  { type: String, index: true, required: true }, // ABC123
     brand:  { type: String, default: '' },
     line:   { type: String, default: '' },
     engine: { type: String, default: '' },
     year:   { type: Number, default: null }
-    // mileage NO se guarda aquí
+    // NO guardamos mileage/kilometraje aquí a propósito
   }
 }, { timestamps: true });
 
-// Unicidad por empresa + placa, pero SOLO cuando hay placa string no-vacía.
-CustomerProfileSchema.index(
-  { companyId: 1, 'vehicle.plate': 1 },
-  { unique: true, partialFilterExpression: { 'vehicle.plate': { $type: 'string', $ne: '' } } }
-);
+CustomerProfileSchema.index({ companyId: 1, 'vehicle.plate': 1 }, { unique: true });
 
 export default mongoose.model('CustomerProfile', CustomerProfileSchema);
