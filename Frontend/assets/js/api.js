@@ -182,7 +182,8 @@ const API = {
 
     list: (params = {}) => http.get(`/api/v1/sales${toQuery(params)}`),
     summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`),
-    cancel: (id) => http.post(`/api/v1/sales/${id}/cancel`, {})
+    cancel: (id) => http.post(`/api/v1/sales/${id}/cancel`, {}),
+    profileByPlate: (plate) => http.get(`/api/v1/sales/profile/by-plate/${encodeURIComponent(String(plate||'').toUpperCase())}`)
   }
 };
 

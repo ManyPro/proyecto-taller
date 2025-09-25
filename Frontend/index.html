@@ -436,6 +436,7 @@
                   <button id="sales-scan-qr" class="secondary">Escanear QR</button>
                   <button id="sales-add-general" class="secondary">Agregar</button>
                   <button id="sales-add-manual" class="secondary">Agregar manual</button>
+                  <button id="sales-history" class="secondary">Historial</button>
                   <button id="sales-print" class="secondary">Imprimir factura</button>
                   <button id="sales-close" class="danger">Cerrar</button>
                 </div>
@@ -515,6 +516,33 @@
         </div><!-- /ventas-grid -->
       </section>
       <!-- ========== /VENTAS ========== -->
+
+      
+      <!-- Historial ventas -->
+      <template id="tpl-sales-history">
+        <div class="card">
+          <h3>Historial de ventas</h3>
+          <div class="row" style="gap:8px; align-items:end;">
+            <div class="col">
+              <label>Desde</label><input type="date" id="sh-from" />
+            </div>
+            <div class="col">
+              <label>Hasta</label><input type="date" id="sh-to" />
+            </div>
+            <div class="col">
+              <label>Placa</label><input id="sh-plate" placeholder="ABC123" />
+            </div>
+            <button id="sh-search" class="secondary">Buscar</button>
+          </div>
+          <div class="table-wrap" style="margin-top:8px;">
+            <table class="table">
+              <thead><tr><th>#</th><th>Placa</th><th>Fecha</th><th class="t-right">Total</th></tr></thead>
+              <tbody id="sh-body"></tbody>
+              <tfoot><tr><td colspan="3" class="t-right"><b>Total</b></td><td class="t-right" id="sh-total">$0</td></tr></tfoot>
+            </table>
+          </div>
+        </div>
+      </template>
 
       <!-- ======== TEMPLATES (nuevos, para evitar HTML en JS) ======== -->
       <template id="tpl-lightbox-img">

@@ -143,6 +143,30 @@ function openQR(){
   if(!current) return alert('Crea primero una venta');
   const tpl = document.getElementById('tpl-qr-scanner'); const node = tpl.content.firstElementChild.cloneNode(true);
   openModal(node);
+  // Autocompletar por placa (blur)
+  const plateInput = node.querySelector('#v-plate');
+  if(plateInput){
+    plateInput.addEventListener('blur', async ()=>{
+      const p = String(plateInput.value||'').trim(); if(!p) return;
+      try{
+        const prof = await API.sales.profileByPlate(p);
+        if(prof){
+          const c=prof.customer||{}, v=prof.vehicle||{};
+          node.querySelector('#c-name').value = c.name||'';
+          node.querySelector('#c-id').value   = c.idNumber||'';
+          node.querySelector('#c-phone').value= c.phone||'';
+          node.querySelector('#c-email').value= c.email||'';
+          node.querySelector('#c-address').value= c.address||'';
+          node.querySelector('#v-plate').value = v.plate||p.toUpperCase();
+          node.querySelector('#v-brand').value = v.brand||'';
+          node.querySelector('#v-line').value  = v.line||'';
+          node.querySelector('#v-engine').value= v.engine||'';
+          node.querySelector('#v-year').value  = v.year ?? '';
+          // v.mileage NO se autocompleta
+        }
+      }catch(e){ /*silencio*/ }
+    }, { once: true });
+  }
   const video = node.querySelector('#qr-video'); const canvas = node.querySelector('#qr-canvas'); const ctx = canvas.getContext('2d',{willReadFrequently:true});
   const sel = node.querySelector('#qr-cam'); const msg = node.querySelector('#qr-msg'); const list = node.querySelector('#qr-history'); const ac = node.querySelector('#qr-autoclose');
   let stream=null, running=false, detector=null, lastCode=null, lastTs=0;
@@ -178,6 +202,30 @@ function openAddManual(){
   if(!current) return alert('Crea primero una venta');
   const tpl = document.getElementById('tpl-add-manual'); const node = tpl.content.firstElementChild.cloneNode(true);
   openModal(node);
+  // Autocompletar por placa (blur)
+  const plateInput = node.querySelector('#v-plate');
+  if(plateInput){
+    plateInput.addEventListener('blur', async ()=>{
+      const p = String(plateInput.value||'').trim(); if(!p) return;
+      try{
+        const prof = await API.sales.profileByPlate(p);
+        if(prof){
+          const c=prof.customer||{}, v=prof.vehicle||{};
+          node.querySelector('#c-name').value = c.name||'';
+          node.querySelector('#c-id').value   = c.idNumber||'';
+          node.querySelector('#c-phone').value= c.phone||'';
+          node.querySelector('#c-email').value= c.email||'';
+          node.querySelector('#c-address').value= c.address||'';
+          node.querySelector('#v-plate').value = v.plate||p.toUpperCase();
+          node.querySelector('#v-brand').value = v.brand||'';
+          node.querySelector('#v-line').value  = v.line||'';
+          node.querySelector('#v-engine').value= v.engine||'';
+          node.querySelector('#v-year').value  = v.year ?? '';
+          // v.mileage NO se autocompleta
+        }
+      }catch(e){ /*silencio*/ }
+    }, { once: true });
+  }
   node.querySelector('#am-cancel').onclick=()=>closeModal();
   node.querySelector('#am-add').onclick=async()=>{
     const name = node.querySelector('#am-name').value.trim();
@@ -200,6 +248,30 @@ function openAddPicker(){
       <button id="go-pr"  class="secondary">Desde lista de precios</button>
     </div>`;
   openModal(node);
+  // Autocompletar por placa (blur)
+  const plateInput = node.querySelector('#v-plate');
+  if(plateInput){
+    plateInput.addEventListener('blur', async ()=>{
+      const p = String(plateInput.value||'').trim(); if(!p) return;
+      try{
+        const prof = await API.sales.profileByPlate(p);
+        if(prof){
+          const c=prof.customer||{}, v=prof.vehicle||{};
+          node.querySelector('#c-name').value = c.name||'';
+          node.querySelector('#c-id').value   = c.idNumber||'';
+          node.querySelector('#c-phone').value= c.phone||'';
+          node.querySelector('#c-email').value= c.email||'';
+          node.querySelector('#c-address').value= c.address||'';
+          node.querySelector('#v-plate').value = v.plate||p.toUpperCase();
+          node.querySelector('#v-brand').value = v.brand||'';
+          node.querySelector('#v-line').value  = v.line||'';
+          node.querySelector('#v-engine').value= v.engine||'';
+          node.querySelector('#v-year').value  = v.year ?? '';
+          // v.mileage NO se autocompleta
+        }
+      }catch(e){ /*silencio*/ }
+    }, { once: true });
+  }
   node.querySelector('#go-inv').onclick=()=>{ closeModal(); openPickerInventory(); };
   node.querySelector('#go-pr').onclick =()=>{ closeModal(); openPickerPrices(); };
 }
@@ -208,6 +280,30 @@ function openAddPicker(){
 async function openPickerInventory(){
   const tpl = document.getElementById('tpl-inv-picker'); const node = tpl.content.firstElementChild.cloneNode(true);
   openModal(node);
+  // Autocompletar por placa (blur)
+  const plateInput = node.querySelector('#v-plate');
+  if(plateInput){
+    plateInput.addEventListener('blur', async ()=>{
+      const p = String(plateInput.value||'').trim(); if(!p) return;
+      try{
+        const prof = await API.sales.profileByPlate(p);
+        if(prof){
+          const c=prof.customer||{}, v=prof.vehicle||{};
+          node.querySelector('#c-name').value = c.name||'';
+          node.querySelector('#c-id').value   = c.idNumber||'';
+          node.querySelector('#c-phone').value= c.phone||'';
+          node.querySelector('#c-email').value= c.email||'';
+          node.querySelector('#c-address').value= c.address||'';
+          node.querySelector('#v-plate').value = v.plate||p.toUpperCase();
+          node.querySelector('#v-brand').value = v.brand||'';
+          node.querySelector('#v-line').value  = v.line||'';
+          node.querySelector('#v-engine').value= v.engine||'';
+          node.querySelector('#v-year').value  = v.year ?? '';
+          // v.mileage NO se autocompleta
+        }
+      }catch(e){ /*silencio*/ }
+    }, { once: true });
+  }
   const body=node.querySelector('#p-inv-body'), cnt=node.querySelector('#p-inv-count');
   const qName=node.querySelector('#p-inv-name'), qSku=node.querySelector('#p-inv-sku');
   let page=1, pageSize=20;
@@ -238,6 +334,30 @@ async function openPickerInventory(){
 async function openPickerPrices(){
   const tpl = document.getElementById('tpl-price-picker'); const node = tpl.content.firstElementChild.cloneNode(true);
   openModal(node);
+  // Autocompletar por placa (blur)
+  const plateInput = node.querySelector('#v-plate');
+  if(plateInput){
+    plateInput.addEventListener('blur', async ()=>{
+      const p = String(plateInput.value||'').trim(); if(!p) return;
+      try{
+        const prof = await API.sales.profileByPlate(p);
+        if(prof){
+          const c=prof.customer||{}, v=prof.vehicle||{};
+          node.querySelector('#c-name').value = c.name||'';
+          node.querySelector('#c-id').value   = c.idNumber||'';
+          node.querySelector('#c-phone').value= c.phone||'';
+          node.querySelector('#c-email').value= c.email||'';
+          node.querySelector('#c-address').value= c.address||'';
+          node.querySelector('#v-plate').value = v.plate||p.toUpperCase();
+          node.querySelector('#v-brand').value = v.brand||'';
+          node.querySelector('#v-line').value  = v.line||'';
+          node.querySelector('#v-engine').value= v.engine||'';
+          node.querySelector('#v-year').value  = v.year ?? '';
+          // v.mileage NO se autocompleta
+        }
+      }catch(e){ /*silencio*/ }
+    }, { once: true });
+  }
   const head=node.querySelector('#p-pr-head'), body=node.querySelector('#p-pr-body'), cnt=node.querySelector('#p-pr-count');
   const svc=node.querySelector('#p-pr-svc'); const b=node.querySelector('#p-pr-brand'), l=node.querySelector('#p-pr-line'), e=node.querySelector('#p-pr-engine'), y=node.querySelector('#p-pr-year');
   head.innerHTML = '<th>Marca</th><th>Línea</th><th>Motor</th><th>Año</th><th class="t-right">Precio</th><th></th>';
@@ -277,6 +397,30 @@ async function loadQuote(){
     <div class="row" style="gap:6px;"><input id="qh-text" placeholder="Buscar por cliente/placa..." /><button id="qh-apply" class="secondary">Buscar</button></div>
     <div id="qh-list" class="list" style="max-height:300px; overflow:auto; margin-top:8px;"></div>`;
   openModal(node);
+  // Autocompletar por placa (blur)
+  const plateInput = node.querySelector('#v-plate');
+  if(plateInput){
+    plateInput.addEventListener('blur', async ()=>{
+      const p = String(plateInput.value||'').trim(); if(!p) return;
+      try{
+        const prof = await API.sales.profileByPlate(p);
+        if(prof){
+          const c=prof.customer||{}, v=prof.vehicle||{};
+          node.querySelector('#c-name').value = c.name||'';
+          node.querySelector('#c-id').value   = c.idNumber||'';
+          node.querySelector('#c-phone').value= c.phone||'';
+          node.querySelector('#c-email').value= c.email||'';
+          node.querySelector('#c-address').value= c.address||'';
+          node.querySelector('#v-plate').value = v.plate||p.toUpperCase();
+          node.querySelector('#v-brand').value = v.brand||'';
+          node.querySelector('#v-line').value  = v.line||'';
+          node.querySelector('#v-engine').value= v.engine||'';
+          node.querySelector('#v-year').value  = v.year ?? '';
+          // v.mileage NO se autocompleta
+        }
+      }catch(e){ /*silencio*/ }
+    }, { once: true });
+  }
   const list=node.querySelector('#qh-list'); const q=node.querySelector('#qh-text');
   async function fetchList(){
     const res = await API.quotesList(q.value?('?q='+encodeURIComponent(q.value)):''); // usa backend
@@ -351,6 +495,30 @@ function openEditCV(){
   node.querySelector('#v-year').value  = v.year ?? '';
   node.querySelector('#v-mile').value  = v.mileage ?? '';
   openModal(node);
+  // Autocompletar por placa (blur)
+  const plateInput = node.querySelector('#v-plate');
+  if(plateInput){
+    plateInput.addEventListener('blur', async ()=>{
+      const p = String(plateInput.value||'').trim(); if(!p) return;
+      try{
+        const prof = await API.sales.profileByPlate(p);
+        if(prof){
+          const c=prof.customer||{}, v=prof.vehicle||{};
+          node.querySelector('#c-name').value = c.name||'';
+          node.querySelector('#c-id').value   = c.idNumber||'';
+          node.querySelector('#c-phone').value= c.phone||'';
+          node.querySelector('#c-email').value= c.email||'';
+          node.querySelector('#c-address').value= c.address||'';
+          node.querySelector('#v-plate').value = v.plate||p.toUpperCase();
+          node.querySelector('#v-brand').value = v.brand||'';
+          node.querySelector('#v-line').value  = v.line||'';
+          node.querySelector('#v-engine').value= v.engine||'';
+          node.querySelector('#v-year').value  = v.year ?? '';
+          // v.mileage NO se autocompleta
+        }
+      }catch(e){ /*silencio*/ }
+    }, { once: true });
+  }
   node.querySelector('#sales-save-cv').onclick = async ()=>{
     const payload = {
       customer: {
@@ -425,6 +593,8 @@ export function initSales(){
     try{ const fresh = await API.sales.get(current._id); buildWorkOrderPdf(fresh); }catch(e){ alert(e?.message||'No se pudo imprimir OT'); }
   });
 
+  byId('sales-history')?.addEventListener('click', openSalesHistory);
+
   byId('sales-print')?.addEventListener('click', async ()=>{
     if(!current) return;
     try{ const fresh = await API.sales.get(current._id); await buildInvoicePdf(fresh); }catch(e){ alert(e?.message||'No se pudo generar la factura'); }
@@ -436,3 +606,57 @@ export function initSales(){
 
 // Auto-init
 try{ initSales(); }catch(e){ console.warn('initSales error', e); }
+
+// ===== Historial de ventas =====
+function openSalesHistory(){
+  const tpl = document.getElementById('tpl-sales-history'); if(!tpl) return alert('Template historial no encontrado');
+  const node = tpl.content.firstElementChild.cloneNode(true);
+  openModal(node);
+  // Autocompletar por placa (blur)
+  const plateInput = node.querySelector('#v-plate');
+  if(plateInput){
+    plateInput.addEventListener('blur', async ()=>{
+      const p = String(plateInput.value||'').trim(); if(!p) return;
+      try{
+        const prof = await API.sales.profileByPlate(p);
+        if(prof){
+          const c=prof.customer||{}, v=prof.vehicle||{};
+          node.querySelector('#c-name').value = c.name||'';
+          node.querySelector('#c-id').value   = c.idNumber||'';
+          node.querySelector('#c-phone').value= c.phone||'';
+          node.querySelector('#c-email').value= c.email||'';
+          node.querySelector('#c-address').value= c.address||'';
+          node.querySelector('#v-plate').value = v.plate||p.toUpperCase();
+          node.querySelector('#v-brand').value = v.brand||'';
+          node.querySelector('#v-line').value  = v.line||'';
+          node.querySelector('#v-engine').value= v.engine||'';
+          node.querySelector('#v-year').value  = v.year ?? '';
+          // v.mileage NO se autocompleta
+        }
+      }catch(e){ /*silencio*/ }
+    }, { once: true });
+  }
+  const from = node.querySelector('#sh-from');
+  const to   = node.querySelector('#sh-to');
+  const plate= node.querySelector('#sh-plate');
+  const body = node.querySelector('#sh-body');
+  const total= node.querySelector('#sh-total');
+  async function load(){
+    const params = { status:'closed' };
+    if(from.value) params.from = from.value;
+    if(to.value)   params.to   = to.value;
+    if(plate.value) params.plate = plate.value.trim();
+    const res = await API.sales.list(params);
+    body.innerHTML='';
+    let acc=0;
+    (res?.items||[]).forEach(s => {
+      const tr = document.createElement('tr');
+      const date = new Date(s.createdAt); const d = date.toLocaleDateString();
+      tr.innerHTML = `<td>${String(s.number||'').toString().padStart(5,'0')}</td><td>${s?.vehicle?.plate||''}</td><td>${d}</td><td class="t-right">${money(s.total||0)}</td>`;
+      body.appendChild(tr); acc += Number(s.total||0);
+    });
+    total.textContent = money(acc);
+  }
+  node.querySelector('#sh-search').onclick=load;
+  load();
+}
