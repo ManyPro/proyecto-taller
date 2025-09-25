@@ -278,3 +278,54 @@ export function initSales(){
 
   renderSaleTabs();
 }
+
+
+// ===== Historial de ventas =====
+async function openHistory(){
+  const modal=document.getElementById('modal'), body=document.getElementById('modalBody'), btnClose=document.getElementById('modalClose');
+  body.replaceChildren();
+  const card=document.createElement('div'); card.className='card';
+  card.innerHTML=`
+    <h3>Historial de ventas</h3>
+    <div class="row" style="gap:6px;">
+      <input id="h-plate" placeholder="Placa">
+      <input id="h-from" type="date">
+      <input id="h-to" type="date">
+      <button id="h-search" class="secondary">Buscar</button>
+    </div>
+    <div class="table-wrap" style="margin-top:8px;">
+      <table class="table">
+        <thead><tr><th>Fecha</th><th>Placa</th><th>Cliente</th><th class="t-right">Total</th><th>Estado</th><th></th></tr></thead>
+        <tbody id="h-body"></tbody>
+      </table>
+    </div>`;
+  body.appendChild(card);
+  const cleanup=openModal(); btnClose.onclick=()=>{ cleanup?.(); closeModal(); };
+  const tbody=body.querySelector('#h-body');
+  async function load(){
+    const params={};
+    const p=body.querySelector('#h-plate').value.trim();
+    const f=body.querySelector('#h-from').value;
+    const t=body.querySelector('#h-to').value;
+    if(p) params.plate=p;
+    if(f) params.from=f;
+    if(t) params.to=t;
+    try{
+      const res = await API.sales.list(params);
+      const items = res?.items || (Array.isArray(res)?res:[]);
+      tbody.replaceChildren();
+      for(const s of items){
+        const tr=document.createElement('tr');
+        const d=s.createdAt?new Date(s.createdAt):null;
+        const ds=d?d.toLocaleString():'';
+        tr.innerHTML = `<td>${ds}</td><td>${s?.vehicle?.plate||''}</td><td>${s?.customer?.name||''}</td><td class="t-right">${money(s.total||0)}</td><td>${s.status||''}</td><td class="t-center"><button class="secondary">Ver</button></td>`;
+        tr.querySelector('button').onclick=async()=>{ closeModal(); await switchTo(s._id); };
+        tbody.appendChild(tr);
+      }
+    }catch(e){
+      tbody.innerHTML = `<tr><td colspan="6">Error: ${e?.message||'No se pudo cargar'}</td></tr>`;
+    }
+  }
+  body.querySelector('#h-search').onclick=load;
+  load();
+}

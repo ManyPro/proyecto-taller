@@ -183,6 +183,13 @@ const API = {
     list: (params = {}) => http.get(`/api/v1/sales${toQuery(params)}`),
     summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`)
   }
+
+  ,
+
+  // --- Clientes (ficha por placa) ---
+  customers: {
+    getByPlate: (plate) => http.get(`/api/v1/customers/plate/${encodeURIComponent(String(plate||'').toUpperCase())}`)
+  }
 };
 
 // Exports

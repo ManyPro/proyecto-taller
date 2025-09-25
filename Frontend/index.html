@@ -824,27 +824,22 @@
 </template>
 
 
-<!-- Fallback de login por si algún otro script no lo enlaza -->
 <script type="module">
-import API from './assets/js/api.js';
-function qs(id){ return document.getElementById(id); }
-if (!window.__LOGIN_FALLBACK_BOUND__) {
-  const btn = qs('loginBtn');
-  if (btn) {
-    window.__LOGIN_FALLBACK_BOUND__ = true;
-    btn.addEventListener('click', async () => {
-      const email = qs('email')?.value?.trim();
-      const password = qs('password')?.value || '';
-      if (!email || !password) { alert('Ingresa correo y contraseña'); return; }
-      try {
-        await API.companyLogin({ email, password });
-        const app = qs('appSection'); const log = qs('loginSection');
-        if (app && log) { log.classList.add('hidden'); app.classList.remove('hidden'); }
-        // Inicializa ventas si aún no corrió
-        try { (await import('./assets/js/sales.js')).initSales?.(); } catch {}
-      } catch (e) {
-        alert(e?.message || 'No se pudo iniciar sesión');
-      }
+import API from './assets/js/api.js?v=autofix2';
+function byId(id){return document.getElementById(id);}
+if(!window.__LOGIN_FALLBACK_BOUND__){
+  const btn=byId('loginBtn');
+  if(btn){
+    window.__LOGIN_FALLBACK_BOUND__=true;
+    btn.addEventListener('click', async()=>{
+      const email=byId('email')?.value?.trim(), password=byId('password')?.value||'';
+      if(!email||!password){ alert('Ingresa correo y contraseña'); return; }
+      try{
+        await API.companyLogin({email,password});
+        const app=byId('appSection'), log=byId('loginSection');
+        if(app&&log){ log.classList.add('hidden'); app.classList.remove('hidden'); }
+        try{ (await import('./assets/js/sales.js?v=autofix2')).initSales?.(); }catch(e){}
+      }catch(e){ alert(e?.message||'No se pudo iniciar sesión'); }
     });
   }
 }
