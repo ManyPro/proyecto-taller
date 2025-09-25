@@ -6,13 +6,12 @@ import Counter from '../models/Counter.js';
 import StockMove from '../models/StockMove.js';
 import CustomerProfile from '../models/CustomerProfile.js';
 
-// Helpers
 const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
 
 function computeTotals(sale) {
   const subtotal = (sale.items || []).reduce((a, it) => a + asNum(it.total), 0);
   sale.subtotal = Math.round(subtotal);
-  sale.tax = 0; // ajustar si aplicas IVA
+  sale.tax = 0;
   sale.total = Math.round(sale.subtotal + sale.tax);
 }
 
@@ -25,10 +24,13 @@ async function getNextSaleNumber(companyId) {
   return c.saleSeq;
 }
 
-// ===== CRUD base =====
+const push = (req, event, data) => {
+  try { const fx = req.app.get('sseSend'); if (fx) fx(req.companyId, event, data); } catch {}
+};
+
 export const startSale = async (req, res) => {
-  // Usa 'draft' para respetar el enum del modelo
   const sale = await Sale.create({ companyId: req.companyId, status: 'draft', items: [] });
+  push(req, 'sale:created', { id: sale._id, at: Date.now() });
   res.json(sale.toObject());
 };
 
@@ -47,8 +49,6 @@ export const addItem = async (req, res) => {
   if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
 
   let itemData = null;
-
-  // El schema admite 'inventory', 'price', 'service'. Unificamos 'service' como 'price' para coherencia.
   const src = (source === 'service') ? 'price' : source;
 
   if (src === 'inventory') {
@@ -85,7 +85,6 @@ export const addItem = async (req, res) => {
         total: Math.round(q * up)
       };
     } else {
-      // Línea manual de servicio
       const q = asNum(qty) || 1;
       const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : 0;
       itemData = {
@@ -99,7 +98,6 @@ export const addItem = async (req, res) => {
       };
     }
   } else if (src === 'service') {
-    // Si decides mantener la fuente "service" explícita
     const q = asNum(qty) || 1;
     const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : 0;
     itemData = {
@@ -118,7 +116,7 @@ export const addItem = async (req, res) => {
   sale.items.push(itemData);
   computeTotals(sale);
   await sale.save();
-  // Upsert perfil (sin kilometraje)
+
   if (sale.vehicle?.plate) {
     const plate = String(sale.vehicle.plate || '').toUpperCase();
     await CustomerProfile.findOneAndUpdate(
@@ -143,6 +141,7 @@ export const addItem = async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }
+  push(req, 'sale:updated', { id: sale._id, at: Date.now() });
   res.json(sale.toObject());
 };
 
@@ -162,7 +161,7 @@ export const updateItem = async (req, res) => {
 
   computeTotals(sale);
   await sale.save();
-  // Upsert perfil (sin kilometraje)
+
   if (sale.vehicle?.plate) {
     const plate = String(sale.vehicle.plate || '').toUpperCase();
     await CustomerProfile.findOneAndUpdate(
@@ -187,6 +186,7 @@ export const updateItem = async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }
+  push(req, 'sale:updated', { id: sale._id, at: Date.now() });
   res.json(sale.toObject());
 };
 
@@ -199,7 +199,7 @@ export const removeItem = async (req, res) => {
   sale.items.id(itemId)?.deleteOne();
   computeTotals(sale);
   await sale.save();
-  // Upsert perfil (sin kilometraje)
+
   if (sale.vehicle?.plate) {
     const plate = String(sale.vehicle.plate || '').toUpperCase();
     await CustomerProfile.findOneAndUpdate(
@@ -224,6 +224,7 @@ export const removeItem = async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }
+  push(req, 'sale:updated', { id: sale._id, at: Date.now() });
   res.json(sale.toObject());
 };
 
@@ -253,7 +254,6 @@ export const setCustomerVehicle = async (req, res) => {
   if (typeof notes === 'string') sale.notes = notes;
 
   await sale.save();
-  // Upsert perfil (sin kilometraje)
   if (sale.vehicle?.plate) {
     const plate = String(sale.vehicle.plate || '').toUpperCase();
     await CustomerProfile.findOneAndUpdate(
@@ -278,10 +278,10 @@ export const setCustomerVehicle = async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }
+  push(req, 'sale:updated', { id: sale._id, at: Date.now() });
   res.json(sale.toObject());
 };
 
-// ===== Cierre: descuenta inventario con transacción =====
 export const closeSale = async (req, res) => {
   const { id } = req.params;
   const session = await mongoose.startSession();
@@ -292,7 +292,6 @@ export const closeSale = async (req, res) => {
       if (sale.status !== 'draft') throw new Error('Sale not open (draft)');
       if (!sale.items?.length) throw new Error('Sale has no items');
 
-      // Descuento inventario por líneas 'inventory'
       for (const it of sale.items) {
         if (String(it.source) !== 'inventory') continue;
         const q = asNum(it.qty) || 0;
@@ -351,6 +350,7 @@ export const closeSale = async (req, res) => {
         }, { upsert: true, new: true, setDefaultsOnInsert: true }
       );
     }
+    push(req, 'sale:closed', { id, at: Date.now() });
     res.json({ ok: true, sale: sale.toObject() });
   } catch (err) {
     await session.abortTransaction().catch(()=>{});
@@ -360,18 +360,16 @@ export const closeSale = async (req, res) => {
   }
 };
 
-// ===== Cancelar (X de pestaña) =====
 export const cancelSale = async (req, res) => {
   const { id } = req.params;
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
   if (sale.status === 'closed') return res.status(400).json({ error: 'Closed sale cannot be cancelled' });
-  // Política actual: eliminar; si prefieres histórico, cambia a status:'cancelled' y setea cancelledAt.
   await Sale.deleteOne({ _id: id, companyId: req.companyId });
+  push(req, 'sale:cancelled', { id, at: Date.now() });
   res.json({ ok: true });
 };
 
-// ===== QR helpers =====
 export const addByQR = async (req, res) => {
   const { saleId, payload } = req.body || {};
   if (!saleId || !payload) return res.status(400).json({ error: 'saleId and payload are required' });
@@ -405,11 +403,11 @@ export const addByQR = async (req, res) => {
       });
       computeTotals(sale);
       await sale.save();
+      push(req, 'sale:updated', { id: sale._id, at: Date.now() });
       return res.json(sale.toObject());
     }
   }
 
-  // Fallback: tratar como SKU
   const it = await Item.findOne({ sku: s.toUpperCase(), companyId: req.companyId });
   if (!it) return res.status(404).json({ error: 'SKU not found' });
 
@@ -426,7 +424,7 @@ export const addByQR = async (req, res) => {
   });
   computeTotals(sale);
   await sale.save();
-  // Upsert perfil (sin kilometraje)
+
   if (sale.vehicle?.plate) {
     const plate = String(sale.vehicle.plate || '').toUpperCase();
     await CustomerProfile.findOneAndUpdate(
@@ -451,19 +449,10 @@ export const addByQR = async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }
+  push(req, 'sale:updated', { id: sale._id, at: Date.now() });
   res.json(sale.toObject());
 };
 
-// ===== Listado y resumen =====
-
-// ===== Perfil de cliente/vehículo =====
-export const getProfileByPlate = async (req, res) => {
-  const plate = String(req.params.plate || '').trim().toUpperCase();
-  if (!plate) return res.status(400).json({ error: 'plate required' });
-  const prof = await CustomerProfile.findOne({ companyId: req.companyId, 'vehicle.plate': plate });
-  if (!prof) return res.json(null);
-  res.json(prof.toObject());
-};
 export const listSales = async (req, res) => {
   const { status, from, to, plate, page = 1, limit = 50 } = req.query || {};
   const q = { companyId: req.companyId };
@@ -487,7 +476,7 @@ export const listSales = async (req, res) => {
 };
 
 export const summarySales = async (req, res) => {
-  const { from, to } = req.query || {};
+  const { from, to, plate } = req.query || {};
   const q = { companyId: req.companyId, status: 'closed' };
   if (from || to) {
     q.createdAt = {};
@@ -503,4 +492,12 @@ export const summarySales = async (req, res) => {
   ]);
   const agg = rows[0] || { count: 0, total: 0 };
   res.json({ count: agg.count, total: agg.total });
+};
+
+export const getProfileByPlate = async (req, res) => {
+  const plate = String(req.params.plate || '').trim().toUpperCase();
+  if (!plate) return res.status(400).json({ error: 'plate required' });
+  const prof = await CustomerProfile.findOne({ companyId: req.companyId, 'vehicle.plate': plate });
+  if (!prof) return res.json(null);
+  res.json(prof.toObject());
 };
