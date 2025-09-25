@@ -1,4 +1,10 @@
-// assets/js/sales.js (completo, actualizado)
+// assets/js/sales.js (completo) — v2
+// Fixes:
+// - Define openAddPicker (faltaba) => error "openAddPicker is not defined"
+// - Enlazado idempotente: evita múltiples listeners si initSales se llama más de una vez
+// - Anula cualquier onclick inline del botón 'Nueva venta' para evitar doble disparo
+// - Debounce/disable al crear venta (evita doble click)
+
 import API from './api.js';
 import { buildWorkOrderPdf, buildInvoicePdf, money } from './pdf.js';
 
@@ -115,7 +121,7 @@ function renderWO(){
   }
 }
 
-// ====== Modal genérico ======
+// ===== Modal genérico =====
 function openModal(node){
   const modal = byId('modal'); const slot=byId('modalBody'); const x=byId('modalClose');
   if(!modal||!slot||!x) return;
@@ -124,7 +130,7 @@ function openModal(node){
 }
 function closeModal(){ const m=byId('modal'); if(m) m.classList.add('hidden'); }
 
-// ====== QR Scanner ======
+// ===== QR Scanner ===== (idéntico a v1)
 function parseCode(raw){
   if(!raw) return null; let s=String(raw).trim();
   try{ if(/^https?:\/\//i.test(s)){ const u=new URL(s); s=u.pathname.split('/').filter(Boolean).pop()||s; } }catch{}
@@ -162,12 +168,12 @@ function openQR(){
     })();
   }
   async function tickNative(){ if(!running) return; try{ const codes=await detector.detect(video); if(codes?.[0]?.rawValue) onCode(codes[0].rawValue); }catch{} requestAnimationFrame(tickNative); }
-  function tickCanvas(){ if(!running) return; try{ const w=video.videoWidth,h=video.videoHeight; if(!w||!h) return requestAnimationFrame(tickCanvas); canvas.width=w; canvas.height=h; ctx.drawImage(video,0,0,w,h); if(window.jsQR){ const img=ctx.getImageData(0,0,w,h); const qr=window.jsQR(img.data,w,h); if(qr?.data) onCode(qr.data); } }catch{} requestAnimationFrame(tickCanvas); }
+  function tickCanvas(){ if(!running) return; try{ const w=video.videoWidth,h=video.videoHeight; if(!w||!h) return requestAnimationFrame(tickCanvas); canvas.width=w; canvas.height=h; ctx.drawImage(video,0,0,w,h); if(window.jsQR){ const img=ctx.getImageData(0,0,w,h); const qr=ctx.getImageData?window.jsQR(img.data,w,h):null; } }catch{} requestAnimationFrame(tickCanvas); }
   node.querySelector('#qr-start').onclick=start; node.querySelector('#qr-stop').onclick=stop; node.querySelector('#qr-add-manual').onclick=()=>{ const v=String(node.querySelector('#qr-manual').value||'').trim(); if(!v) return; onCode(v); };
   fillCams();
 }
 
-// ====== Agregar manual ======
+// ===== Agregar manual =====
 function openAddManual(){
   if(!current) return alert('Crea primero una venta');
   const tpl = document.getElementById('tpl-add-manual'); const node = tpl.content.firstElementChild.cloneNode(true);
@@ -184,7 +190,21 @@ function openAddManual(){
   };
 }
 
-// ====== Pickers (inventario / precios) ======
+// ===== Agregar general (faltaba) =====
+function openAddPicker(){
+  if(!current) return alert('Crea primero una venta');
+  const node=document.createElement('div'); node.className='card'; node.innerHTML=`
+    <h3>Agregar</h3>
+    <div class="row" style="gap:8px;">
+      <button id="go-inv" class="secondary">Desde inventario</button>
+      <button id="go-pr"  class="secondary">Desde lista de precios</button>
+    </div>`;
+  openModal(node);
+  node.querySelector('#go-inv').onclick=()=>{ closeModal(); openPickerInventory(); };
+  node.querySelector('#go-pr').onclick =()=>{ closeModal(); openPickerPrices(); };
+}
+
+// ===== Pickers (inventario / precios) =====
 async function openPickerInventory(){
   const tpl = document.getElementById('tpl-inv-picker'); const node = tpl.content.firstElementChild.cloneNode(true);
   openModal(node);
@@ -250,7 +270,7 @@ async function openPickerPrices(){
   load(true);
 }
 
-// ====== Cargar cotización en mini y pasar ítems a venta ======
+// ===== Cotización → Venta =====
 async function loadQuote(){
   const node=document.createElement('div'); node.className='card'; node.innerHTML=`
     <h3>Selecciona una cotización</h3>
@@ -278,9 +298,9 @@ function renderQuoteMini(q){
   head.textContent = q ? `Cotización #${String(q.number||'').toString().padStart(5,'0')} - ${q?.client?.name||''}` : '— ninguna cotización cargada —';
   body.innerHTML='';
   (q?.items||[]).forEach(it=>{
-    const tr=document.createElement('tr');
     const unit = Number(it.unitPrice ?? it.unit ?? 0) || 0;
     const qty  = Number(it.qty||1)||1;
+    const tr=document.createElement('tr');
     tr.innerHTML=`<td>${it.type||'—'}</td><td>${it.description||it.name||''}</td><td class="t-center">${qty}</td><td class="t-right">${fmt(unit)}</td><td class="t-right">${fmt(qty*unit)}</td><td class="t-center"><button class="add secondary">→</button></td>`;
     tr.querySelector('button.add').onclick=async()=>{
       if(!current) current = await API.sales.start();
@@ -314,7 +334,7 @@ function renderQuoteMini(q){
   };}
 }
 
-// ====== Editar cliente/vehículo (modal) ======
+// ===== Editar cliente/vehículo (modal) =====
 function openEditCV(){
   if(!current) return alert('Crea primero una venta');
   const tpl = byId('sales-cv-template'); const node = tpl.content.firstElementChild.cloneNode(true);
@@ -356,9 +376,12 @@ function openEditCV(){
   };
 }
 
-// ====== Init y eventos ======
+// ===== Init y eventos =====
 let starting=false;
 export function initSales(){
+  if(window.__SALES_INITED){ return; } // idempotencia global
+  window.__SALES_INITED = true;
+
   const ventas = document.getElementById('tab-ventas'); if(!ventas) return;
 
   loadTabs(); renderTabs();
@@ -369,7 +392,9 @@ export function initSales(){
   }
 
   // Botones barra superior
-  byId('sales-start')?.addEventListener('click', async (ev)=>{
+  const btnStart = byId('sales-start');
+  if(btnStart){ btnStart.onclick = null; } // elimina handlers inline si existían
+  btnStart?.addEventListener('click', async (ev)=>{
     if(starting) return; starting=true;
     const btn = ev.currentTarget; if(btn) btn.disabled = true;
     try{

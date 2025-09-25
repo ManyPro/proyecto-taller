@@ -1,4 +1,4 @@
-// assets/js/pdf.js (completo, con columnas simples)
+// assets/js/pdf.js (igual a v1 con contenido)
 export function money(n){ return new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n||0)); }
 
 export async function buildWorkOrderPdf(sale){
