@@ -187,7 +187,7 @@ export function initSales() {
         tr.querySelector('[data-price]').textContent = money(it.salePrice || 0);
         const img = tr.querySelector('img.thumb'); img.src = (it.mediaUrls || [])[0] || ''; img.alt = 'img';
         tr.querySelector('button.add').onclick = async () => {
-          current = await API.sales.addItem(current._id, { source: 'inventory', itemId: it._id, qty: 1 });
+          current = await API.sales.addItem(current._id, { source:'inventory', refId: it._id, qty:1 });
           renderSale(); renderWorkOrder();
         };
         tbody.appendChild(tr);
@@ -231,7 +231,7 @@ export function initSales() {
         tr.querySelector('[data-year]').textContent = it.year || '';
         tr.querySelector('[data-price]').textContent = money(it.price || it.values?.PRICE || 0);
         tr.querySelector('button.add').onclick = async () => {
-          current = await API.sales.addItem(current._id, { source: 'prices', priceId: it._id, qty: 1 });
+          current = await API.sales.addItem(current._id, { source:'price', refId: it._id, qty:1 });
           renderSale(); renderWorkOrder();
         };
         tbody.appendChild(tr);
@@ -348,16 +348,16 @@ export function initSales() {
       (async () => {
         try {
           if (parsed.type === 'id') {
-            current = await API.sales.addItem(current._id, { source: 'inventory', itemId: parsed.value, qty: 1 });
+            current = await API.sales.addItem(current._id, { source:'inventory', refId: parsed.value, qty:1 });
             setMsg('Ítem agregado por ID');
           } else if (parsed.type === 'sku') {
             const items = await API.inventory.itemsList({ sku: parsed.value });
             const exact = Array.isArray(items) ? items.find(it => String(it.sku || '').toUpperCase() === parsed.value) : null;
             if (exact) {
-              current = await API.sales.addItem(current._id, { source: 'inventory', itemId: exact._id, qty: 1 });
+              current = await API.sales.addItem(current._id, { source:'inventory', refId: exact._id, qty:1 });
               setMsg(`Ítem agregado: ${exact.sku}`);
             } else {
-              current = await API.sales.addItem(current._id, { source: 'inventory', sku: parsed.value, qty: 1 });
+              current = await API.sales.addItem(current._id, { source:'inventory', sku: parsed.value, qty:1 });
               setMsg(`Ítem agregado por SKU: ${parsed.value}`);
             }
           }
