@@ -1,8 +1,0 @@
-Backend/node_modules/
-Backend/.env
-Frontend/node_modules/
-.env
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
