@@ -220,6 +220,17 @@ export const closeSale = async (req, res) => {
   }
 };
 
+// ===== Cancelar (para la X de la pestaña) =====
+export const cancelSale = async (req, res) => {
+  const { id } = req.params;
+  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (sale.status === 'closed') return res.status(400).json({ error: 'Closed sale cannot be cancelled' });
+  // Política simple: eliminar documento. Si prefieres mantener histórico, cambia a status:'cancelled' (si tu schema lo permite).
+  await Sale.deleteOne({ _id: id, companyId: req.companyId });
+  res.json({ ok: true });
+};
+
 // ===== QR helpers =====
 export const addByQR = async (req, res) => {
   const { saleId, payload } = req.body || {};
