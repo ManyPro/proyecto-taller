@@ -1,54 +1,37 @@
-// assets/js/pdf.js
-// Genera PDF de Orden de Trabajo e Invoice usando jsPDF (incluido por CDN en index.html)
-export async function buildWorkOrderPdf(sale) {
-  const doc = new window.jspdf.jsPDF();
-  const pad = 10;
-  let y = 15;
-  doc.setFontSize(16); doc.text('ORDEN DE TRABAJO', pad, y); y+=8;
-  doc.setFontSize(11);
-  const plate = (sale?.vehicle?.plate || '').toUpperCase() || '—';
-  doc.text(`Venta: ${sale?.name || ''}`, pad, y); y+=6;
-  doc.text(`Placa: ${plate}`, pad, y); y+=6;
-  const cust = sale?.customer || {};
-  doc.text(`Cliente: ${cust.name||'—'}  Tel: ${cust.phone||'—'}`, pad, y); y+=8;
-  doc.text('Ítems', pad, y); y+=6;
-  doc.line(pad, y, 200, y); y+=4;
-  (sale?.items||[]).forEach(it=>{
-    doc.text(`${(it.sku||'').padEnd(8)}  ${it.name||''}  x${it.qty||1}`, pad, y);
-    y+=6; if (y>280){ doc.addPage(); y=15; }
+// assets/js/pdf.js — helpers PDF
+export async function buildWorkOrderPdf(sale){
+  const { jsPDF } = window.jspdf || window.jspdf || {};
+  const doc = new jsPDF();
+  doc.setFontSize(14);
+  doc.text('Orden de Trabajo', 14, 16);
+  doc.setFontSize(10);
+  const plate = sale?.vehicle?.plate || '—';
+  doc.text(`Placa: ${plate}`, 14, 26);
+  let y=36;
+  (sale.items||[]).forEach(it=>{
+    doc.text(`${it.name || it.sku || ''}  x${it.qty||1}`, 14, y);
+    y+=6;
   });
-  return doc;
+  doc.save(`OT_${plate || (sale._id||'').slice(-6)}.pdf`);
 }
 
-export async function buildInvoicePdf(sale) {
-  const doc = new window.jspdf.jsPDF();
-  const pad = 10;
-  let y = 15;
-  doc.setFontSize(16); doc.text('FACTURA DE VENTA', pad, y); y+=8;
-  doc.setFontSize(11);
-  const plate = (sale?.vehicle?.plate || '').toUpperCase() || '—';
-  const nro = sale?.number ? String(sale.number).padStart(6,'0') : (sale?._id||'').slice(-6).toUpperCase();
-  doc.text(`Factura No.: ${nro}`, pad, y); y+=6;
-  doc.text(`Venta: ${sale?.name || ''}`, pad, y); y+=6;
-  doc.text(`Placa: ${plate}`, pad, y); y+=6;
-  const cust = sale?.customer || {};
-  doc.text(`Cliente: ${cust.name||'—'}  Tel: ${cust.phone||'—'}`, pad, y); y+=8;
-  doc.text('Ítems', pad, y); y+=6;
-  doc.line(pad, y, 200, y); y+=4;
-  let subtotal=0;
-  (sale?.items||[]).forEach(it=>{
-    const q=Number(it.qty||1), up=Number(it.unitPrice||0), tot=q*up; subtotal+=tot;
-    doc.text(`${(it.sku||'').padEnd(8)}  ${it.name||''}`, pad, y);
-    doc.text(`x${q}`, 150, y, {align:'right'});
-    doc.text(`$${Math.round(up).toLocaleString()}`, 170, y, {align:'right'});
-    doc.text(`$${Math.round(tot).toLocaleString()}`, 200, y, {align:'right'});
-    y+=6; if (y>280){ doc.addPage(); y=15; }
+export async function buildInvoicePdf(sale){
+  const { jsPDF } = window.jspdf || window.jspdf || {};
+  const doc = new jsPDF();
+  doc.setFontSize(14);
+  doc.text('Factura de Venta', 14, 16);
+  doc.setFontSize(10);
+  const plate = sale?.vehicle?.plate || '';
+  const nro = sale?.number ? String(sale.number).padStart(5,'0') : (sale?._id||'').slice(-6).toUpperCase();
+  doc.text(`Venta No.: ${nro}`, 14, 26);
+  if(plate) doc.text(`Placa: ${plate}`, 100, 26);
+  let y=36;
+  (sale.items||[]).forEach(it=>{
+    doc.text(`${(it.sku||'').padEnd(8)} ${(it.name||'').slice(0,50)}  x${it.qty||1}`, 14, y);
+    y+=6;
   });
-  y+=6; doc.line(pad, y, 200, y); y+=8;
+  const total = sale?.total || 0;
   doc.setFontSize(12);
-  doc.text(`Subtotal: $${Math.round(subtotal).toLocaleString()}`, 200, y, {align:'right'}); y+=6;
-  const tax = 0; const total = subtotal + tax;
-  doc.text(`Total: $${Math.round(total).toLocaleString()}`, 200, y, {align:'right'}); y+=10;
-  doc.setFontSize(9); doc.text('Gracias por su compra.', pad, y);
-  return doc;
+  doc.text(`TOTAL: ${new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(total)}`, 14, y+6);
+  doc.save(`FAC_${nro}.pdf`);
 }
