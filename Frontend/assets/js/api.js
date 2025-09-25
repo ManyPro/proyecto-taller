@@ -181,8 +181,7 @@ const API = {
       http.post(`/api/v1/sales/addByQR`, { saleId, payload }),
 
     list: (params = {}) => http.get(`/api/v1/sales${toQuery(params)}`),
-    summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`),
-    cancel: (id) => http.post(`/api/v1/sales/${id}/cancel`, {})
+    summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`)
   }
 };
 

@@ -1,5 +1,3 @@
-
-
 import 'dotenv/config';
 // Captura errores en handlers async automáticamente
 import 'express-async-errors';
@@ -24,10 +22,12 @@ import { authCompany } from './middlewares/auth.js';
 import servicesRouter from './routes/services.routes.js';
 import pricesRoutes from './routes/prices.routes.js';
 
+// Nuevo: handler público para ficha por placa
+import { getCustomerByPlate } from './controllers/sales.controller.js';
+
 const app = express();
 
 // --- CORS con allowlist ---
-// Si no defines ALLOWED_ORIGINS, usamos un fallback seguro (Netlify + localhost)
 const envAllow = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map(s => s.trim())
@@ -50,11 +50,10 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
-  allowedHeaders: ['Content-Type','Authorization','Cache-Control'] // ← añadido
+  allowedHeaders: ['Content-Type','Authorization','Cache-Control']
 };
 
 app.use(cors(corsOptions));
-// Responder preflights de todo
 app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' }));
@@ -71,24 +70,14 @@ app.get('/', (_req, res) =>
   res.status(200).json({ ok: true, name: 'taller-backend', ts: new Date().toISOString() })
 );
 
-// rutas públicas
-app.use('/api/v1/health', healthRouter);
-app.use('/api/v1/media', mediaRouter);
-app.use('/api/v1/notes', authCompany, withCompanyDefaults, notesRouter);
-app.use('/api/v1/auth/company', companyAuthRouter);
-app.use('/api/v1/sales', authCompany, withCompanyDefaults, salesRouter);
-// ---- INYECTA companyId/userId AUTOMÁTICAMENTE EN INVENTORY ----
+// --- Middleware para inyectar companyId / userId
 function withCompanyDefaults(req, _res, next) {
   if (req.company?.id) {
-    // 👉 agrega estas dos propiedades que usan tus controllers
     req.companyId = String(req.company.id);
     if (req.user?.id) req.userId = String(req.user.id);
-
-    // GET: añade filtro por empresa
     if (req.method === 'GET') {
       req.query = { ...req.query, companyId: req.companyId };
     }
-    // Escrituras: asegura empresa/usuario en body
     if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
       req.body ||= {};
       if (!req.body.companyId) req.body.companyId = req.companyId;
@@ -98,8 +87,16 @@ function withCompanyDefaults(req, _res, next) {
   next();
 }
 
-// inventario protegido + defaults de empresa
+// rutas públicas/protegidas
+app.use('/api/v1/health', healthRouter);
+app.use('/api/v1/media', mediaRouter);
+app.use('/api/v1/auth/company', companyAuthRouter);
+app.use('/api/v1/notes', authCompany, withCompanyDefaults, notesRouter);
+app.use('/api/v1/sales', authCompany, withCompanyDefaults, salesRouter);
 app.use('/api/v1/inventory', authCompany, withCompanyDefaults, inventoryRouter);
+
+// Nueva ruta: ficha por placa (autocompletar cliente/vehículo desde front)
+app.get('/api/v1/customers/plate/:plate', authCompany, withCompanyDefaults, getCustomerByPlate);
 
 // manejo de errores unificado
 app.use((err, _req, res, _next) => {
@@ -119,10 +116,8 @@ mongoose.connect(MONGODB_URI, { dbName: process.env.MONGODB_DB || 'taller' })
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`API escuchando en :${PORT}`));
 
-// 1) import
+// Routers extra (manteniendo tu orden actual)
 import quotesRouter from './routes/quotes.routes.js';
-
-// 2) usar (protegido e inyectando companyId/userId como en inventario)
 app.use('/api/v1/quotes', authCompany, withCompanyDefaults, quotesRouter);
 
 app.use('/api/v1/services', authCompany, withCompanyDefaults, servicesRouter);

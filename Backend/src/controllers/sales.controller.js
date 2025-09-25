@@ -4,14 +4,14 @@ import Item from '../models/Item.js';
 import PriceEntry from '../models/PriceEntry.js';
 import Counter from '../models/Counter.js';
 import StockMove from '../models/StockMove.js';
+import CustomerProfile from '../models/CustomerProfile.js';
 
-// Helpers
 const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
 
 function computeTotals(sale) {
   const subtotal = (sale.items || []).reduce((a, it) => a + asNum(it.total), 0);
   sale.subtotal = Math.round(subtotal);
-  sale.tax = 0; // ajustar si aplicas IVA
+  sale.tax = 0;
   sale.total = Math.round(sale.subtotal + sale.tax);
 }
 
@@ -24,9 +24,7 @@ async function getNextSaleNumber(companyId) {
   return c.saleSeq;
 }
 
-// ===== CRUD base =====
 export const startSale = async (req, res) => {
-  // Usa 'draft' para respetar el enum del modelo
   const sale = await Sale.create({ companyId: req.companyId, status: 'draft', items: [] });
   res.json(sale.toObject());
 };
@@ -40,14 +38,10 @@ export const getSale = async (req, res) => {
 export const addItem = async (req, res) => {
   const { id } = req.params;
   const { source, refId, sku, qty = 1, unitPrice } = req.body || {};
-
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
   if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
-
   let itemData = null;
-
-  // El schema admite 'inventory', 'price', 'service'. Unificamos 'service' como 'price' para coherencia.
   const src = (source === 'service') ? 'price' : source;
 
   if (src === 'inventory') {
@@ -55,61 +49,25 @@ export const addItem = async (req, res) => {
     if (refId) it = await Item.findOne({ _id: refId, companyId: req.companyId });
     if (!it && sku) it = await Item.findOne({ sku: String(sku).trim().toUpperCase(), companyId: req.companyId });
     if (!it) return res.status(404).json({ error: 'Item not found' });
-
     const q = asNum(qty) || 1;
     const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNum(it.salePrice);
-
-    itemData = {
-      source: 'inventory',
-      refId: it._id,
-      sku: it.sku,
-      name: it.name || it.sku,
-      qty: q,
-      unitPrice: up,
-      total: Math.round(q * up)
-    };
+    itemData = { source: 'inventory', refId: it._id, sku: it.sku, name: it.name || it.sku, qty: q, unitPrice: up, total: Math.round(q * up) };
   } else if (src === 'price') {
     if (refId) {
       const pe = await PriceEntry.findOne({ _id: refId, companyId: String(req.companyId) });
       if (!pe) return res.status(404).json({ error: 'PriceEntry not found' });
       const q = asNum(qty) || 1;
       const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNum(pe.total || pe.price);
-      itemData = {
-        source: 'price',
-        refId: pe._id,
-        sku: `SRV-${String(pe._id).slice(-6)}`,
-        name: `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim(),
-        qty: q,
-        unitPrice: up,
-        total: Math.round(q * up)
-      };
+      itemData = { source: 'price', refId: pe._id, sku: `SRV-${String(pe._id).slice(-6)}`, name: `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim(), qty: q, unitPrice: up, total: Math.round(q * up) };
     } else {
-      // Línea manual de servicio
       const q = asNum(qty) || 1;
       const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : 0;
-      itemData = {
-        source: 'price',
-        refId: new mongoose.Types.ObjectId(),
-        sku: (sku || '').toString(),
-        name: (req.body?.name || 'Servicio'),
-        qty: q,
-        unitPrice: up,
-        total: Math.round(q * up)
-      };
+      itemData = { source: 'price', refId: new mongoose.Types.ObjectId(), sku: (sku || '').toString(), name: (req.body?.name || 'Servicio'), qty: q, unitPrice: up, total: Math.round(q * up) };
     }
   } else if (src === 'service') {
-    // Si decides mantener la fuente "service" explícita
     const q = asNum(qty) || 1;
     const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : 0;
-    itemData = {
-      source: 'service',
-      refId: new mongoose.Types.ObjectId(),
-      sku: (sku || '').toString(),
-      name: (req.body?.name || 'Servicio'),
-      qty: q,
-      unitPrice: up,
-      total: Math.round(q * up)
-    };
+    itemData = { source: 'service', refId: new mongoose.Types.ObjectId(), sku: (sku || '').toString(), name: (req.body?.name || 'Servicio'), qty: q, unitPrice: up, total: Math.round(q * up) };
   } else {
     return res.status(400).json({ error: 'unsupported source' });
   }
@@ -123,17 +81,14 @@ export const addItem = async (req, res) => {
 export const updateItem = async (req, res) => {
   const { id, itemId } = req.params;
   const { qty, unitPrice } = req.body || {};
-
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
   if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
   const it = sale.items.id(itemId);
   if (!it) return res.status(404).json({ error: 'Item not found' });
-
   if (qty != null && Number.isFinite(Number(qty))) it.qty = asNum(qty);
   if (unitPrice != null && Number.isFinite(Number(unitPrice))) it.unitPrice = asNum(unitPrice);
   it.total = Math.round(asNum(it.qty) * asNum(it.unitPrice));
-
   computeTotals(sale);
   await sale.save();
   res.json(sale.toObject());
@@ -144,7 +99,6 @@ export const removeItem = async (req, res) => {
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
   if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
-
   sale.items.id(itemId)?.deleteOne();
   computeTotals(sale);
   await sale.save();
@@ -176,11 +130,35 @@ export const setCustomerVehicle = async (req, res) => {
   };
   if (typeof notes === 'string') sale.notes = notes;
 
+  const plate = sale.vehicle.plate;
+  if (plate) {
+    await CustomerProfile.findOneAndUpdate(
+      { companyId: req.companyId, plate },
+      {
+        $set: {
+          customer: {
+            name: sale.customer.name || '',
+            idNumber: sale.customer.idNumber || '',
+            phone: sale.customer.phone || '',
+            email: sale.customer.email || '',
+            address: sale.customer.address || ''
+          },
+          vehicle: {
+            brand: sale.vehicle.brand || '',
+            line: sale.vehicle.line || '',
+            engine: sale.vehicle.engine || '',
+            year: sale.vehicle.year ?? null
+          }
+        }
+      },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+  }
+
   await sale.save();
   res.json(sale.toObject());
 };
 
-// ===== Cierre: descuenta inventario con transacción =====
 export const closeSale = async (req, res) => {
   const { id } = req.params;
   const session = await mongoose.startSession();
@@ -191,125 +169,78 @@ export const closeSale = async (req, res) => {
       if (sale.status !== 'draft') throw new Error('Sale not open (draft)');
       if (!sale.items?.length) throw new Error('Sale has no items');
 
-      // Descuento inventario por líneas 'inventory'
       for (const it of sale.items) {
         if (String(it.source) !== 'inventory') continue;
-        const q = asNum(it.qty) || 0;
-        if (q <= 0) continue;
-
+        const q = asNum(it.qty) || 0; if (q <= 0) continue;
         const upd = await Item.updateOne(
           { _id: it.refId, companyId: req.companyId, stock: { $gte: q } },
           { $inc: { stock: -q } }
         ).session(session);
-
         if (upd.matchedCount === 0) {
           const exists = await Item.findOne({ _id: it.refId, companyId: req.companyId }).session(session);
           if (!exists) throw new Error(`Inventory item not found (${it.sku || it.refId})`);
           throw new Error(`Insufficient stock for ${exists.sku || exists.name}`);
         }
-
         await StockMove.create([{
-          companyId: req.companyId,
-          itemId: it.refId,
-          qty: q,
-          reason: 'OUT',
-          meta: { saleId: sale._id, sku: it.sku, name: it.name }
+          companyId: req.companyId, itemId: it.refId, qty: q, reason: 'OUT', meta: { saleId: sale._id, sku: it.sku, name: it.name }
         }], { session });
       }
 
       computeTotals(sale);
       sale.status = 'closed';
       sale.closedAt = new Date();
-      if (!Number.isFinite(Number(sale.number))) {
-        sale.number = await getNextSaleNumber(req.companyId);
-      }
+      if (!Number.isFinite(Number(sale.number))) sale.number = await getNextSaleNumber(req.companyId);
       await sale.save({ session });
     });
-
     const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
     res.json({ ok: true, sale: sale.toObject() });
   } catch (err) {
     await session.abortTransaction().catch(()=>{});
     res.status(400).json({ error: err?.message || 'Cannot close sale' });
-  } finally {
-    session.endSession();
-  }
+  } finally { session.endSession(); }
 };
 
-// ===== Cancelar (X de pestaña) =====
 export const cancelSale = async (req, res) => {
   const { id } = req.params;
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
   if (sale.status === 'closed') return res.status(400).json({ error: 'Closed sale cannot be cancelled' });
-  // Política actual: eliminar; si prefieres histórico, cambia a status:'cancelled' y setea cancelledAt.
   await Sale.deleteOne({ _id: id, companyId: req.companyId });
   res.json({ ok: true });
 };
 
-// ===== QR helpers =====
 export const addByQR = async (req, res) => {
   const { saleId, payload } = req.body || {};
   if (!saleId || !payload) return res.status(400).json({ error: 'saleId and payload are required' });
-
   const sale = await Sale.findOne({ _id: saleId, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
   if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
-
   const s = String(payload || '').trim();
 
   if (s.toUpperCase().startsWith('IT:')) {
     const parts = s.split(':').map(p => p.trim()).filter(Boolean);
-    let itemId = null;
-    if (parts.length === 2) itemId = parts[1];
-    if (parts.length >= 3) itemId = parts[2];
-
+    let itemId = null; if (parts.length === 2) itemId = parts[1]; if (parts.length >= 3) itemId = parts[2];
     if (itemId) {
       const it = await Item.findOne({ _id: itemId, companyId: req.companyId });
       if (!it) return res.status(404).json({ error: 'Item not found for QR' });
-
-      const q = 1;
-      const up = asNum(it.salePrice);
-      sale.items.push({
-        source: 'inventory',
-        refId: it._id,
-        sku: it.sku,
-        name: it.name || it.sku,
-        qty: q,
-        unitPrice: up,
-        total: Math.round(q * up)
-      });
-      computeTotals(sale);
-      await sale.save();
-      return res.json(sale.toObject());
+      const q = 1; const up = asNum(it.salePrice);
+      sale.items.push({ source: 'inventory', refId: it._id, sku: it.sku, name: it.name || it.sku, qty: q, unitPrice: up, total: Math.round(q * up) });
+      computeTotals(sale); await sale.save(); return res.json(sale.toObject());
     }
   }
 
-  // Fallback: tratar como SKU
   const it = await Item.findOne({ sku: s.toUpperCase(), companyId: req.companyId });
   if (!it) return res.status(404).json({ error: 'SKU not found' });
-
-  const q = 1;
-  const up = asNum(it.salePrice);
-  sale.items.push({
-    source: 'inventory',
-    refId: it._id,
-    sku: it.sku,
-    name: it.name || it.sku,
-    qty: q,
-    unitPrice: up,
-    total: Math.round(q * up)
-  });
-  computeTotals(sale);
-  await sale.save();
-  res.json(sale.toObject());
+  const q = 1; const up = asNum(it.salePrice);
+  sale.items.push({ source: 'inventory', refId: it._id, sku: it.sku, name: it.name || it.sku, qty: q, unitPrice: up, total: Math.round(q * up) });
+  computeTotals(sale); await sale.save(); res.json(sale.toObject());
 };
 
-// ===== Listado y resumen =====
 export const listSales = async (req, res) => {
-  const { status, from, to, page = 1, limit = 50 } = req.query || {};
+  const { status, from, to, plate, page = 1, limit = 50 } = req.query || {};
   const q = { companyId: req.companyId };
   if (status) q.status = String(status);
+  if (plate) q['vehicle.plate'] = String(plate).toUpperCase();
   if (from || to) {
     q.createdAt = {};
     if (from) q.createdAt.$gte = new Date(from);
@@ -317,7 +248,6 @@ export const listSales = async (req, res) => {
   }
   const pg = Math.max(1, Number(page || 1));
   const lim = Math.max(1, Math.min(500, Number(limit || 50)));
-
   const [items, total] = await Promise.all([
     Sale.find(q).sort({ createdAt: -1 }).skip((pg - 1) * lim).limit(lim),
     Sale.countDocuments(q)
@@ -339,4 +269,12 @@ export const summarySales = async (req, res) => {
   ]);
   const agg = rows[0] || { count: 0, total: 0 };
   res.json({ count: agg.count, total: agg.total });
+};
+
+export const getCustomerByPlate = async (req, res) => {
+  const plate = String(req.params.plate || '').toUpperCase();
+  if (!plate) return res.status(400).json({ error: 'Plate required' });
+  const prof = await CustomerProfile.findOne({ companyId: req.companyId, plate });
+  if (!prof) return res.json(null);
+  res.json(prof.toObject());
 };
