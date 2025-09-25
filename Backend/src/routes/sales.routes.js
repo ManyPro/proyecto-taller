@@ -2,7 +2,7 @@ import { Router } from 'express';
 import {
   startSale, getSale, addItem, updateItem, removeItem,
   setCustomerVehicle, closeSale, addByQR, listSales, summarySales
-} from '../controllers/sales.controller.js';
+, patchSale, cancelSale } from '../controllers/sales.controller.js';
 
 const router = Router();
 
@@ -14,6 +14,10 @@ router.put('/:id/items/:itemId', updateItem);
 router.delete('/:id/items/:itemId', removeItem);
 router.put('/:id/customer-vehicle', setCustomerVehicle);
 router.post('/:id/close', closeSale);
+// actualizar metadatos
+router.patch('/:id', patchSale);
+// cancelar
+router.post('/:id/cancel', cancelSale);
 
 // QR
 router.post('/addByQR', addByQR);

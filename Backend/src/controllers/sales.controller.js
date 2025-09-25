@@ -2,6 +2,7 @@ import Sale from '../models/Sale.js';
 import Item from '../models/Item.js';
 import PriceEntry from '../models/PriceEntry.js';
 import Counter from '../models/Counter.js';
+import StockMove from '../models/StockMove.js';
 
 const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
 
@@ -23,7 +24,9 @@ async function getNextSaleNumber(companyId) {
 
 // Crear venta vacía (status=open)
 export const startSale = async (req, res) => {
-  const sale = await Sale.create({ companyId: req.companyId, status: 'open', items: [] });
+  const sale = await Sale.create({ companyId: req.companyId, status: 'draft', items: [] });
+  if (!sale.name) sale.name = `Venta · ${String(sale._id).slice(-6).toUpperCase()}`;
+  await sale.save();
   res.json(sale.toObject());
 };
 
@@ -41,7 +44,7 @@ export const addItem = async (req, res) => {
 
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (sale.status !== 'open') return res.status(400).json({ error: 'Sale is closed' });
+  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale is closed' });
 
   let itemData = null;
 
@@ -152,24 +155,54 @@ export const setCustomerVehicle = async (req, res) => {
 };
 
 // Cerrar venta → asigna número secuencial por empresa
+
 export const closeSale = async (req, res) => {
   const { id } = req.params;
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
   if (!sale.items?.length) return res.status(400).json({ error: 'Sale has no items' });
+  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not in draft' });
 
-  computeTotals(sale);
+  // Totales
+  let subtotal = 0;
+  for (const it of sale.items) subtotal += (Number(it.unitPrice||0) * Number(it.qty||1));
+  sale.subtotal = Math.round(subtotal); sale.tax = 0; sale.total = sale.subtotal;
 
-  if (sale.status !== 'closed') {
+  const session = await Sale.startSession();
+  session.startTransaction();
+  try {
+    // Descontar stock de líneas de inventario
+    for (const line of (sale.items||[])) {
+      if (line.source !== 'inventory' || !line.refId) continue;
+      const q = Number(line.qty||1);
+      const upd = await Item.updateOne({ _id: line.refId, companyId: req.companyId, stock: { $gte: q } }, { $inc: { stock: -q } }).session(session);
+      if (upd.modifiedCount !== 1) {
+        throw new Error(`Stock insuficiente para ${line.sku || line.name}`);
+      }
+      await StockMove.create([{
+        companyId: req.companyId,
+        itemId: line.refId,
+        qty: q,
+        reason: 'OUT',
+        meta: { saleId: sale._id }
+      }], { session });
+    }
+
     sale.status = 'closed';
     sale.closedAt = new Date();
     if (!Number.isFinite(Number(sale.number))) {
       sale.number = await getNextSaleNumber(req.companyId);
     }
-    await sale.save();
+    await sale.save({ session });
+    await session.commitTransaction();
+    res.json({ ok: true, sale: sale.toObject() });
+  } catch (err) {
+    await session.abortTransaction();
+    res.status(400).json({ error: err.message || 'No se pudo cerrar la venta' });
+  } finally {
+    session.endSession();
   }
-
-  res.json({ ok: true, sale: sale.toObject() });
+};
 };
 
 // Agregar por QR (acepta IT:<itemId> | IT:<companyId>:<itemId> | SKU)
@@ -179,7 +212,7 @@ export const addByQR = async (req, res) => {
 
   const sale = await Sale.findOne({ _id: saleId, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (sale.status !== 'open') return res.status(400).json({ error: 'Sale is closed' });
+  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale is closed' });
 
   const s = String(payload || '').trim();
 
@@ -265,4 +298,27 @@ export const summarySales = async (req, res) => {
   ]);
   const agg = rows[0] || { count: 0, total: 0 };
   res.json({ count: agg.count, total: agg.total });
+};
+
+
+export const patchSale = async (req, res) => {
+  const { id } = req.params;
+  const { name, notes } = req.body || {};
+  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (typeof name === 'string') sale.name = name;
+  if (typeof notes === 'string') sale.notes = notes;
+  await sale.save();
+  res.json(sale.toObject());
+};
+
+export const cancelSale = async (req, res) => {
+  const { id } = req.params;
+  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (sale.status === 'closed') return res.status(400).json({ error: 'Sale already closed' });
+  sale.status = 'cancelled';
+  sale.cancelledAt = new Date();
+  await sale.save();
+  res.json(sale.toObject());
 };

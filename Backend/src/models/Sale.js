@@ -1,8 +1,8 @@
 import mongoose from 'mongoose';
 
 const SaleItemSchema = new mongoose.Schema({
-  source: { type: String, enum: ['inventory', 'price'], required: true },
-  refId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  source: { type: String, enum: ['inventory', 'price', 'service'], required: true },
+  refId: { type: mongoose.Schema.Types.ObjectId, required: false },
   sku: { type: String, default: '' },
   name: { type: String, default: '' },
   qty: { type: Number, default: 1 },
@@ -13,7 +13,8 @@ const SaleItemSchema = new mongoose.Schema({
 const SaleSchema = new mongoose.Schema({
   companyId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
   number: { type: Number, index: true },       // se asigna al cerrar
-  status: { type: String, default: 'open', enum: ['open', 'closed'] },
+  name: { type: String, default: '' },         // "Venta · ABC123" o "Venta · 84F1A2"
+  status: { type: String, default: 'draft', enum: ['draft', 'closed', 'cancelled'], index: true },
   items: { type: [SaleItemSchema], default: [] },
   customer: {
     type: { type: String, default: '' },
@@ -35,7 +36,8 @@ const SaleSchema = new mongoose.Schema({
   subtotal: { type: Number, default: 0 },
   tax: { type: Number, default: 0 },
   total: { type: Number, default: 0 },
-  closedAt: { type: Date }
+  closedAt: { type: Date },
+  cancelledAt: { type: Date }
 }, { timestamps: true });
 
 export default mongoose.model('Sale', SaleSchema);

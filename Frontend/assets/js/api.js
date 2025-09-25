@@ -120,6 +120,7 @@ const API = {
 
   // --- Cotizaciones ---
   quotesList: (q = '') => http.get(`/api/v1/quotes${q}`),
+  quoteGet: (id) => http.get(`/api/v1/quotes/${id}`),
   quoteCreate: (payload) => http.post('/api/v1/quotes', payload),
   quoteUpdate: (id, payload) => http.post(`/api/v1/quotes/${id}`, payload),
   quotePatch: (id, payload) => http.put(`/api/v1/quotes/${id}`, payload),
@@ -174,8 +175,11 @@ const API = {
     setCustomerVehicle: (id, payload) =>
       http.put(`/api/v1/sales/${id}/customer-vehicle`, payload),
 
-    close: (id) =>
-      http.post(`/api/v1/sales/${id}/close`, {}),
+    close: (id) => http.post(`/api/v1/sales/${id}/close`, {}),
+
+    patch: (id, body) => http.patch(`/api/v1/sales/${id}`, body),
+
+    cancel: (id) => http.post(`/api/v1/sales/${id}/cancel`, {}),
 
     addByQR: (saleId, payload) =>
       http.post(`/api/v1/sales/addByQR`, { saleId, payload }),
