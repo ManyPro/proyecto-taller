@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import VehicleIntake from "../models/VehicleIntake.js";
 import Item from "../models/Item.js";
 
-// 👉 nuevo: generador PNG
+// Generador de QR en PNG
 import QRCode from "qrcode";
 
 // ------ helpers ------
@@ -44,7 +44,7 @@ function makeQrData({ companyId, item }) {
   return `IT:${companyId}:${item._id}:${(item.sku || "").toUpperCase()}`;
 }
 
-// Prorratea el costo del vehículo entre ítems "AUTO" ponderando por STOCK.
+// Prorratea el costo del vehiculo entre items 'AUTO' ponderando por stock.
 async function recalcAutoEntryPrices(companyId, vehicleIntakeId) {
   if (!vehicleIntakeId) return;
 
@@ -76,7 +76,7 @@ async function recalcAutoEntryPrices(companyId, vehicleIntakeId) {
   }
 }
 
-// ============ ENTRADAS DE VEHÍCULO ============
+// ============ ENTRADAS DE VEHICULO ============
 
 export const listVehicleIntakes = async (req, res) => {
   const q = { companyId: new mongoose.Types.ObjectId(req.companyId) };
@@ -169,7 +169,7 @@ export const deleteVehicleIntake = async (req, res) => {
   res.status(204).end();
 };
 
-// ======================= ÍTEMS ========================
+// ======================= ITEMS ========================
 
 export const listItems = async (req, res) => {
   const { name, sku, vehicleTarget, vehicleIntakeId } = req.query;
@@ -191,12 +191,9 @@ export const listItems = async (req, res) => {
 export const createItem = async (req, res) => {
   const b = req.body;
 
-  if (b.sku) b.sku = b.sku.toUpperCase().trim();
-  if (b.name) b.name = b.name.toUpperCase().trim();
-  if (b.internalName) b.internalName = b.internalName.toUpperCase().trim();
-  if (b.location) b.location = b.location.toUpperCase().trim();
-  if (b.internalName) b.internalName = b.internalName.toUpperCase().trim();
-  if (b.location) b.location = b.location.toUpperCase().trim();
+  ['sku', 'name', 'internalName', 'location'].forEach(key => {
+    if (b[key]) b[key] = b[key].toUpperCase().trim();
+  });
 
   if (b.vehicleIntakeId) {
     const vi = await VehicleIntake.findOne({ _id: b.vehicleIntakeId, companyId: req.companyId });
@@ -232,7 +229,7 @@ export const createItem = async (req, res) => {
     qrData: "" // inicial, lo llenamos abajo
   });
 
-  // Si aún no tiene QR, lo generamos y guardamos
+  // Si aun no tiene QR, lo generamos y guardamos
   if (!item.qrData) {
     item.qrData = makeQrData({ companyId: req.companyId, item });
     await item.save();
@@ -249,12 +246,9 @@ export const updateItem = async (req, res) => {
   const { id } = req.params;
   const b = req.body;
 
-  if (b.sku) b.sku = b.sku.toUpperCase().trim();
-  if (b.name) b.name = b.name.toUpperCase().trim();
-  if (b.internalName) b.internalName = b.internalName.toUpperCase().trim();
-  if (b.location) b.location = b.location.toUpperCase().trim();
-  if (b.internalName) b.internalName = b.internalName.toUpperCase().trim();
-  if (b.location) b.location = b.location.toUpperCase().trim();
+  ['sku', 'name', 'internalName', 'location'].forEach(key => {
+    if (b[key]) b[key] = b[key].toUpperCase().trim();
+  });
 
   if (b.vehicleIntakeId) {
     const vi = await VehicleIntake.findOne({ _id: b.vehicleIntakeId, companyId: req.companyId });
@@ -276,7 +270,7 @@ export const updateItem = async (req, res) => {
   const before = await Item.findOne({ _id: id, companyId: req.companyId });
   if (!before) return res.status(404).json({ error: "Item no encontrado" });
 
-  // ---- imágenes ----
+  // ---- imagenes ----
   let images = undefined;
   if (Array.isArray(b.images)) {
     images = sanitizeMediaList(b.images);
@@ -330,7 +324,7 @@ export const recalcIntakePrices = async (req, res) => {
   res.json({ ok: true });
 };
 
-// ===== NUEVO =====
+// ===== QR =====
 // Devuelve un PNG con el QR del item
 export const itemQrPng = async (req, res) => {
   const { id } = req.params;

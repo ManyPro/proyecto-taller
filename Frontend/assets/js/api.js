@@ -1,5 +1,5 @@
 // =======================
-// API BASE CONFIG
+// API publico
 // =======================
 const API_BASE = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
 
@@ -63,6 +63,7 @@ const http = {
   get: (path) => coreRequest('GET', path, null),
   post: (path, payload) => coreRequest('POST', path, payload),
   put: (path, payload) => coreRequest('PUT', path, payload),
+  patch: (path, payload) => coreRequest('PATCH', path, payload),
   del: (path) => coreRequest('DELETE', path, null),
   upload: (path, files) => {
     const fd = new FormData();
@@ -79,7 +80,7 @@ function toQuery(params = {}) {
 }
 
 // =======================
-// API público
+// API publico
 // =======================
 const API = {
   base: API_BASE,
@@ -92,16 +93,15 @@ const API = {
   // --- Auth empresa ---
   companyRegister: (payload) => http.post('/api/v1/auth/company/register', payload),
   async companyLogin(payload) {
-    const res = await http.post('/api/v1/auth/company/login', payload); // { token, email, ... }
-    const email = String(res?.email || payload?.email || '').toLowerCase();
-    if (!res?.token || !email) throw new Error('Login inválido');
+    const res = await http.post('/api/v1/auth/company/login', payload);
+    const email = String(res?.company?.email || res?.email || payload?.email || '').toLowerCase();
+    if (!res?.token || !email) throw new Error('Login invalido');
     activeCompany.set(email);
     tokenStore.set(res.token, email);
-    return res;
+    return { ...res, email };
   },
   companyMe: () => http.get('/api/v1/auth/company/me'),
-  async logout() {
-    try { await http.post('/api/v1/auth/company/logout', {}); } catch {}
+  logout() {
     tokenStore.clear();
     activeCompany.clear();
   },
@@ -121,8 +121,8 @@ const API = {
   // --- Cotizaciones ---
   quotesList: (q = '') => http.get(`/api/v1/quotes${q}`),
   quoteCreate: (payload) => http.post('/api/v1/quotes', payload),
-  quoteUpdate: (id, payload) => http.post(`/api/v1/quotes/${id}`, payload),
-  quotePatch: (id, payload) => http.put(`/api/v1/quotes/${id}`, payload),
+  quoteUpdate: (id, payload) => http.patch(`/api/v1/quotes/${id}`, payload),
+  quotePatch: (id, payload) => http.patch(`/api/v1/quotes/${id}`, payload),
   quoteDelete: (id) => http.del(`/api/v1/quotes/${id}`),
 
   // --- Servicios ---

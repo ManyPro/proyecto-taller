@@ -26,8 +26,8 @@ const loadTabs = ()=> { try{ openTabs = JSON.parse(localStorage.getItem(tabsKey(
 // ---------- tabs ----------
 function labelFor(id){
   if (current && id===current._id) {
-    const p = current?.vehicle?.plate || '';
-    return p ? `VENTA · ${p.toUpperCase()}` : id.slice(-6).toUpperCase();
+    const plate = current?.vehicle?.plate || '';
+    return plate ? `VENTA - ${plate.toUpperCase()}` : id.slice(-6).toUpperCase();
   }
   return id.slice(-6).toUpperCase();
 }

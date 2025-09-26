@@ -22,7 +22,7 @@ if (DRIVER === 'cloudinary') {
   const storage = new CloudinaryStorage({
     cloudinary,
     params: async (req, file) => {
-      // 👇 subcarpeta por empresa
+      // Subcarpeta por empresa
       const companyId = (req.company?.id || 'public').toString();
       return {
         folder: `${baseFolder}/${companyId}`,
@@ -44,7 +44,7 @@ if (DRIVER === 'cloudinary') {
 
   const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-      // 👇 subcarpeta por empresa
+      // Subcarpeta por empresa
       const companyId = (req.company?.id || 'public').toString();
       const dir = path.join(rootDir, companyId);
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
