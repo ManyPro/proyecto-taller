@@ -117,6 +117,7 @@ function renderWO(){
   });
 }
 
+<<<<<<< HEAD
 // ===== Cotizaciones (bloque lateral) =====
 function renderQuote(){
   const qBody = byId('sv-q-body');
@@ -150,15 +151,134 @@ function renderQuote(){
     const i = Number(b.dataset.i||-1);
     if(i<0) return;
     await pushQuoteLineToSale(currentQuote.items[i]);
+=======
+// ===== Modal genérico =====
+function openModal(node){
+  const modal = byId('modal'); const slot=byId('modalBody'); const x=byId('modalClose');
+  if(!modal||!slot||!x) return;
+  slot.replaceChildren(node); modal.classList.remove('hidden');
+  x.onclick = ()=> modal.classList.add('hidden');
+}
+function closeModal(){ const m=byId('modal'); if(m) m.classList.add('hidden'); }
+
+// ===== QR Scanner ===== (idéntico a v1)
+function parseCode(raw){
+  if(!raw) return null; let s=String(raw).trim();
+  try{ if(/^https?:\/\//i.test(s)){ const u=new URL(s); s=u.pathname.split('/').filter(Boolean).pop()||s; } }catch{}
+  const m=s.match(/[a-f0-9]{24}/ig); if(m?.length) return {type:'id',value:m[m.length-1]};
+  if(/^[A-Z0-9\-_]+$/i.test(s)) return {type:'sku',value:s.toUpperCase()};
+  return null;
+}
+
+function openQR(){
+  if(!current) return alert('Crea primero una venta');
+  const tpl = document.getElementById('tpl-qr-scanner'); const node = tpl.content.firstElementChild.cloneNode(true);
+  openModal(node);
+  const video = node.querySelector('#qr-video'); const canvas = node.querySelector('#qr-canvas'); const ctx = canvas.getContext('2d',{willReadFrequently:true});
+  const sel = node.querySelector('#qr-cam'); const msg = node.querySelector('#qr-msg'); const list = node.querySelector('#qr-history'); const ac = node.querySelector('#qr-autoclose');
+  let stream=null, running=false, detector=null, lastCode=null, lastTs=0;
+
+  async function fillCams(){ try{ const devs = await navigator.mediaDevices.enumerateDevices(); const cams=devs.filter(d=>d.kind==='videoinput'); sel.replaceChildren(...cams.map((c,i)=>{ const o=document.createElement('option'); o.value=c.deviceId; o.textContent=c.label||('Cam '+(i+1)); return o; })); }catch{} }
+  function stop(){ try{ video.pause(); }catch{}; try{ (stream?.getTracks()||[]).forEach(t=>t.stop()); }catch{}; running=false; }
+  async function start(){ try{
+      stop(); const cs={ video: sel.value?{deviceId:{exact:sel.value}}:{facingMode:'environment'}, audio:false };
+      stream=await navigator.mediaDevices.getUserMedia(cs); video.srcObject=stream; await video.play(); running=true;
+      if(window.BarcodeDetector){ detector=new BarcodeDetector({formats:['qr_code']}); tickNative(); } else { tickCanvas(); }
+      msg.textContent='';
+    }catch(e){ msg.textContent='No se pudo abrir cámara: '+(e?.message||e?.name||'Desconocido'); }
+  }
+  function accept(v){ const t=Date.now(); if(lastCode===v && t-lastTs<1200) return false; lastCode=v; lastTs=t; return true; }
+  function onCode(code){ if(!accept(code)) return; const li=document.createElement('li'); li.textContent=code; list.prepend(li);
+    const p=parseCode(code); if(!p){ msg.textContent='Código no reconocido'; return; }
+    (async()=>{
+      try{
+        if(p.type==='id'){ current=await API.sales.addItem(current._id,{source:'inventory',refId:p.value,qty:1}); }
+        else { current=await API.sales.addItem(current._id,{source:'inventory',sku:p.value,qty:1}); }
+        render(); renderWO(); if(ac.checked){ stop(); closeModal(); }
+      }catch(e){ msg.textContent=e?.message||'No se pudo agregar'; }
+    })();
+  }
+  async function tickNative(){ if(!running) return; try{ const codes=await detector.detect(video); if(codes?.[0]?.rawValue) onCode(codes[0].rawValue); }catch{} requestAnimationFrame(tickNative); }
+  function tickCanvas(){ if(!running) return; try{ const w=video.videoWidth,h=video.videoHeight; if(!w||!h) return requestAnimationFrame(tickCanvas); canvas.width=w; canvas.height=h; ctx.drawImage(video,0,0,w,h); if(window.jsQR){ const img=ctx.getImageData(0,0,w,h); const qr=ctx.getImageData?window.jsQR(img.data,w,h):null; } }catch{} requestAnimationFrame(tickCanvas); }
+  node.querySelector('#qr-start').onclick=start; node.querySelector('#qr-stop').onclick=stop; node.querySelector('#qr-add-manual').onclick=()=>{ const v=String(node.querySelector('#qr-manual').value||'').trim(); if(!v) return; onCode(v); };
+  fillCams();
+}
+
+// ===== Agregar manual =====
+function openAddManual(){
+  if(!current) return alert('Crea primero una venta');
+  const tpl = document.getElementById('tpl-add-manual'); const node = tpl.content.firstElementChild.cloneNode(true);
+  openModal(node);
+  node.querySelector('#am-cancel').onclick=()=>closeModal();
+  node.querySelector('#am-add').onclick=async()=>{
+    const name = node.querySelector('#am-name').value.trim();
+    const qty  = Number(node.querySelector('#am-qty').value||1)||1;
+    const price= Number(node.querySelector('#am-price').value||0)||0;
+    const sku  = node.querySelector('#am-sku').value.trim();
+    if(!name) return alert('Descripción requerida');
+    current = await API.sales.addItem(current._id, { source:'service', sku, name, qty, unitPrice:price });
+    closeModal(); render(); renderWO();
+>>>>>>> parent of a872708 (Sera?)
   };
 }
 
 async function pushQuoteLineToSale(line){
   if(!current) return alert('Crea primero una venta');
+<<<<<<< HEAD
   const qty = Number(line?.qty||1) || 1;
   const up  = Number(line?.unitPrice||0) || 0;
   const name= String(line?.description||'SERVICIO');
   // Sin enlace a inventario en el modelo de cotizaciones, agregamos como "price" (servicio)
+=======
+  const node=document.createElement('div'); node.className='card'; node.innerHTML=`
+    <h3>Agregar</h3>
+    <div class="row" style="gap:8px;">
+      <button id="go-inv" class="secondary">Desde inventario</button>
+      <button id="go-pr"  class="secondary">Desde lista de precios</button>
+    </div>`;
+  openModal(node);
+  node.querySelector('#go-inv').onclick=()=>{ closeModal(); openPickerInventory(); };
+  node.querySelector('#go-pr').onclick =()=>{ closeModal(); openPickerPrices(); };
+}
+
+// ===== Pickers (inventario / precios) =====
+async function openPickerInventory(){
+  const tpl = document.getElementById('tpl-inv-picker'); const node = tpl.content.firstElementChild.cloneNode(true);
+  openModal(node);
+  const body=node.querySelector('#p-inv-body'), cnt=node.querySelector('#p-inv-count');
+  const qName=node.querySelector('#p-inv-name'), qSku=node.querySelector('#p-inv-sku');
+  let page=1, pageSize=20;
+  async function load(reset=false){
+    if(reset){ body.innerHTML=''; page=1; }
+    const items = await API.inventory.itemsList({ name:qName.value||'', sku:qSku.value||'', page, limit:pageSize });
+    cnt.textContent=items.length; body.innerHTML='';
+    for(const it of items){
+      const tr = clone('tpl-inv-row');
+      tr.querySelector('img.thumb').src = (it.media?.[0]?.thumbUrl || it.media?.[0]?.url || '') || '';
+      tr.querySelector('[data-sku]').textContent = it.sku||'';
+      tr.querySelector('[data-name]').textContent = it.name||'';
+      tr.querySelector('[data-stock]').textContent = it.stock??0;
+      tr.querySelector('[data-price]').textContent = fmt(it.salePrice||0);
+      tr.querySelector('button.add').onclick = async ()=>{
+        current = await API.sales.addItem(current._id, { source:'inventory', refId: it._id, qty:1 });
+        render(); renderWO();
+      };
+      body.appendChild(tr);
+    }
+  }
+  node.querySelector('#p-inv-search').onclick=()=>load(true);
+  node.querySelector('#p-inv-more').onclick=()=>{ page++; load(); };
+  node.querySelector('#p-inv-cancel').onclick=()=>closeModal();
+  load(true);
+}
+
+async function openPickerPrices(){
+  const tpl = document.getElementById('tpl-price-picker'); const node = tpl.content.firstElementChild.cloneNode(true);
+  openModal(node);
+  const head=node.querySelector('#p-pr-head'), body=node.querySelector('#p-pr-body'), cnt=node.querySelector('#p-pr-count');
+  const svc=node.querySelector('#p-pr-svc'); const b=node.querySelector('#p-pr-brand'), l=node.querySelector('#p-pr-line'), e=node.querySelector('#p-pr-engine'), y=node.querySelector('#p-pr-year');
+  head.innerHTML = '<th>Marca</th><th>Línea</th><th>Motor</th><th>Año</th><th class="t-right">Precio</th><th></th>';
+>>>>>>> parent of a872708 (Sera?)
   try{
     current = await API.sales.addItem(current._id, { source:'price', name, qty, unitPrice: up });
     renderItems(); renderWO();
@@ -184,10 +304,28 @@ async function openQuotePicker(){
   if(!tpl) return alert('No hay plantilla para el picker de cotizaciones');
   const node = tpl.content.firstElementChild.cloneNode(true);
   openModal(node);
+<<<<<<< HEAD
   const body = node.querySelector('#qpick-body');
   const txt  = node.querySelector('#qpick-text');
   const btnS = node.querySelector('#qpick-search');
   const btnC = node.querySelector('#qpick-cancel');
+=======
+  const list=node.querySelector('#qh-list'); const q=node.querySelector('#qh-text');
+  async function fetchList(){
+    const res = await API.quotesList(q.value?('?q='+encodeURIComponent(q.value)):''); // usa backend
+    list.innerHTML='';
+    (res?.items||res||[]).forEach(qq=>{
+      const btn=document.createElement('button'); btn.className='secondary';
+      btn.textContent=`${(qq.number||'').toString().padStart(5,'0')} - ${qq?.client?.name||''} (${qq?.vehicle?.plate||''})`;
+      btn.style.cssText='display:block;width:100%;text-align:left;margin-top:6px;';
+      btn.onclick=()=>{ closeModal(); renderQuoteMini(qq); };
+      list.appendChild(btn);
+    });
+  }
+  node.querySelector('#qh-apply').onclick=fetchList;
+  fetchList();
+}
+>>>>>>> parent of a872708 (Sera?)
 
   async function load(q=''){
     body.innerHTML='<tr><td colspan="6" class="t-center muted">Cargando…</td></tr>';
@@ -252,6 +390,7 @@ function openEditCV(){
   node.querySelector('#v-year').value  = v.year ?? '';
   node.querySelector('#v-mile').value  = v.mileage ?? '';
   openModal(node);
+<<<<<<< HEAD
 
   // Autocompletar por placa al hacer blur
   const plateInput = node.querySelector('#v-plate');
@@ -278,6 +417,26 @@ function openEditCV(){
   }
 
   node.querySelector('#sales-save-cv').onclick = async()=>{
+=======
+  node.querySelector('#sales-save-cv').onclick = async ()=>{
+    const payload = {
+      customer: {
+        name: node.querySelector('#c-name').value.trim(),
+        idNumber: node.querySelector('#c-id').value.trim(),
+        phone: node.querySelector('#c-phone').value.trim(),
+        email: node.querySelector('#c-email').value.trim(),
+        address: node.querySelector('#c-address').value.trim()
+      },
+      vehicle: {
+        plate: node.querySelector('#v-plate').value.trim(),
+        brand: node.querySelector('#v-brand').value.trim(),
+        line: node.querySelector('#v-line').value.trim(),
+        engine: node.querySelector('#v-engine').value.trim(),
+        year: Number(node.querySelector('#v-year').value||'') || null,
+        mileage: Number(node.querySelector('#v-mile').value||'') || null
+      }
+    };
+>>>>>>> parent of a872708 (Sera?)
     try{
       const payload = {
         customer: {
@@ -600,7 +759,40 @@ export function initSales(){
   byId('sales-add-inv')?.addEventListener('click', ()=> openInvPicker());
   byId('sales-add-prices')?.addEventListener('click', ()=> openPricePicker());
 
+<<<<<<< HEAD
   // Cotizaciones
   byId('sv-loadQuote')?.addEventListener('click', ()=> openQuotePicker());
   byId('sv-q-to-sale')?.addEventListener('click', ()=> pushAllQuoteToSale());
 }
+=======
+  byId('sales-scan-qr')?.addEventListener('click', openQR);
+  byId('sales-add-general')?.addEventListener('click', openAddPicker);
+  byId('sales-add-manual')?.addEventListener('click', openAddManual);
+
+  byId('sales-close')?.addEventListener('click', async ()=>{
+    if(!current) return;
+    try{
+      await API.sales.close(current._id);
+      alert('Venta cerrada');
+      openTabs = openTabs.filter(x=>x!==current._id); saveTabs();
+      current=null; renderTabs(); render(); renderWO();
+    }catch(e){ alert(e?.message||'No se pudo cerrar'); }
+  });
+
+  byId('sv-print-wo')?.addEventListener('click', async ()=>{
+    if(!current) return;
+    try{ const fresh = await API.sales.get(current._id); buildWorkOrderPdf(fresh); }catch(e){ alert(e?.message||'No se pudo imprimir OT'); }
+  });
+
+  byId('sales-print')?.addEventListener('click', async ()=>{
+    if(!current) return;
+    try{ const fresh = await API.sales.get(current._id); await buildInvoicePdf(fresh); }catch(e){ alert(e?.message||'No se pudo generar la factura'); }
+  });
+
+  byId('sv-loadQuote')?.addEventListener('click', loadQuote);
+  byId('sv-edit-cv')?.addEventListener('click', openEditCV);
+}
+
+// Auto-init
+try{ initSales(); }catch(e){ console.warn('initSales error', e); }
+>>>>>>> parent of a872708 (Sera?)
