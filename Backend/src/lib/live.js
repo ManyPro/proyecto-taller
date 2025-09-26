@@ -1,39 +1,33 @@
-// Backend/src/lib/live.js
+// Backend/src/lib/live.js (HOTFIX 2025-09-26)
 import { EventEmitter } from 'node:events';
 
-/**
- * In-memory pub/sub per company for SSE.
- * Not clustered; suitable for single-process or dev deployments.
- */
-const bus = new EventEmitter();
-bus.setMaxListeners(1000);
-
+// Pub/Sub por empresa
 const clients = new Map(); // companyId => Set(res)
 
 export function sseHandler(req, res) {
-  const companyId = req.companyId || (req.user && req.user.companyId);
-  if (!companyId) {
-    res.status(401).end('Unauthorized');
-    return;
-  }
-  // Headers for SSE
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
+  const companyId = String(req.companyId || (req.user && req.user.companyId) || '');
+  if (!companyId) { res.status(401).end('Unauthorized'); return; }
+
+  // Headers SSE (y evitar buffering en proxies)
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
   res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders?.();
 
-  // Keep-alive
-  const keepAlive = setInterval(() => {
-    try { res.write(':
-
-'); } catch { /* ignore */ }
-  }, 25000);
-
-  // Register client
+  // Registrar cliente
   if (!clients.has(companyId)) clients.set(companyId, new Set());
   clients.get(companyId).add(res);
 
-  // On close
+  // Mensaje de bienvenida (para abrir el stream en el cliente)
+  try { res.write('event: connected\ndata: {}\n\n'); } catch {}
+
+  // Keep-alive (evitar timeouts sin usar la sintaxis problemática de comentarios)
+  const keepAlive = setInterval(() => {
+    try { res.write(`event: ping\ndata: {"ts":${Date.now()}}\n\n`); } catch {}
+  }, 25000);
+
+  // Limpieza
   req.on('close', () => {
     clearInterval(keepAlive);
     const set = clients.get(companyId);
@@ -46,7 +40,7 @@ export function publish(companyId, event, payload = {}) {
   if (!set || set.size === 0) return;
   const data = `event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`;
   for (const res of set) {
-    try { res.write(data); } catch { /* ignore */ }
+    try { res.write(data); } catch {}
   }
 }
 
