@@ -1,0 +1,31 @@
+// Backend/src/models/CustomerProfile.js
+import mongoose from 'mongoose';
+
+const CustomerProfileSchema = new mongoose.Schema({
+  companyId: { type: String, index: true, required: true },
+  customer: {
+    idNumber: { type: String, default: '' },
+    name:     { type: String, default: '' },
+    phone:    { type: String, default: '' },
+    email:    { type: String, default: '' },
+    address:  { type: String, default: '' }
+  },
+  vehicle: {
+    // NOTA: mantenemos 'required: true' porque el controller solo upsertea si hay placa;
+    // el índice abajo es parcial para permitir docs sin placa sin colisión.
+    plate:  { type: String, index: true, required: true }, // ABC123
+    brand:  { type: String, default: '' },
+    line:   { type: String, default: '' },
+    engine: { type: String, default: '' },
+    year:   { type: Number, default: null }
+    // mileage NO se guarda aquí
+  }
+}, { timestamps: true });
+
+// Unicidad por empresa + placa, pero SOLO cuando hay placa string no-vacía.
+CustomerProfileSchema.index(
+  { companyId: 1, 'vehicle.plate': 1 },
+  { unique: true, partialFilterExpression: { 'vehicle.plate': { $type: 'string', $ne: '' } } }
+);
+
+export default mongoose.model('CustomerProfile', CustomerProfileSchema);
