@@ -1,13 +1,10 @@
 // Frontend/assets/sales.js — reemplazo completo con lector QR robusto
-// Características clave:
-// - Mantiene flujo de ventas existente (tabs, items, cliente/vehículo)
-// - Arregla E11000 desde backend con índice parcial (este archivo no toca eso)
-// - Lector QR con fallback a jsQR si el navegador no soporta BarcodeDetector
-// - Autocompletar por placa (blur) en modales
-// - Render idempotente y manejo de múltiples pestañas
+// Cambios clave respecto a la versión anterior:
+// - Se ELIMINA el import estático de './pdf.js' para no romper la app si el archivo no existe.
+// - Se usa import dinámico al momento de imprimir (carga perezosa).
+// - Mantiene: flujo de ventas, QR con fallback jsQR, edición cliente/vehículo, tabs, etc.
 
 import API from './api.js';
-import { buildWorkOrderPdf, buildInvoicePdf, money as moneyFromPdf } from './pdf.js';
 
 // ===== Helpers UI =====
 const $  = (s, r=document) => r.querySelector(s);
@@ -346,15 +343,28 @@ function shareWA(){
   window.open(url, '_blank');
 }
 
-function printPDF(){
+async function printWO(){ // Orden de trabajo
   if(!current) return;
-  try{
-    if(typeof buildWorkOrderPdf === 'function'){
-      buildWorkOrderPdf(current);
-    } else {
-      alert('Función de PDF no disponible');
-    }
-  }catch(e){ alert('Error al generar PDF: '+(e?.message||'desconocido')); }
+  let pdf = null;
+  try { pdf = await import('./pdf.js'); } catch {}
+  if(!pdf || typeof pdf.buildWorkOrderPdf!=='function'){
+    alert('PDF no disponible');
+    return;
+  }
+  try{ pdf.buildWorkOrderPdf(current); }
+  catch(e){ alert('Error al generar PDF: '+(e?.message||'desconocido')); }
+}
+
+async function printInvoice(){ // Factura (si existe en tu proyecto)
+  if(!current) return;
+  let pdf = null;
+  try { pdf = await import('./pdf.js'); } catch {}
+  if(!pdf || typeof pdf.buildInvoicePdf!=='function'){
+    alert('PDF de factura no disponible');
+    return;
+  }
+  try{ pdf.buildInvoicePdf(current); }
+  catch(e){ alert('Error al generar PDF: '+(e?.message||'desconocido')); }
 }
 
 // ===== Init =====
@@ -373,6 +383,7 @@ export function initSales(){
   byId('sales-scan-qr')?.addEventListener('click', ()=> openQR());
   byId('sales-cv')?.addEventListener('click', ()=> openEditCV());
   byId('sales-close')?.addEventListener('click', ()=> closeSale());
-  byId('sales-print')?.addEventListener('click', ()=> printPDF());
+  byId('sales-print')?.addEventListener('click', ()=> printWO());
+  byId('sales-print-invoice')?.addEventListener('click', ()=> printInvoice());
   byId('sales-share-wa')?.addEventListener('click', ()=> shareWA());
 }
