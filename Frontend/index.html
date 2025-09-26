@@ -18,6 +18,7 @@
   <script type="module" src="./assets/js/quotes.js"></script>
   <script type="module" src="./assets/js/sales.js"></script>
   <script type="module" src="./assets/js/prices.js"></script>
+ <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <link rel="icon" href="data:,">
 </head>
 <body>
@@ -139,17 +140,41 @@
       <!-- ========== INVENTARIO ========== -->
       <section id="tab-inventario" class="tab">
         <div id="inventory-top">
+          <!-- INGRESO: ahora con dos tipos -->
           <div class="card" id="vi-card-form">
-            <h3>Procedencia</h3>
-            <label>Marca</label><input id="vi-brand" />
-            <label>Modelo</label><input id="vi-model" />
-            <label>Cilindraje</label><input id="vi-engine" />
-            <label>Fecha ingreso</label><input id="vi-date" type="date" />
-            <label>Precio de entrada</label><input id="vi-price" type="number" min="0" step="0.01" />
-            <button id="vi-save">Guardar Entrada</button>
+            <h3>Ingreso</h3>
+            <div class="row">
+              <label class="row" style="gap:6px;margin-top:0;">
+                <input type="radio" name="vi-kind" id="vi-kind-vehicle" value="vehicle" checked>
+                Ingreso de vehículo
+              </label>
+              <label class="row" style="gap:6px;margin-top:0;">
+                <input type="radio" name="vi-kind" id="vi-kind-purchase" value="purchase">
+                Ingreso de compra
+              </label>
+            </div>
+
+            <!-- Sub-form: Vehículo -->
+            <div id="vi-form-vehicle">
+              <label>Marca</label><input id="vi-brand" />
+              <label>Modelo</label><input id="vi-model" />
+              <label>Cilindraje</label><input id="vi-engine" />
+              <label>Fecha ingreso</label><input id="vi-date" type="date" />
+              <label>Precio de entrada</label><input id="vi-price" type="number" min="0" step="0.01" />
+            </div>
+
+            <!-- Sub-form: Compra -->
+            <div id="vi-form-purchase" class="hidden">
+              <label>Lugar de compra</label><input id="vi-p-place" />
+              <label>Fecha</label><input id="vi-p-date" type="date" />
+              <label>Precio de entrada</label><input id="vi-p-price" type="number" min="0" step="0.01" />
+            </div>
+
+            <button id="vi-save">Guardar Ingreso</button>
           </div>
+
           <div class="card" id="vi-card-lista">
-            <h3>Ingresos de vehículo</h3>
+            <h3>Ingresos</h3>
             <div id="vi-list"></div>
           </div>
         </div>
@@ -158,8 +183,8 @@
           <h3>Nuevo Ítem</h3>
           <label>SKU</label><input id="it-sku" />
           <label>Nombre</label><input id="it-name" />
-            <label>Nombre interno (opcional)</label><input id="it-internal" />
-            <label>Ubicación (opcional)</label><input id="it-location" />
+          <label>Nombre interno (opcional)</label><input id="it-internal" />
+          <label>Ubicación (opcional)</label><input id="it-location" />
           <label>Procedencia final</label><input id="it-vehicleTarget" placeholder="GENERAL" />
           <label>Procedencia</label>
           <select id="it-vehicleIntakeId"></select>
@@ -409,8 +434,10 @@
                 <div class="row" style="gap:6px;">
                   <button id="sales-start">Nueva venta</button>
                   <button id="sales-scan-qr" class="secondary">Escanear QR</button>
-                  <button id="sales-share-wa" class="secondary">WhatsApp</button>
-                  <button id="sales-print" class="secondary">PDF</button>
+                  <button id="sales-add-general" class="secondary">Agregar</button>
+                  <button id="sales-add-manual" class="secondary">Agregar manual</button>
+                  <button id="sales-history" class="secondary">Historial</button>
+                  <button id="sales-print" class="secondary">Imprimir factura</button>
                   <button id="sales-close" class="danger">Cerrar</button>
                 </div>
               </div>
@@ -427,20 +454,11 @@
                     <div class="muted" id="sv-mini-phone">Cel: —</div>
                   </div>
                 </div>
-                <div class="row" style="gap:6px;"><button id="sv-edit-cv" class="secondary">Editar datos…</button><button id="sv-clear-cv" class="danger">Limpiar datos</button></div>
+                <button id="sv-edit-cv" class="secondary">Editar datos…</button>
               </div>
             </div>
 
-            <!-- acciones agregar ítems -->
-            <div class="card">
-              <div class="row" style="gap:6px; flex-wrap:wrap;">
-                <input id="sales-sku" placeholder="SKU…" style="min-width:180px;">
-                <button id="sales-add-sku">Agregar SKU</button>
-                <button id="sales-add-inv" class="secondary">Agregar desde Inventario</button>
-                <button id="sales-add-prices" class="secondary">Agregar desde Lista de precios</button>
-              </div>
-            </div>
-
+            <!-- acciones agregar ítems (reemplazado por botones superiores) -->
             <!-- tabla venta -->
             <div class="card">
               <div class="table-wrap">
@@ -498,6 +516,33 @@
         </div><!-- /ventas-grid -->
       </section>
       <!-- ========== /VENTAS ========== -->
+
+      
+      <!-- Historial ventas -->
+      <template id="tpl-sales-history">
+        <div class="card">
+          <h3>Historial de ventas</h3>
+          <div class="row" style="gap:8px; align-items:end;">
+            <div class="col">
+              <label>Desde</label><input type="date" id="sh-from" />
+            </div>
+            <div class="col">
+              <label>Hasta</label><input type="date" id="sh-to" />
+            </div>
+            <div class="col">
+              <label>Placa</label><input id="sh-plate" placeholder="ABC123" />
+            </div>
+            <button id="sh-search" class="secondary">Buscar</button>
+          </div>
+          <div class="table-wrap" style="margin-top:8px;">
+            <table class="table">
+              <thead><tr><th>#</th><th>Placa</th><th>Fecha</th><th class="t-right">Total</th></tr></thead>
+              <tbody id="sh-body"></tbody>
+              <tfoot><tr><td colspan="3" class="t-right"><b>Total</b></td><td class="t-right" id="sh-total">$0</td></tr></tfoot>
+            </table>
+          </div>
+        </div>
+      </template>
 
       <!-- ======== TEMPLATES (nuevos, para evitar HTML en JS) ======== -->
       <template id="tpl-lightbox-img">
@@ -592,31 +637,7 @@
         </tr>
       </template>
 
-      
-      <!-- Picker de Cotizaciones (Ventas) -->
-      <template id="tpl-quote-picker">
-        <div>
-          <h3>Seleccionar cotización</h3>
-          <div class="picker-head">
-            <div class="row" style="gap:6px;">
-              <input id="qpick-text" placeholder="Buscar por cliente o placa…" />
-              <button id="qpick-search" class="secondary">Buscar</button>
-            </div>
-          </div>
-          <div class="picker-table table-wrap" style="max-height:50vh; overflow:auto;">
-            <table class="table">
-              <thead>
-                <tr><th>Número</th><th>Cliente</th><th>Placa</th><th>Fecha</th><th class="t-right">Total</th><th></th></tr>
-              </thead>
-              <tbody id="qpick-body"></tbody>
-            </table>
-          </div>
-          <div class="picker-actions row right" style="gap:6px;">
-            <button id="qpick-cancel" class="secondary">Cerrar</button>
-          </div>
-        </div>
-      </template>
-    <!-- Picker Lista de Precios (Ventas) -->
+      <!-- Picker Lista de Precios (Ventas) -->
       <template id="tpl-price-picker">
         <div>
           <h3>Agregar desde lista de precios</h3>
@@ -725,27 +746,28 @@
         </tr>
       </template>
 
-      <!-- Importar XLSX (tab precios) -->
-      <template id="tpl-import-prices">
+      <!-- Modal: Agregar manual -->
+      <template id="tpl-add-manual">
         <div class="card">
-          <h3 id="imp-title">Importar XLSX</h3>
-          <p>1) Selecciona un archivo .xlsx (primera hoja).<br>
-             2) Ajusta el mapeo (encabezados exactos tal como vienen en el Excel).<br>
-             3) Modo: <b>upsert</b> actualiza por (marca, línea, motor, año); <b>overwrite</b> borra todo el servicio y reimporta.</p>
-          <div class="row"><input type="file" id="imp-file" accept=".xlsx" /></div>
-          <label>Mapeo columnas → campos (JSON)</label>
-          <textarea id="imp-map" rows="8"></textarea>
-          <div class="row" style="gap:6px;">
-            <select id="imp-mode">
-              <option value="upsert" selected>upsert (recomendado)</option>
-              <option value="overwrite">overwrite (borra y vuelve a cargar)</option>
-            </select>
-            <button id="imp-run">Importar</button>
-            <button id="imp-cancel" class="secondary">Cancelar</button>
+          <h3>Agregar manual</h3>
+          <div class="cols-2" style="gap:8px;">
+            <div class="col">
+              <input id="am-type" placeholder="Tipo (SERVICIO/PRODUCTO)" />
+              <input id="am-sku" placeholder="SKU (opcional)" />
+              <input id="am-name" placeholder="Descripción" />
+            </div>
+            <div class="col">
+              <input id="am-qty" type="number" min="1" step="1" placeholder="Cant." />
+              <input id="am-price" type="number" min="0" step="0.01" placeholder="Precio unitario" />
+            </div>
           </div>
-          <div id="imp-res" class="list"></div>
+          <div class="row right" style="gap:8px; margin-top:8px;">
+            <button id="am-cancel" class="secondary">Cancelar</button>
+            <button id="am-add">Agregar</button>
+          </div>
         </div>
       </template>
+    
 
     </section>
   </main>
@@ -831,7 +853,7 @@
 <!-- === Modal: Editar entrada de vehículo === -->
 <template id="tpl-vi-edit">
   <div class="card">
-    <h3>Editar entrada de vehículo</h3>
+    <h3>Editar ingreso</h3>
     <label>Marca</label><input id="e-vi-brand" />
     <label>Modelo</label><input id="e-vi-model" />
     <label>Motor</label><input id="e-vi-engine" />
