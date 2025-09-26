@@ -5,6 +5,7 @@ import PriceEntry from '../models/PriceEntry.js';
 import Counter from '../models/Counter.js';
 import StockMove from '../models/StockMove.js';
 import CustomerProfile from '../models/CustomerProfile.js';
+import { publish } from '../lib/live.js';
 
 // Helpers
 const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
@@ -29,6 +30,7 @@ async function getNextSaleNumber(companyId) {
 export const startSale = async (req, res) => {
   // Usa 'draft' para respetar el enum del modelo
   const sale = await Sale.create({ companyId: req.companyId, status: 'draft', items: [] });
+  try{ publish(req.companyId, 'sale:started', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
 
@@ -143,6 +145,7 @@ export const addItem = async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }
+  try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
 
@@ -187,6 +190,7 @@ export const updateItem = async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }
+  try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
 
@@ -224,6 +228,7 @@ export const removeItem = async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }
+  try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
 
@@ -278,6 +283,7 @@ export const setCustomerVehicle = async (req, res) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
   }
+  try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
 
@@ -351,7 +357,8 @@ export const closeSale = async (req, res) => {
         }, { upsert: true, new: true, setDefaultsOnInsert: true }
       );
     }
-    res.json({ ok: true, sale: sale.toObject() });
+    try{ publish(req.companyId, 'sale:closed', { id: (sale?._id)||undefined }) }catch{}
+  res.json({ ok: true, sale: sale.toObject() });
   } catch (err) {
     await session.abortTransaction().catch(()=>{});
     res.status(400).json({ error: err?.message || 'Cannot close sale' });
@@ -368,6 +375,7 @@ export const cancelSale = async (req, res) => {
   if (sale.status === 'closed') return res.status(400).json({ error: 'Closed sale cannot be cancelled' });
   // Política actual: eliminar; si prefieres histórico, cambia a status:'cancelled' y setea cancelledAt.
   await Sale.deleteOne({ _id: id, companyId: req.companyId });
+  try{ publish(req.companyId, 'sale:cancelled', { id: (sale?._id)||undefined }) }catch{}
   res.json({ ok: true });
 };
 
@@ -487,7 +495,7 @@ export const listSales = async (req, res) => {
 };
 
 export const summarySales = async (req, res) => {
-  const { from, to } = req.query || {};
+  const { from, to, plate } = req.query || {};
   const q = { companyId: req.companyId, status: 'closed' };
   if (from || to) {
     q.createdAt = {};

@@ -8,6 +8,7 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import mongoose from 'mongoose';
+import CustomerProfile from './models/CustomerProfile.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 

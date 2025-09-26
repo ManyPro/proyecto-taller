@@ -185,6 +185,20 @@ const API = {
     cancel: (id) => http.post(`/api/v1/sales/${id}/cancel`, {}),
     profileByPlate: (plate) => http.get(`/api/v1/sales/profile/by-plate/${encodeURIComponent(String(plate||'').toUpperCase())}`)
   }
+
+  , live: {
+      connect: (onEvent) => {
+        const url = new URL(`/api/v1/sales/stream`, API_BASE || window.location.origin);
+        const token = tokenStore.get();
+        const es = new EventSource(url.toString(), { withCredentials: true });
+        es.onmessage = () => {};
+        es.addEventListener('sale:started', e => onEvent && onEvent('sale:started', JSON.parse(e.data||'{}')));
+        es.addEventListener('sale:updated', e => onEvent && onEvent('sale:updated', JSON.parse(e.data||'{}')));
+        es.addEventListener('sale:closed', e => onEvent && onEvent('sale:closed', JSON.parse(e.data||'{}')));
+        es.addEventListener('sale:cancelled', e => onEvent && onEvent('sale:cancelled', JSON.parse(e.data||'{}')));
+        return es;
+      }
+    }
 };
 
 // Exports

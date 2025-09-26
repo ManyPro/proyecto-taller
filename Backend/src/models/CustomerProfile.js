@@ -20,6 +20,6 @@ const CustomerProfileSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-CustomerProfileSchema.index({ companyId: 1, 'vehicle.plate': 1 }, { unique: true });
+CustomerProfileSchema.index({ companyId: 1, 'vehicle.plate': 1 }, { unique: true, partialFilterExpression: { 'vehicle.plate': { $type: 'string' }, }, });
 
 export default mongoose.model('CustomerProfile', CustomerProfileSchema);
