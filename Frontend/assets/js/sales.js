@@ -1,10 +1,6 @@
-// Frontend/assets/sales.js — reemplazo completo con lector QR robusto
-// Cambios clave respecto a la versión anterior:
-// - Se ELIMINA el import estático de './pdf.js' para no romper la app si el archivo no existe.
-// - Se usa import dinámico al momento de imprimir (carga perezosa).
-// - Mantiene: flujo de ventas, QR con fallback jsQR, edición cliente/vehículo, tabs, etc.
 
-import API from './api.js';
+// Frontend/assets/sales.js — COMPLETO
+import API, { authToken } from './api.js';
 
 // ===== Helpers UI =====
 const $  = (s, r=document) => r.querySelector(s);
@@ -36,6 +32,7 @@ function closeModal(){
 // ===== Estado =====
 let current = null;            // venta abierta actualmente
 let openTabs = [];             // array de IDs de ventas en UI
+let currentQuote = null;       // cotización cargada en el bloque lateral
 
 // Persistencia simple de tabs por empresa
 const TABS_KEY = 'sales:openTabs';
@@ -44,7 +41,7 @@ function loadTabs(){ try{ openTabs = JSON.parse(localStorage.getItem(TABS_KEY)||
 
 // ===== Render =====
 function renderHeader(){
-  const lp = byId('sale-plate'), ln = byId('sale-name'), lr = byId('sale-phone');
+  const lp = byId('sv-mini-plate'), ln = byId('sv-mini-name'), lr = byId('sv-mini-phone');
   const c=current?.customer||{}, v=current?.vehicle||{};
   if(lp) lp.textContent = v.plate || '—';
   if(ln) ln.textContent = `Cliente: ${c.name||'—'}`;
@@ -97,13 +94,13 @@ function renderTabs(){
     label.textContent = `VENTA ${String(id).slice(-4)}`;
     if(current?._id===id) node.classList.add('active');
     label.onclick = async()=>{
-      try{ current = await API.sales.get(id); renderTabs(); renderItems(); renderWO(); }
+      try{ current = await API.sales.get(id); renderTabs(); renderItems(); renderWO(); renderQuote(); }
       catch{ /* venta puede haber cerrado */ }
     };
     x.onclick = ()=>{
       openTabs = openTabs.filter(sid => sid!==id);
       if(current?._id===id) current = null;
-      saveTabs(); renderTabs(); renderItems(); renderWO();
+      saveTabs(); renderTabs(); renderItems(); renderWO(); renderQuote();
     };
     wrap.appendChild(node);
   });
@@ -118,6 +115,123 @@ function renderWO(){
     tr.innerHTML = `<td>${(it.name||it.sku||'').toString()}</td><td class="t-center">${Number(it.qty||1)}</td>`;
     body.appendChild(tr);
   });
+}
+
+// ===== Cotizaciones (bloque lateral) =====
+function renderQuote(){
+  const qBody = byId('sv-q-body');
+  const qHeader = byId('sv-q-header');
+  if(!qBody) return;
+  qBody.innerHTML='';
+  if(!currentQuote || !Array.isArray(currentQuote.items) || !currentQuote.items.length){
+    if(qHeader) qHeader.textContent = '— ninguna cotización cargada —';
+    return;
+  }
+  if(qHeader) qHeader.textContent = `Cotización #${currentQuote.number} — ${currentQuote.customer?.name||''} • ${currentQuote.vehicle?.plate||''}`;
+  currentQuote.items.forEach((it, idx)=>{
+    const tr = document.createElement('tr');
+    const qty = Number(it.qty||1) || 1;
+    const up  = Number(it.unitPrice||0) || 0;
+    const tot = Number(it.subtotal||Math.round(qty*up)) || 0;
+    tr.innerHTML = `
+      <td>${it.kind||''}</td>
+      <td>${it.description||''}</td>
+      <td class="t-center">${qty}</td>
+      <td class="t-right">${money(up)}</td>
+      <td class="t-right">${money(tot)}</td>
+      <td class="t-center"><button class="q-to-sale" data-i="${idx}">→</button></td>
+    `;
+    qBody.appendChild(tr);
+  });
+  // Delegación del botón por fila
+  qBody.onclick = async (ev)=>{
+    const b = ev.target.closest('button.q-to-sale');
+    if(!b) return;
+    const i = Number(b.dataset.i||-1);
+    if(i<0) return;
+    await pushQuoteLineToSale(currentQuote.items[i]);
+  };
+}
+
+async function pushQuoteLineToSale(line){
+  if(!current) return alert('Crea primero una venta');
+  const qty = Number(line?.qty||1) || 1;
+  const up  = Number(line?.unitPrice||0) || 0;
+  const name= String(line?.description||'SERVICIO');
+  // Sin enlace a inventario en el modelo de cotizaciones, agregamos como "price" (servicio)
+  try{
+    current = await API.sales.addItem(current._id, { source:'price', name, qty, unitPrice: up });
+    renderItems(); renderWO();
+  }catch(e){ alert(e?.message||'No se pudo pasar a venta'); }
+}
+
+async function pushAllQuoteToSale(){
+  if(!current) return alert('Crea primero una venta');
+  if(!currentQuote?.items?.length) return;
+  for(const it of currentQuote.items){
+    const qty = Number(it?.qty||1) || 1;
+    const up  = Number(it?.unitPrice||0) || 0;
+    const name= String(it?.description||'SERVICIO');
+    try{
+      current = await API.sales.addItem(current._id, { source:'price', name, qty, unitPrice: up });
+    }catch(e){ /* continuar con el resto */ }
+  }
+  renderItems(); renderWO();
+}
+
+async function openQuotePicker(){
+  const tpl = byId('tpl-quote-picker');
+  if(!tpl) return alert('No hay plantilla para el picker de cotizaciones');
+  const node = tpl.content.firstElementChild.cloneNode(true);
+  openModal(node);
+  const body = node.querySelector('#qpick-body');
+  const txt  = node.querySelector('#qpick-text');
+  const btnS = node.querySelector('#qpick-search');
+  const btnC = node.querySelector('#qpick-cancel');
+
+  async function load(q=''){
+    body.innerHTML='<tr><td colspan="6" class="t-center muted">Cargando…</td></tr>';
+    try{
+      const qs = q ? `?q=${encodeURIComponent(q)}` : '';
+      const list = await API.quotesList(qs);
+      body.innerHTML='';
+      (list||[]).forEach(doc=>{
+        const tr = document.createElement('tr');
+        const d = new Date(doc.createdAt);
+        const total = Number(doc.total||0);
+        tr.innerHTML = \`
+          <td>\${doc.number||''}</td>
+          <td>\${doc.customer?.name||''}</td>
+          <td>\${doc.vehicle?.plate||''}</td>
+          <td>\${isFinite(d.getTime())? d.toLocaleDateString(): ''}</td>
+          <td class="t-right">\${money(total)}</td>
+          <td class="t-center"><button class="pick" data-id="\${doc._id}">Usar</button></td>\`;
+        body.appendChild(tr);
+      });
+      if(!body.children.length){
+        body.innerHTML='<tr><td colspan="6" class="t-center muted">Sin resultados</td></tr>';
+      }
+    }catch(e){
+      body.innerHTML = '<tr><td colspan="6" class="t-center">Error cargando</td></tr>';
+    }
+  }
+  btnS.onclick = ()=> load(String(txt.value||'').trim());
+  btnC.onclick = ()=> closeModal();
+  body.onclick = async (ev)=>{
+    const b = ev.target.closest('button.pick'); if(!b) return;
+    const id = b.dataset.id;
+    try{
+      const tok = authToken.get();
+      const res = await fetch(\`\${API.base}/api/v1/quotes/\${id}\`, {
+        headers: tok ? { 'Authorization': 'Bearer '+tok } : {}
+      });
+      if(!res.ok) throw new Error('No se pudo cargar la cotización');
+      currentQuote = await res.json();
+      renderQuote();
+      closeModal();
+    }catch(e){ alert(e?.message||'No se pudo cargar la cotización'); }
+  };
+  load();
 }
 
 // ===== Cliente / vehículo =====
@@ -182,23 +296,28 @@ function openEditCV(){
           mileage: Number(node.querySelector('#v-mile').value||'')||null
         }
       };
-      current = await API.sales.update(current._id, payload);
+      current = await API.sales.setCustomerVehicle(current._id, payload);
       closeModal(); renderHeader();
     }catch(e){ alert(e?.message||'No se pudo guardar'); }
   };
   node.querySelector('#sales-cancel-cv').onclick = ()=> closeModal();
 }
 
+async function clearCV(){
+  if(!current) return;
+  if(!confirm('¿Quitar datos de cliente y vehículo de esta venta?')) return;
+  try{
+    current = await API.sales.setCustomerVehicle(current._id, { customer:{}, vehicle:{} });
+    renderHeader();
+  }catch(e){ alert(e?.message||'No se pudo limpiar'); }
+}
+
 // ===== QR Scanner =====
 function parseCode(raw){
   if(!raw) return null; let s=String(raw).trim();
-  // URL → extraer segmento final por si el QR es un link corto
   try{ if(/^https?:\/\//i.test(s)){ const u=new URL(s); s=u.pathname.split('/').filter(Boolean).pop()||s; } }catch{}
-  // Patrón ObjectId
   const m=s.match(/[a-f0-9]{24}/ig); if(m?.length) return {type:'id',value:m[m.length-1]};
-  // SKU simple
   if(/^[A-Z0-9\-_]+$/i.test(s)) return {type:'sku',value:s.toUpperCase()};
-  // Payload IT:<companyId>:<itemId>:<SKU>
   const it = s.match(/^IT:([^:]+):([a-f0-9]{24}):(.+)$/i);
   if(it) return {type:'id', value:it[2]};
   return null;
@@ -234,7 +353,7 @@ function openQR(){
     try{
       const devices = await navigator.mediaDevices.enumerateDevices();
       const cams = devices.filter(d => d.kind==='videoinput');
-      sel.innerHTML = cams.map(c => `<option value="${c.deviceId}">${c.label||'Cámara'}</option>`).join('');
+      sel.innerHTML = cams.map(c => `<option value="\${c.deviceId}">\${c.label||'Cámara'}</option>`).join('');
     }catch{ sel.innerHTML='<option value="">Predeterminada</option>'; }
   }
 
@@ -320,12 +439,105 @@ function openQR(){
   fillCams();
 }
 
+// ===== Pickers de Inventario y Lista de precios =====
+function openInvPicker(){
+  const tpl = byId('tpl-inv-picker'); if(!tpl) return alert('No hay plantilla de inventario');
+  const node = tpl.content.firstElementChild.cloneNode(true);
+  openModal(node);
+  const name = node.querySelector('#p-inv-name');
+  const sku  = node.querySelector('#p-inv-sku');
+  const intake = node.querySelector('#p-inv-intake');
+  const body = node.querySelector('#p-inv-body');
+  const count= node.querySelector('#p-inv-count');
+
+  async function load(){
+    body.innerHTML = '<tr><td colspan="6" class="t-center muted">Cargando…</td></tr>';
+    try{
+      const items = await API.inventory.itemsList({ name: name.value||'', sku: sku.value||'', intake: intake.value||'' });
+      body.innerHTML='';
+      (items||[]).forEach(it=>{
+        const trTpl = byId('tpl-inv-row');
+        const tr = trTpl?.content?.firstElementChild?.cloneNode(true) || document.createElement('tr');
+        tr.querySelector('.thumb').src = it.images?.[0]?.url || '';
+        tr.querySelector('[data-sku]').textContent = it.sku||'';
+        tr.querySelector('[data-name]').textContent = it.name||'';
+        tr.querySelector('[data-stock]').textContent = Number(it.stock||0);
+        tr.querySelector('[data-price]').textContent = money(it.salePrice||0);
+        tr.querySelector('button.add').onclick = async()=>{
+          try{
+            current = await API.sales.addItem(current._id, { source:'inventory', refId: it._id, qty:1 });
+            renderItems(); renderWO();
+          }catch(e){ alert(e?.message||'No se pudo agregar'); }
+        };
+        body.appendChild(tr);
+      });
+      if(count) count.textContent = String(body.children.length);
+      if(!body.children.length) body.innerHTML='<tr><td colspan="6" class="t-center muted">Sin resultados</td></tr>';
+    }catch(e){
+      body.innerHTML='<tr><td colspan="6" class="t-center">Error</td></tr>';
+    }
+  }
+  node.querySelector('#p-inv-search').onclick = load;
+  node.querySelector('#p-inv-cancel').onclick = ()=> closeModal();
+  load();
+}
+
+function openPricePicker(){
+  const tpl = byId('tpl-price-picker'); if(!tpl) return alert('No hay plantilla de precios');
+  const node = tpl.content.firstElementChild.cloneNode(true);
+  openModal(node);
+  const svc = node.querySelector('#p-pr-svc');
+  const brand = node.querySelector('#p-pr-brand');
+  const line = node.querySelector('#p-pr-line');
+  const engine = node.querySelector('#p-pr-engine');
+  const year = node.querySelector('#p-pr-year');
+  const body = node.querySelector('#p-pr-body');
+  const count= node.querySelector('#p-pr-count');
+
+  async function load(){
+    body.innerHTML='<tr><td colspan="7" class="t-center muted">Cargando…</td></tr>';
+    try{
+      const rows = await API.pricesList({
+        svc: svc?.value||'',
+        brand: brand?.value||'',
+        line: line?.value||'',
+        engine: engine?.value||'',
+        year: year?.value||''
+      });
+      body.innerHTML='';
+      (rows||[]).forEach(pe=>{
+        const trTpl = byId('tpl-price-row');
+        const tr = trTpl?.content?.firstElementChild?.cloneNode(true) || document.createElement('tr');
+        tr.querySelector('[data-brand]').textContent = pe.brand||'';
+        tr.querySelector('[data-line]').textContent = pe.line||'';
+        tr.querySelector('[data-engine]').textContent = pe.engine||'';
+        tr.querySelector('[data-year]').textContent = pe.year||'';
+        tr.querySelector('[data-price]').textContent = money(pe.total||pe.price||0);
+        tr.querySelector('button.add').onclick = async()=>{
+          try{
+            current = await API.sales.addItem(current._id, { source:'price', refId: pe._id, qty:1 });
+            renderItems(); renderWO();
+          }catch(e){ alert(e?.message||'No se pudo agregar'); }
+        };
+        body.appendChild(tr);
+      });
+      if(count) count.textContent = String(body.children.length);
+      if(!body.children.length) body.innerHTML='<tr><td colspan="7" class="t-center muted">Sin resultados</td></tr>';
+    }catch(e){
+      body.innerHTML='<tr><td colspan="7" class="t-center">Error</td></tr>';
+    }
+  }
+  node.querySelector('#p-pr-search').onclick = load;
+  node.querySelector('#p-pr-cancel').onclick = ()=> closeModal();
+  load();
+}
+
 // ===== Acciones =====
 async function startSale(){
   const s = await API.sales.start();
   current = s;
   if(!openTabs.includes(current._id)) openTabs.push(current._id);
-  saveTabs(); renderTabs(); renderItems(); renderWO();
+  saveTabs(); renderTabs(); renderItems(); renderWO(); renderQuote();
 }
 
 async function closeSale(){
@@ -355,18 +567,6 @@ async function printWO(){ // Orden de trabajo
   catch(e){ alert('Error al generar PDF: '+(e?.message||'desconocido')); }
 }
 
-async function printInvoice(){ // Factura (si existe en tu proyecto)
-  if(!current) return;
-  let pdf = null;
-  try { pdf = await import('./pdf.js'); } catch {}
-  if(!pdf || typeof pdf.buildInvoicePdf!=='function'){
-    alert('PDF de factura no disponible');
-    return;
-  }
-  try{ pdf.buildInvoicePdf(current); }
-  catch(e){ alert('Error al generar PDF: '+(e?.message||'desconocido')); }
-}
-
 // ===== Init =====
 let inited=false;
 export function initSales(){
@@ -376,14 +576,31 @@ export function initSales(){
   loadTabs(); renderTabs();
 
   if(openTabs.length){
-    API.sales.get(openTabs[openTabs.length-1]).then(s=>{ current=s; renderTabs(); renderItems(); renderWO(); }).catch(()=>{});
+    API.sales.get(openTabs[openTabs.length-1]).then(s=>{ current=s; renderTabs(); renderItems(); renderWO(); renderQuote(); }).catch(()=>{});
   }
 
   byId('sales-start')?.addEventListener('click', ()=> startSale());
   byId('sales-scan-qr')?.addEventListener('click', ()=> openQR());
-  byId('sales-cv')?.addEventListener('click', ()=> openEditCV());
+  byId('sv-edit-cv')?.addEventListener('click', ()=> openEditCV());
+  byId('sv-clear-cv')?.addEventListener('click', ()=> clearCV());
   byId('sales-close')?.addEventListener('click', ()=> closeSale());
   byId('sales-print')?.addEventListener('click', ()=> printWO());
-  byId('sales-print-invoice')?.addEventListener('click', ()=> printInvoice());
   byId('sales-share-wa')?.addEventListener('click', ()=> shareWA());
+
+  // Agregar ítems
+  byId('sales-add-sku')?.addEventListener('click', async()=>{
+    const input = byId('sales-sku');
+    const sku = String(input?.value||'').trim(); if(!sku) return;
+    try{
+      current = await API.sales.addItem(current._id, { source:'inventory', sku, qty:1 });
+      input.value='';
+      renderItems(); renderWO();
+    }catch(e){ alert(e?.message||'No se pudo agregar'); }
+  });
+  byId('sales-add-inv')?.addEventListener('click', ()=> openInvPicker());
+  byId('sales-add-prices')?.addEventListener('click', ()=> openPricePicker());
+
+  // Cotizaciones
+  byId('sv-loadQuote')?.addEventListener('click', ()=> openQuotePicker());
+  byId('sv-q-to-sale')?.addEventListener('click', ()=> pushAllQuoteToSale());
 }
