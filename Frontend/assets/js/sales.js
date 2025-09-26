@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+
 import Sale from '../models/Sale.js';
 import Item from '../models/Item.js';
 import PriceEntry from '../models/PriceEntry.js';
