@@ -1,514 +1,87 @@
+// assets/js/sales.js
+// Módulo de Ventas (frontend). No usa paquetes de Node.
+// - Conecta SSE si está disponible en API.live.connect
+// - Lector QR con fallback a jsQR (solo activa si existen los nodos en el DOM)
 
-import Sale from '../models/Sale.js';
-import Item from '../models/Item.js';
-import PriceEntry from '../models/PriceEntry.js';
-import Counter from '../models/Counter.js';
-import StockMove from '../models/StockMove.js';
-import CustomerProfile from '../models/CustomerProfile.js';
-import { publish } from '../lib/live.js';
+import { API } from './api.js';
 
-// Helpers
-const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
+let es; // EventSource
+let started = false;
 
-function computeTotals(sale) {
-  const subtotal = (sale.items || []).reduce((a, it) => a + asNum(it.total), 0);
-  sale.subtotal = Math.round(subtotal);
-  sale.tax = 0; // ajustar si aplicas IVA
-  sale.total = Math.round(sale.subtotal + sale.tax);
+// ====== Lector QR (opcional, depende de nodos en el DOM) ======
+let scanning = false, rafId = 0;
+let video, canvas, ctx;
+
+function setupQR(){
+  video  = document.getElementById('qr-video');
+  canvas = document.getElementById('qr-canvas');
+  if (!video || !canvas) return; // no hay UI de QR en esta vista
+  ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+  const btnStart = document.getElementById('qr-start');
+  const btnStop  = document.getElementById('qr-stop');
+  btnStart?.addEventListener('click', startQR);
+  btnStop?.addEventListener('click', stopQR);
 }
 
-async function getNextSaleNumber(companyId) {
-  const c = await Counter.findOneAndUpdate(
-    { companyId },
-    { $inc: { saleSeq: 1 } },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
-  );
-  return c.saleSeq;
+async function startQR(){
+  if (scanning) return;
+  try{
+    const isDesktop = !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const constraints = isDesktop
+      ? { video: { width: { ideal: 1280 }, height: { ideal: 720 } } }
+      : { video: { facingMode: { ideal: 'environment' } } };
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    video.srcObject = stream; await video.play();
+    scanning = true; tickCanvas();
+  }catch(e){ alert('No se pudo abrir la cámara: '+(e?.message||e)); }
 }
 
-// ===== CRUD base =====
-export const startSale = async (req, res) => {
-  // Usa 'draft' para respetar el enum del modelo
-  const sale = await Sale.create({ companyId: req.companyId, status: 'draft', items: [] });
-  try{ publish(req.companyId, 'sale:started', { id: (sale?._id)||undefined }) }catch{}
-  res.json(sale.toObject());
-};
+function stopQR(){
+  scanning = false;
+  try{ video?.srcObject?.getTracks()?.forEach(t=>t.stop()); }catch{}
+  if (rafId) cancelAnimationFrame(rafId);
+}
 
-export const getSale = async (req, res) => {
-  const sale = await Sale.findOne({ _id: req.params.id, companyId: req.companyId });
-  if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  res.json(sale.toObject());
-};
+function tickCanvas(){
+  if(!scanning) return;
+  try{
+    const w = video.videoWidth|0, h = video.videoHeight|0;
+    if(!w||!h){ rafId = requestAnimationFrame(tickCanvas); return; }
+    canvas.width = w; canvas.height = h;
+    ctx.drawImage(video, 0, 0, w, h);
+    const img = ctx.getImageData(0,0,w,h);
 
-export const addItem = async (req, res) => {
-  const { id } = req.params;
-  const { source, refId, sku, qty = 1, unitPrice } = req.body || {};
-
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
-  if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
-
-  let itemData = null;
-
-  // El schema admite 'inventory', 'price', 'service'. Unificamos 'service' como 'price' para coherencia.
-  const src = (source === 'service') ? 'price' : source;
-
-  if (src === 'inventory') {
-    let it = null;
-    if (refId) it = await Item.findOne({ _id: refId, companyId: req.companyId });
-    if (!it && sku) it = await Item.findOne({ sku: String(sku).trim().toUpperCase(), companyId: req.companyId });
-    if (!it) return res.status(404).json({ error: 'Item not found' });
-
-    const q = asNum(qty) || 1;
-    const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNum(it.salePrice);
-
-    itemData = {
-      source: 'inventory',
-      refId: it._id,
-      sku: it.sku,
-      name: it.name || it.sku,
-      qty: q,
-      unitPrice: up,
-      total: Math.round(q * up)
-    };
-  } else if (src === 'price') {
-    if (refId) {
-      const pe = await PriceEntry.findOne({ _id: refId, companyId: String(req.companyId) });
-      if (!pe) return res.status(404).json({ error: 'PriceEntry not found' });
-      const q = asNum(qty) || 1;
-      const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNum(pe.total || pe.price);
-      itemData = {
-        source: 'price',
-        refId: pe._id,
-        sku: `SRV-${String(pe._id).slice(-6)}`,
-        name: `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim(),
-        qty: q,
-        unitPrice: up,
-        total: Math.round(q * up)
-      };
-    } else {
-      // Línea manual de servicio
-      const q = asNum(qty) || 1;
-      const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : 0;
-      itemData = {
-        source: 'price',
-        refId: new mongoose.Types.ObjectId(),
-        sku: (sku || '').toString(),
-        name: (req.body?.name || 'Servicio'),
-        qty: q,
-        unitPrice: up,
-        total: Math.round(q * up)
-      };
+    // Preferimos jsQR si está presente (incluido por CDN en index.html)
+    if (window.jsQR) {
+      const qr = window.jsQR(img.data, w, h);
+      if (qr && qr.data) { onCode(qr.data); }
     }
-  } else if (src === 'service') {
-    // Si decides mantener la fuente "service" explícita
-    const q = asNum(qty) || 1;
-    const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : 0;
-    itemData = {
-      source: 'service',
-      refId: new mongoose.Types.ObjectId(),
-      sku: (sku || '').toString(),
-      name: (req.body?.name || 'Servicio'),
-      qty: q,
-      unitPrice: up,
-      total: Math.round(q * up)
-    };
-  } else {
-    return res.status(400).json({ error: 'unsupported source' });
-  }
+  }catch{}
+  rafId = requestAnimationFrame(tickCanvas);
+}
 
-  sale.items.push(itemData);
-  computeTotals(sale);
-  await sale.save();
-  // Upsert perfil (sin kilometraje)
-  if (sale.vehicle?.plate) {
-    const plate = String(sale.vehicle.plate || '').toUpperCase();
-    await CustomerProfile.findOneAndUpdate(
-      { companyId: req.companyId, 'vehicle.plate': plate },
-      {
-        companyId: req.companyId,
-        customer: {
-          idNumber: sale.customer?.idNumber || '',
-          name:     sale.customer?.name || '',
-          phone:    sale.customer?.phone || '',
-          email:    sale.customer?.email || '',
-          address:  sale.customer?.address || ''
-        },
-        vehicle: {
-          plate,
-          brand:  sale.vehicle?.brand || '',
-          line:   sale.vehicle?.line || '',
-          engine: sale.vehicle?.engine || '',
-          year:   sale.vehicle?.year ?? null
-        }
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-  }
-  try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
-  res.json(sale.toObject());
-};
+function onCode(text){
+  // Detén el escaneo para evitar lecturas repetidas
+  stopQR();
+  console.log('QR leído:', text);
+  // Opcional: notificar a otros módulos
+  document.dispatchEvent(new CustomEvent('qr:read', { detail: { text } }));
+}
 
-export const updateItem = async (req, res) => {
-  const { id, itemId } = req.params;
-  const { qty, unitPrice } = req.body || {};
-
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
-  if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
-  const it = sale.items.id(itemId);
-  if (!it) return res.status(404).json({ error: 'Item not found' });
-
-  if (qty != null && Number.isFinite(Number(qty))) it.qty = asNum(qty);
-  if (unitPrice != null && Number.isFinite(Number(unitPrice))) it.unitPrice = asNum(unitPrice);
-  it.total = Math.round(asNum(it.qty) * asNum(it.unitPrice));
-
-  computeTotals(sale);
-  await sale.save();
-  // Upsert perfil (sin kilometraje)
-  if (sale.vehicle?.plate) {
-    const plate = String(sale.vehicle.plate || '').toUpperCase();
-    await CustomerProfile.findOneAndUpdate(
-      { companyId: req.companyId, 'vehicle.plate': plate },
-      {
-        companyId: req.companyId,
-        customer: {
-          idNumber: sale.customer?.idNumber || '',
-          name:     sale.customer?.name || '',
-          phone:    sale.customer?.phone || '',
-          email:    sale.customer?.email || '',
-          address:  sale.customer?.address || ''
-        },
-        vehicle: {
-          plate,
-          brand:  sale.vehicle?.brand || '',
-          line:   sale.vehicle?.line || '',
-          engine: sale.vehicle?.engine || '',
-          year:   sale.vehicle?.year ?? null
-        }
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-  }
-  try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
-  res.json(sale.toObject());
-};
-
-export const removeItem = async (req, res) => {
-  const { id, itemId } = req.params;
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
-  if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
-
-  sale.items.id(itemId)?.deleteOne();
-  computeTotals(sale);
-  await sale.save();
-  // Upsert perfil (sin kilometraje)
-  if (sale.vehicle?.plate) {
-    const plate = String(sale.vehicle.plate || '').toUpperCase();
-    await CustomerProfile.findOneAndUpdate(
-      { companyId: req.companyId, 'vehicle.plate': plate },
-      {
-        companyId: req.companyId,
-        customer: {
-          idNumber: sale.customer?.idNumber || '',
-          name:     sale.customer?.name || '',
-          phone:    sale.customer?.phone || '',
-          email:    sale.customer?.email || '',
-          address:  sale.customer?.address || ''
-        },
-        vehicle: {
-          plate,
-          brand:  sale.vehicle?.brand || '',
-          line:   sale.vehicle?.line || '',
-          engine: sale.vehicle?.engine || '',
-          year:   sale.vehicle?.year ?? null
-        }
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-  }
-  try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
-  res.json(sale.toObject());
-};
-
-export const setCustomerVehicle = async (req, res) => {
-  const { id } = req.params;
-  const { customer = {}, vehicle = {}, notes } = req.body || {};
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
-  if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (sale.status === 'closed') return res.status(400).json({ error: 'Closed sale cannot be edited' });
-
-  sale.customer = {
-    type: customer.type || sale.customer?.type || '',
-    idNumber: (customer.idNumber || '').trim(),
-    name: (customer.name || '').trim(),
-    phone: (customer.phone || '').trim(),
-    email: (customer.email || '').trim(),
-    address: (customer.address || '').trim()
-  };
-  sale.vehicle = {
-    plate: (vehicle.plate || '').toUpperCase(),
-    brand: (vehicle.brand || '').toUpperCase(),
-    line: (vehicle.line || '').toUpperCase(),
-    engine: (vehicle.engine || '').toUpperCase(),
-    year: vehicle.year ?? null,
-    mileage: vehicle.mileage ?? null
-  };
-  if (typeof notes === 'string') sale.notes = notes;
-
-  await sale.save();
-  // Upsert perfil (sin kilometraje)
-  if (sale.vehicle?.plate) {
-    const plate = String(sale.vehicle.plate || '').toUpperCase();
-    await CustomerProfile.findOneAndUpdate(
-      { companyId: req.companyId, 'vehicle.plate': plate },
-      {
-        companyId: req.companyId,
-        customer: {
-          idNumber: sale.customer?.idNumber || '',
-          name:     sale.customer?.name || '',
-          phone:    sale.customer?.phone || '',
-          email:    sale.customer?.email || '',
-          address:  sale.customer?.address || ''
-        },
-        vehicle: {
-          plate,
-          brand:  sale.vehicle?.brand || '',
-          line:   sale.vehicle?.line || '',
-          engine: sale.vehicle?.engine || '',
-          year:   sale.vehicle?.year ?? null
-        }
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-  }
-  try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
-  res.json(sale.toObject());
-};
-
-// ===== Cierre: descuenta inventario con transacción =====
-export const closeSale = async (req, res) => {
-  const { id } = req.params;
-  const session = await mongoose.startSession();
-  try {
-    await session.withTransaction(async () => {
-      const sale = await Sale.findOne({ _id: id, companyId: req.companyId }).session(session);
-      if (!sale) throw new Error('Sale not found');
-      if (sale.status !== 'draft') throw new Error('Sale not open (draft)');
-      if (!sale.items?.length) throw new Error('Sale has no items');
-
-      // Descuento inventario por líneas 'inventory'
-      for (const it of sale.items) {
-        if (String(it.source) !== 'inventory') continue;
-        const q = asNum(it.qty) || 0;
-        if (q <= 0) continue;
-
-        const upd = await Item.updateOne(
-          { _id: it.refId, companyId: req.companyId, stock: { $gte: q } },
-          { $inc: { stock: -q } }
-        ).session(session);
-
-        if (upd.matchedCount === 0) {
-          const exists = await Item.findOne({ _id: it.refId, companyId: req.companyId }).session(session);
-          if (!exists) throw new Error(`Inventory item not found (${it.sku || it.refId})`);
-          throw new Error(`Insufficient stock for ${exists.sku || exists.name}`);
-        }
-
-        await StockMove.create([{
-          companyId: req.companyId,
-          itemId: it.refId,
-          qty: q,
-          reason: 'OUT',
-          meta: { saleId: sale._id, sku: it.sku, name: it.name }
-        }], { session });
-      }
-
-      computeTotals(sale);
-      sale.status = 'closed';
-      sale.closedAt = new Date();
-      if (!Number.isFinite(Number(sale.number))) {
-        sale.number = await getNextSaleNumber(req.companyId);
-      }
-      await sale.save({ session });
+// ====== Tiempo real (SSE) ======
+function connectLive(){
+  if (es || !API?.live?.connect) return;
+  try{
+    es = API.live.connect((event, data)=>{
+      // Hook mínimo: refresca lista/venta si tu UI lo implementa
+      document.dispatchEvent(new CustomEvent('sales:event', { detail: { event, data } }));
     });
+  }catch(e){ console.warn('No se pudo conectar a SSE:', e?.message||e); }
+}
 
-    const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
-    if (sale?.vehicle?.plate) {
-      const plate = String(sale.vehicle.plate||'').toUpperCase();
-      await CustomerProfile.findOneAndUpdate(
-        { companyId: req.companyId, 'vehicle.plate': plate },
-        {
-          companyId: req.companyId,
-          customer: {
-            idNumber: sale.customer?.idNumber || '',
-            name:     sale.customer?.name || '',
-            phone:    sale.customer?.phone || '',
-            email:    sale.customer?.email || '',
-            address:  sale.customer?.address || ''
-          },
-          vehicle: {
-            plate,
-            brand:  sale.vehicle?.brand || '',
-            line:   sale.vehicle?.line || '',
-            engine: sale.vehicle?.engine || '',
-            year:   sale.vehicle?.year ?? null
-          }
-        }, { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
-    }
-    try{ publish(req.companyId, 'sale:closed', { id: (sale?._id)||undefined }) }catch{}
-  res.json({ ok: true, sale: sale.toObject() });
-  } catch (err) {
-    await session.abortTransaction().catch(()=>{});
-    res.status(400).json({ error: err?.message || 'Cannot close sale' });
-  } finally {
-    session.endSession();
-  }
-};
-
-// ===== Cancelar (X de pestaña) =====
-export const cancelSale = async (req, res) => {
-  const { id } = req.params;
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
-  if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (sale.status === 'closed') return res.status(400).json({ error: 'Closed sale cannot be cancelled' });
-  // Política actual: eliminar; si prefieres histórico, cambia a status:'cancelled' y setea cancelledAt.
-  await Sale.deleteOne({ _id: id, companyId: req.companyId });
-  try{ publish(req.companyId, 'sale:cancelled', { id: (sale?._id)||undefined }) }catch{}
-  res.json({ ok: true });
-};
-
-// ===== QR helpers =====
-export const addByQR = async (req, res) => {
-  const { saleId, payload } = req.body || {};
-  if (!saleId || !payload) return res.status(400).json({ error: 'saleId and payload are required' });
-
-  const sale = await Sale.findOne({ _id: saleId, companyId: req.companyId });
-  if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
-
-  const s = String(payload || '').trim();
-
-  if (s.toUpperCase().startsWith('IT:')) {
-    const parts = s.split(':').map(p => p.trim()).filter(Boolean);
-    let itemId = null;
-    if (parts.length === 2) itemId = parts[1];
-    if (parts.length >= 3) itemId = parts[2];
-
-    if (itemId) {
-      const it = await Item.findOne({ _id: itemId, companyId: req.companyId });
-      if (!it) return res.status(404).json({ error: 'Item not found for QR' });
-
-      const q = 1;
-      const up = asNum(it.salePrice);
-      sale.items.push({
-        source: 'inventory',
-        refId: it._id,
-        sku: it.sku,
-        name: it.name || it.sku,
-        qty: q,
-        unitPrice: up,
-        total: Math.round(q * up)
-      });
-      computeTotals(sale);
-      await sale.save();
-      return res.json(sale.toObject());
-    }
-  }
-
-  // Fallback: tratar como SKU
-  const it = await Item.findOne({ sku: s.toUpperCase(), companyId: req.companyId });
-  if (!it) return res.status(404).json({ error: 'SKU not found' });
-
-  const q = 1;
-  const up = asNum(it.salePrice);
-  sale.items.push({
-    source: 'inventory',
-    refId: it._id,
-    sku: it.sku,
-    name: it.name || it.sku,
-    qty: q,
-    unitPrice: up,
-    total: Math.round(q * up)
-  });
-  computeTotals(sale);
-  await sale.save();
-  // Upsert perfil (sin kilometraje)
-  if (sale.vehicle?.plate) {
-    const plate = String(sale.vehicle.plate || '').toUpperCase();
-    await CustomerProfile.findOneAndUpdate(
-      { companyId: req.companyId, 'vehicle.plate': plate },
-      {
-        companyId: req.companyId,
-        customer: {
-          idNumber: sale.customer?.idNumber || '',
-          name:     sale.customer?.name || '',
-          phone:    sale.customer?.phone || '',
-          email:    sale.customer?.email || '',
-          address:  sale.customer?.address || ''
-        },
-        vehicle: {
-          plate,
-          brand:  sale.vehicle?.brand || '',
-          line:   sale.vehicle?.line || '',
-          engine: sale.vehicle?.engine || '',
-          year:   sale.vehicle?.year ?? null
-        }
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-  }
-  res.json(sale.toObject());
-};
-
-// ===== Listado y resumen =====
-
-// ===== Perfil de cliente/vehículo =====
-export const getProfileByPlate = async (req, res) => {
-  const plate = String(req.params.plate || '').trim().toUpperCase();
-  if (!plate) return res.status(400).json({ error: 'plate required' });
-  const prof = await CustomerProfile.findOne({ companyId: req.companyId, 'vehicle.plate': plate });
-  if (!prof) return res.json(null);
-  res.json(prof.toObject());
-};
-export const listSales = async (req, res) => {
-  const { status, from, to, plate, page = 1, limit = 50 } = req.query || {};
-  const q = { companyId: req.companyId };
-  if (status) q.status = String(status);
-  if (from || to) {
-    q.createdAt = {};
-    if (from) q.createdAt.$gte = new Date(from);
-    if (to) q.createdAt.$lte = new Date(`${to}T23:59:59.999Z`);
-  }
-  if (plate) {
-    q['vehicle.plate'] = String(plate).toUpperCase();
-  }
-  const pg = Math.max(1, Number(page || 1));
-  const lim = Math.max(1, Math.min(500, Number(limit || 50)));
-
-  const [items, total] = await Promise.all([
-    Sale.find(q).sort({ createdAt: -1 }).skip((pg - 1) * lim).limit(lim),
-    Sale.countDocuments(q)
-  ]);
-  res.json({ items, page: pg, limit: lim, total });
-};
-
-export const summarySales = async (req, res) => {
-  const { from, to, plate } = req.query || {};
-  const q = { companyId: req.companyId, status: 'closed' };
-  if (from || to) {
-    q.createdAt = {};
-    if (from) q.createdAt.$gte = new Date(from);
-    if (to) q.createdAt.$lte = new Date(`${to}T23:59:59.999Z`);
-  }
-  if (plate) {
-    q['vehicle.plate'] = String(plate).toUpperCase();
-  }
-  const rows = await Sale.aggregate([
-    { $match: q },
-    { $group: { _id: null, count: { $sum: 1 }, total: { $sum: { $ifNull: ['$total', 0] } } } }
-  ]);
-  const agg = rows[0] || { count: 0, total: 0 };
-  res.json({ count: agg.count, total: agg.total });
-};
+export function initSales(){
+  if (started) return; started = true;
+  connectLive();
+  setupQR();
+}

@@ -1,5 +1,5 @@
 /* Lista de precios (sin HTML en JS) */
-import API from './api.js';
+import { API } from './api.js';
 
 const $ = (s)=>document.querySelector(s);
 const money = (n)=> new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n||0));
@@ -8,7 +8,7 @@ function closeModal(){ const m=$('#modal'); if(!m) return; m.classList.add('hidd
 const clone=(id)=>document.getElementById(id)?.content?.firstElementChild?.cloneNode(true);
 
 function normalizeNumber(v){ if(v==null || v==='') return 0; if(typeof v==='number') return v; const s=String(v).replace(/\s+/g,'').replace(/\$/g,'').replace(/\./g,'').replace(/,/g,'.'); const n=Number(s); return Number.isFinite(n)?n:0; }
-function safeEvalFront(expr, vars={}){ const cleaned=String(expr||'').trim().toUpperCase(); if(!cleaned) return 0; if(!/^[\d+\-*/().\sA-Z0-9_]+$/.test(cleaned)) return 0; const replaced=cleaned.replace(/[A-Z_][A-Z0-9_]*/g,(k)=>{ const v=Number(vars[k]??0); return Number.isFinite(v)?String(v):'0'; }); try{ return Function('"use strict"; return ('+replaced+')')(); }catch{ return 0; } }
+function safeEvalFront(expr, vars={}){ const cleaned=String(expr||'').trim().toUpperCase(); if(!cleaned) return 0; if(!/^[\d+\-*/().\sA-Z0-9_]+$/.test(cleaned)) return 0; const replaced=cleaned.replace(/[A-Z_][A-Z0-9_]*/g,(k)=>{ const v=Number(vars[k]??0); return Number.isFinite(v)?String(v):'0'; }); try{ return Function('\"use strict\"; return ('+replaced+')')(); }catch{ return 0; } }
 
 export function initPrices(){
   const tab = $('#tab-precios'); if(!tab) return;
