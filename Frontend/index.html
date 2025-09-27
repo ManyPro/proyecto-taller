@@ -536,15 +536,49 @@
           </div>
           <div class="table-wrap" style="margin-top:8px;">
             <table class="table">
-              <thead><tr><th>#</th><th>Placa</th><th>Fecha</th><th class="t-right">Total</th></tr></thead>
+              <thead><tr><th>#</th><th>Placa</th><th>Fecha</th><th class="t-right">Total</th><th></th></tr></thead>
               <tbody id="sh-body"></tbody>
-              <tfoot><tr><td colspan="3" class="t-right"><b>Total</b></td><td class="t-right" id="sh-total">$0</td></tr></tfoot>
+              <tfoot><tr><td colspan="4" class="t-right"><b>Total</b></td><td class="t-right" id="sh-total">$0</td></tr></tfoot>
             </table>
           </div>
         </div>
       </template>
 
-      <!-- ======== TEMPLATES (nuevos, para evitar HTML en JS) ======== -->
+            <template id="tpl-sale-history-detail">
+        <div class="card">
+          <h3>Detalle de venta</h3>
+          <div class="row" style="justify-content:space-between;align-items:center;">
+            <div>
+              <div><strong>#</strong> <span data-number></span></div>
+              <div><strong>Fecha</strong> <span data-date></span></div>
+              <div><strong>Estado</strong> <span data-status></span></div>
+            </div>
+            <button class="secondary" data-print>Imprimir factura</button>
+          </div>
+          <div class="cols-2" style="gap:12px;margin-top:12px;">
+            <div>
+              <h4>Cliente</h4>
+              <div data-customer></div>
+            </div>
+            <div>
+              <h4>Vehículo</h4>
+              <div data-vehicle></div>
+            </div>
+          </div>
+          <div class="table-wrap" style="margin-top:12px;">
+            <table class="table">
+              <thead><tr><th>SKU</th><th>Descripción</th><th class="t-center">Cant.</th><th class="t-right">Unit</th><th class="t-right">Total</th></tr></thead>
+              <tbody data-items></tbody>
+              <tfoot>
+                <tr><td colspan="4" class="t-right">Subtotal</td><td class="t-right" data-subtotal>$0</td></tr>
+                <tr><td colspan="4" class="t-right"><strong>Total</strong></td><td class="t-right" data-total>$0</td></tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      </template>
+
+<!-- ======== TEMPLATES (nuevos, para evitar HTML en JS) ======== -->
       <template id="tpl-lightbox-img">
         <div class="card">
           <h3>Vista previa</h3>
@@ -868,3 +902,5 @@
 
 </body>
 </html>
+
+

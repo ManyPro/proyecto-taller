@@ -13,6 +13,59 @@ const $  = (s, r=document)=>r.querySelector(s);
 const clone = (id)=>document.getElementById(id)?.content?.firstElementChild?.cloneNode(true);
 const money = (n)=> new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n||0));
 
+function padSaleNumber(n){
+  return String(n ?? '').toString().padStart(5,'0');
+}
+
+function describeCustomer(customer){
+  const c = customer || {};
+  const parts = [];
+  if (c.name) parts.push(c.name);
+  if (c.idNumber) parts.push('ID: ' + c.idNumber);
+  if (c.phone) parts.push('Tel: ' + c.phone);
+  if (c.email) parts.push(c.email);
+  if (c.address) parts.push(c.address);
+  return parts.join(' | ') || 'N/A';
+}
+
+function describeVehicle(vehicle){
+  const v = vehicle || {};
+  const parts = [];
+  if (v.plate) parts.push(v.plate);
+  const specs = [v.brand, v.line, v.engine].filter(Boolean).join(' ');
+  if (specs) parts.push(specs.trim());
+  if (v.year) parts.push('Año ' + v.year);
+  if (v.mileage != null) parts.push((v.mileage || 0) + ' km');
+  return parts.join(' | ') || 'N/A';
+}
+
+function printSaleTicket(sale){
+  if (!sale) return;
+  const number = padSaleNumber(sale.number || sale._id || '');
+  const linesOut = [
+    'Factura simple',
+    '',
+    '# ' + number + '  Total: ' + money(sale.total || 0),
+    '',
+    'Cliente: ' + describeCustomer(sale.customer),
+    'Vehículo: ' + describeVehicle(sale.vehicle),
+    '',
+    'Items:'
+  ];
+  (sale.items || []).forEach(it => {
+    linesOut.push('- ' + (it.qty || 0) + ' x ' + (it.name || it.sku || '') + ' (' + money(it.total || 0) + ')');
+  });
+  const txt = linesOut.join('\n');
+  const win = window.open('', '_blank');
+  if (!win) { alert('No se pudo abrir ventana de impresión'); return; }
+  win.document.write('<pre>' + txt + '</pre>');
+  win.document.close();
+  win.focus();
+  win.print();
+  try { win.close(); } catch {}
+}
+
+
 // ---------- estado ----------
 let es = null;         // EventSource (SSE)
 let current = null;    // venta actual
@@ -209,8 +262,10 @@ function openQR(){
   const msg = node.querySelector('#qr-msg');
   const list = node.querySelector('#qr-history');
   const autoclose = node.querySelector('#qr-autoclose');
+  const manualInput = node.querySelector('#qr-manual');
+  const manualBtn = node.querySelector('#qr-add-manual');
 
-  let stream=null, running=false, detector=null, lastCode=null, lastTs=0;
+  let stream=null, running=false, detector=null, lastCode='', lastTs=0;
 
   async function fillCams(){
     try{
@@ -235,20 +290,54 @@ function openQR(){
       msg.textContent='';
     }catch(e){ msg.textContent='No se pudo abrir cámara: '+(e?.message||e?.name||'Desconocido'); }
   }
-  function accept(v){ const t=Date.now(); if (lastCode===v && t-lastTs<1200) return false; lastCode=v; lastTs=t; return true; }
+  function accept(value){
+    const normalized = String(value || '').trim().toUpperCase();
+    const t = Date.now();
+    if (lastCode === normalized && t - lastTs < 1200) return false;
+    lastCode = normalized;
+    lastTs = t;
+    return true;
+  }
+
+  function parseInventoryCode(raw){
+    const text = String(raw || '').trim();
+    if (!text) return { itemId:'', sku:'', raw:text };
+    const upper = text.toUpperCase();
+    if (upper.startsWith('IT:')){
+      const parts = text.split(':').map(p => p.trim()).filter(Boolean);
+      return {
+        companyId: parts[1] || '',
+        itemId: parts[2] || '',
+        sku: parts[3] || ''
+      };
+    }
+    const match = text.match(/[a-f0-9]{24}/i);
+    return { companyId:'', itemId: match ? match[0] : '', sku:'', raw:text };
+  }
+
+  async function handleCode(raw, fromManual = false){
+    const text = String(raw || '').trim();
+    if (!text) return;
+    if (!fromManual && !accept(text)) return;
+    const li=document.createElement('li'); li.textContent=text; list.prepend(li);
+    const parsed = parseInventoryCode(text);
+    try{
+      if (parsed.itemId){
+        current = await API.sales.addItem(current._id, { source:'inventory', refId: parsed.itemId, qty:1 });
+      } else {
+        const candidate = (parsed.sku || text).toUpperCase();
+        current = await API.sales.addItem(current._id, { source:'inventory', sku:candidate, qty:1 });
+      }
+      syncCurrentIntoOpenList();
+      renderTabs();
+      renderSale(); renderWO();
+      if (autoclose.checked && !fromManual){ stop(); closeModal(); }
+      msg.textContent = '';
+    }catch(e){ msg.textContent = e?.message || 'No se pudo agregar'; }
+  }
+
   function onCode(code){
-    if (!accept(code)) return;
-    const li=document.createElement('li'); li.textContent=code; list.prepend(li);
-    const m = String(code||'').match(/[a-f0-9]{24}/i);
-    (async ()=>{
-      try{
-        if (m) current = await API.sales.addItem(current._id, { source:'inventory', refId:m[0], qty:1 });
-        else   current = await API.sales.addItem(current._id, { source:'inventory', sku:String(code).toUpperCase(), qty:1 });
-        syncCurrentIntoOpenList();
-        renderTabs();
-        renderSale(); renderWO(); if (autoclose.checked){ stop(); closeModal(); }
-      }catch(e){ msg.textContent = e?.message || 'No se pudo agregar'; }
-    })();
+    handleCode(code);
   }
   async function tickNative(){ if(!running) return; try{ const codes=await detector.detect(video); if(codes?.[0]?.rawValue) onCode(codes[0].rawValue); }catch{} requestAnimationFrame(tickNative); }
   function tickCanvas(){
@@ -266,6 +355,24 @@ function openQR(){
     }catch{}
     requestAnimationFrame(tickCanvas);
   }
+
+  manualBtn?.addEventListener('click', () => {
+    const val = manualInput?.value.trim();
+    if (!val) return;
+    handleCode(val, true);
+    manualInput.value = '';
+    manualInput.focus();
+  });
+  manualInput?.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      const val = manualInput.value.trim();
+      if (val) {
+        handleCode(val, true);
+        manualInput.value = '';
+      }
+    }
+  });
 
   node.querySelector('#qr-start').onclick = start;
   node.querySelector('#qr-stop').onclick  = stop;
@@ -604,7 +711,9 @@ function openSalesHistory(){
     (res?.items||[]).forEach(s=>{
       const tr=document.createElement('tr');
       const date=new Date(s.createdAt); const d=date.toLocaleDateString();
-      tr.innerHTML = `<td>${String(s.number||'').toString().padStart(5,'0')}</td><td>${s?.vehicle?.plate||''}</td><td>${d}</td><td class="t-right">${money(s.total||0)}</td>`;
+      const num = padSaleNumber(s.number || s._id || '');
+      tr.innerHTML = `<td>${num}</td><td>${s?.vehicle?.plate||''}</td><td>${d}</td><td class="t-right">${money(s.total||0)}</td><td class="t-right"><button class="secondary" data-id="${s._id}">Ver</button></td>`;
+      tr.querySelector('button').onclick = ()=> openSaleHistoryDetail(s._id);
       body.appendChild(tr); acc += Number(s.total||0);
     });
     total.textContent = money(acc);
@@ -613,6 +722,31 @@ function openSalesHistory(){
   load();
 }
 
+async function openSaleHistoryDetail(id){
+  if (!id) return;
+  try{
+    const sale = await API.sales.get(id);
+    const node = clone('tpl-sale-history-detail');
+    if (!node) return;
+    node.querySelector('[data-number]').textContent = padSaleNumber(sale.number || sale._id || '');
+    node.querySelector('[data-date]').textContent = sale.createdAt ? new Date(sale.createdAt).toLocaleString() : '';
+    node.querySelector('[data-status]').textContent = sale.status || 'N/A';
+    node.querySelector('[data-customer]').textContent = describeCustomer(sale.customer);
+    node.querySelector('[data-vehicle]').textContent = describeVehicle(sale.vehicle);
+    const itemsBody = node.querySelector('[data-items]');
+    itemsBody.innerHTML = '';
+    (sale.items || []).forEach(it => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${it.sku || ''}</td><td>${it.name || ''}</td><td class="t-center">${it.qty || 0}</td><td class="t-right">${money(it.unitPrice || 0)}</td><td class="t-right">${money(it.total || 0)}</td>`;
+      itemsBody.appendChild(tr);
+    });
+    node.querySelector('[data-subtotal]').textContent = money(sale.subtotal || 0);
+    node.querySelector('[data-total]').textContent = money(sale.total || 0);
+    const printBtn = node.querySelector('[data-print]');
+    if (printBtn) printBtn.onclick = () => printSaleTicket(sale);
+    openModal(node);
+  }catch(e){ alert(e?.message || 'No se pudo cargar la venta'); }
+}
 // ---------- live (SSE) ----------
 function connectLive(){
   if (es || !API?.live?.connect) return;
@@ -681,11 +815,10 @@ export function initSales(){
     if (!current) return;
     try{
       const fresh = await API.sales.get(current._id);
-      const txt = `Factura simple\n\n# ${String(fresh.number||'').padStart(5,'0')}  Total: ${money(fresh.total||0)}`;
-      const win = window.open('', '_blank'); win.document.write(`<pre>${txt}</pre>`);
-      win.document.close(); win.focus(); win.print();
+      printSaleTicket(fresh);
     }catch(e){ alert(e?.message||'No se pudo imprimir'); }
   });
 
   connectLive();
 }
+
