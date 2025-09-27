@@ -394,6 +394,94 @@ function openEditCV(){
   node.querySelector('#v-mile').value  = v.mileage??'';
   openModal(node);
 
+  const plateInput = $('#v-plate', node);
+  const mileageInput = $('#v-mile', node);
+  const watchSelectors = ['#c-name','#c-id','#c-phone','#c-email','#c-address','#v-brand','#v-line','#v-engine','#v-year','#v-mile'];
+  watchSelectors.forEach((sel)=>{ const input=$(sel,node); if(input) input.addEventListener('input',()=>{ input.dataset.dirty='1'; }); });
+
+  let lastLookupPlate = '';
+  let loadingProfile = false;
+
+  const applyProfile = (profile, plateCode) => {
+    if (!profile) return;
+    const cust = profile.customer || {};
+    const veh = profile.vehicle || {};
+    const assign = (selector, value) => {
+      const input = $(selector, node);
+      if (!input) return;
+      if (input.dataset.dirty === '1' && input.dataset.prefilledPlate === plateCode) return;
+      const normalized = value == null ? '' : String(value);
+      input.value = normalized;
+      input.dataset.prefilledPlate = plateCode;
+      if (normalized) delete input.dataset.dirty;
+    };
+
+    assign('#c-name', cust.name || '');
+    assign('#c-id', cust.idNumber || '');
+    assign('#c-phone', cust.phone || '');
+    assign('#c-email', cust.email || '');
+    assign('#c-address', cust.address || '');
+    assign('#v-brand', veh.brand || '');
+    assign('#v-line', veh.line || '');
+    assign('#v-engine', veh.engine || '');
+    assign('#v-year', veh.year != null ? veh.year : '');
+
+    if (plateInput) {
+      plateInput.value = plateCode;
+      plateInput.dataset.prefilledPlate = plateCode;
+    }
+
+    if (mileageInput) {
+      if (mileageInput.dataset.dirty !== '1') mileageInput.value = '';
+      if (veh.mileage != null && veh.mileage !== '') {
+        mileageInput.placeholder = `Ultimo: ${veh.mileage}`;
+      } else {
+        mileageInput.placeholder = '';
+      }
+    }
+  };
+
+  const loadProfile = async (force=false) => {
+    if (!plateInput || loadingProfile) return;
+    let raw = plateInput.value.trim().toUpperCase();
+    plateInput.value = raw;
+    if (!raw) return;
+    if (!force && raw === lastLookupPlate) return;
+    loadingProfile = true;
+    try{
+      const profile = await API.sales.profileByPlate(raw);
+      if (profile) {
+        applyProfile(profile, raw);
+      }
+    }catch(err){ console.warn('No se pudo cargar perfil', err?.message||err); }
+    finally{
+      loadingProfile = false;
+      lastLookupPlate = raw;
+    }
+  };
+
+  if (plateInput) {
+    plateInput.addEventListener('input', (ev)=>{
+      const upper = ev.target.value.toUpperCase();
+      if (ev.target.value !== upper) ev.target.value = upper;
+    });
+    plateInput.addEventListener('change', ()=> loadProfile(true));
+    plateInput.addEventListener('keydown', (ev)=>{
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        loadProfile(true);
+      }
+    });
+  }
+
+  if (mileageInput) {
+    mileageInput.addEventListener('input', ()=>{ mileageInput.dataset.dirty='1'; });
+  }
+
+  if (plateInput && plateInput.value && !c.name && !c.phone && !v.brand && !v.line && !v.engine) {
+    loadProfile(true);
+  }
+
   node.querySelector('#sales-save-cv').onclick = async ()=>{
     const payload = {
       customer:{

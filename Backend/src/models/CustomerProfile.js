@@ -15,7 +15,8 @@ const CustomerProfileSchema = new mongoose.Schema({
     brand:  { type: String, default: '' },
     line:   { type: String, default: '' },
     engine: { type: String, default: '' },
-    year:   { type: Number, default: null }
+    year:   { type: Number, default: null },
+    mileage: { type: Number, default: null }
   }
 }, { timestamps: true });
 
