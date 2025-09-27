@@ -55,11 +55,47 @@ async function upsertCustomerProfile(companyId, sale) {
   const payload = buildCustomerProfilePayload(companyId, sale);
   if (!payload) return;
 
-  await CustomerProfile.findOneAndUpdate(
-    { companyId: payload.companyId, $or: [{ plate: payload.plate }, { 'vehicle.plate': payload.plate }] },
-    { $set: payload },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
-  );
+  let primary = await CustomerProfile.findOne({
+    companyId: payload.companyId,
+    plate: payload.plate
+  });
+
+  if (!primary) {
+    primary = await CustomerProfile.findOne({
+      companyId: payload.companyId,
+      'vehicle.plate': payload.plate
+    });
+  }
+
+  try {
+    if (primary) {
+      primary.set(payload);
+      primary.plate = payload.plate;
+      await primary.save();
+    } else {
+      primary = await CustomerProfile.create(payload);
+    }
+  } catch (err) {
+    if (err?.code !== 11000) throw err;
+    primary = await CustomerProfile.findOneAndUpdate(
+      { companyId: payload.companyId, plate: payload.plate },
+      { $set: payload },
+      { new: true, upsert: true, setDefaultsOnInsert: true }
+    );
+  }
+
+  if (!primary?._id) return;
+
+  try {
+    await CustomerProfile.deleteMany({
+      companyId: payload.companyId,
+      _id: { $ne: primary._id },
+      $or: [
+        { plate: payload.plate },
+        { plate: { $in: [null, '', undefined] }, 'vehicle.plate': payload.plate }
+      ]
+    });
+  } catch {}
 }
 
 async function getNextSaleNumber(companyId) {
