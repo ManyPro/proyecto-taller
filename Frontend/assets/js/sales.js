@@ -18,6 +18,7 @@ let es = null;         // EventSource (SSE)
 let current = null;    // venta actual
 let openSales = [];    // ventas abiertas (draft) compartidas
 let starting = false;  // evita doble clic en "Nueva venta"
+let salesRefreshTimer = null;
 
 function labelForSale(sale) {
   const plate = sale?.vehicle?.plate || '';
@@ -58,6 +59,20 @@ async function refreshOpenSales(options = {}) {
     console.error('refreshOpenSales failed', err);
   }
 }
+
+function startSalesAutoRefresh() {
+  if (salesRefreshTimer) return;
+  salesRefreshTimer = setInterval(() => {
+    refreshOpenSales({ focusId: current?._id || null });
+  }, 10000);
+}
+
+function stopSalesAutoRefresh() {
+  if (!salesRefreshTimer) return;
+  clearInterval(salesRefreshTimer);
+  salesRefreshTimer = null;
+}
+
 
 // ---------- tabs ----------
 async function switchTo(id){
@@ -631,6 +646,7 @@ export function initSales(){
   const ventas = document.getElementById('tab-ventas'); if (!ventas) return;
 
   refreshOpenSales();
+  startSalesAutoRefresh();
 
   document.getElementById('sales-start')?.addEventListener('click', async (ev)=>{
     if (starting) return; starting=true;
@@ -673,4 +689,3 @@ export function initSales(){
 
   connectLive();
 }
-

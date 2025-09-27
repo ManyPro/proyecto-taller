@@ -43,6 +43,19 @@ function ensureModules() {
 // Login simple (usa tu API)
 const loginBtn = document.getElementById('loginBtn');
 const registerBtn = document.getElementById('registerBtn');
+const storedEmail = API.getActiveCompany?.();
+const storedToken = storedEmail ? API.token.get(storedEmail) : API.token.get();
+if (storedEmail && storedToken) {
+  API.setActiveCompany(storedEmail);
+  emailSpan.textContent = storedEmail;
+  sectionLogin.classList.add('hidden');
+  sectionApp.classList.remove('hidden');
+  logoutBtn.classList.remove('hidden');
+  ensureModules();
+  showTab(getLastTab());
+}
+
+
 
 async function doLogin(isRegister = false) {
   const email = (document.getElementById('email').value || '').trim().toLowerCase();
