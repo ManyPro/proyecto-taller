@@ -450,18 +450,35 @@ export function initQuotes({ getCompanyEmail }) {
     try{
       qhList.innerHTML='<small class="meta">Cargando...</small>';
       // Llamada "raw" para poder inspeccionar metadata si existe
-      const res = await API.quotesListRaw(buildQuery());
+      const q = buildQuery();
+      let attempt = 0; let lastErr;
+      let res;
+      while(attempt < 2){
+        try {
+          attempt++;
+          console.debug(`[quotes] fetching /api/v1/quotes${q} (attempt ${attempt})`);
+          res = await API.quotesListRaw(q);
+          break;
+        } catch(e){
+          lastErr = e; console.warn('[quotes] attempt failed', e?.message || e);
+          if(attempt>=2) throw e;
+        }
+      }
       const rows = Array.isArray(res) ? res : (res?.items || res?.data || []);
-      // Log de depuración (silencioso en producción si se desea quitar)
-      try { console.debug('[quotes] list response:', res); } catch {}
-      if(!Array.isArray(res) && !rows.length && (res?.metadata?.total > 0)) {
-        // Caso raro: metadata indica total pero items vacío (p.ej. página fuera de rango)
-        qhList.innerHTML=`<small class="meta">Página sin resultados (total ${res.metadata.total}).</small>`;
+      try { console.debug('[quotes] raw response:', res); } catch {}
+      if(res?.metadata){ console.debug('[quotes] metadata:', res.metadata); }
+      if(!rows.length){
+        if(res?.metadata && res.metadata.total>0){
+          qhList.innerHTML=`<small class="meta">Sin items en esta página (total ${res.metadata.total}).</small>`;
+        } else {
+          qhList.innerHTML='<small class="meta">No hay cotizaciones aún.</small>';
+        }
         return;
       }
       renderHistory(rows);
     }catch(e){
       qhList.innerHTML=`<small class="meta">Error: ${e?.message || 'No se pudo cargar'}</small>`;
+      try { console.error('[quotes] loadHistory error', e); } catch {}
     }
   }
 
@@ -846,4 +863,18 @@ export function initQuotes({ getCompanyEmail }) {
     if(btn.dataset.tab==='cotizaciones') onTabActivated();
   });
   if(tab && document.querySelector('.tabs button[data-tab="cotizaciones"]')?.classList.contains('active')) onTabActivated();
+  // Observa cambios de clase en el botón para recargar historial al re-entrar a la pestaña
+  try {
+    const btnQuotes = document.querySelector('.tabs button[data-tab="cotizaciones"]');
+    if(btnQuotes && window.MutationObserver){
+      const obs = new MutationObserver(()=>{
+        if(btnQuotes.classList.contains('active')) {
+          console.debug('[quotes] tab activated -> refreshing history');
+          ensureInit();
+          loadHistory();
+        }
+      });
+      obs.observe(btnQuotes, { attributes:true, attributeFilter:['class'] });
+    }
+  } catch {}
 }

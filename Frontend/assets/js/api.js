@@ -120,7 +120,16 @@ const API = {
 
   // --- Cotizaciones ---
   // --- Cotizaciones ---
-  quotesListRaw: (q = '') => http.get(`/api/v1/quotes${q}`),
+  quotesListRaw: async (q = '') => {
+    try {
+      return await http.get(`/api/v1/quotes${q}`);
+    } catch(e){
+      if(/401|autorizad|token/i.test(e.message||'')) {
+        console.warn('[API] No autorizado al listar cotizaciones. Revisa token.');
+      }
+      throw e;
+    }
+  },
   quotesList: async (q = '') => {
     const res = await http.get(`/api/v1/quotes${q}`);
     return Array.isArray(res) ? res : (res?.items || []);
