@@ -75,7 +75,7 @@ export async function createQuote(req, res) {
   res.status(201).json(doc);
 }
 
-// NUEVA VERSION listQuotes CON PAGINACIÓN, METADATA Y VALIDACIONES
+// NUEVA VERSION listQuotes CON PAGINACIÓN, METADATA Y VALIDACIONES + ALIAS COMPATIBILIDAD
 export async function listQuotes(req, res) {
   const companyId = req.companyId || req.company?.id;
   if (!companyId) {
@@ -137,6 +137,14 @@ export async function listQuotes(req, res) {
 
   const pages = Math.ceil(total / limitNum) || 1;
 
+  // Mapeo de compatibilidad: id y client (alias de customer)
+  const mapped = items.map(doc => {
+    const o = doc.toObject({ virtuals: false });
+    o.id = o._id;
+    o.client = o.customer;
+    return o;
+  });
+
   return res.json({
     metadata: {
       total,
@@ -147,7 +155,7 @@ export async function listQuotes(req, res) {
       hasPrev: pageNum > 1,
       sort: sortObj
     },
-    items
+    items: mapped
   });
 }
 
