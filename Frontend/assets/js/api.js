@@ -119,7 +119,11 @@ const API = {
   mediaUpload: (files) => http.upload('/api/v1/media/upload', files),
 
   // --- Cotizaciones ---
-  quotesList: (q = '') => http.get(`/api/v1/quotes${q}`),
+  // Cambio: devolver siempre un array (res.items si el backend responde { metadata, items })
+  quotesList: async (q = '') => {
+    const res = await http.get(`/api/v1/quotes${q}`);
+    return Array.isArray(res) ? res : (res?.items || []);
+  },
   quoteCreate: (payload) => http.post('/api/v1/quotes', payload),
   quoteUpdate: (id, payload) => http.patch(`/api/v1/quotes/${id}`, payload),
   quotePatch: (id, payload) => http.patch(`/api/v1/quotes/${id}`, payload),
@@ -215,4 +219,3 @@ if (typeof window !== 'undefined') {
     };
   } catch {}
 }
-

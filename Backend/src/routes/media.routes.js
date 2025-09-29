@@ -172,7 +172,7 @@ router.post('/stickers/pdf', async (req, res, next) => {
 
       // fondo gris claro redondeado
       doc.save();
-      doc.fillColor('#f2f2f2');
+      doc.fillColor('#585454ff');
       if (typeof doc.roundedRect === 'function') {
         doc.roundedRect(squareX, squareY, squareSize, squareSize, 6).fill();
       } else {
