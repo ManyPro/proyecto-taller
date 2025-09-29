@@ -184,8 +184,21 @@ export const listItems = async (req, res) => {
     q.vehicleTarget = new RegExp((vehicleTarget || "").trim().toUpperCase(), "i");
   }
 
+  // Si no hay filtros, limitar a 10 por defecto para ahorrar recursos
+  const hasFilter = !!(name || sku || vehicleTarget || vehicleIntakeId);
+  const DEFAULT_LIMIT = 10;
+
+  if (!hasFilter) {
+    const limit = DEFAULT_LIMIT;
+    const data = await Item.find(q).sort({ createdAt: -1 }).limit(limit);
+    const total = await Item.countDocuments(q);
+    const truncated = total > limit;
+    return res.json({ data, meta: { truncated, total, limit } });
+  }
+
+  // Si hay filtros, devolver todos los resultados (o respeta paginado si lo añades luego)
   const data = await Item.find(q).sort({ createdAt: -1 });
-  res.json({ data });
+  return res.json({ data });
 };
 
 export const createItem = async (req, res) => {

@@ -95,7 +95,8 @@ const invAPI = {
   listItems: async (params = {}) => {
     const r = await request(`/api/v1/inventory/items${toQuery(params)}`);
     const data = Array.isArray(r) ? r : (r.items || r.data || []);
-    return { data };
+    const meta = r?.meta || {};
+    return { data, meta };
   },
   saveItem: (body) => request("/api/v1/inventory/items", { method: "POST", json: body }),
   updateItem: (id, body) => request(`/api/v1/inventory/items/${id}`, { method: "PUT", json: body }),
@@ -449,7 +450,7 @@ export function initInventory() {
 
   async function refreshItems(params = {}) {
     state.lastItemsParams = params;
-    const { data } = await invAPI.listItems(params);
+    const { data, meta } = await invAPI.listItems(params);
     state.items = data || [];
 
     itemsList.innerHTML = "";
@@ -515,6 +516,26 @@ export function initInventory() {
 
       itemsList.appendChild(div);
     });
+
+    // Mostrar aviso si la lista fue truncada por falta de filtros
+    // Crear/actualizar aviso justo encima de itemsList
+    const existingNotice = document.getElementById('itemsNotice');
+    if (meta?.truncated) {
+      const msg = `Mostrando ${meta.limit} ítems de ${meta.total}. Usa los filtros para ver más resultados.`;
+      if (existingNotice) {
+        existingNotice.textContent = msg;
+        existingNotice.style.display = 'block';
+      } else {
+        const n = document.createElement('div');
+        n.id = 'itemsNotice';
+        n.className = 'card muted';
+        n.style.margin = '6px 0';
+        n.textContent = msg;
+        itemsList.parentNode.insertBefore(n, itemsList);
+      }
+    } else if (existingNotice) {
+      existingNotice.style.display = 'none';
+    }
 
     updateSelectionBar();
   }
