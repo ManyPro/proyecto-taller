@@ -942,4 +942,9 @@ export function initInventory() {
         alert('Error creando stickers: ' + (err.message || err));
       }
     };
-   }
+  }
+
+  // ---- Boot ----
+  refreshIntakes();
+  refreshItems({});
+}
