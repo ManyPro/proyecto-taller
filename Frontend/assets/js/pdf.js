@@ -1,4 +1,5 @@
 // assets/js/pdf.js (igual a v1 con contenido)
+import { API } from './api.js'; // asegurar que usamos la base correcta del backend
 export function money(n){ return new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n||0)); }
 
 export async function buildWorkOrderPdf(sale){
@@ -43,10 +44,22 @@ export async function downloadStickersPdf(items = [], filename = 'stickers.pdf',
   if(!Array.isArray(items)) throw new Error('items debe ser un array');
   try {
     const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
-    const resp = await fetch('/api/v1/media/stickers/pdf', {
+    // si no hay Authorization en headers, tomar token desde API.token
+    if (!headers.Authorization) {
+      try {
+        const tok = API?.token?.get?.();
+        if (tok) headers.Authorization = `Bearer ${tok}`;
+      } catch {}
+    }
+    // construir base: opts.base tiene prioridad, luego API.base, si ninguno -> ruta relativa
+    const rawBase = opts.base ?? (API && API.base) ?? '';
+    const base = String(rawBase).replace(/\/$/, '');
+    const endpoint = base ? `${base}/api/v1/media/stickers/pdf` : '/api/v1/media/stickers/pdf';
+    const resp = await fetch(endpoint, {
       method: 'POST',
       headers,
-      credentials: opts.credentials ?? 'same-origin',
+      // usar 'omit' por defecto (coincide con http.coreRequest)
+      credentials: opts.credentials ?? 'omit',
       body: JSON.stringify({ items })
     });
     if(!resp.ok) {

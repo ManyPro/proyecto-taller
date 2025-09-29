@@ -3,6 +3,7 @@ import { authCompany } from '../middlewares/auth.js';
 import { uploadArray, isCloudinary } from '../lib/upload.js';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
+import jwt from 'jsonwebtoken';
 
 const router = Router();
 
@@ -35,9 +36,26 @@ router.post('/upload', authCompany, (req, res, next) => {
 });
 
 // Nuevo endpoint: genera PDF con stickers (2 por item)
-router.post('/stickers/pdf', authCompany, async (req, res, next) => {
+// Auth opcional: si llega un Bearer token válido con companyId, lo adjuntamos; si no, continuamos como "public"
+router.post('/stickers/pdf', async (req, res, next) => {
 	// Expect body: { items: [ { sku, name, companyName?, companyLogo? }, ... ] }
 	try {
+		// intentar extraer company desde Authorization (opcional)
+		try {
+			const h = (req.headers.authorization || '');
+			const [scheme, token] = h.split(' ');
+			if (scheme?.toLowerCase() === 'bearer' && token) {
+				const payload = jwt.verify(token, process.env.JWT_SECRET);
+				if (payload?.companyId) {
+					req.company = { id: payload.companyId };
+					// opcional: si el token incluye nombres o logo, añadirlos
+					if (payload.companyName) req.company.name = payload.companyName;
+					if (payload.companyLogo) req.company.logo = payload.companyLogo;
+				}
+			}
+		} catch (e) {
+			// no hay token válido -> continuar sin company (se usa 'public' más abajo)
+		}
 		const items = Array.isArray(req.body?.items) ? req.body.items : [];
 
 		// fallback dinámico a fetch (node >=18 tiene fetch global; si no, intentamos node-fetch)
