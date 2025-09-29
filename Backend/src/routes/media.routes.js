@@ -101,121 +101,134 @@ router.post('/stickers/pdf', async (req, res, next) => {
 
 		// crear página por cada sticker (2 por item)
 		for (const item of items) {
-			// ...existing code...
-			const companyName = /* for now force the requested text */ "CASA RENAULT H&H";
-			const companyLogoSrc = item.companyLogo || req.company?.logo || null;
+			// Forzar nombre de la empresa por ahora y determinar logo por defecto si no viene
+			const companyName = "CASA RENAULT H&H";
+			const defaultLogoUrl = `${req.protocol}://${req.get('host')}/uploads/public/logo-renault.png`;
+			const companyLogoSrc = item.companyLogo || req.company?.logo || defaultLogoUrl;
 			const sku = item.sku || item.name || '';
 
 			// Preparar buffer de logo (si hay)
 			const logoBuffer = companyLogoSrc ? await fetchImageBuffer(companyLogoSrc) : null;
 
-			// STICKER 1: genérico (logo a la izquierda + nombre empresa a la derecha)
+			// STICKER 1: logo a la izquierda + texto a la derecha (centrado verticalmente)
 			doc.addPage({ size: [STICKER_W, STICKER_H], margin: 0 });
 			doc.save();
-			// fondo blanco
 			doc.rect(0, 0, STICKER_W, STICKER_H).fill('#FFFFFF');
-			doc.fillColor('#000');
 
 			const contentX = MARGIN;
 			const contentY = MARGIN;
 			const contentW = STICKER_W - 2 * MARGIN;
 			const contentH = STICKER_H - 2 * MARGIN;
 
-			// Layout: logo a la izquierda (max 35% del ancho), texto a la derecha
+			// Áreas: logo 35% ancho, texto el resto
 			const logoAreaW = Math.min(contentW * 0.35, contentW * 0.45);
 			const gapBetween = 4; // puntos
 			const textAreaX = contentX + logoAreaW + gapBetween;
 			const textAreaW = contentW - logoAreaW - gapBetween;
 
-			// Dibujar logo (centrado verticalmente en su área)
+			// Dibujar logo escalado y centrado verticalmente en su área
 			if (logoBuffer) {
 				try {
 					const maxLogoW = logoAreaW;
 					const maxLogoH = contentH * 0.9;
-					// calcular posición centrada verticalmente
 					const logoX = contentX;
 					const logoY = contentY + (contentH - maxLogoH) / 2;
-					doc.image(logoBuffer, logoX, logoY, { fit: [maxLogoW, maxLogoH], align: 'center', valign: 'center' });
-				} catch (e) {
-					// si falla la imagen, ignorar
-				}
+					doc.image(logoBuffer, logoX, logoY, { fit: [maxLogoW, maxLogoH] });
+				} catch (e) {}
 			}
 
-			// Texto de la empresa en la derecha, centrado verticalmente
-			doc.fillColor('#000');
-			doc.font('Helvetica-Bold');
-			// Escalar fontSize para ocupar buena porción del área de texto sin salirse
-			const maxFont = 12;
-			const minFont = 6;
-			// texto simple, una línea; calcular font por altura disponible
-			let fontSize = Math.floor(Math.min(maxFont, contentH * 0.5));
-			if (fontSize < minFont) fontSize = minFont;
+			// Texto de la empresa a la derecha, centrado verticalmente
+			doc.fillColor('#000').font('Helvetica-Bold');
+			let fontSize = Math.floor(Math.min(12, contentH * 0.5));
+			if (fontSize < 6) fontSize = 6;
 			doc.fontSize(fontSize);
-			// centrar verticalmente
 			const textY = contentY + (contentH / 2) - (fontSize / 2);
-			doc.fillColor('#000');
-			doc.text(companyName, textAreaX, textY, {
-				width: textAreaW,
-				align: 'center',
-				ellipsis: true
-			});
+			doc.text(companyName, textAreaX, textY, { width: textAreaW, align: 'center', ellipsis: true });
 			doc.restore();
 
-			// STICKER 2: SKU vertical y centrado
+			// STICKER 2: SKU vertical a la izquierda + QR a la derecha
 			doc.addPage({ size: [STICKER_W, STICKER_H], margin: 0 });
 			doc.save();
 			doc.rect(0, 0, STICKER_W, STICKER_H).fill('#FFFFFF');
-			doc.fillColor('#000');
 
-			const pad = 2;
-			const leftX = contentX;
-			const rightX = contentX + contentW;
-			const vAreaX = contentX;
-			const vAreaY = contentY;
-			const vAreaW = contentW;
-			const vAreaH = contentH;
+			const vContentX = MARGIN;
+			const vContentY = MARGIN;
+			const vContentW = STICKER_W - 2 * MARGIN;
+			const vContentH = STICKER_H - 2 * MARGIN;
 
-			// Preparar texto vertical: cada carácter en su propia línea
+			// Columnas: left 60% para SKU, right 40% para QR
+			const qrColW = Math.min(vContentW * 0.4, vContentW * 0.45);
+			const skuColW = vContentW - qrColW - 4;
+			const skuColX = vContentX;
+			const qrColX = vContentX + skuColW + 4;
+
+			// Preparar QR en alta resolución (300 dpi) y luego insertarlo escalado
+			let qrBuf = null;
+			try {
+				const maxQrPts = Math.min(qrColW, vContentH);
+				const DPI = 300;
+				const PT_TO_PX = DPI / 72;
+				const qrPx = Math.max(120, Math.round(maxQrPts * PT_TO_PX));
+				const qrDataUrl = await QRCode.toDataURL(String(sku || ''), { margin: 0, width: qrPx });
+				qrBuf = Buffer.from(qrDataUrl.split(',')[1], 'base64');
+			} catch (e) {
+				qrBuf = null;
+			}
+
+			// Dibujar SKU vertical en la columna izquierda (cada carácter en nueva línea)
 			const s = String(sku || '').toUpperCase();
 			const chars = s.split('');
 			const charCount = Math.max(1, chars.length);
-			// lineHeight relativo
 			const lineHeightRatio = 1.05;
-			// calcular fontSize máximo que cabe verticalmente
-			let vFont = Math.floor(vAreaH / (charCount * lineHeightRatio));
-			vFont = Math.max(6, Math.min(24, vFont)); // límites razonables
+			// calcular font que quepa verticalmente y también que no sea más ancho que skuColW
+			let vFont = Math.floor(vContentH / (charCount * lineHeightRatio));
+			vFont = Math.max(6, Math.min(40, vFont));
+			// asegurar que la fuente también cabe en ancho (aprox vFont * 0.6)
+			const approxCharWidth = vFont * 0.6;
+			if (approxCharWidth > skuColW) {
+				vFont = Math.floor(skuColW / 0.6);
+			}
+			vFont = Math.max(6, Math.min(40, vFont));
 			doc.font('Helvetica-Bold').fontSize(vFont);
 			const totalTextHeight = vFont * charCount * lineHeightRatio;
-			const startY = vAreaY + Math.max(0, (vAreaH - totalTextHeight) / 2);
-			// Construir string con saltos de línea para que PDFKit lo dibuje verticalmente
+			const startY = vContentY + Math.max(0, (vContentH - totalTextHeight) / 2);
 			const verticalText = chars.join('\n');
-			// Dibujar centrado horizontalmente en el área de contenido
 			doc.fillColor('#000');
-			// Usar ancho pequeño para centrar las líneas verticales
-			const textX = vAreaX;
-			const textWidth = vAreaW;
-			doc.text(verticalText, textX, startY, {
-				width: textWidth,
+			doc.text(verticalText, skuColX, startY, {
+				width: skuColW,
 				align: 'center',
 				lineGap: Math.round(vFont * (lineHeightRatio - 1))
 			});
 
+			// Dibujar QR en la columna derecha (centrado)
+			if (qrBuf) {
+				try {
+					const maxQrSize = Math.min(qrColW, vContentH);
+					const qrX = qrColX + (qrColW - maxQrSize) / 2;
+					const qrY = vContentY + (vContentH - maxQrSize) / 2;
+					doc.image(qrBuf, qrX, qrY, { fit: [maxQrSize, maxQrSize] });
+				} catch (e) {}
+			} else {
+				// fallback texto QR si no se generó
+				doc.fontSize(8).text('QR', qrColX + qrColW / 2, vContentY + vContentH / 2, { align: 'center' });
+			}
+
 			doc.restore();
 		}
 
-		// preparar respuesta una vez termine el stream del PDF
-		doc.on('end', () => {
-			const pdf = Buffer.concat(buffers);
-			res.setHeader('Content-Type', 'application/pdf');
-			res.setHeader('Content-Disposition', 'attachment; filename="stickers.pdf"');
-			res.setHeader('Content-Length', String(pdf.length));
-			return res.send(pdf);
-		});
-
-		doc.end();
-	} catch (err) {
-		return next(err);
-	}
-});
-
-export default router;
+ 		// preparar respuesta una vez termine el stream del PDF
+ 		doc.on('end', () => {
+ 			const pdf = Buffer.concat(buffers);
+ 			res.setHeader('Content-Type', 'application/pdf');
+ 			res.setHeader('Content-Disposition', 'attachment; filename="stickers.pdf"');
+ 			res.setHeader('Content-Length', String(pdf.length));
+ 			return res.send(pdf);
+ 		});
+ 
+ 		doc.end();
+ 	} catch (err) {
+ 		return next(err);
+ 	}
+ });
+ 
+ export default router;
