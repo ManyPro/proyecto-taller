@@ -35,9 +35,8 @@ router.post('/upload', authCompany, (req, res, next) => {
 });
 
 // Nuevo endpoint: genera PDF con stickers (2 por item)
-// Auth opcional: si llega un Bearer token válido con companyId, lo adjuntamos; si no, continuamos como "public"
+// Auth opcional: extrae company si se envía Bearer token válido
 router.post('/stickers/pdf', async (req, res, next) => {
-  // Expect body: { items: [ { sku, name, companyName?, companyLogo? }, ... ] }
   try {
     // intentar extraer company desde Authorization (opcional)
     try {
@@ -52,7 +51,7 @@ router.post('/stickers/pdf', async (req, res, next) => {
         }
       }
     } catch (e) {
-      // seguir sin company si token inválido
+      // continuar sin company si token inválido
     }
 
     const items = Array.isArray(req.body?.items) ? req.body.items : [];
@@ -97,7 +96,7 @@ router.post('/stickers/pdf', async (req, res, next) => {
     doc.on('data', (b) => buffers.push(b));
     doc.on('error', (err) => next(err));
 
-    // crear dos páginas por cada item
+    // generar 2 stickers (páginas) por cada item
     for (const item of items) {
       const companyName = item.companyName || req.company?.name || "CASA RENAULT H&H";
       const defaultLogoUrl = `${req.protocol}://${req.get('host')}/uploads/public/logo-renault.jpg`;
@@ -107,7 +106,7 @@ router.post('/stickers/pdf', async (req, res, next) => {
       // cargar logo si existe
       const logoBuffer = companyLogoSrc ? await fetchImageBuffer(companyLogoSrc) : null;
 
-      // STICKER A: logo centrado + nombre empresa debajo
+      // ---- STICKER A: logo centrado + nombre empresa debajo ----
       doc.addPage({ size: [STICKER_W, STICKER_H], margin: 0 });
       doc.save();
       doc.rect(0, 0, STICKER_W, STICKER_H).fill('#FFFFFF');
@@ -125,7 +124,9 @@ router.post('/stickers/pdf', async (req, res, next) => {
           const logoX = cx + (cw - fitW) / 2;
           const logoY = cy + (ch * 0.08);
           doc.image(logoBuffer, logoX, logoY, { fit: [fitW, maxLogoH], align: 'center', valign: 'center' });
-        } catch (e) {}
+        } catch (e) {
+          // no bloquear por fallo de imagen
+        }
       }
 
       doc.fillColor('#000').font('Helvetica-Bold');
@@ -137,7 +138,7 @@ router.post('/stickers/pdf', async (req, res, next) => {
       doc.text(companyName, cx, nameY, { width: cw, align: 'center', ellipsis: true });
       doc.restore();
 
-      // STICKER B: cuadro gris con SKU (izquierda) + QR (derecha)
+      // ---- STICKER B: cuadro gris con SKU (izquierda) + QR (derecha) ----
       doc.addPage({ size: [STICKER_W, STICKER_H], margin: 0 });
       doc.save();
       doc.rect(0, 0, STICKER_W, STICKER_H).fill('#FFFFFF');
@@ -152,7 +153,7 @@ router.post('/stickers/pdf', async (req, res, next) => {
       const skuColX = vx;
       const qrColX = vx + skuColW + 6;
 
-      // preparar QR buffer
+      // preparar QR buffer (alta resolución)
       let qrBuf = null;
       try {
         const maxQrPts = Math.min(qrColW, vh);
@@ -161,12 +162,15 @@ router.post('/stickers/pdf', async (req, res, next) => {
         const qrPx = Math.max(120, Math.round(maxQrPts * PT_TO_PX));
         const qrDataUrl = await QRCode.toDataURL(String(sku || ''), { margin: 0, width: qrPx });
         qrBuf = Buffer.from(qrDataUrl.split(',')[1], 'base64');
-      } catch (e) { qrBuf = null; }
+      } catch (e) {
+        qrBuf = null;
+      }
 
       const squareSize = Math.min(skuColW, vh);
       const squareX = skuColX + (skuColW - squareSize) / 2;
       const squareY = vy + (vh - squareSize) / 2;
 
+      // fondo gris claro redondeado
       doc.save();
       doc.fillColor('#f2f2f2');
       if (typeof doc.roundedRect === 'function') {
@@ -176,6 +180,7 @@ router.post('/stickers/pdf', async (req, res, next) => {
       }
       doc.restore();
 
+      // SKU single-line centrado en el cuadrado
       doc.fillColor('#000').font('Helvetica-Bold');
       let skuFont = Math.floor(squareSize * 0.18);
       if (skuFont < 8) skuFont = 8;
@@ -187,6 +192,7 @@ router.post('/stickers/pdf', async (req, res, next) => {
         ellipsis: true
       });
 
+      // dibujar QR a la derecha con el mismo tamaño
       if (qrBuf) {
         try {
           const qrX = qrColX + (qrColW - squareSize) / 2;
@@ -216,37 +222,3 @@ router.post('/stickers/pdf', async (req, res, next) => {
 });
 
 export default router;
- 			return res.send(pdf);
- 		});
- 
- 		doc.end();
- 	} catch (err) {
- 		return next(err);
- 	}
- });
- 
- export default router;
-				} catch (e) {}
-			} else {
-				doc.fontSize(8).text('QR', qrColX + qrColW / 2, vContentY + vContentH / 2, { align: 'center' });
-			}
-
-			doc.restore();
-		}
-
- 		// preparar respuesta una vez termine el stream del PDF
- 		doc.on('end', () => {
- 			const pdf = Buffer.concat(buffers);
- 			res.setHeader('Content-Type', 'application/pdf');
- 			res.setHeader('Content-Disposition', 'attachment; filename="stickers.pdf"');
- 			res.setHeader('Content-Length', String(pdf.length));
- 			return res.send(pdf);
- 		});
- 
- 		doc.end();
- 	} catch (err) {
- 		return next(err);
- 	}
- });
- 
- export default router;
