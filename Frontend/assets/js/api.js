@@ -17,8 +17,8 @@ const tokenKeyFor = (email) => `taller.token:${SCOPE}:${String(email || '').toLo
 // Empresa activa en localStorage
 const activeCompany = {
   get: () => (typeof localStorage !== 'undefined' ? (localStorage.getItem(ACTIVE_KEY) || '') : ''),
-  set: (email) => { try { localStorage.setItem(ACTIVE_KEY, String(email || '').toLowerCase()); } catch {} },
-  clear: () => { try { localStorage.removeItem(ACTIVE_KEY); } catch {} }
+  set: (email) => { try { localStorage.setItem(ACTIVE_KEY, String(email || '').toLowerCase()); } catch { } },
+  clear: () => { try { localStorage.removeItem(ACTIVE_KEY); } catch { } }
 };
 
 // Token por empresa (usa la empresa activa por defecto)
@@ -27,8 +27,8 @@ const tokenStore = {
     const em = (email || activeCompany.get());
     return (typeof localStorage !== 'undefined') ? (localStorage.getItem(tokenKeyFor(em)) || '') : '';
   },
-  set: (t, email) => { try { localStorage.setItem(tokenKeyFor(email || activeCompany.get()), t || ''); } catch {} },
-  clear: (email) => { try { localStorage.removeItem(tokenKeyFor(email || activeCompany.get())); } catch {} }
+  set: (t, email) => { try { localStorage.setItem(tokenKeyFor(email || activeCompany.get()), t || ''); } catch { } },
+  clear: (email) => { try { localStorage.removeItem(tokenKeyFor(email || activeCompany.get())); } catch { } }
 };
 
 // ===== HTTP core =====
@@ -119,7 +119,8 @@ const API = {
   mediaUpload: (files) => http.upload('/api/v1/media/upload', files),
 
   // --- Cotizaciones ---
-  // Cambio: devolver siempre un array (res.items si el backend responde { metadata, items })
+  // --- Cotizaciones ---
+  quotesListRaw: (q = '') => http.get(`/api/v1/quotes${q}`),
   quotesList: async (q = '') => {
     const res = await http.get(`/api/v1/quotes${q}`);
     return Array.isArray(res) ? res : (res?.items || []);
@@ -187,11 +188,11 @@ const API = {
     list: (params = {}) => http.get(`/api/v1/sales${toQuery(params)}`),
     summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`),
     cancel: (id) => http.post(`/api/v1/sales/${id}/cancel`, {}),
-    profileByPlate: (plate) => http.get(`/api/v1/sales/profile/by-plate/${encodeURIComponent(String(plate||'').toUpperCase())}`)
+    profileByPlate: (plate) => http.get(`/api/v1/sales/profile/by-plate/${encodeURIComponent(String(plate || '').toUpperCase())}`)
   }
 };
 
-// Exports
+// Exports  
 export { API, tokenStore as authToken };
 export default API;
 
@@ -210,12 +211,12 @@ if (typeof window !== 'undefined') {
         const url = new URL('/api/v1/sales/stream', base);
         if (__tok) url.searchParams.set('token', __tok);
         const es = new EventSource(url.toString(), { withCredentials: false });
-        es.addEventListener('sale:started',   e => onEvent && onEvent('sale:started',   JSON.parse(e.data||'{}')));
-        es.addEventListener('sale:updated',   e => onEvent && onEvent('sale:updated',   JSON.parse(e.data||'{}')));
-        es.addEventListener('sale:closed',    e => onEvent && onEvent('sale:closed',    JSON.parse(e.data||'{}')));
-        es.addEventListener('sale:cancelled', e => onEvent && onEvent('sale:cancelled', JSON.parse(e.data||'{}')));
+        es.addEventListener('sale:started', e => onEvent && onEvent('sale:started', JSON.parse(e.data || '{}')));
+        es.addEventListener('sale:updated', e => onEvent && onEvent('sale:updated', JSON.parse(e.data || '{}')));
+        es.addEventListener('sale:closed', e => onEvent && onEvent('sale:closed', JSON.parse(e.data || '{}')));
+        es.addEventListener('sale:cancelled', e => onEvent && onEvent('sale:cancelled', JSON.parse(e.data || '{}')));
         return es;
       }
     };
-  } catch {}
+  } catch { }
 }
