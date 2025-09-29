@@ -503,7 +503,7 @@ async function loadQuote(){
       const btn=document.createElement('button'); btn.className='secondary';
       btn.textContent = `${(qq.number||'').toString().padStart(5,'0')} - ${qq?.client?.name||''} (${qq?.vehicle?.plate||''})`;
       btn.style.cssText='display:block;width:100%;text-align:left;margin-top:6px;';
-      btn.onclick = ()=>{ closeModal(); renderQuoteMini(qq); };
+      btn.onclick = ()=>{ closeModal(); renderQuoteMini(qq); try{ localStorage.setItem('sales:lastQuoteId', qq.id||qq._id||''); }catch{} };
       list.appendChild(btn);
     });
   }
@@ -800,6 +800,15 @@ export function initSales(){
   document.getElementById('sales-add-manual')?.addEventListener('click', openAddManual);
   document.getElementById('sales-history')?.addEventListener('click', openSalesHistory);
   document.getElementById('sv-edit-cv')?.addEventListener('click', openEditCV);
+  document.getElementById('sv-loadQuote')?.addEventListener('click', loadQuote);
+
+  // Restaurar última cotización cargada (si existe)
+  try {
+    const lastQuoteId = localStorage.getItem('sales:lastQuoteId');
+    if (lastQuoteId) {
+      API.quoteGet(lastQuoteId).then(q=>{ if(q) renderQuoteMini(q); }).catch(()=>{});
+    }
+  } catch {}
 
   document.getElementById('sales-close')?.addEventListener('click', async ()=>{
     if (!current) return;
