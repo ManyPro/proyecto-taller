@@ -37,3 +37,33 @@ export async function buildInvoicePdf(sale){
   doc.setFontSize(12); doc.text(`TOTAL: ${money(sale?.total||0)}`,190,y,{align:'right'});
   doc.save(`FAC_${nro}.pdf`);
 }
+
+// Nueva función: descargar PDF de stickers generado por el backend
+export async function downloadStickersPdf(items = [], filename = 'stickers.pdf', opts = {}){
+  if(!Array.isArray(items)) throw new Error('items debe ser un array');
+  try {
+    const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+    const resp = await fetch('/api/v1/media/stickers/pdf', {
+      method: 'POST',
+      headers,
+      credentials: opts.credentials ?? 'same-origin',
+      body: JSON.stringify({ items })
+    });
+    if(!resp.ok) {
+      const text = await resp.text().catch(()=>null);
+      throw new Error(`Error al generar stickers: ${resp.status} ${text||resp.statusText}`);
+    }
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    // Propagar error para que el caller lo gestione
+    throw err;
+  }
+}
