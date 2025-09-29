@@ -67,3 +67,32 @@ export async function downloadStickersPdf(items = [], filename = 'stickers.pdf',
     throw err;
   }
 }
+
+// Nueva función: enlaza un botón con la generación de stickers
+export function bindStickersButton(buttonOrSelector, getItemsFn, opts = {}) {
+  // buttonOrSelector: DOM element o selector string
+  // getItemsFn: función que devuelve el array de items (o el propio array)
+  // opts: { token, headers, filename, credentials }
+  const button = typeof buttonOrSelector === 'string' ? document.querySelector(buttonOrSelector) : buttonOrSelector;
+  if (!button) throw new Error('bindStickersButton: button no encontrado');
+
+  button.addEventListener('click', async (e) => {
+    try {
+      button.disabled = true;
+      // obtener items
+      const items = typeof getItemsFn === 'function' ? await getItemsFn() : (getItemsFn || []);
+      // preparar headers (añadir Authorization si se pasa token)
+      const headers = Object.assign({}, opts.headers || {});
+      if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
+      await downloadStickersPdf(items, opts.filename || 'stickers.pdf', { headers, credentials: opts.credentials });
+    } catch (err) {
+      console.error('Error generando stickers:', err);
+      // feedback mínimo: alert (puedes reemplazar por tu propio UI)
+      alert(err.message || 'Error al generar stickers');
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  return button;
+}

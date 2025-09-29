@@ -1,6 +1,7 @@
 // Frontend/assets/inventory.js
 import { API } from "./api.js";
 import { upper } from "./utils.js";
+import { bindStickersButton } from './pdf.js';
 
 // ---- State ----
 const state = {
@@ -238,6 +239,35 @@ function blobToDataURL(blob) {
     r.readAsDataURL(blob);
   });
 }
+
+// Ejemplo: función que recoge items seleccionados en la UI
+function getSelectedItems() {
+  // Adaptar selector según tu HTML. Ejemplo: checkboxes con data-sku y data-name
+  const rows = Array.from(document.querySelectorAll('input[name="select-item"]:checked'));
+  return rows.map(ch => {
+    const el = ch.closest('.item-row'); // o usar data- atributos directamente
+    return {
+      sku: ch.dataset.sku || el?.dataset?.sku || ch.getAttribute('data-sku'),
+      name: ch.dataset.name || el?.dataset?.name || ch.getAttribute('data-name'),
+      companyName: /* opcional: obtener nombre empresa si aplica */ undefined,
+      companyLogo: /* opcional: URL/logo si lo tienes */ undefined
+    };
+  });
+}
+
+// Enlazar el botón (id="#btn-stickers"), pasar token si usas auth en el frontend
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    bindStickersButton('#btn-stickers', getSelectedItems, {
+      token: localStorage.getItem('token'), // o null
+      filename: 'stickers.pdf',
+      credentials: 'same-origin' // ajustar si usas cross-site
+    });
+  } catch (e) {
+    // botón no encontrado => no hacer nada
+    console.warn('No se enlazó botón de stickers:', e.message);
+  }
+});
 
 // ---- Init ----
 export function initInventory() {
