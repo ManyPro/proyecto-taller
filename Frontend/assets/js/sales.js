@@ -13,48 +13,154 @@ const $  = (s, r=document)=>r.querySelector(s);
 const clone = (id)=>document.getElementById(id)?.content?.firstElementChild?.cloneNode(true);
 const money = (n)=> new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n||0));
 
+function padSaleNumber(n){
+  return String(n ?? '').toString().padStart(5,'0');
+}
+
+function describeCustomer(customer){
+  const c = customer || {};
+  const parts = [];
+  if (c.name) parts.push(c.name);
+  if (c.idNumber) parts.push('ID: ' + c.idNumber);
+  if (c.phone) parts.push('Tel: ' + c.phone);
+  if (c.email) parts.push(c.email);
+  if (c.address) parts.push(c.address);
+  return parts.join(' | ') || 'N/A';
+}
+
+function describeVehicle(vehicle){
+  const v = vehicle || {};
+  const parts = [];
+  if (v.plate) parts.push(v.plate);
+  const specs = [v.brand, v.line, v.engine].filter(Boolean).join(' ');
+  if (specs) parts.push(specs.trim());
+  if (v.year) parts.push('Año ' + v.year);
+  if (v.mileage != null) parts.push((v.mileage || 0) + ' km');
+  return parts.join(' | ') || 'N/A';
+}
+
+function printSaleTicket(sale){
+  if (!sale) return;
+  const number = padSaleNumber(sale.number || sale._id || '');
+  const linesOut = [
+    'Factura simple',
+    '',
+    '# ' + number + '  Total: ' + money(sale.total || 0),
+    '',
+    'Cliente: ' + describeCustomer(sale.customer),
+    'Vehículo: ' + describeVehicle(sale.vehicle),
+    '',
+    'Items:'
+  ];
+  (sale.items || []).forEach(it => {
+    linesOut.push('- ' + (it.qty || 0) + ' x ' + (it.name || it.sku || '') + ' (' + money(it.total || 0) + ')');
+  });
+  const txt = linesOut.join('\n');
+  const win = window.open('', '_blank');
+  if (!win) { alert('No se pudo abrir ventana de impresión'); return; }
+  win.document.write('<pre>' + txt + '</pre>');
+  win.document.close();
+  win.focus();
+  win.print();
+  try { win.close(); } catch {}
+}
+
+
 // ---------- estado ----------
 let es = null;         // EventSource (SSE)
 let current = null;    // venta actual
-let openTabs = [];     // ids de ventas abiertas
+let openSales = [];    // ventas abiertas (draft) compartidas
 let starting = false;  // evita doble clic en "Nueva venta"
+let salesRefreshTimer = null;
 
-const tabsKey = ()=> `sales:openTabs:${(API.getActiveCompany?.() || '').toLowerCase()}`;
-const saveTabs = ()=> { try{ localStorage.setItem(tabsKey(), JSON.stringify(openTabs)); }catch{} };
-const loadTabs = ()=> { try{ openTabs = JSON.parse(localStorage.getItem(tabsKey())||'[]'); }catch{ openTabs=[]; } };
+function labelForSale(sale) {
+  const plate = sale?.vehicle?.plate || '';
+  return plate ? `VENTA - ${plate.toUpperCase()}` : String(sale?._id || '').slice(-6).toUpperCase();
+}
+
+function syncCurrentIntoOpenList() {
+  if (!current?._id) return;
+  const idx = openSales.findIndex((s) => s._id === current._id);
+  const copy = JSON.parse(JSON.stringify(current));
+  if (idx >= 0) openSales[idx] = copy;
+  else openSales.unshift(copy);
+}
+
+async function refreshOpenSales(options = {}) {
+  const { focusId = null, preferCurrent = null } = options;
+  try {
+    const res = await API.sales.list({ status: 'draft', limit: 100 });
+    const items = Array.isArray(res?.items) ? res.items : [];
+    openSales = items;
+    let targetId = focusId || preferCurrent?._id || current?._id || null;
+    if (targetId) {
+      const found = openSales.find((s) => s._id === targetId);
+      if (found) {
+        current = found;
+      } else if (preferCurrent) {
+        current = preferCurrent;
+        syncCurrentIntoOpenList();
+      } else if (current && current._id === targetId) {
+        current = null;
+      }
+    }
+    if (!current && openSales.length) current = openSales[0];
+    renderTabs();
+    renderSale();
+    renderWO();
+  } catch (err) {
+    console.error('refreshOpenSales failed', err);
+  }
+}
+
+function startSalesAutoRefresh() {
+  if (salesRefreshTimer) return;
+  salesRefreshTimer = setInterval(() => {
+    refreshOpenSales({ focusId: current?._id || null });
+  }, 10000);
+}
+
+function stopSalesAutoRefresh() {
+  if (!salesRefreshTimer) return;
+  clearInterval(salesRefreshTimer);
+  salesRefreshTimer = null;
+}
+
 
 // ---------- tabs ----------
-function labelFor(id){
-  if (current && id===current._id) {
-    const plate = current?.vehicle?.plate || '';
-    return plate ? `VENTA - ${plate.toUpperCase()}` : id.slice(-6).toUpperCase();
-  }
-  return id.slice(-6).toUpperCase();
-}
 async function switchTo(id){
-  try {
-    current = await API.sales.get(id);
-    if (!openTabs.includes(id)) { openTabs.push(id); saveTabs(); }
+  try{
+    const sale = await API.sales.get(id);
+    current = sale;
+    syncCurrentIntoOpenList();
     renderTabs(); renderSale(); renderWO();
-  } catch(e){ console.error(e); }
+  }catch(e){ console.error(e); }
 }
+
 function renderTabs(){
   const cont = document.getElementById('saleTabs'); if (!cont) return;
   cont.innerHTML = '';
-  for(const id of openTabs){
+  for (const sale of openSales){
+    if (!sale?._id) continue;
+    const id = sale._id;
     const tab = clone('tpl-sale-tab');
-    tab.querySelector('.label').textContent = labelFor(id);
+    tab.querySelector('.label').textContent = labelForSale(sale);
     if (current && id===current._id) tab.classList.add('active');
     tab.addEventListener('click', ()=> switchTo(id));
     tab.querySelector('.close').addEventListener('click', async (e)=>{
       e.stopPropagation();
-      if (!confirm('¿Cancelar esta venta?')) return;
-      try{ await API.sales.cancel(id); }catch{}
-      openTabs = openTabs.filter(x=>x!==id); saveTabs();
-      if (current && current._id===id){ current=null; renderSale(); }
-      renderTabs();
+      if (!confirm('Cancelar esta venta?')) return;
+      try{ await API.sales.cancel(id); }catch(err){ alert(err?.message||'No se pudo cancelar'); }
+      if (current && current._id===id) current=null;
+      await refreshOpenSales();
     });
     cont.appendChild(tab);
+  }
+  if (!openSales.length){
+    const hint = document.createElement('div');
+    hint.className = 'tab-empty';
+    hint.textContent = 'No hay ventas abiertas';
+    cont.appendChild(hint);
   }
 }
 
@@ -84,6 +190,8 @@ function renderSale(){
     qty.addEventListener('change', async ()=>{
       const v = Math.max(1, Number(qty.value||1) || 1);
       current = await API.sales.updateItem(current._id, it._id, { qty: v });
+      syncCurrentIntoOpenList();
+        renderTabs();
       renderSale(); renderWO();
     });
 
@@ -92,17 +200,23 @@ function renderSale(){
     btnEdit.onclick = async ()=>{
       const v = prompt('Nuevo precio unitario:', String(it.unitPrice||0)); if (v==null) return;
       current = await API.sales.updateItem(current._id, it._id, { unitPrice: Number(v)||0 });
+      syncCurrentIntoOpenList();
+        renderTabs();
       renderSale(); renderWO();
     };
     const btnZero = document.createElement('button'); btnZero.textContent='Precio 0'; btnZero.className='secondary';
     btnZero.onclick = async ()=>{
       current = await API.sales.updateItem(current._id, it._id, { unitPrice: 0 });
+      syncCurrentIntoOpenList();
+        renderTabs();
       renderSale(); renderWO();
     };
     const btnDel = tr.querySelector('button.remove');
     btnDel.onclick = async ()=>{
       await API.sales.removeItem(current._id, it._id);
       current = await API.sales.get(current._id);
+      syncCurrentIntoOpenList();
+        renderTabs();
       renderSale(); renderWO();
     };
     actions.prepend(btnEdit); actions.prepend(btnZero);
@@ -148,8 +262,10 @@ function openQR(){
   const msg = node.querySelector('#qr-msg');
   const list = node.querySelector('#qr-history');
   const autoclose = node.querySelector('#qr-autoclose');
+  const manualInput = node.querySelector('#qr-manual');
+  const manualBtn = node.querySelector('#qr-add-manual');
 
-  let stream=null, running=false, detector=null, lastCode=null, lastTs=0;
+  let stream=null, running=false, detector=null, lastCode='', lastTs=0;
 
   async function fillCams(){
     try{
@@ -174,18 +290,54 @@ function openQR(){
       msg.textContent='';
     }catch(e){ msg.textContent='No se pudo abrir cámara: '+(e?.message||e?.name||'Desconocido'); }
   }
-  function accept(v){ const t=Date.now(); if (lastCode===v && t-lastTs<1200) return false; lastCode=v; lastTs=t; return true; }
+  function accept(value){
+    const normalized = String(value || '').trim().toUpperCase();
+    const t = Date.now();
+    if (lastCode === normalized && t - lastTs < 1200) return false;
+    lastCode = normalized;
+    lastTs = t;
+    return true;
+  }
+
+  function parseInventoryCode(raw){
+    const text = String(raw || '').trim();
+    if (!text) return { itemId:'', sku:'', raw:text };
+    const upper = text.toUpperCase();
+    if (upper.startsWith('IT:')){
+      const parts = text.split(':').map(p => p.trim()).filter(Boolean);
+      return {
+        companyId: parts[1] || '',
+        itemId: parts[2] || '',
+        sku: parts[3] || ''
+      };
+    }
+    const match = text.match(/[a-f0-9]{24}/i);
+    return { companyId:'', itemId: match ? match[0] : '', sku:'', raw:text };
+  }
+
+  async function handleCode(raw, fromManual = false){
+    const text = String(raw || '').trim();
+    if (!text) return;
+    if (!fromManual && !accept(text)) return;
+    const li=document.createElement('li'); li.textContent=text; list.prepend(li);
+    const parsed = parseInventoryCode(text);
+    try{
+      if (parsed.itemId){
+        current = await API.sales.addItem(current._id, { source:'inventory', refId: parsed.itemId, qty:1 });
+      } else {
+        const candidate = (parsed.sku || text).toUpperCase();
+        current = await API.sales.addItem(current._id, { source:'inventory', sku:candidate, qty:1 });
+      }
+      syncCurrentIntoOpenList();
+      renderTabs();
+      renderSale(); renderWO();
+      if (autoclose.checked && !fromManual){ stop(); closeModal(); }
+      msg.textContent = '';
+    }catch(e){ msg.textContent = e?.message || 'No se pudo agregar'; }
+  }
+
   function onCode(code){
-    if (!accept(code)) return;
-    const li=document.createElement('li'); li.textContent=code; list.prepend(li);
-    const m = String(code||'').match(/[a-f0-9]{24}/i);
-    (async ()=>{
-      try{
-        if (m) current = await API.sales.addItem(current._id, { source:'inventory', refId:m[0], qty:1 });
-        else   current = await API.sales.addItem(current._id, { source:'inventory', sku:String(code).toUpperCase(), qty:1 });
-        renderSale(); renderWO(); if (autoclose.checked){ stop(); closeModal(); }
-      }catch(e){ msg.textContent = e?.message || 'No se pudo agregar'; }
-    })();
+    handleCode(code);
   }
   async function tickNative(){ if(!running) return; try{ const codes=await detector.detect(video); if(codes?.[0]?.rawValue) onCode(codes[0].rawValue); }catch{} requestAnimationFrame(tickNative); }
   function tickCanvas(){
@@ -203,6 +355,24 @@ function openQR(){
     }catch{}
     requestAnimationFrame(tickCanvas);
   }
+
+  manualBtn?.addEventListener('click', () => {
+    const val = manualInput?.value.trim();
+    if (!val) return;
+    handleCode(val, true);
+    manualInput.value = '';
+    manualInput.focus();
+  });
+  manualInput?.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') {
+      ev.preventDefault();
+      const val = manualInput.value.trim();
+      if (val) {
+        handleCode(val, true);
+        manualInput.value = '';
+      }
+    }
+  });
 
   node.querySelector('#qr-start').onclick = start;
   node.querySelector('#qr-stop').onclick  = stop;
@@ -222,6 +392,8 @@ function openAddManual(){
     const sku  = node.querySelector('#am-sku').value.trim();
     if (!name) return alert('Descripción requerida');
     current = await API.sales.addItem(current._id, { source:'service', sku, name, qty, unitPrice:price });
+    syncCurrentIntoOpenList();
+    renderTabs();
     closeModal(); renderSale(); renderWO();
   };
 }
@@ -261,6 +433,8 @@ async function openPickerInventory(){
       tr.querySelector('[data-price]').textContent = money(it.salePrice||0);
       tr.querySelector('button.add').onclick = async ()=>{
         current = await API.sales.addItem(current._id, { source:'inventory', refId: it._id, qty:1 });
+        syncCurrentIntoOpenList();
+        renderTabs();
         renderSale(); renderWO();
       };
       body.appendChild(tr);
@@ -298,6 +472,8 @@ async function openPickerPrices(){
       tr.querySelector('[data-price]').textContent = money(pe.total||pe.price||0);
       tr.querySelector('button.add').onclick = async ()=>{
         current = await API.sales.addItem(current._id, { source:'price', refId: pe._id, qty:1 });
+        syncCurrentIntoOpenList();
+        renderTabs();
         renderSale(); renderWO();
       };
       body.appendChild(tr);
@@ -344,13 +520,19 @@ function renderQuoteMini(q){
     const tr=document.createElement('tr');
     tr.innerHTML = `<td>${it.type||'—'}</td><td>${it.description||it.name||''}</td><td class="t-center">${qty}</td><td class="t-right">${money(unit)}</td><td class="t-right">${money(qty*unit)}</td><td class="t-center"><button class="add secondary">→</button></td>`;
     tr.querySelector('button.add').onclick = async ()=>{
-      if(!current) current = await API.sales.start();
+      if(!current){
+        current = await API.sales.start();
+        syncCurrentIntoOpenList();
+        renderTabs();
+      }
       current = await API.sales.addItem(current._id, {
         source: (it.source||'service')==='product' ? 'inventory' : 'service',
         sku: it.sku||'',
         name: it.description||it.name||'Servicio',
         qty, unitPrice: unit
       });
+      syncCurrentIntoOpenList();
+        renderTabs();
       renderSale(); renderWO();
     };
     body.appendChild(tr);
@@ -360,7 +542,11 @@ function renderQuoteMini(q){
   if (btnAll){
     btnAll.onclick = async ()=>{
       if(!q?.items?.length) return;
-      if(!current) current = await API.sales.start();
+      if(!current){
+        current = await API.sales.start();
+        syncCurrentIntoOpenList();
+        renderTabs();
+      }
       for(const it of q.items){
         const unit=Number(it.unitPrice??it.unit??0)||0;
         const qty =Number(it.qty||1)||1;
@@ -394,6 +580,94 @@ function openEditCV(){
   node.querySelector('#v-mile').value  = v.mileage??'';
   openModal(node);
 
+  const plateInput = $('#v-plate', node);
+  const mileageInput = $('#v-mile', node);
+  const watchSelectors = ['#c-name','#c-id','#c-phone','#c-email','#c-address','#v-brand','#v-line','#v-engine','#v-year','#v-mile'];
+  watchSelectors.forEach((sel)=>{ const input=$(sel,node); if(input) input.addEventListener('input',()=>{ input.dataset.dirty='1'; }); });
+
+  let lastLookupPlate = '';
+  let loadingProfile = false;
+
+  const applyProfile = (profile, plateCode) => {
+    if (!profile) return;
+    const cust = profile.customer || {};
+    const veh = profile.vehicle || {};
+    const assign = (selector, value) => {
+      const input = $(selector, node);
+      if (!input) return;
+      if (input.dataset.dirty === '1' && input.dataset.prefilledPlate === plateCode) return;
+      const normalized = value == null ? '' : String(value);
+      input.value = normalized;
+      input.dataset.prefilledPlate = plateCode;
+      if (normalized) delete input.dataset.dirty;
+    };
+
+    assign('#c-name', cust.name || '');
+    assign('#c-id', cust.idNumber || '');
+    assign('#c-phone', cust.phone || '');
+    assign('#c-email', cust.email || '');
+    assign('#c-address', cust.address || '');
+    assign('#v-brand', veh.brand || '');
+    assign('#v-line', veh.line || '');
+    assign('#v-engine', veh.engine || '');
+    assign('#v-year', veh.year != null ? veh.year : '');
+
+    if (plateInput) {
+      plateInput.value = plateCode;
+      plateInput.dataset.prefilledPlate = plateCode;
+    }
+
+    if (mileageInput) {
+      if (mileageInput.dataset.dirty !== '1') mileageInput.value = '';
+      if (veh.mileage != null && veh.mileage !== '') {
+        mileageInput.placeholder = `Ultimo: ${veh.mileage}`;
+      } else {
+        mileageInput.placeholder = '';
+      }
+    }
+  };
+
+  const loadProfile = async (force=false) => {
+    if (!plateInput || loadingProfile) return;
+    let raw = plateInput.value.trim().toUpperCase();
+    plateInput.value = raw;
+    if (!raw) return;
+    if (!force && raw === lastLookupPlate) return;
+    loadingProfile = true;
+    try{
+      const profile = await API.sales.profileByPlate(raw);
+      if (profile) {
+        applyProfile(profile, raw);
+      }
+    }catch(err){ console.warn('No se pudo cargar perfil', err?.message||err); }
+    finally{
+      loadingProfile = false;
+      lastLookupPlate = raw;
+    }
+  };
+
+  if (plateInput) {
+    plateInput.addEventListener('input', (ev)=>{
+      const upper = ev.target.value.toUpperCase();
+      if (ev.target.value !== upper) ev.target.value = upper;
+    });
+    plateInput.addEventListener('change', ()=> loadProfile(true));
+    plateInput.addEventListener('keydown', (ev)=>{
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        loadProfile(true);
+      }
+    });
+  }
+
+  if (mileageInput) {
+    mileageInput.addEventListener('input', ()=>{ mileageInput.dataset.dirty='1'; });
+  }
+
+  if (plateInput && plateInput.value && !c.name && !c.phone && !v.brand && !v.line && !v.engine) {
+    loadProfile(true);
+  }
+
   node.querySelector('#sales-save-cv').onclick = async ()=>{
     const payload = {
       customer:{
@@ -414,7 +688,9 @@ function openEditCV(){
     };
     try{
       current = await API.sales.setCustomerVehicle(current._id, payload);
-      closeModal(); renderMini(); renderTabs();
+      syncCurrentIntoOpenList();
+        renderTabs();
+      closeModal(); renderMini();
     }catch(e){ alert(e?.message||'No se pudo guardar'); }
   };
 }
@@ -435,7 +711,9 @@ function openSalesHistory(){
     (res?.items||[]).forEach(s=>{
       const tr=document.createElement('tr');
       const date=new Date(s.createdAt); const d=date.toLocaleDateString();
-      tr.innerHTML = `<td>${String(s.number||'').toString().padStart(5,'0')}</td><td>${s?.vehicle?.plate||''}</td><td>${d}</td><td class="t-right">${money(s.total||0)}</td>`;
+      const num = padSaleNumber(s.number || s._id || '');
+      tr.innerHTML = `<td>${num}</td><td>${s?.vehicle?.plate||''}</td><td>${d}</td><td class="t-right">${money(s.total||0)}</td><td class="t-right"><button class="secondary" data-id="${s._id}">Ver</button></td>`;
+      tr.querySelector('button').onclick = ()=> openSaleHistoryDetail(s._id);
       body.appendChild(tr); acc += Number(s.total||0);
     });
     total.textContent = money(acc);
@@ -444,13 +722,54 @@ function openSalesHistory(){
   load();
 }
 
+async function openSaleHistoryDetail(id){
+  if (!id) return;
+  try{
+    const sale = await API.sales.get(id);
+    const node = clone('tpl-sale-history-detail');
+    if (!node) return;
+    node.querySelector('[data-number]').textContent = padSaleNumber(sale.number || sale._id || '');
+    node.querySelector('[data-date]').textContent = sale.createdAt ? new Date(sale.createdAt).toLocaleString() : '';
+    node.querySelector('[data-status]').textContent = sale.status || 'N/A';
+    node.querySelector('[data-customer]').textContent = describeCustomer(sale.customer);
+    node.querySelector('[data-vehicle]').textContent = describeVehicle(sale.vehicle);
+    const itemsBody = node.querySelector('[data-items]');
+    itemsBody.innerHTML = '';
+    (sale.items || []).forEach(it => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${it.sku || ''}</td><td>${it.name || ''}</td><td class="t-center">${it.qty || 0}</td><td class="t-right">${money(it.unitPrice || 0)}</td><td class="t-right">${money(it.total || 0)}</td>`;
+      itemsBody.appendChild(tr);
+    });
+    node.querySelector('[data-subtotal]').textContent = money(sale.subtotal || 0);
+    node.querySelector('[data-total]').textContent = money(sale.total || 0);
+    const printBtn = node.querySelector('[data-print]');
+    if (printBtn) printBtn.onclick = () => printSaleTicket(sale);
+    openModal(node);
+  }catch(e){ alert(e?.message || 'No se pudo cargar la venta'); }
+}
 // ---------- live (SSE) ----------
 function connectLive(){
   if (es || !API?.live?.connect) return;
   try{
     es = API.live.connect((event, data)=>{
-      if (data?.id && current?._id===data.id){
-        API.sales.get(current._id).then(s=>{ current=s; renderSale(); renderWO(); });
+      if (event === 'sale:started'){
+        refreshOpenSales({ focusId: current?._id || null });
+        return;
+      }
+      if (!data?.id) return;
+      if (event === 'sale:updated'){
+        if (current && current._id === data.id){
+          API.sales.get(current._id)
+            .then((s)=>{ current = s; syncCurrentIntoOpenList(); renderTabs(); renderSale(); renderWO(); })
+            .catch((err)=> { console.warn('No se pudo refrescar venta en vivo', err); refreshOpenSales({ focusId: current?._id || null }); });
+        } else {
+          refreshOpenSales({ focusId: current?._id || null });
+        }
+        return;
+      }
+      if (event === 'sale:closed' || event === 'sale:cancelled'){
+        if (current && current._id === data.id) current = null;
+        refreshOpenSales({ focusId: current?._id || null });
       }
     });
   }catch(e){ console.warn('SSE no disponible:', e?.message||e); }
@@ -460,13 +779,8 @@ function connectLive(){
 export function initSales(){
   const ventas = document.getElementById('tab-ventas'); if (!ventas) return;
 
-  loadTabs(); renderTabs();
-
-  if (openTabs.length){
-    API.sales.get(openTabs[openTabs.length-1])
-      .then(s=>{ current=s; renderTabs(); renderSale(); renderWO(); })
-      .catch(()=>{});
-  }
+  refreshOpenSales();
+  startSalesAutoRefresh();
 
   document.getElementById('sales-start')?.addEventListener('click', async (ev)=>{
     if (starting) return; starting=true;
@@ -474,8 +788,9 @@ export function initSales(){
     try{
       const s = await API.sales.start();
       current = s;
-      if (!openTabs.includes(current._id)) openTabs.push(current._id);
-      saveTabs(); renderTabs(); renderSale(); renderWO();
+      syncCurrentIntoOpenList();
+        renderTabs(); renderSale(); renderWO();
+      await refreshOpenSales({ focusId: s._id, preferCurrent: s });
     }catch(e){ alert(e?.message||'No se pudo crear la venta'); }
     finally{ starting=false; if(btn) btn.disabled=false; }
   });
@@ -491,21 +806,19 @@ export function initSales(){
     try{
       await API.sales.close(current._id);
       alert('Venta cerrada');
-      openTabs = openTabs.filter(x=>x!==current._id); saveTabs();
-      current = null; renderTabs(); renderSale(); renderWO();
+      current = null;
+      await refreshOpenSales();
     }catch(e){ alert(e?.message||'No se pudo cerrar'); }
   });
 
-  // imprimir rápido (placeholder)
   document.getElementById('sales-print')?.addEventListener('click', async ()=>{
     if (!current) return;
     try{
       const fresh = await API.sales.get(current._id);
-      const txt = `Factura simple\n\n# ${String(fresh.number||'').padStart(5,'0')}  Total: ${money(fresh.total||0)}`;
-      const win = window.open('', '_blank'); win.document.write(`<pre>${txt}</pre>`);
-      win.document.close(); win.focus(); win.print();
+      printSaleTicket(fresh);
     }catch(e){ alert(e?.message||'No se pudo imprimir'); }
   });
 
   connectLive();
 }
+

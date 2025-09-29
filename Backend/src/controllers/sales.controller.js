@@ -17,6 +17,168 @@ function computeTotals(sale) {
   sale.total = Math.round(sale.subtotal + sale.tax);
 }
 
+function cleanString(value) {
+  return typeof value === 'string' ? value.trim() : String(value ?? '').trim();
+}
+
+function upperString(value) {
+  return cleanString(value).toUpperCase();
+}
+
+function buildCustomerProfilePayload(companyId, sale) {
+  if (!sale) return null;
+  const plate = upperString(sale.vehicle?.plate);
+  if (!plate) return null;
+
+  return {
+    companyId: String(companyId),
+    plate,
+    customer: {
+      idNumber: cleanString(sale.customer?.idNumber),
+      name: cleanString(sale.customer?.name),
+      phone: cleanString(sale.customer?.phone),
+      email: cleanString(sale.customer?.email),
+      address: cleanString(sale.customer?.address)
+    },
+    vehicle: {
+      plate,
+      brand: upperString(sale.vehicle?.brand),
+      line: upperString(sale.vehicle?.line),
+      engine: upperString(sale.vehicle?.engine),
+      year: sale.vehicle?.year ?? null,
+      mileage: sale.vehicle?.mileage ?? null
+    }
+  };
+}
+
+function profileScore(doc) {
+  if (!doc) return 0;
+  const c = doc.customer || {};
+  const v = doc.vehicle || {};
+  let score = 0;
+
+  if (cleanString(c.name)) score += 5;
+  if (cleanString(c.idNumber)) score += 3;
+  if (cleanString(c.phone)) score += 2;
+  if (cleanString(c.email)) score += 1;
+  if (cleanString(c.address)) score += 1;
+
+  if (cleanString(v.brand)) score += 2;
+  if (cleanString(v.line)) score += 1;
+  if (cleanString(v.engine)) score += 1;
+  if (v.year != null) score += 1;
+  if (v.mileage != null) score += 1;
+
+  return score;
+}
+
+function orderProfiles(profiles = []) {
+  return [...profiles].sort((a, b) => {
+    const scoreDiff = profileScore(b) - profileScore(a);
+    if (scoreDiff) return scoreDiff;
+    const updatedDiff = (b?.updatedAt?.getTime?.() ?? 0) - (a?.updatedAt?.getTime?.() ?? 0);
+    if (updatedDiff) return updatedDiff;
+    return (b?.createdAt?.getTime?.() ?? 0) - (a?.createdAt?.getTime?.() ?? 0);
+  });
+}
+
+function mergeProfileData(existingDoc, payload) {
+  const base = existingDoc?.toObject?.() ?? existingDoc ?? {};
+  const mergedCustomer = {
+    idNumber: '',
+    name: '',
+    phone: '',
+    email: '',
+    address: '',
+    ...(base.customer || {})
+  };
+  const mergedVehicle = {
+    plate: payload.plate,
+    brand: '',
+    line: '',
+    engine: '',
+    year: null,
+    mileage: null,
+    ...(base.vehicle || {})
+  };
+
+  for (const key of ['idNumber', 'name', 'phone', 'email', 'address']) {
+    const value = payload.customer?.[key];
+    if (value) mergedCustomer[key] = value;
+  }
+
+  for (const key of ['brand', 'line', 'engine']) {
+    const value = payload.vehicle?.[key];
+    if (value) mergedVehicle[key] = value;
+  }
+
+  if (payload.vehicle && Object.prototype.hasOwnProperty.call(payload.vehicle, 'year')) {
+    if (payload.vehicle.year === null) mergedVehicle.year = null;
+    else if (payload.vehicle.year != null) mergedVehicle.year = payload.vehicle.year;
+  }
+
+  if (payload.vehicle && Object.prototype.hasOwnProperty.call(payload.vehicle, 'mileage')) {
+    if (payload.vehicle.mileage === null) mergedVehicle.mileage = null;
+    else if (payload.vehicle.mileage != null) mergedVehicle.mileage = payload.vehicle.mileage;
+  }
+
+  mergedVehicle.plate = payload.plate;
+
+  return {
+    companyId: payload.companyId,
+    plate: payload.plate,
+    customer: mergedCustomer,
+    vehicle: mergedVehicle
+  };
+}
+
+async function upsertCustomerProfile(companyId, sale) {
+  const payload = buildCustomerProfilePayload(companyId, sale);
+  if (!payload) return;
+
+  const query = {
+    companyId: payload.companyId,
+    $or: [{ plate: payload.plate }, { 'vehicle.plate': payload.plate }]
+  };
+
+  let matches = await CustomerProfile.find(query).sort({ updatedAt: -1, createdAt: -1 });
+
+  if (!matches.length) {
+    try {
+      await CustomerProfile.create(payload);
+      return;
+    } catch (err) {
+      if (err?.code !== 11000) throw err;
+      matches = await CustomerProfile.find(query).sort({ updatedAt: -1, createdAt: -1 });
+    }
+  }
+
+  if (!matches.length) return;
+
+  const ordered = orderProfiles(matches);
+  const [primary, ...duplicates] = ordered;
+  if (!primary) return;
+
+  if (duplicates.length) {
+    const ids = duplicates.map((doc) => doc._id).filter(Boolean);
+    if (ids.length) {
+      try {
+        await CustomerProfile.deleteMany({ companyId: payload.companyId, _id: { $in: ids } });
+      } catch {}
+    }
+  }
+
+  const merged = mergeProfileData(primary, payload);
+
+  primary.set(merged);
+  primary.plate = merged.plate;
+  if (!primary.vehicle) primary.vehicle = {};
+  primary.vehicle.plate = merged.vehicle.plate;
+  primary.markModified('customer');
+  primary.markModified('vehicle');
+  await primary.save();
+}
+
 async function getNextSaleNumber(companyId) {
   const c = await Counter.findOneAndUpdate(
     { companyId },
@@ -120,31 +282,7 @@ export const addItem = async (req, res) => {
   sale.items.push(itemData);
   computeTotals(sale);
   await sale.save();
-  // Upsert perfil (sin kilometraje)
-  if (sale.vehicle?.plate) {
-    const plate = String(sale.vehicle.plate || '').toUpperCase();
-    await CustomerProfile.findOneAndUpdate(
-      { companyId: req.companyId, 'vehicle.plate': plate },
-      {
-        companyId: req.companyId,
-        customer: {
-          idNumber: sale.customer?.idNumber || '',
-          name:     sale.customer?.name || '',
-          phone:    sale.customer?.phone || '',
-          email:    sale.customer?.email || '',
-          address:  sale.customer?.address || ''
-        },
-        vehicle: {
-          plate,
-          brand:  sale.vehicle?.brand || '',
-          line:   sale.vehicle?.line || '',
-          engine: sale.vehicle?.engine || '',
-          year:   sale.vehicle?.year ?? null
-        }
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-  }
+  await upsertCustomerProfile(req.companyId, sale);
   try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
@@ -165,31 +303,7 @@ export const updateItem = async (req, res) => {
 
   computeTotals(sale);
   await sale.save();
-  // Upsert perfil (sin kilometraje)
-  if (sale.vehicle?.plate) {
-    const plate = String(sale.vehicle.plate || '').toUpperCase();
-    await CustomerProfile.findOneAndUpdate(
-      { companyId: req.companyId, 'vehicle.plate': plate },
-      {
-        companyId: req.companyId,
-        customer: {
-          idNumber: sale.customer?.idNumber || '',
-          name:     sale.customer?.name || '',
-          phone:    sale.customer?.phone || '',
-          email:    sale.customer?.email || '',
-          address:  sale.customer?.address || ''
-        },
-        vehicle: {
-          plate,
-          brand:  sale.vehicle?.brand || '',
-          line:   sale.vehicle?.line || '',
-          engine: sale.vehicle?.engine || '',
-          year:   sale.vehicle?.year ?? null
-        }
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-  }
+  await upsertCustomerProfile(req.companyId, sale);
   try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
@@ -203,31 +317,7 @@ export const removeItem = async (req, res) => {
   sale.items.id(itemId)?.deleteOne();
   computeTotals(sale);
   await sale.save();
-  // Upsert perfil (sin kilometraje)
-  if (sale.vehicle?.plate) {
-    const plate = String(sale.vehicle.plate || '').toUpperCase();
-    await CustomerProfile.findOneAndUpdate(
-      { companyId: req.companyId, 'vehicle.plate': plate },
-      {
-        companyId: req.companyId,
-        customer: {
-          idNumber: sale.customer?.idNumber || '',
-          name:     sale.customer?.name || '',
-          phone:    sale.customer?.phone || '',
-          email:    sale.customer?.email || '',
-          address:  sale.customer?.address || ''
-        },
-        vehicle: {
-          plate,
-          brand:  sale.vehicle?.brand || '',
-          line:   sale.vehicle?.line || '',
-          engine: sale.vehicle?.engine || '',
-          year:   sale.vehicle?.year ?? null
-        }
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-  }
+  await upsertCustomerProfile(req.companyId, sale);
   try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
@@ -258,31 +348,7 @@ export const setCustomerVehicle = async (req, res) => {
   if (typeof notes === 'string') sale.notes = notes;
 
   await sale.save();
-  // Upsert perfil (sin kilometraje)
-  if (sale.vehicle?.plate) {
-    const plate = String(sale.vehicle.plate || '').toUpperCase();
-    await CustomerProfile.findOneAndUpdate(
-      { companyId: req.companyId, 'vehicle.plate': plate },
-      {
-        companyId: req.companyId,
-        customer: {
-          idNumber: sale.customer?.idNumber || '',
-          name:     sale.customer?.name || '',
-          phone:    sale.customer?.phone || '',
-          email:    sale.customer?.email || '',
-          address:  sale.customer?.address || ''
-        },
-        vehicle: {
-          plate,
-          brand:  sale.vehicle?.brand || '',
-          line:   sale.vehicle?.line || '',
-          engine: sale.vehicle?.engine || '',
-          year:   sale.vehicle?.year ?? null
-        }
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-  }
+  await upsertCustomerProfile(req.companyId, sale);
   try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
@@ -334,31 +400,9 @@ export const closeSale = async (req, res) => {
     });
 
     const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
-    if (sale?.vehicle?.plate) {
-      const plate = String(sale.vehicle.plate||'').toUpperCase();
-      await CustomerProfile.findOneAndUpdate(
-        { companyId: req.companyId, 'vehicle.plate': plate },
-        {
-          companyId: req.companyId,
-          customer: {
-            idNumber: sale.customer?.idNumber || '',
-            name:     sale.customer?.name || '',
-            phone:    sale.customer?.phone || '',
-            email:    sale.customer?.email || '',
-            address:  sale.customer?.address || ''
-          },
-          vehicle: {
-            plate,
-            brand:  sale.vehicle?.brand || '',
-            line:   sale.vehicle?.line || '',
-            engine: sale.vehicle?.engine || '',
-            year:   sale.vehicle?.year ?? null
-          }
-        }, { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
-    }
+    await upsertCustomerProfile(req.companyId, sale);
     try{ publish(req.companyId, 'sale:closed', { id: (sale?._id)||undefined }) }catch{}
-  res.json({ ok: true, sale: sale.toObject() });
+    res.json({ ok: true, sale: sale.toObject() });
   } catch (err) {
     await session.abortTransaction().catch(()=>{});
     res.status(400).json({ error: err?.message || 'Cannot close sale' });
@@ -413,6 +457,7 @@ export const addByQR = async (req, res) => {
       });
       computeTotals(sale);
       await sale.save();
+      await upsertCustomerProfile(req.companyId, sale);
       return res.json(sale.toObject());
     }
   }
@@ -434,31 +479,7 @@ export const addByQR = async (req, res) => {
   });
   computeTotals(sale);
   await sale.save();
-  // Upsert perfil (sin kilometraje)
-  if (sale.vehicle?.plate) {
-    const plate = String(sale.vehicle.plate || '').toUpperCase();
-    await CustomerProfile.findOneAndUpdate(
-      { companyId: req.companyId, 'vehicle.plate': plate },
-      {
-        companyId: req.companyId,
-        customer: {
-          idNumber: sale.customer?.idNumber || '',
-          name:     sale.customer?.name || '',
-          phone:    sale.customer?.phone || '',
-          email:    sale.customer?.email || '',
-          address:  sale.customer?.address || ''
-        },
-        vehicle: {
-          plate,
-          brand:  sale.vehicle?.brand || '',
-          line:   sale.vehicle?.line || '',
-          engine: sale.vehicle?.engine || '',
-          year:   sale.vehicle?.year ?? null
-        }
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-  }
+  await upsertCustomerProfile(req.companyId, sale);
   res.json(sale.toObject());
 };
 
@@ -468,9 +489,50 @@ export const addByQR = async (req, res) => {
 export const getProfileByPlate = async (req, res) => {
   const plate = String(req.params.plate || '').trim().toUpperCase();
   if (!plate) return res.status(400).json({ error: 'plate required' });
-  const prof = await CustomerProfile.findOne({ companyId: req.companyId, 'vehicle.plate': plate });
-  if (!prof) return res.json(null);
-  res.json(prof.toObject());
+
+  const companyId = String(req.companyId);
+  const query = {
+    companyId,
+    $or: [{ plate }, { 'vehicle.plate': plate }]
+  };
+
+  const matches = await CustomerProfile.find(query).sort({ updatedAt: -1, createdAt: -1 });
+  if (!matches.length) return res.json(null);
+
+  const ordered = orderProfiles(matches);
+  const [primary, ...duplicates] = ordered;
+
+  if (duplicates.length) {
+    const ids = duplicates.map((doc) => doc._id).filter(Boolean);
+    if (ids.length) {
+      try {
+        await CustomerProfile.deleteMany({ companyId, _id: { $in: ids } });
+      } catch {}
+    }
+  }
+
+  if (!primary) return res.json(null);
+
+  let mutated = false;
+  if (primary.plate !== plate) {
+    primary.plate = plate;
+    mutated = true;
+  }
+  if (!primary.vehicle) {
+    primary.vehicle = { plate };
+    mutated = true;
+  } else if (primary.vehicle.plate !== plate) {
+    primary.vehicle.plate = plate;
+    mutated = true;
+  }
+
+  if (mutated) {
+    try {
+      await primary.save();
+    } catch {}
+  }
+
+  res.json(primary.toObject());
 };
 export const listSales = async (req, res) => {
   const { status, from, to, plate, page = 1, limit = 50 } = req.query || {};

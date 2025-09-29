@@ -17,6 +17,9 @@ const sectionLogin = document.getElementById('loginSection');
 const sectionApp = document.getElementById('appSection');
 const emailSpan = document.getElementById('companyEmail');
 const logoutBtn = document.getElementById('logoutBtn');
+const lastTabKey = 'app:lastTab';
+const setLastTab = (name) => { try { sessionStorage.setItem(lastTabKey, name); } catch {} };
+const getLastTab = () => { try { return sessionStorage.getItem(lastTabKey) || 'notas'; } catch { return 'notas'; } };
 
 function showTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -25,8 +28,8 @@ function showTab(name) {
   const btn = document.querySelector(`.tabs button[data-tab="${name}"]`);
   if (tab) tab.classList.add('active');
   if (btn) btn.classList.add('active');
+  setLastTab(name);
 }
-
 function ensureModules() {
   if (modulesReady) return;
   initNotes();
@@ -40,6 +43,19 @@ function ensureModules() {
 // Login simple (usa tu API)
 const loginBtn = document.getElementById('loginBtn');
 const registerBtn = document.getElementById('registerBtn');
+const storedEmail = API.getActiveCompany?.();
+const storedToken = storedEmail ? API.token.get(storedEmail) : API.token.get();
+if (storedEmail && storedToken) {
+  API.setActiveCompany(storedEmail);
+  emailSpan.textContent = storedEmail;
+  sectionLogin.classList.add('hidden');
+  sectionApp.classList.remove('hidden');
+  logoutBtn.classList.remove('hidden');
+  ensureModules();
+  showTab(getLastTab());
+}
+
+
 
 async function doLogin(isRegister = false) {
   const email = (document.getElementById('email').value || '').trim().toLowerCase();
@@ -60,7 +76,7 @@ async function doLogin(isRegister = false) {
     sectionApp.classList.remove('hidden');
     logoutBtn.classList.remove('hidden');
     ensureModules();
-    showTab('notas');
+    showTab(getLastTab());
   } catch (e) {
     alert(e?.message || 'Error');
   }
@@ -71,10 +87,12 @@ registerBtn?.addEventListener('click', () => doLogin(true));
 
 logoutBtn?.addEventListener('click', async () => {
   try { await API.logout(); } catch {}
+  try { sessionStorage.removeItem(lastTabKey); } catch {}
   emailSpan.textContent = '';
   sectionApp.classList.add('hidden');
   sectionLogin.classList.remove('hidden');
   logoutBtn.classList.add('hidden');
+  window.location.reload();
 });
 
 // Tabs
@@ -82,7 +100,10 @@ tabsNav?.addEventListener('click', (ev) => {
   const btn = ev.target.closest('button[data-tab]');
   if (!btn) return;
   const tab = btn.dataset.tab;
-  showTab(tab);
+  if (!tab) return;
+  ev.preventDefault();
+  setLastTab(tab);
+  window.location.reload();
 });
 
 // Reanudar sesión si hay token+empresa activos
@@ -96,7 +117,7 @@ tabsNav?.addEventListener('click', (ev) => {
       sectionApp.classList.remove('hidden');
       logoutBtn.classList.remove('hidden');
       ensureModules();
-      showTab('notas');
+      showTab(getLastTab());
     } else {
       const active = API.getActiveCompany?.();
       if (active) emailSpan.textContent = active;

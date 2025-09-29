@@ -110,6 +110,18 @@ export function initQuotes({ getCompanyEmail }) {
     loadHistory();
   }
 
+  // ===== Modal helpers (local a cotizaciones) =====
+  function openModal(node){
+    const modal = document.getElementById('modal');
+    const slot  = document.getElementById('modalBody');
+    const x     = document.getElementById('modalClose');
+    if(!modal||!slot||!x) return;
+    slot.replaceChildren(node);
+    modal.classList.remove('hidden');
+    x.onclick = ()=> modal.classList.add('hidden');
+  }
+  function closeModal(){ const m=document.getElementById('modal'); if(m) m.classList.add('hidden'); }
+
   // ====== Numeración local ======
   function nextNumber(){
     const raw = localStorage.getItem(kLast());
@@ -461,7 +473,7 @@ export function initQuotes({ getCompanyEmail }) {
           <button class="secondary" data-act="pdf">PDF</button>
           <button class="danger" data-act="del">Eliminar</button>
         </div>`;
-      el.querySelector('[data-act="edit"]')?.addEventListener('click',()=>setUIFromQuote(d));
+      el.querySelector('[data-act="edit"]')?.addEventListener('click',()=>openQuoteModal(d));
       el.querySelector('[data-act="wa"]')?.addEventListener('click',()=>openWAFromDoc(d));
       el.querySelector('[data-act="pdf"]')?.addEventListener('click',()=>exportPDFFromDoc(d));
       el.querySelector('[data-act="del"]')?.addEventListener('click',async ()=>{
@@ -470,6 +482,245 @@ export function initQuotes({ getCompanyEmail }) {
       });
       qhList.appendChild(el);
     });
+  }
+
+  // ===== Editor en modal (aislado) =====
+  function openQuoteModal(doc){
+    const root = document.createElement('div');
+    root.innerHTML = `
+      <div class="card">
+        <h3>Ver/Editar cotización</h3>
+        <div class="row">
+          <div class="field">
+            <label>N.º cotización</label>
+            <input id="m-number" disabled />
+          </div>
+          <div class="field">
+            <label>Fecha y hora</label>
+            <input id="m-datetime" disabled />
+          </div>
+        </div>
+        <label>Cliente</label>
+        <input id="m-client-name" placeholder="Nombre del cliente" />
+        <div class="row">
+          <input id="m-client-phone" placeholder="Teléfono (opcional)" />
+          <input id="m-client-email" placeholder="Correo (opcional)" />
+        </div>
+        <label>Placa</label>
+        <input id="m-plate" placeholder="ABC123" />
+        <div class="row">
+          <input id="m-brand" placeholder="Marca" />
+          <input id="m-line" placeholder="Línea/Modelo" />
+        </div>
+        <div class="row">
+          <input id="m-year" placeholder="Año" />
+          <input id="m-cc" placeholder="Cilindraje" />
+        </div>
+        <label>Validez (días, opcional)</label>
+        <input id="m-valid-days" type="number" min="0" step="1" placeholder="p. ej. 8" />
+      </div>
+
+      <div class="card">
+        <h3>Ítems</h3>
+        <div id="m-rows" class="q-grid-2cols">
+          <div class="tr q-row-card hidden" id="m-row-template" data-template>
+            <div>
+              <label class="sr-only">Tipo</label>
+              <select>
+                <option value="PRODUCTO">Producto</option>
+                <option value="SERVICIO">Servicio</option>
+              </select>
+            </div>
+            <div>
+              <label class="sr-only">Descripción</label>
+              <input placeholder="Descripción" />
+            </div>
+            <div class="small">
+              <label class="sr-only">Cant.</label>
+              <input type="number" min="0" step="1" placeholder="Cant." />
+            </div>
+            <div class="small">
+              <label class="sr-only">Precio</label>
+              <input type="number" min="0" step="0.01" placeholder="Precio" />
+            </div>
+            <div class="small">
+              <label class="sr-only">Subtotal</label>
+              <input disabled placeholder="$0" />
+            </div>
+            <div class="small">
+              <button class="secondary">Quitar</button>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <button id="m-addRow">+ Agregar línea</button>
+        </div>
+        <div class="totals">
+          <div>Subtotal Productos: <strong id="m-subP">$0</strong></div>
+          <div>Subtotal Servicios: <strong id="m-subS">$0</strong></div>
+          <div>Total: <strong id="m-total">$0</strong></div>
+        </div>
+        <div class="row">
+          <button id="m-save">Guardar cambios</button>
+          <button id="m-wa" class="secondary">WhatsApp</button>
+          <button id="m-pdf" class="secondary">PDF</button>
+          <button id="m-close" class="secondary">Cerrar</button>
+        </div>
+        <label>Vista previa WhatsApp</label>
+        <pre id="m-wa-prev" style="min-height:160px;white-space:pre-wrap;"></pre>
+      </div>
+    `;
+
+    // ---- refs ----
+    const q = (s)=>root.querySelector(s);
+    const iNumber   = q('#m-number');
+    const iDatetime = q('#m-datetime');
+    const iName  = q('#m-client-name');
+    const iPhone = q('#m-client-phone');
+    const iEmail = q('#m-client-email');
+    const iPlate = q('#m-plate');
+    const iBrand = q('#m-brand');
+    const iLine  = q('#m-line');
+    const iYear  = q('#m-year');
+    const iCc    = q('#m-cc');
+    const iValid = q('#m-valid-days');
+    const rowsBox = q('#m-rows');
+    const rowTpl  = q('#m-row-template');
+    const btnAdd  = q('#m-addRow');
+    const lblP    = q('#m-subP');
+    const lblS    = q('#m-subS');
+    const lblT    = q('#m-total');
+    const prevWA  = q('#m-wa-prev');
+
+    function cloneRow(){
+      const n = rowTpl.cloneNode(true);
+      n.classList.remove('hidden'); n.removeAttribute('id'); n.removeAttribute('data-template');
+      n.querySelectorAll('input,select').forEach(el=>{
+        el.addEventListener('input',()=>{ updateRowSubtotal(n); recalc(); });
+      });
+      n.querySelector('button')?.addEventListener('click',()=>{ n.remove(); recalc(); });
+      return n;
+    }
+    function addRow(){ rowsBox.appendChild(cloneRow()); }
+    function addRowFromData(r){
+      const row = cloneRow();
+      row.querySelector('select').value = r.type || (String(r.kind||'PRODUCTO').toUpperCase()==='SERVICIO'?'SERVICIO':'PRODUCTO');
+      row.querySelectorAll('input')[0].value = r.desc  ?? r.description ?? '';
+      row.querySelectorAll('input')[1].value = r.qty   ?? '';
+      row.querySelectorAll('input')[2].value = r.price ?? r.unitPrice ?? '';
+      updateRowSubtotal(row); rowsBox.appendChild(row);
+    }
+    function readRows(){
+      const rows=[]; rowsBox.querySelectorAll('.tr:not([data-template])').forEach(r=>{
+        const type=r.querySelector('select').value;
+        const desc=r.querySelectorAll('input')[0].value;
+        const qty =Number(r.querySelectorAll('input')[1].value||0);
+        const price=Number(r.querySelectorAll('input')[2].value||0);
+        if(!desc && !price && !qty) return;
+        rows.push({type,desc,qty,price});
+      }); return rows;
+    }
+    function updateRowSubtotal(r){
+      const qty=Number(r.querySelectorAll('input')[1].value||0);
+      const price=Number(r.querySelectorAll('input')[2].value||0);
+      const subtotal=(qty>0?qty:1)*(price||0);
+      r.querySelectorAll('input')[3].value = money(subtotal);
+    }
+    function buildWAText(){
+      const rows = readRows(); let subP=0, subS=0;
+      rows.forEach(({type,qty,price})=>{
+        const q=qty>0?qty:1; const st=q*(price||0);
+        if((type||'PRODUCTO')==='PRODUCTO') subP+=st; else subS+=st;
+      });
+      const total=subP+subS;
+      const lines=[];
+      const veh = `${iBrand.value||''} ${iLine.value||''} ${iYear.value||''}`.trim();
+      const val = iValid.value ? `\nValidez: ${iValid.value} días` : '';
+      lines.push(`*Cotización ${iNumber.value || '—'}*`);
+      lines.push(`Cliente: ${iName.value||'—'}`);
+      lines.push(`Vehículo: ${veh} — Placa: ${iPlate.value||'—'} — Cilindraje: ${iCc.value||'—'}`);
+      lines.push('');
+      rows.forEach(({type,desc,qty,price})=>{
+        const q=qty>0?qty:1; const st=q*(price||0);
+        const tipo=(type==='SERVICIO')?'Servicio':'Producto';
+        const cantSuffix=(qty&&Number(qty)>0)?` x${q}`:'';
+        lines.push(`• ${desc||tipo}${cantSuffix}`);
+        lines.push(`${money(st)}`);
+      });
+      lines.push('');
+      lines.push(`Subtotal Productos: ${money(subP)}`);
+      lines.push(`Subtotal Servicios: ${money(subS)}`);
+      lines.push(`*TOTAL: ${money(total)}*`);
+      lines.push(`Valores SIN IVA`);
+      lines.push(val.trim());
+      return lines.join('\n').replace(/\n{3,}/g,'\n\n');
+    }
+    function recalc(){
+      const rows=readRows(); let subP=0, subS=0;
+      rows.forEach(({type,qty,price})=>{
+        const q=qty>0?qty:1; const st=q*(price||0);
+        if((type||'PRODUCTO')==='PRODUCTO') subP+=st; else subS+=st;
+      });
+      const total=subP+subS;
+      lblP.textContent=money(subP);
+      lblS.textContent=money(subS);
+      lblT.textContent=money(total);
+      prevWA.textContent = buildWAText();
+    }
+
+    // ---- cargar datos ----
+    iNumber.value = (doc?.number || '').toString().padStart(5,'0');
+    iDatetime.value = doc?.createdAt ? new Date(doc.createdAt).toLocaleString() : todayIso();
+    iName.value  = doc?.customer?.name  || '';
+    iPhone.value = doc?.customer?.phone || '';
+    iEmail.value = doc?.customer?.email || '';
+    iPlate.value = doc?.vehicle?.plate || '';
+    iBrand.value = doc?.vehicle?.make || '';
+    iLine.value  = doc?.vehicle?.line || '';
+    iYear.value  = doc?.vehicle?.modelYear || '';
+    iCc.value    = doc?.vehicle?.displacement || '';
+    iValid.value = doc?.validity || '';
+    rowsBox.innerHTML='';
+    (doc?.items||[]).forEach(it=>{
+      addRowFromData({ type:(String(it.kind||'PRODUCTO').toUpperCase()==='SERVICIO'?'SERVICIO':'PRODUCTO'), desc:it.description||'', qty:it.qty??'', price:it.unitPrice||0 });
+    });
+    if(!(doc?.items||[]).length) addRow();
+    recalc();
+
+    // ---- acciones ----
+    btnAdd?.addEventListener('click',()=>{ addRow(); recalc(); });
+    q('#m-close')?.addEventListener('click',()=> closeModal());
+    q('#m-wa')?.addEventListener('click',()=>{
+      const text = buildWAText(); if(!text.trim()) return; window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,'_blank');
+    });
+    q('#m-pdf')?.addEventListener('click',()=>{
+      const rows=readRows();
+      const items = rows.map(r=>({ kind:r.type, description:r.desc, qty:r.qty, unitPrice:r.price, subtotal:(r.qty>0?r.qty:1)*(r.price||0) }));
+      exportPDFFromData({
+        number: iNumber.value,
+        datetime: iDatetime.value,
+        customer: { name:iName.value, clientPhone:iPhone.value, email:iEmail.value },
+        vehicle: { make:iBrand.value, line:iLine.value, modelYear:iYear.value, plate:iPlate.value, displacement:iCc.value },
+        validity: iValid.value,
+        items
+      }).catch(e=>alert(e?.message||'Error generando PDF'));
+    });
+    q('#m-save')?.addEventListener('click', async ()=>{
+      try{
+        const rows=readRows();
+        const payload = {
+          customer:{ name:iName.value||'', phone:iPhone.value||'', email:iEmail.value||'' },
+          vehicle:{ plate:iPlate.value||'', make:iBrand.value||'', line:iLine.value||'', modelYear:iYear.value||'', displacement:iCc.value||'' },
+          validity:iValid.value||'',
+          items: rows.map(r=>({ kind:r.type, description:r.desc, qty:r.qty?Number(r.qty):null, unitPrice:Number(r.price||0) }))
+        };
+        await API.quotePatch(doc._id, payload);
+        toast('Cotización actualizada.');
+        loadHistory();
+      }catch(e){ alert(e?.message||'No se pudo guardar'); }
+    });
+
+    openModal(root);
   }
 
   function setUIFromQuote(d){
