@@ -101,14 +101,15 @@ router.post('/stickers/pdf', async (req, res, next) => {
 
 		// crear página por cada sticker (2 por item)
 		for (const item of items) {
-			const companyName = item.companyName || req.company?.name || '';
+			// ...existing code...
+			const companyName = /* for now force the requested text */ "CASA RENAULT H&H";
 			const companyLogoSrc = item.companyLogo || req.company?.logo || null;
 			const sku = item.sku || item.name || '';
 
 			// Preparar buffer de logo (si hay)
 			const logoBuffer = companyLogoSrc ? await fetchImageBuffer(companyLogoSrc) : null;
 
-			// STICKER 1: genérico (logo + nombre empresa)
+			// STICKER 1: genérico (logo a la izquierda + nombre empresa a la derecha)
 			doc.addPage({ size: [STICKER_W, STICKER_H], margin: 0 });
 			doc.save();
 			// fondo blanco
@@ -120,82 +121,84 @@ router.post('/stickers/pdf', async (req, res, next) => {
 			const contentW = STICKER_W - 2 * MARGIN;
 			const contentH = STICKER_H - 2 * MARGIN;
 
-			// Si hay logo, mostrar centrado y escalar para que ocupe ~60% de altura del área de contenido
+			// Layout: logo a la izquierda (max 35% del ancho), texto a la derecha
+			const logoAreaW = Math.min(contentW * 0.35, contentW * 0.45);
+			const gapBetween = 4; // puntos
+			const textAreaX = contentX + logoAreaW + gapBetween;
+			const textAreaW = contentW - logoAreaW - gapBetween;
+
+			// Dibujar logo (centrado verticalmente en su área)
 			if (logoBuffer) {
-				const maxLogoH = contentH * 0.6;
-				const maxLogoW = contentW;
 				try {
-					doc.image(logoBuffer, contentX + (contentW - maxLogoW) / 2, contentY, {
-						fit: [maxLogoW, maxLogoH],
-						align: 'center',
-						valign: 'center'
-					});
+					const maxLogoW = logoAreaW;
+					const maxLogoH = contentH * 0.9;
+					// calcular posición centrada verticalmente
+					const logoX = contentX;
+					const logoY = contentY + (contentH - maxLogoH) / 2;
+					doc.image(logoBuffer, logoX, logoY, { fit: [maxLogoW, maxLogoH], align: 'center', valign: 'center' });
 				} catch (e) {
-					// continuar si falla la imagen
+					// si falla la imagen, ignorar
 				}
 			}
 
-			// Nombre de la empresa centrado debajo del logo (o centrado vertical si no hay logo)
-			doc.fillColor('#000').fontSize(8);
-			const nameY = contentY + contentH - 10;
-			doc.text(companyName, contentX, nameY, {
-				width: contentW,
+			// Texto de la empresa en la derecha, centrado verticalmente
+			doc.fillColor('#000');
+			doc.font('Helvetica-Bold');
+			// Escalar fontSize para ocupar buena porción del área de texto sin salirse
+			const maxFont = 12;
+			const minFont = 6;
+			// texto simple, una línea; calcular font por altura disponible
+			let fontSize = Math.floor(Math.min(maxFont, contentH * 0.5));
+			if (fontSize < minFont) fontSize = minFont;
+			doc.fontSize(fontSize);
+			// centrar verticalmente
+			const textY = contentY + (contentH / 2) - (fontSize / 2);
+			doc.fillColor('#000');
+			doc.text(companyName, textAreaX, textY, {
+				width: textAreaW,
 				align: 'center',
 				ellipsis: true
 			});
 			doc.restore();
 
-			// STICKER 2: SKU + QR
+			// STICKER 2: SKU vertical y centrado
 			doc.addPage({ size: [STICKER_W, STICKER_H], margin: 0 });
 			doc.save();
 			doc.rect(0, 0, STICKER_W, STICKER_H).fill('#FFFFFF');
 			doc.fillColor('#000');
 
-			// dividir área en dos columnas: izquierda texto, derecha QR
 			const pad = 2;
-			const leftW = (contentW * 0.55) - pad;
-			const rightW = (contentW * 0.45) - pad;
 			const leftX = contentX;
-			const rightX = contentX + contentW - rightW;
+			const rightX = contentX + contentW;
+			const vAreaX = contentX;
+			const vAreaY = contentY;
+			const vAreaW = contentW;
+			const vAreaH = contentH;
 
-			// SKU texto (centrado verticalmente)
-			doc.fontSize(8).text(String(sku), leftX, contentY, {
-				width: leftW,
-				align: 'left'
+			// Preparar texto vertical: cada carácter en su propia línea
+			const s = String(sku || '').toUpperCase();
+			const chars = s.split('');
+			const charCount = Math.max(1, chars.length);
+			// lineHeight relativo
+			const lineHeightRatio = 1.05;
+			// calcular fontSize máximo que cabe verticalmente
+			let vFont = Math.floor(vAreaH / (charCount * lineHeightRatio));
+			vFont = Math.max(6, Math.min(24, vFont)); // límites razonables
+			doc.font('Helvetica-Bold').fontSize(vFont);
+			const totalTextHeight = vFont * charCount * lineHeightRatio;
+			const startY = vAreaY + Math.max(0, (vAreaH - totalTextHeight) / 2);
+			// Construir string con saltos de línea para que PDFKit lo dibuje verticalmente
+			const verticalText = chars.join('\n');
+			// Dibujar centrado horizontalmente en el área de contenido
+			doc.fillColor('#000');
+			// Usar ancho pequeño para centrar las líneas verticales
+			const textX = vAreaX;
+			const textWidth = vAreaW;
+			doc.text(verticalText, textX, startY, {
+				width: textWidth,
+				align: 'center',
+				lineGap: Math.round(vFont * (lineHeightRatio - 1))
 			});
-
-			// Calcular tamaño máximo del QR en puntos y generar QR en pixeles suficientes (300 dpi)
-			const maxQrSizePts = Math.min(rightW, contentH);
-			const DPI = 300;
-			const PT_TO_PX = DPI / 72;
-			let qrBuffer = null;
-			try {
-				const qrPixelWidth = Math.max(100, Math.round(maxQrSizePts * PT_TO_PX));
-				const qrDataUrl = await QRCode.toDataURL(String(sku), { margin: 0, width: qrPixelWidth });
-				qrBuffer = Buffer.from(qrDataUrl.split(',')[1], 'base64');
-			} catch (e) {
-				qrBuffer = null;
-			}
-
-			// QR al lado derecho (si se generó)
-			if (qrBuffer) {
-				const maxQrSize = Math.min(rightW, contentH);
-				try {
-					doc.image(qrBuffer, rightX + (rightW - maxQrSize) / 2, contentY + (contentH - maxQrSize) / 2, {
-						fit: [maxQrSize, maxQrSize],
-						align: 'center',
-						valign: 'center'
-					});
-				} catch (e) {
-					// ignore
-				}
-			} else {
-				// si no hay QR, mostrar SKU centrado en toda el área
-				doc.fontSize(9).text(String(sku), contentX, contentY + (contentH / 2) - 6, {
-					width: contentW,
-					align: 'center'
-				});
-			}
 
 			doc.restore();
 		}
