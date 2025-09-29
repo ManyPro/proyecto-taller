@@ -103,7 +103,7 @@ router.post('/stickers/pdf', async (req, res, next) => {
 		for (const item of items) {
 			// Forzar nombre de la empresa por ahora y determinar logo por defecto si no viene
 			const companyName = "CASA RENAULT H&H";
-			const defaultLogoUrl = `${req.protocol}://${req.get('host')}/uploads/public/logo-renault.png`;
+			const defaultLogoUrl = `${req.protocol}://${req.get('host')}/uploads/public/logo-renault.jpg`;
 			const companyLogoSrc = item.companyLogo || req.company?.logo || defaultLogoUrl;
 			const sku = item.sku || item.name || '';
 
