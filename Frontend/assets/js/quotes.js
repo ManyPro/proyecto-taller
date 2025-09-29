@@ -449,8 +449,17 @@ export function initQuotes({ getCompanyEmail }) {
   async function loadHistory(){
     try{
       qhList.innerHTML='<small class="meta">Cargando...</small>';
-      const list = await API.quotesList(buildQuery());
-      renderHistory(Array.isArray(list)?list:[]);
+      // Llamada "raw" para poder inspeccionar metadata si existe
+      const res = await API.quotesListRaw(buildQuery());
+      const rows = Array.isArray(res) ? res : (res?.items || res?.data || []);
+      // Log de depuración (silencioso en producción si se desea quitar)
+      try { console.debug('[quotes] list response:', res); } catch {}
+      if(!Array.isArray(res) && !rows.length && (res?.metadata?.total > 0)) {
+        // Caso raro: metadata indica total pero items vacío (p.ej. página fuera de rango)
+        qhList.innerHTML=`<small class="meta">Página sin resultados (total ${res.metadata.total}).</small>`;
+        return;
+      }
+      renderHistory(rows);
     }catch(e){
       qhList.innerHTML=`<small class="meta">Error: ${e?.message || 'No se pudo cargar'}</small>`;
     }

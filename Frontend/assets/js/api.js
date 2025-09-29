@@ -125,6 +125,7 @@ const API = {
     const res = await http.get(`/api/v1/quotes${q}`);
     return Array.isArray(res) ? res : (res?.items || []);
   },
+  quoteGet: (id) => http.get(`/api/v1/quotes/${id}`),
   quoteCreate: (payload) => http.post('/api/v1/quotes', payload),
   quoteUpdate: (id, payload) => http.patch(`/api/v1/quotes/${id}`, payload),
   quotePatch: (id, payload) => http.patch(`/api/v1/quotes/${id}`, payload),
