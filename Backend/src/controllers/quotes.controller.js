@@ -75,26 +75,88 @@ export async function createQuote(req, res) {
   res.status(201).json(doc);
 }
 
+// NUEVA VERSION listQuotes CON PAGINACIÓN, METADATA Y VALIDACIONES + ALIAS COMPATIBILIDAD
 export async function listQuotes(req, res) {
   const companyId = req.companyId || req.company?.id;
+  if (!companyId) {
+    return res.status(401).json({ error: 'Falta contexto de empresa (companyId)' });
+  }
+
+  const {
+    q: text,
+    plate,
+    from,
+    to,
+    page = '1',
+    pageSize = '25',
+    sort = '-createdAt'
+  } = req.query || {};
+
+  const pageNum  = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(pageSize, 10) || 25));
+  const skipNum  = (pageNum - 1) * limitNum;
+
   const q = { companyId };
 
-  // Filtros: q (cliente/placa), plate, from, to
-  const { q: text, plate, from, to } = req.query || {};
-
-  if (plate) q['vehicle.plate'] = new RegExp(`${plate}`, 'i');
   if (text) {
     const rx = new RegExp(`${text}`, 'i');
     q.$or = [{ 'customer.name': rx }, { 'vehicle.plate': rx }];
   }
-  if (from || to) {
-    q.createdAt = {};
-    if (from) q.createdAt.$gte = new Date(`${from}T00:00:00.000Z`);
-    if (to)   q.createdAt.$lte = new Date(`${to}T23:59:59.999Z`);
+  if (plate) {
+    q['vehicle.plate'] = new RegExp(`${plate}`, 'i');
   }
 
-  const docs = await Quote.find(q).sort({ createdAt: -1 }).limit(200);
-  res.json(docs);
+  if (from || to) {
+    q.createdAt = {};
+    if (from) {
+      const dFrom = new Date(`${from}T00:00:00.000Z`);
+      if (!isNaN(dFrom.getTime())) q.createdAt.$gte = dFrom;
+    }
+    if (to) {
+      const dTo = new Date(`${to}T23:59:59.999Z`);
+      if (!isNaN(dTo.getTime())) q.createdAt.$lte = dTo;
+    }
+    if (Object.keys(q.createdAt).length === 0) delete q.createdAt;
+  }
+
+  // Sort: admite "campo" o "-campo" separados por coma
+  let sortObj = { createdAt: -1 };
+  if (typeof sort === 'string' && sort.trim()) {
+    const parts = sort.split(',').map(s => s.trim()).filter(Boolean);
+    const tmp = {};
+    for (const p of parts) {
+      if (p.startsWith('-')) tmp[p.substring(1)] = -1; else tmp[p] = 1;
+    }
+    if (Object.keys(tmp).length) sortObj = tmp;
+  }
+
+  const [items, total] = await Promise.all([
+    Quote.find(q).sort(sortObj).skip(skipNum).limit(limitNum),
+    Quote.countDocuments(q)
+  ]);
+
+  const pages = Math.ceil(total / limitNum) || 1;
+
+  // Mapeo de compatibilidad: id y client (alias de customer)
+  const mapped = items.map(doc => {
+    const o = doc.toObject({ virtuals: false });
+    o.id = o._id;
+    o.client = o.customer;
+    return o;
+  });
+
+  return res.json({
+    metadata: {
+      total,
+      page: pageNum,
+      pageSize: limitNum,
+      pages,
+      hasNext: pageNum < pages,
+      hasPrev: pageNum > 1,
+      sort: sortObj
+    },
+    items: mapped
+  });
 }
 
 export async function getQuote(req, res) {

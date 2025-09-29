@@ -125,7 +125,7 @@ router.post('/stickers/pdf', async (req, res, next) => {
           const logoY = cy + (ch * 0.08);
           doc.image(logoBuffer, logoX, logoY, { fit: [fitW, maxLogoH], align: 'center', valign: 'center' });
         } catch (e) {
-          // no bloquear por fallo de imagen
+          // continuar
         }
       }
 
@@ -138,7 +138,7 @@ router.post('/stickers/pdf', async (req, res, next) => {
       doc.text(companyName, cx, nameY, { width: cw, align: 'center', ellipsis: true });
       doc.restore();
 
-      // ---- STICKER B: cuadro gris con SKU (izquierda) + QR (derecha) ----
+      // ---- STICKER B (MODIFICADO): cuadro gris SKU (izq) + QR (der) sin que el QR invada margen ----
       doc.addPage({ size: [STICKER_W, STICKER_H], margin: 0 });
       doc.save();
       doc.rect(0, 0, STICKER_W, STICKER_H).fill('#FFFFFF');
@@ -148,62 +148,86 @@ router.post('/stickers/pdf', async (req, res, next) => {
       const vw = STICKER_W - 2 * MARGIN;
       const vh = STICKER_H - 2 * MARGIN;
 
-      const qrColW = Math.min(vw * 0.42, vw * 0.48);
-      const skuColW = vw - qrColW - 6;
+      // Ancho de columna del QR (porcentaje del espacio restante)
+      const qrColW = vw * 0.42;
+      const gap = 6; // separación entre columnas en puntos
+      const skuColW = vw - qrColW - gap;
       const skuColX = vx;
-      const qrColX = vx + skuColW + 6;
+      const qrColX = vx + skuColW + gap;
 
-      // preparar QR buffer (alta resolución)
+      // Generar QR buffer (limitarlo a su columna)
       let qrBuf = null;
       try {
         const maxQrPts = Math.min(qrColW, vh);
         const DPI = 300;
         const PT_TO_PX = DPI / 72;
         const qrPx = Math.max(120, Math.round(maxQrPts * PT_TO_PX));
-        const qrDataUrl = await QRCode.toDataURL(String(sku || ''), { margin: 0, width: qrPx });
+        const qrDataUrl = await QRCode.toDataURL(String(sku || ''), {
+          margin: 0,       // quiet zone mínima; el padding lo controlamos acá
+          width: qrPx
+        });
         qrBuf = Buffer.from(qrDataUrl.split(',')[1], 'base64');
       } catch (e) {
         qrBuf = null;
       }
 
-      const squareSize = Math.min(skuColW, vh);
-      const squareX = skuColX + (skuColW - squareSize) / 2;
-      const squareY = vy + (vh - squareSize) / 2;
+      // Tamaños independientes SKU / QR
+      const skuSquareSize = Math.min(skuColW, vh);
+      const qrSquareSize  = Math.min(qrColW, vh);
 
-      // fondo gris claro redondeado
+      // Padding interno opcional para aire visual
+      const INTERNAL_PADDING = 2; // puntos (~0.07 cm)
+      const skuInnerSize = Math.max(0, skuSquareSize - INTERNAL_PADDING * 2);
+      const qrInnerSize  = Math.max(0, qrSquareSize - INTERNAL_PADDING * 2);
+
+      // Posición del cuadrado gris SKU
+      const skuSquareX = skuColX + (skuColW - skuSquareSize) / 2;
+      const skuSquareY = vy + (vh - skuSquareSize) / 2;
+
+      // Fondo gris
       doc.save();
       doc.fillColor('#585454ff');
       if (typeof doc.roundedRect === 'function') {
-        doc.roundedRect(squareX, squareY, squareSize, squareSize, 6).fill();
+        doc.roundedRect(skuSquareX, skuSquareY, skuSquareSize, skuSquareSize, 6).fill();
       } else {
-        doc.rect(squareX, squareY, squareSize, squareSize).fill();
+        doc.rect(skuSquareX, skuSquareY, skuSquareSize, skuSquareSize).fill();
       }
       doc.restore();
 
-      // SKU single-line centrado en el cuadrado
+      // Texto SKU
       doc.fillColor('#000').font('Helvetica-Bold');
-      let skuFont = Math.floor(squareSize * 0.18);
+      let skuFont = Math.floor(skuInnerSize * 0.18);
       if (skuFont < 8) skuFont = 8;
       if (skuFont > 20) skuFont = 20;
       doc.fontSize(skuFont);
-      doc.text(String(sku || ''), squareX, squareY + (squareSize - skuFont) / 2, {
-        width: squareSize,
-        align: 'center',
-        ellipsis: true
-      });
+      doc.text(String(sku || ''), skuSquareX + INTERNAL_PADDING,
+        skuSquareY + (skuSquareSize - skuFont) / 2,
+        {
+          width: skuInnerSize,
+          align: 'center',
+          ellipsis: true
+        }
+      );
 
-      // dibujar QR a la derecha con el mismo tamaño
+      // Dibujo del QR en su propia columna usando qrSquareSize
       if (qrBuf) {
         try {
-          const qrX = qrColX + (qrColW - squareSize) / 2;
-          const qrY = vy + (vh - squareSize) / 2;
-          doc.image(qrBuf, qrX, qrY, { fit: [squareSize, squareSize] });
-        } catch (e) {}
+          const qrX = qrColX + (qrColW - qrSquareSize) / 2 + INTERNAL_PADDING;
+          const qrY = vy + (vh - qrSquareSize) / 2 + INTERNAL_PADDING;
+          doc.image(qrBuf, qrX, qrY, {
+            fit: [qrInnerSize, qrInnerSize],
+            align: 'center',
+            valign: 'center'
+          });
+        } catch (e) {
+          doc.fontSize(8).text('QR ERR', qrColX + qrColW / 2, vy + vh / 2, { align: 'center' });
+        }
       } else {
         doc.fontSize(8).text('QR', qrColX + qrColW / 2, vy + vh / 2, { align: 'center' });
       }
 
       doc.restore();
+      // ---- FIN STICKER B MODIFICADO ----
     }
 
     // preparar respuesta una vez termine el stream del PDF
