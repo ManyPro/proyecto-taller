@@ -1,7 +1,7 @@
 // Frontend/assets/inventory.js
 import { API } from "./api.js";
 import { upper } from "./utils.js";
-import { bindStickersButton } from './pdf.js';
+import { bindStickersButton, downloadStickersPdf } from './pdf.js';
 
 // ---- State ----
 const state = {
@@ -924,92 +924,22 @@ export function initInventory() {
         alert("Coloca al menos 1 sticker.");
         return;
       }
-      await generateStickersPdf(list);
-      invCloseModal();
-    };
-  }
-
-  async function generateStickersPdf(list) {
-    const jsPDF = await ensureJsPDF();
-    const doc = new jsPDF({ unit: "cm", format: "letter" });
-
-    // Hoja 21.59 × 27.94 cm (Letter)
-    const margin = 0.5;
-    const w = 6, h = 4;
-    const gapX = 1.0, gapY = 0.5;
-    const cols = 3, rows = 6;
-    const perPage = cols * rows;
-
-    // Precachear QR como dataURL
-    const uniq = {};
-    list.forEach(({ it }) => { uniq[it._id] = it; });
-
-    const qrMap = {};
-    for (const id of Object.keys(uniq)) {
-      try {
-        const blob = await fetchQrBlob(id, 600);
-        qrMap[id] = await blobToDataURL(blob);
-      } catch {
-        qrMap[id] = "";
-      }
-    }
-
-    // Flatten según cantidades
-    const flat = [];
-    list.forEach(({ it, count }) => {
-      for (let i = 0; i < count; i++) flat.push(it);
-    });
-
-    for (let i = 0; i < flat.length; i++) {
-      const idxInPage = i % perPage;
-      if (i > 0 && idxInPage === 0) doc.addPage();
-
-      const col = idxInPage % cols;
-      const row = Math.floor(idxInPage / cols);
-      const x = margin + col * (w + gapX);
-      const y = margin + row * (h + gapY);
-
-      // Marco
-      doc.setDrawColor(230);
-      doc.roundedRect(x, y, w, h, 0.15, 0.15);
-
-      const it = flat[i] || {};
-      const dataUrl = qrMap[it._id] || "";
-
-      // QR
-      const pad = 0.25;
-      const qrSize = 2.6;
-      const qrX = x + pad;
-      const qrY = y + (h - qrSize) / 2;
-      if (dataUrl) {
-        doc.addImage(dataUrl, "PNG", qrX, qrY, qrSize, qrSize);
-      } else {
-        doc.setFontSize(10);
-        doc.text("QR", qrX + qrSize / 2, qrY + qrSize / 2, { align: "center", baseline: "middle" });
-      }
-
-      // SKU banda
-      const skuBoxX = qrX + qrSize + 0.25;
-      const skuBoxY = y + 0.5;
-      const skuBoxW = x + w - skuBoxX - pad;
-      const skuBoxH = h - 1.0;
-
-      doc.setFillColor(19, 27, 41);
-      doc.roundedRect(skuBoxX, skuBoxY, skuBoxW, skuBoxH, 0.1, 0.1, "F");
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.setTextColor(255, 255, 255);
-      doc.text((it?.sku || "").toUpperCase(), skuBoxX + skuBoxW / 2, skuBoxY + skuBoxH / 2, {
-        align: "center",
-        baseline: "middle",
+      // Aplanar la lista: una entrada por sticker (backend genera 2 stickers por cada item enviado)
+      const payload = [];
+      list.forEach(({ it, count }) => {
+        for (let i = 0; i < count; i++) {
+          payload.push({
+            sku: it.sku,
+            name: it.name,
+            // dejar companyName/companyLogo indefinidos para que el backend use req.company
+          });
+        }
       });
-    }
-
-    const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-    doc.save(`stickers_${ts}.pdf`);
-  }
-
-  // ---- Boot ----
-  refreshIntakes();
-  refreshItems({});
-}
+      try {
+        await downloadStickersPdf(payload, `stickers.pdf`, { headers: authHeader(), credentials: 'same-origin' });
+        invCloseModal();
+      } catch (err) {
+        alert('Error creando stickers: ' + (err.message || err));
+      }
+    };
+   }
