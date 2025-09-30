@@ -22,12 +22,20 @@ function computeItems(itemsInput = []) {
     const multiplier = qty && qty > 0 ? qty : 1;
     const subtotal = multiplier * unitPrice;
 
+    const source = (['inventory','price','manual'].includes(it.source)) ? it.source : 'manual';
+    let refId = undefined;
+    try { if (it.refId) refId = it.refId; } catch {}
+    const sku = typeof it.sku === 'string' ? it.sku : undefined;
+
     items.push({
       kind: normKind(it.kind),
       description: String(it.description || '').trim(),
-      qty,                         // puede ser null
+      qty,
       unitPrice,
-      subtotal
+      subtotal,
+      source,
+      refId,
+      sku
     });
     total += subtotal;
   }

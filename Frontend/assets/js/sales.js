@@ -74,6 +74,29 @@ let starting = false;  // evita doble clic en "Nueva venta"
 let salesRefreshTimer = null;
 let lastQuoteLoaded = null; // referencia a la cotización mostrada en el mini panel
 
+// ---- helper: mapear item de cotización -> payload addItem/addItemsBatch ----
+function mapQuoteItemToSale(it){
+  const unit = Number(it.unitPrice ?? it.unit ?? 0) || 0;
+  const qty  = Number(it.qty || 1) || 1;
+  const source = it.source || it.kindSource || '';
+  // Normalizar refId (posibles variantes legacy)
+  const refId = it.refId || it.refID || it.ref_id || null;
+  if(source === 'inventory'){
+    return { source:'inventory', refId: refId || undefined, sku: it.sku || undefined, qty, unitPrice:unit };
+  }
+  if(source === 'price'){
+    return { source:'price', refId: refId || undefined, qty, unitPrice:unit };
+  }
+  // Legacy/manual: no afecta stock. Usamos 'service' genérico con nombre.
+  return {
+    source:'service',
+    name: it.description || it.name || 'Item',
+    sku: it.sku || undefined,
+    qty,
+    unitPrice: unit
+  };
+}
+
 function labelForSale(sale) {
   const plate = sale?.vehicle?.plate || '';
   return plate ? `VENTA - ${plate.toUpperCase()}` : String(sale?._id || '').slice(-6).toUpperCase();
@@ -594,17 +617,7 @@ function renderQuoteMini(q){
         renderTabs();
       }
       try {
-        const batchPayload = q.items.map(it => {
-          const unit=Number(it.unitPrice??it.unit??0)||0;
-          const qty =Number(it.qty||1)||1;
-          return {
-            source: (it.source||'service')==='product' ? 'inventory' : 'service',
-            sku: it.sku||'',
-            name: it.description||it.name||'Servicio',
-            qty,
-            unitPrice: unit
-          };
-        });
+        const batchPayload = q.items.map(mapQuoteItemToSale);
         current = await API.sales.addItemsBatch(current._id, batchPayload);
         syncCurrentIntoOpenList();
         renderTabs();

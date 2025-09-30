@@ -6,6 +6,10 @@ const ItemSchema = new mongoose.Schema({
   qty:         { type: Number, default: null },
   unitPrice:   { type: Number, required: true, min: 0 },
   subtotal:    { type: Number, required: true, min: 0 },
+  // Metadatos de origen para reutilizar en ventas
+  source:      { type: String, enum: ['inventory', 'price', 'manual'], default: 'manual' },
+  refId:       { type: mongoose.Schema.Types.ObjectId }, // Item o PriceEntry según source
+  sku:         { type: String, trim: true }
 }, { _id: false });
 
 const QuoteSchema = new mongoose.Schema({

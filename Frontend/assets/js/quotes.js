@@ -55,6 +55,9 @@ export function initQuotes({ getCompanyEmail }) {
   const rowsBox = $('#q-rows');
   const rowTemplate = $('#q-row-template');
   const btnAddRow = $('#q-addRow');
+  // Botones adicionales (se crean dinámicamente)
+  let btnAddFromInv = null;
+  let btnAddFromPrice = null;
   const lblSubtotalProducts = $('#q-subtotal-products');
   const lblSubtotalServices = $('#q-subtotal-services');
   const lblTotal = $('#q-total');
@@ -172,6 +175,10 @@ export function initQuotes({ getCompanyEmail }) {
     row.querySelectorAll('input')[0].value = r.desc  || '';
     row.querySelectorAll('input')[1].value = r.qty   || '';
     row.querySelectorAll('input')[2].value = r.price || '';
+    // Metadata origen (inventario / lista precios)
+    if(r.source) row.dataset.source = r.source;
+    if(r.refId)  row.dataset.refId = r.refId;
+    if(r.sku)    row.dataset.sku = r.sku;
     updateRowSubtotal(row); rowsBox.appendChild(row);
   }
   function addRow(){ rowsBox.appendChild(cloneRow()); }
@@ -191,7 +198,12 @@ export function initQuotes({ getCompanyEmail }) {
       const qty =Number(r.querySelectorAll('input')[1].value||0);
       const price=Number(r.querySelectorAll('input')[2].value||0);
       if(!desc && !price && !qty) return;
-      rows.push({type,desc,qty,price});
+      rows.push({
+        type,desc,qty,price,
+        source: r.dataset.source || undefined,
+        refId: r.dataset.refId || undefined,
+        sku: r.dataset.sku || undefined
+      });
     }); return rows;
   }
   function updateRowSubtotal(r){
@@ -402,11 +414,17 @@ export function initQuotes({ getCompanyEmail }) {
 
   // ===== Backend (crear / actualizar) =====
   function payloadFromUI(){
-    const items=readRows().map(r=>({
-      kind:r.type, description:r.desc,
-      qty:r.qty?Number(r.qty):null,
-      unitPrice:Number(r.price||0)
-    }));
+    const items=readRows().map(r=>{
+      const base={
+        kind:r.type, description:r.desc,
+        qty:r.qty?Number(r.qty):null,
+        unitPrice:Number(r.price||0)
+      };
+      if(r.source){ base.source=r.source; }
+      if(r.refId){ base.refId=r.refId; }
+      if(r.sku){ base.sku=r.sku; }
+      return base;
+    });
     return {
       customer:{ name:iClientName.value||'', phone:iClientPhone.value||'', email:iClientEmail.value||'' },
       vehicle:{ plate:iPlate.value||'', make:iBrand.value||'', line:iLine.value||'', modelYear:iYear.value||'', displacement:iCc.value||'' },
@@ -634,6 +652,9 @@ export function initQuotes({ getCompanyEmail }) {
       row.querySelectorAll('input')[0].value = r.desc  ?? r.description ?? '';
       row.querySelectorAll('input')[1].value = r.qty   ?? '';
       row.querySelectorAll('input')[2].value = r.price ?? r.unitPrice ?? '';
+      if(r.source) row.dataset.source = r.source;
+      if(r.refId)  row.dataset.refId = r.refId;
+      if(r.sku)    row.dataset.sku = r.sku;
       updateRowSubtotal(row); rowsBox.appendChild(row);
     }
     function readRows(){
@@ -643,7 +664,12 @@ export function initQuotes({ getCompanyEmail }) {
         const qty =Number(r.querySelectorAll('input')[1].value||0);
         const price=Number(r.querySelectorAll('input')[2].value||0);
         if(!desc && !price && !qty) return;
-        rows.push({type,desc,qty,price});
+        rows.push({
+          type,desc,qty,price,
+          source:r.dataset.source||undefined,
+          refId:r.dataset.refId||undefined,
+          sku:r.dataset.sku||undefined
+        });
       }); return rows;
     }
     function updateRowSubtotal(r){
@@ -708,7 +734,7 @@ export function initQuotes({ getCompanyEmail }) {
     iValid.value = doc?.validity || '';
     rowsBox.innerHTML='';
     (doc?.items||[]).forEach(it=>{
-      addRowFromData({ type:(String(it.kind||'PRODUCTO').toUpperCase()==='SERVICIO'?'SERVICIO':'PRODUCTO'), desc:it.description||'', qty:it.qty??'', price:it.unitPrice||0 });
+      addRowFromData({ type:(String(it.kind||'PRODUCTO').toUpperCase()==='SERVICIO'?'SERVICIO':'PRODUCTO'), desc:it.description||'', qty:it.qty??'', price:it.unitPrice||0, source:it.source, refId:it.refId, sku:it.sku });
     });
     if(!(doc?.items||[]).length) addRow();
     recalc();
@@ -738,7 +764,13 @@ export function initQuotes({ getCompanyEmail }) {
           customer:{ name:iName.value||'', phone:iPhone.value||'', email:iEmail.value||'' },
           vehicle:{ plate:iPlate.value||'', make:iBrand.value||'', line:iLine.value||'', modelYear:iYear.value||'', displacement:iCc.value||'' },
           validity:iValid.value||'',
-          items: rows.map(r=>({ kind:r.type, description:r.desc, qty:r.qty?Number(r.qty):null, unitPrice:Number(r.price||0) }))
+          items: rows.map(r=>{
+            const base={ kind:r.type, description:r.desc, qty:r.qty?Number(r.qty):null, unitPrice:Number(r.price||0) };
+            if(r.source) base.source=r.source;
+            if(r.refId) base.refId=r.refId;
+            if(r.sku) base.sku=r.sku;
+            return base;
+          })
         };
         await API.quotePatch(doc._id, payload);
         toast('Cotización actualizada.');
@@ -834,6 +866,21 @@ export function initQuotes({ getCompanyEmail }) {
   // ===== UI Bindings =====
   function bindUI(){
     btnAddRow?.addEventListener('click',()=>{ addRow(); recalcAll(); });
+    // Crear botones de selección desde inventario y lista de precios (solo una vez)
+    if(btnAddRow && !btnAddRow.dataset.enhanced){
+      btnAddRow.dataset.enhanced='1';
+      btnAddFromInv = document.createElement('button');
+      btnAddFromInv.type='button'; btnAddFromInv.className='secondary'; btnAddFromInv.textContent='Desde inventario';
+      btnAddFromPrice = document.createElement('button');
+      btnAddFromPrice.type='button'; btnAddFromPrice.className='secondary'; btnAddFromPrice.textContent='Desde lista de precios';
+      const container = btnAddRow.parentElement || rowsBox.parentElement;
+      if(container){
+        container.appendChild(btnAddFromInv);
+        container.appendChild(btnAddFromPrice);
+      }
+      btnAddFromInv.addEventListener('click', openPickerInventoryForQuote);
+      btnAddFromPrice.addEventListener('click', openPickerPricesForQuote);
+    }
     iSaveDraft?.addEventListener('click',saveDraft);
     btnWA?.addEventListener('click',openWhatsApp);
     btnPDF?.addEventListener('click',()=>{ exportPDF().catch(err=>alert(err?.message||err)); });
@@ -848,6 +895,88 @@ export function initQuotes({ getCompanyEmail }) {
 
     qhApply?.addEventListener('click',loadHistory);
     qhClear?.addEventListener('click',()=>{ qhText.value=''; qhFrom.value=''; qhTo.value=''; loadHistory(); });
+  }
+
+  // ====== Pickers para agregar ítems con metadata ======
+  async function openPickerInventoryForQuote(){
+    const node=document.createElement('div'); node.className='card';
+    node.innerHTML=`<h3>Inventario</h3>
+      <div class="row">
+        <input id="qi-sku" placeholder="SKU" />
+        <input id="qi-name" placeholder="Nombre" />
+        <button id="qi-search" class="secondary">Buscar</button>
+      </div>
+      <div class="table-wrap" style="max-height:320px;overflow:auto;margin-top:8px;">
+        <table class="table compact"><thead><tr><th>SKU</th><th>Nombre</th><th class="t-right">Precio</th><th></th></tr></thead><tbody id="qi-body"></tbody></table>
+      </div>`;
+    openModal(node);
+    const body=node.querySelector('#qi-body');
+    async function load(){
+      const sku=node.querySelector('#qi-sku').value.trim();
+      const name=node.querySelector('#qi-name').value.trim();
+      body.innerHTML='<tr><td colspan="4">Cargando...</td></tr>';
+      try{
+        const items=await API.inventory.itemsList({ sku,name,limit:25 });
+        body.innerHTML='';
+        items.forEach(it=>{
+          const tr=document.createElement('tr');
+            tr.innerHTML=`<td>${it.sku||''}</td><td>${it.name||''}</td><td class="t-right">${money(it.salePrice||0)}</td><td class="t-right"><button class="secondary add">Agregar</button></td>`;
+          tr.querySelector('button.add').onclick=()=>{
+            const row=cloneRow();
+            row.querySelector('select').value='PRODUCTO';
+            row.querySelectorAll('input')[0].value=it.name||it.sku||'';
+            row.querySelectorAll('input')[1].value=1;
+            row.querySelectorAll('input')[2].value=Math.round(it.salePrice||0);
+            row.dataset.source='inventory'; if(it._id) row.dataset.refId=it._id; if(it.sku) row.dataset.sku=it.sku;
+            updateRowSubtotal(row); rowsBox.appendChild(row); recalcAll(); saveDraft();
+          };
+          body.appendChild(tr);
+        });
+        if(!items.length) body.innerHTML='<tr><td colspan="4">Sin resultados</td></tr>';
+      }catch(e){ body.innerHTML=`<tr><td colspan="4">Error: ${e.message}</td></tr>`; }
+    }
+    node.querySelector('#qi-search').onclick=load; load();
+  }
+
+  async function openPickerPricesForQuote(){
+    const node=document.createElement('div'); node.className='card';
+    node.innerHTML=`<h3>Lista de precios</h3>
+      <div class="row">
+        <input id="qp-brand" placeholder="Marca" />
+        <input id="qp-line" placeholder="Línea" />
+        <button id="qp-search" class="secondary">Buscar</button>
+      </div>
+      <div class="table-wrap" style="max-height:320px;overflow:auto;margin-top:8px;">
+        <table class="table compact"><thead><tr><th>Marca</th><th>Línea</th><th>Motor</th><th>Año</th><th class="t-right">Precio</th><th></th></tr></thead><tbody id="qp-body"></tbody></table>
+      </div>`;
+    openModal(node);
+    const body=node.querySelector('#qp-body');
+    async function load(){
+      const brand=node.querySelector('#qp-brand').value.trim();
+      const line=node.querySelector('#qp-line').value.trim();
+      body.innerHTML='<tr><td colspan="6">Cargando...</td></tr>';
+      try{
+        const rows=await API.pricesList({ brand,line,limit:25 });
+        body.innerHTML='';
+        rows.forEach(pe=>{
+          const price=Number(pe.total||pe.price||0);
+          const tr=document.createElement('tr');
+          tr.innerHTML=`<td>${pe.brand||''}</td><td>${pe.line||''}</td><td>${pe.engine||''}</td><td>${pe.year||''}</td><td class="t-right">${money(price)}</td><td class="t-right"><button class="secondary add">Agregar</button></td>`;
+          tr.querySelector('button.add').onclick=()=>{
+            const row=cloneRow();
+            row.querySelector('select').value='SERVICIO';
+            row.querySelectorAll('input')[0].value=`${pe.brand||''} ${pe.line||''} ${pe.engine||''} ${pe.year||''}`.trim();
+            row.querySelectorAll('input')[1].value=1;
+            row.querySelectorAll('input')[2].value=Math.round(price||0);
+            row.dataset.source='price'; if(pe._id) row.dataset.refId=pe._id;
+            updateRowSubtotal(row); rowsBox.appendChild(row); recalcAll(); saveDraft();
+          };
+          body.appendChild(tr);
+        });
+        if(!rows.length) body.innerHTML='<tr><td colspan="6">Sin resultados</td></tr>';
+      }catch(e){ body.innerHTML=`<tr><td colspan="6">Error: ${e.message}</td></tr>`; }
+    }
+    node.querySelector('#qp-search').onclick=load; load();
   }
 
   // ===== Altura panel derecho =====

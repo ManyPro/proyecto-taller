@@ -106,3 +106,56 @@ El contraste para texto principal en claro/dark se mantiene ≥ WCAG AA sobre su
 
 ---
 Última actualización de esta sección: (cotización→venta + batch + paginación) 
+
+## Ítems de Inventario y Lista de Precios en Cotizaciones
+
+Ahora puedes insertar directamente productos del inventario y registros de la lista de precios dentro de una cotización. Esto permite que, al convertir o reutilizar esa cotización en una venta, las líneas que provienen de inventario descuenten stock al cerrar la venta.
+
+### Cómo agregar
+En la sección de Ítems de la cotización:
+- Botón "+ Agregar línea" (manual) sigue funcionando igual.
+- Nuevos botones: "Desde inventario" y "Desde lista de precios" abren pickers livianos.
+
+Picker Inventario:
+1. Filtros rápidos por SKU / Nombre.
+2. Lista (máx 25 resultados) con precio de venta.
+3. Al hacer clic en "Agregar" se crea una fila tipo PRODUCTO con metadata.
+
+Picker Lista de Precios:
+1. Filtros por Marca / Línea (extensible a Motor / Año si se requiere).
+2. Inserta fila tipo SERVICIO (por naturaleza del catálogo de precios) con su valor total.
+
+### Metadata almacenada por ítem
+Cada fila puede contener los atributos opcionales:
+```jsonc
+{
+	"source": "inventory" | "price" | "manual", // default manual
+	"refId": "<ObjectId del Item o PriceEntry>",
+	"sku": "<SKU si aplica>",
+	"type": "PRODUCTO" | "SERVICIO",
+	"desc": "Descripción visible",
+	"qty": 1,
+	"price": 12345
+}
+```
+
+Se guardan al persistir la cotización (`POST/PUT /quotes`) y también en el borrador local. Para cotizaciones antiguas (sin estos campos) todo sigue funcionando; se consideran `source:"manual"` y no afectarán stock al trasladarse a ventas.
+
+### Traslado a Venta respetando origen
+Al cargar una cotización en la pestaña Ventas:
+- Items `source:"inventory"` generan payload `{ source:"inventory", refId, sku? }` → permitirán descuento de stock al cerrar.
+- Items `source:"price"` generan `{ source:"price", refId }`.
+- Items `source:"manual"` (o sin source) se tratan como `service` con nombre y precio manual.
+
+Esto se aplica tanto al botón individual (→) como al batch "Pasar TODO a venta" usando el endpoint de items batch.
+
+### Beneficios
+- Uniformidad: una sola fuente de verdad (la cotización) para construir la venta.
+- Stock confiable: evita volver a buscar manualmente en inventario al facturar.
+- Auditoría: el origen del precio queda explícito.
+
+### Posibles mejoras futuras
+- Mostrar un badge visual en la fila (p.ej. INVENT / LISTA) para diferenciar origen.
+- Filtro rápido en la cotización para ver sólo productos de inventario.
+- Validación al editar una cotización si cambió el precio base de un PriceEntry (mostrar delta).
+
