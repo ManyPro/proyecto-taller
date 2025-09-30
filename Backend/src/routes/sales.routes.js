@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   startSale, getSale, addItem, updateItem, removeItem,
-  setCustomerVehicle, closeSale, addByQR, listSales, summarySales, cancelSale, getProfileByPlate
+  setCustomerVehicle, closeSale, addByQR, listSales, summarySales, cancelSale, getProfileByPlate, addItemsBatch
 } from '../controllers/sales.controller.js';
 import { sseHandler } from '../lib/live.js';
 
@@ -20,6 +20,7 @@ router.post('/start', startSale);
 
 // Item operations
 router.post('/:id/items', addItem);
+router.post('/:id/items/batch', addItemsBatch);
 router.put('/:id/items/:itemId', updateItem);
 router.delete('/:id/items/:itemId', removeItem);
 

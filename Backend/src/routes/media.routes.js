@@ -186,7 +186,7 @@ router.post('/stickers/pdf', async (req, res, next) => {
 
       // Fondo gris
       doc.save();
-      doc.fillColor('#585454ff');
+      doc.fillColor('#c0b7b7ff');
       if (typeof doc.roundedRect === 'function') {
         doc.roundedRect(skuSquareX, skuSquareY, skuSquareSize, skuSquareSize, 6).fill();
       } else {

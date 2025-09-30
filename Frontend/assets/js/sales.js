@@ -72,6 +72,7 @@ let current = null;    // venta actual
 let openSales = [];    // ventas abiertas (draft) compartidas
 let starting = false;  // evita doble clic en "Nueva venta"
 let salesRefreshTimer = null;
+let lastQuoteLoaded = null; // referencia a la cotización mostrada en el mini panel
 
 function labelForSale(sale) {
   const plate = sale?.vehicle?.plate || '';
@@ -493,27 +494,69 @@ async function loadQuote(){
       <input id="qh-text" placeholder="Buscar por cliente/placa..." />
       <button id="qh-apply" class="secondary">Buscar</button>
     </div>
-    <div id="qh-list" class="list" style="max-height:300px; overflow:auto; margin-top:8px;"></div>`;
+    <div id="qh-list" class="list" style="max-height:300px; overflow:auto; margin-top:8px;"></div>
+    <div class="row" style="margin-top:8px; justify-content:space-between; align-items:center;">
+      <div id="qh-meta" style="font-size:12px; opacity:.8;">Página 1</div>
+      <div style="display:flex; gap:6px;">
+        <button id="qh-prev" class="secondary" disabled>◀</button>
+        <button id="qh-next" class="secondary" disabled>▶</button>
+      </div>
+    </div>`;
   openModal(node);
   const list=node.querySelector('#qh-list'); const q=node.querySelector('#qh-text');
-  async function fetchList(){
-    const res = await API.quotesList(q.value ? ('?q='+encodeURIComponent(q.value)) : '');
+  const metaEl = node.querySelector('#qh-meta');
+  const btnPrev = node.querySelector('#qh-prev');
+  const btnNext = node.querySelector('#qh-next');
+  let page=1; const pageSize=25;
+
+  async function fetchList(reset=false){
+    if(reset) page=1;
+    const params = new URLSearchParams();
+    params.set('page', String(page));
+    params.set('pageSize', String(pageSize));
+    if(q.value) params.set('q', q.value);
+    const url='?'+params.toString();
+    let raw=null; let items=[]; let metadata=null;
+    try{
+      raw = await API.quotesListRaw(url);
+      if (Array.isArray(raw)) { items = raw; metadata = null; }
+      else { items = raw.items||[]; metadata = raw.metadata||null; }
+    }catch(e){
+      list.innerHTML = `<div style="padding:8px;color:#c00;">Error: ${e?.message||'No se pudo cargar'}</div>`; return;
+    }
     list.innerHTML='';
-    (res?.items||res||[]).forEach(qq=>{
+    items.forEach(qq=>{
       const btn=document.createElement('button'); btn.className='secondary';
-      btn.textContent = `${(qq.number||'').toString().padStart(5,'0')} - ${qq?.client?.name||''} (${qq?.vehicle?.plate||''})`;
+      btn.textContent = `${(qq.number||'').toString().padStart(5,'0')} - ${qq?.client?.name||qq?.customer?.name||''} (${qq?.vehicle?.plate||''})`;
       btn.style.cssText='display:block;width:100%;text-align:left;margin-top:6px;';
       btn.onclick = ()=>{ closeModal(); renderQuoteMini(qq); try{ localStorage.setItem('sales:lastQuoteId', qq.id||qq._id||''); }catch{} };
       list.appendChild(btn);
     });
+    if(items.length===0){
+      const empty=document.createElement('div'); empty.style.cssText='padding:8px;opacity:.7;';
+      empty.textContent = 'No hay cotizaciones en esta página';
+      list.appendChild(empty);
+    }
+    if(metadata){
+      metaEl.textContent = `Página ${metadata.page} de ${metadata.pages} (Total ${metadata.total})`;
+      btnPrev.disabled = !metadata.hasPrev;
+      btnNext.disabled = !metadata.hasNext;
+    } else {
+      metaEl.textContent = `Página ${page}`;
+      btnPrev.disabled = page<=1;
+      btnNext.disabled = items.length < pageSize;
+    }
   }
-  node.querySelector('#qh-apply').onclick = fetchList;
+  node.querySelector('#qh-apply').onclick = ()=> fetchList(true);
+  btnPrev.onclick = ()=>{ if(page>1){ page--; fetchList(); } };
+  btnNext.onclick = ()=>{ page++; fetchList(); };
   fetchList();
 }
 function renderQuoteMini(q){
   const head=document.getElementById('sv-q-header'), body=document.getElementById('sv-q-body');
   head.textContent = q ? `Cotización #${String(q.number||'').toString().padStart(5,'0')} - ${q?.client?.name||''}` : '— ninguna cotización cargada —';
   body.innerHTML='';
+  lastQuoteLoaded = q || null;
   (q?.items||[]).forEach(it=>{
     const unit=Number(it.unitPrice??it.unit??0)||0;
     const qty =Number(it.qty||1)||1;
@@ -534,6 +577,9 @@ function renderQuoteMini(q){
       syncCurrentIntoOpenList();
         renderTabs();
       renderSale(); renderWO();
+      // Marcar visualmente como agregado
+      tr.classList.add('added');
+      const btn = tr.querySelector('button.add'); if (btn){ btn.disabled = true; btn.textContent = '✔'; }
     };
     body.appendChild(tr);
   });
@@ -547,19 +593,64 @@ function renderQuoteMini(q){
         syncCurrentIntoOpenList();
         renderTabs();
       }
-      for(const it of q.items){
-        const unit=Number(it.unitPrice??it.unit??0)||0;
-        const qty =Number(it.qty||1)||1;
-        current = await API.sales.addItem(current._id, {
-          source: (it.source||'service')==='product' ? 'inventory' : 'service',
-          sku: it.sku||'',
-          name: it.description||it.name||'Servicio',
-          qty, unitPrice: unit
+      try {
+        const batchPayload = q.items.map(it => {
+          const unit=Number(it.unitPrice??it.unit??0)||0;
+          const qty =Number(it.qty||1)||1;
+          return {
+            source: (it.source||'service')==='product' ? 'inventory' : 'service',
+            sku: it.sku||'',
+            name: it.description||it.name||'Servicio',
+            qty,
+            unitPrice: unit
+          };
         });
+        current = await API.sales.addItemsBatch(current._id, batchPayload);
+        syncCurrentIntoOpenList();
+        renderTabs();
+        renderSale(); renderWO();
+      } catch(e){
+        alert(e?.message||'No se pudo agregar items (batch)');
       }
-      renderSale(); renderWO();
+      // Refrescar marca visual
+      Array.from(document.querySelectorAll('#sv-q-body tr')).forEach(tr=>{
+        tr.classList.add('added');
+        const b=tr.querySelector('button.add'); if(b){ b.disabled=true; b.textContent='✔'; }
+      });
     };
   }
+}
+
+// Aplica cliente/vehículo desde la última cotización cargada
+async function applyQuoteCustomerVehicle(){
+  if(!lastQuoteLoaded){ alert('Primero selecciona una cotización'); return; }
+  try{
+    if(!current){
+      current = await API.sales.start();
+      syncCurrentIntoOpenList();
+      renderTabs();
+    }
+    const q = lastQuoteLoaded;
+    const payload = {
+      customer: {
+        name: q?.client?.name || q?.customer?.name || '',
+        phone: q?.client?.phone || q?.customer?.phone || '',
+        email: q?.client?.email || q?.customer?.email || '',
+        address: ''
+      },
+      vehicle: {
+        plate: (q?.vehicle?.plate||'').toUpperCase(),
+        brand: (q?.vehicle?.make||q?.vehicle?.brand||'').toUpperCase(),
+        line:  (q?.vehicle?.line||'').toUpperCase(),
+        engine: (q?.vehicle?.displacement||'').toUpperCase(),
+        year: q?.vehicle?.modelYear ? Number(q.vehicle.modelYear)||null : null,
+        mileage: null
+      }
+    };
+    current = await API.sales.setCustomerVehicle(current._id, payload);
+    syncCurrentIntoOpenList();
+    renderTabs(); renderMini();
+  }catch(e){ alert(e?.message||'No se pudo aplicar datos'); }
 }
 
 // ---------- editar cliente/vehículo ----------
@@ -801,6 +892,7 @@ export function initSales(){
   document.getElementById('sales-history')?.addEventListener('click', openSalesHistory);
   document.getElementById('sv-edit-cv')?.addEventListener('click', openEditCV);
   document.getElementById('sv-loadQuote')?.addEventListener('click', loadQuote);
+  document.getElementById('sv-applyQuoteCV')?.addEventListener('click', applyQuoteCustomerVehicle);
 
   // Restaurar última cotización cargada (si existe)
   try {

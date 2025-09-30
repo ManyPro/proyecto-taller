@@ -180,6 +180,9 @@ const API = {
     addItem: (id, payload) =>
       http.post(`/api/v1/sales/${id}/items`, payload),
 
+    addItemsBatch: (id, items) =>
+      http.post(`/api/v1/sales/${id}/items/batch`, { items }),
+
     updateItem: (id, itemId, payload) =>
       http.put(`/api/v1/sales/${id}/items/${itemId}`, payload),
 

@@ -287,6 +287,104 @@ export const addItem = async (req, res) => {
   res.json(sale.toObject());
 };
 
+// ===== Batch add items (desde cotización u otro origen) =====
+// Payload esperado: { items: [ { source, refId, sku, name, qty, unitPrice } ... ] }
+// - source: 'inventory' | 'price' | 'service'
+// - Si source=='inventory' puede venir refId o sku (se intenta resolver)
+// - Para 'price' puede venir refId o datos manuales (como en addItem)
+// - Para 'service' se acepta línea manual
+// Realiza validación mínima y agrega todas las líneas en memoria antes de guardar para computar totales una sola vez.
+export const addItemsBatch = async (req, res) => {
+  const { id } = req.params;
+  const list = Array.isArray(req.body?.items) ? req.body.items : [];
+  if (!list.length) return res.status(400).json({ error: 'items vacio' });
+
+  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
+
+  const added = [];
+  for (const raw of list) {
+    if (!raw) continue;
+    try {
+      const source = (raw.source === 'service') ? 'service' : (raw.source === 'price' ? 'price' : (raw.source === 'inventory' ? 'inventory' : 'service'));
+      const qty = asNum(raw.qty) || 1;
+      const unitCandidate = raw.unitPrice;
+
+      if (source === 'inventory') {
+        let it = null;
+        if (raw.refId) it = await Item.findOne({ _id: raw.refId, companyId: req.companyId });
+        if (!it && raw.sku) it = await Item.findOne({ sku: String(raw.sku).trim().toUpperCase(), companyId: req.companyId });
+        if (!it) throw new Error('Inventory item not found');
+        const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : asNum(it.salePrice);
+        added.push({
+          source: 'inventory',
+          refId: it._id,
+          sku: it.sku,
+          name: it.name || it.sku,
+            qty,
+          unitPrice: up,
+          total: Math.round(qty * up)
+        });
+        continue;
+      }
+
+      if (source === 'price') {
+        if (raw.refId) {
+          const pe = await PriceEntry.findOne({ _id: raw.refId, companyId: req.companyId });
+          if (!pe) throw new Error('PriceEntry not found');
+          const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : asNum(pe.total || pe.price);
+          added.push({
+            source: 'price',
+            refId: pe._id,
+            sku: `SRV-${String(pe._id).slice(-6)}`,
+            name: `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim(),
+            qty,
+            unitPrice: up,
+            total: Math.round(qty * up)
+          });
+        } else {
+          const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : 0;
+          added.push({
+            source: 'price',
+            refId: new mongoose.Types.ObjectId(),
+            sku: (raw.sku || '').toString(),
+            name: raw.name || 'Servicio',
+            qty,
+            unitPrice: up,
+            total: Math.round(qty * up)
+          });
+        }
+        continue;
+      }
+
+      // service (línea manual)
+      const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : 0;
+      added.push({
+        source: source === 'service' ? 'service' : 'price',
+        refId: new mongoose.Types.ObjectId(),
+        sku: (raw.sku || '').toString(),
+        name: raw.name || raw.description || 'Servicio',
+        qty,
+        unitPrice: up,
+        total: Math.round(qty * up)
+      });
+    } catch (err) {
+      // Continúa con los demás items; opcionalmente podríamos acumular errores
+      // Para transparencia, se podría devolver summary, pero mantenemos simple.
+      continue;
+    }
+  }
+
+  if (!added.length) return res.status(400).json({ error: 'No se pudo agregar ningún item' });
+  sale.items.push(...added);
+  computeTotals(sale);
+  await sale.save();
+  await upsertCustomerProfile(req.companyId, sale);
+  try { publish(req.companyId, 'sale:updated', { id: (sale?._id) || undefined }); } catch { }
+  res.json(sale.toObject());
+};
+
 export const updateItem = async (req, res) => {
   const { id, itemId } = req.params;
   const { qty, unitPrice } = req.body || {};
