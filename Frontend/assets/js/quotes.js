@@ -802,11 +802,15 @@ export function initQuotes({ getCompanyEmail }) {
     clearRows();
     (d?.items||[]).forEach(it=>{
       const k=String(it.kind||'Producto').trim().toUpperCase();
+      // Heurística legacy: si es PRODUCTO y tiene refId o sku de item y no trae source, asumir inventory
+      let source = it.source;
+      if(!source && k==='PRODUCTO' && (it.refId || it.sku)) source='inventory';
       addRowFromData({
         type:(k==='SERVICIO'?'SERVICIO':'PRODUCTO'),
         desc:it.description||'',
         qty:it.qty??'',
-        price:it.unitPrice||0
+        price:it.unitPrice||0,
+        source, refId:it.refId, sku:it.sku
       });
     });
     recalcAll();
