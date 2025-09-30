@@ -467,21 +467,30 @@ export const closeSale = async (req, res) => {
         if (String(it.source) !== 'inventory') continue;
         const q = asNum(it.qty) || 0;
         if (q <= 0) continue;
+        let target = null;
+        // Fallback: si no hay refId válido intentar por SKU
+        if (it.refId) {
+          target = await Item.findOne({ _id: it.refId, companyId: req.companyId }).session(session);
+        }
+        if (!target && it.sku) {
+          target = await Item.findOne({ sku: String(it.sku).trim().toUpperCase(), companyId: req.companyId }).session(session);
+          // Si lo encontramos por sku y no había refId, opcionalmente lo guardamos para trazabilidad
+          if (target && !it.refId) {
+            it.refId = target._id; // queda persistido al save posterior
+          }
+        }
+        if (!target) throw new Error(`Inventory item not found (${it.sku || it.refId || 'sin id'})`);
+        if ((target.stock ?? 0) < q) throw new Error(`Insufficient stock for ${target.sku || target.name}`);
 
         const upd = await Item.updateOne(
-          { _id: it.refId, companyId: req.companyId, stock: { $gte: q } },
+          { _id: target._id, companyId: req.companyId, stock: { $gte: q } },
           { $inc: { stock: -q } }
         ).session(session);
-
-        if (upd.matchedCount === 0) {
-          const exists = await Item.findOne({ _id: it.refId, companyId: req.companyId }).session(session);
-          if (!exists) throw new Error(`Inventory item not found (${it.sku || it.refId})`);
-          throw new Error(`Insufficient stock for ${exists.sku || exists.name}`);
-        }
+        if (upd.matchedCount === 0) throw new Error(`Stock update failed for ${target.sku || target.name}`);
 
         await StockMove.create([{
           companyId: req.companyId,
-          itemId: it.refId,
+          itemId: target._id,
           qty: q,
           reason: 'OUT',
           meta: { saleId: sale._id, sku: it.sku, name: it.name }

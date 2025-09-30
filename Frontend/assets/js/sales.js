@@ -78,9 +78,12 @@ let lastQuoteLoaded = null; // referencia a la cotización mostrada en el mini p
 function mapQuoteItemToSale(it){
   const unit = Number(it.unitPrice ?? it.unit ?? 0) || 0;
   const qty  = Number(it.qty || 1) || 1;
-  const source = it.source || it.kindSource || '';
+  let source = it.source || it.kindSource || '';
   // Normalizar refId (posibles variantes legacy)
   const refId = it.refId || it.refID || it.ref_id || null;
+  // Heurística: si es PRODUCTO y no tiene source pero hay sku/refId -> tratar como inventario
+  const kindUpper = String(it.kind || it.type || '').toUpperCase();
+  if(!source && kindUpper === 'PRODUCTO' && (refId || it.sku)) source = 'inventory';
   if(source === 'inventory'){
     return { source:'inventory', refId: refId || undefined, sku: it.sku || undefined, qty, unitPrice:unit };
   }
@@ -206,7 +209,19 @@ function renderSale(){
   (current?.items||[]).forEach(it=>{
     const tr = clone('tpl-sale-row');
     tr.querySelector('[data-sku]').textContent = it.sku || '';
-    tr.querySelector('[data-name]').textContent = it.name || '';
+    const nameCell = tr.querySelector('[data-name]');
+    let label = it.name || '';
+    if (it.source === 'inventory') {
+      // Badge de inventario
+      const badge = document.createElement('span'); badge.className='inv-badge'; badge.textContent='INV';
+      nameCell.textContent=''; nameCell.appendChild(badge); nameCell.appendChild(document.createTextNode(label));
+      tr.classList.add('sale-row-inventory');
+    } else if (it.source === 'price') {
+      // Podríamos agregar otra distinción futura (ej: PRC)
+      nameCell.textContent = label;
+    } else {
+      nameCell.textContent = label;
+    }
     const qty = tr.querySelector('.qty'); qty.value = String(it.qty||1);
     tr.querySelector('[data-unit]').textContent  = money(it.unitPrice||0);
     tr.querySelector('[data-total]').textContent = money(it.total||0);
@@ -250,6 +265,20 @@ function renderSale(){
 
   if (total) total.textContent = money(current?.total||0);
   renderMini(); renderTabs();
+
+  // Leyenda (una sola vez) debajo de la tabla si hay items inventory
+  try {
+    const legendId='sales-legend-origin';
+    let legend=document.getElementById(legendId);
+    const hasInv = (current?.items||[]).some(i=>i.source==='inventory');
+    if(hasInv){
+      if(!legend){
+        legend=document.createElement('div'); legend.id=legendId; legend.style.marginTop='6px'; legend.style.fontSize='11px'; legend.style.opacity='.8';
+        legend.innerHTML = '<span class="inv-badge">INV</span> Descuenta stock al cerrar la venta';
+        body.parentElement?.appendChild(legend);
+      }
+    } else if(legend){ legend.remove(); }
+  }catch{}
 }
 
 // ---------- orden de trabajo (preview simple) ----------
