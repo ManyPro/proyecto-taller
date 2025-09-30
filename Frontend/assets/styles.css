@@ -30,6 +30,10 @@
   --highlight-bg:rgba(37,99,235,.12); /* para filas o capsulas seleccionadas */
   --added-row-bg:rgba(56,189,248,.10); /* items ya agregados desde cotización */
   --added-row-border:rgba(56,189,248,.25);
+  --sales-tab-border-active:#2563eb;
+  --avatar-bg:#1e293b;
+  --plate-chip-bg:#1e293b;
+  --plate-chip-text:#ffffff;
 }
 
 /* Tema claro: se aplica añadiendo body.theme-light */
@@ -64,6 +68,10 @@ body.theme-light{
   --highlight-bg:rgba(37,99,235,.13);
   --added-row-bg:rgba(56,189,248,.18);
   --added-row-border:rgba(2,132,199,.45);
+  --sales-tab-border-active:#2563eb;
+  --avatar-bg:#d8e2ec;
+  --plate-chip-bg:#1e293b; /* fondo oscuro para placa en claro */
+  --plate-chip-text:#ffffff;
 }
 
 /* ===== Base ===== */
@@ -132,10 +140,9 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 
 /* ===== Tabs de la app ===== */
 .tabs{ display:flex; gap:6px; margin-bottom:12px; }
-.tabs button{ background:var(--tab-bg); border:1px solid var(--tab-border); color:var(--tab-text); }
-.tabs button.active{ background:var(--tab-bg-active); color:var(--tab-text-active); border-color:var(--tab-bg-active); box-shadow:0 0 0 1px rgba(0,0,0,.12),0 0 0 3px rgba(255,255,255,.05) inset; }
+.tabs button{ background:var(--tab-bg); border:1px solid var(--tab-border); color:var(--tab-text); transition:background .18s ease, color .18s ease, border-color .18s ease; }
+.tabs button.active{ background:var(--tab-bg-active); color:var(--tab-text-active); border-color:var(--tab-bg-active); box-shadow:0 0 0 1px rgba(0,0,0,.18),0 0 0 3px rgba(255,255,255,.04) inset; }
 .tabs button:not(.active):hover{ background:var(--highlight-bg); }
-.tabs button.active{ background:var(--accent); }
 
 /* ===== Secciones (show/hide) ===== */
 .tab{ display:none; }
@@ -232,7 +239,8 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 @media (max-width:900px){ .q-grid-2cols{ grid-template-columns:1fr; } }
 .tr.q-row-card, .q-row-card{
   display:flex !important; flex-direction:column !important; gap:8px; padding:12px;
-  border:1px solid #1f2937; border-radius:10px; background:#0b1220;
+  border:1px solid var(--border); border-radius:10px; background:var(--card-alt);
+  transition:background .25s ease,border-color .25s ease;
 }
 .q-row-card>div{ width:100%; }
 .q-row-card .small input{ text-align:right; }
@@ -264,18 +272,24 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 .ventas-left .table-wrap.small table.table th,
 .ventas-left .table-wrap.small table.table td{ font-size:12px; padding:6px; }
 
-.sales-tab{ padding:6px 10px; border-radius:14px; background:var(--sales-tab-bg); cursor:pointer; color:var(--sales-tab-text); border:1px solid transparent; transition:background .2s ease,color .2s ease,border-color .2s ease; }
+/* Pestañas de ventas (cada venta abierta) */
+.sales-tab{ padding:6px 12px; border-radius:14px; background:var(--sales-tab-bg); cursor:pointer; color:var(--sales-tab-text); border:1px solid var(--tab-border); font-size:12.5px; letter-spacing:.3px; font-weight:500; display:inline-flex; align-items:center; gap:4px; transition:background .22s ease,color .22s ease,border-color .22s ease, box-shadow .22s ease; }
 .sales-tab:hover{ background:var(--highlight-bg); }
-.sales-tab.active{ background:var(--sales-tab-bg-active); font-weight:600; color:var(--sales-tab-text-active); border-color:var(--border); }
+.sales-tab.active{
+  background:var(--sales-tab-bg-active);
+  color:var(--text);
+  border-color:var(--sales-tab-border-active);
+  box-shadow:0 0 0 1px var(--sales-tab-border-active), 0 2px 5px -2px rgba(0,0,0,.4);
+  font-weight:600;
+}
 
 /* Filas marcadas como agregadas desde cotización → venta */
 #sv-q-body tr.added{ background:var(--added-row-bg); border-left:4px solid var(--added-row-border); }
-#sv-q-body tr.added td{ opacity:.95; }
-.sales-tab.active{ background:#1b2640; font-weight:600; }
+#sv-q-body tr.added td{ opacity:.97; }
 .sales-tab .close{ margin-left:6px; opacity:.8; cursor:pointer; }
 
-.avatar{ width:42px; height:42px; border-radius:50%; background:#1b2640; }
-.plate.chip{ display:inline-block; background:#152033; padding:4px 10px; border-radius:999px; color:#fff; font-weight:600; }
+.avatar{ width:42px; height:42px; border-radius:50%; background:var(--avatar-bg); display:inline-flex; align-items:center; justify-content:center; color:var(--text); font-weight:600; font-size:14px; }
+.plate.chip{ display:inline-block; background:var(--plate-chip-bg); padding:4px 12px; border-radius:999px; color:var(--plate-chip-text); font-weight:700; letter-spacing:.5px; box-shadow:0 0 0 1px rgba(255,255,255,.05),0 2px 4px rgba(0,0,0,.25); }
 .cols-2{ display:grid; grid-template-columns:1fr 1fr; }
 .cols-2 .col>input{ width:100%; }
 .t-center{ text-align:center; }
