@@ -11,6 +11,37 @@ import { initSales } from "./sales.js";
 
 let modulesReady = false;
 
+// ========== THEME (oscuro / claro) ==========
+const THEME_KEY = 'app:theme';
+function applyTheme(theme){
+  const body = document.body;
+  if(!body) return;
+  if(theme === 'light') body.classList.add('theme-light'); else body.classList.remove('theme-light');
+  try{ localStorage.setItem(THEME_KEY, theme); }catch{}
+  const btn = document.getElementById('themeToggle');
+  if(btn) btn.textContent = theme === 'light' ? '🌙' : '🌗';
+  if(btn) btn.title = theme === 'light' ? 'Cambiar a oscuro' : 'Cambiar a claro';
+}
+function detectInitialTheme(){
+  try{
+    const stored = localStorage.getItem(THEME_KEY);
+    if(stored === 'light' || stored === 'dark') return stored;
+  }catch{}
+  // Preferencia del sistema
+  try{
+    const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+    return prefersLight ? 'light' : 'dark';
+  }catch{}
+  return 'dark';
+}
+document.addEventListener('DOMContentLoaded', ()=>{
+  applyTheme(detectInitialTheme());
+  document.getElementById('themeToggle')?.addEventListener('click', ()=>{
+    const isLight = document.body.classList.contains('theme-light');
+    applyTheme(isLight ? 'dark' : 'light');
+  });
+});
+
 // Tabs simples
 const tabsNav = document.querySelector('.tabs');
 const sectionLogin = document.getElementById('loginSection');

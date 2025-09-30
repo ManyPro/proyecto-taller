@@ -85,5 +85,24 @@ El controlador actual ignora silenciosamente ítems inválidos. Próxima mejora 
 - Filtro adicional por rango de fechas en el modal de cotizaciones.
 - Botón para volver a cargar (refresh) la cotización ya mostrada y detectar cambios.
 
+## Tema Claro / Oscuro
+
+Se agregó soporte de tema claro sin perder los contrastes del diseño original oscuro.
+
+### Cómo funciona
+- Todas las superficies y colores dependen de variables CSS en `:root` (`--bg`, `--card`, `--text`, etc.).
+- El tema claro se activa añadiendo la clase `theme-light` al `<body>`.
+- El botón con id `themeToggle` en el header cambia entre modos y guarda la preferencia en `localStorage` (`app:theme`).
+- Si no hay preferencia guardada, se detecta `prefers-color-scheme` del sistema.
+
+### Variables clave añadidas
+`--card-alt`, `--border`, `--input-bg`, `--scroll-track`, `--scroll-thumb`, `--focus-ring`, `--table-head`, `--badge-bg`, además de `--text-invert` para botones/accentos.
+
+### Extender componentes
+Usa variables existentes en lugar de colores fijos. Si necesitas un nuevo color, define primero la variable en `:root` y opcionalmente override en `body.theme-light`.
+
+### Accesibilidad
+El contraste para texto principal en claro/dark se mantiene ≥ WCAG AA sobre sus superficies (`--text` sobre `--bg` / `--card`). Evita insertar colores duros manuales en nuevos componentes.
+
 ---
 Última actualización de esta sección: (cotización→venta + batch + paginación) 
