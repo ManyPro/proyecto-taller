@@ -37,6 +37,13 @@
   --inv-badge-bg:#065f46;        /* verde sutil oscuro */
   --inv-badge-text:#ecfdf5;
   --inv-badge-border:#10b98133;
+  /* Badges adicionales (precio lista / servicio) */
+  --price-badge-bg:#1d4ed8;      /* azul */
+  --price-badge-text:#ffffff;
+  --price-badge-border:#3b82f633;
+  --service-badge-bg:#92400e;    /* ámbar oscuro */
+  --service-badge-text:#fff7ed;
+  --service-badge-border:#f59e0b33;
 }
 
 /* Tema claro: se aplica añadiendo body.theme-light */
@@ -78,6 +85,12 @@ body.theme-light{
   --inv-badge-bg:#047857;        /* verde para modo claro */
   --inv-badge-text:#ecfdf5;
   --inv-badge-border:#05966966;
+  --price-badge-bg:#1d4ed8;
+  --price-badge-text:#ffffff;
+  --price-badge-border:#2563eb55;
+  --service-badge-bg:#b45309;
+  --service-badge-text:#fff7ed;
+  --service-badge-border:#f59e0b55;
 }
 
 /* ===== Base ===== */
@@ -334,3 +347,12 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 }
 .sale-row-inventory td{ position:relative; }
 .sale-row-inventory td:first-child{ box-shadow:inset 3px 0 0 0 var(--inv-badge-bg); }
+/* Price list rows */
+.sale-row-price td:first-child{ box-shadow:inset 3px 0 0 0 var(--price-badge-bg); }
+/* Service rows */
+.sale-row-service td:first-child{ box-shadow:inset 3px 0 0 0 var(--service-badge-bg); }
+
+/* Badges de origen adicionales */
+.price-badge, .service-badge{ display:inline-block; font-size:10px; letter-spacing:.5px; font-weight:600; padding:2px 6px; border-radius:6px; vertical-align:middle; line-height:1.1; margin-right:4px; }
+.price-badge{ background:var(--price-badge-bg); color:var(--price-badge-text); border:1px solid var(--price-badge-border); }
+.service-badge{ background:var(--service-badge-bg); color:var(--service-badge-text); border:1px solid var(--service-badge-border); }
