@@ -9,3 +9,5 @@
 - `MONGODB_URI` (cadena Atlas/local)
 - `JWT_SECRET` (requerido)
 - `ALLOWED_ORIGINS` (CSV de orígenes para CORS, usa * en dev)
+
+<!-- Se eliminaron instrucciones de importación legacy y CSV en preparación para un nuevo flujo de migración -->
