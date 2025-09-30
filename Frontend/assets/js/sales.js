@@ -629,18 +629,17 @@ function renderQuoteMini(q){
         syncCurrentIntoOpenList();
         renderTabs();
       }
-      current = await API.sales.addItem(current._id, {
-        source: (it.source||'service')==='product' ? 'inventory' : 'service',
-        sku: it.sku||'',
-        name: it.description||it.name||'Servicio',
-        qty, unitPrice: unit
-      });
-      syncCurrentIntoOpenList();
+      try {
+        const payload = mapQuoteItemToSale(it);
+        current = await API.sales.addItem(current._id, payload);
+        syncCurrentIntoOpenList();
         renderTabs();
-      renderSale(); renderWO();
-      // Marcar visualmente como agregado
-      tr.classList.add('added');
-      const btn = tr.querySelector('button.add'); if (btn){ btn.disabled = true; btn.textContent = '✔'; }
+        renderSale(); renderWO();
+        tr.classList.add('added');
+        const btn = tr.querySelector('button.add'); if (btn){ btn.disabled = true; btn.textContent = '✔'; }
+      } catch(e){
+        alert(e?.message||'No se pudo agregar el item');
+      }
     };
     body.appendChild(tr);
   });
