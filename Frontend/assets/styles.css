@@ -17,6 +17,19 @@
   --shadow-elev:0 10px 35px rgba(0,0,0,.45);
   --table-head:#0b1220;
   --badge-bg:rgba(0,0,0,.66);
+  --header-bg:linear-gradient(90deg,#0f172a,#152033); /* barra superior */
+  --tab-bg:var(--card-alt);
+  --tab-border:var(--border);
+  --tab-bg-active:var(--accent);
+  --tab-text:#ffffff;
+  --tab-text-active:#ffffff;
+  --sales-tab-bg:var(--card-alt);
+  --sales-tab-bg-active:#1e293b;
+  --sales-tab-text:var(--text);
+  --sales-tab-text-active:#1e293b;
+  --highlight-bg:rgba(37,99,235,.12); /* para filas o capsulas seleccionadas */
+  --added-row-bg:rgba(56,189,248,.10); /* items ya agregados desde cotización */
+  --added-row-border:rgba(56,189,248,.25);
 }
 
 /* Tema claro: se aplica añadiendo body.theme-light */
@@ -38,6 +51,19 @@ body.theme-light{
   --table-head:#f1f5f9;
   --badge-bg:#2563eb;
   --shadow-elev:0 6px 20px rgba(0,0,0,.15);
+  --header-bg:linear-gradient(90deg,#ffffff,#f1f5f9);
+  --tab-bg:#f1f5f9;
+  --tab-border:#d9e0e9;
+  --tab-bg-active:#2563eb;
+  --tab-text:#334155;
+  --tab-text-active:#ffffff;
+  --sales-tab-bg:#f1f5f9;
+  --sales-tab-bg-active:#dbe4ee;
+  --sales-tab-text:#334155;
+  --sales-tab-text-active:#1e293b;
+  --highlight-bg:rgba(37,99,235,.13);
+  --added-row-bg:rgba(56,189,248,.18);
+  --added-row-border:rgba(2,132,199,.45);
 }
 
 /* ===== Base ===== */
@@ -55,6 +81,8 @@ body{
 header{
   display:flex; justify-content:space-between; align-items:center;
   padding:16px 24px; border-bottom:1px solid var(--border);
+  background:var(--header-bg);
+  backdrop-filter:blur(4px);
 }
 h1{ margin:0; font-size:20px; }
 main{ padding:16px; max-width:1100px; margin:0 auto; }
@@ -104,7 +132,9 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 
 /* ===== Tabs de la app ===== */
 .tabs{ display:flex; gap:6px; margin-bottom:12px; }
-.tabs button{ background:var(--card-alt); border:1px solid var(--border); }
+.tabs button{ background:var(--tab-bg); border:1px solid var(--tab-border); color:var(--tab-text); }
+.tabs button.active{ background:var(--tab-bg-active); color:var(--tab-text-active); border-color:var(--tab-bg-active); box-shadow:0 0 0 1px rgba(0,0,0,.12),0 0 0 3px rgba(255,255,255,.05) inset; }
+.tabs button:not(.active):hover{ background:var(--highlight-bg); }
 .tabs button.active{ background:var(--accent); }
 
 /* ===== Secciones (show/hide) ===== */
@@ -234,7 +264,13 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 .ventas-left .table-wrap.small table.table th,
 .ventas-left .table-wrap.small table.table td{ font-size:12px; padding:6px; }
 
-.sales-tab{ padding:6px 10px; border-radius:14px; background:#0b1220; cursor:pointer; }
+.sales-tab{ padding:6px 10px; border-radius:14px; background:var(--sales-tab-bg); cursor:pointer; color:var(--sales-tab-text); border:1px solid transparent; transition:background .2s ease,color .2s ease,border-color .2s ease; }
+.sales-tab:hover{ background:var(--highlight-bg); }
+.sales-tab.active{ background:var(--sales-tab-bg-active); font-weight:600; color:var(--sales-tab-text-active); border-color:var(--border); }
+
+/* Filas marcadas como agregadas desde cotización → venta */
+#sv-q-body tr.added{ background:var(--added-row-bg); border-left:4px solid var(--added-row-border); }
+#sv-q-body tr.added td{ opacity:.95; }
 .sales-tab.active{ background:#1b2640; font-weight:600; }
 .sales-tab .close{ margin-left:6px; opacity:.8; cursor:pointer; }
 
