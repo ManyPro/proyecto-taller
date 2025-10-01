@@ -70,7 +70,8 @@ function printSaleTicket(sale){
 let es = null;         // EventSource (SSE)
 let current = null;    // venta actual
 let openSales = [];    // ventas abiertas (draft) compartidas
-const TECHNICIANS_CASA_DUSTER = ['DAVID','VALENTIN','SEDIEL','GIOVANNY','SANDRA'];
+// Lista dinámica de técnicos por empresa, cargada desde backend
+let companyTechnicians = [];
 let technicianSelectInitialized = false;
 let starting = false;  // evita doble clic en "Nueva venta"
 let salesRefreshTimer = null;
@@ -150,7 +151,6 @@ function startSalesAutoRefresh() {
 }
 
 // ===== Modal Cerrar Venta =====
-let companyTechnicians = [];
 let companyPrefs = { laborPercents: [] };
 async function ensureCompanyData(){
   try { companyTechnicians = await API.company.getTechnicians(); } catch { companyTechnicians = []; }
@@ -355,15 +355,18 @@ function renderCapsules(){
   setupTechnicianSelect();
 }
 
-function setupTechnicianSelect(){
+async function setupTechnicianSelect(){
   const sel = document.getElementById('sales-technician');
   if(!sel) return;
-  // TODO: si hay lógica de company específica; por ahora activamos siempre
+  // Cargar lista dinámica si aún no cargada
+  if(!companyTechnicians.length){
+    try { companyTechnicians = await API.company.getTechnicians(); } catch { companyTechnicians = []; }
+  }
   sel.innerHTML='';
   sel.appendChild(new Option('— Técnico —',''));
-  TECHNICIANS_CASA_DUSTER.forEach(t=> sel.appendChild(new Option(t,t)));
+  (companyTechnicians||[]).forEach(t=> sel.appendChild(new Option(t,t)));
   sel.classList.remove('hidden');
-  if(current){ sel.value = current.technician || ''; }
+  if(current){ sel.value = current.technician || current.initialTechnician || ''; }
   if(!technicianSelectInitialized){
     sel.addEventListener('change', async ()=>{
       if(!current?._id) return;
@@ -373,6 +376,22 @@ function setupTechnicianSelect(){
         renderCapsules();
       }catch(e){ alert(e?.message||'No se pudo asignar técnico'); }
     });
+    // Botón agregar técnico externo
+    const addBtn = document.getElementById('sales-add-tech');
+    if(addBtn){
+      addBtn.addEventListener('click', async ()=>{
+        const name = prompt('Nombre del técnico (se guardará en mayúsculas):');
+        if(!name) return;
+        try{
+          companyTechnicians = await API.company.addTechnician(name);
+          await setupTechnicianSelect(); // repoblar
+          // También refrescar lista del modal si está abierto
+          if(document.getElementById('cv-technician')){
+            try { ensureCompanyData().then(()=> fillCloseModal()); } catch {}
+          }
+        }catch(e){ alert(e?.message||'No se pudo agregar'); }
+      });
+    }
     technicianSelectInitialized = true;
   }
 }

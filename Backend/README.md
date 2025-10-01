@@ -175,9 +175,9 @@ Reglas:
 - Se guarda en mayúsculas (`DAVID`, `VALENTIN`, etc.).
 - No afecta el cierre ni el cómputo de totales.
 
-Frontend: barra superior de Ventas muestra “cápsulas” para cada venta abierta con placa, técnico y total. Un selector permite cambiar el técnico (lista fija configurable en el front por empresa).
+Frontend: barra superior de Ventas muestra “cápsulas” para cada venta abierta con placa, técnico y total. Un selector permite cambiar el técnico. La lista ya NO está hardcodeada: se carga dinámicamente de `Company.technicians` y puede ampliarse con el botón “+ Téc” (tanto en la barra como en el modal de cierre). 
 
-Técnicos sugeridos (ejemplo Casa DUSTER): `DAVID, VALENTIN, SEDIEL, GIOVANNY, SANDRA`.
+Ejemplo de flujo: usuario pulsa “+ Téc”, ingresa nombre → se persiste vía `POST /api/v1/company/technicians` y ambos selects (externo y modal de cierre) se repueblan.
 
 ## Cierre de ventas: pago y mano de obra
 
