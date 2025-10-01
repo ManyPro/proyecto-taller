@@ -179,3 +179,36 @@ Frontend: barra superior de Ventas muestra “cápsulas” para cada venta abier
 
 Técnicos sugeridos (ejemplo Casa DUSTER): `DAVID, VALENTIN, SEDIEL, GIOVANNY, SANDRA`.
 
+
+### Envío real de correos (SMTP)
+
+Para enviar el email de recuperación configura estas variables en `.env` del backend:
+
+```
+SMTP_HOST=smtp.tu-proveedor.com
+SMTP_PORT=587            # 465 si usas SSL directo
+SMTP_USER=usuario@dominio.com
+SMTP_PASS=contraseña_o_api_key
+MAIL_FROM="Taller App <no-reply@dominio.com>"   # opcional, usa SMTP_USER si no se define
+FRONTEND_BASE_URL=https://tu-frontend.com        # base para construir el enlace reset
+```
+
+Si faltan las variables SMTP el sistema no falla: registra en consola un mensaje
+`[mailer] Falta configuración SMTP` y simula el envío (`[mailer:DEV]`).
+
+El correo generado incluye:
+- Texto: instrucciones y enlace válido 30 minutos.
+- HTML: link clickeable.
+
+Buenas prácticas:
+1. Añade un rate limit (por IP y por email) a `/api/v1/auth/company/password/forgot`.
+2. Configura SPF/DKIM en tu dominio para evitar spam.
+3. Considera un servicio transaccional (SendGrid / Resend / SES) si tu SMTP es inestable.
+4. No cambies la respuesta JSON genérica para no revelar si un correo existe.
+
+Prueba sin SMTP (dev):
+1. No definas las variables.
+2. Haz la solicitud.
+3. Observa en la respuesta `debugToken` y en consola el log simulado.
+4. Usa la `resetUrl` para completar el flujo.
+

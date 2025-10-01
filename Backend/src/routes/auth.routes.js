@@ -2,6 +2,7 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { sendMail } from '../lib/mailer.js';
 import Company from '../models/Company.js';
 import { authCompany } from '../middlewares/auth.js';
 
@@ -107,10 +108,16 @@ router.post('/password/forgot', async (req, res) => {
     const base = process.env.FRONTEND_BASE_URL || req.headers.origin || '';
     const resetUrl = base ? `${base.replace(/\/$/, '')}/reset.html?token=${rawToken}&email=${encodeURIComponent(email)}` : rawToken;
 
-    // Placeholder 'envío'
-    if (process.env.NODE_ENV === 'production') {
-      // Aquí podrías integrar un servicio real de email.
-      // mailer.send(email, 'Reset de contraseña', `Visita: ${resetUrl}`)
+    // Enviar correo (si SMTP configurado) siempre que tengamos resetUrl
+    try {
+      await sendMail({
+        to: email,
+        subject: 'Recuperación de contraseña',
+        text: `Solicitaste un reseteo de contraseña. Si no fuiste tú, ignora este correo.\n\nEnlace (válido 30 min): ${resetUrl}`,
+        html: `<p>Solicitaste un reseteo de contraseña (válido 30 min).</p><p><a href="${resetUrl}">Haz clic aquí para resetear</a></p><p>Si no fuiste tú, ignora este correo.</p>`
+      });
+    } catch (mailErr) {
+      console.warn('[auth.routes] Error enviando email de reset:', mailErr.message);
     }
 
     return res.json({ ok: true, ...(process.env.NODE_ENV !== 'production' ? { debugToken: rawToken, resetUrl } : {}) });
