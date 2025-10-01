@@ -10,29 +10,31 @@
 import { API } from './assets/js/api.js';
 const form = document.getElementById('forgot-form');
 const emailInput = document.getElementById('forgot-email');
+const nameInput = document.getElementById('company-name');
+const passInput = document.getElementById('new-password');
 const msg = document.getElementById('forgot-msg');
 form.addEventListener('submit', async (e)=>{
   e.preventDefault();
   msg.classList.remove('error');
-  msg.textContent='Enviando…';
-  try{
+  msg.textContent='Procesando…';
+  try {
     const email = emailInput.value.trim();
-  // Si por alguna razón no se cargó config.js, intenta usar BACKEND_URL como fallback
-  const apiBase = (API.base || window.API_BASE || window.BACKEND_URL || '');
-  const res = await fetch(apiBase + '/api/v1/auth/company/password/forgot', {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email })
+    const companyName = nameInput.value.trim();
+    const newPassword = passInput.value.trim();
+    if(newPassword.length < 6) throw new Error('La nueva contraseña debe tener al menos 6 caracteres');
+    const apiBase = (API.base || window.API_BASE || window.BACKEND_URL || '');
+    const res = await fetch(apiBase + '/api/v1/auth/company/password/reset-local', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email, companyName, newPassword })
     });
     const text = await res.text();
-    let data = {};
-    try{ data = text ? JSON.parse(text) : {}; }catch{ throw new Error('Respuesta inválida del servidor'); }
-    if(!res.ok){ throw new Error(data.error || 'Error en solicitud'); }
-    msg.textContent = 'Si el correo existe recibirás un enlace. Revisa spam. (En desarrollo mira la consola para token).';
-    if(data.debugToken){
-      console.log('[DEBUG reset token]', data.debugToken, data.resetUrl);
-      const dev = document.getElementById('dev-link');
-      if(dev && data.resetUrl){ dev.innerHTML = `<a href="${data.resetUrl}">Ir al enlace de reset (DEV)</a>`; }
-    }
-  }catch(err){
+    let data={};
+    try { data = text ? JSON.parse(text) : {}; } catch { throw new Error('Respuesta inválida del servidor'); }
+    if(!res.ok) throw new Error(data.error || 'Error en solicitud');
+    msg.textContent = 'Contraseña actualizada. Ahora puedes volver e iniciar sesión.';
+    passInput.value='';
+  } catch(err){
     msg.classList.add('error');
     msg.textContent = err.message || 'Error inesperado';
   }
@@ -54,10 +56,14 @@ form button{width:100%; margin-top:14px;}
     <form id="forgot-form">
       <label>Correo de la cuenta</label>
       <input id="forgot-email" type="email" required />
-      <button>Solicitar enlace</button>
+      <label>Nombre exacto de la empresa</label>
+      <input id="company-name" type="text" placeholder="Como fue registrado" required />
+      <label>Nueva contraseña</label>
+      <input id="new-password" type="password" required minlength="6" />
+      <button>Cambiar contraseña</button>
     </form>
     <p id="forgot-msg" class="muted" style="margin-top:12px;"></p>
-    <div id="dev-link" style="margin-top:12px;font-size:12px;"></div>
+  <!-- Flujo local: ya no se usa token ni enlace -->
     <p class="back-link"><a href="index.html">← Volver</a></p>
   </div>
 </body>

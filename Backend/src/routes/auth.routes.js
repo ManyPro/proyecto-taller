@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import crypto from 'crypto';
-import { sendMail } from '../lib/mailer.js';
+// Eliminado flujo de email/token para modo local
+import crypto from 'crypto'; // (podría eliminarse si ya no se usan tokens)
 import Company from '../models/Company.js';
 import { authCompany } from '../middlewares/auth.js';
 
@@ -84,72 +84,41 @@ router.get('/me', authCompany, async (req, res) => {
   res.json({ company: { id: company._id, name: company.name, email: company.email } });
 });
 
-/**
- * POST /api/v1/auth/company/password/forgot
- * body: { email }
- * Genera un token temporal y (placeholder) lo "envía" (se devuelve en respuesta si NODE_ENV !== 'production')
- */
+// Modo local: endpoint placeholder que siempre responde ok (no envía nada)
 router.post('/password/forgot', async (req, res) => {
-  try {
-    const email = String(req.body?.email || '').toLowerCase().trim();
-    if (!email) return res.status(400).json({ error: 'email requerido' });
-    const company = await Company.findOne({ email });
-    if (!company) {
-      // Para no filtrar existencia: responder ok igual
-      return res.json({ ok: true });
-    }
-    const rawToken = crypto.randomBytes(32).toString('hex');
-    const hash = await bcrypt.hash(rawToken, 10);
-    company.passwordResetTokenHash = hash;
-    company.passwordResetExpires = new Date(Date.now() + 1000 * 60 * 30); // 30 min
-    await company.save();
-
-    // URL destino (frontend): usar FRONTEND_BASE o derivar de header/origin
-    const base = process.env.FRONTEND_BASE_URL || req.headers.origin || '';
-    const resetUrl = base ? `${base.replace(/\/$/, '')}/reset.html?token=${rawToken}&email=${encodeURIComponent(email)}` : rawToken;
-
-    // Enviar correo (si SMTP configurado) siempre que tengamos resetUrl
-    try {
-      await sendMail({
-        to: email,
-        subject: 'Recuperación de contraseña',
-        text: `Solicitaste un reseteo de contraseña. Si no fuiste tú, ignora este correo.\n\nEnlace (válido 30 min): ${resetUrl}`,
-        html: `<p>Solicitaste un reseteo de contraseña (válido 30 min).</p><p><a href="${resetUrl}">Haz clic aquí para resetear</a></p><p>Si no fuiste tú, ignora este correo.</p>`
-      });
-    } catch (mailErr) {
-      console.warn('[auth.routes] Error enviando email de reset:', mailErr.message);
-    }
-
-    return res.json({ ok: true, ...(process.env.NODE_ENV !== 'production' ? { debugToken: rawToken, resetUrl } : {}) });
-  } catch (e) {
-    return res.status(500).json({ error: 'Error generando token' });
-  }
+  const email = String(req.body?.email || '').toLowerCase().trim();
+  if (!email) return res.status(400).json({ error: 'email requerido' });
+  // Respuesta genérica (sin token ni email real)
+  return res.json({ ok: true, local: true });
 });
 
 /**
  * POST /api/v1/auth/company/password/reset
  * body: { email, token, password }
  */
-router.post('/password/reset', async (req, res) => {
+// Nuevo flujo local: reset directo validando nombre de empresa
+// POST /password/reset-local  body: { email, companyName, newPassword }
+router.post('/password/reset-local', async (req, res) => {
   try {
     const email = String(req.body?.email || '').toLowerCase().trim();
-    const token = String(req.body?.token || '');
-    const password = String(req.body?.password || '');
-    if (!email || !token || !password) return res.status(400).json({ error: 'email, token y password son requeridos' });
+    const companyName = String(req.body?.companyName || '').trim().toUpperCase();
+    const newPassword = String(req.body?.newPassword || '');
+    if (!email || !companyName || !newPassword) {
+      return res.status(400).json({ error: 'email, companyName y newPassword requeridos' });
+    }
     const company = await Company.findOne({ email });
-    if (!company || !company.passwordResetTokenHash || !company.passwordResetExpires) return res.status(400).json({ error: 'Token inválido' });
-    if (company.passwordResetExpires.getTime() < Date.now()) return res.status(400).json({ error: 'Token expirado' });
-    const ok = await bcrypt.compare(token, company.passwordResetTokenHash);
-    if (!ok) return res.status(400).json({ error: 'Token inválido' });
-
-    company.passwordHash = await bcrypt.hash(password, 10);
+    if (!company) return res.status(400).json({ error: 'Datos inválidos' });
+    if (String(company.name || '').toUpperCase() !== companyName) {
+      return res.status(400).json({ error: 'Nombre de empresa no coincide' });
+    }
+    company.passwordHash = await bcrypt.hash(newPassword, 10);
+    // Limpiar posibles campos legacy de reset
     company.passwordResetTokenHash = '';
     company.passwordResetExpires = null;
     await company.save();
-
     return res.json({ ok: true });
   } catch (e) {
-    return res.status(500).json({ error: 'Error reseteando password' });
+    return res.status(500).json({ error: 'Error en reset local' });
   }
 });
 
