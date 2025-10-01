@@ -62,9 +62,8 @@ export function initQuotes({ getCompanyEmail }) {
   const rowsBox = $('#q-rows');
   const rowTemplate = $('#q-row-template');
   const btnAddRow = $('#q-addRow');
-  // Botones adicionales (se crean dinámicamente)
-  let btnAddFromInv = null;
-  let btnAddFromPrice = null;
+  // Botón adicional QR
+  const btnAddQR = document.getElementById('q-addQR');
   const lblSubtotalProducts = $('#q-subtotal-products');
   const lblSubtotalServices = $('#q-subtotal-services');
   const lblTotal = $('#q-total');
@@ -878,21 +877,8 @@ export function initQuotes({ getCompanyEmail }) {
   // ===== UI Bindings =====
   function bindUI(){
     btnAddRow?.addEventListener('click',()=>{ addRow(); recalcAll(); });
-    // Crear botones de selección desde inventario y lista de precios (solo una vez)
-    if(btnAddRow && !btnAddRow.dataset.enhanced){
-      btnAddRow.dataset.enhanced='1';
-      btnAddFromInv = document.createElement('button');
-      btnAddFromInv.type='button'; btnAddFromInv.className='secondary'; btnAddFromInv.textContent='Desde inventario';
-      btnAddFromPrice = document.createElement('button');
-      btnAddFromPrice.type='button'; btnAddFromPrice.className='secondary'; btnAddFromPrice.textContent='Desde lista de precios';
-      const container = btnAddRow.parentElement || rowsBox.parentElement;
-      if(container){
-        container.appendChild(btnAddFromInv);
-        container.appendChild(btnAddFromPrice);
-      }
-      btnAddFromInv.addEventListener('click', openPickerInventoryForQuote);
-      btnAddFromPrice.addEventListener('click', openPickerPricesForQuote);
-    }
+    // QR
+    btnAddQR?.addEventListener('click', openQRModalForQuote);
     iSaveDraft?.addEventListener('click',saveDraft);
     btnWA?.addEventListener('click',openWhatsApp);
     btnPDF?.addEventListener('click',()=>{ exportPDF().catch(err=>alert(err?.message||err)); });
@@ -921,6 +907,7 @@ export function initQuotes({ getCompanyEmail }) {
 
   // ====== Pickers para agregar ítems con metadata ======
   async function openPickerInventoryForQuote(){
+    // (deprecated) ya no expuesto en UI
     const node=document.createElement('div'); node.className='card';
     node.innerHTML=`<h3>Inventario</h3>
       <div class="row">
@@ -961,6 +948,7 @@ export function initQuotes({ getCompanyEmail }) {
   }
 
   async function openPickerPricesForQuote(){
+    // (deprecated) ya no expuesto en UI
     const node=document.createElement('div'); node.className='card';
     node.innerHTML=`<h3>Lista de precios</h3>
       <div class="row">
@@ -999,6 +987,47 @@ export function initQuotes({ getCompanyEmail }) {
       }catch(e){ body.innerHTML=`<tr><td colspan="6">Error: ${e.message}</td></tr>`; }
     }
     node.querySelector('#qp-search').onclick=load; load();
+  }
+
+  // ===== Agregar por QR (simple: ingresar código -> tratar como SKU inventario) =====
+  function openQRModalForQuote(){
+    const node=document.createElement('div'); node.className='card';
+    node.innerHTML=`<h3>Agregar por QR</h3>
+      <p>Escanea el código QR y pega el texto o ingrésalo manualmente.</p>
+      <input id="qr-code" placeholder="Código / SKU" style="width:100%;margin-bottom:8px;" />
+      <div class="row">
+        <input id="qr-qty" type="number" min="1" step="1" value="1" style="max-width:120px;" />
+        <button id="qr-add" class="secondary">Agregar</button>
+        <button id="qr-close" class="secondary">Cerrar</button>
+      </div>
+      <div id="qr-status" class="meta"></div>`;
+    openModal(node);
+    const inp=node.querySelector('#qr-code');
+    const qty=node.querySelector('#qr-qty');
+    const status=node.querySelector('#qr-status');
+    node.querySelector('#qr-close').onclick=()=>closeModal();
+    async function add(){
+      const code=(inp.value||'').trim(); if(!code){ inp.focus(); return; }
+      status.textContent='Buscando...';
+      try{
+        // Reutilizamos API.inventory.itemsList filtrando por sku exacto (limit 1)
+        const items=await API.inventory.itemsList({ sku:code, limit:1 });
+        const it=items[0];
+        if(!it){ status.textContent='No encontrado en inventario.'; return; }
+        const row=cloneRow();
+        row.querySelector('select').value='PRODUCTO';
+        row.querySelectorAll('input')[0].value=it.name||it.sku||code;
+        row.querySelectorAll('input')[1].value=Number(qty.value||1);
+        row.querySelectorAll('input')[2].value=Math.round(it.salePrice||0);
+        row.dataset.source='inventory'; if(it._id) row.dataset.refId=it._id; if(it.sku) row.dataset.sku=it.sku;
+        updateRowSubtotal(row); rowsBox.appendChild(row); recalcAll(); saveDraft();
+        status.textContent='Agregado.';
+        inp.value=''; qty.value='1'; inp.focus();
+      }catch(e){ status.textContent='Error: '+(e?.message||e); }
+    }
+    node.querySelector('#qr-add').onclick=add;
+    inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); add(); }});
+    setTimeout(()=>inp.focus(),50);
   }
 
   // ===== Altura panel derecho =====
