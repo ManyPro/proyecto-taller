@@ -178,6 +178,8 @@ function renderCapsules(){
     if(!node) continue;
     node.dataset.id = sale._id;
     node.querySelector('.sc-plate').textContent = (sale.vehicle?.plate||'—');
+  const vehParts = [sale.vehicle?.brand, sale.vehicle?.line, sale.vehicle?.engine].filter(Boolean).map(v=>String(v).toUpperCase());
+  node.querySelector('[data-veh]').textContent = vehParts.join(' ') || '—';
     node.querySelector('[data-total]').textContent = money(sale.total||0);
     node.querySelector('[data-tech]').textContent = sale.technician || '—';
     if(current && sale._id===current._id) node.classList.add('active');
@@ -830,6 +832,12 @@ function openEditCV(){
     plateInput.addEventListener('input', (ev)=>{
       const upper = ev.target.value.toUpperCase();
       if (ev.target.value !== upper) ev.target.value = upper;
+      if(current){
+        current.vehicle = current.vehicle||{};
+        current.vehicle.plate = upper;
+        syncCurrentIntoOpenList();
+        renderCapsules();
+      }
     });
     plateInput.addEventListener('change', ()=> loadProfile(true));
     plateInput.addEventListener('keydown', (ev)=>{
@@ -847,6 +855,20 @@ function openEditCV(){
   if (plateInput && plateInput.value && !c.name && !c.phone && !v.brand && !v.line && !v.engine) {
     loadProfile(true);
   }
+
+  // Live update brand/line/engine in capsule
+  ['#v-brand','#v-line','#v-engine'].forEach(sel=>{
+    const input=$(sel,node); if(!input) return;
+    input.addEventListener('input', ()=>{
+      if(!current) return;
+      current.vehicle = current.vehicle||{};
+      current.vehicle.brand = $('#v-brand',node).value.trim().toUpperCase();
+      current.vehicle.line = $('#v-line',node).value.trim().toUpperCase();
+      current.vehicle.engine = $('#v-engine',node).value.trim().toUpperCase();
+      syncCurrentIntoOpenList();
+      renderCapsules();
+    });
+  });
 
   node.querySelector('#sales-save-cv').onclick = async ()=>{
     const payload = {
@@ -867,10 +889,12 @@ function openEditCV(){
       }
     };
     try{
-      current = await API.sales.setCustomerVehicle(current._id, payload);
+      await API.sales.setCustomerVehicle(current._id, payload);
+      current = await API.sales.get(current._id);
       syncCurrentIntoOpenList();
-        renderTabs();
-      closeModal(); renderMini();
+      renderCapsules();
+      renderMini();
+      closeModal();
     }catch(e){ alert(e?.message||'No se pudo guardar'); }
   };
 }

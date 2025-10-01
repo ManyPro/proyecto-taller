@@ -360,7 +360,7 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 /* ===== Ventas – cápsulas nuevas ===== */
 .capsules-bar{ padding:12px 16px; }
 .sale-capsule{
-  background:var(--card-alt); border:1px solid var(--border); border-radius:14px; padding:10px 12px; width:150px; position:relative;
+  background:var(--card-alt); border:1px solid var(--border); border-radius:14px; padding:10px 12px; min-width:150px; max-width:210px; position:relative;
   display:flex; flex-direction:column; gap:4px; cursor:pointer; transition:background .2s ease,border-color .2s ease, box-shadow .2s ease;
 }
 .sale-capsule:hover{ background:var(--highlight-bg); }
@@ -371,4 +371,7 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 .sale-capsule .sc-close:hover{ color:var(--text); }
 .sale-capsule .sc-tech{ font-size:11px; color:var(--muted); min-height:14px; }
 .sale-capsule .sc-total{ font-size:13px; font-weight:600; text-align:right; }
+.sale-capsule .sc-veh{ font-size:11px; line-height:1.2; color:var(--muted); min-height:22px; }
+.fullwidth-bar{ width:100%; }
+.capsules-wrap{ width:100%; }
 
