@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import Company from '../models/Company.js';
 import { authCompany } from '../middlewares/auth.js';
 
@@ -80,6 +81,69 @@ router.get('/me', authCompany, async (req, res) => {
   const company = await Company.findById(req.company.id).lean();
   if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
   res.json({ company: { id: company._id, name: company.name, email: company.email } });
+});
+
+/**
+ * POST /api/v1/auth/company/password/forgot
+ * body: { email }
+ * Genera un token temporal y (placeholder) lo "envía" (se devuelve en respuesta si NODE_ENV !== 'production')
+ */
+router.post('/password/forgot', async (req, res) => {
+  try {
+    const email = String(req.body?.email || '').toLowerCase().trim();
+    if (!email) return res.status(400).json({ error: 'email requerido' });
+    const company = await Company.findOne({ email });
+    if (!company) {
+      // Para no filtrar existencia: responder ok igual
+      return res.json({ ok: true });
+    }
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const hash = await bcrypt.hash(rawToken, 10);
+    company.passwordResetTokenHash = hash;
+    company.passwordResetExpires = new Date(Date.now() + 1000 * 60 * 30); // 30 min
+    await company.save();
+
+    // URL destino (frontend): usar FRONTEND_BASE o derivar de header/origin
+    const base = process.env.FRONTEND_BASE_URL || req.headers.origin || '';
+    const resetUrl = base ? `${base.replace(/\/$/, '')}/reset.html?token=${rawToken}&email=${encodeURIComponent(email)}` : rawToken;
+
+    // Placeholder 'envío'
+    if (process.env.NODE_ENV === 'production') {
+      // Aquí podrías integrar un servicio real de email.
+      // mailer.send(email, 'Reset de contraseña', `Visita: ${resetUrl}`)
+    }
+
+    return res.json({ ok: true, ...(process.env.NODE_ENV !== 'production' ? { debugToken: rawToken, resetUrl } : {}) });
+  } catch (e) {
+    return res.status(500).json({ error: 'Error generando token' });
+  }
+});
+
+/**
+ * POST /api/v1/auth/company/password/reset
+ * body: { email, token, password }
+ */
+router.post('/password/reset', async (req, res) => {
+  try {
+    const email = String(req.body?.email || '').toLowerCase().trim();
+    const token = String(req.body?.token || '');
+    const password = String(req.body?.password || '');
+    if (!email || !token || !password) return res.status(400).json({ error: 'email, token y password son requeridos' });
+    const company = await Company.findOne({ email });
+    if (!company || !company.passwordResetTokenHash || !company.passwordResetExpires) return res.status(400).json({ error: 'Token inválido' });
+    if (company.passwordResetExpires.getTime() < Date.now()) return res.status(400).json({ error: 'Token expirado' });
+    const ok = await bcrypt.compare(token, company.passwordResetTokenHash);
+    if (!ok) return res.status(400).json({ error: 'Token inválido' });
+
+    company.passwordHash = await bcrypt.hash(password, 10);
+    company.passwordResetTokenHash = '';
+    company.passwordResetExpires = null;
+    await company.save();
+
+    return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ error: 'Error reseteando password' });
+  }
 });
 
 export default router;

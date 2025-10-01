@@ -118,6 +118,56 @@ Endpoint para actualizar mientras la venta está en estado `draft`:
 PATCH /api/v1/sales/:id/technician
 { "technician": "DAVID" }
 ```
+
+## Reset de contraseña (empresas)
+
+Flujo implementado para permitir a una empresa restablecer su contraseña.
+
+### 1. Solicitar reset
+`POST /api/v1/auth/company/password/forgot`
+Body:
+```json
+{ "email": "empresa@dominio.com" }
+```
+Respuesta siempre `{ ok: true }` (no filtra si el correo existe). En entorno no productivo incluye:
+```json
+{ "ok": true, "debugToken": "<token>", "resetUrl": "http://.../reset.html?token=...&email=..." }
+```
+
+### 2. Enlace de reset
+El email debe contener un enlace hacia el frontend:
+```
+<FRONTEND_BASE_URL>/reset.html?token=<token>&email=<correo>
+```
+Configura `FRONTEND_BASE_URL` en variables de entorno para que el backend construya la URL (fallback: header Origin).
+
+### 3. Consumir el token
+`POST /api/v1/auth/company/password/reset`
+Body:
+```json
+{ "email": "empresa@dominio.com", "token": "<tokenPlano>", "password": "NuevaPass123" }
+```
+Requisitos:
+- Token válido, sin expirar (30 minutos) y no usado.
+- Al aplicar el reset se invalida (se borran hash y expiración).
+
+### Campos añadidos al modelo `Company`
+```js
+passwordResetTokenHash: String
+passwordResetExpires: Date
+```
+
+### Seguridad
+- El token se guarda hasheado (`bcrypt`) y se compara en el reset.
+- Expiración de 30 minutos (`passwordResetExpires`).
+- Respuesta del endpoint `forgot` es genérica (no revela si el correo existe).
+- Recomendación: añadir un rate-limit externo en producción.
+
+### Frontend
+- Página `forgot.html` permite solicitar enlace.
+- Página `reset.html` captura `token` y `email`, y ejecuta el cambio de contraseña.
+- En modo desarrollo se expone `debugToken` y `resetUrl` para pruebas rápidas.
+
 Responde el documento de la venta actualizado.
 
 Reglas:

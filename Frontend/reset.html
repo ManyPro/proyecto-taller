@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Restablecer contraseña</title>
+<link rel="stylesheet" href="assets/styles.css" />
+<script type="module">
+import { API } from './assets/js/api.js';
+const params = new URLSearchParams(location.search);
+const token = params.get('token') || '';
+const email = params.get('email') || '';
+const form = document.getElementById('reset-form');
+const pass1 = document.getElementById('new-pass');
+const pass2 = document.getElementById('new-pass2');
+const msg = document.getElementById('reset-msg');
+const emailSpan = document.getElementById('reset-email');
+emailSpan.textContent = email || '(desconocido)';
+form.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  if(pass1.value !== pass2.value){ msg.textContent='Las contraseñas no coinciden'; return; }
+  msg.textContent='Procesando...';
+  try{
+    await fetch((API.base||'') + '/api/v1/auth/company/password/reset', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, token, password:pass1.value })
+    }).then(r=>r.json()).then(data=>{
+      if(data.error) throw new Error(data.error);
+      msg.textContent='Contraseña actualizada. Puedes volver al inicio de sesión.';
+    });
+  }catch(err){ msg.textContent = err.message || 'Error'; }
+});
+</script>
+<style>
+body{max-width:480px;margin:40px auto;padding:0 16px;} .card{margin-top:30px;}
+</style>
+</head>
+<body>
+  <h1>Restablecer contraseña</h1>
+  <div class="card">
+    <p>Correo: <strong id="reset-email"></strong></p>
+    <form id="reset-form">
+      <label>Nueva contraseña</label>
+      <input id="new-pass" type="password" required minlength="6" />
+      <label>Repetir contraseña</label>
+      <input id="new-pass2" type="password" required minlength="6" />
+      <button>Cambiar contraseña</button>
+    </form>
+    <p id="reset-msg" class="muted" style="margin-top:12px;"></p>
+    <p style="margin-top:16px;"><a href="index.html">Ir a inicio de sesión</a></p>
+  </div>
+</body>
+</html>

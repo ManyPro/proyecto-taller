@@ -5,7 +5,9 @@ const CompanySchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true },
     email: { type: String, required: true, lowercase: true, trim: true, unique: true },
     passwordHash: { type: String, required: true },
-    active: { type: Boolean, default: true }
+  active: { type: Boolean, default: true },
+  passwordResetTokenHash: { type: String, default: '' },
+  passwordResetExpires: { type: Date, default: null }
   },
   { timestamps: true }
 );

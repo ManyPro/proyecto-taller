@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Recuperar contraseña</title>
+<link rel="stylesheet" href="assets/styles.css" />
+<script type="module">
+import { API } from './assets/js/api.js';
+const form = document.getElementById('forgot-form');
+const emailInput = document.getElementById('forgot-email');
+const msg = document.getElementById('forgot-msg');
+form.addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  msg.textContent='Enviando...';
+  try{
+    const email = emailInput.value.trim();
+    await fetch((API.base||'') + '/api/v1/auth/company/password/forgot', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email })
+    }).then(r=>r.json()).then(data=>{
+      if(data.error) throw new Error(data.error);
+      msg.textContent = 'Si el correo existe recibirás un enlace (en dev ver consola).';
+      if(data.debugToken){
+        console.log('[DEBUG reset token]', data.debugToken, data.resetUrl);
+        const dev = document.getElementById('dev-link');
+        if(dev && data.resetUrl){ dev.innerHTML = `<a href="${data.resetUrl}">Ir al enlace de reset (DEV)</a>`; }
+      }
+    });
+  }catch(err){ msg.textContent = err.message || 'Error'; }
+});
+</script>
+<style>
+body{max-width:480px;margin:40px auto;padding:0 16px;} .card{margin-top:30px;}
+</style>
+</head>
+<body>
+  <h1>Recuperar contraseña</h1>
+  <div class="card">
+    <form id="forgot-form">
+      <label>Correo de la cuenta</label>
+      <input id="forgot-email" type="email" required />
+      <button>Solicitar enlace</button>
+    </form>
+    <p id="forgot-msg" class="muted" style="margin-top:12px;"></p>
+    <div id="dev-link" style="margin-top:12px;font-size:12px;"></div>
+    <p style="margin-top:16px;"><a href="index.html">Volver</a></p>
+  </div>
+</body>
+</html>
