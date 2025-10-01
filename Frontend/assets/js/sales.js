@@ -808,7 +808,14 @@ function openEditCV(){
     if (!force && raw === lastLookupPlate) return;
     loadingProfile = true;
     try{
-      const profile = await API.sales.profileByPlate(raw);
+      let profile = null;
+      try {
+        // Intentar con fuzzy para mejorar coincidencia inmediata
+        profile = await API.sales.profileByPlate(raw + '?fuzzy=true');
+      } catch {}
+      if (!profile) {
+        try { profile = await API.sales.profileByPlate(raw); } catch {}
+      }
       if (profile) {
         applyProfile(profile, raw);
       }
