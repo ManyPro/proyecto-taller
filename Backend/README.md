@@ -62,13 +62,15 @@ Uso esperado en el Front:
 - De-duplica perfiles repetidos de la misma placa conservando el más completo.
 - Ventas y cotizaciones disparan el mismo mecanismo unificado.
 
+Parámetro opcional: `?fuzzy=true` permite coincidencias parciales y confundir 0/O al inicio de la placa.
+
 ### Notas
 - En cotización los campos vienen como: `vehicle.make`, `vehicle.line`, `vehicle.modelYear`, `vehicle.displacement`.
 - En ventas: `vehicle.brand`, `vehicle.line`, `vehicle.engine`, `vehicle.year`, `vehicle.mileage`.
 - El helper hace los mapeos y normaliza a mayúsculas.
 
 ## Lookup en ventas
-`GET /api/v1/sales/lookup/plate/:plate` (alias de `/profile/by-plate/:plate`) devuelve el perfil consolidado.
+`GET /api/v1/sales/lookup/plate/:plate` (alias de `/profile/by-plate/:plate`) devuelve el perfil consolidado. Acepta `?fuzzy=true` igual que en cotizaciones.
 
 ## Overwrite opcional de datos
 El helper acepta flags internos (a futuro se pueden exponer vía query o payload admin):

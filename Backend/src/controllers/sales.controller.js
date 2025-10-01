@@ -554,10 +554,16 @@ export const getProfileByPlate = async (req, res) => {
   if (!plate) return res.status(400).json({ error: 'plate required' });
 
   const companyId = String(req.companyId);
-  const query = {
-    companyId,
-    $or: [{ plate }, { 'vehicle.plate': plate }]
-  };
+  const fuzzy = String(req.query.fuzzy || 'false').toLowerCase() === 'true';
+  let query;
+  if (fuzzy) {
+    // Permite confusión entre 0 y O y coincidencia parcial inicial
+    const pattern = '^' + plate.replace(/[0O]/g, '[0O]');
+    const rx = new RegExp(pattern, 'i');
+    query = { companyId, $or: [ { plate: rx }, { 'vehicle.plate': rx } ] };
+  } else {
+    query = { companyId, $or: [{ plate }, { 'vehicle.plate': plate }] };
+  }
 
   const matches = await CustomerProfile.find(query).sort({ updatedAt: -1, createdAt: -1 });
   if (!matches.length) return res.json(null);

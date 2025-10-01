@@ -234,7 +234,15 @@ export async function lookupQuotePlate(req, res) {
   const plate = String(req.params.plate || '').trim().toUpperCase();
   if (!companyId) return res.status(400).json({ error: 'Falta empresa' });
   if (!plate) return res.status(400).json({ error: 'Falta placa' });
-  const query = { companyId, $or: [{ plate }, { 'vehicle.plate': plate }] };
+  const fuzzy = String(req.query.fuzzy || 'false').toLowerCase() === 'true';
+  let query;
+  if (fuzzy) {
+    const pattern = '^' + plate.replace(/[0O]/g, '[0O]');
+    const rx = new RegExp(pattern, 'i');
+    query = { companyId, $or: [{ plate: rx }, { 'vehicle.plate': rx }] };
+  } else {
+    query = { companyId, $or: [{ plate }, { 'vehicle.plate': plate }] };
+  }
   const matches = await CustomerProfile.find(query).sort({ updatedAt: -1, createdAt: -1 }).limit(3);
   if (!matches.length) return res.json(null);
   // Tomar el primero (ya deduplicado usualmente por sales controller) y mapear a formato esperado por UI de cotización
