@@ -192,8 +192,8 @@ const API = {
     setCustomerVehicle: (id, payload) =>
       http.put(`/api/v1/sales/${id}/customer-vehicle`, payload),
 
-    close: (id) =>
-      http.post(`/api/v1/sales/${id}/close`, {}),
+    close: (id, payload = {}) =>
+      http.post(`/api/v1/sales/${id}/close`, payload),
 
     addByQR: (saleId, payload) =>
       http.post(`/api/v1/sales/addByQR`, { saleId, payload }),
@@ -208,6 +208,13 @@ const API = {
       return http.get(`/api/v1/sales/profile/by-plate/${encodeURIComponent(String(plate || '').toUpperCase())}${q}`);
     },
     setTechnician: (id, technician) => http.patch(`/api/v1/sales/${id}/technician`, { technician })
+  },
+  company: {
+    getTechnicians: () => http.get('/api/v1/company/technicians').then(r => r.technicians || []),
+    addTechnician: (name) => http.post('/api/v1/company/technicians', { name }).then(r => r.technicians || []),
+    removeTechnician: (name) => http.del(`/api/v1/company/technicians/${encodeURIComponent(name)}`).then(r => r.technicians || []),
+    getPreferences: () => http.get('/api/v1/company/preferences').then(r => r.preferences || { laborPercents: [] }),
+    setPreferences: (prefs) => http.put('/api/v1/company/preferences', prefs).then(r => r.preferences || { laborPercents: [] })
   }
 };
 

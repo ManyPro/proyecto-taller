@@ -38,6 +38,12 @@ const SaleSchema = new mongoose.Schema({
   subtotal: { type: Number, default: 0 },
   tax: { type: Number, default: 0 },
   total: { type: Number, default: 0 },
+  // Datos de pago y mano de obra (se establecen al cerrar la venta)
+  paymentMethod: { type: String, default: '' },
+  paymentReceiptUrl: { type: String, default: '' },
+  laborValue: { type: Number, default: 0 },            // valor base mano de obra
+  laborPercent: { type: Number, default: 0 },          // porcentaje asignado al técnico
+  laborShare: { type: Number, default: 0 },            // valor calculado = laborValue * laborPercent/100
   closedAt: { type: Date },
   cancelledAt: { type: Date }
 }, { timestamps: true });

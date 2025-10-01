@@ -467,12 +467,29 @@ export const closeSale = async (req, res) => {
         }], { session });
       }
 
+      // === Datos de cierre adicionales (pago / mano de obra) ===
+      const pm = String(req.body?.paymentMethod || '').trim();
+      const technician = String(req.body?.technician || sale.technician || '').trim().toUpperCase();
+      const laborValueRaw = req.body?.laborValue;
+      const laborPercentRaw = req.body?.laborPercent;
+      const paymentReceiptUrl = String(req.body?.paymentReceiptUrl || '').trim();
+
+      const laborValue = Number(laborValueRaw);
+      const laborPercent = Number(laborPercentRaw);
+      if (laborValueRaw != null && (!Number.isFinite(laborValue) || laborValue < 0)) throw new Error('laborValue inválido');
+      if (laborPercentRaw != null && (!Number.isFinite(laborPercent) || laborPercent < 0 || laborPercent > 100)) throw new Error('laborPercent inválido');
+
       computeTotals(sale);
       sale.status = 'closed';
       sale.closedAt = new Date();
-      if (!Number.isFinite(Number(sale.number))) {
-        sale.number = await getNextSaleNumber(req.companyId);
-      }
+      if (!Number.isFinite(Number(sale.number))) sale.number = await getNextSaleNumber(req.companyId);
+
+      if (pm) sale.paymentMethod = pm.toUpperCase();
+      if (technician) sale.technician = technician;
+      if (laborValueRaw != null) sale.laborValue = Math.round(laborValue);
+      if (laborPercentRaw != null) sale.laborPercent = Math.round(laborPercent);
+      if (sale.laborValue && sale.laborPercent) sale.laborShare = Math.round(sale.laborValue * (sale.laborPercent / 100));
+      if (paymentReceiptUrl) sale.paymentReceiptUrl = paymentReceiptUrl;
       await sale.save({ session });
     });
 
@@ -556,7 +573,7 @@ export const addByQR = async (req, res) => {
   });
   computeTotals(sale);
   await sale.save();
-  await upsertCustomerProfile(req.companyId, sale);
+  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
   res.json(sale.toObject());
 };
 

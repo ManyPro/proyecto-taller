@@ -149,6 +149,142 @@ function startSalesAutoRefresh() {
   }, 10000);
 }
 
+// ===== Modal Cerrar Venta =====
+let companyTechnicians = [];
+let companyPrefs = { laborPercents: [] };
+async function ensureCompanyData(){
+  try { companyTechnicians = await API.company.getTechnicians(); } catch { companyTechnicians = []; }
+  try { companyPrefs = await API.company.getPreferences(); } catch { companyPrefs = { laborPercents: [] }; }
+}
+
+function buildCloseModalContent(){
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `
+    <h3>Cerrar venta</h3>
+    <div class="grid-2" style="gap:12px;">
+      <div>
+        <label>Método de pago</label>
+        <select id="cv-payMethod">
+          <option value="">-- Seleccionar --</option>
+          <option>EFECTIVO</option>
+          <option>TRANSFERENCIA</option>
+          <option>TARJETA</option>
+          <option>OTRO</option>
+        </select>
+      </div>
+      <div>
+        <label>Técnico</label>
+        <select id="cv-technician"></select>
+        <button id="cv-add-tech" type="button" class="small" style="margin-top:4px;">+ Técnico</button>
+      </div>
+      <div>
+        <label>Valor mano de obra</label>
+        <input id="cv-laborValue" type="number" min="0" step="1" />
+      </div>
+      <div>
+        <label>% Técnico</label>
+        <select id="cv-laborPercent"></select>
+        <input id="cv-laborPercentManual" type="number" min="0" max="100" placeholder="Manual %" style="margin-top:4px;display:none;" />
+        <button id="cv-toggle-percent" type="button" class="small" style="margin-top:4px;">Manual %</button>
+      </div>
+      <div style="grid-column:1/3;">
+        <label>Comprobante (opcional)</label>
+        <input id="cv-receipt" type="file" accept="image/*,.pdf" />
+      </div>
+      <div style="grid-column:1/3; font-size:12px;" class="muted" id="cv-laborSharePreview"></div>
+      <div style="grid-column:1/3; margin-top:8px; display:flex; gap:8px;">
+        <button id="cv-confirm">Confirmar cierre</button>
+        <button type="button" class="secondary" id="cv-cancel">Cancelar</button>
+      </div>
+      <div id="cv-msg" class="muted" style="grid-column:1/3; margin-top:6px; font-size:12px;"></div>
+    </div>`;
+  return wrap;
+}
+
+function openCloseModal(){
+  const modal = document.getElementById('modal');
+  const body = document.getElementById('modalBody');
+  if(!modal||!body) return;
+  ensureCompanyData().then(()=>{
+    body.innerHTML='';
+    const content = buildCloseModalContent();
+    body.appendChild(content);
+    fillCloseModal();
+    modal.classList.remove('hidden');
+  });
+}
+
+function fillCloseModal(){
+  const techSel = document.getElementById('cv-technician');
+  techSel.innerHTML = '<option value="">-- Ninguno --</option>' + (companyTechnicians||[]).map(t=>`<option value="${t}">${t}</option>`).join('');
+  if(current && current.technician) techSel.value = current.technician;
+
+  const percSel = document.getElementById('cv-laborPercent');
+  const perc = (companyPrefs?.laborPercents||[]);
+  percSel.innerHTML = '<option value="">-- % --</option>' + perc.map(p=>`<option value="${p}">${p}%</option>`).join('');
+
+  const laborValueInput = document.getElementById('cv-laborValue');
+  const manualPercentInput = document.getElementById('cv-laborPercentManual');
+  const percentToggle = document.getElementById('cv-toggle-percent');
+  const sharePrev = document.getElementById('cv-laborSharePreview');
+  const msg = document.getElementById('cv-msg');
+
+  function computePreview(){
+    const lv = Number(laborValueInput.value||0)||0; let lp=null;
+    if(!manualPercentInput.style.display.includes('none')) lp = Number(manualPercentInput.value||0)||0; else lp = Number(percSel.value||0)||0;
+    if(lv>0 && lp>0){ sharePrev.textContent = 'Participación estimada técnico: ' + money(Math.round(lv*lp/100)); }
+    else sharePrev.textContent='';
+  }
+
+  laborValueInput.addEventListener('input', computePreview);
+  percSel.addEventListener('change', computePreview);
+  manualPercentInput.addEventListener('input', computePreview);
+  percentToggle.addEventListener('click', ()=>{
+    const manual = manualPercentInput.style.display.includes('none');
+    manualPercentInput.style.display = manual? 'block':'none';
+    percSel.disabled = manual;
+    percentToggle.textContent = manual? 'Usar lista %':'Manual %';
+    computePreview();
+  });
+
+  document.getElementById('cv-add-tech').addEventListener('click', async ()=>{
+    const name = prompt('Nombre del técnico (se guardará en mayúsculas):');
+    if(!name) return;
+    try{ companyTechnicians = await API.company.addTechnician(name); fillCloseModal(); }catch(e){ alert(e?.message||'No se pudo agregar'); }
+  });
+
+  document.getElementById('cv-cancel').addEventListener('click', ()=>{
+    document.getElementById('modal')?.classList.add('hidden');
+  });
+
+  document.getElementById('cv-confirm').addEventListener('click', async ()=>{
+    if(!current) return;
+    msg.textContent='Procesando...';
+    try{
+      let receiptUrl='';
+      const file = document.getElementById('cv-receipt').files?.[0];
+      if(file){
+        const uploadRes = await API.mediaUpload ? API.mediaUpload([file]) : null;
+        if(uploadRes && uploadRes.files && uploadRes.files[0]){
+          receiptUrl = uploadRes.files[0].url || uploadRes.files[0].path || '';
+        }
+      }
+      const payload = {
+        paymentMethod: document.getElementById('cv-payMethod').value||'',
+        technician: techSel.value||'',
+        laborValue: Number(laborValueInput.value||0)||0,
+        laborPercent: !percSel.disabled ? Number(percSel.value||0)||0 : Number(document.getElementById('cv-laborPercentManual').value||0)||0,
+        paymentReceiptUrl: receiptUrl
+      };
+      await API.sales.close(current._id, payload);
+      alert('Venta cerrada');
+      document.getElementById('modal')?.classList.add('hidden');
+      current = null;
+      await refreshOpenSales();
+    }catch(e){ msg.textContent = e?.message||'Error'; msg.classList.add('error'); }
+  });
+}
+
 function stopSalesAutoRefresh() {
   if (!salesRefreshTimer) return;
   clearInterval(salesRefreshTimer);
@@ -1012,12 +1148,7 @@ export function initSales(){
 
   document.getElementById('sales-close')?.addEventListener('click', async ()=>{
     if (!current) return;
-    try{
-      await API.sales.close(current._id);
-      alert('Venta cerrada');
-      current = null;
-      await refreshOpenSales();
-    }catch(e){ alert(e?.message||'No se pudo cerrar'); }
+    openCloseModal();
   });
 
   document.getElementById('sales-print')?.addEventListener('click', async ()=>{

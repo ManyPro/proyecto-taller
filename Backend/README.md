@@ -179,6 +179,65 @@ Frontend: barra superior de Ventas muestra “cápsulas” para cada venta abier
 
 Técnicos sugeridos (ejemplo Casa DUSTER): `DAVID, VALENTIN, SEDIEL, GIOVANNY, SANDRA`.
 
+## Cierre de ventas: pago y mano de obra
+
+Al cerrar una venta ahora se pueden registrar datos adicionales:
+
+Campos añadidos al modelo `Sale`:
+```js
+paymentMethod: String
+paymentReceiptUrl: String
+laborValue: Number          // valor base de mano de obra
+laborPercent: Number        // % asignado al técnico
+laborShare: Number          // valor calculado = laborValue * laborPercent / 100
+```
+
+Endpoint de cierre:
+```
+POST /api/v1/sales/:id/close
+Body opcional:
+{
+	"paymentMethod": "EFECTIVO|TRANSFERENCIA|TARJETA|OTRO",
+	"technician": "NOMBRE",
+	"laborValue": 120000,
+	"laborPercent": 40,
+	"paymentReceiptUrl": "https://.../uploads/comprobante.png"
+}
+```
+Validaciones:
+- `laborValue` ≥ 0
+- `laborPercent` entre 0 y 100
+- Si ambos existen se calcula y persiste `laborShare`.
+
+## Técnicos y preferencias por empresa
+
+Se añadieron campos al modelo `Company`:
+```js
+technicians: [String]              // lista configurable
+preferences: { laborPercents: [Number] } // porcentajes sugeridos
+```
+
+Endpoints:
+```
+GET    /api/v1/company/technicians
+POST   /api/v1/company/technicians        { name }
+DELETE /api/v1/company/technicians/:name
+
+GET    /api/v1/company/preferences
+PUT    /api/v1/company/preferences        { laborPercents: [30,40,50] }
+```
+Notas:
+- Nombres de técnicos se almacenan en mayúsculas y sin duplicados.
+- `laborPercents` se deduplica y ordena ascendente (0–100).
+- El frontend usa esta lista para ofrecer selección rápida del % de mano de obra.
+
+## Flujo frontend de cierre
+1. Botón "Cerrar venta" abre modal.
+2. Usuario selecciona método de pago, técnico, valor mano de obra y % (de la lista o manual).
+3. (Opcional) Sube comprobante -> se obtiene URL y se envía en el cierre.
+4. Backend descuenta inventario y guarda datos de pago/labor.
+5. `laborShare` queda listo para reportes futuros por técnico.
+
 
 ### Envío real de correos (SMTP)
 
