@@ -18,6 +18,13 @@ export function initQuotes({ getCompanyEmail }) {
   let inited = false;
   let emailScope = '';       // para scoping del localStorage
   let currentQuoteId = null; // si estamos editando una del historial
+  // Dirty flags para evitar sobre-escritura al autocompletar por placa
+  const dirty = {
+    clientName:false, clientPhone:false, clientEmail:false,
+    brand:false, line:false, year:false, cc:false
+  };
+  function markDirty(key){ if(dirty.hasOwnProperty(key)) dirty[key]=true; }
+  function clearDirtyFlags(){ Object.keys(dirty).forEach(k=>dirty[k]=false); }
 
   const KEYS = (window.QUOTES_KEYS || {
     lastNumber: 'quotes:lastNumber',
@@ -163,6 +170,7 @@ export function initQuotes({ getCompanyEmail }) {
       iYear.value  = d.year  || ''; iCc.value   = d.cc   || '';
       iValidDays.value = d.validDays || '';
       clearRows(); (d.rows||[]).forEach(addRowFromData);
+      clearDirtyFlags();
     }catch{}
   }
   function clearDraft(){ localStorage.removeItem(kDraft()); }
@@ -896,6 +904,16 @@ export function initQuotes({ getCompanyEmail }) {
     });
 
     [iClientName,iClientPhone,iClientEmail,iPlate,iBrand,iLine,iYear,iCc,iValidDays].forEach(el=>el?.addEventListener('input',recalcAll));
+  // Marcar dirty (excepto placa y validez)
+  iClientName?.addEventListener('input',()=>markDirty('clientName'));
+  iClientPhone?.addEventListener('input',()=>markDirty('clientPhone'));
+  iClientEmail?.addEventListener('input',()=>markDirty('clientEmail'));
+  iBrand?.addEventListener('input',()=>markDirty('brand'));
+  iLine?.addEventListener('input',()=>markDirty('line'));
+  iYear?.addEventListener('input',()=>markDirty('year'));
+  iCc?.addEventListener('input',()=>markDirty('cc'));
+
+  setupPlateAutofill();
 
     qhApply?.addEventListener('click',loadHistory);
     qhClear?.addEventListener('click',()=>{ qhText.value=''; qhFrom.value=''; qhTo.value=''; loadHistory(); });
@@ -987,6 +1005,54 @@ export function initQuotes({ getCompanyEmail }) {
   function syncSummaryHeight(){
     if(!qData || !qSummary) return;
     const h=qData.offsetHeight; if(h){ qSummary.style.maxHeight=h+'px'; qSummary.style.overflowY='auto'; }
+  }
+
+  // ====== Auto-completar por placa ======
+  function setupPlateAutofill(){
+    if(!iPlate) return;
+    let lastPlateFetched='';
+    let timer=null;
+    function normPlate(p){ return (p||'').trim().toUpperCase(); }
+    async function fetchProfile(plate){
+      if(!plate || plate.length<4) return; // mínimo 4 caracteres
+      if(plate===lastPlateFetched) return;
+      lastPlateFetched=plate;
+      try {
+        let prof = await API.sales.profileByPlate(plate);
+        if(!prof) { // intento fuzzy si no encontró exacto
+          prof = await API.sales.profileByPlate(plate, { fuzzy:true });
+        }
+        if(!prof) return; // nada que completar
+        applyProfile(prof);
+      } catch(e){
+        console.warn('[quotes] profile lookup error', e?.message||e);
+      }
+    }
+    function applyProfile(prof){
+      try {
+        // Campos de cliente
+        if(prof.customer){
+          if(!dirty.clientName && !iClientName.value) iClientName.value = prof.customer.name || iClientName.value;
+          if(!dirty.clientPhone && !iClientPhone.value) iClientPhone.value = prof.customer.phone || iClientPhone.value;
+          if(!dirty.clientEmail && !iClientEmail.value) iClientEmail.value = prof.customer.email || iClientEmail.value;
+        }
+        // Campos de vehículo
+        if(prof.vehicle){
+          if(!dirty.brand && !iBrand.value) iBrand.value = prof.vehicle.brand || iBrand.value;
+          if(!dirty.line && !iLine.value) iLine.value = prof.vehicle.line || iLine.value;
+          if(!dirty.year && !iYear.value && prof.vehicle.year) iYear.value = prof.vehicle.year;
+          if(!dirty.cc && !iCc.value && prof.vehicle.engine) iCc.value = prof.vehicle.engine; // engine -> cc
+        }
+        recalcAll();
+      } catch(err){ console.warn('[quotes] applyProfile error', err); }
+    }
+    function schedule(){
+      clearTimeout(timer);
+      timer=setTimeout(()=>fetchProfile(normPlate(iPlate.value)), 450);
+    }
+    iPlate.addEventListener('input', ()=>schedule());
+    iPlate.addEventListener('blur', ()=>fetchProfile(normPlate(iPlate.value)));
+    iPlate.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); fetchProfile(normPlate(iPlate.value)); }});
   }
 
   // Hook: tab activada
