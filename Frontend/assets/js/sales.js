@@ -175,7 +175,6 @@ function buildCloseModalContent(){
       <div>
         <label>Técnico (cierre)</label>
         <select id="cv-technician"></select>
-        <button id="cv-add-tech" type="button" class="small" style="margin-top:4px;">+ Técnico</button>
         <div id="cv-initial-tech" class="muted" style="margin-top:4px;font-size:11px;display:none;"></div>
       </div>
       <div>
@@ -217,7 +216,7 @@ function openCloseModal(){
 
 function fillCloseModal(){
   const techSel = document.getElementById('cv-technician');
-  techSel.innerHTML = '<option value="">-- Ninguno --</option>' + (companyTechnicians||[]).map(t=>`<option value="${t}">${t}</option>`).join('');
+  techSel.innerHTML = '<option value="">-- Ninguno --</option>' + (companyTechnicians||[]).map(t=>`<option value="${t}">${t}</option>`).join('') + '<option value="__ADD_TECH__">+ Agregar técnico…</option>';
   const initialTechLabel = document.getElementById('cv-initial-tech');
   if(current){
     if(current.initialTechnician){
@@ -299,6 +298,21 @@ function fillCloseModal(){
       await refreshOpenSales();
     }catch(e){ msg.textContent = e?.message||'Error'; msg.classList.add('error'); }
   });
+
+  techSel.addEventListener('change', async ()=>{
+    if(techSel.value === '__ADD_TECH__'){
+      const name = prompt('Nombre del técnico (se guardará en mayúsculas):');
+      techSel.value='';
+      if(name){
+        try{
+          companyTechnicians = await API.company.addTechnician(name);
+          fillCloseModal();
+          const upper = String(name).trim().toUpperCase();
+          if(companyTechnicians.includes(upper)) techSel.value = upper;
+        }catch(e){ alert(e?.message||'No se pudo agregar'); }
+      }
+    }
+  });
 }
 
 function stopSalesAutoRefresh() {
@@ -365,10 +379,30 @@ async function setupTechnicianSelect(){
   sel.innerHTML='';
   sel.appendChild(new Option('— Técnico —',''));
   (companyTechnicians||[]).forEach(t=> sel.appendChild(new Option(t,t)));
+  sel.appendChild(new Option('+ Agregar técnico…','__ADD_TECH__'));
   sel.classList.remove('hidden');
   if(current){ sel.value = current.technician || current.initialTechnician || ''; }
   if(!technicianSelectInitialized){
     sel.addEventListener('change', async ()=>{
+      if(sel.value === '__ADD_TECH__'){
+        const name = prompt('Nombre del técnico (se guardará en mayúsculas):');
+        sel.value = ''; // reset temporal
+        if(name){
+          try{
+            companyTechnicians = await API.company.addTechnician(name);
+            await setupTechnicianSelect();
+            // Reseleccionar el recién agregado si existe
+            const upper = String(name).trim().toUpperCase();
+            if(companyTechnicians.includes(upper)){
+              sel.value = upper;
+              if(current?._id){
+                try{ current = await API.sales.setTechnician(current._id, upper); syncCurrentIntoOpenList(); renderCapsules(); }catch{}
+              }
+            }
+          }catch(e){ alert(e?.message||'No se pudo agregar'); }
+        }
+        return;
+      }
       if(!current?._id) return;
       try{
         current = await API.sales.setTechnician(current._id, sel.value||'');
@@ -376,22 +410,6 @@ async function setupTechnicianSelect(){
         renderCapsules();
       }catch(e){ alert(e?.message||'No se pudo asignar técnico'); }
     });
-    // Botón agregar técnico externo
-    const addBtn = document.getElementById('sales-add-tech');
-    if(addBtn){
-      addBtn.addEventListener('click', async ()=>{
-        const name = prompt('Nombre del técnico (se guardará en mayúsculas):');
-        if(!name) return;
-        try{
-          companyTechnicians = await API.company.addTechnician(name);
-          await setupTechnicianSelect(); // repoblar
-          // También refrescar lista del modal si está abierto
-          if(document.getElementById('cv-technician')){
-            try { ensureCompanyData().then(()=> fillCloseModal()); } catch {}
-          }
-        }catch(e){ alert(e?.message||'No se pudo agregar'); }
-      });
-    }
     technicianSelectInitialized = true;
   }
 }
