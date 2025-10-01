@@ -103,3 +103,29 @@ Respuesta:
 ```json
 { "processed": 123, "created": 100, "updated": 23 }
 ```
+
+## Técnico asignado en ventas
+
+Cada venta (`Sale`) ahora incluye el campo `technician` (string, mayúsculas) para asignar rápidamente la persona responsable del trabajo.
+
+Campo en modelo:
+```js
+technician: { type: String, default: '' }
+```
+
+Endpoint para actualizar mientras la venta está en estado `draft`:
+```
+PATCH /api/v1/sales/:id/technician
+{ "technician": "DAVID" }
+```
+Responde el documento de la venta actualizado.
+
+Reglas:
+- Solo editable cuando `status === 'draft'`.
+- Se guarda en mayúsculas (`DAVID`, `VALENTIN`, etc.).
+- No afecta el cierre ni el cómputo de totales.
+
+Frontend: barra superior de Ventas muestra “cápsulas” para cada venta abierta con placa, técnico y total. Un selector permite cambiar el técnico (lista fija configurable en el front por empresa).
+
+Técnicos sugeridos (ejemplo Casa DUSTER): `DAVID, VALENTIN, SEDIEL, GIOVANNY, SANDRA`.
+

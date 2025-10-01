@@ -15,6 +15,8 @@ const SaleSchema = new mongoose.Schema({
   number: { type: Number, index: true },       // se asigna al cerrar
   name: { type: String, default: '' },         // "Venta · ABC123" o "Venta · 84F1A2"
   status: { type: String, default: 'draft', enum: ['draft', 'closed', 'cancelled'], index: true },
+  // Técnico asignado (para empresas que lo usan, p.ej. Casa DUSTER)
+  technician: { type: String, default: '', index: true },
   items: { type: [SaleItemSchema], default: [] },
   customer: {
     type: { type: String, default: '' },

@@ -356,3 +356,19 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 .price-badge, .service-badge{ display:inline-block; font-size:10px; letter-spacing:.5px; font-weight:600; padding:2px 6px; border-radius:6px; vertical-align:middle; line-height:1.1; margin-right:4px; }
 .price-badge{ background:var(--price-badge-bg); color:var(--price-badge-text); border:1px solid var(--price-badge-border); }
 .service-badge{ background:var(--service-badge-bg); color:var(--service-badge-text); border:1px solid var(--service-badge-border); }
+
+/* ===== Ventas – cápsulas nuevas ===== */
+.capsules-bar{ padding:12px 16px; }
+.sale-capsule{
+  background:var(--card-alt); border:1px solid var(--border); border-radius:14px; padding:10px 12px; width:150px; position:relative;
+  display:flex; flex-direction:column; gap:4px; cursor:pointer; transition:background .2s ease,border-color .2s ease, box-shadow .2s ease;
+}
+.sale-capsule:hover{ background:var(--highlight-bg); }
+.sale-capsule.active{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent),0 4px 12px -4px rgba(0,0,0,.4); }
+.sale-capsule .sc-top{ display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:600; letter-spacing:.5px; }
+.sale-capsule .sc-plate{ background:var(--plate-chip-bg); color:var(--plate-chip-text); padding:2px 8px; border-radius:999px; font-size:11px; }
+.sale-capsule .sc-close{ background:transparent; border:0; color:var(--muted); font-size:14px; cursor:pointer; padding:0 4px; line-height:1; }
+.sale-capsule .sc-close:hover{ color:var(--text); }
+.sale-capsule .sc-tech{ font-size:11px; color:var(--muted); min-height:14px; }
+.sale-capsule .sc-total{ font-size:13px; font-weight:600; text-align:right; }
+

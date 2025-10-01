@@ -376,6 +376,20 @@ export const removeItem = async (req, res) => {
   res.json(sale.toObject());
 };
 
+// ===== Técnico asignado =====
+export const updateTechnician = async (req, res) => {
+  const { id } = req.params;
+  const { technician } = req.body || {};
+  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+  if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
+  const tech = String(technician || '').trim().toUpperCase();
+  sale.technician = tech;
+  await sale.save();
+  try { publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }); } catch {}
+  res.json(sale.toObject());
+};
+
 export const setCustomerVehicle = async (req, res) => {
   const { id } = req.params;
   const { customer = {}, vehicle = {}, notes } = req.body || {};

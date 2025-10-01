@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   startSale, getSale, addItem, updateItem, removeItem,
-  setCustomerVehicle, closeSale, addByQR, listSales, summarySales, cancelSale, getProfileByPlate, addItemsBatch
+  setCustomerVehicle, closeSale, addByQR, listSales, summarySales, cancelSale, getProfileByPlate, addItemsBatch, updateTechnician
 } from '../controllers/sales.controller.js';
 import { sseHandler } from '../lib/live.js';
 
@@ -27,6 +27,8 @@ router.delete('/:id/items/:itemId', removeItem);
 
 // Customer & vehicle on sale
 router.put('/:id/customer-vehicle', setCustomerVehicle);
+// Technician
+router.patch('/:id/technician', updateTechnician);
 
 // Lifecycle
 router.post('/:id/close', closeSale);

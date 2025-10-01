@@ -70,6 +70,8 @@ function printSaleTicket(sale){
 let es = null;         // EventSource (SSE)
 let current = null;    // venta actual
 let openSales = [];    // ventas abiertas (draft) compartidas
+const TECHNICIANS_CASA_DUSTER = ['DAVID','VALENTIN','SEDIEL','GIOVANNY','SANDRA'];
+let technicianSelectInitialized = false;
 let starting = false;  // evita doble clic en "Nueva venta"
 let salesRefreshTimer = null;
 let lastQuoteLoaded = null; // referencia a la cotización mostrada en el mini panel
@@ -164,30 +166,60 @@ async function switchTo(id){
   }catch(e){ console.error(e); }
 }
 
-function renderTabs(){
-  const cont = document.getElementById('saleTabs'); if (!cont) return;
-  cont.innerHTML = '';
-  for (const sale of openSales){
-    if (!sale?._id) continue;
-    const id = sale._id;
-    const tab = clone('tpl-sale-tab');
-    tab.querySelector('.label').textContent = labelForSale(sale);
-    if (current && id===current._id) tab.classList.add('active');
-    tab.addEventListener('click', ()=> switchTo(id));
-    tab.querySelector('.close').addEventListener('click', async (e)=>{
+function renderTabs(){ /* legacy no-op kept for backward compatibility */ renderCapsules(); }
+
+function renderCapsules(){
+  const cont = document.getElementById('sales-capsules'); if(!cont) return;
+  cont.innerHTML='';
+  for(const sale of openSales){
+    if(!sale?._id) continue;
+    const tpl = document.getElementById('tpl-sale-capsule');
+    const node = tpl?.content?.firstElementChild?.cloneNode(true);
+    if(!node) continue;
+    node.dataset.id = sale._id;
+    node.querySelector('.sc-plate').textContent = (sale.vehicle?.plate||'—');
+    node.querySelector('[data-total]').textContent = money(sale.total||0);
+    node.querySelector('[data-tech]').textContent = sale.technician || '—';
+    if(current && sale._id===current._id) node.classList.add('active');
+    node.addEventListener('click', (e)=>{
+      if(e.target.classList.contains('sc-close')) return; // handled separately
+      switchTo(sale._id);
+    });
+    node.querySelector('.sc-close').addEventListener('click', async (e)=>{
       e.stopPropagation();
-      if (!confirm('Cancelar esta venta?')) return;
-      try{ await API.sales.cancel(id); }catch(err){ alert(err?.message||'No se pudo cancelar'); }
-      if (current && current._id===id) current=null;
+      if(!confirm('Cancelar esta venta?')) return;
+      try{ await API.sales.cancel(sale._id); }catch(err){ alert(err?.message||'No se pudo cancelar'); }
+      if(current && current._id===sale._id) current=null;
       await refreshOpenSales();
     });
-    cont.appendChild(tab);
+    cont.appendChild(node);
   }
-  if (!openSales.length){
-    const hint = document.createElement('div');
-    hint.className = 'tab-empty';
-    hint.textContent = 'No hay ventas abiertas';
-    cont.appendChild(hint);
+  if(!openSales.length){
+    const empty=document.createElement('div'); empty.className='muted'; empty.style.fontSize='12px'; empty.textContent='No hay ventas abiertas';
+    cont.appendChild(empty);
+  }
+  setupTechnicianSelect();
+}
+
+function setupTechnicianSelect(){
+  const sel = document.getElementById('sales-technician');
+  if(!sel) return;
+  // TODO: si hay lógica de company específica; por ahora activamos siempre
+  sel.innerHTML='';
+  sel.appendChild(new Option('— Técnico —',''));
+  TECHNICIANS_CASA_DUSTER.forEach(t=> sel.appendChild(new Option(t,t)));
+  sel.classList.remove('hidden');
+  if(current){ sel.value = current.technician || ''; }
+  if(!technicianSelectInitialized){
+    sel.addEventListener('change', async ()=>{
+      if(!current?._id) return;
+      try{
+        current = await API.sales.setTechnician(current._id, sel.value||'');
+        syncCurrentIntoOpenList();
+        renderCapsules();
+      }catch(e){ alert(e?.message||'No se pudo asignar técnico'); }
+    });
+    technicianSelectInitialized = true;
   }
 }
 
@@ -267,7 +299,7 @@ function renderSale(){
   });
 
   if (total) total.textContent = money(current?.total||0);
-  renderMini(); renderTabs();
+  renderMini(); renderCapsules(); setupTechnicianSelect();
 
   // Leyenda dinámica de orígenes
   try {
