@@ -8,6 +8,7 @@ import { initQuotes } from "./quotes.js";
 import { API } from "./api.js";
 import { initPrices } from "./prices.js";
 import { initSales } from "./sales.js";
+import { initTechReport } from "./techreport.js";
 
 let modulesReady = false;
 
@@ -60,6 +61,10 @@ function showTab(name) {
   if (tab) tab.classList.add('active');
   if (btn) btn.classList.add('active');
   setLastTab(name);
+  if(name === 'reporte-tecnico'){
+    // Lazy init (idempotente)
+    setTimeout(()=> initTechReport(), 30);
+  }
 }
 function ensureModules() {
   if (modulesReady) return;
@@ -68,6 +73,7 @@ function ensureModules() {
   initQuotes({ getCompanyEmail: () => document.getElementById("companyEmail")?.textContent || "" });
   initPrices();
   initSales();
+  // No inicializamos reporte técnico hasta que se abra la pestaña
   modulesReady = true;
 }
 

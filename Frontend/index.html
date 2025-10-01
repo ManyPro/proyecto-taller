@@ -17,6 +17,7 @@
   <script type="module" src="./assets/js/notes.js"></script>
   <script type="module" src="./assets/js/quotes.js"></script>
   <script type="module" src="./assets/js/sales.js"></script>
+  <script type="module" src="./assets/js/techreport.js"></script>
   <script type="module" src="./assets/js/prices.js"></script>
  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <link rel="icon" href="data:,">
@@ -57,6 +58,7 @@
         <button data-tab="cotizaciones">Cotizaciones</button>
         <button data-tab="precios">Lista de precios</button>
         <button data-tab="ventas">Ventas</button>
+  <button data-tab="reporte-tecnico">Reporte Técnico</button>
       </nav>
 
       <!-- MODAL GLOBAL -->
@@ -530,6 +532,59 @@
 
           </div><!-- /ventas-right -->
         </div><!-- /ventas-grid -->
+      </section>
+
+      <!-- ========== REPORTE TÉCNICO ========== -->
+      <section id="tab-reporte-tecnico" class="tab">
+        <div class="card" id="tr-filters-card">
+          <h3>Reporte de Participación Técnicos</h3>
+          <div class="filters-bar" style="flex-wrap:wrap; gap:12px; align-items:flex-end;">
+            <div class="field">
+              <label>Desde</label>
+              <input type="date" id="rt-from" />
+            </div>
+            <div class="field">
+              <label>Hasta</label>
+              <input type="date" id="rt-to" />
+            </div>
+            <div class="field">
+              <label>Técnico</label>
+              <select id="rt-tech" style="min-width:160px;"></select>
+            </div>
+            <div class="field">
+              <label>&nbsp;</label>
+              <button id="rt-apply" class="secondary">Aplicar</button>
+            </div>
+          </div>
+          <div id="rt-summary" class="muted" style="margin-top:10px; font-size:13px;">— Sin datos —</div>
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <div class="table-wrap" style="max-height:460px; overflow:auto;">
+            <table class="table small" id="rt-table" style="min-width:1000px;">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Fecha</th>
+                  <th>Placa</th>
+                  <th>Cliente</th>
+                  <th>Técnicos</th>
+                  <th class="t-right">Total Venta</th>
+                  <th class="t-right">Mano Obra</th>
+                  <th class="t-right">% Tec</th>
+                  <th class="t-right">Participación</th>
+                </tr>
+              </thead>
+              <tbody id="rt-body"></tbody>
+            </table>
+          </div>
+          <div class="row between" style="margin-top:8px; font-size:12px;">
+            <div id="rt-pag" class="muted">Página 1</div>
+            <div class="row" style="gap:6px;">
+              <button id="rt-prev" class="secondary" disabled>◀</button>
+              <button id="rt-next" class="secondary" disabled>▶</button>
+            </div>
+          </div>
+        </div>
       </section>
       <!-- ========== /VENTAS ========== -->
 
