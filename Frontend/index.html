@@ -384,6 +384,7 @@
             <div class="row" style="gap:6px;">
               <button id="sales-start" class="primary">Nueva venta</button>
               <button id="sales-history" class="secondary">Historial</button>
+               <button id="sales-tech-report" class="secondary">Informe Técnico</button>
             </div>
           </div>
         </div>
@@ -924,6 +925,61 @@
     <div class="row" style="gap:8px; margin-top:10px;">
       <button id="e-vi-save">Guardar</button>
       <button id="e-vi-cancel" class="secondary">Cancelar</button>
+    </div>
+  </div>
+</template>
+
+<!-- === Modal: Reporte Técnico === -->
+<template id="tpl-tech-report">
+  <div class="card" style="max-width:1000px;">
+    <h3>Reporte de Técnico</h3>
+    <div class="row" style="flex-wrap:wrap; gap:8px; align-items:flex-end; margin-top:4px;">
+      <div>
+        <label>Desde</label>
+        <input type="date" id="tr-from" />
+      </div>
+      <div>
+        <label>Hasta</label>
+        <input type="date" id="tr-to" />
+      </div>
+      <div>
+        <label>Técnico</label>
+        <select id="tr-tech" style="min-width:160px;"></select>
+      </div>
+      <div>
+        <button id="tr-run" class="secondary">Aplicar filtros</button>
+      </div>
+    </div>
+    <div id="tr-summary" class="muted" style="margin-top:10px; font-size:13px;">
+      — Sin datos —
+    </div>
+    <div style="max-height:420px; overflow:auto; margin-top:10px;">
+      <table class="table small" style="min-width:900px;">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Fecha</th>
+            <th>Placa</th>
+            <th>Cliente</th>
+            <th>Técnicos</th>
+            <th class="t-right">Total Venta</th>
+            <th class="t-right">Mano Obra</th>
+            <th class="t-right">% Tec</th>
+            <th class="t-right">Participación</th>
+          </tr>
+        </thead>
+        <tbody id="tr-body"></tbody>
+      </table>
+    </div>
+    <div class="row between" style="margin-top:8px; font-size:12px;">
+      <div id="tr-pag" class="muted">Página 1</div>
+      <div class="row" style="gap:6px;">
+        <button id="tr-prev" class="secondary" disabled>◀</button>
+        <button id="tr-next" class="secondary" disabled>▶</button>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px; gap:8px;">
+      <button id="tr-close">Cerrar</button>
     </div>
   </div>
 </template>

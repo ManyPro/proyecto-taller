@@ -239,6 +239,52 @@ DELETE /api/v1/company/technicians/:name
 GET    /api/v1/company/preferences
 PUT    /api/v1/company/preferences        { laborPercents: [30,40,50] }
 ```
+
+## Reporte de técnicos (participación mano de obra)
+
+Endpoint:
+```
+GET /api/v1/sales/technicians/report?from=YYYY-MM-DD&to=YYYY-MM-DD&technician=NOMBRE&page=1&limit=100
+```
+Parámetros (opcionales):
+- `from`, `to`: rango de fechas (usa `createdAt` / cierre) en formato `YYYY-MM-DD`.
+- `technician`: filtra por cualquier coincidencia en `technician`, `initialTechnician` o `closingTechnician`.
+- `page`, `limit`: paginación (por defecto `page=1`, `limit=100`, máx 500).
+
+Respuesta:
+```jsonc
+{
+	"filters": { "from": "2025-10-01", "to": "2025-10-31", "technician": "DAVID" },
+	"pagination": { "page":1, "limit":100, "total":42, "pages":1 },
+	"aggregate": {
+		"laborShareTotal": 1230000,     // suma de laborShare en rango
+		"salesTotal": 8500000,          // suma de total de ventas
+		"count": 42                     // cantidad de ventas consideradas
+	},
+	"items": [
+		{
+			"_id": "...",
+			"number": 15,
+			"createdAt": "...",
+			"closedAt": "...",
+			"vehicle": { "plate": "ABC123" },
+			"customer": { "name": "Cliente Ejemplo" },
+			"technician": "DAVID",
+			"initialTechnician": "DAVID",
+			"closingTechnician": "DAVID",
+			"laborValue": 120000,
+			"laborPercent": 40,
+			"laborShare": 48000,
+			"total": 300000
+		}
+	]
+}
+```
+
+Notas:
+- Si el técnico cambió en el proceso se pueden ver ambos (`initialTechnician` → `closingTechnician`).
+- El filtro por `technician` considera coincidencia en cualquiera de los tres campos.
+- La UI del frontend muestra: filtros arriba, resumen (ventas, total ventas, participación total) y debajo el historial paginado.
 Notas:
 - Nombres de técnicos se almacenan en mayúsculas y sin duplicados.
 - `laborPercents` se deduplica y ordena ascendente (0–100).

@@ -200,6 +200,7 @@ const API = {
 
     list: (params = {}) => http.get(`/api/v1/sales${toQuery(params)}`),
     summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`),
+  techReport: (params = {}) => http.get(`/api/v1/sales/technicians/report${toQuery(params)}`),
     cancel: (id) => http.post(`/api/v1/sales/${id}/cancel`, {}),
     profileByPlate: (plate, opts = {}) => {
       const params = {};

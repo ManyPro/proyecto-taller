@@ -688,3 +688,52 @@ export const summarySales = async (req, res) => {
   const agg = rows[0] || { count: 0, total: 0 };
   res.json({ count: agg.count, total: agg.total });
 };
+
+// ===== Reporte técnico (laborShare) =====
+export const technicianReport = async (req, res) => {
+  const { from, to, technician, page = 1, limit = 100 } = req.query || {};
+  const pg = Math.max(1, Number(page||1));
+  const lim = Math.max(1, Math.min(500, Number(limit||100)));
+  const tech = technician ? String(technician).trim().toUpperCase() : '';
+  const match = { companyId: req.companyId, status: 'closed' };
+  if (from || to) {
+    match.createdAt = {};
+    if (from) match.createdAt.$gte = new Date(from);
+    if (to) match.createdAt.$lte = new Date(`${to}T23:59:59.999Z`);
+  }
+  if (tech) {
+    match.$or = [
+      { technician: tech },
+      { initialTechnician: tech },
+      { closingTechnician: tech }
+    ];
+  }
+
+  const pipeline = [
+    { $match: match },
+    { $sort: { createdAt: -1 } },
+    { $facet: {
+        items: [ { $skip: (pg-1)*lim }, { $limit: lim } ],
+        meta: [ { $count: 'total' } ]
+    } }
+  ];
+  const agg = await Sale.aggregate(pipeline);
+  const bucket = agg[0] || { items: [], meta: [] };
+  const items = bucket.items || [];
+  const totalDocs = bucket.meta?.[0]?.total || 0;
+
+  // Sumar laborShare y totales filtrados (sobre todo el rango filtrado, no solo página)
+  const sumPipeline = [
+    { $match: match },
+    { $group: { _id: null, laborShareTotal: { $sum: { $ifNull: ['$laborShare', 0] } }, salesTotal: { $sum: { $ifNull: ['$total', 0] } }, count: { $sum:1 } } }
+  ];
+  const sums = await Sale.aggregate(sumPipeline);
+  const sumRow = sums[0] || { laborShareTotal:0, salesTotal:0, count:0 };
+
+  res.json({
+    filters: { from: from||null, to: to||null, technician: tech||null },
+    pagination: { page: pg, limit: lim, total: totalDocs, pages: Math.ceil(totalDocs/lim)||1 },
+    aggregate: { laborShareTotal: sumRow.laborShareTotal, salesTotal: sumRow.salesTotal, count: sumRow.count },
+    items
+  });
+};
