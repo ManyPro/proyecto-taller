@@ -357,6 +357,11 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 .price-badge{ background:var(--price-badge-bg); color:var(--price-badge-text); border:1px solid var(--price-badge-border); }
 .service-badge{ background:var(--service-badge-bg); color:var(--service-badge-text); border:1px solid var(--service-badge-border); }
 
+/* Forgot password link */
+.forgot-wrapper{ margin-top:8px; text-align:right; }
+.forgot-link{ font-size:12px; text-decoration:none; color:var(--accent); opacity:.9; transition:color .2s ease, opacity .2s ease; }
+.forgot-link:hover{ opacity:1; text-decoration:underline; }
+
 /* ===== Ventas – cápsulas nuevas ===== */
 .capsules-bar{ padding:12px 16px; }
 .sale-capsule{

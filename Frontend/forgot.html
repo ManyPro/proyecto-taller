@@ -11,25 +11,37 @@ const emailInput = document.getElementById('forgot-email');
 const msg = document.getElementById('forgot-msg');
 form.addEventListener('submit', async (e)=>{
   e.preventDefault();
-  msg.textContent='Enviando...';
+  msg.classList.remove('error');
+  msg.textContent='Enviando…';
   try{
     const email = emailInput.value.trim();
-    await fetch((API.base||'') + '/api/v1/auth/company/password/forgot', {
+    const res = await fetch((API.base||'') + '/api/v1/auth/company/password/forgot', {
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email })
-    }).then(r=>r.json()).then(data=>{
-      if(data.error) throw new Error(data.error);
-      msg.textContent = 'Si el correo existe recibirás un enlace (en dev ver consola).';
-      if(data.debugToken){
-        console.log('[DEBUG reset token]', data.debugToken, data.resetUrl);
-        const dev = document.getElementById('dev-link');
-        if(dev && data.resetUrl){ dev.innerHTML = `<a href="${data.resetUrl}">Ir al enlace de reset (DEV)</a>`; }
-      }
     });
-  }catch(err){ msg.textContent = err.message || 'Error'; }
+    const text = await res.text();
+    let data = {};
+    try{ data = text ? JSON.parse(text) : {}; }catch{ throw new Error('Respuesta inválida del servidor'); }
+    if(!res.ok){ throw new Error(data.error || 'Error en solicitud'); }
+    msg.textContent = 'Si el correo existe recibirás un enlace. Revisa spam. (En desarrollo mira la consola para token).';
+    if(data.debugToken){
+      console.log('[DEBUG reset token]', data.debugToken, data.resetUrl);
+      const dev = document.getElementById('dev-link');
+      if(dev && data.resetUrl){ dev.innerHTML = `<a href="${data.resetUrl}">Ir al enlace de reset (DEV)</a>`; }
+    }
+  }catch(err){
+    msg.classList.add('error');
+    msg.textContent = err.message || 'Error inesperado';
+  }
 });
 </script>
 <style>
-body{max-width:480px;margin:40px auto;padding:0 16px;} .card{margin-top:30px;}
+body{max-width:520px;margin:40px auto;padding:0 16px;}
+.card{margin-top:30px;}
+h1{text-align:center;}
+form button{width:100%; margin-top:14px;}
+#forgot-msg.error{color:#ef4444;}
+.muted a{color:var(--accent);}
+.back-link{display:inline-block;margin-top:24px;font-size:13px;}
 </style>
 </head>
 <body>
@@ -42,7 +54,7 @@ body{max-width:480px;margin:40px auto;padding:0 16px;} .card{margin-top:30px;}
     </form>
     <p id="forgot-msg" class="muted" style="margin-top:12px;"></p>
     <div id="dev-link" style="margin-top:12px;font-size:12px;"></div>
-    <p style="margin-top:16px;"><a href="index.html">Volver</a></p>
+    <p class="back-link"><a href="index.html">← Volver</a></p>
   </div>
 </body>
 </html>
