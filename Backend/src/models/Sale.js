@@ -17,6 +17,11 @@ const SaleSchema = new mongoose.Schema({
   status: { type: String, default: 'draft', enum: ['draft', 'closed', 'cancelled'], index: true },
   // Técnico asignado (para empresas que lo usan, p.ej. Casa DUSTER)
   technician: { type: String, default: '', index: true },
+  // Historial de técnico: quién fue asignado inicialmente y quién cerró
+  initialTechnician: { type: String, default: '', index: true },
+  closingTechnician: { type: String, default: '', index: true },
+  technicianAssignedAt: { type: Date },
+  technicianClosedAt: { type: Date },
   items: { type: [SaleItemSchema], default: [] },
   customer: {
     type: { type: String, default: '' },

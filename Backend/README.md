@@ -190,6 +190,12 @@ paymentReceiptUrl: String
 laborValue: Number          // valor base de mano de obra
 laborPercent: Number        // % asignado al técnico
 laborShare: Number          // valor calculado = laborValue * laborPercent / 100
+// Técnicos (histórico)
+technician: String          // técnico actual (legacy / compatibilidad)
+initialTechnician: String   // técnico asignado al iniciar (primera vez)
+closingTechnician: String   // técnico registrado al cerrar
+technicianAssignedAt: Date  // timestamp cuando se asignó por primera vez
+technicianClosedAt: Date    // timestamp de cierre (cuando se registra closingTechnician)
 ```
 
 Endpoint de cierre:
@@ -208,6 +214,13 @@ Validaciones:
 - `laborValue` ≥ 0
 - `laborPercent` entre 0 y 100
 - Si ambos existen se calcula y persiste `laborShare`.
+- Si se envía `technician` y la venta no tiene aún `initialTechnician`, se guarda también allí y se marca `technicianAssignedAt`.
+- Al cerrar, si llega `technician`, se establece además `closingTechnician` y `technicianClosedAt`. Si no había `initialTechnician` todavía, se rellena para mantener consistencia.
+
+### Notas sobre técnicos
+- `technician` se mantiene por compatibilidad y refleja el técnico "actual" (en cierre coincide con el de cierre).
+- Reportes futuros pueden usar `initialTechnician` para saber quién empezó y `closingTechnician` para quién finalizó.
+- Si el técnico no cambia durante el flujo, los tres (`technician`, `initialTechnician`, `closingTechnician`) quedarán con el mismo valor.
 
 ## Técnicos y preferencias por empresa
 

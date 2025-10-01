@@ -173,9 +173,10 @@ function buildCloseModalContent(){
         </select>
       </div>
       <div>
-        <label>Técnico</label>
+        <label>Técnico (cierre)</label>
         <select id="cv-technician"></select>
         <button id="cv-add-tech" type="button" class="small" style="margin-top:4px;">+ Técnico</button>
+        <div id="cv-initial-tech" class="muted" style="margin-top:4px;font-size:11px;display:none;"></div>
       </div>
       <div>
         <label>Valor mano de obra</label>
@@ -217,7 +218,22 @@ function openCloseModal(){
 function fillCloseModal(){
   const techSel = document.getElementById('cv-technician');
   techSel.innerHTML = '<option value="">-- Ninguno --</option>' + (companyTechnicians||[]).map(t=>`<option value="${t}">${t}</option>`).join('');
-  if(current && current.technician) techSel.value = current.technician;
+  const initialTechLabel = document.getElementById('cv-initial-tech');
+  if(current){
+    if(current.initialTechnician){
+      // Mostrar técnico inicial fijo
+      if(initialTechLabel){
+        initialTechLabel.style.display='block';
+        initialTechLabel.textContent = 'Asignado al inicio: ' + current.initialTechnician;
+      }
+      // Selección por defecto: cerrar con el mismo (puede cambiar si se desea -> si quieres impedir cambio, descomenta disable)
+      techSel.value = current.technician || current.initialTechnician;
+      // Para forzar cierre siempre con el inicial: descomentar siguiente línea
+      // techSel.disabled = true;
+    } else if(current.technician){
+      techSel.value = current.technician;
+    }
+  }
 
   const percSel = document.getElementById('cv-laborPercent');
   const perc = (companyPrefs?.laborPercents||[]);
@@ -271,7 +287,7 @@ function fillCloseModal(){
       }
       const payload = {
         paymentMethod: document.getElementById('cv-payMethod').value||'',
-        technician: techSel.value||'',
+        technician: techSel.value||'', // closingTechnician en backend; también establece initial si no existe
         laborValue: Number(laborValueInput.value||0)||0,
         laborPercent: !percSel.disabled ? Number(percSel.value||0)||0 : Number(document.getElementById('cv-laborPercentManual').value||0)||0,
         paymentReceiptUrl: receiptUrl

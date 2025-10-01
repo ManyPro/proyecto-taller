@@ -385,6 +385,10 @@ export const updateTechnician = async (req, res) => {
   if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
   const tech = String(technician || '').trim().toUpperCase();
   sale.technician = tech;
+  if (tech && !sale.initialTechnician) {
+    sale.initialTechnician = tech;
+    sale.technicianAssignedAt = new Date();
+  }
   await sale.save();
   try { publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }); } catch {}
   res.json(sale.toObject());
@@ -485,7 +489,17 @@ export const closeSale = async (req, res) => {
       if (!Number.isFinite(Number(sale.number))) sale.number = await getNextSaleNumber(req.companyId);
 
       if (pm) sale.paymentMethod = pm.toUpperCase();
-      if (technician) sale.technician = technician;
+      if (technician) {
+        sale.technician = technician;
+        // Si aún no hay técnico inicial, lo establecemos
+        if (!sale.initialTechnician) {
+          sale.initialTechnician = technician;
+          if (!sale.technicianAssignedAt) sale.technicianAssignedAt = new Date();
+        }
+        // Registrar técnico de cierre y timestamp
+        sale.closingTechnician = technician;
+        sale.technicianClosedAt = new Date();
+      }
       if (laborValueRaw != null) sale.laborValue = Math.round(laborValue);
       if (laborPercentRaw != null) sale.laborPercent = Math.round(laborPercent);
       if (sale.laborValue && sale.laborPercent) sale.laborShare = Math.round(sale.laborValue * (sale.laborPercent / 100));
