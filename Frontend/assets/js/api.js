@@ -201,7 +201,12 @@ const API = {
     list: (params = {}) => http.get(`/api/v1/sales${toQuery(params)}`),
     summary: (params = {}) => http.get(`/api/v1/sales/summary${toQuery(params)}`),
     cancel: (id) => http.post(`/api/v1/sales/${id}/cancel`, {}),
-    profileByPlate: (plate) => http.get(`/api/v1/sales/profile/by-plate/${encodeURIComponent(String(plate || '').toUpperCase())}`),
+    profileByPlate: (plate, opts = {}) => {
+      const params = {};
+      if (opts.fuzzy) params.fuzzy = 'true';
+      const q = Object.keys(params).length ? `?${new URLSearchParams(params).toString()}` : '';
+      return http.get(`/api/v1/sales/profile/by-plate/${encodeURIComponent(String(plate || '').toUpperCase())}${q}`);
+    },
     setTechnician: (id, technician) => http.patch(`/api/v1/sales/${id}/technician`, { technician })
   }
 };
