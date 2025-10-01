@@ -13,6 +13,7 @@ router.get('/stream', sseHandler);
 // List and summaries first to avoid shadowing
 router.get('/summary', summarySales);
 router.get('/profile/by-plate/:plate', getProfileByPlate);
+router.get('/lookup/plate/:plate', getProfileByPlate); // alias para consistencia con quotes
 router.get('/', listSales);
 
 // Create

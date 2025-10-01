@@ -1,6 +1,8 @@
 // Backend/src/controllers/quotes.controller.js
 import Counter from '../models/Counter.js';
 import Quote from '../models/Quote.js';
+import { upsertProfileFromSource } from './profile.helper.js';
+import CustomerProfile from '../models/CustomerProfile.js';
 
 /** Normaliza el tipo recibido desde el Frontend:
  *  'PRODUCTO'|'Servicio' -> 'Producto' ; 'SERVICIO'|'Servicio' -> 'Servicio'
@@ -79,6 +81,15 @@ export async function createQuote(req, res) {
     items,
     total
   });
+
+  try { await upsertProfileFromSource(companyId, { customer, vehicle: {
+    plate: vehicle.plate,
+    brand: vehicle.make,
+    line: vehicle.line,
+    engine: vehicle.displacement,
+    year: vehicle.modelYear ? Number(vehicle.modelYear) || null : null,
+    mileage: null
+  }}, { source: 'quote' }); } catch {}
 
   res.status(201).json(doc);
 }
@@ -199,6 +210,14 @@ export async function updateQuote(req, res) {
   exists.total = total;
 
   await exists.save();
+  try { await upsertProfileFromSource(companyId, { customer, vehicle: {
+    plate: vehicle.plate,
+    brand: vehicle.make,
+    line: vehicle.line,
+    engine: vehicle.displacement,
+    year: vehicle.modelYear ? Number(vehicle.modelYear) || null : null,
+    mileage: null
+  }}, { source: 'quote' }); } catch {}
   res.json(exists);
 }
 
@@ -207,4 +226,31 @@ export async function deleteQuote(req, res) {
   const r = await Quote.deleteOne({ _id: req.params.id, companyId });
   if (!r.deletedCount) return res.status(404).json({ error: 'No encontrada' });
   res.json({ ok: true });
+}
+
+// Lookup por placa para autocompletar en formulario de cotización
+export async function lookupQuotePlate(req, res) {
+  const companyId = req.companyId || req.company?.id;
+  const plate = String(req.params.plate || '').trim().toUpperCase();
+  if (!companyId) return res.status(400).json({ error: 'Falta empresa' });
+  if (!plate) return res.status(400).json({ error: 'Falta placa' });
+  const query = { companyId, $or: [{ plate }, { 'vehicle.plate': plate }] };
+  const matches = await CustomerProfile.find(query).sort({ updatedAt: -1, createdAt: -1 }).limit(3);
+  if (!matches.length) return res.json(null);
+  // Tomar el primero (ya deduplicado usualmente por sales controller) y mapear a formato esperado por UI de cotización
+  const doc = matches[0].toObject();
+  return res.json({
+    customer: {
+      name: doc.customer?.name || '',
+      phone: doc.customer?.phone || '',
+      email: doc.customer?.email || ''
+    },
+    vehicle: {
+      plate: doc.vehicle?.plate || plate,
+      make: doc.vehicle?.brand || '',
+      line: doc.vehicle?.line || '',
+      modelYear: doc.vehicle?.year ? String(doc.vehicle.year) : '',
+      displacement: doc.vehicle?.engine || ''
+    }
+  });
 }

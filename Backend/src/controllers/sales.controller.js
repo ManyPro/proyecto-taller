@@ -5,6 +5,7 @@ import PriceEntry from '../models/PriceEntry.js';
 import Counter from '../models/Counter.js';
 import StockMove from '../models/StockMove.js';
 import CustomerProfile from '../models/CustomerProfile.js';
+import { upsertProfileFromSource } from './profile.helper.js';
 import { publish } from '../lib/live.js';
 
 // Helpers
@@ -132,52 +133,7 @@ function mergeProfileData(existingDoc, payload) {
   };
 }
 
-async function upsertCustomerProfile(companyId, sale) {
-  const payload = buildCustomerProfilePayload(companyId, sale);
-  if (!payload) return;
-
-  const query = {
-    companyId: payload.companyId,
-    $or: [{ plate: payload.plate }, { 'vehicle.plate': payload.plate }]
-  };
-
-  let matches = await CustomerProfile.find(query).sort({ updatedAt: -1, createdAt: -1 });
-
-  if (!matches.length) {
-    try {
-      await CustomerProfile.create(payload);
-      return;
-    } catch (err) {
-      if (err?.code !== 11000) throw err;
-      matches = await CustomerProfile.find(query).sort({ updatedAt: -1, createdAt: -1 });
-    }
-  }
-
-  if (!matches.length) return;
-
-  const ordered = orderProfiles(matches);
-  const [primary, ...duplicates] = ordered;
-  if (!primary) return;
-
-  if (duplicates.length) {
-    const ids = duplicates.map((doc) => doc._id).filter(Boolean);
-    if (ids.length) {
-      try {
-        await CustomerProfile.deleteMany({ companyId: payload.companyId, _id: { $in: ids } });
-      } catch {}
-    }
-  }
-
-  const merged = mergeProfileData(primary, payload);
-
-  primary.set(merged);
-  primary.plate = merged.plate;
-  if (!primary.vehicle) primary.vehicle = {};
-  primary.vehicle.plate = merged.vehicle.plate;
-  primary.markModified('customer');
-  primary.markModified('vehicle');
-  await primary.save();
-}
+async function upsertCustomerProfile(companyId, sale) { await upsertProfileFromSource(companyId, sale); }
 
 async function getNextSaleNumber(companyId) {
   const c = await Counter.findOneAndUpdate(
@@ -282,7 +238,7 @@ export const addItem = async (req, res) => {
   sale.items.push(itemData);
   computeTotals(sale);
   await sale.save();
-  await upsertCustomerProfile(req.companyId, sale);
+  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
   try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
@@ -380,7 +336,7 @@ export const addItemsBatch = async (req, res) => {
   sale.items.push(...added);
   computeTotals(sale);
   await sale.save();
-  await upsertCustomerProfile(req.companyId, sale);
+  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
   try { publish(req.companyId, 'sale:updated', { id: (sale?._id) || undefined }); } catch { }
   res.json(sale.toObject());
 };
@@ -401,7 +357,7 @@ export const updateItem = async (req, res) => {
 
   computeTotals(sale);
   await sale.save();
-  await upsertCustomerProfile(req.companyId, sale);
+  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
   try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
@@ -415,7 +371,7 @@ export const removeItem = async (req, res) => {
   sale.items.id(itemId)?.deleteOne();
   computeTotals(sale);
   await sale.save();
-  await upsertCustomerProfile(req.companyId, sale);
+  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
   try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
@@ -507,7 +463,7 @@ export const closeSale = async (req, res) => {
     });
 
     const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
-    await upsertCustomerProfile(req.companyId, sale);
+  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
     try{ publish(req.companyId, 'sale:closed', { id: (sale?._id)||undefined }) }catch{}
     res.json({ ok: true, sale: sale.toObject() });
   } catch (err) {
@@ -564,7 +520,7 @@ export const addByQR = async (req, res) => {
       });
       computeTotals(sale);
       await sale.save();
-      await upsertCustomerProfile(req.companyId, sale);
+  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
       return res.json(sale.toObject());
     }
   }
