@@ -697,9 +697,9 @@ export const technicianReport = async (req, res) => {
   const tech = technician ? String(technician).trim().toUpperCase() : '';
   const match = { companyId: req.companyId, status: 'closed' };
   if (from || to) {
-    match.createdAt = {};
-    if (from) match.createdAt.$gte = new Date(from);
-    if (to) match.createdAt.$lte = new Date(`${to}T23:59:59.999Z`);
+    match.closedAt = {};
+    if (from) match.closedAt.$gte = new Date(from);
+    if (to) match.closedAt.$lte = new Date(`${to}T23:59:59.999Z`);
   }
   if (tech) {
     match.$or = [
@@ -711,7 +711,7 @@ export const technicianReport = async (req, res) => {
 
   const pipeline = [
     { $match: match },
-    { $sort: { createdAt: -1 } },
+  { $sort: { closedAt: -1, createdAt: -1 } },
     { $facet: {
         items: [ { $skip: (pg-1)*lim }, { $limit: lim } ],
         meta: [ { $count: 'total' } ]

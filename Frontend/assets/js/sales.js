@@ -1187,7 +1187,6 @@ export function initSales(){
   document.getElementById('sales-add-general')?.addEventListener('click', openAddPicker);
   document.getElementById('sales-add-manual')?.addEventListener('click', openAddManual);
   document.getElementById('sales-history')?.addEventListener('click', openSalesHistory);
-  document.getElementById('sales-tech-report')?.addEventListener('click', openTechnicianReport);
   document.getElementById('sv-edit-cv')?.addEventListener('click', openEditCV);
   document.getElementById('sv-loadQuote')?.addEventListener('click', loadQuote);
   document.getElementById('sv-applyQuoteCV')?.addEventListener('click', applyQuoteCustomerVehicle);
@@ -1216,79 +1215,4 @@ export function initSales(){
   connectLive();
 }
 
-// ==== Reporte Técnico ====
-async function openTechnicianReport(){
-  const tpl = document.getElementById('tpl-tech-report');
-  const node = tpl?.content?.firstElementChild?.cloneNode(true);
-  if(!node) return;
-  openModal(node);
-  const from = node.querySelector('#tr-from');
-  const to = node.querySelector('#tr-to');
-  const techSel = node.querySelector('#tr-tech');
-  const runBtn = node.querySelector('#tr-run');
-  const body = node.querySelector('#tr-body');
-  const summary = node.querySelector('#tr-summary');
-  const pag = node.querySelector('#tr-pag');
-  const prevBtn = node.querySelector('#tr-prev');
-  const nextBtn = node.querySelector('#tr-next');
-  node.querySelector('#tr-close').onclick = ()=> closeModal();
-  // Poblar técnicos
-  try {
-    const list = await API.company.getTechnicians();
-    techSel.innerHTML = '<option value="">-- Todos --</option>' + (list||[]).map(t=>`<option value="${t}">${t}</option>`).join('');
-  } catch { techSel.innerHTML='<option value="">-- Todos --</option>'; }
-
-  let state = { page:1, pages:1, limit:100 };
-
-  async function load(reset=false){
-    if(reset) state.page = 1;
-    summary.textContent='Cargando...';
-    body.innerHTML='';
-    let params = { page: state.page, limit: state.limit };
-    if(from.value) params.from = from.value;
-    if(to.value) params.to = to.value;
-    if(techSel.value) params.technician = techSel.value;
-    try{
-      const data = await API.sales.techReport(params);
-      const items = data.items || [];
-      // resumen
-      const agg = data.aggregate || { laborShareTotal:0, salesTotal:0, count:0 };
-      const fmt = n=> money(n||0);
-      summary.textContent = `Ventas: ${agg.count} | Total ventas: ${fmt(agg.salesTotal)} | Participación total técnico: ${fmt(agg.laborShareTotal)} ${data.filters?.technician? ' | Técnico: '+data.filters.technician : ''}`;
-      // filas
-      items.forEach(s=>{
-        const tr=document.createElement('tr');
-        const techs = [s.initialTechnician, s.closingTechnician].filter(Boolean);
-        tr.innerHTML = `
-          <td>${padSaleNumber(s.number||s._id||'')}</td>
-          <td>${s.closedAt ? new Date(s.closedAt).toLocaleDateString() : (s.createdAt? new Date(s.createdAt).toLocaleDateString():'')}</td>
-          <td>${s.vehicle?.plate||''}</td>
-          <td>${(s.customer?.name||'')}</td>
-          <td>${techs.length? techs.join(' → '): (s.technician||'')}</td>
-          <td class="t-right">${fmt(s.total||0)}</td>
-          <td class="t-right">${fmt(s.laborValue||0)}</td>
-          <td class="t-right">${s.laborPercent||0}%</td>
-          <td class="t-right">${fmt(s.laborShare||0)}</td>`;
-        body.appendChild(tr);
-      });
-      if(!items.length){
-        const tr=document.createElement('tr');
-        const td=document.createElement('td'); td.colSpan=9; td.style.opacity=.7; td.textContent='Sin resultados'; tr.appendChild(td); body.appendChild(tr);
-      }
-      // paginación
-      state.page = data.pagination?.page || 1;
-      state.pages = data.pagination?.pages || 1;
-      pag.textContent = `Página ${state.page} de ${state.pages}`;
-      prevBtn.disabled = state.page<=1;
-      nextBtn.disabled = state.page>=state.pages;
-    }catch(e){
-      summary.textContent = e?.message||'Error cargando reporte';
-    }
-  }
-
-  runBtn.onclick = ()=> load(true);
-  prevBtn.onclick = ()=>{ if(state.page>1){ state.page--; load(); } };
-  nextBtn.onclick = ()=>{ if(state.page<state.pages){ state.page++; load(); } };
-  load(true);
-}
 

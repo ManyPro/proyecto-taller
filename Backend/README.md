@@ -242,7 +242,7 @@ PUT    /api/v1/company/preferences        { laborPercents: [30,40,50] }
 
 ## Reporte de técnicos (participación mano de obra)
 
-Endpoint:
+Endpoint (filtra por fecha de cierre `closedAt`):
 ```
 GET /api/v1/sales/technicians/report?from=YYYY-MM-DD&to=YYYY-MM-DD&technician=NOMBRE&page=1&limit=100
 ```
