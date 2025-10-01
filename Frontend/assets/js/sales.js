@@ -262,10 +262,15 @@ function fillCloseModal(){
     computePreview();
   });
 
-  document.getElementById('cv-add-tech').addEventListener('click', async ()=>{
-    const name = prompt('Nombre del técnico (se guardará en mayúsculas):');
-    if(!name) return;
-    try{ companyTechnicians = await API.company.addTechnician(name); fillCloseModal(); }catch(e){ alert(e?.message||'No se pudo agregar'); }
+  // Manejar opción especial para agregar técnico desde el select
+  techSel.addEventListener('change', async ()=>{
+    if(techSel.value === '__ADD_TECH__'){
+      const name = prompt('Nombre del técnico (se guardará en mayúsculas):');
+      techSel.value='';
+      if(!name) return;
+      try{ companyTechnicians = await API.company.addTechnician(name); fillCloseModal(); }
+      catch(e){ alert(e?.message||'No se pudo agregar'); }
+    }
   });
 
   document.getElementById('cv-cancel').addEventListener('click', ()=>{
