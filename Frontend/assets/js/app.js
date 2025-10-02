@@ -41,6 +41,9 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const isLight = document.body.classList.contains('theme-light');
     applyTheme(isLight ? 'dark' : 'light');
   });
+  initFAB();
+  initSwipeTabs();
+  initCollapsibles();
 });
 
 // Tabs simples
@@ -75,6 +78,100 @@ function ensureModules() {
   initSales();
   // No inicializamos reporte técnico hasta que se abra la pestaña
   modulesReady = true;
+}
+
+// ================= FAB (Botón flotante móviles) =================
+function initFAB(){
+  const existing = document.getElementById('app-fab');
+  if(existing) return;
+  const fab = document.createElement('div');
+  fab.id='app-fab';
+  fab.innerHTML = `<button id="fab-main" title="Acciones rápidas">＋</button>
+    <div id="fab-menu" class="hidden">
+      <button data-act="venta">Nueva Venta</button>
+      <button data-act="nota">Nueva Nota</button>
+      <button data-act="cotizacion">Nueva Cotización</button>
+    </div>`;
+  document.body.appendChild(fab);
+  const mainBtn = fab.querySelector('#fab-main');
+  const menu = fab.querySelector('#fab-menu');
+  mainBtn.addEventListener('click', ()=> menu.classList.toggle('hidden'));
+  menu.addEventListener('click', async (ev)=>{
+    const btn = ev.target.closest('button[data-act]'); if(!btn) return;
+    menu.classList.add('hidden');
+    const act = btn.dataset.act;
+    if(act==='venta'){
+      try{ const { sales } = await import('./sales.js'); }catch{}
+      // Simular click en Nueva Venta
+      document.getElementById('sales-start')?.click();
+      showTab('ventas');
+    } else if(act==='nota'){
+      showTab('notas');
+      document.getElementById('n-plate')?.focus();
+    } else if(act==='cotizacion'){
+      showTab('cotizaciones');
+      document.getElementById('q-client-name')?.focus();
+    }
+  });
+  // Ocultar fab en desktop
+  const mq = window.matchMedia('(min-width: 861px)');
+  const toggle = ()=>{ fab.style.display = mq.matches ? 'none':'flex'; };
+  mq.addEventListener('change', toggle); toggle();
+}
+
+// ================= Swipe Tabs (gestos horizontales) =================
+function initSwipeTabs(){
+  const container = document.querySelector('main'); if(!container) return;
+  let startX=0, startY=0, tracking=false;
+  container.addEventListener('touchstart',(e)=>{
+    if(e.touches.length!==1) return; const t=e.touches[0];
+    startX=t.clientX; startY=t.clientY; tracking=true;
+  }, { passive:true });
+  container.addEventListener('touchmove',(e)=>{
+    if(!tracking) return; const t=e.touches[0];
+    const dx=t.clientX-startX; const dy=Math.abs(t.clientY-startY);
+    if(Math.abs(dx)>60 && dy<40){
+      tracking=false;
+      const order = Array.from(document.querySelectorAll('.tabs button[data-tab]')).map(b=>b.dataset.tab);
+      const currentTab = (sessionStorage.getItem('app:lastTab')||'notas');
+      const idx = order.indexOf(currentTab);
+      if(idx>=0){
+        const next = dx<0 ? order[idx+1] : order[idx-1];
+        if(next){ showTab(next); }
+      }
+    }
+  }, { passive:true });
+  container.addEventListener('touchend', ()=> tracking=false);
+}
+
+// ================= Secciones Colapsables en móvil =================
+function initCollapsibles(){
+  const rules = [
+    { sel:'#q-history-card h3', body:'#q-history-list' },
+    { sel:'#notes-history h3', body:'#notesList' }
+  ];
+  rules.forEach(r=>{
+    const h = document.querySelector(r.sel); const body = document.querySelector(r.body);
+    if(!h || !body) return;
+    if(window.innerWidth>800) return; // solo móvil/tablet
+    h.style.cursor='pointer';
+    const stateKey='col:'+r.body;
+    const collapsed = sessionStorage.getItem(stateKey)==='1';
+    if(collapsed){ body.style.display='none'; h.classList.add('collapsed'); }
+    const iconSpan = document.createElement('span'); iconSpan.textContent = collapsed ? ' ▶' : ' ▼'; iconSpan.style.fontSize='12px';
+    h.appendChild(iconSpan);
+    h.addEventListener('click', ()=>{
+      const isHidden = body.style.display==='none';
+      body.style.display = isHidden? '' : 'none';
+      iconSpan.textContent = isHidden ? ' ▼' : ' ▶';
+      sessionStorage.setItem(stateKey, isHidden ? '0':'1');
+    });
+  });
+}
+
+// ================= Modo densidad =================
+export function toggleDense(on){
+  document.body.classList.toggle('dense', !!on);
 }
 
 // Login simple (usa tu API)

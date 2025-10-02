@@ -203,7 +203,7 @@ function buildCloseModalContent(){
         <input id="cv-receipt" type="file" accept="image/*,.pdf" />
       </div>
       <div style="grid-column:1/3; font-size:12px;" class="muted" id="cv-laborSharePreview"></div>
-      <div style="grid-column:1/3; margin-top:8px; display:flex; gap:8px;">
+      <div class="sticky-actions" style="grid-column:1/3; margin-top:8px; display:flex; gap:8px;">
         <button id="cv-confirm">Confirmar cierre</button>
         <button type="button" class="secondary" id="cv-cancel">Cancelar</button>
       </div>
