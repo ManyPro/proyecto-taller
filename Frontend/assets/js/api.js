@@ -216,6 +216,16 @@ const API = {
     removeTechnician: (name) => http.del(`/api/v1/company/technicians/${encodeURIComponent(name)}`).then(r => r.technicians || []),
     getPreferences: () => http.get('/api/v1/company/preferences').then(r => r.preferences || { laborPercents: [] }),
     setPreferences: (prefs) => http.put('/api/v1/company/preferences', prefs).then(r => r.preferences || { laborPercents: [] })
+  },
+  accounts: {
+    list: () => http.get('/api/v1/cashflow/accounts'),
+    create: (payload) => http.post('/api/v1/cashflow/accounts', payload),
+    update: (id, body) => http.patch(`/api/v1/cashflow/accounts/${id}`, body),
+    balances: () => http.get('/api/v1/cashflow/accounts/balances')
+  },
+  cashflow: {
+    list: (params={}) => http.get(`/api/v1/cashflow/entries${toQuery(params)}`),
+    create: (payload) => http.post('/api/v1/cashflow/entries', payload)
   }
 };
 

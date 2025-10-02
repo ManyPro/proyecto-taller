@@ -173,6 +173,11 @@ function buildCloseModalContent(){
         </select>
       </div>
       <div>
+        <label>Cuenta destino</label>
+        <select id="cv-account"></select>
+        <div class="muted" style="font-size:11px;margin-top:4px;" id="cv-account-hint">Entrará como ingreso automático.</div>
+      </div>
+      <div>
         <label>Técnico (cierre)</label>
         <select id="cv-technician"></select>
         <div id="cv-initial-tech" class="muted" style="margin-top:4px;font-size:11px;display:none;"></div>
@@ -243,6 +248,21 @@ function fillCloseModal(){
   const percentToggle = document.getElementById('cv-toggle-percent');
   const sharePrev = document.getElementById('cv-laborSharePreview');
   const msg = document.getElementById('cv-msg');
+  const accSel = document.getElementById('cv-account');
+
+  // Cargar cuentas
+  (async ()=>{
+    try{
+      const accounts = await API.accounts.list();
+      if(!accounts.length){
+        // crear automáticamente Caja si no existe
+        try { await API.accounts.create({ name:'Caja', type:'CASH' }); } catch{}
+        const retry = await API.accounts.list();
+        accounts.push(...retry);
+      }
+      accSel.innerHTML = accounts.map(a=>`<option value="${a._id}">${a.name}</option>`).join('');
+    }catch{ accSel.innerHTML='<option value="">(sin cuentas)</option>'; }
+  })();
 
   function computePreview(){
     const lv = Number(laborValueInput.value||0)||0; let lp=null;
@@ -294,7 +314,8 @@ function fillCloseModal(){
         technician: techSel.value||'', // closingTechnician en backend; también establece initial si no existe
         laborValue: Number(laborValueInput.value||0)||0,
         laborPercent: !percSel.disabled ? Number(percSel.value||0)||0 : Number(document.getElementById('cv-laborPercentManual').value||0)||0,
-        paymentReceiptUrl: receiptUrl
+        paymentReceiptUrl: receiptUrl,
+        accountId: accSel.value || null
       };
       await API.sales.close(current._id, payload);
       alert('Venta cerrada');

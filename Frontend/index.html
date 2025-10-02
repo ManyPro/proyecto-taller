@@ -18,6 +18,7 @@
   <script type="module" src="./assets/js/quotes.js"></script>
   <script type="module" src="./assets/js/sales.js"></script>
   <script type="module" src="./assets/js/techreport.js"></script>
+  <script type="module" src="./assets/js/cashflow.js"></script>
   <script type="module" src="./assets/js/prices.js"></script>
  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <link rel="icon" href="data:,">
@@ -59,6 +60,7 @@
         <button data-tab="precios">Lista de precios</button>
         <button data-tab="ventas">Ventas</button>
   <button data-tab="reporte-tecnico">Reporte Técnico</button>
+  <button data-tab="cashflow">Flujo de Caja</button>
       </nav>
 
       <!-- MODAL GLOBAL -->
@@ -140,6 +142,49 @@
           </div>
         </div>
       </section>
+      <!-- ========== FLUJO DE CAJA ========== -->
+      <section id="tab-cashflow" class="tab">
+        <div class="card">
+          <h3>Cuentas</h3>
+          <div class="row wrap" style="gap:8px; align-items:flex-end;">
+            <div>
+              <button id="cf-refresh" class="secondary">Actualizar</button>
+              <button id="cf-add-account">+ Cuenta</button>
+            </div>
+          </div>
+          <div id="cf-accounts" class="table-wrap" style="max-height:200px;overflow:auto;margin-top:8px;">
+            <table class="table small"><thead><tr><th>Nombre</th><th>Tipo</th><th class="t-right">Saldo</th><th></th></tr></thead><tbody id="cf-acc-body"></tbody></table>
+          </div>
+          <div id="cf-acc-total" class="muted" style="margin-top:6px;font-size:12px;">Total: —</div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <h3>Movimientos</h3>
+          <div class="row wrap" style="gap:8px; align-items:flex-end;">
+            <select id="cf-filter-account"><option value="">-- Cuenta --</option></select>
+            <input type="date" id="cf-from" />
+            <input type="date" id="cf-to" />
+            <select id="cf-kind"><option value="">IN/OUT</option><option value="IN">Entradas</option><option value="OUT">Salidas</option></select>
+            <select id="cf-source"><option value="">Fuente</option><option value="SALE">Venta</option><option value="MANUAL">Manual</option></select>
+            <button id="cf-apply" class="secondary">Aplicar</button>
+            <button id="cf-new-entry">+ Entrada manual</button>
+          </div>
+          <div id="cf-mov-summary" class="muted" style="margin-top:8px;font-size:12px;">—</div>
+          <div class="table-wrap" style="max-height:360px;overflow:auto;margin-top:8px;">
+            <table class="table small" style="min-width:920px;">
+              <thead><tr><th>Fecha</th><th>Cuenta</th><th>Descripción</th><th>Fuente</th><th class="t-right">IN</th><th class="t-right">OUT</th><th class="t-right">Saldo</th></tr></thead>
+              <tbody id="cf-rows"></tbody>
+            </table>
+          </div>
+          <div class="row between" style="margin-top:8px;font-size:12px;">
+            <div id="cf-pag" class="muted">Página 1</div>
+            <div class="row" style="gap:6px;">
+              <button id="cf-prev" class="secondary" disabled>◀</button>
+              <button id="cf-next" class="secondary" disabled>▶</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- ========== /FLUJO DE CAJA ========== -->
 
       <!-- ========== INVENTARIO ========== -->
       <section id="tab-inventario" class="tab">
