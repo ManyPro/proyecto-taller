@@ -756,6 +756,22 @@ export const technicianReport = async (req, res) => {
     const totalsRaw = pack.totals?.[0] || { count:0, salesTotal:0, laborShareTotal:0 };
     const totalDocs = totalsRaw.count || 0;
 
+    // Fallback simple si no se obtuvieron filas pero deberían existir (debug)
+    if (!rows.length) {
+      const quick = await Sale.find({ companyId: req.companyId, status:'closed' })
+        .sort({ closedAt:-1, updatedAt:-1 })
+        .limit(lim)
+        .lean();
+      if (quick.length) {
+        return res.json({
+          filters: { from: from || null, to: to || null, technician: tech || null },
+          pagination: { page: pg, limit: lim, total: quick.length, pages: 1 },
+          aggregate: { laborShareTotal: quick.reduce((a,s)=>a+(s.laborShare||0),0), salesTotal: quick.reduce((a,s)=>a+(s.total||0),0), count: quick.length },
+          items: quick
+        });
+      }
+    }
+
     return res.json({
       filters: { from: from || null, to: to || null, technician: tech || null },
       pagination: { page: pg, limit: lim, total: totalDocs, pages: Math.ceil(totalDocs/lim) || 1 },
