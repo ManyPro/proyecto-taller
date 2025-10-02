@@ -479,17 +479,44 @@ export const closeSale = async (req, res) => {
       const laborPercentRaw = req.body?.laborPercent;
       const paymentReceiptUrl = String(req.body?.paymentReceiptUrl || '').trim();
 
+      // ---- Multi-payment (nuevo) ----
+      // Frontend envía paymentMethods: [{ method, amount, accountId } ... ]
+      // Validamos y persistimos en sale.paymentMethods antes de guardar.
+      let rawMethods = Array.isArray(req.body?.paymentMethods) ? req.body.paymentMethods : [];
+      if (rawMethods.length) {
+        // Normalizar y filtrar válidos
+        const cleaned = rawMethods.map(m => ({
+          method: String(m?.method || '').trim().toUpperCase(),
+          amount: Number(m?.amount || 0) || 0,
+          accountId: m?.accountId ? new mongoose.Types.ObjectId(m.accountId) : null
+        })).filter(m => m.method && m.amount > 0);
+        if (cleaned.length) {
+          // Validar suma contra total (luego de computeTotals más abajo)
+          // Aún no tenemos total actualizado si items cambiaron durante la sesión, así que haremos computeTotals antes de validar.
+          computeTotals(sale);
+          const sum = cleaned.reduce((a,b)=> a + b.amount, 0);
+          const total = Number(sale.total || 0);
+            if (Math.abs(sum - total) > 0.01) throw new Error('La suma de los montos de pago no coincide con el total de la venta');
+          // Redondear montos a enteros para consistencia (COP sin decimales)
+          sale.paymentMethods = cleaned.map(m => ({ method: m.method, amount: Math.round(m.amount), accountId: m.accountId }));
+          // Mantener legacy paymentMethod con el primero (para compatibilidad con reportes antiguos)
+          if (sale.paymentMethods.length) sale.paymentMethod = sale.paymentMethods[0].method;
+        }
+      }
+
       const laborValue = Number(laborValueRaw);
       const laborPercent = Number(laborPercentRaw);
       if (laborValueRaw != null && (!Number.isFinite(laborValue) || laborValue < 0)) throw new Error('laborValue inválido');
       if (laborPercentRaw != null && (!Number.isFinite(laborPercent) || laborPercent < 0 || laborPercent > 100)) throw new Error('laborPercent inválido');
 
+      // computeTotals ya pudo ejecutarse arriba para validar pagos; lo ejecutamos de nuevo por seguridad (idempotente)
       computeTotals(sale);
       sale.status = 'closed';
       sale.closedAt = new Date();
       if (!Number.isFinite(Number(sale.number))) sale.number = await getNextSaleNumber(req.companyId);
 
-      if (pm) sale.paymentMethod = pm.toUpperCase();
+      // Sólo asignar paymentMethod legacy si no se estableció vía array
+      if (!sale.paymentMethods?.length && pm) sale.paymentMethod = pm.toUpperCase();
       if (technician) {
         sale.technician = technician;
         // Si aún no hay técnico inicial, lo establecemos
