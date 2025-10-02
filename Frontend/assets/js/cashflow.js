@@ -124,10 +124,6 @@ function openNewEntryModal(defaultKind='IN'){
   const div = document.createElement('div');
   div.innerHTML = `<h3>${defaultKind==='OUT'?'Nueva salida de caja':'Nueva entrada manual'}</h3>
     <label>Cuenta</label><select id='ncf-account'></select>
-    <label>Tipo</label><select id='ncf-kind'>
-      <option value='IN' ${defaultKind==='IN'?'selected':''}>Entrada</option>
-      <option value='OUT' ${defaultKind==='OUT'?'selected':''}>Salida</option>
-    </select>
     <label>Monto</label><input id='ncf-amount' type='number' min='1' step='1'/>
     <label>Descripción</label><input id='ncf-desc' placeholder='Descripción'/>
     <div style='margin-top:8px;display:flex;gap:8px;'>
@@ -146,7 +142,7 @@ function openNewEntryModal(defaultKind='IN'){
       const amount = Number(div.querySelector('#ncf-amount').value||0)||0;
       const accountId = sel.value;
       const description = div.querySelector('#ncf-desc').value||'';
-      const kindSel = div.querySelector('#ncf-kind').value === 'OUT' ? 'OUT' : 'IN';
+      const kindSel = (defaultKind==='OUT') ? 'OUT' : 'IN';
       await API.cashflow.create({ accountId, kind: kindSel, amount, description });
       msg.textContent='OK';
       setTimeout(()=>{ modal.classList.add('hidden'); loadAccounts(); loadMovements(); },400);
