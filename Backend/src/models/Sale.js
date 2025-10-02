@@ -45,6 +45,7 @@ const SaleSchema = new mongoose.Schema({
   total: { type: Number, default: 0 },
   // Datos de pago y mano de obra (se establecen al cerrar la venta)
   paymentMethod: { type: String, default: '' },
+  paymentMethods: { type: [{ method: String, amount: Number, accountId: { type: mongoose.Schema.Types.ObjectId } }], default: [] },
   paymentReceiptUrl: { type: String, default: '' },
   laborValue: { type: Number, default: 0 },            // valor base mano de obra
   laborPercent: { type: Number, default: 0 },          // porcentaje asignado al técnico

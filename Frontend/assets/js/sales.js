@@ -157,26 +157,32 @@ async function ensureCompanyData(){
   try { companyPrefs = await API.company.getPreferences(); } catch { companyPrefs = { laborPercents: [] }; }
 }
 
+// === Multi-payment close sale modal construction ===
 function buildCloseModalContent(){
+  const total = current?.total || 0;
   const wrap = document.createElement('div');
   wrap.innerHTML = `
     <h3>Cerrar venta</h3>
+    <div class="muted" style="font-size:12px;margin-bottom:6px;">Total venta: <strong>${money(total)}</strong></div>
+    <div id="cv-payments-block" class="card" style="padding:10px; margin-bottom:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <strong>Formas de pago</strong>
+        <button id="cv-add-payment" type="button" class="small secondary">+ Agregar</button>
+      </div>
+      <table style="width:100%; font-size:12px; border-collapse:collapse;" id="cv-payments-table">
+        <thead>
+          <tr style="text-align:left;">
+            <th style="padding:4px 2px;">Método</th>
+            <th style="padding:4px 2px;">Cuenta</th>
+            <th style="padding:4px 2px; width:90px;">Monto</th>
+            <th style="padding:4px 2px; width:32px;"></th>
+          </tr>
+        </thead>
+        <tbody id="cv-payments-body"></tbody>
+      </table>
+      <div id="cv-payments-summary" style="margin-top:6px; font-size:11px;" class="muted"></div>
+    </div>
     <div class="grid-2" style="gap:12px;">
-      <div>
-        <label>Método de pago</label>
-        <select id="cv-payMethod">
-          <option value="">-- Seleccionar --</option>
-          <option>EFECTIVO</option>
-          <option>TRANSFERENCIA</option>
-          <option>TARJETA</option>
-          <option>OTRO</option>
-        </select>
-      </div>
-      <div>
-        <label>Cuenta destino</label>
-        <select id="cv-account"></select>
-        <div class="muted" style="font-size:11px;margin-top:4px;" id="cv-account-hint">Entrará como ingreso automático.</div>
-      </div>
       <div>
         <label>Técnico (cierre)</label>
         <select id="cv-technician"></select>
@@ -225,44 +231,25 @@ function fillCloseModal(){
   const initialTechLabel = document.getElementById('cv-initial-tech');
   if(current){
     if(current.initialTechnician){
-      // Mostrar técnico inicial fijo
       if(initialTechLabel){
         initialTechLabel.style.display='block';
         initialTechLabel.textContent = 'Asignado al inicio: ' + current.initialTechnician;
       }
-      // Selección por defecto: cerrar con el mismo (puede cambiar si se desea -> si quieres impedir cambio, descomenta disable)
       techSel.value = current.technician || current.initialTechnician;
-      // Para forzar cierre siempre con el inicial: descomentar siguiente línea
-      // techSel.disabled = true;
     } else if(current.technician){
       techSel.value = current.technician;
     }
   }
 
+  // Labor percent options
   const percSel = document.getElementById('cv-laborPercent');
   const perc = (companyPrefs?.laborPercents||[]);
   percSel.innerHTML = '<option value="">-- % --</option>' + perc.map(p=>`<option value="${p}">${p}%</option>`).join('');
-
   const laborValueInput = document.getElementById('cv-laborValue');
   const manualPercentInput = document.getElementById('cv-laborPercentManual');
   const percentToggle = document.getElementById('cv-toggle-percent');
   const sharePrev = document.getElementById('cv-laborSharePreview');
   const msg = document.getElementById('cv-msg');
-  const accSel = document.getElementById('cv-account');
-
-  // Cargar cuentas
-  (async ()=>{
-    try{
-      const accounts = await API.accounts.list();
-      if(!accounts.length){
-        // crear automáticamente Caja si no existe
-        try { await API.accounts.create({ name:'Caja', type:'CASH' }); } catch{}
-        const retry = await API.accounts.list();
-        accounts.push(...retry);
-      }
-      accSel.innerHTML = accounts.map(a=>`<option value="${a._id}">${a.name}</option>`).join('');
-    }catch{ accSel.innerHTML='<option value="">(sin cuentas)</option>'; }
-  })();
 
   function computePreview(){
     const lv = Number(laborValueInput.value||0)||0; let lp=null;
@@ -270,7 +257,6 @@ function fillCloseModal(){
     if(lv>0 && lp>0){ sharePrev.textContent = 'Participación estimada técnico: ' + money(Math.round(lv*lp/100)); }
     else sharePrev.textContent='';
   }
-
   laborValueInput.addEventListener('input', computePreview);
   percSel.addEventListener('change', computePreview);
   manualPercentInput.addEventListener('input', computePreview);
@@ -282,7 +268,79 @@ function fillCloseModal(){
     computePreview();
   });
 
-  // Manejar opción especial para agregar técnico desde el select
+  // Dynamic payments
+  const pmBody = document.getElementById('cv-payments-body');
+  const addBtn = document.getElementById('cv-add-payment');
+  const summary = document.getElementById('cv-payments-summary');
+  let accountsCache = [];
+  let payments = [];
+
+  async function loadAccounts(){
+    try {
+      accountsCache = await API.accounts.list();
+      if(!accountsCache.length){
+        try { await API.accounts.create({ name:'Caja', type:'CASH' }); } catch{}
+        accountsCache = await API.accounts.list();
+      }
+    }catch{ accountsCache = []; }
+  }
+
+  function methodOptionsHTML(selected=''){
+    const opts = ['', 'EFECTIVO','TRANSFERENCIA','TARJETA','OTRO'];
+    return opts.map(v=>`<option value="${v}" ${v===selected?'selected':''}>${v? v : '--'}</option>`).join('');
+  }
+  function accountOptionsHTML(selected=''){
+    if(!accountsCache.length) return '<option value="">(sin cuentas)</option>';
+    return accountsCache.map(a=>`<option value="${a._id}" ${a._id===selected?'selected':''}>${a.name}</option>`).join('');
+  }
+  function recalc(){
+    const sum = payments.reduce((a,p)=> a + (Number(p.amount)||0), 0);
+    const total = Number(current?.total||0);
+    const diff = total - sum;
+    let html = `Suma: <strong>${money(sum)}</strong> / Total: ${money(total)}.`;
+    if(Math.abs(diff) > 0.01){
+      html += diff>0 ? ` Falta ${money(diff)}.` : ` Excede por ${money(-diff)}.`;
+      summary.style.color = '#b03030';
+    }else{ summary.style.color=''; html += ' OK'; }
+    summary.innerHTML = html;
+    const confirmBtn = document.getElementById('cv-confirm');
+    if(confirmBtn){ confirmBtn.disabled = Math.abs(diff) > 0.01 || payments.length===0; }
+  }
+  function bindRowEvents(tr, pay){
+    const mSel = tr.querySelector('select[data-role=method]');
+    const aSel = tr.querySelector('select[data-role=account]');
+    const amt  = tr.querySelector('input[data-role=amount]');
+    const del  = tr.querySelector('button[data-role=del]');
+    mSel.addEventListener('change', ()=>{ pay.method = mSel.value.trim().toUpperCase(); recalc(); });
+    aSel.addEventListener('change', ()=>{ pay.accountId = aSel.value||null; });
+    amt.addEventListener('input', ()=>{ pay.amount = Number(amt.value||0)||0; recalc(); });
+    del.addEventListener('click', ()=>{
+      payments = payments.filter(p => p !== pay);
+      tr.remove(); recalc();
+    });
+  }
+  function addPaymentRow(p){
+    const pay = { method:'', amount:0, accountId:'', ...(p||{}) };
+    payments.push(pay);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="padding:2px 2px;"><select data-role="method" style="width:110px;">${methodOptionsHTML(pay.method)}</select></td>
+      <td style="padding:2px 2px;"><select data-role="account" style="width:140px;">${accountOptionsHTML(pay.accountId)}</select></td>
+      <td style="padding:2px 2px;"><input data-role="amount" type="number" min="0" step="1" value="${pay.amount||''}" style="width:90px;" /></td>
+      <td style="padding:2px 2px; text-align:center;"><button data-role="del" type="button" class="small danger">×</button></td>`;
+    pmBody.appendChild(tr);
+    bindRowEvents(tr, pay);
+  }
+  addBtn.addEventListener('click', ()=> addPaymentRow({ amount:0 }));
+
+  (async ()=>{
+    await loadAccounts();
+    // Prefill single row with full total
+    addPaymentRow({ method:'EFECTIVO', amount: Number(current?.total||0), accountId: accountsCache[0]?._id||'' });
+    recalc();
+  })();
+
+  // Technician add inline
   techSel.addEventListener('change', async ()=>{
     if(techSel.value === '__ADD_TECH__'){
       const name = prompt('Nombre del técnico (se guardará en mayúsculas):');
@@ -300,6 +358,12 @@ function fillCloseModal(){
   document.getElementById('cv-confirm').addEventListener('click', async ()=>{
     if(!current) return;
     msg.textContent='Procesando...';
+    // Validar suma exacta
+    const sum = payments.reduce((a,p)=> a + (Number(p.amount)||0), 0);
+    const total = Number(current?.total||0);
+    if(Math.abs(sum-total) > 0.01){ msg.textContent='La suma de pagos no coincide con el total.'; return; }
+    const filtered = payments.filter(p=> p.method && p.amount>0);
+    if(!filtered.length){ msg.textContent='Agregar al menos una forma de pago válida'; return; }
     try{
       let receiptUrl='';
       const file = document.getElementById('cv-receipt').files?.[0];
@@ -310,12 +374,11 @@ function fillCloseModal(){
         }
       }
       const payload = {
-        paymentMethod: document.getElementById('cv-payMethod').value||'',
-        technician: techSel.value||'', // closingTechnician en backend; también establece initial si no existe
+        paymentMethods: filtered.map(p=>({ method:p.method, amount:Number(p.amount)||0, accountId:p.accountId||null })),
+        technician: techSel.value||'',
         laborValue: Number(laborValueInput.value||0)||0,
-        laborPercent: !percSel.disabled ? Number(percSel.value||0)||0 : Number(document.getElementById('cv-laborPercentManual').value||0)||0,
-        paymentReceiptUrl: receiptUrl,
-        accountId: accSel.value || null
+        laborPercent: !percSel.disabled ? Number(percSel.value||0)||0 : Number(manualPercentInput.value||0)||0,
+        paymentReceiptUrl: receiptUrl
       };
       await API.sales.close(current._id, payload);
       alert('Venta cerrada');
@@ -323,21 +386,6 @@ function fillCloseModal(){
       current = null;
       await refreshOpenSales();
     }catch(e){ msg.textContent = e?.message||'Error'; msg.classList.add('error'); }
-  });
-
-  techSel.addEventListener('change', async ()=>{
-    if(techSel.value === '__ADD_TECH__'){
-      const name = prompt('Nombre del técnico (se guardará en mayúsculas):');
-      techSel.value='';
-      if(name){
-        try{
-          companyTechnicians = await API.company.addTechnician(name);
-          fillCloseModal();
-          const upper = String(name).trim().toUpperCase();
-          if(companyTechnicians.includes(upper)) techSel.value = upper;
-        }catch(e){ alert(e?.message||'No se pudo agregar'); }
-      }
-    }
   });
 }
 
@@ -1156,6 +1204,29 @@ async function openSaleHistoryDetail(id){
     });
     node.querySelector('[data-subtotal]').textContent = money(sale.subtotal || 0);
     node.querySelector('[data-total]').textContent = money(sale.total || 0);
+    // Render pagos (multi-payment)
+    try {
+      const payBody = node.querySelector('[data-payments]');
+      const payTotalEl = node.querySelector('[data-payments-total]');
+      if (payBody && payTotalEl) {
+        payBody.innerHTML='';
+        const list = Array.isArray(sale.paymentMethods) && sale.paymentMethods.length ? sale.paymentMethods : (sale.paymentMethod ? [{ method: sale.paymentMethod, amount: sale.total||0, accountId: null }] : []);
+        let acc = 0;
+        list.forEach(p => {
+          const tr = document.createElement('tr');
+            const method = (p.method||'').toString().toUpperCase();
+            const accountName = p.account?.name || p.accountName || p.accountId || '';
+            const amt = Number(p.amount||0);
+            acc += amt;
+            tr.innerHTML = `<td>${method}</td><td>${accountName||'—'}</td><td class="t-right">${money(amt)}</td>`;
+            payBody.appendChild(tr);
+        });
+        payTotalEl.textContent = money(acc);
+        if(!list.length){
+          const tr=document.createElement('tr'); tr.innerHTML='<td colspan="3" class="t-center muted">Sin información de pagos</td>'; payBody.appendChild(tr);
+        }
+      }
+    } catch(e) { console.warn('render pagos historial', e); }
     const printBtn = node.querySelector('[data-print]');
     if (printBtn) printBtn.onclick = () => printSaleTicket(sale);
     openModal(node);

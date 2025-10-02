@@ -510,13 +510,14 @@ export const closeSale = async (req, res) => {
 
     const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
     await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
-    let cashflowEntry = null;
+    let cashflowEntries = [];
     try {
       const accountId = req.body?.accountId; // opcional desde frontend
-      cashflowEntry = await registerSaleIncome({ companyId: req.companyId, sale, accountId });
+      const resEntries = await registerSaleIncome({ companyId: req.companyId, sale, accountId });
+      cashflowEntries = Array.isArray(resEntries) ? resEntries : (resEntries ? [resEntries] : []);
     } catch(e) { console.warn('registerSaleIncome failed:', e?.message||e); }
     try{ publish(req.companyId, 'sale:closed', { id: (sale?._id)||undefined }) }catch{}
-    res.json({ ok: true, sale: sale.toObject(), cashflowEntry });
+    res.json({ ok: true, sale: sale.toObject(), cashflowEntries });
   } catch (err) {
     await session.abortTransaction().catch(()=>{});
     res.status(400).json({ error: err?.message || 'Cannot close sale' });

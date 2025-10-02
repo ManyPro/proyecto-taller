@@ -108,28 +108,42 @@ export async function createEntry(req, res) {
 
 // Utilizada desde cierre de venta
 export async function registerSaleIncome({ companyId, sale, accountId }) {
-  if (!sale || !sale._id) return null;
-  // Idempotencia
-  const exists = await CashFlowEntry.findOne({ companyId, source: 'SALE', sourceRef: sale._id });
-  if (exists) return exists;
-  let accId = accountId;
-  if (!accId) {
-    const acc = await ensureDefaultCashAccount(companyId);
-    accId = acc._id;
+  if (!sale || !sale._id) return [];
+  // Si ya existen entradas para la venta, devolverlas (idempotencia multi)
+  const existing = await CashFlowEntry.find({ companyId, source: 'SALE', sourceRef: sale._id });
+  if (existing.length) return existing;
+
+  // Determinar métodos de pago: nuevo array o fallback al legacy
+  let methods = Array.isArray(sale.paymentMethods) && sale.paymentMethods.length
+    ? sale.paymentMethods.filter(m=>m && m.method && Number(m.amount)>0)
+    : [];
+  if (!methods.length) {
+    // fallback al paymentMethod único con total completo
+    methods = [{ method: sale.paymentMethod || 'DESCONOCIDO', amount: Number(sale.total||0), accountId }];
   }
-  const prevBal = await computeBalance(accId, companyId);
-  const amount = Number(sale.total || 0);
-  const newBal = prevBal + amount;
-  const entry = await CashFlowEntry.create({
-    companyId,
-    accountId: accId,
-    kind: 'IN',
-    source: 'SALE',
-    sourceRef: sale._id,
-    description: `Venta #${String(sale.number || '').padStart(5,'0')}`,
-    amount,
-    balanceAfter: newBal,
-    meta: { saleNumber: sale.number, paymentMethod: sale.paymentMethod }
-  });
-  return entry;
+
+  const entries = [];
+  for (const m of methods) {
+    let accId = m.accountId || accountId;
+    if (!accId) {
+      const acc = await ensureDefaultCashAccount(companyId);
+      accId = acc._id;
+    }
+    const prevBal = await computeBalance(accId, companyId);
+    const amount = Number(m.amount||0);
+    const newBal = prevBal + amount;
+    const entry = await CashFlowEntry.create({
+      companyId,
+      accountId: accId,
+      kind: 'IN',
+      source: 'SALE',
+      sourceRef: sale._id,
+      description: `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`,
+      amount,
+      balanceAfter: newBal,
+      meta: { saleNumber: sale.number, paymentMethod: m.method }
+    });
+    entries.push(entry);
+  }
+  return entries;
 }
