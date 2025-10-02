@@ -106,6 +106,57 @@ export async function createEntry(req, res) {
   res.json(entry);
 }
 
+// --- Recalcular balances secuenciales de una cuenta ---
+async function recomputeAccountBalances(companyId, accountId){
+  if(!companyId || !accountId) return;
+  const acc = await Account.findOne({ _id: accountId, companyId });
+  if(!acc) return;
+  const entries = await CashFlowEntry.find({ companyId, accountId }).sort({ date: 1, _id: 1 });
+  let running = acc.initialBalance || 0;
+  for(const e of entries){
+    if(e.kind === 'IN') running += e.amount; else if(e.kind === 'OUT') running -= e.amount;
+    // Solo actualizar si cambió para minimizar writes
+    if(e.balanceAfter !== running){
+      e.balanceAfter = running;
+      await e.save();
+    }
+  }
+}
+
+// PATCH /cashflow/entries/:id
+export async function updateEntry(req, res){
+  const { id } = req.params;
+  const { amount, description, date, kind } = req.body || {};
+  const entry = await CashFlowEntry.findOne({ _id: id, companyId: req.companyId });
+  if(!entry) return res.status(404).json({ error: 'entry not found' });
+  // Opcional: restringir edición de movimientos generados por venta a sólo descripción
+  // Permitimos edición completa para correcciones manuales.
+  let mutated = false;
+  if(amount!=null){
+    const a = Number(amount);
+    if(!Number.isFinite(a) || a<=0) return res.status(400).json({ error: 'amount inválido' });
+    entry.amount = Math.round(a); mutated = true;
+  }
+  if(description!==undefined){ entry.description = String(description||''); mutated = true; }
+  if(date){ const d=new Date(date); if(!isNaN(d.getTime())){ entry.date = d; mutated = true; } }
+  if(kind && (kind==='IN' || kind==='OUT')){ entry.kind = kind; mutated = true; }
+  if(!mutated) return res.json(entry);
+  await entry.save();
+  await recomputeAccountBalances(req.companyId, entry.accountId);
+  res.json(entry);
+}
+
+// DELETE /cashflow/entries/:id
+export async function deleteEntry(req, res){
+  const { id } = req.params;
+  const entry = await CashFlowEntry.findOne({ _id: id, companyId: req.companyId });
+  if(!entry) return res.status(404).json({ error: 'entry not found' });
+  const accId = entry.accountId;
+  await CashFlowEntry.deleteOne({ _id: entry._id, companyId: req.companyId });
+  await recomputeAccountBalances(req.companyId, accId);
+  res.json({ ok: true });
+}
+
 // Utilizada desde cierre de venta
 export async function registerSaleIncome({ companyId, sale, accountId }) {
   if (!sale || !sale._id) return [];

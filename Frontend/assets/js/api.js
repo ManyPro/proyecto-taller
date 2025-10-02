@@ -225,7 +225,9 @@ const API = {
   },
   cashflow: {
     list: (params={}) => http.get(`/api/v1/cashflow/entries${toQuery(params)}`),
-    create: (payload) => http.post('/api/v1/cashflow/entries', payload)
+    create: (payload) => http.post('/api/v1/cashflow/entries', payload),
+    update: (id, payload) => http.patch(`/api/v1/cashflow/entries/${id}`, payload),
+    delete: (id) => http.del(`/api/v1/cashflow/entries/${id}`)
   }
 };
 

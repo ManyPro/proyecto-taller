@@ -72,7 +72,8 @@ async function loadMovements(reset=false){
         const date = new Date(x.date||x.createdAt||Date.now()).toLocaleString();
         const accName = x.accountId?.name||x.accountName||'';
         const desc = x.description||'';
-        return `<tr>
+        const canEdit = true; // se podría restringir según x.source
+        return `<tr data-id='${x._id}'>
           <td data-label="Fecha">${date}</td>
           <td data-label="Cuenta">${accName}</td>
           <td data-label="Descripción">${desc}</td>
@@ -80,8 +81,30 @@ async function loadMovements(reset=false){
           <td data-label="IN" class='t-right ${x.kind==='IN'?'pos':''}'>${inAmt}</td>
           <td data-label="OUT" class='t-right ${x.kind==='OUT'?'neg':''}'>${outAmt}</td>
           <td data-label="Saldo" class='t-right'>${money(x.balanceAfter||0)}</td>
+          <td style='white-space:nowrap;'>${canEdit?`<button class='mini' data-act='edit'>✎</button><button class='mini danger' data-act='del'>🗑</button>`:''}</td>
         </tr>`;
       }).join('');
+      // Bind acciones
+      rowsBody.querySelectorAll('tr[data-id]').forEach(tr=>{
+        const id = tr.getAttribute('data-id');
+        tr.querySelectorAll('button[data-act]').forEach(btn=>{
+          btn.addEventListener('click', async (e)=>{
+            const act = btn.getAttribute('data-act');
+            if(act==='del'){
+              if(!confirm('¿Eliminar movimiento?')) return;
+              try{ await API.cashflow.delete(id); loadAccounts(); loadMovements(); }catch(err){ alert(err?.message||'Error'); }
+            } else if(act==='edit') {
+              const currentDesc = tr.children[2]?.textContent||'';
+              const currentAmount = (tr.children[4]?.textContent||'').replace(/[^\d]/g,'') || (tr.children[5]?.textContent||'').replace(/[^\d]/g,'');
+              const newAmountStr = prompt('Nuevo monto (solo número):', currentAmount);
+              if(!newAmountStr) return;
+              const newAmount = Number(newAmountStr)||0; if(newAmount<=0){ alert('Monto inválido'); return; }
+              const newDesc = prompt('Nueva descripción:', currentDesc) ?? currentDesc;
+              try{ await API.cashflow.update(id, { amount: newAmount, description: newDesc }); loadAccounts(); loadMovements(); }catch(err){ alert(err?.message||'Error'); }
+            }
+          });
+        });
+      });
       if(!items.length) rowsBody.innerHTML='<tr><td colspan="7" class="muted">Sin movimientos</td></tr>';
     }
     const IN = data.totals?.in||0; const OUT = data.totals?.out||0;
