@@ -691,49 +691,79 @@ export const summarySales = async (req, res) => {
 
 // ===== Reporte técnico (laborShare) =====
 export const technicianReport = async (req, res) => {
-  const { from, to, technician, page = 1, limit = 100 } = req.query || {};
-  const pg = Math.max(1, Number(page||1));
-  const lim = Math.max(1, Math.min(500, Number(limit||100)));
-  const tech = technician ? String(technician).trim().toUpperCase() : '';
-  const match = { companyId: req.companyId, status: 'closed' };
-  if (from || to) {
-    match.closedAt = {};
-    if (from) match.closedAt.$gte = new Date(from);
-    if (to) match.closedAt.$lte = new Date(`${to}T23:59:59.999Z`);
-  }
-  if (tech) {
-    match.$or = [
-      { technician: tech },
-      { initialTechnician: tech },
-      { closingTechnician: tech }
+  try {
+    let { from, to, technician, page = 1, limit = 100 } = req.query || {};
+    const pg = Math.max(1, Number(page || 1));
+    const lim = Math.max(1, Math.min(500, Number(limit || 100)));
+    const tech = technician ? String(technician).trim().toUpperCase() : '';
+
+    // Base match: ventas cerradas
+    const match = { companyId: req.companyId, status: 'closed' };
+
+    // Rango de fechas sobre closedAt (fallback updatedAt) usando $expr
+    if (from || to) {
+      const gte = from ? new Date(from + 'T00:00:00.000Z') : null;
+      const lte = to ? new Date(to + 'T23:59:59.999Z') : null;
+      if (gte || lte) {
+        match.$expr = {
+          $and: [
+            gte ? { $gte: [ { $ifNull: ['$closedAt', '$updatedAt'] }, gte ] } : { $gte: [0,0] },
+            lte ? { $lte: [ { $ifNull: ['$closedAt', '$updatedAt'] }, lte ] } : { $gte: [0,0] }
+          ]
+        };
+      }
+    }
+
+    if (tech) {
+      match.$or = [
+        { technician: tech },
+        { initialTechnician: tech },
+        { closingTechnician: tech }
+      ];
+    }
+
+    const skip = (pg - 1) * lim;
+
+    const pipeline = [
+      { $match: match },
+      { $addFields: {
+          _reportDate: { $ifNull: ['$closedAt', '$updatedAt'] },
+          _laborShareCalc: {
+            $cond: [
+              { $and: [ { $gt: ['$laborValue', 0] }, { $gt: ['$laborPercent', 0] } ] },
+              { $round: [ { $multiply: ['$laborValue', { $divide: ['$laborPercent', 100] }] }, 0 ] },
+              { $ifNull: ['$laborShare', 0] }
+            ]
+          }
+        }
+      },
+      { $sort: { _reportDate: -1, _id: -1 } },
+      { $facet: {
+          rows: [ { $skip: skip }, { $limit: lim }, { $project: {
+            number: 1, customer:1, vehicle:1, technician:1, initialTechnician:1, closingTechnician:1,
+            laborValue:1, laborPercent:1,
+            laborShare: { $ifNull: ['$laborShare', '$_laborShareCalc'] },
+            total:1, closedAt:1, createdAt:1, _reportDate:1
+          }} ],
+          totals: [ { $group: { _id:null, count:{ $sum:1 }, salesTotal:{ $sum:{ $ifNull:['$total',0]} }, laborShareTotal:{ $sum:'$_laborShareCalc' } } } ]
+        }
+      }
     ];
+
+    const agg = await Sale.aggregate(pipeline);
+    const pack = agg[0] || { rows: [], totals: [] };
+    const rows = pack.rows || [];
+    const totalsRaw = pack.totals?.[0] || { count:0, salesTotal:0, laborShareTotal:0 };
+    const totalDocs = totalsRaw.count || 0;
+
+    return res.json({
+      filters: { from: from || null, to: to || null, technician: tech || null },
+      pagination: { page: pg, limit: lim, total: totalDocs, pages: Math.ceil(totalDocs/lim) || 1 },
+      aggregate: { laborShareTotal: totalsRaw.laborShareTotal, salesTotal: totalsRaw.salesTotal, count: totalsRaw.count },
+      items: rows
+    });
+  } catch (err) {
+    console.error('technicianReport error:', err);
+    return res.status(500).json({ error: 'Error generando reporte técnico' });
   }
-
-  const pipeline = [
-    { $match: match },
-  { $sort: { closedAt: -1, createdAt: -1 } },
-    { $facet: {
-        items: [ { $skip: (pg-1)*lim }, { $limit: lim } ],
-        meta: [ { $count: 'total' } ]
-    } }
-  ];
-  const agg = await Sale.aggregate(pipeline);
-  const bucket = agg[0] || { items: [], meta: [] };
-  const items = bucket.items || [];
-  const totalDocs = bucket.meta?.[0]?.total || 0;
-
-  // Sumar laborShare y totales filtrados (sobre todo el rango filtrado, no solo página)
-  const sumPipeline = [
-    { $match: match },
-    { $group: { _id: null, laborShareTotal: { $sum: { $ifNull: ['$laborShare', 0] } }, salesTotal: { $sum: { $ifNull: ['$total', 0] } }, count: { $sum:1 } } }
-  ];
-  const sums = await Sale.aggregate(sumPipeline);
-  const sumRow = sums[0] || { laborShareTotal:0, salesTotal:0, count:0 };
-
-  res.json({
-    filters: { from: from||null, to: to||null, technician: tech||null },
-    pagination: { page: pg, limit: lim, total: totalDocs, pages: Math.ceil(totalDocs/lim)||1 },
-    aggregate: { laborShareTotal: sumRow.laborShareTotal, salesTotal: sumRow.salesTotal, count: sumRow.count },
-    items
-  });
 };

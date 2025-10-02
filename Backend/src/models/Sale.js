@@ -53,4 +53,12 @@ const SaleSchema = new mongoose.Schema({
   cancelledAt: { type: Date }
 }, { timestamps: true });
 
+// Índices adicionales para agilizar reporte técnico (consultas por closedAt y técnicos)
+try {
+  SaleSchema.index({ companyId: 1, closedAt: -1 });
+  SaleSchema.index({ companyId: 1, closedAt: -1, technician: 1 });
+  SaleSchema.index({ companyId: 1, closedAt: -1, initialTechnician: 1 });
+  SaleSchema.index({ companyId: 1, closedAt: -1, closingTechnician: 1 });
+} catch(e) { /* ignore duplicate index definition in dev hot reload */ }
+
 export default mongoose.model('Sale', SaleSchema);

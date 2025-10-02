@@ -40,8 +40,8 @@ export async function initTechReport(){
     if(to?.value) params.to = to.value;
     if(techSel?.value) params.technician = techSel.value;
     try{
-      const data = await API.sales.techReport(params);
-      const items = data.items || [];
+  const data = await API.sales.techReport(params);
+  const items = data.items || [];
       const agg = data.aggregate || { laborShareTotal:0, salesTotal:0, count:0 };
       if(summary){
         summary.textContent = `Ventas: ${agg.count} | Total ventas: ${money(agg.salesTotal)} | Participación total técnico: ${money(agg.laborShareTotal)}${data.filters?.technician? ' | Técnico: '+data.filters.technician:''}`;
@@ -50,9 +50,10 @@ export async function initTechReport(){
         items.forEach(s=>{
           const tr=document.createElement('tr');
           const techs=[s.initialTechnician,s.closingTechnician].filter(Boolean);
+          const dateRef = s.closedAt || s._reportDate || s.createdAt;
           tr.innerHTML = `
             <td>${padSaleNumber(s.number||s._id||'')}</td>
-            <td>${s.closedAt ? new Date(s.closedAt).toLocaleDateString() : (s.createdAt? new Date(s.createdAt).toLocaleDateString():'')}</td>
+            <td>${dateRef ? new Date(dateRef).toLocaleDateString() : ''}</td>
             <td>${s.vehicle?.plate||''}</td>
             <td>${(s.customer?.name||'')}</td>
             <td>${techs.length? techs.join(' → '): (s.technician||'')}</td>
