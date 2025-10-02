@@ -70,7 +70,17 @@ async function loadMovements(reset=false){
         const inAmt = x.kind==='IN'? money(x.amount):'';
         const outAmt = x.kind==='OUT'? money(x.amount):'';
         const date = new Date(x.date||x.createdAt||Date.now()).toLocaleString();
-        return `<tr><td>${date}</td><td>${x.accountId?.name||x.accountName||''}</td><td>${x.description||''}</td><td>${x.source||''}</td><td class='t-right ${x.kind==='IN'?'pos':''}'>${inAmt}</td><td class='t-right ${x.kind==='OUT'?'neg':''}'>${outAmt}</td><td class='t-right'>${money(x.balanceAfter||0)}</td></tr>`;
+        const accName = x.accountId?.name||x.accountName||'';
+        const desc = x.description||'';
+        return `<tr>
+          <td data-label="Fecha">${date}</td>
+          <td data-label="Cuenta">${accName}</td>
+          <td data-label="Descripción">${desc}</td>
+          <td data-label="Fuente">${x.source||''}</td>
+          <td data-label="IN" class='t-right ${x.kind==='IN'?'pos':''}'>${inAmt}</td>
+          <td data-label="OUT" class='t-right ${x.kind==='OUT'?'neg':''}'>${outAmt}</td>
+          <td data-label="Saldo" class='t-right'>${money(x.balanceAfter||0)}</td>
+        </tr>`;
       }).join('');
       if(!items.length) rowsBody.innerHTML='<tr><td colspan="7" class="muted">Sin movimientos</td></tr>';
     }

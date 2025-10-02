@@ -352,6 +352,9 @@ function fillCloseModal(){
   });
 
   document.getElementById('cv-cancel').addEventListener('click', ()=>{
+    // Detect if user edited payments and ask
+    const edited = payments.some(p=>p.amount>0 || p.method);
+    if(edited && !confirm('Hay cambios en los pagos sin cerrar. ¿Cerrar modal?')) return;
     document.getElementById('modal')?.classList.add('hidden');
   });
 

@@ -14,6 +14,7 @@ let modulesReady = false;
 
 // ========== THEME (oscuro / claro) ==========
 const THEME_KEY = 'app:theme';
+const DENSE_KEY = 'app:dense';
 function applyTheme(theme){
   const body = document.body;
   if(!body) return;
@@ -44,6 +45,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   initFAB();
   initSwipeTabs();
   initCollapsibles();
+  initDenseToggle();
 });
 
 // Tabs simples
@@ -142,6 +144,62 @@ function initSwipeTabs(){
     }
   }, { passive:true });
   container.addEventListener('touchend', ()=> tracking=false);
+  initPullToRefresh(container);
+}
+
+// ================= Pull to refresh simple =================
+function initPullToRefresh(container){
+  let startY=0, pulling=false, active=false, indicator=null;
+  function ensureIndicator(){
+    if(indicator) return indicator;
+    indicator=document.createElement('div');
+    indicator.id='ptr-indicator';
+    indicator.style.cssText='position:fixed;top:8px;left:50%;transform:translateX(-50%) translateY(-60px);background:var(--card);color:var(--text);padding:6px 12px;border-radius:20px;font-size:12px;box-shadow:0 4px 10px rgba(0,0,0,.3);transition:transform .25s ease, opacity .25s ease;z-index:12000;opacity:0;';
+    indicator.textContent='Suelta para refrescar';
+    document.body.appendChild(indicator);
+    return indicator;
+  }
+  container.addEventListener('touchstart',(e)=>{
+    if(window.scrollY>0) return; // solo si estamos arriba
+    if(e.touches.length!==1) return;
+    startY=e.touches[0].clientY; pulling=true; active=false;
+  }, { passive:true });
+  container.addEventListener('touchmove',(e)=>{
+    if(!pulling) return;
+    const dy=e.touches[0].clientY-startY;
+    if(dy>25){
+      const ind=ensureIndicator();
+      const pct=Math.min(1,(dy-25)/80);
+      ind.style.opacity=String(pct);
+      ind.style.transform=`translateX(-50%) translateY(${(-60+ pct*60)}px)`;
+      active=pct>=1;
+      ind.textContent= active ? 'Soltar para refrescar' : 'Desliza…';
+    }
+  }, { passive:true });
+  container.addEventListener('touchend',()=>{
+    if(!pulling){ return; }
+    pulling=false;
+    if(active){
+      const tab = sessionStorage.getItem('app:lastTab')||'notas';
+      refreshActiveTab(tab);
+    }
+    if(indicator){
+      indicator.style.transform='translateX(-50%) translateY(-60px)';
+      indicator.style.opacity='0';
+      setTimeout(()=>{ indicator && indicator.remove(); indicator=null; },400);
+    }
+  });
+}
+
+function refreshActiveTab(tab){
+  try{
+    if(tab==='ventas'){ import('./sales.js').then(()=>{ const btn=document.getElementById('sales-start'); }); }
+    if(tab==='inventario'){ import('./inventory.js').then(m=> m?.initInventory && m.initInventory()); }
+    if(tab==='cotizaciones'){ import('./quotes.js').then(()=>{}); }
+    if(tab==='cashflow'){ import('./cashflow.js').then(m=> m?.initCashFlow && m.initCashFlow()); }
+    if(tab==='reporte-tecnico'){ import('./techreport.js').then(()=>{}); }
+    if(tab==='notas'){ import('./notes.js').then(()=>{}); }
+  }catch{}
 }
 
 // ================= Secciones Colapsables en móvil =================
@@ -172,6 +230,29 @@ function initCollapsibles(){
 // ================= Modo densidad =================
 export function toggleDense(on){
   document.body.classList.toggle('dense', !!on);
+  try{ localStorage.setItem(DENSE_KEY, on ? '1':'0'); }catch{}
+}
+
+function initDenseToggle(){
+  let btn = document.getElementById('denseToggle');
+  if(!btn){
+    // Insert next to themeToggle if exists
+    const themeBtn = document.getElementById('themeToggle');
+    if(themeBtn && themeBtn.parentElement){
+      btn = document.createElement('button');
+      btn.id='denseToggle';
+      btn.className='secondary';
+      btn.title='Modo compacto';
+      btn.textContent='📏';
+      themeBtn.parentElement.insertBefore(btn, themeBtn);
+    }
+  }
+  const stored = (()=>{ try{return localStorage.getItem(DENSE_KEY);}catch{return null;} })();
+  if(stored==='1') toggleDense(true);
+  btn?.addEventListener('click',()=>{
+    const active = document.body.classList.contains('dense');
+    toggleDense(!active);
+  });
 }
 
 // Login simple (usa tu API)
