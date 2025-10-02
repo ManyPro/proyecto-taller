@@ -737,6 +737,8 @@ export const technicianReport = async (req, res) => {
           }
         }
       },
+      // Filtrar solo las que tengan participación > 0
+      { $match: { _laborShareCalc: { $gt: 0 } } },
       { $sort: { _reportDate: -1, _id: -1 } },
       { $facet: {
           rows: [ { $skip: skip }, { $limit: lim }, { $project: {
@@ -758,7 +760,7 @@ export const technicianReport = async (req, res) => {
 
     // Fallback simple si no se obtuvieron filas pero deberían existir (debug)
     if (!rows.length) {
-      const quick = await Sale.find({ companyId: req.companyId, status:'closed' })
+      const quick = await Sale.find({ companyId: req.companyId, status:'closed', laborShare: { $gt: 0 } })
         .sort({ closedAt:-1, updatedAt:-1 })
         .limit(lim)
         .lean();
