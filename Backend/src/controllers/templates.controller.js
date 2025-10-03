@@ -61,6 +61,9 @@ function renderHB(tpl, context) {
   }
 }
 
+// Sanitizador simple (server-side) para evitar <script> y atributos on*
+function sanitize(html=''){ if(!html) return ''; let out = String(html); out = out.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi,''); out = out.replace(/ on[a-z]+="[^"]*"/gi,''); out = out.replace(/ on[a-z]+='[^']*'/gi,''); return out; }
+
 export async function listTemplates(req, res) {
   const { type } = req.query || {};
   const q = { companyId: req.companyId };
@@ -76,8 +79,9 @@ export async function getTemplate(req, res) {
 }
 
 export async function createTemplate(req, res) {
-  const { type, contentHtml = '', contentCss = '', name = '', activate = false } = req.body || {};
+  let { type, contentHtml = '', contentCss = '', name = '', activate = false } = req.body || {};
   if (!type) return res.status(400).json({ error: 'type required' });
+  contentHtml = sanitize(contentHtml);
   const last = await Template.findOne({ companyId: req.companyId, type }).sort({ version: -1 });
   const version = last ? (last.version + 1) : 1;
   if (activate) {
@@ -92,7 +96,7 @@ export async function updateTemplate(req, res) {
   const { contentHtml, contentCss, name, activate } = req.body || {};
   const doc = await Template.findOne({ _id: id, companyId: req.companyId });
   if (!doc) return res.status(404).json({ error: 'not found' });
-  if (contentHtml !== undefined) doc.contentHtml = contentHtml;
+  if (contentHtml !== undefined) doc.contentHtml = sanitize(contentHtml);
   if (contentCss !== undefined) doc.contentCss = contentCss;
   if (name !== undefined) doc.name = name;
   if (activate !== undefined && activate) {
@@ -104,8 +108,10 @@ export async function updateTemplate(req, res) {
 }
 
 export async function previewTemplate(req, res) {
-  const { type, contentHtml = '', contentCss = '', sampleId } = req.body || {};
+  const { type, sampleId } = req.body || {};
+  let { contentHtml = '', contentCss = '' } = req.body || {};
   if (!type) return res.status(400).json({ error: 'type required' });
+  contentHtml = sanitize(contentHtml);
   const ctx = await buildContext({ companyId: req.companyId, type, sampleId });
   const html = renderHB(contentHtml, ctx);
   res.json({ rendered: html, css: contentCss, context: ctx });

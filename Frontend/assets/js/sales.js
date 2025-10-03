@@ -81,6 +81,41 @@ function printSaleTicket(sale){
   } else fallback();
 }
 
+// Imprimir Orden de Trabajo usando plantilla workOrder si existe
+function printWorkOrder(){
+  if(!current){ alert('No hay venta activa'); return; }
+  const sale = current;
+  function fallback(){
+    const lines = [];
+    lines.push('ORDEN DE TRABAJO');
+    lines.push('# ' + padSaleNumber(sale.number||''));
+    lines.push('Cliente: ' + describeCustomer(sale.customer));
+    lines.push('Vehículo: ' + describeVehicle(sale.vehicle));
+    lines.push('--- Ítems ---');
+    (sale.items||[]).forEach(it=> lines.push('- '+ (it.qty||0) + ' x ' + (it.name||it.sku||'') ));
+    const win = window.open('', '_blank');
+    if(!win){ alert('No se pudo abrir impresión'); return; }
+    win.document.write('<pre>'+lines.join('\n')+'</pre>');
+    win.document.close(); win.focus(); win.print(); try{ win.close(); }catch{}
+  }
+  if(API?.templates?.active){
+    API.templates.active('workOrder')
+      .then(tpl=>{
+        if(!tpl || !tpl.contentHtml){ fallback(); return; }
+        return API.templates.preview({ type:'workOrder', contentHtml: tpl.contentHtml, contentCss: tpl.contentCss, sampleId: sale._id })
+          .then(r=>{
+            const win = window.open('', '_blank');
+            if(!win){ fallback(); return; }
+            const css = r.css? `<style>${r.css}</style>`:'';
+            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}</head><body>${r.rendered}</body></html>`);
+            win.document.close(); win.focus(); win.print(); try{ win.close(); }catch{}
+          })
+          .catch(()=> fallback());
+      })
+      .catch(()=> fallback());
+  } else fallback();
+}
+
 
 // ---------- estado ----------
 let es = null;         // EventSource (SSE)
@@ -165,6 +200,12 @@ function startSalesAutoRefresh() {
     refreshOpenSales({ focusId: current?._id || null });
   }, 10000);
 }
+
+// Registrar listener botón Imprimir OT cuando exista en DOM
+document.addEventListener('DOMContentLoaded', ()=>{
+  const btnWO = document.getElementById('sv-print-wo');
+  if(btnWO) btnWO.addEventListener('click', ()=> printWorkOrder());
+});
 
 // ===== Modal Cerrar Venta =====
 let companyPrefs = { laborPercents: [] };

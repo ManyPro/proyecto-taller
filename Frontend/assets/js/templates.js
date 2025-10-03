@@ -2,6 +2,7 @@
 // Depends on api.js (API.templates namespace) and shared util patterns.
 // Provides: list, create/update, preview, activate, variable insertion helpers.
 
+// Converted to ES module wrapper: executes immediately.
 (function(){
   const state = {
     templates: [],
@@ -136,19 +137,16 @@
     if(!state.editing) return;
     const type = qs('tpl-editor-type').value;
     try {
-      const html = qs('tpl-html').value;
-      const css = qs('tpl-css').value;
-      // We'll call preview endpoint with temporary content (need backend support to override? currently preview expects stored template) -> fallback: client side inline assembly
-      // For MVP: if editing existing saved template, ask server; else render locally skeleton.
+      const contentHtml = qs('tpl-html').value;
+      const contentCss = qs('tpl-css').value;
+      const resp = await API.templates.preview({ type, contentHtml, contentCss }).catch(()=>null);
       let docHtml;
-      if(state.editing._id){
-        docHtml = await API.templates.preview(state.editing._id, { sample: true }).catch(()=> null);
+      if(resp && resp.rendered){
+        docHtml = `<html><head><style>${resp.css||''}</style></head><body>${resp.rendered}</body></html>`;
+      } else {
+        docHtml = `<html><head><style>${contentCss}</style></head><body>${contentHtml}</body></html>`;
       }
-      if(!docHtml){
-        docHtml = `<html><head><style>${css}</style></head><body>${html}</body></html>`;
-      }
-      const frame = qs('tpl-preview-frame');
-      frame.srcdoc = docHtml;
+      qs('tpl-preview-frame').srcdoc = docHtml;
       setMsg('Vista previa actualizada');
     } catch(err){ console.error(err); setMsg('Error en vista previa', true); }
   }

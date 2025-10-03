@@ -945,6 +945,23 @@ export function initInventory() {
         alert("Coloca al menos 1 sticker.");
         return;
       }
+      // Intentar plantilla 'sticker' activa (abre ventana imprimible) antes de backend PDF
+      try {
+        const tpl = await API.templates.active('sticker');
+        if(tpl && tpl.contentHtml){
+          const pv = await API.templates.preview({ type:'sticker', contentHtml: tpl.contentHtml, contentCss: tpl.contentCss });
+          const win = window.open('', '_blank');
+          if(win){
+            const css = pv.css? `<style>${pv.css}</style>`:'';
+            // Generar bloques repetidos por cada sticker solicitado
+            const repeatHtml = flatItems.map(it=>`<div class="sticker-item">${pv.rendered}</div>`).join('');
+            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}<style>.sticker-item{page-break-inside:avoid; margin:4px;}</style></head><body>${repeatHtml}</body></html>`);
+            win.document.close(); win.focus();
+            setTimeout(()=>{ try{ win.print(); }catch{} }, 200);
+          }
+          return; // no continuar al backend PDF
+        }
+      } catch(e){ console.warn('Sticker template fallback to backend PDF', e); }
       // Aplanar la lista: una entrada por sticker (backend genera 2 stickers por cada item enviado)
       const payload = [];
       list.forEach(({ it, count }) => {

@@ -290,6 +290,39 @@ export function initQuotes({ getCompanyEmail }) {
 
   // ====== PDF (desde UI) ======
   async function exportPDF(){
+    // Intentar usar plantilla activa (quote) -> abrir ventana/imprimir
+    try {
+      const tpl = await API.templates.active('quote');
+      if (tpl && tpl.contentHtml) {
+        const contentHtml = tpl.contentHtml;
+        const contentCss = tpl.contentCss || '';
+        // Construir doc de contexto básico desde UI para previsualizar (similar a buildContext server pero local)
+        const docContext = {
+          quote: {
+            number: iNumber.value,
+            date: iDatetime.value||todayIso(),
+            customerName: iClientName.value,
+            customerPhone: iClientPhone.value,
+            customerEmail: iClientEmail.value,
+            plate: iPlate.value,
+            items: readRows().map(r=>({ description:r.desc, qty:r.qty, unitPrice:r.price, total:(r.qty>0?r.qty:1)*(r.price||0), type:r.type })),
+            totals: {
+              subP: parseMoney(lblSubtotalProducts.textContent),
+              subS: parseMoney(lblSubtotalServices.textContent),
+              total: parseMoney(lblTotal.textContent)
+            }
+          }
+        };
+        // Enviar a endpoint preview para tener helpers (money/date) y sample context real (servidor complementa)
+        const pv = await API.templates.preview({ type:'quote', contentHtml, contentCss });
+        const w = window.open('', 'quoteTpl');
+        if (w) {
+          w.document.write(`<html><head><title>Cotización</title><style>${pv.css||contentCss}</style></head><body>${pv.rendered || contentHtml}</body></html>`);
+          w.document.close();
+        }
+        return; // no continuar a PDF jsPDF
+      }
+    } catch(e){ console.warn('Fallo plantilla quote, usando fallback PDF', e); }
     await exportPDFFromData({
       number:iNumber.value,
       datetime:iDatetime.value||todayIso(),
