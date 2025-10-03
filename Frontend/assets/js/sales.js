@@ -40,29 +40,45 @@ function describeVehicle(vehicle){
 }
 
 function printSaleTicket(sale){
-  if (!sale) return;
-  const number = padSaleNumber(sale.number || sale._id || '');
-  const linesOut = [
-    'Factura simple',
-    '',
-    '# ' + number + '  Total: ' + money(sale.total || 0),
-    '',
-    'Cliente: ' + describeCustomer(sale.customer),
-    'Vehículo: ' + describeVehicle(sale.vehicle),
-    '',
-    'Items:'
-  ];
-  (sale.items || []).forEach(it => {
-    linesOut.push('- ' + (it.qty || 0) + ' x ' + (it.name || it.sku || '') + ' (' + money(it.total || 0) + ')');
-  });
-  const txt = linesOut.join('\n');
-  const win = window.open('', '_blank');
-  if (!win) { alert('No se pudo abrir ventana de impresión'); return; }
-  win.document.write('<pre>' + txt + '</pre>');
-  win.document.close();
-  win.focus();
-  win.print();
-  try { win.close(); } catch {}
+  if(!sale) return;
+  function fallback(){
+    const number = padSaleNumber(sale.number || sale._id || '');
+    const linesOut = [
+      'Factura simple',
+      '',
+      '# ' + number + '  Total: ' + money(sale.total || 0),
+      '',
+      'Cliente: ' + describeCustomer(sale.customer),
+      'Vehículo: ' + describeVehicle(sale.vehicle),
+      '',
+      'Items:'
+    ];
+    (sale.items || []).forEach(it => {
+      linesOut.push('- ' + (it.qty || 0) + ' x ' + (it.name || it.sku || '') + ' (' + money(it.total || 0) + ')');
+    });
+    const txt = linesOut.join('\n');
+    const win = window.open('', '_blank');
+    if (!win) { alert('No se pudo abrir ventana de impresión'); return; }
+    win.document.write('<pre>' + txt + '</pre>');
+    win.document.close(); win.focus(); win.print(); try { win.close(); } catch {}
+  }
+  // Intento con plantilla activa invoice
+  if(API?.templates?.active){
+    API.templates.active('invoice')
+      .then(tpl=>{
+        if(!tpl || !tpl.contentHtml){ fallback(); return; }
+        return API.templates.preview({ type:'invoice', contentHtml: tpl.contentHtml, contentCss: tpl.contentCss, sampleId: sale._id })
+          .then(r=>{
+            const win = window.open('', '_blank');
+            if(!win){ fallback(); return; }
+            const css = r.css ? `<style>${r.css}</style>`:'';
+            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}</head><body>${r.rendered}</body></html>`);
+            win.document.close(); win.focus(); win.print(); try{ win.close(); }catch{}
+          })
+          .catch(()=> fallback());
+      })
+      .catch(()=> fallback());
+  } else fallback();
 }
 
 

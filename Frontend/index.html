@@ -61,6 +61,7 @@
         <button data-tab="precios">Lista de precios</button>
         <button data-tab="notas">Notas</button>
         <button data-tab="reporte-tecnico">Reporte Técnico</button>
+        <button data-tab="formatos">Formatos</button>
       </nav>
 
       <!-- MODAL GLOBAL -->
@@ -142,6 +143,68 @@
           </div>
         </div>
       </section>
+      <!-- ========== FORMATOS (Editor Plantillas) ========== -->
+      <section id="tab-formatos" class="tab">
+        <div class="card" style="margin-bottom:12px;">
+          <h3>Plantillas</h3>
+          <div class="row wrap" style="gap:8px; align-items:flex-end;">
+            <select id="tpl-type-filter">
+              <option value="">-- Tipo --</option>
+              <option value="invoice">Factura</option>
+              <option value="quote">Cotización</option>
+              <option value="workOrder">Orden de trabajo</option>
+              <option value="sticker">Sticker</option>
+            </select>
+            <button id="tpl-refresh" class="secondary">Actualizar</button>
+            <button id="tpl-new">+ Nueva</button>
+            <button id="tpl-dup" class="secondary">Duplicar activa</button>
+          </div>
+          <div class="table-wrap small" style="margin-top:8px;max-height:220px;overflow:auto;">
+            <table class="table small" style="min-width:780px;">
+              <thead><tr><th>Tipo</th><th>Nombre</th><th>Versión</th><th>Activa</th><th>Actualizado</th><th></th></tr></thead>
+              <tbody id="tpl-rows"><tr><td colspan="6" class="muted">—</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card">
+          <h3 id="tpl-editor-title">Editor</h3>
+          <div class="row wrap" style="gap:8px; margin-bottom:8px;">
+            <select id="tpl-editor-type">
+              <option value="invoice">Factura</option>
+              <option value="quote">Cotización</option>
+              <option value="workOrder">Orden de trabajo</option>
+              <option value="sticker">Sticker</option>
+            </select>
+            <input id="tpl-name" placeholder="Nombre interno (opcional)" style="flex:1;min-width:160px;" />
+            <button id="tpl-preview" class="secondary">Vista previa</button>
+            <button id="tpl-save">Guardar</button>
+            <button id="tpl-save-activate" class="primary">Guardar & Activar</button>
+          </div>
+          <div class="grid-2" style="gap:12px;"> 
+            <div style="min-width:320px;">
+              <label style="font-weight:600;">HTML (Handlebars)</label>
+              <textarea id="tpl-html" style="width:100%;height:260px;font-family:monospace;font-size:12px;"></textarea>
+              <label style="font-weight:600;margin-top:8px;display:block;">CSS</label>
+              <textarea id="tpl-css" style="width:100%;height:140px;font-family:monospace;font-size:12px;"></textarea>
+            </div>
+            <div style="min-width:320px;display:flex;flex-direction:column;">
+              <div class="row between" style="align-items:center;gap:8px;">
+                <strong>Variables</strong>
+                <button id="tpl-insert-item-loop" class="small secondary" title="Insertar loop de items">+ Loop items</button>
+              </div>
+              <div id="tpl-vars" class="list" style="max-height:160px;overflow:auto;margin:6px 0 10px; font-size:12px; border:1px solid var(--border-color);padding:6px;"></div>
+              <strong>Vista previa</strong>
+              <iframe id="tpl-preview-frame" style="flex:1;min-height:300px;border:1px solid var(--border-color);background:#fff;"></iframe>
+              <div id="tpl-msg" class="muted" style="margin-top:6px;font-size:12px;min-height:16px;"></div>
+            </div>
+          </div>
+          <details style="margin-top:12px;">
+            <summary style="cursor:pointer;">Snippet base (ejemplo factura)</summary>
+            <pre style="white-space:pre-wrap;font-size:11px;line-height:1.35;" id="tpl-example-box"></pre>
+          </details>
+        </div>
+      </section>
+      <!-- ========== /FORMATOS ========== -->
       <!-- ========== FLUJO DE CAJA ========== -->
       <section id="tab-cashflow" class="tab">
         <div class="card">
@@ -1094,6 +1157,8 @@
 
 </body>
 </html>
+<!-- scripts appended just before closing body if needed -->
+<script src="assets/js/templates.js"></script>
 
 
 

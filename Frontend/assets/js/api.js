@@ -228,6 +228,14 @@ const API = {
     create: (payload) => http.post('/api/v1/cashflow/entries', payload),
     update: (id, payload) => http.patch(`/api/v1/cashflow/entries/${id}`, payload),
     delete: (id) => http.del(`/api/v1/cashflow/entries/${id}`)
+  },
+  templates: {
+    list: (params={}) => http.get(`/api/v1/templates${toQuery(params)}`),
+    get: (id) => http.get(`/api/v1/templates/${id}`),
+    active: (type) => http.get(`/api/v1/templates/active/${encodeURIComponent(type)}`),
+    create: (payload) => http.post('/api/v1/templates', payload),
+    update: (id, payload) => http.patch(`/api/v1/templates/${id}`, payload),
+    preview: (payload) => http.post('/api/v1/templates/preview', payload)
   }
 };
 

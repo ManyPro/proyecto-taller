@@ -22,6 +22,7 @@ import servicesRouter from './routes/services.routes.js';
 import profilesRouter from './routes/profiles.routes.js';
 import companyRouter from './routes/company.routes.js';
 import cashflowRouter from './routes/cashflow.routes.js';
+import templatesRouter from './routes/templates.routes.js';
 
 const app = express();
 
@@ -99,6 +100,7 @@ app.use('/api/v1/quotes', authCompany, withCompanyDefaults, quotesRouter);
 app.use('/api/v1/profiles', authCompany, withCompanyDefaults, profilesRouter);
 app.use('/api/v1/company', companyRouter);
 app.use('/api/v1/cashflow', authCompany, withCompanyDefaults, cashflowRouter);
+app.use('/api/v1/templates', authCompany, withCompanyDefaults, templatesRouter);
 
 app.use((err, _req, res, _next) => {
   const isJsonParse = err?.type === 'entity.parse.failed' || (err instanceof SyntaxError && 'body' in err);
