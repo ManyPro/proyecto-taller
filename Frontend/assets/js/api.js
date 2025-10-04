@@ -235,6 +235,7 @@ const API = {
     active: (type) => http.get(`/api/v1/templates/active/${encodeURIComponent(type)}`),
     create: (payload) => http.post('/api/v1/templates', payload),
     update: (id, payload) => http.patch(`/api/v1/templates/${id}`, payload),
+    activate: (id) => http.patch(`/api/v1/templates/${id}`, { activate: true }),
     preview: (payload) => http.post('/api/v1/templates/preview', payload)
   }
 };

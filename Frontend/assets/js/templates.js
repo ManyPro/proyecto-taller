@@ -211,6 +211,15 @@
     on(qs('tpl-add-text'),'click', ()=> addBlock({ kind:'text', text:'Parrafo de ejemplo. Haz click para editar.' }));
     on(qs('tpl-add-logo'),'click', ()=> addBlock({ kind:'logo' }));
     on(qs('tpl-add-table'),'click', ()=> addBlock({ kind:'itemsTable', columns:['Cant','Descripción','Unit','Total'] }));
+    // Añadir botones nuevos si no existen (cliente, vehículo, totales)
+    (function ensureExtraButtons(){
+      const bar = qs('tpl-visual-editor')?.querySelector('.row .row');
+      if(!bar) return;
+      const createBtn=(id,label,handler)=>{ if(qs(id)) return; const b=document.createElement('button'); b.id=id; b.className='small secondary'; b.textContent=label; b.addEventListener('click',handler); bar.appendChild(b); };
+      createBtn('tpl-add-customer','Cliente', ()=> addBlock({ kind:'customer' }));
+      createBtn('tpl-add-vehicle','Vehículo', ()=> addBlock({ kind:'vehicle' }));
+      createBtn('tpl-add-totals','Totales', ()=> addBlock({ kind:'totals' }));
+    })();
     on(qs('tpl-clear-canvas'),'click', ()=>{ if(confirm('¿Vaciar diseño visual?')){ state.blocks=[]; renderCanvas(); }});
   }
 
@@ -279,11 +288,20 @@
       el.style.background = '#fff';
       el.style.cursor='pointer';
       el.dataset.id = b.id;
+      el.draggable = true;
       el.innerHTML = renderBlockLabel(b);
       el.addEventListener('click',()=> editBlock(b.id));
+      el.addEventListener('dragstart', (e)=>{ e.dataTransfer.setData('text/plain', b.id); el.style.opacity='0.4'; });
+      el.addEventListener('dragend', ()=>{ el.style.opacity='1'; });
+      el.addEventListener('dragover', (e)=>{ e.preventDefault(); el.style.outline='2px dashed var(--primary-color)'; });
+      el.addEventListener('dragleave', ()=>{ el.style.outline='none'; });
+      el.addEventListener('drop', (e)=>{ e.preventDefault(); el.style.outline='none'; const src=e.dataTransfer.getData('text/plain'); if(src && src!==b.id){ reorderBlock(src, b.id); } });
       canvas.appendChild(el);
     });
   }
+
+  function reorderBlock(srcId, targetId){
+    const a=state.blocks; const from=a.findIndex(x=>x.id===srcId); const to=a.findIndex(x=>x.id===targetId); if(from<0||to<0) return; const [blk]=a.splice(from,1); a.splice(to,0,blk); renderCanvas(); }
 
   function renderBlockLabel(b){
     switch(b.kind){
@@ -291,6 +309,9 @@
       case 'text': return `🅟 ${(escapeHtml(shorten(b.text||'',60))||'(texto)')}`;
       case 'logo': return '🖼 Logo empresa ({{company.logoUrl}})';
       case 'itemsTable': return '📋 Tabla de Items';
+      case 'customer': return '👤 Datos Cliente';
+      case 'vehicle': return '🚗 Datos Vehículo';
+      case 'totals': return 'Σ Totales';
       default: return b.kind;
     }
   }
@@ -307,31 +328,64 @@
       inner += `<label style='font-weight:600;'>Contenido</label><textarea id='blk-text' style='width:100%;height:80px;'>${escapeHtml(b.text||'')}</textarea>`;
       inner += `<div style='margin-top:4px;font-size:11px;' class='muted'>Puedes insertar variables haciendo click en la lista a la derecha.</div>`;
     }
-    if(b.kind==='itemsTable'){
-      inner += `<div class='muted' style='font-size:12px;'>Tabla dinámica de items de venta / cotización. Columnas fijas.</div>`;
-    }
-    if(b.kind==='logo'){
-      inner += `<div class='muted' style='font-size:12px;'>Muestra el logo de la empresa si está configurado.</div>`;
+    if(b.kind==='itemsTable') inner += `<div class='muted' style='font-size:12px;'>Tabla dinámica de items de venta / cotización. Columnas fijas.</div>`;
+    if(b.kind==='logo') inner += `<div class='muted' style='font-size:12px;'>Muestra el logo de la empresa si existe.</div>`;
+    if(b.kind==='customer') inner += `<div class='muted' style='font-size:12px;'>Se rellena con datos del cliente: nombre, teléfono, email si existen.</div>`;
+    if(b.kind==='vehicle') inner += `<div class='muted' style='font-size:12px;'>Incluye placa, marca, línea, motor y año del vehículo si están disponibles.</div>`;
+    if(b.kind==='totals') inner += `<div class='muted' style='font-size:12px;'>Muestra subtotal y total de la venta / cotización.</div>`;
+    if(b.kind==='title' || b.kind==='text'){
+      inner += `<fieldset style='margin-top:8px;border:1px solid var(--border-color);padding:4px;'><legend style='font-size:11px;'>Estilos</legend>
+        <label style='font-size:11px;'>Alineación <select id='blk-align'><option value='left'>Izquierda</option><option value='center'>Centro</option><option value='right'>Derecha</option></select></label>
+        <label style='font-size:11px;'>Tamaño <select id='blk-size'><option value='normal'>Normal</option><option value='small'>Pequeño</option><option value='big'>Grande</option></select></label>
+      </fieldset>`;
     }
     inner += `<div class='row' style='margin-top:8px;gap:6px;justify-content:flex-end;'><button id='blk-del' class='danger small'>Borrar</button><button id='blk-ok' class='small'>Cerrar</button></div>`;
     body.innerHTML = inner;
     document.body.appendChild(panel);
     panel.querySelector('.close').onclick = ()=> panel.remove();
-    panel.querySelector('#blk-ok').onclick = ()=>{ if(b.kind==='title'||b.kind==='text'){ b.text = panel.querySelector('#blk-text').value; renderCanvas(); } panel.remove(); };
+    if((b.kind==='title'||b.kind==='text') && b.style){
+      const a = panel.querySelector('#blk-align'); const s = panel.querySelector('#blk-size');
+      if(a) a.value = b.style.align||'left'; if(s) s.value = b.style.size||'normal';
+    }
+    panel.querySelector('#blk-ok').onclick = ()=>{ 
+      if(b.kind==='title'||b.kind==='text'){ 
+        b.text = panel.querySelector('#blk-text').value; 
+        b.style = { align: panel.querySelector('#blk-align')?.value||'left', size: panel.querySelector('#blk-size')?.value||'normal' };
+        renderCanvas(); 
+      } 
+      panel.remove(); 
+    };
     panel.querySelector('#blk-del').onclick = ()=>{ if(confirm('¿Eliminar bloque?')){ state.blocks = state.blocks.filter(x=>x.id!==b.id); renderCanvas(); panel.remove(); } };
   }
 
   function buildHtmlFromBlocks(){
     let htmlParts = [];
     state.blocks.forEach(b=>{
-      if(b.kind==='title'){ htmlParts.push(`<h1>${escapeHtml(b.text||'')}</h1>`); }
-      else if(b.kind==='text'){ htmlParts.push(`<p>${escapeHtml(b.text||'')}</p>`); }
+      if(b.kind==='title' || b.kind==='text'){
+        const tag = b.kind==='title' ? 'h1' : 'p';
+        const clsParts = [];
+        if(b.style){
+          if(b.style.align && b.style.align!=='left') clsParts.push(`align-${b.style.align}`);
+          if(b.style.size && b.style.size!=='normal') clsParts.push(`size-${b.style.size}`);
+        }
+        const cls = clsParts.length? ` class='${clsParts.join(' ')}'` : '';
+        htmlParts.push(`<${tag}${cls}>${escapeHtml(b.text||'')}</${tag}>`);
+      }
       else if(b.kind==='logo'){ htmlParts.push(`<div class='logo-box'>{{#if company.logoUrl}}<img class='logo' src='{{company.logoUrl}}' alt='logo'>{{/if}}</div>`); }
       else if(b.kind==='itemsTable'){
         htmlParts.push(`<table class='items'>\n<thead><tr><th>Cant</th><th>Descripción</th><th>Unit</th><th>Total</th></tr></thead>\n<tbody>{{#each sale.items}}<tr><td>{{qty}}</td><td>{{description}}</td><td>{{money unitPrice}}</td><td>{{money total}}</td></tr>{{/each}}</tbody>\n</table>`);
       }
+      else if(b.kind==='customer'){
+        htmlParts.push(`<div class='customer-box'><strong>Cliente:</strong> {{sale.customerName}} {{#if sale.customerPhone}}Tel: {{sale.customerPhone}}{{/if}} {{#if sale.customerEmail}}Email: {{sale.customerEmail}}{{/if}}</div>`);
+      }
+      else if(b.kind==='vehicle'){
+        htmlParts.push(`<div class='vehicle-box'><strong>Vehículo:</strong> {{sale.vehicle.plate}} {{sale.vehicle.brand}} {{sale.vehicle.line}} {{sale.vehicle.engine}} {{sale.vehicle.year}}</div>`);
+      }
+      else if(b.kind==='totals'){
+        htmlParts.push(`<div class='totals-box'><table class='totals'><tbody><tr><td>Subtotal</td><td>{{money sale.subtotal}}</td></tr><tr><td><strong>Total</strong></td><td><strong>{{money sale.total}}</strong></td></tr></tbody></table></div>`);
+      }
     });
-    const css = `.logo{max-height:60px;} .logo-box{margin-bottom:12px;} table.items{width:100%;border-collapse:collapse;margin:10px 0;} table.items th,table.items td{border:1px solid #ccc;padding:4px;font-size:12px;text-align:left;} h1{margin:4px 0 10px;font-size:20px;}`;
+    const css = `.logo{max-height:60px;} .logo-box{margin-bottom:12px;} table.items{width:100%;border-collapse:collapse;margin:10px 0;} table.items th,table.items td{border:1px solid #ccc;padding:4px;font-size:12px;text-align:left;} h1{margin:4px 0 10px;font-size:20px;} .customer-box,.vehicle-box,.totals-box{margin:6px 0;font-size:12px;} table.totals td{padding:2px 6px;font-size:12px;} .align-center{text-align:center;} .align-right{text-align:right;} .size-small{font-size:11px;} .size-big{font-size:22px;}`;
     return { html: htmlParts.join('\n'), css };
   }
 
