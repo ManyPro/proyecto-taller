@@ -2,11 +2,17 @@ import Template from '../models/Template.js';
 import Sale from '../models/Sale.js';
 import Quote from '../models/Quote.js';
 import Company from '../models/Company.js';
+import Order from '../models/Order.js';
+import Item from '../models/Item.js';
 import Handlebars from 'handlebars';
 
-// Helpers para armar contexto base
-async function buildContext({ companyId, type, sampleId }) {
-  const ctx = { company: {}, now: new Date() };
+// Helpers para armar contexto base multi-documento
+// Params:
+//  - type: tipo de plantilla (invoice, workOrder, quote, sticker, order)
+//  - sampleType (opcional): fuerza el tipo de documento para el contexto (si distinto al type de la plantilla)
+//  - sampleId (opcional): id específico del documento
+async function buildContext({ companyId, type, sampleType, sampleId }) {
+  const ctx = { company: {}, now: new Date(), meta: { requestedType: type, sampleType: sampleType || null } };
   const company = await Company.findOne({ _id: companyId });
   if (company) {
     ctx.company = {
@@ -17,17 +23,36 @@ async function buildContext({ companyId, type, sampleId }) {
       logoUrl: company.logoUrl || ''
     };
   }
-  if (type === 'invoice' || type === 'workOrder') {
+
+  const effective = sampleType || type;
+
+  // Venta (invoice/workOrder comparten sale)
+  if (['invoice','workOrder','sale'].includes(effective)) {
     let sale = null;
     if (sampleId) sale = await Sale.findOne({ _id: sampleId, companyId });
     else sale = await Sale.findOne({ companyId, status: 'closed' }).sort({ createdAt: -1 });
     if (sale) ctx.sale = sale.toObject();
   }
-  if (type === 'quote') {
+  // Cotización
+  if (effective === 'quote') {
     let quote = null;
     if (sampleId) quote = await Quote.findOne({ _id: sampleId, companyId });
     else quote = await Quote.findOne({ companyId }).sort({ createdAt: -1 });
     if (quote) ctx.quote = quote.toObject();
+  }
+  // Pedido (order)
+  if (effective === 'order') {
+    let order = null;
+    if (sampleId) order = await Order.findOne({ _id: sampleId, companyId });
+    else order = await Order.findOne({ companyId }).sort({ createdAt: -1 });
+    if (order) ctx.order = order.toObject();
+  }
+  // Sticker / Item individual
+  if (['sticker','item'].includes(effective)) {
+    let item = null;
+    if (sampleId) item = await Item.findOne({ _id: sampleId, companyId });
+    else item = await Item.findOne({ companyId }).sort({ updatedAt: -1 });
+    if (item) ctx.item = item.toObject();
   }
   return ctx;
 }
@@ -108,11 +133,11 @@ export async function updateTemplate(req, res) {
 }
 
 export async function previewTemplate(req, res) {
-  const { type, sampleId } = req.body || {};
+  const { type, sampleId, sampleType } = req.body || {};
   let { contentHtml = '', contentCss = '' } = req.body || {};
   if (!type) return res.status(400).json({ error: 'type required' });
   contentHtml = sanitize(contentHtml);
-  const ctx = await buildContext({ companyId: req.companyId, type, sampleId });
+  const ctx = await buildContext({ companyId: req.companyId, type, sampleId, sampleType });
   const html = renderHB(contentHtml, ctx);
   res.json({ rendered: html, css: contentCss, context: ctx });
 }

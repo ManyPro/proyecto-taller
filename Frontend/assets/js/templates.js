@@ -10,6 +10,7 @@
     mode: 'code', // 'code' | 'visual'
     blocks: [], // visual blocks
     selectedBlockId: null,
+    theme: { primary:'#222222', accent:'#0055aa', font:'Arial, sans-serif', baseSize:12 },
     exampleSnippets: {
       invoice: `<!-- Ejemplo Factura -->\n<div class="doc">\n  <h1>Factura {{sale.number}}</h1>\n  <div class="row">Cliente: {{sale.customerName}}</div>\n  <div class="row">Fecha: {{date sale.closedAt}}</div>\n  <table class="items">\n    <thead><tr><th>Cant</th><th>Descripción</th><th>PU</th><th>Total</th></tr></thead>\n    <tbody>\n      {{#each sale.items}}\n      <tr><td>{{qty}}</td><td>{{description}}</td><td>{{money unitPrice}}</td><td>{{money total}}</td></tr>\n      {{/each}}\n    </tbody>\n  </table>\n  <h3>Total: {{money sale.total}}</h3>\n</div>`,
       quote: `<!-- Ejemplo Cotización -->\n<h1>COTIZACIÓN {{quote.number}}</h1>\n<p>Cliente: {{quote.customerName}}</p>\n<ul>\n{{#each quote.items}}<li>{{qty}} x {{description}} = {{money total}}</li>{{/each}}\n</ul>`,
@@ -60,13 +61,18 @@
     if(!box) return;
     const parts = [];
     Object.entries(VAR_GROUPS).forEach(([group, vars])=>{
-      parts.push(`<div style="font-weight:600;margin-top:4px;">${group}</div>`);
-      vars.forEach(v=>{
-        const label = v.replace(/{{|}}/g,'');
-        parts.push(`<div class="click var-item" data-insert="${v}"><code>${v}</code></div>`);
-      });
+      const groupId = 'grp-'+group;
+      parts.push(`<details class='var-group' open><summary style='cursor:pointer;font-weight:600;'>${group}</summary><div id='${groupId}'></div></details>`);
     });
     box.innerHTML = parts.join('');
+    // Insert vars inside their group containers
+    Object.entries(VAR_GROUPS).forEach(([group, vars])=>{
+      const groupBox = box.querySelector('#grp-'+group);
+      if(!groupBox) return;
+      groupBox.innerHTML = vars.map(v=>{
+        return `<div class='click var-item' data-insert='${v}' style='padding:2px 4px;border-radius:3px;font-size:11px;'><code>${v}</code></div>`;
+      }).join('');
+    });
     box.querySelectorAll('.var-item').forEach(el=>{
       el.addEventListener('click', ()=> insertAtCursor(qs('tpl-html'), el.dataset.insert));
     });
@@ -152,7 +158,12 @@
     try {
       const contentHtml = qs('tpl-html').value;
       const contentCss = qs('tpl-css').value;
-      const resp = await API.templates.preview({ type, contentHtml, contentCss }).catch(()=>null);
+      // Nuevos controles de contexto
+      const sampleTypeSel = qs('tpl-sample-type');
+      const sampleIdInput = qs('tpl-sample-id');
+      const sampleType = sampleTypeSel ? sampleTypeSel.value || null : null;
+      const sampleId = sampleIdInput ? (sampleIdInput.value.trim() || null) : null;
+      const resp = await API.templates.preview({ type, contentHtml, contentCss, sampleType, sampleId }).catch(()=>null);
       let docHtml;
       if(resp && resp.rendered){
         docHtml = `<html><head><style>${resp.css||''}</style></head><body>${resp.rendered}</body></html>`;
@@ -219,6 +230,10 @@
       createBtn('tpl-add-customer','Cliente', ()=> addBlock({ kind:'customer' }));
       createBtn('tpl-add-vehicle','Vehículo', ()=> addBlock({ kind:'vehicle' }));
       createBtn('tpl-add-totals','Totales', ()=> addBlock({ kind:'totals' }));
+      createBtn('tpl-add-qr','QR', ()=> addBlock({ kind:'qr', variable:'sale.number' }));
+      createBtn('tpl-add-sign','Firma', ()=> addBlock({ kind:'signature', label:'Firma Cliente' }));
+      createBtn('tpl-add-payments','Pagos', ()=> addBlock({ kind:'paymentsSummary' }));
+      createBtn('tpl-add-cols2','2 Cols', ()=> addBlock({ kind:'twoColumns', left:'Columna izquierda', right:'Columna derecha' }));
     })();
     on(qs('tpl-clear-canvas'),'click', ()=>{ if(confirm('¿Vaciar diseño visual?')){ state.blocks=[]; renderCanvas(); }});
   }
@@ -235,6 +250,39 @@
   function initWhenVisible(){
     // Initialize only if the formatos tab exists
     if(!qs('tab-formatos')) return;
+    // Inject context selector controls if not present
+    const toolbar = qs('tpl-editor-toolbar') || document.querySelector('#tpl-editor-title')?.parentElement;
+    if(toolbar && !qs('tpl-sample-type')){
+      const wrap = document.createElement('div');
+      wrap.style.display='flex'; wrap.style.flexWrap='wrap'; wrap.style.gap='6px'; wrap.style.margin='6px 0';
+      wrap.innerHTML = `
+        <label style='font-size:11px;display:flex;flex-direction:column;'>Doc contexto
+          <select id='tpl-sample-type' style='min-width:130px;'>
+            <option value=''>Auto</option>
+            <option value='sale'>Venta</option>
+            <option value='quote'>Cotización</option>
+            <option value='order'>Pedido</option>
+            <option value='item'>Item</option>
+          </select>
+        </label>
+        <label style='font-size:11px;display:flex;flex-direction:column;'>ID específico
+          <input id='tpl-sample-id' placeholder='Opcional _id Mongo' style='min-width:220px;font-size:12px;' />
+        </label>
+        <fieldset style='display:flex;gap:6px;align-items:flex-end;border:1px solid var(--border-color);padding:4px;'>
+          <legend style='font-size:11px;'>Theme</legend>
+          <label style='font-size:10px;'>Primario<input type='color' id='tpl-th-primary' value='#222222' style='width:48px;padding:0;border:0;'></label>
+          <label style='font-size:10px;'>Acento<input type='color' id='tpl-th-accent' value='#0055aa' style='width:48px;padding:0;border:0;'></label>
+          <label style='font-size:10px;'>Font<select id='tpl-th-font' style='font-size:11px;'><option value='Arial, sans-serif'>Arial</option><option value="'Segoe UI',sans-serif">Segoe</option><option value='Tahoma, sans-serif'>Tahoma</option><option value='Courier New, monospace'>Courier</option></select></label>
+          <label style='font-size:10px;'>Base px<input type='number' id='tpl-th-size' value='12' min='9' max='20' style='width:60px;font-size:11px;'></label>
+        </fieldset>`;
+      toolbar.parentElement.insertBefore(wrap, toolbar.nextSibling);
+      wrap.addEventListener('change', e=>{
+        state.theme.primary = qs('tpl-th-primary').value;
+        state.theme.accent = qs('tpl-th-accent').value;
+        state.theme.font = qs('tpl-th-font').value;
+        state.theme.baseSize = parseInt(qs('tpl-th-size').value)||12;
+      });
+    }
     loadVars();
     attachEvents();
     ensureExampleSnippet();
@@ -312,6 +360,10 @@
       case 'customer': return '👤 Datos Cliente';
       case 'vehicle': return '🚗 Datos Vehículo';
       case 'totals': return 'Σ Totales';
+      case 'qr': return '🔳 QR '+escapeHtml(b.variable||'variable');
+      case 'signature': return '✍️ '+escapeHtml(b.label||'Firma');
+      case 'paymentsSummary': return '💲 Resumen Pagos';
+      case 'twoColumns': return '⬛⬛ Dos Columnas';
       default: return b.kind;
     }
   }
@@ -333,6 +385,10 @@
     if(b.kind==='customer') inner += `<div class='muted' style='font-size:12px;'>Se rellena con datos del cliente: nombre, teléfono, email si existen.</div>`;
     if(b.kind==='vehicle') inner += `<div class='muted' style='font-size:12px;'>Incluye placa, marca, línea, motor y año del vehículo si están disponibles.</div>`;
     if(b.kind==='totals') inner += `<div class='muted' style='font-size:12px;'>Muestra subtotal y total de la venta / cotización.</div>`;
+    if(b.kind==='qr') inner += `<div style='font-size:12px;' class='muted'>Genera un QR de la variable. Ej: sale.number, item.sku, company.name</div><label style='font-size:11px;'>Variable<input id='blk-var' value='${escapeHtml(b.variable||'sale.number')}' style='width:100%;font-size:12px;'/></label>`;
+    if(b.kind==='signature') inner += `<div class='muted' style='font-size:12px;'>Línea de firma con etiqueta personalizable.</div><label style='font-size:11px;'>Etiqueta<input id='blk-label' value='${escapeHtml(b.label||'Firma Cliente')}' style='width:100%;font-size:12px;'/></label>`;
+    if(b.kind==='paymentsSummary') inner += `<div class='muted' style='font-size:12px;'>Lista cada método de pago (sale.paymentMethods) y muestra total.</div>`;
+    if(b.kind==='twoColumns') inner += `<div class='muted' style='font-size:12px;'>Dos columnas de texto independientes.</div><label style='font-size:11px;'>Izquierda<textarea id='blk-left' style='width:100%;height:50px;font-size:12px;'>${escapeHtml(b.left||'')}</textarea></label><label style='font-size:11px;'>Derecha<textarea id='blk-right' style='width:100%;height:50px;font-size:12px;'>${escapeHtml(b.right||'')}</textarea></label>`;
     if(b.kind==='title' || b.kind==='text'){
       inner += `<fieldset style='margin-top:8px;border:1px solid var(--border-color);padding:4px;'><legend style='font-size:11px;'>Estilos</legend>
         <label style='font-size:11px;'>Alineación <select id='blk-align'><option value='left'>Izquierda</option><option value='center'>Centro</option><option value='right'>Derecha</option></select></label>
@@ -352,7 +408,17 @@
         b.text = panel.querySelector('#blk-text').value; 
         b.style = { align: panel.querySelector('#blk-align')?.value||'left', size: panel.querySelector('#blk-size')?.value||'normal' };
         renderCanvas(); 
-      } 
+      } else if(b.kind==='qr') {
+        b.variable = panel.querySelector('#blk-var').value.trim()||'sale.number';
+        renderCanvas();
+      } else if(b.kind==='signature') {
+        b.label = panel.querySelector('#blk-label').value.trim()||'Firma';
+        renderCanvas();
+      } else if(b.kind==='twoColumns') {
+        b.left = panel.querySelector('#blk-left').value;
+        b.right = panel.querySelector('#blk-right').value;
+        renderCanvas();
+      }
       panel.remove(); 
     };
     panel.querySelector('#blk-del').onclick = ()=>{ if(confirm('¿Eliminar bloque?')){ state.blocks = state.blocks.filter(x=>x.id!==b.id); renderCanvas(); panel.remove(); } };
@@ -384,8 +450,21 @@
       else if(b.kind==='totals'){
         htmlParts.push(`<div class='totals-box'><table class='totals'><tbody><tr><td>Subtotal</td><td>{{money sale.subtotal}}</td></tr><tr><td><strong>Total</strong></td><td><strong>{{money sale.total}}</strong></td></tr></tbody></table></div>`);
       }
+      else if(b.kind==='qr'){
+        // Placeholder: genera contenedor con data-var; script liviano inline puede reemplazarse server side.
+        htmlParts.push(`<div class='qr-box' data-var='${escapeHtml(b.variable||'sale.number')}'><canvas class='qr-canvas'></canvas></div>`);
+      }
+      else if(b.kind==='signature'){
+        htmlParts.push(`<div class='sign-box'><div class='sign-line'></div><div class='sign-label'>${escapeHtml(b.label||'Firma')}</div></div>`);
+      }
+      else if(b.kind==='paymentsSummary'){
+        htmlParts.push(`<div class='payments-box'><table class='payments'><thead><tr><th>Método</th><th>Valor</th></tr></thead><tbody>{{#each sale.paymentMethods}}<tr><td>{{method}}</td><td>{{money amount}}</td></tr>{{/each}}<tr><td style='font-weight:600;'>Total</td><td style='font-weight:600;'>{{money sale.total}}</td></tr></tbody></table></div>`);
+      }
+      else if(b.kind==='twoColumns'){
+        htmlParts.push(`<div class='cols2'><div class='col left'>${escapeHtml(b.left||'')}</div><div class='col right'>${escapeHtml(b.right||'')}</div></div>`);
+      }
     });
-    const css = `.logo{max-height:60px;} .logo-box{margin-bottom:12px;} table.items{width:100%;border-collapse:collapse;margin:10px 0;} table.items th,table.items td{border:1px solid #ccc;padding:4px;font-size:12px;text-align:left;} h1{margin:4px 0 10px;font-size:20px;} .customer-box,.vehicle-box,.totals-box{margin:6px 0;font-size:12px;} table.totals td{padding:2px 6px;font-size:12px;} .align-center{text-align:center;} .align-right{text-align:right;} .size-small{font-size:11px;} .size-big{font-size:22px;}`;
+    const css = `:root{--th-primary:${state.theme.primary};--th-accent:${state.theme.accent};--th-font:${state.theme.font};--th-base:${state.theme.baseSize}px;} body{font-family:var(--th-font);font-size:var(--th-base);} .logo{max-height:60px;} .logo-box{margin-bottom:12px;} table.items{width:100%;border-collapse:collapse;margin:10px 0;} table.items th{background:var(--th-primary);color:#fff;} table.items th,table.items td{border:1px solid #ccc;padding:4px;font-size:12px;text-align:left;} h1{margin:4px 0 10px;font-size:20px;color:var(--th-accent);} .customer-box,.vehicle-box,.totals-box{margin:6px 0;font-size:12px;} table.totals td{padding:2px 6px;font-size:12px;} .align-center{text-align:center;} .align-right{text-align:right;} .size-small{font-size:11px;} .size-big{font-size:22px;} .qr-box{display:inline-block;padding:4px;border:1px solid #999;margin:4px;} .qr-box canvas{width:80px;height:80px;} .sign-box{margin-top:24px;text-align:center;font-size:12px;} .sign-line{border-top:1px solid #000;margin:0 auto 4px;height:0;width:180px;} .sign-label{font-style:italic;} .payments-box{margin:8px 0;} table.payments{width:100%;border-collapse:collapse;font-size:12px;} table.payments th{background:var(--th-primary);color:#fff;} table.payments th,table.payments td{border:1px solid #ccc;padding:3px 4px;text-align:left;} .cols2{display:flex;gap:12px;} .cols2 .col{flex:1;font-size:12px;}`;
     return { html: htmlParts.join('\n'), css };
   }
 

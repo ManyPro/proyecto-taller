@@ -54,6 +54,28 @@ const SaleSchema = new mongoose.Schema({
   cancelledAt: { type: Date }
 }, { timestamps: true });
 
+// Asegurar consistencia de subtotal antes de guardar si falta
+SaleSchema.pre('save', function(next){
+  if(this.isModified('items') || this.isModified('total') || this.isModified('tax') || this.subtotal === 0){
+    const itemsSum = (this.items||[]).reduce((acc,it)=> acc + (Number(it.total)|| (Number(it.qty||0)*Number(it.unitPrice||0))), 0);
+    if(!this.subtotal || this.subtotal === 0){
+      // Si hay tax y total definidos, intentar inferir
+      if(this.total && this.tax){
+        const inferred = Number(this.total) - Number(this.tax);
+        if(inferred >= 0) this.subtotal = inferred;
+      }
+      if(!this.subtotal || this.subtotal === 0){
+        this.subtotal = itemsSum;
+      }
+    }
+    // Si total no coincide con subtotal+tax y total es 0, recalcular
+    if((!this.total || this.total === 0) && (this.subtotal || itemsSum)){
+      this.total = (this.subtotal || itemsSum) + (this.tax||0);
+    }
+  }
+  next();
+});
+
 // Índices adicionales para agilizar reporte técnico (consultas por closedAt y técnicos)
 try {
   SaleSchema.index({ companyId: 1, closedAt: -1 });
