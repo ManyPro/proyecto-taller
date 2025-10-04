@@ -166,6 +166,10 @@
         </div>
         <div class="card">
           <h3 id="tpl-editor-title">Editor</h3>
+          <div class="row wrap" style="gap:8px;margin-bottom:4px;">
+            <div class="chip" style="cursor:pointer;" id="tpl-mode-toggle" title="Cambiar entre modo Visual y Código">Modo: <span id="tpl-mode-label">Código</span></div>
+            <div id="tpl-visual-hint" class="muted" style="font-size:11px;">En modo Visual puedes arrastrar bloques sin saber HTML</div>
+          </div>
           <div class="row wrap" style="gap:8px; margin-bottom:8px;">
             <select id="tpl-editor-type">
               <option value="invoice">Factura</option>
@@ -180,6 +184,21 @@
           </div>
           <div class="grid-2" style="gap:12px;"> 
             <div style="min-width:320px;">
+              <div id="tpl-visual-editor" class="hidden" style="border:1px solid var(--border-color);padding:8px;border-radius:6px; background:var(--bg-alt);margin-bottom:8px;">
+                <div class="row between" style="align-items:center;">
+                  <strong>Diseñador Visual</strong>
+                  <div class="row" style="gap:6px;">
+                    <button class="small secondary" id="tpl-add-title">Título</button>
+                    <button class="small secondary" id="tpl-add-text">Texto</button>
+                    <button class="small secondary" id="tpl-add-table">Tabla Items</button>
+                    <button class="small secondary" id="tpl-add-logo">Logo</button>
+                    <button class="small secondary" id="tpl-clear-canvas" title="Vaciar diseño">Limpiar</button>
+                  </div>
+                </div>
+                <div id="tpl-canvas" style="min-height:180px;margin-top:8px;padding:10px;background:#fff;border:1px dashed var(--border-color);display:flex;flex-direction:column;gap:6px;">
+                  <div class="muted" id="tpl-canvas-empty">Arrastra / agrega bloques aquí…</div>
+                </div>
+              </div>
               <label style="font-weight:600;">HTML (Handlebars)</label>
               <textarea id="tpl-html" style="width:100%;height:260px;font-family:monospace;font-size:12px;"></textarea>
               <label style="font-weight:600;margin-top:8px;display:block;">CSS</label>

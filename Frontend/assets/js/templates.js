@@ -7,6 +7,9 @@
   const state = {
     templates: [],
     editing: null, // current template object (may be unsaved)
+    mode: 'code', // 'code' | 'visual'
+    blocks: [], // visual blocks
+    selectedBlockId: null,
     exampleSnippets: {
       invoice: `<!-- Ejemplo Factura -->\n<div class="doc">\n  <h1>Factura {{sale.number}}</h1>\n  <div class="row">Cliente: {{sale.customerName}}</div>\n  <div class="row">Fecha: {{date sale.closedAt}}</div>\n  <table class="items">\n    <thead><tr><th>Cant</th><th>Descripción</th><th>PU</th><th>Total</th></tr></thead>\n    <tbody>\n      {{#each sale.items}}\n      <tr><td>{{qty}}</td><td>{{description}}</td><td>{{money unitPrice}}</td><td>{{money total}}</td></tr>\n      {{/each}}\n    </tbody>\n  </table>\n  <h3>Total: {{money sale.total}}</h3>\n</div>`,
       quote: `<!-- Ejemplo Cotización -->\n<h1>COTIZACIÓN {{quote.number}}</h1>\n<p>Cliente: {{quote.customerName}}</p>\n<ul>\n{{#each quote.items}}<li>{{qty}} x {{description}} = {{money total}}</li>{{/each}}\n</ul>`,
@@ -104,10 +107,20 @@
     qs('tpl-css').value = state.editing.css || '';
     qs('tpl-editor-title').textContent = state.editing._id? 'Editar plantilla':'Nueva plantilla';
     setMsg('');
+    // Reset visual canvas when loading existing
+    state.blocks = [];
+    renderCanvas();
   }
 
   async function saveTemplate(activate){
     if(!state.editing) return;
+    // Si estamos en modo visual, sincronizar HTML/CSS generados antes de leer payload
+    if(state.mode==='visual'){
+      const built = buildHtmlFromBlocks();
+      qs('tpl-html').value = built.html;
+      // Insertar CSS base sólo si el usuario no ha agregado nada
+      if(!qs('tpl-css').value.trim()) qs('tpl-css').value = built.css;
+    }
     const payload = {
       type: qs('tpl-editor-type').value,
       name: qs('tpl-name').value.trim() || undefined,
@@ -174,6 +187,31 @@
       if(actBtn){ activateTemplate(actBtn.dataset.id); }
     });
     on(qs('tpl-editor-type'),'change', ()=>{ if(state.editing){ state.editing.type = qs('tpl-editor-type').value; }});
+    // Visual mode toggle
+    const toggle = qs('tpl-mode-toggle');
+    toggle && toggle.addEventListener('click', ()=>{
+      if(state.mode === 'code'){
+        // Pasar a visual: intentar parsear HTML simple a bloques si está vacío el canvas
+        if(state.blocks.length === 0){ attemptImportHtml(); }
+        state.mode = 'visual';
+      } else {
+        if(state.blocks.length && !confirm('Al salir del modo visual se regenerará el HTML. Continuar?')) return;
+        // Generar HTML desde blocks
+        const { html, css } = buildHtmlFromBlocks();
+        if(!qs('tpl-html').value.trim() || confirm('¿Reemplazar el HTML actual con el generado visual?')){
+          qs('tpl-html').value = html;
+          if(!qs('tpl-css').value.trim()) qs('tpl-css').value = css;
+        }
+        state.mode = 'code';
+      }
+      applyMode();
+    });
+    // Bloques: botones agregar
+    on(qs('tpl-add-title'),'click', ()=> addBlock({ kind:'title', text:'Título Principal'}));
+    on(qs('tpl-add-text'),'click', ()=> addBlock({ kind:'text', text:'Parrafo de ejemplo. Haz click para editar.' }));
+    on(qs('tpl-add-logo'),'click', ()=> addBlock({ kind:'logo' }));
+    on(qs('tpl-add-table'),'click', ()=> addBlock({ kind:'itemsTable', columns:['Cant','Descripción','Unit','Total'] }));
+    on(qs('tpl-clear-canvas'),'click', ()=>{ if(confirm('¿Vaciar diseño visual?')){ state.blocks=[]; renderCanvas(); }});
   }
 
   function ensureExampleSnippet(){
@@ -192,6 +230,7 @@
     attachEvents();
     ensureExampleSnippet();
     refreshList();
+    applyMode();
   }
 
   // Basic tab activation observer (depends on existing nav script). If tabs code triggers custom event, listen. Else run on DOMContentLoaded.
@@ -200,4 +239,115 @@
   } else {
     initWhenVisible();
   }
+  // ====== Visual Editor Logic ======
+  function applyMode(){
+    const visualBox = qs('tpl-visual-editor');
+    const htmlLabel = document.querySelector('label[for="tpl-html"]');
+    const modeLabel = qs('tpl-mode-label');
+    if(state.mode === 'visual'){
+      visualBox?.classList.remove('hidden');
+      qs('tpl-html').style.opacity = '0.25';
+      qs('tpl-html').disabled = true;
+      qs('tpl-css').disabled = false;
+      modeLabel.textContent = 'Visual';
+    } else {
+      visualBox?.classList.add('hidden');
+      qs('tpl-html').style.opacity = '1';
+      qs('tpl-html').disabled = false;
+      qs('tpl-css').disabled = false;
+      modeLabel.textContent = 'Código';
+    }
+  }
+
+  function addBlock(block){
+    block.id = 'b'+Math.random().toString(36).slice(2,8);
+    state.blocks.push(block);
+    renderCanvas();
+  }
+
+  function renderCanvas(){
+    const canvas = qs('tpl-canvas');
+    if(!canvas) return;
+    const empty = qs('tpl-canvas-empty');
+    empty && (empty.style.display = state.blocks.length? 'none':'block');
+    canvas.querySelectorAll('.vblock').forEach(el=> el.remove());
+    state.blocks.forEach(b=>{
+      const el = document.createElement('div');
+      el.className = 'vblock';
+      el.style.border = '1px solid var(--border-color)';
+      el.style.padding = '6px';
+      el.style.background = '#fff';
+      el.style.cursor='pointer';
+      el.dataset.id = b.id;
+      el.innerHTML = renderBlockLabel(b);
+      el.addEventListener('click',()=> editBlock(b.id));
+      canvas.appendChild(el);
+    });
+  }
+
+  function renderBlockLabel(b){
+    switch(b.kind){
+      case 'title': return `<strong>🅣 ${escapeHtml(b.text||'Título')}</strong>`;
+      case 'text': return `🅟 ${(escapeHtml(shorten(b.text||'',60))||'(texto)')}`;
+      case 'logo': return '🖼 Logo empresa ({{company.logoUrl}})';
+      case 'itemsTable': return '📋 Tabla de Items';
+      default: return b.kind;
+    }
+  }
+
+  function editBlock(id){
+    const b = state.blocks.find(x=>x.id===id); if(!b) return;
+    const panel = document.createElement('div');
+    panel.className='card';
+    panel.style.position='fixed'; panel.style.top='20px'; panel.style.right='20px'; panel.style.maxWidth='320px'; panel.style.zIndex='9999';
+    panel.innerHTML = `<div class='row between' style='align-items:center;'><strong>Editar bloque</strong><button class='close small'>&times;</button></div><div id='blk-body' style='margin-top:6px;font-size:12px;'></div>`;
+    const body = panel.querySelector('#blk-body');
+    let inner='';
+    if(b.kind==='title' || b.kind==='text'){
+      inner += `<label style='font-weight:600;'>Contenido</label><textarea id='blk-text' style='width:100%;height:80px;'>${escapeHtml(b.text||'')}</textarea>`;
+      inner += `<div style='margin-top:4px;font-size:11px;' class='muted'>Puedes insertar variables haciendo click en la lista a la derecha.</div>`;
+    }
+    if(b.kind==='itemsTable'){
+      inner += `<div class='muted' style='font-size:12px;'>Tabla dinámica de items de venta / cotización. Columnas fijas.</div>`;
+    }
+    if(b.kind==='logo'){
+      inner += `<div class='muted' style='font-size:12px;'>Muestra el logo de la empresa si está configurado.</div>`;
+    }
+    inner += `<div class='row' style='margin-top:8px;gap:6px;justify-content:flex-end;'><button id='blk-del' class='danger small'>Borrar</button><button id='blk-ok' class='small'>Cerrar</button></div>`;
+    body.innerHTML = inner;
+    document.body.appendChild(panel);
+    panel.querySelector('.close').onclick = ()=> panel.remove();
+    panel.querySelector('#blk-ok').onclick = ()=>{ if(b.kind==='title'||b.kind==='text'){ b.text = panel.querySelector('#blk-text').value; renderCanvas(); } panel.remove(); };
+    panel.querySelector('#blk-del').onclick = ()=>{ if(confirm('¿Eliminar bloque?')){ state.blocks = state.blocks.filter(x=>x.id!==b.id); renderCanvas(); panel.remove(); } };
+  }
+
+  function buildHtmlFromBlocks(){
+    let htmlParts = [];
+    state.blocks.forEach(b=>{
+      if(b.kind==='title'){ htmlParts.push(`<h1>${escapeHtml(b.text||'')}</h1>`); }
+      else if(b.kind==='text'){ htmlParts.push(`<p>${escapeHtml(b.text||'')}</p>`); }
+      else if(b.kind==='logo'){ htmlParts.push(`<div class='logo-box'>{{#if company.logoUrl}}<img class='logo' src='{{company.logoUrl}}' alt='logo'>{{/if}}</div>`); }
+      else if(b.kind==='itemsTable'){
+        htmlParts.push(`<table class='items'>\n<thead><tr><th>Cant</th><th>Descripción</th><th>Unit</th><th>Total</th></tr></thead>\n<tbody>{{#each sale.items}}<tr><td>{{qty}}</td><td>{{description}}</td><td>{{money unitPrice}}</td><td>{{money total}}</td></tr>{{/each}}</tbody>\n</table>`);
+      }
+    });
+    const css = `.logo{max-height:60px;} .logo-box{margin-bottom:12px;} table.items{width:100%;border-collapse:collapse;margin:10px 0;} table.items th,table.items td{border:1px solid #ccc;padding:4px;font-size:12px;text-align:left;} h1{margin:4px 0 10px;font-size:20px;}`;
+    return { html: htmlParts.join('\n'), css };
+  }
+
+  function attemptImportHtml(){
+    const raw = qs('tpl-html').value.trim();
+    if(!raw) return;
+    // Intento simple: detectar h1, p, tabla items
+    const blocks=[];
+    const div=document.createElement('div'); div.innerHTML = raw;
+    div.querySelectorAll('h1').forEach(h=> blocks.push({kind:'title', text:h.textContent||'Título'}));
+    div.querySelectorAll('p').forEach(p=> blocks.push({kind:'text', text:p.textContent||''}));
+    if(/sale\.items/.test(raw)) blocks.push({kind:'itemsTable', columns:['Cant','Descripción','Unit','Total']});
+    if(/logoUrl/.test(raw)) blocks.push({kind:'logo'});
+    if(blocks.length){ blocks.forEach(b=> b.id='b'+Math.random().toString(36).slice(2,8)); state.blocks = blocks; }
+  }
+
+  function escapeHtml(str=''){ return str.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function shorten(s,max){ return s.length>max? s.slice(0,max-1)+'…': s; }
 })();
