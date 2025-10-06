@@ -106,10 +106,21 @@
     }
 
     function startCamera(){
+      console.log('[photo] startCamera invoked');
+      if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){
+        console.warn('[photo] getUserMedia no soportado');
+        alert('Tu navegador no soporta captura directa o necesita HTTPS. Se usará selección de archivo.');
+        previewWrap.style.display='none';
+        return;
+      }
+      if(!window.isSecureContext){
+        console.warn('[photo] Contexto no seguro (probablemente http no-local)');
+        // En muchos navegadores se requiere https salvo localhost
+      }
       previewWrap.style.display='flex';
       navigator.mediaDevices.getUserMedia({ video: { facingMode: opts.preferFrontCamera ? 'user' : 'environment' } })
-        .then(s=>{ stream=s; video.srcObject=s; shotTaken=false; canvas.style.display='none'; video.style.display='block'; })
-        .catch(err=>{ console.warn('No camera access', err); alert('No se pudo acceder a la cámara'); previewWrap.style.display='none'; });
+        .then(s=>{ console.log('[photo] stream ok'); stream=s; video.srcObject=s; shotTaken=false; canvas.style.display='none'; video.style.display='block'; })
+        .catch(err=>{ console.warn('[photo] No camera access', err); alert('No se pudo acceder a la cámara (permiso denegado o bloqueado). Usa "Elegir archivo".'); previewWrap.style.display='none'; });
     }
 
     btnCapture.addEventListener('click', ()=> startCamera());
@@ -234,6 +245,7 @@
     if(!el) return;
     el.addEventListener('click', (e)=>{
       e.preventDefault();
+      console.log('[photo] trigger click');
       buildModal(options);
     });
   }
@@ -241,4 +253,14 @@
   // Expose
   window.initPhotoAttachment = initPhotoAttachment;
   try { window.dispatchEvent(new Event('photo:ready')); } catch {}
+  // Herramienta de diagnóstico manual
+  window.photoDiag = function(){
+    return {
+      secureContext: window.isSecureContext,
+      mediaDevices: !!(navigator.mediaDevices),
+      getUserMedia: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia),
+      userAgent: navigator.userAgent,
+      permission: (navigator.permissions && navigator.permissions.query ? 'check navigator.permissions in console' : 'no permissions API')
+    };
+  };
 })();
