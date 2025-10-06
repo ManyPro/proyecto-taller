@@ -257,7 +257,11 @@ function buildCloseModalContent(){
       </div>
       <div style="grid-column:1/3;">
         <label>Comprobante (opcional)</label>
-        <input id="cv-receipt" type="file" accept="image/*,.pdf" />
+        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+          <input id="cv-receipt" type="file" accept="image/*,.pdf" style="flex:1 1 auto;" />
+          <button id="cv-receipt-capture" type="button" class="secondary small">📷 Capturar / Seleccionar</button>
+          <span id="cv-receipt-status" class="muted" style="font-size:11px;"></span>
+        </div>
       </div>
       <div style="grid-column:1/3; font-size:12px;" class="muted" id="cv-laborSharePreview"></div>
       <div class="sticky-actions" style="grid-column:1/3; margin-top:8px; display:flex; gap:8px;">
@@ -448,6 +452,40 @@ function fillCloseModal(){
     }catch(e){ msg.textContent = e?.message||'Error'; msg.classList.add('error'); }
   });
 }
+
+  // --- Captura / Selección de comprobante ---
+  const receiptInput = document.getElementById('cv-receipt');
+  const receiptBtn = document.getElementById('cv-receipt-capture');
+  const receiptStatus = document.getElementById('cv-receipt-status');
+  if(receiptBtn && typeof window.initPhotoAttachment === 'function'){
+    window.initPhotoAttachment(receiptBtn, {
+      accept: 'image/*',
+      multiple: false,
+      title: 'Adjuntar comprobante',
+      captureLabel: 'Tomar foto',
+      selectLabel: 'Elegir archivo',
+      onFiles: async (files)=>{
+        if(!files || !files.length) return;
+        // Mostrar estado
+        receiptStatus.textContent = 'Subiendo...';
+        try {
+          const up = await API.mediaUpload(files);
+          if(up && up.files && up.files.length){
+            // Simular asignación: guardamos id/url en dataset para enviar luego si se soporta
+            const fileMeta = up.files[0];
+            receiptInput.dataset.uploadMeta = JSON.stringify(fileMeta);
+            receiptStatus.textContent = 'Cargado: ' + (fileMeta.originalname || fileMeta.filename || 'archivo');
+          } else {
+            receiptStatus.textContent = 'No se recibieron archivos';
+          }
+        } catch(e){
+          console.error(e);
+          alert('Error subiendo comprobante: '+ e.message);
+          receiptStatus.textContent = 'Error';
+        }
+      }
+    });
+  }
 
 function stopSalesAutoRefresh() {
   if (!salesRefreshTimer) return;

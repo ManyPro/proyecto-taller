@@ -774,7 +774,11 @@ export function initInventory() {
 
       <label>Imágenes/Videos</label>
       <div id="e-it-thumbs" class="thumbs"></div>
-      <input id="e-it-files" type="file" multiple/>
+      <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
+        <input id="e-it-files" type="file" multiple style="flex:1 1 auto;"/>
+        <button id="e-it-capture" type="button" class="secondary small">📷 Capturar / Seleccionar</button>
+        <span id="e-it-status" class="muted" style="font-size:11px;"></span>
+      </div>
       <div class="viewer" id="e-it-viewer" style="display:none"></div>
 
       <div style="margin-top:10px;display:flex;gap:8px;">
@@ -792,6 +796,8 @@ export function initInventory() {
     const original = document.getElementById("e-it-original");
     const stock = document.getElementById("e-it-stock");
     const files = document.getElementById("e-it-files");
+  const captureBtn = document.getElementById("e-it-capture");
+  const captureStatus = document.getElementById("e-it-status");
     const thumbs = document.getElementById("e-it-thumbs");
     const viewer = document.getElementById("e-it-viewer");
     const save = document.getElementById("e-it-save");
@@ -855,6 +861,29 @@ export function initInventory() {
         alert("No se pudieron subir los archivos: " + e.message);
       }
     });
+
+    if(captureBtn && typeof window.initPhotoAttachment === 'function'){
+      window.initPhotoAttachment(captureBtn, {
+        accept: 'image/*',
+        multiple: true,
+        title: 'Adjuntar imágenes',
+        captureLabel: 'Tomar foto',
+        selectLabel: 'Elegir archivo',
+        onFiles: async (files)=>{
+          if(!files || !files.length) return;
+          captureStatus.textContent='Subiendo...';
+          try {
+            const up = await invAPI.mediaUpload(files);
+            const list = (up && up.files) ? up.files : [];
+            if(list.length) images.push(...list);
+            renderThumbs();
+            captureStatus.textContent = list.length ? ('Cargados: '+list.length) : 'Sin archivos';
+          } catch(e){
+            console.error(e); alert('Error subiendo: '+ e.message); captureStatus.textContent='Error';
+          }
+        }
+      });
+    }
 
     cancel.onclick = invCloseModal;
 
