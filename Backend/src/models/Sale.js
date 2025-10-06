@@ -56,6 +56,18 @@ const SaleSchema = new mongoose.Schema({
     size: { type: Number, default: null },
     uploadedAt: { type: Date }
   },
+    // ===== Crédito (ventas a pagar después) =====
+    credit: {
+      enabled: { type: Boolean, default: false, index: true }, // true si la venta se cerró como crédito
+      status: { type: String, default: 'NONE', enum: ['NONE','OPEN','OVERDUE','SETTLED'], index: true },
+      dueDate: { type: Date },            // fecha límite de pago
+      settledAt: { type: Date },          // cuándo se marcó pagado
+      notes: { type: String, default: '' },
+      alertCount: { type: Number, default: 0 },
+      lastAlertAt: { type: Date },
+      totalDue: { type: Number, default: 0 },   // importe total que quedó pendiente (al cerrar)
+      totalPaid: { type: Number, default: 0 }   // total abonado posteriormente (cuando se implemente pagos parciales)
+    },
   laborValue: { type: Number, default: 0 },            // valor base mano de obra
   laborPercent: { type: Number, default: 0 },          // porcentaje asignado al técnico
   laborShare: { type: Number, default: 0 },            // valor calculado = laborValue * laborPercent/100
@@ -91,6 +103,9 @@ try {
   SaleSchema.index({ companyId: 1, closedAt: -1, technician: 1 });
   SaleSchema.index({ companyId: 1, closedAt: -1, initialTechnician: 1 });
   SaleSchema.index({ companyId: 1, closedAt: -1, closingTechnician: 1 });
+  // Índices para créditos
+  SaleSchema.index({ companyId: 1, 'credit.enabled': 1, 'credit.status': 1 });
+  SaleSchema.index({ companyId: 1, 'credit.dueDate': 1, 'credit.status': 1 });
 } catch(e) { /* ignore duplicate index definition in dev hot reload */ }
 
 export default mongoose.model('Sale', SaleSchema);

@@ -510,6 +510,16 @@ export const closeSale = async (req, res) => {
       if (laborValueRaw != null && (!Number.isFinite(laborValue) || laborValue < 0)) throw new Error('laborValue inválido');
       if (laborPercentRaw != null && (!Number.isFinite(laborPercent) || laborPercent < 0 || laborPercent > 100)) throw new Error('laborPercent inválido');
 
+      // ==== Crédito (venta a pagar después) ====
+      const creditEnabled = !!req.body?.credit?.enabled;
+      const creditDueDate = req.body?.credit?.dueDate ? new Date(req.body.credit.dueDate) : null;
+      const creditNotes = String(req.body?.credit?.notes || '').trim();
+      if (creditEnabled) {
+        if (!creditDueDate || isNaN(creditDueDate.getTime())) throw new Error('Fecha de vencimiento de crédito inválida');
+        const today = new Date(); today.setHours(0,0,0,0);
+        if (creditDueDate.getTime() < today.getTime()) throw new Error('La fecha de vencimiento no puede estar en el pasado');
+      }
+
       // computeTotals ya pudo ejecutarse arriba para validar pagos; lo ejecutamos de nuevo por seguridad (idempotente)
       computeTotals(sale);
       sale.status = 'closed';
@@ -550,6 +560,19 @@ export const closeSale = async (req, res) => {
           sale.paymentReceiptUrl = sale.receiptMedia.url;
         }
       }
+
+      // Aplicar datos de crédito después de totales y antes de guardar
+      if (creditEnabled) {
+        sale.credit = sale.credit || {};
+        sale.credit.enabled = true;
+        sale.credit.dueDate = creditDueDate;
+        sale.credit.notes = creditNotes;
+        sale.credit.totalDue = Number(sale.total||0);
+        sale.credit.totalPaid = 0;
+        sale.credit.status = 'OPEN';
+      } else if (sale.credit && !sale.credit.enabled) {
+        sale.credit.status = 'NONE';
+      }
       await sale.save({ session });
     });
 
@@ -557,9 +580,11 @@ export const closeSale = async (req, res) => {
     await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
     let cashflowEntries = [];
     try {
-      const accountId = req.body?.accountId; // opcional desde frontend
-      const resEntries = await registerSaleIncome({ companyId: req.companyId, sale, accountId });
-      cashflowEntries = Array.isArray(resEntries) ? resEntries : (resEntries ? [resEntries] : []);
+      if(!sale.credit?.enabled){
+        const accountId = req.body?.accountId; // opcional desde frontend
+        const resEntries = await registerSaleIncome({ companyId: req.companyId, sale, accountId });
+        cashflowEntries = Array.isArray(resEntries) ? resEntries : (resEntries ? [resEntries] : []);
+      }
     } catch(e) { console.warn('registerSaleIncome failed:', e?.message||e); }
     try{ publish(req.companyId, 'sale:closed', { id: (sale?._id)||undefined }) }catch{}
     res.json({ ok: true, sale: sale.toObject(), cashflowEntries });
