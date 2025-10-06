@@ -243,6 +243,7 @@
 
   function initPhotoAttachment(el, options={}){
     if(!el) return;
+    console.log('[photo] binding initPhotoAttachment to element id=', el.id);
     el.addEventListener('click', (e)=>{
       e.preventDefault();
       console.log('[photo] trigger click');
@@ -262,5 +263,10 @@
       userAgent: navigator.userAgent,
       permission: (navigator.permissions && navigator.permissions.query ? 'check navigator.permissions in console' : 'no permissions API')
     };
+  };
+  // Apertura directa (sin binding) por si se requiere desde consola
+  window.openPhotoCapture = function(opts){
+    console.log('[photo] openPhotoCapture direct call');
+    buildModal(opts||{});
   };
 })();

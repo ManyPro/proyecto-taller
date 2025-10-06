@@ -522,6 +522,7 @@ function fillCloseModal(){
     });
   }
   if(receiptBtn && typeof window.initPhotoAttachment === 'function'){
+    console.log('[sales] Binding initPhotoAttachment immediate');
     window.initPhotoAttachment(receiptBtn, {
       accept: 'image/*',
       multiple: false,
@@ -555,6 +556,7 @@ function fillCloseModal(){
   if(receiptBtn && !window.initPhotoAttachment){
     window.addEventListener('photo:ready', ()=>{
       if(typeof window.initPhotoAttachment === 'function'){
+        console.log('[sales] Late binding initPhotoAttachment after photo:ready');
         window.initPhotoAttachment(receiptBtn, {
           accept:'image/*', title:'Adjuntar comprobante', captureLabel:'Tomar foto', selectLabel:'Elegir archivo',
           onFiles: async (files)=>{
@@ -575,6 +577,8 @@ function fillCloseModal(){
       }
     }, { once:true });
   }
+  // Exponer para debug manual
+  window.showReceiptPreview = window.showReceiptPreview || showReceiptPreview;
 
   // Si el usuario usa input file manual sin el botón de captura, al elegir mostramos preview local.
   if(receiptInput){
