@@ -551,6 +551,30 @@ function fillCloseModal(){
       }
     });
   }
+  // Fallback si photo.js aún no estaba listo al ejecutar este bloque
+  if(receiptBtn && !window.initPhotoAttachment){
+    window.addEventListener('photo:ready', ()=>{
+      if(typeof window.initPhotoAttachment === 'function'){
+        window.initPhotoAttachment(receiptBtn, {
+          accept:'image/*', title:'Adjuntar comprobante', captureLabel:'Tomar foto', selectLabel:'Elegir archivo',
+          onFiles: async (files)=>{
+            if(!files||!files.length) return;
+            receiptStatus.textContent = 'Subiendo...';
+            try {
+              const up = await API.mediaUpload(files);
+              if(up && up.files && up.files.length){
+                const fileMeta = up.files[0];
+                receiptInput.dataset.uploadMeta = JSON.stringify(fileMeta);
+                receiptStatus.textContent = 'Cargado: ' + (fileMeta.originalname || fileMeta.filename || 'archivo');
+                // Si existe showReceiptPreview reutilizar
+                if(typeof showReceiptPreview === 'function') showReceiptPreview(fileMeta);
+              } else { receiptStatus.textContent='No se recibieron archivos'; }
+            } catch(e){ receiptStatus.textContent='Error'; console.error(e); }
+          }
+        });
+      }
+    }, { once:true });
+  }
 
   // Si el usuario usa input file manual sin el botón de captura, al elegir mostramos preview local.
   if(receiptInput){

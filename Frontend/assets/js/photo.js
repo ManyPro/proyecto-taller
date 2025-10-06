@@ -240,4 +240,5 @@
 
   // Expose
   window.initPhotoAttachment = initPhotoAttachment;
+  try { window.dispatchEvent(new Event('photo:ready')); } catch {}
 })();
