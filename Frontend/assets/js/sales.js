@@ -262,6 +262,16 @@ function buildCloseModalContent(){
           <button id="cv-receipt-capture" type="button" class="secondary small">📷 Capturar / Seleccionar</button>
           <span id="cv-receipt-status" class="muted" style="font-size:11px;"></span>
         </div>
+        <div id="cv-receipt-preview" style="margin-top:6px; display:none; align-items:center; gap:10px;">
+          <div id="cv-receipt-thumb" style="max-width:120px; max-height:120px; overflow:hidden; border:1px solid #ccc; padding:4px; border-radius:4px; background:#fafafa;"></div>
+          <div style="display:flex; flex-direction:column; gap:4px; font-size:12px;">
+            <div id="cv-receipt-name" class="muted" style="word-break:break-all;"></div>
+            <div style="display:flex; gap:6px;">
+              <button type="button" id="cv-receipt-remove" class="small danger">Eliminar</button>
+              <button type="button" id="cv-receipt-replace" class="small secondary">Reemplazar</button>
+            </div>
+          </div>
+        </div>
       </div>
       <div style="grid-column:1/3; font-size:12px;" class="muted" id="cv-laborSharePreview"></div>
       <div class="sticky-actions" style="grid-column:1/3; margin-top:8px; display:flex; gap:8px;">
@@ -429,12 +439,21 @@ function fillCloseModal(){
     const filtered = payments.filter(p=> p.method && p.amount>0);
     if(!filtered.length){ msg.textContent='Agregar al menos una forma de pago válida'; return; }
     try{
-      let receiptUrl='';
-      const file = document.getElementById('cv-receipt').files?.[0];
-      if(file){
-        const uploadRes = await API.mediaUpload ? API.mediaUpload([file]) : null;
-        if(uploadRes && uploadRes.files && uploadRes.files[0]){
-          receiptUrl = uploadRes.files[0].url || uploadRes.files[0].path || '';
+      const receiptInputEl = document.getElementById('cv-receipt');
+      let receiptMedia = null;
+      // Prioridad: metadata generada por botón captura (dataset.uploadMeta)
+      if(receiptInputEl?.dataset?.uploadMeta){
+        try { receiptMedia = JSON.parse(receiptInputEl.dataset.uploadMeta); } catch {}
+      }
+      // Si el usuario usó el input file tradicional (y no usó el botón de captura/selección con upload previo)
+      if(!receiptMedia){
+        const file = receiptInputEl?.files?.[0];
+        if(file){
+          const uploadRes = await API.mediaUpload ? API.mediaUpload([file]) : null;
+          if(uploadRes && uploadRes.files && uploadRes.files[0]){
+            const meta = uploadRes.files[0];
+            receiptMedia = meta;
+          }
         }
       }
       const payload = {
@@ -442,7 +461,8 @@ function fillCloseModal(){
         technician: techSel.value||'',
         laborValue: Number(laborValueInput.value||0)||0,
         laborPercent: !percSel.disabled ? Number(percSel.value||0)||0 : Number(manualPercentInput.value||0)||0,
-        paymentReceiptUrl: receiptUrl
+        paymentReceiptUrl: receiptMedia?.url || '',
+        receiptMedia: receiptMedia || undefined
       };
       await API.sales.close(current._id, payload);
       alert('Venta cerrada');
@@ -457,6 +477,50 @@ function fillCloseModal(){
   const receiptInput = document.getElementById('cv-receipt');
   const receiptBtn = document.getElementById('cv-receipt-capture');
   const receiptStatus = document.getElementById('cv-receipt-status');
+  const receiptPreview = document.getElementById('cv-receipt-preview');
+  const receiptThumb = document.getElementById('cv-receipt-thumb');
+  const receiptName = document.getElementById('cv-receipt-name');
+  const receiptRemove = document.getElementById('cv-receipt-remove');
+  const receiptReplace = document.getElementById('cv-receipt-replace');
+
+  function showReceiptPreview(meta){
+    if(!meta){ receiptPreview.style.display='none'; return; }
+    receiptPreview.style.display='flex';
+    receiptName.textContent = (meta.originalname || meta.filename || meta.url || '').split('/').pop();
+    const mime = (meta.mimetype||'').toLowerCase();
+    receiptThumb.innerHTML = '';
+    if(mime.startsWith('image/')){
+      const img = document.createElement('img');
+      img.src = meta.url;
+      img.style.maxWidth='110px';
+      img.style.maxHeight='110px';
+      img.style.display='block';
+      receiptThumb.appendChild(img);
+    } else if(mime === 'application/pdf' || (/\.pdf$/i.test(meta.url||''))){
+      receiptThumb.innerHTML = '<div style="font-size:48px; text-align:center; color:#b03030;">📄</div>';
+    } else {
+      receiptThumb.innerHTML = '<div style="font-size:40px; text-align:center;">📁</div>';
+    }
+  }
+
+  function clearReceipt(){
+    delete receiptInput.dataset.uploadMeta;
+    receiptInput.value='';
+    receiptStatus.textContent='';
+    showReceiptPreview(null);
+  }
+
+  if(receiptRemove){
+    receiptRemove.addEventListener('click', ()=>{
+      if(confirm('¿Eliminar comprobante adjunto?')) clearReceipt();
+    });
+  }
+  if(receiptReplace){
+    receiptReplace.addEventListener('click', ()=>{
+      // Forzamos un click en el botón captura/selección para reemplazar
+      if(receiptBtn) receiptBtn.click();
+    });
+  }
   if(receiptBtn && typeof window.initPhotoAttachment === 'function'){
     window.initPhotoAttachment(receiptBtn, {
       accept: 'image/*',
@@ -475,6 +539,7 @@ function fillCloseModal(){
             const fileMeta = up.files[0];
             receiptInput.dataset.uploadMeta = JSON.stringify(fileMeta);
             receiptStatus.textContent = 'Cargado: ' + (fileMeta.originalname || fileMeta.filename || 'archivo');
+            showReceiptPreview(fileMeta);
           } else {
             receiptStatus.textContent = 'No se recibieron archivos';
           }
@@ -483,6 +548,24 @@ function fillCloseModal(){
           alert('Error subiendo comprobante: '+ e.message);
           receiptStatus.textContent = 'Error';
         }
+      }
+    });
+  }
+
+  // Si el usuario usa input file manual sin el botón de captura, al elegir mostramos preview local.
+  if(receiptInput){
+    receiptInput.addEventListener('change', ()=>{
+      if(receiptInput.files && receiptInput.files[0]){
+        const f = receiptInput.files[0];
+        // Previsualización rápida (sin subir aún) con URL local si es imagen
+        const meta = { originalname: f.name, mimetype: f.type, url: '' };
+        if(f.type.startsWith('image/')){
+          try { meta.url = URL.createObjectURL(f); } catch {}
+        }
+        showReceiptPreview(meta);
+        receiptStatus.textContent = 'Listo para subir al confirmar';
+      } else {
+        showReceiptPreview(null);
       }
     });
   }

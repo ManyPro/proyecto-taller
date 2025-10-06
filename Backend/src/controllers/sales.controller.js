@@ -478,6 +478,7 @@ export const closeSale = async (req, res) => {
       const laborValueRaw = req.body?.laborValue;
       const laborPercentRaw = req.body?.laborPercent;
       const paymentReceiptUrl = String(req.body?.paymentReceiptUrl || '').trim();
+  const receiptMediaPayload = req.body?.receiptMedia && typeof req.body.receiptMedia === 'object' ? req.body.receiptMedia : null;
 
       // ---- Multi-payment (nuevo) ----
       // Frontend envía paymentMethods: [{ method, amount, accountId } ... ]
@@ -532,6 +533,23 @@ export const closeSale = async (req, res) => {
       if (laborPercentRaw != null) sale.laborPercent = Math.round(laborPercent);
       if (sale.laborValue && sale.laborPercent) sale.laborShare = Math.round(sale.laborValue * (sale.laborPercent / 100));
       if (paymentReceiptUrl) sale.paymentReceiptUrl = paymentReceiptUrl;
+      if (receiptMediaPayload && (receiptMediaPayload.url || receiptMediaPayload.mimetype)) {
+        const allowed = ['application/pdf'];
+        const mime = String(receiptMediaPayload.mimetype||'').trim().toLowerCase();
+        const ok = mime.startsWith('image/') || allowed.includes(mime);
+        if(!ok) throw new Error('Formato comprobante no permitido (solo imagen o PDF)');
+        sale.receiptMedia = {
+          url: String(receiptMediaPayload.url||'').trim(),
+          mimetype: mime,
+          originalname: String(receiptMediaPayload.originalname||'').trim(),
+          size: Number(receiptMediaPayload.size||0) || null,
+          uploadedAt: new Date()
+        };
+        // Asegurar legacy url se rellena si no se mandó explícito
+        if(!paymentReceiptUrl && sale.receiptMedia.url) {
+          sale.paymentReceiptUrl = sale.receiptMedia.url;
+        }
+      }
       await sale.save({ session });
     });
 
@@ -563,6 +581,20 @@ export const cancelSale = async (req, res) => {
   await Sale.deleteOne({ _id: id, companyId: req.companyId });
   try{ publish(req.companyId, 'sale:cancelled', { id: (sale?._id)||undefined }) }catch{}
   res.json({ ok: true });
+};
+
+// ===== Obtener receipt (metadata) =====
+export const getSaleReceipt = async (req, res) => {
+  const { id } = req.params;
+  const sale = await Sale.findOne({ _id: id, companyId: req.companyId }, { receiptMedia:1, paymentReceiptUrl:1 });
+  if(!sale) return res.status(404).json({ error: 'Sale not found' });
+  if(sale.receiptMedia && (sale.receiptMedia.url || sale.paymentReceiptUrl)){
+    return res.json({
+      receiptMedia: sale.receiptMedia?.url ? sale.receiptMedia : null,
+      paymentReceiptUrl: sale.paymentReceiptUrl || (sale.receiptMedia?.url)||''
+    });
+  }
+  return res.json({ receiptMedia: null, paymentReceiptUrl: sale.paymentReceiptUrl||'' });
 };
 
 // ===== QR helpers =====

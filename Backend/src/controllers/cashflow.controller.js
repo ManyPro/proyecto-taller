@@ -192,7 +192,12 @@ export async function registerSaleIncome({ companyId, sale, accountId }) {
       description: `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`,
       amount,
       balanceAfter: newBal,
-      meta: { saleNumber: sale.number, paymentMethod: m.method }
+      meta: {
+        saleNumber: sale.number,
+        paymentMethod: m.method,
+        // URL del comprobante (si existe) para referencia rápida desde cashflow
+        receiptMediaUrl: (sale?.receiptMedia?.url || sale?.paymentReceiptUrl || '')
+      }
     });
     entries.push(entry);
   }

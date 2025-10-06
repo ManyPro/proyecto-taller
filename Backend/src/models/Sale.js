@@ -47,6 +47,15 @@ const SaleSchema = new mongoose.Schema({
   paymentMethod: { type: String, default: '' },
   paymentMethods: { type: [{ method: String, amount: Number, accountId: { type: mongoose.Schema.Types.ObjectId } }], default: [] },
   paymentReceiptUrl: { type: String, default: '' },
+  // Información estructurada del comprobante / recibo (imagen o PDF) asociado al cierre
+  // Se mantiene paymentReceiptUrl para retro-compatibilidad con versiones anteriores.
+  receiptMedia: {
+    url: { type: String, default: '' },
+    mimetype: { type: String, default: '' },
+    originalname: { type: String, default: '' },
+    size: { type: Number, default: null },
+    uploadedAt: { type: Date }
+  },
   laborValue: { type: Number, default: 0 },            // valor base mano de obra
   laborPercent: { type: Number, default: 0 },          // porcentaje asignado al técnico
   laborShare: { type: Number, default: 0 },            // valor calculado = laborValue * laborPercent/100
