@@ -262,7 +262,7 @@ const storedEmail = API.getActiveCompany?.();
 const storedToken = storedEmail ? API.token.get(storedEmail) : API.token.get();
 if (storedEmail && storedToken) {
   API.setActiveCompany(storedEmail);
-  emailSpan.textContent = storedEmail;
+  if(emailSpan) emailSpan.textContent = storedEmail;
   sectionLogin.classList.add('hidden');
   sectionApp.classList.remove('hidden');
   logoutBtn.classList.remove('hidden');
@@ -285,7 +285,7 @@ async function doLogin(isRegister = false) {
     }
     const res = await API.loginCompany({ email, password }); // guarda token y setActiveCompany
     // UI
-    emailSpan.textContent = (res?.email || email);
+  if(emailSpan) emailSpan.textContent = (res?.email || email);
     API.setActiveCompany(emailSpan.textContent); // redundante pero seguro
     sectionLogin.classList.add('hidden');
     sectionApp.classList.remove('hidden');
@@ -303,7 +303,7 @@ registerBtn?.addEventListener('click', () => doLogin(true));
 logoutBtn?.addEventListener('click', async () => {
   try { await API.logout(); } catch {}
   try { sessionStorage.removeItem(lastTabKey); } catch {}
-  emailSpan.textContent = '';
+  if(emailSpan) emailSpan.textContent = '';
   sectionApp.classList.add('hidden');
   sectionLogin.classList.remove('hidden');
   logoutBtn.classList.add('hidden');
@@ -317,8 +317,7 @@ tabsNav?.addEventListener('click', (ev) => {
   const tab = btn.dataset.tab;
   if (!tab) return;
   ev.preventDefault();
-  setLastTab(tab);
-  window.location.reload();
+  showTab(tab);
 });
 
 // Reanudar sesión si hay token+empresa activos
@@ -327,7 +326,7 @@ tabsNav?.addEventListener('click', (ev) => {
     const me = await API.me(); // requiere token
     if (me?.email) {
       API.setActiveCompany(me.email);
-      emailSpan.textContent = me.email;
+  if(emailSpan) emailSpan.textContent = me.email;
       sectionLogin.classList.add('hidden');
       sectionApp.classList.remove('hidden');
       logoutBtn.classList.remove('hidden');
@@ -335,10 +334,10 @@ tabsNav?.addEventListener('click', (ev) => {
       showTab(getLastTab());
     } else {
       const active = API.getActiveCompany?.();
-      if (active) emailSpan.textContent = active;
+  if (active && emailSpan) emailSpan.textContent = active;
     }
   } catch {
     const active = API.getActiveCompany?.();
-    if (active) emailSpan.textContent = active;
+  if (active && emailSpan) emailSpan.textContent = active;
   }
 })();

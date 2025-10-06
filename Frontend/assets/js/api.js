@@ -240,7 +240,13 @@ const API = {
   }
 };
 
-// Exports  
+// Expose global early (para otros módulos que cargan en paralelo)
+if (typeof window !== 'undefined') {
+  window.API = window.API || {};
+  Object.assign(window.API, API);
+}
+
+// Exports
 export { API, tokenStore as authToken };
 export default API;
 

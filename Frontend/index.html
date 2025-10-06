@@ -5,29 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Taller App</title>
   <link rel="stylesheet" href="assets/styles.css?v=20250923-2" />
+  <link rel="icon" href="data:,">
   <script src="./assets/js/config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script>
     window.QUOTES_KEYS = { lastNumber: 'quotes:lastNumber', draft: 'quotes:current' };
   </script>
-  <script type="module" src="./assets/js/api.js"></script>
-  <script type="module" src="./assets/js/app.js"></script>
-  <script type="module" src="./assets/js/notes.js"></script>
-  <script type="module" src="./assets/js/quotes.js"></script>
-  <script type="module" src="./assets/js/sales.js"></script>
-  <script type="module" src="./assets/js/techreport.js"></script>
-  <script type="module" src="./assets/js/cashflow.js"></script>
-  <script type="module" src="./assets/js/prices.js"></script>
-  <script type="module" src="./assets/js/templates.js"></script>
- <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-  <link rel="icon" href="data:,">
 </head>
-</body>
-</html>
-      <button id="logoutBtn" class="secondary hidden">Salir</button>
-      <button id="themeToggle" class="secondary" title="Cambiar tema">🌗</button>
+<body>
+  <header class="app-header">
+    <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
+      <div class="row" style="gap:10px;align-items:center;">
+        <h1 style="margin:0;font-size:18px;">Taller App</h1>
+        <div class="muted" style="font-size:12px;">Empresa: <span id="companyEmail">—</span></div>
+      </div>
+      <div class="row" style="gap:6px;align-items:center;">
+        <button id="logoutBtn" class="secondary hidden">Salir</button>
+        <button id="themeToggle" class="secondary" title="Cambiar tema">🌗</button>
+      </div>
     </div>
   </header>
 
@@ -1172,10 +1170,17 @@
   </div>
 </template>
 
+  <script type="module" src="./assets/js/api.js"></script>
+  <script type="module" src="./assets/js/app.js"></script>
+  <script type="module" src="./assets/js/notes.js"></script>
+  <script type="module" src="./assets/js/quotes.js"></script>
+  <script type="module" src="./assets/js/sales.js"></script>
+  <script type="module" src="./assets/js/techreport.js"></script>
+  <script type="module" src="./assets/js/cashflow.js"></script>
+  <script type="module" src="./assets/js/prices.js"></script>
+  <script type="module" src="./assets/js/templates.js"></script>
 </body>
 </html>
-<!-- scripts appended just before closing body if needed -->
-<script src="assets/js/templates.js"></script>
 
 
 
