@@ -529,6 +529,7 @@ function fillCloseModal(){
       title: 'Adjuntar comprobante',
       captureLabel: 'Tomar foto',
       selectLabel: 'Elegir archivo',
+      autoHideIds: ['modal'],
       onFiles: async (files)=>{
         if(!files || !files.length) return;
         // Mostrar estado
@@ -559,6 +560,7 @@ function fillCloseModal(){
         console.log('[sales] Late binding initPhotoAttachment after photo:ready');
         window.initPhotoAttachment(receiptBtn, {
           accept:'image/*', title:'Adjuntar comprobante', captureLabel:'Tomar foto', selectLabel:'Elegir archivo',
+          autoHideIds:['modal'],
           onFiles: async (files)=>{
             if(!files||!files.length) return;
             receiptStatus.textContent = 'Subiendo...';

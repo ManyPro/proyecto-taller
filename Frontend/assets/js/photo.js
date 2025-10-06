@@ -25,16 +25,28 @@
       root.id = 'photo-modal-root';
       root.style.position='fixed';
       root.style.inset='0';
-      root.style.zIndex='9999';
+      root.style.zIndex='9999'; // se recalcula antes de mostrar
       root.style.display='none';
       document.body.appendChild(root);
     }
     return root;
   }
 
+  function maxZ(){
+    let max = 9999;
+    document.querySelectorAll('body *').forEach(el=>{
+      const z = parseInt(getComputedStyle(el).zIndex,10);
+      if(!isNaN(z) && z>max) max=z;
+    });
+    return max;
+  }
+
   function buildModal(opts){
     const root = ensureModalRoot();
     root.innerHTML = '';
+    // elevar por encima de todo
+    const topZ = maxZ() + 10;
+    root.style.zIndex = String(topZ);
     const overlay = document.createElement('div');
     overlay.style.position='absolute';
     overlay.style.inset='0';
@@ -169,9 +181,24 @@
       inp.click();
     });
 
+    // ocultar elementos detrás si se pidió
+    const hiddenEls = [];
+    if(Array.isArray(opts.autoHideIds)){
+      opts.autoHideIds.forEach(id=>{
+        const el = document.getElementById(id);
+        if(el && el.style.display !== 'none'){
+          hiddenEls.push(el);
+          el.dataset.__prevDisplay = el.style.display;
+          el.style.display='none';
+        }
+      });
+    }
+
     function close(files){
       stopStream();
       root.style.display='none';
+      // restaurar ocultos
+      hiddenEls.forEach(el=>{ el.style.display = el.dataset.__prevDisplay || ''; delete el.dataset.__prevDisplay; });
       if(files && files.length){
         processFiles(files).then(finalFiles => {
           try { opts.onFiles && opts.onFiles(finalFiles); } catch(e){ console.error(e); }
