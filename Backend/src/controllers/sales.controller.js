@@ -27,30 +27,90 @@ function upperString(value) {
   return cleanString(value).toUpperCase();
 }
 
-function buildCustomerProfilePayload(companyId, sale) {
-  if (!sale) return null;
-  const plate = upperString(sale.vehicle?.plate);
-  if (!plate) return null;
+function saleProfilePayload(source) {
+  if (!source || typeof source !== 'object') return null;
+  const customer = source.customer || {};
+  const vehicle = source.vehicle || {};
+  if (!Object.keys(customer).length && !Object.keys(vehicle).length) return null;
+  return { customer, vehicle };
+}
 
-  return {
-    companyId: String(companyId),
-    plate,
-    customer: {
-      idNumber: cleanString(sale.customer?.idNumber),
-      name: cleanString(sale.customer?.name),
-      phone: cleanString(sale.customer?.phone),
-      email: cleanString(sale.customer?.email),
-      address: cleanString(sale.customer?.address)
-    },
-    vehicle: {
-      plate,
-      brand: upperString(sale.vehicle?.brand),
-      line: upperString(sale.vehicle?.line),
-      engine: upperString(sale.vehicle?.engine),
-      year: sale.vehicle?.year ?? null,
-      mileage: sale.vehicle?.mileage ?? null
+function resolveProfileOptions(options) {
+  if (options && Object.keys(options).length) return options;
+  return { source: 'sale' };
+}
+
+async function syncSaleProfile(companyId, source, options = {}) {
+  const payload = saleProfilePayload(source);
+  if (!payload) return null;
+  return upsertProfileFromSource(companyId, payload, resolveProfileOptions(options));
+}
+
+function normalizePaymentMethods(rawList, saleTotal) {
+  const list = Array.isArray(rawList) ? rawList : [];
+  const cleaned = list
+    .map(m => ({
+      method: String(m?.method || '').trim().toUpperCase(),
+      amount: Number(m?.amount || 0),
+      accountId: m?.accountId ? new mongoose.Types.ObjectId(m.accountId) : null
+    }))
+    .filter(m => m.method && Number.isFinite(m.amount) && m.amount > 0);
+
+  if (!cleaned.length) return [];
+
+  const total = Math.round(Number(saleTotal || 0));
+  const rawSum = cleaned.reduce((sum, m) => sum + m.amount, 0);
+  if (Math.abs(rawSum - total) > 0.5) {
+    throw new Error('La suma de los montos de pago no coincide con el total de la venta');
+  }
+
+  const payments = cleaned.map((m, idx) => ({
+    method: m.method,
+    accountId: m.accountId,
+    amount: Math.round(m.amount),
+    delta: Math.round(m.amount) - m.amount,
+    index: idx
+  }));
+
+  let diff = total - payments.reduce((sum, p) => sum + p.amount, 0);
+
+  if (diff !== 0 && payments.length) {
+    const sign = diff > 0 ? 1 : -1;
+    const preferred = payments
+      .filter(p => (sign > 0 ? p.delta < 0 : p.delta > 0))
+      .sort((a, b) => (sign > 0 ? a.delta - b.delta : b.delta - a.delta));
+    const fallback = payments.filter(p => !preferred.includes(p));
+    const pool = preferred.concat(fallback);
+
+    for (const payment of pool) {
+      if (diff === 0) break;
+      while (diff !== 0) {
+        const next = payment.amount + sign;
+        if (next <= 0) break;
+        payment.amount = next;
+        payment.delta += sign;
+        diff -= sign;
+        if ((sign > 0 && payment.delta >= 0) || (sign < 0 && payment.delta <= 0)) break;
+      }
     }
-  };
+  }
+
+  if (diff !== 0 && payments.length) {
+    const last = payments[payments.length - 1];
+    const adjusted = last.amount + diff;
+    if (adjusted <= 0) {
+      throw new Error('La suma de los montos de pago no coincide con el total de la venta');
+    }
+    last.amount = adjusted;
+    diff = 0;
+  }
+
+  const finalSum = payments.reduce((sum, p) => sum + p.amount, 0);
+  if (finalSum !== total) {
+    throw new Error('La suma de los montos de pago no coincide con el total de la venta');
+  }
+
+  return payments.map(({ method, amount, accountId }) => ({ method, amount, accountId }));
 }
 
 function profileScore(doc) {
@@ -82,67 +142,6 @@ function orderProfiles(profiles = []) {
     if (updatedDiff) return updatedDiff;
     return (b?.createdAt?.getTime?.() ?? 0) - (a?.createdAt?.getTime?.() ?? 0);
   });
-}
-
-function mergeProfileData(existingDoc, payload) {
-  const base = existingDoc?.toObject?.() ?? existingDoc ?? {};
-  const mergedCustomer = {
-    idNumber: '',
-    name: '',
-    phone: '',
-    email: '',
-    address: '',
-    ...(base.customer || {})
-  };
-  const mergedVehicle = {
-    plate: payload.plate,
-    brand: '',
-    line: '',
-    engine: '',
-    year: null,
-    mileage: null,
-    ...(base.vehicle || {})
-  };
-
-  for (const key of ['idNumber', 'name', 'phone', 'email', 'address']) {
-    const value = payload.customer?.[key];
-    if (value) mergedCustomer[key] = value;
-  }
-
-  for (const key of ['brand', 'line', 'engine']) {
-    const value = payload.vehicle?.[key];
-    if (value) mergedVehicle[key] = value;
-  }
-
-  if (payload.vehicle && Object.prototype.hasOwnProperty.call(payload.vehicle, 'year')) {
-    if (payload.vehicle.year === null) mergedVehicle.year = null;
-    else if (payload.vehicle.year != null) mergedVehicle.year = payload.vehicle.year;
-  }
-
-  if (payload.vehicle && Object.prototype.hasOwnProperty.call(payload.vehicle, 'mileage')) {
-    if (payload.vehicle.mileage === null) mergedVehicle.mileage = null;
-    else if (payload.vehicle.mileage != null) mergedVehicle.mileage = payload.vehicle.mileage;
-  }
-
-  mergedVehicle.plate = payload.plate;
-
-  return {
-    companyId: payload.companyId,
-    plate: payload.plate,
-    customer: mergedCustomer,
-    vehicle: mergedVehicle
-  };
-}
-
-async function upsertCustomerProfile(companyId, sale) { await upsertProfileFromSource(companyId, sale); }
-
-async function getNextSaleNumber(companyId) {
-  const c = await Counter.findOneAndUpdate(
-    { companyId },
-    { $inc: { saleSeq: 1 } },
-    { new: true, upsert: true, setDefaultsOnInsert: true }
-  );
-  return c.saleSeq;
 }
 
 // ===== CRUD base =====
@@ -206,7 +205,7 @@ export const addItem = async (req, res) => {
         total: Math.round(q * up)
       };
     } else {
-      // Línea manual de servicio
+      // Linea manual de servicio
       const q = asNum(qty) || 1;
       const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : 0;
       itemData = {
@@ -220,7 +219,7 @@ export const addItem = async (req, res) => {
       };
     }
   } else if (src === 'service') {
-    // Si decides mantener la fuente "service" explícita
+    // Si decides mantener la fuente "service" explicita
     const q = asNum(qty) || 1;
     const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : 0;
     itemData = {
@@ -239,18 +238,18 @@ export const addItem = async (req, res) => {
   sale.items.push(itemData);
   computeTotals(sale);
   await sale.save();
-  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+  await syncSaleProfile(req.companyId, sale, { source: 'sale' });
   try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
 
-// ===== Batch add items (desde cotización u otro origen) =====
+// ===== Batch add items (desde cotizacion u otro origen) =====
 // Payload esperado: { items: [ { source, refId, sku, name, qty, unitPrice } ... ] }
 // - source: 'inventory' | 'price' | 'service'
 // - Si source=='inventory' puede venir refId o sku (se intenta resolver)
 // - Para 'price' puede venir refId o datos manuales (como en addItem)
-// - Para 'service' se acepta línea manual
-// Realiza validación mínima y agrega todas las líneas en memoria antes de guardar para computar totales una sola vez.
+// - Para 'service' se acepta linea manual
+// Realiza validacion minima y agrega todas las lineas en memoria antes de guardar para computar totales una sola vez.
 export const addItemsBatch = async (req, res) => {
   const { id } = req.params;
   const list = Array.isArray(req.body?.items) ? req.body.items : [];
@@ -315,7 +314,7 @@ export const addItemsBatch = async (req, res) => {
         continue;
       }
 
-      // service (línea manual)
+      // service (linea manual)
       const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : 0;
       added.push({
         source: source === 'service' ? 'service' : 'price',
@@ -327,17 +326,17 @@ export const addItemsBatch = async (req, res) => {
         total: Math.round(qty * up)
       });
     } catch (err) {
-      // Continúa con los demás items; opcionalmente podríamos acumular errores
-      // Para transparencia, se podría devolver summary, pero mantenemos simple.
+      // Continua con los demas items; opcionalmente podriamos acumular errores
+      // Para transparencia, se podria devolver summary, pero mantenemos simple.
       continue;
     }
   }
 
-  if (!added.length) return res.status(400).json({ error: 'No se pudo agregar ningún item' });
+  if (!added.length) return res.status(400).json({ error: 'No se pudo agregar ningun item' });
   sale.items.push(...added);
   computeTotals(sale);
   await sale.save();
-  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+  await syncSaleProfile(req.companyId, sale, { source: 'sale' });
   try { publish(req.companyId, 'sale:updated', { id: (sale?._id) || undefined }); } catch { }
   res.json(sale.toObject());
 };
@@ -358,7 +357,7 @@ export const updateItem = async (req, res) => {
 
   computeTotals(sale);
   await sale.save();
-  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+  await syncSaleProfile(req.companyId, sale, { source: 'sale' });
   try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
@@ -372,12 +371,12 @@ export const removeItem = async (req, res) => {
   sale.items.id(itemId)?.deleteOne();
   computeTotals(sale);
   await sale.save();
-  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+  await syncSaleProfile(req.companyId, sale, { source: 'sale' });
   try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
 
-// ===== Técnico asignado =====
+// ===== Tecnico asignado =====
 export const updateTechnician = async (req, res) => {
   const { id } = req.params;
   const { technician } = req.body || {};
@@ -421,12 +420,12 @@ export const setCustomerVehicle = async (req, res) => {
   if (typeof notes === 'string') sale.notes = notes;
 
   await sale.save();
-  await upsertCustomerProfile(req.companyId, sale);
+  await syncSaleProfile(req.companyId, sale);
   try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
 
-// ===== Cierre: descuenta inventario con transacción =====
+// ===== Cierre: descuenta inventario con transaccion =====
 export const closeSale = async (req, res) => {
   const { id } = req.params;
   const session = await mongoose.startSession();
@@ -437,19 +436,19 @@ export const closeSale = async (req, res) => {
       if (sale.status !== 'draft') throw new Error('Sale not open (draft)');
       if (!sale.items?.length) throw new Error('Sale has no items');
 
-      // Descuento inventario por líneas 'inventory'
+      // Descuento inventario por lineas 'inventory'
       for (const it of sale.items) {
         if (String(it.source) !== 'inventory') continue;
         const q = asNum(it.qty) || 0;
         if (q <= 0) continue;
         let target = null;
-        // Fallback: si no hay refId válido intentar por SKU
+        // Fallback: si no hay refId valido intentar por SKU
         if (it.refId) {
           target = await Item.findOne({ _id: it.refId, companyId: req.companyId }).session(session);
         }
         if (!target && it.sku) {
           target = await Item.findOne({ sku: String(it.sku).trim().toUpperCase(), companyId: req.companyId }).session(session);
-          // Si lo encontramos por sku y no había refId, opcionalmente lo guardamos para trazabilidad
+          // Si lo encontramos por sku y no habia refId, opcionalmente lo guardamos para trazabilidad
           if (target && !it.refId) {
             it.refId = target._id; // queda persistido al save posterior
           }
@@ -480,34 +479,22 @@ export const closeSale = async (req, res) => {
       const paymentReceiptUrl = String(req.body?.paymentReceiptUrl || '').trim();
 
       // ---- Multi-payment (nuevo) ----
-      // Frontend envía paymentMethods: [{ method, amount, accountId } ... ]
-      // Validamos y persistimos en sale.paymentMethods antes de guardar.
-      let rawMethods = Array.isArray(req.body?.paymentMethods) ? req.body.paymentMethods : [];
+      const rawMethods = Array.isArray(req.body?.paymentMethods) ? req.body.paymentMethods : [];
       if (rawMethods.length) {
-        // Normalizar y filtrar válidos
-        const cleaned = rawMethods.map(m => ({
-          method: String(m?.method || '').trim().toUpperCase(),
-          amount: Number(m?.amount || 0) || 0,
-          accountId: m?.accountId ? new mongoose.Types.ObjectId(m.accountId) : null
-        })).filter(m => m.method && m.amount > 0);
-        if (cleaned.length) {
-          // Validar suma contra total (luego de computeTotals más abajo)
-          // Aún no tenemos total actualizado si items cambiaron durante la sesión, así que haremos computeTotals antes de validar.
-          computeTotals(sale);
-          const sum = cleaned.reduce((a,b)=> a + b.amount, 0);
-          const total = Number(sale.total || 0);
-            if (Math.abs(sum - total) > 0.01) throw new Error('La suma de los montos de pago no coincide con el total de la venta');
-          // Redondear montos a enteros para consistencia (COP sin decimales)
-          sale.paymentMethods = cleaned.map(m => ({ method: m.method, amount: Math.round(m.amount), accountId: m.accountId }));
-          // Mantener legacy paymentMethod con el primero (para compatibilidad con reportes antiguos)
-          if (sale.paymentMethods.length) sale.paymentMethod = sale.paymentMethods[0].method;
+        computeTotals(sale);
+        const normalizedMethods = normalizePaymentMethods(rawMethods, sale.total);
+        if (normalizedMethods.length) {
+          sale.paymentMethods = normalizedMethods;
+          if (sale.paymentMethods.length) {
+            sale.paymentMethod = sale.paymentMethods[0].method;
+          }
         }
       }
 
       const laborValue = Number(laborValueRaw);
       const laborPercent = Number(laborPercentRaw);
-      if (laborValueRaw != null && (!Number.isFinite(laborValue) || laborValue < 0)) throw new Error('laborValue inválido');
-      if (laborPercentRaw != null && (!Number.isFinite(laborPercent) || laborPercent < 0 || laborPercent > 100)) throw new Error('laborPercent inválido');
+      if (laborValueRaw != null && (!Number.isFinite(laborValue) || laborValue < 0)) throw new Error('laborValue invalido');
+      if (laborPercentRaw != null && (!Number.isFinite(laborPercent) || laborPercent < 0 || laborPercent > 100)) throw new Error('laborPercent invalido');
 
       // computeTotals ya pudo ejecutarse arriba para validar pagos; lo ejecutamos de nuevo por seguridad (idempotente)
       computeTotals(sale);
@@ -515,16 +502,16 @@ export const closeSale = async (req, res) => {
       sale.closedAt = new Date();
       if (!Number.isFinite(Number(sale.number))) sale.number = await getNextSaleNumber(req.companyId);
 
-      // Sólo asignar paymentMethod legacy si no se estableció vía array
+      // Solo asignar paymentMethod legacy si no se establecio via array
       if (!sale.paymentMethods?.length && pm) sale.paymentMethod = pm.toUpperCase();
       if (technician) {
         sale.technician = technician;
-        // Si aún no hay técnico inicial, lo establecemos
+        // Si aun no hay tecnico inicial, lo establecemos
         if (!sale.initialTechnician) {
           sale.initialTechnician = technician;
           if (!sale.technicianAssignedAt) sale.technicianAssignedAt = new Date();
         }
-        // Registrar técnico de cierre y timestamp
+        // Registrar tecnico de cierre y timestamp
         sale.closingTechnician = technician;
         sale.technicianClosedAt = new Date();
       }
@@ -536,7 +523,7 @@ export const closeSale = async (req, res) => {
     });
 
     const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
-    await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+    await syncSaleProfile(req.companyId, sale, { source: 'sale' });
     let cashflowEntries = [];
     try {
       const accountId = req.body?.accountId; // opcional desde frontend
@@ -553,13 +540,13 @@ export const closeSale = async (req, res) => {
   }
 };
 
-// ===== Cancelar (X de pestaña) =====
+// ===== Cancelar (X de pestana) =====
 export const cancelSale = async (req, res) => {
   const { id } = req.params;
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
   if (sale.status === 'closed') return res.status(400).json({ error: 'Closed sale cannot be cancelled' });
-  // Política actual: eliminar; si prefieres histórico, cambia a status:'cancelled' y setea cancelledAt.
+  // Politica actual: eliminar; si prefieres historico, cambia a status:'cancelled' y setea cancelledAt.
   await Sale.deleteOne({ _id: id, companyId: req.companyId });
   try{ publish(req.companyId, 'sale:cancelled', { id: (sale?._id)||undefined }) }catch{}
   res.json({ ok: true });
@@ -599,7 +586,7 @@ export const addByQR = async (req, res) => {
       });
       computeTotals(sale);
       await sale.save();
-  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+  await syncSaleProfile(req.companyId, sale, { source: 'sale' });
       return res.json(sale.toObject());
     }
   }
@@ -621,13 +608,13 @@ export const addByQR = async (req, res) => {
   });
   computeTotals(sale);
   await sale.save();
-  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+  await syncSaleProfile(req.companyId, sale, { source: 'sale' });
   res.json(sale.toObject());
 };
 
 // ===== Listado y resumen =====
 
-// ===== Perfil de cliente/vehículo =====
+// ===== Perfil de cliente/vehiculo =====
 export const getProfileByPlate = async (req, res) => {
   const plate = String(req.params.plate || '').trim().toUpperCase();
   if (!plate) return res.status(400).json({ error: 'plate required' });
@@ -636,7 +623,7 @@ export const getProfileByPlate = async (req, res) => {
   const fuzzy = String(req.query.fuzzy || 'false').toLowerCase() === 'true';
   let query;
   if (fuzzy) {
-    // Permite confusión entre 0 y O y coincidencia parcial inicial
+    // Permite confusion entre 0 y O y coincidencia parcial inicial
     const pattern = '^' + plate.replace(/[0O]/g, '[0O]');
     const rx = new RegExp(pattern, 'i');
     query = { companyId, $or: [ { plate: rx }, { 'vehicle.plate': rx } ] };
@@ -723,7 +710,7 @@ export const summarySales = async (req, res) => {
   res.json({ count: agg.count, total: agg.total });
 };
 
-// ===== Reporte técnico (laborShare) =====
+// ===== Reporte tecnico (laborShare) =====
 export const technicianReport = async (req, res) => {
   try {
     let { from, to, technician, page = 1, limit = 100 } = req.query || {};
@@ -771,7 +758,7 @@ export const technicianReport = async (req, res) => {
           }
         }
       },
-      // Filtrar solo las que tengan participación > 0
+      // Filtrar solo las que tengan participacion > 0
       { $match: { _laborShareCalc: { $gt: 0 } } },
       { $sort: { _reportDate: -1, _id: -1 } },
       { $facet: {
@@ -792,7 +779,7 @@ export const technicianReport = async (req, res) => {
     const totalsRaw = pack.totals?.[0] || { count:0, salesTotal:0, laborShareTotal:0 };
     const totalDocs = totalsRaw.count || 0;
 
-    // Fallback simple si no se obtuvieron filas pero deberían existir (debug)
+    // Fallback simple si no se obtuvieron filas pero deberian existir (debug)
     if (!rows.length) {
       const quick = await Sale.find({ companyId: req.companyId, status:'closed', laborShare: { $gt: 0 } })
         .sort({ closedAt:-1, updatedAt:-1 })
@@ -816,6 +803,6 @@ export const technicianReport = async (req, res) => {
     });
   } catch (err) {
     console.error('technicianReport error:', err);
-    return res.status(500).json({ error: 'Error generando reporte técnico' });
+    return res.status(500).json({ error: 'Error generando reporte tecnico' });
   }
 };
