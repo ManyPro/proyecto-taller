@@ -1,51 +1,92 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="es">
 <head>
 <meta charset="utf-8" />
-<title>Restablecer contraseña</title>
+<title>Restablecer contrasena</title>
 <link rel="stylesheet" href="assets/styles.css" />
+<script src="./assets/js/config.js"></script>
 <script type="module">
 import { API } from './assets/js/api.js';
-const params = new URLSearchParams(location.search);
-const token = params.get('token') || '';
-const email = params.get('email') || '';
+
 const form = document.getElementById('reset-form');
-const pass1 = document.getElementById('new-pass');
-const pass2 = document.getElementById('new-pass2');
+const emailInput = document.getElementById('reset-email');
+const companyInput = document.getElementById('reset-company');
+const pass1 = document.getElementById('reset-pass');
+const pass2 = document.getElementById('reset-pass2');
 const msg = document.getElementById('reset-msg');
-const emailSpan = document.getElementById('reset-email');
-emailSpan.textContent = email || '(desconocido)';
-form.addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  if(pass1.value !== pass2.value){ msg.textContent='Las contraseñas no coinciden'; return; }
-  msg.textContent='Procesando...';
-  try{
-    await fetch((API.base||'') + '/api/v1/auth/company/password/reset', {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, token, password:pass1.value })
-    }).then(r=>r.json()).then(data=>{
-      if(data.error) throw new Error(data.error);
-      msg.textContent='Contraseña actualizada. Puedes volver al inicio de sesión.';
+
+const params = new URLSearchParams(window.location.search);
+if (params.get('email')) {
+  emailInput.value = params.get('email');
+}
+
+form.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  msg.classList.remove('error');
+  msg.textContent = 'Procesando...';
+  const newPassword = pass1.value.trim();
+  if (newPassword.length < 6) {
+    msg.classList.add('error');
+    msg.textContent = 'La nueva contrasena debe tener al menos 6 caracteres.';
+    return;
+  }
+  if (newPassword !== pass2.value.trim()) {
+    msg.classList.add('error');
+    msg.textContent = 'Las contrasenas no coinciden.';
+    return;
+  }
+  try {
+    const payload = {
+      email: emailInput.value.trim().toLowerCase(),
+      companyName: companyInput.value.trim(),
+      newPassword
+    };
+    const apiBase = API.base || window.API_BASE || window.BACKEND_URL || '';
+    const res = await fetch(apiBase + '/api/v1/auth/company/password/reset-local', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
-  }catch(err){ msg.textContent = err.message || 'Error'; }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      throw new Error(data.error || 'Error en solicitud');
+    }
+    msg.textContent = 'Contrasena actualizada. Puedes volver al inicio de sesion.';
+    pass1.value = '';
+    pass2.value = '';
+  } catch (error) {
+    msg.classList.add('error');
+    msg.textContent = error.message || 'Error inesperado';
+  }
 });
 </script>
 <style>
-body{max-width:480px;margin:40px auto;padding:0 16px;} .card{margin-top:30px;}
+body{max-width:480px;margin:40px auto;padding:0 16px;}
+.card{margin-top:30px;}
+h1{text-align:center;}
+form button{width:100%;margin-top:14px;}
+#reset-msg.error{color:#ef4444;}
+.back-link{display:inline-block;margin-top:24px;font-size:13px;}
 </style>
 </head>
 <body>
-  <h1>Restablecer contraseña</h1>
+  <h1>Restablecer contrasena</h1>
   <div class="card">
-    <p>Correo: <strong id="reset-email"></strong></p>
     <form id="reset-form">
-      <label>Nueva contraseña</label>
-      <input id="new-pass" type="password" required minlength="6" />
-      <label>Repetir contraseña</label>
-      <input id="new-pass2" type="password" required minlength="6" />
-      <button>Cambiar contraseña</button>
+      <label>Correo</label>
+      <input id="reset-email" type="email" required />
+      <label>Nombre exacto de la empresa</label>
+      <input id="reset-company" type="text" required />
+      <label>Nueva contrasena</label>
+      <input id="reset-pass" type="password" required minlength="6" />
+      <label>Confirmar contrasena</label>
+      <input id="reset-pass2" type="password" required minlength="6" />
+      <button>Cambiar contrasena</button>
     </form>
     <p id="reset-msg" class="muted" style="margin-top:12px;"></p>
-    <p style="margin-top:16px;"><a href="index.html">Ir a inicio de sesión</a></p>
+    <p class="back-link"><a href="index.html">Volver al inicio</a></p>
   </div>
 </body>
 </html>
+
+6rx7y.-ñ8itgx0'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''4up`ñññ5rnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnnn                           bg  olucvb''''''''k9ñ0```````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````````2'

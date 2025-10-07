@@ -1,16 +1,10 @@
-import Account from '../models/Account.js';
+﻿import Account from '../models/Account.js';
 import CashFlowEntry from '../models/CashFlowEntry.js';
 import mongoose from 'mongoose';
 
 // Helpers
-async function ensureDefaultCashAccount(companyId) {
-  let acc = await Account.findOne({ companyId, type: 'CASH', name: /caja/i });
-  if (!acc) {
-    acc = await Account.create({ companyId, name: 'Caja', type: 'CASH', initialBalance: 0 });
-  }
-  return acc;
-}
 
+<<<<<<< Updated upstream
 async function computeBalance(accountId, companyId) {
   // Usa el balanceAfter del ultimo movimiento si existe
   const last = await CashFlowEntry.findOne({ companyId, accountId }).sort({ date: -1, _id: -1 });
@@ -18,6 +12,8 @@ async function computeBalance(accountId, companyId) {
   const acc = await Account.findOne({ _id: accountId, companyId });
   return acc ? acc.initialBalance : 0;
 }
+=======
+>>>>>>> Stashed changes
 
 export async function listAccounts(req, res) {
   const rows = await Account.find({ companyId: req.companyId }).sort({ createdAt: 1 });
@@ -52,7 +48,7 @@ export async function getBalances(req, res) {
   const accounts = await Account.find({ companyId });
   const balances = [];
   for (const acc of accounts) {
-    const bal = await computeBalance(acc._id, companyId);
+    const bal = await computeBalance(req.companyId, acc._id);
     balances.push({ accountId: acc._id, name: acc.name, type: acc.type, balance: bal });
   }
   const total = balances.reduce((a, b) => a + b.balance, 0);
@@ -91,7 +87,7 @@ export async function createEntry(req, res) {
   if (!amount || amount <= 0) return res.status(400).json({ error: 'positive amount required' });
   const acc = await Account.findOne({ _id: accountId, companyId: req.companyId });
   if (!acc) return res.status(404).json({ error: 'account not found' });
-  const prevBal = await computeBalance(acc._id, req.companyId);
+  const prevBal = await computeBalance(req.companyId, acc._id);
   const newBal = kind === 'IN' ? prevBal + amount : prevBal - amount;
   const entry = await CashFlowEntry.create({
     companyId: req.companyId,
@@ -109,6 +105,7 @@ export async function createEntry(req, res) {
 }
 
 // --- Recalcular balances secuenciales de una cuenta ---
+<<<<<<< Updated upstream
 async function recomputeAccountBalances(companyId, accountId){
   if(!companyId || !accountId) return;
   const acc = await Account.findOne({ _id: accountId, companyId });
@@ -124,6 +121,8 @@ async function recomputeAccountBalances(companyId, accountId){
     }
   }
 }
+=======
+>>>>>>> Stashed changes
 
 // PATCH /cashflow/entries/:id
 export async function updateEntry(req, res){
@@ -131,12 +130,21 @@ export async function updateEntry(req, res){
   const { amount, description, date, kind } = req.body || {};
   const entry = await CashFlowEntry.findOne({ _id: id, companyId: req.companyId });
   if(!entry) return res.status(404).json({ error: 'entry not found' });
+<<<<<<< Updated upstream
   // Opcional: restringir edicion de movimientos generados por venta a solo descripcion
   // Permitimos edicion completa para correcciones manuales.
   let mutated = false;
   if(amount!=null){
     const a = Number(amount);
     if(!Number.isFinite(a) || a<=0) return res.status(400).json({ error: 'amount invalido' });
+=======
+  // Opcional: restringir ediciÃ³n de movimientos generados por venta a sÃ³lo descripciÃ³n
+  // Permitimos ediciÃ³n completa para correcciones manuales.
+  let mutated = false;
+  if(amount!=null){
+    const a = Number(amount);
+    if(!Number.isFinite(a) || a<=0) return res.status(400).json({ error: 'amount invÃ¡lido' });
+>>>>>>> Stashed changes
     entry.amount = Math.round(a); mutated = true;
   }
   if(description!==undefined){ entry.description = String(description||''); mutated = true; }
@@ -163,8 +171,12 @@ export async function deleteEntry(req, res){
 export async function registerSaleIncome({ companyId, sale, accountId }) {
   if (!sale || !sale._id) return [];
 
+<<<<<<< Updated upstream
   const existing = await CashFlowEntry.find({ companyId, source: 'SALE', sourceRef: sale._id }).sort({ date: 1, _id: 1 });
 
+=======
+  // Determinar mÃ©todos de pago: nuevo array o fallback al legacy
+>>>>>>> Stashed changes
   let methods = Array.isArray(sale.paymentMethods) && sale.paymentMethods.length
     ? sale.paymentMethods
     : [];
@@ -178,6 +190,7 @@ export async function registerSaleIncome({ companyId, sale, accountId }) {
     .filter(m => m.method && m.amount > 0);
 
   if (!methods.length) {
+<<<<<<< Updated upstream
     const fallbackAmount = Math.round(Number(sale.total || 0));
     if (fallbackAmount <= 0) return existing;
     methods = [{
@@ -185,6 +198,10 @@ export async function registerSaleIncome({ companyId, sale, accountId }) {
       amount: fallbackAmount,
       accountId: accountId ? new mongoose.Types.ObjectId(accountId) : null
     }];
+=======
+    // fallback al paymentMethod Ãºnico con total completo
+    methods = [{ method: sale.paymentMethod || 'DESCONOCIDO', amount: Number(sale.total||0), accountId }];
+>>>>>>> Stashed changes
   }
 
   const expectedTotal = methods.reduce((sum, m) => sum + m.amount, 0);
@@ -250,9 +267,15 @@ export async function registerSaleIncome({ companyId, sale, accountId }) {
       const acc = await ensureDefaultCashAccount(companyId);
       accId = acc._id;
     }
+<<<<<<< Updated upstream
     touchedAccounts.add(String(accId));
     const prevBal = await computeBalance(accId, companyId);
     const amount = method.amount;
+=======
+    const prevBal = await computeBalance(companyId, accId);
+    const amount = Number(m.amount||0);
+    const newBal = prevBal + amount;
+>>>>>>> Stashed changes
     const entry = await CashFlowEntry.create({
       companyId,
       accountId: accId,
@@ -282,3 +305,7 @@ export async function registerSaleIncome({ companyId, sale, accountId }) {
 
   return CashFlowEntry.find({ companyId, source: 'SALE', sourceRef: sale._id }).sort({ date: 1, _id: 1 });
 }
+
+
+
+

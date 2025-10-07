@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+﻿import mongoose from 'mongoose';
 import { registerSaleIncome } from './cashflow.controller.js';
 import Sale from '../models/Sale.js';
 import Item from '../models/Item.js';
@@ -8,25 +8,14 @@ import StockMove from '../models/StockMove.js';
 import CustomerProfile from '../models/CustomerProfile.js';
 import { upsertProfileFromSource } from './profile.helper.js';
 import { publish } from '../lib/live.js';
+import { asNumber, computeSaleTotals, normalizeString, toUpper, sanitizePaymentMethods } from '../services/sales/sale-utils.js';
 
 // Helpers
-const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
 
-function computeTotals(sale) {
-  const subtotal = (sale.items || []).reduce((a, it) => a + asNum(it.total), 0);
-  sale.subtotal = Math.round(subtotal);
-  sale.tax = 0; // ajustar si aplicas IVA
-  sale.total = Math.round(sale.subtotal + sale.tax);
-}
 
-function cleanString(value) {
-  return typeof value === 'string' ? value.trim() : String(value ?? '').trim();
-}
 
-function upperString(value) {
-  return cleanString(value).toUpperCase();
-}
 
+<<<<<<< Updated upstream
 function saleProfilePayload(source) {
   if (!source || typeof source !== 'object') return null;
   const customer = source.customer || {};
@@ -112,6 +101,8 @@ function normalizePaymentMethods(rawList, saleTotal) {
 
   return payments.map(({ method, amount, accountId }) => ({ method, amount, accountId }));
 }
+=======
+>>>>>>> Stashed changes
 
 function profileScore(doc) {
   if (!doc) return 0;
@@ -119,15 +110,15 @@ function profileScore(doc) {
   const v = doc.vehicle || {};
   let score = 0;
 
-  if (cleanString(c.name)) score += 5;
-  if (cleanString(c.idNumber)) score += 3;
-  if (cleanString(c.phone)) score += 2;
-  if (cleanString(c.email)) score += 1;
-  if (cleanString(c.address)) score += 1;
+  if (normalizeString(c.name)) score += 5;
+  if (normalizeString(c.idNumber)) score += 3;
+  if (normalizeString(c.phone)) score += 2;
+  if (normalizeString(c.email)) score += 1;
+  if (normalizeString(c.address)) score += 1;
 
-  if (cleanString(v.brand)) score += 2;
-  if (cleanString(v.line)) score += 1;
-  if (cleanString(v.engine)) score += 1;
+  if (normalizeString(v.brand)) score += 2;
+  if (normalizeString(v.line)) score += 1;
+  if (normalizeString(v.engine)) score += 1;
   if (v.year != null) score += 1;
   if (v.mileage != null) score += 1;
 
@@ -144,6 +135,11 @@ function orderProfiles(profiles = []) {
   });
 }
 
+<<<<<<< Updated upstream
+=======
+
+
+>>>>>>> Stashed changes
 // ===== CRUD base =====
 export const startSale = async (req, res) => {
   // Usa 'draft' para respetar el enum del modelo
@@ -177,8 +173,8 @@ export const addItem = async (req, res) => {
     if (!it && sku) it = await Item.findOne({ sku: String(sku).trim().toUpperCase(), companyId: req.companyId });
     if (!it) return res.status(404).json({ error: 'Item not found' });
 
-    const q = asNum(qty) || 1;
-    const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNum(it.salePrice);
+    const q = asNumber(qty) || 1;
+    const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNumber(it.salePrice);
 
     itemData = {
       source: 'inventory',
@@ -193,8 +189,8 @@ export const addItem = async (req, res) => {
     if (refId) {
       const pe = await PriceEntry.findOne({ _id: refId, companyId: String(req.companyId) });
       if (!pe) return res.status(404).json({ error: 'PriceEntry not found' });
-      const q = asNum(qty) || 1;
-      const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNum(pe.total || pe.price);
+      const q = asNumber(qty) || 1;
+      const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNumber(pe.total || pe.price);
       itemData = {
         source: 'price',
         refId: pe._id,
@@ -205,8 +201,13 @@ export const addItem = async (req, res) => {
         total: Math.round(q * up)
       };
     } else {
+<<<<<<< Updated upstream
       // Linea manual de servicio
       const q = asNum(qty) || 1;
+=======
+      // LÃ­nea manual de servicio
+      const q = asNumber(qty) || 1;
+>>>>>>> Stashed changes
       const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : 0;
       itemData = {
         source: 'price',
@@ -219,8 +220,13 @@ export const addItem = async (req, res) => {
       };
     }
   } else if (src === 'service') {
+<<<<<<< Updated upstream
     // Si decides mantener la fuente "service" explicita
     const q = asNum(qty) || 1;
+=======
+    // Si decides mantener la fuente "service" explÃ­cita
+    const q = asNumber(qty) || 1;
+>>>>>>> Stashed changes
     const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : 0;
     itemData = {
       source: 'service',
@@ -236,20 +242,33 @@ export const addItem = async (req, res) => {
   }
 
   sale.items.push(itemData);
-  computeTotals(sale);
+  computeSaleTotals(sale);
   await sale.save();
+<<<<<<< Updated upstream
   await syncSaleProfile(req.companyId, sale, { source: 'sale' });
+=======
+  await upsertProfileFromSource(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+>>>>>>> Stashed changes
   try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
 
+<<<<<<< Updated upstream
 // ===== Batch add items (desde cotizacion u otro origen) =====
+=======
+// ===== Batch add items (desde cotizaciÃ³n u otro origen) =====
+>>>>>>> Stashed changes
 // Payload esperado: { items: [ { source, refId, sku, name, qty, unitPrice } ... ] }
 // - source: 'inventory' | 'price' | 'service'
 // - Si source=='inventory' puede venir refId o sku (se intenta resolver)
 // - Para 'price' puede venir refId o datos manuales (como en addItem)
+<<<<<<< Updated upstream
 // - Para 'service' se acepta linea manual
 // Realiza validacion minima y agrega todas las lineas en memoria antes de guardar para computar totales una sola vez.
+=======
+// - Para 'service' se acepta lÃ­nea manual
+// Realiza validaciÃ³n mÃ­nima y agrega todas las lÃ­neas en memoria antes de guardar para computar totales una sola vez.
+>>>>>>> Stashed changes
 export const addItemsBatch = async (req, res) => {
   const { id } = req.params;
   const list = Array.isArray(req.body?.items) ? req.body.items : [];
@@ -264,7 +283,7 @@ export const addItemsBatch = async (req, res) => {
     if (!raw) continue;
     try {
       const source = (raw.source === 'service') ? 'service' : (raw.source === 'price' ? 'price' : (raw.source === 'inventory' ? 'inventory' : 'service'));
-      const qty = asNum(raw.qty) || 1;
+      const qty = asNumber(raw.qty) || 1;
       const unitCandidate = raw.unitPrice;
 
       if (source === 'inventory') {
@@ -272,7 +291,7 @@ export const addItemsBatch = async (req, res) => {
         if (raw.refId) it = await Item.findOne({ _id: raw.refId, companyId: req.companyId });
         if (!it && raw.sku) it = await Item.findOne({ sku: String(raw.sku).trim().toUpperCase(), companyId: req.companyId });
         if (!it) throw new Error('Inventory item not found');
-        const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : asNum(it.salePrice);
+        const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : asNumber(it.salePrice);
         added.push({
           source: 'inventory',
           refId: it._id,
@@ -289,7 +308,7 @@ export const addItemsBatch = async (req, res) => {
         if (raw.refId) {
           const pe = await PriceEntry.findOne({ _id: raw.refId, companyId: req.companyId });
           if (!pe) throw new Error('PriceEntry not found');
-          const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : asNum(pe.total || pe.price);
+          const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : asNumber(pe.total || pe.price);
           added.push({
             source: 'price',
             refId: pe._id,
@@ -314,7 +333,11 @@ export const addItemsBatch = async (req, res) => {
         continue;
       }
 
+<<<<<<< Updated upstream
       // service (linea manual)
+=======
+      // service (lÃ­nea manual)
+>>>>>>> Stashed changes
       const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : 0;
       added.push({
         source: source === 'service' ? 'service' : 'price',
@@ -326,17 +349,30 @@ export const addItemsBatch = async (req, res) => {
         total: Math.round(qty * up)
       });
     } catch (err) {
+<<<<<<< Updated upstream
       // Continua con los demas items; opcionalmente podriamos acumular errores
       // Para transparencia, se podria devolver summary, pero mantenemos simple.
+=======
+      // ContinÃºa con los demÃ¡s items; opcionalmente podrÃ­amos acumular errores
+      // Para transparencia, se podrÃ­a devolver summary, pero mantenemos simple.
+>>>>>>> Stashed changes
       continue;
     }
   }
 
+<<<<<<< Updated upstream
   if (!added.length) return res.status(400).json({ error: 'No se pudo agregar ningun item' });
+=======
+  if (!added.length) return res.status(400).json({ error: 'No se pudo agregar ningÃºn item' });
+>>>>>>> Stashed changes
   sale.items.push(...added);
-  computeTotals(sale);
+  computeSaleTotals(sale);
   await sale.save();
+<<<<<<< Updated upstream
   await syncSaleProfile(req.companyId, sale, { source: 'sale' });
+=======
+  await upsertProfileFromSource(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+>>>>>>> Stashed changes
   try { publish(req.companyId, 'sale:updated', { id: (sale?._id) || undefined }); } catch { }
   res.json(sale.toObject());
 };
@@ -351,13 +387,17 @@ export const updateItem = async (req, res) => {
   const it = sale.items.id(itemId);
   if (!it) return res.status(404).json({ error: 'Item not found' });
 
-  if (qty != null && Number.isFinite(Number(qty))) it.qty = asNum(qty);
-  if (unitPrice != null && Number.isFinite(Number(unitPrice))) it.unitPrice = asNum(unitPrice);
-  it.total = Math.round(asNum(it.qty) * asNum(it.unitPrice));
+  if (qty != null && Number.isFinite(Number(qty))) it.qty = asNumber(qty);
+  if (unitPrice != null && Number.isFinite(Number(unitPrice))) it.unitPrice = asNumber(unitPrice);
+  it.total = Math.round(asNumber(it.qty) * asNumber(it.unitPrice));
 
-  computeTotals(sale);
+  computeSaleTotals(sale);
   await sale.save();
+<<<<<<< Updated upstream
   await syncSaleProfile(req.companyId, sale, { source: 'sale' });
+=======
+  await upsertProfileFromSource(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+>>>>>>> Stashed changes
   try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
@@ -369,14 +409,22 @@ export const removeItem = async (req, res) => {
   if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
 
   sale.items.id(itemId)?.deleteOne();
-  computeTotals(sale);
+  computeSaleTotals(sale);
   await sale.save();
+<<<<<<< Updated upstream
   await syncSaleProfile(req.companyId, sale, { source: 'sale' });
+=======
+  await upsertProfileFromSource(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+>>>>>>> Stashed changes
   try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
 
+<<<<<<< Updated upstream
 // ===== Tecnico asignado =====
+=======
+// ===== TÃ©cnico asignado =====
+>>>>>>> Stashed changes
 export const updateTechnician = async (req, res) => {
   const { id } = req.params;
   const { technician } = req.body || {};
@@ -401,31 +449,41 @@ export const setCustomerVehicle = async (req, res) => {
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
   if (sale.status === 'closed') return res.status(400).json({ error: 'Closed sale cannot be edited' });
 
-  sale.customer = {
-    type: customer.type || sale.customer?.type || '',
-    idNumber: (customer.idNumber || '').trim(),
-    name: (customer.name || '').trim(),
-    phone: (customer.phone || '').trim(),
-    email: (customer.email || '').trim(),
-    address: (customer.address || '').trim()
+  const formattedCustomer = {
+    type: normalizeString(customer.type || sale.customer?.type || ''),
+    idNumber: normalizeString(customer.idNumber),
+    name: normalizeString(customer.name),
+    phone: normalizeString(customer.phone),
+    email: normalizeString(customer.email),
+    address: normalizeString(customer.address)
   };
-  sale.vehicle = {
-    plate: (vehicle.plate || '').toUpperCase(),
-    brand: (vehicle.brand || '').toUpperCase(),
-    line: (vehicle.line || '').toUpperCase(),
-    engine: (vehicle.engine || '').toUpperCase(),
+  const formattedVehicle = {
+    plate: toUpper(vehicle.plate),
+    brand: toUpper(vehicle.brand),
+    line: toUpper(vehicle.line),
+    engine: toUpper(vehicle.engine),
     year: vehicle.year ?? null,
     mileage: vehicle.mileage ?? null
   };
+  sale.customer = formattedCustomer;
+  sale.vehicle = formattedVehicle;
   if (typeof notes === 'string') sale.notes = notes;
 
   await sale.save();
+<<<<<<< Updated upstream
   await syncSaleProfile(req.companyId, sale);
+=======
+  await upsertProfileFromSource(req.companyId, sale);
+>>>>>>> Stashed changes
   try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
 
+<<<<<<< Updated upstream
 // ===== Cierre: descuenta inventario con transaccion =====
+=======
+// ===== Cierre: descuenta inventario con transacciÃ³n =====
+>>>>>>> Stashed changes
 export const closeSale = async (req, res) => {
   const { id } = req.params;
   const session = await mongoose.startSession();
@@ -436,19 +494,31 @@ export const closeSale = async (req, res) => {
       if (sale.status !== 'draft') throw new Error('Sale not open (draft)');
       if (!sale.items?.length) throw new Error('Sale has no items');
 
+<<<<<<< Updated upstream
       // Descuento inventario por lineas 'inventory'
+=======
+      // Descuento inventario por lÃ­neas 'inventory'
+>>>>>>> Stashed changes
       for (const it of sale.items) {
         if (String(it.source) !== 'inventory') continue;
-        const q = asNum(it.qty) || 0;
+        const q = asNumber(it.qty) || 0;
         if (q <= 0) continue;
         let target = null;
+<<<<<<< Updated upstream
         // Fallback: si no hay refId valido intentar por SKU
+=======
+        // Fallback: si no hay refId vÃ¡lido intentar por SKU
+>>>>>>> Stashed changes
         if (it.refId) {
           target = await Item.findOne({ _id: it.refId, companyId: req.companyId }).session(session);
         }
         if (!target && it.sku) {
           target = await Item.findOne({ sku: String(it.sku).trim().toUpperCase(), companyId: req.companyId }).session(session);
+<<<<<<< Updated upstream
           // Si lo encontramos por sku y no habia refId, opcionalmente lo guardamos para trazabilidad
+=======
+          // Si lo encontramos por sku y no habÃ­a refId, opcionalmente lo guardamos para trazabilidad
+>>>>>>> Stashed changes
           if (target && !it.refId) {
             it.refId = target._id; // queda persistido al save posterior
           }
@@ -481,6 +551,7 @@ export const closeSale = async (req, res) => {
       // ---- Multi-payment (nuevo) ----
       const rawMethods = Array.isArray(req.body?.paymentMethods) ? req.body.paymentMethods : [];
       if (rawMethods.length) {
+<<<<<<< Updated upstream
         computeTotals(sale);
         const normalizedMethods = normalizePaymentMethods(rawMethods, sale.total);
         if (normalizedMethods.length) {
@@ -488,30 +559,54 @@ export const closeSale = async (req, res) => {
           if (sale.paymentMethods.length) {
             sale.paymentMethod = sale.paymentMethods[0].method;
           }
+=======
+        computeSaleTotals(sale);
+        const sanitizedMethods = sanitizePaymentMethods(rawMethods, sale.total);
+        if (sanitizedMethods.length) {
+          sale.paymentMethods = sanitizedMethods;
+          sale.paymentMethod = sale.paymentMethods[0]?.method || sale.paymentMethod || '';
+>>>>>>> Stashed changes
         }
       }
 
       const laborValue = Number(laborValueRaw);
       const laborPercent = Number(laborPercentRaw);
+<<<<<<< Updated upstream
       if (laborValueRaw != null && (!Number.isFinite(laborValue) || laborValue < 0)) throw new Error('laborValue invalido');
       if (laborPercentRaw != null && (!Number.isFinite(laborPercent) || laborPercent < 0 || laborPercent > 100)) throw new Error('laborPercent invalido');
+=======
+      if (laborValueRaw != null && (!Number.isFinite(laborValue) || laborValue < 0)) throw new Error('laborValue invÃ¡lido');
+      if (laborPercentRaw != null && (!Number.isFinite(laborPercent) || laborPercent < 0 || laborPercent > 100)) throw new Error('laborPercent invÃ¡lido');
+>>>>>>> Stashed changes
 
-      // computeTotals ya pudo ejecutarse arriba para validar pagos; lo ejecutamos de nuevo por seguridad (idempotente)
-      computeTotals(sale);
+      // computeSaleTotals ya pudo ejecutarse arriba para validar pagos; lo ejecutamos de nuevo por seguridad (idempotente)
+      computeSaleTotals(sale);
       sale.status = 'closed';
       sale.closedAt = new Date();
       if (!Number.isFinite(Number(sale.number))) sale.number = await getNextSaleNumber(req.companyId);
 
+<<<<<<< Updated upstream
       // Solo asignar paymentMethod legacy si no se establecio via array
       if (!sale.paymentMethods?.length && pm) sale.paymentMethod = pm.toUpperCase();
       if (technician) {
         sale.technician = technician;
         // Si aun no hay tecnico inicial, lo establecemos
+=======
+      // SÃ³lo asignar paymentMethod legacy si no se estableciÃ³ vÃ­a array
+      if (!sale.paymentMethods?.length && pm) sale.paymentMethod = pm.toUpperCase();
+      if (technician) {
+        sale.technician = technician;
+        // Si aÃºn no hay tÃ©cnico inicial, lo establecemos
+>>>>>>> Stashed changes
         if (!sale.initialTechnician) {
           sale.initialTechnician = technician;
           if (!sale.technicianAssignedAt) sale.technicianAssignedAt = new Date();
         }
+<<<<<<< Updated upstream
         // Registrar tecnico de cierre y timestamp
+=======
+        // Registrar tÃ©cnico de cierre y timestamp
+>>>>>>> Stashed changes
         sale.closingTechnician = technician;
         sale.technicianClosedAt = new Date();
       }
@@ -523,7 +618,11 @@ export const closeSale = async (req, res) => {
     });
 
     const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+<<<<<<< Updated upstream
     await syncSaleProfile(req.companyId, sale, { source: 'sale' });
+=======
+    await upsertProfileFromSource(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+>>>>>>> Stashed changes
     let cashflowEntries = [];
     try {
       const accountId = req.body?.accountId; // opcional desde frontend
@@ -540,13 +639,21 @@ export const closeSale = async (req, res) => {
   }
 };
 
+<<<<<<< Updated upstream
 // ===== Cancelar (X de pestana) =====
+=======
+// ===== Cancelar (X de pestaÃ±a) =====
+>>>>>>> Stashed changes
 export const cancelSale = async (req, res) => {
   const { id } = req.params;
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
   if (sale.status === 'closed') return res.status(400).json({ error: 'Closed sale cannot be cancelled' });
+<<<<<<< Updated upstream
   // Politica actual: eliminar; si prefieres historico, cambia a status:'cancelled' y setea cancelledAt.
+=======
+  // PolÃ­tica actual: eliminar; si prefieres histÃ³rico, cambia a status:'cancelled' y setea cancelledAt.
+>>>>>>> Stashed changes
   await Sale.deleteOne({ _id: id, companyId: req.companyId });
   try{ publish(req.companyId, 'sale:cancelled', { id: (sale?._id)||undefined }) }catch{}
   res.json({ ok: true });
@@ -574,7 +681,7 @@ export const addByQR = async (req, res) => {
       if (!it) return res.status(404).json({ error: 'Item not found for QR' });
 
       const q = 1;
-      const up = asNum(it.salePrice);
+      const up = asNumber(it.salePrice);
       sale.items.push({
         source: 'inventory',
         refId: it._id,
@@ -584,9 +691,13 @@ export const addByQR = async (req, res) => {
         unitPrice: up,
         total: Math.round(q * up)
       });
-      computeTotals(sale);
+      computeSaleTotals(sale);
       await sale.save();
+<<<<<<< Updated upstream
   await syncSaleProfile(req.companyId, sale, { source: 'sale' });
+=======
+  await upsertProfileFromSource(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+>>>>>>> Stashed changes
       return res.json(sale.toObject());
     }
   }
@@ -596,7 +707,7 @@ export const addByQR = async (req, res) => {
   if (!it) return res.status(404).json({ error: 'SKU not found' });
 
   const q = 1;
-  const up = asNum(it.salePrice);
+  const up = asNumber(it.salePrice);
   sale.items.push({
     source: 'inventory',
     refId: it._id,
@@ -606,15 +717,23 @@ export const addByQR = async (req, res) => {
     unitPrice: up,
     total: Math.round(q * up)
   });
-  computeTotals(sale);
+  computeSaleTotals(sale);
   await sale.save();
+<<<<<<< Updated upstream
   await syncSaleProfile(req.companyId, sale, { source: 'sale' });
+=======
+  await upsertProfileFromSource(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+>>>>>>> Stashed changes
   res.json(sale.toObject());
 };
 
 // ===== Listado y resumen =====
 
+<<<<<<< Updated upstream
 // ===== Perfil de cliente/vehiculo =====
+=======
+// ===== Perfil de cliente/vehÃ­culo =====
+>>>>>>> Stashed changes
 export const getProfileByPlate = async (req, res) => {
   const plate = String(req.params.plate || '').trim().toUpperCase();
   if (!plate) return res.status(400).json({ error: 'plate required' });
@@ -623,7 +742,11 @@ export const getProfileByPlate = async (req, res) => {
   const fuzzy = String(req.query.fuzzy || 'false').toLowerCase() === 'true';
   let query;
   if (fuzzy) {
+<<<<<<< Updated upstream
     // Permite confusion entre 0 y O y coincidencia parcial inicial
+=======
+    // Permite confusiÃ³n entre 0 y O y coincidencia parcial inicial
+>>>>>>> Stashed changes
     const pattern = '^' + plate.replace(/[0O]/g, '[0O]');
     const rx = new RegExp(pattern, 'i');
     query = { companyId, $or: [ { plate: rx }, { 'vehicle.plate': rx } ] };
@@ -710,7 +833,11 @@ export const summarySales = async (req, res) => {
   res.json({ count: agg.count, total: agg.total });
 };
 
+<<<<<<< Updated upstream
 // ===== Reporte tecnico (laborShare) =====
+=======
+// ===== Reporte tÃ©cnico (laborShare) =====
+>>>>>>> Stashed changes
 export const technicianReport = async (req, res) => {
   try {
     let { from, to, technician, page = 1, limit = 100 } = req.query || {};
@@ -758,7 +885,11 @@ export const technicianReport = async (req, res) => {
           }
         }
       },
+<<<<<<< Updated upstream
       // Filtrar solo las que tengan participacion > 0
+=======
+      // Filtrar solo las que tengan participaciÃ³n > 0
+>>>>>>> Stashed changes
       { $match: { _laborShareCalc: { $gt: 0 } } },
       { $sort: { _reportDate: -1, _id: -1 } },
       { $facet: {
@@ -779,7 +910,11 @@ export const technicianReport = async (req, res) => {
     const totalsRaw = pack.totals?.[0] || { count:0, salesTotal:0, laborShareTotal:0 };
     const totalDocs = totalsRaw.count || 0;
 
+<<<<<<< Updated upstream
     // Fallback simple si no se obtuvieron filas pero deberian existir (debug)
+=======
+    // Fallback simple si no se obtuvieron filas pero deberÃ­an existir (debug)
+>>>>>>> Stashed changes
     if (!rows.length) {
       const quick = await Sale.find({ companyId: req.companyId, status:'closed', laborShare: { $gt: 0 } })
         .sort({ closedAt:-1, updatedAt:-1 })
@@ -803,6 +938,23 @@ export const technicianReport = async (req, res) => {
     });
   } catch (err) {
     console.error('technicianReport error:', err);
+<<<<<<< Updated upstream
     return res.status(500).json({ error: 'Error generando reporte tecnico' });
+=======
+    return res.status(500).json({ error: 'Error generando reporte tÃ©cnico' });
+>>>>>>> Stashed changes
   }
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
