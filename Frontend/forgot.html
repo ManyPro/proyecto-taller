@@ -1,9 +1,10 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="es">
 <head>
 <meta charset="utf-8" />
-<title>Recuperar contrasena</title>
+<title>Recuperar contraseña</title>
 <link rel="stylesheet" href="assets/styles.css" />
+<!-- Carga la configuración global (API_BASE, etc.) igual que index.html -->
 <script src="./assets/js/config.js"></script>
 <script type="module">
 import { API } from './assets/js/api.js';
@@ -15,21 +16,23 @@ const msg = document.getElementById('forgot-msg');
 form.addEventListener('submit', async (e)=>{
   e.preventDefault();
   msg.classList.remove('error');
-  msg.textContent='Procesando...';
+  msg.textContent='Procesando…';
   try {
-    const email = emailInput.value.trim().toLowerCase();
+    const email = emailInput.value.trim();
     const companyName = nameInput.value.trim();
     const newPassword = passInput.value.trim();
-    if(newPassword.length < 6) throw new Error('La nueva contrasena debe tener al menos 6 caracteres');
-    const apiBase = API.base || window.API_BASE || window.BACKEND_URL || '';
+    if(newPassword.length < 6) throw new Error('La nueva contraseña debe tener al menos 6 caracteres');
+    const apiBase = (API.base || window.API_BASE || window.BACKEND_URL || '');
     const res = await fetch(apiBase + '/api/v1/auth/company/password/reset-local', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ email, companyName, newPassword })
     });
-    const data = await res.json().catch(() => ({}));
-    if(!res.ok || data.error) throw new Error(data.error || 'Error en solicitud');
-    msg.textContent = 'Contrasena actualizada. Ahora puedes volver e iniciar sesion.';
+    const text = await res.text();
+    let data={};
+    try { data = text ? JSON.parse(text) : {}; } catch { throw new Error('Respuesta inválida del servidor'); }
+    if(!res.ok) throw new Error(data.error || 'Error en solicitud');
+    msg.textContent = 'Contraseña actualizada. Ahora puedes volver e iniciar sesión.';
     passInput.value='';
   } catch(err){
     msg.classList.add('error');
@@ -43,24 +46,25 @@ body{max-width:520px;margin:40px auto;padding:0 16px;}
 h1{text-align:center;}
 form button{width:100%; margin-top:14px;}
 #forgot-msg.error{color:#ef4444;}
+.muted a{color:var(--accent);}
 .back-link{display:inline-block;margin-top:24px;font-size:13px;}
 </style>
 </head>
 <body>
-  <h1>Recuperar contrasena</h1>
+  <h1>Recuperar contraseña</h1>
   <div class="card">
     <form id="forgot-form">
       <label>Correo de la cuenta</label>
       <input id="forgot-email" type="email" required />
       <label>Nombre exacto de la empresa</label>
       <input id="company-name" type="text" placeholder="Como fue registrado" required />
-      <label>Nueva contrasena</label>
+      <label>Nueva contraseña</label>
       <input id="new-password" type="password" required minlength="6" />
-      <button>Cambiar contrasena</button>
+      <button>Cambiar contraseña</button>
     </form>
     <p id="forgot-msg" class="muted" style="margin-top:12px;"></p>
-    <p class="back-link"><a href="index.html">Volver</a></p>
+  <!-- Flujo local: ya no se usa token ni enlace -->
+    <p class="back-link"><a href="index.html">← Volver</a></p>
   </div>
 </body>
 </html>
-
