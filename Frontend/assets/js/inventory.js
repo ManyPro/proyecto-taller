@@ -823,18 +823,11 @@ export function initInventory() {
     function renderThumbs() {
       thumbs.innerHTML = "";
       images.forEach((m, idx) => {
-        const d = document.createElement("div");
-        d.className = "thumb";
-        d.innerHTML = `${
-          m.mimetype?.startsWith("video/")
-            ? `<video src="${m.url}" muted></video>`
-            : `<img src="${m.url}" alt="thumb"/>`
-        }<button class="del" title="Quitar" data-del="${idx}">×</button>`;
-
-        d.onclick = (ev) => {
-          const btn = ev.target.closest("button.del");
-          if (btn) return;
-          // Abrir modal global para ver en grande
+        const previewBtn = document.createElement("button");
+        previewBtn.className = "preview-btn";
+        previewBtn.textContent = "Vista previa";
+        previewBtn.style.margin = "10px 0";
+        previewBtn.onclick = (ev) => {
           invOpenModal(
             `<div class='viewer-modal'>` +
             (m.mimetype?.startsWith("video/")
@@ -843,13 +836,21 @@ export function initInventory() {
             + `</div>`
           );
         };
-        d.querySelector("button.del").onclick = () => {
+        const delBtn = document.createElement("button");
+        delBtn.className = "del";
+        delBtn.title = "Quitar";
+        delBtn.textContent = "×";
+        delBtn.setAttribute("data-del", idx);
+        delBtn.onclick = () => {
           images.splice(idx, 1);
           renderThumbs();
           if (viewer.style.display !== "none") viewer.innerHTML = "";
         };
-
-        thumbs.appendChild(d);
+        const btnWrap = document.createElement("div");
+        btnWrap.className = "thumb-btn-wrap";
+        btnWrap.appendChild(previewBtn);
+        btnWrap.appendChild(delBtn);
+        thumbs.appendChild(btnWrap);
       });
     }
     renderThumbs();
