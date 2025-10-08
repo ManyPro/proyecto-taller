@@ -64,7 +64,15 @@
       <div id="modal" class="modal hidden">
         <div class="modal-content">
           <button id="modalClose" class="close">&times;</button>
-          <div id="modalBody"></div>
+          <div id="modalBody">
+            <div id="modal-img-wrap" style="display:flex;justify-content:center;align-items:center;flex-direction:column;">
+              <img id="modal-img" src="" alt="Vista previa" style="max-width:90vw;max-height:90vh;width:1200px;height:auto;transition:transform 0.2s;" />
+              <div style="margin-top:12px;display:flex;gap:8px;">
+                <button id="zoom-in" class="secondary">+</button>
+                <button id="zoom-out" class="secondary">-</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
