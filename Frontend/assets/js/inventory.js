@@ -829,9 +829,9 @@ export function initInventory() {
         label.style.marginRight = "8px";
 
         const previewBtn = document.createElement("button");
-        previewBtn.className = "preview-btn thumb-icon-btn";
-        previewBtn.title = "Vista previa";
-        previewBtn.innerHTML = `<svg width='18' height='18' viewBox='0 0 20 20' fill='none'><circle cx='10' cy='10' r='9' stroke='#2563eb' stroke-width='2'/><circle cx='10' cy='10' r='3' fill='#2563eb'/></svg>`;
+  previewBtn.className = "preview-btn thumb-icon-btn";
+  previewBtn.title = "Vista previa";
+  previewBtn.innerHTML = `<svg width='18' height='18' viewBox='0 0 20 20' fill='none'><path d='M1 10C3.5 5.5 8 3 12 5.5C16 8 18.5 13 17 15C15.5 17 10.5 17 7 15C3.5 13 1 10 1 10Z' stroke='#2563eb' stroke-width='2' fill='none'/><circle cx='10' cy='10' r='3' fill='#2563eb'/></svg>`;
         previewBtn.onclick = (ev) => {
           invOpenModal(
             `<div class='viewer-modal'>` +
@@ -856,7 +856,7 @@ export function initInventory() {
         const btnWrap = document.createElement("div");
         btnWrap.className = "thumb-btn-wrap";
         btnWrap.style.display = "flex";
-        btnWrap.style.alignItems = "center";
+  btnWrap.style.alignItems = "baseline";
         btnWrap.style.gap = "6px";
         btnWrap.style.margin = "10px 0";
         btnWrap.appendChild(label);

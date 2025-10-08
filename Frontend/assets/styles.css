@@ -1,3 +1,5 @@
+/* Centrar imagen/video en el modal de vista previa */
+.viewer-modal { display: flex; align-items: center; justify-content: center; height: 100%; }
 /* Botones de icono para thumbs en edición de ítem */
 .thumb-btn-wrap { display: flex; align-items: center; gap: 6px; margin: 10px 0; }
 .thumb-label { font-size: 14px; color: #cbd5e1; margin-right: 8px; }
