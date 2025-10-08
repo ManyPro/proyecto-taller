@@ -16,7 +16,10 @@
   <h1>Editor de Plantillas Visual</h1>
   <div style="display:flex;gap:32px;align-items:flex-start;">
     <div style="flex:1;">
-  <div id="editor-grapes"></div>
+      <div id="custom-editor">
+        <div id="ce-toolbar" class="ce-toolbar"></div>
+        <div id="ce-canvas" class="ce-canvas" contenteditable="true"></div>
+      </div>
       <div class="template-actions">
           <button id="save-template">Guardar Plantilla</button>
           <button id="load-template">Cargar Plantilla</button>
@@ -41,8 +44,6 @@
         <div id="preset-list" style="color:#bbb;">(Próximamente)</div>
     </aside>
   </div>
-    <script src="https://cdn.jsdelivr.net/npm/grapesjs/dist/grapes.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/grapesjs/dist/grapesjs-l10n.min.js"></script>
-    <script src="assets/js/templates-grapes.js"></script>
+    <script src="assets/js/templates-editor.js"></script>
 </body>
 </html>
