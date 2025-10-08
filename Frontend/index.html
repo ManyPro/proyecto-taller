@@ -899,7 +899,7 @@
         </div>
       </template>
 
-      <!-- Fila de edici├│n de precios (tab precios) -->
+  <!-- Fila de edición de precios (tab precios) -->
       <template id="tpl-price-edit-row">
         <tr>
           <td><input data-brand /></td>
@@ -922,7 +922,7 @@
             <div class="col">
               <input id="am-type" placeholder="Tipo (SERVICIO/PRODUCTO)" />
               <input id="am-sku" placeholder="SKU (opcional)" />
-              <input id="am-name" placeholder="Descripci├│n" />
+              <input id="am-name" placeholder="Descripción" />
             </div>
             <div class="col">
               <input id="am-qty" type="number" min="1" step="1" placeholder="Cant." />
@@ -978,7 +978,7 @@
       </div>
     </div>
     <div class="content">
-      <div>Ubicaci├│n: <span class="location"></span></div>
+  <div>Ubicación: <span class="location"></span></div>
       <div>Interno: <span class="internal"></span></div>
       <div>Stock: <b class="stock"></b></div>
       <div>Entrada: <span class="entry"></span></div>
@@ -991,22 +991,22 @@
 
 <template id="tpl-inv-edit">
   <div class="card">
-    <h3>Editar ├¡tem</h3>
+  <h3>Editar ítem</h3>
     <label>SKU</label><input id="e-it-sku" />
     <label>Nombre</label><input id="e-it-name" />
     <label>Nombre interno</label><input id="e-it-internal" />
-    <label>Ubicaci├│n</label><input id="e-it-location" />
-    <label>Entrada veh├¡culo</label><select id="e-it-intake"></select>
+  <label>Ubicación</label><input id="e-it-location" />
+  <label>Entrada vehículo</label><select id="e-it-intake"></select>
     <label>Procedencia final</label><input id="e-it-target" />
     <label>Precio entrada</label><input id="e-it-entry" type="number" step="0.01" />
     <label>Precio venta</label><input id="e-it-sale" type="number" step="0.01" />
     <label>Original</label>
     <select id="e-it-original">
       <option value="false">No</option>
-      <option value="true">S├¡</option>
+  <option value="true">Sí</option>
     </select>
     <label>Stock</label><input id="e-it-stock" type="number" step="1" min="0" />
-    <label>Im├ígenes/Videos</label>
+  <label>Imágenes/Videos</label>
     <div id="e-it-thumbs" class="thumbs"></div>
     <input id="e-it-files" type="file" multiple />
     <div class="viewer" id="e-it-viewer" style="display:none"></div>
