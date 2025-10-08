@@ -190,7 +190,7 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 .it-gallery img{
   width:96px; height:96px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,.08);
 }
-.viewer img, .viewer video { max-width:60vw; max-height:50vh; object-fit:contain; display:block; margin:0 auto; }
+.viewer img, .viewer video { max-width:350px; max-height:280px; object-fit:contain; display:block; margin:0 auto; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,.18); }
 .item-media img { max-width:200px; height:auto; border-radius:8px; margin:6px 6px 0 0; box-shadow:0 2px 4px rgba(0,0,0,.3); border:1px solid var(--border); }
 .item-media video { max-width:260px; border-radius:8px; margin:6px 6px 0 0; }
 .it-qr{ display:flex; flex-direction:column; align-items:center; gap:6px; }
