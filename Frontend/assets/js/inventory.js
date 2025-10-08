@@ -9,6 +9,7 @@ const state = {
   lastItemsParams: {},
   items: [],
   selected: new Set(),
+  itemCache: new Map(),
 };
 
 // ---- Helpers ----
@@ -349,16 +350,25 @@ export function initInventory() {
     selectionBar.querySelector("#sel-page").onclick = () => {
       Array.from(itemsList.querySelectorAll('input[type="checkbox"][data-id]')).forEach((ch) => {
         ch.checked = true;
-        state.selected.add(ch.dataset.id);
+        const id = String(ch.dataset.id);
+        state.selected.add(id);
+        const item = state.items.find((it) => String(it._id) === id);
+        if (item) state.itemCache.set(id, item);
       });
       updateSelectionBar();
     };
     selectionBar.querySelector("#sel-stickers").onclick = generateStickersFromSelection;
   }
 
-  function toggleSelected(id, checked) {
-    if (checked) state.selected.add(id);
-    else state.selected.delete(id);
+  function toggleSelected(itemOrId, checked) {
+    const id = typeof itemOrId === 'object' ? itemOrId?._id : itemOrId;
+    if (!id) return;
+    const key = String(id);
+    if (typeof itemOrId === 'object') {
+      state.itemCache.set(key, itemOrId);
+    }
+    if (checked) state.selected.add(key);
+    else state.selected.delete(key);
     updateSelectionBar();
   }
 
@@ -455,6 +465,8 @@ export function initInventory() {
 
     itemsList.innerHTML = "";
     state.items.forEach((it) => {
+      const cacheKey = String(it._id);
+      state.itemCache.set(cacheKey, it);
       const div = document.createElement("div");
       div.className = "note";
 
@@ -464,11 +476,13 @@ export function initInventory() {
 
       const thumbs = buildThumbGrid(it);
       const companyId = API.companyId?.get?.() || "";
+      const internalLabel = it.internalName ? `Interno: ${it.internalName}` : "Interno: -";
+      const locationLabel = it.location ? `Ubicacion: ${it.location}` : "Ubicacion: -";
 
       div.innerHTML = `
         <div>
-          <div style="display:flex;align-items:center;gap:8px;">
-            <input type="checkbox" data-id="${it._id}" ${state.selected.has(it._id) ? "checked" : ""}/>
+          <div style="display:flex;align-items:flex-start;gap:8px;">
+            <input type="checkbox" data-id="${it._id}" ${state.selected.has(cacheKey) ? "checked" : ""}/>
             <div><b>${it.sku}</b></div>
           </div>
           <div>${it.name}</div>
@@ -477,16 +491,30 @@ export function initInventory() {
         <div class="content">
           <div>Destino: ${it.vehicleTarget}${it.vehicleIntakeId ? " (entrada)" : ""}</div>
           <div>Entrada: ${entradaTxt} | Venta: ${fmtMoney(it.salePrice)}</div>
-          <div>Stock: <b>${it.stock}</b> | Original: ${it.original ? "Sí" : "No"}</div>
+          <div>Stock: <b>${it.stock}</b> | Original: ${it.original ? "SI" : "No"}</div>
         </div>
         <div class="actions">
           <button class="secondary" data-edit="${it._id}">Editar</button>
           <button class="danger" data-del="${it._id}">Eliminar</button>
           <button class="secondary" data-qr-dl="${it._id}">Descargar QR</button>
-          <button class="secondary" data-qr="${it._id}">Expandir código QR</button>
+          <button class="secondary" data-qr="${it._id}">Expandir codigo QR</button>
         </div>`;
 
-      div.querySelector(`input[type="checkbox"][data-id]`).onchange = (e) => toggleSelected(it._id, e.target.checked);
+      const headerBox = div.firstElementChild;
+      if (headerBox) {
+        const nameBlock = headerBox.children[1];
+        if (nameBlock) {
+          nameBlock.classList.add("title");
+        }
+        const infoBlock = document.createElement("div");
+        infoBlock.className = "muted small";
+        infoBlock.textContent = `${internalLabel} - ${locationLabel}`;
+        const mediaBlock = headerBox.querySelector(".item-media");
+        if (mediaBlock) headerBox.insertBefore(infoBlock, mediaBlock);
+        else headerBox.appendChild(infoBlock);
+      }
+
+      div.querySelector(`input[type="checkbox"][data-id]`).onchange = (e) => toggleSelected(it, e.target.checked);
 
       const imgQr = div.querySelector(`#qr-${it._id}`);
       if (imgQr) setImgWithQrBlob(imgQr, it._id, 180);
@@ -496,7 +524,8 @@ export function initInventory() {
         if (!confirm("¿Eliminar ítem? (stock debe ser 0)")) return;
         try {
           await invAPI.deleteItem(it._id);
-          state.selected.delete(it._id);
+          state.selected.delete(cacheKey);
+          state.itemCache.delete(cacheKey);
           refreshItems(state.lastItemsParams);
           updateSelectionBar();
         } catch (e) {
@@ -886,9 +915,15 @@ export function initInventory() {
     if (!state.selected.size) return;
     const ids = Array.from(state.selected);
     const items = ids
-      .map((id) => state.items.find((it) => String(it._id) === String(id)))
+      .map((id) => state.itemCache.get(String(id)))
       .filter(Boolean);
-    if (!items.length) return;
+    if (!items.length) {
+      alert("No se encontraron datos para los items seleccionados. Vuelve a mostrarlos en la lista antes de generar los stickers.");
+      return;
+    }
+    if (items.length !== ids.length) {
+      alert("Algunos items seleccionados no se pudieron cargar. Verificalos en la lista antes de generar los stickers.");
+    }
 
     invOpenModal(
       `<h3>Generar stickers</h3>
@@ -945,6 +980,7 @@ export function initInventory() {
         alert("Coloca al menos 1 sticker.");
         return;
       }
+      const flatItems = list.flatMap(({ it, count }) => Array.from({ length: count }, () => it));
       // Intentar plantilla 'sticker' activa (abre ventana imprimible) antes de backend PDF
       try {
         const tpl = await API.templates.active('sticker');
