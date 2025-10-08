@@ -1,3 +1,8 @@
+/* Botones de icono para thumbs en edición de ítem */
+.thumb-btn-wrap { display: flex; align-items: center; gap: 6px; margin: 10px 0; }
+.thumb-label { font-size: 14px; color: #cbd5e1; margin-right: 8px; }
+.thumb-icon-btn { background: none; border: none; padding: 2px 4px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; transition: background .15s; }
+.thumb-icon-btn:hover { background: #f3f4f6; }
 :root{
   /* Paleta base (tema oscuro actual) */
   --bg:#0f172a;         /* fondo general */

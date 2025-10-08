@@ -823,10 +823,15 @@ export function initInventory() {
     function renderThumbs() {
       thumbs.innerHTML = "";
       images.forEach((m, idx) => {
+        const label = document.createElement("span");
+        label.className = "thumb-label";
+        label.textContent = `Imagen ${idx + 1}`;
+        label.style.marginRight = "8px";
+
         const previewBtn = document.createElement("button");
-        previewBtn.className = "preview-btn";
-        previewBtn.textContent = "Vista previa";
-        previewBtn.style.margin = "10px 0";
+        previewBtn.className = "preview-btn thumb-icon-btn";
+        previewBtn.title = "Vista previa";
+        previewBtn.innerHTML = `<svg width='18' height='18' viewBox='0 0 20 20' fill='none'><circle cx='10' cy='10' r='9' stroke='#2563eb' stroke-width='2'/><circle cx='10' cy='10' r='3' fill='#2563eb'/></svg>`;
         previewBtn.onclick = (ev) => {
           invOpenModal(
             `<div class='viewer-modal'>` +
@@ -836,18 +841,25 @@ export function initInventory() {
             + `</div>`
           );
         };
+
         const delBtn = document.createElement("button");
-        delBtn.className = "del";
+        delBtn.className = "del thumb-icon-btn";
         delBtn.title = "Quitar";
-        delBtn.textContent = "×";
+        delBtn.innerHTML = `<svg width='18' height='18' viewBox='0 0 20 20' fill='none'><circle cx='10' cy='10' r='9' stroke='#ef4444' stroke-width='2'/><line x1='6' y1='6' x2='14' y2='14' stroke='#ef4444' stroke-width='2'/><line x1='14' y1='6' x2='6' y2='14' stroke='#ef4444' stroke-width='2'/></svg>`;
         delBtn.setAttribute("data-del", idx);
         delBtn.onclick = () => {
           images.splice(idx, 1);
           renderThumbs();
           if (viewer.style.display !== "none") viewer.innerHTML = "";
         };
+
         const btnWrap = document.createElement("div");
         btnWrap.className = "thumb-btn-wrap";
+        btnWrap.style.display = "flex";
+        btnWrap.style.alignItems = "center";
+        btnWrap.style.gap = "6px";
+        btnWrap.style.margin = "10px 0";
+        btnWrap.appendChild(label);
         btnWrap.appendChild(previewBtn);
         btnWrap.appendChild(delBtn);
         thumbs.appendChild(btnWrap);
