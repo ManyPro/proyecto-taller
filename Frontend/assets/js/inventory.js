@@ -890,11 +890,12 @@ export function initInventory() {
   previewBtn.title = "Vista previa";
   previewBtn.innerHTML = `<svg width='18' height='18' viewBox='0 0 20 20' fill='none'><path d='M1 10C3.5 5.5 8 3 12 5.5C16 8 18.5 13 17 15C15.5 17 10.5 17 7 15C3.5 13 1 10 1 10Z' stroke='#2563eb' stroke-width='2' fill='none'/><circle cx='10' cy='10' r='3' fill='#2563eb'/></svg>`;
         previewBtn.onclick = (ev) => {
+          // Mostrar a la mitad del tamaño anterior (antes: 90vw x 80vh)
           invOpenModal(
             `<div class='viewer-modal'>` +
             (m.mimetype?.startsWith("video/")
-              ? `<video controls src='${m.url}' style='max-width:90vw;max-height:80vh;object-fit:contain;'></video>`
-              : `<img src='${m.url}' alt='media' style='max-width:90vw;max-height:80vh;object-fit:contain;'/>`)
+              ? `<video controls src='${m.url}' style='max-width:45vw;max-height:40vh;object-fit:contain;'></video>`
+              : `<img src='${m.url}' alt='media' style='max-width:45vw;max-height:40vh;object-fit:contain;'/>`)
             + `</div>`
           );
         };
