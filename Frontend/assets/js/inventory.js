@@ -196,11 +196,19 @@ function invCloseModal() {
 
 function openLightbox(media) {
   const isVideo = (media.mimetype || "").startsWith("video/");
+  // Usar el sistema de zoom del modal (modal-img + botones)
+  // Se muestra el doble de grande (scale inicial = 2 en invOpenModal)
   invOpenModal(
     `<h3>Vista previa</h3>
-     <div class="viewer">
-       ${isVideo ? `<video controls src="${media.url}"></video>` : `<img src="${media.url}" alt="media" />`}
+     <div class="viewer" style="display:flex;justify-content:center;align-items:center;">
+       ${isVideo
+         ? `<video controls src="${media.url}" style="max-width:90vw;max-height:80vh;object-fit:contain;"></video>`
+         : `<img id="modal-img" src="${media.url}" alt="media" style="max-width:90vw;max-height:80vh;object-fit:contain;transform-origin:center center;"/>`}
      </div>
+     ${isVideo ? `` : `<div class="row" style="gap:8px;">
+        <button class="secondary" id="zoom-out">-</button>
+        <button class="secondary" id="zoom-in">+</button>
+      </div>`}
      <div class="row"><button class="secondary" id="lb-close">Cerrar</button></div>`
   );
   document.getElementById("lb-close").onclick = invCloseModal;
