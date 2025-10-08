@@ -12,7 +12,7 @@ async function ensureDefaultCashAccount(companyId) {
 }
 
 async function computeBalance(accountId, companyId) {
-  // Usa el balanceAfter del ultimo movimiento si existe
+  // Usa el balanceAfter del último movimiento si existe
   const last = await CashFlowEntry.findOne({ companyId, accountId }).sort({ date: -1, _id: -1 });
   if (last) return last.balanceAfter;
   const acc = await Account.findOne({ _id: accountId, companyId });
@@ -103,9 +103,7 @@ export async function createEntry(req, res) {
     date: date ? new Date(date) : new Date(),
     balanceAfter: newBal
   });
-  await recomputeAccountBalances(req.companyId, acc._id);
-  const fresh = await CashFlowEntry.findById(entry._id);
-  res.json(fresh || entry);
+  res.json(entry);
 }
 
 // --- Recalcular balances secuenciales de una cuenta ---
@@ -117,7 +115,7 @@ async function recomputeAccountBalances(companyId, accountId){
   let running = acc.initialBalance || 0;
   for(const e of entries){
     if(e.kind === 'IN') running += e.amount; else if(e.kind === 'OUT') running -= e.amount;
-    // Solo actualizar si cambio para minimizar writes
+    // Solo actualizar si cambió para minimizar writes
     if(e.balanceAfter !== running){
       e.balanceAfter = running;
       await e.save();
@@ -131,12 +129,12 @@ export async function updateEntry(req, res){
   const { amount, description, date, kind } = req.body || {};
   const entry = await CashFlowEntry.findOne({ _id: id, companyId: req.companyId });
   if(!entry) return res.status(404).json({ error: 'entry not found' });
-  // Opcional: restringir edicion de movimientos generados por venta a solo descripcion
-  // Permitimos edicion completa para correcciones manuales.
+  // Opcional: restringir edición de movimientos generados por venta a sólo descripción
+  // Permitimos edición completa para correcciones manuales.
   let mutated = false;
   if(amount!=null){
     const a = Number(amount);
-    if(!Number.isFinite(a) || a<=0) return res.status(400).json({ error: 'amount invalido' });
+    if(!Number.isFinite(a) || a<=0) return res.status(400).json({ error: 'amount inválido' });
     entry.amount = Math.round(a); mutated = true;
   }
   if(description!==undefined){ entry.description = String(description||''); mutated = true; }
@@ -162,123 +160,41 @@ export async function deleteEntry(req, res){
 // Utilizada desde cierre de venta
 export async function registerSaleIncome({ companyId, sale, accountId }) {
   if (!sale || !sale._id) return [];
+  // Si ya existen entradas para la venta, devolverlas (idempotencia multi)
+  const existing = await CashFlowEntry.find({ companyId, source: 'SALE', sourceRef: sale._id });
+  if (existing.length) return existing;
 
-  const existing = await CashFlowEntry.find({ companyId, source: 'SALE', sourceRef: sale._id }).sort({ date: 1, _id: 1 });
-
+  // Determinar métodos de pago: nuevo array o fallback al legacy
   let methods = Array.isArray(sale.paymentMethods) && sale.paymentMethods.length
-    ? sale.paymentMethods
+    ? sale.paymentMethods.filter(m=>m && m.method && Number(m.amount)>0)
     : [];
-
-  methods = methods
-    .map(m => ({
-      method: String(m?.method || '').trim().toUpperCase(),
-      amount: Math.round(Number(m?.amount || 0)),
-      accountId: m?.accountId ? new mongoose.Types.ObjectId(m.accountId) : null
-    }))
-    .filter(m => m.method && m.amount > 0);
-
   if (!methods.length) {
-    const fallbackAmount = Math.round(Number(sale.total || 0));
-    if (fallbackAmount <= 0) return existing;
-    methods = [{
-      method: String(sale.paymentMethod || 'DESCONOCIDO').trim().toUpperCase(),
-      amount: fallbackAmount,
-      accountId: accountId ? new mongoose.Types.ObjectId(accountId) : null
-    }];
+    // fallback al paymentMethod único con total completo
+    methods = [{ method: sale.paymentMethod || 'DESCONOCIDO', amount: Number(sale.total||0), accountId }];
   }
 
-  const expectedTotal = methods.reduce((sum, m) => sum + m.amount, 0);
-  const matched = new Set();
-  const pending = [];
-  const adjustments = [];
-
-  methods.forEach(expected => {
-    let idx = existing.findIndex((entry, index) => {
-      if (matched.has(index)) return false;
-      const entryMethod = String(entry.meta?.paymentMethod || '').trim().toUpperCase();
-      return entryMethod && entryMethod === expected.method;
-    });
-
-    if (idx === -1) {
-      idx = existing.findIndex((entry, index) => {
-        if (matched.has(index)) return false;
-        const entryAmount = Math.round(Number(entry.amount || 0));
-        return entryAmount === expected.amount;
-      });
-    }
-
-    if (idx === -1) {
-      pending.push(expected);
-      return;
-    }
-
-    matched.add(idx);
-    const entry = existing[idx];
-    const entryAmount = Math.round(Number(entry.amount || 0));
-    const entryMethod = String(entry.meta?.paymentMethod || '').trim().toUpperCase();
-    if (entryAmount !== expected.amount || entryMethod !== expected.method) {
-      adjustments.push({ entry, expected });
-    }
-  });
-
-  const existingTotal = existing.reduce((sum, entry) => sum + Math.round(Number(entry.amount || 0)), 0);
-  if (!pending.length && !adjustments.length && matched.size === methods.length && existingTotal === expectedTotal) {
-    return existing;
-  }
-
-  const saleDate = sale.closedAt || sale.updatedAt || new Date();
-  const touchedAccounts = new Set();
-
-  for (const { entry, expected } of adjustments) {
-    entry.amount = expected.amount;
-    entry.meta = { ...(entry.meta || {}), saleNumber: sale.number, paymentMethod: expected.method };
-    entry.description = `Venta #${String(sale.number || '').padStart(5, '0')} (${expected.method})`;
-    if (!entry.date) entry.date = saleDate;
-    await entry.save();
-    if (entry.accountId) touchedAccounts.add(String(entry.accountId));
-  }
-
-  const createdIds = [];
-
-  for (const method of pending) {
-    let accId = method.accountId || accountId;
-    if (accId && accId._id) accId = accId._id;
-    if (accId && !(accId instanceof mongoose.Types.ObjectId)) {
-      accId = new mongoose.Types.ObjectId(accId);
-    }
+  const entries = [];
+  for (const m of methods) {
+    let accId = m.accountId || accountId;
     if (!accId) {
       const acc = await ensureDefaultCashAccount(companyId);
       accId = acc._id;
     }
-    touchedAccounts.add(String(accId));
     const prevBal = await computeBalance(accId, companyId);
-    const amount = method.amount;
+    const amount = Number(m.amount||0);
+    const newBal = prevBal + amount;
     const entry = await CashFlowEntry.create({
       companyId,
       accountId: accId,
       kind: 'IN',
       source: 'SALE',
       sourceRef: sale._id,
-      description: `Venta #${String(sale.number || '').padStart(5, '0')} (${method.method})`,
+      description: `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`,
       amount,
-      balanceAfter: prevBal + amount,
-      date: saleDate,
-      meta: { saleNumber: sale.number, paymentMethod: method.method }
+      balanceAfter: newBal,
+      meta: { saleNumber: sale.number, paymentMethod: m.method }
     });
-    createdIds.push(entry._id);
+    entries.push(entry);
   }
-
-  for (const entry of existing) {
-    if (entry.accountId) touchedAccounts.add(String(entry.accountId));
-  }
-
-  for (const accId of touchedAccounts) {
-    await recomputeAccountBalances(companyId, accId);
-  }
-
-  if (createdIds.length) {
-    return CashFlowEntry.find({ companyId, _id: { $in: createdIds } }).sort({ date: 1, _id: 1 });
-  }
-
-  return CashFlowEntry.find({ companyId, source: 'SALE', sourceRef: sale._id }).sort({ date: 1, _id: 1 });
+  return entries;
 }

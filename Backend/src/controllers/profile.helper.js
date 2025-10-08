@@ -71,13 +71,7 @@ export async function upsertProfileFromSource(companyId, sourceDoc, options={}) 
     } catch(e){ if (e?.code!==11000) throw e; docs = await CustomerProfile.find(query).sort({ updatedAt: -1, createdAt: -1 }); }
   }
   if (!docs.length) return;
-  docs.sort((a, b) => {
-    const scoreDiff = score(b) - score(a);
-    if (scoreDiff) return scoreDiff;
-    const updatedDiff = (b?.updatedAt?.getTime?.() ?? 0) - (a?.updatedAt?.getTime?.() ?? 0);
-    if (updatedDiff) return updatedDiff;
-    return (b?.createdAt?.getTime?.() ?? 0) - (a?.createdAt?.getTime?.() ?? 0);
-  });
+  docs.sort((a,b)=> score(b)-score(a) || (b.updatedAt-b.updatedAt) );
   const [primary, ...rest] = docs;
   if (rest.length) {
     const ids = rest.map(r=>r._id).filter(Boolean);
