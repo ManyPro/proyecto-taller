@@ -1,4 +1,4 @@
-// Template Editor Frontend Logic (MVP)
+﻿// Template Editor Frontend Logic (MVP)
 // Depends on api.js (API.templates namespace) and shared util patterns.
 // Provides: list, create/update, preview, activate, variable insertion helpers.
 
@@ -7,27 +7,93 @@
   const state = {
     templates: [],
     editing: null, // current template object (may be unsaved)
-    mode: 'code', // 'code' | 'visual'
+    mode: 'visual', // 'code' | 'visual'
     blocks: [], // visual blocks
     selectedBlockId: null,
     theme: { primary:'#222222', accent:'#0055aa', font:'Arial, sans-serif', baseSize:12 },
     exampleSnippets: {
-      invoice: `<!-- Ejemplo Factura -->\n<div class="doc">\n  <h1>Factura {{sale.number}}</h1>\n  <div class="row">Cliente: {{sale.customerName}}</div>\n  <div class="row">Fecha: {{date sale.closedAt}}</div>\n  <table class="items">\n    <thead><tr><th>Cant</th><th>Descripción</th><th>PU</th><th>Total</th></tr></thead>\n    <tbody>\n      {{#each sale.items}}\n      <tr><td>{{qty}}</td><td>{{description}}</td><td>{{money unitPrice}}</td><td>{{money total}}</td></tr>\n      {{/each}}\n    </tbody>\n  </table>\n  <h3>Total: {{money sale.total}}</h3>\n</div>`,
-      quote: `<!-- Ejemplo Cotización -->\n<h1>COTIZACIÓN {{quote.number}}</h1>\n<p>Cliente: {{quote.customerName}}</p>\n<ul>\n{{#each quote.items}}<li>{{qty}} x {{description}} = {{money total}}</li>{{/each}}\n</ul>`,
-      workOrder: `<!-- Ejemplo Orden de Trabajo -->\n<h1>OT {{sale.number}}</h1>\n<p>Vehículo: {{sale.vehicle.plate}} ({{sale.vehicle.brand}})</p>\n<ol>\n{{#each sale.items}}<li>{{description}} - {{money total}}</li>{{/each}}\n</ol>` ,
+      invoice: `<!-- Ejemplo Factura -->\n<div class="doc">\n  <h1>Factura {{sale.number}}</h1>\n  <div class="row">Cliente: {{sale.customerName}}</div>\n  <div class="row">Fecha: {{date sale.closedAt}}</div>\n  <table class="items">\n    <thead><tr><th>Cant</th><th>DescripciÃ³n</th><th>PU</th><th>Total</th></tr></thead>\n    <tbody>\n      {{#each sale.items}}\n      <tr><td>{{qty}}</td><td>{{description}}</td><td>{{money unitPrice}}</td><td>{{money total}}</td></tr>\n      {{/each}}\n    </tbody>\n  </table>\n  <h3>Total: {{money sale.total}}</h3>\n</div>`,
+      quote: `<!-- Ejemplo CotizaciÃ³n -->\n<h1>COTIZACIÃ“N {{quote.number}}</h1>\n<p>Cliente: {{quote.customerName}}</p>\n<ul>\n{{#each quote.items}}<li>{{qty}} x {{description}} = {{money total}}</li>{{/each}}\n</ul>`,
+      workOrder: `<!-- Ejemplo Orden de Trabajo -->\n<h1>OT {{sale.number}}</h1>\n<p>VehÃ­culo: {{sale.vehicle.plate}} ({{sale.vehicle.brand}})</p>\n<ol>\n{{#each sale.items}}<li>{{description}} - {{money total}}</li>{{/each}}\n</ol>` ,
       sticker: `<!-- Ejemplo Sticker -->\n<div class="sticker">\n  {{company.name}} - {{sale.number}}\n  {{#each sale.items}}<div>{{description}} ({{qty}})</div>{{/each}}\n</div>`
     }
   };
 
   // Static variable map (will fetch context dynamic later if needed)
-  const VAR_GROUPS = {
-    company: ['company.name','company.address','company.phone','company.email','company.ruc'],
-    sale: ['sale.number','sale.date','sale.total','sale.subtotal','sale.tax','sale.customerName','sale.customerPhone','sale.status'],
-    quote: ['quote.number','quote.date','quote.total','quote.customerName','quote.validUntil'],
-    loops: ['{{#each sale.items}} ... {{/each}}','{{#each quote.items}} ... {{/each}}','{{#each sale.paymentMethods}} ... {{/each}}'],
-    helpers: ['{{money value}}','{{date value}}','{{uppercase text}}','{{lowercase text}}','{{pad value 5}}']
-  };
-
+  const VAR_GROUPS = [
+  {
+    title: 'Tu empresa',
+    items: [
+      { label: 'Nombre de la empresa', value: '{{company.name}}' },
+      { label: 'Dirección', value: '{{company.address}}' },
+      { label: 'Teléfono', value: '{{company.phone}}' },
+      { label: 'Correo', value: '{{company.email}}' },
+      { label: 'Documento (NIT/RUC)', value: '{{company.ruc}}' }
+    ]
+  },
+  {
+    title: 'Venta o servicio',
+    items: [
+      { label: 'Número de venta', value: '{{sale.number}}' },
+      { label: 'Fecha de la venta', value: '{{date sale.date}}' },
+      { label: 'Estado de la venta', value: '{{sale.status}}' },
+      { label: 'Subtotal', value: '{{money sale.subtotal}}' },
+      { label: 'Impuestos', value: '{{money sale.tax}}' },
+      { label: 'Total a cobrar', value: '{{money sale.total}}' },
+      { label: 'Nombre del cliente', value: '{{sale.customerName}}' },
+      { label: 'Teléfono del cliente', value: '{{sale.customerPhone}}' },
+      { label: 'Correo del cliente', value: '{{sale.customerEmail}}' }
+    ]
+  },
+  {
+    title: 'Cotización',
+    items: [
+      { label: 'Número de cotización', value: '{{quote.number}}' },
+      { label: 'Fecha de la cotización', value: '{{date quote.date}}' },
+      { label: 'Nombre del cliente (cotización)', value: '{{quote.customerName}}' },
+      { label: 'Validez de la cotización', value: '{{quote.validUntil}}' },
+      { label: 'Total cotizado', value: '{{money quote.total}}' }
+    ]
+  },
+  {
+    title: 'Vehículo',
+    items: [
+      { label: 'Placa', value: '{{sale.vehicle.plate}}' },
+      { label: 'Marca', value: '{{sale.vehicle.brand}}' },
+      { label: 'Línea / modelo', value: '{{sale.vehicle.line}}' },
+      { label: 'Motor', value: '{{sale.vehicle.engine}}' },
+      { label: 'Año', value: '{{sale.vehicle.year}}' }
+    ]
+  },
+  {
+    title: 'Opciones avanzadas',
+    items: [
+      { label: 'Recorrer productos (lista completa)', value: '{{#each sale.items}}\n  {{qty}} x {{description}} = {{money total}}\n{{/each}}' },
+      { label: 'Recorrer productos (cotización)', value: '{{#each quote.items}}\n  {{qty}} x {{description}} = {{money total}}\n{{/each}}' },
+      { label: 'Recorrer métodos de pago', value: '{{#each sale.paymentMethods}}\n  {{method}}: {{money amount}}\n{{/each}}' },
+      { label: 'Texto en MAYÚSCULAS', value: '{{uppercase texto}}' },
+      { label: 'Texto en minúsculas', value: '{{lowercase texto}}' },
+      { label: 'Mostrar fecha bonita', value: '{{date fecha}}' }
+    ]
+  }
+];
+const BLOCK_BUTTONS = [
+  { id: 'tpl-add-title', label: 'Título grande', handler: ()=> addBlock({ kind:'title', text:'Título principal'}) },
+  { id: 'tpl-add-text', label: 'Texto libre', handler: ()=> addBlock({ kind:'text', text:'Párrafo de ejemplo. Haz clic para editar.' }) },
+  { id: 'tpl-add-logo', label: 'Logo de la empresa', handler: ()=> addBlock({ kind:'logo' }) },
+  { id: 'tpl-add-table', label: 'Lista de productos', handler: ()=> addBlock({ kind:'itemsTable', columns:['Cant','Descripción','Unit','Total'] }) },
+  { id: 'tpl-add-customer', label: 'Datos del cliente', handler: ()=> addBlock({ kind:'customer' }) },
+  { id: 'tpl-add-vehicle', label: 'Datos del vehículo', handler: ()=> addBlock({ kind:'vehicle' }) },
+  { id: 'tpl-add-totals', label: 'Totales a pagar', handler: ()=> addBlock({ kind:'totals' }) },
+  { id: 'tpl-add-payments', label: 'Formas de pago', handler: ()=> addBlock({ kind:'paymentsSummary' }) },
+  { id: 'tpl-add-sign', label: 'Espacio para firma', handler: ()=> addBlock({ kind:'signature', label:'Firma Cliente' }) },
+  { id: 'tpl-add-qr', label: 'Código QR', handler: ()=> addBlock({ kind:'qr', variable:'sale.number' }) },
+  { id: 'tpl-add-cols2', label: 'Dos columnas', handler: ()=> addBlock({ kind:'twoColumns', left:'Columna izquierda', right:'Columna derecha' }) }
+];
+const CLEAR_BUTTON_ID = 'tpl-clear-canvas';
+const TABLE_LOOP_SNIPPET = '{{#each sale.items}}
+<tr><td>{{qty}}</td><td>{{description}}</td><td>{{money unitPrice}}</td><td>{{money total}}</td></tr>
+{{/each}}';
   function qs(id){ return document.getElementById(id);} 
   function on(el, ev, fn){ el && el.addEventListener(ev, fn); }
   function setMsg(msg, isErr){ const box = qs('tpl-msg'); if(!box) return; box.textContent = msg||''; box.style.color = isErr? 'var(--danger-color)': 'var(--muted-color)'; }
@@ -47,7 +113,7 @@
     const rows = state.templates.filter(t=> !typeFilter || t.type===typeFilter).sort((a,b)=> (a.type.localeCompare(b.type) || b.version - a.version));
     if(!rows.length){ tbody.innerHTML = '<tr><td colspan="6" class="muted">(sin resultados)</td></tr>'; return; }
     tbody.innerHTML = rows.map(t=>{
-      const act = t.active? '✅':'—';
+      const act = t.active? 'âœ…':'â€”';
       const d = t.updatedAt? new Date(t.updatedAt).toLocaleString() : '';
       return `<tr data-id="${t._id}">
         <td>${t.type}</td><td>${t.name||''}</td><td>${t.version||1}</td><td>${act}</td><td style="font-size:11px;">${d}</td>
@@ -124,7 +190,7 @@
     if(state.mode==='visual'){
       const built = buildHtmlFromBlocks();
       qs('tpl-html').value = built.html;
-      // Insertar CSS base sólo si el usuario no ha agregado nada
+      // Insertar CSS base sÃ³lo si el usuario no ha agregado nada
       if(!qs('tpl-css').value.trim()) qs('tpl-css').value = built.css;
     }
     const payload = {
@@ -202,14 +268,14 @@
     const toggle = qs('tpl-mode-toggle');
     toggle && toggle.addEventListener('click', ()=>{
       if(state.mode === 'code'){
-        // Pasar a visual: intentar parsear HTML simple a bloques si está vacío el canvas
+        // Pasar a visual: intentar parsear HTML simple a bloques si estÃ¡ vacÃ­o el canvas
         if(state.blocks.length === 0){ attemptImportHtml(); }
         state.mode = 'visual';
       } else {
-        if(state.blocks.length && !confirm('Al salir del modo visual se regenerará el HTML. Continuar?')) return;
+        if(state.blocks.length && !confirm('Al salir del modo visual se regenerarÃ¡ el HTML. Continuar?')) return;
         // Generar HTML desde blocks
         const { html, css } = buildHtmlFromBlocks();
-        if(!qs('tpl-html').value.trim() || confirm('¿Reemplazar el HTML actual con el generado visual?')){
+        if(!qs('tpl-html').value.trim() || confirm('Â¿Reemplazar el HTML actual con el generado visual?')){
           qs('tpl-html').value = html;
           if(!qs('tpl-css').value.trim()) qs('tpl-css').value = css;
         }
@@ -218,31 +284,69 @@
       applyMode();
     });
     // Bloques: botones agregar
-    on(qs('tpl-add-title'),'click', ()=> addBlock({ kind:'title', text:'Título Principal'}));
+    on(qs('tpl-add-title'),'click', ()=> addBlock({ kind:'title', text:'TÃ­tulo Principal'}));
     on(qs('tpl-add-text'),'click', ()=> addBlock({ kind:'text', text:'Parrafo de ejemplo. Haz click para editar.' }));
     on(qs('tpl-add-logo'),'click', ()=> addBlock({ kind:'logo' }));
-    on(qs('tpl-add-table'),'click', ()=> addBlock({ kind:'itemsTable', columns:['Cant','Descripción','Unit','Total'] }));
-    // Añadir botones nuevos si no existen (cliente, vehículo, totales)
+    on(qs('tpl-add-table'),'click', ()=> addBlock({ kind:'itemsTable', columns:['Cant','DescripciÃ³n','Unit','Total'] }));
+    // AÃ±adir botones nuevos si no existen (cliente, vehÃ­culo, totales)
     (function ensureExtraButtons(){
       const bar = qs('tpl-visual-editor')?.querySelector('.row .row');
       if(!bar) return;
       const createBtn=(id,label,handler)=>{ if(qs(id)) return; const b=document.createElement('button'); b.id=id; b.className='small secondary'; b.textContent=label; b.addEventListener('click',handler); bar.appendChild(b); };
       createBtn('tpl-add-customer','Cliente', ()=> addBlock({ kind:'customer' }));
-      createBtn('tpl-add-vehicle','Vehículo', ()=> addBlock({ kind:'vehicle' }));
+      createBtn('tpl-add-vehicle','VehÃ­culo', ()=> addBlock({ kind:'vehicle' }));
       createBtn('tpl-add-totals','Totales', ()=> addBlock({ kind:'totals' }));
       createBtn('tpl-add-qr','QR', ()=> addBlock({ kind:'qr', variable:'sale.number' }));
       createBtn('tpl-add-sign','Firma', ()=> addBlock({ kind:'signature', label:'Firma Cliente' }));
       createBtn('tpl-add-payments','Pagos', ()=> addBlock({ kind:'paymentsSummary' }));
       createBtn('tpl-add-cols2','2 Cols', ()=> addBlock({ kind:'twoColumns', left:'Columna izquierda', right:'Columna derecha' }));
     })();
-    on(qs('tpl-clear-canvas'),'click', ()=>{ if(confirm('¿Vaciar diseño visual?')){ state.blocks=[]; renderCanvas(); }});
+    on(qs('tpl-clear-canvas'),'click', ()=>{ if(confirm('Â¿Vaciar diseÃ±o visual?')){ state.blocks=[]; renderCanvas(); }});
   }
 
-  function ensureExampleSnippet(){
+    function setupBlockButtons(){
+    const container = qs('tpl-block-buttons');
+    if(container){
+      BLOCK_BUTTONS.forEach(cfg=>{
+        let btn = qs(cfg.id);
+        if(!btn){
+          btn = document.createElement('button');
+          btn.id = cfg.id;
+          btn.className = 'builder-btn';
+          btn.textContent = cfg.label;
+          container.appendChild(btn);
+        }
+        if(!btn.dataset.bound){
+          btn.addEventListener('click', cfg.handler);
+          btn.dataset.bound = '1';
+        }
+      });
+    }
+    let clearBtn = qs(CLEAR_BUTTON_ID);
+    if(!clearBtn && container){
+      clearBtn = document.createElement('button');
+      clearBtn.id = CLEAR_BUTTON_ID;
+      clearBtn.className = 'builder-btn danger';
+      clearBtn.textContent = 'Vaciar todo';
+      container.appendChild(clearBtn);
+    }
+    if(clearBtn && !clearBtn.dataset.bound){
+      clearBtn.addEventListener('click', handleClearCanvas);
+      clearBtn.dataset.bound = '1';
+    }
+  }
+
+  function handleClearCanvas(){
+    if(confirm('Vaciar todos los bloques del diseño?')){
+      state.blocks = [];
+      renderCanvas();
+    }
+  }
+function ensureExampleSnippet(){
     const pre = qs('tpl-example-box');
     if(!pre) return;
     const typeSel = qs('tpl-editor-type');
-    function update(){ pre.textContent = state.exampleSnippets[typeSel.value] || '—'; }
+    function update(){ pre.textContent = state.exampleSnippets[typeSel.value] || 'â€”'; }
     on(typeSel,'change', update);
     update();
   }
@@ -260,12 +364,12 @@
           <select id='tpl-sample-type' style='min-width:130px;'>
             <option value=''>Auto</option>
             <option value='sale'>Venta</option>
-            <option value='quote'>Cotización</option>
+            <option value='quote'>CotizaciÃ³n</option>
             <option value='order'>Pedido</option>
             <option value='item'>Item</option>
           </select>
         </label>
-        <label style='font-size:11px;display:flex;flex-direction:column;'>ID específico
+        <label style='font-size:11px;display:flex;flex-direction:column;'>ID especÃ­fico
           <input id='tpl-sample-id' placeholder='Opcional _id Mongo' style='min-width:220px;font-size:12px;' />
         </label>
         <fieldset style='display:flex;gap:6px;align-items:flex-end;border:1px solid var(--border-color);padding:4px;'>
@@ -312,7 +416,7 @@
       qs('tpl-html').style.opacity = '1';
       qs('tpl-html').disabled = false;
       qs('tpl-css').disabled = false;
-      modeLabel.textContent = 'Código';
+      modeLabel.textContent = 'CÃ³digo';
     }
   }
 
@@ -353,17 +457,17 @@
 
   function renderBlockLabel(b){
     switch(b.kind){
-      case 'title': return `<strong>🅣 ${escapeHtml(b.text||'Título')}</strong>`;
-      case 'text': return `🅟 ${(escapeHtml(shorten(b.text||'',60))||'(texto)')}`;
-      case 'logo': return '🖼 Logo empresa ({{company.logoUrl}})';
-      case 'itemsTable': return '📋 Tabla de Items';
-      case 'customer': return '👤 Datos Cliente';
-      case 'vehicle': return '🚗 Datos Vehículo';
-      case 'totals': return 'Σ Totales';
-      case 'qr': return '🔳 QR '+escapeHtml(b.variable||'variable');
-      case 'signature': return '✍️ '+escapeHtml(b.label||'Firma');
-      case 'paymentsSummary': return '💲 Resumen Pagos';
-      case 'twoColumns': return '⬛⬛ Dos Columnas';
+      case 'title': return `<strong>ðŸ…£ ${escapeHtml(b.text||'TÃ­tulo')}</strong>`;
+      case 'text': return `ðŸ…Ÿ ${(escapeHtml(shorten(b.text||'',60))||'(texto)')}`;
+      case 'logo': return 'ðŸ–¼ Logo empresa ({{company.logoUrl}})';
+      case 'itemsTable': return 'ðŸ“‹ Tabla de Items';
+      case 'customer': return 'ðŸ‘¤ Datos Cliente';
+      case 'vehicle': return 'ðŸš— Datos VehÃ­culo';
+      case 'totals': return 'Î£ Totales';
+      case 'qr': return 'ðŸ”³ QR '+escapeHtml(b.variable||'variable');
+      case 'signature': return 'âœï¸ '+escapeHtml(b.label||'Firma');
+      case 'paymentsSummary': return 'ðŸ’² Resumen Pagos';
+      case 'twoColumns': return 'â¬›â¬› Dos Columnas';
       default: return b.kind;
     }
   }
@@ -380,19 +484,19 @@
       inner += `<label style='font-weight:600;'>Contenido</label><textarea id='blk-text' style='width:100%;height:80px;'>${escapeHtml(b.text||'')}</textarea>`;
       inner += `<div style='margin-top:4px;font-size:11px;' class='muted'>Puedes insertar variables haciendo click en la lista a la derecha.</div>`;
     }
-    if(b.kind==='itemsTable') inner += `<div class='muted' style='font-size:12px;'>Tabla dinámica de items de venta / cotización. Columnas fijas.</div>`;
+    if(b.kind==='itemsTable') inner += `<div class='muted' style='font-size:12px;'>Tabla dinÃ¡mica de items de venta / cotizaciÃ³n. Columnas fijas.</div>`;
     if(b.kind==='logo') inner += `<div class='muted' style='font-size:12px;'>Muestra el logo de la empresa si existe.</div>`;
-    if(b.kind==='customer') inner += `<div class='muted' style='font-size:12px;'>Se rellena con datos del cliente: nombre, teléfono, email si existen.</div>`;
-    if(b.kind==='vehicle') inner += `<div class='muted' style='font-size:12px;'>Incluye placa, marca, línea, motor y año del vehículo si están disponibles.</div>`;
-    if(b.kind==='totals') inner += `<div class='muted' style='font-size:12px;'>Muestra subtotal y total de la venta / cotización.</div>`;
+    if(b.kind==='customer') inner += `<div class='muted' style='font-size:12px;'>Se rellena con datos del cliente: nombre, telÃ©fono, email si existen.</div>`;
+    if(b.kind==='vehicle') inner += `<div class='muted' style='font-size:12px;'>Incluye placa, marca, lÃ­nea, motor y aÃ±o del vehÃ­culo si estÃ¡n disponibles.</div>`;
+    if(b.kind==='totals') inner += `<div class='muted' style='font-size:12px;'>Muestra subtotal y total de la venta / cotizaciÃ³n.</div>`;
     if(b.kind==='qr') inner += `<div style='font-size:12px;' class='muted'>Genera un QR de la variable. Ej: sale.number, item.sku, company.name</div><label style='font-size:11px;'>Variable<input id='blk-var' value='${escapeHtml(b.variable||'sale.number')}' style='width:100%;font-size:12px;'/></label>`;
-    if(b.kind==='signature') inner += `<div class='muted' style='font-size:12px;'>Línea de firma con etiqueta personalizable.</div><label style='font-size:11px;'>Etiqueta<input id='blk-label' value='${escapeHtml(b.label||'Firma Cliente')}' style='width:100%;font-size:12px;'/></label>`;
-    if(b.kind==='paymentsSummary') inner += `<div class='muted' style='font-size:12px;'>Lista cada método de pago (sale.paymentMethods) y muestra total.</div>`;
+    if(b.kind==='signature') inner += `<div class='muted' style='font-size:12px;'>LÃ­nea de firma con etiqueta personalizable.</div><label style='font-size:11px;'>Etiqueta<input id='blk-label' value='${escapeHtml(b.label||'Firma Cliente')}' style='width:100%;font-size:12px;'/></label>`;
+    if(b.kind==='paymentsSummary') inner += `<div class='muted' style='font-size:12px;'>Lista cada mÃ©todo de pago (sale.paymentMethods) y muestra total.</div>`;
     if(b.kind==='twoColumns') inner += `<div class='muted' style='font-size:12px;'>Dos columnas de texto independientes.</div><label style='font-size:11px;'>Izquierda<textarea id='blk-left' style='width:100%;height:50px;font-size:12px;'>${escapeHtml(b.left||'')}</textarea></label><label style='font-size:11px;'>Derecha<textarea id='blk-right' style='width:100%;height:50px;font-size:12px;'>${escapeHtml(b.right||'')}</textarea></label>`;
     if(b.kind==='title' || b.kind==='text'){
       inner += `<fieldset style='margin-top:8px;border:1px solid var(--border-color);padding:4px;'><legend style='font-size:11px;'>Estilos</legend>
-        <label style='font-size:11px;'>Alineación <select id='blk-align'><option value='left'>Izquierda</option><option value='center'>Centro</option><option value='right'>Derecha</option></select></label>
-        <label style='font-size:11px;'>Tamaño <select id='blk-size'><option value='normal'>Normal</option><option value='small'>Pequeño</option><option value='big'>Grande</option></select></label>
+        <label style='font-size:11px;'>AlineaciÃ³n <select id='blk-align'><option value='left'>Izquierda</option><option value='center'>Centro</option><option value='right'>Derecha</option></select></label>
+        <label style='font-size:11px;'>TamaÃ±o <select id='blk-size'><option value='normal'>Normal</option><option value='small'>PequeÃ±o</option><option value='big'>Grande</option></select></label>
       </fieldset>`;
     }
     inner += `<div class='row' style='margin-top:8px;gap:6px;justify-content:flex-end;'><button id='blk-del' class='danger small'>Borrar</button><button id='blk-ok' class='small'>Cerrar</button></div>`;
@@ -421,7 +525,7 @@
       }
       panel.remove(); 
     };
-    panel.querySelector('#blk-del').onclick = ()=>{ if(confirm('¿Eliminar bloque?')){ state.blocks = state.blocks.filter(x=>x.id!==b.id); renderCanvas(); panel.remove(); } };
+    panel.querySelector('#blk-del').onclick = ()=>{ if(confirm('Â¿Eliminar bloque?')){ state.blocks = state.blocks.filter(x=>x.id!==b.id); renderCanvas(); panel.remove(); } };
   }
 
   function buildHtmlFromBlocks(){
@@ -439,13 +543,13 @@
       }
       else if(b.kind==='logo'){ htmlParts.push(`<div class='logo-box'>{{#if company.logoUrl}}<img class='logo' src='{{company.logoUrl}}' alt='logo'>{{/if}}</div>`); }
       else if(b.kind==='itemsTable'){
-        htmlParts.push(`<table class='items'>\n<thead><tr><th>Cant</th><th>Descripción</th><th>Unit</th><th>Total</th></tr></thead>\n<tbody>{{#each sale.items}}<tr><td>{{qty}}</td><td>{{description}}</td><td>{{money unitPrice}}</td><td>{{money total}}</td></tr>{{/each}}</tbody>\n</table>`);
+        htmlParts.push(`<table class='items'>\n<thead><tr><th>Cant</th><th>DescripciÃ³n</th><th>Unit</th><th>Total</th></tr></thead>\n<tbody>{{#each sale.items}}<tr><td>{{qty}}</td><td>{{description}}</td><td>{{money unitPrice}}</td><td>{{money total}}</td></tr>{{/each}}</tbody>\n</table>`);
       }
       else if(b.kind==='customer'){
         htmlParts.push(`<div class='customer-box'><strong>Cliente:</strong> {{sale.customerName}} {{#if sale.customerPhone}}Tel: {{sale.customerPhone}}{{/if}} {{#if sale.customerEmail}}Email: {{sale.customerEmail}}{{/if}}</div>`);
       }
       else if(b.kind==='vehicle'){
-        htmlParts.push(`<div class='vehicle-box'><strong>Vehículo:</strong> {{sale.vehicle.plate}} {{sale.vehicle.brand}} {{sale.vehicle.line}} {{sale.vehicle.engine}} {{sale.vehicle.year}}</div>`);
+        htmlParts.push(`<div class='vehicle-box'><strong>VehÃ­culo:</strong> {{sale.vehicle.plate}} {{sale.vehicle.brand}} {{sale.vehicle.line}} {{sale.vehicle.engine}} {{sale.vehicle.year}}</div>`);
       }
       else if(b.kind==='totals'){
         htmlParts.push(`<div class='totals-box'><table class='totals'><tbody><tr><td>Subtotal</td><td>{{money sale.subtotal}}</td></tr><tr><td><strong>Total</strong></td><td><strong>{{money sale.total}}</strong></td></tr></tbody></table></div>`);
@@ -458,7 +562,7 @@
         htmlParts.push(`<div class='sign-box'><div class='sign-line'></div><div class='sign-label'>${escapeHtml(b.label||'Firma')}</div></div>`);
       }
       else if(b.kind==='paymentsSummary'){
-        htmlParts.push(`<div class='payments-box'><table class='payments'><thead><tr><th>Método</th><th>Valor</th></tr></thead><tbody>{{#each sale.paymentMethods}}<tr><td>{{method}}</td><td>{{money amount}}</td></tr>{{/each}}<tr><td style='font-weight:600;'>Total</td><td style='font-weight:600;'>{{money sale.total}}</td></tr></tbody></table></div>`);
+        htmlParts.push(`<div class='payments-box'><table class='payments'><thead><tr><th>MÃ©todo</th><th>Valor</th></tr></thead><tbody>{{#each sale.paymentMethods}}<tr><td>{{method}}</td><td>{{money amount}}</td></tr>{{/each}}<tr><td style='font-weight:600;'>Total</td><td style='font-weight:600;'>{{money sale.total}}</td></tr></tbody></table></div>`);
       }
       else if(b.kind==='twoColumns'){
         htmlParts.push(`<div class='cols2'><div class='col left'>${escapeHtml(b.left||'')}</div><div class='col right'>${escapeHtml(b.right||'')}</div></div>`);
@@ -474,13 +578,13 @@
     // Intento simple: detectar h1, p, tabla items
     const blocks=[];
     const div=document.createElement('div'); div.innerHTML = raw;
-    div.querySelectorAll('h1').forEach(h=> blocks.push({kind:'title', text:h.textContent||'Título'}));
+    div.querySelectorAll('h1').forEach(h=> blocks.push({kind:'title', text:h.textContent||'TÃ­tulo'}));
     div.querySelectorAll('p').forEach(p=> blocks.push({kind:'text', text:p.textContent||''}));
-    if(/sale\.items/.test(raw)) blocks.push({kind:'itemsTable', columns:['Cant','Descripción','Unit','Total']});
+    if(/sale\.items/.test(raw)) blocks.push({kind:'itemsTable', columns:['Cant','DescripciÃ³n','Unit','Total']});
     if(/logoUrl/.test(raw)) blocks.push({kind:'logo'});
     if(blocks.length){ blocks.forEach(b=> b.id='b'+Math.random().toString(36).slice(2,8)); state.blocks = blocks; }
   }
 
   function escapeHtml(str=''){ return str.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-  function shorten(s,max){ return s.length>max? s.slice(0,max-1)+'…': s; }
+  function shorten(s,max){ return s.length>max? s.slice(0,max-1)+'â€¦': s; }
 })();
