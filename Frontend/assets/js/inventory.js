@@ -142,6 +142,33 @@ function invOpenModal(innerHTML) {
         }
         img.style.transform = `scale(${scale})`;
       };
+        // Pinch-to-zoom para móviles
+        let lastDist = null;
+        img.addEventListener('touchstart', function(e) {
+          if (e.touches.length === 2) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            lastDist = Math.sqrt(dx*dx + dy*dy);
+          }
+        }, {passive:false});
+        img.addEventListener('touchmove', function(e) {
+          if (e.touches.length === 2 && lastDist) {
+            e.preventDefault();
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            const newDist = Math.sqrt(dx*dx + dy*dy);
+            const delta = newDist - lastDist;
+            if (Math.abs(delta) > 2) {
+              scale += delta > 0 ? 0.04 : -0.04;
+              scale = Math.max(1, Math.min(5, scale));
+              img.style.transform = `scale(${scale})`;
+              lastDist = newDist;
+            }
+          }
+        }, {passive:false});
+        img.addEventListener('touchend', function(e) {
+          if (e.touches.length < 2) lastDist = null;
+        });
     }
     const closeModalBtn = document.getElementById("close-modal");
     if (closeModalBtn) closeModalBtn.onclick = () => invCloseModal();
