@@ -782,6 +782,8 @@ export function initInventory() {
       <h3>Editar ítem</h3>
       <label>SKU</label><input id="e-it-sku" value="${it.sku || ""}"/>
       <label>Nombre</label><input id="e-it-name" value="${it.name || ""}"/>
+      <label>Nombre interno</label><input id="e-it-internal" value="${it.internalName || ''}"/>
+      <label>Ubicación</label><input id="e-it-location" value="${it.location || ''}"/>
       <label>Entrada</label><select id="e-it-intake">${optionsIntakes}</select>
       <label>Destino</label><input id="e-it-target" value="${it.vehicleTarget || "GENERAL"}"/>
       <label>Precio entrada (opcional)</label><input id="e-it-entry" type="number" step="0.01" placeholder="vacío = AUTO si hay entrada" value="${it.entryPrice ?? ""}"/>
@@ -834,8 +836,8 @@ export function initInventory() {
           if (btn) return;
           viewer.style.display = "block";
           viewer.innerHTML = m.mimetype?.startsWith("video/")
-            ? `<video controls src="${m.url}"></video>`
-            : `<img src="${m.url}" alt="media"/>`;
+            ? `<video controls src="${m.url}" style="max-width:100%;max-height:70vh;object-fit:contain;"></video>`
+            : `<img src="${m.url}" alt="media" style="max-width:100%;max-height:70vh;object-fit:contain;"/>`;
         };
 
         d.querySelector("button.del").onclick = () => {
@@ -884,6 +886,8 @@ export function initInventory() {
         const body = {
           sku: (sku.value || "").trim().toUpperCase(),
           name: (name.value || "").trim().toUpperCase(),
+          internalName: (document.getElementById('e-it-internal')?.value||'').trim().toUpperCase(),
+          location: (document.getElementById('e-it-location')?.value||'').trim().toUpperCase(),
           vehicleIntakeId: intake.value || null,
           vehicleTarget: (target.value || "GENERAL").trim().toUpperCase(),
           entryPrice: entry.value === "" ? "" : parseFloat(entry.value),
