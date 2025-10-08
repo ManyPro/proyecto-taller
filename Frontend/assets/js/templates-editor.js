@@ -20,6 +20,7 @@
     { icon:'•', title:'Lista', cmd:'insertUnorderedList' },
     { icon:'#', title:'Lista numerada', cmd:'insertOrderedList' },
     { icon:'Img', title:'Imagen', action:insertImage },
+    { icon:'T', title:'Texto libre', action:insertTextBlock },
   ];
 
   function buildToolbar(){
@@ -37,6 +38,36 @@
       };
       bar.appendChild(btn);
     });
+    // Selector de color
+    const colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.id = 'ce-color';
+    colorInput.title = 'Color de texto';
+    colorInput.value = '#222222';
+    colorInput.style.marginLeft = '12px';
+    bar.appendChild(colorInput);
+    // Selector de fuente
+    const fontSelect = document.createElement('select');
+    fontSelect.id = 'ce-font';
+    fontSelect.title = 'Fuente';
+    ['Arial','Verdana','Times New Roman','Courier New','Georgia'].forEach(f=>{
+      const opt = document.createElement('option');
+      opt.value = f; opt.textContent = f;
+      fontSelect.appendChild(opt);
+    });
+    fontSelect.style.marginLeft = '8px';
+    bar.appendChild(fontSelect);
+    // Selector de tamaño
+    const sizeInput = document.createElement('input');
+    sizeInput.type = 'number';
+    sizeInput.id = 'ce-size';
+    sizeInput.title = 'Tamaño de texto';
+    sizeInput.value = 18;
+    sizeInput.min = 8;
+    sizeInput.max = 72;
+    sizeInput.style.width = '60px';
+    sizeInput.style.marginLeft = '8px';
+    bar.appendChild(sizeInput);
     // Input para adjuntar imagen local
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
@@ -61,6 +92,62 @@
       reader.readAsDataURL(file);
       fileInput.value = '';
     };
+  }
+  // Bloque de texto movible y editable
+  function insertTextBlock(){
+    const canvasEl = canvas();
+    const color = document.getElementById('ce-color')?.value || '#222';
+    const font = document.getElementById('ce-font')?.value || 'Arial';
+    const size = document.getElementById('ce-size')?.value || 18;
+    const textWrap = document.createElement('div');
+    textWrap.className = 'ce-text-wrap';
+    textWrap.contentEditable = 'true';
+    textWrap.innerText = 'Texto editable';
+    textWrap.style.position = 'absolute';
+    textWrap.style.top = '60px';
+    textWrap.style.left = '60px';
+    textWrap.style.color = color;
+    textWrap.style.fontFamily = font;
+    textWrap.style.fontSize = size+'px';
+    textWrap.style.minWidth = '80px';
+    textWrap.style.minHeight = '32px';
+    textWrap.style.background = 'rgba(255,255,255,0.01)';
+    textWrap.style.padding = '2px 8px';
+    textWrap.style.borderRadius = '6px';
+    textWrap.style.border = '1px dashed #bbb';
+    textWrap.style.zIndex = 10;
+    canvasEl.appendChild(textWrap);
+    attachDrag(textWrap);
+    attachResize(textWrap, createTextResizer(textWrap));
+    // Actualizar estilos al editar
+    textWrap.addEventListener('focus',()=>{
+      document.getElementById('ce-color').value = rgbToHex(textWrap.style.color);
+      document.getElementById('ce-font').value = textWrap.style.fontFamily;
+      document.getElementById('ce-size').value = parseInt(textWrap.style.fontSize)||18;
+    });
+    document.getElementById('ce-color').oninput = e => {
+      if(document.activeElement===textWrap) textWrap.style.color = e.target.value;
+    };
+    document.getElementById('ce-font').onchange = e => {
+      if(document.activeElement===textWrap) textWrap.style.fontFamily = e.target.value;
+    };
+    document.getElementById('ce-size').oninput = e => {
+      if(document.activeElement===textWrap) textWrap.style.fontSize = e.target.value+'px';
+    };
+  }
+
+  function createTextResizer(textWrap){
+    const handle = document.createElement('div');
+    handle.className = 'ce-resizer';
+    textWrap.appendChild(handle);
+    return handle;
+  }
+
+  function rgbToHex(rgb){
+    if(!rgb) return '#222222';
+    const result = rgb.match(/\d+/g);
+    if(!result) return '#222222';
+    return '#' + result.slice(0,3).map(x=>('0'+parseInt(x).toString(16)).slice(-2)).join('');
   }
 
   function insertImageFromData(dataUrl){
@@ -183,7 +270,8 @@
       .ce-img-wrap { position:absolute; top:40px; left:40px; width:240px; height:auto; display:inline-block; box-shadow:0 2px 6px rgba(0,0,0,.25); }
       .ce-img-wrap img.ce-img { width:100%; height:auto; display:block; border-radius:4px; }
       .ce-img-wrap:hover .ce-resizer { opacity:1; }
-      .ce-resizer { position:absolute; bottom:-6px; right:-6px; width:14px; height:14px; background:#1d4ed8; border:2px solid #fff; border-radius:50%; cursor:nwse-resize; box-shadow:0 0 0 1px #1d4ed8; opacity:0; transition:.15s; }
+  .ce-resizer { position:absolute; bottom:-6px; right:-6px; width:14px; height:14px; background:#1d4ed8; border:2px solid #fff; border-radius:50%; cursor:nwse-resize; box-shadow:0 0 0 1px #1d4ed8; opacity:0; transition:.15s; }
+  .ce-text-wrap { position:absolute; min-width:80px; min-height:32px; background:rgba(255,255,255,0.01); border-radius:6px; border:1px dashed #bbb; padding:2px 8px; z-index:10; cursor:text; }
       .var-btn { background:#111827; color:#f1f5f9; border:1px solid #1f2937; padding:6px 8px; width:100%; text-align:left; border-radius:6px; font-size:12px; margin:2px 0; cursor:pointer; }
       .var-btn:hover { background:#1f2937; }
       .ce-dragging { opacity:.85; }
