@@ -491,3 +491,61 @@ body.dense button{ padding:6px 10px; }
 body.dense input, body.dense select, body.dense textarea{ padding:6px 8px; }
 body.dense .card{ padding:12px 12px 14px; }
 
+/* ===== Inventario: tarjetas ===== */
+.inv-item-header{ display:flex; gap:12px; align-items:flex-start; margin-bottom:10px; }
+.inv-checkbox{ display:inline-flex; }
+.inv-checkbox input{
+  appearance:none;
+  width:22px;
+  height:22px;
+  border-radius:8px;
+  border:2px solid var(--border);
+  background:var(--card-alt);
+  cursor:pointer;
+  transition:all .2s ease;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.inv-checkbox input:hover{ border-color:var(--accent); }
+.inv-checkbox input:focus-visible{ outline:var(--focus-ring); }
+.inv-checkbox input:checked{
+  background:var(--accent);
+  border-color:var(--accent);
+  box-shadow:0 0 0 2px rgba(37,99,235,.25);
+  color:#fff;
+}
+.inv-checkbox input:checked::after{
+  content:'✓';
+  font-size:12px;
+  line-height:1;
+}
+.inv-item-info{ display:flex; flex-direction:column; gap:4px; }
+.inv-item-name{ font-weight:700; font-size:1rem; color:var(--text); }
+.inv-item-meta{ display:flex; flex-wrap:wrap; gap:10px; font-size:12px; color:var(--muted); }
+.inv-item-meta span{ display:flex; align-items:center; gap:4px; }
+.inv-item-meta span::before{ content:'•'; opacity:.6; }
+.inv-item-meta span:first-child::before{ content:''; display:none; }
+
+/* ===== Selección de stickers ===== */
+.chip-button{
+  background:rgba(37,99,235,.12);
+  border:1px solid rgba(37,99,235,.5);
+  color:var(--text);
+  padding:6px 14px;
+  border-radius:999px;
+  font-size:13px;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  cursor:pointer;
+  transition:all .2s ease;
+}
+.chip-button:hover{
+  background:var(--accent);
+  border-color:var(--accent);
+  color:#fff;
+}
+.chip-button:focus-visible{ outline:var(--focus-ring); }
+.chip-button .chip-icon{ font-size:12px; line-height:1; }
+

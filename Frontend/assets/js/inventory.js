@@ -339,7 +339,7 @@ export function initInventory() {
     selectionBar.innerHTML = `
       <div class="muted" style="font-weight:600;">Seleccionados: ${n}</div>
       <button class="secondary" id="sel-clear">Limpiar selección</button>
-      <button class="secondary" id="sel-page">Seleccionar todos (página)</button>
+      <button class="chip-button" id="sel-page"><span class="chip-icon">☑</span> Seleccionar todos (página)</button>
       <button id="sel-stickers">Generar PDF stickers</button>
     `;
     selectionBar.querySelector("#sel-clear").onclick = () => {
@@ -480,14 +480,20 @@ export function initInventory() {
       const locationLabel = it.location ? `Ubicacion: ${it.location}` : "Ubicacion: -";
 
       div.innerHTML = `
-        <div>
-          <div style="display:flex;align-items:flex-start;gap:8px;">
-            <input type="checkbox" data-id="${it._id}" ${state.selected.has(cacheKey) ? "checked" : ""}/>
-            <div><b>${it.sku}</b></div>
+        <div class="inv-item-header">
+          <label class="inv-checkbox">
+            <input type="checkbox" data-id="${it._id}" ${state.selected.has(cacheKey) ? "checked" : ""} aria-label="Seleccionar item para stickers"/>
+          </label>
+          <div class="inv-item-info">
+            <div class="inv-item-name">${it.name || ""}</div>
+            <div class="inv-item-meta muted">
+              <span>SKU: ${it.sku || ""}</span>
+              <span>${internalLabel}</span>
+              <span>${locationLabel}</span>
+            </div>
           </div>
-          <div>${it.name}</div>
-          ${thumbs}
         </div>
+        ${thumbs}
         <div class="content">
           <div>Destino: ${it.vehicleTarget}${it.vehicleIntakeId ? " (entrada)" : ""}</div>
           <div>Entrada: ${entradaTxt} | Venta: ${fmtMoney(it.salePrice)}</div>
@@ -499,20 +505,6 @@ export function initInventory() {
           <button class="secondary" data-qr-dl="${it._id}">Descargar QR</button>
           <button class="secondary" data-qr="${it._id}">Expandir codigo QR</button>
         </div>`;
-
-      const headerBox = div.firstElementChild;
-      if (headerBox) {
-        const nameBlock = headerBox.children[1];
-        if (nameBlock) {
-          nameBlock.classList.add("title");
-        }
-        const infoBlock = document.createElement("div");
-        infoBlock.className = "muted small";
-        infoBlock.textContent = `${internalLabel} - ${locationLabel}`;
-        const mediaBlock = headerBox.querySelector(".item-media");
-        if (mediaBlock) headerBox.insertBefore(infoBlock, mediaBlock);
-        else headerBox.appendChild(infoBlock);
-      }
 
       div.querySelector(`input[type="checkbox"][data-id]`).onchange = (e) => toggleSelected(it, e.target.checked);
 
