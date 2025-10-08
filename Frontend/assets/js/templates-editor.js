@@ -37,6 +37,44 @@
       };
       bar.appendChild(btn);
     });
+    // Input para adjuntar imagen local
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+    fileInput.id = 'ce-img-file';
+    bar.appendChild(fileInput);
+    const imgBtn = document.createElement('button');
+    imgBtn.type = 'button';
+    imgBtn.className = 'ce-btn';
+    imgBtn.textContent = 'Adjuntar Img';
+    imgBtn.title = 'Adjuntar imagen desde tu equipo';
+    imgBtn.onclick = () => fileInput.click();
+    bar.appendChild(imgBtn);
+    fileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        insertImageFromData(ev.target.result);
+      };
+      reader.readAsDataURL(file);
+      fileInput.value = '';
+    };
+  }
+
+  function insertImageFromData(dataUrl){
+    const imgWrap = document.createElement('div');
+    imgWrap.className='ce-img-wrap';
+    imgWrap.contentEditable='false';
+    const img = document.createElement('img');
+    img.src=dataUrl; img.draggable=false; img.className='ce-img';
+    const handle = document.createElement('div');
+    handle.className='ce-resizer';
+    imgWrap.appendChild(img);
+    imgWrap.appendChild(handle);
+    canvas().appendChild(imgWrap);
+    attachDrag(imgWrap); attachResize(imgWrap, handle);
   }
 
   function execFormatBlock(block){ document.execCommand('formatBlock', false, block); }
