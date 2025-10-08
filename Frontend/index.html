@@ -1,7 +1,7 @@
 ﻿<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
+  <meta cHarset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Taller App</title>
   <link rel="stylesheet" href="assets/styles.css?v=20250923-2" />
@@ -51,7 +51,7 @@
     <section id="appSection" class="hidden">
       <nav class="tabs">
         <button data-tab="ventas" class="active">Ventas</button>
-        <button data-tab="cotizaciones">Cotizaciones</button>
+        <button data-tab="Cotizaciónes">Cotizaciónes</button>
         <button data-tab="cashflow">Flujo de Caja</button>
         <button data-tab="inventario">Inventario</button>
         <button data-tab="precios">Lista de precios</button>
@@ -113,7 +113,7 @@
             </select>
             <label>Contenido</label>
             <textarea id="n-content" rows="4"></textarea>
-            <label>Fecha y hora (auto)</label>
+            <label>FecHa y hora (auto)</label>
             <input id="n-when" disabled />
             <div id="pay-box" class="hidden">
               <label>Monto del pago</label>
@@ -142,11 +142,11 @@
       <!-- ========== FORMATOS (Editor Plantillas) ========== -->
       <section id="tab-formatos" class="tab">
         <div class="card" id="tpl-friendly-intro" style="margin-bottom:12px;background:var(--bg-alt);border:1px dashed var(--border-color);">
-          <h3 style="margin-bottom:6px;">Creador de formatos sin codigo</h3>
+          <h3 style="margin-bottom:6px;">Creador de formatos sin código</h3>
           <p style="font-size:13px;line-height:1.5;margin:0 0 10px;">Arma tus documentos paso a paso: eliges el formato, arrastras bloques y usas nombres de datos que toda la familia reconoce.</p>
           <div class="row wrap" style="gap:8px;font-size:11px;">
             <div class="chip" style="background:var(--primary-soft);color:var(--primary-color);">1. Elige el tipo</div>
-            <div class="chip" style="background:var(--primary-soft);color:var(--primary-color);">2. Disena con bloques</div>
+            <div class="chip" style="background:var(--primary-soft);color:var(--primary-color);">2. Diseña con bloques</div>
             <div class="chip" style="background:var(--primary-soft);color:var(--primary-color);">3. Inserta datos reales</div>
           </div>
         </div>
@@ -154,7 +154,7 @@
           <div class="row between" style="align-items:flex-start;gap:12px;">
             <div>
               <h3 style="margin-bottom:4px;">Biblioteca de formatos</h3>
-              <p class="muted" style="font-size:12px;margin:0;">Revisa los formatos existentes, duplica tu favorito o crea uno desde cero sin tocar codigo.</p>
+              <p class="muted" style="font-size:12px;margin:0;">Revisa los formatos existentes, duplica tu favorito o crea uno desde cero sin tocar código.</p>
             </div>
             <div id="tpl-list-counter" class="muted" style="font-size:11px;">--</div>
           </div>
@@ -162,7 +162,7 @@
             <select id="tpl-type-filter">
               <option value="">-- Tipo --</option>
               <option value="invoice">Factura</option>
-              <option value="quote">Cotizacion</option>
+              <option value="quote">Cotización</option>
               <option value="workOrder">Orden de trabajo</option>
               <option value="sticker">Sticker</option>
             </select>
@@ -172,17 +172,17 @@
           </div>
           <div class="table-wrap small" style="margin-top:12px;max-height:240px;overflow:auto;">
             <table class="table small" style="min-width:820px;">
-              <thead><tr><th>Tipo</th><th>Nombre</th><th>Version</th><th>Activa</th><th>Actualizado</th><th></th></tr></thead>
+              <thead><tr><th>Tipo</th><th>Nombre</th><th>Versión</th><th>Activa</th><th>Actualizado</th><th></th></tr></thead>
               <tbody id="tpl-rows"><tr><td colspan="6" class="muted">--</td></tr></tbody>
             </table>
           </div>
-          <p class="muted" style="font-size:11px;margin-top:8px;">Tip: da clic sobre un formato para traerlo al constructor amigable.</p>
+          <p class="muted" style="font-size:11px;margin-top:8px;">Tip: Haz clic sobre un formato para traerlo al constructor amigable.</p>
         </div>
         <div class="card" id="tpl-friendly-editor">
           <div class="row between" style="align-items:flex-start;gap:12px;">
             <div>
               <h3 id="tpl-editor-title" style="margin-bottom:4px;">Constructor amigable</h3>
-              <p class="muted" style="font-size:12px;margin:0;">Configura el documento, arma el diseno con bloques y coloca datos con nombres entendibles. Si necesitas ver el codigo, tambien puedes.</p>
+              <p class="muted" style="font-size:12px;margin:0;">Configura el documento, arma el diseño con bloques y coloca datos con nombres entendibles. Si necesitas ver el código, tambien puedes.</p>
             </div>
             <div id="tpl-selected-info" class="chip" style="font-size:11px;">Sin formato seleccionado</div>
           </div>
@@ -194,7 +194,7 @@
             </div>
             <div class="tpl-step-item" data-step="2" style="border:1px solid var(--border-color);border-radius:8px;padding:10px;background:var(--bg-alt);">
               <div style="font-size:11px;text-transform:uppercase;color:var(--muted-color);margin-bottom:4px;">Paso 2</div>
-              <strong style="font-size:13px;">Arma el diseno</strong>
+              <strong style="font-size:13px;">Arma el diseño</strong>
               <span style="display:block;font-size:11px;margin-top:4px;">Arrastra o agrega bloques visuales.</span>
             </div>
             <div class="tpl-step-item" data-step="3" style="border:1px solid var(--border-color);border-radius:8px;padding:10px;background:var(--bg-alt);">
@@ -204,15 +204,15 @@
             </div>
           </div>
           <div class="row wrap" style="gap:8px;margin-bottom:10px;">
-            <div class="chip" style="cursor:pointer;" id="tpl-mode-toggle" title="Cambiar entre modo Visual y Codigo">Modo: <span id="tpl-mode-label">Codigo</span></div>
-            <div id="tpl-visual-hint" class="muted" style="font-size:11px;">El modo visual te deja disenar sin escribir HTML.</div>
+            <div class="chip" style="cursor:pointer;" id="tpl-mode-toggle" title="Cambiar entre modo Visual y código">Modo: <span id="tpl-mode-label">código</span></div>
+            <div id="tpl-visual-hint" class="muted" style="font-size:11px;">El modo visual te deja Diseñar sin escribir HTML.</div>
           </div>
           <div class="row wrap" style="gap:12px;margin-bottom:12px;align-items:flex-end;">
             <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;min-width:160px;">
               <span style="font-weight:600;font-size:11px;">Tipo de documento</span>
               <select id="tpl-editor-type">
                 <option value="invoice">Factura</option>
-                <option value="quote">Cotizacion</option>
+                <option value="quote">Cotización</option>
                 <option value="workOrder">Orden de trabajo</option>
                 <option value="sticker">Sticker</option>
               </select>
@@ -234,7 +234,7 @@
             <p class="muted" style="font-size:11px;margin:4px 0 10px;">Carga un conjunto de bloques listo para editar con un clic.</p>
             <div class="row wrap" style="gap:8px;">
               <button class="small secondary tpl-preset" data-preset="invoice-basic">Factura rapida</button>
-              <button class="small secondary tpl-preset" data-preset="quote-minimal">Cotizacion minimal</button>
+              <button class="small secondary tpl-preset" data-preset="quote-minimal">Cotización minimal</button>
               <button class="small secondary tpl-preset" data-preset="work-order">Orden de trabajo</button>
               <button class="small secondary tpl-preset" data-preset="blank-canvas">Lienzo en blanco</button>
             </div>
@@ -243,18 +243,18 @@
             <div style="display:flex;flex-direction:column;gap:12px;min-width:320px;">
               <div id="tpl-visual-editor" class="hidden" style="border:1px solid var(--border-color);padding:10px;border-radius:8px;background:#fff;">
                 <div class="row between" style="align-items:center;">
-                  <strong style="font-size:13px;">Disenador visual</strong>
+                  <strong style="font-size:13px;">Diseñador visual</strong>
                   <div class="row" style="gap:6px;flex-wrap:wrap;">
                     <button class="small secondary" id="tpl-add-title">Titulo</button>
                     <button class="small secondary" id="tpl-add-text">Texto</button>
-                    <button class="small secondary" id="tpl-add-table">Tabla de items</button>
+                    <button class="small secondary" id="tpl-add-table">Tabla de ítems</button>
                     <button class="small secondary" id="tpl-add-logo">Logo</button>
-                    <button class="small secondary" id="tpl-clear-canvas" title="Vaciar diseno">Limpiar</button>
+                    <button class="small secondary" id="tpl-clear-canvas" title="Vaciar diseño">Limpiar</button>
                   </div>
                 </div>
                 <p class="muted" style="font-size:11px;margin:8px 0;">Agrega bloques y acomodalos. Haz clic sobre cada bloque para personalizarlo.</p>
                 <div id="tpl-canvas" style="min-height:220px;margin-top:8px;padding:12px;background:var(--bg-alt);border:1px dashed var(--border-color);display:flex;flex-direction:column;gap:8px;">
-                  <div class="muted" id="tpl-canvas-empty">Arrastra o agrega bloques aqui...</div>
+                  <div class="muted" id="tpl-canvas-empty">Arrastra o agrega bloques aquí...</div>
                 </div>
               </div>
               <label style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
@@ -272,7 +272,7 @@
               <div style="border:1px solid var(--border-color);background:#fff;border-radius:8px;padding:12px;display:flex;flex-direction:column;gap:8px;">
                 <strong style="font-size:13px;">Vista previa en vivo</strong>
                 <iframe id="tpl-preview-frame" style="flex:1;min-height:320px;border:1px solid var(--border-color);background:#fff;border-radius:6px;"></iframe>
-                <p class="muted" style="font-size:11px;margin:0;">La vista previa usa datos de ejemplo. Usa el boton "Vista previa" para ver datos reales.</p>
+                <p class="muted" style="font-size:11px;margin:0;">La vista previa usa datos de ejemplo. Usa el botón "Vista previa" para ver datos reales.</p>
               </div>
               <div id="tpl-var-coach" style="border:1px solid var(--border-color);border-radius:8px;background:var(--bg-alt);padding:12px;display:flex;flex-direction:column;gap:10px;">
                 <div>
@@ -282,7 +282,7 @@
                 <input id="tpl-var-search" placeholder="Ej. nombre del cliente, placa, total recibido" style="font-size:12px;padding:6px 8px;border-radius:6px;border:1px solid var(--border-color);">
                 <div id="tpl-var-search-results" class="list" style="max-height:160px;overflow:auto;border:1px dashed var(--border-color);padding:8px;border-radius:6px;background:#fff;"></div>
                 <div>
-                  <strong style="font-size:12px;">Listas por categoria</strong>
+                  <strong style="font-size:12px;">Listas por categoría</strong>
                   <div id="tpl-vars" class="list" style="max-height:200px;overflow:auto;margin-top:6px;font-size:12px;border:1px solid var(--border-color);padding:8px;background:#fff;border-radius:6px;"></div>
                 </div>
               </div>
@@ -322,7 +322,7 @@
           <div id="cf-mov-summary" class="muted" style="margin-top:8px;font-size:12px;">ÔÇö</div>
           <div class="table-wrap" style="max-height:360px;overflow:auto;margin-top:8px;">
             <table class="table small" style="min-width:920px;">
-              <thead><tr><th>Fecha</th><th>Cuenta</th><th>Descripci├│n</th><th>Fuente</th><th class="t-right">IN</th><th class="t-right">OUT</th><th class="t-right">Saldo</th></tr></thead>
+              <thead><tr><th>FecHa</th><th>Cuenta</th><th>Descripci├│n</th><th>Fuente</th><th class="t-right">IN</th><th class="t-right">OUT</th><th class="t-right">Saldo</th></tr></thead>
               <tbody id="cf-rows"></tbody>
             </table>
           </div>
@@ -349,7 +349,7 @@
                 Ingreso de veh├¡culo
               </label>
               <label class="row" style="gap:6px;margin-top:0;">
-                <input type="radio" name="vi-kind" id="vi-kind-purchase" value="purchase">
+                <input type="radio" name="vi-kind" id="vi-kind-purcHase" value="purcHase">
                 Ingreso de compra
               </label>
             </div>
@@ -359,14 +359,14 @@
               <label>Marca</label><input id="vi-brand" />
               <label>Modelo</label><input id="vi-model" />
               <label>Cilindraje</label><input id="vi-engine" />
-              <label>Fecha ingreso</label><input id="vi-date" type="date" />
+              <label>FecHa ingreso</label><input id="vi-date" type="date" />
               <label>Precio de entrada</label><input id="vi-price" type="number" min="0" step="0.01" />
             </div>
 
             <!-- Sub-form: Compra -->
-            <div id="vi-form-purchase" class="hidden">
+            <div id="vi-form-purcHase" class="hidden">
               <label>Lugar de compra</label><input id="vi-p-place" />
-              <label>Fecha</label><input id="vi-p-date" type="date" />
+              <label>FecHa</label><input id="vi-p-date" type="date" />
               <label>Precio de entrada</label><input id="vi-p-price" type="number" min="0" step="0.01" />
             </div>
 
@@ -418,8 +418,8 @@
         </div>
       </section>
 
-      <!-- ========== COTIZACIONES ========== -->
-      <section id="tab-cotizaciones" class="tab">
+      <!-- ========== CotizaciónES ========== -->
+      <section id="tab-Cotizaciónes" class="tab">
         <!-- Arriba: 2 columnas -->
         <div class="grid-2" id="quotes-body">
           <!-- Izquierda: Datos -->
@@ -432,7 +432,7 @@
                 <input id="q-number" disabled placeholder="00001" />
               </div>
               <div class="field">
-                <label>Fecha y hora</label>
+                <label>FecHa y hora</label>
                 <input id="q-datetime" disabled />
               </div>
             </div>
@@ -458,14 +458,14 @@
             <button id="q-saveDraft" class="secondary">Guardar borrador (local)</button>
           </div>
 
-          <!-- Derecha: Resumen / Acciones -->
+          <!-- DerecHa: Resumen / Acciones -->
           <div class="card" id="q-summary">
             <h3>Resumen / Acciones</h3>
             <p class="q-no"><span>No. cotizaci├│n: </span><strong id="q-number-big">00001</strong></p>
             <label>Validez (d├¡as, opcional)</label>
             <input id="q-valid-days" type="number" min="0" step="1" placeholder="p. ej. 8" />
-            <label>Vista previa WhatsApp</label>
-            <pre id="q-whatsappPreview" style="min-height:220px;white-space:pre-wrap;"></pre>
+            <label>Vista previa WHatsApp</label>
+            <pre id="q-wHatsappPreview" style="min-height:220px;white-space:pre-wrap;"></pre>
             <div class="row">
               <button id="q-clearAll" class="secondary">Borrar todo</button>
             </div>
@@ -521,14 +521,14 @@
 
             <div class="row">
               <button id="q-saveBackend">Guardar en historial</button>
-              <button id="q-sendWhatsApp">Enviar por WhatsApp</button>
+              <button id="q-sendWHatsApp">Enviar por WHatsApp</button>
               <button id="q-exportPdf" class="secondary">Exportar PDF</button>
             </div>
           </div>
 
           <!-- Debajo de ├ìtems: Historial (a todo el ancho) -->
           <div class="card span-2" id="q-history-card">
-            <h3>Historial de cotizaciones</h3>
+            <h3>Historial de Cotizaciónes</h3>
             <div class="row wrap" id="q-history-filters">
               <input id="qh-text" placeholder="Buscar por cliente o placa..." />
               <input id="qh-from" type="date" />
@@ -597,12 +597,12 @@
 
         <div class="ventas-grid">
 
-          <!-- Columna izquierda: Cotizaciones mini + Orden de trabajo -->
+          <!-- Columna izquierda: Cotizaciónes mini + Orden de trabajo -->
           <div class="ventas-left">
-            <!-- Cotizaciones mini -->
+            <!-- Cotizaciónes mini -->
             <div class="card">
               <div class="row between" style="gap:8px; align-items:center;">
-                <h3 style="margin:0">Cotizaciones</h3>
+                <h3 style="margin:0">Cotizaciónes</h3>
                 <div class="row" style="gap:6px;">
                   <button id="sv-loadQuote" class="secondary">Usar cotizaci├│n creada</button>
                   <button id="sv-applyQuoteCV" class="secondary">Aplicar cliente/veh├¡culo</button>
@@ -649,7 +649,7 @@
             </div>
           </div>
 
-          <!-- Columna derecha: Ventas -->
+          <!-- Columna derecHa: Ventas -->
           <div class="ventas-right">
             <!-- preview cliente/veh├¡culo + t├®cnico -->
             <div class="card" id="sv-customer-mini">
@@ -669,7 +669,7 @@
               </div>
             </div>
 
-            <!-- acciones agregar ├¡tems (reemplazado por botones superiores) -->
+            <!-- acciones agregar ├¡tems (reemplazado por botónes superiores) -->
             <!-- tabla venta -->
             <div class="card">
               <div class="table-wrap">
@@ -757,7 +757,7 @@
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Fecha</th>
+                  <th>FecHa</th>
                   <th>Placa</th>
                   <th>Cliente</th>
                   <th>T├®cnicos</th>
@@ -800,7 +800,7 @@
           </div>
           <div class="table-wrap mobile-as-cards" style="margin-top:8px;">
             <table class="table">
-              <thead><tr><th>#</th><th>Placa</th><th>Fecha</th><th class="t-right">Total</th><th></th></tr></thead>
+              <thead><tr><th>#</th><th>Placa</th><th>FecHa</th><th class="t-right">Total</th><th></th></tr></thead>
               <tbody id="sh-body"></tbody>
               <tfoot><tr><td colspan="4" class="t-right"><b>Total</b></td><td class="t-right" id="sh-total">$0</td></tr></tfoot>
             </table>
@@ -814,7 +814,7 @@
           <div class="row" style="justify-content:space-between;align-items:center;">
             <div>
               <div><strong>#</strong> <span data-number></span></div>
-              <div><strong>Fecha</strong> <span data-date></span></div>
+              <div><strong>FecHa</strong> <span data-date></span></div>
               <div><strong>Estado</strong> <span data-status></span></div>
             </div>
             <button class="secondary" data-print>Imprimir factura</button>
@@ -1047,7 +1047,7 @@
             <input id="qr-manual" placeholder="Ingresar c├│digo manualmente (fallback)">
             <button id="qr-add-manual">Agregar</button>
           </div>
-          <div class="muted" id="qr-msg" style="margin-top:6px;">Permite la c├ímara para escanear. Si no hay soporte nativo, uso jsQR.</div>
+          <div class="muted" id="qr-msg" style="margin-top:6px;">Permite la c├ímara para escanear. Si no Hay soporte nativo, uso jsQR.</div>
           <ul id="qr-history" class="qr-history"></ul>
         </div>
       </template>
@@ -1103,7 +1103,7 @@
       <div class="engine muted"></div>
     </div>
     <div class="content">
-      <div>Fecha ingreso: <span class="date"></span></div>
+      <div>FecHa ingreso: <span class="date"></span></div>
       <div>Precio: <span class="price"></span></div>
     </div>
     <div class="actions row" style="gap:6px;">
@@ -1178,7 +1178,7 @@
     <label>Marca</label><input id="e-vi-brand" />
     <label>Modelo</label><input id="e-vi-model" />
     <label>Motor</label><input id="e-vi-engine" />
-    <label>Fecha ingreso</label><input id="e-vi-date" type="date" />
+    <label>FecHa ingreso</label><input id="e-vi-date" type="date" />
     <label>Precio de entrada</label><input id="e-vi-price" type="number" step="0.01" />
     <div class="row" style="gap:8px; margin-top:10px;">
       <button id="e-vi-save">Guardar</button>
@@ -1216,7 +1216,7 @@
         <thead>
           <tr>
             <th>#</th>
-            <th>Fecha</th>
+            <th>FecHa</th>
             <th>Placa</th>
             <th>Cliente</th>
             <th>T├®cnicos</th>
@@ -1254,6 +1254,7 @@
   <script type="module" src="./assets/js/templates-friendly.js"></script>
 </body>
 </html>
+
 
 
 

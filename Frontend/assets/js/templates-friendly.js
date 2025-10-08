@@ -1,54 +1,64 @@
-﻿const VAR_CATALOG = [
+window.VAR_CATALOG = [
   { label: 'Nombre del cliente', value: '{{sale.customerName}}', group: 'Cliente y contacto', tags: ['cliente', 'nombre', 'comprador', 'persona'] },
-  { label: 'Telefono del cliente', value: '{{sale.customerPhone}}', group: 'Cliente y contacto', tags: ['cliente', 'telefono', 'celular', 'contacto'] },
+  { label: 'Tel\u00E9fono del cliente', value: '{{sale.customerPhone}}', group: 'Cliente y contacto', tags: ['cliente', 'tel\u00E9fono', 'contacto'] },
   { label: 'Correo del cliente', value: '{{sale.customerEmail}}', group: 'Cliente y contacto', tags: ['cliente', 'correo', 'email'] },
-  { label: 'Direccion de entrega', value: '{{sale.deliveryAddress}}', group: 'Cliente y contacto', tags: ['cliente', 'direccion', 'entrega'] },
+  { label: 'Direcci\u00F3n de entrega', value: '{{sale.deliveryAddress}}', group: 'Cliente y contacto', tags: ['cliente', 'direcci\u00F3n', 'entrega'] },
   { label: 'Nombre de la empresa', value: '{{company.name}}', group: 'Empresa', tags: ['empresa', 'nombre'] },
-  { label: 'Direccion de la empresa', value: '{{company.address}}', group: 'Empresa', tags: ['empresa', 'direccion'] },
-  { label: 'Telefono de la empresa', value: '{{company.phone}}', group: 'Empresa', tags: ['empresa', 'telefono'] },
+  { label: 'Direcci\u00F3n de la empresa', value: '{{company.address}}', group: 'Empresa', tags: ['empresa', 'direcci\u00F3n'] },
+  { label: 'Tel\u00E9fono de la empresa', value: '{{company.phone}}', group: 'Empresa', tags: ['empresa', 'tel\u00E9fono'] },
   { label: 'Correo de la empresa', value: '{{company.email}}', group: 'Empresa', tags: ['empresa', 'correo', 'email'] },
-  { label: 'Documento de la empresa', value: '{{company.ruc}}', group: 'Empresa', tags: ['empresa', 'documento', 'nit', 'ruc'] },
-  { label: 'Numero de documento', value: '{{sale.number}}', group: 'Documento', tags: ['numero', 'factura', 'venta', 'documento'] },
-  { label: 'Fecha de emision', value: '{{date sale.date}}', group: 'Documento', tags: ['fecha', 'emision'] },
+  { label: 'Documento de la empresa (NIT/RUT)', value: '{{company.ruc}}', group: 'Empresa', tags: ['empresa', 'documento', 'nit', 'ruc'] },
+  { label: 'N\u00FAmero de documento', value: '{{sale.number}}', group: 'Documento', tags: ['n\u00FAmero', 'factura', 'venta'] },
+  { label: 'Fecha de emisi\u00F3n', value: '{{date sale.date}}', group: 'Documento', tags: ['fecha', 'emisi\u00F3n'] },
   { label: 'Estado de la venta', value: '{{uppercase sale.status}}', group: 'Documento', tags: ['estado', 'estatus'] },
   { label: 'Asesor asignado', value: '{{sale.attendedBy}}', group: 'Documento', tags: ['asesor', 'responsable'] },
   { label: 'Notas internas', value: '{{sale.notes}}', group: 'Documento', tags: ['notas', 'comentarios'] },
   { label: 'Subtotal de la venta', value: '{{money sale.subtotal}}', group: 'Totales', tags: ['subtotal', 'venta'] },
-  { label: 'Impuesto de la venta', value: '{{money sale.tax}}', group: 'Totales', tags: ['impuesto', 'iva'] },
-  { label: 'Total a cobrar', value: '{{money sale.total}}', group: 'Totales', tags: ['total', 'venta', 'monto'] },
-  { label: 'Numero de cotizacion', value: '{{quote.number}}', group: 'Cotizacion', tags: ['cotizacion', 'numero'] },
-  { label: 'Fecha de la cotizacion', value: '{{date quote.date}}', group: 'Cotizacion', tags: ['cotizacion', 'fecha'] },
-  { label: 'Validez de la cotizacion', value: '{{date quote.validUntil}}', group: 'Cotizacion', tags: ['cotizacion', 'validez', 'vence'] },
-  { label: 'Total de la cotizacion', value: '{{money quote.total}}', group: 'Cotizacion', tags: ['cotizacion', 'total'] },
-  { label: 'Nombre del contacto (cotizacion)', value: '{{quote.customerName}}', group: 'Cotizacion', tags: ['cotizacion', 'cliente', 'nombre'] },
-  { label: 'Placa del vehiculo', value: '{{sale.vehicle.plate}}', group: 'Vehiculo', tags: ['vehiculo', 'placa'] },
-  { label: 'Marca del vehiculo', value: '{{sale.vehicle.brand}}', group: 'Vehiculo', tags: ['vehiculo', 'marca'] },
-  { label: 'Linea del vehiculo', value: '{{sale.vehicle.line}}', group: 'Vehiculo', tags: ['vehiculo', 'linea', 'modelo'] },
-  { label: 'Ano del vehiculo', value: '{{sale.vehicle.year}}', group: 'Vehiculo', tags: ['vehiculo', 'ano'] },
-  { label: 'Motor del vehiculo', value: '{{sale.vehicle.engine}}', group: 'Vehiculo', tags: ['vehiculo', 'motor'] },
-  { label: 'Items de la venta (tabla)', value: '{{#each sale.items}}\n<tr>\n  <td>{{qty}}</td>\n  <td>{{description}}</td>\n  <td>{{money unitPrice}}</td>\n  <td>{{money total}}</td>\n</tr>\n{{/each}}', group: 'Tablas y bucles', tags: ['tabla', 'items', 'venta'] },
-  { label: 'Items de la cotizacion (tabla)', value: '{{#each quote.items}}\n<tr>\n  <td>{{qty}}</td>\n  <td>{{description}}</td>\n  <td>{{money total}}</td>\n</tr>\n{{/each}}', group: 'Tablas y bucles', tags: ['tabla', 'items', 'cotizacion'] },
-  { label: 'Metodos de pago (tabla)', value: '{{#each sale.paymentMethods}}\n<tr>\n  <td>{{method}}</td>\n  <td>{{money amount}}</td>\n</tr>\n{{/each}}', group: 'Tablas y bucles', tags: ['tabla', 'pagos'] },
+  { label: 'Impuesto de la venta', value: '{{money sale.tax}}', group: 'Totales', tags: ['impuesto', 'IVA'] },
+  { label: 'Total a cobrar', value: '{{money sale.total}}', group: 'Totales', tags: ['total', 'venta'] },
+  { label: 'N\u00FAmero de cotizaci\u00F3n', value: '{{quote.number}}', group: 'Cotizaci\u00F3n', tags: ['cotizaci\u00F3n', 'n\u00FAmero'] },
+  { label: 'Fecha de la cotizaci\u00F3n', value: '{{date quote.date}}', group: 'Cotizaci\u00F3n', tags: ['cotizaci\u00F3n', 'fecha'] },
+  { label: 'Validez de la cotizaci\u00F3n', value: '{{date quote.validUntil}}', group: 'Cotizaci\u00F3n', tags: ['cotizaci\u00F3n', 'validez', 'vence'] },
+  { label: 'Total de la cotizaci\u00F3n', value: '{{money quote.total}}', group: 'Cotizaci\u00F3n', tags: ['cotizaci\u00F3n', 'total'] },
+  { label: 'Nombre del contacto (cotizaci\u00F3n)', value: '{{quote.customerName}}', group: 'Cotizaci\u00F3n', tags: ['cotizaci\u00F3n', 'cliente', 'nombre'] },
+  { label: 'Placa del veh\u00EDculo', value: '{{sale.vehicle.plate}}', group: 'Veh\u00EDculo', tags: ['veh\u00EDculo', 'placa'] },
+  { label: 'Marca del veh\u00EDculo', value: '{{sale.vehicle.brand}}', group: 'Veh\u00EDculo', tags: ['veh\u00EDculo', 'marca'] },
+  { label: 'L\u00EDnea del veh\u00EDculo', value: '{{sale.vehicle.line}}', group: 'Veh\u00EDculo', tags: ['veh\u00EDculo', 'l\u00EDnea', 'modelo'] },
+  { label: 'A\u00F1o del veh\u00EDculo', value: '{{sale.vehicle.year}}', group: 'Veh\u00EDculo', tags: ['veh\u00EDculo', 'a\u00F1o'] },
+  { label: 'Motor del veh\u00EDculo', value: '{{sale.vehicle.engine}}', group: 'Veh\u00EDculo', tags: ['veh\u00EDculo', 'motor'] },
+  { label: '\u00CDtems de la venta (tabla)', value: '{{#each sale.items}}\n<tr>\n  <td>{{qty}}</td>\n  <td>{{description}}</td>\n  <td>{{money unitPrice}}</td>\n  <td>{{money total}}</td>\n</tr>\n{{/each}}', group: 'Tablas y bucles', tags: ['tabla', '\u00EDtems', 'venta'] },
+  { label: '\u00CDtems de la cotizaci\u00F3n (tabla)', value: '{{#each quote.items}}\n<tr>\n  <td>{{qty}}</td>\n  <td>{{description}}</td>\n  <td>{{money total}}</td>\n</tr>\n{{/each}}', group: 'Tablas y bucles', tags: ['tabla', '\u00EDtems', 'cotizaci\u00F3n'] },
+  { label: 'M\u00E9todos de pago (tabla)', value: '{{#each sale.paymentMethods}}\n<tr>\n  <td>{{method}}</td>\n  <td>{{money amount}}</td>\n</tr>\n{{/each}}', group: 'Tablas y bucles', tags: ['tabla', 'pagos'] },
   { label: 'Helper dinero', value: '{{money value}}', group: 'Helpers', tags: ['helper', 'dinero'] },
   { label: 'Helper fecha', value: '{{date value}}', group: 'Helpers', tags: ['helper', 'fecha'] },
-  { label: 'Helper mayusculas', value: '{{uppercase text}}', group: 'Helpers', tags: ['helper', 'mayusculas'] },
-  { label: 'Helper minusculas', value: '{{lowercase text}}', group: 'Helpers', tags: ['helper', 'minusculas'] },
-  { label: 'Helper ceros a la izquierda', value: '{{pad value 5}}', group: 'Helpers', tags: ['helper', 'ceros', 'rellenar'] },
-  { label: 'Numero de orden de trabajo', value: '{{sale.workOrderNumber}}', group: 'Documento', tags: ['orden', 'trabajo', 'numero'] },
-  { label: 'Valor para QR (numero de venta)', value: 'sale.number', group: 'Extras', tags: ['qr', 'codigo'] }
+  { label: 'Helper may\u00FAsculas', value: '{{uppercase text}}', group: 'Helpers', tags: ['helper', 'may\u00FAsculas'] },
+  { label: 'Helper min\u00FAsculas', value: '{{lowercase text}}', group: 'Helpers', tags: ['helper', 'min\u00FAsculas'] },
+  { label: 'Helper ceros a la izquierda', value: '{{pad value 5}}', group: 'Helpers', tags: ['helper', 'ceros'] },
+  { label: 'N\u00FAmero de orden de trabajo', value: '{{sale.workOrderNumber}}', group: 'Documento', tags: ['orden', 'trabajo'] },
+  { label: 'Valor para QR (n\u00FAmero de venta)', value: 'sale.number', group: 'Extras', tags: ['qr', 'c\u00F3digo', 'venta'] }
 ];
 
-const GROUP_ORDER = ['Cliente y contacto', 'Documento', 'Totales', 'Empresa', 'Vehiculo', 'Cotizacion', 'Tablas y bucles', 'Helpers', 'Extras'];
+const GROUP_ORDER = [
+  'Cliente y contacto',
+  'Documento',
+  'Totales',
+  'Empresa',
+  'Veh\u00EDculo',
+  'Cotizaci\u00F3n',
+  'Tablas y bucles',
+  'Helpers',
+  'Extras'
+];
 
-const PRESETS = {
+window.PRESETS = {
   'invoice-basic': {
-    name: 'Factura rapida',
+    name: 'Factura r\u00E1pida',
     html: `<div class="doc">
   <h1>Factura {{sale.number}}</h1>
   <p>Cliente: {{sale.customerName}}</p>
   <table class="items">
     <thead>
-      <tr><th>Cant</th><th>Descripcion</th><th>Unit</th><th>Total</th></tr>
+      <tr><th>Cant</th><th>Descripci\u00F3n</th><th>Unit</th><th>Total</th></tr>
     </thead>
     <tbody>
       {{#each sale.items}}
@@ -70,11 +80,11 @@ table.items th,table.items td{border:1px solid #ccc;padding:6px;text-align:left;
 table.items th{background:#f1f1f1;}`
   },
   'quote-minimal': {
-    name: 'Cotizacion minimal',
+    name: 'Cotizaci\u00F3n minimal',
     html: `<div class="doc">
-  <h1>Cotizacion {{quote.number}}</h1>
+  <h1>Cotizaci\u00F3n {{quote.number}}</h1>
   <p>Cliente: {{quote.customerName}}</p>
-  <p>Valida hasta: {{date quote.validUntil}}</p>
+  <p>V\u00E1lida hasta: {{date quote.validUntil}}</p>
   <ul>
     {{#each quote.items}}
     <li>{{qty}} x {{description}} - {{money total}}</li>
@@ -88,10 +98,10 @@ ul{padding-left:18px;}
 li{margin:4px 0;}`
   },
   'work-order': {
-    name: 'Orden de trabajo basica',
+    name: 'Orden de trabajo b\u00E1sica',
     html: `<div class="doc">
   <h1>Orden de trabajo {{sale.number}}</h1>
-  <p><strong>Vehiculo:</strong> {{sale.vehicle.brand}} {{sale.vehicle.line}} - Placa {{sale.vehicle.plate}}</p>
+  <p><strong>Veh\u00EDculo:</strong> {{sale.vehicle.brand}} {{sale.vehicle.line}} - Placa {{sale.vehicle.plate}}</p>
   <p><strong>Cliente:</strong> {{sale.customerName}}</p>
   <ol>
     {{#each sale.items}}
@@ -108,8 +118,8 @@ li{margin:4px 0;}`
   'blank-canvas': {
     name: 'Lienzo en blanco',
     html: `<div class="doc">
-  <h1>Titulo del documento</h1>
-  <p>Empieza a escribir aqui.</p>
+  <h1>T\u00EDtulo del documento</h1>
+  <p>Empieza a escribir aqu\u00ED.</p>
 </div>`,
     css: `.doc{max-width:720px;margin:0 auto;font-family:Arial,sans-serif;font-size:12px;color:#222;line-height:1.4;}`
   }
@@ -117,7 +127,7 @@ li{margin:4px 0;}`
 
 const TYPE_LABELS = {
   invoice: 'Factura',
-  quote: 'Cotizacion',
+  quote: 'Cotizaci\u00F3n',
   workOrder: 'Orden de trabajo',
   sticker: 'Sticker'
 };
@@ -129,12 +139,12 @@ function initFriendlyTemplates(){
   const htmlField = document.getElementById('tpl-html');
   const cssField = document.getElementById('tpl-css');
   const msgBox = document.getElementById('tpl-msg');
-  const typeSelect = document.getElementById('tpl-editor-type');
-  const nameInput = document.getElementById('tpl-name');
   const varsBox = document.getElementById('tpl-vars');
   const searchInput = document.getElementById('tpl-var-search');
   const searchResults = document.getElementById('tpl-var-search-results');
   const presetPanel = document.getElementById('tpl-quick-presets');
+  const nameInput = document.getElementById('tpl-name');
+  const typeSelect = document.getElementById('tpl-editor-type');
   const modeToggle = document.getElementById('tpl-mode-toggle');
 
   if(!htmlField || !varsBox) return;
@@ -149,45 +159,34 @@ function initFriendlyTemplates(){
   }
 
   if(presetPanel){
-    presetPanel.addEventListener('click', (event)=>{
+    presetPanel.addEventListener('click', event=>{
       const btn = event.target.closest('.tpl-preset');
       if(!btn) return;
       const preset = PRESETS[btn.dataset.preset];
       if(!preset) return;
-      if(htmlField.value.trim().length && !confirm('Esto reemplazara el contenido actual. Continuar?')) return;
+      if(htmlField.value.trim().length && !confirm('Esto reemplazará el contenido actual. ¿Continuar?')) return;
       htmlField.value = preset.html;
       if(cssField) cssField.value = preset.css;
-      if(msgBox) msgBox.textContent = 'Plantilla base "' + preset.name + '" cargada';
+      if(msgBox) msgBox.textContent = `Plantilla base "${preset.name}" cargada`;
       setStep(2);
+      updateSelectionChip();
     });
   }
 
-  if(nameInput){
-    nameInput.addEventListener('input', updateSelectionChip);
-  }
-  if(typeSelect){
-    typeSelect.addEventListener('change', updateSelectionChip);
-  }
+  if(nameInput) nameInput.addEventListener('input', updateSelectionChip);
+  if(typeSelect) typeSelect.addEventListener('change', updateSelectionChip);
 
-  htmlField.addEventListener('input', ()=> setStep(htmlField.value.trim() ? 2 : 1));
-  if(cssField){
-    cssField.addEventListener('input', ()=> setStep(cssField.value.trim() ? 2 : 1));
+  if(modeToggle){
+    modeToggle.addEventListener('click', ()=> setTimeout(updateSelectionChip, 120));
   }
-
-
-  const scheduleChipUpdate = () => setTimeout(updateSelectionChip, 150);
-  document.addEventListener('click', (event)=>{
+  document.addEventListener('click', event=>{
     if(event.target.closest('.tpl-edit') || event.target.closest('#tpl-new') || event.target.closest('#tpl-dup') || event.target.closest('#tpl-save')){
-      scheduleChipUpdate();
+      setTimeout(updateSelectionChip, 120);
     }
   });
 
-  if(modeToggle){
-    modeToggle.addEventListener('click', ()=>{
-      const visualVisible = !document.getElementById('tpl-visual-editor')?.classList.contains('hidden');
-      setStep(visualVisible ? 2 : 1);
-    });
-  }
+  htmlField.addEventListener('input', ()=> setStep(htmlField.value.trim() ? 2 : 1));
+  if(cssField) cssField.addEventListener('input', ()=> setStep(cssField.value.trim() ? 2 : 1));
 
   updateSelectionChip();
   setStep(1);
@@ -201,25 +200,17 @@ function buildGroupedCatalog(){
     grouped[key].push(item);
   });
   const ordered = GROUP_ORDER.concat(Object.keys(grouped).filter(key => GROUP_ORDER.indexOf(key) === -1));
-  const result = [];
-  ordered.forEach(group=>{
-    const items = grouped[group];
-    if(items && items.length){
-      result.push({ group, items });
-    }
-  });
-  return result;
+  return ordered
+    .map(group => ({ group, items: grouped[group] }))
+    .filter(entry => entry.items && entry.items.length);
 }
 
 function renderCatalog(container, categories){
-  const parts = categories.map(({ group, items })=>{
-    const cards = items.map(item=> renderVarCard(item)).join('');
-    return `<details class="var-group" open>
-      <summary style="cursor:pointer;font-weight:600;">${escapeHtml(group)}</summary>
-      <div class="var-group-body">${cards}</div>
-    </details>`;
-  });
-  container.innerHTML = parts.join('');
+  const content = categories.map(({ group, items })=>{
+    const cards = items.map(renderVarCard).join('');
+    return `<details class="var-group" open><summary style="cursor:pointer;font-weight:600;">${escapeHtml(group)}</summary><div class="var-group-body">${cards}</div></details>`;
+  }).join('');
+  container.innerHTML = content;
 }
 
 function renderVarCard(item){
@@ -228,7 +219,7 @@ function renderVarCard(item){
   return `<div class="var-card var-item" data-insert="${value}" data-label="${label}" style="border:1px solid var(--border-color);background:#fff;border-radius:6px;padding:6px 8px;margin:4px 0;cursor:pointer;">
     <div style="font-weight:600;font-size:12px;">${label}</div>
     <code style="font-size:11px;display:block;margin-top:4px;word-break:break-all;">${value}</code>
-    <div class="muted" style="font-size:10px;margin-top:2px;">Click para insertar o copiar</div>
+    <div class="muted" style="font-size:10px;margin-top:2px;">Clic para insertar o copiar</div>
   </div>`;
 }
 
@@ -236,7 +227,7 @@ function attachVariableCards(container, msgBox){
   container.querySelectorAll('[data-insert]').forEach(card=>{
     card.addEventListener('click', ()=>{
       insertVariable(card.dataset.insert);
-      if(msgBox) msgBox.textContent = 'Insertado: ' + (card.dataset.label || card.dataset.insert);
+      if(msgBox) msgBox.textContent = `Insertado: ${card.dataset.label || card.dataset.insert}`;
       setStep(3);
     });
   });
@@ -249,9 +240,10 @@ function renderSearch(input, resultsBox, msgBox){
     return;
   }
   const hits = VAR_CATALOG.filter(item=>{
-    const haystack = (item.label + ' ' + item.value + ' ' + (item.tags||[]).join(' ')).toLowerCase();
-    return haystack.indexOf(term) !== -1;
+    const haystack = (item.label + ' ' + item.value + ' ' + (item.tags || []).join(' ')).toLowerCase();
+    return haystack.includes(term);
   }).slice(0, 20);
+
   if(!hits.length){
     resultsBox.innerHTML = '<div class="muted" style="font-size:12px;">Sin coincidencias.</div>';
     return;
@@ -261,9 +253,13 @@ function renderSearch(input, resultsBox, msgBox){
 }
 
 function insertVariable(text){
+  if(!text) return;
   const htmlField = document.getElementById('tpl-html');
-  if(!text || !htmlField) return;
-  insertAtCursor(htmlField, text);
+  const active = document.activeElement;
+  const target = active && typeof active.value === 'string' && !active.readOnly && !active.disabled && active !== document.getElementById('tpl-var-search')
+    ? active
+    : htmlField;
+  insertAtCursor(target, text);
   if(window.navigator && navigator.clipboard && window.isSecureContext){
     navigator.clipboard.writeText(text).catch(()=>{});
   }
@@ -285,9 +281,8 @@ function insertAtCursor(field, text){
 
 function setStep(step){
   const items = document.querySelectorAll('.tpl-step-item');
-  if(!items.length) return;
-  items.forEach((el, idx)=>{
-    if(idx <= step - 1){
+  items.forEach((el, index)=>{
+    if(index <= step - 1){
       el.classList.add('active');
     } else {
       el.classList.remove('active');
@@ -299,15 +294,15 @@ function updateSelectionChip(){
   const chip = document.getElementById('tpl-selected-info');
   const typeSelect = document.getElementById('tpl-editor-type');
   const nameInput = document.getElementById('tpl-name');
-  if(!chip || !typeSelect) return;
-  const typeLabel = TYPE_LABELS[typeSelect.value] || typeSelect.value || 'Formato';
+  if(!chip) return;
+  const typeLabel = TYPE_LABELS[typeSelect?.value] || typeSelect?.value || 'Formato';
   const nameValue = nameInput ? nameInput.value.trim() : '';
-  chip.textContent = (nameValue ? nameValue : 'Sin nombre') + ' - ' + typeLabel;
-  chip.title = 'Tipo: ' + typeLabel;
+  chip.textContent = `${nameValue || 'Sin nombre'} - ${typeLabel}`;
+  chip.title = `Tipo: ${typeLabel}`;
 }
 
-function escapeHtml(str){
-  return (str||'').replace(/[&<>]/g, ch=> ({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]));
+function escapeHtml(str = ''){
+  return str.replace(/[&<>]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]));
 }
 
 document.addEventListener('DOMContentLoaded', initFriendlyTemplates);
