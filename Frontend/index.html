@@ -128,7 +128,7 @@
                 <option value="OTRO">OTRO</option>
               </select>
             </div>
-            <label>Im├ígenes/Videos</label>
+            <label>Imágenes/Videos</label>
             <input id="n-files" type="file" multiple />
             <button id="n-save">Guardar Nota</button>
           </div>
@@ -174,7 +174,7 @@
             </table>
           </div>
           <div class="row between" style="margin-top:8px;font-size:12px;">
-            <div id="cf-pag" class="muted">P├ígina 1</div>
+            <div id="cf-pag" class="muted">Página 1</div>
             <div class="row" style="gap:6px;">
               <button id="cf-prev" class="secondary" disabled>ÔùÇ</button>
               <button id="cf-next" class="secondary" disabled>ÔûÂ</button>
@@ -227,7 +227,7 @@
         </div>
 
         <div class="card span-2" id="item-form">
-          <h3>Nuevo ├ìtem</h3>
+          <h3>Nuevo ítem</h3>
           <label>SKU</label><input id="it-sku" />
           <label>Nombre</label><input id="it-name" />
           <label>Nombre interno (opcional)</label><input id="it-internal" />
@@ -243,9 +243,9 @@
             <option value="true">S├¡</option>
           </select>
           <label>Stock inicial</label><input id="it-stock" type="number" min="0" step="1" />
-          <label>Im├ígenes/Videos del ├¡tem</label>
+          <label>Imágenes/Videos del ítem</label>
           <input id="it-files" type="file" multiple />
-          <button id="it-save">Guardar ├ìtem</button>
+          <button id="it-save">Guardar ítem</button>
         </div>
 
         <div class="card span-2" id="inventory-list">
@@ -265,8 +265,8 @@
         </div>
       </section>
 
-      <!-- ========== CotizaciónES ========== -->
-      <section id="tab-Cotizaciónes" class="tab">
+  <!-- ========== Cotizaciones ========== -->
+  <section id="tab-cotizaciones" class="tab">
         <!-- Arriba: 2 columnas -->
         <div class="grid-2" id="quotes-body">
           <!-- Izquierda: Datos -->
@@ -318,13 +318,13 @@
             </div>
           </div>
 
-          <!-- Abajo: ├ìtems (a todo el ancho) -->
+          <!-- Abajo: ítems (a todo el ancho) -->
           <div class="card span-2" id="q-items-card">
-            <h3>├ìtems</h3>
+            <h3>Ítems</h3>
 
             <!-- Contenedor de ├¡tems en 2 columnas -->
             <div id="q-rows" class="q-grid-2cols">
-              <!-- Plantilla oculta de ├ìtem -->
+              <!-- Plantilla oculta de ítem -->
               <div class="tr q-row-card hidden" id="q-row-template" data-template>
                 <div>
                   <label class="sr-only">Tipo</label>
@@ -373,9 +373,9 @@
             </div>
           </div>
 
-          <!-- Debajo de ├ìtems: Historial (a todo el ancho) -->
+          <!-- Debajo de ítems: Historial (a todo el ancho) -->
           <div class="card span-2" id="q-history-card">
-            <h3>Historial de Cotizaciónes</h3>
+            <h3>Historial de Cotizaciones</h3>
             <div class="row wrap" id="q-history-filters">
               <input id="qh-text" placeholder="Buscar por cliente o placa..." />
               <input id="qh-from" type="date" />
@@ -420,7 +420,7 @@
 
       <!-- ========== VENTAS ========== -->
       <section id="tab-ventas" class="tab">
-        <!-- C├ípsulas a todo el ancho -->
+  <!-- Cápsulas a todo el ancho -->
         <div id="sales-capsules-bar" class="capsules-bar card fullwidth-bar" style="margin-bottom:12px;">
           <div class="row between" style="align-items:center; gap:8px; flex-wrap:wrap;">
             <div id="sales-capsules" class="row wrap capsules-wrap" style="gap:8px; flex:1;"></div>
@@ -444,12 +444,12 @@
 
         <div class="ventas-grid">
 
-          <!-- Columna izquierda: Cotizaciónes mini + Orden de trabajo -->
+          <!-- Columna izquierda: Cotizaciones mini + Orden de trabajo -->
           <div class="ventas-left">
-            <!-- Cotizaciónes mini -->
+            <!-- Cotizaciones mini -->
             <div class="card">
               <div class="row between" style="gap:8px; align-items:center;">
-                <h3 style="margin:0">Cotizaciónes</h3>
+                <h3 style="margin:0">Cotizaciones</h3>
                 <div class="row" style="gap:6px;">
                   <button id="sv-loadQuote" class="secondary">Usar cotizaci├│n creada</button>
                   <button id="sv-applyQuoteCV" class="secondary">Aplicar cliente/veh├¡culo</button>
