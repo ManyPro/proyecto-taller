@@ -24,7 +24,7 @@
       </div>
       <div class="row" style="gap:6px;align-items:center;">
         <button id="logoutBtn" class="secondary hidden">Salir</button>
-        <button id="themeToggle" class="secondary" title="Cambiar tema">­ƒîù</button>
+  <button id="themeToggle" class="secondary" title="Cambiar tema">🌓</button>
       </div>
     </div>
   </header>
@@ -118,7 +118,7 @@
             <div id="pay-box" class="hidden">
               <label>Monto del pago</label>
               <input id="n-pay-amount" type="number" min="0" step="0.01" />
-              <label>M├®todo de pago</label>
+              <label>Método de pago</label>
               <select id="n-pay-method">
                 <option value="EFECTIVO">EFECTIVO</option>
                 <option value="TRANSFERENCIA">TRANSFERENCIA</option>
@@ -152,7 +152,7 @@
           <div id="cf-accounts" class="table-wrap" style="max-height:200px;overflow:auto;margin-top:8px;">
             <table class="table small"><thead><tr><th>Nombre</th><th>Tipo</th><th class="t-right">Saldo</th><th></th></tr></thead><tbody id="cf-acc-body"></tbody></table>
           </div>
-          <div id="cf-acc-total" class="muted" style="margin-top:6px;font-size:12px;">Total: ÔÇö</div>
+          <div id="cf-acc-total" class="muted" style="margin-top:6px;font-size:12px;">Total: —</div>
         </div>
         <div class="card" style="margin-top:16px;">
           <h3>Movimientos</h3>
@@ -166,18 +166,18 @@
             <button id="cf-new-entry">+ Entrada manual</button>
             <button id="cf-new-expense" class="danger">- Salida</button>
           </div>
-          <div id="cf-mov-summary" class="muted" style="margin-top:8px;font-size:12px;">ÔÇö</div>
+          <div id="cf-mov-summary" class="muted" style="margin-top:8px;font-size:12px;">—</div>
           <div class="table-wrap" style="max-height:360px;overflow:auto;margin-top:8px;">
             <table class="table small" style="min-width:920px;">
-              <thead><tr><th>FecHa</th><th>Cuenta</th><th>Descripci├│n</th><th>Fuente</th><th class="t-right">IN</th><th class="t-right">OUT</th><th class="t-right">Saldo</th></tr></thead>
+              <thead><tr><th>Fecha</th><th>Cuenta</th><th>Descripción</th><th>Fuente</th><th class="t-right">IN</th><th class="t-right">OUT</th><th class="t-right">Saldo</th></tr></thead>
               <tbody id="cf-rows"></tbody>
             </table>
           </div>
           <div class="row between" style="margin-top:8px;font-size:12px;">
             <div id="cf-pag" class="muted">Página 1</div>
             <div class="row" style="gap:6px;">
-              <button id="cf-prev" class="secondary" disabled>ÔùÇ</button>
-              <button id="cf-next" class="secondary" disabled>ÔûÂ</button>
+              <button id="cf-prev" class="secondary" disabled>←</button>
+              <button id="cf-next" class="secondary" disabled>→</button>
             </div>
           </div>
         </div>
@@ -251,7 +251,7 @@
         <div class="card span-2" id="inventory-list">
           <h3>Inventario</h3>
           <div class="row" id="items-filters">
-            <!-- Barra de selecci├│n/acci├│n de stickers -->
+            <!-- Barra de selección/acción de stickers -->
             <div id="stickerBar" class="row sticker-toolbar"></div>
             <input id="q-name" placeholder="Filtrar por nombre..." />
             <input id="q-sku" placeholder="SKU..." />
@@ -287,7 +287,7 @@
             <label>Cliente</label>
             <input id="q-client-name" placeholder="Nombre del cliente" />
             <div class="row">
-              <input id="q-client-phone" placeholder="Tel├®fono (opcional)" />
+              <input id="q-client-phone" placeholder="Teléfono (opcional)" />
               <input id="q-client-email" placeholder="Correo (opcional)" />
             </div>
 
@@ -308,8 +308,8 @@
           <!-- DerecHa: Resumen / Acciones -->
           <div class="card" id="q-summary">
             <h3>Resumen / Acciones</h3>
-            <p class="q-no"><span>No. cotizaci├│n: </span><strong id="q-number-big">00001</strong></p>
-            <label>Validez (d├¡as, opcional)</label>
+            <p class="q-no"><span>No. cotización: </span><strong id="q-number-big">00001</strong></p>
+            <label>Validez (días, opcional)</label>
             <input id="q-valid-days" type="number" min="0" step="1" placeholder="p. ej. 8" />
             <label>Vista previa WHatsApp</label>
             <pre id="q-wHatsappPreview" style="min-height:220px;white-space:pre-wrap;"></pre>
@@ -322,7 +322,7 @@
           <div class="card span-2" id="q-items-card">
             <h3>Ítems</h3>
 
-            <!-- Contenedor de ├¡tems en 2 columnas -->
+            <!-- Contenedor de ítems en 2 columnas -->
             <div id="q-rows" class="q-grid-2cols">
               <!-- Plantilla oculta de ítem -->
               <div class="tr q-row-card hidden" id="q-row-template" data-template>
@@ -334,8 +334,8 @@
                   </select>
                 </div>
                 <div>
-                  <label class="sr-only">Descripci├│n</label>
-                  <input placeholder="Descripci├│n" />
+                  <label class="sr-only">Descripción</label>
+                  <input placeholder="Descripción" />
                 </div>
                 <div class="small">
                   <label class="sr-only">Cant.</label>
@@ -356,7 +356,7 @@
             </div>
 
             <div class="row" id="q-addbar">
-              <button id="q-addRow">+ Agregar l├¡nea</button>
+              <button id="q-addRow">+ Agregar línea</button>
               <button id="q-addQR" class="secondary">Agregar por QR</button>
             </div>
 
@@ -399,9 +399,9 @@
           </div>
           <div class="row" id="filters-bar">
             <input id="pf-brand" placeholder="Marca..." />
-            <input id="pf-line" placeholder="L├¡nea..." />
+            <input id="pf-line" placeholder="Línea..." />
             <input id="pf-engine" placeholder="Motor..." />
-            <input id="pf-year" placeholder="A├▒o..." type="number" />
+            <input id="pf-year" placeholder="Año..." type="number" />
             <button id="pf-search" class="secondary">Buscar</button>
             <button id="pf-clear" class="secondary">Limpiar</button>
             <button id="pe-new">Nueva fila</button>
@@ -451,37 +451,37 @@
               <div class="row between" style="gap:8px; align-items:center;">
                 <h3 style="margin:0">Cotizaciones</h3>
                 <div class="row" style="gap:6px;">
-                  <button id="sv-loadQuote" class="secondary">Usar cotizaci├│n creada</button>
-                  <button id="sv-applyQuoteCV" class="secondary">Aplicar cliente/veh├¡culo</button>
+                  <button id="sv-loadQuote" class="secondary">Usar cotización creada</button>
+                  <button id="sv-applyQuoteCV" class="secondary">Aplicar cliente/vehículo</button>
                 </div>
               </div>
-              <div class="muted" id="sv-q-header" style="margin-top:6px;">ÔÇö ninguna cotizaci├│n cargada ÔÇö</div>
+              <div class="muted" id="sv-q-header" style="margin-top:6px;">— ninguna cotización cargada —</div>
               <div class="table-wrap small" style="margin-top:8px;">
                 <table class="table">
                   <thead>
                     <tr>
                       <th>Tipo</th>
-                      <th>Descripci├│n</th>
-                      <th class="t-center">Cant.</th>
-                      <th class="t-right">Unit</th>
-                      <th class="t-right">Total</th>
-                      <th class="t-center">ÔåÆ Venta</th>
-                    </tr>
-                  </thead>
-                  <tbody id="sv-q-body"></tbody>
-                </table>
-              </div>
-              <div class="row right" style="margin-top:8px; gap:8px;">
-                <button id="sv-q-to-sale" class="secondary">Pasar TODO a venta…</button>
-              </div>
-            </div>
-
-            <!-- Orden de trabajo -->
-            <div class="card">
-              <div class="row between" style="gap:8px; align-items:center;">
-                <h3 style="margin:0">Orden de trabajo</h3>
-                <button id="sv-print-wo" class="secondary">Imprimir OT</button>
-              </div>
+                      <th>Descripción</th>
+                      <th class="t-center">✓ Venta</th>
+                      <th>Descripción</th>
+  <footer><small>© Taller App</small></footer>
+          <div class="muted">Mostrando <span id="p-inv-count">0</span> ítems</div>
+              <input id="p-inv-name" placeholder="Nombre…" />
+              <input id="p-inv-sku" placeholder="SKU…" />
+              <button id="p-inv-more" class="secondary">Cargar más</button>
+              <input id="p-pr-line" placeholder="Línea" />
+              <input id="p-pr-year" placeholder="Año" type="number" />
+              <button id="p-pr-more" class="secondary">Cargar más</button>
+            <div class="muted">Mostrando <span id="p-pr-count">0</span> filas</div>
+        <span class="sales-tab">
+          <span class="label"></span><span class="close">×</span>
+        </span>
+            <span class="sc-plate">ABC123</span>
+            <button class="sc-close" title="Cancelar">×</button>
+          <div class="sc-veh" data-veh>Marca Línea Motor</div>
+          <div class="sc-tech" data-tech>—</div>
+            <input id="qr-manual" placeholder="Ingresar código manualmente (fallback)">
+          <div class="muted" id="qr-msg" style="margin-top:6px;">Permite la cámara para escanear. Si no hay soporte nativo, usa jsQR.</div>
               <div class="table-wrap small" style="margin-top:8px;">
                 <table class="table">
                   <thead>
