@@ -167,6 +167,33 @@
     initCompany();
     document.getElementById('save-template').addEventListener('click', saveTemplate);
     document.getElementById('load-template').addEventListener('click', loadTemplate);
+    const previewBtn = document.getElementById('preview-template');
+    const overlay = document.getElementById('preview-overlay');
+    const closeBtn = document.getElementById('preview-close');
+    const frame = document.getElementById('preview-frame');
+    if(previewBtn && overlay && frame){
+      previewBtn.addEventListener('click', async ()=>{
+        const companyId = document.getElementById('company-select').value;
+        const type = prompt('Tipo para vista previa (invoice, quote, workOrder, sticker):');
+        if(!companyId || !type) return alert('Faltan datos');
+        const html = canvas().innerHTML;
+        const pdfSize = document.getElementById('pdf-size').value;
+        const meta = { pdfSize };
+        if(pdfSize==='custom') { meta.customW=document.getElementById('custom-width').value; meta.customH=document.getElementById('custom-height').value; }
+        try {
+          const resp = await API.templates.preview({ companyId, type, contentHtml: html, contentCss:'', meta });
+          const docHtml = resp?.html || html;
+          const blob = new Blob([docHtml], { type:'text/html' });
+          const url = URL.createObjectURL(blob);
+          frame.src = url;
+          overlay.style.display='flex';
+        } catch(e){
+          alert('Error en vista previa: '+(e.message||e));
+        }
+      });
+      closeBtn && closeBtn.addEventListener('click', ()=>{ overlay.style.display='none'; frame.src='about:blank'; });
+      overlay.addEventListener('click', e=>{ if(e.target===overlay){ overlay.style.display='none'; frame.src='about:blank'; }});
+    }
   }
 
   document.addEventListener('DOMContentLoaded', init);
