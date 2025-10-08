@@ -834,12 +834,15 @@ export function initInventory() {
         d.onclick = (ev) => {
           const btn = ev.target.closest("button.del");
           if (btn) return;
-          viewer.style.display = "block";
-          viewer.innerHTML = m.mimetype?.startsWith("video/")
-            ? `<video controls src="${m.url}" style="max-width:100%;max-height:70vh;object-fit:contain;"></video>`
-            : `<img src="${m.url}" alt="media" style="max-width:100%;max-height:70vh;object-fit:contain;"/>`;
+          // Abrir modal global para ver en grande
+          invOpenModal(
+            `<div class='viewer-modal'>` +
+            (m.mimetype?.startsWith("video/")
+              ? `<video controls src='${m.url}' style='max-width:90vw;max-height:80vh;object-fit:contain;'></video>`
+              : `<img src='${m.url}' alt='media' style='max-width:90vw;max-height:80vh;object-fit:contain;'/>`)
+            + `</div>`
+          );
         };
-
         d.querySelector("button.del").onclick = () => {
           images.splice(idx, 1);
           renderThumbs();
