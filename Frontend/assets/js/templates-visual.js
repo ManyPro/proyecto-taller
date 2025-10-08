@@ -21,20 +21,50 @@ document.addEventListener('DOMContentLoaded', function() {
     theme: 'snow'
   });
 
-  document.getElementById('save-template').onclick = function() {
-    const html = quill.root.innerHTML;
-    // Aquí se debe guardar la plantilla en el backend por companyID
-    alert('Plantilla guardada (simulado):\n' + html);
-  };
-
-  document.getElementById('load-template').onclick = function() {
-    // Aquí se debe cargar la plantilla desde el backend por companyID
-    quill.root.innerHTML = '<h2>Ejemplo de plantilla cargada</h2><p>Texto editable...</p>';
-  };
-
-  // Simulación de selección de empresa
+  // Obtener empresa activa
   const companySelect = document.getElementById('company-select');
-  companySelect.innerHTML = '<option value="1">Empresa 1</option><option value="2">Empresa 2</option>';
+  async function loadCompanies() {
+    try {
+      const me = await API.companyMe();
+      // Simulación: solo una empresa activa
+      companySelect.innerHTML = `<option value="${me.company._id}">${me.company.name || me.company.email}</option>`;
+    } catch(e) {
+      companySelect.innerHTML = '<option value="">Empresa no disponible</option>';
+    }
+  }
+  loadCompanies();
+
+  // Guardar plantilla
+  document.getElementById('save-template').onclick = async function() {
+    const html = quill.root.innerHTML;
+    const companyId = companySelect.value;
+    const name = prompt('Nombre de la plantilla:');
+    const type = prompt('Tipo de documento (invoice, quote, workOrder, sticker):');
+    if (!companyId || !name || !type) return alert('Faltan datos.');
+    try {
+      await API.templates.create({ companyId, name, type, contentHtml: html, contentCss: '', active: false });
+      alert('Plantilla guardada correctamente.');
+    } catch(e) {
+      alert('Error al guardar: ' + (e.message || e));
+    }
+  };
+
+  // Cargar plantilla
+  document.getElementById('load-template').onclick = async function() {
+    const companyId = companySelect.value;
+    const type = prompt('Tipo de documento a cargar (invoice, quote, workOrder, sticker):');
+    if (!companyId || !type) return alert('Faltan datos.');
+    try {
+      const list = await API.templates.list({ companyId, type });
+      if (!list.length) return alert('No hay plantillas para ese tipo.');
+      // Seleccionar la última versión
+      const tpl = list[0];
+      quill.root.innerHTML = tpl.contentHtml || '';
+      alert('Plantilla cargada: ' + tpl.name);
+    } catch(e) {
+      alert('Error al cargar: ' + (e.message || e));
+    }
+  };
 
   // Mostrar variables
   const varList = document.getElementById('var-list');
