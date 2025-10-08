@@ -16,7 +16,11 @@ document.addEventListener('DOMContentLoaded', function() {
         [{ list: 'ordered' }, { list: 'bullet' }],
         ['link', 'image'],
         ['clean']
-      ]
+      ],
+      imageResize: {
+        parchment: Quill.import('parchment'),
+        modules: [ 'Resize', 'DisplaySize', 'Toolbar' ]
+      }
     },
     theme: 'snow'
   });
@@ -40,9 +44,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const companyId = companySelect.value;
     const name = prompt('Nombre de la plantilla:');
     const type = prompt('Tipo de documento (invoice, quote, workOrder, sticker):');
+    const pdfSize = document.getElementById('pdf-size').value;
     if (!companyId || !name || !type) return alert('Faltan datos.');
     try {
-      await API.templates.create({ companyId, name, type, contentHtml: html, contentCss: '', active: false });
+      await API.templates.create({ companyId, name, type, contentHtml: html, contentCss: '', active: false, meta: { pdfSize } });
       alert('Plantilla guardada correctamente.');
     } catch(e) {
       alert('Error al guardar: ' + (e.message || e));

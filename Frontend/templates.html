@@ -19,9 +19,16 @@
       <div class="toolbar" id="toolbar-container"></div>
       <div id="editor-container"></div>
       <div class="template-actions">
-        <button id="save-template">Guardar Plantilla</button>
-        <button id="load-template">Cargar Plantilla</button>
-        <select id="company-select"></select>
+          <button id="save-template">Guardar Plantilla</button>
+          <button id="load-template">Cargar Plantilla</button>
+          <select id="company-select"></select>
+          <label style="margin-left:16px;">Tamaño PDF:
+            <select id="pdf-size">
+              <option value="letter">Carta (Letter)</option>
+              <option value="half-letter">Media carta</option>
+              <option value="custom">Personalizado</option>
+            </select>
+          </label>
       </div>
     </div>
     <aside style="width:280px;background:#fff;border-radius:8px;padding:16px;box-shadow:0 2px 8px #0001;">
@@ -32,6 +39,7 @@
     </aside>
   </div>
   <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
-  <script src="assets/js/templates-visual.js"></script>
+    <script src="assets/js/quill-image-resize.min.js"></script>
+    <script src="assets/js/templates-visual.js"></script>
 </body>
 </html>
