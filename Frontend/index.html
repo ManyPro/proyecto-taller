@@ -163,59 +163,99 @@
           </div>
         </div>
         <div class="card">
-          <h3 id="tpl-editor-title">Editor</h3>
-          <div class="row wrap" style="gap:8px;margin-bottom:4px;">
-            <div class="chip" style="cursor:pointer;" id="tpl-mode-toggle" title="Cambiar entre modo Visual y Código">Modo: <span id="tpl-mode-label">Código</span></div>
-            <div id="tpl-visual-hint" class="muted" style="font-size:11px;">En modo Visual puedes arrastrar bloques sin saber HTML</div>
+          <div class="row between" style="gap:12px;align-items:flex-start;flex-wrap:wrap;">
+            <div style="flex:1;min-width:260px;">
+              <h3 id="tpl-editor-title" style="margin-bottom:4px;">Creador de formatos</h3>
+              <p class="muted" style="margin:0;font-size:13px;">Arma facturas, cotizaciones y stickers moviendo bloques como piezas de rompecabezas. Tu eliges los textos y nosotros llenamos los datos.</p>
+            </div>
+            <button id="tpl-mode-toggle" class="secondary" style="border-radius:24px;padding:8px 18px;font-size:13px;display:flex;align-items:center;gap:6px;">
+              <span style="font-weight:600;">Modo experto</span>
+              <span id="tpl-mode-label">Visual</span>
+            </button>
           </div>
-          <div class="row wrap" style="gap:8px; margin-bottom:8px;">
-            <select id="tpl-editor-type">
-              <option value="invoice">Factura</option>
-              <option value="quote">Cotización</option>
-              <option value="workOrder">Orden de trabajo</option>
-              <option value="sticker">Sticker</option>
-            </select>
-            <input id="tpl-name" placeholder="Nombre interno (opcional)" style="flex:1;min-width:160px;" />
-            <button id="tpl-preview" class="secondary">Vista previa</button>
-            <button id="tpl-save">Guardar</button>
-            <button id="tpl-save-activate" class="primary">Guardar & Activar</button>
+          <div id="tpl-visual-hint" class="muted" style="margin-top:8px;font-size:12px;">Modo sencillo activo. Agrega bloques, ordenalos y haz clic en ellos para escribir con tus palabras.</div>
+          <div class="row wrap" style="gap:10px;margin:16px 0 18px;align-items:flex-end;">
+            <label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:600;min-width:180px;">
+              Tipo de formato
+              <select id="tpl-editor-type">
+                <option value="invoice">Factura</option>
+                <option value="quote">Cotizacion</option>
+                <option value="workOrder">Orden de trabajo</option>
+                <option value="sticker">Sticker</option>
+              </select>
+            </label>
+            <label style="display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:600;flex:1;min-width:220px;">
+              Como lo reconoceras?
+              <input id="tpl-name" placeholder="Ej. Formato factura principal" />
+            </label>
+            <div class="row" style="gap:6px;flex-wrap:wrap;">
+              <button id="tpl-preview" class="secondary">Vista previa</button>
+              <button id="tpl-save">Guardar</button>
+              <button id="tpl-save-activate" class="primary">Guardar & Activar</button>
+            </div>
           </div>
-          <div class="grid-2" style="gap:12px;"> 
-            <div style="min-width:320px;">
-              <div id="tpl-visual-editor" class="hidden" style="border:1px solid var(--border-color);padding:8px;border-radius:6px; background:var(--bg-alt);margin-bottom:8px;">
-                <div class="row between" style="align-items:center;">
-                  <strong>Diseñador Visual</strong>
-                  <div class="row" style="gap:6px;">
-                    <button class="small secondary" id="tpl-add-title">Título</button>
-                    <button class="small secondary" id="tpl-add-text">Texto</button>
-                    <button class="small secondary" id="tpl-add-table">Tabla Items</button>
-                    <button class="small secondary" id="tpl-add-logo">Logo</button>
-                    <button class="small secondary" id="tpl-clear-canvas" title="Vaciar diseño">Limpiar</button>
+          <div id="tpl-visual-editor" class="friendly-builder">
+            <div class="builder-grid">
+              <section class="builder-main">
+                <div class="builder-step">
+                  <div class="builder-step-title">1. Elige lo que quieres mostrar</div>
+                  <p class="muted" style="margin:4px 0 10px;font-size:12px;">Haz clic para anadir piezas. Puedes repetirlas y acomodarlas mas tarde.</p>
+                  <div id="tpl-block-buttons" class="builder-buttons">
+                    <button class="builder-btn" id="tpl-add-title">Titulo grande</button>
+                    <button class="builder-btn" id="tpl-add-text">Texto libre</button>
+                    <button class="builder-btn" id="tpl-add-logo">Logo de la empresa</button>
+                    <button class="builder-btn" id="tpl-add-table">Lista de productos</button>
+                    <button class="builder-btn" id="tpl-add-customer">Datos del cliente</button>
+                    <button class="builder-btn" id="tpl-add-vehicle">Datos del vehiculo</button>
+                    <button class="builder-btn" id="tpl-add-totals">Totales a pagar</button>
+                    <button class="builder-btn" id="tpl-add-payments">Formas de pago</button>
+                    <button class="builder-btn" id="tpl-add-sign">Espacio para firma</button>
+                    <button class="builder-btn" id="tpl-add-qr">Codigo QR</button>
+                    <button class="builder-btn" id="tpl-add-cols2">Dos columnas</button>
+                    <button class="builder-btn danger" id="tpl-clear-canvas" title="Vaciar diseno completo">Vaciar todo</button>
                   </div>
                 </div>
-                <div id="tpl-canvas" style="min-height:180px;margin-top:8px;padding:10px;background:#fff;border:1px dashed var(--border-color);display:flex;flex-direction:column;gap:6px;">
-                  <div class="muted" id="tpl-canvas-empty">Arrastra / agrega bloques aquí…</div>
+                <div class="builder-step">
+                  <div class="builder-step-title">2. Organiza tu hoja</div>
+                  <p class="muted" style="margin:4px 0 10px;font-size:12px;">Arrastra los bloques para cambiar el orden o tocalos para editar su contenido.</p>
+                  <div id="tpl-canvas" class="builder-canvas">
+                    <div class="muted" id="tpl-canvas-empty">Empieza agregando un bloque. Aqui veras cada pieza como aparecera en tu PDF.</div>
+                  </div>
                 </div>
-              </div>
-              <label style="font-weight:600;">HTML (Handlebars)</label>
-              <textarea id="tpl-html" style="width:100%;height:260px;font-family:monospace;font-size:12px;"></textarea>
-              <label style="font-weight:600;margin-top:8px;display:block;">CSS</label>
-              <textarea id="tpl-css" style="width:100%;height:140px;font-family:monospace;font-size:12px;"></textarea>
-            </div>
-            <div style="min-width:320px;display:flex;flex-direction:column;">
-              <div class="row between" style="align-items:center;gap:8px;">
-                <strong>Variables</strong>
-                <button id="tpl-insert-item-loop" class="small secondary" title="Insertar loop de items">+ Loop items</button>
-              </div>
-              <div id="tpl-vars" class="list" style="max-height:160px;overflow:auto;margin:6px 0 10px; font-size:12px; border:1px solid var(--border-color);padding:6px;"></div>
-              <strong>Vista previa</strong>
-              <iframe id="tpl-preview-frame" style="flex:1;min-height:300px;border:1px solid var(--border-color);background:#fff;"></iframe>
-              <div id="tpl-msg" class="muted" style="margin-top:6px;font-size:12px;min-height:16px;"></div>
+              </section>
+              <aside class="builder-side">
+                <div class="helper-card">
+                  <div class="builder-step-title" style="font-size:15px;">Datos automaticos</div>
+                  <p class="muted" style="margin:6px 0 10px;font-size:12px;">Haz clic para insertar datos reales como "Nombre del cliente" o "Total a pagar". Se llenan solos cuando generes el PDF.</p>
+                  <div id="tpl-vars" class="friendly-vars"></div>
+                  <button id="tpl-insert-item-loop" class="secondary small" style="margin-top:8px;">Agregar tabla detallada de productos</button>
+                </div>
+                <div class="helper-card">
+                  <div class="builder-step-title" style="font-size:15px;">Vista previa</div>
+                  <p class="muted" style="margin:6px 0 10px;font-size:12px;">Presiona "Vista previa" para ver como quedara. Puedes repetirlo las veces que quieras.</p>
+                  <iframe id="tpl-preview-frame" style="width:100%;min-height:300px;border:1px solid var(--border-color);border-radius:6px;background:#fff;"></iframe>
+                  <div id="tpl-msg" class="muted" style="margin-top:6px;font-size:12px;min-height:16px;"></div>
+                </div>
+              </aside>
             </div>
           </div>
-          <details style="margin-top:12px;">
-            <summary style="cursor:pointer;">Snippet base (ejemplo factura)</summary>
-            <pre style="white-space:pre-wrap;font-size:11px;line-height:1.35;" id="tpl-example-box"></pre>
+
+          <details id="tpl-advanced-panel" style="margin-top:18px;">
+            <summary style="cursor:pointer;font-weight:600;">Opciones avanzadas (HTML y estilos)</summary>
+            <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px;">
+              <div>
+                <label style="font-weight:600;display:block;margin-bottom:6px;">HTML generado (para ajustes finos)</label>
+                <textarea id="tpl-html" style="width:100%;height:260px;font-family:monospace;font-size:12px;border-radius:6px;"></textarea>
+              </div>
+              <div>
+                <label style="font-weight:600;display:block;margin-bottom:6px;">Colores y tamanos extra (CSS)</label>
+                <textarea id="tpl-css" style="width:100%;height:160px;font-family:monospace;font-size:12px;border-radius:6px;"></textarea>
+              </div>
+              <details style="margin-top:4px;">
+                <summary style="cursor:pointer;">Snippet base (ejemplo factura)</summary>
+                <pre style="white-space:pre-wrap;font-size:11px;line-height:1.35;margin-top:8px;" id="tpl-example-box"></pre>
+              </details>
+            </div>
           </details>
         </div>
       </section>
@@ -1181,6 +1221,4 @@
   <script type="module" src="./assets/js/templates.js"></script>
 </body>
 </html>
-
-
 
