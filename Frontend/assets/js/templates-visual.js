@@ -2576,6 +2576,80 @@
     console.log(`✅ Indicador de empresa agregado: ${companyEmail}`);
   }
 
+  // Add environment and connectivity indicator
+  function addEnvironmentIndicator() {
+    const body = document.body;
+    
+    // Check environment
+    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    const environment = isProduction ? 'PRODUCCIÓN' : 'DESARROLLO';
+    const envColor = isProduction ? '#28a745' : '#ffc107';
+    const envIcon = isProduction ? '🌐' : '🔧';
+    
+    // Create environment indicator
+    const envIndicator = document.createElement('div');
+    envIndicator.id = 'environment-indicator';
+    envIndicator.style.cssText = `
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      background: ${envColor};
+      color: ${isProduction ? 'white' : 'black'};
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      z-index: 2000;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      backdrop-filter: blur(10px);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    `;
+    
+    envIndicator.innerHTML = `
+      <span style="font-size: 14px;">${envIcon}</span>
+      <span>${environment}</span>
+      <div id="connection-status" style="width: 8px; height: 8px; background: #6c757d; border-radius: 50%; margin-left: 4px;"></div>
+    `;
+    
+    body.appendChild(envIndicator);
+    
+    // Test backend connection and update indicator
+    updateConnectionStatus();
+    
+    // Update connection status every 30 seconds
+    setInterval(updateConnectionStatus, 30000);
+    
+    console.log(`✅ Indicador de entorno agregado: ${environment}`);
+  }
+
+  async function updateConnectionStatus() {
+    const statusDot = document.getElementById('connection-status');
+    if (!statusDot) return;
+    
+    try {
+      const response = await fetch(window.BACKEND_URL + '/health', {
+        method: 'GET',
+        timeout: 5000
+      });
+      
+      if (response.ok) {
+        statusDot.style.background = '#28a745'; // Green - connected
+        statusDot.title = 'Backend conectado';
+        console.log('✅ Backend conectado correctamente');
+      } else {
+        statusDot.style.background = '#ffc107'; // Yellow - issues
+        statusDot.title = 'Backend con problemas';
+        console.warn('⚠️ Backend responde con errores');
+      }
+    } catch (error) {
+      statusDot.style.background = '#dc3545'; // Red - disconnected
+      statusDot.title = 'Backend desconectado';
+      console.warn('❌ Backend no disponible:', error.message);
+    }
+  }
+
   // Check URL parameters immediately (before DOM load to prevent flash)
   const urlParams = new URLSearchParams(window.location.search);
   const documentType = urlParams.get('type');
@@ -2614,6 +2688,9 @@
         setupVariables();
         setupKeyboardShortcuts();
         
+        // Add environment indicator even in offline mode
+        addEnvironmentIndicator();
+        
         // Add session header even in offline mode
         addSessionHeader(documentType, action, formatId);
         
@@ -2640,6 +2717,9 @@
         setupVariables();
         setupKeyboardShortcuts();
         
+        // Add environment indicator even in demo mode
+        addEnvironmentIndicator();
+        
         // Add session header in demo mode
         addSessionHeader(documentType, action, formatId);
         
@@ -2662,6 +2742,9 @@
       setupVisualEditor();
       setupVariables();
       setupKeyboardShortcuts();
+      
+      // Add environment and connectivity indicators
+      addEnvironmentIndicator();
       
       // Add company indicator to the interface
       addCompanyIndicator(activeCompany);
@@ -3585,36 +3668,70 @@
 
     console.log('🔍 Verificando disponibilidad de API...');
     console.log('API disponible:', typeof API !== 'undefined');
-    console.log('API objeto:', typeof API === 'object' ? API : 'No disponible');
+    
+    // Detect environment
+    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    console.log('🌐 Entorno:', isProduction ? 'PRODUCCIÓN' : 'DESARROLLO');
 
-    // Check if API is available
-    if (typeof API === 'undefined') {
-      console.warn('⚠️ API no disponible, funcionando en modo offline');
+    // Try to connect to backend first
+    let backendAvailable = false;
+    try {
+      const testResponse = await fetch(window.BACKEND_URL + '/health', { 
+        method: 'GET',
+        timeout: 5000 
+      });
+      backendAvailable = testResponse.ok;
+      console.log('🔗 Backend disponible:', backendAvailable);
+    } catch (error) {
+      console.warn('❌ No se pudo conectar al backend:', error.message);
+      backendAvailable = false;
+    }
+
+    // Check if API is available and backend is reachable
+    if (typeof API === 'undefined' || !backendAvailable) {
+      console.warn('⚠️ Funcionando en modo offline');
       
-      // Fallback: Save to localStorage for demonstration
-      const templateName = prompt('📝 Nombre del formato (MODO OFFLINE):', 'Mi Plantilla');
+      // In production, show more informative message
+      const modeMessage = isProduction ? 
+        'El servidor no está disponible temporalmente.\n¿Deseas guardar localmente?' : 
+        'Backend no disponible en desarrollo.\n¿Guardar localmente para pruebas?';
+      
+      if (!confirm(modeMessage)) {
+        return;
+      }
+      
+      // Fallback: Save to localStorage
+      const templateName = prompt('📝 Nombre del formato:', 'Mi Plantilla');
       if (!templateName) return;
       
       try {
         const templates = JSON.parse(localStorage.getItem('offlineTemplates') || '[]');
-        templates.push({
+        const newTemplate = {
           id: Date.now(),
           name: templateName,
           content: content,
           date: new Date().toISOString(),
-          type: window.currentTemplateSession?.type || 'invoice'
-        });
+          type: window.currentTemplateSession?.type || 'invoice',
+          environment: isProduction ? 'production-offline' : 'development-offline'
+        };
+        templates.push(newTemplate);
         localStorage.setItem('offlineTemplates', JSON.stringify(templates));
         
-        alert(`✅ Plantilla "${templateName}" guardada localmente\n\n⚠️ Nota: Esta plantilla solo existe en tu navegador`);
+        showQuickNotification(`💾 Plantilla guardada localmente: ${templateName}`, 'success');
+        
+        const successMessage = isProduction ?
+          `✅ Plantilla "${templateName}" guardada localmente\n\n⚠️ Se sincronizará automáticamente cuando el servidor esté disponible` :
+          `✅ Plantilla "${templateName}" guardada para desarrollo\n\n💡 Tip: Inicia el backend para guardar en servidor`;
+        
+        alert(successMessage);
         
         // Redirect to template selector
         setTimeout(() => {
           window.location.href = 'template-selector.html';
-        }, 1000);
+        }, 1500);
         
       } catch (error) {
-        console.error('Error guardando en localStorage:', error);
+        console.error('Error guardando localmente:', error);
         alert('❌ Error al guardar la plantilla localmente');
       }
       return;
@@ -4001,6 +4118,44 @@
       showOfflinePreview(content, templateType);
     }
   }
+
+  // Global error handler for production
+  window.addEventListener('error', function(event) {
+    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    
+    if (isProduction) {
+      // In production, log error but don't alert user unnecessarily
+      console.error('Error en aplicación:', event.error);
+      
+      // Only show user-friendly message for critical errors
+      if (event.error?.message?.includes('API') || event.error?.message?.includes('network')) {
+        showQuickNotification('⚠️ Problema de conectividad detectado', 'error');
+      }
+      
+      // Prevent default error handling
+      event.preventDefault();
+    } else {
+      // In development, show detailed errors
+      console.error('Error de desarrollo:', event.error);
+    }
+  });
+
+  // Global unhandled promise rejection handler
+  window.addEventListener('unhandledrejection', function(event) {
+    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    
+    if (isProduction) {
+      console.error('Promesa rechazada:', event.reason);
+      
+      if (event.reason?.message?.includes('fetch') || event.reason?.message?.includes('network')) {
+        showQuickNotification('⚠️ Error de conexión al servidor', 'error');
+      }
+      
+      event.preventDefault();
+    } else {
+      console.error('Promesa rechazada en desarrollo:', event.reason);
+    }
+  });
 
   // Make functions globally available for button onclick handlers
   window.saveTemplateToBackend = saveTemplateAndReturn;
