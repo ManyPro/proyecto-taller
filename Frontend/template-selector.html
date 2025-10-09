@@ -168,6 +168,7 @@
     </div>
   </div>
 
+  <script src="assets/config.js"></script>
   <script src="assets/js/api.js"></script>
   <script>
     let selectedDocumentType = null;
@@ -248,17 +249,9 @@
             window.location.href = url;
             
           } else {
-            console.warn('⚠️ API no disponible - modo offline');
-            
-            // Fallback to create mode without backend
-            const params = new URLSearchParams();
-            params.set('type', selectedDocumentType);
-            params.set('action', 'create');
-            params.set('formatName', selectedFormat.name);
-            
-            const url = `templates.html?${params.toString()}`;
-            console.log('🔗 Redirigiendo al editor (offline):', url);
-            window.location.href = url;
+            console.error('❌ API no disponible - no se puede crear formato');
+            alert('❌ Error: API no disponible\n\nPor favor recarga la página y asegúrate de que el backend esté funcionando.');
+            return;
           }
           
         } else {
@@ -435,8 +428,8 @@
           console.log('✅ Formato duplicado correctamente');
           loadFormats(); // Reload
         } else {
-          console.warn('⚠️ API no disponible - no se puede duplicar formato');
-          alert('API no disponible. El formato no se puede duplicar.');
+          console.error('❌ API no disponible - no se puede duplicar formato');
+          alert('❌ Error: API no disponible. El formato no se puede duplicar.');
         }
       } catch (error) {
         console.error('❌ Error duplicando formato:', error);
@@ -462,8 +455,8 @@
           loadFormats(); // Reload
           loadActiveFormats(); // Reload active formats too
         } else {
-          console.warn('⚠️ API no disponible - no se puede eliminar formato del servidor');
-          alert('API no disponible. El formato no se puede eliminar del servidor.');
+          console.error('❌ API no disponible - no se puede eliminar formato del servidor');
+          alert('❌ Error: API no disponible. El formato no se puede eliminar del servidor.');
         }
       } catch (error) {
         console.error('❌ Error eliminando formato:', error);
@@ -484,8 +477,8 @@
           loadFormats(); // Reload to show active status
           loadActiveFormats(); // Reload active formats list
         } else {
-          console.warn('⚠️ API no disponible - no se puede activar formato');
-          alert('API no disponible. El formato no se puede activar en el servidor.');
+          console.error('❌ API no disponible - no se puede activar formato');
+          alert('❌ Error: API no disponible. El formato no se puede activar en el servidor.');
         }
       } catch (error) {
         console.error('❌ Error activando formato:', error);
@@ -553,6 +546,9 @@
           
           showNotification(`✅ Formato "${formatName}" activado para ${getDocumentTypeNamePlural(documentType)}`, 'success');
           console.log(`✅ Formato activado exitosamente`);
+        } else {
+          console.error('❌ API no disponible');
+          alert('❌ Error: API no disponible para activar formato');
         }
         
       } catch (error) {
@@ -661,70 +657,45 @@
           return;
         }
 
-        // Try to create format in backend if API is available
-        if (typeof API !== 'undefined' && window.API_BASE) {
+        // Crear formato en backend
+        if (typeof API !== 'undefined') {
           console.log('📡 Guardando formato en servidor...');
           
-          try {
-            const newTemplate = await API.templates.create({
-              name: formatName,
-              type: selectedDocumentType,
-              contentHtml: '', // Will be filled in editor
-              contentCss: '',
-              activate: false // Don't activate until it's complete
-            });
-            
-            console.log('✅ Formato creado en backend:', newTemplate);
-            
-            // Close modal first
-            closeFormatNameModal();
-            
-            // Show success notification
-            showNotification(`✅ Formato "${formatName}" creado correctamente`, 'success');
-            
-            // Redirect to editor immediately
-            const params = new URLSearchParams();
-            params.set('type', selectedDocumentType);
-            params.set('action', 'edit');
-            params.set('formatId', newTemplate._id || newTemplate.id);
-            params.set('formatName', formatName);
-            
-            const url = `templates.html?${params.toString()}`;
-            console.log('🔗 Redirigiendo al editor:', url);
-            
-            // Small delay to show notification, then redirect
-            setTimeout(() => {
-              window.location.href = url;
-            }, 1000);
-            
-          } catch (apiError) {
-            console.warn('⚠️ Error en API, continuando en modo offline:', apiError);
-            // Fall through to offline mode
-          }
-        } 
-        
-        // If API is not available or failed, work in offline mode
-        if (typeof API === 'undefined' || !window.API_BASE) {
-          console.warn('⚠️ API no disponible - modo offline');
+          const newTemplate = await API.templates.create({
+            name: formatName,
+            type: selectedDocumentType,
+            contentHtml: '', // Will be filled in editor
+            contentCss: '',
+            activate: false // Don't activate until it's complete
+          });
           
-          // Close modal and redirect to editor in create mode
+          console.log('✅ Formato creado en backend:', newTemplate);
+          
+          // Close modal first
           closeFormatNameModal();
           
-          // Show notification for offline mode
-          showNotification(`📝 Creando "${formatName}" en modo offline`, 'info');
+          // Show success notification
+          showNotification(`✅ Formato "${formatName}" creado correctamente`, 'success');
           
+          // Redirect to editor immediately
           const params = new URLSearchParams();
           params.set('type', selectedDocumentType);
-          params.set('action', 'create');
+          params.set('action', 'edit');
+          params.set('formatId', newTemplate._id || newTemplate.id);
           params.set('formatName', formatName);
           
           const url = `templates.html?${params.toString()}`;
-          console.log('🔗 Redirigiendo al editor (offline):', url);
+          console.log('🔗 Redirigiendo al editor:', url);
           
           // Small delay to show notification, then redirect
           setTimeout(() => {
             window.location.href = url;
-          }, 800);
+          }, 1000);
+          
+        } else {
+          console.error('❌ API no disponible');
+          alert('❌ Error: API no disponible\n\nPor favor recarga la página y asegúrate de que el backend esté funcionando.');
+          return;
         }
         
       } catch (error) {

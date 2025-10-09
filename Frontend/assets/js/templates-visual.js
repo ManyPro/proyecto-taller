@@ -2824,30 +2824,45 @@
         throw new Error('Formato no encontrado');
       }
       
-      // Set template name in session
-      window.currentTemplateSession.name = template.name;
+      // Set template name and ID in session
+      if (window.currentTemplateSession) {
+        window.currentTemplateSession.name = template.name;
+        window.currentTemplateSession.formatId = formatId;
+      }
       
       // Load content into editor
       const canvas = qs('#ce-canvas');
-      if (canvas && template.contentHtml) {
-        canvas.innerHTML = template.contentHtml;
-        
-        // Reinitialize all elements
-        reinitializeElements();
-        
-        showQuickNotification(`✅ Formato "${template.name}" cargado para editar`, 'success');
-        console.log('✅ Formato existente cargado:', template);
+      if (canvas) {
+        if (template.contentHtml && template.contentHtml.trim() !== '') {
+          // Load existing content
+          canvas.innerHTML = template.contentHtml;
+          
+          // Reinitialize all elements
+          reinitializeElements();
+          
+          showQuickNotification(`✅ Formato "${template.name}" cargado para editar`, 'success');
+          console.log('✅ Formato existente cargado:', template);
+        } else {
+          // Format exists but no content - load default template
+          console.log('📄 Formato existe pero no tiene contenido, cargando plantilla por defecto');
+          loadDefaultTemplate(window.currentTemplateSession.type);
+          showQuickNotification(`📄 Formato "${template.name}" sin contenido - plantilla por defecto cargada`, 'info');
+        }
       } else {
-        throw new Error('El formato no tiene contenido válido');
+        throw new Error('Canvas del editor no encontrado');
       }
       
     } catch (error) {
       console.error('Error cargando formato:', error);
-      showQuickNotification('⚠️ Cargando plantilla por defecto...', 'info');
+      showQuickNotification(`⚠️ Error cargando formato: ${error.message}`, 'warning');
       
       // Always fallback to default template for the document type
       setTimeout(() => {
-        loadDefaultTemplate(window.currentTemplateSession.type);
+        if (window.currentTemplateSession?.type) {
+          loadDefaultTemplate(window.currentTemplateSession.type);
+        } else {
+          console.error('No se puede determinar el tipo de documento para cargar plantilla por defecto');
+        }
       }, 1000);
     }
   }
@@ -3669,37 +3684,19 @@
       return;
     }
 
-    console.log('🔍 Verificando disponibilidad de API y backend...');
+    console.log('🔍 Verificando disponibilidad de API...');
     console.log('API disponible:', typeof API !== 'undefined');
-    console.log('Backend conectado:', window.BACKEND_CONNECTED);
     
-    // Detect environment usando la configuración corregida
-    const isProduction = window.IS_PRODUCTION || false;
-    console.log('🌐 Entorno:', isProduction ? 'PRODUCCIÓN' : 'DESARROLLO');
-
-    // Verificación estricta: solo funcionar con backend real
+    // Verificación básica: solo verificar que API esté definido
     if (typeof API === 'undefined') {
       console.error('❌ API no está disponible');
-      alert('❌ Error: API no disponible\n\nLa aplicación requiere que el backend esté funcionando.\nPor favor verifica que el servidor esté corriendo.');
+      alert('❌ Error: API no disponible\n\nPor favor recarga la página y asegúrate de que config.js y api.js estén cargados correctamente.');
       return;
     }
 
-    if (!window.BACKEND_CONNECTED) {
-      console.error('❌ Backend no está conectado');
-      alert('❌ Error: No hay conexión al servidor\n\nNo se puede guardar sin conexión al backend.\nPor favor verifica que el servidor esté funcionando correctamente.');
-      return;
-    }
+    console.log('✅ API disponible, procediendo con el guardado...');
 
-    // Verificar que tenemos una empresa activa
-    const activeCompany = API.getActiveCompany();
-    if (!activeCompany) {
-      console.error('❌ No hay empresa activa');
-      alert('❌ Error: No hay empresa activa\n\nPor favor asegúrate de tener una empresa configurada en el sistema.');
-      return;
-    }
-
-    console.log('✅ Todos los requisitos cumplidos, procediendo con el guardado...');
-    console.log('📋 Empresa activa:', activeCompany);
+    console.log('✅ API disponible, procediendo con el guardado...');
 
     // Get template details from current session
     const session = window.currentTemplateSession;
@@ -3727,22 +3724,33 @@
     try {
       showQuickNotification('💾 Guardando plantilla...', 'info');
       
-      // Use API module to ensure proper authentication and company isolation
-      const savedTemplate = await API.templates.create({
-        name: templateName,
-        type: templateType,
-        contentHtml: content,
-        contentCss: '', // Could be extracted from styles
-        activate: activate
-      });
-
-      const company = API.getActiveCompany() || 'empresa actual';
+      // Usar API para crear o actualizar plantilla
+      let savedTemplate;
+      
+      if (isUpdate && session?.formatId) {
+        // Actualizar plantilla existente
+        savedTemplate = await API.templates.update(session.formatId, {
+          name: templateName,
+          contentHtml: content,
+          contentCss: '', // Could be extracted from styles
+          activate: activate
+        });
+      } else {
+        // Crear nueva plantilla
+        savedTemplate = await API.templates.create({
+          name: templateName,
+          type: templateType,
+          contentHtml: content,
+          contentCss: '', // Could be extracted from styles
+          activate: activate
+        });
+      }
       
       // Show success message
       showQuickNotification(`✅ "${templateName}" guardada correctamente`, 'success');
       
       console.log('✅ Plantilla guardada exitosamente:', savedTemplate);
-      console.log(`📋 Tipo: ${templateType}, Empresa: ${company}, Activada: ${activate}`);
+      console.log(`📋 Tipo: ${templateType}, Activada: ${activate}`);
       
       // Wait a moment to show the success message, then redirect
       setTimeout(() => {
@@ -3797,16 +3805,10 @@
 
     console.log('🔍 Generando vista previa para tipo:', templateType);
 
-    // Verificación estricta: solo funcionar con API real
+    // Verificación básica: solo verificar que API esté definido
     if (typeof API === 'undefined') {
       console.error('❌ API no disponible para vista previa');
-      alert('❌ Error: API no disponible\n\nNo se puede generar vista previa sin conexión al servidor.\nPor favor verifica que el backend esté funcionando.');
-      return;
-    }
-
-    if (!window.BACKEND_CONNECTED) {
-      console.error('❌ Backend no conectado para vista previa');
-      alert('❌ Error: No hay conexión al servidor\n\nNo se puede generar vista previa sin datos reales del servidor.');
+      alert('❌ Error: API no disponible\n\nPor favor recarga la página y asegúrate de que config.js y api.js estén cargados correctamente.');
       return;
     }
 
@@ -3818,6 +3820,20 @@
         contentHtml: content,
         contentCss: ''
       });
+      
+      console.log('📄 Respuesta de vista previa:', result);
+      
+      // Extract rendered content from response
+      let renderedContent;
+      if (typeof result === 'string') {
+        renderedContent = result;
+      } else if (result && result.rendered) {
+        renderedContent = result.rendered;
+      } else {
+        // Fallback: use original content if preview fails
+        console.warn('⚠️ No se pudo obtener contenido renderizado, usando original');
+        renderedContent = content;
+      }
 
       // Create preview window with enhanced styling
       const previewWindow = window.open('', '_blank', 'width=900,height=1200,scrollbars=yes,resizable=yes');
@@ -3827,7 +3843,7 @@
         return;
       }
       
-      const company = API.getActiveCompany() || 'Empresa';
+      const company = 'Taller Automotriz'; // Simplified for now
       const currentDate = new Date().toLocaleString('es-ES', {
         weekday: 'long',
         year: 'numeric',
@@ -4033,14 +4049,14 @@
             
             <div class="preview-container">
               <div class="pdf-viewer">
-                ${result.rendered || content}
+                ${renderedContent}
               </div>
             </div>
             
             <script>
               console.log('📊 Vista previa generada exitosamente');
               console.log('🔧 Tipo de plantilla:', '${templateType}');
-              console.log('📋 Contexto de datos:', ${JSON.stringify(result.context || {}, null, 2)});
+              console.log('📋 Contexto de datos:', ${JSON.stringify((result && result.context) || {}, null, 2)});
               
               // Add keyboard shortcuts
               document.addEventListener('keydown', function(e) {

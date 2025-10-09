@@ -1,7 +1,8 @@
 // =======================
 // API publico
 // =======================
-const API_BASE = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
+const API_BASE = (typeof window !== 'undefined' && window.BACKEND_URL) ? window.BACKEND_URL : 
+                (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
 
 // ---- Scopes por entorno (host del API) + empresa (email) ----
 function scopeFromBase(base) {
@@ -277,4 +278,9 @@ if (typeof window !== 'undefined') {
       }
     };
   } catch { }
+}
+
+// Asegurar que window.API_BASE esté configurado para compatibilidad
+if (typeof window !== 'undefined') {
+  window.API_BASE = API_BASE;
 }

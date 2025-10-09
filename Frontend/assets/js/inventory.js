@@ -142,33 +142,6 @@ function invOpenModal(innerHTML) {
         }
         img.style.transform = `scale(${scale})`;
       };
-        // Pinch-to-zoom para móviles
-        let lastDist = null;
-        img.addEventListener('touchstart', function(e) {
-          if (e.touches.length === 2) {
-            const dx = e.touches[0].clientX - e.touches[1].clientX;
-            const dy = e.touches[0].clientY - e.touches[1].clientY;
-            lastDist = Math.sqrt(dx*dx + dy*dy);
-          }
-        }, {passive:false});
-        img.addEventListener('touchmove', function(e) {
-          if (e.touches.length === 2 && lastDist) {
-            e.preventDefault();
-            const dx = e.touches[0].clientX - e.touches[1].clientX;
-            const dy = e.touches[0].clientY - e.touches[1].clientY;
-            const newDist = Math.sqrt(dx*dx + dy*dy);
-            const delta = newDist - lastDist;
-            if (Math.abs(delta) > 2) {
-              scale += delta > 0 ? 0.04 : -0.04;
-              scale = Math.max(1, Math.min(5, scale));
-              img.style.transform = `scale(${scale})`;
-              lastDist = newDist;
-            }
-          }
-        }, {passive:false});
-        img.addEventListener('touchend', function(e) {
-          if (e.touches.length < 2) lastDist = null;
-        });
     }
     const closeModalBtn = document.getElementById("close-modal");
     if (closeModalBtn) closeModalBtn.onclick = () => invCloseModal();
@@ -196,19 +169,11 @@ function invCloseModal() {
 
 function openLightbox(media) {
   const isVideo = (media.mimetype || "").startsWith("video/");
-  // Usar el sistema de zoom del modal (modal-img + botones)
-  // Se muestra el doble de grande (scale inicial = 2 en invOpenModal)
   invOpenModal(
     `<h3>Vista previa</h3>
-     <div class="viewer" style="display:flex;justify-content:center;align-items:center;">
-       ${isVideo
-         ? `<video controls src="${media.url}" style="max-width:90vw;max-height:80vh;object-fit:contain;"></video>`
-         : `<img id="modal-img" src="${media.url}" alt="media" style="max-width:90vw;max-height:80vh;object-fit:contain;transform-origin:center center;"/>`}
+     <div class="viewer">
+       ${isVideo ? `<video controls src="${media.url}"></video>` : `<img src="${media.url}" alt="media" />`}
      </div>
-     ${isVideo ? `` : `<div class="row" style="gap:8px;">
-        <button class="secondary" id="zoom-out">-</button>
-        <button class="secondary" id="zoom-in">+</button>
-      </div>`}
      <div class="row"><button class="secondary" id="lb-close">Cerrar</button></div>`
   );
   document.getElementById("lb-close").onclick = invCloseModal;
@@ -898,12 +863,11 @@ export function initInventory() {
   previewBtn.title = "Vista previa";
   previewBtn.innerHTML = `<svg width='18' height='18' viewBox='0 0 20 20' fill='none'><path d='M1 10C3.5 5.5 8 3 12 5.5C16 8 18.5 13 17 15C15.5 17 10.5 17 7 15C3.5 13 1 10 1 10Z' stroke='#2563eb' stroke-width='2' fill='none'/><circle cx='10' cy='10' r='3' fill='#2563eb'/></svg>`;
         previewBtn.onclick = (ev) => {
-          // Mostrar a la mitad del tamaño anterior (antes: 90vw x 80vh)
           invOpenModal(
             `<div class='viewer-modal'>` +
             (m.mimetype?.startsWith("video/")
-              ? `<video controls src='${m.url}' style='max-width:45vw;max-height:40vh;object-fit:contain;'></video>`
-              : `<img src='${m.url}' alt='media' style='max-width:45vw;max-height:40vh;object-fit:contain;'/>`)
+              ? `<video controls src='${m.url}' style='max-width:90vw;max-height:80vh;object-fit:contain;'></video>`
+              : `<img src='${m.url}' alt='media' style='max-width:90vw;max-height:80vh;object-fit:contain;'/>`)
             + `</div>`
           );
         };

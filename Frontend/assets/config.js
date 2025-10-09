@@ -1,5 +1,9 @@
-// Configuración estricta para producción con backend real
+// Configuración para la aplicación con backend real
 (function() {
+  // Configurar inmediatamente las variables globales
+  window.BACKEND_CONNECTED = false;
+  window.IS_PRODUCTION = false;
+  
   // Detección más precisa de entorno
   const isNetlify = window.location.hostname.includes('netlify.app');
   const isRender = window.location.hostname.includes('render.com');

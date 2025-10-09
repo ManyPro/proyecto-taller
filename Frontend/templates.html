@@ -3,123 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <title>Editor de Plantillas Visual</title>
-  <link href="https://cdn.jsdelivr.net/npm/grapesjs/dist/css/grapes.min.css" rel="stylesheet">
   <link rel="stylesheet" href="assets/styles.css">
+  <link rel="stylesheet" href="assets/css/pages/template-editor.css">
   <style>
-    body { font-family: Arial, sans-serif; background: #f7f7f7; }
-    #editor-container { height: 500px; background: #fff; margin-bottom: 20px; }
-    .toolbar { margin-bottom: 10px; }
-    .template-actions { margin-top: 20px; }
-    
-    #save-template:hover {
-      background: #218838 !important;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(40, 167, 69, 0.4) !important;
+    body { 
+      font-family: Arial, sans-serif; 
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); 
+      margin: 0; 
+      padding: 0; 
+      min-height: 100vh; 
     }
-    
-    #preview-template:hover {
-      background: #5a6268 !important;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(108, 117, 125, 0.4) !important;
-    }
-    
-    /* Default text colors - ensure black text for printing */
-    .tpl-element {
-      color: #333 !important;
-    }
-    
-    .tpl-element * {
-      color: inherit !important;
-    }
-    
-    /* Print optimization styles */
-    @media print {
-      body {
-        background: white !important;
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-      
-      .tpl-element {
-        border: none !important;
-        outline: none !important;
-        box-shadow: none !important;
-        color: #000 !important;
-      }
-      
-      .tpl-element * {
-        color: #000 !important;
-      }
-      
-      .tpl-element h1, .tpl-element h2, .tpl-element h3, .tpl-element h4, .tpl-element h5, .tpl-element h6 {
-        color: #000 !important;
-      }
-      
-      .tpl-element table {
-        border-collapse: collapse !important;
-        page-break-inside: avoid;
-      }
-      
-      .tpl-element table, .tpl-element th, .tpl-element td {
-        border: 1px solid #000 !important;
-        color: #000 !important;
-      }
-      
-      .tpl-element th {
-        background: #f0f0f0 !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
-      
-      .ce-canvas {
-        background: white !important;
-        box-shadow: none !important;
-        border: none !important;
-      }
-      
-      /* Hide editor UI elements during print */
-      #ce-toolbar, 
-      #right-sidebar, 
-      .selection-status, 
-      .delete-hint,
-      .template-actions,
-      h1:first-child,
-      .toolbar {
-        display: none !important;
-      }
-      
-      /* Ensure content fills the page */
-      #custom-editor {
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-    }
+
   </style>
 </head>
 <body>
-  <h1>Editor de Plantillas Visual</h1>
-  <div style="display:flex;gap:32px;align-items:flex-start;">
-    <div style="flex:1;">
+  <div class="template-editor-container">
+    <div class="editor-main">
+      <h1 style="margin: 0 0 2rem 0; color: #333; font-size: 2.5rem; font-weight: 600;">🎨 Editor de Plantillas Visual</h1>
+      
       <div id="custom-editor">
         <div id="ce-toolbar" class="ce-toolbar"></div>
-        <div id="ce-canvas" class="ce-canvas" contenteditable="true"></div>
+        <div id="ce-canvas" class="ce-canvas" contenteditable="false"></div>
       </div>
+      
       <div class="template-actions">
-          <button id="save-template" style="background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 15px; box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3); transition: all 0.3s ease;">💾 Guardar Plantilla</button>
-          <button id="preview-template" class="secondary" style="background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3); transition: all 0.3s ease;">👀 Vista Previa</button>
-          <button onclick="window.location.href='template-selector.html'" style="background: #007bff; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: 600; margin-left: 15px; box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3); transition: all 0.3s ease;">⬅️ Volver al Menú</button>
+        <button id="save-template">
+          💾 Guardar Plantilla
+        </button>
+        <button id="preview-template">
+          👀 Vista Previa
+        </button>
+        <button onclick="window.location.href='template-selector.html'">
+          ⬅️ Volver al Menú
+        </button>
       </div>
     </div>
-    <aside style="width:280px;background:#fff;border-radius:8px;padding:16px;box-shadow:0 2px 8px #0001;">
-        <h3 style="margin-bottom:10px;">Variables disponibles</h3>
-        <div id="var-list" style="margin-bottom:24px;"></div>
-        <h3 style="margin-top:0;color:#bbb;">Presets</h3>
-        <div id="preset-list" style="color:#bbb;">(Próximamente)</div>
+    
+    <aside class="editor-sidebar">
+      <h3>Variables disponibles</h3>
+      <div id="var-list"></div>
+      <h3>Presets</h3>
+      <div id="preset-list" style="color: #999; font-style: italic;">
+        (Próximamente)
+      </div>
     </aside>
   </div>
-    <script src="assets/js/api.js"></script>
-    <script src="assets/js/templates-visual.js"></script>
+  
+  <script src="assets/config.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/templates-visual.js"></script>
     <div id="preview-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center;padding:40px;">
       <div style="background:#fff;width:80%;height:80%;border-radius:12px;display:flex;flex-direction:column;box-shadow:0 10px 40px -5px rgba(0,0,0,.4);">
         <div style="padding:10px 14px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">

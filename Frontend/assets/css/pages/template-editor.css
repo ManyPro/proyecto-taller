@@ -1,0 +1,299 @@
+/* ==========================================
+   TEMPLATE EDITOR PAGE STYLES
+   ========================================== */
+
+/* Import all dependencies */
+@import url('../base/variables.css');
+@import url('../base/reset.css');
+@import url('../base/typography.css');
+@import url('../layout/grid.css');
+@import url('../components/buttons.css');
+@import url('../components/cards.css');
+@import url('../components/modals.css');
+@import url('../components/notifications.css');
+
+/* Editor specific styles */
+.template-editor-container {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.editor-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-sidebar {
+  width: 280px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 2rem;
+  max-height: calc(100vh - 4rem);
+  overflow-y: auto;
+}
+
+/* Canvas styles */
+#custom-editor {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+
+#ce-toolbar {
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  padding: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+#ce-canvas {
+  min-height: 600px;
+  padding: 2rem;
+  background: #fff;
+  position: relative;
+  overflow: visible;
+  border: none;
+  outline: none;
+}
+
+#ce-canvas:focus {
+  outline: 2px solid #007bff;
+  outline-offset: -2px;
+}
+
+/* Template actions */
+.template-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+}
+
+.template-actions button {
+  transition: all 0.3s ease;
+  border: none;
+  border-radius: 6px;
+  padding: 12px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  min-height: 44px;
+}
+
+.template-actions button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.template-actions button:active {
+  transform: translateY(0);
+}
+
+.template-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Primary button */
+.template-actions button[id="save-template"] {
+  background: #28a745;
+  color: white;
+}
+
+.template-actions button[id="save-template"]:hover {
+  background: #218838;
+}
+
+/* Secondary button */
+.template-actions button[id="preview-template"] {
+  background: #6c757d;
+  color: white;
+}
+
+.template-actions button[id="preview-template"]:hover {
+  background: #5a6268;
+}
+
+/* Back button */
+.template-actions button:last-child {
+  background: #007bff;
+  color: white;
+}
+
+.template-actions button:last-child:hover {
+  background: #0056b3;
+}
+
+/* Sidebar content */
+.editor-sidebar h3 {
+  margin: 0 0 1rem 0;
+  font-size: 16px;
+  color: #333;
+  border-bottom: 2px solid #e9ecef;
+  padding-bottom: 0.5rem;
+}
+
+#var-list {
+  margin-bottom: 2rem;
+}
+
+.variable-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 13px;
+  color: #495057;
+}
+
+.variable-item:hover {
+  background: #e9ecef;
+  border-color: #007bff;
+  color: #007bff;
+}
+
+.variable-item code {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+
+/* Responsive design */
+@media (max-width: 1200px) {
+  .template-editor-container {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .editor-sidebar {
+    width: 100%;
+    position: static;
+    max-height: none;
+    order: -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .template-editor-container {
+    padding: 1rem;
+  }
+  
+  .template-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .template-actions button {
+    justify-content: center;
+  }
+  
+  #ce-canvas {
+    padding: 1rem;
+    min-height: 400px;
+  }
+}
+
+/* Print styles for preview */
+@media print {
+  body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  
+  .template-editor-container,
+  .editor-sidebar,
+  .template-actions,
+  h1 {
+    display: none !important;
+  }
+  
+  #custom-editor {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  
+  #ce-toolbar {
+    display: none !important;
+  }
+  
+  #ce-canvas {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    min-height: auto !important;
+    background: white !important;
+  }
+}
+
+/* Notification styles */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  border-radius: 6px;
+  color: white;
+  font-weight: 500;
+  z-index: 10000;
+  animation: slideInRight 0.3s ease;
+  max-width: 300px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.notification.success {
+  background: #28a745;
+}
+
+.notification.error {
+  background: #dc3545;
+}
+
+.notification.info {
+  background: #17a2b8;
+}
+
+.notification.warning {
+  background: #ffc107;
+  color: #212529;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
