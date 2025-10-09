@@ -686,6 +686,9 @@
 
     visualEditor.selectedElement = element;
 
+    // Update variables panel indicator
+    updateVariablesSelectionIndicator();
+
     if (element) {
       element.style.border = '2px solid #2563eb';
       element.style.boxShadow = '0 0 0 1px rgba(37, 99, 235, 0.2)';
@@ -1116,7 +1119,32 @@
     const canvas = qs('#ce-canvas');
     if (!canvas) return;
     
-    canvas.innerHTML = '<div style="color: #999; text-align: center; padding: 50px;">Haz clic en los botones de arriba para agregar elementos</div>';
+    canvas.innerHTML = `
+      <div style="
+        position: absolute; 
+        top: 50%; 
+        left: 50%; 
+        transform: translate(-50%, -50%);
+        text-align: center;
+        color: #666;
+        padding: 30px;
+        border: 2px dashed #ccc;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        max-width: 400px;
+      ">
+        <div style="font-size: 48px; margin-bottom: 15px;">📝</div>
+        <h3 style="margin: 0 0 10px 0; color: #495057;">Tu plantilla está vacía</h3>
+        <p style="margin: 0 0 15px 0; font-size: 14px; line-height: 1.4;">
+          Agrega elementos usando los botones de arriba o<br>
+          haz clic en las variables de la derecha para crear contenido automáticamente
+        </p>
+        <div style="display: flex; gap: 10px; justify-content: center; align-items: center; font-size: 12px; color: #6c757d;">
+          <span>💡</span>
+          <span>Tip: Selecciona un elemento para editarlo</span>
+        </div>
+      </div>
+    `;
     visualEditor.elements = [];
     visualEditor.selectedElement = null;
     selectElement(null);
@@ -1697,6 +1725,77 @@
     `;
 
     varList.innerHTML = html;
+    
+    // Add selection indicator at the top
+    updateVariablesSelectionIndicator();
+  }
+
+  function updateVariablesSelectionIndicator() {
+    const varList = qs('#var-list');
+    if (!varList) return;
+
+    // Remove existing indicator
+    const existingIndicator = varList.querySelector('.selection-status');
+    if (existingIndicator) existingIndicator.remove();
+
+    // Create new indicator
+    const indicator = document.createElement('div');
+    indicator.className = 'selection-status';
+    
+    const selectedElement = visualEditor.selectedElement;
+    
+    if (selectedElement) {
+      const elementType = selectedElement.querySelector('h1, h2, h3') ? 'título' :
+                         selectedElement.querySelector('img') ? 'imagen' :
+                         selectedElement.querySelector('table') ? 'tabla' : 'texto';
+      
+      indicator.innerHTML = `
+        <div style="
+          background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+          color: white;
+          padding: 10px 15px;
+          border-radius: 8px;
+          margin-bottom: 15px;
+          font-size: 12px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+        ">
+          <span style="font-size: 20px;">🎯</span>
+          <div style="flex: 1;">
+            <div style="font-weight: 600; margin-bottom: 2px;">Elemento ${elementType} seleccionado</div>
+            <div style="font-size: 11px; opacity: 0.9;">Las variables se agregarán a este elemento</div>
+          </div>
+          <div style="font-size: 10px; opacity: 0.7;">✨ Activo</div>
+        </div>
+      `;
+    } else {
+      indicator.innerHTML = `
+        <div style="
+          background: linear-gradient(135deg, #6f42c1 0%, #e83e8c 100%);
+          color: white;
+          padding: 10px 15px;
+          border-radius: 8px;
+          margin-bottom: 15px;
+          font-size: 12px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          box-shadow: 0 2px 8px rgba(111, 66, 193, 0.3);
+        ">
+          <span style="font-size: 20px;">📝</span>
+          <div style="flex: 1;">
+            <div style="font-weight: 600; margin-bottom: 2px;">Modo crear elemento</div>
+            <div style="font-size: 11px; opacity: 0.9;">Las variables crearán nuevos elementos</div>
+          </div>
+          <div style="font-size: 10px; opacity: 0.7;">🆕 Nuevo</div>
+        </div>
+      `;
+    }
+
+    // Insert at the beginning
+    varList.insertBefore(indicator, varList.firstChild);
   }
 
   function createFriendlyButtons(buttons) {
