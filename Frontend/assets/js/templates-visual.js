@@ -7,72 +7,7 @@
     editing: null,
     mode: 'visual',
     exampleSnippets: {
-      invoice: `<!-- Factura Completa -->
-<div style="max-width: 800px; font-family: Arial, sans-serif; padding: 20px; background: white;">
-  <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px solid #2563eb; padding-bottom: 15px;">
-    <h1 style="color: #2563eb; margin: 0; font-size: 28px;">FACTURA</h1>
-    <h2 style="color: #666; margin: 5px 0; font-size: 20px;"># FAC-2024-00156</h2>
-  </div>
-  
-  <div style="display: flex; justify-content: space-between; margin-bottom: 25px;">
-    <div style="flex: 1;">
-      <h3 style="color: #2563eb; margin: 0 0 10px 0;">TALLER AUTOMOTRIZ PÉREZ</h3>
-      <p style="margin: 3px 0; color: #666;">Calle Principal #123, Centro</p>
-      <p style="margin: 3px 0; color: #666;">Tel: (555) 123-4567</p>
-      <p style="margin: 3px 0; color: #666;">RFC: TAP890123ABC</p>
-    </div>
-    <div style="flex: 1; text-align: right;">
-      <h3 style="color: #333; margin: 0 0 10px 0;">CLIENTE:</h3>
-      <p style="margin: 3px 0; font-weight: bold;">Juan Carlos Méndez</p>
-      <p style="margin: 3px 0; color: #666;">Tel: (555) 987-6543</p>
-      <p style="margin: 3px 0; color: #666;">Fecha: 08/10/2024</p>
-    </div>
-  </div>
-
-  <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-    <h3 style="color: #333; margin: 0 0 10px 0;">VEHÍCULO:</h3>
-    <p style="margin: 5px 0;"><strong>Placa:</strong> ABC-123</p>
-    <p style="margin: 5px 0;"><strong>Marca/Modelo:</strong> Toyota Corolla 2020</p>
-  </div>
-
-  <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-    <thead>
-      <tr style="background: #2563eb; color: white;">
-        <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">Cant.</th>
-        <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">Descripción</th>
-        <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Precio Unit.</th>
-        <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Total</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td style="border: 1px solid #ddd; padding: 10px;">2</td>
-        <td style="border: 1px solid #ddd; padding: 10px;">Cambio de aceite 5W-30</td>
-        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">$450.00</td>
-        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">$900.00</td>
-      </tr>
-      <tr style="background: #f8f9fa;">
-        <td style="border: 1px solid #ddd; padding: 10px;">4</td>
-        <td style="border: 1px solid #ddd; padding: 10px;">Filtro de aire</td>
-        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">$285.00</td>
-        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">$1,140.00</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div style="text-align: right; margin-top: 20px;">
-    <div style="display: inline-block; background: #f8f9fa; padding: 15px; border-radius: 8px; min-width: 250px;">
-      <p style="margin: 5px 0; display: flex; justify-content: space-between;"><span>Subtotal:</span><span>$2,040.00</span></p>
-      <p style="margin: 5px 0; display: flex; justify-content: space-between;"><span>IVA (16%):</span><span>$326.40</span></p>
-      <hr style="margin: 10px 0; border: 1px solid #ddd;">
-      <p style="margin: 5px 0; display: flex; justify-content: space-between; font-weight: bold; font-size: 18px; color: #2563eb;"><span>TOTAL:</span><span>$2,366.40</span></p>
-    </div>
-  </div>
-
-  <div style="margin-top: 30px; text-align: center; color: #666; font-size: 12px;">
-    <p>Garantía de 30 días en mano de obra | Válido solo con esta factura</p>
-  </div>
-</div>`,
+      invoice: '', // Will be created dynamically with individual elements
       
       quote: `<!-- Cotización Completa -->
 <div style="max-width: 800px; font-family: Arial, sans-serif; padding: 20px; background: white;">
@@ -380,6 +315,12 @@
     if (addImageBtn) addImageBtn.onclick = () => addElement('image');
     if (addTableBtn) addTableBtn.onclick = () => addElement('table');
     
+    // Items table button
+    const addItemsTableBtn = qs('#add-items-table-btn');
+    if (addItemsTableBtn) {
+      addItemsTableBtn.onclick = () => addItemsTable();
+    }
+    
     console.log('✅ Manejadores de botones configurados');
   }
 
@@ -413,6 +354,7 @@
       <button id="add-text-btn" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">+ Texto</button>
       <button id="add-image-btn" style="padding: 8px 16px; background: #ffc107; color: black; border: none; border-radius: 4px; cursor: pointer;">+ Imagen</button>
       <button id="add-table-btn" style="padding: 8px 16px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">+ Tabla</button>
+      <button id="add-items-table-btn" style="padding: 8px 16px; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer;">+ Tabla Items</button>
       <button id="clear-canvas-btn" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Limpiar</button>
       
       <div style="border-left: 2px solid #ddd; padding-left: 15px; margin-left: 15px;">
@@ -1184,12 +1126,6 @@
     const canvas = qs('#ce-canvas');
     if (!canvas) return;
 
-    const template = state.exampleSnippets[templateType];
-    if (!template) {
-      console.error('Plantilla no encontrada:', templateType);
-      return;
-    }
-
     // Clear current canvas
     clearCanvas();
 
@@ -1209,15 +1145,334 @@
       }
     }
 
-    // Load the template HTML
-    canvas.innerHTML = template;
-
-    // Re-enable editing on the loaded content
-    setTimeout(() => {
-      makeTemplateEditable(canvas);
-    }, 100);
+    // Create template based on type
+    if (templateType === 'invoice') {
+      createInvoiceTemplate(canvas);
+    } else {
+      // For other templates, use existing snippets
+      const template = state.exampleSnippets[templateType];
+      if (template) {
+        canvas.innerHTML = template;
+        setTimeout(() => {
+          makeTemplateEditable(canvas);
+        }, 100);
+      }
+    }
 
     console.log(`Plantilla ${templateType} cargada exitosamente`);
+  }
+
+  function createInvoiceTemplate(canvas) {
+    // Clear placeholder text
+    canvas.innerHTML = '';
+
+    // Create individual editable elements for invoice
+    
+    // 1. Header - Title and number
+    const headerTitle = createEditableElement('title', 'FACTURA', {
+      position: { left: 300, top: 30 },
+      styles: { fontSize: '32px', fontWeight: 'bold', color: '#2563eb', textAlign: 'center' }
+    });
+    canvas.appendChild(headerTitle);
+
+    const invoiceNumber = createEditableElement('text', '{{sale.number}}', {
+      position: { left: 280, top: 80 },
+      styles: { fontSize: '18px', color: '#666', textAlign: 'center' }
+    });
+    canvas.appendChild(invoiceNumber);
+
+    // 2. Company info (left side)
+    const companyTitle = createEditableElement('text', '{{company.name}}', {
+      position: { left: 30, top: 140 },
+      styles: { fontSize: '18px', fontWeight: 'bold', color: '#2563eb' }
+    });
+    canvas.appendChild(companyTitle);
+
+    const companyAddress = createEditableElement('text', '{{company.address}}', {
+      position: { left: 30, top: 170 },
+      styles: { fontSize: '14px', color: '#666' }
+    });
+    canvas.appendChild(companyAddress);
+
+    const companyPhone = createEditableElement('text', 'Tel: {{company.phone}}', {
+      position: { left: 30, top: 195 },
+      styles: { fontSize: '14px', color: '#666' }
+    });
+    canvas.appendChild(companyPhone);
+
+    // 3. Customer info (right side)
+    const customerLabel = createEditableElement('text', 'CLIENTE:', {
+      position: { left: 500, top: 140 },
+      styles: { fontSize: '16px', fontWeight: 'bold', color: '#333' }
+    });
+    canvas.appendChild(customerLabel);
+
+    const customerName = createEditableElement('text', '{{sale.customerName}}', {
+      position: { left: 500, top: 170 },
+      styles: { fontSize: '14px', fontWeight: 'bold' }
+    });
+    canvas.appendChild(customerName);
+
+    const saleDate = createEditableElement('text', 'Fecha: {{date sale.date}}', {
+      position: { left: 500, top: 195 },
+      styles: { fontSize: '14px', color: '#666' }
+    });
+    canvas.appendChild(saleDate);
+
+    // 4. Vehicle info section
+    const vehicleSection = createEditableElement('text', 'VEHÍCULO: {{sale.vehicle.plate}} - {{sale.vehicle.brand}}', {
+      position: { left: 30, top: 250 },
+      styles: { 
+        fontSize: '14px', 
+        backgroundColor: '#f8f9fa', 
+        padding: '15px', 
+        borderRadius: '8px',
+        border: '1px solid #e9ecef',
+        minWidth: '700px'
+      }
+    });
+    canvas.appendChild(vehicleSection);
+
+    // 5. Items table header
+    const tableHeaderRow = createItemsTableHeader();
+    tableHeaderRow.style.left = '30px';
+    tableHeaderRow.style.top = '320px';
+    canvas.appendChild(tableHeaderRow);
+
+    // 6. Dynamic items section
+    const itemsContainer = createEditableElement('text', '{{#each sale.items}}\n• {{qty}}x {{description}} - {{money total}}\n{{/each}}', {
+      position: { left: 30, top: 360 },
+      styles: { 
+        fontSize: '14px',
+        minHeight: '120px',
+        minWidth: '700px',
+        border: '1px solid #ddd',
+        padding: '15px',
+        backgroundColor: '#fff',
+        fontFamily: 'monospace',
+        whiteSpace: 'pre-line'
+      }
+    });
+    canvas.appendChild(itemsContainer);
+
+    // 7. Totals section (right aligned)
+    const subtotalLabel = createEditableElement('text', 'Subtotal:', {
+      position: { left: 500, top: 520 },
+      styles: { fontSize: '14px', textAlign: 'right' }
+    });
+    canvas.appendChild(subtotalLabel);
+
+    const subtotalValue = createEditableElement('text', '{{money sale.subtotal}}', {
+      position: { left: 600, top: 520 },
+      styles: { fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }
+    });
+    canvas.appendChild(subtotalValue);
+
+    const taxLabel = createEditableElement('text', 'IVA (16%):', {
+      position: { left: 500, top: 550 },
+      styles: { fontSize: '14px', textAlign: 'right' }
+    });
+    canvas.appendChild(taxLabel);
+
+    const taxValue = createEditableElement('text', '{{money sale.tax}}', {
+      position: { left: 600, top: 550 },
+      styles: { fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }
+    });
+    canvas.appendChild(taxValue);
+
+    const totalLabel = createEditableElement('text', 'TOTAL:', {
+      position: { left: 500, top: 590 },
+      styles: { fontSize: '18px', fontWeight: 'bold', color: '#2563eb', textAlign: 'right' }
+    });
+    canvas.appendChild(totalLabel);
+
+    const totalValue = createEditableElement('text', '{{money sale.total}}', {
+      position: { left: 600, top: 590 },
+      styles: { fontSize: '18px', fontWeight: 'bold', color: '#2563eb', textAlign: 'right' }
+    });
+    canvas.appendChild(totalValue);
+
+    // 8. Footer
+    const footer = createEditableElement('text', 'Garantía de 30 días en mano de obra | Válido solo con esta factura', {
+      position: { left: 200, top: 650 },
+      styles: { fontSize: '12px', color: '#666', textAlign: 'center' }
+    });
+    canvas.appendChild(footer);
+  }
+
+  function createEditableElement(type, content, options = {}) {
+    const element = document.createElement('div');
+    element.className = 'tpl-element';
+    element.id = `element_${visualEditor.nextId++}`;
+    
+    // Default positioning
+    const pos = options.position || { left: 20, top: 20 };
+    element.style.position = 'absolute';
+    element.style.left = pos.left + 'px';
+    element.style.top = pos.top + 'px';
+    element.style.cursor = 'move';
+    element.style.border = '2px solid transparent';
+    element.style.minWidth = '100px';
+    element.style.minHeight = '20px';
+
+    // Create content based on type
+    let contentElement;
+    if (type === 'title') {
+      contentElement = document.createElement('h2');
+      contentElement.style.margin = '0';
+      contentElement.style.fontSize = '24px';
+      contentElement.style.fontWeight = 'bold';
+    } else {
+      contentElement = document.createElement('span');
+      contentElement.style.fontSize = '14px';
+    }
+
+    contentElement.contentEditable = 'true';
+    contentElement.textContent = content;
+    contentElement.style.outline = 'none';
+    contentElement.style.display = 'block';
+
+    // Apply custom styles
+    if (options.styles) {
+      Object.assign(contentElement.style, options.styles);
+    }
+
+    element.appendChild(contentElement);
+
+    // Make draggable and selectable
+    makeDraggable(element);
+    makeSelectable(element);
+
+    // Add to elements array
+    visualEditor.elements.push({
+      id: element.id,
+      type: type,
+      element: element
+    });
+
+    return element;
+  }
+
+  function createItemsTableHeader() {
+    const headerDiv = document.createElement('div');
+    headerDiv.className = 'tpl-element table-header';
+    headerDiv.id = `element_${visualEditor.nextId++}`;
+    headerDiv.style.cssText = `
+      position: absolute;
+      background: #2563eb;
+      color: white;
+      display: flex;
+      min-width: 700px;
+      border: 2px solid transparent;
+      cursor: move;
+    `;
+
+    const columns = [
+      { text: 'Cant.', width: '80px' },
+      { text: 'Descripción', width: '400px' },
+      { text: 'Precio Unit.', width: '120px' },
+      { text: 'Total', width: '100px' }
+    ];
+
+    columns.forEach(col => {
+      const colDiv = document.createElement('div');
+      colDiv.contentEditable = 'true';
+      colDiv.style.cssText = `
+        padding: 12px;
+        border-right: 1px solid rgba(255,255,255,0.2);
+        width: ${col.width};
+        font-weight: bold;
+        outline: none;
+      `;
+      colDiv.textContent = col.text;
+      headerDiv.appendChild(colDiv);
+    });
+
+    makeDraggable(headerDiv);
+    makeSelectable(headerDiv);
+
+    visualEditor.elements.push({
+      id: headerDiv.id,
+      type: 'table-header',
+      element: headerDiv
+    });
+
+    return headerDiv;
+  }
+
+  function addItemsTable() {
+    const canvas = qs('#ce-canvas');
+    if (!canvas) return;
+
+    // Clear placeholder text
+    if (canvas.innerHTML.includes('Haz clic en los botones')) {
+      canvas.innerHTML = '';
+    }
+
+    // Create table container
+    const tableContainer = document.createElement('div');
+    tableContainer.className = 'tpl-element items-table';
+    tableContainer.id = `element_${visualEditor.nextId++}`;
+    tableContainer.style.cssText = `
+      position: absolute;
+      left: 20px;
+      top: 20px;
+      border: 2px solid transparent;
+      cursor: move;
+      min-width: 700px;
+      background: white;
+      border-radius: 4px;
+      overflow: hidden;
+    `;
+
+    // Create table HTML with Handlebars variables
+    tableContainer.innerHTML = `
+      <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif;">
+        <thead>
+          <tr style="background: #2563eb; color: white;">
+            <th style="border: 1px solid #ddd; padding: 12px; text-align: left; width: 80px;" contenteditable="true">Cant.</th>
+            <th style="border: 1px solid #ddd; padding: 12px; text-align: left;" contenteditable="true">Descripción</th>
+            <th style="border: 1px solid #ddd; padding: 12px; text-align: right; width: 120px;" contenteditable="true">Precio Unit.</th>
+            <th style="border: 1px solid #ddd; padding: 12px; text-align: right; width: 120px;" contenteditable="true">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="background: #f8f9fa;">
+            <td colspan="4" style="border: 1px solid #ddd; padding: 15px; font-family: monospace; background: #fff3cd; color: #856404; text-align: center;">
+              <strong>{{#each sale.items}}</strong><br>
+              <div style="display: flex; border-bottom: 1px solid #ddd; padding: 8px 0;">
+                <div style="width: 80px; text-align: center;">{{qty}}</div>
+                <div style="flex: 1; padding-left: 10px;">{{description}}</div>
+                <div style="width: 120px; text-align: right;">{{money price}}</div>
+                <div style="width: 120px; text-align: right; font-weight: bold;">{{money total}}</div>
+              </div>
+              <strong>{{/each}}</strong>
+            </td>
+          </tr>
+          <tr>
+            <td colspan="4" style="border: 1px solid #ddd; padding: 8px; text-align: center; color: #666; font-size: 12px;">
+              Los items aparecerán aquí automáticamente desde la venta
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    `;
+
+    // Make draggable and selectable
+    makeDraggable(tableContainer);
+    makeSelectable(tableContainer);
+
+    canvas.appendChild(tableContainer);
+    selectElement(tableContainer);
+
+    // Add to elements array
+    visualEditor.elements.push({
+      id: tableContainer.id,
+      type: 'items-table',
+      element: tableContainer
+    });
+
+    console.log('Tabla de items agregada con variables de Handlebars');
   }
 
   function makeTemplateEditable(container) {
@@ -1304,29 +1559,68 @@
     return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
   }
 
-  // Variable groups for insertion
+  // Variable groups for insertion - specific for invoices
   const VAR_GROUPS = [
     {
       title: 'Empresa',
       items: [
         { label: 'Nombre', value: '{{company.name}}' },
         { label: 'Dirección', value: '{{company.address}}' },
-        { label: 'Teléfono', value: '{{company.phone}}' }
+        { label: 'Teléfono', value: '{{company.phone}}' },
+        { label: 'Email', value: '{{company.email}}' },
+        { label: 'Logo URL', value: '{{company.logoUrl}}' }
+      ]
+    },
+    {
+      title: 'Venta/Factura',
+      items: [
+        { label: 'Número de factura', value: '{{sale.number}}' },
+        { label: 'Fecha de venta', value: '{{date sale.date}}' },
+        { label: 'Estado', value: '{{sale.status}}' },
+        { label: 'Subtotal', value: '{{money sale.subtotal}}' },
+        { label: 'Total', value: '{{money sale.total}}' },
+        { label: 'Impuesto/IVA', value: '{{money sale.tax}}' }
       ]
     },
     {
       title: 'Cliente',
       items: [
-        { label: 'Nombre', value: '{{sale.customerName}}' },
-        { label: 'Teléfono', value: '{{sale.customerPhone}}' }
+        { label: 'Nombre completo', value: '{{sale.customerName}}' },
+        { label: 'Teléfono', value: '{{sale.customerPhone}}' },
+        { label: 'Email', value: '{{sale.customerEmail}}' }
       ]
     },
     {
-      title: 'Venta',
+      title: 'Vehículo',
       items: [
-        { label: 'Número', value: '{{sale.number}}' },
-        { label: 'Fecha', value: '{{date sale.date}}' },
-        { label: 'Total', value: '{{money sale.total}}' }
+        { label: 'Placa', value: '{{sale.vehicle.plate}}' },
+        { label: 'Marca/Modelo', value: '{{sale.vehicle.brand}}' },
+        { label: 'Año', value: '{{sale.vehicle.year}}' },
+        { label: 'Color', value: '{{sale.vehicle.color}}' }
+      ]
+    },
+    {
+      title: 'Items/Servicios',
+      items: [
+        { label: 'Lista de items', value: '{{#each sale.items}}\n• {{qty}}x {{description}} - {{money total}}\n{{/each}}' },
+        { label: 'Tabla de items', value: '{{#each sale.items}}\n<tr><td>{{qty}}</td><td>{{description}}</td><td>{{money price}}</td><td>{{money total}}</td></tr>\n{{/each}}' },
+        { label: 'Solo descripciones', value: '{{#each sale.items}}{{description}}{{#unless @last}}, {{/unless}}{{/each}}' }
+      ]
+    },
+    {
+      title: 'Técnico/Mecánico',
+      items: [
+        { label: 'Nombre del técnico', value: '{{sale.technician}}' }
+      ]
+    },
+    {
+      title: 'Helpers/Formateo',
+      items: [
+        { label: 'Formato fecha', value: '{{date sale.date}}' },
+        { label: 'Formato dinero', value: '{{money sale.total}}' },
+        { label: 'Texto mayúsculas', value: '{{uppercase sale.customerName}}' },
+        { label: 'Texto minúsculas', value: '{{lowercase company.email}}' },
+        { label: 'Número con ceros', value: '{{pad sale.number 5}}' }
       ]
     }
   ];
@@ -1782,8 +2076,8 @@
       return;
     }
 
-    const templateType = prompt('Tipo de plantilla para vista previa (invoice, quote, workOrder, sticker):', 'invoice');
-    if (!templateType) return;
+    // Default to invoice for now since we're focusing on it
+    const templateType = 'invoice';
 
     try {
       const result = await API.templates.preview({
