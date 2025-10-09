@@ -3563,4 +3563,409 @@
       }, 300);
     }, 3000);
   }
+
+  // Enhanced save function with redirect to template selector
+  async function saveTemplateAndReturn() {
+    const canvas = qs('#ce-canvas');
+    if (!canvas) return;
+
+    const content = canvas.innerHTML;
+    if (!content || content.includes('Haz clic en los botones') || content.includes('Tu plantilla está vacía')) {
+      alert('❌ No se puede guardar una plantilla vacía.\n\nPor favor agrega contenido antes de guardar.');
+      return;
+    }
+
+    // Check if API is available
+    if (typeof API === 'undefined') {
+      alert('⚠️ API no disponible. No se puede guardar en el servidor.\n\nVerifica que el backend esté funcionando.');
+      console.log('Contenido que se intentó guardar:', content);
+      return;
+    }
+
+    // Get template details from current session
+    const session = window.currentTemplateSession;
+    let templateName = session?.name;
+    let templateType = session?.type || 'invoice';
+    let isUpdate = session?.action === 'edit';
+
+    // If creating new or name not set, ask user
+    if (!templateName || session?.action === 'create') {
+      templateName = prompt('📝 Nombre del formato:', templateName || `Nuevo ${getDocumentTypeName(templateType)}`);
+      if (!templateName) return;
+      
+      // Update session name
+      if (window.currentTemplateSession) {
+        window.currentTemplateSession.name = templateName;
+      }
+    }
+
+    const activate = isUpdate ? 
+      confirm(`💾 ¿Actualizar formato existente "${templateName}"?\n\n✅ Sí - Actualizar formato\n❌ No - Cancelar`) :
+      confirm(`📋 ¿Activar "${templateName}" como formato principal?\n\n✅ Sí - Activar como principal (Recomendado)\n❌ No - Guardar como borrador`);
+
+    if (isUpdate && !activate) return; // User cancelled update
+
+    try {
+      showQuickNotification('💾 Guardando plantilla...', 'info');
+      
+      // Use API module to ensure proper authentication and company isolation
+      const savedTemplate = await API.templates.create({
+        name: templateName,
+        type: templateType,
+        contentHtml: content,
+        contentCss: '', // Could be extracted from styles
+        activate: activate
+      });
+
+      const company = API.getActiveCompany() || 'empresa actual';
+      
+      // Show success message
+      showQuickNotification(`✅ "${templateName}" guardada correctamente`, 'success');
+      
+      console.log('✅ Plantilla guardada exitosamente:', savedTemplate);
+      console.log(`📋 Tipo: ${templateType}, Empresa: ${company}, Activada: ${activate}`);
+      
+      // Wait a moment to show the success message, then redirect
+      setTimeout(() => {
+        console.log('🔄 Redirigiendo al selector de plantillas...');
+        window.location.href = 'template-selector.html';
+      }, 1500);
+      
+    } catch (error) {
+      console.error('❌ Error saving template:', error);
+      
+      let errorMsg = '❌ Error al guardar la plantilla:\n\n';
+      if (error.message) {
+        errorMsg += error.message;
+      } else if (error.status === 401) {
+        errorMsg += 'No tienes permisos para guardar. Verifica tu sesión.';
+      } else if (error.status === 500) {
+        errorMsg += 'Error del servidor. Intenta nuevamente.';
+      } else {
+        errorMsg += 'Error desconocido. Revisa la consola para más detalles.';
+      }
+      
+      alert(errorMsg);
+      showQuickNotification('❌ Error al guardar plantilla', 'error');
+    }
+  }
+
+  // Enhanced preview function with better error handling
+  async function previewTemplateEnhanced() {
+    const canvas = qs('#ce-canvas');
+    if (!canvas) return;
+
+    const content = canvas.innerHTML;
+    if (!content || content.includes('Haz clic en los botones') || content.includes('Tu plantilla está vacía')) {
+      alert('❌ No hay contenido para previsualizar.\n\nPor favor agrega elementos a la plantilla antes de ver la vista previa.');
+      return;
+    }
+
+    // Auto-detect template type based on content or session
+    const session = window.currentTemplateSession;
+    let templateType = session?.type || 'invoice';
+    
+    // Try to detect from content if session is not available
+    if (!session) {
+      if (content.toLowerCase().includes('cotización')) {
+        templateType = 'quote';
+      } else if (content.toLowerCase().includes('orden de trabajo')) {
+        templateType = 'workOrder';
+      } else if (content.toLowerCase().includes('factura')) {
+        templateType = 'invoice';
+      }
+    }
+
+    console.log('🔍 Generando vista previa para tipo:', templateType);
+
+    // Check if API is available
+    if (typeof API === 'undefined') {
+      console.warn('⚠️ API no disponible, mostrando vista previa offline');
+      showQuickNotification('⚠️ Mostrando vista previa sin datos reales', 'info');
+      showOfflinePreview(content, templateType);
+      return;
+    }
+
+    try {
+      showQuickNotification('🔄 Generando vista previa con datos reales...', 'info');
+      
+      const result = await API.templates.preview({
+        type: templateType,
+        contentHtml: content,
+        contentCss: ''
+      });
+
+      // Create preview window with enhanced styling
+      const previewWindow = window.open('', '_blank', 'width=900,height=1200,scrollbars=yes,resizable=yes');
+      
+      if (!previewWindow) {
+        alert('❌ No se pudo abrir la ventana de vista previa.\n\nVerifica que tu navegador no esté bloqueando ventanas emergentes.');
+        return;
+      }
+      
+      const company = API.getActiveCompany() || 'Empresa';
+      const currentDate = new Date().toLocaleString('es-ES', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      const previewHTML = `
+        <!DOCTYPE html>
+        <html lang="es">
+          <head>
+            <title>Vista Previa PDF - ${getDocumentTypeName(templateType)} | ${company}</title>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+              * { box-sizing: border-box; }
+              
+              body { 
+                font-family: 'Arial', 'Helvetica', sans-serif; 
+                margin: 0; 
+                padding: 0; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: #333;
+                font-size: 14px;
+                line-height: 1.4;
+                min-height: 100vh;
+              }
+              
+              .preview-header {
+                background: rgba(255, 255, 255, 0.95);
+                backdrop-filter: blur(10px);
+                border-bottom: 1px solid rgba(0,0,0,0.1);
+                padding: 15px 25px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                position: sticky;
+                top: 0;
+                z-index: 1000;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+              }
+              
+              .header-left {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+              }
+              
+              .header-title {
+                font-size: 18px;
+                font-weight: 600;
+                color: #2c3e50;
+              }
+              
+              .header-info {
+                font-size: 12px;
+                color: #666;
+                background: #f8f9fa;
+                padding: 4px 8px;
+                border-radius: 12px;
+              }
+              
+              .header-buttons {
+                display: flex;
+                gap: 10px;
+              }
+              
+              .btn {
+                border: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 14px;
+                font-weight: 600;
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+              }
+              
+              .btn-primary { background: #007bff; color: white; }
+              .btn-success { background: #28a745; color: white; }
+              .btn-danger { background: #dc3545; color: white; }
+              
+              .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+              }
+              
+              .preview-container {
+                padding: 40px 20px;
+                display: flex;
+                justify-content: center;
+              }
+              
+              .pdf-viewer {
+                background: white;
+                width: 21cm;
+                min-height: 29.7cm;
+                padding: 2cm;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+                border-radius: 8px;
+                position: relative;
+                animation: slideUp 0.5s ease-out;
+              }
+              
+              @keyframes slideUp {
+                from {
+                  opacity: 0;
+                  transform: translateY(30px);
+                }
+                to {
+                  opacity: 1;
+                  transform: translateY(0);
+                }
+              }
+              
+              /* Clean up template elements for print */
+              .tpl-element {
+                border: none !important;
+                outline: none !important;
+                box-shadow: none !important;
+                color: #333 !important;
+                position: static !important;
+                cursor: default !important;
+              }
+              
+              /* Ensure tables look good */
+              table {
+                border-collapse: collapse;
+                width: 100%;
+                margin: 15px 0;
+              }
+              
+              th, td {
+                border: 1px solid #333;
+                padding: 8px 12px;
+                text-align: left;
+                font-size: 13px;
+              }
+              
+              th {
+                background-color: #f5f5f5;
+                font-weight: bold;
+              }
+              
+              /* Print styles */
+              @media print {
+                body { 
+                  background: white !important; 
+                  padding: 0; 
+                  font-size: 12px;
+                }
+                .preview-header { display: none !important; }
+                .preview-container { padding: 0; }
+                .pdf-viewer { 
+                  box-shadow: none !important; 
+                  width: 100%; 
+                  padding: 1cm;
+                  min-height: auto;
+                  border-radius: 0;
+                }
+              }
+              
+              /* Responsive design */
+              @media (max-width: 1000px) {
+                .pdf-viewer {
+                  width: 95%;
+                  padding: 1.5cm;
+                }
+                .header-title {
+                  font-size: 16px;
+                }
+                .btn {
+                  padding: 8px 15px;
+                  font-size: 12px;
+                }
+              }
+            </style>
+          </head>
+          <body>
+            <div class="preview-header">
+              <div class="header-left">
+                <div class="header-title">📄 Vista Previa PDF</div>
+                <div class="header-info">${getDocumentTypeName(templateType)}</div>
+                <div class="header-info">${company}</div>
+                <div class="header-info">${currentDate}</div>
+              </div>
+              <div class="header-buttons">
+                <button class="btn btn-success" onclick="window.print()" title="Imprimir o guardar como PDF">
+                  🖨️ Imprimir/PDF
+                </button>
+                <button class="btn btn-primary" onclick="window.location.reload()" title="Recargar vista previa">
+                  🔄 Actualizar
+                </button>
+                <button class="btn btn-danger" onclick="window.close()" title="Cerrar ventana">
+                  ✕ Cerrar
+                </button>
+              </div>
+            </div>
+            
+            <div class="preview-container">
+              <div class="pdf-viewer">
+                ${result.rendered || content}
+              </div>
+            </div>
+            
+            <script>
+              console.log('📊 Vista previa generada exitosamente');
+              console.log('🔧 Tipo de plantilla:', '${templateType}');
+              console.log('📋 Contexto de datos:', ${JSON.stringify(result.context || {}, null, 2)});
+              
+              // Add keyboard shortcuts
+              document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                  window.close();
+                } else if (e.ctrlKey && e.key === 'p') {
+                  e.preventDefault();
+                  window.print();
+                } else if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+                  e.preventDefault();
+                  window.location.reload();
+                }
+              });
+              
+              // Focus window for keyboard shortcuts
+              window.focus();
+              
+              // Add loading indicator for print
+              window.addEventListener('beforeprint', function() {
+                document.title = '🖨️ Preparando impresión...';
+              });
+              
+              window.addEventListener('afterprint', function() {
+                document.title = 'Vista Previa PDF - ${getDocumentTypeName(templateType)} | ${company}';
+              });
+            </script>
+          </body>
+        </html>
+      `;
+      
+      previewWindow.document.write(previewHTML);
+      previewWindow.document.close();
+      
+      showQuickNotification('✅ Vista previa generada con datos reales', 'success');
+      
+    } catch (error) {
+      console.error('❌ Error generating preview:', error);
+      
+      const errorMsg = `❌ Error al generar vista previa: ${error.message || 'Error desconocido'}`;
+      showQuickNotification(errorMsg, 'error');
+      
+      // Fallback to offline preview
+      console.log('🔄 Usando vista previa offline como respaldo...');
+      showOfflinePreview(content, templateType);
+    }
+  }
+
+  // Make functions globally available for button onclick handlers
+  window.saveTemplateToBackend = saveTemplateAndReturn;
+  window.previewWithRealData = previewTemplateEnhanced;
+
 })();
