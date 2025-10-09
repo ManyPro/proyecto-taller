@@ -10,6 +10,79 @@
     #editor-container { height: 500px; background: #fff; margin-bottom: 20px; }
     .toolbar { margin-bottom: 10px; }
     .template-actions { margin-top: 20px; }
+    
+    /* Default text colors - ensure black text for printing */
+    .tpl-element {
+      color: #333 !important;
+    }
+    
+    .tpl-element * {
+      color: inherit !important;
+    }
+    
+    /* Print optimization styles */
+    @media print {
+      body {
+        background: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      
+      .tpl-element {
+        border: none !important;
+        outline: none !important;
+        box-shadow: none !important;
+        color: #000 !important;
+      }
+      
+      .tpl-element * {
+        color: #000 !important;
+      }
+      
+      .tpl-element h1, .tpl-element h2, .tpl-element h3, .tpl-element h4, .tpl-element h5, .tpl-element h6 {
+        color: #000 !important;
+      }
+      
+      .tpl-element table {
+        border-collapse: collapse !important;
+        page-break-inside: avoid;
+      }
+      
+      .tpl-element table, .tpl-element th, .tpl-element td {
+        border: 1px solid #000 !important;
+        color: #000 !important;
+      }
+      
+      .tpl-element th {
+        background: #f0f0f0 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      
+      .ce-canvas {
+        background: white !important;
+        box-shadow: none !important;
+        border: none !important;
+      }
+      
+      /* Hide editor UI elements during print */
+      #ce-toolbar, 
+      #right-sidebar, 
+      .selection-status, 
+      .delete-hint,
+      .template-actions,
+      h1:first-child,
+      .toolbar {
+        display: none !important;
+      }
+      
+      /* Ensure content fills the page */
+      #custom-editor {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+    }
   </style>
 </head>
 <body>

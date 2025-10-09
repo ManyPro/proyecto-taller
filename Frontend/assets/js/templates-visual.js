@@ -13,22 +13,22 @@
 <div style="max-width: 800px; font-family: Arial, sans-serif; padding: 20px; background: white;">
   <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px solid #28a745; padding-bottom: 15px;">
     <h1 style="color: #28a745; margin: 0; font-size: 28px;">COTIZACIÓN</h1>
-    <h2 style="color: #666; margin: 5px 0; font-size: 20px;"># COT-2024-00289</h2>
+    <h2 style="color: #333; margin: 5px 0; font-size: 20px;"># COT-2024-00289</h2>
   </div>
   
   <div style="display: flex; justify-content: space-between; margin-bottom: 25px;">
     <div style="flex: 1;">
       <h3 style="color: #28a745; margin: 0 0 10px 0;">TALLER AUTOMOTRIZ PÉREZ</h3>
-      <p style="margin: 3px 0; color: #666;">Calle Principal #123, Centro</p>
-      <p style="margin: 3px 0; color: #666;">Tel: (555) 123-4567</p>
-      <p style="margin: 3px 0; color: #666;">contacto@tallerperez.com</p>
+      <p style="margin: 3px 0; color: #333;">Calle Principal #123, Centro</p>
+      <p style="margin: 3px 0; color: #333;">Tel: (555) 123-4567</p>
+      <p style="margin: 3px 0; color: #333;">contacto@tallerperez.com</p>
     </div>
     <div style="flex: 1; text-align: right;">
       <h3 style="color: #333; margin: 0 0 10px 0;">CLIENTE:</h3>
       <p style="margin: 3px 0; font-weight: bold;">María García López</p>
-      <p style="margin: 3px 0; color: #666;">Tel: (555) 456-7890</p>
-      <p style="margin: 3px 0; color: #666;">Fecha: 08/10/2024</p>
-      <p style="margin: 3px 0; color: #666;">Válida hasta: 15/10/2024</p>
+      <p style="margin: 3px 0; color: #333;">Tel: (555) 456-7890</p>
+      <p style="margin: 3px 0; color: #333;">Fecha: 08/10/2024</p>
+      <p style="margin: 3px 0; color: #333;">Válida hasta: 15/10/2024</p>
     </div>
   </div>
 
@@ -101,19 +101,19 @@
 <div style="max-width: 800px; font-family: Arial, sans-serif; padding: 20px; background: white;">
   <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px solid #fd7e14; padding-bottom: 15px;">
     <h1 style="color: #fd7e14; margin: 0; font-size: 28px;">ORDEN DE TRABAJO</h1>
-    <h2 style="color: #666; margin: 5px 0; font-size: 20px;"># OT-2024-00445</h2>
+    <h2 style="color: #333; margin: 5px 0; font-size: 20px;"># OT-2024-00445</h2>
   </div>
   
   <div style="display: flex; justify-content: space-between; margin-bottom: 25px;">
     <div style="flex: 1;">
       <h3 style="color: #fd7e14; margin: 0 0 10px 0;">TALLER AUTOMOTRIZ PÉREZ</h3>
-      <p style="margin: 3px 0; color: #666;">Calle Principal #123, Centro</p>
-      <p style="margin: 3px 0; color: #666;">Tel: (555) 123-4567</p>
+      <p style="margin: 3px 0; color: #333;">Calle Principal #123, Centro</p>
+      <p style="margin: 3px 0; color: #333;">Tel: (555) 123-4567</p>
     </div>
     <div style="flex: 1; text-align: right;">
-      <p style="margin: 3px 0; color: #666;"><strong>Fecha inicio:</strong> 08/10/2024</p>
-      <p style="margin: 3px 0; color: #666;"><strong>Fecha estimada:</strong> 10/10/2024</p>
-      <p style="margin: 3px 0; color: #666;"><strong>Estado:</strong> <span style="color: #28a745; font-weight: bold;">EN PROCESO</span></p>
+      <p style="margin: 3px 0; color: #333;"><strong>Fecha inicio:</strong> 08/10/2024</p>
+      <p style="margin: 3px 0; color: #333;"><strong>Fecha estimada:</strong> 10/10/2024</p>
+      <p style="margin: 3px 0; color: #333;"><strong>Estado:</strong> <span style="color: #28a745; font-weight: bold;">EN PROCESO</span></p>
     </div>
   </div>
 
@@ -152,11 +152,11 @@
       <tr>
         <td style="border: 1px solid #ddd; padding: 12px;">
           <strong>Inspección y reparación del sistema de frenos</strong><br>
-          <small style="color: #666;">Incluye revisión de pastillas, discos, líquido y mangueras</small>
+          <small style="color: #555;">Incluye revisión de pastillas, discos, líquido y mangueras</small>
         </td>
         <td style="border: 1px solid #ddd; padding: 12px; text-align: center;">
           <strong style="color: #fd7e14;">Carlos Mendoza</strong><br>
-          <small style="color: #666;">Especialista en frenos</small>
+          <small style="color: #555;">Especialista en frenos</small>
         </td>
         <td style="border: 1px solid #ddd; padding: 12px; text-align: center;">
           <span style="background: #ffc107; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px;">EN PROCESO</span>
@@ -166,11 +166,11 @@
       <tr style="background: #f8f9fa;">
         <td style="border: 1px solid #ddd; padding: 12px;">
           <strong>Mantenimiento preventivo completo</strong><br>
-          <small style="color: #666;">Cambio de aceite, filtros, revisión de niveles y sistemas</small>
+          <small style="color: #555;">Cambio de aceite, filtros, revisión de niveles y sistemas</small>
         </td>
         <td style="border: 1px solid #ddd; padding: 12px; text-align: center;">
           <strong style="color: #fd7e14;">Miguel Torres</strong><br>
-          <small style="color: #666;">Mecánico general</small>
+          <small style="color: #555;">Mecánico general</small>
         </td>
         <td style="border: 1px solid #ddd; padding: 12px; text-align: center;">
           <span style="background: #6c757d; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px;">PENDIENTE</span>
@@ -201,8 +201,8 @@
   </div>
 
   <div style="margin-top: 25px; text-align: center; border-top: 2px solid #fd7e14; padding-top: 15px;">
-    <p style="color: #666; margin: 5px 0;"><strong>Responsable:</strong> Ing. Juan Pérez - Supervisor de Taller</p>
-    <p style="color: #666; margin: 5px 0; font-size: 12px;">Cualquier cambio o trabajo adicional será consultado previamente con el cliente</p>
+    <p style="color: #333; margin: 5px 0;"><strong>Responsable:</strong> Ing. Juan Pérez - Supervisor de Taller</p>
+    <p style="color: #333; margin: 5px 0; font-size: 12px;">Cualquier cambio o trabajo adicional será consultado previamente con el cliente</p>
   </div>
 </div>`,
 
@@ -1465,20 +1465,20 @@
           </tr>
         </thead>
         <tbody>
-          <tr style="background: #f8f9fa;">
-            <td colspan="4" style="border: 1px solid #ddd; padding: 15px; font-family: monospace; background: #fff3cd; color: #856404; text-align: center;">
-              <strong>{{#each sale.items}}</strong><br>
-              <div style="display: flex; border-bottom: 1px solid #ddd; padding: 8px 0;">
-                <div style="width: 80px; text-align: center;">{{qty}}</div>
-                <div style="flex: 1; padding-left: 10px;">{{description}}</div>
-                <div style="width: 120px; text-align: right;">{{money price}}</div>
-                <div style="width: 120px; text-align: right; font-weight: bold;">{{money total}}</div>
-              </div>
-              <strong>{{/each}}</strong>
-            </td>
+          {{#each sale.items}}
+          <tr style="border-bottom: 1px solid #ddd;">
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">{{qty}}</td>
+            <td style="border: 1px solid #ddd; padding: 8px;">{{description}}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">{{money price}}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: right; font-weight: bold;">{{money total}}</td>
+          </tr>
+          {{/each}}
+          <tr style="background: #f8f9fa; font-weight: bold; border-top: 2px solid #333;">
+            <td colspan="3" style="border: 1px solid #ddd; padding: 12px; text-align: right; font-size: 16px;">TOTAL:</td>
+            <td style="border: 1px solid #ddd; padding: 12px; text-align: right; font-size: 16px; color: #2563eb;">{{money sale.total}}</td>
           </tr>
           <tr>
-            <td colspan="4" style="border: 1px solid #ddd; padding: 8px; text-align: center; color: #666; font-size: 12px;">
+            <td colspan="4" style="border: 1px solid #ddd; padding: 8px; text-align: center; color: #333; font-size: 12px;">
               Los items aparecerán aquí automáticamente desde la venta
             </td>
           </tr>
