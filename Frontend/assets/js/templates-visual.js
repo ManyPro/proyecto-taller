@@ -118,14 +118,15 @@
       <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
         <label style="font-weight: 600;">Tamaño:</label>
         <select id="canvas-size" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+          <option value="sticker">Sticker (5 x 3 cm)</option>
           <option value="half-letter">Media Carta (14 x 21.6 cm)</option>
           <option value="letter" selected>Carta (21.6 x 27.9 cm)</option>
           <option value="custom">Personalizado</option>
         </select>
         <div id="custom-size" style="display: none; gap: 5px; align-items: center;">
-          <input type="number" id="custom-width" placeholder="Ancho" min="5" max="50" value="21.6" style="width: 70px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;">
+          <input type="number" id="custom-width" placeholder="Ancho" min="1" max="50" value="21.6" step="0.1" style="width: 70px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;">
           <span>x</span>
-          <input type="number" id="custom-height" placeholder="Alto" min="5" max="70" value="27.9" style="width: 70px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;">
+          <input type="number" id="custom-height" placeholder="Alto" min="1" max="70" value="27.9" step="0.1" style="width: 70px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;">
           <span>cm</span>
           <button id="apply-size" style="padding: 4px 8px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer;">Aplicar</button>
         </div>
@@ -154,6 +155,7 @@
     
     // Canvas size presets (convert cm to pixels at 96 DPI)
     const sizesInCm = {
+      'sticker': { width: 5, height: 3, name: 'Sticker' },
       'half-letter': { width: 14, height: 21.6, name: 'Media Carta' },
       'letter': { width: 21.6, height: 27.9, name: 'Carta' },
       'custom': { width: 21.6, height: 27.9, name: 'Personalizado' }
@@ -207,10 +209,10 @@
         const width = parseFloat(customWidth.value);
         const height = parseFloat(customHeight.value);
         
-        if (width && height && width >= 5 && width <= 50 && height >= 5 && height <= 70) {
+        if (width && height && width >= 1 && width <= 50 && height >= 1 && height <= 70) {
           applyCanvasSize(width, height, 'Personalizado');
         } else {
-          alert('Por favor ingresa dimensiones válidas (ancho: 5-50 cm, alto: 5-70 cm)');
+          alert('Por favor ingresa dimensiones válidas (ancho: 1-50 cm, alto: 1-70 cm)');
         }
       };
     }
@@ -423,13 +425,40 @@
     // Remove previous selection
     document.querySelectorAll('.tpl-element').forEach(el => {
       el.style.border = '2px solid transparent';
+      el.style.boxShadow = 'none';
     });
 
     visualEditor.selectedElement = element;
 
     if (element) {
       element.style.border = '2px solid #2563eb';
+      element.style.boxShadow = '0 0 0 1px rgba(37, 99, 235, 0.2)';
       showElementProperties(element);
+      
+      // Add delete hint
+      if (!element.querySelector('.delete-hint')) {
+        const hint = document.createElement('div');
+        hint.className = 'delete-hint';
+        hint.style.cssText = `
+          position: absolute;
+          top: -25px;
+          right: -10px;
+          background: #dc3545;
+          color: white;
+          padding: 2px 6px;
+          border-radius: 3px;
+          font-size: 10px;
+          pointer-events: none;
+          z-index: 1002;
+        `;
+        hint.textContent = 'Del para eliminar';
+        element.appendChild(hint);
+        
+        // Remove hint after 3 seconds
+        setTimeout(() => {
+          if (hint.parentNode) hint.remove();
+        }, 3000);
+      }
     } else {
       hideElementProperties();
     }
@@ -607,9 +636,27 @@
 
     if (deleteBtn) {
       deleteBtn.onclick = () => {
+        // Clean up resize handles if it's an image
+        const imageContainer = element.querySelector('.image-container');
+        if (imageContainer && imageContainer._resizeCleanup) {
+          imageContainer._resizeCleanup();
+        }
+        
+        // Clean up drag functionality
+        if (element._dragCleanup) {
+          element._dragCleanup();
+        }
+        
+        // Remove element from DOM
         element.remove();
+        
+        // Remove from elements array
         visualEditor.elements = visualEditor.elements.filter(el => el.element !== element);
+        
+        // Clear selection
         selectElement(null);
+        
+        console.log('Elemento eliminado correctamente');
       };
     }
   }
@@ -909,12 +956,123 @@
     }, 100);
   };
 
+  // Setup keyboard shortcuts
+  function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+      // Delete element with Del or Backspace
+      if ((e.key === 'Delete' || e.key === 'Backspace') && visualEditor.selectedElement) {
+        // Don't delete if we're editing text
+        if (document.activeElement.contentEditable === 'true') return;
+        
+        e.preventDefault();
+        deleteSelectedElement();
+      }
+      
+      // Copy element with Ctrl+C
+      if (e.ctrlKey && e.key === 'c' && visualEditor.selectedElement) {
+        if (document.activeElement.contentEditable === 'true') return;
+        e.preventDefault();
+        copySelectedElement();
+      }
+      
+      // Paste element with Ctrl+V
+      if (e.ctrlKey && e.key === 'v' && visualEditor.copiedElement) {
+        if (document.activeElement.contentEditable === 'true') return;
+        e.preventDefault();
+        pasteElement();
+      }
+    });
+  }
+
+  function deleteSelectedElement() {
+    if (!visualEditor.selectedElement) return;
+    
+    const element = visualEditor.selectedElement;
+    
+    // Clean up resize handles if it's an image
+    const imageContainer = element.querySelector('.image-container');
+    if (imageContainer && imageContainer._resizeCleanup) {
+      imageContainer._resizeCleanup();
+    }
+    
+    // Clean up drag functionality
+    if (element._dragCleanup) {
+      element._dragCleanup();
+    }
+    
+    // Remove element from DOM
+    element.remove();
+    
+    // Remove from elements array
+    visualEditor.elements = visualEditor.elements.filter(el => el.element !== element);
+    
+    // Clear selection
+    selectElement(null);
+    
+    console.log('Elemento eliminado con teclado');
+  }
+
+  function copySelectedElement() {
+    if (!visualEditor.selectedElement) return;
+    
+    visualEditor.copiedElement = {
+      outerHTML: visualEditor.selectedElement.outerHTML,
+      type: visualEditor.elements.find(el => el.element === visualEditor.selectedElement)?.type || 'unknown'
+    };
+    
+    console.log('Elemento copiado');
+  }
+
+  function pasteElement() {
+    if (!visualEditor.copiedElement) return;
+    
+    const canvas = qs('#ce-canvas');
+    if (!canvas) return;
+    
+    // Create new element from copied HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = visualEditor.copiedElement.outerHTML;
+    const newElement = tempDiv.firstChild;
+    
+    // Generate new ID
+    const newId = `element_${visualEditor.nextId++}`;
+    newElement.id = newId;
+    
+    // Offset position slightly
+    const currentLeft = parseInt(newElement.style.left) || 0;
+    const currentTop = parseInt(newElement.style.top) || 0;
+    newElement.style.left = (currentLeft + 20) + 'px';
+    newElement.style.top = (currentTop + 20) + 'px';
+    
+    // Re-setup functionality
+    makeDraggable(newElement);
+    makeSelectable(newElement);
+    
+    // Setup image upload if it's an image element
+    if (visualEditor.copiedElement.type === 'image') {
+      setupImageUpload(newElement);
+    }
+    
+    canvas.appendChild(newElement);
+    selectElement(newElement);
+    
+    // Add to elements array
+    visualEditor.elements.push({
+      id: newId,
+      type: visualEditor.copiedElement.type,
+      element: newElement
+    });
+    
+    console.log('Elemento pegado');
+  }
+
   // Initialize when DOM is ready
   document.addEventListener('DOMContentLoaded', function() {
     console.log('🎨 Inicializando Editor Visual Completo...');
     
     setupVisualEditor();
     setupVariables();
+    setupKeyboardShortcuts();
     
     // Setup existing buttons if they exist
     const saveBtn = qs('#save-template');
