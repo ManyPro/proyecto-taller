@@ -355,7 +355,12 @@
       <button id="add-image-btn" style="padding: 8px 16px; background: #ffc107; color: black; border: none; border-radius: 4px; cursor: pointer;">+ Imagen</button>
       <button id="add-table-btn" style="padding: 8px 16px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">+ Tabla</button>
       <button id="add-items-table-btn" style="padding: 8px 16px; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer;">+ Tabla Items</button>
-      <button id="clear-canvas-btn" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Limpiar</button>
+      
+      <div style="border-left: 2px solid #ddd; padding-left: 8px; margin-left: 8px;">
+        <button id="delete-selected-btn" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;" title="Eliminar elemento seleccionado">🗑️ Eliminar</button>
+        <button id="undo-btn" style="padding: 8px 16px; background: #fd7e14; color: white; border: none; border-radius: 4px; cursor: pointer; opacity: 0.5;" disabled title="Deshacer última eliminación">↩️ Deshacer</button>
+        <button id="clear-canvas-btn" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">🆑 Limpiar Todo</button>
+      </div>
       
       <div style="border-left: 2px solid #ddd; padding-left: 15px; margin-left: 15px;">
         <label style="font-weight: 600; margin-right: 8px;">Plantillas:</label>
@@ -388,7 +393,31 @@
     qs('#add-text-btn').onclick = () => addElement('text');
     qs('#add-image-btn').onclick = () => addElement('image');
     qs('#add-table-btn').onclick = () => addElement('table');
+    qs('#add-items-table-btn').onclick = () => addItemsTable();
+    
+    // Delete button handler
+    qs('#delete-selected-btn').onclick = () => {
+      if (visualEditor.selectedElement) {
+        if (confirm('¿Estás seguro de que quieres eliminar el elemento seleccionado?')) {
+          if (deleteElementSafely(visualEditor.selectedElement)) {
+            showNotification('Elemento eliminado correctamente');
+          } else {
+            alert('Error al eliminar el elemento. Inténtalo de nuevo.');
+          }
+        }
+      } else {
+        alert('Primero selecciona un elemento para eliminar');
+      }
+    };
+    
     qs('#clear-canvas-btn').onclick = clearCanvas;
+    
+    // Undo button handler
+    qs('#undo-btn').onclick = () => {
+      if (visualEditor.lastDeletedElement) {
+        restoreDeletedElement();
+      }
+    };
     
     // Setup template loading handlers
     qs('#load-invoice-btn').onclick = () => loadTemplate('invoice');
@@ -675,6 +704,12 @@
       e.stopPropagation();
       selectElement(element);
     };
+
+    // Add right-click context menu for additional delete option
+    element.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      showContextMenu(e, element);
+    });
   }
 
   function selectElement(element) {
@@ -689,12 +724,15 @@
     // Update variables panel indicator
     updateVariablesSelectionIndicator();
 
+    // Update delete button state
+    updateDeleteButtonState(element);
+
     if (element) {
       element.style.border = '2px solid #2563eb';
       element.style.boxShadow = '0 0 0 1px rgba(37, 99, 235, 0.2)';
       showElementProperties(element);
       
-      // Add delete hint
+      // Add delete hint and visible delete button
       if (!element.querySelector('.delete-hint')) {
         const hint = document.createElement('div');
         hint.className = 'delete-hint';
@@ -717,6 +755,56 @@
         setTimeout(() => {
           if (hint.parentNode) hint.remove();
         }, 3000);
+      }
+
+      // Add visible delete button
+      if (!element.querySelector('.delete-btn-visible')) {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'delete-btn-visible';
+        deleteBtn.innerHTML = '🗑️';
+        deleteBtn.style.cssText = `
+          position: absolute;
+          top: -15px;
+          left: -15px;
+          width: 30px;
+          height: 30px;
+          border: none;
+          border-radius: 50%;
+          background: #dc3545;
+          color: white;
+          font-size: 12px;
+          cursor: pointer;
+          z-index: 1003;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+          transition: all 0.2s ease;
+        `;
+        
+        deleteBtn.onmouseover = () => {
+          deleteBtn.style.background = '#c82333';
+          deleteBtn.style.transform = 'scale(1.1)';
+        };
+        
+        deleteBtn.onmouseout = () => {
+          deleteBtn.style.background = '#dc3545';
+          deleteBtn.style.transform = 'scale(1)';
+        };
+        
+        deleteBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (confirm('¿Estás seguro de que quieres eliminar este elemento?')) {
+            deleteElementSafely(element);
+          }
+        };
+        
+        element.appendChild(deleteBtn);
+        
+        // Remove button after 5 seconds
+        setTimeout(() => {
+          if (deleteBtn.parentNode) deleteBtn.remove();
+        }, 5000);
       }
     } else {
       hideElementProperties();
@@ -1176,6 +1264,10 @@
     // Create template based on type
     if (templateType === 'invoice') {
       createInvoiceTemplate(canvas);
+    } else if (templateType === 'quote') {
+      createQuoteTemplate(canvas);
+    } else if (templateType === 'workOrder') {
+      createWorkOrderTemplate(canvas);
     } else {
       // For other templates, use existing snippets
       const template = state.exampleSnippets[templateType];
@@ -1323,9 +1415,316 @@
     // 8. Footer
     const footer = createEditableElement('text', 'Garantía de 30 días en mano de obra | Válido solo con esta factura', {
       position: { left: 200, top: 650 },
-      styles: { fontSize: '12px', color: '#666', textAlign: 'center' }
+      styles: { fontSize: '12px', color: '#333', textAlign: 'center' }
     });
     canvas.appendChild(footer);
+  }
+
+  function createQuoteTemplate(canvas) {
+    // Clear placeholder text
+    canvas.innerHTML = '';
+
+    // Create individual editable elements for quote
+    
+    // 1. Header - Title and number
+    const headerTitle = createEditableElement('title', 'COTIZACIÓN', {
+      position: { left: 300, top: 30 },
+      styles: { fontSize: '32px', fontWeight: 'bold', color: '#28a745', textAlign: 'center' }
+    });
+    canvas.appendChild(headerTitle);
+
+    const quoteNumber = createEditableElement('text', '# {{quote.number}}', {
+      position: { left: 320, top: 80 },
+      styles: { fontSize: '18px', color: '#333', textAlign: 'center' }
+    });
+    canvas.appendChild(quoteNumber);
+
+    // 2. Company information (left side)
+    const companyTitle = createEditableElement('text', '{{company.name}}', {
+      position: { left: 50, top: 130 },
+      styles: { fontSize: '18px', fontWeight: 'bold', color: '#28a745' }
+    });
+    canvas.appendChild(companyTitle);
+
+    const companyAddress = createEditableElement('text', '{{company.address}}', {
+      position: { left: 50, top: 160 },
+      styles: { fontSize: '14px', color: '#333' }
+    });
+    canvas.appendChild(companyAddress);
+
+    const companyPhone = createEditableElement('text', 'Tel: {{company.phone}}', {
+      position: { left: 50, top: 185 },
+      styles: { fontSize: '14px', color: '#333' }
+    });
+    canvas.appendChild(companyPhone);
+
+    // 3. Customer information (right side)
+    const customerLabel = createEditableElement('text', 'CLIENTE:', {
+      position: { left: 450, top: 130 },
+      styles: { fontSize: '16px', fontWeight: 'bold', color: '#333' }
+    });
+    canvas.appendChild(customerLabel);
+
+    const customerName = createEditableElement('text', '{{quote.customerName}}', {
+      position: { left: 450, top: 160 },
+      styles: { fontSize: '14px', color: '#333', fontWeight: 'bold' }
+    });
+    canvas.appendChild(customerName);
+
+    const quoteDate = createEditableElement('text', 'Fecha: {{date quote.date}}', {
+      position: { left: 450, top: 185 },
+      styles: { fontSize: '14px', color: '#333' }
+    });
+    canvas.appendChild(quoteDate);
+
+    const validUntil = createEditableElement('text', 'Válida hasta: {{date quote.validUntil}}', {
+      position: { left: 450, top: 210 },
+      styles: { fontSize: '14px', color: '#333' }
+    });
+    canvas.appendChild(validUntil);
+
+    // 4. Vehicle information
+    const vehicleSection = createEditableElement('text', 'VEHÍCULO: {{quote.vehicle.plate}} - {{quote.vehicle.brand}} {{quote.vehicle.model}}', {
+      position: { left: 50, top: 250 },
+      styles: { 
+        fontSize: '14px', 
+        color: '#333', 
+        background: '#e8f5e8', 
+        padding: '10px', 
+        borderLeft: '4px solid #28a745',
+        borderRadius: '4px',
+        minWidth: '600px'
+      }
+    });
+    canvas.appendChild(vehicleSection);
+
+    // 5. Services/Items section
+    const servicesTitle = createEditableElement('text', 'SERVICIOS COTIZADOS:', {
+      position: { left: 50, top: 320 },
+      styles: { fontSize: '16px', fontWeight: 'bold', color: '#333', textDecoration: 'underline' }
+    });
+    canvas.appendChild(servicesTitle);
+
+    const itemsContainer = createEditableElement('text', '{{#each quote.items}}\n• {{qty}}x {{description}} - {{money price}} c/u = {{money total}}\n{{/each}}', {
+      position: { left: 50, top: 350 },
+      styles: { 
+        fontSize: '14px', 
+        color: '#333', 
+        whiteSpace: 'pre-line',
+        fontFamily: 'monospace',
+        background: '#f8f9fa',
+        padding: '15px',
+        borderRadius: '4px',
+        minWidth: '600px',
+        minHeight: '120px'
+      }
+    });
+    canvas.appendChild(itemsContainer);
+
+    // 6. Totals section
+    const subtotalLabel = createEditableElement('text', 'Subtotal:', {
+      position: { left: 450, top: 520 },
+      styles: { fontSize: '14px', color: '#333', textAlign: 'right', minWidth: '100px' }
+    });
+    canvas.appendChild(subtotalLabel);
+
+    const subtotalValue = createEditableElement('text', '{{money quote.subtotal}}', {
+      position: { left: 570, top: 520 },
+      styles: { fontSize: '14px', color: '#333', fontWeight: 'bold' }
+    });
+    canvas.appendChild(subtotalValue);
+
+    const taxLabel = createEditableElement('text', 'IVA (16%):', {
+      position: { left: 450, top: 545 },
+      styles: { fontSize: '14px', color: '#333', textAlign: 'right', minWidth: '100px' }
+    });
+    canvas.appendChild(taxLabel);
+
+    const taxValue = createEditableElement('text', '{{money quote.tax}}', {
+      position: { left: 570, top: 545 },
+      styles: { fontSize: '14px', color: '#333', fontWeight: 'bold' }
+    });
+    canvas.appendChild(taxValue);
+
+    const totalLabel = createEditableElement('text', 'TOTAL:', {
+      position: { left: 450, top: 580 },
+      styles: { fontSize: '18px', color: '#28a745', fontWeight: 'bold', textAlign: 'right', minWidth: '100px' }
+    });
+    canvas.appendChild(totalLabel);
+
+    const totalValue = createEditableElement('text', '{{money quote.total}}', {
+      position: { left: 570, top: 580 },
+      styles: { fontSize: '18px', color: '#28a745', fontWeight: 'bold' }
+    });
+    canvas.appendChild(totalValue);
+
+    // 7. Footer with validity and conditions
+    const footer = createEditableElement('text', 'Cotización válida por 15 días | Los precios incluyen IVA | Sujeto a disponibilidad de repuestos', {
+      position: { left: 200, top: 650 },
+      styles: { fontSize: '12px', color: '#333', textAlign: 'center' }
+    });
+    canvas.appendChild(footer);
+  }
+
+  function createWorkOrderTemplate(canvas) {
+    // Clear placeholder text
+    canvas.innerHTML = '';
+
+    // Create individual editable elements for work order
+    
+    // 1. Header - Title and number
+    const headerTitle = createEditableElement('title', 'ORDEN DE TRABAJO', {
+      position: { left: 280, top: 30 },
+      styles: { fontSize: '28px', fontWeight: 'bold', color: '#fd7e14', textAlign: 'center' }
+    });
+    canvas.appendChild(headerTitle);
+
+    const orderNumber = createEditableElement('text', '# {{workOrder.number}}', {
+      position: { left: 320, top: 75 },
+      styles: { fontSize: '18px', color: '#333', textAlign: 'center' }
+    });
+    canvas.appendChild(orderNumber);
+
+    // 2. Company information (left side)
+    const companyTitle = createEditableElement('text', '{{company.name}}', {
+      position: { left: 50, top: 120 },
+      styles: { fontSize: '18px', fontWeight: 'bold', color: '#fd7e14' }
+    });
+    canvas.appendChild(companyTitle);
+
+    const companyAddress = createEditableElement('text', '{{company.address}}', {
+      position: { left: 50, top: 150 },
+      styles: { fontSize: '14px', color: '#333' }
+    });
+    canvas.appendChild(companyAddress);
+
+    const companyPhone = createEditableElement('text', 'Tel: {{company.phone}}', {
+      position: { left: 50, top: 175 },
+      styles: { fontSize: '14px', color: '#333' }
+    });
+    canvas.appendChild(companyPhone);
+
+    // 3. Customer and dates (right side)
+    const customerLabel = createEditableElement('text', 'CLIENTE:', {
+      position: { left: 450, top: 120 },
+      styles: { fontSize: '16px', fontWeight: 'bold', color: '#333' }
+    });
+    canvas.appendChild(customerLabel);
+
+    const customerName = createEditableElement('text', '{{workOrder.customerName}}', {
+      position: { left: 450, top: 150 },
+      styles: { fontSize: '14px', color: '#333', fontWeight: 'bold' }
+    });
+    canvas.appendChild(customerName);
+
+    const startDate = createEditableElement('text', 'Fecha inicio: {{date workOrder.startDate}}', {
+      position: { left: 450, top: 175 },
+      styles: { fontSize: '14px', color: '#333' }
+    });
+    canvas.appendChild(startDate);
+
+    const estimatedDate = createEditableElement('text', 'Fecha estimada: {{date workOrder.estimatedDate}}', {
+      position: { left: 450, top: 200 },
+      styles: { fontSize: '14px', color: '#333' }
+    });
+    canvas.appendChild(estimatedDate);
+
+    const status = createEditableElement('text', 'Estado: {{workOrder.status}}', {
+      position: { left: 450, top: 225 },
+      styles: { fontSize: '14px', color: '#333', fontWeight: 'bold' }
+    });
+    canvas.appendChild(status);
+
+    // 4. Vehicle information
+    const vehicleSection = createEditableElement('text', 'VEHÍCULO: {{workOrder.vehicle.plate}} - {{workOrder.vehicle.brand}} {{workOrder.vehicle.model}} ({{workOrder.vehicle.year}})', {
+      position: { left: 50, top: 270 },
+      styles: { 
+        fontSize: '14px', 
+        color: '#333', 
+        background: '#fff3cd', 
+        padding: '10px', 
+        borderLeft: '4px solid #fd7e14',
+        borderRadius: '4px',
+        minWidth: '600px'
+      }
+    });
+    canvas.appendChild(vehicleSection);
+
+    const mileage = createEditableElement('text', 'Kilometraje: {{workOrder.vehicle.mileage}} km', {
+      position: { left: 50, top: 310 },
+      styles: { fontSize: '14px', color: '#333' }
+    });
+    canvas.appendChild(mileage);
+
+    // 5. Problem description
+    const problemTitle = createEditableElement('text', 'PROBLEMA REPORTADO:', {
+      position: { left: 50, top: 350 },
+      styles: { fontSize: '16px', fontWeight: 'bold', color: '#333', textDecoration: 'underline' }
+    });
+    canvas.appendChild(problemTitle);
+
+    const problemDescription = createEditableElement('text', '{{workOrder.problemDescription}}', {
+      position: { left: 50, top: 380 },
+      styles: { 
+        fontSize: '14px', 
+        color: '#333', 
+        background: '#f8d7da', 
+        padding: '10px',
+        borderRadius: '4px',
+        minWidth: '600px',
+        minHeight: '60px'
+      }
+    });
+    canvas.appendChild(problemDescription);
+
+    // 6. Work to be performed
+    const workTitle = createEditableElement('text', 'TRABAJOS A REALIZAR:', {
+      position: { left: 50, top: 470 },
+      styles: { fontSize: '16px', fontWeight: 'bold', color: '#333', textDecoration: 'underline' }
+    });
+    canvas.appendChild(workTitle);
+
+    const workDescription = createEditableElement('text', '{{#each workOrder.tasks}}\n• {{description}} - Técnico: {{technician}}\n{{/each}}', {
+      position: { left: 50, top: 500 },
+      styles: { 
+        fontSize: '14px', 
+        color: '#333', 
+        whiteSpace: 'pre-line',
+        fontFamily: 'monospace',
+        background: '#d4edda',
+        padding: '15px',
+        borderRadius: '4px',
+        minWidth: '600px',
+        minHeight: '100px'
+      }
+    });
+    canvas.appendChild(workDescription);
+
+    // 7. Estimated cost
+    const estimatedCostLabel = createEditableElement('text', 'COSTO ESTIMADO:', {
+      position: { left: 450, top: 630 },
+      styles: { fontSize: '16px', fontWeight: 'bold', color: '#fd7e14' }
+    });
+    canvas.appendChild(estimatedCostLabel);
+
+    const estimatedCostValue = createEditableElement('text', '{{money workOrder.estimatedCost}}', {
+      position: { left: 580, top: 630 },
+      styles: { fontSize: '18px', color: '#fd7e14', fontWeight: 'bold' }
+    });
+    canvas.appendChild(estimatedCostValue);
+
+    // 8. Footer with signature areas
+    const footer = createEditableElement('text', 'Responsable: {{workOrder.technician}} | Cualquier cambio será consultado previamente', {
+      position: { left: 200, top: 690 },
+      styles: { fontSize: '12px', color: '#333', textAlign: 'center' }
+    });
+    canvas.appendChild(footer);
+
+    const signatureSection = createEditableElement('text', '_________________     _________________\n   Firma Cliente              Firma Taller', {
+      position: { left: 200, top: 720 },
+      styles: { fontSize: '12px', color: '#333', textAlign: 'center', whiteSpace: 'pre-line' }
+    });
+    canvas.appendChild(signatureSection);
   }
 
   function createEditableElement(type, content, options = {}) {
@@ -1669,39 +2068,69 @@
       </div>
 
       <div style="margin-bottom: 20px;">
-        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">💰 Datos de la Venta</h4>
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">💰 Datos de Venta/Factura</h4>
         ${createFriendlyButtons([
           { label: 'Número de factura', icon: '#️⃣', value: '{{sale.number}}' },
-          { label: 'Fecha de hoy', icon: '📅', value: '{{date sale.date}}' },
+          { label: 'Fecha de venta', icon: '📅', value: '{{date sale.date}}' },
           { label: 'Total a cobrar', icon: '💵', value: '{{money sale.total}}' },
-          { label: 'Subtotal (sin IVA)', icon: '💴', value: '{{money sale.subtotal}}' }
+          { label: 'Subtotal (sin IVA)', icon: '💴', value: '{{money sale.subtotal}}' },
+          { label: 'IVA calculado', icon: '📊', value: '{{money sale.tax}}' }
         ])}
       </div>
 
       <div style="margin-bottom: 20px;">
-        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">👤 Datos del Cliente</h4>
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">📄 Datos de Cotización</h4>
         ${createFriendlyButtons([
-          { label: 'Nombre del cliente', icon: '👤', value: '{{sale.customerName}}' },
-          { label: 'Teléfono del cliente', icon: '📱', value: '{{sale.customerPhone}}' }
+          { label: 'Número de cotización', icon: '#️⃣', value: '{{quote.number}}' },
+          { label: 'Fecha de cotización', icon: '�', value: '{{date quote.date}}' },
+          { label: 'Válida hasta', icon: '⏰', value: '{{date quote.validUntil}}' },
+          { label: 'Total cotizado', icon: '💵', value: '{{money quote.total}}' },
+          { label: 'Subtotal cotización', icon: '💴', value: '{{money quote.subtotal}}' }
+        ])}
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">🔧 Datos de Orden de Trabajo</h4>
+        ${createFriendlyButtons([
+          { label: 'Número de orden', icon: '#️⃣', value: '{{workOrder.number}}' },
+          { label: 'Fecha de inicio', icon: '📅', value: '{{date workOrder.startDate}}' },
+          { label: 'Fecha estimada', icon: '⏰', value: '{{date workOrder.estimatedDate}}' },
+          { label: 'Estado actual', icon: '🔄', value: '{{workOrder.status}}' },
+          { label: 'Costo estimado', icon: '💰', value: '{{money workOrder.estimatedCost}}' },
+          { label: 'Técnico asignado', icon: '👨‍🔧', value: '{{workOrder.technician}}' },
+          { label: 'Problema reportado', icon: '⚠️', value: '{{workOrder.problemDescription}}' }
+        ])}
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">�👤 Datos del Cliente</h4>
+        ${createFriendlyButtons([
+          { label: 'Nombre del cliente', icon: '👤', value: '{{sale.customerName || quote.customerName || workOrder.customerName}}' },
+          { label: 'Teléfono del cliente', icon: '📱', value: '{{sale.customerPhone || quote.customerPhone || workOrder.customerPhone}}' }
         ])}
       </div>
 
       <div style="margin-bottom: 20px;">
         <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">🚗 Datos del Vehículo</h4>
         ${createFriendlyButtons([
-          { label: 'Placa del carro', icon: '🚗', value: '{{sale.vehicle.plate}}' },
-          { label: 'Marca y modelo', icon: '🏷️', value: '{{sale.vehicle.brand}}' }
+          { label: 'Placa del vehículo', icon: '🚗', value: '{{sale.vehicle.plate || quote.vehicle.plate || workOrder.vehicle.plate}}' },
+          { label: 'Marca del vehículo', icon: '🏷️', value: '{{sale.vehicle.brand || quote.vehicle.brand || workOrder.vehicle.brand}}' },
+          { label: 'Modelo del vehículo', icon: '📋', value: '{{sale.vehicle.model || quote.vehicle.model || workOrder.vehicle.model}}' },
+          { label: 'Año del vehículo', icon: '📅', value: '{{sale.vehicle.year || quote.vehicle.year || workOrder.vehicle.year}}' },
+          { label: 'Kilometraje', icon: '🛣️', value: '{{workOrder.vehicle.mileage}} km' }
         ])}
       </div>
 
       <div style="margin-bottom: 20px;">
-        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">🔧 Lista de Trabajos</h4>
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">🔧 Lista de Trabajos/Servicios</h4>
         <div style="background: #fff3cd; padding: 10px; border-radius: 6px; border: 1px solid #ffc107; margin-bottom: 8px;">
-          <small style="color: #856404; font-size: 11px;">💡 Estos botones crean listas automáticas de todos los trabajos</small>
+          <small style="color: #856404; font-size: 11px;">💡 Estos botones funcionan para ventas, cotizaciones y órdenes de trabajo</small>
         </div>
         ${createFriendlyButtons([
-          { label: 'Lista simple de trabajos', icon: '📝', value: '{{#each sale.items}}• {{qty}}x {{description}} - {{money total}}\\n{{/each}}', multiline: true },
-          { label: 'Solo nombres de trabajos', icon: '🔧', value: '{{#each sale.items}}{{description}}{{#unless @last}}, {{/unless}}{{/each}}', multiline: true }
+          { label: 'Lista de servicios (ventas)', icon: '📝', value: '{{#each sale.items}}• {{qty}}x {{description}} - {{money total}}\\n{{/each}}', multiline: true },
+          { label: 'Lista de servicios (cotizaciones)', icon: '💰', value: '{{#each quote.items}}• {{qty}}x {{description}} - {{money price}} c/u = {{money total}}\\n{{/each}}', multiline: true },
+          { label: 'Tareas de trabajo', icon: '🔧', value: '{{#each workOrder.tasks}}• {{description}} - Técnico: {{technician}}\\n{{/each}}', multiline: true },
+          { label: 'Solo nombres (cualquiera)', icon: '�', value: '{{#each (sale.items || quote.items || workOrder.tasks)}}{{description}}{{#unless @last}}, {{/unless}}{{/each}}', multiline: true }
         ])}
         <button onclick="insertItemsTable()" style="width: 100%; padding: 8px; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 5px;">
           📊 Crear Tabla Completa de Trabajos
@@ -1796,6 +2225,29 @@
 
     // Insert at the beginning
     varList.insertBefore(indicator, varList.firstChild);
+  }
+
+  function updateDeleteButtonState(selectedElement) {
+    const deleteBtn = qs('#delete-selected-btn');
+    if (!deleteBtn) return;
+
+    if (selectedElement) {
+      // Element is selected - enable button
+      deleteBtn.style.opacity = '1';
+      deleteBtn.style.background = '#dc3545';
+      deleteBtn.style.cursor = 'pointer';
+      deleteBtn.disabled = false;
+      deleteBtn.innerHTML = '🗑️ Eliminar Seleccionado';
+      deleteBtn.title = 'Eliminar elemento seleccionado';
+    } else {
+      // No element selected - disable button
+      deleteBtn.style.opacity = '0.5';
+      deleteBtn.style.background = '#6c757d';
+      deleteBtn.style.cursor = 'not-allowed';
+      deleteBtn.disabled = true;
+      deleteBtn.innerHTML = '🗑️ Sin Selección';
+      deleteBtn.title = 'Selecciona un elemento para eliminar';
+    }
   }
 
   function createFriendlyButtons(buttons) {
@@ -1969,11 +2421,23 @@
     document.addEventListener('keydown', (e) => {
       // Delete element with Del or Backspace
       if ((e.key === 'Delete' || e.key === 'Backspace') && visualEditor.selectedElement) {
-        // Don't delete if we're editing text
-        if (document.activeElement.contentEditable === 'true') return;
+        // Don't delete if we're editing text (more robust check)
+        const activeEl = document.activeElement;
+        const isEditing = activeEl && (
+          activeEl.contentEditable === 'true' || 
+          activeEl.tagName === 'INPUT' || 
+          activeEl.tagName === 'TEXTAREA' ||
+          activeEl.isContentEditable
+        );
+        
+        if (isEditing) return;
         
         e.preventDefault();
-        deleteSelectedElement();
+        
+        // Use the safer delete function
+        if (deleteElementSafely(visualEditor.selectedElement)) {
+          showNotification('Elemento eliminado');
+        }
       }
       
       // Copy element with Ctrl+C
@@ -2018,6 +2482,244 @@
     selectElement(null);
     
     console.log('Elemento eliminado con teclado');
+  }
+
+  // More robust delete function
+  function deleteElementSafely(element) {
+    if (!element || !element.parentNode) {
+      console.warn('Elemento no encontrado o ya eliminado');
+      return false;
+    }
+
+    try {
+      // Save element for undo functionality
+      const elementData = visualEditor.elements.find(el => el.element === element);
+      visualEditor.lastDeletedElement = {
+        html: element.outerHTML,
+        type: elementData?.type || 'unknown',
+        position: {
+          left: element.style.left,
+          top: element.style.top
+        },
+        timestamp: Date.now()
+      };
+
+      // Clean up resize handles if it's an image
+      const imageContainer = element.querySelector('.image-container');
+      if (imageContainer && imageContainer._resizeCleanup) {
+        imageContainer._resizeCleanup();
+      }
+
+      // Clean up drag functionality  
+      if (element._dragCleanup) {
+        element._dragCleanup();
+      }
+
+      // Remove from elements array first
+      const elementIndex = visualEditor.elements.findIndex(el => el.element === element);
+      if (elementIndex !== -1) {
+        visualEditor.elements.splice(elementIndex, 1);
+      }
+
+      // Remove element from DOM
+      element.remove();
+
+      // Clear selection if this was the selected element
+      if (visualEditor.selectedElement === element) {
+        selectElement(null);
+      }
+
+      // Enable undo button
+      updateUndoButtonState(true);
+
+      // Auto-disable undo after 30 seconds
+      setTimeout(() => {
+        visualEditor.lastDeletedElement = null;
+        updateUndoButtonState(false);
+      }, 30000);
+
+      console.log('Elemento eliminado exitosamente');
+      return true;
+    } catch (error) {
+      console.error('Error al eliminar elemento:', error);
+      return false;
+    }
+  }
+
+  function restoreDeletedElement() {
+    if (!visualEditor.lastDeletedElement) return;
+
+    try {
+      const canvas = qs('#ce-canvas');
+      if (!canvas) return;
+
+      // Create element from saved HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = visualEditor.lastDeletedElement.html;
+      const restoredElement = tempDiv.firstElementChild;
+
+      // Restore position
+      if (visualEditor.lastDeletedElement.position) {
+        restoredElement.style.left = visualEditor.lastDeletedElement.position.left;
+        restoredElement.style.top = visualEditor.lastDeletedElement.position.top;
+      }
+
+      // Add to canvas
+      canvas.appendChild(restoredElement);
+
+      // Make it functional again
+      makeDraggable(restoredElement);
+      makeSelectable(restoredElement);
+
+      // Add to elements array
+      visualEditor.elements.push({
+        id: restoredElement.id,
+        type: visualEditor.lastDeletedElement.type,
+        element: restoredElement
+      });
+
+      // Select the restored element
+      selectElement(restoredElement);
+
+      // Clear undo data
+      visualEditor.lastDeletedElement = null;
+      updateUndoButtonState(false);
+
+      showNotification('Elemento restaurado exitosamente');
+      console.log('Elemento restaurado');
+    } catch (error) {
+      console.error('Error al restaurar elemento:', error);
+      showNotification('Error al restaurar elemento');
+    }
+  }
+
+  function updateUndoButtonState(canUndo) {
+    const undoBtn = qs('#undo-btn');
+    if (!undoBtn) return;
+
+    if (canUndo) {
+      undoBtn.style.opacity = '1';
+      undoBtn.style.cursor = 'pointer';
+      undoBtn.disabled = false;
+      undoBtn.title = 'Deshacer última eliminación (30s)';
+    } else {
+      undoBtn.style.opacity = '0.5';
+      undoBtn.style.cursor = 'not-allowed';
+      undoBtn.disabled = true;
+      undoBtn.title = 'No hay elementos para restaurar';
+    }
+  }
+
+  function showContextMenu(e, element) {
+    // Remove existing context menu if any
+    const existingMenu = document.querySelector('.context-menu');
+    if (existingMenu) existingMenu.remove();
+
+    // Create context menu
+    const menu = document.createElement('div');
+    menu.className = 'context-menu';
+    menu.style.cssText = `
+      position: fixed;
+      top: ${e.clientY}px;
+      left: ${e.clientX}px;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 2000;
+      min-width: 150px;
+      padding: 8px 0;
+      font-size: 14px;
+    `;
+
+    // Menu options
+    const options = [
+      {
+        text: '🗑️ Eliminar elemento',
+        action: () => {
+          if (confirm('¿Estás seguro de que quieres eliminar este elemento?')) {
+            deleteElementSafely(element);
+          }
+        },
+        color: '#dc3545'
+      },
+      {
+        text: '📋 Copiar elemento', 
+        action: () => {
+          visualEditor.copiedElement = {
+            outerHTML: element.outerHTML,
+            type: visualEditor.elements.find(el => el.element === element)?.type || 'unknown'
+          };
+          showNotification('Elemento copiado');
+        }
+      },
+      {
+        text: '🔝 Traer al frente',
+        action: () => {
+          element.style.zIndex = (parseInt(element.style.zIndex) || 1) + 100;
+          showNotification('Elemento movido al frente');
+        }
+      }
+    ];
+
+    options.forEach(option => {
+      const item = document.createElement('div');
+      item.style.cssText = `
+        padding: 8px 16px;
+        cursor: pointer;
+        color: ${option.color || '#333'};
+        border-bottom: 1px solid #f0f0f0;
+        transition: background-color 0.2s ease;
+      `;
+      item.textContent = option.text;
+      
+      item.onmouseover = () => item.style.background = '#f8f9fa';
+      item.onmouseout = () => item.style.background = 'transparent';
+      
+      item.onclick = (e) => {
+        e.stopPropagation();
+        option.action();
+        menu.remove();
+      };
+      
+      menu.appendChild(item);
+    });
+
+    document.body.appendChild(menu);
+
+    // Remove menu when clicking elsewhere
+    setTimeout(() => {
+      document.addEventListener('click', function closeMenu() {
+        menu.remove();
+        document.removeEventListener('click', closeMenu);
+      });
+    }, 100);
+  }
+
+  function showNotification(message) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #28a745;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      z-index: 3000;
+      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+      animation: slideInRight 0.3s ease-out;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.style.animation = 'slideOutRight 0.3s ease-in';
+      setTimeout(() => notification.remove(), 300);
+    }, 2000);
   }
 
   function copySelectedElement() {
