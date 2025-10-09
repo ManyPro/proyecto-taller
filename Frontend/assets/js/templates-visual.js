@@ -2704,8 +2704,8 @@
       console.log('✅ Botón Guardar Plantilla encontrado');
       saveBtn.onclick = function(e) {
         e.preventDefault();
-        console.log('🔄 Ejecutando saveTemplateToBackend...');
-        saveTemplateToBackend();
+        console.log('🔄 Ejecutando saveTemplateAndReturn...');
+        saveTemplateAndReturn();
       };
     } else {
       console.error('❌ No se encontró el botón save-template');
@@ -2716,8 +2716,8 @@
       console.log('✅ Botón Vista Previa encontrado');
       previewBtn.onclick = function(e) {
         e.preventDefault();
-        console.log('🔄 Ejecutando previewWithRealData...');
-        previewWithRealData();
+        console.log('🔄 Ejecutando previewTemplateEnhanced...');
+        previewTemplateEnhanced();
       };
     } else {
       console.error('❌ No se encontró el botón preview-template');
@@ -3566,19 +3566,57 @@
 
   // Enhanced save function with redirect to template selector
   async function saveTemplateAndReturn() {
+    console.log('🔄 Iniciando saveTemplateAndReturn...');
+    
     const canvas = qs('#ce-canvas');
-    if (!canvas) return;
+    if (!canvas) {
+      console.error('❌ No se encontró el canvas');
+      alert('Error: No se encontró el canvas del editor');
+      return;
+    }
 
     const content = canvas.innerHTML;
+    console.log('📄 Contenido del canvas:', content.substring(0, 100) + '...');
+    
     if (!content || content.includes('Haz clic en los botones') || content.includes('Tu plantilla está vacía')) {
       alert('❌ No se puede guardar una plantilla vacía.\n\nPor favor agrega contenido antes de guardar.');
       return;
     }
 
+    console.log('🔍 Verificando disponibilidad de API...');
+    console.log('API disponible:', typeof API !== 'undefined');
+    console.log('API objeto:', typeof API === 'object' ? API : 'No disponible');
+
     // Check if API is available
     if (typeof API === 'undefined') {
-      alert('⚠️ API no disponible. No se puede guardar en el servidor.\n\nVerifica que el backend esté funcionando.');
-      console.log('Contenido que se intentó guardar:', content);
+      console.warn('⚠️ API no disponible, funcionando en modo offline');
+      
+      // Fallback: Save to localStorage for demonstration
+      const templateName = prompt('📝 Nombre del formato (MODO OFFLINE):', 'Mi Plantilla');
+      if (!templateName) return;
+      
+      try {
+        const templates = JSON.parse(localStorage.getItem('offlineTemplates') || '[]');
+        templates.push({
+          id: Date.now(),
+          name: templateName,
+          content: content,
+          date: new Date().toISOString(),
+          type: window.currentTemplateSession?.type || 'invoice'
+        });
+        localStorage.setItem('offlineTemplates', JSON.stringify(templates));
+        
+        alert(`✅ Plantilla "${templateName}" guardada localmente\n\n⚠️ Nota: Esta plantilla solo existe en tu navegador`);
+        
+        // Redirect to template selector
+        setTimeout(() => {
+          window.location.href = 'template-selector.html';
+        }, 1000);
+        
+      } catch (error) {
+        console.error('Error guardando en localStorage:', error);
+        alert('❌ Error al guardar la plantilla localmente');
+      }
       return;
     }
 
@@ -3967,5 +4005,7 @@
   // Make functions globally available for button onclick handlers
   window.saveTemplateToBackend = saveTemplateAndReturn;
   window.previewWithRealData = previewTemplateEnhanced;
+  window.saveTemplateAndReturn = saveTemplateAndReturn;
+  window.previewTemplateEnhanced = previewTemplateEnhanced;
 
 })();
