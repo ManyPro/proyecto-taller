@@ -7,10 +7,286 @@
     editing: null,
     mode: 'visual',
     exampleSnippets: {
-      invoice: '<!-- Factura --><div class="doc"><h1>FACTURA #{{sale.number}}</h1><p>Cliente: {{sale.customerName}}</p><table class="items"><thead><tr><th>Cant</th><th>Descripción</th><th>Total</th></tr></thead><tbody>{{#each sale.items}}<tr><td>{{qty}}</td><td>{{description}}</td><td>{{money total}}</td></tr>{{/each}}</tbody></table><h2>Total: {{money sale.total}}</h2></div>',
-      quote: '<!-- Cotización --><div class="doc"><h1>COTIZACIÓN #{{quote.number}}</h1><p>Cliente: {{quote.customerName}}</p><p>Fecha: {{date quote.date}}</p><table>{{#each quote.items}}<tr><td>{{qty}} x {{description}} = {{money total}}</td></tr>{{/each}}</table><h2>Total: {{money quote.total}}</h2></div>',
-      workOrder: '<!-- Orden de Trabajo --><div class="doc"><h1>ORDEN DE TRABAJO #{{sale.number}}</h1><p>Vehículo: {{sale.vehicle.plate}} ({{sale.vehicle.brand}})</p><p>Cliente: {{sale.customerName}}</p><h2>Trabajos:</h2><ul>{{#each sale.items}}<li>{{description}} - {{money total}}</li>{{/each}}</ul><p>Total: {{money sale.total}}</p></div>',
-      sticker: '<!-- Sticker --><div class="sticker">{{company.name}} - {{sale.number}}<br>{{#each sale.items}}{{description}} ({{qty}})<br>{{/each}}</div>'
+      invoice: `<!-- Factura Completa -->
+<div style="max-width: 800px; font-family: Arial, sans-serif; padding: 20px; background: white;">
+  <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px solid #2563eb; padding-bottom: 15px;">
+    <h1 style="color: #2563eb; margin: 0; font-size: 28px;">FACTURA</h1>
+    <h2 style="color: #666; margin: 5px 0; font-size: 20px;"># FAC-2024-00156</h2>
+  </div>
+  
+  <div style="display: flex; justify-content: space-between; margin-bottom: 25px;">
+    <div style="flex: 1;">
+      <h3 style="color: #2563eb; margin: 0 0 10px 0;">TALLER AUTOMOTRIZ PÉREZ</h3>
+      <p style="margin: 3px 0; color: #666;">Calle Principal #123, Centro</p>
+      <p style="margin: 3px 0; color: #666;">Tel: (555) 123-4567</p>
+      <p style="margin: 3px 0; color: #666;">RFC: TAP890123ABC</p>
+    </div>
+    <div style="flex: 1; text-align: right;">
+      <h3 style="color: #333; margin: 0 0 10px 0;">CLIENTE:</h3>
+      <p style="margin: 3px 0; font-weight: bold;">Juan Carlos Méndez</p>
+      <p style="margin: 3px 0; color: #666;">Tel: (555) 987-6543</p>
+      <p style="margin: 3px 0; color: #666;">Fecha: 08/10/2024</p>
+    </div>
+  </div>
+
+  <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+    <h3 style="color: #333; margin: 0 0 10px 0;">VEHÍCULO:</h3>
+    <p style="margin: 5px 0;"><strong>Placa:</strong> ABC-123</p>
+    <p style="margin: 5px 0;"><strong>Marca/Modelo:</strong> Toyota Corolla 2020</p>
+  </div>
+
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+    <thead>
+      <tr style="background: #2563eb; color: white;">
+        <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">Cant.</th>
+        <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">Descripción</th>
+        <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Precio Unit.</th>
+        <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="border: 1px solid #ddd; padding: 10px;">2</td>
+        <td style="border: 1px solid #ddd; padding: 10px;">Cambio de aceite 5W-30</td>
+        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">$450.00</td>
+        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">$900.00</td>
+      </tr>
+      <tr style="background: #f8f9fa;">
+        <td style="border: 1px solid #ddd; padding: 10px;">4</td>
+        <td style="border: 1px solid #ddd; padding: 10px;">Filtro de aire</td>
+        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">$285.00</td>
+        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">$1,140.00</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="text-align: right; margin-top: 20px;">
+    <div style="display: inline-block; background: #f8f9fa; padding: 15px; border-radius: 8px; min-width: 250px;">
+      <p style="margin: 5px 0; display: flex; justify-content: space-between;"><span>Subtotal:</span><span>$2,040.00</span></p>
+      <p style="margin: 5px 0; display: flex; justify-content: space-between;"><span>IVA (16%):</span><span>$326.40</span></p>
+      <hr style="margin: 10px 0; border: 1px solid #ddd;">
+      <p style="margin: 5px 0; display: flex; justify-content: space-between; font-weight: bold; font-size: 18px; color: #2563eb;"><span>TOTAL:</span><span>$2,366.40</span></p>
+    </div>
+  </div>
+
+  <div style="margin-top: 30px; text-align: center; color: #666; font-size: 12px;">
+    <p>Garantía de 30 días en mano de obra | Válido solo con esta factura</p>
+  </div>
+</div>`,
+      
+      quote: `<!-- Cotización Completa -->
+<div style="max-width: 800px; font-family: Arial, sans-serif; padding: 20px; background: white;">
+  <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px solid #28a745; padding-bottom: 15px;">
+    <h1 style="color: #28a745; margin: 0; font-size: 28px;">COTIZACIÓN</h1>
+    <h2 style="color: #666; margin: 5px 0; font-size: 20px;"># COT-2024-00289</h2>
+  </div>
+  
+  <div style="display: flex; justify-content: space-between; margin-bottom: 25px;">
+    <div style="flex: 1;">
+      <h3 style="color: #28a745; margin: 0 0 10px 0;">TALLER AUTOMOTRIZ PÉREZ</h3>
+      <p style="margin: 3px 0; color: #666;">Calle Principal #123, Centro</p>
+      <p style="margin: 3px 0; color: #666;">Tel: (555) 123-4567</p>
+      <p style="margin: 3px 0; color: #666;">contacto@tallerperez.com</p>
+    </div>
+    <div style="flex: 1; text-align: right;">
+      <h3 style="color: #333; margin: 0 0 10px 0;">CLIENTE:</h3>
+      <p style="margin: 3px 0; font-weight: bold;">María García López</p>
+      <p style="margin: 3px 0; color: #666;">Tel: (555) 456-7890</p>
+      <p style="margin: 3px 0; color: #666;">Fecha: 08/10/2024</p>
+      <p style="margin: 3px 0; color: #666;">Válida hasta: 15/10/2024</p>
+    </div>
+  </div>
+
+  <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #28a745;">
+    <h3 style="color: #333; margin: 0 0 10px 0;">VEHÍCULO A REPARAR:</h3>
+    <p style="margin: 5px 0;"><strong>Placa:</strong> XYZ-456</p>
+    <p style="margin: 5px 0;"><strong>Marca/Modelo:</strong> Honda Civic 2018</p>
+    <p style="margin: 5px 0;"><strong>Problema reportado:</strong> Ruido en frenos y cambio de aceite</p>
+  </div>
+
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+    <thead>
+      <tr style="background: #28a745; color: white;">
+        <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">Cant.</th>
+        <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">Descripción del Servicio/Repuesto</th>
+        <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Precio Unit.</th>
+        <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="border: 1px solid #ddd; padding: 10px;">1</td>
+        <td style="border: 1px solid #ddd; padding: 10px;">Cambio de pastillas de freno delanteras</td>
+        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">$1,200.00</td>
+        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">$1,200.00</td>
+      </tr>
+      <tr style="background: #f8f9fa;">
+        <td style="border: 1px solid #ddd; padding: 10px;">1</td>
+        <td style="border: 1px solid #ddd; padding: 10px;">Cambio de aceite motor 5W-30 (incluye filtro)</td>
+        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">$650.00</td>
+        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">$650.00</td>
+      </tr>
+      <tr>
+        <td style="border: 1px solid #ddd; padding: 10px;">2</td>
+        <td style="border: 1px solid #ddd; padding: 10px;">Revisión y limpieza de discos de freno</td>
+        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">$350.00</td>
+        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">$700.00</td>
+      </tr>
+      <tr style="background: #f8f9fa;">
+        <td style="border: 1px solid #ddd; padding: 10px;">1</td>
+        <td style="border: 1px solid #ddd; padding: 10px;">Revisión general del sistema de frenos</td>
+        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">$400.00</td>
+        <td style="border: 1px solid #ddd; padding: 10px; text-align: right;">$400.00</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="text-align: right; margin-top: 20px;">
+    <div style="display: inline-block; background: #e8f5e8; padding: 15px; border-radius: 8px; min-width: 280px; border: 1px solid #28a745;">
+      <p style="margin: 5px 0; display: flex; justify-content: space-between;"><span>Subtotal:</span><span>$2,950.00</span></p>
+      <p style="margin: 5px 0; display: flex; justify-content: space-between;"><span>Mano de obra:</span><span>$800.00</span></p>
+      <p style="margin: 5px 0; display: flex; justify-content: space-between;"><span>IVA (16%):</span><span>$600.00</span></p>
+      <hr style="margin: 10px 0; border: 1px solid #28a745;">
+      <p style="margin: 5px 0; display: flex; justify-content: space-between; font-weight: bold; font-size: 18px; color: #28a745;"><span>TOTAL:</span><span>$4,350.00</span></p>
+    </div>
+  </div>
+
+  <div style="margin-top: 30px; background: #fff3cd; padding: 15px; border-radius: 8px; border: 1px solid #ffc107;">
+    <h4 style="color: #856404; margin: 0 0 10px 0;">CONDICIONES:</h4>
+    <ul style="color: #856404; margin: 0; padding-left: 20px;">
+      <li>Cotización válida por 7 días</li>
+      <li>Tiempo estimado de reparación: 2-3 días</li>
+      <li>Garantía de 6 meses en repuestos y 30 días en mano de obra</li>
+      <li>Precios sujetos a cambios sin previo aviso</li>
+    </ul>
+  </div>
+</div>`,
+
+      workOrder: `<!-- Orden de Trabajo Completa -->
+<div style="max-width: 800px; font-family: Arial, sans-serif; padding: 20px; background: white;">
+  <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px solid #fd7e14; padding-bottom: 15px;">
+    <h1 style="color: #fd7e14; margin: 0; font-size: 28px;">ORDEN DE TRABAJO</h1>
+    <h2 style="color: #666; margin: 5px 0; font-size: 20px;"># OT-2024-00445</h2>
+  </div>
+  
+  <div style="display: flex; justify-content: space-between; margin-bottom: 25px;">
+    <div style="flex: 1;">
+      <h3 style="color: #fd7e14; margin: 0 0 10px 0;">TALLER AUTOMOTRIZ PÉREZ</h3>
+      <p style="margin: 3px 0; color: #666;">Calle Principal #123, Centro</p>
+      <p style="margin: 3px 0; color: #666;">Tel: (555) 123-4567</p>
+    </div>
+    <div style="flex: 1; text-align: right;">
+      <p style="margin: 3px 0; color: #666;"><strong>Fecha inicio:</strong> 08/10/2024</p>
+      <p style="margin: 3px 0; color: #666;"><strong>Fecha estimada:</strong> 10/10/2024</p>
+      <p style="margin: 3px 0; color: #666;"><strong>Estado:</strong> <span style="color: #28a745; font-weight: bold;">EN PROCESO</span></p>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 20px; margin-bottom: 25px;">
+    <div style="flex: 1; background: #fff3cd; padding: 15px; border-radius: 8px; border: 1px solid #ffc107;">
+      <h3 style="color: #856404; margin: 0 0 10px 0;">DATOS DEL CLIENTE</h3>
+      <p style="margin: 5px 0;"><strong>Nombre:</strong> Roberto Sánchez</p>
+      <p style="margin: 5px 0;"><strong>Teléfono:</strong> (555) 321-9876</p>
+      <p style="margin: 5px 0;"><strong>Email:</strong> roberto.sanchez@email.com</p>
+    </div>
+    <div style="flex: 1; background: #d1ecf1; padding: 15px; border-radius: 8px; border: 1px solid #17a2b8;">
+      <h3 style="color: #0c5460; margin: 0 0 10px 0;">DATOS DEL VEHÍCULO</h3>
+      <p style="margin: 5px 0;"><strong>Placa:</strong> DEF-789</p>
+      <p style="margin: 5px 0;"><strong>Marca:</strong> Nissan Sentra 2019</p>
+      <p style="margin: 5px 0;"><strong>Kilometraje:</strong> 45,680 km</p>
+    </div>
+  </div>
+
+  <div style="background: #f8d7da; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #dc3545;">
+    <h3 style="color: #721c24; margin: 0 0 10px 0;">PROBLEMA REPORTADO:</h3>
+    <p style="margin: 0; color: #721c24;">El cliente reporta que el vehículo hace ruido extraño al frenar y siente vibración en el volante. Además solicita mantenimiento preventivo.</p>
+  </div>
+
+  <h3 style="color: #fd7e14; margin: 20px 0 15px 0; border-bottom: 2px solid #fd7e14; padding-bottom: 5px;">SERVICIOS A REALIZAR:</h3>
+  
+  <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+    <thead>
+      <tr style="background: #fd7e14; color: white;">
+        <th style="border: 1px solid #ddd; padding: 12px; text-align: left;">Servicio</th>
+        <th style="border: 1px solid #ddd; padding: 12px; text-align: center;">Técnico Asignado</th>
+        <th style="border: 1px solid #ddd; padding: 12px; text-align: center;">Estado</th>
+        <th style="border: 1px solid #ddd; padding: 12px; text-align: right;">Costo</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="border: 1px solid #ddd; padding: 12px;">
+          <strong>Inspección y reparación del sistema de frenos</strong><br>
+          <small style="color: #666;">Incluye revisión de pastillas, discos, líquido y mangueras</small>
+        </td>
+        <td style="border: 1px solid #ddd; padding: 12px; text-align: center;">
+          <strong style="color: #fd7e14;">Carlos Mendoza</strong><br>
+          <small style="color: #666;">Especialista en frenos</small>
+        </td>
+        <td style="border: 1px solid #ddd; padding: 12px; text-align: center;">
+          <span style="background: #ffc107; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px;">EN PROCESO</span>
+        </td>
+        <td style="border: 1px solid #ddd; padding: 12px; text-align: right;">$1,850.00</td>
+      </tr>
+      <tr style="background: #f8f9fa;">
+        <td style="border: 1px solid #ddd; padding: 12px;">
+          <strong>Mantenimiento preventivo completo</strong><br>
+          <small style="color: #666;">Cambio de aceite, filtros, revisión de niveles y sistemas</small>
+        </td>
+        <td style="border: 1px solid #ddd; padding: 12px; text-align: center;">
+          <strong style="color: #fd7e14;">Miguel Torres</strong><br>
+          <small style="color: #666;">Mecánico general</small>
+        </td>
+        <td style="border: 1px solid #ddd; padding: 12px; text-align: center;">
+          <span style="background: #6c757d; color: white; padding: 3px 8px; border-radius: 12px; font-size: 12px;">PENDIENTE</span>
+        </td>
+        <td style="border: 1px solid #ddd; padding: 12px; text-align: right;">$950.00</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+    <div style="flex: 1; margin-right: 20px;">
+      <h4 style="color: #fd7e14; margin: 0 0 10px 0;">OBSERVACIONES TÉCNICAS:</h4>
+      <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; border-left: 4px solid #fd7e14;">
+        <p style="margin: 5px 0; font-size: 14px;">• Pastillas delanteras al 20% de vida útil</p>
+        <p style="margin: 5px 0; font-size: 14px;">• Discos con ligeras marcas de desgaste</p>
+        <p style="margin: 5px 0; font-size: 14px;">• Líquido de frenos en buen estado</p>
+        <p style="margin: 5px 0; font-size: 14px;">• Aceite motor vencido (último cambio hace 8 meses)</p>
+      </div>
+    </div>
+    
+    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; min-width: 250px; border: 1px solid #ffc107;">
+      <h4 style="color: #856404; margin: 0 0 10px 0;">RESUMEN DE COSTOS:</h4>
+      <p style="margin: 5px 0; display: flex; justify-content: space-between;"><span>Mano de obra:</span><span>$1,200.00</span></p>
+      <p style="margin: 5px 0; display: flex; justify-content: space-between;"><span>Repuestos:</span><span>$1,600.00</span></p>
+      <hr style="margin: 10px 0; border: 1px solid #ffc107;">
+      <p style="margin: 5px 0; display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; color: #fd7e14;"><span>TOTAL ESTIMADO:</span><span>$2,800.00</span></p>
+    </div>
+  </div>
+
+  <div style="margin-top: 25px; text-align: center; border-top: 2px solid #fd7e14; padding-top: 15px;">
+    <p style="color: #666; margin: 5px 0;"><strong>Responsable:</strong> Ing. Juan Pérez - Supervisor de Taller</p>
+    <p style="color: #666; margin: 5px 0; font-size: 12px;">Cualquier cambio o trabajo adicional será consultado previamente con el cliente</p>
+  </div>
+</div>`,
+
+      sticker: `<!-- Sticker Compacto -->
+<div style="width: 5cm; height: 3cm; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; padding: 8px; font-family: Arial, sans-serif; font-size: 10px; display: flex; flex-direction: column; justify-content: space-between; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+  <div style="text-align: center;">
+    <div style="font-weight: bold; font-size: 12px; margin-bottom: 2px;">TALLER PÉREZ</div>
+    <div style="font-size: 8px; opacity: 0.9;"># OT-445 | 08/10/24</div>
+  </div>
+  
+  <div style="font-size: 9px; line-height: 1.1;">
+    <div style="margin: 1px 0;">• Frenos: $1,850</div>
+    <div style="margin: 1px 0;">• Mantenimiento: $950</div>
+  </div>
+  
+  <div style="text-align: center; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 3px; font-size: 8px;">
+    <div style="font-weight: bold;">NISSAN SENTRA • DEF-789</div>
+  </div>
+</div>`
     }
   };
 
@@ -115,6 +391,14 @@
       <button id="add-table-btn" style="padding: 8px 16px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">+ Tabla</button>
       <button id="clear-canvas-btn" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Limpiar</button>
       
+      <div style="border-left: 2px solid #ddd; padding-left: 15px; margin-left: 15px;">
+        <label style="font-weight: 600; margin-right: 8px;">Plantillas:</label>
+        <button id="load-invoice-btn" style="padding: 6px 12px; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">Factura</button>
+        <button id="load-quote-btn" style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">Cotización</button>
+        <button id="load-workorder-btn" style="padding: 6px 12px; background: #fd7e14; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">Orden Trabajo</button>
+        <button id="load-sticker-btn" style="padding: 6px 12px; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer;">Sticker</button>
+      </div>
+      
       <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
         <label style="font-weight: 600;">Tamaño:</label>
         <select id="canvas-size" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
@@ -139,6 +423,12 @@
     qs('#add-image-btn').onclick = () => addElement('image');
     qs('#add-table-btn').onclick = () => addElement('table');
     qs('#clear-canvas-btn').onclick = clearCanvas;
+    
+    // Setup template loading handlers
+    qs('#load-invoice-btn').onclick = () => loadTemplate('invoice');
+    qs('#load-quote-btn').onclick = () => loadTemplate('quote');
+    qs('#load-workorder-btn').onclick = () => loadTemplate('workOrder');
+    qs('#load-sticker-btn').onclick = () => loadTemplate('sticker');
     
     // Setup canvas size handlers
     setupCanvasSizeControls();
@@ -866,6 +1156,111 @@
     selectElement(null);
   }
 
+  function loadTemplate(templateType) {
+    const canvas = qs('#ce-canvas');
+    if (!canvas) return;
+
+    const template = state.exampleSnippets[templateType];
+    if (!template) {
+      console.error('Plantilla no encontrada:', templateType);
+      return;
+    }
+
+    // Clear current canvas
+    clearCanvas();
+
+    // Set appropriate canvas size based on template
+    const sizeSelect = qs('#canvas-size');
+    if (templateType === 'sticker') {
+      // Auto-select sticker size
+      if (sizeSelect) {
+        sizeSelect.value = 'sticker';
+        sizeSelect.dispatchEvent(new Event('change'));
+      }
+    } else {
+      // Auto-select letter size for documents
+      if (sizeSelect) {
+        sizeSelect.value = 'letter';
+        sizeSelect.dispatchEvent(new Event('change'));
+      }
+    }
+
+    // Load the template HTML
+    canvas.innerHTML = template;
+
+    // Re-enable editing on the loaded content
+    setTimeout(() => {
+      makeTemplateEditable(canvas);
+    }, 100);
+
+    console.log(`Plantilla ${templateType} cargada exitosamente`);
+  }
+
+  function makeTemplateEditable(container) {
+    // Find text elements and make them editable
+    const textElements = container.querySelectorAll('h1, h2, h3, h4, p, td, th, span, div');
+    
+    textElements.forEach(el => {
+      // Skip elements that are already containers or have specific roles
+      if (el.querySelector('table, div') || el.classList.contains('tpl-element')) return;
+      
+      // Make text content editable
+      if (el.textContent.trim() && !el.querySelector('*')) {
+        el.contentEditable = 'true';
+        el.style.outline = 'none';
+        
+        // Add hover effect for editable elements
+        el.addEventListener('mouseenter', () => {
+          el.style.backgroundColor = 'rgba(37, 99, 235, 0.1)';
+          el.style.cursor = 'text';
+        });
+        
+        el.addEventListener('mouseleave', () => {
+          if (document.activeElement !== el) {
+            el.style.backgroundColor = 'transparent';
+          }
+        });
+        
+        el.addEventListener('focus', () => {
+          el.style.backgroundColor = 'rgba(37, 99, 235, 0.1)';
+          el.style.boxShadow = '0 0 0 2px rgba(37, 99, 235, 0.3)';
+        });
+        
+        el.addEventListener('blur', () => {
+          el.style.backgroundColor = 'transparent';
+          el.style.boxShadow = 'none';
+        });
+      }
+    });
+
+    // Wrap the entire template in a draggable container
+    const wrapper = document.createElement('div');
+    wrapper.className = 'tpl-element template-wrapper';
+    wrapper.id = `element_${visualEditor.nextId++}`;
+    wrapper.style.cssText = 'position: absolute; left: 20px; top: 20px; cursor: move; border: 2px solid transparent;';
+    
+    // Move all canvas content into the wrapper
+    while (container.firstChild) {
+      wrapper.appendChild(container.firstChild);
+    }
+    
+    container.appendChild(wrapper);
+    
+    // Make the wrapper draggable and selectable
+    makeDraggable(wrapper);
+    makeSelectable(wrapper);
+    
+    // Add to elements array
+    visualEditor.elements.push({
+      id: wrapper.id,
+      type: 'template',
+      element: wrapper
+    });
+    
+    // Select the loaded template
+    selectElement(wrapper);
+  }
+
   function hideElementProperties() {
     const propertiesPanel = qs('#element-properties');
     if (propertiesPanel) {
@@ -1078,38 +1473,264 @@
     const saveBtn = qs('#save-template');
     if (saveBtn) {
       saveBtn.onclick = function() {
-        const canvas = qs('#ce-canvas');
-        const content = canvas ? canvas.innerHTML : '';
-        console.log('Guardando plantilla:', content);
-        alert('Plantilla guardada: ' + content.substring(0, 100) + '...');
+        saveTemplateToBackend();
       };
     }
     
     const previewBtn = qs('#preview-template');
     if (previewBtn) {
       previewBtn.onclick = function() {
-        const canvas = qs('#ce-canvas');
-        const content = canvas ? canvas.innerHTML : '';
-        const newWindow = window.open('', '_blank', 'width=800,height=600');
-        newWindow.document.write(`
-          <html>
-            <head>
-              <title>Vista Previa</title>
-              <style>
-                body { font-family: Arial; padding: 20px; }
-                .doc { max-width: 21cm; margin: 0 auto; }
-                table { border-collapse: collapse; width: 100%; }
-                th, td { border: 1px solid #ddd; padding: 8px; }
-                th { background: #f5f5f5; }
-              </style>
-            </head>
-            <body>${content}</body>
-          </html>
-        `);
-        newWindow.document.close();
+        previewWithRealData();
       };
     }
     
     console.log('✅ Editor Visual inicializado correctamente');
+    
+    // Load existing templates from backend
+    loadExistingTemplates();
   });
+
+  // Backend API integration functions
+  async function saveTemplateToBackend() {
+    const canvas = qs('#ce-canvas');
+    if (!canvas) return;
+
+    const content = canvas.innerHTML;
+    if (!content || content.includes('Haz clic en los botones')) {
+      alert('Por favor crea contenido antes de guardar');
+      return;
+    }
+
+    // Ask user for template details
+    const templateName = prompt('Nombre de la plantilla:');
+    if (!templateName) return;
+
+    const templateType = prompt('Tipo de plantilla (invoice, quote, workOrder, sticker):', 'invoice');
+    if (!templateType) return;
+
+    const activate = confirm('¿Activar como plantilla principal para este tipo?');
+
+    try {
+      const response = await fetch('/api/templates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: templateName,
+          type: templateType,
+          contentHtml: content,
+          contentCss: '', // Could be extracted from styles
+          activate: activate
+        })
+      });
+
+      if (response.ok) {
+        const savedTemplate = await response.json();
+        alert(`Plantilla "${templateName}" guardada exitosamente!`);
+        console.log('Plantilla guardada:', savedTemplate);
+        
+        // Refresh template list
+        loadExistingTemplates();
+      } else {
+        const error = await response.json();
+        alert('Error al guardar: ' + (error.error || 'Error desconocido'));
+      }
+    } catch (error) {
+      console.error('Error saving template:', error);
+      alert('Error de conexión al guardar la plantilla');
+    }
+  }
+
+  async function loadExistingTemplates() {
+    try {
+      const response = await fetch('/api/templates');
+      if (response.ok) {
+        const templates = await response.json();
+        updateTemplateSelector(templates);
+      }
+    } catch (error) {
+      console.error('Error loading templates:', error);
+    }
+  }
+
+  function updateTemplateSelector(templates) {
+    // Create or update template selector
+    let selector = qs('#existing-templates');
+    if (!selector) {
+      const toolbar = qs('.editor-toolbar');
+      if (toolbar) {
+        const selectorDiv = document.createElement('div');
+        selectorDiv.style.cssText = 'display: flex; gap: 8px; align-items: center; border-left: 2px solid #ddd; padding-left: 15px; margin-left: 15px;';
+        selectorDiv.innerHTML = `
+          <label style="font-weight: 600;">Mis Plantillas:</label>
+          <select id="existing-templates" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc; min-width: 150px;">
+            <option value="">Seleccionar plantilla...</option>
+          </select>
+          <button id="load-existing-btn" style="padding: 6px 12px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">Cargar</button>
+          <button id="delete-template-btn" style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Eliminar</button>
+        `;
+        
+        // Insert before canvas size controls
+        const canvasSizeDiv = toolbar.querySelector('div:last-child');
+        if (canvasSizeDiv) {
+          toolbar.insertBefore(selectorDiv, canvasSizeDiv);
+        } else {
+          toolbar.appendChild(selectorDiv);
+        }
+        
+        selector = qs('#existing-templates');
+        
+        // Setup event listeners
+        qs('#load-existing-btn').onclick = () => loadExistingTemplate();
+        qs('#delete-template-btn').onclick = () => deleteExistingTemplate();
+      }
+    }
+
+    if (selector) {
+      // Populate with templates
+      selector.innerHTML = '<option value="">Seleccionar plantilla...</option>';
+      
+      templates.forEach(template => {
+        const option = document.createElement('option');
+        option.value = template._id;
+        option.textContent = `${template.name} (${template.type})${template.active ? ' ★' : ''}`;
+        selector.appendChild(option);
+      });
+    }
+  }
+
+  async function loadExistingTemplate() {
+    const selector = qs('#existing-templates');
+    const templateId = selector?.value;
+    
+    if (!templateId) {
+      alert('Por favor selecciona una plantilla');
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/templates/${templateId}`);
+      if (response.ok) {
+        const template = await response.json();
+        
+        // Clear canvas and load template
+        const canvas = qs('#ce-canvas');
+        if (canvas) {
+          canvas.innerHTML = template.contentHtml;
+          
+          // Make loaded content editable
+          setTimeout(() => {
+            makeTemplateEditable(canvas);
+          }, 100);
+        }
+        
+        console.log(`Plantilla "${template.name}" cargada`);
+      } else {
+        alert('Error al cargar la plantilla');
+      }
+    } catch (error) {
+      console.error('Error loading template:', error);
+      alert('Error de conexión al cargar la plantilla');
+    }
+  }
+
+  async function deleteExistingTemplate() {
+    const selector = qs('#existing-templates');
+    const templateId = selector?.value;
+    
+    if (!templateId) {
+      alert('Por favor selecciona una plantilla para eliminar');
+      return;
+    }
+
+    const templateName = selector.options[selector.selectedIndex].text;
+    
+    if (!confirm(`¿Estás seguro de eliminar "${templateName}"?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/templates/${templateId}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        alert('Plantilla eliminada exitosamente');
+        loadExistingTemplates(); // Refresh list
+        selector.selectedIndex = 0;
+      } else {
+        alert('Error al eliminar la plantilla');
+      }
+    } catch (error) {
+      console.error('Error deleting template:', error);
+      alert('Error de conexión al eliminar la plantilla');
+    }
+  }
+
+  // Preview with real data
+  async function previewWithRealData() {
+    const canvas = qs('#ce-canvas');
+    if (!canvas) return;
+
+    const content = canvas.innerHTML;
+    if (!content || content.includes('Haz clic en los botones')) {
+      alert('Por favor crea contenido antes de hacer vista previa');
+      return;
+    }
+
+    const templateType = prompt('Tipo de plantilla para vista previa (invoice, quote, workOrder, sticker):', 'invoice');
+    if (!templateType) return;
+
+    try {
+      const response = await fetch('/api/templates/preview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          type: templateType,
+          contentHtml: content,
+          contentCss: ''
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        
+        // Show preview in new window
+        const previewWindow = window.open('', '_blank', 'width=800,height=600');
+        previewWindow.document.write(`
+          <html>
+            <head>
+              <title>Vista Previa con Datos Reales - ${templateType}</title>
+              <style>
+                body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+                .preview-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                ${result.css || ''}
+              </style>
+            </head>
+            <body>
+              <div class="preview-container">
+                <h2>Vista Previa con Datos Reales (${templateType.toUpperCase()})</h2>
+                <hr style="margin-bottom: 20px;">
+                ${result.rendered}
+              </div>
+              <script>
+                // Add context info
+                console.log('Contexto de datos:', ${JSON.stringify(result.context, null, 2)});
+              </script>
+            </body>
+          </html>
+        `);
+        previewWindow.document.close();
+      } else {
+        const error = await response.json();
+        alert('Error en vista previa: ' + (error.error || 'Error desconocido'));
+      }
+    } catch (error) {
+      console.error('Error in preview:', error);
+      alert('Error de conexión en vista previa');
+    }
+  }
 })();

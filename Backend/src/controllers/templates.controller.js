@@ -149,3 +149,31 @@ export async function activeTemplate(req, res) {
   if (!doc) return res.json(null);
   res.json(doc);
 }
+
+// Eliminar plantilla
+export async function deleteTemplate(req, res) {
+  const { id } = req.params;
+  const doc = await Template.findOne({ _id: id, companyId: req.companyId });
+  if (!doc) return res.status(404).json({ error: 'not found' });
+  
+  // If this was the active template, we need to handle that
+  const wasActive = doc.active;
+  const templateType = doc.type;
+  
+  await Template.deleteOne({ _id: id, companyId: req.companyId });
+  
+  // If we deleted the active template, activate the most recent one of the same type
+  if (wasActive) {
+    const nextTemplate = await Template.findOne({ 
+      companyId: req.companyId, 
+      type: templateType 
+    }).sort({ updatedAt: -1 });
+    
+    if (nextTemplate) {
+      nextTemplate.active = true;
+      await nextTemplate.save();
+    }
+  }
+  
+  res.json({ success: true, deletedId: id });
+}
