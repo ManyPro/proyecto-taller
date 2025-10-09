@@ -151,8 +151,9 @@ const TABLE_LOOP_SNIPPET = '{{#each sale.items}}<tr><td>{{qty}}</td><td>{{descri
         // Mostrar interfaz básica aunque API no esté disponible
         const tbody = qs('tpl-rows');
         if(tbody) {
-          tbody.innerHTML = '<tr><td colspan="6" class="muted">API no disponible - Verificar conexión al servidor</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" class="muted">⚠️ API no disponible - Verificar que el servidor backend esté corriendo<br><button onclick="templatesDebug.refreshList()" style="margin-top:8px;background:var(--accent);color:white;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;">🔄 Reintentar</button></td></tr>';
         }
+        setMsg('API no disponible', true);
         return;
       }
       const data = await API.templates.list();
