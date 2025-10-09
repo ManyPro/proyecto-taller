@@ -312,23 +312,36 @@
 
   // Setup visual editor functionality
   function setupVisualEditor() {
-    const canvas = qs('#ce-canvas');
+    console.log('Configurando editor visual...');
+    
+    let canvas = qs('#ce-canvas');
     
     if (!canvas) {
-      console.warn('Canvas #ce-canvas no encontrado');
-      return;
+      console.warn('Canvas #ce-canvas no encontrado, creando uno nuevo');
+      
+      // Create canvas if it doesn't exist
+      const container = qs('#custom-editor') || qs('body');
+      canvas = document.createElement('div');
+      canvas.id = 'ce-canvas';
+      canvas.className = 'ce-canvas';
+      container.appendChild(canvas);
     }
 
     // Make canvas suitable for visual editing
-    canvas.style.minHeight = '500px';
-    canvas.style.border = '2px dashed #ddd';
-    canvas.style.padding = '20px';
-    canvas.style.position = 'relative';
-    canvas.style.background = '#fff';
-    canvas.style.overflow = 'visible';
+    canvas.style.cssText = `
+      min-height: 500px;
+      border: 2px dashed #ddd;
+      padding: 20px;
+      position: relative;
+      background: #fff;
+      overflow: visible;
+      border-radius: 8px;
+      margin: 10px 0;
+    `;
 
-    // Clear default content
-    canvas.innerHTML = '<div style="color: #999; text-align: center; padding: 50px;">Haz clic en los botones de arriba para agregar elementos</div>';
+    // Clear default content and make it not contenteditable (we'll handle that per element)
+    canvas.contentEditable = 'false';
+    canvas.innerHTML = '<div style="color: #999; text-align: center; padding: 50px; pointer-events: none;">Haz clic en los botones de arriba para agregar elementos</div>';
 
     // Setup button handlers
     setupButtonHandlers();
@@ -339,50 +352,61 @@
         selectElement(null);
       }
     };
+    
+    console.log('✅ Canvas configurado correctamente');
   }
 
   function setupButtonHandlers() {
-    // Add text button
-    const addTextBtn = qs('#add-text-btn') || qs('[onclick="addText()"]');
-    if (addTextBtn) {
-      addTextBtn.onclick = () => addElement('text');
-    }
-
-    // Add title button  
-    const addTitleBtn = qs('#add-title-btn') || qs('[onclick="addTitle()"]');
-    if (addTitleBtn) {
-      addTitleBtn.onclick = () => addElement('title');
-    }
-
-    // Add image button
-    const addImageBtn = qs('#add-image-btn') || qs('[onclick="addImage()"]');
-    if (addImageBtn) {
-      addImageBtn.onclick = () => addElement('image');
-    }
-
-    // Add table button
-    const addTableBtn = qs('#add-table-btn') || qs('[onclick="addTable()"]');
-    if (addTableBtn) {
-      addTableBtn.onclick = () => addElement('table');
-    }
-
-    // Create buttons if they don't exist
+    console.log('Configurando manejadores de botones...');
+    
+    // First, create buttons if they don't exist
     createEditorButtons();
+    
+    // Then setup handlers
+    const addTextBtn = qs('#add-text-btn');
+    const addTitleBtn = qs('#add-title-btn');
+    const addImageBtn = qs('#add-image-btn');
+    const addTableBtn = qs('#add-table-btn');
+    
+    console.log('Botones encontrados:', {
+      text: !!addTextBtn,
+      title: !!addTitleBtn, 
+      image: !!addImageBtn,
+      table: !!addTableBtn
+    });
+    
+    if (addTextBtn) addTextBtn.onclick = () => addElement('text');
+    if (addTitleBtn) addTitleBtn.onclick = () => addElement('title');
+    if (addImageBtn) addImageBtn.onclick = () => addElement('image');
+    if (addTableBtn) addTableBtn.onclick = () => addElement('table');
+    
+    console.log('✅ Manejadores de botones configurados');
   }
 
   function createEditorButtons() {
-    // Find toolbar or create one
-    let toolbar = qs('.editor-toolbar') || qs('.toolbar');
+    console.log('Creando botones del editor...');
+    
+    // Find existing toolbar or create one
+    let toolbar = qs('#ce-toolbar') || qs('.ce-toolbar') || qs('.editor-toolbar') || qs('.toolbar');
+    
     if (!toolbar) {
       toolbar = document.createElement('div');
-      toolbar.className = 'editor-toolbar';
-      toolbar.style.cssText = 'padding: 10px; background: #f5f5f5; border: 1px solid #ddd; margin-bottom: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;';
+      toolbar.id = 'ce-toolbar';
+      toolbar.className = 'ce-toolbar editor-toolbar';
       
+      // Insert before canvas
       const canvas = qs('#ce-canvas');
-      if (canvas && canvas.parentNode) {
-        canvas.parentNode.insertBefore(toolbar, canvas);
+      const container = qs('#custom-editor') || canvas?.parentNode || document.body;
+      
+      if (canvas) {
+        container.insertBefore(toolbar, canvas);
+      } else {
+        container.appendChild(toolbar);
       }
     }
+    
+    // Apply styles
+    toolbar.style.cssText = 'padding: 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);';
 
     toolbar.innerHTML = `
       <button id="add-title-btn" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">+ Título</button>
@@ -1462,6 +1486,8 @@
   }
 
   function addCompanyIndicator(companyEmail) {
+    if (!companyEmail) return;
+    
     // Find a good place to add the company indicator
     const body = document.body;
     
@@ -1509,21 +1535,47 @@
   document.addEventListener('DOMContentLoaded', function() {
     console.log('🎨 Inicializando Editor Visual Completo...');
     
-    // Verify we have an active company
-    const activeCompany = API.getActiveCompany();
-    if (!activeCompany) {
-      alert('No hay empresa activa. Por favor inicia sesión.');
-      return;
+    try {
+      // Check if API is available
+      if (typeof API === 'undefined') {
+        console.warn('API no está disponible, funcionando en modo offline');
+        // Initialize without backend features
+        setupVisualEditor();
+        setupVariables();
+        setupKeyboardShortcuts();
+        return;
+      }
+      
+      // Verify we have an active company
+      const activeCompany = API.getActiveCompany();
+      if (!activeCompany) {
+        console.warn('No hay empresa activa, funcionando en modo demo');
+        // Initialize in demo mode
+        setupVisualEditor();
+        setupVariables();
+        setupKeyboardShortcuts();
+        return;
+      }
+      
+      console.log(`📋 Editor iniciado para empresa: ${activeCompany}`);
+      
+      setupVisualEditor();
+      setupVariables();
+      setupKeyboardShortcuts();
+      
+      // Add company indicator to the interface
+      addCompanyIndicator(activeCompany);
+      
+      // Load existing templates from backend
+      loadExistingTemplates();
+      
+    } catch (error) {
+      console.error('Error al inicializar el editor:', error);
+      // Fallback initialization
+      setupVisualEditor();
+      setupVariables();
+      setupKeyboardShortcuts();
     }
-    
-    console.log(`📋 Editor iniciado para empresa: ${activeCompany}`);
-    
-    setupVisualEditor();
-    setupVariables();
-    setupKeyboardShortcuts();
-    
-    // Add company indicator to the interface
-    addCompanyIndicator(activeCompany);
     
     // Setup existing buttons if they exist
     const saveBtn = qs('#save-template');
@@ -1541,9 +1593,6 @@
     }
     
     console.log('✅ Editor Visual inicializado correctamente');
-    
-    // Load existing templates from backend
-    loadExistingTemplates();
   });
 
   // Backend API integration functions
@@ -1554,6 +1603,13 @@
     const content = canvas.innerHTML;
     if (!content || content.includes('Haz clic en los botones')) {
       alert('Por favor crea contenido antes de guardar');
+      return;
+    }
+
+    // Check if API is available
+    if (typeof API === 'undefined') {
+      alert('API no disponible. No se puede guardar en el servidor.');
+      console.log('Contenido que se guardaría:', content);
       return;
     }
 
@@ -1576,18 +1632,26 @@
         activate: activate
       });
 
-      alert(`Plantilla "${templateName}" guardada exitosamente para ${API.getActiveCompany()}!`);
+      const company = API.getActiveCompany() || 'empresa actual';
+      alert(`Plantilla "${templateName}" guardada exitosamente para ${company}!`);
       console.log('Plantilla guardada:', savedTemplate);
       
       // Refresh template list
-      loadExistingTemplates();
+      if (typeof loadExistingTemplates === 'function') {
+        loadExistingTemplates();
+      }
     } catch (error) {
       console.error('Error saving template:', error);
-      alert('Error de conexión al guardar la plantilla');
+      alert('Error al guardar la plantilla: ' + error.message);
     }
   }
 
   async function loadExistingTemplates() {
+    if (typeof API === 'undefined') {
+      console.warn('API no disponible, saltando carga de plantillas');
+      return;
+    }
+    
     try {
       const templates = await API.templates.list();
       updateTemplateSelector(templates);
