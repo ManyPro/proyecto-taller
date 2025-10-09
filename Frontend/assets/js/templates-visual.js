@@ -350,16 +350,37 @@
     toolbar.style.cssText = 'padding: 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);';
 
     toolbar.innerHTML = `
-      <button id="add-title-btn" style="padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">+ Título</button>
-      <button id="add-text-btn" style="padding: 8px 16px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">+ Texto</button>
-      <button id="add-image-btn" style="padding: 8px 16px; background: #ffc107; color: black; border: none; border-radius: 4px; cursor: pointer;">+ Imagen</button>
-      <button id="add-table-btn" style="padding: 8px 16px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">+ Tabla</button>
-      <button id="add-items-table-btn" style="padding: 8px 16px; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer;">+ Tabla Items</button>
+      <style>
+        .toolbar-btn {
+          padding: 10px 16px;
+          border: none;
+          border-radius: 8px;
+          cursor: pointer;
+          font-weight: 600;
+          font-size: 14px;
+          margin: 2px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          transition: all 0.3s ease;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .toolbar-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+      </style>
       
-      <div style="border-left: 2px solid #ddd; padding-left: 8px; margin-left: 8px;">
-        <button id="delete-selected-btn" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;" title="Eliminar elemento seleccionado">🗑️ Eliminar</button>
-        <button id="undo-btn" style="padding: 8px 16px; background: #fd7e14; color: white; border: none; border-radius: 4px; cursor: pointer; opacity: 0.5;" disabled title="Deshacer última eliminación">↩️ Deshacer</button>
-        <button id="clear-canvas-btn" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">🆑 Limpiar Todo</button>
+      <button id="add-title-btn" class="toolbar-btn" style="background: linear-gradient(135deg, #007bff, #0056b3); color: white;">📄 Título</button>
+      <button id="add-text-btn" class="toolbar-btn" style="background: linear-gradient(135deg, #28a745, #20c997); color: white;">📝 Texto</button>
+      <button id="add-image-btn" class="toolbar-btn" style="background: linear-gradient(135deg, #ffc107, #e0a800); color: #212529;">🖼️ Imagen</button>
+      <button id="add-table-btn" class="toolbar-btn" style="background: linear-gradient(135deg, #17a2b8, #138496); color: white;">📊 Tabla</button>
+      <button id="add-items-table-btn" class="toolbar-btn" style="background: linear-gradient(135deg, #6f42c1, #59359a); color: white;">📋 Items</button>
+      
+      <div style="border-left: 2px solid #ddd; padding-left: 12px; margin-left: 12px; display: flex; align-items: center; gap: 4px;">
+        <button id="delete-selected-btn" class="toolbar-btn" style="background: linear-gradient(135deg, #dc3545, #c82333); color: white;" title="Eliminar elemento seleccionado">🗑️ Eliminar</button>
+        <button id="undo-btn" class="toolbar-btn" style="background: linear-gradient(135deg, #fd7e14, #e8690b); color: white; opacity: 0.5;" disabled title="Deshacer última eliminación">↩️ Deshacer</button>
+        <button id="clear-canvas-btn" class="toolbar-btn" style="background: linear-gradient(135deg, #6c757d, #545b62); color: white;">🧹 Limpiar Todo</button>
       </div>
       
 
@@ -2555,22 +2576,23 @@
     console.log(`✅ Indicador de empresa agregado: ${companyEmail}`);
   }
 
+  // Check URL parameters immediately (before DOM load to prevent flash)
+  const urlParams = new URLSearchParams(window.location.search);
+  const documentType = urlParams.get('type');
+  const action = urlParams.get('action');
+  const formatId = urlParams.get('formatId');
+  
+  // If no parameters, redirect immediately to prevent flash
+  if (!documentType || !action) {
+    console.log('🔄 Redirigiendo a selector de formato...');
+    window.location.replace('template-selector.html');
+    // Don't continue execution
+    throw new Error('Redirecting to template selector');
+  }
+
   // Initialize when DOM is ready
   document.addEventListener('DOMContentLoaded', function() {
     console.log('🎨 Inicializando Editor Visual Completo...');
-    
-    // Check URL parameters for format selection
-    const urlParams = new URLSearchParams(window.location.search);
-    const documentType = urlParams.get('type');
-    const action = urlParams.get('action');
-    const formatId = urlParams.get('formatId');
-    
-    // If no parameters, redirect to format selector
-    if (!documentType || !action) {
-      console.log('🔄 Redirigiendo a selector de formato...');
-      window.location.href = 'template-selector.html';
-      return;
-    }
     
     // Store current session info
     window.currentTemplateSession = {
@@ -2591,10 +2613,20 @@
         setupVariables();
         setupKeyboardShortcuts();
         
-        // Load default template for document type
-        if (action === 'create') {
-          loadDefaultTemplate(documentType);
-        }
+        // Add session header even in offline mode
+        addSessionHeader(documentType, action, formatId);
+        
+        // Load format based on action (offline mode) with small delay to ensure DOM is ready
+        console.log(`🔌 Modo offline - Acción: ${action}, Tipo: ${documentType}`);
+        setTimeout(() => {
+          if (action === 'edit' && formatId) {
+            console.log('📝 Modo offline: No se puede cargar formato existente');
+            loadDefaultTemplate(documentType);
+          } else if (action === 'create') {
+            console.log('➕ Modo offline: Cargando plantilla por defecto...');
+            loadDefaultTemplate(documentType);
+          }
+        }, 500);
         return;
       }
       
@@ -2607,10 +2639,20 @@
         setupVariables();
         setupKeyboardShortcuts();
         
-        // Load default template for document type
-        if (action === 'create') {
-          loadDefaultTemplate(documentType);
-        }
+        // Add session header in demo mode
+        addSessionHeader(documentType, action, formatId);
+        
+        // Load format based on action (demo mode) with small delay
+        console.log(`🎭 Modo demo - Acción: ${action}, Tipo: ${documentType}`);
+        setTimeout(() => {
+          if (action === 'edit' && formatId) {
+            console.log('📝 Modo demo: Simulando carga de formato existente');
+            loadDefaultTemplate(documentType); // Fallback to default
+          } else if (action === 'create') {
+            console.log('➕ Modo demo: Cargando plantilla por defecto...');
+            loadDefaultTemplate(documentType);
+          }
+        }, 500);
         return;
       }
       
@@ -2629,12 +2671,20 @@
       // Add header info to show current session
       addSessionHeader(documentType, action, formatId);
       
-      // Load format based on action
-      if (action === 'edit' && formatId) {
-        loadExistingFormat(formatId);
-      } else if (action === 'create') {
-        loadDefaultTemplate(documentType);
-      }
+      // Load format based on action with delay to ensure DOM is ready
+      console.log(`🎯 Acción: ${action}, Tipo: ${documentType}, FormatId: ${formatId}`);
+      
+      setTimeout(() => {
+        if (action === 'edit' && formatId) {
+          console.log('📝 Cargando formato existente...');
+          loadExistingFormat(formatId);
+        } else if (action === 'create') {
+          console.log('➕ Creando nuevo formato, cargando plantilla por defecto...');
+          loadDefaultTemplate(documentType);
+        } else {
+          console.error('❌ Acción no reconocida:', action);
+        }
+      }, 500);
       
       // Load existing templates from backend (for reference)
       loadExistingTemplates();
@@ -2672,17 +2722,7 @@
       console.error('❌ No se encontró el botón preview-template');
     }
 
-    const quickSaveBtn = qs('#quick-save');
-    if (quickSaveBtn) {
-      console.log('✅ Botón Guardado Rápido encontrado');
-      quickSaveBtn.onclick = function(e) {
-        e.preventDefault();
-        console.log('🔄 Ejecutando quickSaveTemplate...');
-        quickSaveTemplate();
-      };
-    } else {
-      console.error('❌ No se encontró el botón quick-save');
-    }
+    // Quick save button removed - only save template and preview remain
     
     console.log('✅ Editor Visual inicializado correctamente');
   });
@@ -2729,17 +2769,22 @@
     console.log(`🎨 Cargando plantilla automática para: ${documentType}`);
     
     const canvas = qs('#ce-canvas');
-    if (!canvas) return;
+    if (!canvas) {
+      console.error('❌ Canvas no encontrado, no se puede cargar plantilla');
+      return;
+    }
+    
+    console.log('✅ Canvas encontrado, procediendo con carga de plantilla...');
     
     // Always load the appropriate template for the document type
     if (documentType === 'invoice') {
-      createInvoiceTemplate();
+      createInvoiceTemplate(canvas);
       showQuickNotification(`📄 Plantilla de Factura cargada`, 'success');
     } else if (documentType === 'quote') {
-      createQuoteTemplate();
+      createQuoteTemplate(canvas);
       showQuickNotification(`💰 Plantilla de Cotización cargada`, 'success');
     } else if (documentType === 'workOrder') {
-      createWorkOrderTemplate();
+      createWorkOrderTemplate(canvas);
       showQuickNotification(`🔧 Plantilla de Orden de Trabajo cargada`, 'success');
     } else {
       // Fallback - this shouldn't happen with proper selector flow

@@ -11,6 +11,18 @@
     .toolbar { margin-bottom: 10px; }
     .template-actions { margin-top: 20px; }
     
+    #save-template:hover {
+      background: #218838 !important;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(40, 167, 69, 0.4) !important;
+    }
+    
+    #preview-template:hover {
+      background: #5a6268 !important;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(108, 117, 125, 0.4) !important;
+    }
+    
     /* Default text colors - ensure black text for printing */
     .tpl-element {
       color: #333 !important;
@@ -94,10 +106,8 @@
         <div id="ce-canvas" class="ce-canvas" contenteditable="true"></div>
       </div>
       <div class="template-actions">
-          <button id="save-template" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 10px;">💾 Guardar Plantilla</button>
-          <button id="quick-save" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 10px;">⚡ Guardar Rápido</button>
-          <button id="preview-template" class="secondary" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-right: 10px;">👀 Vista Previa</button>
-          <select id="company-select" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc; margin-right: 10px;"></select>
+          <button id="save-template" style="background: #28a745; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 15px; box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3); transition: all 0.3s ease;">💾 Guardar Plantilla</button>
+          <button id="preview-template" class="secondary" style="background: #6c757d; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-weight: 600; box-shadow: 0 2px 4px rgba(108, 117, 125, 0.3); transition: all 0.3s ease;">👀 Vista Previa</button>
             <label style="margin-left:16px;">Tamaño PDF:
               <select id="pdf-size" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
                 <option value="letter">Carta</option>
