@@ -117,6 +117,63 @@ function invOpenModal(innerHTML) {
   modal.classList.remove("hidden");
   document.body.classList.add("modal-open");
 
+  // Zoom logic for modal image
+  setTimeout(() => {
+    const img = document.getElementById("modal-img");
+    const zoomIn = document.getElementById("zoom-in");
+    const zoomOut = document.getElementById("zoom-out");
+    let scale = 2;
+    if (img) {
+      img.style.transform = `scale(${scale})`;
+      if (zoomIn) zoomIn.onclick = () => {
+        scale = Math.min(scale + 0.2, 5);
+        img.style.transform = `scale(${scale})`;
+      };
+      if (zoomOut) zoomOut.onclick = () => {
+        scale = Math.max(scale - 0.2, 1);
+        img.style.transform = `scale(${scale})`;
+      };
+      img.onwheel = (e) => {
+        e.preventDefault();
+        if (e.deltaY < 0) {
+          scale = Math.min(scale + 0.1, 5);
+        } else {
+          scale = Math.max(scale - 0.1, 1);
+        }
+        img.style.transform = `scale(${scale})`;
+      };
+        // Pinch-to-zoom para móviles
+        let lastDist = null;
+        img.addEventListener('touchstart', function(e) {
+          if (e.touches.length === 2) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            lastDist = Math.sqrt(dx*dx + dy*dy);
+          }
+        }, {passive:false});
+        img.addEventListener('touchmove', function(e) {
+          if (e.touches.length === 2 && lastDist) {
+            e.preventDefault();
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            const newDist = Math.sqrt(dx*dx + dy*dy);
+            const delta = newDist - lastDist;
+            if (Math.abs(delta) > 2) {
+              scale += delta > 0 ? 0.04 : -0.04;
+              scale = Math.max(1, Math.min(5, scale));
+              img.style.transform = `scale(${scale})`;
+              lastDist = newDist;
+            }
+          }
+        }, {passive:false});
+        img.addEventListener('touchend', function(e) {
+          if (e.touches.length < 2) lastDist = null;
+        });
+    }
+    const closeModalBtn = document.getElementById("close-modal");
+    if (closeModalBtn) closeModalBtn.onclick = () => invCloseModal();
+  }, 50);
+
   const closeAll = () => invCloseModal();
   close.onclick = closeAll;
   modal.addEventListener("click", (e) => {
@@ -139,11 +196,19 @@ function invCloseModal() {
 
 function openLightbox(media) {
   const isVideo = (media.mimetype || "").startsWith("video/");
+  // Usar el sistema de zoom del modal (modal-img + botones)
+  // Se muestra el doble de grande (scale inicial = 2 en invOpenModal)
   invOpenModal(
     `<h3>Vista previa</h3>
-     <div class="viewer">
-       ${isVideo ? `<video controls src="${media.url}"></video>` : `<img src="${media.url}" alt="media" />`}
+     <div class="viewer" style="display:flex;justify-content:center;align-items:center;">
+       ${isVideo
+         ? `<video controls src="${media.url}" style="max-width:90vw;max-height:80vh;object-fit:contain;"></video>`
+         : `<img id="modal-img" src="${media.url}" alt="media" style="max-width:90vw;max-height:80vh;object-fit:contain;transform-origin:center center;"/>`}
      </div>
+     ${isVideo ? `` : `<div class="row" style="gap:8px;">
+        <button class="secondary" id="zoom-out">-</button>
+        <button class="secondary" id="zoom-in">+</button>
+      </div>`}
      <div class="row"><button class="secondary" id="lb-close">Cerrar</button></div>`
   );
   document.getElementById("lb-close").onclick = invCloseModal;
@@ -782,6 +847,8 @@ export function initInventory() {
       <h3>Editar ítem</h3>
       <label>SKU</label><input id="e-it-sku" value="${it.sku || ""}"/>
       <label>Nombre</label><input id="e-it-name" value="${it.name || ""}"/>
+      <label>Nombre interno</label><input id="e-it-internal" value="${it.internalName || ''}"/>
+      <label>Ubicación</label><input id="e-it-location" value="${it.location || ''}"/>
       <label>Entrada</label><select id="e-it-intake">${optionsIntakes}</select>
       <label>Destino</label><input id="e-it-target" value="${it.vehicleTarget || "GENERAL"}"/>
       <label>Precio entrada (opcional)</label><input id="e-it-entry" type="number" step="0.01" placeholder="vacío = AUTO si hay entrada" value="${it.entryPrice ?? ""}"/>
@@ -821,30 +888,47 @@ export function initInventory() {
     function renderThumbs() {
       thumbs.innerHTML = "";
       images.forEach((m, idx) => {
-        const d = document.createElement("div");
-        d.className = "thumb";
-        d.innerHTML = `${
-          m.mimetype?.startsWith("video/")
-            ? `<video src="${m.url}" muted></video>`
-            : `<img src="${m.url}" alt="thumb"/>`
-        }<button class="del" title="Quitar" data-del="${idx}">×</button>`;
+        const label = document.createElement("span");
+        label.className = "thumb-label";
+        label.textContent = `Imagen ${idx + 1}`;
+        label.style.marginRight = "8px";
 
-        d.onclick = (ev) => {
-          const btn = ev.target.closest("button.del");
-          if (btn) return;
-          viewer.style.display = "block";
-          viewer.innerHTML = m.mimetype?.startsWith("video/")
-            ? `<video controls src="${m.url}"></video>`
-            : `<img src="${m.url}" alt="media"/>`;
+        const previewBtn = document.createElement("button");
+  previewBtn.className = "preview-btn thumb-icon-btn";
+  previewBtn.title = "Vista previa";
+  previewBtn.innerHTML = `<svg width='18' height='18' viewBox='0 0 20 20' fill='none'><path d='M1 10C3.5 5.5 8 3 12 5.5C16 8 18.5 13 17 15C15.5 17 10.5 17 7 15C3.5 13 1 10 1 10Z' stroke='#2563eb' stroke-width='2' fill='none'/><circle cx='10' cy='10' r='3' fill='#2563eb'/></svg>`;
+        previewBtn.onclick = (ev) => {
+          // Mostrar a la mitad del tamaño anterior (antes: 90vw x 80vh)
+          invOpenModal(
+            `<div class='viewer-modal'>` +
+            (m.mimetype?.startsWith("video/")
+              ? `<video controls src='${m.url}' style='max-width:45vw;max-height:40vh;object-fit:contain;'></video>`
+              : `<img src='${m.url}' alt='media' style='max-width:45vw;max-height:40vh;object-fit:contain;'/>`)
+            + `</div>`
+          );
         };
 
-        d.querySelector("button.del").onclick = () => {
+        const delBtn = document.createElement("button");
+        delBtn.className = "del thumb-icon-btn";
+        delBtn.title = "Quitar";
+        delBtn.innerHTML = `<svg width='18' height='18' viewBox='0 0 20 20' fill='none'><circle cx='10' cy='10' r='9' stroke='#ef4444' stroke-width='2'/><line x1='6' y1='6' x2='14' y2='14' stroke='#ef4444' stroke-width='2'/><line x1='14' y1='6' x2='6' y2='14' stroke='#ef4444' stroke-width='2'/></svg>`;
+        delBtn.setAttribute("data-del", idx);
+        delBtn.onclick = () => {
           images.splice(idx, 1);
           renderThumbs();
           if (viewer.style.display !== "none") viewer.innerHTML = "";
         };
 
-        thumbs.appendChild(d);
+        const btnWrap = document.createElement("div");
+        btnWrap.className = "thumb-btn-wrap";
+        btnWrap.style.display = "flex";
+  btnWrap.style.alignItems = "baseline";
+        btnWrap.style.gap = "6px";
+        btnWrap.style.margin = "10px 0";
+        btnWrap.appendChild(label);
+        btnWrap.appendChild(previewBtn);
+        btnWrap.appendChild(delBtn);
+        thumbs.appendChild(btnWrap);
       });
     }
     renderThumbs();
@@ -884,6 +968,8 @@ export function initInventory() {
         const body = {
           sku: (sku.value || "").trim().toUpperCase(),
           name: (name.value || "").trim().toUpperCase(),
+          internalName: (document.getElementById('e-it-internal')?.value||'').trim().toUpperCase(),
+          location: (document.getElementById('e-it-location')?.value||'').trim().toUpperCase(),
           vehicleIntakeId: intake.value || null,
           vehicleTarget: (target.value || "GENERAL").trim().toUpperCase(),
           entryPrice: entry.value === "" ? "" : parseFloat(entry.value),

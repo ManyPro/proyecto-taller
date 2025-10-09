@@ -1,3 +1,10 @@
+/* Centrar imagen/video en el modal de vista previa */
+.viewer-modal { display: flex; align-items: center; justify-content: center; height: 100%; }
+/* Botones de icono para thumbs en edición de ítem */
+.thumb-btn-wrap { display: flex; align-items: center; gap: 6px; margin: 10px 0; }
+.thumb-label { font-size: 14px; color: #cbd5e1; margin-right: 8px; }
+.thumb-icon-btn { background: none; border: none; padding: 2px 4px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; transition: background .15s; }
+.thumb-icon-btn:hover { background: #f3f4f6; }
 :root{
   /* Paleta base (tema oscuro actual) */
   --bg:#0f172a;         /* fondo general */
@@ -199,6 +206,10 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 .it-gallery img{
   width:96px; height:96px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,.08);
 }
+.viewer img, .viewer video { max-width:200px; height:auto; border-radius:8px; margin:18px auto 0 auto; box-shadow:0 2px 4px rgba(0,0,0,.3); border:1px solid var(--border); cursor:pointer; display:block; transition:box-shadow .2s; }
+.viewer img:hover, .viewer video:hover { box-shadow:0 4px 16px rgba(0,0,0,.28); }
+.item-media img { max-width:200px; height:auto; border-radius:8px; margin:6px 6px 0 0; box-shadow:0 2px 4px rgba(0,0,0,.3); border:1px solid var(--border); }
+.item-media video { max-width:260px; border-radius:8px; margin:6px 6px 0 0; }
 .it-qr{ display:flex; flex-direction:column; align-items:center; gap:6px; }
 .it-qr img{
   width:140px; height:140px; image-rendering:pixelated; border-radius:8px; background:#fff;

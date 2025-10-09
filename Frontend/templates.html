@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Editor de Plantillas Visual</title>
+  <link href="https://cdn.jsdelivr.net/npm/grapesjs/dist/css/grapes.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css">
+  <style>
+    body { font-family: Arial, sans-serif; background: #f7f7f7; }
+    #editor-container { height: 500px; background: #fff; margin-bottom: 20px; }
+    .toolbar { margin-bottom: 10px; }
+    .template-actions { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Editor de Plantillas Visual</h1>
+  <div style="display:flex;gap:32px;align-items:flex-start;">
+    <div style="flex:1;">
+      <div id="custom-editor">
+        <div id="ce-toolbar" class="ce-toolbar"></div>
+        <div id="ce-canvas" class="ce-canvas" contenteditable="true"></div>
+      </div>
+      <div class="template-actions">
+          <button id="save-template">Guardar Plantilla</button>
+          <button id="load-template">Cargar Plantilla</button>
+    <button id="preview-template" class="secondary">Vista Previa</button>
+          <select id="company-select"></select>
+            <label style="margin-left:16px;">Tamaño PDF:
+              <select id="pdf-size">
+                <option value="letter">Carta</option>
+                <option value="half-letter">Media carta</option>
+                <option value="custom">Personalizado</option>
+              </select>
+            </label>
+            <span id="custom-size-fields" style="display:none;margin-left:12px;">
+              <label style="font-size:13px;">Ancho (cm): <input type="number" id="custom-width" min="5" max="50" step="0.1" style="width:60px;"></label>
+              <label style="font-size:13px;">Alto (cm): <input type="number" id="custom-height" min="5" max="50" step="0.1" style="width:60px;"></label>
+            </span>
+      </div>
+    </div>
+    <aside style="width:280px;background:#fff;border-radius:8px;padding:16px;box-shadow:0 2px 8px #0001;">
+        <h3 style="margin-bottom:10px;">Variables disponibles</h3>
+        <div id="var-list" style="margin-bottom:24px;"></div>
+        <h3 style="margin-top:0;color:#bbb;">Presets</h3>
+        <div id="preset-list" style="color:#bbb;">(Próximamente)</div>
+    </aside>
+  </div>
+    <script src="assets/js/templates-editor.js"></script>
+    <div id="preview-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center;padding:40px;">
+      <div style="background:#fff;width:80%;height:80%;border-radius:12px;display:flex;flex-direction:column;box-shadow:0 10px 40px -5px rgba(0,0,0,.4);">
+        <div style="padding:10px 14px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">
+          <strong style="font-size:14px;">Vista previa</strong>
+          <button id="preview-close" style="background:#1f2937;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;">Cerrar</button>
+        </div>
+        <iframe id="preview-frame" style="flex:1;width:100%;border:0;background:#fff;border-radius:0 0 12px 12px;"></iframe>
+      </div>
+    </div>
+</body>
+</html>
