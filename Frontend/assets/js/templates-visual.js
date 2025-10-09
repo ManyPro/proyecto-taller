@@ -399,14 +399,8 @@
     qs('#delete-selected-btn').onclick = () => {
       if (visualEditor.selectedElement) {
         if (confirm('¿Estás seguro de que quieres eliminar el elemento seleccionado?')) {
-          if (deleteElementSafely(visualEditor.selectedElement)) {
-            showNotification('Elemento eliminado correctamente');
-          } else {
-            alert('Error al eliminar el elemento. Inténtalo de nuevo.');
-          }
+          deleteElementSafely(visualEditor.selectedElement);
         }
-      } else {
-        alert('Primero selecciona un elemento para eliminar');
       }
     };
     
@@ -704,12 +698,6 @@
       e.stopPropagation();
       selectElement(element);
     };
-
-    // Add right-click context menu for additional delete option
-    element.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      showContextMenu(e, element);
-    });
   }
 
   function selectElement(element) {
@@ -732,80 +720,7 @@
       element.style.boxShadow = '0 0 0 1px rgba(37, 99, 235, 0.2)';
       showElementProperties(element);
       
-      // Add delete hint and visible delete button
-      if (!element.querySelector('.delete-hint')) {
-        const hint = document.createElement('div');
-        hint.className = 'delete-hint';
-        hint.style.cssText = `
-          position: absolute;
-          top: -25px;
-          right: -10px;
-          background: #dc3545;
-          color: white;
-          padding: 2px 6px;
-          border-radius: 3px;
-          font-size: 10px;
-          pointer-events: none;
-          z-index: 1002;
-        `;
-        hint.textContent = 'Del para eliminar';
-        element.appendChild(hint);
-        
-        // Remove hint after 3 seconds
-        setTimeout(() => {
-          if (hint.parentNode) hint.remove();
-        }, 3000);
-      }
 
-      // Add visible delete button
-      if (!element.querySelector('.delete-btn-visible')) {
-        const deleteBtn = document.createElement('button');
-        deleteBtn.className = 'delete-btn-visible';
-        deleteBtn.innerHTML = '🗑️';
-        deleteBtn.style.cssText = `
-          position: absolute;
-          top: -15px;
-          left: -15px;
-          width: 30px;
-          height: 30px;
-          border: none;
-          border-radius: 50%;
-          background: #dc3545;
-          color: white;
-          font-size: 12px;
-          cursor: pointer;
-          z-index: 1003;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-          transition: all 0.2s ease;
-        `;
-        
-        deleteBtn.onmouseover = () => {
-          deleteBtn.style.background = '#c82333';
-          deleteBtn.style.transform = 'scale(1.1)';
-        };
-        
-        deleteBtn.onmouseout = () => {
-          deleteBtn.style.background = '#dc3545';
-          deleteBtn.style.transform = 'scale(1)';
-        };
-        
-        deleteBtn.onclick = (e) => {
-          e.stopPropagation();
-          if (confirm('¿Estás seguro de que quieres eliminar este elemento?')) {
-            deleteElementSafely(element);
-          }
-        };
-        
-        element.appendChild(deleteBtn);
-        
-        // Remove button after 5 seconds
-        setTimeout(() => {
-          if (deleteBtn.parentNode) deleteBtn.remove();
-        }, 5000);
-      }
     } else {
       hideElementProperties();
     }
@@ -2302,8 +2217,6 @@
           contentEl.innerHTML += varText;
         }
         
-        // Show feedback
-        showInsertionFeedback(contentEl, '✅ Variable agregada');
         return;
       }
     }
@@ -2351,70 +2264,14 @@
     
     canvas.appendChild(newElement);
     selectElement(newElement);
-    
-    // Show success message
-    showInsertionFeedback(newElement, '✅ Variable creada como nuevo elemento');
   };
 
   // Global function to insert items table
   window.insertItemsTable = function() {
     addItemsTable();
-    
-    // Show feedback
-    const canvas = qs('#ce-canvas');
-    if (canvas) {
-      showInsertionFeedback(canvas, '✅ Tabla de trabajos creada');
-    }
   };
 
-  function showInsertionFeedback(element, message) {
-    // Create feedback tooltip
-    const feedback = document.createElement('div');
-    feedback.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: #28a745;
-      color: white;
-      padding: 10px 15px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      z-index: 3000;
-      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
-      animation: slideInRight 0.3s ease-out;
-    `;
-    feedback.textContent = message;
-    
-    document.body.appendChild(feedback);
-    
-    // Add animation styles
-    if (!document.querySelector('#feedback-animations')) {
-      const animationStyle = document.createElement('style');
-      animationStyle.id = 'feedback-animations';
-      animationStyle.textContent = `
-        @keyframes slideInRight {
-          from { transform: translateX(100%); opacity: 0; }
-          to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes slideOutRight {
-          from { transform: translateX(0); opacity: 1; }
-          to { transform: translateX(100%); opacity: 0; }
-        }
-      `;
-      document.head.appendChild(animationStyle);
-    }
-    
-    // Remove after 3 seconds
-    setTimeout(() => {
-      feedback.style.animation = 'slideOutRight 0.3s ease-in';
-      setTimeout(() => {
-        if (feedback.parentNode) {
-          feedback.remove();
-        }
-      }, 300);
-    }, 3000);
-  }
+
 
   // Setup keyboard shortcuts
   function setupKeyboardShortcuts() {
@@ -2435,9 +2292,7 @@
         e.preventDefault();
         
         // Use the safer delete function
-        if (deleteElementSafely(visualEditor.selectedElement)) {
-          showNotification('Elemento eliminado');
-        }
+        deleteElementSafely(visualEditor.selectedElement);
       }
       
       // Copy element with Ctrl+C
@@ -2585,11 +2440,9 @@
       visualEditor.lastDeletedElement = null;
       updateUndoButtonState(false);
 
-      showNotification('Elemento restaurado exitosamente');
       console.log('Elemento restaurado');
     } catch (error) {
       console.error('Error al restaurar elemento:', error);
-      showNotification('Error al restaurar elemento');
     }
   }
 
@@ -2610,117 +2463,7 @@
     }
   }
 
-  function showContextMenu(e, element) {
-    // Remove existing context menu if any
-    const existingMenu = document.querySelector('.context-menu');
-    if (existingMenu) existingMenu.remove();
 
-    // Create context menu
-    const menu = document.createElement('div');
-    menu.className = 'context-menu';
-    menu.style.cssText = `
-      position: fixed;
-      top: ${e.clientY}px;
-      left: ${e.clientX}px;
-      background: white;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      z-index: 2000;
-      min-width: 150px;
-      padding: 8px 0;
-      font-size: 14px;
-    `;
-
-    // Menu options
-    const options = [
-      {
-        text: '🗑️ Eliminar elemento',
-        action: () => {
-          if (confirm('¿Estás seguro de que quieres eliminar este elemento?')) {
-            deleteElementSafely(element);
-          }
-        },
-        color: '#dc3545'
-      },
-      {
-        text: '📋 Copiar elemento', 
-        action: () => {
-          visualEditor.copiedElement = {
-            outerHTML: element.outerHTML,
-            type: visualEditor.elements.find(el => el.element === element)?.type || 'unknown'
-          };
-          showNotification('Elemento copiado');
-        }
-      },
-      {
-        text: '🔝 Traer al frente',
-        action: () => {
-          element.style.zIndex = (parseInt(element.style.zIndex) || 1) + 100;
-          showNotification('Elemento movido al frente');
-        }
-      }
-    ];
-
-    options.forEach(option => {
-      const item = document.createElement('div');
-      item.style.cssText = `
-        padding: 8px 16px;
-        cursor: pointer;
-        color: ${option.color || '#333'};
-        border-bottom: 1px solid #f0f0f0;
-        transition: background-color 0.2s ease;
-      `;
-      item.textContent = option.text;
-      
-      item.onmouseover = () => item.style.background = '#f8f9fa';
-      item.onmouseout = () => item.style.background = 'transparent';
-      
-      item.onclick = (e) => {
-        e.stopPropagation();
-        option.action();
-        menu.remove();
-      };
-      
-      menu.appendChild(item);
-    });
-
-    document.body.appendChild(menu);
-
-    // Remove menu when clicking elsewhere
-    setTimeout(() => {
-      document.addEventListener('click', function closeMenu() {
-        menu.remove();
-        document.removeEventListener('click', closeMenu);
-      });
-    }, 100);
-  }
-
-  function showNotification(message) {
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: #28a745;
-      color: white;
-      padding: 10px 15px;
-      border-radius: 6px;
-      font-size: 12px;
-      font-weight: 600;
-      z-index: 3000;
-      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
-      animation: slideInRight 0.3s ease-out;
-    `;
-    notification.textContent = message;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-      notification.style.animation = 'slideOutRight 0.3s ease-in';
-      setTimeout(() => notification.remove(), 300);
-    }, 2000);
-  }
 
   function copySelectedElement() {
     if (!visualEditor.selectedElement) return;
@@ -2882,6 +2625,13 @@
         previewWithRealData();
       };
     }
+
+    const quickSaveBtn = qs('#quick-save');
+    if (quickSaveBtn) {
+      quickSaveBtn.onclick = function() {
+        quickSaveTemplate();
+      };
+    }
     
     console.log('✅ Editor Visual inicializado correctamente');
   });
@@ -2905,13 +2655,23 @@
     }
 
     // Ask user for template details
-    const templateName = prompt('Nombre de la plantilla:');
+    const templateName = prompt('Nombre de la plantilla:', 'Mi Plantilla');
     if (!templateName) return;
 
-    const templateType = prompt('Tipo de plantilla (invoice, quote, workOrder, sticker):', 'invoice');
+    // Detect template type based on content
+    let detectedType = 'invoice'; // default
+    if (content.toLowerCase().includes('cotización')) {
+      detectedType = 'quote';
+    } else if (content.toLowerCase().includes('orden de trabajo')) {
+      detectedType = 'workOrder';
+    } else if (content.toLowerCase().includes('factura')) {
+      detectedType = 'invoice';
+    }
+
+    const templateType = prompt('Tipo de plantilla:', detectedType);
     if (!templateType) return;
 
-    const activate = confirm('¿Activar como plantilla principal para este tipo?');
+    const activate = confirm('¿Activar como plantilla principal para este tipo?\n(Recomendado: Sí)');
 
     try {
       // Use API module to ensure proper authentication and company isolation
@@ -2924,7 +2684,15 @@
       });
 
       const company = API.getActiveCompany() || 'empresa actual';
-      alert(`Plantilla "${templateName}" guardada exitosamente para ${company}!`);
+      
+      // Show success message with more details
+      const successMsg = `✅ Plantilla guardada exitosamente!\n\n` +
+                        `📝 Nombre: ${templateName}\n` +
+                        `📋 Tipo: ${templateType}\n` +
+                        `🏢 Empresa: ${company}\n` +
+                        `${activate ? '✅ Activada como principal' : '📂 Guardada como borrador'}`;
+      
+      alert(successMsg);
       console.log('Plantilla guardada:', savedTemplate);
       
       // Refresh template list
@@ -2933,8 +2701,120 @@
       }
     } catch (error) {
       console.error('Error saving template:', error);
-      alert('Error al guardar la plantilla: ' + error.message);
+      alert(`❌ Error al guardar la plantilla:\n\n${error.message}\n\nRevisa la consola para más detalles.`);
     }
+  }
+
+  async function quickSaveTemplate() {
+    const canvas = qs('#ce-canvas');
+    if (!canvas) return;
+
+    const content = canvas.innerHTML;
+    if (!content || content.includes('Haz clic en los botones')) {
+      alert('Por favor crea contenido antes de guardar');
+      return;
+    }
+
+    // Check if API is available
+    if (typeof API === 'undefined') {
+      alert('API no disponible. No se puede guardar en el servidor.');
+      return;
+    }
+
+    // Auto-detect template type and generate name
+    let templateType = 'invoice'; // default
+    let templateName = 'Borrador';
+
+    if (content.toLowerCase().includes('cotización')) {
+      templateType = 'quote';
+      templateName = 'Cotización Borrador';
+    } else if (content.toLowerCase().includes('orden de trabajo')) {
+      templateType = 'workOrder';
+      templateName = 'Orden de Trabajo Borrador';
+    } else if (content.toLowerCase().includes('factura')) {
+      templateType = 'invoice';
+      templateName = 'Factura Borrador';
+    }
+
+    // Add timestamp to make it unique
+    const timestamp = new Date().toLocaleString('es-ES', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    templateName += ` ${timestamp}`;
+
+    try {
+      // Save as draft (not activated)
+      const savedTemplate = await API.templates.create({
+        name: templateName,
+        type: templateType,
+        contentHtml: content,
+        contentCss: '',
+        activate: false
+      });
+
+      const company = API.getActiveCompany() || 'empresa actual';
+      
+      // Show quick success notification
+      showQuickNotification(`✅ Guardado: ${templateName}`, 'success');
+      console.log('Borrador guardado:', savedTemplate);
+      
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      showQuickNotification(`❌ Error al guardar: ${error.message}`, 'error');
+    }
+  }
+
+  function showQuickNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${type === 'success' ? '#28a745' : '#dc3545'};
+      color: white;
+      padding: 12px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 3000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      animation: slideInFromRight 0.3s ease-out;
+      max-width: 350px;
+    `;
+    notification.textContent = message;
+    
+    // Add animation styles if not exists
+    if (!document.querySelector('#notification-styles')) {
+      const style = document.createElement('style');
+      style.id = 'notification-styles';
+      style.textContent = `
+        @keyframes slideInFromRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutToRight {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(notification);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+      notification.style.animation = 'slideOutToRight 0.3s ease-in';
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.remove();
+        }
+      }, 300);
+    }, 3000);
   }
 
   async function loadExistingTemplates() {
@@ -3073,46 +2953,385 @@
       return;
     }
 
-    // Default to invoice for now since we're focusing on it
-    const templateType = 'invoice';
+    // Auto-detect template type based on content
+    let templateType = 'invoice'; // default
+    if (content.toLowerCase().includes('cotización')) {
+      templateType = 'quote';
+    } else if (content.toLowerCase().includes('orden de trabajo')) {
+      templateType = 'workOrder';
+    } else if (content.toLowerCase().includes('factura')) {
+      templateType = 'invoice';
+    }
+
+    // Check if API is available
+    if (typeof API === 'undefined') {
+      alert('API no disponible. Mostrando vista previa sin datos reales.');
+      showOfflinePreview(content, templateType);
+      return;
+    }
 
     try {
+      showQuickNotification('🔄 Obteniendo datos reales...', 'info');
+      
       const result = await API.templates.preview({
         type: templateType,
         contentHtml: content,
         contentCss: ''
       });
-        
-      // Show preview in new window
-      const previewWindow = window.open('', '_blank', 'width=800,height=600');
-      previewWindow.document.write(`
+
+      // Show preview in new window with PDF-like styles
+      const previewWindow = window.open('', '_blank', 'width=850,height=1100,scrollbars=yes');
+      
+      const previewHTML = `
         <html>
           <head>
-            <title>Vista Previa con Datos Reales - ${templateType} (${API.getActiveCompany()})</title>
+            <title>Vista Previa PDF - ${templateType.toUpperCase()} | ${API.getActiveCompany()}</title>
+            <meta charset="UTF-8">
             <style>
-              body { font-family: Arial; padding: 20px; background: #f5f5f5; }
-              .preview-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-              ${result.css || ''}
+              * { box-sizing: border-box; }
+              
+              body { 
+                font-family: 'Arial', sans-serif; 
+                margin: 0; 
+                padding: 20px; 
+                background: #525659; 
+                color: #333;
+                font-size: 14px;
+                line-height: 1.4;
+              }
+              
+              .pdf-viewer {
+                background: white;
+                width: 21cm;
+                min-height: 29.7cm;
+                margin: 0 auto;
+                padding: 2cm;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+                border-radius: 4px;
+                position: relative;
+              }
+              
+              .preview-header {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: #2c3e50;
+                color: white;
+                padding: 10px 20px;
+                z-index: 1000;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 14px;
+              }
+              
+              .preview-content {
+                margin-top: 50px;
+              }
+              
+              .close-btn {
+                background: #e74c3c;
+                color: white;
+                border: none;
+                padding: 8px 15px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+              }
+              
+              .download-btn {
+                background: #27ae60;
+                color: white;
+                border: none;
+                padding: 8px 15px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 12px;
+                margin-right: 10px;
+              }
+              
+              /* Ensure proper PDF rendering */
+              .tpl-element {
+                border: none !important;
+                outline: none !important;
+                box-shadow: none !important;
+                color: #333 !important;
+              }
+              
+              table {
+                border-collapse: collapse;
+                width: 100%;
+              }
+              
+              th, td {
+                border: 1px solid #333;
+                padding: 8px;
+                text-align: left;
+              }
+              
+              th {
+                background-color: #f5f5f5;
+                font-weight: bold;
+              }
+              
+              @media print {
+                body { background: white; padding: 0; }
+                .preview-header { display: none; }
+                .preview-content { margin-top: 0; }
+                .pdf-viewer { 
+                  box-shadow: none; 
+                  width: 100%; 
+                  padding: 1cm;
+                  min-height: auto;
+                }
+              }
             </style>
           </head>
           <body>
-            <div class="preview-container">
-              <h2>Vista Previa con Datos Reales (${templateType.toUpperCase()})</h2>
-              <p style="color: #666; font-size: 12px; margin-bottom: 20px;">Empresa: ${API.getActiveCompany()}</p>
-              <hr style="margin-bottom: 20px;">
-              ${result.rendered}
+            <div class="preview-header">
+              <div>
+                <strong>📄 Vista Previa PDF</strong> | 
+                Tipo: ${templateType.toUpperCase()} | 
+                Empresa: ${API.getActiveCompany()} |
+                <span style="font-size: 11px; opacity: 0.8;">Datos actualizados: ${new Date().toLocaleString('es-ES')}</span>
+              </div>
+              <div>
+                <button class="download-btn" onclick="window.print()">🖨️ Imprimir/PDF</button>
+                <button class="close-btn" onclick="window.close()">✕ Cerrar</button>
+              </div>
+            </div>
+            <div class="preview-content">
+              <div class="pdf-viewer">
+                ${result.rendered || content}
+              </div>
             </div>
             <script>
-              // Add context info
-              console.log('Contexto de datos:', ${JSON.stringify(result.context, null, 2)});
+              console.log('📊 Datos de contexto:', ${JSON.stringify(result.context || {}, null, 2)});
+              console.log('🔧 Tipo de plantilla:', '${templateType}');
+              
+              // Add keyboard shortcuts
+              document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                  window.close();
+                } else if (e.ctrlKey && e.key === 'p') {
+                  e.preventDefault();
+                  window.print();
+                }
+              });
+              
+              // Focus window for keyboard shortcuts
+              window.focus();
             </script>
           </body>
         </html>
-      `);
+      `;
+      
+      previewWindow.document.write(previewHTML);
       previewWindow.document.close();
+      
+      showQuickNotification('✅ Vista previa generada con datos reales', 'success');
+      
     } catch (error) {
       console.error('Error in preview:', error);
-      alert('Error en vista previa: ' + error.message);
+      showQuickNotification('❌ Error en vista previa: ' + error.message, 'error');
+      
+      // Fallback to offline preview
+      showOfflinePreview(content, templateType);
     }
+  }
+
+  function showOfflinePreview(content, templateType) {
+    // Show preview without real data as fallback
+    const previewWindow = window.open('', '_blank', 'width=850,height=1100,scrollbars=yes');
+    
+    const mockData = getMockDataForType(templateType);
+    const processedContent = replaceMockVariables(content, mockData);
+    
+    const previewHTML = `
+      <html>
+        <head>
+          <title>Vista Previa (Datos de Ejemplo) - ${templateType.toUpperCase()}</title>
+          <meta charset="UTF-8">
+          <style>
+            body { 
+              font-family: 'Arial', sans-serif; 
+              margin: 0; 
+              padding: 20px; 
+              background: #525659; 
+              color: #333;
+            }
+            .pdf-viewer {
+              background: white;
+              width: 21cm;
+              min-height: 29.7cm;
+              margin: 0 auto;
+              padding: 2cm;
+              box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            }
+            .warning {
+              background: #fff3cd;
+              border: 1px solid #ffc107;
+              color: #856404;
+              padding: 15px;
+              border-radius: 4px;
+              margin-bottom: 20px;
+              text-align: center;
+            }
+            .tpl-element {
+              border: none !important;
+              outline: none !important;
+              box-shadow: none !important;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="pdf-viewer">
+            <div class="warning">
+              ⚠️ <strong>Vista Previa con Datos de Ejemplo</strong><br>
+              <small>La API no está disponible. Los datos mostrados son ficticios.</small>
+            </div>
+            ${processedContent}
+          </div>
+        </body>
+      </html>
+    `;
+    
+    previewWindow.document.write(previewHTML);
+    previewWindow.document.close();
+  }
+
+  function getMockDataForType(templateType) {
+    const mockData = {
+      company: {
+        name: 'Taller Automotriz Ejemplo',
+        address: 'Calle Principal #123, Centro',
+        phone: '(555) 123-4567'
+      },
+      date: new Date().toLocaleDateString('es-ES'),
+      customerName: 'Juan Carlos Pérez',
+      customerPhone: '(555) 987-6543'
+    };
+
+    if (templateType === 'invoice') {
+      return {
+        ...mockData,
+        sale: {
+          number: 'F-2024-001',
+          date: mockData.date,
+          customerName: mockData.customerName,
+          total: 1250.00,
+          subtotal: 1077.59,
+          tax: 172.41,
+          vehicle: { plate: 'ABC-123', brand: 'Toyota Corolla' },
+          items: [
+            { description: 'Cambio de aceite', qty: 1, price: 450.00, total: 450.00 },
+            { description: 'Revisión de frenos', qty: 1, price: 800.00, total: 800.00 }
+          ]
+        }
+      };
+    } else if (templateType === 'quote') {
+      return {
+        ...mockData,
+        quote: {
+          number: 'COT-2024-089',
+          date: mockData.date,
+          validUntil: new Date(Date.now() + 15*24*60*60*1000).toLocaleDateString('es-ES'),
+          customerName: mockData.customerName,
+          total: 2100.00,
+          subtotal: 1810.34,
+          tax: 289.66,
+          vehicle: { plate: 'XYZ-789', brand: 'Honda Civic', model: '2020' },
+          items: [
+            { description: 'Diagnóstico completo', qty: 1, price: 300.00, total: 300.00 },
+            { description: 'Reparación de transmisión', qty: 1, price: 1800.00, total: 1800.00 }
+          ]
+        }
+      };
+    } else if (templateType === 'workOrder') {
+      return {
+        ...mockData,
+        workOrder: {
+          number: 'OT-2024-156',
+          startDate: mockData.date,
+          estimatedDate: new Date(Date.now() + 3*24*60*60*1000).toLocaleDateString('es-ES'),
+          customerName: mockData.customerName,
+          status: 'En Proceso',
+          estimatedCost: 1500.00,
+          technician: 'Carlos Rodríguez',
+          problemDescription: 'Vehículo presenta ruidos extraños al frenar',
+          vehicle: { 
+            plate: 'DEF-456', 
+            brand: 'Nissan', 
+            model: 'Sentra', 
+            year: 2019,
+            mileage: 45000 
+          },
+          tasks: [
+            { description: 'Inspección del sistema de frenos', technician: 'Carlos Rodríguez' },
+            { description: 'Reemplazo de pastillas de freno', technician: 'Carlos Rodríguez' }
+          ]
+        }
+      };
+    }
+    
+    return mockData;
+  }
+
+  function replaceMockVariables(content, data) {
+    let result = content;
+    
+    // Simple variable replacement for offline preview
+    const replacements = {
+      '{{company.name}}': data.company?.name || 'Empresa Ejemplo',
+      '{{company.address}}': data.company?.address || 'Dirección Ejemplo',
+      '{{company.phone}}': data.company?.phone || 'Teléfono Ejemplo',
+      '{{sale.number}}': data.sale?.number || 'NUM-EJEMPLO',
+      '{{quote.number}}': data.quote?.number || 'COT-EJEMPLO', 
+      '{{workOrder.number}}': data.workOrder?.number || 'OT-EJEMPLO'
+    };
+
+    Object.entries(replacements).forEach(([variable, value]) => {
+      result = result.replace(new RegExp(variable.replace(/[{}]/g, '\\$&'), 'g'), value);
+    });
+    
+    return result;
+  }
+
+  function showQuickNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    const colors = {
+      'success': '#28a745',
+      'error': '#dc3545', 
+      'info': '#17a2b8'
+    };
+    
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${colors[type] || colors.info};
+      color: white;
+      padding: 12px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 3000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      animation: slideInFromRight 0.3s ease-out;
+      max-width: 350px;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.style.animation = 'slideOutToRight 0.3s ease-in';
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.remove();
+        }
+      }, 300);
+    }, 3000);
   }
 })();
