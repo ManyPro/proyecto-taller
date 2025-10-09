@@ -323,6 +323,29 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+
+    .format-config-card {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 20px;
+      transition: all 0.3s ease;
+    }
+
+    .format-config-card:hover {
+      border-color: #2196f3;
+      box-shadow: 0 2px 8px rgba(33, 150, 243, 0.15);
+    }
+
+    .format-config-card select {
+      transition: border-color 0.3s ease;
+    }
+
+    .format-config-card select:focus {
+      outline: none;
+      border-color: #2196f3;
+      box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+    }
   </style>
 </head>
 <body>
@@ -398,6 +421,49 @@
       </div>
 
       <!-- Navigation -->
+      <!-- Format Configuration Section -->
+      <div class="formats-config-section" style="margin-top: 40px; border-top: 1px solid #e0e0e0; padding-top: 30px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 style="margin: 0; font-size: 20px; color: #333;">⚙️ Configuración de Formatos Activos</h2>
+          <p style="margin: 0; font-size: 14px; color: #666;">Selecciona qué formato se usará para imprimir desde el sistema</p>
+        </div>
+
+        <div class="active-formats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+          <div class="format-config-card" data-type="invoice">
+            <h4 style="margin: 0 0 15px 0; color: #333; display: flex; align-items: center; gap: 8px;">
+              <span>🧾</span>
+              <span>Formato de Factura Activo</span>
+            </h4>
+            <select id="active-invoice-format" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+              <option value="">Cargando formatos...</option>
+            </select>
+            <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">Este formato se usará al imprimir facturas desde ventas</p>
+          </div>
+
+          <div class="format-config-card" data-type="quote">
+            <h4 style="margin: 0 0 15px 0; color: #333; display: flex; align-items: center; gap: 8px;">
+              <span>💰</span>
+              <span>Formato de Cotización Activo</span>
+            </h4>
+            <select id="active-quote-format" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+              <option value="">Cargando formatos...</option>
+            </select>
+            <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">Este formato se usará al imprimir cotizaciones</p>
+          </div>
+
+          <div class="format-config-card" data-type="workOrder">
+            <h4 style="margin: 0 0 15px 0; color: #333; display: flex; align-items: center; gap: 8px;">
+              <span>🔧</span>
+              <span>Formato de Orden de Trabajo Activo</span>
+            </h4>
+            <select id="active-workorder-format" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+              <option value="">Cargando formatos...</option>
+            </select>
+            <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">Este formato se usará al imprimir órdenes de trabajo</p>
+          </div>
+        </div>
+      </div>
+
       <div class="navigation">
         <button class="back-btn" onclick="history.back()">
           <span>⬅️</span>
@@ -599,6 +665,7 @@
         if (typeof API !== 'undefined') {
           await API.templates.delete(formatId);
           loadFormats(); // Reload
+          loadActiveFormats(); // Reload active formats too
         }
       } catch (error) {
         console.error('Error deleting format:', error);
@@ -606,8 +673,111 @@
       }
     }
 
+    async function loadActiveFormats() {
+      console.log('🔄 Cargando formatos activos...');
+      
+      const documentTypes = ['invoice', 'quote', 'workOrder'];
+      
+      for (const type of documentTypes) {
+        try {
+          const selectElement = document.getElementById(`active-${type === 'workOrder' ? 'workorder' : type}-format`);
+          if (!selectElement) continue;
+          
+          // Load all formats for this type
+          let formats = [];
+          if (typeof API !== 'undefined') {
+            formats = await API.templates.getByType(type);
+          } else {
+            formats = getMockFormats(type);
+          }
+          
+          // Populate select options
+          selectElement.innerHTML = '<option value="">-- Seleccionar formato --</option>';
+          
+          formats.forEach(format => {
+            const option = document.createElement('option');
+            option.value = format.id;
+            option.textContent = format.name;
+            option.selected = format.active || false;
+            selectElement.appendChild(option);
+          });
+          
+          // Add event listener for changes
+          selectElement.addEventListener('change', (e) => {
+            setActiveFormat(type, e.target.value);
+          });
+          
+          console.log(`✅ Formatos cargados para ${type}: ${formats.length}`);
+          
+        } catch (error) {
+          console.error(`Error cargando formatos para ${type}:`, error);
+          const selectElement = document.getElementById(`active-${type === 'workOrder' ? 'workorder' : type}-format`);
+          if (selectElement) {
+            selectElement.innerHTML = '<option value="">Error cargando formatos</option>';
+          }
+        }
+      }
+    }
+
+    async function setActiveFormat(documentType, formatId) {
+      if (!formatId) return;
+      
+      try {
+        console.log(`🔄 Activando formato ${formatId} para tipo ${documentType}`);
+        
+        if (typeof API !== 'undefined') {
+          await API.templates.activate(formatId);
+          
+          // Show success message
+          const formatName = document.querySelector(`#active-${documentType === 'workOrder' ? 'workorder' : documentType}-format option[value="${formatId}"]`).textContent;
+          
+          // Create temporary notification
+          const notification = document.createElement('div');
+          notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 3000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          `;
+          notification.textContent = `✅ Formato "${formatName}" activado para ${getDocumentTypeName(documentType)}`;
+          document.body.appendChild(notification);
+          
+          setTimeout(() => {
+            if (notification.parentNode) {
+              notification.remove();
+            }
+          }, 3000);
+          
+          console.log(`✅ Formato activado exitosamente`);
+        }
+        
+      } catch (error) {
+        console.error('Error activando formato:', error);
+        alert(`Error al activar formato: ${error.message}`);
+      }
+    }
+
+    function getDocumentTypeName(type) {
+      const names = {
+        'invoice': 'Facturas',
+        'quote': 'Cotizaciones', 
+        'workOrder': 'Órdenes de Trabajo'
+      };
+      return names[type] || type;
+    }
+
     // Initialize
     console.log('🎨 Template Selector inicializado');
+    
+    // Load active formats on page load
+    loadActiveFormats();
   </script>
 </body>
 </html>

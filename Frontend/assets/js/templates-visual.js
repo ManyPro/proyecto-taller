@@ -362,13 +362,7 @@
         <button id="clear-canvas-btn" style="padding: 8px 16px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">🆑 Limpiar Todo</button>
       </div>
       
-      <div style="border-left: 2px solid #ddd; padding-left: 15px; margin-left: 15px;">
-        <label style="font-weight: 600; margin-right: 8px;">Plantillas:</label>
-        <button id="load-invoice-btn" style="padding: 6px 12px; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">Factura</button>
-        <button id="load-quote-btn" style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">Cotización</button>
-        <button id="load-workorder-btn" style="padding: 6px 12px; background: #fd7e14; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 5px;">Orden Trabajo</button>
-        <button id="load-sticker-btn" style="padding: 6px 12px; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer;">Sticker</button>
-      </div>
+
       
       <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
         <label style="font-weight: 600;">Tamaño:</label>
@@ -413,11 +407,7 @@
       }
     };
     
-    // Setup template loading handlers
-    qs('#load-invoice-btn').onclick = () => loadTemplate('invoice');
-    qs('#load-quote-btn').onclick = () => loadTemplate('quote');
-    qs('#load-workorder-btn').onclick = () => loadTemplate('workOrder');
-    qs('#load-sticker-btn').onclick = () => loadTemplate('sticker');
+    // Template loading handlers removed - templates now auto-load based on document type
     
     // Setup canvas size handlers
     setupCanvasSizeControls();
@@ -2633,6 +2623,12 @@
       // Add company indicator to the interface
       addCompanyIndicator(activeCompany);
       
+      // Update page title to show document type and action
+      document.title = `Editor de ${getDocumentTypeName(documentType)} - ${action === 'edit' ? 'Editando' : 'Creando'} | Taller Automotriz`;
+      
+      // Add header info to show current session
+      addSessionHeader(documentType, action, formatId);
+      
       // Load format based on action
       if (action === 'edit' && formatId) {
         loadExistingFormat(formatId);
@@ -2694,7 +2690,7 @@
   // Template loading functions
   async function loadExistingFormat(formatId) {
     try {
-      showQuickNotification('🔄 Cargando formato...', 'info');
+      showQuickNotification('🔄 Cargando formato existente...', 'info');
       
       const template = await API.templates.getById(formatId);
       if (!template) {
@@ -2712,38 +2708,47 @@
         // Reinitialize all elements
         reinitializeElements();
         
-        showQuickNotification(`✅ Formato "${template.name}" cargado`, 'success');
-        console.log('✅ Formato cargado:', template);
+        showQuickNotification(`✅ Formato "${template.name}" cargado para editar`, 'success');
+        console.log('✅ Formato existente cargado:', template);
+      } else {
+        throw new Error('El formato no tiene contenido válido');
       }
       
     } catch (error) {
       console.error('Error cargando formato:', error);
-      showQuickNotification('❌ Error al cargar formato: ' + error.message, 'error');
+      showQuickNotification('⚠️ Cargando plantilla por defecto...', 'info');
       
-      // Fallback to default template
-      loadDefaultTemplate(window.currentTemplateSession.type);
+      // Always fallback to default template for the document type
+      setTimeout(() => {
+        loadDefaultTemplate(window.currentTemplateSession.type);
+      }, 1000);
     }
   }
 
   function loadDefaultTemplate(documentType) {
-    console.log(`🎨 Cargando plantilla por defecto para: ${documentType}`);
+    console.log(`🎨 Cargando plantilla automática para: ${documentType}`);
     
     const canvas = qs('#ce-canvas');
     if (!canvas) return;
     
-    // Load appropriate default template
+    // Always load the appropriate template for the document type
     if (documentType === 'invoice') {
       createInvoiceTemplate();
+      showQuickNotification(`📄 Plantilla de Factura cargada`, 'success');
     } else if (documentType === 'quote') {
       createQuoteTemplate();
+      showQuickNotification(`💰 Plantilla de Cotización cargada`, 'success');
     } else if (documentType === 'workOrder') {
       createWorkOrderTemplate();
+      showQuickNotification(`🔧 Plantilla de Orden de Trabajo cargada`, 'success');
     } else {
-      // Generic template
-      canvas.innerHTML = '<div style="color: #999; text-align: center; padding: 50px; pointer-events: none;">Haz clic en los botones de arriba para agregar elementos</div>';
+      // Fallback - this shouldn't happen with proper selector flow
+      canvas.innerHTML = '<div style="color: #666; text-align: center; padding: 50px; background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px;"><h3>⚠️ Tipo de documento no reconocido</h3><p>Por favor usa el <a href="template-selector.html" style="color: #007bff;">selector de plantillas</a> para comenzar.</p></div>';
+      showQuickNotification(`⚠️ Tipo de documento no válido`, 'error');
+      return;
     }
     
-    showQuickNotification(`✅ Plantilla por defecto de ${documentType} cargada`, 'success');
+    console.log(`✅ Plantilla de ${getDocumentTypeName(documentType)} lista para editar`);
   }
 
   function reinitializeElements() {
@@ -2763,6 +2768,43 @@
       'workOrder': 'Orden de Trabajo'
     };
     return names[type] || type;
+  }
+
+  function addSessionHeader(documentType, action, formatId) {
+    // Add a header to show current session info
+    const header = document.querySelector('h1');
+    if (header) {
+      const sessionInfo = document.createElement('div');
+      sessionInfo.style.cssText = `
+        background: #e3f2fd;
+        border: 1px solid #2196f3;
+        border-radius: 6px;
+        padding: 12px 16px;
+        margin: 10px 0 20px 0;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      `;
+      
+      const icon = action === 'edit' ? '✏️' : '➕';
+      const actionText = action === 'edit' ? 'Editando' : 'Creando';
+      const typeIcon = documentType === 'invoice' ? '🧾' : documentType === 'quote' ? '💰' : '🔧';
+      
+      sessionInfo.innerHTML = `
+        <span style="font-size: 16px;">${icon}</span>
+        <strong>${actionText} ${getDocumentTypeName(documentType)}</strong>
+        <span style="font-size: 16px;">${typeIcon}</span>
+        ${formatId ? `<span style="color: #666;">• ID: ${formatId}</span>` : ''}
+        <div style="margin-left: auto;">
+          <a href="template-selector.html" style="color: #2196f3; text-decoration: none; font-size: 13px;">
+            ← Cambiar tipo/formato
+          </a>
+        </div>
+      `;
+      
+      header.parentNode.insertBefore(sessionInfo, header.nextSibling);
+    }
   }
 
   // Backend API integration functions
