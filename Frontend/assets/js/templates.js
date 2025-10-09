@@ -12,7 +12,74 @@
     selectedBlockId: null,
     theme: { primary:'#222222', accent:'#0055aa', font:'Arial, sans-serif', baseSize:12 },
     exampleSnippets: {
-      invoice: `<!-- Ejemplo Factura -->\n<div class="doc">\n  <h1>Factura {{sale.number}}</h1>\n  <div class="row">Cliente: {{sale.customerName}}</div>\n  <div class="row">Fecha: {{date sale.closedAt}}</div>\n  <table class="items">\n    <thead><tr><th>Cant</th><th>DescripciÃ³n</th><th>PU</th><th>Total</th></tr></thead>\n    <tbody>\n      {{#each sale.items}}\n      <tr><td>{{qty}}</td><td>{{description}}</td><td>{{money unitPrice}}</td><td>{{money total}}</td></tr>\n      {{/each}}\n    </tbody>\n  </table>\n  <h3>Total: {{money sale.total}}</h3>\n</div>`,
+      invoice: `<!-- Ejemplo  function escapeHtml(str=''){ return str.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function shorten(s,max){ return s.length>max? s.slice(0,max-1)+'…': s; }
+  
+  // Función para restaurar funcionalidad de inputs después de eventos de drag/drop
+  function restoreInputFunctionality() {
+    // Aplicar a todos los inputs, textareas y selects en la página
+    document.querySelectorAll('input:not([type="file"]):not([type="checkbox"]):not([type="radio"]), textarea, select').forEach(element => {
+      // Forzar que sean interactuables
+      element.style.pointerEvents = 'auto';
+      element.style.userSelect = 'text';
+      element.style.zIndex = '10';
+      element.style.position = 'relative';
+      
+      // Añadir eventos para mantener el foco
+      element.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        element.style.zIndex = '100';
+      });
+      
+      element.addEventListener('focus', (e) => {
+        e.stopPropagation();
+        element.style.zIndex = '100';
+        element.style.pointerEvents = 'auto';
+        element.style.userSelect = 'text';
+      });
+      
+      element.addEventListener('blur', () => {
+        element.style.zIndex = '10';
+      });
+    });
+    
+    // Aplicar específicamente a elementos que puedan estar después de imágenes
+    document.querySelectorAll('.item-media').forEach(mediaContainer => {
+      const nextElements = [];
+      let nextSibling = mediaContainer.nextElementSibling;
+      while (nextSibling) {
+        if (nextSibling.matches('input, textarea, select')) {
+          nextElements.push(nextSibling);
+        }
+        nextSibling = nextSibling.nextElementSibling;
+      }
+      
+      nextElements.forEach(element => {
+        element.style.pointerEvents = 'auto';
+        element.style.userSelect = 'text';
+        element.style.zIndex = '20';
+      });
+    });
+  }
+  
+  // Ejecutar la función al cargar y cuando se cambie de tab
+  document.addEventListener('DOMContentLoaded', restoreInputFunctionality);
+  
+  // Observer para restaurar funcionalidad cuando se añadan nuevos elementos
+  const observer = new MutationObserver(() => {
+    restoreInputFunctionality();
+  });
+  
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['style', 'class']
+  });
+  
+  // Exponer la función globalmente para uso manual si es necesario
+  window.restoreInputFunctionality = restoreInputFunctionality;
+})();ctura -->\n<div class="doc">\n  <h1>Factura {{sale.number}}</h1>\n  <div class="row">Cliente: {{sale.customerName}}</div>\n  <div class="row">Fecha: {{date sale.closedAt}}</div>\n  <table class="items">\n    <thead><tr><th>Cant</th><th>DescripciÃ³n</th><th>PU</th><th>Total</th></tr></thead>\n    <tbody>\n      {{#each sale.items}}\n      <tr><td>{{qty}}</td><td>{{description}}</td><td>{{money unitPrice}}</td><td>{{money total}}</td></tr>\n      {{/each}}\n    </tbody>\n  </table>\n  <h3>Total: {{money sale.total}}</h3>\n</div>`,
       quote: `<!-- Ejemplo CotizaciÃ³n -->\n<h1>COTIZACIÃ“N {{quote.number}}</h1>\n<p>Cliente: {{quote.customerName}}</p>\n<ul>\n{{#each quote.items}}<li>{{qty}} x {{description}} = {{money total}}</li>{{/each}}\n</ul>`,
       workOrder: `<!-- Ejemplo Orden de Trabajo -->\n<h1>OT {{sale.number}}</h1>\n<p>VehÃ­culo: {{sale.vehicle.plate}} ({{sale.vehicle.brand}})</p>\n<ol>\n{{#each sale.items}}<li>{{description}} - {{money total}}</li>{{/each}}\n</ol>` ,
       sticker: `<!-- Ejemplo Sticker -->\n<div class="sticker">\n  {{company.name}} - {{sale.number}}\n  {{#each sale.items}}<div>{{description}} ({{qty}})</div>{{/each}}\n</div>`
@@ -442,13 +509,48 @@ function ensureExampleSnippet(){
       el.dataset.id = b.id;
       el.draggable = true;
       el.innerHTML = renderBlockLabel(b);
-      el.addEventListener('click',()=> editBlock(b.id));
-      el.addEventListener('dragstart', (e)=>{ e.dataTransfer.setData('text/plain', b.id); el.style.opacity='0.4'; });
+      
+      // Eventos de click - solo si no es un input/textarea/select
+      el.addEventListener('click', (e) => {
+        if (!e.target.matches('input, textarea, select')) {
+          editBlock(b.id);
+        }
+      });
+      
+      // Eventos de arrastre
+      el.addEventListener('dragstart', (e)=> {
+        // Solo permitir drag si no viene de un input
+        if (e.target.matches('input, textarea, select')) {
+          e.preventDefault();
+          return false;
+        }
+        e.dataTransfer.setData('text/plain', b.id);
+        el.style.opacity='0.4';
+      });
       el.addEventListener('dragend', ()=>{ el.style.opacity='1'; });
       el.addEventListener('dragover', (e)=>{ e.preventDefault(); el.style.outline='2px dashed var(--primary-color)'; });
       el.addEventListener('dragleave', ()=>{ el.style.outline='none'; });
-      el.addEventListener('drop', (e)=>{ e.preventDefault(); el.style.outline='none'; const src=e.dataTransfer.getData('text/plain'); if(src && src!==b.id){ reorderBlock(src, b.id); } });
+      el.addEventListener('drop', (e)=>{ 
+        e.preventDefault(); 
+        el.style.outline='none'; 
+        const src=e.dataTransfer.getData('text/plain'); 
+        if(src && src!==b.id){ reorderBlock(src, b.id); } 
+      });
+      
       canvas.appendChild(el);
+    });
+    
+    // Asegurar que todos los inputs dentro del canvas funcionen correctamente
+    canvas.querySelectorAll('input, textarea, select').forEach(input => {
+      input.addEventListener('mousedown', (e) => e.stopPropagation());
+      input.addEventListener('focus', (e) => {
+        e.stopPropagation();
+        input.style.zIndex = '100';
+        input.style.pointerEvents = 'auto';
+      });
+      input.addEventListener('blur', (e) => {
+        input.style.zIndex = '10';
+      });
     });
   }
 

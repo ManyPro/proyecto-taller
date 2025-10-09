@@ -134,8 +134,17 @@ input,select,textarea{
   width:100%; padding:10px; border-radius:10px;
   border:1px solid var(--border); background:var(--input-bg); color:var(--text);
   transition:background .25s ease, color .25s ease, border-color .25s ease;
+  pointer-events: auto !important;
+  user-select: text !important;
+  z-index: 1;
+  position: relative;
 }
-input:focus,select:focus,textarea:focus{ outline:none; box-shadow:var(--focus-ring); }
+input:focus,select:focus,textarea:focus{ 
+  outline:none; box-shadow:var(--focus-ring);
+  pointer-events: auto !important;
+  user-select: text !important;
+  z-index: 100;
+}
 textarea{ resize:vertical; }
 
 button{
@@ -204,8 +213,24 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 .item-thumb{
   width:100%; aspect-ratio:1/1; object-fit:cover; border-radius:10px; border:1px solid #1f2937; background:#0b1220;
   cursor:zoom-in; transition:transform .15s ease;
+  pointer-events:auto;
+  user-select:none;
 }
 .item-thumb:hover{ transform:scale(1.02); }
+
+/* ===== Fix para inputs después de imágenes ===== */
+.item-media + input,
+.item-media + textarea,
+.item-media + select,
+.item-media ~ input,
+.item-media ~ textarea,
+.item-media ~ select {
+  pointer-events: auto !important;
+  user-select: text !important;
+  z-index: 10;
+  position: relative;
+  touch-action: manipulation;
+}
 
 /* ===== Lista de stickers ===== */
 .sticker-toolbar{ gap:10px; align-items:center; margin-top:8px; }
@@ -714,5 +739,80 @@ body.theme-light #tpl-visual-editor .builder-canvas{
   letter-spacing:.6px;
 }
 #tpl-visual-editor{ position:relative; }
+
+/* ===== Fix específico para inputs en editor de templates ===== */
+#tab-formatos input,
+#tab-formatos textarea,
+#tab-formatos select {
+  pointer-events: auto !important;
+  user-select: text !important;
+  z-index: 10 !important;
+  position: relative !important;
+}
+
+#tab-formatos input:focus,
+#tab-formatos textarea:focus,
+#tab-formatos select:focus {
+  z-index: 100 !important;
+  pointer-events: auto !important;
+  user-select: text !important;
+}
+
+/* Asegurar que los bloques del canvas no interfieran con inputs */
+.vblock {
+  pointer-events: auto;
+  position: relative;
+}
+
+.vblock input,
+.vblock textarea,
+.vblock select {
+  pointer-events: auto !important;
+  user-select: text !important;
+  z-index: 20 !important;
+}
+
+/* Fix global para todos los inputs de texto después de cualquier elemento */
+input:not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+textarea,
+select {
+  pointer-events: auto !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  cursor: text !important;
+  touch-action: manipulation !important;
+}
+
+/* Reglas específicas para cuando están en focus */
+input:focus:not([type="file"]):not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+textarea:focus,
+select:focus {
+  pointer-events: auto !important;
+  user-select: text !important;
+  z-index: 999 !important;
+}
+
+/* Fix para elementos que pueden tener eventos de arrastre */
+[draggable="true"] input,
+[draggable="true"] textarea,
+[draggable="true"] select {
+  pointer-events: auto !important;
+  user-select: text !important;
+  z-index: 30 !important;
+}
+
+/* Prevenir que las imágenes interfieran */
+img + input,
+img + textarea,
+img + select,
+.item-thumb + input,
+.item-thumb + textarea,
+.item-thumb + select {
+  pointer-events: auto !important;
+  user-select: text !important;
+  z-index: 25 !important;
+}
 
 
