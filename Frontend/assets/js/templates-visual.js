@@ -100,7 +100,7 @@
     if (!toolbar) {
       toolbar = document.createElement('div');
       toolbar.className = 'editor-toolbar';
-      toolbar.style.cssText = 'padding: 10px; background: #f5f5f5; border: 1px solid #ddd; margin-bottom: 10px; display: flex; gap: 8px; flex-wrap: wrap;';
+      toolbar.style.cssText = 'padding: 10px; background: #f5f5f5; border: 1px solid #ddd; margin-bottom: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;';
       
       const canvas = qs('#ce-canvas');
       if (canvas && canvas.parentNode) {
@@ -114,14 +114,110 @@
       <button id="add-image-btn" style="padding: 8px 16px; background: #ffc107; color: black; border: none; border-radius: 4px; cursor: pointer;">+ Imagen</button>
       <button id="add-table-btn" style="padding: 8px 16px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">+ Tabla</button>
       <button id="clear-canvas-btn" style="padding: 8px 16px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Limpiar</button>
+      
+      <div style="margin-left: auto; display: flex; gap: 10px; align-items: center;">
+        <label style="font-weight: 600;">Tamaño:</label>
+        <select id="canvas-size" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+          <option value="half-letter">Media Carta (14 x 21.6 cm)</option>
+          <option value="letter" selected>Carta (21.6 x 27.9 cm)</option>
+          <option value="custom">Personalizado</option>
+        </select>
+        <div id="custom-size" style="display: none; gap: 5px; align-items: center;">
+          <input type="number" id="custom-width" placeholder="Ancho" min="5" max="50" value="21.6" style="width: 70px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;">
+          <span>x</span>
+          <input type="number" id="custom-height" placeholder="Alto" min="5" max="70" value="27.9" style="width: 70px; padding: 4px; border: 1px solid #ccc; border-radius: 3px;">
+          <span>cm</span>
+          <button id="apply-size" style="padding: 4px 8px; background: #6c757d; color: white; border: none; border-radius: 3px; cursor: pointer;">Aplicar</button>
+        </div>
+      </div>
     `;
 
-    // Setup new button handlers
+    // Setup button handlers
     qs('#add-title-btn').onclick = () => addElement('title');
     qs('#add-text-btn').onclick = () => addElement('text');
     qs('#add-image-btn').onclick = () => addElement('image');
     qs('#add-table-btn').onclick = () => addElement('table');
     qs('#clear-canvas-btn').onclick = clearCanvas;
+    
+    // Setup canvas size handlers
+    setupCanvasSizeControls();
+  }
+
+  function setupCanvasSizeControls() {
+    const sizeSelect = qs('#canvas-size');
+    const customDiv = qs('#custom-size');
+    const customWidth = qs('#custom-width');
+    const customHeight = qs('#custom-height');
+    const applyBtn = qs('#apply-size');
+    
+    if (!sizeSelect) return;
+    
+    // Canvas size presets (convert cm to pixels at 96 DPI)
+    const sizesInCm = {
+      'half-letter': { width: 14, height: 21.6, name: 'Media Carta' },
+      'letter': { width: 21.6, height: 27.9, name: 'Carta' },
+      'custom': { width: 21.6, height: 27.9, name: 'Personalizado' }
+    };
+    
+    function cmToPx(cm) {
+      return Math.round(cm * 37.795275591); // 1 cm = ~37.8px at 96 DPI
+    }
+    
+    function applyCanvasSize(widthCm, heightCm, sizeName) {
+      const canvas = qs('#ce-canvas');
+      if (!canvas) return;
+      
+      const widthPx = cmToPx(widthCm);
+      const heightPx = cmToPx(heightCm);
+      
+      canvas.style.width = widthPx + 'px';
+      canvas.style.height = heightPx + 'px';
+      canvas.style.maxWidth = widthPx + 'px';
+      canvas.style.maxHeight = heightPx + 'px';
+      canvas.style.border = '1px solid #ddd';
+      canvas.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+      canvas.style.backgroundColor = '#ffffff';
+      canvas.style.margin = '0 auto';
+      
+      // Update parent container
+      const parent = canvas.parentElement;
+      if (parent) {
+        parent.style.textAlign = 'center';
+        parent.style.padding = '20px';
+      }
+      
+      console.log(`Canvas redimensionado: ${sizeName} (${widthCm} x ${heightCm} cm = ${widthPx} x ${heightPx} px)`);
+    }
+    
+    sizeSelect.onchange = () => {
+      const selected = sizeSelect.value;
+      
+      if (selected === 'custom') {
+        customDiv.style.display = 'flex';
+      } else {
+        customDiv.style.display = 'none';
+        const size = sizesInCm[selected];
+        applyCanvasSize(size.width, size.height, size.name);
+      }
+    };
+    
+    // Custom size application
+    if (applyBtn) {
+      applyBtn.onclick = () => {
+        const width = parseFloat(customWidth.value);
+        const height = parseFloat(customHeight.value);
+        
+        if (width && height && width >= 5 && width <= 50 && height >= 5 && height <= 70) {
+          applyCanvasSize(width, height, 'Personalizado');
+        } else {
+          alert('Por favor ingresa dimensiones válidas (ancho: 5-50 cm, alto: 5-70 cm)');
+        }
+      };
+    }
+    
+    // Apply default size (Letter)
+    const defaultSize = sizesInCm.letter;
+    applyCanvasSize(defaultSize.width, defaultSize.height, defaultSize.name);
   }
 
   function addElement(type) {
@@ -203,9 +299,48 @@
   function makeDraggable(element) {
     let isDragging = false;
     let startX, startY, initialX, initialY;
+    let dragHandle = null;
 
-    element.onmousedown = (e) => {
-      if (e.target.contentEditable === 'true' && e.target !== element) return;
+    // Create drag handle for better UX
+    const createDragHandle = () => {
+      dragHandle = document.createElement('div');
+      dragHandle.className = 'drag-handle';
+      dragHandle.style.cssText = `
+        position: absolute;
+        top: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 20px;
+        height: 20px;
+        background: #2563eb;
+        border: 2px solid white;
+        border-radius: 50%;
+        cursor: move;
+        display: none;
+        z-index: 1001;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      `;
+      element.appendChild(dragHandle);
+      return dragHandle;
+    };
+
+    // Show/hide drag handle on selection
+    element.addEventListener('mouseenter', () => {
+      if (!dragHandle) dragHandle = createDragHandle();
+      if (visualEditor.selectedElement === element) {
+        dragHandle.style.display = 'block';
+      }
+    });
+
+    element.addEventListener('mouseleave', () => {
+      if (dragHandle && !isDragging) {
+        dragHandle.style.display = 'none';
+      }
+    });
+
+    const startDrag = (e) => {
+      // Prevent dragging when clicking on contenteditable elements
+      if (e.target.contentEditable === 'true' || e.target.tagName === 'INPUT') return;
       
       isDragging = true;
       startX = e.clientX;
@@ -217,31 +352,63 @@
       initialY = rect.top - canvasRect.top;
       
       element.style.zIndex = '1000';
+      element.style.userSelect = 'none';
       selectElement(element);
+      
+      // Show drag handle during drag
+      if (dragHandle) {
+        dragHandle.style.display = 'block';
+      }
+      
       e.preventDefault();
+      e.stopPropagation();
     };
 
-    document.onmousemove = (e) => {
-      if (!isDragging || visualEditor.draggedElement !== element) return;
+    const doDrag = (e) => {
+      if (!isDragging) return;
       
       const deltaX = e.clientX - startX;
       const deltaY = e.clientY - startY;
       
-      element.style.left = (initialX + deltaX) + 'px';
-      element.style.top = (initialY + deltaY) + 'px';
+      const newLeft = initialX + deltaX;
+      const newTop = initialY + deltaY;
+      
+      // Keep element within canvas bounds
+      const canvas = element.parentElement;
+      const canvasRect = canvas.getBoundingClientRect();
+      const elementRect = element.getBoundingClientRect();
+      
+      const maxLeft = canvasRect.width - elementRect.width;
+      const maxTop = canvasRect.height - elementRect.height;
+      
+      element.style.left = Math.max(0, Math.min(newLeft, maxLeft)) + 'px';
+      element.style.top = Math.max(0, Math.min(newTop, maxTop)) + 'px';
+      
+      e.preventDefault();
     };
 
-    document.onmouseup = () => {
+    const endDrag = () => {
       if (isDragging) {
         isDragging = false;
         element.style.zIndex = '1';
-        visualEditor.draggedElement = null;
+        element.style.userSelect = 'auto';
+        
+        if (dragHandle) {
+          dragHandle.style.display = 'none';
+        }
       }
     };
 
-    element.onmousedown = (e) => {
-      visualEditor.draggedElement = element;
-      element.onmousedown(e);
+    // Attach event listeners
+    element.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', doDrag);
+    document.addEventListener('mouseup', endDrag);
+
+    // Store reference for cleanup
+    element._dragCleanup = () => {
+      element.removeEventListener('mousedown', startDrag);
+      document.removeEventListener('mousemove', doDrag);
+      document.removeEventListener('mouseup', endDrag);
     };
   }
 
@@ -409,7 +576,14 @@
     if (alignRightBtn) alignRightBtn.onclick = () => setAlignment('right');
 
     function setAlignment(align) {
+      // Apply alignment to the content element
       contentElement.style.textAlign = align;
+      
+      // Also apply to parent element if it's a container
+      if (element.tagName === 'DIV' && element !== contentElement) {
+        element.style.textAlign = align;
+      }
+      
       // Update button states
       const leftBtn = qs('#align-left');
       const centerBtn = qs('#align-center');
@@ -427,6 +601,8 @@
         activeBtn.style.background = '#007bff';
         activeBtn.style.color = 'white';
       }
+
+      console.log(`Alineación aplicada: ${align} al elemento:`, contentElement);
     }
 
     if (deleteBtn) {
@@ -453,20 +629,21 @@
 
         const reader = new FileReader();
         reader.onload = (e) => {
+          const imgContainer = document.createElement('div');
+          imgContainer.className = 'image-container';
+          imgContainer.style.cssText = 'position: relative; display: inline-block; max-width: 100%;';
+          
           const img = document.createElement('img');
           img.src = e.target.result;
-          img.style.cssText = 'max-width: 100%; height: auto; display: block; cursor: pointer;';
+          img.style.cssText = 'width: 150px; height: auto; display: block; user-select: none;';
+          img.draggable = false;
           
-          // Make image resizable
-          img.onclick = () => {
-            const newWidth = prompt('Ancho en px (actual: ' + img.offsetWidth + ')', img.offsetWidth);
-            if (newWidth && !isNaN(newWidth)) {
-              img.style.width = newWidth + 'px';
-              img.style.height = 'auto';
-            }
-          };
+          imgContainer.appendChild(img);
           
-          placeholder.replaceWith(img);
+          // Add resize handles
+          addResizeHandles(imgContainer, img);
+          
+          placeholder.replaceWith(imgContainer);
           
           // Restore input functionality after image upload
           setTimeout(() => {
@@ -475,13 +652,160 @@
             }
           }, 200);
           
-          console.log('Imagen agregada. Haz clic en ella para cambiar tamaño.');
+          console.log('Imagen agregada. Usa los handles para redimensionar.');
         };
         
         reader.readAsDataURL(file);
       };
       
       input.click();
+    };
+  }
+
+  function addResizeHandles(container, img) {
+    const handles = ['nw', 'ne', 'sw', 'se']; // northwest, northeast, southwest, southeast
+    const handleElements = {};
+    
+    handles.forEach(position => {
+      const handle = document.createElement('div');
+      handle.className = `resize-handle resize-${position}`;
+      handle.style.cssText = `
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: #2563eb;
+        border: 1px solid white;
+        cursor: ${position === 'nw' || position === 'se' ? 'nw' : 'ne'}-resize;
+        display: none;
+        z-index: 1000;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      `;
+      
+      // Position handles
+      switch(position) {
+        case 'nw': 
+          handle.style.top = '-4px';
+          handle.style.left = '-4px';
+          break;
+        case 'ne':
+          handle.style.top = '-4px';
+          handle.style.right = '-4px';
+          break;
+        case 'sw':
+          handle.style.bottom = '-4px';
+          handle.style.left = '-4px';
+          break;
+        case 'se':
+          handle.style.bottom = '-4px';
+          handle.style.right = '-4px';
+          break;
+      }
+      
+      container.appendChild(handle);
+      handleElements[position] = handle;
+      
+      // Add resize functionality
+      setupResizeHandle(handle, container, img, position);
+    });
+    
+    // Show/hide handles on hover and selection
+    const showHandles = () => {
+      if (visualEditor.selectedElement && visualEditor.selectedElement.contains(container)) {
+        Object.values(handleElements).forEach(h => h.style.display = 'block');
+      }
+    };
+    
+    const hideHandles = () => {
+      Object.values(handleElements).forEach(h => h.style.display = 'none');
+    };
+    
+    container.addEventListener('mouseenter', showHandles);
+    container.addEventListener('mouseleave', hideHandles);
+    
+    // Show handles when parent element is selected
+    const checkSelection = () => {
+      if (visualEditor.selectedElement && visualEditor.selectedElement.contains(container)) {
+        showHandles();
+      } else {
+        hideHandles();
+      }
+    };
+    
+    // Check selection periodically
+    const selectionInterval = setInterval(checkSelection, 100);
+    
+    // Store cleanup function
+    container._resizeCleanup = () => {
+      clearInterval(selectionInterval);
+      Object.values(handleElements).forEach(h => h.remove());
+    };
+  }
+
+  function setupResizeHandle(handle, container, img, position) {
+    let isResizing = false;
+    let startX, startY, startWidth, startHeight, aspectRatio;
+    
+    handle.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      startWidth = img.offsetWidth;
+      startHeight = img.offsetHeight;
+      aspectRatio = startWidth / startHeight;
+      
+      e.preventDefault();
+      e.stopPropagation();
+      
+      document.body.style.cursor = handle.style.cursor;
+      document.addEventListener('mousemove', handleResize);
+      document.addEventListener('mouseup', stopResize);
+    });
+    
+    const handleResize = (e) => {
+      if (!isResizing) return;
+      
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
+      
+      let newWidth = startWidth;
+      let newHeight = startHeight;
+      
+      // Calculate new dimensions based on handle position
+      switch(position) {
+        case 'se': // Bottom-right
+          newWidth = startWidth + deltaX;
+          break;
+        case 'sw': // Bottom-left
+          newWidth = startWidth - deltaX;
+          break;
+        case 'ne': // Top-right
+          newWidth = startWidth + deltaX;
+          break;
+        case 'nw': // Top-left
+          newWidth = startWidth - deltaX;
+          break;
+      }
+      
+      // Maintain aspect ratio
+      newHeight = newWidth / aspectRatio;
+      
+      // Apply minimum and maximum constraints
+      const minSize = 20;
+      const maxSize = 800;
+      
+      if (newWidth >= minSize && newWidth <= maxSize) {
+        img.style.width = newWidth + 'px';
+        img.style.height = newHeight + 'px';
+      }
+      
+      e.preventDefault();
+    };
+    
+    const stopResize = () => {
+      isResizing = false;
+      document.body.style.cursor = 'default';
+      document.removeEventListener('mousemove', handleResize);
+      document.removeEventListener('mouseup', stopResize);
     };
   }
 
