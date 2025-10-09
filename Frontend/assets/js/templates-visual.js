@@ -2580,8 +2580,8 @@
   function addEnvironmentIndicator() {
     const body = document.body;
     
-    // Check environment
-    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    // Check environment usando la detección corregida
+    const isProduction = window.IS_PRODUCTION || false;
     const environment = isProduction ? 'PRODUCCIÓN' : 'DESARROLLO';
     const envColor = isProduction ? '#28a745' : '#ffc107';
     const envIcon = isProduction ? '🌐' : '🔧';
@@ -2636,17 +2636,20 @@
       
       if (response.ok) {
         statusDot.style.background = '#28a745'; // Green - connected
-        statusDot.title = 'Backend conectado';
+        statusDot.title = 'Backend conectado y funcionando';
+        window.BACKEND_CONNECTED = true;
         console.log('✅ Backend conectado correctamente');
       } else {
         statusDot.style.background = '#ffc107'; // Yellow - issues
-        statusDot.title = 'Backend con problemas';
+        statusDot.title = 'Backend responde con errores';
+        window.BACKEND_CONNECTED = false;
         console.warn('⚠️ Backend responde con errores');
       }
     } catch (error) {
       statusDot.style.background = '#dc3545'; // Red - disconnected
-      statusDot.title = 'Backend desconectado';
-      console.warn('❌ Backend no disponible:', error.message);
+      statusDot.title = 'Backend desconectado - Aplicación no funcionará';
+      window.BACKEND_CONNECTED = false;
+      console.error('❌ Backend no disponible:', error.message);
     }
   }
 
@@ -3666,76 +3669,37 @@
       return;
     }
 
-    console.log('🔍 Verificando disponibilidad de API...');
+    console.log('🔍 Verificando disponibilidad de API y backend...');
     console.log('API disponible:', typeof API !== 'undefined');
+    console.log('Backend conectado:', window.BACKEND_CONNECTED);
     
-    // Detect environment
-    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    // Detect environment usando la configuración corregida
+    const isProduction = window.IS_PRODUCTION || false;
     console.log('🌐 Entorno:', isProduction ? 'PRODUCCIÓN' : 'DESARROLLO');
 
-    // Try to connect to backend first
-    let backendAvailable = false;
-    try {
-      const testResponse = await fetch(window.BACKEND_URL + '/health', { 
-        method: 'GET',
-        timeout: 5000 
-      });
-      backendAvailable = testResponse.ok;
-      console.log('🔗 Backend disponible:', backendAvailable);
-    } catch (error) {
-      console.warn('❌ No se pudo conectar al backend:', error.message);
-      backendAvailable = false;
-    }
-
-    // Check if API is available and backend is reachable
-    if (typeof API === 'undefined' || !backendAvailable) {
-      console.warn('⚠️ Funcionando en modo offline');
-      
-      // In production, show more informative message
-      const modeMessage = isProduction ? 
-        'El servidor no está disponible temporalmente.\n¿Deseas guardar localmente?' : 
-        'Backend no disponible en desarrollo.\n¿Guardar localmente para pruebas?';
-      
-      if (!confirm(modeMessage)) {
-        return;
-      }
-      
-      // Fallback: Save to localStorage
-      const templateName = prompt('📝 Nombre del formato:', 'Mi Plantilla');
-      if (!templateName) return;
-      
-      try {
-        const templates = JSON.parse(localStorage.getItem('offlineTemplates') || '[]');
-        const newTemplate = {
-          id: Date.now(),
-          name: templateName,
-          content: content,
-          date: new Date().toISOString(),
-          type: window.currentTemplateSession?.type || 'invoice',
-          environment: isProduction ? 'production-offline' : 'development-offline'
-        };
-        templates.push(newTemplate);
-        localStorage.setItem('offlineTemplates', JSON.stringify(templates));
-        
-        showQuickNotification(`💾 Plantilla guardada localmente: ${templateName}`, 'success');
-        
-        const successMessage = isProduction ?
-          `✅ Plantilla "${templateName}" guardada localmente\n\n⚠️ Se sincronizará automáticamente cuando el servidor esté disponible` :
-          `✅ Plantilla "${templateName}" guardada para desarrollo\n\n💡 Tip: Inicia el backend para guardar en servidor`;
-        
-        alert(successMessage);
-        
-        // Redirect to template selector
-        setTimeout(() => {
-          window.location.href = 'template-selector.html';
-        }, 1500);
-        
-      } catch (error) {
-        console.error('Error guardando localmente:', error);
-        alert('❌ Error al guardar la plantilla localmente');
-      }
+    // Verificación estricta: solo funcionar con backend real
+    if (typeof API === 'undefined') {
+      console.error('❌ API no está disponible');
+      alert('❌ Error: API no disponible\n\nLa aplicación requiere que el backend esté funcionando.\nPor favor verifica que el servidor esté corriendo.');
       return;
     }
+
+    if (!window.BACKEND_CONNECTED) {
+      console.error('❌ Backend no está conectado');
+      alert('❌ Error: No hay conexión al servidor\n\nNo se puede guardar sin conexión al backend.\nPor favor verifica que el servidor esté funcionando correctamente.');
+      return;
+    }
+
+    // Verificar que tenemos una empresa activa
+    const activeCompany = API.getActiveCompany();
+    if (!activeCompany) {
+      console.error('❌ No hay empresa activa');
+      alert('❌ Error: No hay empresa activa\n\nPor favor asegúrate de tener una empresa configurada en el sistema.');
+      return;
+    }
+
+    console.log('✅ Todos los requisitos cumplidos, procediendo con el guardado...');
+    console.log('📋 Empresa activa:', activeCompany);
 
     // Get template details from current session
     const session = window.currentTemplateSession;
@@ -3833,11 +3797,16 @@
 
     console.log('🔍 Generando vista previa para tipo:', templateType);
 
-    // Check if API is available
+    // Verificación estricta: solo funcionar con API real
     if (typeof API === 'undefined') {
-      console.warn('⚠️ API no disponible, mostrando vista previa offline');
-      showQuickNotification('⚠️ Mostrando vista previa sin datos reales', 'info');
-      showOfflinePreview(content, templateType);
+      console.error('❌ API no disponible para vista previa');
+      alert('❌ Error: API no disponible\n\nNo se puede generar vista previa sin conexión al servidor.\nPor favor verifica que el backend esté funcionando.');
+      return;
+    }
+
+    if (!window.BACKEND_CONNECTED) {
+      console.error('❌ Backend no conectado para vista previa');
+      alert('❌ Error: No hay conexión al servidor\n\nNo se puede generar vista previa sin datos reales del servidor.');
       return;
     }
 
@@ -4113,48 +4082,46 @@
       const errorMsg = `❌ Error al generar vista previa: ${error.message || 'Error desconocido'}`;
       showQuickNotification(errorMsg, 'error');
       
-      // Fallback to offline preview
-      console.log('🔄 Usando vista previa offline como respaldo...');
-      showOfflinePreview(content, templateType);
+      console.error('❌ Vista previa falló completamente - no hay modo offline disponible');
     }
   }
 
-  // Global error handler for production
+  // Global error handler
   window.addEventListener('error', function(event) {
-    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    const isProduction = window.IS_PRODUCTION || false;
     
-    if (isProduction) {
-      // In production, log error but don't alert user unnecessarily
-      console.error('Error en aplicación:', event.error);
+    console.error('Error en aplicación:', event.error);
+    
+    // Mostrar errores críticos relacionados con conectividad
+    if (event.error?.message?.includes('API') || 
+        event.error?.message?.includes('network') || 
+        event.error?.message?.includes('fetch')) {
+      showQuickNotification('❌ Error crítico de conectividad', 'error');
       
-      // Only show user-friendly message for critical errors
-      if (event.error?.message?.includes('API') || event.error?.message?.includes('network')) {
-        showQuickNotification('⚠️ Problema de conectividad detectado', 'error');
+      if (!isProduction) {
+        // En desarrollo, mostrar más detalles
+        console.error('Detalles del error:', event.error);
       }
-      
-      // Prevent default error handling
-      event.preventDefault();
-    } else {
-      // In development, show detailed errors
-      console.error('Error de desarrollo:', event.error);
     }
   });
 
   // Global unhandled promise rejection handler
   window.addEventListener('unhandledrejection', function(event) {
-    const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+    const isProduction = window.IS_PRODUCTION || false;
     
-    if (isProduction) {
-      console.error('Promesa rechazada:', event.reason);
+    console.error('Promesa rechazada:', event.reason);
+    
+    if (event.reason?.message?.includes('fetch') || 
+        event.reason?.message?.includes('network') ||
+        event.reason?.message?.includes('API')) {
+      showQuickNotification('❌ Error de conexión al servidor', 'error');
       
-      if (event.reason?.message?.includes('fetch') || event.reason?.message?.includes('network')) {
-        showQuickNotification('⚠️ Error de conexión al servidor', 'error');
+      if (!isProduction) {
+        console.error('Detalles de promesa rechazada:', event.reason);
       }
-      
-      event.preventDefault();
-    } else {
-      console.error('Promesa rechazada en desarrollo:', event.reason);
     }
+    
+    event.preventDefault();
   });
 
   // Make functions globally available for button onclick handlers
