@@ -1461,13 +1461,69 @@
     console.log('Elemento pegado');
   }
 
+  function addCompanyIndicator(companyEmail) {
+    // Find a good place to add the company indicator
+    const body = document.body;
+    
+    // Create company indicator
+    const indicator = document.createElement('div');
+    indicator.id = 'company-indicator';
+    indicator.style.cssText = `
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: white;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      z-index: 2000;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(10px);
+    `;
+    indicator.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; animation: pulse 2s infinite;"></div>
+        <span>📋 ${companyEmail}</span>
+      </div>
+    `;
+    
+    body.appendChild(indicator);
+    
+    // Add pulsing animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    console.log(`✅ Indicador de empresa agregado: ${companyEmail}`);
+  }
+
   // Initialize when DOM is ready
   document.addEventListener('DOMContentLoaded', function() {
     console.log('🎨 Inicializando Editor Visual Completo...');
     
+    // Verify we have an active company
+    const activeCompany = API.getActiveCompany();
+    if (!activeCompany) {
+      alert('No hay empresa activa. Por favor inicia sesión.');
+      return;
+    }
+    
+    console.log(`📋 Editor iniciado para empresa: ${activeCompany}`);
+    
     setupVisualEditor();
     setupVariables();
     setupKeyboardShortcuts();
+    
+    // Add company indicator to the interface
+    addCompanyIndicator(activeCompany);
     
     // Setup existing buttons if they exist
     const saveBtn = qs('#save-template');
@@ -1511,31 +1567,20 @@
     const activate = confirm('¿Activar como plantilla principal para este tipo?');
 
     try {
-      const response = await fetch('/api/templates', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: templateName,
-          type: templateType,
-          contentHtml: content,
-          contentCss: '', // Could be extracted from styles
-          activate: activate
-        })
+      // Use API module to ensure proper authentication and company isolation
+      const savedTemplate = await API.templates.create({
+        name: templateName,
+        type: templateType,
+        contentHtml: content,
+        contentCss: '', // Could be extracted from styles
+        activate: activate
       });
 
-      if (response.ok) {
-        const savedTemplate = await response.json();
-        alert(`Plantilla "${templateName}" guardada exitosamente!`);
-        console.log('Plantilla guardada:', savedTemplate);
-        
-        // Refresh template list
-        loadExistingTemplates();
-      } else {
-        const error = await response.json();
-        alert('Error al guardar: ' + (error.error || 'Error desconocido'));
-      }
+      alert(`Plantilla "${templateName}" guardada exitosamente para ${API.getActiveCompany()}!`);
+      console.log('Plantilla guardada:', savedTemplate);
+      
+      // Refresh template list
+      loadExistingTemplates();
     } catch (error) {
       console.error('Error saving template:', error);
       alert('Error de conexión al guardar la plantilla');
@@ -1544,11 +1589,9 @@
 
   async function loadExistingTemplates() {
     try {
-      const response = await fetch('/api/templates');
-      if (response.ok) {
-        const templates = await response.json();
-        updateTemplateSelector(templates);
-      }
+      const templates = await API.templates.list();
+      updateTemplateSelector(templates);
+      console.log(`Plantillas cargadas para empresa: ${API.getActiveCompany()}`);
     } catch (error) {
       console.error('Error loading templates:', error);
     }
@@ -1589,14 +1632,22 @@
 
     if (selector) {
       // Populate with templates
-      selector.innerHTML = '<option value="">Seleccionar plantilla...</option>';
+      const activeCompany = API.getActiveCompany();
+      selector.innerHTML = `<option value="">📋 Plantillas de ${activeCompany}...</option>`;
       
-      templates.forEach(template => {
+      if (templates.length === 0) {
         const option = document.createElement('option');
-        option.value = template._id;
-        option.textContent = `${template.name} (${template.type})${template.active ? ' ★' : ''}`;
+        option.disabled = true;
+        option.textContent = '(No hay plantillas guardadas)';
         selector.appendChild(option);
-      });
+      } else {
+        templates.forEach(template => {
+          const option = document.createElement('option');
+          option.value = template._id;
+          option.textContent = `${template.name} (${template.type})${template.active ? ' ★' : ''}`;
+          selector.appendChild(option);
+        });
+      }
     }
   }
 
@@ -1610,28 +1661,23 @@
     }
 
     try {
-      const response = await fetch(`/api/templates/${templateId}`);
-      if (response.ok) {
-        const template = await response.json();
+      const template = await API.templates.get(templateId);
+      
+      // Clear canvas and load template
+      const canvas = qs('#ce-canvas');
+      if (canvas) {
+        canvas.innerHTML = template.contentHtml;
         
-        // Clear canvas and load template
-        const canvas = qs('#ce-canvas');
-        if (canvas) {
-          canvas.innerHTML = template.contentHtml;
-          
-          // Make loaded content editable
-          setTimeout(() => {
-            makeTemplateEditable(canvas);
-          }, 100);
-        }
-        
-        console.log(`Plantilla "${template.name}" cargada`);
-      } else {
-        alert('Error al cargar la plantilla');
+        // Make loaded content editable
+        setTimeout(() => {
+          makeTemplateEditable(canvas);
+        }, 100);
       }
+      
+      console.log(`Plantilla "${template.name}" cargada para empresa: ${API.getActiveCompany()}`);
     } catch (error) {
       console.error('Error loading template:', error);
-      alert('Error de conexión al cargar la plantilla');
+      alert('Error al cargar la plantilla: ' + error.message);
     }
   }
 
@@ -1651,20 +1697,13 @@
     }
 
     try {
-      const response = await fetch(`/api/templates/${templateId}`, {
-        method: 'DELETE'
-      });
-      
-      if (response.ok) {
-        alert('Plantilla eliminada exitosamente');
-        loadExistingTemplates(); // Refresh list
-        selector.selectedIndex = 0;
-      } else {
-        alert('Error al eliminar la plantilla');
-      }
+      await API.templates.delete(templateId);
+      alert(`Plantilla eliminada exitosamente de ${API.getActiveCompany()}`);
+      loadExistingTemplates(); // Refresh list
+      selector.selectedIndex = 0;
     } catch (error) {
       console.error('Error deleting template:', error);
-      alert('Error de conexión al eliminar la plantilla');
+      alert('Error al eliminar la plantilla: ' + error.message);
     }
   }
 
@@ -1683,54 +1722,42 @@
     if (!templateType) return;
 
     try {
-      const response = await fetch('/api/templates/preview', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          type: templateType,
-          contentHtml: content,
-          contentCss: ''
-        })
+      const result = await API.templates.preview({
+        type: templateType,
+        contentHtml: content,
+        contentCss: ''
       });
-
-      if (response.ok) {
-        const result = await response.json();
         
-        // Show preview in new window
-        const previewWindow = window.open('', '_blank', 'width=800,height=600');
-        previewWindow.document.write(`
-          <html>
-            <head>
-              <title>Vista Previa con Datos Reales - ${templateType}</title>
-              <style>
-                body { font-family: Arial; padding: 20px; background: #f5f5f5; }
-                .preview-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-                ${result.css || ''}
-              </style>
-            </head>
-            <body>
-              <div class="preview-container">
-                <h2>Vista Previa con Datos Reales (${templateType.toUpperCase()})</h2>
-                <hr style="margin-bottom: 20px;">
-                ${result.rendered}
-              </div>
-              <script>
-                // Add context info
-                console.log('Contexto de datos:', ${JSON.stringify(result.context, null, 2)});
-              </script>
-            </body>
-          </html>
-        `);
-        previewWindow.document.close();
-      } else {
-        const error = await response.json();
-        alert('Error en vista previa: ' + (error.error || 'Error desconocido'));
-      }
+      // Show preview in new window
+      const previewWindow = window.open('', '_blank', 'width=800,height=600');
+      previewWindow.document.write(`
+        <html>
+          <head>
+            <title>Vista Previa con Datos Reales - ${templateType} (${API.getActiveCompany()})</title>
+            <style>
+              body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+              .preview-container { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+              ${result.css || ''}
+            </style>
+          </head>
+          <body>
+            <div class="preview-container">
+              <h2>Vista Previa con Datos Reales (${templateType.toUpperCase()})</h2>
+              <p style="color: #666; font-size: 12px; margin-bottom: 20px;">Empresa: ${API.getActiveCompany()}</p>
+              <hr style="margin-bottom: 20px;">
+              ${result.rendered}
+            </div>
+            <script>
+              // Add context info
+              console.log('Contexto de datos:', ${JSON.stringify(result.context, null, 2)});
+            </script>
+          </body>
+        </html>
+      `);
+      previewWindow.document.close();
     } catch (error) {
       console.error('Error in preview:', error);
-      alert('Error de conexión en vista previa');
+      alert('Error en vista previa: ' + error.message);
     }
   }
 })();
