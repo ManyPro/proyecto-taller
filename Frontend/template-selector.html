@@ -411,6 +411,9 @@
           <div class="icon">📄</div>
           <h3>No hay formatos guardados</h3>
           <p>Crea tu primer formato personalizado haciendo clic en "Crear Nuevo Formato"</p>
+          <p style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 6px; font-size: 13px; color: #1565c0;">
+            💡 <strong>Tip:</strong> Al crear un nuevo formato, se abrirá automáticamente el editor con la plantilla correspondiente al tipo de documento seleccionado.
+          </p>
         </div>
       </div>
 
@@ -506,26 +509,55 @@
 
     // New format button
     document.getElementById('new-format-btn').addEventListener('click', function() {
+      console.log('➕ Usuario seleccionó crear nuevo formato');
+      
+      // Remove any previous format selection
+      document.querySelectorAll('.format-card').forEach(c => c.style.borderColor = '#e0e0e0');
+      
       selectedFormat = 'new';
       updateContinueButton();
+      
+      // Visual feedback
+      this.style.background = '#45a049';
+      setTimeout(() => {
+        this.style.background = '#4caf50';
+      }, 200);
+      
+      console.log('✅ Nuevo formato seleccionado - botón continuar habilitado');
     });
 
     // Continue button
     document.getElementById('continue-btn').addEventListener('click', function() {
-      if (!this.classList.contains('enabled')) return;
+      if (!this.classList.contains('enabled')) {
+        console.warn('⚠️ Botón continuar no está habilitado');
+        return;
+      }
+      
+      console.log('🚀 Redirigiendo al editor...');
+      console.log('📋 Tipo seleccionado:', selectedDocumentType);
+      console.log('🎯 Formato seleccionado:', selectedFormat);
+      
+      // Show loading state
+      this.innerHTML = '<span>🔄</span><span>Abriendo Editor...</span>';
+      this.style.background = '#1976d2';
       
       // Redirect to editor with parameters
       const params = new URLSearchParams();
       params.set('type', selectedDocumentType);
       
       if (selectedFormat === 'new') {
+        console.log('➕ Creando nuevo formato');
         params.set('action', 'create');
       } else {
+        console.log('📝 Editando formato existente:', selectedFormat.id);
         params.set('action', 'edit');
         params.set('formatId', selectedFormat.id);
       }
       
-      window.location.href = `templates.html?${params.toString()}`;
+      const url = `templates.html?${params.toString()}`;
+      console.log('🔗 URL de destino:', url);
+      
+      window.location.href = url;
     });
 
     async function loadFormats() {
@@ -546,8 +578,8 @@
           const response = await API.templates.getByType(selectedDocumentType);
           availableFormats = response || [];
         } else {
-          // Mock data for testing
-          availableFormats = getMockFormats(selectedDocumentType);
+          // No API available - start with empty formats
+          availableFormats = [];
         }
         
         displayFormats();
@@ -594,7 +626,12 @@
         // Add click handlers to format cards
         document.querySelectorAll('.format-card').forEach(card => {
           card.addEventListener('click', function(e) {
-            if (e.target.classList.contains('action-btn')) return;
+            // Don't select card if clicking on action buttons or their parent div
+            if (e.target.classList.contains('action-btn') || 
+                e.target.closest('.actions') || 
+                e.target.tagName === 'BUTTON') {
+              return;
+            }
             
             // Remove previous selection
             document.querySelectorAll('.format-card').forEach(c => c.style.borderColor = '#e0e0e0');
@@ -617,59 +654,112 @@
       }
     }
 
-    function getMockFormats(type) {
-      // Mock data for testing when API is not available
-      return [
-        {
-          id: `mock-${type}-1`,
-          name: `${type === 'invoice' ? 'Factura' : type === 'quote' ? 'Cotización' : 'Orden'} Estándar`,
-          description: 'Formato básico con información esencial y diseño limpio',
-          createdAt: '2024-01-15T10:30:00Z',
-          updatedAt: '2024-01-20T14:45:00Z',
-          type: type
-        },
-        {
-          id: `mock-${type}-2`, 
-          name: `${type === 'invoice' ? 'Factura' : type === 'quote' ? 'Cotización' : 'Orden'} Detallada`,
-          description: 'Formato completo con información extendida y tabla de servicios',
-          createdAt: '2024-01-10T09:15:00Z',
-          updatedAt: '2024-01-25T16:20:00Z',
-          type: type
-        }
-      ];
-    }
+
 
     async function duplicateFormat(formatId) {
+      console.log('📋 Intentando duplicar formato:', formatId);
+      
       try {
         const format = availableFormats.find(f => f.id === formatId);
-        if (!format) return;
+        if (!format) {
+          console.error('❌ Formato no encontrado:', formatId);
+          return;
+        }
         
         const newName = prompt('Nombre para el formato duplicado:', `${format.name} - Copia`);
-        if (!newName) return;
+        if (!newName) {
+          console.log('❌ Duplicación cancelada por el usuario');
+          return;
+        }
         
         // API call to duplicate
         if (typeof API !== 'undefined') {
+          console.log('🔄 Duplicando formato en servidor...');
           await API.templates.duplicate(formatId, { name: newName });
+          
+          // Show success notification
+          const notification = document.createElement('div');
+          notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 3000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          `;
+          notification.textContent = `✅ Formato "${newName}" duplicado correctamente`;
+          document.body.appendChild(notification);
+          
+          setTimeout(() => {
+            if (notification.parentNode) {
+              notification.remove();
+            }
+          }, 3000);
+          
+          console.log('✅ Formato duplicado correctamente');
           loadFormats(); // Reload
+        } else {
+          console.warn('⚠️ API no disponible - no se puede duplicar formato');
+          alert('API no disponible. El formato no se puede duplicar.');
         }
       } catch (error) {
-        console.error('Error duplicating format:', error);
-        alert('Error al duplicar el formato');
+        console.error('❌ Error duplicando formato:', error);
+        alert(`Error al duplicar el formato: ${error.message}`);
       }
     }
 
     async function deleteFormat(formatId) {
-      if (!confirm('¿Estás seguro de que quieres eliminar este formato?')) return;
+      console.log('🗑️ Intentando eliminar formato:', formatId);
+      
+      if (!confirm('¿Estás seguro de que quieres eliminar este formato?')) {
+        console.log('❌ Eliminación cancelada por el usuario');
+        return;
+      }
       
       try {
         if (typeof API !== 'undefined') {
+          console.log('🔄 Eliminando formato del servidor...');
           await API.templates.delete(formatId);
+          
+          // Show success notification
+          const notification = document.createElement('div');
+          notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 3000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          `;
+          notification.textContent = '✅ Formato eliminado correctamente';
+          document.body.appendChild(notification);
+          
+          setTimeout(() => {
+            if (notification.parentNode) {
+              notification.remove();
+            }
+          }, 3000);
+          
+          console.log('✅ Formato eliminado correctamente');
           loadFormats(); // Reload
           loadActiveFormats(); // Reload active formats too
+        } else {
+          console.warn('⚠️ API no disponible - no se puede eliminar formato del servidor');
+          alert('API no disponible. El formato no se puede eliminar del servidor.');
         }
       } catch (error) {
-        console.error('Error deleting format:', error);
-        alert('Error al eliminar el formato');
+        console.error('❌ Error eliminando formato:', error);
+        alert(`Error al eliminar el formato: ${error.message}`);
       }
     }
 
@@ -688,7 +778,7 @@
           if (typeof API !== 'undefined') {
             formats = await API.templates.getByType(type);
           } else {
-            formats = getMockFormats(type);
+            formats = [];
           }
           
           // Populate select options
