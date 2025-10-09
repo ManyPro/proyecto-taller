@@ -15,7 +15,17 @@
       invoice: `<!-- Ejemplo Factura -->
 <div class="doc">
   <h1>Factura {{sale.number}}</h1>
-  <div class="row">Cliente: {{sale.customerName}}</div>
+  <d  function escapeHtml(str=''){ return str.replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function shorten(s,max){ return s.length>max? s.slice(0,max-1)+'…': s; }
+
+  // Exponer funciones para debug
+  window.templatesDebug = {
+    diagnose,
+    refreshList,
+    initWhenVisible,
+    state
+  };
+})();class="row">Cliente: {{sale.customerName}}</div>
   <div class="row">Fecha: {{date sale.closedAt}}</div>
   <table class="items">
     <thead><tr><th>Cant</th><th>Descripción</th><th>PU</th><th>Total</th></tr></thead>
@@ -109,15 +119,55 @@ const TABLE_LOOP_SNIPPET = '{{#each sale.items}}<tr><td>{{qty}}</td><td>{{descri
 
   function qs(id){ return document.getElementById(id);} 
   function on(el, ev, fn){ el && el.addEventListener(ev, fn); }
-  function setMsg(msg, isErr){ const box = qs('tpl-msg'); if(!box) return; box.textContent = msg||''; box.style.color = isErr? 'var(--danger-color)': 'var(--muted-color)'; }
+  function setMsg(msg, isErr){ 
+    const box = qs('tpl-msg'); 
+    if(!box) {
+      // Si no hay caja de mensaje, mostrar en consola
+      console.log('Templates.js mensaje:', msg);
+      return;
+    }
+    box.textContent = msg||''; 
+    box.style.color = isErr? 'var(--danger-color)': 'var(--muted-color)'; 
+  }
+
+  // Función de diagnóstico
+  function diagnose() {
+    console.log('=== DIAGNÓSTICO TEMPLATES ===');
+    console.log('API disponible:', typeof API !== 'undefined');
+    console.log('API.templates disponible:', typeof API !== 'undefined' && !!API.templates);
+    console.log('tab-formatos encontrado:', !!qs('tab-formatos'));
+    console.log('tpl-rows encontrado:', !!qs('tpl-rows'));
+    console.log('Estado actual:', state);
+    console.log('=============================');
+  }
 
   async function refreshList(){
     const typeFilter = qs('tpl-type-filter').value;
+    console.log('Templates.js: Refrescando lista de plantillas...');
     try {
+      if (!API || !API.templates || !API.templates.list) {
+        console.error('Templates.js: API.templates.list no está disponible');
+        setMsg('Error: API no disponible', true);
+        // Mostrar interfaz básica aunque API no esté disponible
+        const tbody = qs('tpl-rows');
+        if(tbody) {
+          tbody.innerHTML = '<tr><td colspan="6" class="muted">API no disponible - Verificar conexión al servidor</td></tr>';
+        }
+        return;
+      }
       const data = await API.templates.list();
-      state.templates = data;
+      console.log('Templates.js: Plantillas obtenidas:', data);
+      state.templates = data || [];
       renderList(typeFilter);
-    } catch(err){ console.error(err); setMsg('Error listando plantillas', true); }
+    } catch(err){ 
+      console.error('Templates.js: Error al obtener plantillas:', err); 
+      setMsg('Error listando plantillas: ' + (err.message || err), true); 
+      // Mostrar mensaje en la tabla si hay error
+      const tbody = qs('tpl-rows');
+      if(tbody) {
+        tbody.innerHTML = `<tr><td colspan="6" class="muted">Error: ${err.message || 'No se puede conectar al servidor'}</td></tr>`;
+      }
+    }
   }
 
   function renderList(typeFilter){
@@ -366,7 +416,14 @@ function ensureExampleSnippet(){
 
   function initWhenVisible(){
     // Initialize only if the formatos tab exists
-    if(!qs('tab-formatos')) return;
+    console.log('Templates.js: Iniciando initWhenVisible()');
+    const tabFormatos = qs('tab-formatos');
+    console.log('Templates.js: tab-formatos encontrado:', !!tabFormatos);
+    if(!tabFormatos) {
+      console.log('Templates.js: No se encontró tab-formatos, reintentando en 1 segundo...');
+      setTimeout(initWhenVisible, 1000);
+      return;
+    }
     // Inject context selector controls if not present
     const toolbar = qs('tpl-editor-toolbar') || document.querySelector('#tpl-editor-title')?.parentElement;
     if(toolbar && !qs('tpl-sample-type')){
@@ -400,18 +457,36 @@ function ensureExampleSnippet(){
         state.theme.baseSize = parseInt(qs('tpl-th-size').value)||12;
       });
     }
+    console.log('Templates.js: Cargando variables...');
     loadVars();
+    console.log('Templates.js: Adjuntando eventos...');
     attachEvents();
+    console.log('Templates.js: Configurando snippet de ejemplo...');
     ensureExampleSnippet();
+    console.log('Templates.js: Refrescando lista...');
     refreshList();
+    console.log('Templates.js: Aplicando modo...');
     applyMode();
+    console.log('Templates.js: Inicialización completada');
+    diagnose();
+  }
+
+  // Función para esperar a que API esté disponible
+  function waitForAPI() {
+    if (typeof API !== 'undefined' && API.templates) {
+      console.log('Templates.js: API disponible, iniciando...');
+      initWhenVisible();
+    } else {
+      console.log('Templates.js: Esperando API...');
+      setTimeout(waitForAPI, 100);
+    }
   }
 
   // Basic tab activation observer (depends on existing nav script). If tabs code triggers custom event, listen. Else run on DOMContentLoaded.
   if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', initWhenVisible);
+    document.addEventListener('DOMContentLoaded', waitForAPI);
   } else {
-    initWhenVisible();
+    waitForAPI();
   }
   // ====== Visual Editor Logic ======
   function applyMode(){
