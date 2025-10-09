@@ -1,0 +1,184 @@
+/* ==========================================
+   BUTTON COMPONENTS
+   ========================================== */
+
+/* Base Button */
+.btn {
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  transition: all var(--transition-normal);
+  text-decoration: none;
+  padding: var(--spacing-md) var(--spacing-2xl);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+/* Button Variants */
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-white);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  transform: translateY(-1px);
+}
+
+.btn-success {
+  background: var(--color-success);
+  color: var(--color-white);
+}
+
+.btn-success:hover:not(:disabled) {
+  background: var(--color-success-dark);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: var(--color-gray);
+  color: var(--color-white);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--color-gray-dark);
+}
+
+.btn-gradient {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: var(--color-white);
+}
+
+.btn-gradient:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+/* Button States */
+.btn.enabled {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Specific Named Buttons */
+.new-format-btn {
+  background: var(--color-success);
+  color: var(--color-white);
+  border: none;
+  padding: var(--spacing-md) var(--spacing-2xl);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  transition: background var(--transition-normal);
+}
+
+.new-format-btn:hover {
+  background: #45a049;
+}
+
+.back-btn {
+  background: var(--color-gray);
+  color: var(--color-white);
+  border: none;
+  padding: var(--spacing-md) var(--spacing-2xl);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.continue-btn {
+  background: var(--color-primary);
+  color: var(--color-white);
+  border: none;
+  padding: var(--spacing-md) var(--spacing-2xl);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.continue-btn.enabled {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.continue-btn:hover.enabled {
+  background: var(--color-primary-dark);
+}
+
+/* Action Buttons */
+.action-btn {
+  background: none;
+  border: none;
+  padding: var(--spacing-xs);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-base);
+  transition: all var(--transition-fast);
+}
+
+.action-btn:hover {
+  background: var(--color-gray-light);
+  color: var(--color-text);
+}
+
+/* Modal Buttons */
+.btn-cancel, .btn-create {
+  padding: 10px 20px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.btn-cancel {
+  background: var(--color-gray);
+  color: var(--color-white);
+}
+
+.btn-cancel:hover {
+  background: var(--color-gray-dark);
+  transform: translateY(-1px);
+}
+
+.btn-create {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: var(--color-white);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.btn-create.enabled {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.btn-create.enabled:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}

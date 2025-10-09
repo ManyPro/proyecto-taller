@@ -9,6 +9,550 @@
 </head>
 <body>
   <div class="container">
+
+    .header {
+      background: #2c3e50;
+      color: white;
+      padding: 20px 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    .header p {
+      margin: 8px 0 0 0;
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .step-indicator {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+      gap: 20px;
+    }
+
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .step.active {
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+
+    .step.inactive {
+      background: #f5f5f5;
+      color: #999;
+    }
+
+    .document-types {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .document-type-card {
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: #fafafa;
+    }
+
+    .document-type-card:hover {
+      border-color: #2196f3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(33, 150, 243, 0.15);
+    }
+
+    .document-type-card.selected {
+      border-color: #2196f3;
+      background: #e3f2fd;
+    }
+
+    .document-type-card .icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+
+    .document-type-card h3 {
+      margin: 0 0 8px 0;
+      font-size: 18px;
+      color: #333;
+    }
+
+    .document-type-card p {
+      margin: 0;
+      font-size: 14px;
+      color: #666;
+      line-height: 1.4;
+    }
+
+    .formats-section {
+      margin-top: 30px;
+      display: none;
+    }
+
+    .formats-section.show {
+      display: block;
+    }
+
+    .formats-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .formats-header h2 {
+      margin: 0;
+      font-size: 20px;
+      color: #333;
+    }
+
+    .new-format-btn {
+      background: #4caf50;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.3s ease;
+    }
+
+    .new-format-btn:hover {
+      background: #45a049;
+    }
+
+    .formats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .format-card {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: white;
+    }
+
+    .format-card:hover {
+      border-color: #2196f3;
+      box-shadow: 0 2px 8px rgba(33, 150, 243, 0.15);
+    }
+
+    .format-card.active-format {
+      border-color: #4caf50;
+      background: linear-gradient(135deg, #f8fff8 0%, #e8f5e8 100%);
+      box-shadow: 0 4px 16px rgba(76, 175, 80, 0.2);
+    }
+
+    .format-card.active-format:hover {
+      border-color: #388e3c;
+      box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3);
+    }
+
+    .active-badge {
+      background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+      color: white;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin-left: 8px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.8; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .format-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .format-card h4 {
+      margin: 0;
+      font-size: 16px;
+      color: #333;
+      font-weight: 600;
+    }
+
+    .format-card .actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .format-card .action-btn {
+      background: none;
+      border: none;
+      padding: 4px;
+      cursor: pointer;
+      border-radius: 4px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .format-card .action-btn:hover {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .format-card .meta {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 8px;
+    }
+
+    .format-card .preview {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 11px;
+      color: #666;
+      height: 60px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .format-card .preview::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 20px;
+      background: linear-gradient(transparent, #f8f9fa);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #666;
+    }
+
+    .empty-state .icon {
+      font-size: 48px;
+      color: #ddd;
+      margin-bottom: 16px;
+    }
+
+    .navigation {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .back-btn {
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .continue-btn {
+      background: #2196f3;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    .continue-btn.enabled {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .continue-btn:hover.enabled {
+      background: #1976d2;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #2196f3;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .format-config-card {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 20px;
+      transition: all 0.3s ease;
+    }
+
+    .format-config-card:hover {
+      border-color: #2196f3;
+      box-shadow: 0 2px 8px rgba(33, 150, 243, 0.15);
+    }
+
+    .format-config-card select {
+      transition: border-color 0.3s ease;
+    }
+
+    .format-config-card select:focus {
+      outline: none;
+      border-color: #2196f3;
+      box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .modal-container {
+      background: white;
+      border-radius: 16px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      animation: slideUp 0.3s ease-out;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+
+    .modal-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-body {
+      padding: 24px;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    .input-group label {
+      display: block;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      box-sizing: border-box;
+    }
+
+    .input-group input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .input-help {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
+
+    #char-counter {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .format-preview {
+      background: #f8f9ff;
+      border: 1px solid #e1e5e9;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .preview-icon {
+      font-size: 32px;
+      line-height: 1;
+    }
+
+    .preview-text strong {
+      display: block;
+      color: #333;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .preview-text p {
+      margin: 0;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .modal-footer {
+      padding: 20px 24px;
+      background: #f8f9fa;
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .btn-cancel, .btn-create {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-cancel {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-cancel:hover {
+      background: #5a6268;
+      transform: translateY(-1px);
+    }
+
+    .btn-create {
+      background: linear-gradient(135deg, #28a745, #20c997);
+      color: white;
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    .btn-create.enabled {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .btn-create.enabled:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes slideUp {
+      from { 
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+      }
+      to { 
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
     <div class="header">
       <h1>🎨 Seleccionar Formato de Plantilla</h1>
       <p>Elige el tipo de documento y el formato que deseas crear o editar</p>
@@ -82,6 +626,7 @@
         <p>Cargando formatos...</p>
       </div>
 
+      <!-- Navigation -->
       <!-- Format Configuration Section -->
       <div class="formats-config-section" style="margin-top: 40px; border-top: 1px solid #e0e0e0; padding-top: 30px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -201,7 +746,7 @@
       openFormatNameModal();
     });
 
-    // Continue button with backend integration
+    // Continue button
     document.getElementById('continue-btn').addEventListener('click', async function() {
       if (!this.classList.contains('enabled')) {
         console.warn('⚠️ Botón continuar no está habilitado');
@@ -244,7 +789,7 @@
             params.set('formatName', selectedFormat.name);
             
             const url = `templates.html?${params.toString()}`;
-            console.log('🔗 Redirigiendo al editor:', url);
+            console.log('� Redirigiendo al editor:', url);
             window.location.href = url;
             
           } else {
@@ -383,7 +928,7 @@
             
             // Select current
             this.style.borderColor = '#2196f3';
-            selectedFormat = availableFormats.find(f => (f.id || f._id) === this.dataset.formatId);
+            selectedFormat = availableFormats.find(f => f.id === this.dataset.formatId);
             updateContinueButton();
           });
         });
@@ -410,11 +955,13 @@
       }
     }
 
+
+
     async function duplicateFormat(formatId) {
       console.log('📋 Intentando duplicar formato:', formatId);
       
       try {
-        const format = availableFormats.find(f => (f.id || f._id) === formatId);
+        const format = availableFormats.find(f => f.id === formatId);
         if (!format) {
           console.error('❌ Formato no encontrado:', formatId);
           return;
@@ -431,7 +978,30 @@
           console.log('🔄 Duplicando formato en servidor...');
           await API.templates.duplicate(formatId, { name: newName });
           
-          showNotification('✅ Formato duplicado correctamente', 'success');
+          // Show success notification
+          const notification = document.createElement('div');
+          notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #007bff;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 3000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          `;
+          notification.textContent = `✅ Formato "${newName}" duplicado correctamente`;
+          document.body.appendChild(notification);
+          
+          setTimeout(() => {
+            if (notification.parentNode) {
+              notification.remove();
+            }
+          }, 3000);
+          
           console.log('✅ Formato duplicado correctamente');
           loadFormats(); // Reload
         } else {
@@ -457,7 +1027,30 @@
           console.log('🔄 Eliminando formato del servidor...');
           await API.templates.delete(formatId);
           
-          showNotification('✅ Formato eliminado correctamente', 'success');
+          // Show success notification
+          const notification = document.createElement('div');
+          notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 3000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          `;
+          notification.textContent = '✅ Formato eliminado correctamente';
+          document.body.appendChild(notification);
+          
+          setTimeout(() => {
+            if (notification.parentNode) {
+              notification.remove();
+            }
+          }, 3000);
+          
           console.log('✅ Formato eliminado correctamente');
           loadFormats(); // Reload
           loadActiveFormats(); // Reload active formats too
@@ -479,7 +1072,30 @@
           console.log('🔄 Activando formato en el servidor...');
           await API.templates.activate(formatId);
           
-          showNotification('⭐ Formato activado para usar en impresiones', 'success');
+          // Show success notification
+          const notification = document.createElement('div');
+          notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4caf50;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 3000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          `;
+          notification.textContent = '⭐ Formato activado para usar en impresiones';
+          document.body.appendChild(notification);
+          
+          setTimeout(() => {
+            if (notification.parentNode) {
+              notification.remove();
+            }
+          }, 3000);
+          
           console.log('✅ Formato activado correctamente');
           loadFormats(); // Reload to show active status
           loadActiveFormats(); // Reload active formats list
@@ -516,7 +1132,7 @@
           
           formats.forEach(format => {
             const option = document.createElement('option');
-            option.value = format.id || format._id;
+            option.value = format.id;
             option.textContent = format.name;
             option.selected = format.active || false;
             selectElement.appendChild(option);
@@ -551,7 +1167,30 @@
           // Show success message
           const formatName = document.querySelector(`#active-${documentType === 'workOrder' ? 'workorder' : documentType}-format option[value="${formatId}"]`).textContent;
           
-          showNotification(`✅ Formato "${formatName}" activado para ${getDocumentTypeNamePlural(documentType)}`, 'success');
+          // Create temporary notification
+          const notification = document.createElement('div');
+          notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 3000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          `;
+          notification.textContent = `✅ Formato "${formatName}" activado para ${getDocumentTypeNamePlural(documentType)}`;
+          document.body.appendChild(notification);
+          
+          setTimeout(() => {
+            if (notification.parentNode) {
+              notification.remove();
+            }
+          }, 3000);
+          
           console.log(`✅ Formato activado exitosamente`);
         }
         
@@ -637,7 +1276,7 @@
       }
     }
 
-    async function confirmFormatCreation() {
+    function confirmFormatCreation() {
       const input = document.getElementById('format-name-input');
       const formatName = input.value.trim();
       
@@ -646,110 +1285,31 @@
         return;
       }
       
-      console.log('📝 Creando formato:', formatName);
+      console.log('📝 Nombre confirmado:', formatName);
       
-      // Show loading state in button
-      const createBtn = document.getElementById('modal-create-btn');
-      const originalText = createBtn.innerHTML;
-      createBtn.innerHTML = '🔄 Creando...';
-      createBtn.disabled = true;
+      // Remove any previous format selection
+      document.querySelectorAll('.format-card').forEach(c => c.style.borderColor = '#e0e0e0');
       
-      try {
-        if (!selectedDocumentType) {
-          console.error('❌ No hay tipo de documento seleccionado');
-          alert('Error: No se ha seleccionado un tipo de documento');
-          return;
+      selectedFormat = {
+        action: 'new',
+        name: formatName,
+        isNew: true
+      };
+      
+      // Visually select the new format card
+      const newFormatCard = document.querySelector('.format-option.new-format');
+      if (newFormatCard) {
+        newFormatCard.classList.add('selected');
+        const infoP = newFormatCard.querySelector('.format-info p');
+        if (infoP) {
+          infoP.innerHTML = `<strong>Nuevo formato:</strong><br>"${formatName}"`;
         }
-
-        // Try to create format in backend if API is available
-        if (typeof API !== 'undefined' && window.API_BASE) {
-          console.log('📡 Guardando formato en servidor...');
-          
-          try {
-            const newTemplate = await API.templates.create({
-              name: formatName,
-              type: selectedDocumentType,
-              contentHtml: '', // Will be filled in editor
-              contentCss: '',
-              activate: false // Don't activate until it's complete
-            });
-            
-            console.log('✅ Formato creado en backend:', newTemplate);
-            
-            // Close modal first
-            closeFormatNameModal();
-            
-            // Show success notification
-            showNotification(`✅ Formato "${formatName}" creado correctamente`, 'success');
-            
-            // Redirect to editor immediately
-            const params = new URLSearchParams();
-            params.set('type', selectedDocumentType);
-            params.set('action', 'edit');
-            params.set('formatId', newTemplate._id || newTemplate.id);
-            params.set('formatName', formatName);
-            
-            const url = `templates.html?${params.toString()}`;
-            console.log('🔗 Redirigiendo al editor:', url);
-            
-            // Small delay to show notification, then redirect
-            setTimeout(() => {
-              window.location.href = url;
-            }, 1000);
-            
-          } catch (apiError) {
-            console.warn('⚠️ Error en API, continuando en modo offline:', apiError);
-            // Fall through to offline mode
-          }
-        } 
-        
-        // If API is not available or failed, work in offline mode
-        if (typeof API === 'undefined' || !window.API_BASE) {
-          console.warn('⚠️ API no disponible - modo offline');
-          
-          // Close modal and redirect to editor in create mode
-          closeFormatNameModal();
-          
-          // Show notification for offline mode
-          showNotification(`📝 Creando "${formatName}" en modo offline`, 'info');
-          
-          const params = new URLSearchParams();
-          params.set('type', selectedDocumentType);
-          params.set('action', 'create');
-          params.set('formatName', formatName);
-          
-          const url = `templates.html?${params.toString()}`;
-          console.log('🔗 Redirigiendo al editor (offline):', url);
-          
-          // Small delay to show notification, then redirect
-          setTimeout(() => {
-            window.location.href = url;
-          }, 800);
-        }
-        
-      } catch (error) {
-        console.error('❌ Error al crear formato:', error);
-        
-        // Show error notification
-        showNotification(`❌ Error al crear formato: ${error.message}`, 'error');
-        
-        // Reset button
-        createBtn.innerHTML = originalText;
-        createBtn.disabled = false;
       }
-    }
-
-    function showNotification(message, type = 'info') {
-      const notification = document.createElement('div');
-      notification.className = `notification ${type}`;
-      notification.textContent = message;
-      document.body.appendChild(notification);
       
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.remove();
-        }
-      }, 3000);
+      updateContinueButton();
+      closeFormatNameModal();
+      
+      console.log('✅ Nuevo formato configurado - botón continuar habilitado');
     }
 
     // Add event listeners for modal

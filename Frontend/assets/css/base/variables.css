@@ -1,0 +1,97 @@
+/* ==========================================
+   CSS VARIABLES - DESIGN SYSTEM
+   ========================================== */
+
+:root {
+  /* Colors - Primary */
+  --color-primary: #2196f3;
+  --color-primary-dark: #1976d2;
+  --color-primary-light: #e3f2fd;
+  
+  /* Colors - Secondary */
+  --color-secondary: #667eea;
+  --color-secondary-dark: #764ba2;
+  
+  /* Colors - Success */
+  --color-success: #4caf50;
+  --color-success-dark: #388e3c;
+  --color-success-light: #e8f5e8;
+  --color-success-lighter: #f8fff8;
+  
+  /* Colors - Error */
+  --color-error: #dc3545;
+  --color-error-dark: #c82333;
+  --color-error-light: #f8d7da;
+  
+  /* Colors - Warning */
+  --color-warning: #ffc107;
+  --color-warning-dark: #e0a800;
+  
+  /* Colors - Neutral */
+  --color-dark: #2c3e50;
+  --color-gray: #6c757d;
+  --color-gray-dark: #5a6268;
+  --color-gray-light: #f5f5f5;
+  --color-gray-lighter: #f8f9fa;
+  --color-gray-border: #e0e0e0;
+  --color-text: #333;
+  --color-text-muted: #666;
+  --color-text-light: #999;
+  
+  /* Colors - System */
+  --color-white: #ffffff;
+  --color-black: rgba(0, 0, 0, 0.87);
+  
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 20px;
+  --spacing-2xl: 24px;
+  --spacing-3xl: 30px;
+  --spacing-4xl: 40px;
+  
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-round: 50%;
+  --radius-pill: 20px;
+  
+  /* Typography */
+  --font-family-primary: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 20px;
+  --font-size-3xl: 24px;
+  --font-size-4xl: 32px;
+  --font-size-5xl: 48px;
+  
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(33, 150, 243, 0.15);
+  --shadow-md: 0 4px 12px rgba(33, 150, 243, 0.15);
+  --shadow-lg: 0 4px 20px rgba(33, 150, 243, 0.2);
+  --shadow-xl: 0 10px 30px rgba(0, 0, 0, 0.2);
+  --shadow-success: 0 4px 16px rgba(76, 175, 80, 0.2);
+  --shadow-success-hover: 0 6px 20px rgba(76, 175, 80, 0.3);
+  
+  /* Transitions */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+  
+  /* Z-Index */
+  --z-dropdown: 1000;
+  --z-modal: 10000;
+  --z-tooltip: 20000;
+}
