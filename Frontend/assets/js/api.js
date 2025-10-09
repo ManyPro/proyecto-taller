@@ -251,9 +251,13 @@ if (typeof window !== 'undefined') {
   Object.assign(window.API, API);
 }
 
-// Exports
-export { API, tokenStore as authToken };
-export default API;
+// Exports (only for module environments like Node/bundlers). In the browser we rely on window.API above.
+/* eslint-disable no-undef */
+try {
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { API, authToken: tokenStore, default: API };
+  }
+} catch { }
 
 
 // ===============
