@@ -2581,6 +2581,7 @@
   const documentType = urlParams.get('type');
   const action = urlParams.get('action');
   const formatId = urlParams.get('formatId');
+  const formatName = urlParams.get('formatName');
   
   // If no parameters, redirect immediately to prevent flash
   if (!documentType || !action) {
@@ -2599,7 +2600,7 @@
       type: documentType,
       action: action,
       formatId: formatId,
-      name: null // Will be set when saving
+      name: formatName || null // Use provided name or set when saving
     };
     
     console.log('📋 Sesión de plantilla:', window.currentTemplateSession);
@@ -2836,10 +2837,14 @@
       const actionText = action === 'edit' ? 'Editando' : 'Creando';
       const typeIcon = documentType === 'invoice' ? '🧾' : documentType === 'quote' ? '💰' : '🔧';
       
+      // Get current session name
+      const currentName = window.currentTemplateSession?.name || formatName;
+      
       sessionInfo.innerHTML = `
         <span style="font-size: 16px;">${icon}</span>
         <strong>${actionText} ${getDocumentTypeName(documentType)}</strong>
         <span style="font-size: 16px;">${typeIcon}</span>
+        ${currentName ? `<span style="color: #666;">• "${currentName}"</span>` : ''}
         ${formatId ? `<span style="color: #666;">• ID: ${formatId}</span>` : ''}
         <div style="margin-left: auto;">
           <a href="template-selector.html" style="color: #2196f3; text-decoration: none; font-size: 13px;">

@@ -511,10 +511,30 @@
     document.getElementById('new-format-btn').addEventListener('click', function() {
       console.log('➕ Usuario seleccionó crear nuevo formato');
       
+      // Ask for format name
+      const documentTypeName = getDocumentTypeName(selectedDocumentType);
+      const defaultName = `Mi ${documentTypeName} ${new Date().toLocaleDateString('es-ES')}`;
+      
+      const formatName = prompt(
+        `Nombre para el nuevo formato de ${documentTypeName}:`, 
+        defaultName
+      );
+      
+      if (!formatName || formatName.trim() === '') {
+        console.log('❌ Creación cancelada - nombre vacío');
+        return;
+      }
+      
+      console.log('📝 Nombre asignado al formato:', formatName);
+      
       // Remove any previous format selection
       document.querySelectorAll('.format-card').forEach(c => c.style.borderColor = '#e0e0e0');
       
-      selectedFormat = 'new';
+      selectedFormat = {
+        action: 'new',
+        name: formatName.trim()
+      };
+      
       updateContinueButton();
       
       // Visual feedback
@@ -523,7 +543,13 @@
         this.style.background = '#4caf50';
       }, 200);
       
-      console.log('✅ Nuevo formato seleccionado - botón continuar habilitado');
+      // Update button text to show selection
+      const continueBtn = document.getElementById('continue-btn');
+      if (continueBtn.classList.contains('enabled')) {
+        continueBtn.innerHTML = `<span>Crear "${formatName}"</span><span>➡️</span>`;
+      }
+      
+      console.log('✅ Nuevo formato configurado - botón continuar habilitado');
     });
 
     // Continue button
@@ -545,9 +571,15 @@
       const params = new URLSearchParams();
       params.set('type', selectedDocumentType);
       
-      if (selectedFormat === 'new') {
+      if (selectedFormat === 'new' || (selectedFormat && selectedFormat.action === 'new')) {
         console.log('➕ Creando nuevo formato');
         params.set('action', 'create');
+        
+        // Pass format name if available
+        if (selectedFormat && selectedFormat.name) {
+          console.log('📝 Con nombre:', selectedFormat.name);
+          params.set('formatName', selectedFormat.name);
+        }
       } else {
         console.log('📝 Editando formato existente:', selectedFormat.id);
         params.set('action', 'edit');
@@ -649,8 +681,19 @@
       const btn = document.getElementById('continue-btn');
       if (selectedFormat) {
         btn.classList.add('enabled');
+        
+        // Update button text based on selection
+        if (selectedFormat === 'new' || (selectedFormat && selectedFormat.action === 'new')) {
+          const formatName = selectedFormat.name || 'Nuevo Formato';
+          btn.innerHTML = `<span>Crear "${formatName}"</span><span>➡️</span>`;
+        } else if (selectedFormat.name) {
+          btn.innerHTML = `<span>Editar "${selectedFormat.name}"</span><span>➡️</span>`;
+        } else {
+          btn.innerHTML = `<span>Continuar</span><span>➡️</span>`;
+        }
       } else {
         btn.classList.remove('enabled');
+        btn.innerHTML = `<span>Continuar</span><span>➡️</span>`;
       }
     }
 
@@ -836,7 +879,7 @@
             z-index: 3000;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
           `;
-          notification.textContent = `✅ Formato "${formatName}" activado para ${getDocumentTypeName(documentType)}`;
+          notification.textContent = `✅ Formato "${formatName}" activado para ${getDocumentTypeNamePlural(documentType)}`;
           document.body.appendChild(notification);
           
           setTimeout(() => {
@@ -855,6 +898,15 @@
     }
 
     function getDocumentTypeName(type) {
+      const names = {
+        'invoice': 'Factura',
+        'quote': 'Cotización', 
+        'workOrder': 'Orden de Trabajo'
+      };
+      return names[type] || type;
+    }
+
+    function getDocumentTypeNamePlural(type) {
       const names = {
         'invoice': 'Facturas',
         'quote': 'Cotizaciones', 
