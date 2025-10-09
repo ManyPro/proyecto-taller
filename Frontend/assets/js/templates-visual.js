@@ -1629,45 +1629,241 @@
     const varList = qs('#var-list');
     if (!varList) return;
 
-    const html = VAR_GROUPS.map(group => `
-      <div style="margin-bottom: 15px;">
-        <h4 style="margin: 5px 0; color: #666; font-size: 12px;">${group.title}</h4>
-        ${group.items.map(item => `
-          <div style="padding: 6px; background: #f0f0f0; border-radius: 4px; margin: 3px 0; cursor: pointer; font-size: 11px;" 
-               onclick="insertVariableInCanvas('${item.value}')">
-            <strong>${item.label}</strong><br>
-            <code style="color: #e11d48; font-size: 10px;">${item.value}</code>
-          </div>
-        `).join('')}
+    // Create user-friendly variable interface
+    const html = `
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">📋 Información de la Empresa</h4>
+        ${createFriendlyButtons([
+          { label: 'Nombre de mi taller', icon: '🏢', value: '{{company.name}}' },
+          { label: 'Mi dirección', icon: '📍', value: '{{company.address}}' },
+          { label: 'Mi teléfono', icon: '📞', value: '{{company.phone}}' }
+        ])}
       </div>
-    `).join('');
+
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">💰 Datos de la Venta</h4>
+        ${createFriendlyButtons([
+          { label: 'Número de factura', icon: '#️⃣', value: '{{sale.number}}' },
+          { label: 'Fecha de hoy', icon: '📅', value: '{{date sale.date}}' },
+          { label: 'Total a cobrar', icon: '💵', value: '{{money sale.total}}' },
+          { label: 'Subtotal (sin IVA)', icon: '💴', value: '{{money sale.subtotal}}' }
+        ])}
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">👤 Datos del Cliente</h4>
+        ${createFriendlyButtons([
+          { label: 'Nombre del cliente', icon: '👤', value: '{{sale.customerName}}' },
+          { label: 'Teléfono del cliente', icon: '📱', value: '{{sale.customerPhone}}' }
+        ])}
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">🚗 Datos del Vehículo</h4>
+        ${createFriendlyButtons([
+          { label: 'Placa del carro', icon: '🚗', value: '{{sale.vehicle.plate}}' },
+          { label: 'Marca y modelo', icon: '🏷️', value: '{{sale.vehicle.brand}}' }
+        ])}
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">🔧 Lista de Trabajos</h4>
+        <div style="background: #fff3cd; padding: 10px; border-radius: 6px; border: 1px solid #ffc107; margin-bottom: 8px;">
+          <small style="color: #856404; font-size: 11px;">💡 Estos botones crean listas automáticas de todos los trabajos</small>
+        </div>
+        ${createFriendlyButtons([
+          { label: 'Lista simple de trabajos', icon: '📝', value: '{{#each sale.items}}• {{qty}}x {{description}} - {{money total}}\\n{{/each}}', multiline: true },
+          { label: 'Solo nombres de trabajos', icon: '🔧', value: '{{#each sale.items}}{{description}}{{#unless @last}}, {{/unless}}{{/each}}', multiline: true }
+        ])}
+        <button onclick="insertItemsTable()" style="width: 100%; padding: 8px; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 5px;">
+          📊 Crear Tabla Completa de Trabajos
+        </button>
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">⚙️ Opciones Avanzadas</h4>
+        <details style="background: #f8f9fa; padding: 8px; border-radius: 4px; margin-bottom: 5px;">
+          <summary style="cursor: pointer; font-size: 12px; color: #666;">🤓 Para usuarios técnicos</summary>
+          <div style="margin-top: 8px; font-size: 10px;">
+            <div style="margin: 3px 0; padding: 3px; background: #fff; border-radius: 2px; cursor: pointer;" onclick="insertVariableInCanvas('{{technician}}')">
+              Técnico asignado: <code>{{technician}}</code>
+            </div>
+            <div style="margin: 3px 0; padding: 3px; background: #fff; border-radius: 2px; cursor: pointer;" onclick="insertVariableInCanvas('{{uppercase company.name}}')">
+              Nombre en mayúsculas: <code>{{uppercase company.name}}</code>
+            </div>
+          </div>
+        </details>
+      </div>
+    `;
 
     varList.innerHTML = html;
   }
 
+  function createFriendlyButtons(buttons) {
+    return buttons.map(btn => `
+      <button onclick="insertVariableInCanvas('${btn.value.replace(/'/g, "\\'")}', ${btn.multiline || false})" 
+              style="
+                width: 100%; 
+                padding: 8px 10px; 
+                margin: 3px 0; 
+                background: linear-gradient(135deg, #f8f9fa, #e9ecef); 
+                border: 1px solid #dee2e6; 
+                border-radius: 6px; 
+                cursor: pointer; 
+                text-align: left;
+                font-size: 12px;
+                transition: all 0.2s ease;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+              "
+              onmouseover="this.style.background='linear-gradient(135deg, #e3f2fd, #bbdefb)'; this.style.borderColor='#2196f3';"
+              onmouseout="this.style.background='linear-gradient(135deg, #f8f9fa, #e9ecef)'; this.style.borderColor='#dee2e6';">
+        <span style="font-size: 14px;">${btn.icon}</span>
+        <span style="flex: 1; font-weight: 500; color: #495057;">${btn.label}</span>
+        <span style="font-size: 10px; color: #6c757d;">Clic para agregar</span>
+      </button>
+    `).join('');
+  }
+
   // Global function for inserting variables
-  window.insertVariableInCanvas = function(varText) {
+  window.insertVariableInCanvas = function(varText, isMultiline = false) {
     const selectedEl = visualEditor.selectedElement;
+    
+    // If there's a selected element, add to it
     if (selectedEl) {
       const contentEl = selectedEl.querySelector('[contenteditable="true"]');
       if (contentEl) {
-        contentEl.innerHTML += varText;
+        // Add variable at cursor position or append
+        if (isMultiline) {
+          contentEl.style.whiteSpace = 'pre-line';
+          contentEl.style.minHeight = '60px';
+        }
+        
+        // Insert at cursor position if possible
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0 && contentEl.contains(selection.anchorNode)) {
+          const range = selection.getRangeAt(0);
+          range.deleteContents();
+          range.insertNode(document.createTextNode(varText));
+          range.collapse(false);
+        } else {
+          contentEl.innerHTML += varText;
+        }
+        
+        // Show feedback
+        showInsertionFeedback(contentEl, '✅ Variable agregada');
         return;
       }
     }
     
-    // Fallback: add as new text element
-    addElement('text');
-    setTimeout(() => {
-      const newEl = visualEditor.elements[visualEditor.elements.length - 1];
-      if (newEl) {
-        const contentEl = newEl.element.querySelector('[contenteditable="true"]');
-        if (contentEl) {
-          contentEl.innerHTML = varText;
-        }
-      }
-    }, 100);
+    // Create new element for the variable
+    const canvas = qs('#ce-canvas');
+    if (!canvas) return;
+    
+    // Clear placeholder if exists
+    if (canvas.innerHTML.includes('Haz clic en los botones')) {
+      canvas.innerHTML = '';
+    }
+    
+    // Create appropriate element based on variable type
+    let elementType = 'text';
+    let content = varText;
+    let styles = {};
+    
+    // Smart element creation based on content
+    if (varText.includes('total') || varText.includes('money')) {
+      elementType = 'text';
+      styles = { fontSize: '18px', fontWeight: 'bold', color: '#2563eb' };
+    } else if (varText.includes('company.name')) {
+      elementType = 'title';
+      content = varText;
+      styles = { fontSize: '24px', fontWeight: 'bold', color: '#2563eb' };
+    } else if (isMultiline || varText.includes('each')) {
+      elementType = 'text';
+      styles = { 
+        fontSize: '14px', 
+        whiteSpace: 'pre-line', 
+        minHeight: '60px',
+        fontFamily: 'monospace',
+        backgroundColor: '#f8f9fa',
+        padding: '10px',
+        border: '1px solid #dee2e6',
+        borderRadius: '4px'
+      };
+    }
+    
+    const newElement = createEditableElement(elementType, content, {
+      position: { left: 50, top: 50 + (visualEditor.elements.length * 40) },
+      styles: styles
+    });
+    
+    canvas.appendChild(newElement);
+    selectElement(newElement);
+    
+    // Show success message
+    showInsertionFeedback(newElement, '✅ Variable creada como nuevo elemento');
   };
+
+  // Global function to insert items table
+  window.insertItemsTable = function() {
+    addItemsTable();
+    
+    // Show feedback
+    const canvas = qs('#ce-canvas');
+    if (canvas) {
+      showInsertionFeedback(canvas, '✅ Tabla de trabajos creada');
+    }
+  };
+
+  function showInsertionFeedback(element, message) {
+    // Create feedback tooltip
+    const feedback = document.createElement('div');
+    feedback.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #28a745;
+      color: white;
+      padding: 10px 15px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      z-index: 3000;
+      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+      animation: slideInRight 0.3s ease-out;
+    `;
+    feedback.textContent = message;
+    
+    document.body.appendChild(feedback);
+    
+    // Add animation styles
+    if (!document.querySelector('#feedback-animations')) {
+      const animationStyle = document.createElement('style');
+      animationStyle.id = 'feedback-animations';
+      animationStyle.textContent = `
+        @keyframes slideInRight {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutRight {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(animationStyle);
+    }
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+      feedback.style.animation = 'slideOutRight 0.3s ease-in';
+      setTimeout(() => {
+        if (feedback.parentNode) {
+          feedback.remove();
+        }
+      }, 300);
+    }, 3000);
+  }
 
   // Setup keyboard shortcuts
   function setupKeyboardShortcuts() {
