@@ -150,6 +150,33 @@ export async function activeTemplate(req, res) {
   res.json(doc);
 }
 
+// Duplicar plantilla
+export async function duplicateTemplate(req, res) {
+  const { id } = req.params;
+  const { name } = req.body || {};
+  
+  const original = await Template.findOne({ _id: id, companyId: req.companyId });
+  if (!original) return res.status(404).json({ error: 'Template not found' });
+  
+  // Get next version number
+  const last = await Template.findOne({ companyId: req.companyId, type: original.type }).sort({ version: -1 });
+  const version = last ? (last.version + 1) : 1;
+  
+  // Create duplicate with new name
+  const duplicateName = name || `${original.name} - Copia`;
+  const duplicate = await Template.create({
+    companyId: req.companyId,
+    type: original.type,
+    contentHtml: original.contentHtml,
+    contentCss: original.contentCss,
+    name: duplicateName,
+    version: version,
+    active: false // Duplicates are never active by default
+  });
+  
+  res.json(duplicate);
+}
+
 // Eliminar plantilla
 export async function deleteTemplate(req, res) {
   const { id } = req.params;

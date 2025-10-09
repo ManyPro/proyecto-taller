@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seleccionar Formato de Plantilla</title>
+  <link rel="stylesheet" href="assets/styles.css">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      color: #333;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+
+    .header {
+      background: #2c3e50;
+      color: white;
+      padding: 20px 30px;
+      text-align: center;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    .header p {
+      margin: 8px 0 0 0;
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .content {
+      padding: 30px;
+    }
+
+    .step-indicator {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 30px;
+      gap: 20px;
+    }
+
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .step.active {
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+
+    .step.inactive {
+      background: #f5f5f5;
+      color: #999;
+    }
+
+    .document-types {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .document-type-card {
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: #fafafa;
+    }
+
+    .document-type-card:hover {
+      border-color: #2196f3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(33, 150, 243, 0.15);
+    }
+
+    .document-type-card.selected {
+      border-color: #2196f3;
+      background: #e3f2fd;
+    }
+
+    .document-type-card .icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+
+    .document-type-card h3 {
+      margin: 0 0 8px 0;
+      font-size: 18px;
+      color: #333;
+    }
+
+    .document-type-card p {
+      margin: 0;
+      font-size: 14px;
+      color: #666;
+      line-height: 1.4;
+    }
+
+    .formats-section {
+      margin-top: 30px;
+      display: none;
+    }
+
+    .formats-section.show {
+      display: block;
+    }
+
+    .formats-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .formats-header h2 {
+      margin: 0;
+      font-size: 20px;
+      color: #333;
+    }
+
+    .new-format-btn {
+      background: #4caf50;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.3s ease;
+    }
+
+    .new-format-btn:hover {
+      background: #45a049;
+    }
+
+    .formats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .format-card {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background: white;
+    }
+
+    .format-card:hover {
+      border-color: #2196f3;
+      box-shadow: 0 2px 8px rgba(33, 150, 243, 0.15);
+    }
+
+    .format-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .format-card h4 {
+      margin: 0;
+      font-size: 16px;
+      color: #333;
+      font-weight: 600;
+    }
+
+    .format-card .actions {
+      display: flex;
+      gap: 4px;
+    }
+
+    .format-card .action-btn {
+      background: none;
+      border: none;
+      padding: 4px;
+      cursor: pointer;
+      border-radius: 4px;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .format-card .action-btn:hover {
+      background: #f0f0f0;
+      color: #333;
+    }
+
+    .format-card .meta {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 8px;
+    }
+
+    .format-card .preview {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 11px;
+      color: #666;
+      height: 60px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .format-card .preview::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 20px;
+      background: linear-gradient(transparent, #f8f9fa);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+      color: #666;
+    }
+
+    .empty-state .icon {
+      font-size: 48px;
+      color: #ddd;
+      margin-bottom: 16px;
+    }
+
+    .navigation {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .back-btn {
+      background: #6c757d;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .continue-btn {
+      background: #2196f3;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    .continue-btn.enabled {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .continue-btn:hover.enabled {
+      background: #1976d2;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 40px;
+    }
+
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #2196f3;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🎨 Seleccionar Formato de Plantilla</h1>
+      <p>Elige el tipo de documento y el formato que deseas crear o editar</p>
+    </div>
+
+    <div class="content">
+      <!-- Step Indicator -->
+      <div class="step-indicator">
+        <div class="step active">
+          <span>1️⃣</span>
+          <span>Tipo de Documento</span>
+        </div>
+        <div class="step inactive">
+          <span>2️⃣</span>
+          <span>Seleccionar Formato</span>
+        </div>
+        <div class="step inactive">
+          <span>3️⃣</span>
+          <span>Editor</span>
+        </div>
+      </div>
+
+      <!-- Document Type Selection -->
+      <div class="document-types">
+        <div class="document-type-card" data-type="invoice">
+          <div class="icon">🧾</div>
+          <h3>Factura</h3>
+          <p>Documento de cobro oficial con datos fiscales completos</p>
+        </div>
+
+        <div class="document-type-card" data-type="quote">
+          <div class="icon">💰</div>
+          <h3>Cotización</h3>
+          <p>Presupuesto detallado de servicios y productos</p>
+        </div>
+
+        <div class="document-type-card" data-type="workOrder">
+          <div class="icon">🔧</div>
+          <h3>Orden de Trabajo</h3>
+          <p>Documento técnico para registro de reparaciones</p>
+        </div>
+      </div>
+
+      <!-- Formats Section -->
+      <div class="formats-section" id="formats-section">
+        <div class="formats-header">
+          <h2 id="formats-title">Formatos de Factura</h2>
+          <button class="new-format-btn" id="new-format-btn">
+            <span>➕</span>
+            <span>Crear Nuevo Formato</span>
+          </button>
+        </div>
+
+        <div class="formats-grid" id="formats-grid">
+          <!-- Formatos se cargarán dinámicamente -->
+        </div>
+
+        <div class="empty-state" id="empty-state" style="display: none;">
+          <div class="icon">📄</div>
+          <h3>No hay formatos guardados</h3>
+          <p>Crea tu primer formato personalizado haciendo clic en "Crear Nuevo Formato"</p>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Cargando formatos...</p>
+      </div>
+
+      <!-- Navigation -->
+      <div class="navigation">
+        <button class="back-btn" onclick="history.back()">
+          <span>⬅️</span>
+          <span>Volver</span>
+        </button>
+        <button class="continue-btn" id="continue-btn">
+          <span>Continuar</span>
+          <span>➡️</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/js/api.js"></script>
+  <script>
+    let selectedDocumentType = null;
+    let selectedFormat = null;
+    let availableFormats = [];
+
+    // Document type selection
+    document.querySelectorAll('.document-type-card').forEach(card => {
+      card.addEventListener('click', function() {
+        // Remove previous selection
+        document.querySelectorAll('.document-type-card').forEach(c => c.classList.remove('selected'));
+        
+        // Select current
+        this.classList.add('selected');
+        selectedDocumentType = this.dataset.type;
+        
+        // Update step indicator
+        document.querySelector('.step-indicator .step:nth-child(1)').classList.remove('active');
+        document.querySelector('.step-indicator .step:nth-child(1)').classList.add('inactive');
+        document.querySelector('.step-indicator .step:nth-child(2)').classList.remove('inactive');
+        document.querySelector('.step-indicator .step:nth-child(2)').classList.add('active');
+        
+        // Show formats section
+        loadFormats();
+      });
+    });
+
+    // New format button
+    document.getElementById('new-format-btn').addEventListener('click', function() {
+      selectedFormat = 'new';
+      updateContinueButton();
+    });
+
+    // Continue button
+    document.getElementById('continue-btn').addEventListener('click', function() {
+      if (!this.classList.contains('enabled')) return;
+      
+      // Redirect to editor with parameters
+      const params = new URLSearchParams();
+      params.set('type', selectedDocumentType);
+      
+      if (selectedFormat === 'new') {
+        params.set('action', 'create');
+      } else {
+        params.set('action', 'edit');
+        params.set('formatId', selectedFormat.id);
+      }
+      
+      window.location.href = `templates.html?${params.toString()}`;
+    });
+
+    async function loadFormats() {
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('formats-section').classList.add('show');
+      
+      // Update title
+      const titles = {
+        'invoice': 'Formatos de Factura',
+        'quote': 'Formatos de Cotización', 
+        'workOrder': 'Formatos de Orden de Trabajo'
+      };
+      document.getElementById('formats-title').textContent = titles[selectedDocumentType];
+      
+      try {
+        // Load formats from API
+        if (typeof API !== 'undefined') {
+          const response = await API.templates.getByType(selectedDocumentType);
+          availableFormats = response || [];
+        } else {
+          // Mock data for testing
+          availableFormats = getMockFormats(selectedDocumentType);
+        }
+        
+        displayFormats();
+        
+      } catch (error) {
+        console.error('Error loading formats:', error);
+        availableFormats = [];
+        displayFormats();
+      }
+      
+      document.getElementById('loading').style.display = 'none';
+    }
+
+    function displayFormats() {
+      const grid = document.getElementById('formats-grid');
+      const emptyState = document.getElementById('empty-state');
+      
+      if (availableFormats.length === 0) {
+        grid.style.display = 'none';
+        emptyState.style.display = 'block';
+      } else {
+        grid.style.display = 'grid';
+        emptyState.style.display = 'none';
+        
+        grid.innerHTML = availableFormats.map(format => `
+          <div class="format-card" data-format-id="${format.id}">
+            <div class="format-card-header">
+              <h4>${format.name}</h4>
+              <div class="actions">
+                <button class="action-btn" title="Duplicar" onclick="duplicateFormat('${format.id}')">📋</button>
+                <button class="action-btn" title="Eliminar" onclick="deleteFormat('${format.id}')">🗑️</button>
+              </div>
+            </div>
+            <div class="meta">
+              Creado: ${new Date(format.createdAt).toLocaleDateString('es-ES')} | 
+              Modificado: ${new Date(format.updatedAt).toLocaleDateString('es-ES')}
+            </div>
+            <div class="preview">
+              ${format.description || 'Sin descripción disponible'}
+            </div>
+          </div>
+        `).join('');
+        
+        // Add click handlers to format cards
+        document.querySelectorAll('.format-card').forEach(card => {
+          card.addEventListener('click', function(e) {
+            if (e.target.classList.contains('action-btn')) return;
+            
+            // Remove previous selection
+            document.querySelectorAll('.format-card').forEach(c => c.style.borderColor = '#e0e0e0');
+            
+            // Select current
+            this.style.borderColor = '#2196f3';
+            selectedFormat = availableFormats.find(f => f.id === this.dataset.formatId);
+            updateContinueButton();
+          });
+        });
+      }
+    }
+
+    function updateContinueButton() {
+      const btn = document.getElementById('continue-btn');
+      if (selectedFormat) {
+        btn.classList.add('enabled');
+      } else {
+        btn.classList.remove('enabled');
+      }
+    }
+
+    function getMockFormats(type) {
+      // Mock data for testing when API is not available
+      return [
+        {
+          id: `mock-${type}-1`,
+          name: `${type === 'invoice' ? 'Factura' : type === 'quote' ? 'Cotización' : 'Orden'} Estándar`,
+          description: 'Formato básico con información esencial y diseño limpio',
+          createdAt: '2024-01-15T10:30:00Z',
+          updatedAt: '2024-01-20T14:45:00Z',
+          type: type
+        },
+        {
+          id: `mock-${type}-2`, 
+          name: `${type === 'invoice' ? 'Factura' : type === 'quote' ? 'Cotización' : 'Orden'} Detallada`,
+          description: 'Formato completo con información extendida y tabla de servicios',
+          createdAt: '2024-01-10T09:15:00Z',
+          updatedAt: '2024-01-25T16:20:00Z',
+          type: type
+        }
+      ];
+    }
+
+    async function duplicateFormat(formatId) {
+      try {
+        const format = availableFormats.find(f => f.id === formatId);
+        if (!format) return;
+        
+        const newName = prompt('Nombre para el formato duplicado:', `${format.name} - Copia`);
+        if (!newName) return;
+        
+        // API call to duplicate
+        if (typeof API !== 'undefined') {
+          await API.templates.duplicate(formatId, { name: newName });
+          loadFormats(); // Reload
+        }
+      } catch (error) {
+        console.error('Error duplicating format:', error);
+        alert('Error al duplicar el formato');
+      }
+    }
+
+    async function deleteFormat(formatId) {
+      if (!confirm('¿Estás seguro de que quieres eliminar este formato?')) return;
+      
+      try {
+        if (typeof API !== 'undefined') {
+          await API.templates.delete(formatId);
+          loadFormats(); // Reload
+        }
+      } catch (error) {
+        console.error('Error deleting format:', error);
+        alert('Error al eliminar el formato');
+      }
+    }
+
+    // Initialize
+    console.log('🎨 Template Selector inicializado');
+  </script>
+</body>
+</html>

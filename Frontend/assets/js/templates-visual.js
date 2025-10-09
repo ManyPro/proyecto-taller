@@ -2569,6 +2569,29 @@
   document.addEventListener('DOMContentLoaded', function() {
     console.log('🎨 Inicializando Editor Visual Completo...');
     
+    // Check URL parameters for format selection
+    const urlParams = new URLSearchParams(window.location.search);
+    const documentType = urlParams.get('type');
+    const action = urlParams.get('action');
+    const formatId = urlParams.get('formatId');
+    
+    // If no parameters, redirect to format selector
+    if (!documentType || !action) {
+      console.log('🔄 Redirigiendo a selector de formato...');
+      window.location.href = 'template-selector.html';
+      return;
+    }
+    
+    // Store current session info
+    window.currentTemplateSession = {
+      type: documentType,
+      action: action,
+      formatId: formatId,
+      name: null // Will be set when saving
+    };
+    
+    console.log('📋 Sesión de plantilla:', window.currentTemplateSession);
+    
     try {
       // Check if API is available
       if (typeof API === 'undefined') {
@@ -2577,6 +2600,11 @@
         setupVisualEditor();
         setupVariables();
         setupKeyboardShortcuts();
+        
+        // Load default template for document type
+        if (action === 'create') {
+          loadDefaultTemplate(documentType);
+        }
         return;
       }
       
@@ -2588,6 +2616,11 @@
         setupVisualEditor();
         setupVariables();
         setupKeyboardShortcuts();
+        
+        // Load default template for document type
+        if (action === 'create') {
+          loadDefaultTemplate(documentType);
+        }
         return;
       }
       
@@ -2600,7 +2633,14 @@
       // Add company indicator to the interface
       addCompanyIndicator(activeCompany);
       
-      // Load existing templates from backend
+      // Load format based on action
+      if (action === 'edit' && formatId) {
+        loadExistingFormat(formatId);
+      } else if (action === 'create') {
+        loadDefaultTemplate(documentType);
+      }
+      
+      // Load existing templates from backend (for reference)
       loadExistingTemplates();
       
     } catch (error) {
@@ -2614,27 +2654,116 @@
     // Setup existing buttons if they exist
     const saveBtn = qs('#save-template');
     if (saveBtn) {
-      saveBtn.onclick = function() {
+      console.log('✅ Botón Guardar Plantilla encontrado');
+      saveBtn.onclick = function(e) {
+        e.preventDefault();
+        console.log('🔄 Ejecutando saveTemplateToBackend...');
         saveTemplateToBackend();
       };
+    } else {
+      console.error('❌ No se encontró el botón save-template');
     }
     
     const previewBtn = qs('#preview-template');
     if (previewBtn) {
-      previewBtn.onclick = function() {
+      console.log('✅ Botón Vista Previa encontrado');
+      previewBtn.onclick = function(e) {
+        e.preventDefault();
+        console.log('🔄 Ejecutando previewWithRealData...');
         previewWithRealData();
       };
+    } else {
+      console.error('❌ No se encontró el botón preview-template');
     }
 
     const quickSaveBtn = qs('#quick-save');
     if (quickSaveBtn) {
-      quickSaveBtn.onclick = function() {
+      console.log('✅ Botón Guardado Rápido encontrado');
+      quickSaveBtn.onclick = function(e) {
+        e.preventDefault();
+        console.log('🔄 Ejecutando quickSaveTemplate...');
         quickSaveTemplate();
       };
+    } else {
+      console.error('❌ No se encontró el botón quick-save');
     }
     
     console.log('✅ Editor Visual inicializado correctamente');
   });
+
+  // Template loading functions
+  async function loadExistingFormat(formatId) {
+    try {
+      showQuickNotification('🔄 Cargando formato...', 'info');
+      
+      const template = await API.templates.getById(formatId);
+      if (!template) {
+        throw new Error('Formato no encontrado');
+      }
+      
+      // Set template name in session
+      window.currentTemplateSession.name = template.name;
+      
+      // Load content into editor
+      const canvas = qs('#ce-canvas');
+      if (canvas && template.contentHtml) {
+        canvas.innerHTML = template.contentHtml;
+        
+        // Reinitialize all elements
+        reinitializeElements();
+        
+        showQuickNotification(`✅ Formato "${template.name}" cargado`, 'success');
+        console.log('✅ Formato cargado:', template);
+      }
+      
+    } catch (error) {
+      console.error('Error cargando formato:', error);
+      showQuickNotification('❌ Error al cargar formato: ' + error.message, 'error');
+      
+      // Fallback to default template
+      loadDefaultTemplate(window.currentTemplateSession.type);
+    }
+  }
+
+  function loadDefaultTemplate(documentType) {
+    console.log(`🎨 Cargando plantilla por defecto para: ${documentType}`);
+    
+    const canvas = qs('#ce-canvas');
+    if (!canvas) return;
+    
+    // Load appropriate default template
+    if (documentType === 'invoice') {
+      createInvoiceTemplate();
+    } else if (documentType === 'quote') {
+      createQuoteTemplate();
+    } else if (documentType === 'workOrder') {
+      createWorkOrderTemplate();
+    } else {
+      // Generic template
+      canvas.innerHTML = '<div style="color: #999; text-align: center; padding: 50px; pointer-events: none;">Haz clic en los botones de arriba para agregar elementos</div>';
+    }
+    
+    showQuickNotification(`✅ Plantilla por defecto de ${documentType} cargada`, 'success');
+  }
+
+  function reinitializeElements() {
+    // Reinitialize all interactive elements after loading content
+    const elements = document.querySelectorAll('#ce-canvas .tpl-element');
+    elements.forEach(element => {
+      makeElementInteractive(element);
+    });
+    
+    console.log(`🔄 ${elements.length} elementos reinicializados`);
+  }
+
+  function getDocumentTypeName(type) {
+    const names = {
+      'invoice': 'Factura',
+      'quote': 'Cotización', 
+      'workOrder': 'Orden de Trabajo'
+    };
+    return names[type] || type;
+  }
 
   // Backend API integration functions
   async function saveTemplateToBackend() {
@@ -2654,24 +2783,24 @@
       return;
     }
 
-    // Ask user for template details
-    const templateName = prompt('Nombre de la plantilla:', 'Mi Plantilla');
-    if (!templateName) return;
+    // Get template details from current session
+    const session = window.currentTemplateSession;
+    let templateName = session.name;
+    let templateType = session.type;
+    let isUpdate = session.action === 'edit';
 
-    // Detect template type based on content
-    let detectedType = 'invoice'; // default
-    if (content.toLowerCase().includes('cotización')) {
-      detectedType = 'quote';
-    } else if (content.toLowerCase().includes('orden de trabajo')) {
-      detectedType = 'workOrder';
-    } else if (content.toLowerCase().includes('factura')) {
-      detectedType = 'invoice';
+    // If creating new or name not set, ask user
+    if (!templateName || session.action === 'create') {
+      templateName = prompt('Nombre del formato:', templateName || `Nuevo ${getDocumentTypeName(templateType)}`);
+      if (!templateName) return;
+      
+      // Update session name
+      window.currentTemplateSession.name = templateName;
     }
 
-    const templateType = prompt('Tipo de plantilla:', detectedType);
-    if (!templateType) return;
-
-    const activate = confirm('¿Activar como plantilla principal para este tipo?\n(Recomendado: Sí)');
+    const activate = isUpdate ? 
+      confirm('¿Actualizar formato existente?') :
+      confirm('¿Activar como formato principal para este tipo?\n(Recomendado: Sí)');
 
     try {
       // Use API module to ensure proper authentication and company isolation
@@ -2721,19 +2850,27 @@
       return;
     }
 
-    // Auto-detect template type and generate name
-    let templateType = 'invoice'; // default
-    let templateName = 'Borrador';
+    // Get session info or auto-detect
+    const session = window.currentTemplateSession;
+    let templateType = session?.type || 'invoice';
+    let templateName = session?.name;
 
-    if (content.toLowerCase().includes('cotización')) {
-      templateType = 'quote';
-      templateName = 'Cotización Borrador';
-    } else if (content.toLowerCase().includes('orden de trabajo')) {
-      templateType = 'workOrder';
-      templateName = 'Orden de Trabajo Borrador';
-    } else if (content.toLowerCase().includes('factura')) {
-      templateType = 'invoice';
-      templateName = 'Factura Borrador';
+    // If no session name, auto-detect from content
+    if (!templateName) {
+      if (content.toLowerCase().includes('cotización')) {
+        templateType = 'quote';
+        templateName = 'Cotización Borrador';
+      } else if (content.toLowerCase().includes('orden de trabajo')) {
+        templateType = 'workOrder';
+        templateName = 'Orden de Trabajo Borrador';
+      } else if (content.toLowerCase().includes('factura')) {
+        templateType = 'invoice';
+        templateName = 'Factura Borrador';
+      } else {
+        templateName = `${getDocumentTypeName(templateType)} Borrador`;
+      }
+    } else {
+      templateName = `${templateName} - Guardado Rápido`;
     }
 
     // Add timestamp to make it unique

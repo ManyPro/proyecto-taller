@@ -231,11 +231,14 @@ const API = {
   },
   templates: {
     list: (params={}) => http.get(`/api/v1/templates${toQuery(params)}`),
-    get: (id) => http.get(`/api/v1/templates/${id}`),
+    getByType: (type) => http.get(`/api/v1/templates?type=${encodeURIComponent(type)}`),
+    getById: (id) => http.get(`/api/v1/templates/${id}`),
+    get: (id) => http.get(`/api/v1/templates/${id}`), // alias for backward compatibility
     active: (type) => http.get(`/api/v1/templates/active/${encodeURIComponent(type)}`),
     create: (payload) => http.post('/api/v1/templates', payload),
     update: (id, payload) => http.patch(`/api/v1/templates/${id}`, payload),
     delete: (id) => http.del(`/api/v1/templates/${id}`),
+    duplicate: (id, payload) => http.post(`/api/v1/templates/${id}/duplicate`, payload),
     activate: (id) => http.patch(`/api/v1/templates/${id}`, { activate: true }),
     preview: (payload) => http.post('/api/v1/templates/preview', payload)
   }
