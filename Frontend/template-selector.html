@@ -181,6 +181,34 @@
       box-shadow: 0 2px 8px rgba(33, 150, 243, 0.15);
     }
 
+    .format-card.active-format {
+      border-color: #4caf50;
+      background: linear-gradient(135deg, #f8fff8 0%, #e8f5e8 100%);
+      box-shadow: 0 4px 16px rgba(76, 175, 80, 0.2);
+    }
+
+    .format-card.active-format:hover {
+      border-color: #388e3c;
+      box-shadow: 0 6px 20px rgba(76, 175, 80, 0.3);
+    }
+
+    .active-badge {
+      background: linear-gradient(135deg, #4caf50 0%, #388e3c 100%);
+      color: white;
+      font-size: 10px;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin-left: 8px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.8; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
     .format-card-header {
       display: flex;
       justify-content: space-between;
@@ -346,6 +374,195 @@
       border-color: #2196f3;
       box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
     }
+
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .modal-container {
+      background: white;
+      border-radius: 16px;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      animation: slideUp 0.3s ease-out;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-header h3 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 4px;
+      transition: background 0.2s;
+    }
+
+    .modal-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .modal-body {
+      padding: 24px;
+    }
+
+    .input-group {
+      margin-bottom: 20px;
+    }
+
+    .input-group label {
+      display: block;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      box-sizing: border-box;
+    }
+
+    .input-group input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .input-help {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
+
+    #char-counter {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .format-preview {
+      background: #f8f9ff;
+      border: 1px solid #e1e5e9;
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .preview-icon {
+      font-size: 32px;
+      line-height: 1;
+    }
+
+    .preview-text strong {
+      display: block;
+      color: #333;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .preview-text p {
+      margin: 0;
+      color: #666;
+      font-size: 14px;
+    }
+
+    .modal-footer {
+      padding: 20px 24px;
+      background: #f8f9fa;
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .btn-cancel, .btn-create {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-cancel {
+      background: #6c757d;
+      color: white;
+    }
+
+    .btn-cancel:hover {
+      background: #5a6268;
+      transform: translateY(-1px);
+    }
+
+    .btn-create {
+      background: linear-gradient(135deg, #28a745, #20c997);
+      color: white;
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    .btn-create.enabled {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .btn-create.enabled:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    @keyframes slideUp {
+      from { 
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+      }
+      to { 
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
   </style>
 </head>
 <body>
@@ -480,6 +697,36 @@
     </div>
   </div>
 
+  <!-- Modal para nombre de formato -->
+  <div id="format-name-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 id="modal-title">🎨 Crear Nuevo Formato</h3>
+        <button class="modal-close" onclick="closeFormatNameModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="input-group">
+          <label for="format-name-input">Nombre del formato:</label>
+          <input type="text" id="format-name-input" placeholder="Ej: Mi Factura Premium" maxlength="50">
+          <div class="input-help">
+            <span id="char-counter">0/50</span>
+          </div>
+        </div>
+        <div class="format-preview">
+          <div class="preview-icon" id="modal-icon">📄</div>
+          <div class="preview-text">
+            <strong id="preview-type">Factura</strong>
+            <p>Se creará con la plantilla correspondiente</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeFormatNameModal()">Cancelar</button>
+        <button class="btn-create" id="modal-create-btn" onclick="confirmFormatCreation()">Crear Formato</button>
+      </div>
+    </div>
+  </div>
+
   <script src="assets/js/api.js"></script>
   <script>
     let selectedDocumentType = null;
@@ -510,86 +757,91 @@
     // New format button
     document.getElementById('new-format-btn').addEventListener('click', function() {
       console.log('➕ Usuario seleccionó crear nuevo formato');
-      
-      // Ask for format name
-      const documentTypeName = getDocumentTypeName(selectedDocumentType);
-      const defaultName = `Mi ${documentTypeName} ${new Date().toLocaleDateString('es-ES')}`;
-      
-      const formatName = prompt(
-        `Nombre para el nuevo formato de ${documentTypeName}:`, 
-        defaultName
-      );
-      
-      if (!formatName || formatName.trim() === '') {
-        console.log('❌ Creación cancelada - nombre vacío');
-        return;
-      }
-      
-      console.log('📝 Nombre asignado al formato:', formatName);
-      
-      // Remove any previous format selection
-      document.querySelectorAll('.format-card').forEach(c => c.style.borderColor = '#e0e0e0');
-      
-      selectedFormat = {
-        action: 'new',
-        name: formatName.trim()
-      };
-      
-      updateContinueButton();
-      
-      // Visual feedback
-      this.style.background = '#45a049';
-      setTimeout(() => {
-        this.style.background = '#4caf50';
-      }, 200);
-      
-      // Update button text to show selection
-      const continueBtn = document.getElementById('continue-btn');
-      if (continueBtn.classList.contains('enabled')) {
-        continueBtn.innerHTML = `<span>Crear "${formatName}"</span><span>➡️</span>`;
-      }
-      
-      console.log('✅ Nuevo formato configurado - botón continuar habilitado');
+      openFormatNameModal();
     });
 
     // Continue button
-    document.getElementById('continue-btn').addEventListener('click', function() {
+    document.getElementById('continue-btn').addEventListener('click', async function() {
       if (!this.classList.contains('enabled')) {
         console.warn('⚠️ Botón continuar no está habilitado');
         return;
       }
       
-      console.log('🚀 Redirigiendo al editor...');
+      console.log('🚀 Procesando solicitud...');
       console.log('📋 Tipo seleccionado:', selectedDocumentType);
       console.log('🎯 Formato seleccionado:', selectedFormat);
       
       // Show loading state
-      this.innerHTML = '<span>🔄</span><span>Abriendo Editor...</span>';
+      this.innerHTML = '<span>🔄</span><span>Procesando...</span>';
       this.style.background = '#1976d2';
+      this.disabled = true;
       
-      // Redirect to editor with parameters
-      const params = new URLSearchParams();
-      params.set('type', selectedDocumentType);
-      
-      if (selectedFormat === 'new' || (selectedFormat && selectedFormat.action === 'new')) {
-        console.log('➕ Creando nuevo formato');
-        params.set('action', 'create');
-        
-        // Pass format name if available
-        if (selectedFormat && selectedFormat.name) {
-          console.log('📝 Con nombre:', selectedFormat.name);
-          params.set('formatName', selectedFormat.name);
+      try {
+        if (selectedFormat === 'new' || (selectedFormat && selectedFormat.action === 'new')) {
+          console.log('➕ Creando nuevo formato en el backend...');
+          
+          // Create format in backend first
+          if (typeof API !== 'undefined' && selectedFormat.name) {
+            console.log('📡 Guardando formato en servidor...');
+            
+            // Create minimal template to save
+            const newTemplate = await API.templates.create({
+              name: selectedFormat.name,
+              type: selectedDocumentType,
+              contentHtml: '', // Will be filled in editor
+              contentCss: '',
+              activate: false // Don't activate until it's complete
+            });
+            
+            console.log('✅ Formato creado en backend:', newTemplate);
+            
+            // Redirect to editor in edit mode with the new ID
+            const params = new URLSearchParams();
+            params.set('type', selectedDocumentType);
+            params.set('action', 'edit');
+            params.set('formatId', newTemplate._id || newTemplate.id);
+            params.set('formatName', selectedFormat.name);
+            
+            const url = `templates.html?${params.toString()}`;
+            console.log('� Redirigiendo al editor:', url);
+            window.location.href = url;
+            
+          } else {
+            console.warn('⚠️ API no disponible - modo offline');
+            
+            // Fallback to create mode without backend
+            const params = new URLSearchParams();
+            params.set('type', selectedDocumentType);
+            params.set('action', 'create');
+            params.set('formatName', selectedFormat.name);
+            
+            const url = `templates.html?${params.toString()}`;
+            console.log('🔗 Redirigiendo al editor (offline):', url);
+            window.location.href = url;
+          }
+          
+        } else {
+          console.log('📝 Editando formato existente:', selectedFormat.id);
+          
+          const params = new URLSearchParams();
+          params.set('type', selectedDocumentType);
+          params.set('action', 'edit');
+          params.set('formatId', selectedFormat.id);
+          
+          const url = `templates.html?${params.toString()}`;
+          console.log('🔗 Redirigiendo al editor:', url);
+          window.location.href = url;
         }
-      } else {
-        console.log('📝 Editando formato existente:', selectedFormat.id);
-        params.set('action', 'edit');
-        params.set('formatId', selectedFormat.id);
+        
+      } catch (error) {
+        console.error('❌ Error al procesar formato:', error);
+        alert(`Error al crear el formato: ${error.message}`);
+        
+        // Reset button
+        this.innerHTML = '<span>Continuar</span><span>➡️</span>';
+        this.style.background = '#2196f3';
+        this.disabled = false;
       }
-      
-      const url = `templates.html?${params.toString()}`;
-      console.log('🔗 URL de destino:', url);
-      
-      window.location.href = url;
     });
 
     async function loadFormats() {
@@ -609,6 +861,21 @@
         if (typeof API !== 'undefined') {
           const response = await API.templates.getByType(selectedDocumentType);
           availableFormats = response || [];
+          
+          // Get active format
+          try {
+            const activeFormat = await API.templates.active(selectedDocumentType);
+            console.log('⭐ Active format for', selectedDocumentType, ':', activeFormat);
+            
+            // Mark active format
+            if (activeFormat && availableFormats.length > 0) {
+              availableFormats.forEach(format => {
+                format.isActive = (format._id || format.id) === (activeFormat._id || activeFormat.id);
+              });
+            }
+          } catch (err) {
+            console.warn('⚠️ No active format found for', selectedDocumentType, ':', err);
+          }
         } else {
           // No API available - start with empty formats
           availableFormats = [];
@@ -637,17 +904,22 @@
         emptyState.style.display = 'none';
         
         grid.innerHTML = availableFormats.map(format => `
-          <div class="format-card" data-format-id="${format.id}">
+          <div class="format-card ${format.isActive ? 'active-format' : ''}" data-format-id="${format.id || format._id}">
             <div class="format-card-header">
-              <h4>${format.name}</h4>
+              <h4>
+                ${format.isActive ? '⭐ ' : ''}${format.name}
+                ${format.isActive ? '<span class="active-badge">ACTIVO</span>' : ''}
+              </h4>
               <div class="actions">
-                <button class="action-btn" title="Duplicar" onclick="duplicateFormat('${format.id}')">📋</button>
-                <button class="action-btn" title="Eliminar" onclick="deleteFormat('${format.id}')">🗑️</button>
+                <button class="action-btn" title="Duplicar" onclick="duplicateFormat('${format.id || format._id}')">📋</button>
+                ${!format.isActive ? `<button class="action-btn" title="Activar" onclick="activateFormat('${format.id || format._id}')">⭐</button>` : ''}
+                <button class="action-btn" title="Eliminar" onclick="deleteFormat('${format.id || format._id}')">🗑️</button>
               </div>
             </div>
             <div class="meta">
               Creado: ${new Date(format.createdAt).toLocaleDateString('es-ES')} | 
               Modificado: ${new Date(format.updatedAt).toLocaleDateString('es-ES')}
+              ${format.isActive ? ' | <strong>🖨️ Usado para imprimir</strong>' : ''}
             </div>
             <div class="preview">
               ${format.description || 'Sin descripción disponible'}
@@ -806,6 +1078,51 @@
       }
     }
 
+    async function activateFormat(formatId) {
+      console.log('⭐ Intentando activar formato:', formatId);
+      
+      try {
+        if (typeof API !== 'undefined') {
+          console.log('🔄 Activando formato en el servidor...');
+          await API.templates.activate(formatId);
+          
+          // Show success notification
+          const notification = document.createElement('div');
+          notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4caf50;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 3000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+          `;
+          notification.textContent = '⭐ Formato activado para usar en impresiones';
+          document.body.appendChild(notification);
+          
+          setTimeout(() => {
+            if (notification.parentNode) {
+              notification.remove();
+            }
+          }, 3000);
+          
+          console.log('✅ Formato activado correctamente');
+          loadFormats(); // Reload to show active status
+          loadActiveFormats(); // Reload active formats list
+        } else {
+          console.warn('⚠️ API no disponible - no se puede activar formato');
+          alert('API no disponible. El formato no se puede activar en el servidor.');
+        }
+      } catch (error) {
+        console.error('❌ Error activando formato:', error);
+        alert(`Error al activar el formato: ${error.message}`);
+      }
+    }
+
     async function loadActiveFormats() {
       console.log('🔄 Cargando formatos activos...');
       
@@ -914,6 +1231,125 @@
       };
       return names[type] || type;
     }
+
+    // Format Name Modal Functions
+    function openFormatNameModal() {
+      if (!selectedDocumentType) {
+        alert('Por favor selecciona primero el tipo de documento');
+        return;
+      }
+
+      const modal = document.getElementById('format-name-modal');
+      const input = document.getElementById('format-name-input');
+      const modalTitle = document.getElementById('modal-title');
+      const modalIcon = document.getElementById('modal-icon');
+      const previewType = document.getElementById('preview-type');
+      
+      // Configure modal based on document type
+      const documentTypeName = getDocumentTypeName(selectedDocumentType);
+      const icons = {
+        'invoice': '🧾',
+        'quote': '💰',
+        'workOrder': '🔧'
+      };
+      
+      modalTitle.textContent = `🎨 Crear Nuevo ${documentTypeName}`;
+      modalIcon.textContent = icons[selectedDocumentType] || '📄';
+      previewType.textContent = documentTypeName;
+      
+      // Set default name
+      const defaultName = `Mi ${documentTypeName} ${new Date().toLocaleDateString('es-ES')}`;
+      input.value = defaultName;
+      input.select();
+      
+      // Show modal
+      modal.style.display = 'flex';
+      setTimeout(() => input.focus(), 100);
+      
+      // Update character counter
+      updateCharCounter();
+    }
+
+    function closeFormatNameModal() {
+      const modal = document.getElementById('format-name-modal');
+      modal.style.display = 'none';
+    }
+
+    function updateCharCounter() {
+      const input = document.getElementById('format-name-input');
+      const counter = document.getElementById('char-counter');
+      const createBtn = document.getElementById('modal-create-btn');
+      
+      const length = input.value.length;
+      counter.textContent = `${length}/50`;
+      
+      if (length > 0 && length <= 50) {
+        createBtn.classList.add('enabled');
+      } else {
+        createBtn.classList.remove('enabled');
+      }
+    }
+
+    function confirmFormatCreation() {
+      const input = document.getElementById('format-name-input');
+      const formatName = input.value.trim();
+      
+      if (!formatName || formatName.length === 0) {
+        input.focus();
+        return;
+      }
+      
+      console.log('📝 Nombre confirmado:', formatName);
+      
+      // Remove any previous format selection
+      document.querySelectorAll('.format-card').forEach(c => c.style.borderColor = '#e0e0e0');
+      
+      selectedFormat = {
+        action: 'new',
+        name: formatName,
+        isNew: true
+      };
+      
+      // Visually select the new format card
+      const newFormatCard = document.querySelector('.format-option.new-format');
+      if (newFormatCard) {
+        newFormatCard.classList.add('selected');
+        const infoP = newFormatCard.querySelector('.format-info p');
+        if (infoP) {
+          infoP.innerHTML = `<strong>Nuevo formato:</strong><br>"${formatName}"`;
+        }
+      }
+      
+      updateContinueButton();
+      closeFormatNameModal();
+      
+      console.log('✅ Nuevo formato configurado - botón continuar habilitado');
+    }
+
+    // Add event listeners for modal
+    document.addEventListener('DOMContentLoaded', function() {
+      const input = document.getElementById('format-name-input');
+      const createBtn = document.getElementById('modal-create-btn');
+      
+      // Character counter and validation
+      input.addEventListener('input', updateCharCounter);
+      
+      // Enter key to create
+      input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && createBtn.classList.contains('enabled')) {
+          confirmFormatCreation();
+        } else if (e.key === 'Escape') {
+          closeFormatNameModal();
+        }
+      });
+      
+      // Close modal when clicking outside
+      document.getElementById('format-name-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+          closeFormatNameModal();
+        }
+      });
+    });
 
     // Initialize
     console.log('🎨 Template Selector inicializado');
