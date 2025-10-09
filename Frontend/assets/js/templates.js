@@ -142,7 +142,8 @@ const TABLE_LOOP_SNIPPET = '{{#each sale.items}}<tr><td>{{qty}}</td><td>{{descri
   }
 
   async function refreshList(){
-    const typeFilter = qs('tpl-type-filter').value;
+    const typeFilterEl = qs('tpl-type-filter');
+    const typeFilter = typeFilterEl ? typeFilterEl.value : '';
     console.log('Templates.js: Refrescando lista de plantillas...');
     try {
       if (!API || !API.templates || !API.templates.list) {
@@ -173,7 +174,10 @@ const TABLE_LOOP_SNIPPET = '{{#each sale.items}}<tr><td>{{qty}}</td><td>{{descri
 
   function renderList(typeFilter){
     const tbody = qs('tpl-rows');
-    if(!tbody) return;
+    if(!tbody) {
+      console.log('Templates.js: No se encontró tpl-rows');
+      return;
+    }
     const rows = state.templates.filter(t=> !typeFilter || t.type===typeFilter).sort((a,b)=> (a.type.localeCompare(b.type) || b.version - a.version));
     if(!rows.length){ tbody.innerHTML = '<tr><td colspan="6" class="muted">(sin resultados)</td></tr>'; return; }
     tbody.innerHTML = rows.map(t=>{
@@ -188,7 +192,10 @@ const TABLE_LOOP_SNIPPET = '{{#each sale.items}}<tr><td>{{qty}}</td><td>{{descri
 
   function loadVars(){
     const box = qs('tpl-vars');
-    if(!box) return;
+    if(!box) {
+      console.log('Templates.js: No se encontró tpl-vars, creando contenedor temporal');
+      return;
+    }
     const parts = [];
     Object.entries(VAR_GROUPS).forEach(([group, vars])=>{
       const groupId = 'grp-'+group;
@@ -416,12 +423,22 @@ function ensureExampleSnippet(){
   }
 
   function initWhenVisible(){
-    // Initialize only if the formatos tab exists
     console.log('Templates.js: Iniciando initWhenVisible()');
+    
+    // Verificar si estamos en la página correcta
+    const isTemplatesPage = window.location.pathname.includes('templates.html');
+    
+    // Si estamos en templates.html, no ejecutar este script (tiene su propio editor)
+    if(isTemplatesPage) {
+      console.log('Templates.js: En página templates.html, este script no es necesario aquí');
+      return;
+    }
+    
     const tabFormatos = qs('tab-formatos');
     console.log('Templates.js: tab-formatos encontrado:', !!tabFormatos);
+    
     if(!tabFormatos) {
-      console.log('Templates.js: No se encontró tab-formatos, reintentando en 1 segundo...');
+      console.log('Templates.js: No se encontró tab-formatos, reintentando...');
       setTimeout(initWhenVisible, 1000);
       return;
     }
