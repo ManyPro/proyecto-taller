@@ -343,6 +343,8 @@
           <div class="row" id="items-filters">
             <!-- Barra de selección/acción de stickers -->
             <div id="stickerBar" class="row sticker-toolbar"></div>
+            <!-- Botón invisible para compatibilidad con bindStickersButton('--btn-stickers') -->
+            <button id="btn-stickers" class="secondary" style="display:none;">Imprimir stickers</button>
             <input id="q-name" placeholder="Filtrar por nombre..." />
             <input id="q-sku" placeholder="SKU..." />
             <select id="q-intakeId">
@@ -1167,10 +1169,10 @@
       </table>
     </div>
     <div class="row between" style="margin-top:8px; font-size:12px;">
-      <div id="tr-pag" class="muted">P├ígina 1</div>
+  <div id="tr-pag" class="muted">Página 1</div>
       <div class="row" style="gap:6px;">
-        <button id="tr-prev" class="secondary" disabled>ÔùÇ</button>
-        <button id="tr-next" class="secondary" disabled>ÔûÂ</button>
+  <button id="tr-prev" class="secondary" disabled>&larr;</button>
+  <button id="tr-next" class="secondary" disabled>&rarr;</button>
       </div>
     </div>
     <div class="row" style="margin-top:10px; gap:8px;">
@@ -1182,14 +1184,14 @@
   <!-- Load classic API first to populate window.API -->
   <script src="./assets/js/api.js"></script>
   <!-- ESM modules import from api.esm.js (bridge over window.API) -->
-  <script type="module" src="./assets/js/app.js"></script>
-  <script type="module" src="./assets/js/notes.js"></script>
-  <script type="module" src="./assets/js/quotes.js"></script>
-  <script type="module" src="./assets/js/sales.js"></script>
-  <script type="module" src="./assets/js/techreport.js"></script>
-  <script type="module" src="./assets/js/cashflow.js"></script>
-  <script type="module" src="./assets/js/prices.js"></script>
-  <script type="module" src="./assets/js/templates.js"></script>
+  <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
+  <script type="module" src="./assets/js/notes.js" charset="utf-8"></script>
+  <script type="module" src="./assets/js/quotes.js" charset="utf-8"></script>
+  <script type="module" src="./assets/js/sales.js" charset="utf-8"></script>
+  <script type="module" src="./assets/js/techreport.js" charset="utf-8"></script>
+  <script type="module" src="./assets/js/cashflow.js" charset="utf-8"></script>
+  <script type="module" src="./assets/js/prices.js" charset="utf-8"></script>
+  <script src="./assets/js/templates.js" charset="utf-8"></script>
   <script src="./assets/js/input-fix.js"></script>
 </body>
 </html>
