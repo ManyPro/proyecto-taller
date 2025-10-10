@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
 
-// Tipos de documento soportados inicialmente
-const DOC_TYPES = ['quote','invoice','workOrder','sticker'];
+// Tipos de documento soportados
+// Agregamos variantes específicas para stickers para facilitar la gestión separada
+const DOC_TYPES = ['quote','invoice','workOrder','sticker','sticker-qr','sticker-brand'];
 
 const TemplateSchema = new mongoose.Schema({
   companyId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },

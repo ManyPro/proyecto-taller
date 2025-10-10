@@ -47,8 +47,8 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
     else order = await Order.findOne({ companyId }).sort({ createdAt: -1 });
     if (order) ctx.order = order.toObject();
   }
-  // Sticker / Item individual
-  if (['sticker','item'].includes(effective)) {
+  // Sticker / Item individual (admite variantes sticker-qr / sticker-brand)
+  if (['sticker','sticker-qr','sticker-brand','item'].includes(effective)) {
     let item = null;
     if (sampleId) item = await Item.findOne({ _id: sampleId, companyId });
     else item = await Item.findOne({ companyId }).sort({ updatedAt: -1 });

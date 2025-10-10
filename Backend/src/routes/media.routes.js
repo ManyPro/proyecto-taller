@@ -34,9 +34,9 @@ router.post('/upload', authCompany, (req, res, next) => {
   });
 });
 
-// Nuevo endpoint: genera PDF con stickers (2 por item)
+// Nuevo endpoint: genera PDF con stickers
 // Auth opcional: extrae company si se envía Bearer token válido
-router.post('/stickers/pdf', async (req, res, next) => {
+async function generateStickersPdf(req, res, next) {
   try {
     // intentar extraer company desde Authorization (opcional)
     try {
@@ -84,7 +84,7 @@ router.post('/stickers/pdf', async (req, res, next) => {
       return Buffer.from(ab);
     }
 
-    // medidas en puntos (1 cm = 28.3464567 pts)
+  // medidas en puntos (1 cm = 28.3464567 pts)
     const CM = 28.3464567;
     const STICKER_W = 5 * CM; // 5 cm
     const STICKER_H = 3 * CM; // 3 cm
@@ -96,8 +96,131 @@ router.post('/stickers/pdf', async (req, res, next) => {
     doc.on('data', (b) => buffers.push(b));
     doc.on('error', (err) => next(err));
 
-    // generar 2 stickers (páginas) por cada item
+    // Helpers de layout
+    const drawQROnlySticker = async (item) => {
+      const companyName = item.companyName || req.company?.name || "CASA RENAULT H&H";
+      const defaultLogoUrl = `${req.protocol}://${req.get('host')}/uploads/public/logo-renault.jpg`;
+      const companyLogoSrc = item.companyLogo || req.company?.logo || defaultLogoUrl;
+      const sku = (item.sku || item.name || '').toString();
+
+      // Generar QR buffer
+      let qrBuf = null;
+      try {
+        const vx = MARGIN, vy = MARGIN, vw = STICKER_W - 2*MARGIN, vh = STICKER_H - 2*MARGIN;
+        const maxQrPts = Math.min(vw, vh);
+        const DPI = 300; const PT_TO_PX = DPI / 72; const qrPx = Math.max(120, Math.round(maxQrPts * PT_TO_PX));
+        const qrDataUrl = await QRCode.toDataURL(String(sku || ''), { margin: 0, width: qrPx });
+        qrBuf = Buffer.from(qrDataUrl.split(',')[1], 'base64');
+      } catch {}
+
+      doc.addPage({ size: [STICKER_W, STICKER_H], margin: 0 });
+      doc.save();
+      doc.rect(0, 0, STICKER_W, STICKER_H).fill('#FFFFFF');
+
+      const vx = MARGIN, vy = MARGIN, vw = STICKER_W - 2*MARGIN, vh = STICKER_H - 2*MARGIN;
+      const gap = 6;
+      const qrColW = vw * 0.55; // más grande el QR
+      const skuColW = vw - qrColW - gap;
+      const skuColX = vx; const qrColX = vx + skuColW + gap;
+
+      // SKU a la izquierda en recuadro gris
+      const skuSquareSize = Math.min(skuColW, vh);
+      const skuSquareX = skuColX + (skuColW - skuSquareSize)/2;
+      const skuSquareY = vy + (vh - skuSquareSize)/2;
+      const INTERNAL_PADDING = 2;
+      const skuInnerSize = Math.max(0, skuSquareSize - INTERNAL_PADDING*2);
+
+      doc.save();
+      doc.fillColor('#c0b7b7ff');
+      if (typeof doc.roundedRect === 'function') doc.roundedRect(skuSquareX, skuSquareY, skuSquareSize, skuSquareSize, 6).fill();
+      else doc.rect(skuSquareX, skuSquareY, skuSquareSize, skuSquareSize).fill();
+      doc.restore();
+
+      doc.fillColor('#000').font('Helvetica-Bold');
+      let skuFont = Math.floor(skuInnerSize * 0.18); if (skuFont < 8) skuFont = 8; if (skuFont > 20) skuFont = 20;
+      doc.fontSize(skuFont);
+      doc.text(String(sku || ''), skuSquareX + INTERNAL_PADDING, skuSquareY + (skuSquareSize - skuFont)/2, { width: skuInnerSize, align: 'center', ellipsis: true });
+
+      // QR a la derecha
+      if (qrBuf) {
+        const qrSquareSize = Math.min(qrColW, vh);
+        const qrInner = Math.max(0, qrSquareSize - INTERNAL_PADDING*2);
+        const qrX = qrColX + (qrColW - qrSquareSize)/2 + INTERNAL_PADDING;
+        const qrY = vy + (vh - qrSquareSize)/2 + INTERNAL_PADDING;
+        try { doc.image(qrBuf, qrX, qrY, { fit: [qrInner, qrInner], align: 'center', valign: 'center' }); }
+        catch { doc.fontSize(8).text('QR ERR', qrColX + qrColW/2, vy + vh/2, { align: 'center' }); }
+      }
+      doc.restore();
+    };
+
+    const drawBrandQRSticker = async (item) => {
+      const companyName = item.companyName || req.company?.name || "CASA RENAULT H&H";
+      const defaultLogoUrl = `${req.protocol}://${req.get('host')}/uploads/public/logo-renault.jpg`;
+      const companyLogoSrc = item.companyLogo || req.company?.logo || defaultLogoUrl;
+      const sku = (item.sku || item.name || '').toString();
+
+      // cargar logo
+      const logoBuffer = await fetchImageBuffer(companyLogoSrc).catch(() => null);
+      // generar QR
+      let qrBuf = null;
+      try {
+        const vx = MARGIN, vy = MARGIN, vw = STICKER_W - 2*MARGIN, vh = STICKER_H - 2*MARGIN;
+        const maxQrPts = Math.min(vw*0.45, vh*0.8);
+        const DPI = 300; const PT_TO_PX = DPI / 72; const qrPx = Math.max(120, Math.round(maxQrPts * PT_TO_PX));
+        const qrDataUrl = await QRCode.toDataURL(String(sku || ''), { margin: 0, width: qrPx });
+        qrBuf = Buffer.from(qrDataUrl.split(',')[1], 'base64');
+      } catch {}
+
+      doc.addPage({ size: [STICKER_W, STICKER_H], margin: 0 });
+      doc.save();
+      doc.rect(0, 0, STICKER_W, STICKER_H).fill('#FFFFFF');
+
+      const vx = MARGIN, vy = MARGIN, vw = STICKER_W - 2*MARGIN, vh = STICKER_H - 2*MARGIN;
+      const leftW = vw * 0.5; // zona marca/sku
+      const rightW = vw - leftW; // zona QR
+
+      // Marca (arriba izquierda)
+      if (logoBuffer) {
+        try {
+          const maxLogoH = vh * 0.5, maxLogoW = leftW * 0.9;
+          const fitW = Math.min(maxLogoW, maxLogoH);
+          const logoX = vx + (leftW - fitW)/2;
+          const logoY = vy + 2;
+          doc.image(logoBuffer, logoX, logoY, { fit: [fitW, maxLogoH], align: 'center', valign: 'top' });
+        } catch {}
+      }
+      doc.fillColor('#000').font('Helvetica-Bold');
+      let nameFont = Math.floor(vh * 0.18); if (nameFont < 6) nameFont = 6; if (nameFont > 12) nameFont = 12;
+      doc.fontSize(nameFont).text(companyName, vx, vy + vh * 0.55, { width: leftW, align: 'center', ellipsis: true });
+
+      // SKU (debajo pequeño)
+      doc.font('Helvetica-Bold').fontSize(10).text(String(sku || ''), vx, vy + vh * 0.82, { width: leftW, align: 'center', ellipsis: true });
+
+      // QR a la derecha
+      if (qrBuf) {
+        try {
+          const qrSize = Math.min(rightW, vh);
+          const qrX = vx + leftW + (rightW - qrSize)/2;
+          const qrY = vy + (vh - qrSize)/2;
+          doc.image(qrBuf, qrX, qrY, { fit: [qrSize, qrSize], align: 'center', valign: 'center' });
+        } catch {}
+      }
+      doc.restore();
+    };
+
+    const variant = (req.query.variant || req.body?.variant || '').toString().toLowerCase();
+
+    // generar stickers por item segun variante
     for (const item of items) {
+      if (variant === 'qr' || variant === 'qr-only') {
+        await drawQROnlySticker(item);
+        continue;
+      }
+      if (variant === 'brand' || variant === 'brand-qr' || variant === 'brandqr') {
+        await drawBrandQRSticker(item);
+        continue;
+      }
+      // Default: dos páginas (marca y qr separados como antes)
       const companyName = item.companyName || req.company?.name || "CASA RENAULT H&H";
       const defaultLogoUrl = `${req.protocol}://${req.get('host')}/uploads/public/logo-renault.jpg`;
       const companyLogoSrc = item.companyLogo || req.company?.logo || defaultLogoUrl;
@@ -228,7 +351,7 @@ router.post('/stickers/pdf', async (req, res, next) => {
 
       doc.restore();
       // ---- FIN STICKER B MODIFICADO ----
-    }
+  }
 
     // preparar respuesta una vez termine el stream del PDF
     doc.on('end', () => {
@@ -243,6 +366,11 @@ router.post('/stickers/pdf', async (req, res, next) => {
   } catch (err) {
     return next(err);
   }
-});
+}
+
+router.post('/stickers/pdf', generateStickersPdf);
+router.post('/stickers/pdf/brand', (req, res, next) => { req.query.variant = 'brand'; return generateStickersPdf(req, res, next); });
+router.post('/stickers/pdf/qr', (req, res, next) => { req.query.variant = 'qr'; return generateStickersPdf(req, res, next); });
+
 
 export default router;

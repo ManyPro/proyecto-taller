@@ -50,6 +50,18 @@
           <h3>Orden de Trabajo</h3>
           <p>Documento técnico para registro de reparaciones</p>
         </div>
+
+        <div class="document-type-card" data-type="sticker-qr">
+          <div class="icon">🏷️</div>
+          <h3>Sticker: Solo QR</h3>
+          <p>Etiqueta compacta con QR y código SKU</p>
+        </div>
+
+        <div class="document-type-card" data-type="sticker-brand">
+          <div class="icon">🏷️</div>
+          <h3>Sticker: Marca + QR</h3>
+          <p>Etiqueta con logo/marca y QR</p>
+        </div>
       </div>
 
       <!-- Formats Section -->
@@ -121,6 +133,28 @@
               <option value="">Cargando formatos...</option>
             </select>
             <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">Este formato se usará al imprimir órdenes de trabajo</p>
+          </div>
+
+          <div class="format-config-card" data-type="sticker-qr">
+            <h4 style="margin: 0 0 15px 0; color: #333; display: flex; align-items: center; gap: 8px;">
+              <span>🏷️</span>
+              <span>Formato de Sticker Activo (Solo QR)</span>
+            </h4>
+            <select id="active-stickerqr-format" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+              <option value="">Cargando formatos...</option>
+            </select>
+            <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">Se usará para imprimir stickers con solo QR y código</p>
+          </div>
+
+          <div class="format-config-card" data-type="sticker-brand">
+            <h4 style="margin: 0 0 15px 0; color: #333; display: flex; align-items: center; gap: 8px;">
+              <span>🏷️</span>
+              <span>Formato de Sticker Activo (Marca + QR)</span>
+            </h4>
+            <select id="active-stickerbrand-format" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+              <option value="">Cargando formatos...</option>
+            </select>
+            <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">Se usará para imprimir stickers con marca y QR</p>
           </div>
         </div>
       </div>
@@ -286,7 +320,10 @@
       const titles = {
         'invoice': 'Formatos de Factura',
         'quote': 'Formatos de Cotización', 
-        'workOrder': 'Formatos de Orden de Trabajo'
+        'workOrder': 'Formatos de Orden de Trabajo',
+        'sticker': 'Formatos de Stickers',
+        'sticker-qr': 'Formatos: Sticker Solo QR',
+        'sticker-brand': 'Formatos: Sticker Marca + QR'
       };
       document.getElementById('formats-title').textContent = titles[selectedDocumentType];
       
@@ -489,11 +526,11 @@
     async function loadActiveFormats() {
       console.log('🔄 Cargando formatos activos...');
       
-      const documentTypes = ['invoice', 'quote', 'workOrder'];
+  const documentTypes = ['invoice', 'quote', 'workOrder', 'sticker-qr', 'sticker-brand'];
       
       for (const type of documentTypes) {
         try {
-          const selectElement = document.getElementById(`active-${type === 'workOrder' ? 'workorder' : type}-format`);
+          const selectElement = document.getElementById(`active-${type === 'workOrder' ? 'workorder' : type.replace(/\-/g,'')}-format`);
           if (!selectElement) continue;
           
           // Load all formats for this type
@@ -524,7 +561,7 @@
           
         } catch (error) {
           console.error(`Error cargando formatos para ${type}:`, error);
-          const selectElement = document.getElementById(`active-${type === 'workOrder' ? 'workorder' : type}-format`);
+          const selectElement = document.getElementById(`active-${type === 'workOrder' ? 'workorder' : type.replace(/\-/g,'')}-format`);
           if (selectElement) {
             selectElement.innerHTML = '<option value="">Error cargando formatos</option>';
           }
@@ -542,10 +579,14 @@
           await API.templates.activate(formatId);
           
           // Show success message
-          const formatName = document.querySelector(`#active-${documentType === 'workOrder' ? 'workorder' : documentType}-format option[value="${formatId}"]`).textContent;
+          const selectId = `active-${documentType === 'workOrder' ? 'workorder' : documentType.replace(/\\-/g,'')}-format`;
+          const optionEl = document.querySelector(`#${selectId} option[value="${formatId}"]`);
+          const formatName = optionEl ? optionEl.textContent : formatId;
           
           showNotification(`✅ Formato "${formatName}" activado para ${getDocumentTypeNamePlural(documentType)}`, 'success');
           console.log(`✅ Formato activado exitosamente`);
+          // Refresh active selectors to reflect new state
+          loadActiveFormats();
         } else {
           console.error('❌ API no disponible');
           alert('❌ Error: API no disponible para activar formato');
@@ -561,7 +602,9 @@
       const names = {
         'invoice': 'Factura',
         'quote': 'Cotización', 
-        'workOrder': 'Orden de Trabajo'
+        'workOrder': 'Orden de Trabajo',
+        'sticker-qr': 'Sticker Solo QR',
+        'sticker-brand': 'Sticker con Marca'
       };
       return names[type] || type;
     }
@@ -570,7 +613,9 @@
       const names = {
         'invoice': 'Facturas',
         'quote': 'Cotizaciones', 
-        'workOrder': 'Órdenes de Trabajo'
+        'workOrder': 'Órdenes de Trabajo',
+        'sticker-qr': 'Stickers (Solo QR)',
+        'sticker-brand': 'Stickers (Marca + QR)'
       };
       return names[type] || type;
     }
@@ -593,7 +638,9 @@
       const icons = {
         'invoice': '🧾',
         'quote': '💰',
-        'workOrder': '🔧'
+        'workOrder': '🔧',
+        'sticker-qr': '🏷️',
+        'sticker-brand': '🏷️'
       };
       
       modalTitle.textContent = `🎨 Crear Nuevo ${documentTypeName}`;
