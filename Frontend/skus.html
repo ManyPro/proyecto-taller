@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de SKUs - Taller</title>
+    <link rel="stylesheet" href="assets/styles.css">
+    <style>
+        .sku-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 12px;
+            color: white;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #1976D2;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-left: 4px solid #4CAF50;
+        }
+
+        .stat-card.pending {
+            border-left-color: #FF9800;
+        }
+
+        .stat-card.printed {
+            border-left-color: #2196F3;
+        }
+
+        .stat-card.applied {
+            border-left-color: #4CAF50;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+
+        .categories-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+        }
+
+        .category-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .category-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .category-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .category-stats {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9rem;
+        }
+
+        .category-body {
+            padding: 0;
+        }
+
+        .sku-item {
+            padding: 15px 20px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            transition: background-color 0.3s ease;
+        }
+
+        .sku-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .sku-item:last-child {
+            border-bottom: none;
+        }
+
+        .sku-info {
+            flex: 1;
+        }
+
+        .sku-code {
+            font-weight: bold;
+            color: #333;
+            font-size: 1.1rem;
+        }
+
+        .sku-description {
+            color: #666;
+            margin: 5px 0;
+            font-size: 0.9rem;
+        }
+
+        .sku-meta {
+            font-size: 0.8rem;
+            color: #999;
+            display: flex;
+            gap: 15px;
+        }
+
+        .sku-status {
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: #FFF3E0;
+            color: #F57C00;
+        }
+
+        .status-printed {
+            background: #E3F2FD;
+            color: #1976D2;
+        }
+
+        .status-applied {
+            background: #E8F5E8;
+            color: #388E3C;
+        }
+
+        .sku-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .btn-print {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-apply {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-edit {
+            background: #FF9800;
+            color: white;
+        }
+
+        .btn-delete {
+            background: #f44336;
+            color: white;
+        }
+
+        .notes-section {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .empty-category {
+            padding: 40px 20px;
+            text-align: center;
+            color: #666;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .close {
+            font-size: 2rem;
+            font-weight: bold;
+            cursor: pointer;
+            background: none;
+            border: none;
+            color: white;
+        }
+
+        .modal-body {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .suggestion-hint {
+            font-size: 0.9rem;
+            color: #666;
+            margin-top: 5px;
+            padding: 8px;
+            background: #f0f8ff;
+            border-radius: 4px;
+            border-left: 3px solid #2196F3;
+        }
+
+        .modal-footer {
+            padding: 20px 30px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 15px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 1001;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: #4CAF50;
+        }
+
+        .notification.error {
+            background: #f44336;
+        }
+
+        .notification.warning {
+            background: #FF9800;
+        }
+
+        @media (max-width: 768px) {
+            .categories-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            
+            .sku-item {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 15px;
+            }
+            
+            .sku-actions {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sku-container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1>📦 Gestión de SKUs</h1>
+                <p style="margin: 5px 0 0 0; opacity: 0.9;">Control y seguimiento de códigos de repuestos</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="refreshData()">
+                    <span>🔄</span>
+                    <span>Actualizar</span>
+                </button>
+                <button class="btn btn-primary" onclick="openCreateModal()">
+                    <span>➕</span>
+                    <span>Nuevo SKU</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="total-skus">0</div>
+                <div class="stat-label">Total SKUs</div>
+            </div>
+            <div class="stat-card pending">
+                <div class="stat-number" id="pending-skus">0</div>
+                <div class="stat-label">Pendientes</div>
+            </div>
+            <div class="stat-card printed">
+                <div class="stat-number" id="printed-skus">0</div>
+                <div class="stat-label">Impresos</div>
+            </div>
+            <div class="stat-card applied">
+                <div class="stat-number" id="applied-skus">0</div>
+                <div class="stat-label">Aplicados</div>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Cargando SKUs...</p>
+        </div>
+
+        <!-- Categories -->
+        <div class="categories-container" id="categories-container" style="display: none;">
+            <!-- Se llenará dinámicamente -->
+        </div>
+    </div>
+
+    <!-- Modal para crear/editar SKU -->
+    <div id="sku-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modal-title">Crear Nuevo SKU</h2>
+                <button class="close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="sku-form">
+                    <div class="form-group">
+                        <label for="sku-code">Código SKU *</label>
+                        <input type="text" id="sku-code" name="code" required placeholder="Ej: MOTOR01">
+                        <div id="suggestion-hint" class="suggestion-hint" style="display: none;"></div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="sku-category">Categoría *</label>
+                        <select id="sku-category" name="category" required>
+                            <option value="">Seleccionar categoría...</option>
+                            <option value="MOTOR">Motor</option>
+                            <option value="TRANSMISION">Transmisión</option>
+                            <option value="FRENOS">Frenos</option>
+                            <option value="SUSPENSION">Suspensión</option>
+                            <option value="ELECTRICO">Eléctrico</option>
+                            <option value="CARROCERIA">Carrocería</option>
+                            <option value="INTERIOR">Interior</option>
+                            <option value="FILTROS">Filtros</option>
+                            <option value="ACEITES">Aceites</option>
+                            <option value="NEUMATICOS">Neumáticos</option>
+                            <option value="OTROS">Otros</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="sku-description">Descripción *</label>
+                        <input type="text" id="sku-description" name="description" required placeholder="Descripción del repuesto">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="sku-brand">Marca</label>
+                        <input type="text" id="sku-brand" name="brand" placeholder="Marca del repuesto">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="sku-part-number">Número de Parte</label>
+                        <input type="text" id="sku-part-number" name="partNumber" placeholder="Número de parte del fabricante">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="sku-location">Ubicación</label>
+                        <input type="text" id="sku-location" name="location" placeholder="Ubicación en el taller">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="sku-notes">Notas</label>
+                        <textarea id="sku-notes" name="notes" rows="3" placeholder="Notas adicionales..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="saveSKU()">Guardar SKU</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="assets/config.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script>
+        let currentEditingId = null;
+        let skusData = {};
+
+        // Inicializar página
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Iniciando gestión de SKUs');
+            loadSKUsData();
+            
+            // Auto-sugerencia en el campo código
+            document.getElementById('sku-code').addEventListener('input', debounce(checkCodeSuggestion, 500));
+        });
+
+        // Cargar datos de SKUs
+        async function loadSKUsData() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('categories-container').style.display = 'none';
+                
+                const [statsResponse, categoriesResponse] = await Promise.all([
+                    API.skus.stats(),
+                    API.skus.byCategory()
+                ]);
+                
+                updateStats(statsResponse.total);
+                displayCategories(categoriesResponse.categories);
+                
+            } catch (error) {
+                console.error('Error cargando SKUs:', error);
+                showNotification('Error al cargar los datos: ' + error.message, 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('categories-container').style.display = 'grid';
+            }
+        }
+
+        // Actualizar estadísticas
+        function updateStats(stats) {
+            document.getElementById('total-skus').textContent = stats.total || 0;
+            document.getElementById('pending-skus').textContent = stats.pending || 0;
+            document.getElementById('printed-skus').textContent = stats.printed || 0;
+            document.getElementById('applied-skus').textContent = stats.applied || 0;
+        }
+
+        // Mostrar categorías
+        function displayCategories(categories) {
+            skusData = categories;
+            const container = document.getElementById('categories-container');
+            container.innerHTML = '';
+
+            const categoryOrder = ['MOTOR', 'TRANSMISION', 'FRENOS', 'SUSPENSION', 'ELECTRICO', 'CARROCERIA', 'INTERIOR', 'FILTROS', 'ACEITES', 'NEUMATICOS', 'OTROS'];
+            
+            categoryOrder.forEach(categoryKey => {
+                if (!categories[categoryKey]) return;
+                
+                const category = categories[categoryKey];
+                const categoryDiv = createCategoryElement(categoryKey, category);
+                container.appendChild(categoryDiv);
+            });
+        }
+
+        // Crear elemento de categoría
+        function createCategoryElement(categoryKey, category) {
+            const categoryNames = {
+                'MOTOR': 'Motor',
+                'TRANSMISION': 'Transmisión',
+                'FRENOS': 'Frenos',
+                'SUSPENSION': 'Suspensión',
+                'ELECTRICO': 'Eléctrico',
+                'CARROCERIA': 'Carrocería',
+                'INTERIOR': 'Interior',
+                'FILTROS': 'Filtros',
+                'ACEITES': 'Aceites',
+                'NEUMATICOS': 'Neumáticos',
+                'OTROS': 'Otros'
+            };
+
+            const div = document.createElement('div');
+            div.className = 'category-section';
+            
+            const stats = category.stats;
+            const skus = category.skus || [];
+            
+            div.innerHTML = `
+                <div class="category-header">
+                    <h3 class="category-title">🔧 ${categoryNames[categoryKey] || categoryKey}</h3>
+                    <div class="category-stats">
+                        <span>Total: ${stats.total}</span>
+                        <span>Pendientes: ${stats.pending}</span>
+                    </div>
+                </div>
+                <div class="category-body">
+                    ${skus.length === 0 ? 
+                        '<div class="empty-category">📦 No hay SKUs en esta categoría</div>' :
+                        skus.map(sku => createSKUElement(sku)).join('')
+                    }
+                </div>
+            `;
+            
+            return div;
+        }
+
+        // Crear elemento SKU
+        function createSKUElement(sku) {
+            const statusClasses = {
+                'pending': 'status-pending',
+                'printed': 'status-printed',
+                'applied': 'status-applied'
+            };
+
+            const statusLabels = {
+                'pending': '⏳ Pendiente',
+                'printed': '🖨️ Impreso',
+                'applied': '✅ Aplicado'
+            };
+
+            const formattedDate = new Date(sku.createdAt).toLocaleDateString('es-ES');
+
+            return `
+                <div class="sku-item">
+                    <div class="sku-info">
+                        <div class="sku-code">${sku.code}</div>
+                        <div class="sku-description">${sku.description}</div>
+                        <div class="sku-meta">
+                            <span>📅 ${formattedDate}</span>
+                            ${sku.brand ? `<span>🏷️ ${sku.brand}</span>` : ''}
+                            ${sku.location ? `<span>📍 ${sku.location}</span>` : ''}
+                        </div>
+                        ${sku.notes ? `<div class="notes-section">📝 ${sku.notes}</div>` : ''}
+                    </div>
+                    <div class="sku-status ${statusClasses[sku.printStatus]}">
+                        ${statusLabels[sku.printStatus]}
+                    </div>
+                    <div class="sku-actions">
+                        ${sku.printStatus === 'pending' ? `<button class="action-btn btn-print" onclick="markAsPrinted('${sku._id}')">🖨️</button>` : ''}
+                        ${sku.printStatus === 'printed' ? `<button class="action-btn btn-apply" onclick="markAsApplied('${sku._id}')">✅</button>` : ''}
+                        <button class="action-btn btn-edit" onclick="editSKU('${sku._id}')">✏️</button>
+                        <button class="action-btn btn-delete" onclick="deleteSKU('${sku._id}')">🗑️</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Verificar sugerencia de código
+        async function checkCodeSuggestion() {
+            const codeInput = document.getElementById('sku-code');
+            const hint = document.getElementById('suggestion-hint');
+            const code = codeInput.value.trim();
+            
+            if (code.length < 2) {
+                hint.style.display = 'none';
+                return;
+            }
+
+            try {
+                const response = await API.skus.getSuggestion(code);
+                hint.innerHTML = `💡 Sugerencia: <strong>${response.suggestion}</strong>`;
+                hint.style.display = 'block';
+            } catch (error) {
+                hint.style.display = 'none';
+            }
+        }
+
+        // Abrir modal crear
+        function openCreateModal() {
+            currentEditingId = null;
+            document.getElementById('modal-title').textContent = 'Crear Nuevo SKU';
+            document.getElementById('sku-form').reset();
+            document.getElementById('suggestion-hint').style.display = 'none';
+            document.getElementById('sku-modal').style.display = 'block';
+        }
+
+        // Cerrar modal
+        function closeModal() {
+            document.getElementById('sku-modal').style.display = 'none';
+            currentEditingId = null;
+        }
+
+        // Guardar SKU
+        async function saveSKU() {
+            try {
+                const form = document.getElementById('sku-form');
+                const formData = new FormData(form);
+                const data = Object.fromEntries(formData.entries());
+                
+                if (currentEditingId) {
+                    await API.skus.update(currentEditingId, data);
+                    showNotification('SKU actualizado correctamente', 'success');
+                } else {
+                    await API.skus.create(data);
+                    showNotification('SKU creado correctamente', 'success');
+                }
+                
+                closeModal();
+                loadSKUsData();
+                
+            } catch (error) {
+                console.error('Error guardando SKU:', error);
+                showNotification('Error: ' + error.message, 'error');
+            }
+        }
+
+        // Editar SKU
+        async function editSKU(id) {
+            try {
+                const response = await API.skus.get(id);
+                const sku = response.sku;
+                
+                currentEditingId = id;
+                document.getElementById('modal-title').textContent = 'Editar SKU';
+                
+                document.getElementById('sku-code').value = sku.code;
+                document.getElementById('sku-category').value = sku.category;
+                document.getElementById('sku-description').value = sku.description;
+                document.getElementById('sku-brand').value = sku.brand || '';
+                document.getElementById('sku-part-number').value = sku.partNumber || '';
+                document.getElementById('sku-location').value = sku.location || '';
+                document.getElementById('sku-notes').value = sku.notes || '';
+                
+                document.getElementById('sku-modal').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error cargando SKU:', error);
+                showNotification('Error al cargar SKU: ' + error.message, 'error');
+            }
+        }
+
+        // Marcar como impreso
+        async function markAsPrinted(id) {
+            try {
+                await API.skus.markAsPrinted(id);
+                showNotification('SKU marcado como impreso', 'success');
+                loadSKUsData();
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error: ' + error.message, 'error');
+            }
+        }
+
+        // Marcar como aplicado
+        async function markAsApplied(id) {
+            try {
+                await API.skus.markAsApplied(id);
+                showNotification('SKU marcado como aplicado', 'success');
+                loadSKUsData();
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error: ' + error.message, 'error');
+            }
+        }
+
+        // Eliminar SKU
+        async function deleteSKU(id) {
+            if (!confirm('¿Estás seguro de que quieres eliminar este SKU?')) {
+                return;
+            }
+
+            try {
+                await API.skus.delete(id);
+                showNotification('SKU eliminado correctamente', 'success');
+                loadSKUsData();
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('Error: ' + error.message, 'error');
+            }
+        }
+
+        // Actualizar datos
+        function refreshData() {
+            loadSKUsData();
+        }
+
+        // Mostrar notificación
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            setTimeout(() => notification.classList.add('show'), 100);
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Debounce utility
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Cerrar modal al hacer clic fuera
+        window.onclick = function(event) {
+            const modal = document.getElementById('sku-modal');
+            if (event.target === modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>

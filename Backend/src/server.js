@@ -9,6 +9,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { authCompany } from './middlewares/auth.js';
+import skusRouter from './routes/skus.routes.js';
 import companyAuthRouter from './routes/auth.routes.js';
 import healthRouter from './routes/health.js';
 import inventoryRouter from './routes/inventory.routes.js';
@@ -101,6 +102,7 @@ app.use('/api/v1/profiles', authCompany, withCompanyDefaults, profilesRouter);
 app.use('/api/v1/company', companyRouter);
 app.use('/api/v1/cashflow', authCompany, withCompanyDefaults, cashflowRouter);
 app.use('/api/v1/templates', authCompany, withCompanyDefaults, templatesRouter);
+app.use('/api/v1/skus', authCompany, withCompanyDefaults, skusRouter);
 
 app.use((err, _req, res, _next) => {
   const isJsonParse = err?.type === 'entity.parse.failed' || (err instanceof SyntaxError && 'body' in err);

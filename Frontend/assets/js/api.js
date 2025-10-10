@@ -1,4 +1,4 @@
-// =======================
+  // =======================
 // API publico
 // =======================
 const API_BASE = (typeof window !== 'undefined' && window.BACKEND_URL) ? window.BACKEND_URL : 
@@ -242,6 +242,21 @@ const API = {
     duplicate: (id, payload) => http.post(`/api/v1/templates/${id}/duplicate`, payload),
     activate: (id) => http.patch(`/api/v1/templates/${id}`, { activate: true }),
     preview: (payload) => http.post('/api/v1/templates/preview', payload)
+  },
+  
+  // --- SKUs ---
+  skus: {
+    list: (params = {}) => http.get(`/api/v1/skus${toQuery(params)}`),
+    byCategory: () => http.get('/api/v1/skus/by-category'),
+    stats: () => http.get('/api/v1/skus/stats'),
+    get: (id) => http.get(`/api/v1/skus/${id}`),
+    create: (payload) => http.post('/api/v1/skus', payload),
+    update: (id, payload) => http.patch(`/api/v1/skus/${id}`, payload),
+    delete: (id) => http.del(`/api/v1/skus/${id}`),
+    getSuggestion: (prefix) => http.get(`/api/v1/skus/suggestion/${encodeURIComponent(prefix)}`),
+    markAsPrinted: (id) => http.patch(`/api/v1/skus/${id}/print`),
+    markAsApplied: (id) => http.patch(`/api/v1/skus/${id}/apply`),
+    updateNotes: (id, notes) => http.patch(`/api/v1/skus/${id}/notes`, { notes })
   }
 };
 
