@@ -5,7 +5,7 @@
 import { initNotes } from "./notes.js";
 import { initInventory } from "./inventory.js";
 import { initQuotes } from "./quotes.js";
-import { API } from "./api.js";
+import { API } from "./api.esm.js";
 import { initPrices } from "./prices.js";
 import { initSales } from "./sales.js";
 import { initTechReport } from "./techreport.js";

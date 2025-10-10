@@ -1,4 +1,4 @@
-import { API } from "./api.js";
+import { API } from "./api.esm.js";
 import { plateColor, fmt, upper } from "./utils.js";
 
 const notesState = { page: 1, limit: 50, lastFilters: {} };

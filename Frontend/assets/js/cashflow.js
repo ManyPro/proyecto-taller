@@ -1,5 +1,5 @@
 /* assets/js/cashflow.js - UI Flujo de Caja */
-import { API } from './api.js';
+import { API } from './api.esm.js';
 
 const money = (n)=>'$'+Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 let cfState = { page:1, pages:1, limit:50 };

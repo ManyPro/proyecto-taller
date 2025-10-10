@@ -4,8 +4,9 @@
 <meta charset="utf-8" />
 <title>Restablecer contraseña</title>
 <link rel="stylesheet" href="assets/styles.css" />
+<script src="./assets/js/api.js"></script>
 <script type="module">
-import { API } from './assets/js/api.js';
+import { API } from './assets/js/api.esm.js';
 const params = new URLSearchParams(location.search);
 const token = params.get('token') || '';
 const email = params.get('email') || '';

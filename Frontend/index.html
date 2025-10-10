@@ -1179,7 +1179,9 @@
   </div>
 </template>
 
-  <script type="module" src="./assets/js/api.js"></script>
+  <!-- Load classic API first to populate window.API -->
+  <script src="./assets/js/api.js"></script>
+  <!-- ESM modules import from api.esm.js (bridge over window.API) -->
   <script type="module" src="./assets/js/app.js"></script>
   <script type="module" src="./assets/js/notes.js"></script>
   <script type="module" src="./assets/js/quotes.js"></script>
@@ -1187,7 +1189,6 @@
   <script type="module" src="./assets/js/techreport.js"></script>
   <script type="module" src="./assets/js/cashflow.js"></script>
   <script type="module" src="./assets/js/prices.js"></script>
-  <script type="module" src="./assets/js/templates.js"></script>
   <script type="module" src="./assets/js/templates.js"></script>
   <script src="./assets/js/input-fix.js"></script>
 </body>

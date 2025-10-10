@@ -1,8 +1,8 @@
 /* assets/js/techreport.js
    Inicializa la pestaña "Reporte Técnico" con filtros de fecha, técnico y tabla paginada.
 */
-import { API } from './api.js';
-import { authToken } from './api.js';
+import { API } from './api.esm.js';
+import { authToken } from './api.esm.js';
 
 const money = (n)=> new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n||0));
 const padSaleNumber = (n)=> String(n ?? '').toString().padStart(5,'0');

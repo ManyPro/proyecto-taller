@@ -7,7 +7,7 @@
    - WhatsApp / PDF
    - Historial (listar/buscar/ver/editar/eliminar; re-enviar WA; re-generar PDF)
 */
-import { API } from "./api.js";
+import { API } from "./api.esm.js";
 
 export function initQuotes({ getCompanyEmail }) {
   // ====== Helpers DOM ======

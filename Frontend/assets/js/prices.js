@@ -1,5 +1,5 @@
 /* Lista de precios (sin HTML en JS) */
-import { API } from './api.js';
+import { API } from './api.esm.js';
 
 const $ = (s)=>document.querySelector(s);
 const money = (n)=> new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n||0));

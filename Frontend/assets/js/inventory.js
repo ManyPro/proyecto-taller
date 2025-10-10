@@ -1,5 +1,5 @@
 // Frontend/assets/inventory.js
-import { API } from "./api.js";
+import { API } from "./api.esm.js";
 import { upper } from "./utils.js";
 import { bindStickersButton, downloadStickersPdf } from './pdf.js';
 

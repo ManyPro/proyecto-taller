@@ -1,5 +1,5 @@
 // assets/js/pdf.js (igual a v1 con contenido)
-import { API } from './api.js'; // asegurar que usamos la base correcta del backend
+import { API } from './api.esm.js'; // asegurar que usamos la base correcta del backend
 export function money(n){ return new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n||0)); }
 
 export async function buildWorkOrderPdf(sale){

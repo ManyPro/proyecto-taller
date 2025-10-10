@@ -6,7 +6,7 @@
      API.servicesList, API.pricesList  (picker de precios)
      API.live.connect()                 (SSE; opcional)
 */
-import { API } from './api.js';
+import { API } from './api.esm.js';
 
 // ---------- helpers ----------
 const $  = (s, r=document)=>r.querySelector(s);
