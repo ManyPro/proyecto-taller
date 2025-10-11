@@ -3231,24 +3231,8 @@
     const page2 = getPageEl(2);
     if (!page1 || !page2) return;
 
-    // Página 1: Marca/Logo (sin QR). Pensada para branding.
-    const page1Wrap = document.createElement('div');
-    page1Wrap.className = 'tpl-element sticker-brand-page1';
-    page1Wrap.id = `element_${visualEditor.nextId++}`;
-    page1Wrap.style.cssText = 'position:absolute; left:0.2cm; top:0.2cm; border:2px solid transparent; cursor:move; width:calc(5cm - 0.4cm); height:calc(3cm - 0.4cm);';
-    page1Wrap.innerHTML = `
-      <div style="width:100%; height:100%; box-sizing:border-box; padding:0.15cm; display:flex; align-items:center; justify-content:center; gap:0.2cm; border:1px dashed var(--border); border-radius:4px; background:#fff; color:#111; overflow:hidden;">
-        <div style="display:flex; align-items:center; gap:0.2cm;">
-          <img src="{{company.logoUrl}}" alt="Logo" style="width:1.6cm; height:1.6cm; object-fit:contain; border-radius:3px;"/>
-          <div style="display:flex; flex-direction:column;">
-            <div style="font-weight:800; font-size:16px; letter-spacing:0.4px;" contenteditable="true">{{company.name}}</div>
-            <div style="font-size:10px; opacity:.8;" contenteditable="true">SKU: {{item.sku}}</div>
-          </div>
-        </div>
-      </div>`;
-  page1.appendChild(page1Wrap);
-    makeDraggable(page1Wrap); makeSelectable(page1Wrap);
-    visualEditor.elements.push({ id: page1Wrap.id, type: 'sticker-brand-page1', element: page1Wrap });
+    // Página 1: Vacía (el usuario agregará su marca si lo desea)
+    // No agregamos ningún elemento por defecto en la página 1.
 
     // Página 2: QR (SKU + QR) para pegar sobre la pieza
     const page2Wrap = document.createElement('div');
@@ -3270,6 +3254,10 @@
 
     insertStickerVarsHint();
     updateSafeGuidesVisibility();
+    // Mostrar directamente la página 2 (SKU+QR) para editar
+    if (typeof window._showEditorPage === 'function') {
+      window._showEditorPage(2);
+    }
   }
 
   function getDocumentTypeName(type) {
