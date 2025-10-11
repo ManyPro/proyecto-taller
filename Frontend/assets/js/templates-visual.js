@@ -6,7 +6,7 @@
     templates: [],
     editing: null,
     mode: 'visual',
-    safeMargins: { enabled: true, insetCm: 0.2 },
+  safeMargins: { enabled: false, insetCm: 0.2 },
     exampleSnippets: {
       invoice: '', // Will be created dynamically with individual elements
       
@@ -279,7 +279,7 @@
     // Make canvas suitable for visual editing (theme-aware)
     canvas.style.cssText = `
       border: 2px dashed var(--border);
-      padding: 20px;
+      padding: 0;
       position: relative;
       background: var(--card);
       color: var(--text);
@@ -2017,31 +2017,30 @@
       }
     });
 
-    // Wrap the entire template in a draggable container
+    // For sticker templates, DO NOT wrap the entire content; keep per-page elements
+    const isSticker = (window.currentTemplateSession?.type === 'sticker-qr' || window.currentTemplateSession?.type === 'sticker-brand');
+    if (isSticker) {
+      // Reinitialize only tpl-elements found to keep them interactive
+      const elements = container.querySelectorAll('.tpl-element');
+      elements.forEach(el => makeElementInteractive(el));
+      return;
+    }
+
+    // For non-sticker documents, keep previous behavior (wrapper enables moving whole layout)
     const wrapper = document.createElement('div');
     wrapper.className = 'tpl-element template-wrapper';
     wrapper.id = `element_${visualEditor.nextId++}`;
     wrapper.style.cssText = 'position: absolute; left: 20px; top: 20px; cursor: move; border: 2px solid transparent;';
-    
-    // Move all canvas content into the wrapper
+
     while (container.firstChild) {
       wrapper.appendChild(container.firstChild);
     }
-    
     container.appendChild(wrapper);
-    
-    // Make the wrapper draggable and selectable
+
     makeDraggable(wrapper);
     makeSelectable(wrapper);
-    
-    // Add to elements array
-    visualEditor.elements.push({
-      id: wrapper.id,
-      type: 'template',
-      element: wrapper
-    });
-    
-    // Select the loaded template
+
+    visualEditor.elements.push({ id: wrapper.id, type: 'template', element: wrapper });
     selectElement(wrapper);
   }
 
@@ -2989,7 +2988,7 @@
     try {
       showQuickNotification('🔄 Cargando formato existente...', 'info');
       
-      const template = await API.templates.getById(formatId);
+  const template = await API.templates.get(formatId);
       if (!template) {
         throw new Error('Formato no encontrado');
       }
