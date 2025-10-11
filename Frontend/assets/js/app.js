@@ -51,6 +51,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 // Navegación y boot por página
 const sectionLogin = document.getElementById('loginSection');
 const sectionApp = document.getElementById('appSection');
+const appHeader = document.getElementById('appHeader');
 const emailSpan = document.getElementById('companyEmail');
 const welcomeSpan = document.getElementById('welcomeCompany');
 const logoutBtn = document.getElementById('logoutBtn');
@@ -79,7 +80,7 @@ function showTab(name) {
   const btn = document.querySelector(`.tabs button[data-tab="${name}"]`);
   const href = btn?.dataset?.href;
   if (href) {
-    setLastTab(name);
+    if (name !== 'home') setLastTab(name);
     window.location.href = href;
   }
 }
@@ -129,13 +130,11 @@ function setupNavigation() {
 function enterApp() {
   sectionLogin?.classList.add('hidden');
   sectionApp?.classList.remove('hidden');
+  appHeader?.classList.remove('hidden');
   logoutBtn?.classList.remove('hidden');
   setupNavigation();
   bootCurrentPage();
-  if (getCurrentPage() === 'home') {
-    const target = getLastTab();
-    if (target) showTab(target);
-  }
+  // Siempre permanecer en Inicio tras login; el usuario elige a dónde ir.
 }
 
 // ================= FAB (Botón flotante móviles) =================
@@ -318,6 +317,13 @@ const loginBtn = document.getElementById('loginBtn');
 const registerBtn = document.getElementById('registerBtn');
 const storedEmail = API.getActiveCompany?.();
 const storedToken = storedEmail ? API.token.get(storedEmail) : API.token.get();
+// Guard: si no hay sesión y no estamos en Inicio, redirigir a Inicio para login
+if (!storedEmail || !storedToken) {
+  if (getCurrentPage() !== 'home') {
+    try { sessionStorage.setItem('app:pending', window.location.pathname); } catch {}
+    window.location.href = 'index.html';
+  }
+}
 if (storedEmail && storedToken) {
   API.setActiveCompany(storedEmail);
   updateCompanyLabels(storedEmail);
@@ -343,6 +349,10 @@ async function doLogin(isRegister = false) {
     updateCompanyLabels(resolvedEmail);
     API.setActiveCompany(resolvedEmail);
     enterApp();
+    // Tras login exitoso, siempre ir a Inicio
+    if (getCurrentPage() !== 'home') {
+      showTab('home');
+    }
   } catch (e) {
     alert(e?.message || 'Error');
   }
@@ -355,8 +365,9 @@ logoutBtn?.addEventListener('click', async () => {
   try { await API.logout(); } catch {}
   try { sessionStorage.removeItem(lastTabKey); } catch {}
   updateCompanyLabels('');
-  sectionApp.classList.add('hidden');
-  sectionLogin.classList.remove('hidden');
+  sectionApp?.classList.add('hidden');
+  sectionLogin?.classList.remove('hidden');
+  appHeader?.classList.add('hidden');
   logoutBtn.classList.add('hidden');
   window.location.reload();
 });
@@ -372,10 +383,12 @@ logoutBtn?.addEventListener('click', async () => {
     } else {
       const active = API.getActiveCompany?.();
       if (active) updateCompanyLabels(active);
+      if (getCurrentPage() !== 'home') window.location.href = 'index.html';
     }
   } catch {
     const active = API.getActiveCompany?.();
     if (active) updateCompanyLabels(active);
+    if (getCurrentPage() !== 'home') window.location.href = 'index.html';
   }
 })();
 
