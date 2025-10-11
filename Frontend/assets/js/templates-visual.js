@@ -720,11 +720,13 @@
   function makeSelectable(element) {
     element.onclick = (e) => {
       e.stopPropagation();
-      selectElement(element);
+      // Si el click fue sobre un nodo de texto editable, preferir ese
+      const preferred = e.target && (e.target.closest('[contenteditable="true"]'));
+      selectElement(element, preferred || null);
     };
   }
 
-  function selectElement(element) {
+  function selectElement(element, preferredTextEl=null) {
     // Remove previous selection
     document.querySelectorAll('.tpl-element').forEach(el => {
       el.style.border = '2px solid transparent';
@@ -732,6 +734,7 @@
     });
 
     visualEditor.selectedElement = element;
+    visualEditor.selectedTextElement = preferredTextEl || null;
 
     // Update variables panel indicator
     updateVariablesSelectionIndicator();
@@ -742,7 +745,7 @@
     if (element) {
       element.style.border = '2px solid #2563eb';
       element.style.boxShadow = '0 0 0 1px rgba(37, 99, 235, 0.2)';
-      showElementProperties(element);
+  showElementProperties(element, preferredTextEl || null);
       
 
     } else {
@@ -750,18 +753,29 @@
     }
   }
 
-  function showElementProperties(element) {
+  function showElementProperties(element, preferredTextEl=null) {
     const propertiesPanel = qs('#element-properties') || createPropertiesPanel();
     if (!propertiesPanel) return;
 
-    const contentElement = element.querySelector('[contenteditable="true"]') || element.querySelector('span') || element.querySelector('h1, h2, h3');
+    // Construir lista de textos editables dentro del elemento
+    const textNodes = Array.from(element.querySelectorAll('[contenteditable="true"]'));
+    const contentElement = preferredTextEl || textNodes[0] || element.querySelector('span') || element.querySelector('h1, h2, h3');
     
     if (contentElement) {
       const computedStyle = window.getComputedStyle(contentElement);
       
+      const nodeSelector = textNodes.length > 1 ? `
+          <div style="margin-bottom: 10px;">
+            <label style="display:block; font-weight:600; margin-bottom:5px;">Seleccionar texto:</label>
+            <select id="prop-text-node" style="width:100%; padding:6px;">
+              ${textNodes.map((n,i)=>`<option value="${i}" ${n===contentElement?'selected':''}>Texto ${i+1} (${(n.textContent||'').slice(0,20)})</option>`).join('')}
+            </select>
+          </div>` : '';
+
       propertiesPanel.innerHTML = `
         <div style="padding: 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; margin: 10px 0;">
           <h4 style="margin: 0 0 15px 0; color: #333;">Propiedades del Elemento</h4>
+          ${nodeSelector}
           
           <div style="margin-bottom: 10px;">
             <label style="display: block; font-weight: 600; margin-bottom: 5px;">Fuente:</label>
@@ -772,7 +786,7 @@
           
           <div style="margin-bottom: 10px;">
             <label style="display: block; font-weight: 600; margin-bottom: 5px;">Tamaño: <span id="size-display">${parseInt(computedStyle.fontSize)}px</span></label>
-            <input type="range" id="prop-size" min="10" max="48" value="${parseInt(computedStyle.fontSize)}" style="width: 100%;">
+            <input type="range" id="prop-size" min="6" max="72" value="${parseInt(computedStyle.fontSize)}" style="width: 100%;">
           </div>
           
           <div style="margin-bottom: 10px;">
@@ -803,6 +817,17 @@
       `;
 
       setupPropertyListeners(element, contentElement);
+
+      // Si hay múltiples textos, permitir cambiar el destino desde el selector
+      const nodeSelect = qs('#prop-text-node');
+      if (nodeSelect) {
+        nodeSelect.onchange = () => {
+          const idx = parseInt(nodeSelect.value, 10);
+          const newEl = textNodes[idx];
+          // Re-render propiedades para el nuevo nodo
+          showElementProperties(element, newEl);
+        };
+      }
     }
 
     propertiesPanel.style.display = 'block';
