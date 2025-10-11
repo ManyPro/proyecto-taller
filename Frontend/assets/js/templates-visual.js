@@ -245,6 +245,15 @@
 
   // Utility functions
   function qs(sel, ctx=document){ return ctx.querySelector(sel); }
+  function getActiveParent(){
+    const canvas = qs('#ce-canvas');
+    if (!canvas) return null;
+    if (typeof state !== 'undefined' && state.pages && state.pages.count > 1) {
+      const page = getPageEl(state.pages.current);
+      return page || canvas;
+    }
+    return canvas;
+  }
 
   // Setup visual editor functionality
   function setupVisualEditor() {
@@ -567,15 +576,12 @@
   }
 
   function addElement(type) {
-    const canvas = qs('#ce-canvas');
-    if (!canvas) return;
-    // En modo paginado, insertar en la página actual
-    const parent = (state.pages && state.pages.count > 1) ? getPageEl(state.pages.current) : canvas;
+    const parent = getActiveParent();
     if (!parent) return;
 
     // Clear placeholder text
-    if (canvas.innerHTML.includes('Haz clic en los botones')) {
-      canvas.innerHTML = '';
+    if (parent === qs('#ce-canvas') && parent.innerHTML.includes('Haz clic en los botones')) {
+      parent.innerHTML = '';
     }
 
     const id = `element_${visualEditor.nextId++}`;
@@ -1261,8 +1267,8 @@
   }
 
   function clearCanvas() {
-    const canvas = qs('#ce-canvas');
-    if (!canvas) return;
+  const parent = getActiveParent();
+  if (!parent) return;
     
     canvas.innerHTML = `
       <div style="
@@ -2412,7 +2418,7 @@
       styles: styles
     });
     
-    canvas.appendChild(newElement);
+    parent.appendChild(newElement);
     selectElement(newElement);
   };
 
@@ -2656,7 +2662,7 @@
       setupImageUpload(newElement);
     }
     
-    canvas.appendChild(newElement);
+  parent.appendChild(newElement);
     selectElement(newElement);
     
     // Add to elements array
