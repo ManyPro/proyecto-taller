@@ -2364,6 +2364,8 @@
 
   // Global function for inserting variables
   window.insertVariableInCanvas = function(varText, isMultiline = false) {
+    const parent = getActiveParent();
+    if (!parent) return;
     const selectedEl = visualEditor.selectedElement;
     
     // If there's a selected element, add to it
@@ -2391,12 +2393,9 @@
       }
     }
     
-    // Create new element for the variable
+    // Clear placeholder if exists and we're appending directly to the canvas root
     const canvas = qs('#ce-canvas');
-    if (!canvas) return;
-    
-    // Clear placeholder if exists
-    if (canvas.innerHTML.includes('Haz clic en los botones')) {
+    if (parent === canvas && canvas.innerHTML.includes('Haz clic en los botones')) {
       canvas.innerHTML = '';
     }
     
@@ -3015,13 +3014,29 @@
           
           // Reinitialize all elements
           reinitializeElements();
+          // Ensure sticker variables panel is visible for sticker types
+          if (template.type === 'sticker-qr' || template.type === 'sticker-brand') {
+            insertStickerVarsHint();
+          }
           
           showQuickNotification(`✅ Formato "${template.name}" cargado para editar`, 'success');
           console.log('✅ Formato existente cargado:', template);
         } else {
-          // En edición no inyectamos plantilla si no hay contenido
-          console.log('📄 Formato existe pero no tiene contenido. En modo EDIT no se inyecta plantilla por defecto.');
-          showQuickNotification(`ℹ️ "${template.name}" no tiene contenido guardado aún.`, 'info');
+          // Si el formato está vacío (caso típico tras crear y redirigir a editar),
+          // inyectamos la plantilla base correspondiente para arrancar.
+          console.log('ℹ️ Formato sin contenido. Inyectando plantilla base por ser primera edición...');
+          if (template.type === 'sticker-qr' || template.type === 'sticker-brand' || template.type === 'invoice' || template.type === 'quote' || template.type === 'workOrder') {
+            loadDefaultTemplate(template.type);
+            // Mostrar variables si es sticker
+            if (template.type === 'sticker-qr' || template.type === 'sticker-brand') {
+              insertStickerVarsHint();
+            }
+            showQuickNotification(`🧩 "${template.name}": plantilla base cargada`, 'success');
+          } else {
+            // Fallback: dejamos el lienzo vacío con el placeholder
+            console.log('⚠️ Tipo no reconocido para carga automática, dejando lienzo vacío');
+            showQuickNotification(`ℹ️ "${template.name}" no tiene contenido guardado aún.`, 'info');
+          }
         }
       } else {
         throw new Error('Canvas del editor no encontrado');
