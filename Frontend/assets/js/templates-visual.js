@@ -2846,6 +2846,12 @@
       // Load content into editor
       const canvas = qs('#ce-canvas');
       if (canvas) {
+        // If sticker types, enforce proper size before injecting
+        if (template.type === 'sticker-qr') {
+          applyStickerCanvasSize('qr');
+        } else if (template.type === 'sticker-brand') {
+          applyStickerCanvasSize('brand');
+        }
         if (template.contentHtml && template.contentHtml.trim() !== '') {
           // Load existing content
           canvas.innerHTML = template.contentHtml;
@@ -2901,6 +2907,16 @@
     } else if (documentType === 'workOrder') {
       createWorkOrderTemplate(canvas);
       showQuickNotification(`🔧 Plantilla de Orden de Trabajo cargada`, 'success');
+    } else if (documentType === 'sticker-qr') {
+      // 1 sola hoja 5x3 cm
+      applyStickerCanvasSize('qr');
+      createStickerTemplateQR(canvas);
+      showQuickNotification(`🏷️ Plantilla de Sticker (Solo SKU/QR) cargada`, 'success');
+    } else if (documentType === 'sticker-brand') {
+      // 2 hojas de 5x3 cm apiladas
+      applyStickerCanvasSize('brand');
+      createStickerTemplateBrand(canvas);
+      showQuickNotification(`🏷️ Plantilla de Sticker (Marca + SKU) cargada`, 'success');
     } else {
       // Fallback - this shouldn't happen with proper selector flow
       canvas.innerHTML = '<div style="color: #666; text-align: center; padding: 50px; background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px;"><h3>⚠️ Tipo de documento no reconocido</h3><p>Por favor usa el <a href="template-selector.html" style="color: #007bff;">selector de plantillas</a> para comenzar.</p></div>';
@@ -2921,11 +2937,188 @@
     console.log(`🔄 ${elements.length} elementos reinicializados`);
   }
 
+  // ======== STICKER SUPPORT ========
+  function applyStickerCanvasSize(kind) {
+    const sizeSelect = qs('#canvas-size');
+    // We will force dimensions regardless of select, using existing applyCanvasSize via onchange
+    if (sizeSelect) {
+      sizeSelect.value = 'sticker';
+      sizeSelect.dispatchEvent(new Event('change'));
+    }
+    // En modo paginado cada página es 5 x 3 cm; el lienzo muestra una página a la vez
+    const canvas = qs('#ce-canvas');
+    if (canvas) {
+      const pxW = Math.round(5 * 37.795275591);
+      const pxH = Math.round(3 * 37.795275591);
+      canvas.style.width = pxW + 'px';
+      canvas.style.height = pxH + 'px';
+      canvas.style.maxWidth = pxW + 'px';
+      canvas.style.maxHeight = pxH + 'px';
+      canvas.style.minWidth = pxW + 'px';
+      canvas.style.minHeight = pxH + 'px';
+    }
+  }
+
+  // Helpers de paginado
+  function initPages(count) {
+    // Estado
+    if (!state.pages) state.pages = { count: 1, current: 1 };
+    state.pages.count = count;
+    state.pages.current = 1;
+
+    const canvas = qs('#ce-canvas');
+    if (!canvas) return null;
+
+    // Limpiar canvas y crear contenedor de páginas
+    canvas.innerHTML = '';
+    const container = document.createElement('div');
+    container.dataset.pagesContainer = 'true';
+    container.style.cssText = 'width:100%; height:100%; position:relative;';
+    canvas.appendChild(container);
+
+    for (let i = 1; i <= count; i++) {
+      const page = document.createElement('div');
+      page.className = 'editor-page';
+      page.dataset.page = String(i);
+      page.style.cssText = 'width:100%; height:100%; position:relative; background:#fff; border:1px dashed var(--border); border-radius:4px;';
+      if (i !== 1) page.style.display = 'none';
+      container.appendChild(page);
+    }
+
+    setupPagesControls(count);
+    return container;
+  }
+
+  function setupPagesControls(count) {
+    let toolbar = qs('#ce-toolbar');
+    if (!toolbar) return;
+
+    let ctrl = qs('#pages-controls');
+    if (!ctrl) {
+      ctrl = document.createElement('div');
+      ctrl.id = 'pages-controls';
+      ctrl.style.cssText = 'margin-left:12px; display:flex; gap:6px; align-items:center;';
+      toolbar.appendChild(ctrl);
+    }
+
+    ctrl.innerHTML = `
+      <div style="border-left:2px solid var(--border); height:24px; margin:0 8px 0 2px;"></div>
+      <span style="font-weight:600;">Página:</span>
+      <button id="page-prev" class="toolbar-btn secondary" style="padding:6px 10px;">◀</button>
+      <span id="page-indicator" class="muted">1 / ${count}</span>
+      <button id="page-next" class="toolbar-btn secondary" style="padding:6px 10px;">▶</button>
+    `;
+
+    const indicator = qs('#page-indicator');
+    const prev = qs('#page-prev');
+    const next = qs('#page-next');
+
+    const showPage = (n) => {
+      const container = qs('[data-pages-container="true"]');
+      if (!container) return;
+      const pages = container.querySelectorAll('.editor-page');
+      pages.forEach(p => p.style.display = p.dataset.page === String(n) ? 'block' : 'none');
+      state.pages.current = n;
+      if (indicator) indicator.textContent = `${n} / ${state.pages.count}`;
+    };
+
+    prev.onclick = () => {
+      const n = state.pages.current <= 1 ? state.pages.count : state.pages.current - 1;
+      showPage(n);
+    };
+    next.onclick = () => {
+      const n = state.pages.current >= state.pages.count ? 1 : state.pages.current + 1;
+      showPage(n);
+    };
+
+    // Exponer helper por si se usa en otro lugar
+    window._showEditorPage = showPage;
+  }
+
+  function getPageEl(n) {
+    return qs(`[data-pages-container="true"] .editor-page[data-page="${n}"]`);
+  }
+
+  function createStickerTemplateQR(canvas) {
+    // 1 página
+    initPages(1);
+    const page = getPageEl(1);
+    if (!page) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'tpl-element sticker-wrapper';
+    wrapper.id = `element_${visualEditor.nextId++}`;
+    wrapper.style.cssText = 'position:absolute; left:6px; top:6px; border:2px solid transparent; cursor:move; width:calc(5cm - 12px); height:calc(3cm - 12px);';
+
+    wrapper.innerHTML = `
+      <div style="width:100%; height:100%; box-sizing:border-box; padding:6px; display:flex; flex-direction:column; justify-content:space-between; border:1px dashed var(--border); border-radius:4px; background:#fff; color:#111;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-weight:700; font-size:11px;" contenteditable="true">SKU: {{sku}}</div>
+          <div style="font-size:10px;" contenteditable="true">{{shortid}}</div>
+        </div>
+        <div style="text-align:center;">
+          <div style="font-size:10px; font-weight:600;" contenteditable="true">{{item.name}}</div>
+          <div style="font-size:9px; opacity:.8;" contenteditable="true">{{item.brand}}</div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="width:2.2cm; height:2.2cm; background:#eee; display:flex; align-items:center; justify-content:center; font-size:10px; color:#333;" contenteditable="false">QR</div>
+          <div style="text-align:right; font-size:10px;">
+            <div contenteditable="true">Lote: {{batch}}</div>
+            <div contenteditable="true">Ubicación: {{location}}</div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    page.appendChild(wrapper);
+    makeDraggable(wrapper);
+    makeSelectable(wrapper);
+    visualEditor.elements.push({ id: wrapper.id, type: 'sticker-qr', element: wrapper });
+  }
+
+  function createStickerTemplateBrand(canvas) {
+    // 2 páginas independientes
+    initPages(2);
+    const page1 = getPageEl(1);
+    const page2 = getPageEl(2);
+    if (!page1 || !page2) return;
+
+    const mkSticker = () => {
+      const wrap = document.createElement('div');
+      wrap.className = 'tpl-element sticker-brand';
+      wrap.id = `element_${visualEditor.nextId++}`;
+      wrap.style.cssText = 'position:absolute; left:6px; top:6px; border:2px solid transparent; cursor:move; width:calc(5cm - 12px); height:calc(3cm - 12px);';
+      wrap.innerHTML = `
+        <div style="width:100%; height:100%; box-sizing:border-box; padding:6px; display:flex; align-items:center; justify-content:space-between; border:1px dashed var(--border); border-radius:4px; background:#fff; color:#111;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <img src="uploads/public/logo-renault.jpg" alt="Logo" style="width:18px; height:18px; object-fit:contain; border-radius:2px;" />
+            <div>
+              <div style="font-weight:700; font-size:10px;" contenteditable="true">{{company.name}}</div>
+              <div style="font-size:9px; opacity:.8;" contenteditable="true">{{company.phone}}</div>
+            </div>
+          </div>
+          <div style="width:2.2cm; height:2.2cm; background:#eee; display:flex; align-items:center; justify-content:center; font-size:10px; color:#333;">QR</div>
+        </div>`;
+      return wrap;
+    };
+
+    const w1 = mkSticker();
+    const w2 = mkSticker();
+    page1.appendChild(w1);
+    page2.appendChild(w2);
+    makeDraggable(w1); makeSelectable(w1);
+    makeDraggable(w2); makeSelectable(w2);
+    visualEditor.elements.push({ id: w1.id, type: 'sticker-brand', element: w1 });
+    visualEditor.elements.push({ id: w2.id, type: 'sticker-brand', element: w2 });
+  }
+
   function getDocumentTypeName(type) {
     const names = {
       'invoice': 'Factura',
       'quote': 'Cotización', 
-      'workOrder': 'Orden de Trabajo'
+      'workOrder': 'Orden de Trabajo',
+      'sticker-qr': 'Sticker (Solo QR)',
+      'sticker-brand': 'Sticker (Marca + QR)'
     };
     return names[type] || type;
   }
@@ -2949,7 +3142,7 @@
       
       const icon = action === 'edit' ? '✏️' : '➕';
       const actionText = action === 'edit' ? 'Editando' : 'Creando';
-      const typeIcon = documentType === 'invoice' ? '🧾' : documentType === 'quote' ? '💰' : '🔧';
+  const typeIcon = documentType === 'invoice' ? '🧾' : documentType === 'quote' ? '💰' : documentType === 'workOrder' ? '🔧' : '🏷️';
       
       // Get current session name
       const currentName = window.currentTemplateSession?.name || formatName;
