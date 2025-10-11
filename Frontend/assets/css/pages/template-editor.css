@@ -53,7 +53,7 @@ body[data-page="formatos"]{
   border-radius: 12px;
   border: 1px solid var(--border);
   box-shadow: var(--shadow-elev);
-  overflow: hidden;
+  overflow: visible;
   margin-bottom: 1rem;
 }
 
@@ -68,7 +68,8 @@ body[data-page="formatos"]{
 }
 
 #ce-canvas {
-  min-height: calc(100vh - 240px);
+  /* Avoid forcing a large canvas when using very small presets like 5x3cm */
+  min-height: unset;
   padding: 1.5rem 2rem;
   background: var(--card);
   color: var(--text);
@@ -185,8 +186,21 @@ body[data-page="formatos"]{
   
   #ce-canvas {
     padding: 1rem;
-    min-height: 400px;
   }
+}
+
+/* When the canvas is wide (e.g., Carta), push the sidebar to the bottom to gain width */
+.template-editor-container.sidebar-bottom {
+  flex-direction: column;
+}
+.template-editor-container.sidebar-bottom .editor-sidebar {
+  width: 100%;
+  order: 2;
+  position: static;
+  max-height: none;
+}
+.template-editor-container.sidebar-bottom .editor-main {
+  order: 1;
 }
 
 /* Print styles for preview */

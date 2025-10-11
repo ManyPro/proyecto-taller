@@ -462,10 +462,13 @@
       const widthPx = cmToPx(widthCm);
       const heightPx = cmToPx(heightCm);
       
+      // Force explicit dimensions and override any CSS min-constraints from the page stylesheet
       canvas.style.width = widthPx + 'px';
       canvas.style.height = heightPx + 'px';
       canvas.style.maxWidth = widthPx + 'px';
       canvas.style.maxHeight = heightPx + 'px';
+      canvas.style.minWidth = widthPx + 'px';
+      canvas.style.minHeight = heightPx + 'px';
       canvas.style.border = '1px solid #ddd';
       canvas.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
       canvas.style.backgroundColor = '#ffffff';
@@ -476,6 +479,16 @@
       if (parent) {
         parent.style.textAlign = 'center';
         parent.style.padding = '20px';
+      }
+
+      // If the canvas is wide (e.g. Carta), move the variables panel below to free horizontal space
+      const container = qs('.template-editor-container');
+      if (container) {
+        if (widthCm >= 21) {
+          container.classList.add('sidebar-bottom');
+        } else {
+          container.classList.remove('sidebar-bottom');
+        }
       }
       
       console.log(`Canvas redimensionado: ${sizeName} (${widthCm} x ${heightCm} cm = ${widthPx} x ${heightPx} px)`);
