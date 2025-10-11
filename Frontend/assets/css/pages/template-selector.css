@@ -1,53 +1,101 @@
-/* ==========================================
-   TEMPLATE SELECTOR PAGE STYLES
-   ========================================== */
+/* Template Selector – scoped, theme-aware styles (no conflicting imports) */
 
-/* Import all dependencies */
-@import url('../base/variables.css');
-@import url('../base/reset.css');
-@import url('../base/typography.css');
-@import url('../layout/grid.css');
-@import url('../layout/navigation.css');
-@import url('../components/buttons.css');
-@import url('../components/cards.css');
-@import url('../components/modals.css');
-@import url('../components/notifications.css');
+/* Scope everything to the page */
+body[data-page="formatos"] .container{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin: 12px auto 24px;
+  box-shadow: var(--shadow-elev);
+}
 
-/* Page specific overrides and additions can go here */
+body[data-page="formatos"] .header{
+  background: var(--card-alt);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .container {
-    margin: var(--spacing-md);
-    border-radius: var(--radius-md);
-  }
-  
-  .content {
-    padding: var(--spacing-xl);
-  }
-  
-  .document-types {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-md);
-  }
-  
-  .formats-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .formats-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--spacing-md);
-  }
-  
-  .navigation {
-    flex-direction: column;
-    gap: var(--spacing-md);
-  }
-  
-  .step-indicator {
-    flex-direction: column;
-    gap: var(--spacing-sm);
-  }
+body[data-page="formatos"] .content{
+  padding: 8px;
+}
+
+/* Steps */
+body[data-page="formatos"] .step-indicator{
+  display:flex; gap:10px; align-items:center; margin: 8px 0 18px;
+}
+body[data-page="formatos"] .step{
+  display:flex; align-items:center; gap:8px; background: var(--tab-bg); color: var(--tab-text);
+  padding:6px 10px; border-radius: 999px; border:1px solid var(--tab-border);
+}
+body[data-page="formatos"] .step.active{ background: var(--tab-bg-active); color: var(--tab-text-active); border-color: var(--tab-bg-active); }
+
+/* Document types grid */
+body[data-page="formatos"] .document-types{
+  display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap:14px; margin-bottom: 18px;
+}
+body[data-page="formatos"] .document-type-card{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: transform .12s ease, box-shadow .2s ease, background .25s ease, border-color .25s ease;
+}
+body[data-page="formatos"] .document-type-card:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,.25);
+  background: var(--card-alt);
+}
+body[data-page="formatos"] .document-type-card .icon{ font-size: 28px; margin-bottom: 8px; }
+body[data-page="formatos"] .document-type-card h3{ margin: 8px 0 4px; }
+body[data-page="formatos"] .document-type-card p{ margin:0; color: var(--muted); font-size:.95rem; }
+
+/* Formats section */
+body[data-page="formatos"] .formats-section{
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+body[data-page="formatos"] .formats-header{
+  display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px;
+}
+body[data-page="formatos"] #formats-title{ margin:0; }
+body[data-page="formatos"] #new-format-btn,
+body[data-page="formatos"] .new-format-btn{
+  background: var(--accent);
+  color: var(--text-invert);
+  border: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+body[data-page="formatos"] #new-format-btn:hover,
+body[data-page="formatos"] .new-format-btn:hover{ background: var(--accent-hover); }
+
+body[data-page="formatos"] .formats-grid{ display:grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap:12px; }
+body[data-page="formatos"] .format-card{
+  background: var(--card-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+/* Generic helpers in this page only */
+body[data-page="formatos"] .muted{ color: var(--muted); }
+
+/* Responsive */
+@media (max-width: 900px){
+  body[data-page="formatos"] .document-types{ grid-template-columns: 1fr; }
+  body[data-page="formatos"] .formats-grid{ grid-template-columns: 1fr; }
+  body[data-page="formatos"] .formats-header{ flex-direction: column; align-items: stretch; }
 }

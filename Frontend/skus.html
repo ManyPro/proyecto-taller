@@ -4,7 +4,8 @@
         <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Taller App - SKUs</title>
-    <link rel="stylesheet" href="assets/styles.css">
+    <link rel="stylesheet" href="assets/styles.css?v=20251010-2">
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
     <style>
         .sku-container {
             max-width: 1400px;
@@ -17,10 +18,11 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 30px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--card-alt);
+            border: 1px solid var(--border);
             padding: 20px;
             border-radius: 12px;
-            color: white;
+            color: var(--text);
         }
 
         .header h1 {
@@ -47,22 +49,22 @@
         }
 
         .btn-primary {
-            background: #4CAF50;
-            color: white;
+            background: var(--accent);
+            color: var(--text-invert);
         }
 
         .btn-primary:hover {
-            background: #45a049;
+            background: var(--accent-hover);
             transform: translateY(-2px);
         }
 
         .btn-secondary {
-            background: #2196F3;
-            color: white;
+            background: var(--tab-bg-active);
+            color: var(--tab-text-active);
         }
 
         .btn-secondary:hover {
-            background: #1976D2;
+            background: var(--accent);
         }
 
         .stats-grid {
@@ -73,33 +75,34 @@
         }
 
         .stat-card {
-            background: white;
+            background: var(--card);
+            border: 1px solid var(--border);
             border-radius: 12px;
             padding: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            border-left: 4px solid #4CAF50;
+            box-shadow: var(--shadow-elev);
+            border-left: 4px solid var(--accent);
         }
 
         .stat-card.pending {
-            border-left-color: #FF9800;
+            border-left-color: #f59e0b;
         }
 
         .stat-card.printed {
-            border-left-color: #2196F3;
+            border-left-color: var(--accent);
         }
 
         .stat-card.applied {
-            border-left-color: #4CAF50;
+            border-left-color: #16a34a;
         }
 
         .stat-number {
             font-size: 2.5rem;
             font-weight: bold;
-            color: #333;
+            color: var(--text);
         }
 
         .stat-label {
-            color: #666;
+            color: var(--muted);
             font-size: 0.9rem;
             margin-top: 5px;
         }
@@ -111,15 +114,16 @@
         }
 
         .category-section {
-            background: white;
+            background: var(--card);
+            border: 1px solid var(--border);
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow-elev);
             overflow: hidden;
         }
 
         .category-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: var(--card-alt);
+            color: var(--text);
             padding: 15px 20px;
             display: flex;
             justify-content: space-between;
@@ -144,7 +148,7 @@
 
         .sku-item {
             padding: 15px 20px;
-            border-bottom: 1px solid #f0f0f0;
+            border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: between;
             align-items: center;
@@ -152,7 +156,7 @@
         }
 
         .sku-item:hover {
-            background-color: #f8f9fa;
+            background-color: var(--highlight-bg);
         }
 
         .sku-item:last-child {
@@ -165,19 +169,19 @@
 
         .sku-code {
             font-weight: bold;
-            color: #333;
+            color: var(--text);
             font-size: 1.1rem;
         }
 
         .sku-description {
-            color: #666;
+            color: var(--muted);
             margin: 5px 0;
             font-size: 0.9rem;
         }
 
         .sku-meta {
             font-size: 0.8rem;
-            color: #999;
+            color: var(--muted);
             display: flex;
             gap: 15px;
         }
@@ -190,18 +194,18 @@
         }
 
         .status-pending {
-            background: #FFF3E0;
-            color: #F57C00;
+            background: rgba(245,158,11,.12);
+            color: #f59e0b;
         }
 
         .status-printed {
-            background: #E3F2FD;
-            color: #1976D2;
+            background: rgba(37,99,235,.12);
+            color: var(--accent);
         }
 
         .status-applied {
-            background: #E8F5E8;
-            color: #388E3C;
+            background: rgba(22,163,74,.12);
+            color: #16a34a;
         }
 
         .sku-actions {
@@ -211,7 +215,9 @@
 
         .action-btn {
             padding: 6px 12px;
-            border: none;
+            border: 1px solid var(--border);
+            background: var(--card-alt);
+            color: var(--text);
             border-radius: 6px;
             cursor: pointer;
             font-size: 0.8rem;
@@ -223,38 +229,39 @@
         }
 
         .btn-print {
-            background: #2196F3;
-            color: white;
+            background: var(--accent);
+            color: var(--text-invert);
         }
 
         .btn-apply {
-            background: #4CAF50;
-            color: white;
+            background: #16a34a;
+            color: var(--text-invert);
         }
 
         .btn-edit {
-            background: #FF9800;
-            color: white;
+            background: #f59e0b;
+            color: var(--text-invert);
         }
 
         .btn-delete {
-            background: #f44336;
-            color: white;
+            background: #ef4444;
+            color: var(--text-invert);
         }
 
         .notes-section {
             margin-top: 10px;
             padding: 10px;
-            background: #f8f9fa;
+            background: var(--card-alt);
+            border: 1px solid var(--border);
             border-radius: 6px;
             font-size: 0.9rem;
-            color: #555;
+            color: var(--muted);
         }
 
         .empty-category {
             padding: 40px 20px;
             text-align: center;
-            color: #666;
+            color: var(--muted);
         }
 
         /* Modal Styles */
@@ -266,22 +273,25 @@
             top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            background-color: rgba(2,6,23,.55);
+            backdrop-filter: blur(4px);
         }
 
         .modal-content {
-            background-color: white;
+            background-color: var(--card);
+            color: var(--text);
             margin: 5% auto;
             padding: 0;
             border-radius: 12px;
             width: 90%;
             max-width: 600px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-elev);
         }
 
         .modal-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: var(--card-alt);
+            color: var(--text);
             padding: 20px;
             border-radius: 12px 12px 0 0;
             display: flex;
@@ -300,7 +310,7 @@
             cursor: pointer;
             background: none;
             border: none;
-            color: white;
+            color: var(--text);
         }
 
         .modal-body {
@@ -315,7 +325,7 @@
             display: block;
             margin-bottom: 8px;
             font-weight: 600;
-            color: #333;
+            color: var(--text);
         }
 
         .form-group input,
@@ -323,32 +333,35 @@
         .form-group textarea {
             width: 100%;
             padding: 12px;
-            border: 2px solid #e0e0e0;
+            border: 1px solid var(--border);
+            background: var(--input-bg);
+            color: var(--text);
             border-radius: 8px;
             font-size: 1rem;
-            transition: border-color 0.3s ease;
+            transition: border-color 0.3s ease, background .25s ease, color .25s ease;
         }
 
         .form-group input:focus,
         .form-group select:focus,
         .form-group textarea:focus {
             outline: none;
-            border-color: #667eea;
+            box-shadow: var(--focus-ring);
+            border-color: var(--accent);
         }
 
         .suggestion-hint {
             font-size: 0.9rem;
-            color: #666;
+            color: var(--muted);
             margin-top: 5px;
             padding: 8px;
-            background: #f0f8ff;
+            background: var(--card-alt);
             border-radius: 4px;
-            border-left: 3px solid #2196F3;
+            border-left: 3px solid var(--accent);
         }
 
         .modal-footer {
             padding: 20px 30px;
-            border-top: 1px solid #e0e0e0;
+            border-top: 1px solid var(--border);
             display: flex;
             justify-content: flex-end;
             gap: 15px;
@@ -357,12 +370,12 @@
         .loading {
             text-align: center;
             padding: 40px;
-            color: #666;
+            color: var(--muted);
         }
 
         .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--accent);
             border-radius: 50%;
             width: 30px;
             height: 30px;
@@ -381,7 +394,7 @@
             right: 20px;
             padding: 15px 20px;
             border-radius: 8px;
-            color: white;
+            color: var(--text-invert);
             font-weight: 600;
             z-index: 1001;
             transform: translateX(100%);
@@ -393,15 +406,15 @@
         }
 
         .notification.success {
-            background: #4CAF50;
+            background: #16a34a;
         }
 
         .notification.error {
-            background: #f44336;
+            background: #ef4444;
         }
 
         .notification.warning {
-            background: #FF9800;
+            background: #f59e0b;
         }
 
         @media (max-width: 768px) {
