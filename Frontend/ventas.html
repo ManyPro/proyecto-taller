@@ -90,12 +90,13 @@
           <!-- Columna izquierda: Cotizaciones mini + Orden de trabajo -->
           <div class="ventas-left">
             <!-- Cotizaciones mini -->
-            <div class="card">
+            <div class="card" id="sv-quote-mini">
               <div class="row between" style="gap:8px; align-items:center;">
                 <h3 style="margin:0">Cotizaciones</h3>
                 <div class="row" style="gap:6px;">
                   <button id="sv-loadQuote" class="secondary">Usar cotización creada</button>
                   <button id="sv-applyQuoteCV" class="secondary">Aplicar cliente/vehículo</button>
+                  <button id="sv-q-to-sale" class="secondary" title="Agregar todos los ítems">Agregar todo</button>
                 </div>
               </div>
               <div class="muted" id="sv-q-header" style="margin-top:6px;">— ninguna cotización cargada —</div>
@@ -105,26 +106,23 @@
                     <tr>
                       <th>Tipo</th>
                       <th>Descripción</th>
-                      <th class="t-center">✓ Venta</th>
-                      <th>Descripción</th>
-  <footer><small>© Taller App</small></footer>
-          <div class="muted">Mostrando <span id="p-inv-count">0</span> ítems</div>
-              <input id="p-inv-name" placeholder="Nombre…" />
-              <input id="p-inv-sku" placeholder="SKU…" />
-              <button id="p-inv-more" class="secondary">Cargar más</button>
-              <input id="p-pr-line" placeholder="Línea" />
-              <input id="p-pr-year" placeholder="Año" type="number" />
-              <button id="p-pr-more" class="secondary">Cargar más</button>
-            <div class="muted">Mostrando <span id="p-pr-count">0</span> filas</div>
-        <span class="sales-tab">
-          <span class="label"></span><span class="close">×</span>
-        </span>
-            <span class="sc-plate">ABC123</span>
-            <button class="sc-close" title="Cancelar">×</button>
-          <div class="sc-veh" data-veh>Marca Línea Motor</div>
-          <div class="sc-tech" data-tech>—</div>
-            <input id="qr-manual" placeholder="Ingresar código manualmente (fallback)">
-          <div class="muted" id="qr-msg" style="margin-top:6px;">Permite la cámara para escanear. Si no hay soporte nativo, usa jsQR.</div>
+                      <th class="t-center">Cant.</th>
+                      <th class="t-right">Unit</th>
+                      <th class="t-right">Total</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody id="sv-q-body"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Orden de trabajo (preview) -->
+            <div class="card" id="sv-wo-card" style="margin-top:12px;">
+              <div class="row between" style="align-items:center;">
+                <h3 style="margin:0;">Orden de trabajo</h3>
+                <button id="sv-print-wo" class="secondary">Imprimir OT</button>
+              </div>
               <div class="table-wrap small" style="margin-top:8px;">
                 <table class="table">
                   <thead>
