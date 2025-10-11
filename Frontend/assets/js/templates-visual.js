@@ -254,6 +254,10 @@
     }
     return canvas;
   }
+  function getSafeInsetPx(){
+    if (!state.safeMargins || !state.safeMargins.enabled) return 0;
+    return Math.round((state.safeMargins.insetCm || 0.2) * 37.795275591);
+  }
 
   // Setup visual editor functionality
   function setupVisualEditor() {
@@ -576,7 +580,7 @@
   }
 
   function addElement(type) {
-    const parent = getActiveParent();
+  const parent = getActiveParent();
     if (!parent) return;
 
     // Clear placeholder text
@@ -590,23 +594,24 @@
     element.className = 'tpl-element';
     element.style.cssText = 'position: absolute; cursor: move; border: 2px solid transparent; padding: 8px; min-width: 100px; min-height: 30px;';
 
+    const inset = getSafeInsetPx();
     switch (type) {
       case 'text':
         element.innerHTML = '<span contenteditable="true" style="font-family: Arial; font-size: 14px; color: #333;">Texto editable - Haz clic para editar</span>';
-        element.style.left = '20px';
-        element.style.top = '20px';
+        element.style.left = (inset || 20) + 'px';
+        element.style.top = (inset || 20) + 'px';
         break;
         
       case 'title':
         element.innerHTML = '<h2 contenteditable="true" style="font-family: Arial; font-size: 24px; color: #2563eb; margin: 0;">Título Principal</h2>';
-        element.style.left = '20px';
-        element.style.top = '20px';
+        element.style.left = (inset || 20) + 'px';
+        element.style.top = (inset || 20) + 'px';
         break;
         
       case 'image':
         element.innerHTML = '<div class="image-placeholder" style="width: 150px; height: 100px; background: #f0f0f0; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; color: #666;">Haz clic para agregar imagen</div>';
-        element.style.left = '20px';
-        element.style.top = '80px';
+        element.style.left = (inset || 20) + 'px';
+        element.style.top = ((inset || 20) + 60) + 'px';
         break;
         
       case 'table':
@@ -627,8 +632,8 @@
               </tr>
             </tbody>
           </table>`;
-        element.style.left = '20px';
-        element.style.top = '140px';
+        element.style.left = (inset || 20) + 'px';
+        element.style.top = ((inset || 20) + 120) + 'px';
         break;
     }
 
@@ -728,25 +733,34 @@
       const newLeft = initialX + deltaX;
       const newTop = initialY + deltaY;
       
-      // Keep element within canvas or safe guides bounds
+      // Keep element within canvas or safe guides bounds (hold Alt to bypass temporarily)
       const canvas = element.parentElement;
       const canvasRect = canvas.getBoundingClientRect();
       const elementRect = element.getBoundingClientRect();
 
       // Determine bounds: if guides enabled and present, use its inset; else use full canvas
+      const skipClamp = e.altKey === true;
       let insetPx = 0;
-      if (state.safeMargins && state.safeMargins.enabled) {
-        // Convert cm inset to px based on 96 DPI ~ 37.795275591 px/cm
-        insetPx = Math.round((state.safeMargins.insetCm || 0.2) * 37.795275591);
+      if (!skipClamp && state.safeMargins && state.safeMargins.enabled) {
+        insetPx = getSafeInsetPx();
       }
 
-      const minLeft = insetPx;
-      const minTop = insetPx;
-      const maxLeft = canvasRect.width - elementRect.width - insetPx;
-      const maxTop = canvasRect.height - elementRect.height - insetPx;
-      
-      element.style.left = Math.max(minLeft, Math.min(newLeft, maxLeft)) + 'px';
-      element.style.top = Math.max(minTop, Math.min(newTop, maxTop)) + 'px';
+      let minLeft = insetPx;
+      let minTop = insetPx;
+      let maxLeft = canvasRect.width - elementRect.width - insetPx;
+      let maxTop = canvasRect.height - elementRect.height - insetPx;
+
+      // If element is bigger than safe area, fall back to clamping within full canvas
+      if (maxLeft < minLeft || maxTop < minTop) {
+        minLeft = 0; minTop = 0;
+        maxLeft = canvasRect.width - elementRect.width;
+        maxTop = canvasRect.height - elementRect.height;
+      }
+
+      const finalLeft = skipClamp ? newLeft : Math.max(minLeft, Math.min(newLeft, maxLeft));
+      const finalTop = skipClamp ? newTop : Math.max(minTop, Math.min(newTop, maxTop));
+      element.style.left = finalLeft + 'px';
+      element.style.top = finalTop + 'px';
       
       e.preventDefault();
     };
@@ -1796,7 +1810,8 @@
     element.id = `element_${visualEditor.nextId++}`;
     
     // Default positioning
-    const pos = options.position || { left: 20, top: 20 };
+    const inset = getSafeInsetPx();
+    const pos = options.position || { left: (inset || 20), top: (inset || 20) };
     element.style.position = 'absolute';
     element.style.left = pos.left + 'px';
     element.style.top = pos.top + 'px';
@@ -2413,8 +2428,9 @@
       };
     }
     
+    const inset = getSafeInsetPx();
     const newElement = createEditableElement(elementType, content, {
-      position: { left: 50, top: 50 + (visualEditor.elements.length * 40) },
+      position: { left: (inset || 20), top: (inset || 20) + (visualEditor.elements.length * 20) },
       styles: styles
     });
     
@@ -2647,11 +2663,20 @@
     const newId = `element_${visualEditor.nextId++}`;
     newElement.id = newId;
     
-    // Offset position slightly
-    const currentLeft = parseInt(newElement.style.left) || 0;
-    const currentTop = parseInt(newElement.style.top) || 0;
-    newElement.style.left = (currentLeft + 20) + 'px';
-    newElement.style.top = (currentTop + 20) + 'px';
+  // Offset and clamp within safe area
+  const currentLeft = parseInt(newElement.style.left) || 0;
+  const currentTop = parseInt(newElement.style.top) || 0;
+  const inset = getSafeInsetPx();
+  const parentRect = parent.getBoundingClientRect();
+  const tempRect = { width: newElement.offsetWidth || 150, height: newElement.offsetHeight || 60 };
+  const minLeft = inset;
+  const minTop = inset;
+  const maxLeft = Math.max(minLeft, parentRect.width - tempRect.width - inset);
+  const maxTop = Math.max(minTop, parentRect.height - tempRect.height - inset);
+  const nl = Math.max(minLeft, Math.min(currentLeft + 20, maxLeft));
+  const nt = Math.max(minTop, Math.min(currentTop + 20, maxTop));
+  newElement.style.left = nl + 'px';
+  newElement.style.top = nt + 'px';
     
     // Re-setup functionality
     makeDraggable(newElement);
