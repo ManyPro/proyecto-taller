@@ -263,6 +263,18 @@ function ensureJsPDF() {
   });
 }
 
+// Cargar html2canvas on-demand
+function ensureHtml2Canvas(){
+  return new Promise((resolve, reject) => {
+    if (window.html2canvas) return resolve(window.html2canvas);
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+    s.onload = () => resolve(window.html2canvas);
+    s.onerror = () => reject(new Error('No se pudo cargar html2canvas'));
+    document.head.appendChild(s);
+  });
+}
+
 function blobToDataURL(blob) {
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -274,62 +286,12 @@ function blobToDataURL(blob) {
 
 // Ejemplo: función que recoge items seleccionados en la UI
 function getSelectedItems() {
-  // Adaptar selector según tu HTML. Ejemplo: checkboxes con data-sku y data-name
-  const rows = Array.from(document.querySelectorAll('input[name="select-item"]:checked'));
-  return rows.map(ch => {
-    const el = ch.closest('.item-row'); // o usar data- atributos directamente
-    return {
-      sku: ch.dataset.sku || el?.dataset?.sku || ch.getAttribute('data-sku'),
-      name: ch.dataset.name || el?.dataset?.name || ch.getAttribute('data-name'),
-      companyName: /* opcional: obtener nombre empresa si aplica */ undefined,
-      companyLogo: /* opcional: URL/logo si lo tienes */ undefined
-    };
-  });
+  // Selecciona checkboxes marcados y devuelve objetos item desde el cache
+  const boxes = Array.from(document.querySelectorAll('input[type="checkbox"][data-id]:checked'));
+  return boxes
+    .map((b) => state.itemCache.get(String(b.dataset.id)))
+    .filter(Boolean);
 }
-
-// Enlazar el botón (id="#btn-stickers"), pasar token si usas auth en el frontend
-document.addEventListener('DOMContentLoaded', () => {
-  try {
-    bindStickersButton('#btn-stickers', getSelectedItems, {
-      token: localStorage.getItem('token'), // o null
-      filename: 'stickers.pdf',
-      credentials: 'same-origin' // ajustar si usas cross-site
-    });
-  } catch (e) {
-    // botón no encontrado => no hacer nada
-    console.warn('No se enlazó botón de stickers:', e.message);
-  }
-});
-
-// ---- Init ----
-export function initInventory() {
-  // Ingreso
-  const viBrand = document.getElementById("vi-brand");  upper(viBrand);
-  const viModel = document.getElementById("vi-model");  upper(viModel);
-  const viEngine = document.getElementById("vi-engine"); upper(viEngine);
-  const viDate = document.getElementById("vi-date");
-  const viPrice = document.getElementById("vi-price");
-  const viSave = document.getElementById("vi-save");
-
-  const viKindVehicle = document.getElementById("vi-kind-vehicle");
-  const viKindPurchase = document.getElementById("vi-kind-purchase");
-  const viFormVehicle = document.getElementById("vi-form-vehicle");
-  const viFormPurchase = document.getElementById("vi-form-purchase");
-  const viPPlace = document.getElementById("vi-p-place"); if (viPPlace) upper(viPPlace);
-  const viPDate = document.getElementById("vi-p-date");
-  const viPPrice = document.getElementById("vi-p-price");
-
-  function updateIntakeKindUI() {
-    const isPurchase = viKindPurchase?.checked;
-    viFormPurchase?.classList.toggle("hidden", !isPurchase);
-    viFormVehicle?.classList.toggle("hidden", !!isPurchase);
-  }
-  [viKindVehicle, viKindPurchase].forEach((el) => el && el.addEventListener("change", updateIntakeKindUI));
-  updateIntakeKindUI();
-
-  const viList = document.getElementById("vi-list");
-
-  // Item: crear
   const itSku = document.getElementById("it-sku"); upper(itSku);
   const itName = document.getElementById("it-name"); upper(itName);
   const itInternal = document.getElementById("it-internal"); if (itInternal) upper(itInternal);
@@ -1055,33 +1017,44 @@ export function initInventory() {
 
           if (!results.length) throw new Error('No se pudieron renderizar los stickers.');
 
-          const win = window.open('', '_blank');
-          if (!win) throw new Error('Ventana de impresión bloqueada');
+          // Generar PDF descargable (50mm x 30mm por sticker) usando html2canvas + jsPDF
+          const html2canvas = await ensureHtml2Canvas();
+          const jsPDF = await ensureJsPDF();
 
-          const css = (tpl.contentCss || '').trim();
-          const itemsHtml = results
-            .map(html => `<div class="sticker">${html}</div>`) // cada render envuelto en caja 5x3
-            .join('');
+          const root = document.createElement('div');
+          root.id = 'sticker-capture-root';
+          root.style.cssText = 'position:fixed;left:-10000px;top:0;width:0;height:0;overflow:hidden;background:#fff;z-index:-1;';
+          document.body.appendChild(root);
 
-          const docHtml = `<!doctype html>
-            <html><head><meta charset="utf-8">
-              <style>
-                @page { margin: 8mm; }
-                html, body { background: #fff; }
-                .grid { display: flex; flex-wrap: wrap; gap: 2mm; }
-                .sticker { width: 5cm; height: 3cm; box-sizing: border-box; page-break-inside: avoid; overflow: hidden; border: 0; }
-                ${css}
-              </style>
-            </head>
-            <body>
-              <div class="grid">${itemsHtml}</div>
-              <script>window.focus && window.focus(); setTimeout(()=>{ try{ window.print(); }catch{} }, 200);</script>
-            </body></html>`;
+          const images = [];
+          for (const html of results) {
+            const box = document.createElement('div');
+            box.className = 'sticker-capture';
+            box.style.cssText = 'width:5cm;height:3cm;overflow:hidden;background:#fff;';
+            const style = document.createElement('style');
+            style.textContent = (tpl.contentCss || '').toString();
+            box.appendChild(style);
+            const inner = document.createElement('div');
+            inner.innerHTML = html || '';
+            box.appendChild(inner);
+            root.appendChild(box);
+            // eslint-disable-next-line no-await-in-loop
+            const canvas = await html2canvas(box, { scale: Math.max(2, window.devicePixelRatio || 2), backgroundColor: '#ffffff' });
+            images.push(canvas.toDataURL('image/png'));
+            root.removeChild(box);
+          }
+          document.body.removeChild(root);
 
-          win.document.write(docHtml);
-          win.document.close();
+          if (!images.length) throw new Error('No se pudo rasterizar el contenido de los stickers');
+
+          const doc = new jsPDF({ unit: 'mm', format: [50, 30] });
+          images.forEach((src, idx) => {
+            if (idx > 0) doc.addPage([50, 30]);
+            doc.addImage(src, 'PNG', 0, 0, 50, 30);
+          });
+          doc.save(`stickers-${variant}.pdf`);
           invCloseModal();
-          return; // hecho con plantilla
+          return; // hecho con plantilla (PDF descargado)
         }
       } catch (e) {
         console.warn('Fallo plantilla activa; se usará el backend PDF por defecto:', e?.message || e);
@@ -1114,4 +1087,4 @@ export function initInventory() {
   // ---- Boot ----
   refreshIntakes();
   refreshItems({});
-}
+
