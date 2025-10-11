@@ -3075,22 +3075,14 @@
     wrapper.id = `element_${visualEditor.nextId++}`;
     wrapper.style.cssText = 'position:absolute; left:6px; top:6px; border:2px solid transparent; cursor:move; width:calc(5cm - 12px); height:calc(3cm - 12px);';
 
+    // Layout solicitado: izquierda SKU (sin fondo azul), derecha QR
     wrapper.innerHTML = `
-      <div style="width:100%; height:100%; box-sizing:border-box; padding:6px; display:flex; flex-direction:column; justify-content:space-between; border:1px dashed var(--border); border-radius:4px; background:#fff; color:#111;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div style="font-weight:700; font-size:11px;" contenteditable="true">SKU: {{sku}}</div>
-          <div style="font-size:10px;" contenteditable="true">{{shortid}}</div>
+      <div style="width:100%; height:100%; box-sizing:border-box; padding:6px; display:flex; align-items:center; justify-content:space-between; border:1px dashed var(--border); border-radius:4px; background:#fff; color:#111;">
+        <div style="width:2.2cm; height:2.2cm; border-radius:8px; display:flex; align-items:center; justify-content:center;">
+          <div style="font-weight:700; font-size:14px; letter-spacing:0.5px;" contenteditable="true">{{sku}}</div>
         </div>
-        <div style="text-align:center;">
-          <div style="font-size:10px; font-weight:600;" contenteditable="true">{{item.name}}</div>
-          <div style="font-size:9px; opacity:.8;" contenteditable="true">{{item.brand}}</div>
-        </div>
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div style="width:2.2cm; height:2.2cm; background:#eee; display:flex; align-items:center; justify-content:center; font-size:10px; color:#333;" contenteditable="false">QR</div>
-          <div style="text-align:right; font-size:10px;">
-            <div contenteditable="true">Lote: {{batch}}</div>
-            <div contenteditable="true">Ubicación: {{location}}</div>
-          </div>
+        <div style="width:2.2cm; height:2.2cm; display:flex; align-items:center; justify-content:center;">
+          <img src="{{item.qr}}" alt="QR" style="max-width:100%; max-height:100%; object-fit:contain;" />
         </div>
       </div>
     `;
@@ -3108,33 +3100,26 @@
     const page2 = getPageEl(2);
     if (!page1 || !page2) return;
 
-    const mkSticker = () => {
-      const wrap = document.createElement('div');
-      wrap.className = 'tpl-element sticker-brand';
-      wrap.id = `element_${visualEditor.nextId++}`;
-      wrap.style.cssText = 'position:absolute; left:6px; top:6px; border:2px solid transparent; cursor:move; width:calc(5cm - 12px); height:calc(3cm - 12px);';
-      wrap.innerHTML = `
-        <div style="width:100%; height:100%; box-sizing:border-box; padding:6px; display:flex; align-items:center; justify-content:space-between; border:1px dashed var(--border); border-radius:4px; background:#fff; color:#111;">
-          <div style="display:flex; align-items:center; gap:6px;">
-            <img src="uploads/public/logo-renault.jpg" alt="Logo" style="width:18px; height:18px; object-fit:contain; border-radius:2px;" />
-            <div>
-              <div style="font-weight:700; font-size:10px;" contenteditable="true">{{company.name}}</div>
-              <div style="font-size:9px; opacity:.8;" contenteditable="true">{{company.phone}}</div>
-            </div>
-          </div>
-          <div style="width:2.2cm; height:2.2cm; background:#eee; display:flex; align-items:center; justify-content:center; font-size:10px; color:#333;">QR</div>
-        </div>`;
-      return wrap;
-    };
+    // Página 1: misma plantilla que sticker-qr (SKU izquierda, QR derecha)
+    const page1Wrap = document.createElement('div');
+    page1Wrap.className = 'tpl-element sticker-brand';
+    page1Wrap.id = `element_${visualEditor.nextId++}`;
+    page1Wrap.style.cssText = 'position:absolute; left:6px; top:6px; border:2px solid transparent; cursor:move; width:calc(5cm - 12px); height:calc(3cm - 12px);';
+    page1Wrap.innerHTML = `
+      <div style=\"width:100%; height:100%; box-sizing:border-box; padding:6px; display:flex; align-items:center; justify-content:space-between; border:1px dashed var(--border); border-radius:4px; background:#fff; color:#111;\"> 
+        <div style=\"width:2.2cm; height:2.2cm; border-radius:8px; display:flex; align-items:center; justify-content:center;\"> 
+          <div style=\"font-weight:700; font-size:14px; letter-spacing:0.5px;\" contenteditable=\"true\">{{sku}}</div> 
+        </div>
+        <div style=\"width:2.2cm; height:2.2cm; display:flex; align-items:center; justify-content:center;\"> 
+          <img src=\"{{item.qr}}\" alt=\"QR\" style=\"max-width:100%; max-height:100%; object-fit:contain;\" /> 
+        </div>
+      </div>`;
+    page1.appendChild(page1Wrap);
+    makeDraggable(page1Wrap); makeSelectable(page1Wrap);
+    visualEditor.elements.push({ id: page1Wrap.id, type: 'sticker-brand', element: page1Wrap });
 
-    const w1 = mkSticker();
-    const w2 = mkSticker();
-    page1.appendChild(w1);
-    page2.appendChild(w2);
-    makeDraggable(w1); makeSelectable(w1);
-    makeDraggable(w2); makeSelectable(w2);
-    visualEditor.elements.push({ id: w1.id, type: 'sticker-brand', element: w1 });
-    visualEditor.elements.push({ id: w2.id, type: 'sticker-brand', element: w2 });
+    // Página 2: en blanco (el usuario colocará el diseño del logo de la empresa)
+    // No agregamos elementos por defecto.
   }
 
   function getDocumentTypeName(type) {

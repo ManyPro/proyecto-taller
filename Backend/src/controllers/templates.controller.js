@@ -5,6 +5,7 @@ import Company from '../models/Company.js';
 import Order from '../models/Order.js';
 import Item from '../models/Item.js';
 import Handlebars from 'handlebars';
+import QRCode from 'qrcode';
 
 // Helpers para armar contexto base multi-documento
 // Params:
@@ -52,7 +53,20 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
     let item = null;
     if (sampleId) item = await Item.findOne({ _id: sampleId, companyId });
     else item = await Item.findOne({ companyId }).sort({ updatedAt: -1 });
-    if (item) ctx.item = item.toObject();
+    if (item) {
+      ctx.item = item.toObject();
+      try {
+        const qrValue = ctx.item.sku || String(ctx.item._id || '');
+        if (qrValue) {
+          // Márgenes mínimos para mejor densidad en stickers pequeños
+          ctx.item.qr = await QRCode.toDataURL(qrValue, { margin: 0, scale: 4, color: { dark: '#000000', light: '#FFFFFF' } });
+          ctx.item.qrText = qrValue;
+        }
+      } catch (e) {
+        // No bloquear si falla QR; continuar sin QR
+        ctx.item.qr = '';
+      }
+    }
   }
   return ctx;
 }

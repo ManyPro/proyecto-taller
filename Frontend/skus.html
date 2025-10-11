@@ -501,18 +501,6 @@
                     <span>🔄</span>
                     <span>Actualizar</span>
                 </button>
-                <button class="btn btn-secondary" onclick="printStickers('brand')" title="Imprimir stickers con marca">
-                    <span>🖨️</span>
-                    <span>Imprimir con Marca</span>
-                </button>
-                <button class="btn btn-secondary" onclick="printStickers('qr')" title="Imprimir stickers solo QR">
-                    <span>🖨️</span>
-                    <span>Solo QR</span>
-                </button>
-                <button class="btn btn-primary" onclick="openCreateModal()">
-                    <span>➕</span>
-                    <span>Nuevo SKU</span>
-                </button>
             </div>
         </div>
 
@@ -548,37 +536,7 @@
         </div>
     </div>
 
-    <!-- Modal para crear/editar SKU -->
-    <div id="sku-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title" id="modal-title">Crear Nuevo SKU</h2>
-                <button class="close" onclick="closeModal()">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="sku-form">
-                    <div class="form-group">
-                        <label for="sku-code">Código SKU *</label>
-                        <input type="text" id="sku-code" name="code" required placeholder="Ej: MOTOR01">
-                        <div id="suggestion-hint" class="suggestion-hint" style="display: none;"></div>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="sku-category">Categoría *</label>
-                        <select id="sku-category" name="category" required>
-                            <option value="">Seleccionar categoría...</option>
-                            <option value="MOTOR">Motor</option>
-                            <option value="TRANSMISION">Transmisión</option>
-                            <option value="FRENOS">Frenos</option>
-                            <option value="SUSPENSION">Suspensión</option>
-                            <option value="ELECTRICO">Eléctrico</option>
-                            <option value="CARROCERIA">Carrocería</option>
-                            <option value="INTERIOR">Interior</option>
-                            <option value="FILTROS">Filtros</option>
-                            <option value="ACEITES">Aceites</option>
-                            <option value="NEUMATICOS">Neumáticos</option>
-                            <option value="OTROS">Otros</option>
-                        </select>
+    <!-- Modal para crear/editar SKU eliminado: la gestión de creación/edición se realiza desde Inventario -->
                     </div>
                     
                     <div class="form-group">
@@ -624,9 +582,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 Iniciando gestión de SKUs');
             loadSKUsData();
-            
-            // Auto-sugerencia en el campo código
-            document.getElementById('sku-code').addEventListener('input', debounce(checkCodeSuggestion, 500));
+            // Modal e inputs fueron removidos: no enlazar sugerencias aquí
         });
 
         // Cargar datos de SKUs
@@ -750,10 +706,8 @@
                         ${statusLabels[sku.printStatus]}
                     </div>
                     <div class="sku-actions">
-                        ${sku.printStatus === 'pending' ? `<button class="action-btn btn-print" onclick="markAsPrinted('${sku._id}')">🖨️</button>` : ''}
-                        ${sku.printStatus === 'printed' ? `<button class="action-btn btn-apply" onclick="markAsApplied('${sku._id}')">✅</button>` : ''}
-                        <button class="action-btn btn-edit" onclick="editSKU('${sku._id}')">✏️</button>
-                        <button class="action-btn btn-delete" onclick="deleteSKU('${sku._id}')">🗑️</button>
+                        ${sku.printStatus === 'pending' ? `<button class="action-btn btn-print" onclick="markAsPrinted('${sku._id}')" title="Marcar como impreso">🖨️</button>` : ''}
+                        ${sku.printStatus === 'printed' ? `<button class="action-btn btn-apply" onclick="markAsApplied('${sku._id}')" title="Marcar como aplicado">✅</button>` : ''}
                     </div>
                 </div>
             `;
@@ -763,6 +717,7 @@
         async function checkCodeSuggestion() {
             const codeInput = document.getElementById('sku-code');
             const hint = document.getElementById('suggestion-hint');
+            if (!codeInput || !hint) return; // modal eliminado
             const code = codeInput.value.trim();
             
             if (code.length < 2) {
@@ -779,69 +734,11 @@
             }
         }
 
-        // Abrir modal crear
-        function openCreateModal() {
-            currentEditingId = null;
-            document.getElementById('modal-title').textContent = 'Crear Nuevo SKU';
-            document.getElementById('sku-form').reset();
-            document.getElementById('suggestion-hint').style.display = 'none';
-            document.getElementById('sku-modal').style.display = 'block';
-        }
-
-        // Cerrar modal
-        function closeModal() {
-            document.getElementById('sku-modal').style.display = 'none';
-            currentEditingId = null;
-        }
-
-        // Guardar SKU
-        async function saveSKU() {
-            try {
-                const form = document.getElementById('sku-form');
-                const formData = new FormData(form);
-                const data = Object.fromEntries(formData.entries());
-                
-                if (currentEditingId) {
-                    await API.skus.update(currentEditingId, data);
-                    showNotification('SKU actualizado correctamente', 'success');
-                } else {
-                    await API.skus.create(data);
-                    showNotification('SKU creado correctamente', 'success');
-                }
-                
-                closeModal();
-                loadSKUsData();
-                
-            } catch (error) {
-                console.error('Error guardando SKU:', error);
-                showNotification('Error: ' + error.message, 'error');
-            }
-        }
-
-        // Editar SKU
-        async function editSKU(id) {
-            try {
-                const response = await API.skus.get(id);
-                const sku = response.sku;
-                
-                currentEditingId = id;
-                document.getElementById('modal-title').textContent = 'Editar SKU';
-                
-                document.getElementById('sku-code').value = sku.code;
-                document.getElementById('sku-category').value = sku.category;
-                document.getElementById('sku-description').value = sku.description;
-                document.getElementById('sku-brand').value = sku.brand || '';
-                document.getElementById('sku-part-number').value = sku.partNumber || '';
-                document.getElementById('sku-location').value = sku.location || '';
-                document.getElementById('sku-notes').value = sku.notes || '';
-                
-                document.getElementById('sku-modal').style.display = 'block';
-                
-            } catch (error) {
-                console.error('Error cargando SKU:', error);
-                showNotification('Error al cargar SKU: ' + error.message, 'error');
-            }
-        }
+        // Crear/Editar SKUs desde Inventario: funciones de modal deshabilitadas
+        function openCreateModal() { showNotification('La creación de SKUs ahora se realiza desde Inventario.', 'info'); }
+        function closeModal() { /* sin-op */ }
+        async function saveSKU() { showNotification('Edición/creación de SKUs movida a Inventario.', 'info'); }
+        async function editSKU() { showNotification('La edición de SKUs ahora se realiza desde Inventario.', 'info'); }
 
         // Marcar como impreso
         async function markAsPrinted(id) {
@@ -902,35 +799,8 @@
             }, 3000);
         }
 
-        // Imprimir stickers para todos los SKUs visibles (simple)
-        async function printStickers(variant) {
-            try {
-                // Build minimal items payload from categories
-                const items = [];
-                for (const [cat, data] of Object.entries(skusData || {})) {
-                    for (const sku of (data.skus || [])) {
-                        items.push({ sku: sku.code, companyName: '', companyLogo: '' });
-                    }
-                }
-                if (items.length === 0) {
-                    showNotification('No hay SKUs para imprimir', 'warning');
-                    return;
-                }
-                const tok = API.token.get();
-                const res = await fetch(`${API.base}/api/v1/media/stickers/pdf?variant=${encodeURIComponent(variant)}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', ...(tok ? { Authorization: `Bearer ${tok}` } : {}) },
-                    body: JSON.stringify({ items })
-                });
-                if (!res.ok) throw new Error('No se pudo generar PDF');
-                const blob = await res.blob();
-                const url = URL.createObjectURL(blob);
-                window.open(url, '_blank');
-            } catch (e) {
-                console.error(e);
-                showNotification('Error generando PDF: ' + e.message, 'error');
-            }
-        }
+        // Impresión movida a Inventario
+        async function printStickers() { showNotification('Imprimir stickers: usa las acciones en Inventario.', 'info'); }
 
         // Debounce utility
         function debounce(func, wait) {
@@ -945,13 +815,7 @@
             };
         }
 
-        // Cerrar modal al hacer clic fuera
-        window.onclick = function(event) {
-            const modal = document.getElementById('sku-modal');
-            if (event.target === modal) {
-                closeModal();
-            }
-        }
+        // Sin modales en esta página.
     </script>
         </section>
     </main>

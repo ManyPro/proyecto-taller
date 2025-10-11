@@ -370,7 +370,10 @@ export function initInventory() {
       <div class="muted" style="font-weight:600;">Seleccionados: ${n}</div>
       <button class="secondary" id="sel-clear">Limpiar selección</button>
       <button class="chip-button" id="sel-page"><span class="chip-icon">☑</span> Seleccionar todos (página)</button>
-      <button id="sel-stickers">Generar PDF stickers</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button id="sel-stickers-qr" class="secondary" title="Generar PDF - Solo QR">Solo QR</button>
+        <button id="sel-stickers-brand" class="secondary" title="Generar PDF - Marca + QR">Marca + QR</button>
+      </div>
     `;
     selectionBar.querySelector("#sel-clear").onclick = () => {
       state.selected.clear();
@@ -387,7 +390,10 @@ export function initInventory() {
       });
       updateSelectionBar();
     };
-    selectionBar.querySelector("#sel-stickers").onclick = generateStickersFromSelection;
+    const btnQR = selectionBar.querySelector("#sel-stickers-qr");
+    const btnBrand = selectionBar.querySelector("#sel-stickers-brand");
+    if (btnQR) btnQR.onclick = () => generateStickersFromSelection('qr');
+    if (btnBrand) btnBrand.onclick = () => generateStickersFromSelection('brand');
   }
 
   function toggleSelected(itemOrId, checked) {
@@ -953,7 +959,7 @@ export function initInventory() {
   }
 
   // ---- Stickers ----
-  async function generateStickersFromSelection() {
+  async function generateStickersFromSelection(variant = 'qr') {
     if (!state.selected.size) return;
     const ids = Array.from(state.selected);
     const items = ids
@@ -1022,37 +1028,25 @@ export function initInventory() {
         alert("Coloca al menos 1 sticker.");
         return;
       }
-      const flatItems = list.flatMap(({ it, count }) => Array.from({ length: count }, () => it));
-      // Intentar plantilla 'sticker' activa (abre ventana imprimible) antes de backend PDF
-      try {
-        const tpl = await API.templates.active('sticker');
-        if(tpl && tpl.contentHtml){
-          const pv = await API.templates.preview({ type:'sticker', contentHtml: tpl.contentHtml, contentCss: tpl.contentCss });
-          const win = window.open('', '_blank');
-          if(win){
-            const css = pv.css? `<style>${pv.css}</style>`:'';
-            // Generar bloques repetidos por cada sticker solicitado
-            const repeatHtml = flatItems.map(it=>`<div class="sticker-item">${pv.rendered}</div>`).join('');
-            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}<style>.sticker-item{page-break-inside:avoid; margin:4px;}</style></head><body>${repeatHtml}</body></html>`);
-            win.document.close(); win.focus();
-            setTimeout(()=>{ try{ win.print(); }catch{} }, 200);
-          }
-          return; // no continuar al backend PDF
-        }
-      } catch(e){ console.warn('Sticker template fallback to backend PDF', e); }
-      // Aplanar la lista: una entrada por sticker (backend genera 2 stickers por cada item enviado)
+      // Aplanar la lista: una entrada por sticker
       const payload = [];
       list.forEach(({ it, count }) => {
         for (let i = 0; i < count; i++) {
-          payload.push({
-            sku: it.sku,
-            name: it.name,
-            // dejar companyName/companyLogo indefinidos para que el backend use req.company
-          });
+          payload.push({ sku: it.sku, name: it.name });
         }
       });
       try {
-        await downloadStickersPdf(payload, `stickers.pdf`, { headers: authHeader(), credentials: 'same-origin' });
+        const base = API.base?.replace(/\/$/, '') || '';
+        const variantPath = variant === 'brand' ? '/api/v1/media/stickers/pdf/brand' : '/api/v1/media/stickers/pdf/qr';
+        const endpoint = base + variantPath;
+        const headers = Object.assign({ 'Content-Type': 'application/json' }, authHeader());
+        const resp = await fetch(endpoint, { method: 'POST', headers, credentials: 'same-origin', body: JSON.stringify({ items: payload }) });
+        if (!resp.ok) throw new Error('No se pudo generar PDF');
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `stickers-${variant}.pdf`; document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
         invCloseModal();
       } catch (err) {
         alert('Error creando stickers: ' + (err.message || err));
