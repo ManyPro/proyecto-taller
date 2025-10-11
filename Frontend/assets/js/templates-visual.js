@@ -6,6 +6,7 @@
     templates: [],
     editing: null,
     mode: 'visual',
+    safeMargins: { enabled: true, insetCm: 0.2 },
     exampleSnippets: {
       invoice: '', // Will be created dynamically with individual elements
       
@@ -269,7 +270,7 @@
       position: relative;
       background: var(--card);
       color: var(--text);
-      overflow: visible;
+      overflow: hidden; /* Evita que los elementos se vean fuera del canvas */
       border-radius: 8px;
       margin: 10px 0;
     `;
@@ -381,6 +382,7 @@
         <button id="delete-selected-btn" class="toolbar-btn danger" title="Eliminar elemento seleccionado">🗑️ Eliminar</button>
         <button id="undo-btn" class="toolbar-btn warn" style="opacity:.7;" disabled title="Deshacer última eliminación">↩️ Deshacer</button>
         <button id="clear-canvas-btn" class="toolbar-btn secondary">🧹 Limpiar Todo</button>
+        <button id="toggle-safe-guides-btn" class="toolbar-btn secondary" title="Mostrar/Ocultar guías de margen">${(state.safeMargins && state.safeMargins.enabled) ? '🧭 Guías: ON' : '🧭 Guías: OFF'}</button>
       </div>
       
 
@@ -418,6 +420,16 @@
         }
       }
     };
+
+    // Safe guides toggle
+    const toggleGuidesBtn = qs('#toggle-safe-guides-btn');
+    if (toggleGuidesBtn) {
+      toggleGuidesBtn.onclick = () => {
+        state.safeMargins.enabled = !state.safeMargins.enabled;
+        updateSafeGuidesVisibility();
+        toggleGuidesBtn.textContent = state.safeMargins.enabled ? '🧭 Guías: ON' : '🧭 Guías: OFF';
+      };
+    }
     
     qs('#clear-canvas-btn').onclick = clearCanvas;
     
@@ -492,6 +504,9 @@
       }
       
       console.log(`Canvas redimensionado: ${sizeName} (${widthCm} x ${heightCm} cm = ${widthPx} x ${heightPx} px)`);
+
+      // Update safe guides if present
+      updateSafeGuidesVisibility();
     }
     
     sizeSelect.onchange = () => {
@@ -525,9 +540,38 @@
     applyCanvasSize(defaultSize.width, defaultSize.height, defaultSize.name);
   }
 
+  // ======== SAFE MARGIN GUIDES ========
+  function buildSafeGuideForPage(pageEl) {
+    if (!pageEl) return;
+    // remove existing
+    const old = pageEl.querySelector('.safe-guide');
+    if (old) old.remove();
+
+    const insetCm = (state.safeMargins && typeof state.safeMargins.insetCm === 'number') ? state.safeMargins.insetCm : 0.2;
+    const guide = document.createElement('div');
+    guide.className = 'safe-guide';
+    guide.style.cssText = `position:absolute; left:${insetCm}cm; top:${insetCm}cm; right:${insetCm}cm; bottom:${insetCm}cm; border:1px dashed rgba(37,99,235,.6); border-radius:3px; pointer-events:none;`;
+    pageEl.appendChild(guide);
+  }
+
+  function updateSafeGuidesVisibility() {
+    const container = qs('[data-pages-container="true"]');
+    if (!container) return;
+    const pages = container.querySelectorAll('.editor-page');
+    pages.forEach(p => {
+      // ensure built
+      if (!p.querySelector('.safe-guide')) buildSafeGuideForPage(p);
+      const g = p.querySelector('.safe-guide');
+      if (g) g.style.display = (state.safeMargins && state.safeMargins.enabled) ? 'block' : 'none';
+    });
+  }
+
   function addElement(type) {
     const canvas = qs('#ce-canvas');
     if (!canvas) return;
+    // En modo paginado, insertar en la página actual
+    const parent = (state.pages && state.pages.count > 1) ? getPageEl(state.pages.current) : canvas;
+    if (!parent) return;
 
     // Clear placeholder text
     if (canvas.innerHTML.includes('Haz clic en los botones')) {
@@ -591,7 +635,7 @@
       setupImageUpload(element);
     }
 
-    canvas.appendChild(element);
+    parent.appendChild(element);
     selectElement(element);
     
     visualEditor.elements.push({
@@ -678,16 +722,25 @@
       const newLeft = initialX + deltaX;
       const newTop = initialY + deltaY;
       
-      // Keep element within canvas bounds
+      // Keep element within canvas or safe guides bounds
       const canvas = element.parentElement;
       const canvasRect = canvas.getBoundingClientRect();
       const elementRect = element.getBoundingClientRect();
+
+      // Determine bounds: if guides enabled and present, use its inset; else use full canvas
+      let insetPx = 0;
+      if (state.safeMargins && state.safeMargins.enabled) {
+        // Convert cm inset to px based on 96 DPI ~ 37.795275591 px/cm
+        insetPx = Math.round((state.safeMargins.insetCm || 0.2) * 37.795275591);
+      }
+
+      const minLeft = insetPx;
+      const minTop = insetPx;
+      const maxLeft = canvasRect.width - elementRect.width - insetPx;
+      const maxTop = canvasRect.height - elementRect.height - insetPx;
       
-      const maxLeft = canvasRect.width - elementRect.width;
-      const maxTop = canvasRect.height - elementRect.height;
-      
-      element.style.left = Math.max(0, Math.min(newLeft, maxLeft)) + 'px';
-      element.style.top = Math.max(0, Math.min(newTop, maxTop)) + 'px';
+      element.style.left = Math.max(minLeft, Math.min(newLeft, maxLeft)) + 'px';
+      element.style.top = Math.max(minTop, Math.min(newTop, maxTop)) + 'px';
       
       e.preventDefault();
     };
@@ -756,6 +809,7 @@
   function showElementProperties(element, preferredTextEl=null) {
     const propertiesPanel = qs('#element-properties') || createPropertiesPanel();
     if (!propertiesPanel) return;
+    const bodyContainer = qs('#element-properties-body') || propertiesPanel;
 
     // Construir lista de textos editables dentro del elemento
     const textNodes = Array.from(element.querySelectorAll('[contenteditable="true"]'));
@@ -772,7 +826,7 @@
             </select>
           </div>` : '';
 
-      propertiesPanel.innerHTML = `
+      bodyContainer.innerHTML = `
         <div style="padding: 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; margin: 10px 0;">
           <h4 style="margin: 0 0 15px 0; color: #333;">Propiedades del Elemento</h4>
           ${nodeSelector}
@@ -816,7 +870,7 @@
         </div>
       `;
 
-      setupPropertyListeners(element, contentElement);
+  setupPropertyListeners(element, contentElement);
 
       // Si hay múltiples textos, permitir cambiar el destino desde el selector
       const nodeSelect = qs('#prop-text-node');
@@ -829,12 +883,19 @@
         };
       }
     }
-
+    // Expandir panel al mostrar
+    const propsBody = qs('#element-properties-body');
+    if (propsBody) {
+      propsBody.style.display = 'block';
+      propertiesPanel.dataset.collapsed = 'false';
+      const t = propertiesPanel.querySelector('#props-toggle');
+      if (t) t.textContent = '▾';
+    }
     propertiesPanel.style.display = 'block';
   }
 
   function createPropertiesPanel() {
-    // Ubicar el panel en el sidebar, bien arriba de todo
+    // Ubicar el panel en el sidebar, bien arriba de todo, con header colapsable
     const sidebar = qs('.editor-sidebar') || qs('#sidebar') || qs('.sidebar') || qs('#var-list')?.parentNode;
     if (sidebar) {
       let panel = qs('#element-properties');
@@ -842,7 +903,31 @@
         panel = document.createElement('div');
         panel.id = 'element-properties';
         panel.className = 'props-panel';
-        panel.style.cssText = 'display:none; margin: 0 0 12px 0;';
+        panel.style.cssText = 'display:block; margin: 0 0 12px 0;';
+        panel.dataset.collapsed = 'true';
+
+        const header = document.createElement('div');
+        header.className = 'props-header';
+        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px;font-weight:700;';
+        header.innerHTML = '<span>Propiedades del Elemento</span><button id="props-toggle" class="secondary" style="padding:4px 8px;">▸</button>';
+
+        const body = document.createElement('div');
+        body.id = 'element-properties-body';
+        body.style.cssText = 'display:none;';
+
+        panel.appendChild(header);
+        panel.appendChild(body);
+
+        // Toggle collapse
+        const toggle = header.querySelector('#props-toggle');
+        toggle.onclick = () => {
+          const isCollapsed = panel.dataset.collapsed === 'true';
+          if (isCollapsed) {
+            body.style.display = 'block'; panel.dataset.collapsed = 'false'; toggle.textContent = '▾';
+          } else {
+            body.style.display = 'none'; panel.dataset.collapsed = 'true'; toggle.textContent = '▸';
+          }
+        };
       }
       // Insertar al inicio del sidebar
       if (sidebar.firstChild) sidebar.insertBefore(panel, sidebar.firstChild); else sidebar.appendChild(panel);
@@ -1942,7 +2027,15 @@
   function hideElementProperties() {
     const propertiesPanel = qs('#element-properties');
     if (propertiesPanel) {
-      propertiesPanel.style.display = 'none';
+      const body = qs('#element-properties-body');
+      if (body) {
+        body.style.display = 'none';
+        propertiesPanel.dataset.collapsed = 'true';
+        const t = propertiesPanel.querySelector('#props-toggle');
+        if (t) t.textContent = '▸';
+      } else {
+        propertiesPanel.style.display = 'none';
+      }
     }
   }
 
@@ -2968,6 +3061,7 @@
     });
     
     console.log(`🔄 ${elements.length} elementos reinicializados`);
+    updateSafeGuidesVisibility();
   }
 
   // ======== STICKER SUPPORT ========
@@ -3004,18 +3098,20 @@
 
     // Limpiar canvas y crear contenedor de páginas
     canvas.innerHTML = '';
-    const container = document.createElement('div');
-    container.dataset.pagesContainer = 'true';
-    container.style.cssText = 'width:100%; height:100%; position:relative;';
+  const container = document.createElement('div');
+  container.dataset.pagesContainer = 'true';
+  container.style.cssText = 'width:100%; height:100%; position:relative; display:flex; align-items:center; justify-content:center;';
     canvas.appendChild(container);
 
     for (let i = 1; i <= count; i++) {
       const page = document.createElement('div');
       page.className = 'editor-page';
       page.dataset.page = String(i);
-      page.style.cssText = 'width:100%; height:100%; position:relative; background:#fff; border:1px dashed var(--border); border-radius:4px;';
+      page.style.cssText = 'width:100%; height:100%; position:relative; background:#fff; border:1px dashed var(--border); border-radius:4px; box-sizing:border-box;';
       if (i !== 1) page.style.display = 'none';
       container.appendChild(page);
+      // Build safe guides overlay
+      buildSafeGuideForPage(page);
     }
 
     setupPagesControls(count);
@@ -3096,7 +3192,8 @@
       </div>
     `;
 
-    page.appendChild(wrapper);
+  page.appendChild(wrapper);
+  updateSafeGuidesVisibility();
     makeDraggable(wrapper);
     makeSelectable(wrapper);
     visualEditor.elements.push({ id: wrapper.id, type: 'sticker-qr', element: wrapper });
@@ -3125,7 +3222,7 @@
           </div>
         </div>
       </div>`;
-    page1.appendChild(page1Wrap);
+  page1.appendChild(page1Wrap);
     makeDraggable(page1Wrap); makeSelectable(page1Wrap);
     visualEditor.elements.push({ id: page1Wrap.id, type: 'sticker-brand-page1', element: page1Wrap });
 
@@ -3148,6 +3245,7 @@
     visualEditor.elements.push({ id: page2Wrap.id, type: 'sticker-brand-page2', element: page2Wrap });
 
     insertStickerVarsHint();
+    updateSafeGuidesVisibility();
   }
 
   function getDocumentTypeName(type) {
@@ -3163,19 +3261,44 @@
 
   // Inserta una guía breve de variables disponibles cuando se trabaja con stickers
   function insertStickerVarsHint(){
-    // Mover el hint de variables al panel lateral de variables
+    // Mover el hint de variables al panel lateral de variables, con chips interactivos
     const varList = document.querySelector('#var-list');
     if (!varList) return;
     if (document.querySelector('#sticker-vars-hint')) return;
     const hint = document.createElement('div');
     hint.id = 'sticker-vars-hint';
-    hint.style.cssText = 'margin: 0 0 10px 0; font-size:12px; opacity:.9; display:flex; gap:6px; flex-wrap:wrap; align-items:center; background: var(--card); border:1px solid var(--border); border-radius:8px; padding:8px;';
-    hint.innerHTML = '<span class="muted" style="font-weight:600;">Variables rápidas (Stickers):</span>'+
-      '<code>{{item.sku}}</code>'+
-      '<code>{{item.name}}</code>'+
-      '<code>{{item.location}}</code>'+
-      '<code>{{company.name}}</code>'+
-      '<code>{{item.qr}}</code>';
+    hint.style.cssText = 'margin: 0 0 10px 0; font-size:12px; background: var(--card); border:1px solid var(--border); border-radius:8px; padding:10px;';
+
+    const title = document.createElement('div');
+    title.innerHTML = '<strong>Variables rápidas (Stickers):</strong>';
+    title.style.marginBottom = '8px';
+    hint.appendChild(title);
+
+    const chips = document.createElement('div');
+    chips.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px;';
+
+    const vars = [
+      { label: 'SKU', value: '{{item.sku}}' },
+      { label: 'Nombre', value: '{{item.name}}' },
+      { label: 'Ubicación', value: '{{item.location}}' },
+      { label: 'Empresa', value: '{{company.name}}' },
+      { label: 'QR ítem', value: '{{item.qr}}' }
+    ];
+
+    vars.forEach(v => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'chip-var-btn';
+      btn.textContent = v.value;
+      btn.title = `Agregar ${v.label}`;
+      btn.style.cssText = 'font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:12px; padding:6px 8px; border-radius:6px; border:1px solid var(--border); background: #0b1220; color: #cbd5e1;';
+      btn.onmouseover = () => { btn.style.background = '#111827'; };
+      btn.onmouseout = () => { btn.style.background = '#0b1220'; };
+      btn.onclick = () => { if (window.insertVariableInCanvas) window.insertVariableInCanvas(v.value, false); };
+      chips.appendChild(btn);
+    });
+
+    hint.appendChild(chips);
     varList.insertBefore(hint, varList.firstChild);
   }
 
