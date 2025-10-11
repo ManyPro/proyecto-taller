@@ -427,6 +427,7 @@
                 ${format.isActive ? '<span class="active-badge">ACTIVO</span>' : ''}
               </h4>
               <div class="actions">
+                <button class="action-btn" title="Editar" onclick="editFormat('${format.id || format._id}', '${format.type || selectedDocumentType}', '${(format.name||'').replace(/'/g, "\'")}')">✏️</button>
                 <button class="action-btn" title="Duplicar" onclick="duplicateFormat('${format.id || format._id}')">📋</button>
                 ${!format.isActive ? `<button class="action-btn" title="Activar" onclick="activateFormat('${format.id || format._id}')">⭐</button>` : ''}
                 <button class="action-btn" title="Eliminar" onclick="deleteFormat('${format.id || format._id}')">🗑️</button>
@@ -516,6 +517,21 @@
       } catch (error) {
         console.error('❌ Error duplicando formato:', error);
         alert(`Error al duplicar el formato: ${error.message}`);
+      }
+    }
+
+    function editFormat(formatId, typeGuess, name) {
+      try {
+        const type = selectedDocumentType || typeGuess || 'invoice';
+        const params = new URLSearchParams();
+        params.set('type', type);
+        params.set('action', 'edit');
+        params.set('formatId', formatId);
+        if (name) params.set('formatName', name);
+        const url = `templates.html?${params.toString()}`;
+        window.location.href = url;
+      } catch (err) {
+        console.error('Error al abrir el editor:', err);
       }
     }
 

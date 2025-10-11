@@ -13,13 +13,19 @@
 @import url('../components/notifications.css');
 
 /* Editor specific styles */
+/* Force page background to follow app theme for this page */
+body[data-page="formatos"]{
+  background: var(--bg) !important;
+  padding: 0 !important; /* override reset's body padding */
+}
+
 .template-editor-container {
   display: flex;
   gap: 2rem;
   align-items: flex-start;
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 1.25rem;
+  padding: 1.25rem 2rem;
 }
 
 .editor-main {
@@ -28,7 +34,7 @@
 }
 
 .editor-sidebar {
-  width: 300px;
+  width: 340px;
   background: var(--card);
   color: var(--text);
   border-radius: 12px;
@@ -62,8 +68,8 @@
 }
 
 #ce-canvas {
-  min-height: calc(100vh - 280px);
-  padding: 1.25rem;
+  min-height: calc(100vh - 240px);
+  padding: 1.5rem 2rem;
   background: var(--card);
   color: var(--text);
   position: relative;
