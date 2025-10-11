@@ -2871,7 +2871,8 @@
         setTimeout(() => {
           if (action === 'edit' && formatId) {
             console.log('📝 Modo offline: No se puede cargar formato existente');
-            loadDefaultTemplate(documentType);
+            // No cargar plantilla por defecto en EDIT
+            showQuickNotification('⚠️ Modo offline: no es posible cargar el formato para edición.', 'warning');
           } else if (action === 'create') {
             console.log('➕ Modo offline: Cargando plantilla por defecto...');
             loadDefaultTemplate(documentType);
@@ -2899,8 +2900,8 @@
         console.log(`🎭 Modo demo - Acción: ${action}, Tipo: ${documentType}`);
         setTimeout(() => {
           if (action === 'edit' && formatId) {
-            console.log('📝 Modo demo: Simulando carga de formato existente');
-            loadDefaultTemplate(documentType); // Fallback to default
+            console.log('📝 Modo demo: No se debe inyectar plantilla por defecto al editar');
+            showQuickNotification('ℹ️ Modo demo: no hay contenido para cargar en edición.', 'info');
           } else if (action === 'create') {
             console.log('➕ Modo demo: Cargando plantilla por defecto...');
             loadDefaultTemplate(documentType);
@@ -3018,10 +3019,9 @@
           showQuickNotification(`✅ Formato "${template.name}" cargado para editar`, 'success');
           console.log('✅ Formato existente cargado:', template);
         } else {
-          // Format exists but no content - load default template
-          console.log('📄 Formato existe pero no tiene contenido, cargando plantilla por defecto');
-          loadDefaultTemplate(window.currentTemplateSession.type);
-          showQuickNotification(`📄 Formato "${template.name}" sin contenido - plantilla por defecto cargada`, 'info');
+          // En edición no inyectamos plantilla si no hay contenido
+          console.log('📄 Formato existe pero no tiene contenido. En modo EDIT no se inyecta plantilla por defecto.');
+          showQuickNotification(`ℹ️ "${template.name}" no tiene contenido guardado aún.`, 'info');
         }
       } else {
         throw new Error('Canvas del editor no encontrado');
@@ -3031,14 +3031,8 @@
       console.error('Error cargando formato:', error);
       showQuickNotification(`⚠️ Error cargando formato: ${error.message}`, 'warning');
       
-      // Always fallback to default template for the document type
-      setTimeout(() => {
-        if (window.currentTemplateSession?.type) {
-          loadDefaultTemplate(window.currentTemplateSession.type);
-        } else {
-          console.error('No se puede determinar el tipo de documento para cargar plantilla por defecto');
-        }
-      }, 1000);
+      // En edición, no cargar plantilla por defecto
+      showQuickNotification('⚠️ No fue posible cargar el formato para edición.', 'warning');
     }
   }
 
@@ -3297,38 +3291,18 @@
     if (document.querySelector('#sticker-vars-hint')) return;
     const hint = document.createElement('div');
     hint.id = 'sticker-vars-hint';
-    hint.style.cssText = 'margin: 0 0 10px 0; font-size:12px; background: var(--card); border:1px solid var(--border); border-radius:8px; padding:10px;';
+    hint.style.cssText = 'margin: 0 0 12px 0; background: var(--card); border:1px solid var(--border); border-radius:10px; padding:12px;';
 
-    const title = document.createElement('div');
-    title.innerHTML = '<strong>Variables rápidas (Stickers):</strong>';
-    title.style.marginBottom = '8px';
-    hint.appendChild(title);
+    const header = `<h4 style="margin: 0 0 10px 0; color: #cbd5e1; font-size: 14px;">🧩 Variables rápidas (Stickers)</h4>`;
+    const buttonsHtml = createFriendlyButtons([
+      { label: 'SKU del ítem', icon: '🏷️', value: '{{item.sku}}' },
+      { label: 'Nombre del ítem', icon: '📦', value: '{{item.name}}' },
+      { label: 'Ubicación', icon: '📍', value: '{{item.location}}' },
+      { label: 'Nombre de la empresa', icon: '🏢', value: '{{company.name}}' },
+      { label: 'QR (texto/URL)', icon: '🔗', value: '{{item.qr}}' }
+    ]);
 
-    const chips = document.createElement('div');
-    chips.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px;';
-
-    const vars = [
-      { label: 'SKU', value: '{{item.sku}}' },
-      { label: 'Nombre', value: '{{item.name}}' },
-      { label: 'Ubicación', value: '{{item.location}}' },
-      { label: 'Empresa', value: '{{company.name}}' },
-      { label: 'QR ítem', value: '{{item.qr}}' }
-    ];
-
-    vars.forEach(v => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'chip-var-btn';
-      btn.textContent = v.value;
-      btn.title = `Agregar ${v.label}`;
-      btn.style.cssText = 'font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:12px; padding:6px 8px; border-radius:6px; border:1px solid var(--border); background: #0b1220; color: #cbd5e1;';
-      btn.onmouseover = () => { btn.style.background = '#111827'; };
-      btn.onmouseout = () => { btn.style.background = '#0b1220'; };
-      btn.onclick = () => { if (window.insertVariableInCanvas) window.insertVariableInCanvas(v.value, false); };
-      chips.appendChild(btn);
-    });
-
-    hint.appendChild(chips);
+    hint.innerHTML = header + buttonsHtml;
     varList.insertBefore(hint, varList.firstChild);
   }
 
