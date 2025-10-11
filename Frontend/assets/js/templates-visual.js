@@ -370,6 +370,8 @@
         .toolbar-btn:hover { transform: translateY(-1px); }
         .toolbar-sep { border-left: 2px solid var(--border); padding-left: 12px; margin-left: 12px; display: inline-flex; align-items: center; gap: 6px; }
       </style>
+      <!-- Panel de propiedades del elemento (arriba) -->
+      <div id="element-properties" class="props-panel" style="display:none; width:100%; margin-bottom: 10px;"></div>
       
       <button id="add-title-btn" class="toolbar-btn primary">📄 Título</button>
       <button id="add-text-btn" class="toolbar-btn primary">📝 Texto</button>
@@ -834,20 +836,31 @@
   }
 
   function createPropertiesPanel() {
-    // Try to find existing sidebar or create one
+    // Preferir ubicar el panel dentro de la barra superior del editor
+    let toolbar = qs('#ce-toolbar');
+    if (toolbar) {
+      let panel = qs('#element-properties');
+      if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'element-properties';
+        panel.className = 'props-panel';
+        panel.style.cssText = 'display:none; width:100%; margin-bottom:10px;';
+        toolbar.insertBefore(panel, toolbar.firstChild?.nextSibling || toolbar.firstChild);
+      }
+      return panel;
+    }
+
+    // Fallback: usar sidebar existente si no hay toolbar
     let sidebar = qs('#sidebar') || qs('.sidebar') || qs('#var-list')?.parentNode;
-    
     if (!sidebar) {
       sidebar = document.createElement('div');
       sidebar.style.cssText = 'position: fixed; right: 10px; top: 100px; width: 250px; max-height: 80vh; overflow-y: auto; z-index: 1000;';
       document.body.appendChild(sidebar);
     }
-
-    const panel = document.createElement('div');
+    let panel = document.createElement('div');
     panel.id = 'element-properties';
     panel.style.cssText = 'display: none;';
     sidebar.appendChild(panel);
-    
     return panel;
   }
 
@@ -3102,26 +3115,43 @@
     const page2 = getPageEl(2);
     if (!page1 || !page2) return;
 
-    // Página 1: misma plantilla que sticker-qr (SKU izquierda, QR derecha)
+    // Página 1: Marca/Logo (sin QR). Pensada para branding.
     const page1Wrap = document.createElement('div');
-    page1Wrap.className = 'tpl-element sticker-brand';
+    page1Wrap.className = 'tpl-element sticker-brand-page1';
     page1Wrap.id = `element_${visualEditor.nextId++}`;
-  page1Wrap.style.cssText = 'position:absolute; left:0.2cm; top:0.2cm; border:2px solid transparent; cursor:move; width:calc(5cm - 0.4cm); height:calc(3cm - 0.4cm);';
+    page1Wrap.style.cssText = 'position:absolute; left:0.2cm; top:0.2cm; border:2px solid transparent; cursor:move; width:calc(5cm - 0.4cm); height:calc(3cm - 0.4cm);';
     page1Wrap.innerHTML = `
-      <div style=\"width:100%; height:100%; box-sizing:border-box; padding:0.1cm; display:flex; align-items:center; justify-content:space-between; border:1px dashed var(--border); border-radius:4px; background:#fff; color:#111; overflow:hidden;\"> 
-        <div style=\"width:2.05cm; height:2.05cm; border-radius:6px; display:flex; align-items:center; justify-content:center;\"> 
-          <div style=\"font-weight:700; font-size:14px; letter-spacing:0.5px;\" contenteditable=\"true\">{{item.sku}}</div> 
-        </div>
-        <div style=\"width:2.05cm; height:2.05cm; display:flex; align-items:center; justify-content:center;\"> 
-          <img src=\"{{item.qr}}\" alt=\"QR\" style=\"max-width:100%; max-height:100%; object-fit:contain;\" /> 
+      <div style="width:100%; height:100%; box-sizing:border-box; padding:0.15cm; display:flex; align-items:center; justify-content:center; gap:0.2cm; border:1px dashed var(--border); border-radius:4px; background:#fff; color:#111; overflow:hidden;">
+        <div style="display:flex; align-items:center; gap:0.2cm;">
+          <img src="{{company.logoUrl}}" alt="Logo" style="width:1.6cm; height:1.6cm; object-fit:contain; border-radius:3px;"/>
+          <div style="display:flex; flex-direction:column;">
+            <div style="font-weight:800; font-size:16px; letter-spacing:0.4px;" contenteditable="true">{{company.name}}</div>
+            <div style="font-size:10px; opacity:.8;" contenteditable="true">SKU: {{item.sku}}</div>
+          </div>
         </div>
       </div>`;
     page1.appendChild(page1Wrap);
     makeDraggable(page1Wrap); makeSelectable(page1Wrap);
-    visualEditor.elements.push({ id: page1Wrap.id, type: 'sticker-brand', element: page1Wrap });
+    visualEditor.elements.push({ id: page1Wrap.id, type: 'sticker-brand-page1', element: page1Wrap });
 
-    // Página 2: en blanco (el usuario colocará el diseño del logo de la empresa)
-    // No agregamos elementos por defecto.
+    // Página 2: QR (SKU + QR) para pegar sobre la pieza
+    const page2Wrap = document.createElement('div');
+    page2Wrap.className = 'tpl-element sticker-brand-page2';
+    page2Wrap.id = `element_${visualEditor.nextId++}`;
+    page2Wrap.style.cssText = 'position:absolute; left:0.2cm; top:0.2cm; border:2px solid transparent; cursor:move; width:calc(5cm - 0.4cm); height:calc(3cm - 0.4cm);';
+    page2Wrap.innerHTML = `
+      <div style="width:100%; height:100%; box-sizing:border-box; padding:0.1cm; display:flex; align-items:center; justify-content:space-between; border:1px dashed var(--border); border-radius:4px; background:#fff; color:#111; overflow:hidden;">
+        <div style="width:2.05cm; height:2.05cm; border-radius:6px; display:flex; align-items:center; justify-content:center;">
+          <div style="font-weight:700; font-size:14px; letter-spacing:0.5px;" contenteditable="true">{{item.sku}}</div>
+        </div>
+        <div style="width:2.05cm; height:2.05cm; display:flex; align-items:center; justify-content:center;">
+          <img src="{{item.qr}}" alt="QR" style="max-width:100%; max-height:100%; object-fit:contain;" />
+        </div>
+      </div>`;
+    page2.appendChild(page2Wrap);
+    makeDraggable(page2Wrap); makeSelectable(page2Wrap);
+    visualEditor.elements.push({ id: page2Wrap.id, type: 'sticker-brand-page2', element: page2Wrap });
+
     insertStickerVarsHint();
   }
 
@@ -3138,19 +3168,20 @@
 
   // Inserta una guía breve de variables disponibles cuando se trabaja con stickers
   function insertStickerVarsHint(){
-    const toolbar = document.querySelector('#ce-toolbar');
-    if (!toolbar) return;
+    // Mover el hint de variables al panel lateral de variables
+    const varList = document.querySelector('#var-list');
+    if (!varList) return;
     if (document.querySelector('#sticker-vars-hint')) return;
     const hint = document.createElement('div');
     hint.id = 'sticker-vars-hint';
-    hint.style.cssText = 'margin-left:8px; font-size:12px; opacity:.8; display:flex; gap:6px; flex-wrap:wrap; align-items:center;';
-    hint.innerHTML = '<span class="muted" style="font-weight:600;">Variables:</span>'+
+    hint.style.cssText = 'margin: 0 0 10px 0; font-size:12px; opacity:.9; display:flex; gap:6px; flex-wrap:wrap; align-items:center; background: var(--card); border:1px solid var(--border); border-radius:8px; padding:8px;';
+    hint.innerHTML = '<span class="muted" style="font-weight:600;">Variables rápidas (Stickers):</span>'+
       '<code>{{item.sku}}</code>'+
       '<code>{{item.name}}</code>'+
       '<code>{{item.location}}</code>'+
       '<code>{{company.name}}</code>'+
       '<code>{{item.qr}}</code>';
-    toolbar.appendChild(hint);
+    varList.insertBefore(hint, varList.firstChild);
   }
 
   function addSessionHeader(documentType, action, formatId) {

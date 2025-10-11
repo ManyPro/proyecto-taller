@@ -1083,31 +1083,58 @@ if (__ON_INV_PAGE__) {
 
           const images = [];
           for (const html of results) {
-            const box = document.createElement('div');
-            box.className = 'sticker-capture';
-            box.style.cssText = 'width:5cm;height:3cm;overflow:hidden;background:#fff;';
-            const style = document.createElement('style');
-            // Inyectar CSS de la plantilla + reglas para ocultar manejadores/selecciones del editor
-            style.textContent = `\n${(tpl.contentCss || '').toString()}\n` +
-              `/* Ocultar handles y selección del editor durante el render */\n` +
-              `.drag-handle,.resize-handle,.selection-box,.resizer,.handles,.ve-selected,.ce-selected,.selected{display:none!important;}\n` +
-              `.sticker-capture, .sticker-capture *{outline:none!important;-webkit-tap-highlight-color:transparent!important;user-select:none!important;caret-color:transparent!important;}\n` +
-              `.sticker-capture *::selection{background:transparent!important;color:inherit!important;}\n` +
-              `img,svg,canvas{outline:none!important;border:none!important;-webkit-user-drag:none!important;}`;
-            box.appendChild(style);
-            const inner = document.createElement('div');
-            inner.innerHTML = html || '';
-            // Evitar contenteditable activo que muestre cursores/bordes
-            try {
-              inner.querySelectorAll('[contenteditable]')
-                .forEach(el => { el.setAttribute('contenteditable', 'false'); el.removeAttribute('contenteditable'); });
-            } catch(_) {}
-            box.appendChild(inner);
-            root.appendChild(box);
-            // eslint-disable-next-line no-await-in-loop
-            const canvas = await html2canvas(box, { scale: Math.max(2, window.devicePixelRatio || 2), backgroundColor: '#ffffff' });
-            images.push(canvas.toDataURL('image/png'));
-            root.removeChild(box);
+            // Para 'brand', el contenido puede tener 2 páginas (.editor-page[data-page="1"] y [data-page="2"]) que se deben capturar por separado
+            const tmp = document.createElement('div');
+            tmp.innerHTML = html || '';
+            const pages = (variant === 'brand') ? Array.from(tmp.querySelectorAll('.editor-page')) : [];
+
+            const captureSingleBox = async (contentFragment) => {
+              const box = document.createElement('div');
+              box.className = 'sticker-capture';
+              box.style.cssText = 'width:5cm;height:3cm;overflow:hidden;background:#fff;';
+              const style = document.createElement('style');
+              style.textContent = `\n${(tpl.contentCss || '').toString()}\n` +
+                `/* Ocultar handles y selección del editor durante el render */\n` +
+                `.drag-handle,.resize-handle,.selection-box,.resizer,.handles,.ve-selected,.ce-selected,.selected{display:none!important;}\n` +
+                `.sticker-capture, .sticker-capture *{outline:none!important;-webkit-tap-highlight-color:transparent!important;user-select:none!important;caret-color:transparent!important;}\n` +
+                `.sticker-capture *::selection{background:transparent!important;color:inherit!important;}\n` +
+                `img,svg,canvas{outline:none!important;border:none!important;-webkit-user-drag:none!important;}`;
+              box.appendChild(style);
+              const inner = document.createElement('div');
+              if (contentFragment) {
+                inner.appendChild(contentFragment);
+              } else {
+                inner.innerHTML = html || '';
+              }
+              try {
+                inner.querySelectorAll('[contenteditable]')
+                  .forEach(el => { el.setAttribute('contenteditable', 'false'); el.removeAttribute('contenteditable'); });
+              } catch(_) {}
+              box.appendChild(inner);
+              root.appendChild(box);
+              const canvas = await html2canvas(box, { scale: Math.max(2, window.devicePixelRatio || 2), backgroundColor: '#ffffff' });
+              images.push(canvas.toDataURL('image/png'));
+              root.removeChild(box);
+            };
+
+            if (pages.length >= 2) {
+              // Clonar contenido de cada página y capturar en orden
+              const p1 = pages.find(p => p.dataset.page === '1') || pages[0];
+              const p2 = pages.find(p => p.dataset.page === '2') || pages[1];
+              // Usar su contenido interno para evitar contenedor del editor
+              const frag1 = document.createElement('div');
+              frag1.innerHTML = p1.innerHTML;
+              const frag2 = document.createElement('div');
+              frag2.innerHTML = p2.innerHTML;
+              // eslint-disable-next-line no-await-in-loop
+              await captureSingleBox(frag1);
+              // eslint-disable-next-line no-await-in-loop
+              await captureSingleBox(frag2);
+            } else {
+              // Plantilla de 1 página (qr) o fallback si no se detectan páginas
+              // eslint-disable-next-line no-await-in-loop
+              await captureSingleBox(null);
+            }
           }
           document.body.removeChild(root);
 
