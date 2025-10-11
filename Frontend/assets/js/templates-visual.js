@@ -846,29 +846,32 @@
             </select>
           </div>` : '';
 
+      const isImage = !!element.querySelector('img');
+      const w = parseInt((element.style.width || element.offsetWidth) ,10);
+      const h = parseInt((element.style.height || element.offsetHeight) ,10);
       bodyContainer.innerHTML = `
         <div style="padding: 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; margin: 10px 0;">
           <h4 style="margin: 0 0 15px 0; color: #333;">Propiedades del Elemento</h4>
           ${nodeSelector}
           
-          <div style="margin-bottom: 10px;">
+          <div style="margin-bottom: 10px;${isImage?'display:none;':''}">
             <label style="display: block; font-weight: 600; margin-bottom: 5px;">Fuente:</label>
             <select id="prop-font" style="width: 100%; padding: 5px;">
               ${FONTS.map(font => `<option value="${font}" ${computedStyle.fontFamily.includes(font.split(',')[0]) ? 'selected' : ''}>${font.split(',')[0]}</option>`).join('')}
             </select>
           </div>
           
-          <div style="margin-bottom: 10px;">
+          <div style="margin-bottom: 10px;${isImage?'display:none;':''}">
             <label style="display: block; font-weight: 600; margin-bottom: 5px;">Tamaño: <span id="size-display">${parseInt(computedStyle.fontSize)}px</span></label>
             <input type="range" id="prop-size" min="6" max="72" value="${parseInt(computedStyle.fontSize)}" style="width: 100%;">
           </div>
           
-          <div style="margin-bottom: 10px;">
+          <div style="margin-bottom: 10px;${isImage?'display:none;':''}">
             <label style="display: block; font-weight: 600; margin-bottom: 5px;">Color:</label>
             <input type="color" id="prop-color" value="${rgbToHex(computedStyle.color)}" style="width: 100%; height: 40px;">
           </div>
           
-          <div style="margin-bottom: 10px;">
+          <div style="margin-bottom: 10px;${isImage?'display:none;':''}">
             <label style="display: block; font-weight: 600; margin-bottom: 5px;">Estilo:</label>
             <div style="display: flex; gap: 5px;">
               <button id="prop-bold" style="flex: 1; padding: 8px; border: 1px solid #ccc; background: ${computedStyle.fontWeight > 400 ? '#007bff' : '#fff'}; color: ${computedStyle.fontWeight > 400 ? 'white' : 'black'}; border-radius: 4px; cursor: pointer;"><b>B</b></button>
@@ -877,12 +880,44 @@
             </div>
           </div>
           
-          <div style="margin-bottom: 15px;">
+          <div style="margin-bottom: 15px;${isImage?'display:none;':''}">
             <label style="display: block; font-weight: 600; margin-bottom: 5px;">Alineación:</label>
             <div style="display: flex; gap: 5px;">
               <button id="align-left" style="flex: 1; padding: 8px; border: 1px solid #ccc; background: ${computedStyle.textAlign === 'left' || computedStyle.textAlign === 'start' ? '#007bff' : '#fff'}; color: ${computedStyle.textAlign === 'left' || computedStyle.textAlign === 'start' ? 'white' : 'black'}; border-radius: 4px; cursor: pointer;">←</button>
               <button id="align-center" style="flex: 1; padding: 8px; border: 1px solid #ccc; background: ${computedStyle.textAlign === 'center' ? '#007bff' : '#fff'}; color: ${computedStyle.textAlign === 'center' ? 'white' : 'black'}; border-radius: 4px; cursor: pointer;">↔</button>
               <button id="align-right" style="flex: 1; padding: 8px; border: 1px solid #ccc; background: ${computedStyle.textAlign === 'right' ? '#007bff' : '#fff'}; color: ${computedStyle.textAlign === 'right' ? 'white' : 'black'}; border-radius: 4px; cursor: pointer;">→</button>
+            </div>
+          </div>
+
+          <!-- Caja y overflow -->
+          <div style="margin: 12px 0; padding: 10px; background:#fff; border:1px dashed #ccc; border-radius:6px;">
+            <label style="display:block; font-weight:600; margin-bottom:6px;">Caja del elemento</label>
+            <div style="display:flex; gap:8px;">
+              <div style="flex:1;">
+                <label style="font-size:12px; color:#555;">Ancho (px)</label>
+                <input type="number" id="prop-box-width" value="${w || ''}" min="20" max="1200" style="width:100%; padding:6px;">
+              </div>
+              <div style="flex:1;">
+                <label style="font-size:12px; color:#555;">Alto (px)</label>
+                <input type="number" id="prop-box-height" value="${h || ''}" min="20" max="1200" style="width:100%; padding:6px;">
+              </div>
+            </div>
+            <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
+              <label style="font-size:12px; color:#555;">Ajuste de contenido</label>
+              <select id="prop-overflow" style="flex:1; padding:6px;">
+                <option value="visible" ${computedStyle.overflow==='visible'?'selected':''}>Visible</option>
+                <option value="hidden" ${computedStyle.overflow==='hidden'?'selected':''}>Recortar</option>
+                <option value="auto" ${computedStyle.overflow==='auto'?'selected':''}>Scroll</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Controles específicos de imagen (QR) -->
+          <div style="margin: 12px 0; padding: 10px; background:#fff; border:1px dashed #ccc; border-radius:6px; ${isImage?'':'display:none;'}">
+            <label style="display:block; font-weight:600; margin-bottom:6px;">Imagen</label>
+            <div>
+              <label style="font-size:12px; color:#555;">Ancho de la imagen (px)</label>
+              <input type="range" id="prop-img-width" min="20" max="600" value="${(element.querySelector('img')||{}).offsetWidth||80}" style="width:100%;">
             </div>
           </div>
           
@@ -965,7 +1000,7 @@
   }
 
   function setupPropertyListeners(element, contentElement) {
-    const fontSelect = qs('#prop-font');
+  const fontSelect = qs('#prop-font');
     const sizeRange = qs('#prop-size');
     const sizeDisplay = qs('#size-display');
     const colorInput = qs('#prop-color');
@@ -976,6 +1011,10 @@
     const alignCenterBtn = qs('#align-center');
     const alignRightBtn = qs('#align-right');
     const deleteBtn = qs('#delete-element');
+  const boxW = qs('#prop-box-width');
+  const boxH = qs('#prop-box-height');
+  const overflowSel = qs('#prop-overflow');
+  const imgWidthRange = qs('#prop-img-width');
 
     if (fontSelect) {
       fontSelect.onchange = () => {
@@ -1056,6 +1095,23 @@
       }
 
       console.log(`Alineación aplicada: ${align} al elemento:`, contentElement);
+    }
+
+    // Box sizing and overflow
+    if (boxW) boxW.oninput = () => { element.style.width = boxW.value ? (parseInt(boxW.value,10)+'px') : ''; };
+    if (boxH) boxH.oninput = () => { element.style.height = boxH.value ? (parseInt(boxH.value,10)+'px') : ''; };
+    if (overflowSel) overflowSel.onchange = () => { element.style.overflow = overflowSel.value; };
+
+    // Image width control
+    if (imgWidthRange) {
+      const img = element.querySelector('img');
+      if (img) {
+        imgWidthRange.oninput = () => {
+          const w = parseInt(imgWidthRange.value,10);
+          img.style.width = w + 'px';
+          img.style.height = 'auto';
+        };
+      }
     }
 
     if (deleteBtn) {
@@ -1281,8 +1337,8 @@
   }
 
   function clearCanvas() {
-  const parent = getActiveParent();
-  if (!parent) return;
+    const canvas = qs('#ce-canvas');
+    if (!canvas) return;
     
     canvas.innerHTML = `
       <div style="
@@ -2436,6 +2492,44 @@
     selectElement(newElement);
   };
 
+  // Insert QR as an image element (<img src="{{item.qr}}">) with resize handles
+  window.insertQrImageInCanvas = function() {
+    const parent = getActiveParent();
+    if (!parent) return;
+
+    // Create container for image to allow resize handles
+    const id = `element_${visualEditor.nextId++}`;
+    const wrapper = document.createElement('div');
+    wrapper.id = id;
+    wrapper.className = 'tpl-element';
+    wrapper.style.cssText = 'position:absolute; cursor:move; border:2px solid transparent;';
+
+    // Default spawn near safe inset
+    const inset = getSafeInsetPx();
+    wrapper.style.left = (inset || 10) + 'px';
+    wrapper.style.top = (inset || 10) + 'px';
+
+    const imgContainer = document.createElement('div');
+    imgContainer.className = 'image-container';
+    imgContainer.style.cssText = 'position:relative; display:inline-block; max-width:100%;';
+
+    const img = document.createElement('img');
+    img.src = '{{item.qr}}';
+    img.style.cssText = 'width:80px; height:auto; display:block; user-select:none;';
+    img.draggable = false;
+    imgContainer.appendChild(img);
+    wrapper.appendChild(imgContainer);
+
+    parent.appendChild(wrapper);
+
+    // Make interactive
+    makeDraggable(wrapper);
+    makeSelectable(wrapper);
+    addResizeHandles(imgContainer, img);
+    visualEditor.elements.push({ id, type: 'qr-image', element: wrapper });
+    selectElement(wrapper);
+  };
+
   // Global function to insert items table
   window.insertItemsTable = function() {
     addItemsTable();
@@ -2983,6 +3077,23 @@
     console.log('✅ Editor Visual inicializado correctamente');
   });
 
+  // Global: deseleccionar al hacer clic fuera de cualquier elemento del editor
+  // (ignora clics dentro de .tpl-element, #element-properties, #ce-toolbar y #pages-controls)
+  document.addEventListener('click', (e) => {
+    try {
+      const el = e.target;
+      const insideTpl = el.closest && el.closest('.tpl-element');
+      const insideProps = el.closest && el.closest('#element-properties');
+      const insideToolbar = el.closest && el.closest('#ce-toolbar');
+      const insidePages = el.closest && el.closest('#pages-controls');
+      const insideCanvas = el.closest && el.closest('#ce-canvas');
+      if (!insideTpl && !insideProps && !insideToolbar && !insidePages && insideCanvas) {
+        // Clic dentro del canvas pero fuera de un elemento
+        selectElement(null);
+      }
+    } catch (_) { /* noop */ }
+  }, true);
+
   // Template loading functions
   async function loadExistingFormat(formatId) {
     try {
@@ -3297,13 +3408,25 @@
     hint.style.cssText = 'margin: 0 0 12px 0; background: var(--card); border:1px solid var(--border); border-radius:10px; padding:12px;';
 
     const header = `<h4 style="margin: 0 0 10px 0; color: #cbd5e1; font-size: 14px;">🧩 Variables rápidas (Stickers)</h4>`;
-    const buttonsHtml = createFriendlyButtons([
-      { label: 'SKU del ítem', icon: '🏷️', value: '{{item.sku}}' },
-      { label: 'Nombre del ítem', icon: '📦', value: '{{item.name}}' },
-      { label: 'Ubicación', icon: '📍', value: '{{item.location}}' },
-      { label: 'Nombre de la empresa', icon: '🏢', value: '{{company.name}}' },
-      { label: 'QR (texto/URL)', icon: '🔗', value: '{{item.qr}}' }
-    ]);
+    const buttonsHtml = [
+      createFriendlyButtons([
+        { label: 'SKU del ítem', icon: '🏷️', value: '{{item.sku}}' },
+        { label: 'Nombre del ítem', icon: '📦', value: '{{item.name}}' },
+        { label: 'Ubicación', icon: '📍', value: '{{item.location}}' },
+        { label: 'Nombre de la empresa', icon: '🏢', value: '{{company.name}}' }
+      ]),
+      // QR como imagen (inserta <img src="{{item.qr}}">)
+      `<button onclick="insertQrImageInCanvas()" 
+               style="width:100%; padding:8px 10px; margin:3px 0; background:linear-gradient(135deg,#f8f9fa,#e9ecef); border:1px solid #dee2e6; border-radius:6px; cursor:pointer; text-align:left; font-size:12px; display:flex; align-items:center; gap:8px;"
+               onmouseover="this.style.background='linear-gradient(135deg,#e3f2fd,#bbdefb)'; this.style.borderColor='#2196f3';"
+               onmouseout="this.style.background='linear-gradient(135deg,#f8f9fa,#e9ecef)'; this.style.borderColor='#dee2e6';">
+         <span style="font-size:14px;">🖼️</span>
+         <span style="flex:1; font-weight:500; color:#495057;">QR (como imagen)</span>
+         <span style="font-size:10px; color:#6c757d;">Clic para agregar</span>
+      </button>`,
+      // QR como texto/URL (para depuración o necesidad específica)
+      createFriendlyButtons([{ label: 'QR (texto/URL)', icon: '🔗', value: '{{item.qr}}' }])
+    ].join('');
 
     hint.innerHTML = header + buttonsHtml;
     varList.insertBefore(hint, varList.firstChild);
