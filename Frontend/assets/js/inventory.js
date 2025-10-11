@@ -292,6 +292,10 @@ function getSelectedItems() {
     .map((b) => state.itemCache.get(String(b.dataset.id)))
     .filter(Boolean);
 }
+
+// Solo ejecutar la lógica de Inventario cuando estamos en esa página
+const __ON_INV_PAGE__ = (document.body?.dataset?.page === 'inventario');
+if (__ON_INV_PAGE__) {
   const itSku = document.getElementById("it-sku"); upper(itSku);
   const itName = document.getElementById("it-name"); upper(itName);
   const itInternal = document.getElementById("it-internal"); if (itInternal) upper(itInternal);
@@ -1087,6 +1091,8 @@ function getSelectedItems() {
   // ---- Boot ----
   refreshIntakes();
   refreshItems({});
+
+}
 
 // Export a no-op initializer to satisfy app.js imports
 export function initInventory() {
