@@ -262,13 +262,13 @@
       container.appendChild(canvas);
     }
 
-    // Make canvas suitable for visual editing
+    // Make canvas suitable for visual editing (theme-aware)
     canvas.style.cssText = `
-      min-height: 500px;
-      border: 2px dashed #ddd;
+      border: 2px dashed var(--border);
       padding: 20px;
       position: relative;
-      background: #fff;
+      background: var(--card);
+      color: var(--text);
       overflow: visible;
       border-radius: 8px;
       margin: 10px 0;
@@ -327,7 +327,7 @@
   function createEditorButtons() {
     console.log('Creando botones del editor...');
     
-    // Find existing toolbar or create one
+  // Find existing toolbar or create one
     let toolbar = qs('#ce-toolbar') || qs('.ce-toolbar') || qs('.editor-toolbar') || qs('.toolbar');
     
     if (!toolbar) {
@@ -346,41 +346,41 @@
       }
     }
     
-    // Apply styles
-    toolbar.style.cssText = 'padding: 15px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);';
+  // Apply styles (theme-aware)
+  toolbar.style.cssText = 'padding: 12px; background: var(--card-alt); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; box-shadow: var(--shadow-elev);';
 
     toolbar.innerHTML = `
       <style>
         .toolbar-btn {
-          padding: 10px 16px;
-          border: none;
-          border-radius: 8px;
+          padding: 10px 14px;
+          border-radius: 10px;
           cursor: pointer;
           font-weight: 600;
           font-size: 14px;
           margin: 2px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-          transition: all 0.3s ease;
+          transition: transform .2s ease;
           display: inline-flex;
           align-items: center;
           gap: 6px;
         }
-        .toolbar-btn:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
+        .toolbar-btn.primary { background: var(--accent); color: var(--text-invert); border: 0; }
+        .toolbar-btn.secondary { background: transparent; color: var(--text); border: 1px solid var(--border); }
+        .toolbar-btn.danger { background: #ef4444; color: #fff; border: 0; }
+        .toolbar-btn.warn { background: #f59e0b; color: #111827; border: 0; }
+        .toolbar-btn:hover { transform: translateY(-1px); }
+        .toolbar-sep { border-left: 2px solid var(--border); padding-left: 12px; margin-left: 12px; display: inline-flex; align-items: center; gap: 6px; }
       </style>
       
-      <button id="add-title-btn" class="toolbar-btn" style="background: linear-gradient(135deg, #007bff, #0056b3); color: white;">📄 Título</button>
-      <button id="add-text-btn" class="toolbar-btn" style="background: linear-gradient(135deg, #28a745, #20c997); color: white;">📝 Texto</button>
-      <button id="add-image-btn" class="toolbar-btn" style="background: linear-gradient(135deg, #ffc107, #e0a800); color: #212529;">🖼️ Imagen</button>
-      <button id="add-table-btn" class="toolbar-btn" style="background: linear-gradient(135deg, #17a2b8, #138496); color: white;">📊 Tabla</button>
-      <button id="add-items-table-btn" class="toolbar-btn" style="background: linear-gradient(135deg, #6f42c1, #59359a); color: white;">📋 Items</button>
+      <button id="add-title-btn" class="toolbar-btn primary">📄 Título</button>
+      <button id="add-text-btn" class="toolbar-btn primary">📝 Texto</button>
+      <button id="add-image-btn" class="toolbar-btn secondary">🖼️ Imagen</button>
+      <button id="add-table-btn" class="toolbar-btn secondary">📊 Tabla</button>
+      <button id="add-items-table-btn" class="toolbar-btn secondary">📋 Items</button>
       
-      <div style="border-left: 2px solid #ddd; padding-left: 12px; margin-left: 12px; display: flex; align-items: center; gap: 4px;">
-        <button id="delete-selected-btn" class="toolbar-btn" style="background: linear-gradient(135deg, #dc3545, #c82333); color: white;" title="Eliminar elemento seleccionado">🗑️ Eliminar</button>
-        <button id="undo-btn" class="toolbar-btn" style="background: linear-gradient(135deg, #fd7e14, #e8690b); color: white; opacity: 0.5;" disabled title="Deshacer última eliminación">↩️ Deshacer</button>
-        <button id="clear-canvas-btn" class="toolbar-btn" style="background: linear-gradient(135deg, #6c757d, #545b62); color: white;">🧹 Limpiar Todo</button>
+      <div class="toolbar-sep">
+        <button id="delete-selected-btn" class="toolbar-btn danger" title="Eliminar elemento seleccionado">🗑️ Eliminar</button>
+        <button id="undo-btn" class="toolbar-btn warn" style="opacity:.7;" disabled title="Deshacer última eliminación">↩️ Deshacer</button>
+        <button id="clear-canvas-btn" class="toolbar-btn secondary">🧹 Limpiar Todo</button>
       </div>
       
 
@@ -2923,11 +2923,11 @@
     if (header) {
       const sessionInfo = document.createElement('div');
       sessionInfo.style.cssText = `
-        background: #e3f2fd;
-        border: 1px solid #2196f3;
-        border-radius: 6px;
-        padding: 12px 16px;
-        margin: 10px 0 20px 0;
+        background: var(--card-alt);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 14px;
+        margin: 10px 0 16px 0;
         font-size: 14px;
         display: flex;
         align-items: center;
@@ -2945,10 +2945,10 @@
         <span style="font-size: 16px;">${icon}</span>
         <strong>${actionText} ${getDocumentTypeName(documentType)}</strong>
         <span style="font-size: 16px;">${typeIcon}</span>
-        ${currentName ? `<span style="color: #666;">• "${currentName}"</span>` : ''}
-        ${formatId ? `<span style="color: #666;">• ID: ${formatId}</span>` : ''}
+        ${currentName ? `<span style="opacity:.8;">• "${currentName}"</span>` : ''}
+        ${formatId ? `<span style="opacity:.8;">• ID: ${formatId}</span>` : ''}
         <div style="margin-left: auto;">
-          <a href="template-selector.html" style="color: #2196f3; text-decoration: none; font-size: 13px;">
+          <a href="template-selector.html" style="color: var(--text); text-decoration: none; font-size: 13px; opacity:.9;">
             ← Cambiar tipo/formato
           </a>
         </div>
