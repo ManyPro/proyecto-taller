@@ -99,3 +99,54 @@ body[data-page="formatos"] .muted{ color: var(--muted); }
   body[data-page="formatos"] .formats-grid{ grid-template-columns: 1fr; }
   body[data-page="formatos"] .formats-header{ flex-direction: column; align-items: stretch; }
 }
+
+/* Modal overlay for Create Format dialog */
+body[data-page="formatos"] .modal-overlay{
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(2,6,23,.55);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+}
+body[data-page="formatos"] .modal-overlay.show{ display:flex; }
+body[data-page="formatos"] .modal-container{
+  width: min(560px, 92vw);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  box-shadow: var(--shadow-elev);
+  overflow: hidden;
+}
+body[data-page="formatos"] .modal-header{
+  background: var(--card-alt);
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+body[data-page="formatos"] .modal-body{ padding: 16px; }
+body[data-page="formatos"] .modal-footer{
+  padding: 12px 16px;
+  display:flex; gap:8px; justify-content:flex-end;
+  border-top: 1px solid var(--border);
+}
+body[data-page="formatos"] .modal-close{
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  font-size: 22px;
+  cursor: pointer;
+}
+body[data-page="formatos"] .btn-create{ background: var(--accent); color: var(--text-invert); border:0; padding:8px 12px; border-radius:10px; }
+body[data-page="formatos"] .btn-create.enabled:hover{ background: var(--accent-hover); }
+body[data-page="formatos"] .btn-cancel{ background: transparent; border:1px solid var(--border); color: var(--text); padding:8px 12px; border-radius:10px; }
+body[data-page="formatos"] .input-group label{ display:block; font-size:12px; color: var(--muted); margin-bottom:6px; }
+body[data-page="formatos"] .input-group input{ width:100%; padding:10px; border:1px solid var(--border); background: var(--input-bg); color: var(--text); border-radius:10px; }
+body[data-page="formatos"] .input-help{ font-size:12px; color: var(--muted); margin-top:6px; display:flex; justify-content:flex-end; }
+body[data-page="formatos"] .format-preview{ display:flex; gap:12px; align-items:center; margin-top:10px; }
+body[data-page="formatos"] .format-preview .preview-icon{ width:42px; height:42px; display:flex; align-items:center; justify-content:center; background: var(--card-alt); border:1px solid var(--border); border-radius:8px; }

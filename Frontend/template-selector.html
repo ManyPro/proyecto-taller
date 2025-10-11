@@ -218,7 +218,7 @@
   </div>
 
   <!-- Modal para nombre de formato -->
-  <div id="format-name-modal" class="modal-overlay" style="display: none;">
+  <div id="format-name-modal" class="modal-overlay">
     <div class="modal-container">
       <div class="modal-header">
         <h3 id="modal-title">🎨 Crear Nuevo Formato</h3>
@@ -698,7 +698,7 @@
       input.select();
       
       // Show modal
-      modal.style.display = 'flex';
+  modal.classList.add('show');
       setTimeout(() => input.focus(), 100);
       
       // Update character counter
@@ -706,8 +706,8 @@
     }
 
     function closeFormatNameModal() {
-      const modal = document.getElementById('format-name-modal');
-      modal.style.display = 'none';
+  const modal = document.getElementById('format-name-modal');
+  modal.classList.remove('show');
     }
 
     function updateCharCounter() {
@@ -834,9 +834,7 @@
       
       // Close modal when clicking outside
       document.getElementById('format-name-modal').addEventListener('click', function(e) {
-        if (e.target === this) {
-          closeFormatNameModal();
-        }
+        if (e.target === this) closeFormatNameModal();
       });
     });
 
