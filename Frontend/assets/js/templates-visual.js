@@ -3073,15 +3073,16 @@
     const wrapper = document.createElement('div');
     wrapper.className = 'tpl-element sticker-wrapper';
     wrapper.id = `element_${visualEditor.nextId++}`;
-    wrapper.style.cssText = 'position:absolute; left:6px; top:6px; border:2px solid transparent; cursor:move; width:calc(5cm - 12px); height:calc(3cm - 12px);';
+  // Márgenes seguros en cm para no salirnos del área física
+  wrapper.style.cssText = 'position:absolute; left:0.2cm; top:0.2cm; border:2px solid transparent; cursor:move; width:calc(5cm - 0.4cm); height:calc(3cm - 0.4cm);';
 
     // Layout solicitado: izquierda SKU (sin fondo azul), derecha QR
     wrapper.innerHTML = `
-      <div style="width:100%; height:100%; box-sizing:border-box; padding:6px; display:flex; align-items:center; justify-content:space-between; border:1px dashed var(--border); border-radius:4px; background:#fff; color:#111;">
-        <div style="width:2.2cm; height:2.2cm; border-radius:8px; display:flex; align-items:center; justify-content:center;">
-          <div style="font-weight:700; font-size:14px; letter-spacing:0.5px;" contenteditable="true">{{sku}}</div>
+      <div style="width:100%; height:100%; box-sizing:border-box; padding:0.1cm; display:flex; align-items:center; justify-content:space-between; border:1px dashed var(--border); border-radius:4px; background:#fff; color:#111; overflow:hidden;">
+        <div style="width:2.05cm; height:2.05cm; border-radius:6px; display:flex; align-items:center; justify-content:center;">
+          <div style="font-weight:700; font-size:14px; letter-spacing:0.5px;" contenteditable="true">{{item.sku}}</div>
         </div>
-        <div style="width:2.2cm; height:2.2cm; display:flex; align-items:center; justify-content:center;">
+        <div style="width:2.05cm; height:2.05cm; display:flex; align-items:center; justify-content:center;">
           <img src="{{item.qr}}" alt="QR" style="max-width:100%; max-height:100%; object-fit:contain;" />
         </div>
       </div>
@@ -3091,6 +3092,7 @@
     makeDraggable(wrapper);
     makeSelectable(wrapper);
     visualEditor.elements.push({ id: wrapper.id, type: 'sticker-qr', element: wrapper });
+    insertStickerVarsHint();
   }
 
   function createStickerTemplateBrand(canvas) {
@@ -3104,13 +3106,13 @@
     const page1Wrap = document.createElement('div');
     page1Wrap.className = 'tpl-element sticker-brand';
     page1Wrap.id = `element_${visualEditor.nextId++}`;
-    page1Wrap.style.cssText = 'position:absolute; left:6px; top:6px; border:2px solid transparent; cursor:move; width:calc(5cm - 12px); height:calc(3cm - 12px);';
+  page1Wrap.style.cssText = 'position:absolute; left:0.2cm; top:0.2cm; border:2px solid transparent; cursor:move; width:calc(5cm - 0.4cm); height:calc(3cm - 0.4cm);';
     page1Wrap.innerHTML = `
-      <div style=\"width:100%; height:100%; box-sizing:border-box; padding:6px; display:flex; align-items:center; justify-content:space-between; border:1px dashed var(--border); border-radius:4px; background:#fff; color:#111;\"> 
-        <div style=\"width:2.2cm; height:2.2cm; border-radius:8px; display:flex; align-items:center; justify-content:center;\"> 
-          <div style=\"font-weight:700; font-size:14px; letter-spacing:0.5px;\" contenteditable=\"true\">{{sku}}</div> 
+      <div style=\"width:100%; height:100%; box-sizing:border-box; padding:0.1cm; display:flex; align-items:center; justify-content:space-between; border:1px dashed var(--border); border-radius:4px; background:#fff; color:#111; overflow:hidden;\"> 
+        <div style=\"width:2.05cm; height:2.05cm; border-radius:6px; display:flex; align-items:center; justify-content:center;\"> 
+          <div style=\"font-weight:700; font-size:14px; letter-spacing:0.5px;\" contenteditable=\"true\">{{item.sku}}</div> 
         </div>
-        <div style=\"width:2.2cm; height:2.2cm; display:flex; align-items:center; justify-content:center;\"> 
+        <div style=\"width:2.05cm; height:2.05cm; display:flex; align-items:center; justify-content:center;\"> 
           <img src=\"{{item.qr}}\" alt=\"QR\" style=\"max-width:100%; max-height:100%; object-fit:contain;\" /> 
         </div>
       </div>`;
@@ -3120,6 +3122,7 @@
 
     // Página 2: en blanco (el usuario colocará el diseño del logo de la empresa)
     // No agregamos elementos por defecto.
+    insertStickerVarsHint();
   }
 
   function getDocumentTypeName(type) {
@@ -3131,6 +3134,23 @@
       'sticker-brand': 'Sticker (Marca + QR)'
     };
     return names[type] || type;
+  }
+
+  // Inserta una guía breve de variables disponibles cuando se trabaja con stickers
+  function insertStickerVarsHint(){
+    const toolbar = document.querySelector('#ce-toolbar');
+    if (!toolbar) return;
+    if (document.querySelector('#sticker-vars-hint')) return;
+    const hint = document.createElement('div');
+    hint.id = 'sticker-vars-hint';
+    hint.style.cssText = 'margin-left:8px; font-size:12px; opacity:.8; display:flex; gap:6px; flex-wrap:wrap; align-items:center;';
+    hint.innerHTML = '<span class="muted" style="font-weight:600;">Variables:</span>'+
+      '<code>{{item.sku}}</code>'+
+      '<code>{{item.name}}</code>'+
+      '<code>{{item.location}}</code>'+
+      '<code>{{company.name}}</code>'+
+      '<code>{{item.qr}}</code>';
+    toolbar.appendChild(hint);
   }
 
   function addSessionHeader(documentType, action, formatId) {
