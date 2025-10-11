@@ -296,11 +296,51 @@ function getSelectedItems() {
 // Solo ejecutar la lógica de Inventario cuando estamos en esa página
 const __ON_INV_PAGE__ = (document.body?.dataset?.page === 'inventario');
 if (__ON_INV_PAGE__) {
+  // --- Busy Overlay (para operaciones largas) ---
+  function getBusyOverlay(){
+    let el = document.getElementById('busy-overlay');
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = 'busy-overlay';
+    el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:9999;';
+    el.innerHTML = `<div style="background:var(--card);color:var(--text);padding:14px 18px;border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.4);display:flex;gap:10px;align-items:center;font-size:14px;">
+        <span class="spinner" style="width:16px;height:16px;border-radius:50%;border:2px solid #8aa; border-top-color: transparent; display:inline-block; animation:spin .8s linear infinite;"></span>
+        <span id="busy-msg">Generando PDF...</span>
+      </div>
+      <style>@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}</style>`;
+    document.body.appendChild(el);
+    return el;
+  }
+  function showBusy(msg){ const o=getBusyOverlay(); const m=o.querySelector('#busy-msg'); if(m) m.textContent=msg||'Procesando...'; o.style.display='flex'; }
+  function hideBusy(){ const o=document.getElementById('busy-overlay'); if(o) o.style.display='none'; }
   const itSku = document.getElementById("it-sku"); upper(itSku);
   const itName = document.getElementById("it-name"); upper(itName);
   const itInternal = document.getElementById("it-internal"); if (itInternal) upper(itInternal);
   const itLocation = document.getElementById("it-location"); if (itLocation) upper(itLocation);
   const itVehicleTarget = document.getElementById("it-vehicleTarget"); upper(itVehicleTarget);
+  // Controles de Ingreso
+  const viKindVehicle = document.getElementById('vi-kind-vehicle');
+  const viKindPurchase = document.getElementById('vi-kind-purchase');
+  const viFormVehicle = document.getElementById('vi-form-vehicle');
+  const viFormPurchase = document.getElementById('vi-form-purchase');
+  const viBrand = document.getElementById('vi-brand');
+  const viModel = document.getElementById('vi-model');
+  const viEngine = document.getElementById('vi-engine');
+  const viDate = document.getElementById('vi-date');
+  const viPrice = document.getElementById('vi-price');
+  const viPPlace = document.getElementById('vi-p-place');
+  const viPDate = document.getElementById('vi-p-date');
+  const viPPrice = document.getElementById('vi-p-price');
+  const viSave = document.getElementById('vi-save');
+  const viList = document.getElementById('vi-list');
+  function updateIntakeKindUI(){
+    const isPurchase = !!viKindPurchase?.checked;
+    if (viFormVehicle) viFormVehicle.classList.toggle('hidden', isPurchase);
+    if (viFormPurchase) viFormPurchase.classList.toggle('hidden', !isPurchase);
+  }
+  viKindVehicle?.addEventListener('change', updateIntakeKindUI);
+  viKindPurchase?.addEventListener('change', updateIntakeKindUI);
+  updateIntakeKindUI();
   const itVehicleIntakeId = document.getElementById("it-vehicleIntakeId");
   const itEntryPrice = document.getElementById("it-entryPrice");
   const itSalePrice = document.getElementById("it-salePrice");
@@ -983,6 +1023,7 @@ if (__ON_INV_PAGE__) {
     };
 
     document.getElementById("stk-generate").onclick = async () => {
+      showBusy('Generando PDF de stickers...');
       const list = [];
       rows.querySelectorAll("tr").forEach((tr) => {
         const id = tr.dataset.id;
@@ -991,6 +1032,7 @@ if (__ON_INV_PAGE__) {
         if (it && count > 0) list.push({ it, count });
       });
       if (!list.length) {
+        hideBusy();
         alert("Coloca al menos 1 sticker.");
         return;
       }
@@ -1058,6 +1100,7 @@ if (__ON_INV_PAGE__) {
           });
           doc.save(`stickers-${variant}.pdf`);
           invCloseModal();
+          hideBusy();
           return; // hecho con plantilla (PDF descargado)
         }
       } catch (e) {
@@ -1082,7 +1125,9 @@ if (__ON_INV_PAGE__) {
         a.href = url; a.download = `stickers-${variant}.pdf`; document.body.appendChild(a); a.click(); a.remove();
         URL.revokeObjectURL(url);
         invCloseModal();
+        hideBusy();
       } catch (err) {
+        hideBusy();
         alert('Error creando stickers: ' + (err.message || err));
       }
     };
