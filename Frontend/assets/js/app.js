@@ -53,6 +53,7 @@ const sectionLogin = document.getElementById('loginSection');
 const sectionApp = document.getElementById('appSection');
 const appHeader = document.getElementById('appHeader');
 const emailSpan = document.getElementById('companyEmail');
+const nameSpan = document.getElementById('companyName');
 const welcomeSpan = document.getElementById('welcomeCompany');
 const logoutBtn = document.getElementById('logoutBtn');
 const lastTabKey = 'app:lastTab';
@@ -65,9 +66,13 @@ const getLastTab = () => {
   try { return sessionStorage.getItem(lastTabKey) || null; } catch { return null; }
 };
 
-function updateCompanyLabels(value) {
-  if(emailSpan) emailSpan.textContent = value || '';
-  if(welcomeSpan) welcomeSpan.textContent = value || 'Tu empresa';
+function updateCompanyLabels(input) {
+  // Admite string (email) o objeto { email, name }
+  const email = typeof input === 'string' ? input : (input?.email || '');
+  const name = typeof input === 'object' ? (input?.name || '') : '';
+  if (emailSpan) emailSpan.textContent = email || '';
+  if (nameSpan) nameSpan.textContent = name || '';
+  if (welcomeSpan) welcomeSpan.textContent = name || email || 'Tu empresa';
 }
 
 function showTab(name) {
@@ -346,7 +351,8 @@ async function doLogin(isRegister = false) {
     const res = await API.loginCompany({ email, password }); // guarda token y setActiveCompany
     // UI
     const resolvedEmail = (res?.email || email);
-    updateCompanyLabels(resolvedEmail);
+    const compName = res?.company?.name || '';
+    updateCompanyLabels({ email: resolvedEmail, name: compName });
     API.setActiveCompany(resolvedEmail);
     enterApp();
     // Tras login exitoso, siempre ir a Inicio
@@ -376,18 +382,19 @@ logoutBtn?.addEventListener('click', async () => {
 (async () => {
   try {
     const me = await API.me(); // requiere token
-    if (me?.email) {
-      API.setActiveCompany(me.email);
-      updateCompanyLabels(me.email);
+    const company = me?.company || null;
+    if (company?.email) {
+      API.setActiveCompany(company.email);
+      updateCompanyLabels({ email: company.email, name: company.name });
       enterApp();
     } else {
       const active = API.getActiveCompany?.();
-      if (active) updateCompanyLabels(active);
+      if (active) updateCompanyLabels({ email: active });
       if (getCurrentPage() !== 'home') window.location.href = 'index.html';
     }
   } catch {
     const active = API.getActiveCompany?.();
-    if (active) updateCompanyLabels(active);
+    if (active) updateCompanyLabels({ email: active });
     if (getCurrentPage() !== 'home') window.location.href = 'index.html';
   }
 })();
