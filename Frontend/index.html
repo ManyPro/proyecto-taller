@@ -286,7 +286,7 @@
                 Ingreso de vehículo
               </label>
               <label class="row" style="gap:6px;margin-top:0;">
-                <input type="radio" name="vi-kind" id="vi-kind-purcHase" value="purcHase">
+                <input type="radio" name="vi-kind" id="vi-kind-purchase" value="purchase">
                 Ingreso de compra
               </label>
             </div>
@@ -301,7 +301,7 @@
             </div>
 
             <!-- Sub-form: Compra -->
-            <div id="vi-form-purcHase" class="hidden">
+            <div id="vi-form-purchase" class="hidden">
               <label>Lugar de compra</label><input id="vi-p-place" />
               <label>FecHa</label><input id="vi-p-date" type="date" />
               <label>Precio de entrada</label><input id="vi-p-price" type="number" min="0" step="0.01" />
@@ -578,7 +578,7 @@
                 <table class="table">
                   <thead>
                     <tr>
-                      <th>Descripci├│n</th>
+                      <th>Descripción</th>
                       <th class="t-center">Cant.</th>
                     </tr>
                   </thead>
@@ -596,13 +596,13 @@
                 <div class="row" style="gap:10px; align-items:center;">
                   <div class="avatar"></div>
                   <div>
-                    <div id="sv-mini-plate" class="plate chip">ÔÇö</div>
-                    <div class="muted" id="sv-mini-name">Cliente: ÔÇö</div>
-                    <div class="muted" id="sv-mini-phone">Cel: ÔÇö</div>
+                    <div id="sv-mini-plate" class="plate chip">—</div>
+                    <div class="muted" id="sv-mini-name">Cliente: —</div>
+                    <div class="muted" id="sv-mini-phone">Cel: —</div>
                   </div>
                 </div>
                 <div class="row" style="gap:6px; align-items:center;">
-                  <select id="sales-technician" class="hidden" title="T├®cnico" style="min-width:170px;"></select>
+                  <select id="sales-technician" class="hidden" title="Técnico" style="min-width:170px;"></select>
                   <button id="sv-edit-cv" class="secondary">Editar datos…</button>
                 </div>
               </div>
@@ -616,7 +616,7 @@
                   <thead>
                     <tr>
                       <th>SKU</th>
-                      <th>Descripci├│n</th>
+                      <th>Descripción</th>
                       <th>Cant.</th>
                       <th>Unit</th>
                       <th>Total</th>
@@ -638,21 +638,21 @@
             <!-- plantilla modal cliente/veh├¡culo -->
             <template id="sales-cv-template">
               <div class="card">
-                <h3>Cliente y veh├¡culo</h3>
+                <h3>Cliente y vehículo</h3>
                 <div class="cols-2" style="gap:8px;">
                   <div class="col">
                     <input id="c-name" placeholder="Nombre/Empresa">
-                    <input id="c-id" placeholder="Identificaci├│n">
-                    <input id="c-phone" placeholder="Tel├®fono">
+                    <input id="c-id" placeholder="Identificación">
+                    <input id="c-phone" placeholder="Teléfono">
                     <input id="c-email" placeholder="Email">
-                    <input id="c-address" placeholder="Direcci├│n">
+                    <input id="c-address" placeholder="Dirección">
                   </div>
                   <div class="col">
                     <input id="v-plate" placeholder="Placa (ABC123)">
                     <input id="v-brand" placeholder="Marca">
-                    <input id="v-line" placeholder="L├¡nea">
+                    <input id="v-line" placeholder="Línea">
                     <input id="v-engine" placeholder="Motor">
-                    <input id="v-year" placeholder="A├▒o" type="number">
+                    <input id="v-year" placeholder="Año" type="number">
                     <input id="v-mile" placeholder="Kilometraje" type="number">
                   </div>
                 </div>
@@ -669,7 +669,7 @@
       <!-- ========== REPORTE T├ëCNICO ========== -->
       <section id="tab-reporte-tecnico" class="tab">
         <div class="card" id="tr-filters-card">
-          <h3>Reporte de Participaci├│n T├®cnicos</h3>
+          <h3>Reporte de Participación Técnicos</h3>
           <div class="filters-bar" style="flex-wrap:wrap; gap:12px; align-items:flex-end;">
             <div class="field">
               <label>Desde</label>
@@ -680,7 +680,7 @@
               <input type="date" id="rt-to" />
             </div>
             <div class="field">
-              <label>T├®cnico</label>
+              <label>Técnico</label>
               <select id="rt-tech" style="min-width:160px;"></select>
             </div>
             <div class="field">
@@ -898,7 +898,7 @@
             </div>
             <div class="row" style="gap:6px;">
               <button id="p-pr-search" class="secondary">Buscar</button>
-              <button id="p-pr-more" class="secondary">Cargar m├ís</button>
+              <button id="p-pr-more" class="secondary">Cargar más</button>
             </div>
           </div>
           <div class="picker-table table-wrap">
@@ -945,7 +945,7 @@
       <!-- Pesta├▒a de venta -->
       <template id="tpl-sale-tab">
         <span class="sales-tab">
-          <span class="label"></span><span class="close">├ù</span>
+          <span class="label"></span><span class="close">×</span>
         </span>
       </template>
 
@@ -954,10 +954,10 @@
         <div class="sale-capsule" data-id>
           <div class="sc-top">
             <span class="sc-plate">ABC123</span>
-            <button class="sc-close" title="Cancelar">├ù</button>
+            <button class="sc-close" title="Cancelar">×</button>
           </div>
-          <div class="sc-veh" data-veh>Marca L├¡nea Motor</div>
-          <div class="sc-tech" data-tech>ÔÇö</div>
+          <div class="sc-veh" data-veh>Marca Línea Motor</div>
+          <div class="sc-tech" data-tech">—</div>
           <div class="sc-total" data-total>$0</div>
         </div>
       </template>
@@ -983,10 +983,10 @@
             <div class="qr-hud"></div>
           </div>
           <div class="row" style="gap:8px;margin-top:8px;">
-            <input id="qr-manual" placeholder="Ingresar c├│digo manualmente (fallback)">
+            <input id="qr-manual" placeholder="Ingresar código manualmente (fallback)">
             <button id="qr-add-manual">Agregar</button>
           </div>
-          <div class="muted" id="qr-msg" style="margin-top:6px;">Permite la c├ímara para escanear. Si no Hay soporte nativo, uso jsQR.</div>
+          <div class="muted" id="qr-msg" style="margin-top:6px;">Permite la cámara para escanear. Si no hay soporte nativo, usa jsQR.</div>
           <ul id="qr-history" class="qr-history"></ul>
         </div>
       </template>
@@ -1032,7 +1032,7 @@
     </section>
   </main>
 
-  <footer><small>┬® Taller App</small></footer>
+  <footer><small>© Taller App</small></footer>
 
 <!-- === INVENTORY TEMPLATES (Fase 2) === -->
 <template id="tpl-inv-intake-row">
@@ -1140,7 +1140,7 @@
         <input type="date" id="tr-to" />
       </div>
       <div>
-        <label>T├®cnico</label>
+  <label>Técnico</label>
         <select id="tr-tech" style="min-width:160px;"></select>
       </div>
       <div>
@@ -1148,7 +1148,7 @@
       </div>
     </div>
     <div id="tr-summary" class="muted" style="margin-top:10px; font-size:13px;">
-      ÔÇö Sin datos ÔÇö
+  — Sin datos —
     </div>
     <div style="max-height:420px; overflow:auto; margin-top:10px;">
       <table class="table small" style="min-width:900px;">
@@ -1158,11 +1158,11 @@
             <th>FecHa</th>
             <th>Placa</th>
             <th>Cliente</th>
-            <th>T├®cnicos</th>
+            <th>Técnicos</th>
             <th class="t-right">Total Venta</th>
             <th class="t-right">Mano Obra</th>
             <th class="t-right">% Tec</th>
-            <th class="t-right">Participaci├│n</th>
+            <th class="t-right">Participación</th>
           </tr>
         </thead>
         <tbody id="tr-body"></tbody>
