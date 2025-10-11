@@ -370,8 +370,6 @@
         .toolbar-btn:hover { transform: translateY(-1px); }
         .toolbar-sep { border-left: 2px solid var(--border); padding-left: 12px; margin-left: 12px; display: inline-flex; align-items: center; gap: 6px; }
       </style>
-      <!-- Panel de propiedades del elemento (arriba) -->
-      <div id="element-properties" class="props-panel" style="display:none; width:100%; margin-bottom: 10px;"></div>
       
       <button id="add-title-btn" class="toolbar-btn primary">📄 Título</button>
       <button id="add-text-btn" class="toolbar-btn primary">📝 Texto</button>
@@ -836,31 +834,28 @@
   }
 
   function createPropertiesPanel() {
-    // Preferir ubicar el panel dentro de la barra superior del editor
-    let toolbar = qs('#ce-toolbar');
-    if (toolbar) {
+    // Ubicar el panel en el sidebar, bien arriba de todo
+    const sidebar = qs('.editor-sidebar') || qs('#sidebar') || qs('.sidebar') || qs('#var-list')?.parentNode;
+    if (sidebar) {
       let panel = qs('#element-properties');
       if (!panel) {
         panel = document.createElement('div');
         panel.id = 'element-properties';
         panel.className = 'props-panel';
-        panel.style.cssText = 'display:none; width:100%; margin-bottom:10px;';
-        toolbar.insertBefore(panel, toolbar.firstChild?.nextSibling || toolbar.firstChild);
+        panel.style.cssText = 'display:none; margin: 0 0 12px 0;';
       }
+      // Insertar al inicio del sidebar
+      if (sidebar.firstChild) sidebar.insertBefore(panel, sidebar.firstChild); else sidebar.appendChild(panel);
       return panel;
     }
-
-    // Fallback: usar sidebar existente si no hay toolbar
-    let sidebar = qs('#sidebar') || qs('.sidebar') || qs('#var-list')?.parentNode;
-    if (!sidebar) {
-      sidebar = document.createElement('div');
-      sidebar.style.cssText = 'position: fixed; right: 10px; top: 100px; width: 250px; max-height: 80vh; overflow-y: auto; z-index: 1000;';
-      document.body.appendChild(sidebar);
-    }
-    let panel = document.createElement('div');
+    // Fallback: si no hay sidebar, crear uno flotante (caso raro)
+    const float = document.createElement('div');
+    float.style.cssText = 'position: fixed; right: 10px; top: 100px; width: 260px; max-height: 80vh; overflow-y: auto; z-index: 1000;';
+    const panel = document.createElement('div');
     panel.id = 'element-properties';
-    panel.style.cssText = 'display: none;';
-    sidebar.appendChild(panel);
+    panel.style.cssText = 'display:none; margin:0 0 12px 0;';
+    float.appendChild(panel);
+    document.body.appendChild(float);
     return panel;
   }
 
