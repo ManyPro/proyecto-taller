@@ -1067,6 +1067,15 @@ if (__ON_INV_PAGE__) {
           const html2canvas = await ensureHtml2Canvas();
           const jsPDF = await ensureJsPDF();
 
+          // Asegurar que no haya selección activa ni foco que agregue bordes/handles
+          try {
+            if (document.activeElement && typeof document.activeElement.blur === 'function') {
+              document.activeElement.blur();
+            }
+            const sel = window.getSelection && window.getSelection();
+            if (sel && sel.removeAllRanges) sel.removeAllRanges();
+          } catch (_) {}
+
           const root = document.createElement('div');
           root.id = 'sticker-capture-root';
           root.style.cssText = 'position:fixed;left:-10000px;top:0;width:0;height:0;overflow:hidden;background:#fff;z-index:-1;';
@@ -1078,10 +1087,21 @@ if (__ON_INV_PAGE__) {
             box.className = 'sticker-capture';
             box.style.cssText = 'width:5cm;height:3cm;overflow:hidden;background:#fff;';
             const style = document.createElement('style');
-            style.textContent = (tpl.contentCss || '').toString();
+            // Inyectar CSS de la plantilla + reglas para ocultar manejadores/selecciones del editor
+            style.textContent = `\n${(tpl.contentCss || '').toString()}\n` +
+              `/* Ocultar handles y selección del editor durante el render */\n` +
+              `.drag-handle,.resize-handle,.selection-box,.resizer,.handles,.ve-selected,.ce-selected,.selected{display:none!important;}\n` +
+              `.sticker-capture, .sticker-capture *{outline:none!important;-webkit-tap-highlight-color:transparent!important;user-select:none!important;caret-color:transparent!important;}\n` +
+              `.sticker-capture *::selection{background:transparent!important;color:inherit!important;}\n` +
+              `img,svg,canvas{outline:none!important;border:none!important;-webkit-user-drag:none!important;}`;
             box.appendChild(style);
             const inner = document.createElement('div');
             inner.innerHTML = html || '';
+            // Evitar contenteditable activo que muestre cursores/bordes
+            try {
+              inner.querySelectorAll('[contenteditable]')
+                .forEach(el => { el.setAttribute('contenteditable', 'false'); el.removeAttribute('contenteditable'); });
+            } catch(_) {}
             box.appendChild(inner);
             root.appendChild(box);
             // eslint-disable-next-line no-await-in-loop
@@ -1093,7 +1113,8 @@ if (__ON_INV_PAGE__) {
 
           if (!images.length) throw new Error('No se pudo rasterizar el contenido de los stickers');
 
-          const doc = new jsPDF({ unit: 'mm', format: [50, 30] });
+          // Forzar orientación horizontal (5cm ancho x 3cm alto)
+          const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [50, 30] });
           images.forEach((src, idx) => {
             if (idx > 0) doc.addPage([50, 30]);
             doc.addImage(src, 'PNG', 0, 0, 50, 30);
