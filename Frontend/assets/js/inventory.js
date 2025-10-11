@@ -1028,12 +1028,69 @@ export function initInventory() {
         alert("Coloca al menos 1 sticker.");
         return;
       }
-      // Aplanar la lista: una entrada por sticker
+      // Intentar usar la PLANTILLA ACTIVA del tipo seleccionado
+      const type = (variant === 'brand') ? 'sticker-brand' : 'sticker-qr';
+      try {
+        const tpl = await API.templates.active(type);
+        if (tpl && tpl.contentHtml) {
+          // Construir copias por cantidad y renderizar con datos reales (sampleId)
+          const tasks = [];
+          list.forEach(({ it, count }) => {
+            for (let i = 0; i < count; i++) {
+              tasks.push(() => API.templates.preview({ type, contentHtml: tpl.contentHtml, contentCss: tpl.contentCss, sampleId: it._id }));
+            }
+          });
+
+          // Ejecutar en serie para evitar saturar el backend
+          const results = [];
+          for (const job of tasks) {
+            try {
+              // eslint-disable-next-line no-await-in-loop
+              const pv = await job();
+              results.push(pv && (pv.rendered || ''));
+            } catch (e) {
+              results.push('');
+            }
+          }
+
+          if (!results.length) throw new Error('No se pudieron renderizar los stickers.');
+
+          const win = window.open('', '_blank');
+          if (!win) throw new Error('Ventana de impresión bloqueada');
+
+          const css = (tpl.contentCss || '').trim();
+          const itemsHtml = results
+            .map(html => `<div class="sticker">${html}</div>`) // cada render envuelto en caja 5x3
+            .join('');
+
+          const docHtml = `<!doctype html>
+            <html><head><meta charset="utf-8">
+              <style>
+                @page { margin: 8mm; }
+                html, body { background: #fff; }
+                .grid { display: flex; flex-wrap: wrap; gap: 2mm; }
+                .sticker { width: 5cm; height: 3cm; box-sizing: border-box; page-break-inside: avoid; overflow: hidden; border: 0; }
+                ${css}
+              </style>
+            </head>
+            <body>
+              <div class="grid">${itemsHtml}</div>
+              <script>window.focus && window.focus(); setTimeout(()=>{ try{ window.print(); }catch{} }, 200);</script>
+            </body></html>`;
+
+          win.document.write(docHtml);
+          win.document.close();
+          invCloseModal();
+          return; // hecho con plantilla
+        }
+      } catch (e) {
+        console.warn('Fallo plantilla activa; se usará el backend PDF por defecto:', e?.message || e);
+      }
+
+      // Fallback: backend PDF por variante (layout por defecto)
       const payload = [];
       list.forEach(({ it, count }) => {
-        for (let i = 0; i < count; i++) {
-          payload.push({ sku: it.sku, name: it.name });
-        }
+        for (let i = 0; i < count; i++) payload.push({ sku: it.sku, name: it.name });
       });
       try {
         const base = API.base?.replace(/\/$/, '') || '';
