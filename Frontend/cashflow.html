@@ -1,0 +1,133 @@
+﻿<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Taller App - Flujo de Caja</title>
+  <link rel="stylesheet" href="assets/styles.css?v=20250923-2" />
+  <link rel="icon" href="data:,">
+  <script src="./assets/js/config.js"></script>
+  <script src="./assets/js/api.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script>
+    window.QUOTES_KEYS = { lastNumber: 'quotes:lastNumber', draft: 'quotes:current' };
+  </script>
+</head>
+<body data-page="cashflow">
+  <header class="app-header">
+    <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
+      <div class="row" style="gap:10px;align-items:center;">
+        <h1 style="margin:0;font-size:18px;">Taller App</h1>
+        <div class="muted" style="font-size:12px;">Empresa: <span id="companyEmail">-</span></div>
+      </div>
+      <div class="row" style="gap:6px;align-items:center;">
+        <button id="logoutBtn" class="secondary hidden">Salir</button>
+  <button id="themeToggle" class="secondary" title="Cambiar tema">🌗</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ========== LOGIN ========== -->
+    <section id="loginSection">
+      <h2>Ingreso de Empresa</h2>
+      <div class="card">
+        <label>Correo de empresa</label>
+        <input type="email" id="email" placeholder="empresa@correo.com" />
+  <label>Contraseña</label>
+        <input type="password" id="password" placeholder="********" />
+        <div class="row">
+          <button id="loginBtn">Entrar</button>
+          <button id="registerBtn" class="secondary">Registrar empresa</button>
+        </div>
+  <div class="forgot-wrapper"><a class="forgot-link" href="forgot.html">¿Olvidaste tu contraseña?</a></div>
+        <small>Se crea un entorno aislado por empresa.</small>
+      </div>
+    </section>
+
+
+    <section id="appSection" class="hidden">
+      <nav class="tabs">
+  <button data-tab="home" data-href="index.html">Inicio</button>
+  <button data-tab="notas" data-href="notas.html">Notas</button>
+  <button data-tab="ventas" data-href="ventas.html">Ventas</button>
+  <button data-tab="cotizaciones" data-href="cotizaciones.html">Cotizaciones</button>
+  <button data-tab="inventario" data-href="inventario.html">Inventario</button>
+  <button data-tab="precios" data-href="precios.html">Lista de precios</button>
+  <button data-tab="cashflow" data-href="cashflow.html" class="active">Flujo de Caja</button>
+  <button data-tab="reporte-tecnico" data-href="reporte-tecnico.html">Reporte Técnico</button>
+  <button data-tab="formatos" data-href="template-selector.html">Formatos</button>
+  <button data-tab="skus" data-href="skus.html">SKUs</button>
+      </nav>
+
+      <!-- MODAL GLOBAL -->
+      <div id="modal" class="modal hidden">
+        <div class="modal-content">
+          <button id="modalClose" class="close">&times;</button>
+          <div id="modalBody">
+            <div id="modal-img-wrap" style="display:flex;justify-content:center;align-items:center;flex-direction:column;">
+              <img id="modal-img" src="" alt="Vista previa" style="max-width:90vw;max-height:90vh;width:1200px;height:auto;transition:transform 0.2s;" />
+              <div style="margin-top:12px;display:flex;gap:8px;">
+                <button id="zoom-in" class="secondary">+</button>
+                <button id="zoom-out" class="secondary">-</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== FLUJO DE CAJA ========== -->
+      <section id="tab-cashflow" class="tab">
+        <div class="card">
+          <h3>Cuentas</h3>
+          <div class="row wrap" style="gap:8px; align-items:flex-end;">
+            <div>
+              <button id="cf-refresh" class="secondary">Actualizar</button>
+              <button id="cf-add-account">+ Cuenta</button>
+            </div>
+          </div>
+          <div id="cf-accounts" class="table-wrap" style="max-height:200px;overflow:auto;margin-top:8px;">
+            <table class="table small"><thead><tr><th>Nombre</th><th>Tipo</th><th class="t-right">Saldo</th><th></th></tr></thead><tbody id="cf-acc-body"></tbody></table>
+          </div>
+          <div id="cf-acc-total" class="muted" style="margin-top:6px;font-size:12px;">Total: —</div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <h3>Movimientos</h3>
+          <div class="row wrap" style="gap:8px; align-items:flex-end;">
+            <select id="cf-filter-account"><option value="">-- Cuenta --</option></select>
+            <input type="date" id="cf-from" />
+            <input type="date" id="cf-to" />
+            <select id="cf-kind"><option value="">IN/OUT</option><option value="IN">Entradas</option><option value="OUT">Salidas</option></select>
+            <select id="cf-source"><option value="">Fuente</option><option value="SALE">Venta</option><option value="MANUAL">Manual</option></select>
+            <button id="cf-apply" class="secondary">Aplicar</button>
+            <button id="cf-new-entry">+ Entrada manual</button>
+            <button id="cf-new-expense" class="danger">- Salida</button>
+          </div>
+          <div id="cf-mov-summary" class="muted" style="margin-top:8px;font-size:12px;">—</div>
+          <div class="table-wrap" style="max-height:360px;overflow:auto;margin-top:8px;">
+            <table class="table small" style="min-width:920px;">
+              <thead><tr><th>Fecha</th><th>Cuenta</th><th>Descripción</th><th>Fuente</th><th class="t-right">IN</th><th class="t-right">OUT</th><th class="t-right">Saldo</th></tr></thead>
+              <tbody id="cf-rows"></tbody>
+            </table>
+          </div>
+          <div class="row between" style="margin-top:8px;font-size:12px;">
+            <div id="cf-pag" class="muted">Página 1</div>
+            <div class="row" style="gap:6px;">
+              <button id="cf-prev" class="secondary" disabled>←</button>
+              <button id="cf-next" class="secondary" disabled>→</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      <!-- ========== /FLUJO DE CAJA ========== -->
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/cashflow.js" charset="utf-8"></script>
+  <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
+  <script src="./assets/js/input-fix.js"></script>
+</body>
+</html>

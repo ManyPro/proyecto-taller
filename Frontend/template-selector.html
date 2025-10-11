@@ -1,14 +1,74 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Seleccionar Formato de Plantilla</title>
   <link rel="stylesheet" href="assets/styles.css">
   <link rel="stylesheet" href="assets/css/pages/template-selector.css">
 </head>
-<body>
-  <div class="container">
+<body data-page="formatos">
+  <header class="app-header">
+    <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
+      <div class="row" style="gap:10px;align-items:center;">
+        <h1 style="margin:0;font-size:18px;">Taller App</h1>
+        <div class="muted" style="font-size:12px;">Empresa: <span id="companyEmail">-</span></div>
+      </div>
+      <div class="row" style="gap:6px;align-items:center;">
+        <button id="logoutBtn" class="secondary hidden">Salir</button>
+  <button id="themeToggle" class="secondary" title="Cambiar tema">🌗</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ========== LOGIN ========== -->
+    <section id="loginSection">
+      <h2>Ingreso de Empresa</h2>
+      <div class="card">
+        <label>Correo de empresa</label>
+        <input type="email" id="email" placeholder="empresa@correo.com" />
+        <label>Contrase&#241;a</label>
+        <input type="password" id="password" placeholder="********" />
+        <div class="row">
+          <button id="loginBtn">Entrar</button>
+          <button id="registerBtn" class="secondary">Registrar empresa</button>
+        </div>
+        <div class="forgot-wrapper"><a class="forgot-link" href="forgot.html">&iquest;Olvidaste tu contrase&#241;a?</a></div>
+      </div>
+    </section>
+
+    <section id="appSection" class="hidden">
+      <nav class="tabs">
+  <button data-tab="home" data-href="index.html">Inicio</button>
+  <button data-tab="notas" data-href="notas.html">Notas</button>
+  <button data-tab="ventas" data-href="ventas.html">Ventas</button>
+  <button data-tab="cotizaciones" data-href="cotizaciones.html">Cotizaciones</button>
+  <button data-tab="inventario" data-href="inventario.html">Inventario</button>
+  <button data-tab="precios" data-href="precios.html">Lista de precios</button>
+  <button data-tab="cashflow" data-href="cashflow.html">Flujo de Caja</button>
+  <button data-tab="reporte-tecnico" data-href="reporte-tecnico.html">Reporte Técnico</button>
+  <button data-tab="formatos" data-href="template-selector.html" class="active">Formatos</button>
+  <button data-tab="skus" data-href="skus.html">SKUs</button>
+      </nav>
+
+      <!-- MODAL GLOBAL -->
+      <div id="modal" class="modal hidden">
+        <div class="modal-content">
+          <button id="modalClose" class="close">&times;</button>
+          <div id="modalBody">
+            <div id="modal-img-wrap" style="display:flex;justify-content:center;align-items:center;flex-direction:column;">
+              <img id="modal-img" src="" alt="Vista previa" style="max-width:90vw;max-height:90vh;width:1200px;height:auto;transition:transform 0.2s;" />
+              <div style="margin-top:12px;display:flex;gap:8px;">
+                <button id="zoom-in" class="secondary">+</button>
+                <button id="zoom-out" class="secondary">-</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="container">
     <div class="header">
       <h1>🎨 Seleccionar Formato de Plantilla</h1>
       <p>Elige el tipo de documento y el formato que deseas crear o editar</p>
@@ -801,5 +861,10 @@
     // Load active formats on page load
     loadActiveFormats();
   </script>
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
+  <script src="./assets/js/input-fix.js"></script>
 </body>
 </html>

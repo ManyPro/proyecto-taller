@@ -1,22 +1,22 @@
-<!DOCTYPE html>
+﻿<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Editor de Plantillas Visual</title>
-  <link rel="stylesheet" href="assets/styles.css">
-  <link rel="stylesheet" href="assets/css/pages/template-editor.css">
-  <style>
-    body { 
-      font-family: Arial, sans-serif; 
-      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); 
-      margin: 0; 
-      padding: 0; 
-      min-height: 100vh; 
-    }
-
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Taller App - Lista de Precios</title>
+  <link rel="stylesheet" href="assets/styles.css?v=20250923-2" />
+  <link rel="icon" href="data:,">
+  <script src="./assets/js/config.js"></script>
+  <script src="./assets/js/api.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script>
+    window.QUOTES_KEYS = { lastNumber: 'quotes:lastNumber', draft: 'quotes:current' };
+  </script>
 </head>
-<body data-page="formatos">
+<body data-page="precios">
   <header class="app-header">
     <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
       <div class="row" style="gap:10px;align-items:center;">
@@ -37,15 +37,17 @@
       <div class="card">
         <label>Correo de empresa</label>
         <input type="email" id="email" placeholder="empresa@correo.com" />
-        <label>Contrase&#241;a</label>
+  <label>Contraseña</label>
         <input type="password" id="password" placeholder="********" />
         <div class="row">
           <button id="loginBtn">Entrar</button>
           <button id="registerBtn" class="secondary">Registrar empresa</button>
         </div>
-        <div class="forgot-wrapper"><a class="forgot-link" href="forgot.html">&iquest;Olvidaste tu contrase&#241;a?</a></div>
+  <div class="forgot-wrapper"><a class="forgot-link" href="forgot.html">¿Olvidaste tu contraseña?</a></div>
+        <small>Se crea un entorno aislado por empresa.</small>
       </div>
     </section>
+
 
     <section id="appSection" class="hidden">
       <nav class="tabs">
@@ -54,10 +56,10 @@
   <button data-tab="ventas" data-href="ventas.html">Ventas</button>
   <button data-tab="cotizaciones" data-href="cotizaciones.html">Cotizaciones</button>
   <button data-tab="inventario" data-href="inventario.html">Inventario</button>
-  <button data-tab="precios" data-href="precios.html">Lista de precios</button>
+  <button data-tab="precios" data-href="precios.html" class="active">Lista de precios</button>
   <button data-tab="cashflow" data-href="cashflow.html">Flujo de Caja</button>
   <button data-tab="reporte-tecnico" data-href="reporte-tecnico.html">Reporte Técnico</button>
-  <button data-tab="formatos" data-href="template-selector.html" class="active">Formatos</button>
+  <button data-tab="formatos" data-href="template-selector.html">Formatos</button>
   <button data-tab="skus" data-href="skus.html">SKUs</button>
       </nav>
 
@@ -77,53 +79,40 @@
         </div>
       </div>
 
-      <div class="template-editor-container">
-    <div class="editor-main">
-      <h1 style="margin: 0 0 2rem 0; color: #333; font-size: 2.5rem; font-weight: 600;">🎨 Editor de Plantillas Visual</h1>
-      
-      <div id="custom-editor">
-        <div id="ce-toolbar" class="ce-toolbar"></div>
-        <div id="ce-canvas" class="ce-canvas" contenteditable="false"></div>
-      </div>
-      
-      <div class="template-actions">
-        <button id="save-template">
-          💾 Guardar Plantilla
-        </button>
-        <button id="preview-template">
-          👀 Vista Previa
-        </button>
-        <button onclick="window.location.href='template-selector.html'">
-          ⬅️ Volver al Menú
-        </button>
-      </div>
-    </div>
-    
-    <aside class="editor-sidebar">
-      <h3>Variables disponibles</h3>
-      <div id="var-list"></div>
-      <h3>Presets</h3>
-      <div id="preset-list" style="color: #999; font-style: italic;">
-        (Próximamente)
-      </div>
-    </aside>
-  </div>
-  
-  <script src="assets/config.js"></script>
-  <script src="assets/js/api.js"></script>
-  <script src="assets/js/templates-visual.js"></script>
-    <div id="preview-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center;padding:40px;">
-      <div style="background:#fff;width:80%;height:80%;border-radius:12px;display:flex;flex-direction:column;box-shadow:0 10px 40px -5px rgba(0,0,0,.4);">
-        <div style="padding:10px 14px;border-bottom:1px solid #e5e7eb;display:flex;align-items:center;justify-content:space-between;">
-          <strong style="font-size:14px;">Vista previa</strong>
-          <button id="preview-close" style="background:#1f2937;color:#fff;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;">Cerrar</button>
+      <!-- ========== PRECIOS ========== -->
+      <section id="tab-precios" class="tab">
+        <div class="card">
+          <h3>Lista de precios</h3>
+          <div class="row" id="svc-bar">
+            <select id="svc-select"></select>
+            <button id="svc-vars" class="secondary">Variables del servicio</button>
+            <button id="svc-new" class="secondary">Crear servicio base</button>
+          </div>
+          <div class="row" id="filters-bar">
+            <input id="pf-brand" placeholder="Marca..." />
+            <input id="pf-line" placeholder="Línea..." />
+            <input id="pf-engine" placeholder="Motor..." />
+            <input id="pf-year" placeholder="Año..." type="number" />
+            <button id="pf-search" class="secondary">Buscar</button>
+            <button id="pf-clear" class="secondary">Limpiar</button>
+            <button id="pe-new">Nueva fila</button>
+          </div>
         </div>
-        <iframe id="preview-frame" style="flex:1;width:100%;border:0;background:#fff;border-radius:0 0 12px 12px;"></iframe>
-      </div>
-    </div>
+
+        <div class="card">
+          <div class="table-wrap">
+            <table class="table" id="pe-table">
+              <thead id="pe-head"></thead>
+              <tbody id="pe-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
     </section>
   </main>
 
+  <script type="module" src="./assets/js/prices.js" charset="utf-8"></script>
   <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
   <script src="./assets/js/input-fix.js"></script>
 </body>

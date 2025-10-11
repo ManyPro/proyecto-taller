@@ -9,8 +9,7 @@ import { API } from "./api.esm.js";
 import { initPrices } from "./prices.js";
 import { initSales } from "./sales.js";
 import { initTechReport } from "./techreport.js";
-
-let modulesReady = false;
+import { initCashFlow } from "./cashflow.js";
 
 // ========== THEME (oscuro / claro) ==========
 const THEME_KEY = 'app:theme';
@@ -43,43 +42,100 @@ document.addEventListener('DOMContentLoaded', ()=>{
     applyTheme(isLight ? 'dark' : 'light');
   });
   initFAB();
-  initSwipeTabs();
   initCollapsibles();
   initDenseToggle();
+  const main = document.querySelector('main');
+  if (main) initPullToRefresh(main);
 });
 
-// Tabs simples
-const tabsNav = document.querySelector('.tabs');
+// Navegación y boot por página
 const sectionLogin = document.getElementById('loginSection');
 const sectionApp = document.getElementById('appSection');
 const emailSpan = document.getElementById('companyEmail');
+const welcomeSpan = document.getElementById('welcomeCompany');
 const logoutBtn = document.getElementById('logoutBtn');
 const lastTabKey = 'app:lastTab';
-const setLastTab = (name) => { try { sessionStorage.setItem(lastTabKey, name); } catch {} };
-const getLastTab = () => { try { return sessionStorage.getItem(lastTabKey) || 'notas'; } catch { return 'notas'; } };
+const getCurrentPage = () => document.body?.dataset?.page || 'home';
+const setLastTab = (name) => {
+  if (!name || name === 'home') return;
+  try { sessionStorage.setItem(lastTabKey, name); } catch {}
+};
+const getLastTab = () => {
+  try { return sessionStorage.getItem(lastTabKey) || null; } catch { return null; }
+};
+
+function updateCompanyLabels(value) {
+  if(emailSpan) emailSpan.textContent = value || '';
+  if(welcomeSpan) welcomeSpan.textContent = value || 'Tu empresa';
+}
 
 function showTab(name) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.tabs button').forEach(b => b.classList.remove('active'));
-  const tab = document.getElementById(`tab-${name}`);
+  if (!name) return;
+  const current = getCurrentPage();
+  if (current === name) {
+    highlightCurrentNav();
+    return;
+  }
   const btn = document.querySelector(`.tabs button[data-tab="${name}"]`);
-  if (tab) tab.classList.add('active');
-  if (btn) btn.classList.add('active');
-  setLastTab(name);
-  if(name === 'reporte-tecnico'){
-    // Lazy init (idempotente)
-    setTimeout(()=> initTechReport(), 30);
+  const href = btn?.dataset?.href;
+  if (href) {
+    setLastTab(name);
+    window.location.href = href;
   }
 }
-function ensureModules() {
-  if (modulesReady) return;
-  initNotes();
-  initInventory();
-  initQuotes({ getCompanyEmail: () => document.getElementById("companyEmail")?.textContent || "" });
-  initPrices();
-  initSales();
-  // No inicializamos reporte técnico hasta que se abra la pestaña
-  modulesReady = true;
+const pageInitializers = {
+  notas: () => initNotes(),
+  inventario: () => initInventory(),
+  cotizaciones: () => initQuotes({ getCompanyEmail: () => document.getElementById("companyEmail")?.textContent || "" }),
+  precios: () => initPrices(),
+  ventas: () => initSales(),
+  cashflow: () => initCashFlow(),
+  'reporte-tecnico': () => initTechReport(),
+};
+
+let pageBooted = false;
+function bootCurrentPage() {
+  if (pageBooted) return;
+  const init = pageInitializers[getCurrentPage()];
+  if (typeof init === 'function') {
+    init();
+  }
+  pageBooted = true;
+}
+
+function highlightCurrentNav() {
+  const current = getCurrentPage();
+  document.querySelectorAll('.tabs button[data-tab]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === current);
+  });
+  if (current && current !== 'home') setLastTab(current);
+}
+
+function setupNavigation() {
+  document.querySelectorAll('.tabs button[data-tab]').forEach(btn => {
+    if (btn.dataset.navBound === '1') return;
+    btn.dataset.navBound = '1';
+    btn.addEventListener('click', (ev) => {
+      const tab = btn.dataset.tab;
+      if (!tab) return;
+      ev.preventDefault();
+      if (tab === getCurrentPage()) return;
+      showTab(tab);
+    });
+  });
+  highlightCurrentNav();
+}
+
+function enterApp() {
+  sectionLogin?.classList.add('hidden');
+  sectionApp?.classList.remove('hidden');
+  logoutBtn?.classList.remove('hidden');
+  setupNavigation();
+  bootCurrentPage();
+  if (getCurrentPage() === 'home') {
+    const target = getLastTab();
+    if (target) showTab(target);
+  }
 }
 
 // ================= FAB (Botón flotante móviles) =================
@@ -121,31 +177,7 @@ function initFAB(){
   mq.addEventListener('change', toggle); toggle();
 }
 
-// ================= Swipe Tabs (gestos horizontales) =================
-function initSwipeTabs(){
-  const container = document.querySelector('main'); if(!container) return;
-  let startX=0, startY=0, tracking=false;
-  container.addEventListener('touchstart',(e)=>{
-    if(e.touches.length!==1) return; const t=e.touches[0];
-    startX=t.clientX; startY=t.clientY; tracking=true;
-  }, { passive:true });
-  container.addEventListener('touchmove',(e)=>{
-    if(!tracking) return; const t=e.touches[0];
-    const dx=t.clientX-startX; const dy=Math.abs(t.clientY-startY);
-    if(Math.abs(dx)>60 && dy<40){
-      tracking=false;
-      const order = Array.from(document.querySelectorAll('.tabs button[data-tab]')).map(b=>b.dataset.tab);
-      const currentTab = (sessionStorage.getItem('app:lastTab')||'notas');
-      const idx = order.indexOf(currentTab);
-      if(idx>=0){
-        const next = dx<0 ? order[idx+1] : order[idx-1];
-        if(next){ showTab(next); }
-      }
-    }
-  }, { passive:true });
-  container.addEventListener('touchend', ()=> tracking=false);
-  initPullToRefresh(container);
-}
+
 
 // ================= Pull to refresh simple =================
 function initPullToRefresh(container){
@@ -173,15 +205,19 @@ function initPullToRefresh(container){
       ind.style.opacity=String(pct);
       ind.style.transform=`translateX(-50%) translateY(${(-60+ pct*60)}px)`;
       active=pct>=1;
-      ind.textContent= active ? 'Soltar para refrescar' : 'Desliza…';
+  ind.textContent= active ? 'Soltar para refrescar' : 'Desliza...';
     }
   }, { passive:true });
   container.addEventListener('touchend',()=>{
     if(!pulling){ return; }
     pulling=false;
     if(active){
-      const tab = sessionStorage.getItem('app:lastTab')||'notas';
-      refreshActiveTab(tab);
+      const current = getCurrentPage();
+      if(current && current !== 'home'){
+        refreshActiveTab(current);
+      } else {
+        window.location.reload();
+      }
     }
     if(indicator){
       indicator.style.transform='translateX(-50%) translateY(-60px)';
@@ -193,13 +229,35 @@ function initPullToRefresh(container){
 
 function refreshActiveTab(tab){
   try{
-    if(tab==='ventas'){ import('./sales.js').then(()=>{ const btn=document.getElementById('sales-start'); }); }
-    if(tab==='inventario'){ import('./inventory.js').then(m=> m?.initInventory && m.initInventory()); }
-    if(tab==='cotizaciones'){ import('./quotes.js').then(()=>{}); }
-    if(tab==='cashflow'){ import('./cashflow.js').then(m=> m?.initCashFlow && m.initCashFlow()); }
-    if(tab==='reporte-tecnico'){ import('./techreport.js').then(()=>{}); }
-    if(tab==='notas'){ import('./notes.js').then(()=>{}); }
-  }catch{}
+    switch(tab){
+      case 'ventas':
+        if(document.getElementById('sales-main')) initSales();
+        break;
+      case 'inventario':
+        if(document.getElementById('inventory-main')) initInventory();
+        break;
+      case 'cotizaciones':
+        if(document.getElementById('quotes-main')) initQuotes({ getCompanyEmail: () => document.getElementById('companyEmail')?.textContent || '' });
+        break;
+      case 'cashflow':
+        if(document.getElementById('cashflow-main')) initCashFlow();
+        break;
+      case 'reporte-tecnico':
+        if(document.getElementById('techreport-main')) initTechReport();
+        break;
+      case 'notas':
+        if(document.getElementById('notes-main')) initNotes();
+        break;
+      case 'precios':
+        if(document.getElementById('prices-main')) initPrices();
+        break;
+      default:
+        window.location.reload();
+        return;
+    }
+  }catch(err){
+    console.warn('[app] refreshActiveTab error', err);
+  }
 }
 
 // ================= Secciones Colapsables en móvil =================
@@ -262,12 +320,8 @@ const storedEmail = API.getActiveCompany?.();
 const storedToken = storedEmail ? API.token.get(storedEmail) : API.token.get();
 if (storedEmail && storedToken) {
   API.setActiveCompany(storedEmail);
-  if(emailSpan) emailSpan.textContent = storedEmail;
-  sectionLogin.classList.add('hidden');
-  sectionApp.classList.remove('hidden');
-  logoutBtn.classList.remove('hidden');
-  ensureModules();
-  showTab(getLastTab());
+  updateCompanyLabels(storedEmail);
+  enterApp();
 }
 
 
@@ -285,13 +339,10 @@ async function doLogin(isRegister = false) {
     }
     const res = await API.loginCompany({ email, password }); // guarda token y setActiveCompany
     // UI
-  if(emailSpan) emailSpan.textContent = (res?.email || email);
-    API.setActiveCompany(emailSpan.textContent); // redundante pero seguro
-    sectionLogin.classList.add('hidden');
-    sectionApp.classList.remove('hidden');
-    logoutBtn.classList.remove('hidden');
-    ensureModules();
-    showTab(getLastTab());
+    const resolvedEmail = (res?.email || email);
+    updateCompanyLabels(resolvedEmail);
+    API.setActiveCompany(resolvedEmail);
+    enterApp();
   } catch (e) {
     alert(e?.message || 'Error');
   }
@@ -303,21 +354,11 @@ registerBtn?.addEventListener('click', () => doLogin(true));
 logoutBtn?.addEventListener('click', async () => {
   try { await API.logout(); } catch {}
   try { sessionStorage.removeItem(lastTabKey); } catch {}
-  if(emailSpan) emailSpan.textContent = '';
+  updateCompanyLabels('');
   sectionApp.classList.add('hidden');
   sectionLogin.classList.remove('hidden');
   logoutBtn.classList.add('hidden');
   window.location.reload();
-});
-
-// Tabs
-tabsNav?.addEventListener('click', (ev) => {
-  const btn = ev.target.closest('button[data-tab]');
-  if (!btn) return;
-  const tab = btn.dataset.tab;
-  if (!tab) return;
-  ev.preventDefault();
-  showTab(tab);
 });
 
 // Reanudar sesión si hay token+empresa activos
@@ -326,18 +367,20 @@ tabsNav?.addEventListener('click', (ev) => {
     const me = await API.me(); // requiere token
     if (me?.email) {
       API.setActiveCompany(me.email);
-  if(emailSpan) emailSpan.textContent = me.email;
-      sectionLogin.classList.add('hidden');
-      sectionApp.classList.remove('hidden');
-      logoutBtn.classList.remove('hidden');
-      ensureModules();
-      showTab(getLastTab());
+      updateCompanyLabels(me.email);
+      enterApp();
     } else {
       const active = API.getActiveCompany?.();
-  if (active && emailSpan) emailSpan.textContent = active;
+      if (active) updateCompanyLabels(active);
     }
   } catch {
     const active = API.getActiveCompany?.();
-  if (active && emailSpan) emailSpan.textContent = active;
+    if (active) updateCompanyLabels(active);
   }
 })();
+
+
+
+
+
+

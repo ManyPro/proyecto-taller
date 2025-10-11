@@ -1,8 +1,8 @@
-/* assets/js/quotes.js
+﻿/* assets/js/quotes.js
    Cotizaciones:
-   - Numeración local por empresa (para UI)
+   - NumeraciÃ³n local por empresa (para UI)
    - Borrador local
-   - Ítems dinámicos (2 columnas)
+   - Ãtems dinÃ¡micos (2 columnas)
    - Vista previa WhatsApp
    - WhatsApp / PDF
    - Historial (listar/buscar/ver/editar/eliminar; re-enviar WA; re-generar PDF)
@@ -33,6 +33,7 @@ export function initQuotes({ getCompanyEmail }) {
 
   // ====== Nodos ======
   const tab = $('#tab-cotizaciones');
+  if(!tab) return;
 
   // Cabecera
   const iNumber = $('#q-number');
@@ -58,11 +59,11 @@ export function initQuotes({ getCompanyEmail }) {
   const btnPDF     = $('#q-exportPdf');
   const btnSaveBackend = $('#q-saveBackend');
 
-  // Ítems
+  // Ãtems
   const rowsBox = $('#q-rows');
   const rowTemplate = $('#q-row-template');
   const btnAddRow = $('#q-addRow');
-  // Botón adicional QR
+  // BotÃ³n adicional QR
   const btnAddQR = document.getElementById('q-addQR');
   const lblSubtotalProducts = $('#q-subtotal-products');
   const lblSubtotalServices = $('#q-subtotal-services');
@@ -131,7 +132,7 @@ export function initQuotes({ getCompanyEmail }) {
   }
   function closeModal(){ const m=document.getElementById('modal'); if(m) m.classList.add('hidden'); }
 
-  // ====== Numeración local ======
+  // ====== NumeraciÃ³n local ======
   function nextNumber(){
     const raw = localStorage.getItem(kLast());
     let n = Number(raw||0); n = isNaN(n)?0:n;
@@ -237,20 +238,20 @@ export function initQuotes({ getCompanyEmail }) {
 
   function buildWhatsAppText(rows,subP,subS,total){
     const num=iNumber.value;
-    const cliente=iClientName.value||'—';
+    const cliente=iClientName.value||'â€”';
     const veh=`${iBrand.value||''} ${iLine.value||''} ${iYear.value||''}`.trim();
-    const placa=iPlate.value||'—'; const cc=iCc.value||'—';
-    const val=iValidDays.value?`\nValidez: ${iValidDays.value} días`:'';
+    const placa=iPlate.value||'â€”'; const cc=iCc.value||'â€”';
+    const val=iValidDays.value?`\nValidez: ${iValidDays.value} dÃ­as`:'';
     const lines=[];
-    lines.push(`*Cotización ${num}*`);
+    lines.push(`*CotizaciÃ³n ${num}*`);
     lines.push(`Cliente: ${cliente}`);
-    lines.push(`Vehículo: ${veh} — Placa: ${placa} — Cilindraje: ${cc}`);
+    lines.push(`VehÃ­culo: ${veh} â€” Placa: ${placa} â€” Cilindraje: ${cc}`);
     lines.push('');
     rows.forEach(({type,desc,qty,price})=>{
       const q=qty>0?qty:1; const st=q*(price||0);
       const tipo=(type==='SERVICIO')?'Servicio':'Producto';
       const cantSuffix=(qty&&Number(qty)>0)?` x${q}`:'';
-      lines.push(`● ${desc||tipo}${cantSuffix}`);
+      lines.push(`â— ${desc||tipo}${cantSuffix}`);
       lines.push(`${money(st)}`);
     });
     lines.push('');
@@ -296,7 +297,7 @@ export function initQuotes({ getCompanyEmail }) {
       if (tpl && tpl.contentHtml) {
         const contentHtml = tpl.contentHtml;
         const contentCss = tpl.contentCss || '';
-        // Construir doc de contexto básico desde UI para previsualizar (similar a buildContext server pero local)
+        // Construir doc de contexto bÃ¡sico desde UI para previsualizar (similar a buildContext server pero local)
         const docContext = {
           quote: {
             number: iNumber.value,
@@ -317,7 +318,7 @@ export function initQuotes({ getCompanyEmail }) {
         const pv = await API.templates.preview({ type:'quote', contentHtml, contentCss });
         const w = window.open('', 'quoteTpl');
         if (w) {
-          w.document.write(`<html><head><title>Cotización</title><style>${pv.css||contentCss}</style></head><body>${pv.rendered || contentHtml}</body></html>`);
+          w.document.write(`<html><head><title>CotizaciÃ³n</title><style>${pv.css||contentCss}</style></head><body>${pv.rendered || contentHtml}</body></html>`);
           w.document.close();
         }
         return; // no continuar a PDF jsPDF
@@ -339,7 +340,7 @@ export function initQuotes({ getCompanyEmail }) {
         total:parseMoney(lblTotal.textContent)
       }
     });
-    // No mover correlativo aquí.
+    // No mover correlativo aquÃ­.
     syncSummaryHeight();
   }
 
@@ -355,13 +356,13 @@ export function initQuotes({ getCompanyEmail }) {
     const subS = (doc.items||[]).filter(i=>i.kind==='SERVICIO').reduce((a,i)=>a+(i.subtotal||0),0);
     const tot  = subP + subS;
 
-    // === DETECCIÓN CORRECTA (UMD) ===
+    // === DETECCIÃ“N CORRECTA (UMD) ===
     const jsPDFClass = window.jspdf?.jsPDF;
-    if(!jsPDFClass){ alert('No se encontró jsPDF.'); return; }
+    if(!jsPDFClass){ alert('No se encontrÃ³ jsPDF.'); return; }
     const d = new jsPDFClass('p','pt','a4');
-    if(typeof d.autoTable!=='function'){ alert('No se encontró AutoTable.'); return; }
+    if(typeof d.autoTable!=='function'){ alert('No se encontrÃ³ AutoTable.'); return; }
 
-    // ====== Márgenes y ancho ======
+    // ====== MÃ¡rgenes y ancho ======
     const pageW = d.internal.pageSize.getWidth();
     const pageH = d.internal.pageSize.getHeight();
     const left = 60;
@@ -373,28 +374,28 @@ export function initQuotes({ getCompanyEmail }) {
     d.setFont('helvetica','bold'); d.setTextColor(gold); d.setFontSize(26);
     d.text('CASA RENAULT H&H', left, 70);
 
-    // Logo Renault (opción B)
+    // Logo Renault (opciÃ³n B)
     await addPdfLogo(d, pageW, right);
 
-    // Título centrado
+    // TÃ­tulo centrado
     d.setFontSize(18); d.setTextColor('#000'); d.setFont('helvetica','bold');
-    d.text('COTIZACIÓN', pageW/2, 140, { align:'center' });
+    d.text('COTIZACIÃ“N', pageW/2, 140, { align:'center' });
 
     // ====== Bloque de datos ======
     d.setFont('helvetica','normal'); d.setFontSize(10);
-    d.text('CASA RENAULT H&H — Servicio Automotriz', left, 165);
-    d.text('Nit: 901717790-7 • Bogotá D.C', left, 179);
+    d.text('CASA RENAULT H&H â€” Servicio Automotriz', left, 165);
+    d.text('Nit: 901717790-7 â€¢ BogotÃ¡ D.C', left, 179);
 
     d.text(`Fecha: ${doc.datetime || todayIso()}`, pageW - right, 165, { align:'right' });
-    d.text(`Tel: ${doc.customer?.clientPhone || 'XXX XXX XXXX'} • Email: ${doc.customer?.email || 'email.contacto@gmail.com'}`, pageW - right, 179, { align:'right' });
+    d.text(`Tel: ${doc.customer?.clientPhone || 'XXX XXX XXXX'} â€¢ Email: ${doc.customer?.email || 'email.contacto@gmail.com'}`, pageW - right, 179, { align:'right' });
 
     d.setFont('helvetica','normal');
-    d.text(`No. Cotización: ${doc.number || '—'}`, left, 203);
-    d.text(`Cliente: ${doc.customer?.name || '—'}`, left, 217);
+    d.text(`No. CotizaciÃ³n: ${doc.number || 'â€”'}`, left, 203);
+    d.text(`Cliente: ${doc.customer?.name || 'â€”'}`, left, 217);
 
     const veh = [doc.vehicle?.make, doc.vehicle?.line, doc.vehicle?.modelYear].filter(Boolean).join(' ');
-    d.text(`Vehículo: ${veh || '—'}  —  Placa: ${doc.vehicle?.plate || '—'} —`, left, 231);
-    d.text(`Cilindraje: ${doc.vehicle?.displacement || '—'}`, left, 245);
+    d.text(`VehÃ­culo: ${veh || 'â€”'}  â€”  Placa: ${doc.vehicle?.plate || 'â€”'} â€”`, left, 231);
+    d.text(`Cilindraje: ${doc.vehicle?.displacement || 'â€”'}`, left, 245);
 
     // ====== Marca de agua ======
     const supportsOpacity = !!(d.saveGraphicsState && d.setGState && d.GState);
@@ -413,7 +414,7 @@ export function initQuotes({ getCompanyEmail }) {
     // ====== Tabla ======
     d.autoTable({
       startY: 270,
-      head: [['Tipo','Descripción','Cant.','Precio unit.','Subtotal']],
+      head: [['Tipo','DescripciÃ³n','Cant.','Precio unit.','Subtotal']],
       body: rows,
       theme: 'grid',
       styles: { fontSize: 10, cellPadding: 6, lineColor: [180,180,180], lineWidth: 0.25 },
@@ -432,14 +433,14 @@ export function initQuotes({ getCompanyEmail }) {
     let y = d.lastAutoTable.finalY + 18;
     d.setFont('helvetica','italic'); d.setFontSize(10);
     d.text('Valores SIN IVA', left, y); y += 14;
-    if(doc.validity) d.text(`Validez: ${doc.validity} días`, left, y);
+    if(doc.validity) d.text(`Validez: ${doc.validity} dÃ­as`, left, y);
 
     d.setFont('helvetica','bold'); d.setFontSize(11);
     d.text(`TOTAL: ${money(tot)}`, pageW - right, d.lastAutoTable.finalY + 18, { align:'right' });
 
     const footY = (doc.validity ? y + 28 : d.lastAutoTable.finalY + 36);
     d.setFont('helvetica','normal'); d.setFontSize(9);
-    d.text('Calle 69° No. 87-39 • Cel: 301 205 9320 • Bogotá D.C • Contacto: HUGO MANRIQUE 311 513 1603', left, footY);
+    d.text('Calle 69Â° No. 87-39 â€¢ Cel: 301 205 9320 â€¢ BogotÃ¡ D.C â€¢ Contacto: HUGO MANRIQUE 311 513 1603', left, footY);
 
     d.save(`cotizacion_${doc.number || 'sin_numero'}.pdf`);
   }
@@ -448,7 +449,7 @@ export function initQuotes({ getCompanyEmail }) {
   function openWhatsApp(){
     const text=previewWA.textContent||''; if(!text.trim()) return;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,'_blank');
-    // No mover correlativo aquí.
+    // No mover correlativo aquÃ­.
     syncSummaryHeight();
   }
 
@@ -486,12 +487,12 @@ export function initQuotes({ getCompanyEmail }) {
         if(typeof doc.seq==='number'){ localStorage.setItem(kLast(), String(doc.seq)); }
       }
       currentQuoteId = doc?._id || currentQuoteId;
-      toast('Cotización guardada en historial.');
+      toast('CotizaciÃ³n guardada en historial.');
       loadHistory();
 
       if(creating) resetQuoteForm();
     }catch(e){
-      alert(e?.message || 'Error guardando la cotización');
+      alert(e?.message || 'Error guardando la cotizaciÃ³n');
     }
   }
 
@@ -527,9 +528,9 @@ export function initQuotes({ getCompanyEmail }) {
       if(res?.metadata){ console.debug('[quotes] metadata:', res.metadata); }
       if(!rows.length){
         if(res?.metadata && res.metadata.total>0){
-          qhList.innerHTML=`<small class="meta">Sin items en esta página (total ${res.metadata.total}).</small>`;
+          qhList.innerHTML=`<small class="meta">Sin items en esta pÃ¡gina (total ${res.metadata.total}).</small>`;
         } else {
-          qhList.innerHTML='<small class="meta">No hay cotizaciones aún.</small>';
+          qhList.innerHTML='<small class="meta">No hay cotizaciones aÃºn.</small>';
         }
         return;
       }
@@ -548,8 +549,8 @@ export function initQuotes({ getCompanyEmail }) {
       const date=d.createdAt?new Date(d.createdAt).toLocaleString():'';
       el.innerHTML=`
         <div><strong>#${(d.number||'').toString().padStart(5,'0')}</strong><div class="meta">${date}</div></div>
-        <div><div><strong>${d.customer?.name||'—'}</strong></div><div class="meta">${[d.vehicle?.make,d.vehicle?.line,d.vehicle?.modelYear].filter(Boolean).join(' ')||'—'}</div></div>
-        <div><div>Placa</div><div class="meta">${d.vehicle?.plate||'—'}</div></div>
+        <div><div><strong>${d.customer?.name||'â€”'}</strong></div><div class="meta">${[d.vehicle?.make,d.vehicle?.line,d.vehicle?.modelYear].filter(Boolean).join(' ')||'â€”'}</div></div>
+        <div><div>Placa</div><div class="meta">${d.vehicle?.plate||'â€”'}</div></div>
         <div><div>Total</div><div class="meta">${money(d.total||0)}</div></div>
         <div class="actions">
           <button data-act="edit">Ver/Editar</button>
@@ -561,7 +562,7 @@ export function initQuotes({ getCompanyEmail }) {
       el.querySelector('[data-act="wa"]')?.addEventListener('click',()=>openWAFromDoc(d));
       el.querySelector('[data-act="pdf"]')?.addEventListener('click',()=>exportPDFFromDoc(d));
       el.querySelector('[data-act="del"]')?.addEventListener('click',async ()=>{
-        if(!confirm('¿Eliminar cotización?')) return;
+        if(!confirm('Â¿Eliminar cotizaciÃ³n?')) return;
         try{ await API.quoteDelete(d._id); loadHistory(); }catch(e){ alert(e?.message||'Error al eliminar'); }
       });
       qhList.appendChild(el);
@@ -573,10 +574,10 @@ export function initQuotes({ getCompanyEmail }) {
     const root = document.createElement('div');
     root.innerHTML = `
       <div class="card">
-        <h3>Ver/Editar cotización</h3>
+        <h3>Ver/Editar cotizaciÃ³n</h3>
         <div class="row">
           <div class="field">
-            <label>N.º cotización</label>
+            <label>N.Âº cotizaciÃ³n</label>
             <input id="m-number" disabled />
           </div>
           <div class="field">
@@ -587,25 +588,25 @@ export function initQuotes({ getCompanyEmail }) {
         <label>Cliente</label>
         <input id="m-client-name" placeholder="Nombre del cliente" />
         <div class="row">
-          <input id="m-client-phone" placeholder="Teléfono (opcional)" />
+          <input id="m-client-phone" placeholder="TelÃ©fono (opcional)" />
           <input id="m-client-email" placeholder="Correo (opcional)" />
         </div>
         <label>Placa</label>
         <input id="m-plate" placeholder="ABC123" />
         <div class="row">
           <input id="m-brand" placeholder="Marca" />
-          <input id="m-line" placeholder="Línea/Modelo" />
+          <input id="m-line" placeholder="LÃ­nea/Modelo" />
         </div>
         <div class="row">
-          <input id="m-year" placeholder="Año" />
+          <input id="m-year" placeholder="AÃ±o" />
           <input id="m-cc" placeholder="Cilindraje" />
         </div>
-        <label>Validez (días, opcional)</label>
+        <label>Validez (dÃ­as, opcional)</label>
         <input id="m-valid-days" type="number" min="0" step="1" placeholder="p. ej. 8" />
       </div>
 
       <div class="card">
-        <h3>Ítems</h3>
+        <h3>Ãtems</h3>
         <div id="m-rows" class="q-grid-2cols">
           <div class="tr q-row-card hidden" id="m-row-template" data-template>
             <div>
@@ -616,8 +617,8 @@ export function initQuotes({ getCompanyEmail }) {
               </select>
             </div>
             <div>
-              <label class="sr-only">Descripción</label>
-              <input placeholder="Descripción" />
+              <label class="sr-only">DescripciÃ³n</label>
+              <input placeholder="DescripciÃ³n" />
             </div>
             <div class="small">
               <label class="sr-only">Cant.</label>
@@ -637,7 +638,7 @@ export function initQuotes({ getCompanyEmail }) {
           </div>
         </div>
         <div class="row">
-          <button id="m-addRow">+ Agregar línea</button>
+          <button id="m-addRow">+ Agregar lÃ­nea</button>
         </div>
         <div class="totals">
           <div>Subtotal Productos: <strong id="m-subP">$0</strong></div>
@@ -727,16 +728,16 @@ export function initQuotes({ getCompanyEmail }) {
       const total=subP+subS;
       const lines=[];
       const veh = `${iBrand.value||''} ${iLine.value||''} ${iYear.value||''}`.trim();
-      const val = iValid.value ? `\nValidez: ${iValid.value} días` : '';
-      lines.push(`*Cotización ${iNumber.value || '—'}*`);
-      lines.push(`Cliente: ${iName.value||'—'}`);
-      lines.push(`Vehículo: ${veh} — Placa: ${iPlate.value||'—'} — Cilindraje: ${iCc.value||'—'}`);
+      const val = iValid.value ? `\nValidez: ${iValid.value} dÃ­as` : '';
+      lines.push(`*CotizaciÃ³n ${iNumber.value || 'â€”'}*`);
+      lines.push(`Cliente: ${iName.value||'â€”'}`);
+      lines.push(`VehÃ­culo: ${veh} â€” Placa: ${iPlate.value||'â€”'} â€” Cilindraje: ${iCc.value||'â€”'}`);
       lines.push('');
       rows.forEach(({type,desc,qty,price})=>{
         const q=qty>0?qty:1; const st=q*(price||0);
         const tipo=(type==='SERVICIO')?'Servicio':'Producto';
         const cantSuffix=(qty&&Number(qty)>0)?` x${q}`:'';
-        lines.push(`• ${desc||tipo}${cantSuffix}`);
+        lines.push(`â€¢ ${desc||tipo}${cantSuffix}`);
         lines.push(`${money(st)}`);
       });
       lines.push('');
@@ -813,7 +814,7 @@ export function initQuotes({ getCompanyEmail }) {
           })
         };
         await API.quotePatch(doc._id, payload);
-        toast('Cotización actualizada.');
+        toast('CotizaciÃ³n actualizada.');
         loadHistory();
       }catch(e){ alert(e?.message||'No se pudo guardar'); }
     });
@@ -842,7 +843,7 @@ export function initQuotes({ getCompanyEmail }) {
     clearRows();
     (d?.items||[]).forEach(it=>{
       const k=String(it.kind||'Producto').trim().toUpperCase();
-      // Heurística legacy: si es PRODUCTO y tiene refId o sku de item y no trae source, asumir inventory
+      // HeurÃ­stica legacy: si es PRODUCTO y tiene refId o sku de item y no trae source, asumir inventory
       let source = it.source;
       if(!source && k==='PRODUCTO' && (it.refId || it.sku)) source='inventory';
       addRowFromData({
@@ -917,7 +918,7 @@ export function initQuotes({ getCompanyEmail }) {
     btnPDF?.addEventListener('click',()=>{ exportPDF().catch(err=>alert(err?.message||err)); });
     btnSaveBackend?.addEventListener('click',saveToBackend);
     btnClear?.addEventListener('click',()=>{
-      if(!confirm('¿Borrar todo el contenido de la cotización actual?')) return;
+      if(!confirm('Â¿Borrar todo el contenido de la cotizaciÃ³n actual?')) return;
       [iClientName,iClientPhone,iClientEmail,iPlate,iBrand,iLine,iYear,iCc,iValidDays].forEach(i=>i.value='');
       clearRows(); addRow(); recalcAll(); clearDraft(); currentQuoteId=null;
     });
@@ -938,7 +939,7 @@ export function initQuotes({ getCompanyEmail }) {
     qhClear?.addEventListener('click',()=>{ qhText.value=''; qhFrom.value=''; qhTo.value=''; loadHistory(); });
   }
 
-  // ====== Pickers para agregar ítems con metadata ======
+  // ====== Pickers para agregar Ã­tems con metadata ======
   async function openPickerInventoryForQuote(){
     // (deprecated) ya no expuesto en UI
     const node=document.createElement('div'); node.className='card';
@@ -986,11 +987,11 @@ export function initQuotes({ getCompanyEmail }) {
     node.innerHTML=`<h3>Lista de precios</h3>
       <div class="row">
         <input id="qp-brand" placeholder="Marca" />
-        <input id="qp-line" placeholder="Línea" />
+        <input id="qp-line" placeholder="LÃ­nea" />
         <button id="qp-search" class="secondary">Buscar</button>
       </div>
       <div class="table-wrap" style="max-height:320px;overflow:auto;margin-top:8px;">
-        <table class="table compact"><thead><tr><th>Marca</th><th>Línea</th><th>Motor</th><th>Año</th><th class="t-right">Precio</th><th></th></tr></thead><tbody id="qp-body"></tbody></table>
+        <table class="table compact"><thead><tr><th>Marca</th><th>LÃ­nea</th><th>Motor</th><th>AÃ±o</th><th class="t-right">Precio</th><th></th></tr></thead><tbody id="qp-body"></tbody></table>
       </div>`;
     openModal(node);
     const body=node.querySelector('#qp-body');
@@ -1022,12 +1023,12 @@ export function initQuotes({ getCompanyEmail }) {
     node.querySelector('#qp-search').onclick=load; load();
   }
 
-  // ===== Agregar por QR (simple: ingresar código -> tratar como SKU inventario) =====
+  // ===== Agregar por QR (simple: ingresar cÃ³digo -> tratar como SKU inventario) =====
   function openQRModalForQuote(){
     const node=document.createElement('div'); node.className='card';
     node.innerHTML=`<h3>Agregar por QR</h3>
-      <p>Escanea el código QR y pega el texto o ingrésalo manualmente.</p>
-      <input id="qr-code" placeholder="Código / SKU" style="width:100%;margin-bottom:8px;" />
+      <p>Escanea el cÃ³digo QR y pega el texto o ingrÃ©salo manualmente.</p>
+      <input id="qr-code" placeholder="CÃ³digo / SKU" style="width:100%;margin-bottom:8px;" />
       <div class="row">
         <input id="qr-qty" type="number" min="1" step="1" value="1" style="max-width:120px;" />
         <button id="qr-add" class="secondary">Agregar</button>
@@ -1076,12 +1077,12 @@ export function initQuotes({ getCompanyEmail }) {
     let timer=null;
     function normPlate(p){ return (p||'').trim().toUpperCase(); }
     async function fetchProfile(plate){
-      if(!plate || plate.length<4) return; // mínimo 4 caracteres
+      if(!plate || plate.length<4) return; // mÃ­nimo 4 caracteres
       if(plate===lastPlateFetched) return;
       lastPlateFetched=plate;
       try {
         let prof = await API.sales.profileByPlate(plate);
-        if(!prof) { // intento fuzzy si no encontró exacto
+        if(!prof) { // intento fuzzy si no encontrÃ³ exacto
           prof = await API.sales.profileByPlate(plate, { fuzzy:true });
         }
         if(!prof) return; // nada que completar
@@ -1098,7 +1099,7 @@ export function initQuotes({ getCompanyEmail }) {
           if(!dirty.clientPhone && !iClientPhone.value) iClientPhone.value = prof.customer.phone || iClientPhone.value;
           if(!dirty.clientEmail && !iClientEmail.value) iClientEmail.value = prof.customer.email || iClientEmail.value;
         }
-        // Campos de vehículo
+        // Campos de vehÃ­culo
         if(prof.vehicle){
           if(!dirty.brand && !iBrand.value) iBrand.value = prof.vehicle.brand || iBrand.value;
           if(!dirty.line && !iLine.value) iLine.value = prof.vehicle.line || iLine.value;
@@ -1117,25 +1118,9 @@ export function initQuotes({ getCompanyEmail }) {
     iPlate.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); fetchProfile(normPlate(iPlate.value)); }});
   }
 
-  // Hook: tab activada
-  function onTabActivated(){ ensureInit(); }
-  document.addEventListener('click',(ev)=>{
-    const btn=ev.target.closest('button[data-tab]'); if(!btn) return;
-    if(btn.dataset.tab==='cotizaciones') onTabActivated();
-  });
-  if(tab && document.querySelector('.tabs button[data-tab="cotizaciones"]')?.classList.contains('active')) onTabActivated();
-  // Observa cambios de clase en el botón para recargar historial al re-entrar a la pestaña
-  try {
-    const btnQuotes = document.querySelector('.tabs button[data-tab="cotizaciones"]');
-    if(btnQuotes && window.MutationObserver){
-      const obs = new MutationObserver(()=>{
-        if(btnQuotes.classList.contains('active')) {
-          console.debug('[quotes] tab activated -> refreshing history');
-          ensureInit();
-          loadHistory();
-        }
-      });
-      obs.observe(btnQuotes, { attributes:true, attributeFilter:['class'] });
-    }
-  } catch {}
+    // Inicialización de la página
+  ensureInit();
 }
+
+
+

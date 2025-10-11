@@ -1,13 +1,17 @@
-/* assets/js/cashflow.js - UI Flujo de Caja */
+﻿/* assets/js/cashflow.js - UI Flujo de Caja */
 import { API } from './api.esm.js';
 
 const money = (n)=>'$'+Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 let cfState = { page:1, pages:1, limit:50 };
+let cfBound = false;
 
 export function initCashFlow(){
   const tab = document.getElementById('tab-cashflow');
   if(!tab) return;
-  bind();
+  if(!cfBound){
+    bind();
+    cfBound = true;
+  }
   loadAccounts();
   loadMovements(true);
 }
@@ -16,7 +20,7 @@ function bind(){
   document.getElementById('cf-refresh')?.addEventListener('click', ()=>{ loadAccounts(); });
   document.getElementById('cf-add-account')?.addEventListener('click', async ()=>{
     const name = prompt('Nombre de la cuenta:'); if(!name) return;
-    const type = confirm('¿Cuenta bancaria? Aceptar=Banco, Cancelar=Caja') ? 'BANK':'CASH';
+    const type = confirm('Â¿Cuenta bancaria? Aceptar=Banco, Cancelar=Caja') ? 'BANK':'CASH';
     try { await API.accounts.create({ name, type }); loadAccounts(); } catch(e){ alert(e?.message||'Error'); }
   });
   document.getElementById('cf-apply')?.addEventListener('click', ()=> loadMovements(true));
@@ -24,12 +28,6 @@ function bind(){
   document.getElementById('cf-next')?.addEventListener('click', ()=>{ if(cfState.page<cfState.pages){ cfState.page++; loadMovements(); } });
   document.getElementById('cf-new-entry')?.addEventListener('click', openNewEntryModal);
   document.getElementById('cf-new-expense')?.addEventListener('click', ()=> openNewEntryModal('OUT'));
-  // Lazy reload when tab activated
-  const btn = document.querySelector('.tabs button[data-tab="cashflow"]');
-  if(btn && !btn.dataset.cfBound){
-    btn.dataset.cfBound='1';
-    btn.addEventListener('click', ()=> setTimeout(()=>{ initCashFlow(); },50));
-  }
 }
 
 async function loadAccounts(){
@@ -73,16 +71,16 @@ async function loadMovements(reset=false){
         const date = new Date(x.date||x.createdAt||Date.now()).toLocaleString();
         const accName = x.accountId?.name||x.accountName||'';
         const desc = x.description||'';
-        const canEdit = true; // se podría restringir según x.source
+        const canEdit = true; // se podrÃ­a restringir segÃºn x.source
         return `<tr data-id='${x._id}'>
           <td data-label="Fecha">${date}</td>
           <td data-label="Cuenta">${accName}</td>
-          <td data-label="Descripción">${desc}</td>
+          <td data-label="DescripciÃ³n">${desc}</td>
           <td data-label="Fuente">${x.source||''}</td>
           <td data-label="IN" class='t-right ${x.kind==='IN'?'pos':''}'>${inAmt}</td>
           <td data-label="OUT" class='t-right ${x.kind==='OUT'?'neg':''}'>${outAmt}</td>
           <td data-label="Saldo" class='t-right'>${money(x.balanceAfter||0)}</td>
-          <td style='white-space:nowrap;'>${canEdit?`<button class='mini' data-act='edit'>✎</button><button class='mini danger' data-act='del'>🗑</button>`:''}</td>
+          <td style='white-space:nowrap;'>${canEdit?`<button class='mini' data-act='edit'>âœŽ</button><button class='mini danger' data-act='del'>ðŸ—‘</button>`:''}</td>
         </tr>`;
       }).join('');
       // Bind acciones
@@ -92,15 +90,15 @@ async function loadMovements(reset=false){
           btn.addEventListener('click', async (e)=>{
             const act = btn.getAttribute('data-act');
             if(act==='del'){
-              if(!confirm('¿Eliminar movimiento?')) return;
+              if(!confirm('Â¿Eliminar movimiento?')) return;
               try{ await API.cashflow.delete(id); loadAccounts(); loadMovements(); }catch(err){ alert(err?.message||'Error'); }
             } else if(act==='edit') {
               const currentDesc = tr.children[2]?.textContent||'';
               const currentAmount = (tr.children[4]?.textContent||'').replace(/[^\d]/g,'') || (tr.children[5]?.textContent||'').replace(/[^\d]/g,'');
-              const newAmountStr = prompt('Nuevo monto (solo número):', currentAmount);
+              const newAmountStr = prompt('Nuevo monto (solo nÃºmero):', currentAmount);
               if(!newAmountStr) return;
-              const newAmount = Number(newAmountStr)||0; if(newAmount<=0){ alert('Monto inválido'); return; }
-              const newDesc = prompt('Nueva descripción:', currentDesc) ?? currentDesc;
+              const newAmount = Number(newAmountStr)||0; if(newAmount<=0){ alert('Monto invÃ¡lido'); return; }
+              const newDesc = prompt('Nueva descripciÃ³n:', currentDesc) ?? currentDesc;
               try{ await API.cashflow.update(id, { amount: newAmount, description: newDesc }); loadAccounts(); loadMovements(); }catch(err){ alert(err?.message||'Error'); }
             }
           });
@@ -111,7 +109,7 @@ async function loadMovements(reset=false){
     const IN = data.totals?.in||0; const OUT = data.totals?.out||0;
     if(summary) summary.textContent = `Entradas: ${money(IN)} | Salidas: ${money(OUT)} | Neto: ${money(IN-OUT)}`;
     cfState.page = data.page||1; cfState.pages = Math.max(1, Math.ceil((data.total||0)/cfState.limit));
-    if(pag) pag.textContent = `Página ${cfState.page} de ${cfState.pages}`;
+    if(pag) pag.textContent = `PÃ¡gina ${cfState.page} de ${cfState.pages}`;
     document.getElementById('cf-prev').disabled = cfState.page<=1;
     document.getElementById('cf-next').disabled = cfState.page>=cfState.pages;
   }catch(e){ if(summary) summary.textContent = e?.message||'Error'; }
@@ -125,7 +123,7 @@ function openNewEntryModal(defaultKind='IN'){
   div.innerHTML = `<h3>${defaultKind==='OUT'?'Nueva salida de caja':'Nueva entrada manual'}</h3>
     <label>Cuenta</label><select id='ncf-account'></select>
     <label>Monto</label><input id='ncf-amount' type='number' min='1' step='1'/>
-    <label>Descripción</label><input id='ncf-desc' placeholder='Descripción'/>
+    <label>DescripciÃ³n</label><input id='ncf-desc' placeholder='DescripciÃ³n'/>
     <div style='margin-top:8px;display:flex;gap:8px;'>
       <button id='ncf-save'>Guardar</button>
       <button id='ncf-cancel' class='secondary'>Cancelar</button>
@@ -150,11 +148,12 @@ function openNewEntryModal(defaultKind='IN'){
   };
 }
 
-// Auto init if tab is active on load
+// Auto init when the page contains the cashflow tab
 if(typeof document!=='undefined'){
   document.addEventListener('DOMContentLoaded', ()=>{
-    if(document.querySelector('.tabs button[data-tab="cashflow"]')?.classList.contains('active')){
+    if(document.getElementById('tab-cashflow')){
       initCashFlow();
     }
   });
 }
+

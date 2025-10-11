@@ -1,0 +1,212 @@
+﻿<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Taller App - Cotizaciones</title>
+  <link rel="stylesheet" href="assets/styles.css?v=20250923-2" />
+  <link rel="icon" href="data:,">
+  <script src="./assets/js/config.js"></script>
+  <script src="./assets/js/api.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script>
+    window.QUOTES_KEYS = { lastNumber: 'quotes:lastNumber', draft: 'quotes:current' };
+  </script>
+</head>
+<body data-page="cotizaciones">
+  <header class="app-header">
+    <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
+      <div class="row" style="gap:10px;align-items:center;">
+        <h1 style="margin:0;font-size:18px;">Taller App</h1>
+        <div class="muted" style="font-size:12px;">Empresa: <span id="companyEmail">-</span></div>
+      </div>
+      <div class="row" style="gap:6px;align-items:center;">
+        <button id="logoutBtn" class="secondary hidden">Salir</button>
+  <button id="themeToggle" class="secondary" title="Cambiar tema">🌗</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- ========== LOGIN ========== -->
+    <section id="loginSection">
+      <h2>Ingreso de Empresa</h2>
+      <div class="card">
+        <label>Correo de empresa</label>
+        <input type="email" id="email" placeholder="empresa@correo.com" />
+  <label>Contraseña</label>
+        <input type="password" id="password" placeholder="********" />
+        <div class="row">
+          <button id="loginBtn">Entrar</button>
+          <button id="registerBtn" class="secondary">Registrar empresa</button>
+        </div>
+  <div class="forgot-wrapper"><a class="forgot-link" href="forgot.html">¿Olvidaste tu contraseña?</a></div>
+        <small>Se crea un entorno aislado por empresa.</small>
+      </div>
+    </section>
+
+
+    <section id="appSection" class="hidden">
+      <nav class="tabs">
+  <button data-tab="home" data-href="index.html">Inicio</button>
+  <button data-tab="notas" data-href="notas.html">Notas</button>
+  <button data-tab="ventas" data-href="ventas.html">Ventas</button>
+  <button data-tab="cotizaciones" data-href="cotizaciones.html" class="active">Cotizaciones</button>
+  <button data-tab="inventario" data-href="inventario.html">Inventario</button>
+  <button data-tab="precios" data-href="precios.html">Lista de precios</button>
+  <button data-tab="cashflow" data-href="cashflow.html">Flujo de Caja</button>
+  <button data-tab="reporte-tecnico" data-href="reporte-tecnico.html">Reporte Técnico</button>
+  <button data-tab="formatos" data-href="template-selector.html">Formatos</button>
+  <button data-tab="skus" data-href="skus.html">SKUs</button>
+      </nav>
+
+      <!-- MODAL GLOBAL -->
+      <div id="modal" class="modal hidden">
+        <div class="modal-content">
+          <button id="modalClose" class="close">&times;</button>
+          <div id="modalBody">
+            <div id="modal-img-wrap" style="display:flex;justify-content:center;align-items:center;flex-direction:column;">
+              <img id="modal-img" src="" alt="Vista previa" style="max-width:90vw;max-height:90vh;width:1200px;height:auto;transition:transform 0.2s;" />
+              <div style="margin-top:12px;display:flex;gap:8px;">
+                <button id="zoom-in" class="secondary">+</button>
+                <button id="zoom-out" class="secondary">-</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+  <!-- ========== Cotizaciones ========== -->
+  <section id="tab-cotizaciones" class="tab">
+        <!-- Arriba: 2 columnas -->
+        <div class="grid-2" id="quotes-body">
+          <!-- Izquierda: Datos -->
+          <div class="card" id="q-data">
+            <h3>Nueva Cotización</h3>
+
+            <div class="row">
+              <div class="field">
+                <label>N.º cotización</label>
+                <input id="q-number" disabled placeholder="00001" />
+              </div>
+              <div class="field">
+                <label>FecHa y hora</label>
+                <input id="q-datetime" disabled />
+              </div>
+            </div>
+
+            <label>Cliente</label>
+            <input id="q-client-name" placeholder="Nombre del cliente" />
+            <div class="row">
+              <input id="q-client-phone" placeholder="Teléfono (opcional)" />
+              <input id="q-client-email" placeholder="Correo (opcional)" />
+            </div>
+
+            <label>Placa</label>
+            <input id="q-plate" placeholder="ABC123" />
+            <div class="row">
+              <input id="q-brand" placeholder="Marca" />
+              <input id="q-line" placeholder="Línea/Modelo" />
+            </div>
+            <div class="row">
+              <input id="q-year" placeholder="Año" />
+              <input id="q-cc" placeholder="Cilindraje" />
+            </div>
+
+            <button id="q-saveDraft" class="secondary">Guardar borrador (local)</button>
+          </div>
+
+          <!-- DerecHa: Resumen / Acciones -->
+          <div class="card" id="q-summary">
+            <h3>Resumen / Acciones</h3>
+            <p class="q-no"><span>No. cotización: </span><strong id="q-number-big">00001</strong></p>
+            <label>Validez (días, opcional)</label>
+            <input id="q-valid-days" type="number" min="0" step="1" placeholder="p. ej. 8" />
+            <label>Vista previa WHatsApp</label>
+            <pre id="q-wHatsappPreview" style="min-height:220px;white-space:pre-wrap;"></pre>
+            <div class="row">
+              <button id="q-clearAll" class="secondary">Borrar todo</button>
+            </div>
+          </div>
+
+          <!-- Abajo: ítems (a todo el ancho) -->
+          <div class="card span-2" id="q-items-card">
+            <h3>Ítems</h3>
+
+            <!-- Contenedor de ítems en 2 columnas -->
+            <div id="q-rows" class="q-grid-2cols">
+              <!-- Plantilla oculta de ítem -->
+              <div class="tr q-row-card hidden" id="q-row-template" data-template>
+                <div>
+                  <label class="sr-only">Tipo</label>
+                  <select>
+                    <option value="PRODUCTO">Producto</option>
+                    <option value="SERVICIO">Servicio</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="sr-only">Descripción</label>
+                  <input placeholder="Descripción" />
+                </div>
+                <div class="small">
+                  <label class="sr-only">Cant.</label>
+                  <input type="number" min="0" step="1" placeholder="Cant." />
+                </div>
+                <div class="small">
+                  <label class="sr-only">Precio</label>
+                  <input type="number" min="0" step="0.01" placeholder="Precio" />
+                </div>
+                <div class="small">
+                  <label class="sr-only">Subtotal</label>
+                  <input disabled placeholder="$0" />
+                </div>
+                <div class="small">
+                  <button class="secondary">Quitar</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="row" id="q-addbar">
+              <button id="q-addRow">+ Agregar línea</button>
+              <button id="q-addQR" class="secondary">Agregar por QR</button>
+            </div>
+
+            <div class="totals">
+              <div>Subtotal Productos: <strong id="q-subtotal-products">$0</strong></div>
+              <div>Subtotal Servicios: <strong id="q-subtotal-services">$0</strong></div>
+              <div>Total: <strong id="q-total">$0</strong></div>
+            </div>
+
+            <div class="row">
+              <button id="q-saveBackend">Guardar en historial</button>
+              <button id="q-sendWHatsApp">Enviar por WHatsApp</button>
+              <button id="q-exportPdf" class="secondary">Exportar PDF</button>
+            </div>
+          </div>
+
+          <!-- Debajo de ítems: Historial (a todo el ancho) -->
+          <div class="card span-2" id="q-history-card">
+            <h3>Historial de Cotizaciones</h3>
+            <div class="row wrap" id="q-history-filters">
+              <input id="qh-text" placeholder="Buscar por cliente o placa..." />
+              <input id="qh-from" type="date" />
+              <input id="qh-to" type="date" />
+              <button id="qh-apply" class="secondary">Buscar</button>
+              <button id="qh-clear" class="secondary">Limpiar</button>
+            </div>
+            <div id="q-history-list" class="q-history-list"></div>
+          </div>
+        </div>
+      </section>
+
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/quotes.js" charset="utf-8"></script>
+  <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
+  <script src="./assets/js/input-fix.js"></script>
+</body>
+</html>
