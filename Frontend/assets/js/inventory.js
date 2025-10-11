@@ -1088,3 +1088,8 @@ function getSelectedItems() {
   refreshIntakes();
   refreshItems({});
 
+// Export a no-op initializer to satisfy app.js imports
+export function initInventory() {
+  // The module already self-initializes on this page; keep this as a safe no-op.
+}
+
