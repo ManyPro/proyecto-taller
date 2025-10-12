@@ -584,8 +584,11 @@
     if (!parent) return;
 
     // Clear placeholder text
-    if (parent === qs('#ce-canvas') && parent.innerHTML.includes('Haz clic en los botones')) {
-      parent.innerHTML = '';
+    const canvas = qs('#ce-canvas');
+    if (parent === canvas) {
+      const ph = canvas.querySelector('#ce-placeholder');
+      if (ph) ph.remove();
+      if (canvas.innerHTML.includes('Haz clic en los botones')) canvas.innerHTML = '';
     }
 
     const id = `element_${visualEditor.nextId++}`;
@@ -1029,6 +1032,7 @@
   const boxH = qs('#prop-box-height');
   const overflowSel = qs('#prop-overflow');
   const imgWidthRange = qs('#prop-img-width');
+  const imgHeightRange = qs('#prop-img-height');
 
     if (fontSelect) {
       fontSelect.onchange = () => {
@@ -1359,7 +1363,7 @@
     if (!canvas) return;
     
     canvas.innerHTML = `
-      <div style="
+      <div id="ce-placeholder" style="
         position: absolute; 
         top: 50%; 
         left: 50%; 
@@ -1371,6 +1375,8 @@
         border-radius: 12px;
         background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
         max-width: 400px;
+        pointer-events: none;
+        z-index: 0;
       ">
         <div style="font-size: 48px; margin-bottom: 15px;">📝</div>
         <h3 style="margin: 0 0 10px 0; color: #495057;">Tu plantilla está vacía</h3>
@@ -2467,10 +2473,14 @@
       }
     }
     
-    // Clear placeholder if exists and we're appending directly to the canvas root
+    // Clear placeholder if exists in canvas, regardless of parent
     const canvas = qs('#ce-canvas');
-    if (parent === canvas && canvas.innerHTML.includes('Haz clic en los botones')) {
-      canvas.innerHTML = '';
+    if (canvas) {
+      const ph = canvas.querySelector('#ce-placeholder');
+      if (ph) ph.remove();
+      if (canvas.innerHTML.includes('Haz clic en los botones')) {
+        canvas.innerHTML = '';
+      }
     }
     
     // Create appropriate element based on variable type
@@ -2514,6 +2524,12 @@
   window.insertQrImageInCanvas = function() {
     const parent = getActiveParent();
     if (!parent) return;
+    const canvas = qs('#ce-canvas');
+    if (parent === canvas) {
+      const ph = canvas.querySelector('#ce-placeholder');
+      if (ph) ph.remove();
+      if (canvas.innerHTML.includes('Haz clic en los botones')) canvas.innerHTML = '';
+    }
 
     // Create container for image to allow resize handles
     const id = `element_${visualEditor.nextId++}`;
@@ -3510,8 +3526,10 @@
     const canvas = qs('#ce-canvas');
     if (!canvas) return;
 
+    // Consider non-empty if any .tpl-element exists
+    const hasElements = !!canvas.querySelector('.tpl-element');
     const content = canvas.innerHTML;
-    if (!content || content.includes('Haz clic en los botones')) {
+    if ((!content || content.includes('Haz clic en los botones')) && !hasElements) {
       alert('Por favor crea contenido antes de guardar');
       return;
     }
@@ -4224,9 +4242,10 @@
     }
 
     const content = canvas.innerHTML;
+    const hasElements = !!canvas.querySelector('.tpl-element');
     console.log('📄 Contenido del canvas:', content.substring(0, 100) + '...');
     
-    if (!content || content.includes('Haz clic en los botones') || content.includes('Tu plantilla está vacía')) {
+    if ((!content || content.includes('Haz clic en los botones') || content.includes('Tu plantilla está vacía')) && !hasElements) {
       alert('❌ No se puede guardar una plantilla vacía.\n\nPor favor agrega contenido antes de guardar.');
       return;
     }
@@ -4330,7 +4349,8 @@
     if (!canvas) return;
 
     const content = canvas.innerHTML;
-    if (!content || content.includes('Haz clic en los botones') || content.includes('Tu plantilla está vacía')) {
+    const hasElements = !!canvas.querySelector('.tpl-element');
+    if ((!content || content.includes('Haz clic en los botones') || content.includes('Tu plantilla está vacía')) && !hasElements) {
       alert('❌ No hay contenido para previsualizar.\n\nPor favor agrega elementos a la plantilla antes de ver la vista previa.');
       return;
     }
