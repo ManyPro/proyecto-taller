@@ -804,6 +804,14 @@
     document.querySelectorAll('.tpl-element').forEach(el => {
       el.style.border = '2px solid transparent';
       el.style.boxShadow = 'none';
+      // Hide any resize handles and drag handles on non-selected elements
+      const imgContainer = el.querySelector('.image-container');
+      if (imgContainer) {
+        const handles = imgContainer.querySelectorAll('.resize-handle');
+        handles.forEach(h => h.style.display = 'none');
+      }
+      const dh = el.querySelector('.drag-handle');
+      if (dh) dh.style.display = 'none';
     });
 
     visualEditor.selectedElement = element;
@@ -1249,30 +1257,15 @@
     });
     
     // Show/hide handles on hover and selection
-    const showHandles = () => {
-      if (visualEditor.selectedElement && visualEditor.selectedElement.contains(container)) {
-        Object.values(handleElements).forEach(h => h.style.display = 'block');
-      }
+    const updateHandles = () => {
+      const shouldShow = !!(visualEditor.selectedElement && visualEditor.selectedElement.contains(container));
+      Object.values(handleElements).forEach(h => h.style.display = shouldShow ? 'block' : 'none');
     };
-    
-    const hideHandles = () => {
-      Object.values(handleElements).forEach(h => h.style.display = 'none');
-    };
-    
-    container.addEventListener('mouseenter', showHandles);
-    container.addEventListener('mouseleave', hideHandles);
-    
-    // Show handles when parent element is selected
-    const checkSelection = () => {
-      if (visualEditor.selectedElement && visualEditor.selectedElement.contains(container)) {
-        showHandles();
-      } else {
-        hideHandles();
-      }
-    };
-    
-    // Check selection periodically
-    const selectionInterval = setInterval(checkSelection, 100);
+
+    // Update on selection polling (lightweight)
+    const selectionInterval = setInterval(updateHandles, 150);
+    container.addEventListener('mouseenter', updateHandles);
+    container.addEventListener('mouseleave', updateHandles);
     
     // Store cleanup function
     container._resizeCleanup = () => {
@@ -1309,34 +1302,46 @@
       
       let newWidth = startWidth;
       let newHeight = startHeight;
-      
-      // Calculate new dimensions based on handle position
+
+      // Calculate new dimensions based on handle position (free resize)
       switch(position) {
         case 'se': // Bottom-right
-          newWidth = startWidth + deltaX;
+          newWidth  = startWidth  + deltaX;
+          newHeight = startHeight + deltaY;
           break;
         case 'sw': // Bottom-left
-          newWidth = startWidth - deltaX;
+          newWidth  = startWidth  - deltaX;
+          newHeight = startHeight + deltaY;
           break;
         case 'ne': // Top-right
-          newWidth = startWidth + deltaX;
+          newWidth  = startWidth  + deltaX;
+          newHeight = startHeight - deltaY;
           break;
         case 'nw': // Top-left
-          newWidth = startWidth - deltaX;
+          newWidth  = startWidth  - deltaX;
+          newHeight = startHeight - deltaY;
           break;
       }
-      
-      // Maintain aspect ratio
-      newHeight = newWidth / aspectRatio;
+
+      // If Shift is held, preserve aspect ratio using the dominant delta
+      if (e.shiftKey) {
+        // Choose dimension change with larger absolute variation
+        if (Math.abs(newWidth - startWidth) >= Math.abs(newHeight - startHeight)) {
+          newHeight = Math.round(newWidth / aspectRatio);
+        } else {
+          newWidth = Math.round(newHeight * aspectRatio);
+        }
+      }
       
       // Apply minimum and maximum constraints
       const minSize = 20;
       const maxSize = 800;
       
-      if (newWidth >= minSize && newWidth <= maxSize) {
-        img.style.width = newWidth + 'px';
-        img.style.height = newHeight + 'px';
-      }
+      newWidth = Math.max(minSize, Math.min(newWidth, maxSize));
+      newHeight = Math.max(minSize, Math.min(newHeight, maxSize));
+
+      img.style.width = newWidth + 'px';
+      img.style.height = newHeight + 'px';
       
       e.preventDefault();
     };
