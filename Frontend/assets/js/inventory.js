@@ -1081,6 +1081,22 @@ if (__ON_INV_PAGE__) {
           root.style.cssText = 'position:fixed;left:-10000px;top:0;width:0;height:0;overflow:hidden;background:#fff;z-index:-1;';
           document.body.appendChild(root);
 
+          // Helper: wait for images to finish loading inside a container
+          async function waitForImages(rootEl, timeoutMs = 3000) {
+            const imgs = Array.from(rootEl.querySelectorAll('img'));
+            if (!imgs.length) return;
+            await Promise.all(imgs.map(img => new Promise((res) => {
+              if (img.complete && img.naturalWidth > 0) return res();
+              let done = false;
+              const clean = () => { if (done) return; done = true; img.removeEventListener('load', onLoad); img.removeEventListener('error', onErr); clearTimeout(t); res(); };
+              const onLoad = () => clean();
+              const onErr = () => clean();
+              const t = setTimeout(clean, timeoutMs);
+              img.addEventListener('load', onLoad, { once: true });
+              img.addEventListener('error', onErr, { once: true });
+            })));
+          }
+
           const images = [];
           for (const html of results) {
             // Para 'brand', el contenido puede tener 2 páginas (.editor-page[data-page="1"] y [data-page="2"]) que se deben capturar por separado
@@ -1112,7 +1128,9 @@ if (__ON_INV_PAGE__) {
               } catch(_) {}
               box.appendChild(inner);
               root.appendChild(box);
-              const canvas = await html2canvas(box, { scale: Math.max(2, window.devicePixelRatio || 2), backgroundColor: '#ffffff' });
+              // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
+              try { await waitForImages(box, 4000); } catch(_) {}
+              const canvas = await html2canvas(box, { scale: Math.max(2, window.devicePixelRatio || 2), backgroundColor: '#ffffff', useCORS: true, allowTaint: true, imageTimeout: 4000 });
               images.push(canvas.toDataURL('image/png'));
               root.removeChild(box);
             };

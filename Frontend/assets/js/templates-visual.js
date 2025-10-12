@@ -3148,8 +3148,15 @@
               const allElements = pagesContainer.querySelectorAll('.tpl-element');
               allElements.forEach(el => { makeDraggable(el); makeSelectable(el); });
             }
-            // Ensure page controls are visible
-            setupPagesControls(canvas.querySelectorAll('.editor-page').length);
+            // Detect pages in DOM and initialize pagination state + controls
+            const pageCount = canvas.querySelectorAll('.editor-page').length || 1;
+            if (!state.pages) state.pages = { count: pageCount, current: 1 };
+            state.pages.count = pageCount;
+            state.pages.current = 1;
+            setupPagesControls(pageCount);
+            if (typeof window._showEditorPage === 'function') {
+              window._showEditorPage(1);
+            }
             insertStickerVarsHint();
           } else {
             // For non-sticker, reinitialize as before
