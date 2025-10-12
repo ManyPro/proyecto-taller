@@ -915,9 +915,15 @@
           <!-- Controles específicos de imagen (QR) -->
           <div style="margin: 12px 0; padding: 10px; background:#fff; border:1px dashed #ccc; border-radius:6px; ${isImage?'':'display:none;'}">
             <label style="display:block; font-weight:600; margin-bottom:6px;">Imagen</label>
-            <div>
-              <label style="font-size:12px; color:#555;">Ancho de la imagen (px)</label>
-              <input type="range" id="prop-img-width" min="20" max="600" value="${(element.querySelector('img')||{}).offsetWidth||80}" style="width:100%;">
+            <div style="display:flex; gap:8px;">
+              <div style="flex:1;">
+                <label style="font-size:12px; color:#555;">Ancho (px)</label>
+                <input type="range" id="prop-img-width" min="20" max="600" value="${(element.querySelector('img')||{}).offsetWidth||80}" style="width:100%;">
+              </div>
+              <div style="flex:1;">
+                <label style="font-size:12px; color:#555;">Alto (px)</label>
+                <input type="range" id="prop-img-height" min="20" max="600" value="${(element.querySelector('img')||{}).offsetHeight||80}" style="width:100%;">
+              </div>
             </div>
           </div>
           
@@ -1103,14 +1109,21 @@
     if (overflowSel) overflowSel.onchange = () => { element.style.overflow = overflowSel.value; };
 
     // Image width control
-    if (imgWidthRange) {
+    if (imgWidthRange || imgHeightRange) {
       const img = element.querySelector('img');
       if (img) {
-        imgWidthRange.oninput = () => {
-          const w = parseInt(imgWidthRange.value,10);
-          img.style.width = w + 'px';
-          img.style.height = 'auto';
-        };
+        if (imgWidthRange) {
+          imgWidthRange.oninput = () => {
+            const w = parseInt(imgWidthRange.value,10);
+            img.style.width = w + 'px';
+          };
+        }
+        if (imgHeightRange) {
+          imgHeightRange.oninput = () => {
+            const h = parseInt(imgHeightRange.value,10);
+            img.style.height = h + 'px';
+          };
+        }
       }
     }
 
@@ -3122,14 +3135,21 @@
         if (template.contentHtml && template.contentHtml.trim() !== '') {
           // Load existing content
           canvas.innerHTML = template.contentHtml;
-          
-          // Reinitialize all elements
-          reinitializeElements();
-          // Ensure sticker variables panel is visible for sticker types
+          // For sticker templates, reinitialize all .tpl-element children as interactive
           if (template.type === 'sticker-qr' || template.type === 'sticker-brand') {
+            // Rebind draggable/selectable to all .tpl-element children
+            const pagesContainer = canvas.querySelector('[data-pages-container="true"]');
+            if (pagesContainer) {
+              const allElements = pagesContainer.querySelectorAll('.tpl-element');
+              allElements.forEach(el => { makeDraggable(el); makeSelectable(el); });
+            }
+            // Ensure page controls are visible
+            setupPagesControls(canvas.querySelectorAll('.editor-page').length);
             insertStickerVarsHint();
+          } else {
+            // For non-sticker, reinitialize as before
+            reinitializeElements();
           }
-          
           showQuickNotification(`✅ Formato "${template.name}" cargado para editar`, 'success');
           console.log('✅ Formato existente cargado:', template);
         } else {
