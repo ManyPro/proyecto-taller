@@ -123,7 +123,8 @@ const API = {
   // --- Cotizaciones ---
   quotesListRaw: async (q = '') => {
     try {
-      return await http.get(`/api/v1/quotes${q}`);
+      const path = typeof q === 'string' ? `/api/v1/quotes${q}` : `/api/v1/quotes${toQuery(q||{})}`;
+      return await http.get(path);
     } catch(e){
       if(/401|autorizad|token/i.test(e.message||'')) {
         console.warn('[API] No autorizado al listar cotizaciones. Revisa token.');
@@ -216,7 +217,8 @@ const API = {
     addTechnician: (name) => http.post('/api/v1/company/technicians', { name }).then(r => r.technicians || []),
     removeTechnician: (name) => http.del(`/api/v1/company/technicians/${encodeURIComponent(name)}`).then(r => r.technicians || []),
     getPreferences: () => http.get('/api/v1/company/preferences').then(r => r.preferences || { laborPercents: [] }),
-    setPreferences: (prefs) => http.put('/api/v1/company/preferences', prefs).then(r => r.preferences || { laborPercents: [] })
+    setPreferences: (prefs) => http.put('/api/v1/company/preferences', prefs).then(r => r.preferences || { laborPercents: [] }),
+    togglePublicCatalog: (enabled) => http.patch('/api/v1/company/public-catalog', { enabled }).then(r => !!r.publicCatalogEnabled)
   },
   accounts: {
     list: () => http.get('/api/v1/cashflow/accounts'),
