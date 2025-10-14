@@ -15,6 +15,8 @@ const SaleSchema = new mongoose.Schema({
   number: { type: Number, index: true },       // se asigna al cerrar
   name: { type: String, default: '' },         // "Venta · ABC123" o "Venta · 84F1A2"
   status: { type: String, default: 'draft', enum: ['draft', 'closed', 'cancelled'], index: true },
+  // Origen de la venta (internal = creada en panel, catalog = checkout público)
+  origin: { type: String, enum: ['internal','catalog'], default: 'internal', index: true },
   // Técnico asignado (para empresas que lo usan, p.ej. Casa DUSTER)
   technician: { type: String, default: '', index: true },
   // Historial de técnico: quién fue asignado inicialmente y quién cerró
@@ -47,6 +49,12 @@ const SaleSchema = new mongoose.Schema({
   paymentMethod: { type: String, default: '' },
   paymentMethods: { type: [{ method: String, amount: Number, accountId: { type: mongoose.Schema.Types.ObjectId } }], default: [] },
   paymentReceiptUrl: { type: String, default: '' },
+  // Método único para catálogo (pay-on-delivery) si viene del checkout público
+  payMethod: { type: String, enum: ['pay-on-delivery',''], default: '' },
+  // Modalidad de entrega (pickup = recolección, home-bogota = envío gratis Bogotá, store = retiro en punto)
+  deliveryMethod: { type: String, enum: ['pickup','home-bogota','store',''], default: '' },
+  // Requiere creación automática de orden de trabajo (instalación en taller)
+  requiresInstallation: { type: Boolean, default: false },
   laborValue: { type: Number, default: 0 },            // valor base mano de obra
   laborPercent: { type: Number, default: 0 },          // porcentaje asignado al técnico
   laborShare: { type: Number, default: 0 },            // valor calculado = laborValue * laborPercent/100

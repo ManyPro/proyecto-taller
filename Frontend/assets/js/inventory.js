@@ -1199,6 +1199,164 @@ if (__ON_INV_PAGE__) {
     };
   }
 
+  // ---- Publish management ----
+  // Inject after itemsList rendering logic where each item div is built
+  // Patch: enhance refreshItems to include publish toggle and public edit button
+  // Find div.innerHTML assignment inside refreshItems and append new buttons
+  // Added below inside refreshItems after existing action buttons creation:
+  // (Non-destructive insertion)
+  // PUBLISH MANAGEMENT START
+  // Extend item actions with publish toggle & public edit
+  // We locate after div.innerHTML build by selecting actions container
+  (function(){
+    const originalRefreshItems = refreshItems;
+    refreshItems = async function(params={}){
+      await originalRefreshItems(params);
+      // After base rendering, augment each item row with publish controls
+      const rows = itemsList.querySelectorAll('.note');
+      rows.forEach(row => {
+        const checkbox = row.querySelector('input[type="checkbox"][data-id]');
+        const id = checkbox ? String(checkbox.dataset.id) : null;
+        if(!id) return;
+        const it = state.itemCache.get(id);
+        if(!it) return;
+        const actions = row.querySelector('.actions');
+        if(!actions) return;
+        if(!actions.querySelector(`[data-pub-toggle]`)){
+          const btnToggle = document.createElement('button');
+          btnToggle.className = 'secondary';
+          btnToggle.setAttribute('data-pub-toggle', id);
+          btnToggle.textContent = it.published ? 'Despublicar' : 'Publicar';
+          actions.appendChild(btnToggle);
+          btnToggle.onclick = () => openPublishToggle(it);
+        }
+        if(!actions.querySelector(`[data-pub-edit]`)){
+          const btnEditPub = document.createElement('button');
+          btnEditPub.className = 'secondary';
+          btnEditPub.setAttribute('data-pub-edit', id);
+          btnEditPub.textContent = 'Campos públicos';
+          actions.appendChild(btnEditPub);
+          btnEditPub.onclick = () => openEditPublicFields(it);
+        }
+      });
+    };
+  })();
+
+  function openPublishToggle(it){
+    invOpenModal(`<h3>${it.published ? 'Despublicar' : 'Publicar'} ítem</h3>
+      <p class='muted'>${it.published ? 'Al despublicar el ítem dejará de aparecer en el catálogo público.' : 'Al publicar el ítem será visible en el catálogo público y se podrá comprar.'}</p>
+      <div style='display:flex;gap:8px;justify-content:flex-end;margin-top:12px;'>
+        <button id='pub-cancel' class='secondary'>Cancelar</button>
+        <button id='pub-apply'>${it.published ? 'Despublicar' : 'Publicar'}</button>
+      </div>`);
+    const btnApply = document.getElementById('pub-apply');
+    const btnCancel = document.getElementById('pub-cancel');
+    btnCancel.onclick = invCloseModal;
+    btnApply.onclick = async () => {
+      try {
+        const body = { published: !it.published };
+        if(!it.published){
+          body.publishedAt = new Date().toISOString();
+        } else {
+          body.publishedAt = null; // optional cleanup
+        }
+        await invAPI.updateItem(it._id, body);
+        invCloseModal();
+        await refreshItems(state.lastItemsParams);
+      } catch(e){
+        alert('Error actualizando publicación: '+ e.message);
+      }
+    };
+  }
+
+  function openEditPublicFields(it){
+    const tagsStr = Array.isArray(it.tags)? it.tags.join(', ') : '';
+    const imgs = Array.isArray(it.publicImages)? it.publicImages : [];
+    invOpenModal(`<h3>Campos públicos</h3>
+      <label>Precio público (opcional)</label><input id='pub-price' type='number' step='0.01' min='0' value='${Number.isFinite(it.publicPrice)? it.publicPrice : ''}' />
+      <label>Categoría</label><input id='pub-category' value='${it.category||''}' />
+      <label>Tags (coma)</label><input id='pub-tags' value='${tagsStr}' />
+      <label>Descripción pública (HTML básico permitido)</label><textarea id='pub-description' rows='6'>${(it.publicDescription||'').replace(/</g,'&lt;')}</textarea>
+      <div style='margin-top:10px;'>
+        <div class='muted' style='font-size:12px;'>Imágenes públicas (máx 10)</div>
+        <div id='pub-imgs' style='display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;'></div>
+        <input id='pub-files' type='file' multiple accept='image/*' />
+      </div>
+      <div style='display:flex;gap:8px;justify-content:flex-end;margin-top:14px;'>
+        <button id='pub-cancel' class='secondary'>Cancelar</button>
+        <button id='pub-save'>Guardar</button>
+      </div>`);
+    const elPrice = document.getElementById('pub-price');
+    const elCategory = document.getElementById('pub-category');
+    const elTags = document.getElementById('pub-tags');
+    const elDesc = document.getElementById('pub-description');
+    const elImgsWrap = document.getElementById('pub-imgs');
+    const elFiles = document.getElementById('pub-files');
+    const btnCancel = document.getElementById('pub-cancel');
+    const btnSave = document.getElementById('pub-save');
+    let publicImages = imgs.map(m => ({ url: m.url, alt: m.alt||'' }));
+
+    function renderPublicImages(){
+      elImgsWrap.innerHTML='';
+      publicImages.forEach((img, idx)=>{
+        const box = document.createElement('div');
+        box.style.cssText='width:90px;height:90px;position:relative;border:1px solid #ccc;border-radius:4px;overflow:hidden;background:#fff;';
+        box.innerHTML = `<img src='${img.url}' alt='${img.alt||''}' style='width:100%;height:100%;object-fit:cover;' />`+
+          `<button data-del='${idx}' style='position:absolute;top:2px;right:2px;background:#ef4444;color:#fff;border:none;border-radius:4px;padding:2px 6px;font-size:11px;cursor:pointer;'>x</button>`+
+          `<input data-alt='${idx}' placeholder='ALT' value='${img.alt||''}' style='position:absolute;bottom:0;left:0;width:100%;box-sizing:border-box;font-size:10px;padding:2px;border:none;background:rgba(255,255,255,0.7);' />`;
+        elImgsWrap.appendChild(box);
+      });
+      elImgsWrap.querySelectorAll('button[data-del]').forEach(btn=>{
+        btn.onclick = () => { const i = parseInt(btn.dataset.del,10); publicImages.splice(i,1); renderPublicImages(); };
+      });
+      elImgsWrap.querySelectorAll('input[data-alt]').forEach(inp=>{
+        inp.oninput = () => { const i = parseInt(inp.dataset.alt,10); publicImages[i].alt = inp.value.slice(0,80); };
+      });
+    }
+    renderPublicImages();
+
+    elFiles.onchange = async () => {
+      if(!elFiles.files?.length) return;
+      if(publicImages.length >= 10){ alert('Máximo 10 imágenes públicas'); elFiles.value=''; return; }
+      try {
+        const up = await invAPI.mediaUpload(elFiles.files);
+        const list = (up && up.files)? up.files : [];
+        list.forEach(f => { if(publicImages.length < 10) publicImages.push({ url: f.url, alt: '' }); });
+        elFiles.value='';
+        renderPublicImages();
+      } catch(e){
+        alert('Error subiendo imágenes: '+ e.message);
+      }
+    };
+
+    btnCancel.onclick = invCloseModal;
+    btnSave.onclick = async () => {
+      try {
+        const body = {};
+        const priceVal = elPrice.value.trim();
+        if(priceVal !== '') body.publicPrice = parseFloat(priceVal);
+        else body.publicPrice = undefined; // remove
+        body.category = elCategory.value.trim();
+        body.tags = elTags.value.split(',').map(s=>s.trim()).filter(Boolean).slice(0,30);
+        body.publicDescription = elDesc.value.replace(/&lt;/g,'<').slice(0,5000);
+        body.publicImages = publicImages.slice(0,10);
+        // Validations
+        if(body.publicPrice !== undefined && (!Number.isFinite(body.publicPrice) || body.publicPrice < 0)){
+          return alert('Precio público inválido');
+        }
+        if(body.publicDescription.length > 5000){
+          return alert('Descripción pública demasiado larga');
+        }
+        await invAPI.updateItem(it._id, body);
+        invCloseModal();
+        await refreshItems(state.lastItemsParams);
+      } catch(e){
+        alert('Error guardando campos públicos: '+ e.message);
+      }
+    };
+  }
+  // PUBLISH MANAGEMENT END
+
   // ---- Boot ----
   refreshIntakes();
   refreshItems({});

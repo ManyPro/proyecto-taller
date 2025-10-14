@@ -1361,7 +1361,35 @@
   function clearCanvas() {
     const canvas = qs('#ce-canvas');
     if (!canvas) return;
-    
+    // Si hay varias páginas (stickers brand), limpiar solo la página actual
+    if (state.pages && state.pages.count > 1) {
+      const currentPage = getPageEl(state.pages.current);
+      if (currentPage) {
+        // Eliminar elementos de esa página del array y DOM
+        visualEditor.elements = visualEditor.elements.filter(rec => {
+          if (currentPage.contains(rec.element)) {
+            try {
+              const imageContainer = rec.element.querySelector && rec.element.querySelector('.image-container');
+              if (imageContainer && imageContainer._resizeCleanup) imageContainer._resizeCleanup();
+              if (rec.element._dragCleanup) rec.element._dragCleanup();
+            } catch(_) {}
+            rec.element.remove();
+            return false;
+          }
+          return true;
+        });
+        currentPage.innerHTML = `<div id="ce-placeholder-page" style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; color:#666; font-size:12px; padding:6px; pointer-events:none;">
+          <div style="font-size:26px; margin-bottom:6px;">🧩</div>
+          <div style="font-weight:600; margin-bottom:4px;">Página vacía</div>
+          <div style="opacity:.8;">Agrega elementos con los botones de la barra</div>
+        </div>`;
+        selectElement(null);
+        showQuickNotification('Página actual limpiada', 'info');
+        return;
+      }
+    }
+
+    // Limpieza completa (modo no paginado)
     canvas.innerHTML = `
       <div id="ce-placeholder" style="
         position: absolute; 
@@ -1390,9 +1418,18 @@
         </div>
       </div>
     `;
+    visualEditor.elements.forEach(rec => {
+      try {
+        const imageContainer = rec.element.querySelector && rec.element.querySelector('.image-container');
+        if (imageContainer && imageContainer._resizeCleanup) imageContainer._resizeCleanup();
+        if (rec.element._dragCleanup) rec.element._dragCleanup();
+      } catch(_) {}
+    });
     visualEditor.elements = [];
     visualEditor.selectedElement = null;
     selectElement(null);
+    showQuickNotification('Canvas limpiado completamente', 'info');
+    updateClearCanvasButtonLabel();
   }
 
   function loadTemplate(templateType) {
@@ -3360,10 +3397,23 @@
 
     // Exponer helper por si se usa en otro lugar
     window._showEditorPage = showPage;
+    updateClearCanvasButtonLabel();
   }
 
   function getPageEl(n) {
     return qs(`[data-pages-container="true"] .editor-page[data-page="${n}"]`);
+  }
+
+  function updateClearCanvasButtonLabel(){
+    const btn = qs('#clear-canvas-btn');
+    if (!btn) return;
+    if (state.pages && state.pages.count > 1){
+      btn.textContent = '🧹 Limpiar Página';
+      btn.title = 'Limpia solo la página actual (no elimina otras páginas)';
+    } else {
+      btn.textContent = '🧹 Limpiar Todo';
+      btn.title = 'Limpia todo el lienzo';
+    }
   }
 
   function createStickerTemplateQR(canvas) {

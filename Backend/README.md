@@ -330,3 +330,53 @@ Prueba sin SMTP (dev):
 3. Observa en la respuesta `debugToken` y en consola el log simulado.
 4. Usa la `resetUrl` para completar el flujo.
 
+## Despliegue seguro de Catálogo Público (Migración de metadatos de publicación)
+
+Antes de habilitar el catálogo público y los toggles de publicación en producción, ejecuta un backfill para asegurar que todos los ítems ya publicados tengan `publishedAt` (y opcionalmente `publicPrice`).
+
+### Objetivo del script
+`Backend/scripts/backfill_publication_metadata.js`:
+- Rellena `publishedAt` con `createdAt` (o `Date.now()` si falta) cuando `published=true` y no existe.
+- Asigna `publicPrice = salePrice` sólo si `publicPrice` está `undefined` (no lo toca si es 0 u otro valor definido).
+- No modifica `publishedBy` (si falta lo deja en `null`).
+- Idempotente (puedes correrlo varias veces).
+
+### Pasos recomendados
+1. Crea un backup de tu base de datos (dump Mongo completo).
+2. Despliega el nuevo código (sin activar frontend público todavía) y verifica logs de arranque.
+3. Ejecuta el script de backfill:
+	```powershell
+	node ./Backend/scripts/backfill_publication_metadata.js MONGODB_URI="mongodb://localhost:27017" COMPANY_ID="<opcionalCompanyId>"
+	```
+4. Revisa el resumen: `Items updated` y muestras de cambios.
+5. (Opcional) Ejecuta una consulta rápida en Mongo para validar:
+	```js
+	db.items.find({ published: true, publishedAt: { $exists: false } }).count()
+	```
+	Debe devolver `0`.
+6. Habilita la UI de catálogo público y prueba endpoints:
+	- `GET /public/catalog/items`
+	- `GET /public/catalog/items/:id`
+	- `GET /public/catalog/sitemap.xml`
+7. Monitorea rendimiento y rate limit en logs (IPs recurrentes / 429).
+8. Configura monitoreo básico (CPU, memoria, latencia).
+
+### Rollback
+Si necesitas revertir:
+- Restaura el backup de Mongo.
+- Reinstala la versión anterior del código.
+
+### Troubleshooting rápido
+| Síntoma | Posible causa | Acción |
+|--------|---------------|--------|
+| `Items updated = 0` pero faltan fechas | Items no tenían `published=true` | Verifica que realmente deban estar publicados y realiza `PATCH` para publicarlos, publicaAt se asignará automáticamente |
+| Catálogo vacío | Ningún ítem con `published=true` | Publica ítems desde panel interno |
+| 429 frecuentes | Rate limit agresivo | Ajusta bucket/ventana en middleware (server.js) |
+| Descripciones con HTML recortado | Sanitización eliminó etiquetas no permitidas | Revisa allowlist, edita descripción con solo etiquetas soportadas |
+
+### Próximos pasos sugeridos
+- Endpoint futuro para promociones dinámicas.
+- Estadísticas de clics / vistas en catálogo.
+- Revisión periódica de XSS via auditoría automática.
+
+

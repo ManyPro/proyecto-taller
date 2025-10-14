@@ -399,6 +399,75 @@ logoutBtn?.addEventListener('click', async () => {
   }
 })();
 
+// === Notificaciones (campana) ===
+(function(){
+  let polling = null; let panel = null; let bell = null; let lastIds = new Set();
+  function ensureBell(){
+    const header = document.querySelector('.app-header .row');
+    if(!header) return;
+    if(document.getElementById('notifBell')) return;
+    bell = document.createElement('button');
+    bell.id='notifBell'; bell.className='secondary'; bell.style.position='relative'; bell.innerHTML='\uD83D\uDD14 <span id="notifCount" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;padding:2px 6px;border-radius:14px;font-size:10px;line-height:1;display:none;">0</span>';
+    header.appendChild(bell);
+    bell.addEventListener('click', togglePanel);
+  }
+  function ensurePanel(){
+    if(panel) return panel;
+    panel = document.createElement('div');
+    panel.id='notifPanel';
+    panel.style.cssText='position:fixed;top:60px;right:14px;width:320px;max-height:70vh;overflow:auto;background:var(--card);color:var(--text);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.35);padding:12px;display:none;z-index:2000;';
+    panel.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><strong>Notificaciones</strong><div style="display:flex;gap:6px;"><button id="notifMarkAll" class="secondary" style="font-size:11px;">Marcar todo</button><button id="notifClose" class="secondary" style="font-size:11px;">Cerrar</button></div></div><div id="notifList" style="display:flex;flex-direction:column;gap:8px;font-size:12px;"></div>';
+    document.body.appendChild(panel);
+    panel.querySelector('#notifClose').onclick = togglePanel;
+    panel.querySelector('#notifMarkAll').onclick = markAll;
+    return panel;
+  }
+  function fmtAgo(ts){
+    const d = new Date(ts); const diff = Date.now()-d.getTime(); const m=Math.floor(diff/60000); if(m<1) return 'ahora'; if(m<60) return m+'m'; const h=Math.floor(m/60); if(h<24) return h+'h'; const days=Math.floor(h/24); return days+'d'; }
+  async function fetchNotifications(){
+    try{
+      const res = await fetch((API.base||'') + '/api/v1/notifications?unread=1&limit=30', { headers: authHeader ? authHeader() : {} });
+      const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
+      if(!res.ok) throw new Error(data?.error || res.statusText);
+      const list = data?.data || [];
+      renderNotifications(list);
+    }catch(e){ /* silent */ }
+  }
+  function renderNotifications(list){
+    ensureBell(); ensurePanel();
+    const countEl = document.getElementById('notifCount');
+    if(countEl){ countEl.textContent = String(list.length); countEl.style.display = list.length? 'inline-block':'none'; }
+    const ul = document.getElementById('notifList'); if(!ul) return;
+    ul.innerHTML='';
+    list.forEach(n => {
+      lastIds.add(String(n._id));
+      const div = document.createElement('div');
+      div.style.cssText='background:var(--card-alt,#1e293b);padding:8px;border-radius:8px;';
+      div.innerHTML = `<div style='font-weight:600;'>${n.type}</div><div style='opacity:.8;'>${JSON.stringify(n.data)}</div><div style='font-size:10px;text-align:right;opacity:.6;'>${fmtAgo(n.createdAt)}</div><button data-read='${n._id}' style='margin-top:4px;font-size:11px;' class='secondary'>Marcar leído</button>`;
+      div.querySelector('[data-read]').onclick = () => markRead(n._id, div);
+      ul.appendChild(div);
+    });
+    if(!list.length){ ul.innerHTML = '<div style="text-align:center;opacity:.6;">Sin nuevas notificaciones</div>'; }
+  }
+  async function markRead(id, el){
+    try{
+      await fetch((API.base||'') + '/api/v1/notifications/' + id + '/read', { method:'PATCH', headers:{ 'Content-Type':'application/json', ...(authHeader?authHeader():{}) } });
+      if(el) el.style.opacity='.35';
+      lastIds.delete(String(id));
+      const countEl = document.getElementById('notifCount'); if(countEl) countEl.textContent = String(lastIds.size); if(lastIds.size===0 && countEl) countEl.style.display='none';
+    }catch(e){ /* ignore */ }
+  }
+  async function markAll(){
+    try{
+      await fetch((API.base||'') + '/api/v1/notifications/read-all', { method:'POST', headers:{ 'Content-Type':'application/json', ...(authHeader?authHeader():{}) } });
+      lastIds.clear(); fetchNotifications();
+    }catch(e){/* ignore */ }
+  }
+  function togglePanel(){ ensurePanel(); panel.style.display = panel.style.display==='none'? 'block':'none'; if(panel.style.display==='block'){ fetchNotifications(); } }
+  function startPolling(){ if(polling) return; polling = setInterval(fetchNotifications, 30000); fetchNotifications(); }
+  document.addEventListener('DOMContentLoaded', ()=>{ ensureBell(); startPolling(); });
+})();
+
 
 
 

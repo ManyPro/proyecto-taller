@@ -24,8 +24,45 @@ import profilesRouter from './routes/profiles.routes.js';
 import companyRouter from './routes/company.routes.js';
 import cashflowRouter from './routes/cashflow.routes.js';
 import templatesRouter from './routes/templates.routes.js';
+import notificationsRouter from './routes/notifications.routes.js';
+import publicCatalogRouter from './routes/catalog.public.routes.js';
 
 const app = express();
+
+// --- Simple in-memory rate limit for public catalog endpoints ---
+const rateBuckets = new Map(); // key -> { count, ts }
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 min
+const RATE_LIMIT_MAX = parseInt(process.env.PUBLIC_RATE_MAX || '120',10); // per IP per minute
+
+function rateLimit(req, res, next){
+  if(!req.path.startsWith('/api/v1/public/catalog')) return next();
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+  const now = Date.now();
+  const bucket = rateBuckets.get(ip) || { count:0, ts: now };
+  if(now - bucket.ts > RATE_LIMIT_WINDOW_MS){ bucket.count = 0; bucket.ts = now; }
+  bucket.count++;
+  rateBuckets.set(ip, bucket);
+  if(bucket.count > RATE_LIMIT_MAX){
+    return res.status(429).json({ error: 'Rate limit excedido. Intenta en un momento.' });
+  }
+  next();
+}
+
+// --- Lightweight ETag + Cache-Control for GET public catalog ---
+function publicCacheHeaders(req, res, next){
+  if(req.method !== 'GET' || !req.path.startsWith('/api/v1/public/catalog')) return next();
+  res.setHeader('Cache-Control', 'public, max-age=30, stale-while-revalidate=120');
+  // Build a weak ETag from path + query
+  const tagBase = req.originalUrl + '|' + (process.env.CACHE_VERSION || 'v1');
+  const etag = 'W/"' + Buffer.from(tagBase).toString('base64').slice(0,16) + '"';
+  const inm = req.headers['if-none-match'];
+  if(inm && inm === etag){
+    res.status(304).end();
+    return;
+  }
+  res.setHeader('ETag', etag);
+  next();
+}
 
 // --- CORS allowlist ---
 const envAllow = (process.env.ALLOWED_ORIGINS || '')
@@ -59,6 +96,8 @@ app.options('*', cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('tiny'));
+app.use(rateLimit);
+app.use(publicCacheHeaders);
 
 // Static uploads (local driver)
 const __filename = fileURLToPath(import.meta.url);
@@ -74,6 +113,7 @@ app.use('/api/v1/health', healthRouter);
 app.use('/api/v1/media', mediaRouter);
 app.use('/api/v1/sales', salesStreamRouter);
 app.use('/api/v1/auth/company', companyAuthRouter);
+app.use('/api/v1/public/catalog', publicCatalogRouter);
 
 function withCompanyDefaults(req, _res, next) {
   if (req.company?.id) {
@@ -102,6 +142,7 @@ app.use('/api/v1/profiles', authCompany, withCompanyDefaults, profilesRouter);
 app.use('/api/v1/company', companyRouter);
 app.use('/api/v1/cashflow', authCompany, withCompanyDefaults, cashflowRouter);
 app.use('/api/v1/templates', authCompany, withCompanyDefaults, templatesRouter);
+app.use('/api/v1/notifications', authCompany, withCompanyDefaults, notificationsRouter);
 app.use('/api/v1/skus', authCompany, withCompanyDefaults, skusRouter);
 
 app.use((err, _req, res, _next) => {

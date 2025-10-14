@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 
 const CustomerProfileSchema = new mongoose.Schema({
   companyId: { type: String, index: true, required: true },
+  // Número de identificación principal (para autocompletar rápido). Se duplica de customer.idNumber para index directo.
+  identificationNumber: { type: String, trim: true, default: '', index: true },
   plate: { type: String, uppercase: true, trim: true, default: '' },
   customer: {
     idNumber: { type: String, default: '' },
@@ -28,6 +30,10 @@ CustomerProfileSchema.index(
 CustomerProfileSchema.pre('save', function(next) {
   if (this.vehicle?.plate) {
     this.plate = String(this.vehicle.plate).trim().toUpperCase();
+  }
+  // Sincronizar identificationNumber si falta
+  if (!this.identificationNumber && this.customer?.idNumber) {
+    this.identificationNumber = String(this.customer.idNumber).trim();
   }
   next();
 });

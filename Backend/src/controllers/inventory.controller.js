@@ -2,6 +2,7 @@
 import mongoose from "mongoose";
 import VehicleIntake from "../models/VehicleIntake.js";
 import Item from "../models/Item.js";
+import Notification from "../models/Notification.js";
 
 // Generador de QR en PNG
 import QRCode from "qrcode";
@@ -35,6 +36,22 @@ function sanitizeMediaList(arr) {
     const mimetype = (m.mimetype || "").trim();
     if (url && publicId && mimetype) out.push({ url, publicId, mimetype });
   }
+  return out;
+}
+
+// Sanitización estricta para descripción pública (allowlist de etiquetas básicas)
+function sanitizePublicDescription(html){
+  if(!html) return '';
+  let out = String(html).slice(0,5000);
+  // Quitar script/style/iframe/object
+  out = out.replace(/<\s*(script|style|iframe|object|embed|link)[^>]*>[\s\S]*?<\s*\/\1>/gi,'');
+  // Quitar event handlers y javascript: URIs
+  out = out.replace(/on[a-zA-Z]+\s*=\s*"[^"]*"/g,'').replace(/on[a-zA-Z]+\s*=\s*'[^']*'/g,'');
+  out = out.replace(/href\s*=\s*"javascript:[^"]*"/gi,'href="#"');
+  // Allowlist: p|b|i|strong|em|br|ul|ol|li|span|div|h1-4|img|a
+  out = out.replace(/<\/?(?!p\b|b\b|i\b|strong\b|em\b|br\b|ul\b|ol\b|li\b|span\b|div\b|h[1-4]\b|img\b|a\b)[^>]*>/gi,'');
+  // Limpiar múltiples espacios
+  out = out.replace(/\s{3,}/g,'  ').trim();
   return out;
 }
 
@@ -240,6 +257,15 @@ export const createItem = async (req, res) => {
     stock: Number.isFinite(+b.stock) ? +b.stock : 0,
     images,
     qrData: "" // inicial, lo llenamos abajo
+    , // Campos catálogo público (solo backend decide publishedAt/publishedBy)
+    published: !!b.published,
+    publicPrice: Number.isFinite(+b.publicPrice) ? +b.publicPrice : undefined,
+    publicDescription: sanitizePublicDescription(b.publicDescription||''),
+    publicImages: Array.isArray(b.publicImages) ? b.publicImages.slice(0,10).map(im => ({ url: (im.url||'').trim(), alt: (im.alt||'').trim().slice(0,80) })).filter(im=>im.url) : [],
+    tags: Array.isArray(b.tags) ? b.tags.slice(0,12).map(t=>String(t).trim().toUpperCase()).filter(Boolean) : [],
+    category: (b.category||'').trim().toUpperCase() || '',
+    publishedAt: b.published ? new Date() : undefined,
+    publishedBy: b.published ? (req.userId || null) : null
   });
 
   // Si aun no tiene QR, lo generamos y guardamos
@@ -253,6 +279,10 @@ export const createItem = async (req, res) => {
   }
 
   res.status(201).json({ item });
+  // Notificación publish
+  if(item.published){
+    await Notification.create({ companyId: req.companyId, type: 'item.published', data: { itemId: item._id, sku: item.sku } });
+  }
 };
 
 export const updateItem = async (req, res) => {
@@ -301,6 +331,38 @@ export const updateItem = async (req, res) => {
     ...(images ? { images } : {})
   };
 
+  // Controlar campos públicos desde backend
+  if('publicDescription' in updateDoc){
+    updateDoc.publicDescription = sanitizePublicDescription(updateDoc.publicDescription||'');
+  }
+  if('publicImages' in updateDoc){
+    updateDoc.publicImages = Array.isArray(updateDoc.publicImages)? updateDoc.publicImages.slice(0,10).map(im=>({ url:(im.url||'').trim(), alt:(im.alt||'').trim().slice(0,80) })).filter(im=>im.url) : [];
+  }
+  if('tags' in updateDoc){
+    updateDoc.tags = Array.isArray(updateDoc.tags)? updateDoc.tags.slice(0,12).map(t=>String(t).trim().toUpperCase()).filter(Boolean) : [];
+  }
+  if('category' in updateDoc){
+    updateDoc.category = (updateDoc.category||'').trim().toUpperCase();
+  }
+  if('publicPrice' in updateDoc){
+    updateDoc.publicPrice = Number.isFinite(+updateDoc.publicPrice)? +updateDoc.publicPrice : undefined;
+  }
+  // published toggle: gestionar publishedAt/publishedBy
+  let publishingAction = null;
+  if('published' in updateDoc){
+    const goingPublished = !!updateDoc.published;
+    if(goingPublished && !before.published){
+      updateDoc.publishedAt = new Date();
+      updateDoc.publishedBy = req.userId || before.publishedBy || null;
+      publishingAction = 'published';
+    } else if(!goingPublished && before.published){
+      // Mantener histórico; no borramos publishedAt
+      publishingAction = 'unpublished';
+    } else {
+      delete updateDoc.publishedAt; // no cambiar si estado no varía
+    }
+  }
+
   let item = await Item.findOneAndUpdate(
     { _id: id, companyId: req.companyId },
     updateDoc,
@@ -319,6 +381,10 @@ export const updateItem = async (req, res) => {
   }
 
   res.json({ item });
+  if(publishingAction){
+    const type = publishingAction === 'published' ? 'item.published' : 'item.unpublished';
+    await Notification.create({ companyId: req.companyId, type, data: { itemId: item._id, sku: item.sku } });
+  }
 };
 
 export const deleteItem = async (req, res) => {

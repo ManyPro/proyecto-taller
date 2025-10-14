@@ -1,0 +1,284 @@
+import mongoose from 'mongoose';
+import Item from '../models/Item.js';
+import Sale from '../models/Sale.js';
+import Notification from '../models/Notification.js';
+import WorkOrder from '../models/WorkOrder.js';
+import CustomerProfile from '../models/CustomerProfile.js';
+
+// ---- Helpers ----
+function coercePositiveInt(v, def){
+  const n = parseInt(v,10);
+  return Number.isFinite(n) && n > 0 ? n : def;
+}
+
+function sanitizeDescription(html){
+  if(!html) return '';
+  let out = String(html);
+  // Remove script/style tags
+  out = out.replace(/<\s*script[^>]*>[\s\S]*?<\s*\/script>/gi,'');
+  out = out.replace(/<\s*style[^>]*>[\s\S]*?<\s*\/style>/gi,'');
+  // Remove on* attributes
+  out = out.replace(/on[a-zA-Z]+\s*=\s*"[^"]*"/g,'');
+  out = out.replace(/on[a-zA-Z]+\s*=\s*'[^']*'/g,'');
+  out = out.replace(/on[a-zA-Z]+\s*=\s*[^\s>]+/g,'');
+  // Basic whitelist: allow p, b, i, br, ul, li, strong, em, span, div, img, a, h1-h4
+  // Strip other tags but keep text
+  out = out.replace(/<\/?(?!p|b|i|br|ul|li|strong|em|span|div|img|a|h[1-4])[^>]*>/gi,'');
+  // Limit length
+  if(out.length > 5000) out = out.slice(0,5000);
+  return out.trim();
+}
+
+function mapPublicItem(doc){
+  if(!doc) return null;
+  const price = (Number.isFinite(doc.publicPrice) ? doc.publicPrice : doc.salePrice) || 0;
+  return {
+    id: String(doc._id),
+    sku: doc.sku,
+    name: doc.name,
+    price,
+    stock: doc.stock || 0,
+    category: doc.category || '',
+    tags: Array.isArray(doc.tags) ? doc.tags : [],
+    images: (doc.publicImages||[]).slice(0,10),
+    description: sanitizeDescription(doc.publicDescription || ''),
+    publishedAt: doc.publishedAt || null
+  };
+}
+
+// GET /public/catalog/items
+export const listPublishedItems = async (req, res) => {
+  const page = Math.min(coercePositiveInt(req.query.page,1), 5000);
+  const limit = Math.min(coercePositiveInt(req.query.limit,20), 50);
+  const skip = (page-1)*limit;
+  const { q, category, tags, stock } = req.query;
+
+  const filter = { published: true };
+  if(q){
+    const r = new RegExp(String(q).trim().toUpperCase(), 'i');
+    filter.$or = [{ name: r }, { sku: r }];
+  }
+  if(category){
+    filter.category = new RegExp(String(category).trim(), 'i');
+  }
+  if(tags){
+    const arr = String(tags).split(',').map(s=>s.trim()).filter(Boolean);
+    if(arr.length) filter.tags = { $in: arr };
+  }
+  if(stock){
+    filter.stock = { $gt: 0 };
+  }
+
+  const total = await Item.countDocuments(filter);
+  const items = await Item.find(filter).sort({ publishedAt: -1, _id: -1 }).skip(skip).limit(limit);
+  // Cache hint (override if middleware didn't)
+  res.setHeader('Cache-Control','public, max-age=30, stale-while-revalidate=120');
+  res.json({
+    data: items.map(mapPublicItem),
+    meta: { page, limit, total, pages: Math.ceil(total/limit) }
+  });
+};
+
+// GET /public/catalog/items/:id
+export const getPublishedItem = async (req, res) => {
+  const { id } = req.params;
+  if(!mongoose.Types.ObjectId.isValid(id)) return res.status(404).json({ error: 'Item no encontrado' });
+  const doc = await Item.findById(id);
+  if(!doc || !doc.published) return res.status(404).json({ error: 'Item no publicado' });
+  res.setHeader('Cache-Control','public, max-age=60, stale-while-revalidate=300');
+  res.json({ item: mapPublicItem(doc) });
+};
+
+// GET /public/catalog/customer?idNumber=123
+export const lookupCustomerByIdNumber = async (req, res) => {
+  const idNumber = String(req.query.idNumber||'').trim();
+  if(!idNumber) return res.status(400).json({ error: 'Falta idNumber' });
+  // companyId not provided in public context yet; design assumption: single-company public catalog.
+  // If multi-company later, include /:companyId path segment. For now we query by any.
+  const profile = await CustomerProfile.findOne({ identificationNumber: idNumber });
+  if(!profile) return res.json({ profile: null });
+  res.json({ profile: {
+    identificationNumber: profile.identificationNumber,
+    name: profile.customer?.name || '',
+    phone: profile.customer?.phone || '',
+    email: profile.customer?.email || '',
+    address: profile.customer?.address || ''
+  }});
+};
+
+// POST /public/catalog/checkout
+export const checkoutCatalog = async (req, res) => {
+  const b = req.body || {};
+  const itemsReq = Array.isArray(b.items) ? b.items : [];
+  if(!itemsReq.length) return res.status(400).json({ error: 'Carrito vacío' });
+
+  // Customer data
+  const customer = b.customer || {};
+  const idNumber = String(customer.idNumber||'').trim();
+  const custName = String(customer.name||'').trim();
+  if(!idNumber || !custName) return res.status(400).json({ error: 'Faltan datos cliente (idNumber, name)' });
+
+  const deliveryMethod = ['pickup','home-bogota','store'].includes(b.deliveryMethod) ? b.deliveryMethod : 'pickup';
+  const requiresInstallation = !!b.requiresInstallation;
+
+  // Regla: instalación en taller incompatible con envío a domicilio Bogotá
+  let finalDelivery = deliveryMethod;
+  let adjusted = false;
+  if(requiresInstallation && deliveryMethod === 'home-bogota') {
+    finalDelivery = 'store'; // forzar retiro en taller
+    adjusted = true;
+  }
+
+  // Load items and validate
+  const itemIds = itemsReq.map(it => it.id).filter(id => mongoose.Types.ObjectId.isValid(id));
+  const dbItems = await Item.find({ _id: { $in: itemIds }, published: true });
+  const dbMap = new Map(dbItems.map(d => [String(d._id), d]));
+
+  const saleItems = [];
+  for(const reqItem of itemsReq){
+    const qty = coercePositiveInt(reqItem.qty, 1);
+    const id = String(reqItem.id);
+    const doc = dbMap.get(id);
+    if(!doc) return res.status(400).json({ error: `Item no publicado: ${id}` });
+    if((doc.stock||0) < qty) return res.status(400).json({ error: `Stock insuficiente para ${doc.sku}` });
+    const unitPrice = (Number.isFinite(doc.publicPrice) ? doc.publicPrice : doc.salePrice) || 0;
+    saleItems.push({
+      source: 'inventory',
+      refId: doc._id,
+      sku: doc.sku,
+      name: doc.name,
+      qty,
+      unitPrice,
+      total: unitPrice * qty
+    });
+  }
+
+  const subtotal = saleItems.reduce((s,it)=> s + it.total, 0);
+  const tax = 0; // No definido (puede calcularse luego)
+  const total = subtotal + tax;
+
+  // Create Sale (status draft, origin catalog). Assumption: internal team will close later.
+  let sale = await Sale.create({
+    companyId: dbItems[0]?.companyId || null, // Assumption: single company for now.
+    origin: 'catalog',
+    status: 'draft',
+    items: saleItems,
+    customer: {
+      idNumber,
+      name: custName,
+      phone: String(customer.phone||'').trim(),
+      email: String(customer.email||'').trim(),
+      address: String(customer.address||'').trim()
+    },
+    notes: String(b.notes||'').trim(),
+    subtotal,
+    tax,
+    total,
+    payMethod: 'pay-on-delivery',
+    deliveryMethod: finalDelivery,
+    requiresInstallation
+  });
+
+  // Reserve stock (simple subtract). Improvement later: reservations / rollback on cancel.
+  for(const it of saleItems){
+    await Item.updateOne({ _id: it.refId }, { $inc: { stock: -it.qty } });
+  }
+
+  // Upsert customer profile (basic, no plate)
+  if(idNumber){
+    const existing = await CustomerProfile.findOne({ identificationNumber: idNumber });
+    if(!existing){
+      await CustomerProfile.create({
+        companyId: String(sale.companyId||''),
+        identificationNumber: idNumber,
+        customer: {
+          idNumber,
+          name: custName,
+          phone: String(customer.phone||'').trim(),
+          email: String(customer.email||'').trim(),
+          address: String(customer.address||'').trim()
+        },
+        vehicle: { plate: 'CATALOGO' }
+      });
+    }
+  }
+
+  // Notification
+  await Notification.create({
+    companyId: sale.companyId,
+    type: 'sale.created',
+    data: { saleId: sale._id, origin: 'catalog' }
+  });
+
+  // Crear WorkOrder si requiere instalación
+  let workOrder = null;
+  if(requiresInstallation){
+    try {
+      workOrder = await WorkOrder.create({
+        companyId: sale.companyId,
+        saleId: sale._id,
+        customer: sale.customer,
+        items: sale.items.map(it => ({ refId: it.refId, sku: it.sku, name: it.name, qty: it.qty })),
+        notes: 'Generada desde checkout público (instalación).'
+      });
+      await Notification.create({ companyId: sale.companyId, type: 'workOrder.created', data: { workOrderId: workOrder._id, saleId: sale._id } });
+    } catch (e) {
+      console.error('Error creando WorkOrder:', e.message);
+    }
+  }
+
+  res.status(201).json({ 
+    sale: { id: sale._id, status: sale.status, total: sale.total, deliveryMethod: finalDelivery, adjusted }, 
+    workOrder: workOrder ? { id: workOrder._id } : null,
+    message: adjusted ? 'Instalación requiere retiro en taller. Método de entrega ajustado.' : undefined
+  });
+};
+
+// GET /public/catalog/sitemap.txt (simple list of item URLs)
+export const sitemapPlain = async (req, res) => {
+  const base = (req.protocol + '://' + req.get('host'));
+  const items = await Item.find({ published: true }).select('_id updatedAt');
+  const lines = items.map(i => `${base}/catalog/item/${i._id}`);
+  res.setHeader('Content-Type','text/plain');
+  res.send(lines.join('\n'));
+};
+
+// GET /public/catalog/sitemap.xml (basic SEO sitemap)
+export const sitemapXml = async (req, res) => {
+  const base = (req.protocol + '://' + req.get('host'));
+  const items = await Item.find({ published: true }).select('_id updatedAt');
+  const urls = items.map(i => {
+    const loc = `${base}/catalog/item/${i._id}`;
+    const lastmod = i.updatedAt.toISOString();
+    return `<url><loc>${loc}</loc><lastmod>${lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>`;
+  }).join('');
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls}</urlset>`;
+  res.setHeader('Content-Type','application/xml');
+  res.setHeader('Cache-Control','public, max-age=600');
+  res.send(xml);
+};
+
+// GET /public/catalog/feed.csv?key=SECRET
+export const feedCsv = async (req, res) => {
+  const key = String(req.query.key||'');
+  const expected = process.env.CATALOG_FEED_KEY || '';
+  if(!expected || key !== expected) return res.status(403).json({ error: 'Forbidden' });
+  const items = await Item.find({ published: true, stock: { $gt: 0 } }).limit(2000);
+  const headers = ['id','sku','name','price','stock','category','tags','publishedAt'];
+  const rows = [headers.join(',')];
+  for(const it of items){
+    const price = (Number.isFinite(it.publicPrice)?it.publicPrice:it.salePrice)||0;
+    rows.push([
+      it._id,
+      `"${it.sku}"`,
+      `"${it.name.replace(/"/g,'""')}"`,
+      price,
+      it.stock||0,
+      `"${(it.category||'').replace(/"/g,'""')}"`,
+      `"${(Array.isArray(it.tags)?it.tags.join('|'):'').replace(/"/g,'""')}"`,
+      it.publishedAt ? it.publishedAt.toISOString() : ''
+    ].join(','));
+  }
+  res.setHeader('Content-Type','text/csv');
+  res.send(rows.join('\n'));
+};
