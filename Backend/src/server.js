@@ -10,6 +10,7 @@ import crypto from 'node:crypto';
 import mongoose from 'mongoose';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { logger } from './lib/logger.js';
 
 import { authCompany } from './middlewares/auth.js';
 import skusRouter from './routes/skus.routes.js';
