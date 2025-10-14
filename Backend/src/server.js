@@ -4,6 +4,9 @@ import 'express-async-errors';
 import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
+import helmet from 'helmet';
+import compression from 'compression';
+import crypto from 'node:crypto';
 import mongoose from 'mongoose';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,22 +31,86 @@ import notificationsRouter from './routes/notifications.routes.js';
 import publicCatalogRouter from './routes/catalog.public.routes.js';
 
 const app = express();
+app.disable('x-powered-by');
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", 'https:', "'unsafe-inline'"],
+      connectSrc: ["'self'", 'https:', 'http:'],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'self'"],
+      upgradeInsecureRequests: []
+    }
+  },
+  referrerPolicy: { policy: 'no-referrer' }
+}));
+app.use(compression());
 
-// --- Simple in-memory rate limit for public catalog endpoints ---
-const rateBuckets = new Map(); // key -> { count, ts }
-const RATE_LIMIT_WINDOW_MS = 60_000; // 1 min
-const RATE_LIMIT_MAX = parseInt(process.env.PUBLIC_RATE_MAX || '120',10); // per IP per minute
+// requestId + access log
+app.use((req, res, next) => {
+  const rid = crypto.randomUUID();
+  req.requestId = rid;
+  res.setHeader('X-Request-ID', rid);
+  const start = process.hrtime.bigint();
+  res.on('finish', () => {
+    const end = process.hrtime.bigint();
+    const ms = Number(end - start)/1e6;
+    logger.info('access', {
+      rid,
+      method: req.method,
+      path: req.originalUrl,
+      status: res.statusCode,
+      ms: Math.round(ms*100)/100,
+      ip: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress,
+      ua: req.headers['user-agent'] || ''
+    });
+  });
+  next();
+});
+
+// --- In-memory rate limits (simple buckets) ---
+const rlBuckets = new Map(); // key -> { count, ts }
+const RL_WINDOW = 60_000;
+const RL_PUBLIC_MAX = parseInt(process.env.PUBLIC_RATE_MAX || '120',10);
+const RL_CHECKOUT_MAX = parseInt(process.env.CHECKOUT_RATE_MAX || '30',10); // más estricto
+const RL_AUTH_MAX = parseInt(process.env.AUTH_RATE_MAX || '40',10);
+
+function applyRate(ip, key, limit){
+  const now = Date.now();
+  const bucketKey = ip + '|' + key;
+  const bucket = rlBuckets.get(bucketKey) || { count:0, ts: now };
+  if(now - bucket.ts > RL_WINDOW){ bucket.count = 0; bucket.ts = now; }
+  bucket.count++;
+  rlBuckets.set(bucketKey, bucket);
+  return bucket.count <= limit;
+}
 
 function rateLimit(req, res, next){
-  if(!req.path.startsWith('/api/v1/public/catalog')) return next();
   const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
-  const now = Date.now();
-  const bucket = rateBuckets.get(ip) || { count:0, ts: now };
-  if(now - bucket.ts > RATE_LIMIT_WINDOW_MS){ bucket.count = 0; bucket.ts = now; }
-  bucket.count++;
-  rateBuckets.set(ip, bucket);
-  if(bucket.count > RATE_LIMIT_MAX){
-    return res.status(429).json({ error: 'Rate limit excedido. Intenta en un momento.' });
+  const p = req.path;
+  if(p.startsWith('/api/v1/public/catalog/checkout')){
+    if(!applyRate(ip,'checkout', RL_CHECKOUT_MAX)){
+      logger.warn('rate.limit.checkout', { ip });
+      return res.status(429).json({ error: 'Demasiados intentos de checkout. Intenta en un minuto.' });
+    }
+    return next();
+  }
+  if(p.startsWith('/api/v1/auth/company')){
+    if(!applyRate(ip,'auth', RL_AUTH_MAX)){
+      logger.warn('rate.limit.auth', { ip });
+      return res.status(429).json({ error: 'Demasiadas solicitudes de autenticación. Espera un momento.' });
+    }
+    return next();
+  }
+  if(p.startsWith('/api/v1/public/catalog')){
+    if(!applyRate(ip,'public', RL_PUBLIC_MAX)){
+      logger.warn('rate.limit.public', { ip, path: p });
+      return res.status(429).json({ error: 'Rate limit excedido. Intenta en un momento.' });
+    }
   }
   next();
 }
@@ -77,7 +144,7 @@ const defaultAllow = [
 ];
 
 const allowList = envAllow.length ? envAllow : defaultAllow;
-console.log('[CORS] allowList:', allowList);
+logger.info('[CORS] allowList', { allowList });
 
 const corsOptions = {
   origin(origin, cb) {
@@ -95,7 +162,7 @@ app.options('*', cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-app.use(morgan('tiny'));
+// app.use(morgan('tiny')); // redundante con access log estructurado
 app.use(rateLimit);
 app.use(publicCacheHeaders);
 
@@ -149,25 +216,26 @@ app.use((err, _req, res, _next) => {
   const isJsonParse = err?.type === 'entity.parse.failed' || (err instanceof SyntaxError && 'body' in err);
   const status = isJsonParse ? 400 : (err.status || 500);
   const msg = isJsonParse ? 'JSON invalido o cuerpo no soportado' : (err.message || 'Internal error');
-  if (!res.headersSent) res.status(status).json({ error: msg });
+  logger.error('request.error', { rid: _req.requestId, status, msg, stack: err.stack?.split('\n').slice(0,4).join('\n') });
+  if (!res.headersSent) res.status(status).json({ error: msg, requestId: _req.requestId });
 });
 
 const { MONGODB_URI } = process.env;
 if (!MONGODB_URI) {
-  console.error('Falta MONGODB_URI');
+  logger.error('config.missing.mongodb_uri');
   process.exit(1);
 }
 
 mongoose.connect(MONGODB_URI, { dbName: process.env.MONGODB_DB || 'taller' })
-  .then(() => console.log('MongoDB conectado'))
+  .then(() => logger.info('mongo.connected', { db: process.env.MONGODB_DB || 'taller' }))
   .catch(err => {
-    console.error('Error MongoDB:', err.message);
+    logger.error('mongo.connect.error', { err: err.message });
     process.exit(1);
   });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`API escuchando en :${PORT}`);
+  logger.info('server.listen', { port: PORT });
 });
 
 
