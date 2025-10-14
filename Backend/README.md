@@ -379,4 +379,99 @@ Si necesitas revertir:
 - Estadísticas de clics / vistas en catálogo.
 - Revisión periódica de XSS via auditoría automática.
 
+## Catálogo Público Segmentado por Empresa
+
+Ahora cada endpoint del catálogo público exige un `:companyId` en la ruta para evitar mezclar ítems de distintas empresas y garantizar aislamiento:
+
+Endpoints:
+```
+GET    /api/v1/public/catalog/:companyId/items?page=1&limit=20&q=SKU123&category=FILTROS&tags=FRENO,MOTOR&stock=1
+GET    /api/v1/public/catalog/:companyId/items/:id
+GET    /api/v1/public/catalog/:companyId/customer?idNumber=123456
+POST   /api/v1/public/catalog/:companyId/checkout
+GET    /api/v1/public/catalog/:companyId/sitemap.xml
+GET    /api/v1/public/catalog/:companyId/sitemap.txt
+GET    /api/v1/public/catalog/:companyId/feed.csv?key=SECRET
+```
+
+Reglas y validaciones:
+- `companyId` debe ser un ObjectId válido y la empresa debe estar `active=true`.
+- Listado filtra siempre por `{ published: true, companyId }`.
+- El detalle (`items/:id`) retorna 404 si el ítem no pertenece a la empresa o no está publicado.
+- Checkout valida que todos los ítems solicitados pertenezcan a la misma empresa.
+- Rate limit diferencia buckets por empresa (`public:<companyId>`, `checkout:<companyId>`).
+- Sitemap y feed generan URLs con el segmento `/:companyId/`.
+
+Impacto en frontend:
+- `catalogo.html` ahora requiere `?companyId=<id>` o un atributo `data-company-id` para cargar ítems.
+- Botón “Catálogo público” en `inventario.html` abre una nueva pestaña con la URL segmentada.
+
+Consideraciones SEO:
+- Si cada empresa debe indexar su catálogo, proporcionar enlaces internos al sitemap: `/api/v1/public/catalog/<companyId>/sitemap.xml`.
+- Para subdominios futuros, se puede mapear `companyId` a slug y reescribir rutas.
+
+Seguridad:
+- No se exponen datos de otras empresas por error de filtrado.
+- Flag `publicCatalogEnabled` controla si la empresa expone el catálogo (si está en false, endpoints devuelven 404).
+
+### Flag de habilitación `publicCatalogEnabled`
+
+Campo en modelo `Company`:
+```js
+publicCatalogEnabled: { type: Boolean, default: false }
+```
+Mientras esté en `false` los endpoints bajo `/api/v1/public/catalog/:companyId/*` retornan:
+```json
+{ "error": "Catálogo no habilitado para esta empresa" }
+```
+
+Activar / desactivar:
+```
+PATCH /api/v1/company/public-catalog
+{ "enabled": true } // o false
+```
+Respuesta:
+```json
+{ "publicCatalogEnabled": true }
+```
+
+Incluido en autenticación:
+```
+POST /api/v1/auth/company/login
+POST /api/v1/auth/company/register
+GET  /api/v1/auth/company/me
+// -> company: { id, name, email, publicCatalogEnabled }
+```
+
+Frontend: botón “Catálogo público” se deshabilita si `publicCatalogEnabled === false`.
+
+Script opcional para habilitar masivamente (idempotente):
+```js
+// Backend/enable-public-catalog-all.js
+import mongoose from 'mongoose';
+import Company from './src/models/Company.js';
+await mongoose.connect(process.env.MONGODB_URI);
+const res = await Company.updateMany({ publicCatalogEnabled: { $ne: true } }, { $set: { publicCatalogEnabled: true } });
+console.log('Empresas habilitadas:', res.modifiedCount);
+await mongoose.disconnect();
+```
+Ejecución:
+```powershell
+node ./Backend/enable-public-catalog-all.js MONGODB_URI="mongodb://localhost:27017/tu-db"
+```
+
+Checklist antes de ponerlo en `true`:
+1. Backfill de metadatos (script).
+2. Revisar sanitización de `publicDescription`.
+3. Confirmar rate limits.
+4. Activar flag.
+5. Validar carga y checkout.
+
+Migración desde versión previa (sin segmentación):
+1. Actualizar frontend para incluir `companyId` en URLs (o usar botón generado internamente tras login).
+2. Verificar que los ítems existentes tengan `companyId` correcto (parte del modelo ya presente).
+3. Invalidar caches anteriores (cambiar `CACHE_VERSION`).
+4. Revisar analytics / logs para adaptar dashboards a nuevo patrón de ruta.
+
+
 

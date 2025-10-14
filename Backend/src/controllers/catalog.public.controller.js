@@ -4,6 +4,7 @@ import Sale from '../models/Sale.js';
 import Notification from '../models/Notification.js';
 import WorkOrder from '../models/WorkOrder.js';
 import CustomerProfile from '../models/CustomerProfile.js';
+import Company from '../models/Company.js';
 
 // ---- Helpers ----
 function coercePositiveInt(v, def){
@@ -48,12 +49,16 @@ function mapPublicItem(doc){
 
 // GET /public/catalog/items
 export const listPublishedItems = async (req, res) => {
+  const { companyId } = req.params;
+  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
+  const company = await Company.findById(companyId).select('_id active publicCatalogEnabled');
+  if(!company || company.active === false || !company.publicCatalogEnabled) return res.status(404).json({ error: 'Catálogo no habilitado para esta empresa' });
   const page = Math.min(coercePositiveInt(req.query.page,1), 5000);
   const limit = Math.min(coercePositiveInt(req.query.limit,20), 50);
   const skip = (page-1)*limit;
   const { q, category, tags, stock } = req.query;
 
-  const filter = { published: true };
+  const filter = { published: true, companyId: company._id };
   if(q){
     const r = new RegExp(String(q).trim().toUpperCase(), 'i');
     filter.$or = [{ name: r }, { sku: r }];
@@ -81,21 +86,22 @@ export const listPublishedItems = async (req, res) => {
 
 // GET /public/catalog/items/:id
 export const getPublishedItem = async (req, res) => {
-  const { id } = req.params;
+  const { id, companyId } = req.params;
+  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
   if(!mongoose.Types.ObjectId.isValid(id)) return res.status(404).json({ error: 'Item no encontrado' });
-  const doc = await Item.findById(id);
-  if(!doc || !doc.published) return res.status(404).json({ error: 'Item no publicado' });
+  const doc = await Item.findOne({ _id: id, companyId, published: true });
+  if(!doc) return res.status(404).json({ error: 'Item no publicado para esta empresa' });
   res.setHeader('Cache-Control','public, max-age=60, stale-while-revalidate=300');
   res.json({ item: mapPublicItem(doc) });
 };
 
 // GET /public/catalog/customer?idNumber=123
 export const lookupCustomerByIdNumber = async (req, res) => {
+  const { companyId } = req.params;
+  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
   const idNumber = String(req.query.idNumber||'').trim();
   if(!idNumber) return res.status(400).json({ error: 'Falta idNumber' });
-  // companyId not provided in public context yet; design assumption: single-company public catalog.
-  // If multi-company later, include /:companyId path segment. For now we query by any.
-  const profile = await CustomerProfile.findOne({ identificationNumber: idNumber });
+  const profile = await CustomerProfile.findOne({ identificationNumber: idNumber, companyId });
   if(!profile) return res.json({ profile: null });
   res.json({ profile: {
     identificationNumber: profile.identificationNumber,
@@ -108,6 +114,10 @@ export const lookupCustomerByIdNumber = async (req, res) => {
 
 // POST /public/catalog/checkout
 export const checkoutCatalog = async (req, res) => {
+  const { companyId } = req.params;
+  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
+  const company = await Company.findById(companyId).select('_id active publicCatalogEnabled');
+  if(!company || company.active === false || !company.publicCatalogEnabled) return res.status(404).json({ error: 'Catálogo no habilitado para esta empresa' });
   const b = req.body || {};
   const itemsReq = Array.isArray(b.items) ? b.items : [];
   if(!itemsReq.length) return res.status(400).json({ error: 'Carrito vacío' });
@@ -131,7 +141,7 @@ export const checkoutCatalog = async (req, res) => {
 
   // Load items and validate
   const itemIds = itemsReq.map(it => it.id).filter(id => mongoose.Types.ObjectId.isValid(id));
-  const dbItems = await Item.find({ _id: { $in: itemIds }, published: true });
+  const dbItems = await Item.find({ _id: { $in: itemIds }, published: true, companyId });
   const dbMap = new Map(dbItems.map(d => [String(d._id), d]));
 
   const saleItems = [];
@@ -159,7 +169,7 @@ export const checkoutCatalog = async (req, res) => {
 
   // Create Sale (status draft, origin catalog). Assumption: internal team will close later.
   let sale = await Sale.create({
-    companyId: dbItems[0]?.companyId || null, // Assumption: single company for now.
+    companyId: company._id,
     origin: 'catalog',
     status: 'draft',
     items: saleItems,
@@ -236,19 +246,23 @@ export const checkoutCatalog = async (req, res) => {
 
 // GET /public/catalog/sitemap.txt (simple list of item URLs)
 export const sitemapPlain = async (req, res) => {
+  const { companyId } = req.params;
+  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
   const base = (req.protocol + '://' + req.get('host'));
-  const items = await Item.find({ published: true }).select('_id updatedAt');
-  const lines = items.map(i => `${base}/catalog/item/${i._id}`);
+  const items = await Item.find({ published: true, companyId }).select('_id updatedAt');
+  const lines = items.map(i => `${base}/catalog/${companyId}/item/${i._id}`);
   res.setHeader('Content-Type','text/plain');
   res.send(lines.join('\n'));
 };
 
 // GET /public/catalog/sitemap.xml (basic SEO sitemap)
 export const sitemapXml = async (req, res) => {
+  const { companyId } = req.params;
+  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
   const base = (req.protocol + '://' + req.get('host'));
-  const items = await Item.find({ published: true }).select('_id updatedAt');
+  const items = await Item.find({ published: true, companyId }).select('_id updatedAt');
   const urls = items.map(i => {
-    const loc = `${base}/catalog/item/${i._id}`;
+    const loc = `${base}/catalog/${companyId}/item/${i._id}`;
     const lastmod = i.updatedAt.toISOString();
     return `<url><loc>${loc}</loc><lastmod>${lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>`;
   }).join('');
@@ -260,10 +274,12 @@ export const sitemapXml = async (req, res) => {
 
 // GET /public/catalog/feed.csv?key=SECRET
 export const feedCsv = async (req, res) => {
+  const { companyId } = req.params;
+  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
   const key = String(req.query.key||'');
   const expected = process.env.CATALOG_FEED_KEY || '';
   if(!expected || key !== expected) return res.status(403).json({ error: 'Forbidden' });
-  const items = await Item.find({ published: true, stock: { $gt: 0 } }).limit(2000);
+  const items = await Item.find({ published: true, stock: { $gt: 0 }, companyId }).limit(2000);
   const headers = ['id','sku','name','price','stock','category','tags','publishedAt'];
   const rows = [headers.join(',')];
   for(const it of items){

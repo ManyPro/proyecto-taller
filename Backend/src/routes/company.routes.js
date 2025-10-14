@@ -57,4 +57,16 @@ router.put('/preferences', async (req, res) => {
   res.json({ preferences: req.companyDoc.preferences });
 });
 
+// ========== Toggle Catálogo Público ==========
+// Permite activar/desactivar el catálogo público segmentado para la empresa autenticada.
+// PATCH /api/v1/company/public-catalog { "enabled": true|false }
+router.patch('/public-catalog', async (req, res) => {
+  const { enabled } = req.body || {};
+  if (typeof enabled !== 'boolean') return res.status(400).json({ error: 'enabled (boolean) requerido' });
+  if (!req.companyDoc.active) return res.status(400).json({ error: 'Empresa inactiva, no se puede cambiar el catálogo' });
+  req.companyDoc.publicCatalogEnabled = enabled;
+  await req.companyDoc.save();
+  res.json({ publicCatalogEnabled: req.companyDoc.publicCatalogEnabled });
+});
+
 export default router;

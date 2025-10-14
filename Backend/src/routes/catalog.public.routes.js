@@ -11,12 +11,13 @@ import {
 
 const router = Router();
 
-router.get('/items', listPublishedItems);
-router.get('/items/:id', getPublishedItem);
-router.get('/customer', lookupCustomerByIdNumber);
-router.post('/checkout', checkoutCatalog);
-router.get('/sitemap.txt', sitemapPlain);
-router.get('/sitemap.xml', sitemapXml);
-router.get('/feed.csv', feedCsv);
+// Todas las rutas ahora requieren :companyId
+router.get('/:companyId/items', listPublishedItems);
+router.get('/:companyId/items/:id', getPublishedItem);
+router.get('/:companyId/customer', lookupCustomerByIdNumber);
+router.post('/:companyId/checkout', checkoutCatalog);
+router.get('/:companyId/sitemap.txt', sitemapPlain);
+router.get('/:companyId/sitemap.xml', sitemapXml);
+router.get('/:companyId/feed.csv', feedCsv);
 
 export default router;

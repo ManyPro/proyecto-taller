@@ -25,7 +25,8 @@
       </div>
       <div class="row" style="gap:6px;align-items:center;">
         <button id="logoutBtn" class="secondary hidden">Salir</button>
-  <button id="themeToggle" class="secondary" title="Cambiar tema">🌗</button>
+        <button id="themeToggle" class="secondary" title="Cambiar tema">🌗</button>
+  <button id="openPublicCatalog" class="secondary" title="Abrir catálogo público" data-state="pending">Catálogo público</button>
       </div>
     </div>
   </header>
@@ -150,5 +151,29 @@
   <script type="module" src="./assets/js/inventory.js" charset="utf-8"></script>
   <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
   <script src="./assets/js/input-fix.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('openPublicCatalog');
+      if(!btn) return;
+      const token = window.API?.token?.get?.() || '';
+      if(!token){ btn.disabled=true; btn.title='Inicia sesión para usar el catálogo'; return; }
+      fetch((window.BACKEND_URL||'') + '/api/v1/auth/company/me', { headers: { 'Authorization': 'Bearer ' + token } })
+        .then(r => r.text())
+        .then(txt => { let body; try{ body=JSON.parse(txt);}catch{ body={}; } return body; })
+        .then(body => {
+          const company = body?.company || body || {};
+          const companyId = company.id || company._id || '';
+          const enabled = !!company.publicCatalogEnabled;
+          if(!companyId){ btn.disabled=true; btn.title='No se pudo obtener companyId'; return; }
+          if(!enabled){ btn.disabled=true; btn.title='Catálogo público deshabilitado'; btn.dataset.state='disabled'; return; }
+          btn.dataset.state='ready';
+          btn.onclick = () => {
+            const url = 'catalogo.html?companyId=' + encodeURIComponent(companyId);
+            window.open(url, '_blank');
+          };
+        })
+        .catch(()=>{ btn.disabled=true; btn.title='Error consultando empresa'; btn.dataset.state='error'; });
+    });
+  </script>
 </body>
 </html>

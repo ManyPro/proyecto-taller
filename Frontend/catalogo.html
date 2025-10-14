@@ -60,7 +60,8 @@
   </style>
   <script src="./assets/js/api.js"></script>
   <script type="module" src="./assets/js/api.esm.js"></script>
-  <script type="module" src="./assets/js/catalog.js"></script>
+  <!-- Migrado a versión segmentada por empresa -->
+  <script type="module" src="./assets/js/catalog-public.js"></script>
   <script type="module" src="./assets/js/promo-slider.js"></script>
   <script>
     // Lazy image upgrade (IntersectionObserver) para browsers sin soporte nativo avanzado
@@ -100,7 +101,7 @@
       <button id="toggleTheme" class="secondary" style="margin-left:auto;">Oscuro</button>
     </div>
   </header>
-  <div class="catalog-container">
+  <div class="catalog-container" id="catalogContainer">
     <section class="hero" aria-label="Promociones destacadas">
       <h1>Encuentra tus repuestos</h1>
       <div id="heroSlider" class="hero-slider" data-autoplay="true" data-interval="6000" role="region" aria-roledescription="carousel" aria-label="Promociones" tabindex="0">
@@ -150,7 +151,7 @@
       <button id="f-clear" class="secondary">Limpiar</button>
     </section>
 
-    <section>
+    <section id="catalogItemsSection">
       <div class="grid" id="itemsGrid"></div>
       <div class="pagination" id="pagination"></div>
     </section>
@@ -164,5 +165,17 @@
       <button id="cartCheckout" disabled>Checkout</button>
     </div>
   </div>
+  <script>
+    // Mensaje si falta companyId
+    document.addEventListener('DOMContentLoaded', () => {
+      const url = new URL(window.location.href);
+      if(!url.searchParams.get('companyId')){
+        const cont = document.getElementById('catalogItemsSection');
+        if(cont){
+          cont.innerHTML = "<div style='padding:40px 10px;text-align:center;opacity:.7;'>Falta companyId. Usa ?companyId=&lt;id&gt; en la URL para cargar el catálogo público de una empresa.</div>";
+        }
+      }
+    });
+  </script>
 </body>
 </html>

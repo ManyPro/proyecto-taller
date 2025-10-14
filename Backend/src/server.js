@@ -92,8 +92,12 @@ function applyRate(ip, key, limit){
 function rateLimit(req, res, next){
   const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
   const p = req.path;
+  // Extraer companyId si existe en rutas públicas /api/v1/public/catalog/:companyId/...
+  let companyIdSegment = 'na';
+  const match = p.match(/^\/api\/v1\/public\/catalog\/([^\/]+)\//);
+  if(match) companyIdSegment = match[1];
   if(p.startsWith('/api/v1/public/catalog/checkout')){
-    if(!applyRate(ip,'checkout', RL_CHECKOUT_MAX)){
+    if(!applyRate(ip,`checkout:${companyIdSegment}`, RL_CHECKOUT_MAX)){
       logger.warn('rate.limit.checkout', { ip });
       return res.status(429).json({ error: 'Demasiados intentos de checkout. Intenta en un minuto.' });
     }
@@ -107,7 +111,7 @@ function rateLimit(req, res, next){
     return next();
   }
   if(p.startsWith('/api/v1/public/catalog')){
-    if(!applyRate(ip,'public', RL_PUBLIC_MAX)){
+    if(!applyRate(ip,`public:${companyIdSegment}`, RL_PUBLIC_MAX)){
       logger.warn('rate.limit.public', { ip, path: p });
       return res.status(429).json({ error: 'Rate limit excedido. Intenta en un momento.' });
     }
