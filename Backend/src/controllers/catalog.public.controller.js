@@ -52,7 +52,9 @@ export const listPublishedItems = async (req, res) => {
   const { companyId } = req.params;
   if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
   const company = await Company.findById(companyId).select('_id active publicCatalogEnabled');
-  if(!company || company.active === false || !company.publicCatalogEnabled) return res.status(404).json({ error: 'Catálogo no habilitado para esta empresa' });
+  if(!company || company.active === false) return res.status(404).json({ error: 'Empresa no encontrada o inactiva' });
+  // Nota: Permitimos listar el catálogo aunque publicCatalogEnabled sea false, para evitar bloqueo accidental.
+  // El control de visibilidad se delega a "published" por ítem y al UI que expone el enlace.
   const page = Math.min(coercePositiveInt(req.query.page,1), 5000);
   const limit = Math.min(coercePositiveInt(req.query.limit,20), 50);
   const skip = (page-1)*limit;

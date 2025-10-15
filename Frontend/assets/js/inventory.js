@@ -492,6 +492,7 @@ if (__ON_INV_PAGE__) {
         <button id="sel-stickers-qr" class="secondary" title="Generar PDF - Solo QR">Solo QR</button>
         <button id="sel-stickers-brand" class="secondary" title="Generar PDF - Marca + QR">Marca + QR</button>
         <button id="sel-stock-in-bulk" class="secondary" title="Agregar stock a todos los seleccionados">Agregar stock (masivo)</button>
+        <button id="sel-publish-bulk" class="secondary" title="Publicar/Despublicar ítems seleccionados, por entrada o SKUs">Publicación (masiva)</button>
       </div>
     `;
     selectionBar.querySelector("#sel-clear").onclick = () => {
@@ -515,6 +516,8 @@ if (__ON_INV_PAGE__) {
     if (btnBrand) btnBrand.onclick = () => generateStickersFromSelection('brand');
     const btnBulk = selectionBar.querySelector('#sel-stock-in-bulk');
     if (btnBulk) btnBulk.onclick = openBulkStockInModal;
+    const btnPub = selectionBar.querySelector('#sel-publish-bulk');
+    if (btnPub) btnPub.onclick = openBulkPublishModal;
   }
 
   function toggleSelected(itemOrId, checked) {
@@ -527,6 +530,56 @@ if (__ON_INV_PAGE__) {
     if (checked) state.selected.add(key);
     else state.selected.delete(key);
     updateSelectionBar();
+  }
+
+  // ---- Publicación MASIVA ----
+  function openBulkPublishModal(){
+    const optionsIntakes = [
+      `<option value="">(por selección actual o SKUs)</option>`,
+      ...state.intakes.map(v=>`<option value="${v._id}">${makeIntakeLabel(v)} • ${new Date(v.intakeDate).toLocaleDateString()}</option>`)
+    ].join('');
+    const selected = Array.from(state.selected);
+    invOpenModal(`
+      <h3>Publicación masiva</h3>
+      <label>Acción</label>
+      <select id="bpub-action">
+        <option value="publish">Publicar</option>
+        <option value="unpublish">Despublicar</option>
+      </select>
+      <label>Por entrada (opcional)</label>
+      <select id="bpub-intake">${optionsIntakes}</select>
+      <label>Por SKUs exactos (opcional, separados por comas)</label>
+      <input id="bpub-skus" placeholder="SKU1,SKU2,SKU3"/>
+      <div class="muted" style="font-size:12px;">Si no eliges entrada ni SKUs, se aplicará a los ítems seleccionados (${selected.length}).</div>
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        <button id="bpub-run">Aplicar</button>
+        <button id="bpub-cancel" class="secondary">Cancelar</button>
+      </div>
+    `);
+    document.getElementById('bpub-cancel').onclick = invCloseModal;
+    document.getElementById('bpub-run').onclick = async () => {
+      const action = document.getElementById('bpub-action').value;
+      const vehicleIntakeId = document.getElementById('bpub-intake').value || undefined;
+      const skusRaw = (document.getElementById('bpub-skus').value||'').trim();
+      const skus = skusRaw ? skusRaw.split(',').map(s=>s.trim().toUpperCase()).filter(Boolean) : [];
+      const body = { action };
+      if (vehicleIntakeId) body.vehicleIntakeId = vehicleIntakeId;
+      if (skus.length) body.skus = skus;
+      // Si no hay filtros, usar selección actual convirtiéndola a SKUs para precisión
+      if (!vehicleIntakeId && !skus.length) {
+        const items = selected.map(id => state.itemCache.get(id)).filter(Boolean);
+        const selSkus = items.map(it => String(it?.sku||'').toUpperCase()).filter(Boolean);
+        if (!selSkus.length) { alert('Sin SKUs válidos en la selección.'); return; }
+        body.skus = selSkus;
+      }
+      try{
+        showBusy('Aplicando publicación...');
+        await request('/api/v1/inventory/items/publish/bulk', { method: 'POST', json: body });
+        invCloseModal(); hideBusy();
+        await refreshItems(state.lastItemsParams);
+        showToast('Operación aplicada');
+      }catch(e){ hideBusy(); alert('No se pudo aplicar publicación: '+e.message); }
+    };
   }
 
   // ---- Intakes ----

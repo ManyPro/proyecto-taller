@@ -42,7 +42,23 @@ function openModal(html){ const m=ensureModal(); const box=m.querySelector('#pub
 function closeModal(){ const m=ensureModal(); m.style.display='none'; }
 
 function readFilters(){ const fq=document.getElementById('f-q'); const fc=document.getElementById('f-category'); const ft=document.getElementById('f-tags'); const fs=document.getElementById('f-stock'); const fl=document.getElementById('f-limit'); state.filters.page=1; state.filters.limit= fl?.value || 20; state.filters.q = fq?.value.trim() || undefined; state.filters.category = fc?.value.trim() || undefined; const tagsRaw = ft?.value.trim(); state.filters.tags = tagsRaw? tagsRaw : undefined; state.filters.stock = fs?.value ? 1 : undefined; }
-async function loadItems(){ if(!state.companyId){ alert('Falta companyId'); return; } try{ const q= toQuery(state.filters); const data= await fetchJSON(`/api/v1/public/catalog/${state.companyId}/items${q}`); state.items=data.data||[]; state.meta=data.meta||{}; renderItems(); }catch(e){ console.error(e); alert('Error cargando catálogo: '+ e.message);} }
+async function loadItems(){
+  if(!state.companyId){ alert('Falta companyId'); return; }
+  try{
+    const q= toQuery(state.filters);
+    const data= await fetchJSON(`/api/v1/public/catalog/${state.companyId}/items${q}`);
+    state.items=data.data||[]; state.meta=data.meta||{}; renderItems();
+  }catch(e){
+    console.error(e);
+    const grid=document.getElementById('itemsGrid'); const pag=document.getElementById('pagination');
+    if(grid){
+      grid.innerHTML = `<div class='empty'>${(e?.message||'Error cargando catálogo')}</div>`;
+      if(pag) pag.innerHTML='';
+    } else {
+      alert('Error cargando catálogo: '+ e.message);
+    }
+  }
+}
 function bindFilters(){ const apply=document.getElementById('f-apply'); const clear=document.getElementById('f-clear'); apply.onclick=()=>{ readFilters(); loadItems(); }; clear.onclick=()=>{ ['f-q','f-category','f-tags'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; }); const fs=document.getElementById('f-stock'); if(fs) fs.value=''; readFilters(); loadItems(); }; ['f-q','f-category','f-tags'].forEach(id=>{ const el=document.getElementById(id); el && el.addEventListener('keydown', e=>{ if(e.key==='Enter'){ readFilters(); loadItems(); }});}); }
 
 function updateDeliveryHint(delivery, install){ let text=''; if(delivery==='pickup') text='Recolección en punto.'; else if(delivery==='home-bogota') text='Envío gratis Bogotá urbano.'; else if(delivery==='store') text='Retiro en taller.'; if(install && delivery==='home-bogota'){ text+='\n⚠ Instalación requiere presencia, ajusta a Retiro en taller.';} return text; }

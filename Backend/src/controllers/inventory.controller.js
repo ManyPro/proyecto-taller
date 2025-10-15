@@ -595,3 +595,51 @@ export const itemQrPng = async (req, res) => {
   res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
   return res.end(png);
 };
+
+// ===== Publicación MASIVA =====
+// Permite publicar o despublicar ítems por filtro de entrada (vehicleIntakeId) o por SKUs exactos
+// Body: { action: 'publish'|'unpublish', vehicleIntakeId?: string, skus?: string[] }
+export const bulkPublishItems = async (req, res) => {
+  const b = req.body || {};
+  const action = String(b.action || '').toLowerCase();
+  if (!['publish','unpublish'].includes(action)) return res.status(400).json({ error: 'Acción inválida' });
+
+  const orFilters = [];
+  if (b.vehicleIntakeId && mongoose.Types.ObjectId.isValid(b.vehicleIntakeId)) {
+    orFilters.push({ vehicleIntakeId: new mongoose.Types.ObjectId(b.vehicleIntakeId) });
+  }
+  const skus = Array.isArray(b.skus) ? b.skus.map(s => String(s).toUpperCase().trim()).filter(Boolean) : [];
+  if (skus.length) {
+    orFilters.push({ sku: { $in: skus } });
+  }
+  if (!orFilters.length) return res.status(400).json({ error: 'Provee vehicleIntakeId o lista de skus' });
+
+  const baseFilter = { companyId: req.companyId, $or: orFilters };
+
+  let modified = 0;
+  let matched = 0;
+
+  if (action === 'publish') {
+    // Set published=true
+    // 1) Items que pasan de no publicado a publicado: set publishedAt y publishedBy
+    const fNew = { ...baseFilter, published: { $ne: true } };
+    const rNew = await Item.updateMany(fNew, { $set: { published: true, publishedAt: new Date(), publishedBy: req.userId || null } });
+    modified += rNew.modifiedCount || 0;
+    matched += rNew.matchedCount || 0;
+    // 2) Items ya publicados: asegurar published=true (no cambia fechas)
+    const fOld = { ...baseFilter, published: true };
+    const rOld = await Item.updateMany(fOld, { $set: { published: true } });
+    modified += rOld.modifiedCount || 0;
+    matched += rOld.matchedCount || 0;
+  } else {
+    // unpublish: published=false (mantener publishedAt)
+    const r = await Item.updateMany(baseFilter, { $set: { published: false } });
+    modified += r.modifiedCount || 0;
+    matched += r.matchedCount || 0;
+  }
+
+  // Notificación simple (no por ítem para evitar ruido)
+  try { await Notification.create({ companyId: req.companyId, type: action === 'publish' ? 'items.published.bulk' : 'items.unpublished.bulk', data: { action, matched, modified } }); } catch {}
+
+  res.json({ action, matched, modified });
+};
