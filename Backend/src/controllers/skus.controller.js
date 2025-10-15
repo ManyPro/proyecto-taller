@@ -2,6 +2,38 @@ import mongoose from 'mongoose';
 import SKU from '../models/SKU.js';
 import Item from '../models/Item.js';
 
+// Helper: backfill missing SKUs from Items for a company
+async function __backfillMissingSkus(companyId, createdBy){
+  const items = await Item.find({ companyId }).select('sku name category').lean();
+  if (!items.length) return 0;
+  let created = 0;
+  const allowed = ['MOTOR','TRANSMISION','FRENOS','SUSPENSION','ELECTRICO','CARROCERIA','INTERIOR','FILTROS','ACEITES','NEUMATICOS','OTROS'];
+  for (const it of items) {
+    const code = String(it.sku || '').toUpperCase().trim();
+    if (!code) continue;
+    const exists = await SKU.findOne({ companyId, code }).lean();
+    if (exists) continue;
+    const cat = String(it.category || '').toUpperCase();
+    const category = allowed.includes(cat) ? cat : 'OTROS';
+    try{
+      await SKU.create({
+        companyId,
+        code,
+        category,
+        description: (it.name || code).toUpperCase(),
+        notes: '',
+        printStatus: 'pending',
+        createdBy: createdBy || ''
+      });
+      created++;
+    }catch(e){
+      // Ignore duplicates in race conditions
+      if(!/E11000/.test(e?.message||'')) console.error('backfill.create.error', e?.message);
+    }
+  }
+  return created;
+}
+
 // Crear nuevo SKU
 export const createSKU = async (req, res) => {
   try {
@@ -150,7 +182,15 @@ export const listSKUs = async (req, res) => {
 export const getSKUsByCategory = async (req, res) => {
   try {
     const companyId = new mongoose.Types.ObjectId(req.companyId);
-    
+    // Ensure there is data: if zero SKUs but inventory exists, backfill once
+    const totalSkus = await SKU.countDocuments({ companyId });
+    if (totalSkus === 0) {
+      const itemsCount = await Item.countDocuments({ companyId, sku: { $exists: true, $ne: '' } });
+      if (itemsCount > 0) {
+        await __backfillMissingSkus(companyId, req.user?.id);
+      }
+    }
+
     // Obtener estadísticas por categoría
     const stats = await SKU.getStatsByCategory(companyId);
     
@@ -353,7 +393,7 @@ export const getStats = async (req, res) => {
   try {
     const companyId = new mongoose.Types.ObjectId(req.companyId);
     
-    const [totalStats, categoryStats] = await Promise.all([
+    let [totalStats, categoryStats] = await Promise.all([
       SKU.aggregate([
         { $match: { companyId } },
         {
@@ -380,6 +420,44 @@ export const getStats = async (req, res) => {
       ]),
       SKU.getStatsByCategory(companyId)
     ]);
+
+    // If zero SKUs but items exist, backfill once and recompute
+    const totals = totalStats[0];
+    if (!totals || (totals.total || 0) === 0) {
+      const itemsCount = await Item.countDocuments({ companyId, sku: { $exists: true, $ne: '' } });
+      if (itemsCount > 0) {
+        const created = await __backfillMissingSkus(companyId, req.user?.id);
+        if (created > 0) {
+          [totalStats, categoryStats] = await Promise.all([
+            SKU.aggregate([
+              { $match: { companyId } },
+              {
+                $group: {
+                  _id: null,
+                  total: { $sum: 1 },
+                  pending: {
+                    $sum: {
+                      $cond: [{ $eq: ['$printStatus', 'pending'] }, 1, 0]
+                    }
+                  },
+                  printed: {
+                    $sum: {
+                      $cond: [{ $eq: ['$printStatus', 'printed'] }, 1, 0]
+                    }
+                  },
+                  applied: {
+                    $sum: {
+                      $cond: [{ $eq: ['$printStatus', 'applied'] }, 1, 0]
+                    }
+                  }
+                }
+              }
+            ]),
+            SKU.getStatsByCategory(companyId)
+          ]);
+        }
+      }
+    }
     
     res.json({
       total: totalStats[0] || { total: 0, pending: 0, printed: 0, applied: 0 },
@@ -412,19 +490,7 @@ export const getByCode = async (req, res) => {
 export const backfillFromItems = async (req, res) => {
   try {
     const companyId = new mongoose.Types.ObjectId(req.companyId);
-    const items = await Item.find({ companyId }).select('sku name category');
-    let created = 0;
-    for (const it of items) {
-      const code = (it.sku || '').toUpperCase();
-      if (!code) continue;
-      const exists = await SKU.findOne({ companyId, code }).lean();
-      if (exists) continue;
-      const allowed = ['MOTOR','TRANSMISION','FRENOS','SUSPENSION','ELECTRICO','CARROCERIA','INTERIOR','FILTROS','ACEITES','NEUMATICOS','OTROS'];
-      const cat = (it.category || '').toUpperCase();
-      const category = allowed.includes(cat) ? cat : 'OTROS';
-      await SKU.create({ code, category, description: it.name || code, companyId, notes: '', printStatus: 'pending', createdBy: req.user?.id || '' });
-      created++;
-    }
+    const created = await __backfillMissingSkus(companyId, req.user?.id);
     res.json({ created });
   } catch (error) {
     console.error('Error en backfill SKUs:', error);
