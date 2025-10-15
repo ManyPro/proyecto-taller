@@ -1,21 +1,23 @@
+import mongoose from 'mongoose';
 import SKU from '../models/SKU.js';
+import Item from '../models/Item.js';
 
 // Crear nuevo SKU
 export const createSKU = async (req, res) => {
   try {
     const { code, category, description, brand, partNumber, location, notes } = req.body;
-    const companyEmail = req.company.email;
+    const companyId = new mongoose.Types.ObjectId(req.companyId);
     
     // Verificar que no exista ya este código
     const existingSKU = await SKU.findOne({ 
-      companyEmail, 
+      companyId, 
       code: code.toUpperCase() 
     });
     
     if (existingSKU) {
       return res.status(400).json({ 
         error: 'El código SKU ya existe',
-        suggestion: await SKU.getNextSKUCode(companyEmail, code.replace(/\d+$/, ''))
+        suggestion: await SKU.getNextSKUCode(companyId, code.replace(/\d+$/, ''))
       });
     }
     
@@ -27,8 +29,8 @@ export const createSKU = async (req, res) => {
       partNumber,
       location,
       notes: notes || '',
-      companyEmail,
-      createdBy: req.company.name || req.company.email
+      companyId,
+      createdBy: req.user?.id || ''
     });
     
     await newSKU.save();
@@ -50,7 +52,7 @@ export const createSKU = async (req, res) => {
 export const getSKUSuggestion = async (req, res) => {
   try {
     const { prefix } = req.params;
-    const companyEmail = req.company.email;
+    const companyId = new mongoose.Types.ObjectId(req.companyId);
     
     if (!prefix || prefix.length < 2) {
       return res.status(400).json({ 
@@ -58,7 +60,7 @@ export const getSKUSuggestion = async (req, res) => {
       });
     }
     
-    const suggestion = await SKU.getNextSKUCode(companyEmail, prefix);
+  const suggestion = await SKU.getNextSKUCode(companyId, prefix);
     
     res.json({ 
       prefix,
@@ -77,7 +79,7 @@ export const getSKUSuggestion = async (req, res) => {
 // Listar SKUs con filtros
 export const listSKUs = async (req, res) => {
   try {
-    const companyEmail = req.company.email;
+    const companyId = new mongoose.Types.ObjectId(req.companyId);
     const { 
       category, 
       printStatus, 
@@ -89,7 +91,7 @@ export const listSKUs = async (req, res) => {
     } = req.query;
     
     // Construir filtros
-    const filters = { companyEmail };
+    const filters = { companyId };
     
     if (category && category !== 'all') {
       filters.category = category;
@@ -147,17 +149,17 @@ export const listSKUs = async (req, res) => {
 // Obtener SKUs agrupados por categoría
 export const getSKUsByCategory = async (req, res) => {
   try {
-    const companyEmail = req.company.email;
+    const companyId = new mongoose.Types.ObjectId(req.companyId);
     
     // Obtener estadísticas por categoría
-    const stats = await SKU.getStatsByCategory(companyEmail);
+    const stats = await SKU.getStatsByCategory(companyId);
     
     // Obtener SKUs agrupados por categoría
     const categories = {};
     
     for (const stat of stats) {
       const skus = await SKU.find({ 
-        companyEmail, 
+        companyId, 
         category: stat._id 
       }).sort({ code: 1 });
       
@@ -181,9 +183,9 @@ export const getSKUsByCategory = async (req, res) => {
 export const getSKU = async (req, res) => {
   try {
     const { id } = req.params;
-    const companyEmail = req.company.email;
+    const companyId = new mongoose.Types.ObjectId(req.companyId);
     
-    const sku = await SKU.findOne({ _id: id, companyEmail });
+    const sku = await SKU.findOne({ _id: id, companyId });
     
     if (!sku) {
       return res.status(404).json({ error: 'SKU no encontrado' });
@@ -203,15 +205,15 @@ export const getSKU = async (req, res) => {
 export const updateSKU = async (req, res) => {
   try {
     const { id } = req.params;
-    const companyEmail = req.company.email;
+    const companyId = new mongoose.Types.ObjectId(req.companyId);
     const updates = req.body;
     
     // No permitir cambio de código o companyEmail
     delete updates.code;
-    delete updates.companyEmail;
+    delete updates.companyId;
     
     const sku = await SKU.findOneAndUpdate(
-      { _id: id, companyEmail },
+      { _id: id, companyId },
       updates,
       { new: true, runValidators: true }
     );
@@ -237,10 +239,10 @@ export const updateSKU = async (req, res) => {
 export const markAsPrinted = async (req, res) => {
   try {
     const { id } = req.params;
-    const companyEmail = req.company.email;
+    const companyId = new mongoose.Types.ObjectId(req.companyId);
     
     const sku = await SKU.findOneAndUpdate(
-      { _id: id, companyEmail },
+      { _id: id, companyId },
       { 
         printStatus: 'printed',
         printedAt: new Date()
@@ -269,10 +271,10 @@ export const markAsPrinted = async (req, res) => {
 export const markAsApplied = async (req, res) => {
   try {
     const { id } = req.params;
-    const companyEmail = req.company.email;
+    const companyId = new mongoose.Types.ObjectId(req.companyId);
     
     const sku = await SKU.findOneAndUpdate(
-      { _id: id, companyEmail },
+      { _id: id, companyId },
       { printStatus: 'applied' },
       { new: true }
     );
@@ -299,10 +301,10 @@ export const updateNotes = async (req, res) => {
   try {
     const { id } = req.params;
     const { notes } = req.body;
-    const companyEmail = req.company.email;
+    const companyId = new mongoose.Types.ObjectId(req.companyId);
     
     const sku = await SKU.findOneAndUpdate(
-      { _id: id, companyEmail },
+      { _id: id, companyId },
       { notes: notes || '' },
       { new: true }
     );
@@ -328,9 +330,9 @@ export const updateNotes = async (req, res) => {
 export const deleteSKU = async (req, res) => {
   try {
     const { id } = req.params;
-    const companyEmail = req.company.email;
+    const companyId = new mongoose.Types.ObjectId(req.companyId);
     
-    const sku = await SKU.findOneAndDelete({ _id: id, companyEmail });
+    const sku = await SKU.findOneAndDelete({ _id: id, companyId });
     
     if (!sku) {
       return res.status(404).json({ error: 'SKU no encontrado' });
@@ -349,11 +351,11 @@ export const deleteSKU = async (req, res) => {
 // Obtener estadísticas generales
 export const getStats = async (req, res) => {
   try {
-    const companyEmail = req.company.email;
+    const companyId = new mongoose.Types.ObjectId(req.companyId);
     
     const [totalStats, categoryStats] = await Promise.all([
       SKU.aggregate([
-        { $match: { companyEmail } },
+        { $match: { companyId } },
         {
           $group: {
             _id: null,
@@ -376,7 +378,7 @@ export const getStats = async (req, res) => {
           }
         }
       ]),
-      SKU.getStatsByCategory(companyEmail)
+      SKU.getStatsByCategory(companyId)
     ]);
     
     res.json({
@@ -389,5 +391,43 @@ export const getStats = async (req, res) => {
       error: 'Error interno del servidor',
       details: error.message 
     });
+  }
+};
+
+// Obtener por código
+export const getByCode = async (req, res) => {
+  try {
+    const { code } = req.params;
+    const companyId = new mongoose.Types.ObjectId(req.companyId);
+    const sku = await SKU.findOne({ companyId, code: String(code || '').toUpperCase() });
+    if (!sku) return res.status(404).json({ error: 'SKU no encontrado' });
+    res.json({ sku });
+  } catch (error) {
+    console.error('Error obteniendo SKU por código:', error);
+    res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+  }
+};
+
+// Backfill: crear SKUs faltantes a partir de Items existentes
+export const backfillFromItems = async (req, res) => {
+  try {
+    const companyId = new mongoose.Types.ObjectId(req.companyId);
+    const items = await Item.find({ companyId }).select('sku name category');
+    let created = 0;
+    for (const it of items) {
+      const code = (it.sku || '').toUpperCase();
+      if (!code) continue;
+      const exists = await SKU.findOne({ companyId, code }).lean();
+      if (exists) continue;
+      const allowed = ['MOTOR','TRANSMISION','FRENOS','SUSPENSION','ELECTRICO','CARROCERIA','INTERIOR','FILTROS','ACEITES','NEUMATICOS','OTROS'];
+      const cat = (it.category || '').toUpperCase();
+      const category = allowed.includes(cat) ? cat : 'OTROS';
+      await SKU.create({ code, category, description: it.name || code, companyId, notes: '', printStatus: 'pending', createdBy: req.user?.id || '' });
+      created++;
+    }
+    res.json({ created });
+  } catch (error) {
+    console.error('Error en backfill SKUs:', error);
+    res.status(500).json({ error: 'Error interno del servidor', details: error.message });
   }
 };

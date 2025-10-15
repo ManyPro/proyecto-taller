@@ -75,6 +75,15 @@ function toQuery(params = {}) {
   return s ? `?${s}` : "";
 }
 
+// --- Utils ---
+function debounce(fn, wait = 200) {
+  let t;
+  return function(...args) {
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), wait);
+  };
+}
+
 // ---- API Facade ----
 const invAPI = {
   // Vehicle Intakes
@@ -314,6 +323,107 @@ if (__ON_INV_PAGE__) {
   function showBusy(msg){ const o=getBusyOverlay(); const m=o.querySelector('#busy-msg'); if(m) m.textContent=msg||'Procesando...'; o.style.display='flex'; }
   function hideBusy(){ const o=document.getElementById('busy-overlay'); if(o) o.style.display='none'; }
   const itSku = document.getElementById("it-sku"); upper(itSku);
+  // Helper UI (sugerencia y botón +)
+  const skuHelper = document.createElement('div');
+  skuHelper.id = 'it-sku-helper';
+  skuHelper.style.cssText = 'display:flex;gap:8px;align-items:center;margin:6px 0 10px 0;flex-wrap:wrap;';
+  skuHelper.innerHTML = `
+    <span id="it-sku-suggest" class="muted" style="font-size:12px;display:none;"></span>
+    <button id="it-sku-create" class="secondary" style="display:none;">+ SKU</button>
+  `;
+  if (itSku && itSku.parentNode) {
+    itSku.parentNode.insertBefore(skuHelper, itSku.nextSibling);
+  }
+
+  const elSkuSuggest = document.getElementById('it-sku-suggest');
+  const elSkuCreate = document.getElementById('it-sku-create');
+
+  function skuPrefix(raw){
+    const s = String(raw || '').toUpperCase().trim();
+    // Quitar dígitos al final, solo letras (y guiones) al inicio como prefijo
+    const m = s.match(/^[A-Z-]+/);
+    return m ? m[0] : '';
+  }
+
+  async function refreshSkuHelpers(){
+    const code = (itSku?.value || '').toUpperCase().trim();
+    const prefix = skuPrefix(code);
+    // Sugerencia
+    if (prefix && prefix.length >= 3) {
+      try {
+        const r = await API.skus.getSuggestion(prefix);
+        const sug = r?.suggestion;
+        if (sug) {
+          elSkuSuggest.innerHTML = `💡 Sugerencia: <b>${sug}</b>`;
+          elSkuSuggest.style.display = 'inline';
+          elSkuSuggest.style.cursor = 'pointer';
+          elSkuSuggest.title = 'Click para usar la sugerencia';
+          elSkuSuggest.onclick = () => {
+            itSku.value = sug;
+            itSku.dispatchEvent(new Event('input'));
+          };
+        } else {
+          elSkuSuggest.style.display = 'none';
+        }
+      } catch { elSkuSuggest.style.display = 'none'; }
+    } else {
+      elSkuSuggest.style.display = 'none';
+    }
+
+    // Mostrar botón + si el SKU exacto no existe
+    if (!code) { elSkuCreate.style.display = 'none'; return; }
+    try {
+      await API.skus.getByCode(code);
+      // Existe => ocultar +
+      elSkuCreate.style.display = 'none';
+    } catch {
+      // No existe => mostrar +
+      elSkuCreate.style.display = '';
+    }
+  }
+
+  const refreshSkuHelpersDebounced = debounce(refreshSkuHelpers, 250);
+  itSku?.addEventListener('input', refreshSkuHelpersDebounced);
+  setTimeout(refreshSkuHelpers, 50);
+
+  function openCreateSkuModal(code){
+    const itName = document.getElementById('it-name');
+    const defaultName = (itName?.value || '').toUpperCase().trim();
+    const cats = ['MOTOR','TRANSMISION','FRENOS','SUSPENSION','ELECTRICO','CARROCERIA','INTERIOR','FILTROS','ACEITES','NEUMATICOS','OTROS'];
+    invOpenModal(`
+      <h3>Crear SKU</h3>
+      <label>Código</label><input id="sku-new-code" value="${code}" readonly />
+      <label>Nombre de repuesto</label><input id="sku-new-desc" value="${defaultName}" />
+      <label>Categoría</label>
+      <select id="sku-new-cat">${cats.map(c=>`<option value="${c}">${c}</option>`).join('')}</select>
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        <button id="sku-new-save">Crear</button>
+        <button id="sku-new-cancel" class="secondary">Cancelar</button>
+      </div>
+    `);
+    document.getElementById('sku-new-cancel').onclick = invCloseModal;
+    document.getElementById('sku-new-save').onclick = async () => {
+      try{
+        const payload = {
+          code: code,
+          description: (document.getElementById('sku-new-desc').value||'').toUpperCase().trim() || code,
+          category: document.getElementById('sku-new-cat').value,
+        };
+        await API.skus.create(payload);
+        invCloseModal();
+        elSkuCreate.style.display = 'none';
+        // Refrescar sugerencia
+        refreshSkuHelpers();
+        alert('SKU creado para tracking.');
+      }catch(e){ alert('No se pudo crear el SKU: '+e.message); }
+    };
+  }
+
+  elSkuCreate?.addEventListener('click', () => {
+    const code = (itSku?.value || '').toUpperCase().trim();
+    if (!code) return;
+    openCreateSkuModal(code);
+  });
   const itName = document.getElementById("it-name"); upper(itName);
   const itInternal = document.getElementById("it-internal"); if (itInternal) upper(itInternal);
   const itLocation = document.getElementById("it-location"); if (itLocation) upper(itLocation);

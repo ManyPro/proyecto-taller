@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import VehicleIntake from "../models/VehicleIntake.js";
 import Item from "../models/Item.js";
 import Notification from "../models/Notification.js";
+import SKU from "../models/SKU.js";
 
 // Generador de QR en PNG
 import QRCode from "qrcode";
@@ -274,6 +275,32 @@ export const createItem = async (req, res) => {
     await item.save();
   }
 
+  // Asegurar registro de SKU para tracking
+  try {
+    const code = (item.sku || "").toUpperCase();
+    if (code) {
+      const companyId = req.companyId;
+      const exists = await SKU.findOne({ companyId, code }).lean();
+      if (!exists) {
+        const allowed = ['MOTOR','TRANSMISION','FRENOS','SUSPENSION','ELECTRICO','CARROCERIA','INTERIOR','FILTROS','ACEITES','NEUMATICOS','OTROS'];
+        const cat = (b.category || item.category || '').toUpperCase();
+        const category = allowed.includes(cat) ? cat : 'OTROS';
+        await SKU.create({
+          companyId,
+          code,
+          category,
+          description: (item.name || code).toUpperCase(),
+          notes: '',
+          printStatus: 'pending',
+          createdBy: req.userId || ''
+        });
+      }
+    }
+  } catch (e) {
+    // No bloquear creación del item por fallos de SKU, solo loguear
+    console.error('ensure-sku-on-create', e?.message);
+  }
+
   if (item.vehicleIntakeId) {
     await recalcAutoEntryPrices(req.companyId, item.vehicleIntakeId);
   }
@@ -378,6 +405,31 @@ export const updateItem = async (req, res) => {
   const intakeToRecalc = item.vehicleIntakeId || before?.vehicleIntakeId;
   if (intakeToRecalc) {
     await recalcAutoEntryPrices(req.companyId, intakeToRecalc);
+  }
+
+  // Si cambió/definió SKU, asegurar registro de SKU
+  try {
+    if (b.sku) {
+      const code = String(b.sku).toUpperCase();
+      const companyId = req.companyId;
+      const exists = await SKU.findOne({ companyId, code }).lean();
+      if (!exists) {
+        const allowed = ['MOTOR','TRANSMISION','FRENOS','SUSPENSION','ELECTRICO','CARROCERIA','INTERIOR','FILTROS','ACEITES','NEUMATICOS','OTROS'];
+        const cat = (b.category || item.category || '').toUpperCase();
+        const category = allowed.includes(cat) ? cat : 'OTROS';
+        await SKU.create({
+          companyId,
+          code,
+          category,
+          description: (item.name || code).toUpperCase(),
+          notes: '',
+          printStatus: 'pending',
+          createdBy: req.userId || ''
+        });
+      }
+    }
+  } catch (e) {
+    console.error('ensure-sku-on-update', e?.message);
   }
 
   res.json({ item });

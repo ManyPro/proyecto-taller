@@ -5,7 +5,6 @@ const SKUSchema = new mongoose.Schema({
   code: {
     type: String,
     required: true,
-    unique: true,
     trim: true,
     uppercase: true
   },
@@ -74,10 +73,11 @@ const SKUSchema = new mongoose.Schema({
   },
   
   // Empresa propietaria
-  companyEmail: {
-    type: String,
+  companyId: {
+    type: mongoose.Types.ObjectId,
     required: true,
-    lowercase: true
+    index: true,
+    ref: 'Company'
   },
   
   // Metadatos
@@ -98,9 +98,9 @@ const SKUSchema = new mongoose.Schema({
 });
 
 // Índices
-SKUSchema.index({ companyEmail: 1, category: 1 });
-SKUSchema.index({ companyEmail: 1, code: 1 });
-SKUSchema.index({ companyEmail: 1, printStatus: 1 });
+SKUSchema.index({ companyId: 1, category: 1 });
+SKUSchema.index({ companyId: 1, code: 1 }, { unique: true });
+SKUSchema.index({ companyId: 1, printStatus: 1 });
 
 // Middleware para actualizar updatedAt
 SKUSchema.pre('save', function(next) {
@@ -111,11 +111,11 @@ SKUSchema.pre('save', function(next) {
 });
 
 // Método estático para generar el siguiente SKU basado en un prefijo
-SKUSchema.statics.getNextSKUCode = async function(companyEmail, prefix) {
+SKUSchema.statics.getNextSKUCode = async function(companyId, prefix) {
   // Buscar todos los SKUs que empiecen con el prefijo
   const regex = new RegExp(`^${prefix.toUpperCase()}(\\d+)$`, 'i');
   const existingSKUs = await this.find({
-    companyEmail: companyEmail,
+    companyId: companyId,
     code: { $regex: regex }
   }).select('code').sort({ code: 1 });
   
@@ -142,9 +142,9 @@ SKUSchema.statics.getNextSKUCode = async function(companyEmail, prefix) {
 };
 
 // Método para obtener estadísticas por categoría
-SKUSchema.statics.getStatsByCategory = async function(companyEmail) {
+SKUSchema.statics.getStatsByCategory = async function(companyId) {
   return this.aggregate([
-    { $match: { companyEmail } },
+    { $match: { companyId } },
     {
       $group: {
         _id: '$category',

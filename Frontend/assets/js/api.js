@@ -273,13 +273,15 @@ const API = {
     byCategory: () => http.get('/api/v1/skus/by-category'),
     stats: () => http.get('/api/v1/skus/stats'),
     get: (id) => http.get(`/api/v1/skus/${id}`),
+    getByCode: (code) => http.get(`/api/v1/skus/code/${encodeURIComponent(code)}`),
     create: (payload) => http.post('/api/v1/skus', payload),
     update: (id, payload) => http.patch(`/api/v1/skus/${id}`, payload),
     delete: (id) => http.del(`/api/v1/skus/${id}`),
     getSuggestion: (prefix) => http.get(`/api/v1/skus/suggestion/${encodeURIComponent(prefix)}`),
     markAsPrinted: (id) => http.patch(`/api/v1/skus/${id}/print`),
     markAsApplied: (id) => http.patch(`/api/v1/skus/${id}/apply`),
-    updateNotes: (id, notes) => http.patch(`/api/v1/skus/${id}/notes`, { notes })
+    updateNotes: (id, notes) => http.patch(`/api/v1/skus/${id}/notes`, { notes }),
+    backfillFromItems: () => http.post('/api/v1/skus/backfill/items')
   }
 };
 

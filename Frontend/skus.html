@@ -700,7 +700,9 @@
                             ${sku.brand ? `<span>🏷️ ${sku.brand}</span>` : ''}
                             ${sku.location ? `<span>📍 ${sku.location}</span>` : ''}
                         </div>
-                        ${sku.notes ? `<div class="notes-section">📝 ${sku.notes}</div>` : ''}
+                        <div class="notes-section">📝 <span id="n-${sku._id}">${sku.notes || ''}</span>
+                          <button class="action-btn" style="margin-left:8px;" onclick="editNotes('${sku._id}')" title="Editar notas">✏️</button>
+                        </div>
                     </div>
                     <div class="sku-status ${statusClasses[sku.printStatus]}">
                         ${statusLabels[sku.printStatus]}
@@ -777,6 +779,21 @@
             } catch (error) {
                 console.error('Error:', error);
                 showNotification('Error: ' + error.message, 'error');
+            }
+        }
+
+        // Editar notas inline
+        async function editNotes(id){
+            try{
+                const span = document.getElementById('n-'+id);
+                const current = span ? span.textContent : '';
+                const value = prompt('Notas para el SKU:', current || '');
+                if (value === null) return;
+                await API.skus.updateNotes(id, value);
+                if (span) span.textContent = value;
+                showNotification('Notas actualizadas', 'success');
+            }catch(e){
+                showNotification('No se pudieron actualizar las notas: '+e.message, 'error');
             }
         }
 
