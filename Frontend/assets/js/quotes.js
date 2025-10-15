@@ -933,7 +933,7 @@ export function initQuotes({ getCompanyEmail }) {
   iYear?.addEventListener('input',()=>markDirty('year'));
   iCc?.addEventListener('input',()=>markDirty('cc'));
 
-  setupPlateAutofill();
+  // setupPlateAutofill is called after ensureInit
 
     qhApply?.addEventListener('click',loadHistory);
     qhClear?.addEventListener('click',()=>{ qhText.value=''; qhFrom.value=''; qhTo.value=''; loadHistory(); });
@@ -1098,6 +1098,8 @@ export function initQuotes({ getCompanyEmail }) {
           if(!dirty.clientName && !iClientName.value) iClientName.value = prof.customer.name || iClientName.value;
           if(!dirty.clientPhone && !iClientPhone.value) iClientPhone.value = prof.customer.phone || iClientPhone.value;
           if(!dirty.clientEmail && !iClientEmail.value) iClientEmail.value = prof.customer.email || iClientEmail.value;
+          const idEl = document.getElementById('q-client-id');
+          if (idEl && !idEl.value && prof.customer.idNumber) idEl.value = prof.customer.idNumber;
         }
   // Campos de vehículo
         if(prof.vehicle){
@@ -1117,9 +1119,46 @@ export function initQuotes({ getCompanyEmail }) {
     iPlate.addEventListener('blur', ()=>fetchProfile(normPlate(iPlate.value)));
     iPlate.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); fetchProfile(normPlate(iPlate.value)); }});
   }
+  // ====== Auto-completar por identificación ======
+  function setupIdAutofill(){
+    const iId = document.getElementById('q-client-id') || null;
+    if (!iId) return;
+    let lastId = '';
+    let timer = null;
+    function schedule(){
+      clearTimeout(timer);
+      timer = setTimeout(fetchProfileById, 450);
+    }
+    async function fetchProfileById(){
+      const id = String(iId.value || '').trim();
+      if (!id || id === lastId) return;
+      lastId = id;
+      try{
+        const prof = await API.profiles.byId(id);
+        if (!prof) return;
+        if (prof.customer){
+          if(!dirty.clientName && !iClientName.value) iClientName.value = prof.customer.name || iClientName.value;
+          if(!dirty.clientPhone && !iClientPhone.value) iClientPhone.value = prof.customer.phone || iClientPhone.value;
+          if(!dirty.clientEmail && !iClientEmail.value) iClientEmail.value = prof.customer.email || iClientEmail.value;
+        }
+        if (prof.vehicle){
+          if(!dirty.brand && !iBrand.value) iBrand.value = prof.vehicle.brand || iBrand.value;
+          if(!dirty.line && !iLine.value) iLine.value = prof.vehicle.line || iLine.value;
+          if(!dirty.year && !iYear.value && prof.vehicle.year) iYear.value = prof.vehicle.year;
+          if(!dirty.cc && !iCc.value && prof.vehicle.engine) iCc.value = prof.vehicle.engine;
+        }
+        recalcAll();
+      }catch(e){ console.warn('[quotes] lookup by ID failed', e?.message||e); }
+    }
+    iId.addEventListener('input', schedule);
+    iId.addEventListener('blur', fetchProfileById);
+    iId.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); fetchProfileById(); }});
+  }
 
     // Inicialización de la página
   ensureInit();
+  setupPlateAutofill();
+  setupIdAutofill();
 }
 
 

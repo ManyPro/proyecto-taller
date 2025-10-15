@@ -262,3 +262,16 @@ export async function lookupQuotePlate(req, res) {
     }
   });
 }
+
+// Lookup profile by plate (existing) lives in routes via lookupQuotePlate.
+// Add an explicit handler to lookup by identification number for autocomplete.
+export async function lookupQuoteId(req, res) {
+  const companyId = req.companyId || req.company?.id;
+  const idNumber = String(req.params.id || '').trim();
+  if (!companyId) return res.status(401).json({ error: 'Falta empresa (companyId)' });
+  if (!idNumber) return res.status(400).json({ error: 'Falta id' });
+  const matches = await CustomerProfile.find({ companyId, identificationNumber: idNumber }).sort({ updatedAt: -1, createdAt: -1 });
+  if (!matches.length) return res.json(null);
+  const primary = matches[0];
+  res.json(primary.toObject());
+}

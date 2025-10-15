@@ -110,6 +110,7 @@
           <div id="it-sku-helper" style="display:none"></div>
           <label>Nombre</label><input id="it-name" />
           <label>Nombre interno (opcional)</label><input id="it-internal" />
+          <label>Marca (opcional)</label><input id="it-brand" />
           <label>Ubicación (opcional)</label><input id="it-location" />
           <label>Procedencia final</label><input id="it-vehicleTarget" placeholder="GENERAL" />
           <label>Procedencia</label>
@@ -123,6 +124,7 @@
           </select>
           <label>Stock inicial</label><input id="it-stock" type="number" min="0" step="1" />
           <label>Stock mínimo (opcional)</label><input id="it-minStock" type="number" min="0" step="1" placeholder="0 = sin alerta" />
+          <div class="muted" style="font-size:12px;margin:4px 0 8px;">0 = sin alerta. Te avisamos cuando el stock sea menor o igual a este número.</div>
           <label>Imágenes/Videos del ítem</label>
           <input id="it-files" type="file" multiple />
           <button id="it-save">Guardar ítem</button>
@@ -137,6 +139,7 @@
             <button id="btn-stickers" class="secondary" style="display:none;">Imprimir stickers</button>
             <input id="q-name" placeholder="Filtrar por nombre..." />
             <input id="q-sku" placeholder="SKU..." />
+            <input id="q-brand" placeholder="Marca..." />
             <select id="q-intakeId">
               <option value="">Todas las entradas</option>
             </select>

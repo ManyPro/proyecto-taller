@@ -1079,11 +1079,13 @@ function openEditCV(){
   openModal(node);
 
   const plateInput = $('#v-plate', node);
+  const idInput = $('#c-id', node);
   const mileageInput = $('#v-mile', node);
   const watchSelectors = ['#c-name','#c-id','#c-phone','#c-email','#c-address','#v-brand','#v-line','#v-engine','#v-year','#v-mile'];
   watchSelectors.forEach((sel)=>{ const input=$(sel,node); if(input) input.addEventListener('input',()=>{ input.dataset.dirty='1'; }); });
 
   let lastLookupPlate = '';
+  let lastLookupId = '';
   let loadingProfile = false;
 
   const applyProfile = (profile, plateCode) => {
@@ -1146,6 +1148,27 @@ function openEditCV(){
     }
   };
 
+  const loadProfileById = async (force = false) => {
+    if (!idInput || loadingProfile) return;
+    const raw = String(idInput.value || '').trim();
+    if (!raw) return;
+    if (!force && raw === lastLookupId) return;
+    loadingProfile = true;
+    try {
+      const profile = await API.sales.profileById(raw);
+      if (profile) {
+        // Mantener placa actual si el usuario ya la ingresó manualmente; si viene en el perfil y el campo no está sucio, aplícala
+        const plateCode = (plateInput?.value || '').trim().toUpperCase() || (profile.vehicle?.plate || '').toUpperCase();
+        applyProfile(profile, plateCode);
+      }
+    } catch (err) {
+      console.warn('No se pudo cargar perfil por ID', err?.message || err);
+    } finally {
+      loadingProfile = false;
+      lastLookupId = raw;
+    }
+  };
+
   if (plateInput) {
     plateInput.addEventListener('input', (ev)=>{
       const upper = ev.target.value.toUpperCase();
@@ -1163,6 +1186,13 @@ function openEditCV(){
         ev.preventDefault();
         loadProfile(true);
       }
+    });
+  }
+
+  if (idInput) {
+    idInput.addEventListener('change', () => loadProfileById(true));
+    idInput.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') { ev.preventDefault(); loadProfileById(true); }
     });
   }
 

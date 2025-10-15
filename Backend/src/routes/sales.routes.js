@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   startSale, getSale, addItem, updateItem, removeItem,
-  setCustomerVehicle, closeSale, addByQR, listSales, summarySales, cancelSale, getProfileByPlate, addItemsBatch, updateTechnician, technicianReport
+  setCustomerVehicle, closeSale, addByQR, listSales, summarySales, cancelSale, getProfileByPlate, getProfileByIdNumber, addItemsBatch, updateTechnician, technicianReport
 } from '../controllers/sales.controller.js';
 import { sseHandler } from '../lib/live.js';
 
@@ -15,6 +15,8 @@ router.get('/summary', summarySales);
 router.get('/technicians/report', technicianReport);
 router.get('/profile/by-plate/:plate', getProfileByPlate);
 router.get('/lookup/plate/:plate', getProfileByPlate); // alias para consistencia con quotes
+router.get('/profile/by-id/:id', getProfileByIdNumber);
+router.get('/lookup/id/:id', getProfileByIdNumber); // alias similar
 router.get('/', listSales);
 
 // Create

@@ -192,11 +192,12 @@ export const deleteVehicleIntake = async (req, res) => {
 // ======================= ITEMS ========================
 
 export const listItems = async (req, res) => {
-  const { name, sku, vehicleTarget, vehicleIntakeId } = req.query;
+  const { name, sku, vehicleTarget, vehicleIntakeId, brand } = req.query;
   const q = { companyId: new mongoose.Types.ObjectId(req.companyId) };
 
   if (name) q.$or = [{ name: new RegExp((name || "").trim().toUpperCase(), "i") }, { internalName: new RegExp((name || "").trim().toUpperCase(), "i") }];
   if (sku) q.sku = new RegExp((sku || "").trim().toUpperCase(), "i");
+  if (brand) q.brand = new RegExp((brand || "").trim().toUpperCase(), "i");
 
   if (vehicleIntakeId && mongoose.Types.ObjectId.isValid(vehicleIntakeId)) {
     q.vehicleIntakeId = new mongoose.Types.ObjectId(vehicleIntakeId);
@@ -224,7 +225,7 @@ export const listItems = async (req, res) => {
 export const createItem = async (req, res) => {
   const b = req.body;
 
-  ['sku', 'name', 'internalName', 'location'].forEach(key => {
+  ['sku', 'name', 'internalName', 'location', 'brand'].forEach(key => {
     if (b[key]) b[key] = b[key].toUpperCase().trim();
   });
 
@@ -250,6 +251,7 @@ export const createItem = async (req, res) => {
     sku: b.sku,
     name: b.name,
     internalName: (b.internalName || "").toUpperCase().trim(),
+    brand: (b.brand || "").toUpperCase().trim(),
     location: (b.location || "").toUpperCase().trim(),
     vehicleTarget: (b.vehicleTarget || "GENERAL").toUpperCase().trim(),
     vehicleIntakeId: b.vehicleIntakeId || null,
@@ -321,7 +323,7 @@ export const updateItem = async (req, res) => {
   const { id } = req.params;
   const b = req.body;
 
-  ['sku', 'name', 'internalName', 'location'].forEach(key => {
+  ['sku', 'name', 'internalName', 'location', 'brand'].forEach(key => {
     if (b[key]) b[key] = b[key].toUpperCase().trim();
   });
 

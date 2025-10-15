@@ -231,6 +231,12 @@ const API = {
       const q = Object.keys(params).length ? `?${new URLSearchParams(params).toString()}` : '';
       return http.get(`/api/v1/sales/profile/by-plate/${encodeURIComponent(String(plate || '').toUpperCase())}${q}`);
     },
+    // Buscar perfil por número de identificación del cliente
+    profileById: (idNumber) => {
+      const id = encodeURIComponent(String(idNumber || '').trim());
+      if (!id) return Promise.resolve(null);
+      return http.get(`/api/v1/sales/profile/by-id/${id}`);
+    },
     setTechnician: (id, technician) => http.patch(`/api/v1/sales/${id}/technician`, { technician })
   },
   company: {
@@ -265,6 +271,15 @@ const API = {
     duplicate: (id, payload) => http.post(`/api/v1/templates/${id}/duplicate`, payload),
     activate: (id) => http.patch(`/api/v1/templates/${id}`, { activate: true }),
     preview: (payload) => http.post('/api/v1/templates/preview', payload)
+  },
+  // --- Perfiles (helpers generales) ---
+  profiles: {
+    byId: (idNumber) => {
+      const id = encodeURIComponent(String(idNumber || '').trim());
+      if (!id) return Promise.resolve(null);
+      // Preferir endpoint de ventas que implementa el lookup consolidado
+      return http.get(`/api/v1/sales/profile/by-id/${id}`);
+    }
   },
   
   // --- SKUs ---

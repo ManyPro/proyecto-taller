@@ -689,6 +689,23 @@ export const getProfileByPlate = async (req, res) => {
 
   res.json(primary.toObject());
 };
+
+// Buscar perfil por número de identificación
+export const getProfileByIdNumber = async (req, res) => {
+  const idNumber = String(req.params.id || '').trim();
+  if (!idNumber) return res.status(400).json({ error: 'id required' });
+  const companyId = String(req.companyId);
+  // Búsqueda exacta, más reciente primero
+  const matches = await CustomerProfile.find({ companyId, identificationNumber: idNumber }).sort({ updatedAt: -1, createdAt: -1 });
+  if (!matches.length) return res.json(null);
+  const ordered = orderProfiles(matches);
+  const [primary, ...duplicates] = ordered;
+  if (duplicates.length) {
+    const ids = duplicates.map(d => d._id).filter(Boolean);
+    if (ids.length) { try { await CustomerProfile.deleteMany({ companyId, _id: { $in: ids } }); } catch {} }
+  }
+  res.json(primary?.toObject?.() || null);
+};
 export const listSales = async (req, res) => {
   const { status, from, to, plate, page = 1, limit = 50 } = req.query || {};
   const q = { companyId: req.companyId };

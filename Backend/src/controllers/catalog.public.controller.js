@@ -199,22 +199,37 @@ export const checkoutCatalog = async (req, res) => {
   });
   // Política de stock: no descontar en checkout. El descuento ocurre al cerrar la venta internamente.
 
-  // Upsert customer profile (basic, no plate)
-  if(idNumber){
-    const existing = await CustomerProfile.findOne({ identificationNumber: idNumber });
-    if(!existing){
-      await CustomerProfile.create({
-        companyId: String(sale.companyId||''),
-        identificationNumber: idNumber,
-        customer: {
-          idNumber,
-          name: custName,
-          phone: String(customer.phone||'').trim(),
-          email: String(customer.email||'').trim(),
-          address: String(customer.address||'').trim()
+  // Upsert customer profile (básico) con placa única por cliente para evitar duplicados
+  if (idNumber) {
+    try {
+      const companyIdStr = String(sale.companyId || '');
+      const plateValue = `CATALOGO-${String(idNumber).trim().toUpperCase()}`; // único por cliente
+      await CustomerProfile.findOneAndUpdate(
+        { companyId: companyIdStr, $or: [ { identificationNumber: idNumber }, { plate: plateValue } ] },
+        {
+          $set: {
+            customer: {
+              idNumber,
+              name: custName,
+              phone: String(customer.phone||'').trim(),
+              email: String(customer.email||'').trim(),
+              address: String(customer.address||'').trim()
+            }
+          },
+          $setOnInsert: {
+            companyId: companyIdStr,
+            identificationNumber: idNumber,
+            vehicle: { plate: plateValue },
+            plate: plateValue
+          }
         },
-        vehicle: { plate: 'CATALOGO' }
-      });
+        { upsert: true, new: true }
+      );
+    } catch (e) {
+      // Evitar que un E11000 por carrera bloquee el checkout
+      if (!/E11000/.test(e?.message || '')) {
+        console.error('customerProfile.upsert.error', e?.message);
+      }
     }
   }
 

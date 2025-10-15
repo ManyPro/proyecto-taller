@@ -427,6 +427,7 @@ if (__ON_INV_PAGE__) {
   const itName = document.getElementById("it-name"); upper(itName);
   const itInternal = document.getElementById("it-internal"); if (itInternal) upper(itInternal);
   const itLocation = document.getElementById("it-location"); if (itLocation) upper(itLocation);
+  const itBrand = document.getElementById("it-brand"); if (itBrand) upper(itBrand);
   const itVehicleTarget = document.getElementById("it-vehicleTarget"); upper(itVehicleTarget);
   // Controles de Ingreso
   const viKindVehicle = document.getElementById('vi-kind-vehicle');
@@ -468,6 +469,7 @@ if (__ON_INV_PAGE__) {
   const qName = document.getElementById("q-name");
   const qApply = document.getElementById("q-apply");
   const qSku = document.getElementById("q-sku");
+  const qBrand = document.getElementById("q-brand");
   const qIntake = document.getElementById("q-intakeId");
   const qClear = document.getElementById("q-clear");
 
@@ -686,8 +688,9 @@ if (__ON_INV_PAGE__) {
 
       const thumbs = buildThumbGrid(it);
       const companyId = API.companyId?.get?.() || "";
-      const internalLabel = it.internalName ? `Interno: ${it.internalName}` : "Interno: -";
-      const locationLabel = it.location ? `Ubicacion: ${it.location}` : "Ubicacion: -";
+  const internalLabel = it.internalName ? `Interno: ${it.internalName}` : "Interno: -";
+  const brandLabel = it.brand ? `Marca: ${it.brand}` : "Marca: -";
+  const locationLabel = it.location ? `Ubicacion: ${it.location}` : "Ubicacion: -";
 
       div.innerHTML = `
         <div class="inv-item-header">
@@ -699,6 +702,7 @@ if (__ON_INV_PAGE__) {
             <div class="inv-item-meta muted">
               <span>SKU: ${it.sku || ""}</span>
               <span>${internalLabel}</span>
+              <span>${brandLabel}</span>
               <span>${locationLabel}</span>
             </div>
           </div>
@@ -954,6 +958,7 @@ if (__ON_INV_PAGE__) {
       sku: itSku.value.trim(),
       name: itName.value.trim(),
       internalName: itInternal ? itInternal.value.trim() : undefined,
+      brand: itBrand ? itBrand.value.trim() : undefined,
       location: itLocation ? itLocation.value.trim() : undefined,
       vehicleTarget: vehicleTargetValue,
       vehicleIntakeId: selectedIntakeId,
@@ -979,6 +984,7 @@ if (__ON_INV_PAGE__) {
     itSku.value = "";
     itName.value = "";
     if (itInternal) itInternal.value = "";
+  if (itBrand) itBrand.value = "";
     if (itLocation) itLocation.value = "";
     itVehicleTarget.value = "GENERAL";
     itVehicleIntakeId.value = "";
@@ -998,6 +1004,7 @@ if (__ON_INV_PAGE__) {
     const params = {
       name: qName.value.trim(),
       sku: qSku.value.trim(),
+      brand: qBrand ? qBrand.value.trim() : undefined,
       vehicleIntakeId: qIntake.value || undefined,
     };
     refreshItems(params);
@@ -1007,10 +1014,11 @@ if (__ON_INV_PAGE__) {
   qClear.onclick = () => {
     qName.value = "";
     qSku.value = "";
+    if (qBrand) qBrand.value = "";
     qIntake.value = "";
     refreshItems({});
   };
-  [qName, qSku].forEach((el) => el && el.addEventListener("keydown", (e) => e.key === "Enter" && doSearch()));
+  [qName, qSku, qBrand].forEach((el) => el && el.addEventListener("keydown", (e) => e.key === "Enter" && doSearch()));
   qIntake && qIntake.addEventListener("change", doSearch);
 
   // ---- Editar Ingreso ----
@@ -1110,6 +1118,7 @@ if (__ON_INV_PAGE__) {
       <label>SKU</label><input id="e-it-sku" value="${it.sku || ""}"/>
       <label>Nombre</label><input id="e-it-name" value="${it.name || ""}"/>
       <label>Nombre interno</label><input id="e-it-internal" value="${it.internalName || ''}"/>
+  <label>Marca</label><input id="e-it-brand" value="${it.brand || ''}"/>
       <label>Ubicación</label><input id="e-it-location" value="${it.location || ''}"/>
       <label>Entrada</label><select id="e-it-intake">${optionsIntakes}</select>
       <label>Destino</label><input id="e-it-target" value="${it.vehicleTarget || "GENERAL"}"/>
@@ -1144,6 +1153,7 @@ if (__ON_INV_PAGE__) {
     const stock = document.getElementById("e-it-stock");
   const files = document.getElementById("e-it-files");
   const minInput = document.getElementById("e-it-min");
+    const eBrand = document.getElementById("e-it-brand");
     const thumbs = document.getElementById("e-it-thumbs");
     const viewer = document.getElementById("e-it-viewer");
     const save = document.getElementById("e-it-save");
@@ -1232,6 +1242,7 @@ if (__ON_INV_PAGE__) {
           sku: (sku.value || "").trim().toUpperCase(),
           name: (name.value || "").trim().toUpperCase(),
           internalName: (document.getElementById('e-it-internal')?.value||'').trim().toUpperCase(),
+          brand: (eBrand?.value||'').trim().toUpperCase(),
           location: (document.getElementById('e-it-location')?.value||'').trim().toUpperCase(),
           vehicleIntakeId: intake.value || null,
           vehicleTarget: (target.value || "GENERAL").trim().toUpperCase(),

@@ -17,6 +17,7 @@ const itemSchema = new mongoose.Schema({
   sku: { type: String, required: true, uppercase: true, trim: true },
   name: { type: String, required: true, uppercase: true, trim: true },
   internalName: { type: String, uppercase: true, trim: true, default: "" },
+  brand: { type: String, uppercase: true, trim: true, default: "" },
   location: { type: String, uppercase: true, trim: true, default: "" },
   vehicleTarget: { type: String, required: true, uppercase: true, trim: true, default: "GENERAL" },
   vehicleIntakeId: { type: mongoose.Types.ObjectId, ref: "VehicleIntake", default: null },
