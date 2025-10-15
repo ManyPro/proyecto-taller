@@ -32,6 +32,17 @@ const tokenStore = {
   clear: (email) => { try { localStorage.removeItem(tokenKeyFor(email || activeCompany.get())); } catch { } }
 };
 
+// companyId store por empresa activa (para resolver companyId en el front)
+const companyIdKeyFor = (email) => `taller.companyId:${SCOPE}:${String(email || '').toLowerCase()}`;
+const companyIdStore = {
+  get: (email) => {
+    const em = (email || activeCompany.get());
+    try { return (typeof localStorage !== 'undefined') ? (localStorage.getItem(companyIdKeyFor(em)) || '') : ''; } catch { return ''; }
+  },
+  set: (id, email) => { try { localStorage.setItem(companyIdKeyFor(email || activeCompany.get()), String(id || '')); } catch { } },
+  clear: (email) => { try { localStorage.removeItem(companyIdKeyFor(email || activeCompany.get())); } catch { } }
+};
+
 // ===== HTTP core =====
 async function coreRequest(method, path, data, extraHeaders = {}) {
   const isForm = (typeof FormData !== 'undefined') && (data instanceof FormData);
@@ -86,6 +97,7 @@ function toQuery(params = {}) {
 const API = {
   base: API_BASE,
   token: tokenStore,
+  companyId: companyIdStore,
 
   // Empresa activa
   setActiveCompany: (email) => activeCompany.set(email),
@@ -99,9 +111,18 @@ const API = {
     if (!res?.token || !email) throw new Error('Login invalido');
     activeCompany.set(email);
     tokenStore.set(res.token, email);
-    return { ...res, email };
+      try { if(res?.company?.id) companyIdStore.set(res.company.id, email); } catch {}
+      return { ...res, email };
   },
-  companyMe: () => http.get('/api/v1/auth/company/me'),
+    companyMe: async () => {
+      const body = await http.get('/api/v1/auth/company/me');
+      try {
+        const email = activeCompany.get();
+        const cid = body?.company?.id || body?.id || body?._id || '';
+        if (cid) companyIdStore.set(cid, email);
+      } catch {}
+      return body;
+    },
   logout() {
     tokenStore.clear();
     activeCompany.clear();
