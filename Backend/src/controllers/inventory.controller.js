@@ -499,6 +499,81 @@ export const addItemStock = async (req, res) => {
   res.json({ item: updated });
 };
 
+// ===== Stock IN (Bulk) =====
+// Agrega stock a varios ítems a la vez
+// Body: { items: [{ id, qty }...], vehicleIntakeId?, note? }
+export const addItemsStockBulk = async (req, res) => {
+  const b = req.body || {};
+  const itemsReq = Array.isArray(b.items) ? b.items : [];
+  if (!itemsReq.length) return res.status(400).json({ error: 'Falta lista de items' });
+  if (itemsReq.length > 500) return res.status(400).json({ error: 'Máximo 500 ítems por lote' });
+
+  // Validación de qtys e ids
+  const parsed = [];
+  for (const it of itemsReq) {
+    const id = String(it?.id || '').trim();
+    const qty = parseInt(it?.qty, 10);
+    if (!mongoose.Types.ObjectId.isValid(id) || !Number.isFinite(qty) || qty <= 0) {
+      parsed.push({ id, qty, valid: false, error: 'id o qty inválidos' });
+    } else {
+      parsed.push({ id, qty, valid: true });
+    }
+  }
+
+  const validIds = parsed.filter(p => p.valid).map(p => new mongoose.Types.ObjectId(p.id));
+  if (!validIds.length) return res.status(400).json({ error: 'No hay ítems válidos' });
+
+  // Opcional: anclar a procedencia global y preparar meta común
+  const metaBase = { note: (b.note || '').trim() };
+  let intakeMeta = {};
+  if (b.vehicleIntakeId && mongoose.Types.ObjectId.isValid(b.vehicleIntakeId)) {
+    const vi = await VehicleIntake.findOne({ _id: b.vehicleIntakeId, companyId: req.companyId });
+    if (vi) {
+      intakeMeta = {
+        vehicleIntakeId: vi._id,
+        intakeKind: vi.intakeKind,
+        intakeLabel: makeIntakeLabel(vi)
+      };
+    }
+  }
+
+  // Cargar ítems válidos de la empresa
+  const docs = await Item.find({ _id: { $in: validIds }, companyId: req.companyId });
+  const byId = new Map(docs.map(d => [String(d._id), d]));
+
+  const stockMoves = [];
+  const updates = [];
+  const results = [];
+
+  for (const p of parsed) {
+    const doc = byId.get(String(p.id));
+    if (!p.valid || !doc) {
+      results.push({ id: p.id, ok: false, error: p.valid ? 'No pertenece a la empresa o no existe' : (p.error || 'inválido') });
+      continue;
+    }
+    const before = doc.stock || 0;
+    const after = before + p.qty;
+    stockMoves.push({
+      companyId: req.companyId,
+      itemId: doc._id,
+      qty: p.qty,
+      reason: 'IN',
+      meta: { ...metaBase, ...intakeMeta }
+    });
+    updates.push({ updateOne: { filter: { _id: doc._id, companyId: req.companyId }, update: { $inc: { stock: p.qty } } } });
+    results.push({ id: String(doc._id), ok: true, before, after, added: p.qty });
+  }
+
+  if (!updates.length) return res.status(400).json({ error: 'No hay ítems válidos para actualizar' });
+
+  // Aplicar cambios
+  if (stockMoves.length) await StockMove.insertMany(stockMoves);
+  if (updates.length) await Item.bulkWrite(updates, { ordered: false });
+
+  // Opcional: devolver stocks finales recargados (evitar segundo query grande)
+  res.json({ updatedCount: updates.length, results });
+};
+
 // ===== QR =====
 // Devuelve un PNG con el QR del item
 export const itemQrPng = async (req, res) => {

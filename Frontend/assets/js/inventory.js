@@ -491,6 +491,7 @@ if (__ON_INV_PAGE__) {
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
         <button id="sel-stickers-qr" class="secondary" title="Generar PDF - Solo QR">Solo QR</button>
         <button id="sel-stickers-brand" class="secondary" title="Generar PDF - Marca + QR">Marca + QR</button>
+        <button id="sel-stock-in-bulk" class="secondary" title="Agregar stock a todos los seleccionados">Agregar stock (masivo)</button>
       </div>
     `;
     selectionBar.querySelector("#sel-clear").onclick = () => {
@@ -512,6 +513,8 @@ if (__ON_INV_PAGE__) {
     const btnBrand = selectionBar.querySelector("#sel-stickers-brand");
     if (btnQR) btnQR.onclick = () => generateStickersFromSelection('qr');
     if (btnBrand) btnBrand.onclick = () => generateStickersFromSelection('brand');
+    const btnBulk = selectionBar.querySelector('#sel-stock-in-bulk');
+    if (btnBulk) btnBulk.onclick = openBulkStockInModal;
   }
 
   function toggleSelected(itemOrId, checked) {
@@ -754,6 +757,51 @@ if (__ON_INV_PAGE__) {
     n.textContent=msg||'OK';
     document.body.appendChild(n);
     setTimeout(()=>{ n.classList.remove('show'); setTimeout(()=>n.remove(), 300); }, 1700);
+  }
+
+  // ---- Agregar Stock MASIVO ----
+  function openBulkStockInModal(){
+    const selected = Array.from(state.selected);
+    if (!selected.length) return alert('No hay ítems seleccionados.');
+    // Recolectar datos básicos para mostrar resumen
+    const items = selected.map(id => state.itemCache.get(id)).filter(Boolean);
+    const summary = items.slice(0,8).map(it => `<li>${(it?.sku||'')} — ${(it?.name||'')}</li>`).join('');
+    const extra = items.length>8 ? `<li>… y ${items.length-8} más</li>` : '';
+    const optionsIntakes = [
+      `<option value="">(sin entrada)</option>`,
+      ...state.intakes.map(v=>`<option value="${v._id}">${makeIntakeLabel(v)} • ${new Date(v.intakeDate).toLocaleDateString()}</option>`)
+    ].join('');
+    invOpenModal(`
+      <h3>Agregar stock (masivo)</h3>
+      <div class="muted" style="font-size:12px;">Ítems: ${items.length}</div>
+      <ul style="max-height:120px;overflow:auto;margin:6px 0 10px 16px;">${summary}${extra}</ul>
+      <label>Cantidad a agregar por ítem</label>
+      <input id="bstk-qty" type="number" min="1" step="1" value="1"/>
+      <label>Anclar a procedencia (opcional)</label>
+      <select id="bstk-intake">${optionsIntakes}</select>
+      <label>Nota (opcional)</label>
+      <input id="bstk-note" placeholder="ej: reposición, compra, etc."/>
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        <button id="bstk-save">Agregar</button>
+        <button id="bstk-cancel" class="secondary">Cancelar</button>
+      </div>
+    `);
+    document.getElementById('bstk-cancel').onclick = invCloseModal;
+    document.getElementById('bstk-save').onclick = async () => {
+      const qty = parseInt(document.getElementById('bstk-qty').value||'0',10);
+      if (!Number.isFinite(qty) || qty<=0) return alert('Cantidad inválida');
+      const vehicleIntakeId = document.getElementById('bstk-intake').value || undefined;
+      const note = document.getElementById('bstk-note').value || '';
+      try{
+        // Construir payload
+        const itemsPayload = selected.map(id => ({ id, qty }));
+        showBusy('Agregando stock...');
+        await request('/api/v1/inventory/items/stock-in/bulk', { method: 'POST', json: { items: itemsPayload, vehicleIntakeId, note } });
+        invCloseModal(); hideBusy();
+        await refreshItems(state.lastItemsParams);
+        showToast('Stock agregado (masivo)');
+      }catch(e){ hideBusy(); alert('No se pudo agregar stock masivo: '+e.message); }
+    };
   }
 
   // ---- Crear entrada ----
