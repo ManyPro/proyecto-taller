@@ -401,6 +401,13 @@ logoutBtn?.addEventListener('click', async () => {
 
 // === Notificaciones (campana) ===
 (function(){
+  // Header de autorización local para este módulo
+  const authHeader = () => {
+    try{
+      const t = API?.token?.get?.();
+      return t ? { Authorization: `Bearer ${t}` } : {};
+    }catch{ return {}; }
+  };
   let polling = null; let panel = null; let bell = null; let lastIds = new Set();
   function ensureBell(){
     const header = document.querySelector('.app-header .row');
@@ -426,7 +433,7 @@ logoutBtn?.addEventListener('click', async () => {
     const d = new Date(ts); const diff = Date.now()-d.getTime(); const m=Math.floor(diff/60000); if(m<1) return 'ahora'; if(m<60) return m+'m'; const h=Math.floor(m/60); if(h<24) return h+'h'; const days=Math.floor(h/24); return days+'d'; }
   async function fetchNotifications(){
     try{
-      const res = await fetch((API.base||'') + '/api/v1/notifications?unread=1&limit=30', { headers: authHeader ? authHeader() : {} });
+      const res = await fetch((API.base||'') + '/api/v1/notifications?unread=1&limit=30', { headers: authHeader() });
       const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
       if(!res.ok) throw new Error(data?.error || res.statusText);
       const list = data?.data || [];
@@ -451,7 +458,7 @@ logoutBtn?.addEventListener('click', async () => {
   }
   async function markRead(id, el){
     try{
-      await fetch((API.base||'') + '/api/v1/notifications/' + id + '/read', { method:'PATCH', headers:{ 'Content-Type':'application/json', ...(authHeader?authHeader():{}) } });
+      await fetch((API.base||'') + '/api/v1/notifications/' + id + '/read', { method:'PATCH', headers:{ 'Content-Type':'application/json', ...authHeader() } });
       if(el) el.style.opacity='.35';
       lastIds.delete(String(id));
       const countEl = document.getElementById('notifCount'); if(countEl) countEl.textContent = String(lastIds.size); if(lastIds.size===0 && countEl) countEl.style.display='none';
@@ -459,7 +466,7 @@ logoutBtn?.addEventListener('click', async () => {
   }
   async function markAll(){
     try{
-      await fetch((API.base||'') + '/api/v1/notifications/read-all', { method:'POST', headers:{ 'Content-Type':'application/json', ...(authHeader?authHeader():{}) } });
+      await fetch((API.base||'') + '/api/v1/notifications/read-all', { method:'POST', headers:{ 'Content-Type':'application/json', ...authHeader() } });
       lastIds.clear(); fetchNotifications();
     }catch(e){/* ignore */ }
   }
