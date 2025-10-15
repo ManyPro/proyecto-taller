@@ -460,6 +460,7 @@ if (__ON_INV_PAGE__) {
   const itStock = document.getElementById("it-stock");
   const itFiles = document.getElementById("it-files");
   const itSave = document.getElementById("it-save");
+  const itMinStock = document.getElementById("it-minStock");
 
   const itemsList = document.getElementById("itemsList");
 
@@ -963,6 +964,13 @@ if (__ON_INV_PAGE__) {
       images,
     };
 
+    // minStock opcional
+    const msRaw = itMinStock?.value;
+    if (msRaw !== undefined && msRaw !== null && String(msRaw).trim() !== "") {
+      const ms = parseInt(msRaw, 10);
+      if (Number.isFinite(ms) && ms >= 0) body.minStock = ms;
+    }
+
     if (!body.sku || !body.name || !body.salePrice) return alert("Completa SKU, nombre y precio de venta");
 
     await invAPI.saveItem(body);
@@ -977,7 +985,8 @@ if (__ON_INV_PAGE__) {
     itEntryPrice.value = "";
     itSalePrice.value = "";
     itOriginal.value = "false";
-    itStock.value = "";
+  itStock.value = "";
+  if (itMinStock) itMinStock.value = "";
     if (itFiles) itFiles.value = "";
     itVehicleTarget.readOnly = false;
 
@@ -1112,6 +1121,7 @@ if (__ON_INV_PAGE__) {
         <option value="true" ${it.original ? "selected" : ""}>Sí</option>
       </select>
       <label>Stock</label><input id="e-it-stock" type="number" step="1" min="0" value="${parseInt(it.stock || 0, 10)}"/>
+  <label>Stock mínimo (opcional)</label><input id="e-it-min" type="number" step="1" min="0" placeholder="0 = sin alerta" value="${Number.isFinite(parseInt(it.minStock||0,10))? parseInt(it.minStock||0,10): ''}"/>
 
       <label>Imágenes/Videos</label>
       <div id="e-it-thumbs" class="thumbs"></div>
@@ -1132,7 +1142,8 @@ if (__ON_INV_PAGE__) {
     const sale = document.getElementById("e-it-sale");
     const original = document.getElementById("e-it-original");
     const stock = document.getElementById("e-it-stock");
-    const files = document.getElementById("e-it-files");
+  const files = document.getElementById("e-it-files");
+  const minInput = document.getElementById("e-it-min");
     const thumbs = document.getElementById("e-it-thumbs");
     const viewer = document.getElementById("e-it-viewer");
     const save = document.getElementById("e-it-save");
@@ -1230,6 +1241,12 @@ if (__ON_INV_PAGE__) {
           stock: parseInt(stock.value || "0", 10),
           images,
         };
+        // minStock opcional
+        const msRaw = minInput?.value;
+        if (msRaw !== undefined && msRaw !== null && String(msRaw).trim() !== "") {
+          const ms = parseInt(msRaw, 10);
+          if (Number.isFinite(ms) && ms >= 0) body.minStock = ms;
+        }
         await invAPI.updateItem(it._id, body);
         invCloseModal();
         await refreshIntakes();

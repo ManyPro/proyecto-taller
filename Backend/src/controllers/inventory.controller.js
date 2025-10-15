@@ -258,7 +258,10 @@ export const createItem = async (req, res) => {
     salePrice: +b.salePrice || 0,
     original: !!b.original,
     stock: Number.isFinite(+b.stock) ? +b.stock : 0,
-    images,
+  images,
+  // Alerta de stock mínimo: opcional
+  ...(Number.isFinite(+b.minStock) && +b.minStock >= 0 ? { minStock: +b.minStock } : {}),
+  ...(Number.isFinite(+b.minStock) && +b.minStock > 0 && (Number.isFinite(+b.stock) ? +b.stock : 0) <= +b.minStock ? { lowStockAlertedAt: new Date() } : {}),
     qrData: "" // inicial, lo llenamos abajo
     , // Campos catálogo público (solo backend decide publishedAt/publishedBy)
     published: !!b.published,
