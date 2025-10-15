@@ -5,6 +5,7 @@ import Notification from '../models/Notification.js';
 import WorkOrder from '../models/WorkOrder.js';
 import CustomerProfile from '../models/CustomerProfile.js';
 import Company from '../models/Company.js';
+import { publish } from '../lib/live.js';
 
 // ---- Helpers ----
 function coercePositiveInt(v, def){
@@ -33,6 +34,11 @@ function sanitizeDescription(html){
 function mapPublicItem(doc){
   if(!doc) return null;
   const price = (Number.isFinite(doc.publicPrice) ? doc.publicPrice : doc.salePrice) || 0;
+  // Public image policy: if no explicit publicImages, fallback to internal inventory images
+  let images = Array.isArray(doc.publicImages) ? doc.publicImages.slice(0,10) : [];
+  if(!images.length && Array.isArray(doc.images) && doc.images.length){
+    images = doc.images.slice(0,10).map(m => ({ url: m.url, alt: doc.name || doc.sku || '' }));
+  }
   return {
     id: String(doc._id),
     sku: doc.sku,
@@ -41,7 +47,7 @@ function mapPublicItem(doc){
     stock: doc.stock || 0,
     category: doc.category || '',
     tags: Array.isArray(doc.tags) ? doc.tags : [],
-    images: (doc.publicImages||[]).slice(0,10),
+    images,
     description: sanitizeDescription(doc.publicDescription || ''),
     publishedAt: doc.publishedAt || null
   };
@@ -119,7 +125,8 @@ export const checkoutCatalog = async (req, res) => {
   const { companyId } = req.params;
   if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
   const company = await Company.findById(companyId).select('_id active publicCatalogEnabled');
-  if(!company || company.active === false || !company.publicCatalogEnabled) return res.status(404).json({ error: 'Catálogo no habilitado para esta empresa' });
+  // Relajar gating: permitir checkout si la empresa está activa, aunque publicCatalogEnabled sea false.
+  if(!company || company.active === false) return res.status(404).json({ error: 'Empresa no encontrada o inactiva' });
   const b = req.body || {};
   const itemsReq = Array.isArray(b.items) ? b.items : [];
   if(!itemsReq.length) return res.status(400).json({ error: 'Carrito vacío' });
@@ -190,11 +197,7 @@ export const checkoutCatalog = async (req, res) => {
     deliveryMethod: finalDelivery,
     requiresInstallation
   });
-
-  // Reserve stock (simple subtract). Improvement later: reservations / rollback on cancel.
-  for(const it of saleItems){
-    await Item.updateOne({ _id: it.refId }, { $inc: { stock: -it.qty } });
-  }
+  // Política de stock: no descontar en checkout. El descuento ocurre al cerrar la venta internamente.
 
   // Upsert customer profile (basic, no plate)
   if(idNumber){
@@ -221,6 +224,7 @@ export const checkoutCatalog = async (req, res) => {
     type: 'sale.created',
     data: { saleId: sale._id, origin: 'catalog' }
   });
+  try{ publish(String(sale.companyId||''), 'sale:created', { id: String(sale._id), origin: 'catalog' }); }catch{}
 
   // Crear WorkOrder si requiere instalación
   let workOrder = null;
