@@ -450,6 +450,8 @@ if (__ON_INV_PAGE__) {
   }
   viKindVehicle?.addEventListener('change', updateIntakeKindUI);
   viKindPurchase?.addEventListener('change', updateIntakeKindUI);
+  // Default to purchase as requested
+  if (viKindPurchase) viKindPurchase.checked = true;
   updateIntakeKindUI();
   const itVehicleIntakeId = document.getElementById("it-vehicleIntakeId");
   const itEntryPrice = document.getElementById("it-entryPrice");
@@ -559,8 +561,9 @@ if (__ON_INV_PAGE__) {
       row.className = "note";
       row.innerHTML = `
         <div>
-          <div><b>${(vi.brand || "") + (vi.model ? " " + vi.model : "")}</b></div>
-          <div>${vi.engine || ""}</div>
+          ${vi.intakeKind === 'purchase' 
+            ? `<div><b>COMPRA: ${(vi.purchasePlace||'').toUpperCase()}</b></div>`
+            : `<div><b>${(vi.brand || "") + (vi.model ? " " + vi.model : "")}</b></div><div>${vi.engine || ""}</div>`}
         </div>
         <div class="content">
           <div>Fecha: ${new Date(vi.intakeDate).toLocaleDateString()}</div>
@@ -656,6 +659,7 @@ if (__ON_INV_PAGE__) {
           <button class="danger" data-del="${it._id}">Eliminar</button>
           <button class="secondary" data-qr-dl="${it._id}">Descargar QR</button>
           <button class="secondary" data-qr="${it._id}">Expandir codigo QR</button>
+          <button class="secondary" data-stock-in="${it._id}">Agregar stock</button>
         </div>`;
 
       div.querySelector(`input[type="checkbox"][data-id]`).onchange = (e) => toggleSelected(it, e.target.checked);
@@ -678,6 +682,7 @@ if (__ON_INV_PAGE__) {
       };
       div.querySelector("[data-qr]").onclick = () => openQrModal(it, companyId);
       div.querySelector("[data-qr-dl]").onclick = () => downloadQrPng(it._id, 720, `QR_${it.sku || it._id}.png`);
+  div.querySelector("[data-stock-in]").onclick = () => openStockInModal(it);
 
       div.addEventListener("click", (e) => {
         const el = e.target.closest(".item-thumb");
@@ -711,6 +716,44 @@ if (__ON_INV_PAGE__) {
     }
 
     updateSelectionBar();
+  }
+  // ---- Agregar Stock ----
+  function openStockInModal(it){
+    const optionsIntakes = [
+      `<option value="">(sin entrada)</option>`,
+      ...state.intakes.map(v=>`<option value="${v._id}">${makeIntakeLabel(v)} • ${new Date(v.intakeDate).toLocaleDateString()}</option>`)
+    ].join('');
+    invOpenModal(`
+      <h3>Agregar stock a ${it.name || it.sku || it._id}</h3>
+      <label>Cantidad</label><input id="stk-qty" type="number" min="1" step="1" value="1"/>
+      <label>Anclar a procedencia (opcional)</label><select id="stk-intake">${optionsIntakes}</select>
+      <label>Nota (opcional)</label><input id="stk-note" placeholder="ej: reposición, compra, etc."/>
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        <button id="stk-save">Agregar</button>
+        <button id="stk-cancel" class="secondary">Cancelar</button>
+      </div>
+    `);
+    document.getElementById('stk-cancel').onclick = invCloseModal;
+    document.getElementById('stk-save').onclick = async () => {
+      const qty = parseInt(document.getElementById('stk-qty').value||'0',10);
+      if (!Number.isFinite(qty) || qty<=0) return alert('Cantidad inválida');
+      const vehicleIntakeId = document.getElementById('stk-intake').value || undefined;
+      const note = document.getElementById('stk-note').value || '';
+      try{
+        await request(`/api/v1/inventory/items/${it._id}/stock-in`, { method: 'POST', json: { qty, vehicleIntakeId, note } });
+        invCloseModal();
+        await refreshItems(state.lastItemsParams);
+        showToast('Stock agregado');
+      }catch(e){ alert('No se pudo agregar stock: '+e.message); }
+    };
+  }
+
+  function showToast(msg){
+    const n = document.createElement('div');
+    n.className='notification success show';
+    n.textContent=msg||'OK';
+    document.body.appendChild(n);
+    setTimeout(()=>{ n.classList.remove('show'); setTimeout(()=>n.remove(), 300); }, 1700);
   }
 
   // ---- Crear entrada ----

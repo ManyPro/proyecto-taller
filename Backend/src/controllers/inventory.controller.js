@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import VehicleIntake from "../models/VehicleIntake.js";
 import Item from "../models/Item.js";
 import Notification from "../models/Notification.js";
+import StockMove from "../models/StockMove.js";
 import SKU from "../models/SKU.js";
 
 // Generador de QR en PNG
@@ -453,6 +454,49 @@ export const deleteItem = async (req, res) => {
 export const recalcIntakePrices = async (req, res) => {
   await recalcAutoEntryPrices(req.companyId, req.params.id);
   res.json({ ok: true });
+};
+
+// ===== Stock IN =====
+// Agrega stock a un ítem existente y registra el movimiento
+export const addItemStock = async (req, res) => {
+  const { id } = req.params;
+  const b = req.body || {};
+  const qty = parseInt(b.qty, 10);
+  if (!Number.isFinite(qty) || qty <= 0) {
+    return res.status(400).json({ error: "Cantidad inválida (debe ser > 0)" });
+  }
+
+  const item = await Item.findOne({ _id: id, companyId: req.companyId });
+  if (!item) return res.status(404).json({ error: "Item no encontrado" });
+
+  // Registrar movimiento primero (para auditoría), luego incrementar stock
+  const meta = { note: (b.note || '').trim() };
+  if (b.vehicleIntakeId && mongoose.Types.ObjectId.isValid(b.vehicleIntakeId)) {
+    meta.vehicleIntakeId = new mongoose.Types.ObjectId(b.vehicleIntakeId);
+    try {
+      const vi = await VehicleIntake.findOne({ _id: meta.vehicleIntakeId, companyId: req.companyId });
+      if (vi) {
+        meta.intakeKind = vi.intakeKind;
+        meta.intakeLabel = makeIntakeLabel(vi);
+      }
+    } catch { /* noop */ }
+  }
+
+  await StockMove.create({
+    companyId: req.companyId,
+    itemId: item._id,
+    qty,
+    reason: 'IN',
+    meta
+  });
+
+  const updated = await Item.findOneAndUpdate(
+    { _id: id, companyId: req.companyId },
+    { $inc: { stock: qty } },
+    { new: true }
+  );
+
+  res.json({ item: updated });
 };
 
 // ===== QR =====

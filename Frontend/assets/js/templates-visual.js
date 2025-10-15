@@ -2284,7 +2284,7 @@
         <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">📄 Datos de Cotización</h4>
         ${createFriendlyButtons([
           { label: 'Número de cotización', icon: '#️⃣', value: '{{quote.number}}' },
-          { label: 'Fecha de cotización', icon: '�', value: '{{date quote.date}}' },
+          { label: 'Fecha de cotización', icon: '📅', value: '{{date quote.date}}' },
           { label: 'Válida hasta', icon: '⏰', value: '{{date quote.validUntil}}' },
           { label: 'Total cotizado', icon: '💵', value: '{{money quote.total}}' },
           { label: 'Subtotal cotización', icon: '💴', value: '{{money quote.subtotal}}' }
@@ -2305,7 +2305,7 @@
       </div>
 
       <div style="margin-bottom: 20px;">
-        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">�👤 Datos del Cliente</h4>
+  <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">👤 Datos del Cliente</h4>
         ${createFriendlyButtons([
           { label: 'Nombre del cliente', icon: '👤', value: '{{sale.customerName || quote.customerName || workOrder.customerName}}' },
           { label: 'Teléfono del cliente', icon: '📱', value: '{{sale.customerPhone || quote.customerPhone || workOrder.customerPhone}}' }
@@ -2332,7 +2332,7 @@
           { label: 'Lista de servicios (ventas)', icon: '📝', value: '{{#each sale.items}}• {{qty}}x {{description}} - {{money total}}\\n{{/each}}', multiline: true },
           { label: 'Lista de servicios (cotizaciones)', icon: '💰', value: '{{#each quote.items}}• {{qty}}x {{description}} - {{money price}} c/u = {{money total}}\\n{{/each}}', multiline: true },
           { label: 'Tareas de trabajo', icon: '🔧', value: '{{#each workOrder.tasks}}• {{description}} - Técnico: {{technician}}\\n{{/each}}', multiline: true },
-          { label: 'Solo nombres (cualquiera)', icon: '�', value: '{{#each (sale.items || quote.items || workOrder.tasks)}}{{description}}{{#unless @last}}, {{/unless}}{{/each}}', multiline: true }
+          { label: 'Solo nombres (cualquiera)', icon: '✏️', value: '{{#each (sale.items || quote.items || workOrder.tasks)}}{{description}}{{#unless @last}}, {{/unless}}{{/each}}', multiline: true }
         ])}
         <button onclick="insertItemsTable()" style="width: 100%; padding: 8px; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 5px;">
           📊 Crear Tabla Completa de Trabajos

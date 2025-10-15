@@ -10,7 +10,8 @@ import {
   updateItem,
   deleteItem,
   recalcIntakePrices,
-  itemQrPng
+  itemQrPng,
+  addItemStock
 } from '../controllers/inventory.controller.js';
 
 const router = Router();
@@ -26,6 +27,7 @@ router.get('/items', listItems);
 router.post('/items', createItem);
 router.put('/items/:id', updateItem);
 router.delete('/items/:id', deleteItem);
+router.post('/items/:id/stock-in', addItemStock);
 
 router.get('/items/:id/qr.png', itemQrPng);
 

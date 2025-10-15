@@ -139,7 +139,7 @@
 
           <!-- Columna derecHa: Ventas -->
           <div class="ventas-right">
-            <!-- preview cliente/veh├¡culo + t├®cnico -->
+            <!-- preview cliente/vehículo + técnico -->
             <div class="card" id="sv-customer-mini">
               <div class="row between" style="gap:8px; align-items:center;">
                 <div class="row" style="gap:10px; align-items:center;">
@@ -157,7 +157,7 @@
               </div>
             </div>
 
-            <!-- acciones agregar ├¡tems (reemplazado por botónes superiores) -->
+            <!-- acciones agregar ítems (reemplazado por botones superiores) -->
             <!-- tabla venta -->
             <div class="card">
               <div class="table-wrap">
@@ -184,7 +184,7 @@
               </div>
             </div>
 
-            <!-- plantilla modal cliente/veh├¡culo -->
+            <!-- plantilla modal cliente/vehículo -->
             <template id="sales-cv-template">
               <div class="card">
                 <h3>Cliente y vehículo</h3>
@@ -260,7 +260,7 @@
               <div data-customer></div>
             </div>
             <div>
-              <h4>Veh├¡culo</h4>
+              <h4>Vehículo</h4>
               <div data-vehicle></div>
             </div>
           </div>
@@ -268,7 +268,7 @@
             <h4>Pagos</h4>
             <div class="table-wrap small">
               <table class="table small" style="min-width:420px;">
-                <thead><tr><th>M├®todo</th><th>Cuenta</th><th class="t-right">Monto</th></tr></thead>
+                <thead><tr><th>Método</th><th>Cuenta</th><th class="t-right">Monto</th></tr></thead>
                 <tbody data-payments></tbody>
                 <tfoot><tr><td colspan="2" class="t-right"><strong>Total pagos</strong></td><td class="t-right" data-payments-total>$0</td></tr></tfoot>
               </table>
@@ -276,7 +276,7 @@
           </div>
           <div class="table-wrap mobile-as-cards" style="margin-top:12px;">
             <table class="table">
-              <thead><tr><th>SKU</th><th>Descripci├│n</th><th class="t-center">Cant.</th><th class="t-right">Unit</th><th class="t-right">Total</th></tr></thead>
+              <thead><tr><th>SKU</th><th>Descripción</th><th class="t-center">Cant.</th><th class="t-right">Unit</th><th class="t-right">Total</th></tr></thead>
               <tbody data-items></tbody>
               <tfoot>
                 <tr><td colspan="4" class="t-right">Subtotal</td><td class="t-right" data-subtotal>$0</td></tr>
@@ -319,8 +319,8 @@
           <select id="en-responsible">
             <option value="">Selecciona...</option>
             <option value="DAVID">David</option>
-            <option value="VALENTIN">Valent├¡n</option>
-            <option value="SEBASTIAN">Sebasti├ín</option>
+            <option value="VALENTIN">Valentín</option>
+            <option value="SEBASTIAN">Sebastián</option>
             <option value="GIOVANNY">Gio</option>
             <option value="SANDRA">Sandra</option>
             <option value="CEDIEL">Cediel</option>
@@ -340,13 +340,13 @@
           <h3>Agregar desde inventario</h3>
           <div class="picker-head">
             <div class="row" style="gap:6px;">
-              <input id="p-inv-name" placeholder="NombreÔÇª" />
-              <input id="p-inv-sku" placeholder="SKUÔÇª" />
+              <input id="p-inv-name" placeholder="Nombre…" />
+              <input id="p-inv-sku" placeholder="SKU…" />
               <select id="p-inv-intake"></select>
             </div>
             <div class="row" style="gap:6px;">
               <button id="p-inv-search" class="secondary">Buscar</button>
-              <button id="p-inv-more" class="secondary">Cargar m├ís</button>
+              <button id="p-inv-more" class="secondary">Cargar más</button>
             </div>
           </div>
           <div class="picker-table table-wrap">
@@ -360,7 +360,7 @@
             </table>
           </div>
           <div class="picker-actions">
-            <div class="muted">Mostrando <span id="p-inv-count">0</span> ├¡tems</div>
+            <div class="muted">Mostrando <span id="p-inv-count">0</span> ítems</div>
             <div class="row" style="gap:6px;">
               <button class="secondary" id="p-inv-cancel">Cerrar</button>
             </div>
@@ -388,9 +388,9 @@
             <div class="row" style="gap:6px;">
               <select id="p-pr-svc"></select>
               <input id="p-pr-brand" placeholder="Marca" />
-              <input id="p-pr-line" placeholder="L├¡nea" />
+              <input id="p-pr-line" placeholder="Línea" />
               <input id="p-pr-engine" placeholder="Motor" />
-              <input id="p-pr-year" placeholder="A├▒o" type="number" />
+              <input id="p-pr-year" placeholder="Año" type="number" />
             </div>
             <div class="row" style="gap:6px;">
               <button id="p-pr-search" class="secondary">Buscar</button>
@@ -438,14 +438,14 @@
         </tr>
       </template>
 
-      <!-- Pesta├▒a de venta -->
+  <!-- Pestaña de venta -->
       <template id="tpl-sale-tab">
         <span class="sales-tab">
           <span class="label"></span><span class="close">×</span>
         </span>
       </template>
 
-      <!-- C├ípsula de venta (nueva UI) -->
+  <!-- Cápsula de venta (nueva UI) -->
       <template id="tpl-sale-capsule">
         <div class="sale-capsule" data-id>
           <div class="sc-top">

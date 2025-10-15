@@ -73,7 +73,7 @@ export async function listEntries(req, res) {
     if (to) q.date.$lte = new Date(to + 'T23:59:59.999Z');
   }
   const [rows, count] = await Promise.all([
-    CashFlowEntry.find(q).sort({ date: -1, _id: -1 }).skip((pg - 1) * lim).limit(lim),
+    CashFlowEntry.find(q).sort({ date: -1, _id: -1 }).skip((pg - 1) * lim).limit(lim).populate('accountId', 'name type'),
     CashFlowEntry.countDocuments(q)
   ]);
   // Totales en el rango
@@ -91,13 +91,14 @@ export async function createEntry(req, res) {
   if (!amount || amount <= 0) return res.status(400).json({ error: 'positive amount required' });
   const acc = await Account.findOne({ _id: accountId, companyId: req.companyId });
   if (!acc) return res.status(404).json({ error: 'account not found' });
+  const amt = Math.round(Number(amount));
   const prevBal = await computeBalance(acc._id, req.companyId);
-  const newBal = kind === 'IN' ? prevBal + amount : prevBal - amount;
+  const newBal = kind === 'IN' ? prevBal + amt : prevBal - amt;
   const entry = await CashFlowEntry.create({
     companyId: req.companyId,
     accountId: acc._id,
     kind,
-    amount,
+    amount: amt,
     description,
     source: 'MANUAL',
     date: date ? new Date(date) : new Date(),

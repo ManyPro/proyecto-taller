@@ -1,5 +1,5 @@
 ﻿/* assets/js/techreport.js
-   Inicializa la pestaÃ±a "Reporte TÃ©cnico" con filtros de fecha, tÃ©cnico y tabla paginada.
+  Inicializa la pestaña "Reporte Técnico" con filtros de fecha, técnico y tabla paginada.
 */
 import { API } from './api.esm.js';
 import { authToken } from './api.esm.js';
@@ -12,7 +12,7 @@ let rtState = { page:1, pages:1, limit:100 };
 export async function initTechReport(){
   const tab = document.getElementById('tab-reporte-tecnico');
   if(!tab) return;
-  // Poblar tÃ©cnicos al entrar en la pestaÃ±a
+  // Poblar técnicos al entrar en la pestaña
   const techSel = document.getElementById('rt-tech');
   if(techSel && !techSel.dataset.loaded){
     try {
@@ -44,7 +44,7 @@ export async function initTechReport(){
   const items = data.items || [];
       const agg = data.aggregate || { laborShareTotal:0, salesTotal:0, count:0 };
       if(summary){
-        summary.textContent = `Ventas: ${agg.count} | Total ventas: ${money(agg.salesTotal)} | ParticipaciÃ³n total tÃ©cnico: ${money(agg.laborShareTotal)}${data.filters?.technician? ' | TÃ©cnico: '+data.filters.technician:''}`;
+  summary.textContent = `Ventas: ${agg.count} | Total ventas: ${money(agg.salesTotal)} | Participación total técnico: ${money(agg.laborShareTotal)}${data.filters?.technician? ' | Técnico: '+data.filters.technician:''}`;
       }
       if(body){
         items.forEach(s=>{
@@ -56,7 +56,7 @@ export async function initTechReport(){
             <td>${dateRef ? new Date(dateRef).toLocaleDateString() : ''}</td>
             <td>${s.vehicle?.plate||''}</td>
             <td>${(s.customer?.name||'')}</td>
-            <td>${techs.length? techs.join(' â†’ '): (s.technician||'')}</td>
+            <td>${techs.length? techs.join(' — '): (s.technician||'')}</td>
             <td class="t-right">${money(s.total||0)}</td>
             <td class="t-right">${money(s.laborValue||0)}</td>
             <td class="t-right">${s.laborPercent||0}%</td>
@@ -70,7 +70,7 @@ export async function initTechReport(){
       }
       rtState.page = data.pagination?.page || 1;
       rtState.pages = data.pagination?.pages || 1;
-      if(pag) pag.textContent = `PÃ¡gina ${rtState.page} de ${rtState.pages}`;
+  if(pag) pag.textContent = `Página ${rtState.page} de ${rtState.pages}`;
       if(prevBtn) prevBtn.disabled = rtState.page<=1;
       if(nextBtn) nextBtn.disabled = rtState.page>=rtState.pages;
     }catch(e){
@@ -82,7 +82,7 @@ export async function initTechReport(){
   prevBtn?.addEventListener('click', ()=>{ if(rtState.page>1){ rtState.page--; load(); } });
   nextBtn?.addEventListener('click', ()=>{ if(rtState.page<rtState.pages){ rtState.page++; load(); } });
 
-  // Carga inicial cuando se muestra la pestaÃ±a
+  // Carga inicial cuando se muestra la pestaña
   load(true);
 }
 
