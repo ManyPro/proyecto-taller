@@ -565,6 +565,12 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Selection toolbar -->
+                    <div class="row" style="gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;">
+                        <button id="sku-sel-page" class="btn btn-secondary" title="Seleccionar todos los SKUs de la página">Seleccionar página</button>
+                        <button id="sku-sel-clear" class="btn btn-secondary" title="Limpiar selección">Limpiar selección</button>
+                        <button id="sku-bulk-printed" class="btn btn-primary" title="Marcar seleccionados como impresos">Marcar impresos (<span id="sku-sel-count">0</span>)</button>
+                    </div>
                 </div>
 
                 <!-- Loading -->
@@ -588,6 +594,7 @@
                 // --- State ---
                 const ui = {};
                 const state = { page: 1, limit: 25, search: '', category: 'all', status: 'all', totalPages: 1 };
+                const selected = new Set(); // ids seleccionados en la página
 
                 document.addEventListener('DOMContentLoaded', function() {
                     ui.loading = document.getElementById('loading');
@@ -604,6 +611,11 @@
                     ui.btnApply = document.getElementById('sku-apply');
                     ui.btnClear = document.getElementById('sku-clear');
 
+                    ui.btnSelPage = document.getElementById('sku-sel-page');
+                    ui.btnSelClear = document.getElementById('sku-sel-clear');
+                    ui.btnBulkPrinted = document.getElementById('sku-bulk-printed');
+                    ui.selCount = document.getElementById('sku-sel-count');
+
                     ui.btnApply.onclick = () => { state.page = 1; applyFilters(); };
                     ui.btnClear.onclick = () => { ui.qSearch.value=''; ui.qCategory.value='all'; ui.qStatus.value='all'; state.page=1; applyFilters(); };
                     ui.pgPrev.onclick = () => { if (state.page>1){ state.page--; loadPage(); } };
@@ -611,6 +623,11 @@
 
                     // Refresh stats & list
                     if (ui.btnRefresh) ui.btnRefresh.onclick = () => { loadStats(); loadPage(); };
+
+                    // Selection actions
+                    if (ui.btnSelPage) ui.btnSelPage.onclick = () => selectCurrentPage();
+                    if (ui.btnSelClear) ui.btnSelClear.onclick = () => clearSelection();
+                    if (ui.btnBulkPrinted) ui.btnBulkPrinted.onclick = () => bulkMarkPrinted();
 
                     loadStats();
                     loadPage();
@@ -666,6 +683,7 @@
 
                         ui.list.innerHTML = skus.map(sku => `
                             <div class="sku-item" style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:center;">
+                                <input type="checkbox" class="sku-select" data-id="${sku._id}" ${selected.has(String(sku._id)) ? 'checked' : ''} />
                                 <div class="sku-info" style="flex:1;">
                                     <div class="sku-code">${sku.code}</div>
                                     <div class="sku-description">${sku.description || ''}</div>
@@ -682,6 +700,12 @@
                         `).join('');
 
                         // Wire actions
+                        // Selection toggle
+                        ui.list.querySelectorAll('.sku-select').forEach(cb => cb.addEventListener('change', (e) => {
+                            const id = e.currentTarget.getAttribute('data-id');
+                            if (e.currentTarget.checked) selected.add(String(id)); else selected.delete(String(id));
+                            updateSelectionCount();
+                        }));
                         ui.list.querySelectorAll('[data-print]').forEach(b => b.addEventListener('click', async (e) => {
                             const id = e.currentTarget.getAttribute('data-print');
                             await API.skus.markAsPrinted(id); loadStats(); loadPage();
@@ -704,6 +728,29 @@
                         showNotification('Error cargando SKUs: '+err.message, 'error');
                     }finally{
                         ui.loading.style.display = 'none';
+                    }
+                }
+
+                function updateSelectionCount(){ if (ui.selCount) ui.selCount.textContent = String(selected.size); }
+                function clearSelection(){ selected.clear(); updateSelectionCount(); if (ui.list){ ui.list.querySelectorAll('.sku-select').forEach(cb => { cb.checked = false; }); } }
+                function selectCurrentPage(){ if(!ui.list) return; ui.list.querySelectorAll('.sku-select').forEach(cb => { cb.checked = true; const id = cb.getAttribute('data-id'); selected.add(String(id)); }); updateSelectionCount(); }
+
+                async function bulkMarkPrinted(){
+                    if (selected.size === 0) { showNotification('No hay SKUs seleccionados', 'warning'); return; }
+                    const ids = Array.from(selected);
+                    ui.btnBulkPrinted && (ui.btnBulkPrinted.disabled = true);
+                    try{
+                        let ok=0, fail=0;
+                        for (const id of ids){
+                            try{ await API.skus.markAsPrinted(id); ok++; }
+                            catch{ fail++; }
+                        }
+                        showNotification(`Marcados como impresos: ${ok}. Errores: ${fail}.`, fail? 'warning':'success');
+                        clearSelection();
+                        await loadStats();
+                        await loadPage();
+                    }finally{
+                        ui.btnBulkPrinted && (ui.btnBulkPrinted.disabled = false);
                     }
                 }
 
