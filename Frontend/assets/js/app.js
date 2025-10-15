@@ -446,11 +446,51 @@ logoutBtn?.addEventListener('click', async () => {
     if(countEl){ countEl.textContent = String(list.length); countEl.style.display = list.length? 'inline-block':'none'; }
     const ul = document.getElementById('notifList'); if(!ul) return;
     ul.innerHTML='';
+    // Friendly formatter for notification types
+    const fmt = (n) => {
+      const t = String(n?.type||'');
+      const d = n?.data||{};
+      const ago = fmtAgo(n.createdAt);
+      const by = d?.user || d?.by || d?.createdBy || '';
+      const who = by ? ` por ${by}` : '';
+      // Map known events
+      switch(true){
+        case /^inventory\.lowstock$/.test(t):
+          return { icon:'⚠️', title:'Stock bajo', body:`${d?.sku ? d.sku+': ' : ''}${d?.name || 'Producto'} — quedan ${d?.stock ?? '?'} (mínimo ${d?.minStock ?? '?'}) · ¡Pedir más!`, meta: ago };
+        case /^sale\.created$/.test(t):
+          return { icon:'🛒', title:'Nueva venta creada', body:`Se registró un nuevo pedido${d?.origin==='catalog'?' desde el catálogo público':''}.`, meta: ago };
+        case /^workOrder\.created$/.test(t):
+          return { icon:'🧰', title:'Nueva orden de trabajo', body:'Se generó una orden para instalación/servicio.', meta: ago };
+        case /^item\.published$/.test(t):
+          return { icon:'📢', title:'Artículo publicado', body:`SKU ${d?.sku ? `(${d.sku}) ` : ''}ahora es público.`, meta: ago };
+        case /^items\.published\.bulk$/.test(t):
+          return { icon:'📢', title:'Publicación masiva completada', body:`Se publicaron ${d?.modified ?? d?.count ?? d?.matched ?? ''} artículos.`, meta: ago };
+        case /^items\.unpublished\.bulk$/.test(t):
+          return { icon:'📪', title:'Despublicación masiva completada', body:`Se despublicaron ${d?.modified ?? d?.count ?? d?.matched ?? ''} artículos.`, meta: ago };
+        case /^price\./.test(t):
+          return { icon:'💲', title:'Actualización de precios', body:'Se actualizaron precios en la lista.', meta: ago };
+        case /^inventory\./.test(t):
+          return { icon:'📦', title:'Movimiento de inventario', body:'Se registró un movimiento en inventario.', meta: ago };
+        default:
+          return { icon:'🔔', title: t.replace(/\./g,' · '), body: Object.keys(d||{}).length? JSON.stringify(d):'Sin detalles', meta: ago };
+      }
+    };
+
     list.forEach(n => {
       lastIds.add(String(n._id));
+      const info = fmt(n);
       const div = document.createElement('div');
-      div.style.cssText='background:var(--card-alt,#1e293b);padding:8px;border-radius:8px;';
-      div.innerHTML = `<div style='font-weight:600;'>${n.type}</div><div style='opacity:.8;'>${JSON.stringify(n.data)}</div><div style='font-size:10px;text-align:right;opacity:.6;'>${fmtAgo(n.createdAt)}</div><button data-read='${n._id}' style='margin-top:4px;font-size:11px;' class='secondary'>Marcar leído</button>`;
+      div.style.cssText='background:var(--card-alt,#1e293b);padding:10px;border-radius:10px;border:1px solid var(--border);display:flex;gap:10px;align-items:flex-start;';
+      div.innerHTML = `
+        <div style="font-size:20px;line-height:1.2;">${info.icon}</div>
+        <div style="flex:1;min-width:0;">
+          <div style='font-weight:700;'>${info.title}</div>
+          <div style='opacity:.9;margin:4px 0;'>${info.body}</div>
+          <div style='display:flex;justify-content:space-between;align-items:center;margin-top:6px;'>
+            <span style='font-size:11px;opacity:.6;'>${info.meta}</span>
+            <button data-read='${n._id}' style='font-size:11px;' class='secondary'>Marcar leído</button>
+          </div>
+        </div>`;
       div.querySelector('[data-read]').onclick = () => markRead(n._id, div);
       ul.appendChild(div);
     });

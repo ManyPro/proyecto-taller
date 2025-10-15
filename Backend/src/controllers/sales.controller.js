@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { checkLowStockForMany } from '../lib/stockAlerts.js';
 import { registerSaleIncome } from './cashflow.controller.js';
 import Sale from '../models/Sale.js';
 import Item from '../models/Item.js';
@@ -431,6 +432,7 @@ export const closeSale = async (req, res) => {
   const { id } = req.params;
   const session = await mongoose.startSession();
   try {
+    const affectedItemIds = [];
     await session.withTransaction(async () => {
       const sale = await Sale.findOne({ _id: id, companyId: req.companyId }).session(session);
       if (!sale) throw new Error('Sale not found');
@@ -470,9 +472,10 @@ export const closeSale = async (req, res) => {
           reason: 'OUT',
           meta: { saleId: sale._id, sku: it.sku, name: it.name }
         }], { session });
+        affectedItemIds.push(String(target._id));
       }
 
-      // === Datos de cierre adicionales (pago / mano de obra) ===
+  // === Datos de cierre adicionales (pago / mano de obra) ===
       const pm = String(req.body?.paymentMethod || '').trim();
       const technician = String(req.body?.technician || sale.technician || '').trim().toUpperCase();
       const laborValueRaw = req.body?.laborValue;
@@ -534,6 +537,10 @@ export const closeSale = async (req, res) => {
       if (paymentReceiptUrl) sale.paymentReceiptUrl = paymentReceiptUrl;
       await sale.save({ session });
     });
+    // Fuera de la transacción: verificar alertas de stock bajo con stocks ya comprometidos
+    if (affectedItemIds.length) {
+      try { await checkLowStockForMany(req.companyId, affectedItemIds); } catch {}
+    }
 
     const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
     await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });

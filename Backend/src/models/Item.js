@@ -27,6 +27,10 @@ const itemSchema = new mongoose.Schema({
   salePrice: { type: Number, default: 0, min: 0 },
   original: { type: Boolean, default: false },
   stock: { type: Number, default: 0, min: 0 },
+  // Umbral mínimo de stock para alertas (por ítem)
+  minStock: { type: Number, default: 0, min: 0 },
+  // Marca de última alerta enviada para evitar spam
+  lowStockAlertedAt: { type: Date, default: null },
 
   images: { type: [mediaSchema], default: [] },
 

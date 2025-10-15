@@ -5,6 +5,7 @@ import Item from "../models/Item.js";
 import Notification from "../models/Notification.js";
 import StockMove from "../models/StockMove.js";
 import SKU from "../models/SKU.js";
+import { checkLowStockAndNotify, checkLowStockForMany } from "../lib/stockAlerts.js";
 
 // Generador de QR en PNG
 import QRCode from "qrcode";
@@ -438,6 +439,12 @@ export const updateItem = async (req, res) => {
     const type = publishingAction === 'published' ? 'item.published' : 'item.unpublished';
     await Notification.create({ companyId: req.companyId, type, data: { itemId: item._id, sku: item.sku } });
   }
+  // Si se cambió stock o minStock vía update, validar alerta
+  try {
+    if ('stock' in b || 'minStock' in b) {
+      await checkLowStockAndNotify(req.companyId, item._id);
+    }
+  } catch {}
 };
 
 export const deleteItem = async (req, res) => {
@@ -517,6 +524,8 @@ export const addItemStock = async (req, res) => {
   }
 
   res.json({ item: updated });
+  // Al subir stock, si supera el mínimo limpiar bandera de alerta; si sigue por debajo, no notifica (solo notifica en bajadas o si han pasado 24h)
+  try { await checkLowStockAndNotify(req.companyId, updated._id); } catch {}
 };
 
 // ===== Stock IN (Bulk) =====
@@ -623,6 +632,10 @@ export const addItemsStockBulk = async (req, res) => {
 
   // Opcional: devolver stocks finales recargados (evitar segundo query grande)
   res.json({ updatedCount: updates.length, results });
+  // Revisar alertas para los ítems actualizados
+  try {
+    await checkLowStockForMany(req.companyId, results.filter(r=>r.ok).map(r=>r.id));
+  } catch {}
 };
 
 // ===== QR =====
