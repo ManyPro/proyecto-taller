@@ -118,8 +118,8 @@ export const listSKUs = async (req, res) => {
       search, 
       page = 1, 
       limit = 50,
-      sortBy = 'createdAt',
-      sortOrder = 'desc'
+      sortBy = 'printStatus,createdAt',
+      sortOrder = 'asc,desc'
     } = req.query;
     
     // Construir filtros
@@ -149,7 +149,13 @@ export const listSKUs = async (req, res) => {
     
     // Construir sort
     const sort = {};
-    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    const fields = String(sortBy||'').split(',').map(s=>s.trim()).filter(Boolean);
+    const orders = String(sortOrder||'').split(',').map(s=>s.trim().toLowerCase());
+    if (fields.length) {
+      fields.forEach((f, idx) => { const ord = orders[idx] || orders[orders.length-1] || 'asc'; sort[f] = (ord === 'desc' ? -1 : 1); });
+    } else {
+      sort.printStatus = 1; sort.createdAt = -1; // default fallback
+    }
     
     // Ejecutar consulta
     const [skus, total] = await Promise.all([
@@ -283,10 +289,7 @@ export const markAsPrinted = async (req, res) => {
     
     const sku = await SKU.findOneAndUpdate(
       { _id: id, companyId },
-      { 
-        printStatus: 'printed',
-        printedAt: new Date()
-      },
+      { printStatus: 'printed', printedAt: new Date(), pendingStickers: 0 },
       { new: true }
     );
     
@@ -494,6 +497,65 @@ export const backfillFromItems = async (req, res) => {
     res.json({ created });
   } catch (error) {
     console.error('Error en backfill SKUs:', error);
+    res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+  }
+};
+
+// Marcar como impresos en masa
+export const bulkMarkAsPrinted = async (req, res) => {
+  try {
+    const companyId = new mongoose.Types.ObjectId(req.companyId);
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(id => mongoose.Types.ObjectId.isValid(id)) : [];
+    const q = req.query || {};
+    let matched = 0, modified = 0;
+
+    if (ids.length) {
+  const r = await SKU.updateMany({ companyId, _id: { $in: ids } }, { $set: { printStatus: 'printed', printedAt: new Date(), pendingStickers: 0 } });
+      matched = r.matchedCount || 0; modified = r.modifiedCount || 0;
+    } else {
+      // Por filtro (category/printStatus/search) para seleccionar "todos"
+      const filters = { companyId };
+      if (q.category && q.category !== 'all') filters.category = q.category;
+      if (q.printStatus && q.printStatus !== 'all') filters.printStatus = q.printStatus;
+      if (q.search && q.search.trim()) {
+        const rx = new RegExp(q.search.trim(), 'i');
+        filters.$or = [{ code: rx }, { description: rx }, { brand: rx }, { partNumber: rx }, { notes: rx }];
+      }
+  const r = await SKU.updateMany(filters, { $set: { printStatus: 'printed', printedAt: new Date(), pendingStickers: 0 } });
+      matched = r.matchedCount || 0; modified = r.modifiedCount || 0;
+    }
+    res.json({ matched, modified });
+  } catch (error) {
+    console.error('bulkMarkAsPrinted', error);
+    res.status(500).json({ error: 'Error interno del servidor', details: error.message });
+  }
+};
+
+// Marcar como aplicados en masa
+export const bulkMarkAsApplied = async (req, res) => {
+  try {
+    const companyId = new mongoose.Types.ObjectId(req.companyId);
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(id => mongoose.Types.ObjectId.isValid(id)) : [];
+    const q = req.query || {};
+    let matched = 0, modified = 0;
+
+    if (ids.length) {
+      const r = await SKU.updateMany({ companyId, _id: { $in: ids } }, { $set: { printStatus: 'applied' } });
+      matched = r.matchedCount || 0; modified = r.modifiedCount || 0;
+    } else {
+      const filters = { companyId };
+      if (q.category && q.category !== 'all') filters.category = q.category;
+      if (q.printStatus && q.printStatus !== 'all') filters.printStatus = q.printStatus;
+      if (q.search && q.search.trim()) {
+        const rx = new RegExp(q.search.trim(), 'i');
+        filters.$or = [{ code: rx }, { description: rx }, { brand: rx }, { partNumber: rx }, { notes: rx }];
+      }
+      const r = await SKU.updateMany(filters, { $set: { printStatus: 'applied' } });
+      matched = r.matchedCount || 0; modified = r.modifiedCount || 0;
+    }
+    res.json({ matched, modified });
+  } catch (error) {
+    console.error('bulkMarkAsApplied', error);
     res.status(500).json({ error: 'Error interno del servidor', details: error.message });
   }
 };

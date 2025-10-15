@@ -22,6 +22,8 @@ router.patch('/:id', skusController.updateSKU);
 router.patch('/:id/notes', skusController.updateNotes);
 router.patch('/:id/print', skusController.markAsPrinted);
 router.patch('/:id/apply', skusController.markAsApplied);
+router.post('/bulk/print', skusController.bulkMarkAsPrinted);
+router.post('/bulk/apply', skusController.bulkMarkAsApplied);
 
 router.delete('/:id', skusController.deleteSKU);
 

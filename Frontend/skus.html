@@ -600,6 +600,7 @@
                         <button id="sku-sel-page" class="btn btn-secondary" title="Seleccionar todos los SKUs de la página">Seleccionar página</button>
                         <button id="sku-sel-clear" class="btn btn-secondary" title="Limpiar selección">Limpiar selección</button>
                         <button id="sku-bulk-printed" class="btn btn-primary" title="Marcar seleccionados como impresos">Marcar impresos (<span id="sku-sel-count">0</span>)</button>
+                        <button id="sku-bulk-applied" class="btn btn-secondary" title="Marcar seleccionados como aplicados">Marcar aplicados</button>
                     </div>
                 </div>
 
@@ -644,6 +645,7 @@
                     ui.btnSelPage = document.getElementById('sku-sel-page');
                     ui.btnSelClear = document.getElementById('sku-sel-clear');
                     ui.btnBulkPrinted = document.getElementById('sku-bulk-printed');
+                    ui.btnBulkApplied = document.getElementById('sku-bulk-applied');
                     ui.selCount = document.getElementById('sku-sel-count');
 
                     ui.btnApply.onclick = () => { state.page = 1; applyFilters(); };
@@ -658,6 +660,7 @@
                     if (ui.btnSelPage) ui.btnSelPage.onclick = () => selectCurrentPage();
                     if (ui.btnSelClear) ui.btnSelClear.onclick = () => clearSelection();
                     if (ui.btnBulkPrinted) ui.btnBulkPrinted.onclick = () => bulkMarkPrinted();
+                    if (ui.btnBulkApplied) ui.btnBulkApplied.onclick = () => bulkMarkApplied();
 
                     loadStats();
                     loadPage();
@@ -671,7 +674,8 @@
                 }
 
                 function paramsToQuery(){
-                    const q = { page: state.page, limit: state.limit, sortBy: 'code', sortOrder: 'asc' };
+                    // Mostrar primero pendientes: sort por printStatus asc (pending<printed<applied) y luego por createdAt desc
+                    const q = { page: state.page, limit: state.limit, sortBy: 'printStatus,createdAt', sortOrder: 'asc,desc' };
                     if (state.search && state.search.trim()) q.search = state.search.trim();
                     if (state.category && state.category!=='all') q.category = state.category;
                     if (state.status && state.status!=='all') q.printStatus = state.status;
@@ -685,10 +689,12 @@
                     loadPage();
                 }
 
-                function skuStatusPill(status){
+                function skuStatusPill(status, pendingStickers){
                     const map = { pending: ['status-pending','⏳ Pendiente'], printed: ['status-printed','🖨️ Impreso'], applied: ['status-applied','✅ Aplicado'] };
                     const m = map[status] || ['status-pending','Pendiente'];
-                    return `<span class="sku-status ${m[0]}">${m[1]}</span>`;
+                    const pending = Number(pendingStickers||0);
+                        const badge = (status==='pending' && pending>0) ? `<span style="margin-left:6px;background:rgba(245,158,11,.15);color:#f59e0b;border-radius:12px;padding:2px 8px;font-size:.75rem;">🖨 ${pending} pendientes</span>` : '';
+                    return `<span class="sku-status ${m[0]}" title="${m[1]}">${m[1]}</span>${badge}`;
                 }
 
                 function rowActions(sku){
@@ -724,7 +730,7 @@
                                     </div>
                                     <div class="notes-section">📝 <span id="n-${sku._id}">${sku.notes || ''}</span></div>
                                 </div>
-                                ${skuStatusPill(sku.printStatus)}
+                                ${skuStatusPill(sku.printStatus, sku.pendingStickers)}
                                 <div class="sku-actions">${rowActions(sku)}</div>
                             </div>
                         `).join('');
@@ -770,17 +776,39 @@
                     const ids = Array.from(selected);
                     ui.btnBulkPrinted && (ui.btnBulkPrinted.disabled = true);
                     try{
-                        let ok=0, fail=0;
-                        for (const id of ids){
-                            try{ await API.skus.markAsPrinted(id); ok++; }
-                            catch{ fail++; }
-                        }
-                        showNotification(`Marcados como impresos: ${ok}. Errores: ${fail}.`, fail? 'warning':'success');
+                        // Nuevo endpoint bulk (optimizado)
+                        const base = window.API?.base || '';
+                        const token = window.API?.token?.get?.();
+                        const res = await fetch(`${base}/api/v1/skus/bulk/print`, { method:'POST', headers: { 'Content-Type': 'application/json', ...(token?{ Authorization: `Bearer ${token}` }:{}) }, body: JSON.stringify({ ids }) });
+                        const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
+                        if(!res.ok) throw new Error(data?.error || res.statusText);
+                        const { matched=0, modified=0 } = data || {};
+                        showNotification(`Marcados como impresos: ${modified}/${matched}.`, 'success');
                         clearSelection();
                         await loadStats();
                         await loadPage();
                     }finally{
                         ui.btnBulkPrinted && (ui.btnBulkPrinted.disabled = false);
+                    }
+                }
+
+                async function bulkMarkApplied(){
+                    if (selected.size === 0) { showNotification('No hay SKUs seleccionados', 'warning'); return; }
+                    const ids = Array.from(selected);
+                    ui.btnBulkApplied && (ui.btnBulkApplied.disabled = true);
+                    try{
+                        const base = window.API?.base || '';
+                        const token = window.API?.token?.get?.();
+                        const res = await fetch(`${base}/api/v1/skus/bulk/apply`, { method:'POST', headers: { 'Content-Type': 'application/json', ...(token?{ Authorization: `Bearer ${token}` }:{}) }, body: JSON.stringify({ ids }) });
+                        const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
+                        if(!res.ok) throw new Error(data?.error || res.statusText);
+                        const { matched=0, modified=0 } = data || {};
+                        showNotification(`Marcados como aplicados: ${modified}/${matched}.`, 'success');
+                        clearSelection();
+                        await loadStats();
+                        await loadPage();
+                    }finally{
+                        ui.btnBulkApplied && (ui.btnBulkApplied.disabled = false);
                     }
                 }
 

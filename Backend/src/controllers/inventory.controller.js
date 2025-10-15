@@ -496,6 +496,26 @@ export const addItemStock = async (req, res) => {
     { new: true }
   );
 
+  // Actualizar estado del SKU: pasar a 'pending' e incrementar stickers pendientes
+  try {
+    const code = String(updated?.sku || item?.sku || '').toUpperCase();
+    if (code) {
+      const category = (updated?.category || item?.category || 'OTROS').toString().toUpperCase();
+      const description = (updated?.name || item?.name || code).toString().toUpperCase();
+      await SKU.updateOne(
+        { companyId: req.companyId, code },
+        {
+          $set: { printStatus: 'pending' },
+          $setOnInsert: { category, description, notes: '', createdBy: req.userId || '' },
+          $inc: { pendingStickers: Math.max(0, qty) }
+        },
+        { upsert: true }
+      );
+    }
+  } catch (e) {
+    console.error('sku-pending-on-stock-in', e?.message);
+  }
+
   res.json({ item: updated });
 };
 
@@ -569,6 +589,37 @@ export const addItemsStockBulk = async (req, res) => {
   // Aplicar cambios
   if (stockMoves.length) await StockMove.insertMany(stockMoves);
   if (updates.length) await Item.bulkWrite(updates, { ordered: false });
+
+  // Actualizar SKUs en masa: por cada item, llevar a 'pending' y sumar qty a pendingStickers
+  try {
+    const incById = new Map();
+    for (const p of parsed) {
+      if (p.valid) incById.set(String(p.id), (incById.get(String(p.id)) || 0) + Math.max(0, p.qty));
+    }
+    const ops = [];
+    for (const [idStr, doc] of byId.entries()) {
+      const qty = incById.get(idStr) || 0;
+      if (!qty) continue;
+      const code = String(doc.sku || '').toUpperCase();
+      if (!code) continue;
+      const category = String(doc.category || 'OTROS').toUpperCase();
+      const description = String(doc.name || code).toUpperCase();
+      ops.push({
+        updateOne: {
+          filter: { companyId: req.companyId, code },
+          update: {
+            $set: { printStatus: 'pending' },
+            $setOnInsert: { category, description, notes: '', createdBy: req.userId || '' },
+            $inc: { pendingStickers: qty }
+          },
+          upsert: true
+        }
+      });
+    }
+    if (ops.length) await SKU.bulkWrite(ops, { ordered: false });
+  } catch (e) {
+    console.error('sku-bulk-pending-on-stock-in', e?.message);
+  }
 
   // Opcional: devolver stocks finales recargados (evitar segundo query grande)
   res.json({ updatedCount: updates.length, results });
