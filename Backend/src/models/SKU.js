@@ -42,6 +42,12 @@ const SKUSchema = new mongoose.Schema({
     enum: ['pending', 'printed', 'applied'],
     default: 'pending'
   },
+  // Cantidad de stickers pendientes de imprimirse
+  pendingStickers: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   
   // Fecha de impresión
   printedAt: {

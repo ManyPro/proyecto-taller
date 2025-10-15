@@ -163,6 +163,36 @@
             border-bottom: none;
         }
 
+        /* Compact checkbox selector for SKUs */
+        .sku-select {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid var(--border);
+            border-radius: 4px;
+            background: var(--card);
+            display: inline-block;
+            position: relative;
+            cursor: pointer;
+            transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+            margin-right: 6px;
+        }
+        .sku-select:hover { box-shadow: 0 0 0 3px rgba(2,132,199,.15); }
+        .sku-select:checked {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+        .sku-select:checked::after {
+            content: '✓';
+            color: var(--text-invert);
+            font-size: 12px;
+            line-height: 1;
+            position: absolute;
+            left: 2px;
+            top: -1px;
+        }
+
         .sku-info {
             flex: 1;
         }
