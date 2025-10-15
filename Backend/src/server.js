@@ -97,7 +97,8 @@ function rateLimit(req, res, next){
   let companyIdSegment = 'na';
   const match = p.match(/^\/api\/v1\/public\/catalog\/([^\/]+)\//);
   if(match) companyIdSegment = match[1];
-  if(p.startsWith('/api/v1/public/catalog/checkout')){
+  // Checkout endpoint includes companyId segment: /api/v1/public/catalog/:companyId/checkout
+  if(/^\/api\/v1\/public\/catalog\/(?:[^\/]+)\/checkout/.test(p)){
     if(!applyRate(ip,`checkout:${companyIdSegment}`, RL_CHECKOUT_MAX)){
       logger.warn('rate.limit.checkout', { ip });
       return res.status(429).json({ error: 'Demasiados intentos de checkout. Intenta en un minuto.' });

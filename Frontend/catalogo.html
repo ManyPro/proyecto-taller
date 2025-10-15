@@ -58,6 +58,8 @@
     @keyframes blink { 0% { background:rgba(255,255,0,.35); } 100% { background:transparent; } }
     @media (max-width: 680px){ .cart-floating { width:calc(100% - 20px); left:50%; transform:translateX(-50%); bottom:12px; } }
   </style>
+  <!-- Backend config must load before API to set API_BASE/BACKEND_URL -->
+  <script src="./assets/js/config.js"></script>
   <script src="./assets/js/api.js"></script>
   <script type="module" src="./assets/js/api.esm.js"></script>
   <!-- Migrado a versión segmentada por empresa -->
