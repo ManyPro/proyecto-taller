@@ -550,7 +550,7 @@ if (__ON_INV_PAGE__) {
       <select id="bpub-intake">${optionsIntakes}</select>
       <label>Por SKUs exactos (opcional, separados por comas)</label>
       <input id="bpub-skus" placeholder="SKU1,SKU2,SKU3"/>
-      <div class="muted" style="font-size:12px;">Si no eliges entrada ni SKUs, se aplicará a los ítems seleccionados (${selected.length}).</div>
+      <div class=\"muted\" style=\"font-size:12px;\">Puedes publicar todos los de una procedencia (entrada) o escribir SKUs exactos. No es necesario seleccionar ítems.</div>
       <div style="margin-top:10px;display:flex;gap:8px;">
         <button id="bpub-run">Aplicar</button>
         <button id="bpub-cancel" class="secondary">Cancelar</button>
@@ -565,13 +565,7 @@ if (__ON_INV_PAGE__) {
       const body = { action };
       if (vehicleIntakeId) body.vehicleIntakeId = vehicleIntakeId;
       if (skus.length) body.skus = skus;
-      // Si no hay filtros, usar selección actual convirtiéndola a SKUs para precisión
-      if (!vehicleIntakeId && !skus.length) {
-        const items = selected.map(id => state.itemCache.get(id)).filter(Boolean);
-        const selSkus = items.map(it => String(it?.sku||'').toUpperCase()).filter(Boolean);
-        if (!selSkus.length) { alert('Sin SKUs válidos en la selección.'); return; }
-        body.skus = selSkus;
-      }
+      if (!vehicleIntakeId && !skus.length) { alert('Indica una procedencia o uno o más SKUs.'); return; }
       try{
         showBusy('Aplicando publicación...');
         await request('/api/v1/inventory/items/publish/bulk', { method: 'POST', json: body });
@@ -581,6 +575,10 @@ if (__ON_INV_PAGE__) {
       }catch(e){ hideBusy(); alert('No se pudo aplicar publicación: '+e.message); }
     };
   }
+
+  // Botón global en filtros: abrir publicación sin selección previa
+  const btnPubGlobal = document.getElementById('pub-bulk-global');
+  if (btnPubGlobal) btnPubGlobal.onclick = openBulkPublishModal;
 
   // ---- Intakes ----
   async function refreshIntakes() {
@@ -818,18 +816,33 @@ if (__ON_INV_PAGE__) {
     if (!selected.length) return alert('No hay ítems seleccionados.');
     // Recolectar datos básicos para mostrar resumen
     const items = selected.map(id => state.itemCache.get(id)).filter(Boolean);
-    const summary = items.slice(0,8).map(it => `<li>${(it?.sku||'')} — ${(it?.name||'')}</li>`).join('');
-    const extra = items.length>8 ? `<li>… y ${items.length-8} más</li>` : '';
     const optionsIntakes = [
       `<option value="">(sin entrada)</option>`,
       ...state.intakes.map(v=>`<option value="${v._id}">${makeIntakeLabel(v)} • ${new Date(v.intakeDate).toLocaleDateString()}</option>`)
     ].join('');
+    const rows = items.map(it => `
+      <div class="row" style="align-items:center;gap:10px;">
+        <div style="flex:1;min-width:240px;">
+          <div style="font-weight:600;">${(it?.sku||'')}</div>
+          <div class="muted" style="font-size:12px;">${(it?.name||'')}</div>
+        </div>
+        <div>
+          <input type="number" class="bstk-qty" data-id="${it?._id}" min="0" step="1" value="1" style="width:96px;"/>
+        </div>
+      </div>
+    `).join('');
+
     invOpenModal(`
       <h3>Agregar stock (masivo)</h3>
-      <div class="muted" style="font-size:12px;">Ítems: ${items.length}</div>
-      <ul style="max-height:120px;overflow:auto;margin:6px 0 10px 16px;">${summary}${extra}</ul>
-      <label>Cantidad a agregar por ítem</label>
-      <input id="bstk-qty" type="number" min="1" step="1" value="1"/>
+      <div class="muted" style="font-size:12px;">Ítems seleccionados: ${items.length}. Coloca una cantidad por ítem (0 para omitir).</div>
+      <div class="card" style="margin:8px 0;padding:8px;">
+        <div class="row" style="align-items:center;gap:8px;">
+          <span class="muted" style="font-size:12px;">Cantidad para todos</span>
+          <input id="bstk-all" type="number" min="0" step="1" value="1" style="width:96px;"/>
+          <button id="bstk-apply-all" class="secondary">Aplicar a todos</button>
+        </div>
+      </div>
+      <div style="max-height:240px;overflow:auto;margin:6px 0 10px 0;display:flex;flex-direction:column;gap:8px;">${rows}</div>
       <label>Anclar a procedencia (opcional)</label>
       <select id="bstk-intake">${optionsIntakes}</select>
       <label>Nota (opcional)</label>
@@ -840,15 +853,24 @@ if (__ON_INV_PAGE__) {
       </div>
     `);
     document.getElementById('bstk-cancel').onclick = invCloseModal;
+    const applyAllBtn = document.getElementById('bstk-apply-all');
+    if (applyAllBtn) {
+      applyAllBtn.onclick = () => {
+        const v = parseInt(document.getElementById('bstk-all').value||'0',10);
+        Array.from(document.querySelectorAll('.bstk-qty')).forEach(input => { input.value = String(Math.max(0, Number.isFinite(v)? v : 0)); });
+      };
+    }
     document.getElementById('bstk-save').onclick = async () => {
-      const qty = parseInt(document.getElementById('bstk-qty').value||'0',10);
-      if (!Number.isFinite(qty) || qty<=0) return alert('Cantidad inválida');
       const vehicleIntakeId = document.getElementById('bstk-intake').value || undefined;
       const note = document.getElementById('bstk-note').value || '';
       try{
-        // Construir payload
-        const itemsPayload = selected.map(id => ({ id, qty }));
-        showBusy('Agregando stock...');
+        // Construir payload por ítem (qty > 0)
+        const itemsPayload = Array.from(document.querySelectorAll('.bstk-qty'))
+          .map(input => ({ id: String(input.dataset.id), qty: parseInt(input.value||'0',10) }))
+          .filter(row => Number.isFinite(row.qty) && row.qty > 0);
+        if (!itemsPayload.length) return alert('Indica cantidades (>0) para al menos un ítem.');
+        if (itemsPayload.length > 500) return alert('Máximo 500 ítems por lote.');
+        showBusy('Agregando stock (masivo)...');
         await request('/api/v1/inventory/items/stock-in/bulk', { method: 'POST', json: { items: itemsPayload, vehicleIntakeId, note } });
         invCloseModal(); hideBusy();
         await refreshItems(state.lastItemsParams);
