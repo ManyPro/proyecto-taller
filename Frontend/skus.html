@@ -524,53 +524,188 @@
             </div>
         </div>
 
-        <!-- Loading -->
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Cargando SKUs...</p>
-        </div>
+                <!-- Filters + Pagination -->
+                <div class="card" style="margin-bottom:16px;">
+                    <div class="row" style="gap:10px;align-items:end;flex-wrap:wrap;">
+                        <div style="min-width:260px;flex:1;">
+                            <label>Buscar (código, descripción, notas)</label>
+                            <input id="sku-search" placeholder="Ej: FLINY, BOMBA, filtro" />
+                        </div>
+                        <div>
+                            <label>Categoría</label>
+                            <select id="sku-category">
+                                <option value="all">Todas</option>
+                                <option value="MOTOR">Motor</option>
+                                <option value="TRANSMISION">Transmisión</option>
+                                <option value="FRENOS">Frenos</option>
+                                <option value="SUSPENSION">Suspensión</option>
+                                <option value="ELECTRICO">Eléctrico</option>
+                                <option value="CARROCERIA">Carrocería</option>
+                                <option value="INTERIOR">Interior</option>
+                                <option value="FILTROS">Filtros</option>
+                                <option value="ACEITES">Aceites</option>
+                                <option value="NEUMATICOS">Neumáticos</option>
+                                <option value="OTROS">Otros</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>Estado</label>
+                            <select id="sku-status">
+                                <option value="all">Todos</option>
+                                <option value="pending">Pendiente</option>
+                                <option value="printed">Impreso</option>
+                                <option value="applied">Aplicado</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label>&nbsp;</label>
+                            <div class="row" style="gap:8px;">
+                                <button id="sku-apply" class="btn btn-secondary">Buscar</button>
+                                <button id="sku-clear" class="btn btn-secondary">Limpiar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-        <!-- Categories -->
-        <div class="categories-container" id="categories-container" style="display: none;">
-            <!-- Se llenará dinámicamente -->
-        </div>
+                <!-- Loading -->
+                <div class="loading" id="loading" style="display:none;">
+                        <div class="spinner"></div>
+                        <p>Cargando SKUs...</p>
+                </div>
+
+                <!-- List (paginated) -->
+                <div id="sku-list" class="card" style="padding:0;"></div>
+                <div id="sku-pager" class="row" style="gap:8px;justify-content:flex-end;margin-top:10px;display:none;">
+                    <button id="pg-prev" class="btn btn-secondary">◀ Anterior</button>
+                    <div class="muted" id="pg-info" style="min-width:120px;text-align:center;">Página 1/1</div>
+                    <button id="pg-next" class="btn btn-secondary">Siguiente ▶</button>
+                </div>
     </div>
 
-    <script src="assets/config.js"></script>
-    <script src="assets/js/api.js"></script>
+        <script src="assets/config.js"></script>
+        <script src="assets/js/api.js"></script>
     <script>
-        let currentEditingId = null;
-        let skusData = {};
+                // --- State ---
+                const ui = {};
+                const state = { page: 1, limit: 25, search: '', category: 'all', status: 'all', totalPages: 1 };
 
-        // Inicializar página
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('🚀 Iniciando gestión de SKUs');
-            loadSKUsData();
-            // Modal e inputs fueron removidos: no enlazar sugerencias aquí
-        });
+                document.addEventListener('DOMContentLoaded', function() {
+                    ui.loading = document.getElementById('loading');
+                    ui.list = document.getElementById('sku-list');
+                    ui.pager = document.getElementById('sku-pager');
+                    ui.pgPrev = document.getElementById('pg-prev');
+                    ui.pgNext = document.getElementById('pg-next');
+                    ui.pgInfo = document.getElementById('pg-info');
+                    ui.btnRefresh = document.querySelector('.header .btn.btn-secondary');
 
-        // Cargar datos de SKUs
-        async function loadSKUsData() {
-            try {
-                document.getElementById('loading').style.display = 'block';
-                document.getElementById('categories-container').style.display = 'none';
-                
-                const [statsResponse, categoriesResponse] = await Promise.all([
-                    API.skus.stats(),
-                    API.skus.byCategory()
-                ]);
-                
-                updateStats(statsResponse.total);
-                displayCategories(categoriesResponse.categories);
-                
-            } catch (error) {
-                console.error('Error cargando SKUs:', error);
-                showNotification('Error al cargar los datos: ' + error.message, 'error');
-            } finally {
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('categories-container').style.display = 'grid';
-            }
-        }
+                    ui.qSearch = document.getElementById('sku-search');
+                    ui.qCategory = document.getElementById('sku-category');
+                    ui.qStatus = document.getElementById('sku-status');
+                    ui.btnApply = document.getElementById('sku-apply');
+                    ui.btnClear = document.getElementById('sku-clear');
+
+                    ui.btnApply.onclick = () => { state.page = 1; applyFilters(); };
+                    ui.btnClear.onclick = () => { ui.qSearch.value=''; ui.qCategory.value='all'; ui.qStatus.value='all'; state.page=1; applyFilters(); };
+                    ui.pgPrev.onclick = () => { if (state.page>1){ state.page--; loadPage(); } };
+                    ui.pgNext.onclick = () => { if (state.page<state.totalPages){ state.page++; loadPage(); } };
+
+                    // Refresh stats & list
+                    if (ui.btnRefresh) ui.btnRefresh.onclick = () => { loadStats(); loadPage(); };
+
+                    loadStats();
+                    loadPage();
+                });
+
+                async function loadStats(){
+                    try{
+                        const r = await API.skus.stats();
+                        updateStats(r.total||{});
+                    }catch(e){ console.warn('stats error', e.message); }
+                }
+
+                function paramsToQuery(){
+                    const q = { page: state.page, limit: state.limit, sortBy: 'code', sortOrder: 'asc' };
+                    if (state.search && state.search.trim()) q.search = state.search.trim();
+                    if (state.category && state.category!=='all') q.category = state.category;
+                    if (state.status && state.status!=='all') q.printStatus = state.status;
+                    return q;
+                }
+
+                function applyFilters(){
+                    state.search = (ui.qSearch.value||'').trim();
+                    state.category = ui.qCategory.value;
+                    state.status = ui.qStatus.value;
+                    loadPage();
+                }
+
+                function skuStatusPill(status){
+                    const map = { pending: ['status-pending','⏳ Pendiente'], printed: ['status-printed','🖨️ Impreso'], applied: ['status-applied','✅ Aplicado'] };
+                    const m = map[status] || ['status-pending','Pendiente'];
+                    return `<span class="sku-status ${m[0]}">${m[1]}</span>`;
+                }
+
+                function rowActions(sku){
+                    const btns = [];
+                    if (sku.printStatus === 'pending') btns.push(`<button class="action-btn btn-print" data-print="${sku._id}" title="Marcar como impreso">🖨️</button>`);
+                    if (sku.printStatus === 'printed') btns.push(`<button class="action-btn btn-apply" data-apply="${sku._id}" title="Marcar como aplicado">✅</button>`);
+                    btns.push(`<button class="action-btn" data-notes="${sku._id}" title="Editar notas">✏️</button>`);
+                    return btns.join(' ');
+                }
+
+                async function loadPage(){
+                    ui.loading.style.display = 'block';
+                    ui.list.innerHTML = '';
+                    ui.pager.style.display = 'none';
+                    try{
+                        const q = paramsToQuery();
+                        const data = await API.skus.list(q);
+                        const skus = Array.isArray(data?.skus) ? data.skus : (Array.isArray(data?.skus?.skus) ? data.skus.skus : (data?.skus || []));
+                        const pg = data?.pagination || data?.pg || { current: 1, pages: 1, total: skus.length, limit: state.limit };
+                        state.totalPages = Math.max(1, parseInt(pg.pages||1));
+                        state.page = Math.max(1, Math.min(state.totalPages, parseInt(pg.current||1)));
+
+                        ui.list.innerHTML = skus.map(sku => `
+                            <div class="sku-item" style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:center;">
+                                <div class="sku-info" style="flex:1;">
+                                    <div class="sku-code">${sku.code}</div>
+                                    <div class="sku-description">${sku.description || ''}</div>
+                                    <div class="sku-meta">
+                                        <span>📅 ${sku.createdAt ? new Date(sku.createdAt).toLocaleDateString('es-ES') : ''}</span>
+                                        ${sku.brand ? `<span>🏷️ ${sku.brand}</span>` : ''}
+                                        ${sku.location ? `<span>📍 ${sku.location}</span>` : ''}
+                                    </div>
+                                    <div class="notes-section">📝 <span id="n-${sku._id}">${sku.notes || ''}</span></div>
+                                </div>
+                                ${skuStatusPill(sku.printStatus)}
+                                <div class="sku-actions">${rowActions(sku)}</div>
+                            </div>
+                        `).join('');
+
+                        // Wire actions
+                        ui.list.querySelectorAll('[data-print]').forEach(b => b.addEventListener('click', async (e) => {
+                            const id = e.currentTarget.getAttribute('data-print');
+                            await API.skus.markAsPrinted(id); loadStats(); loadPage();
+                        }));
+                        ui.list.querySelectorAll('[data-apply]').forEach(b => b.addEventListener('click', async (e) => {
+                            const id = e.currentTarget.getAttribute('data-apply');
+                            await API.skus.markAsApplied(id); loadStats(); loadPage();
+                        }));
+                        ui.list.querySelectorAll('[data-notes]').forEach(b => b.addEventListener('click', (e) => {
+                            const id = e.currentTarget.getAttribute('data-notes');
+                            openNotesModal(id);
+                        }));
+
+                        // Pager
+                        ui.pgInfo.textContent = `Página ${state.page} / ${state.totalPages}`;
+                        ui.pgPrev.disabled = state.page <= 1;
+                        ui.pgNext.disabled = state.page >= state.totalPages;
+                        ui.pager.style.display = state.totalPages > 1 ? 'flex' : 'none';
+                    }catch(err){
+                        showNotification('Error cargando SKUs: '+err.message, 'error');
+                    }finally{
+                        ui.loading.style.display = 'none';
+                    }
+                }
 
         // Actualizar estadísticas
         function updateStats(stats) {
@@ -579,192 +714,36 @@
             document.getElementById('printed-skus').textContent = stats.printed || 0;
             document.getElementById('applied-skus').textContent = stats.applied || 0;
         }
-
-        // Mostrar categorías
-        function displayCategories(categories) {
-            skusData = categories;
-            const container = document.getElementById('categories-container');
-            container.innerHTML = '';
-
-            const categoryOrder = ['MOTOR', 'TRANSMISION', 'FRENOS', 'SUSPENSION', 'ELECTRICO', 'CARROCERIA', 'INTERIOR', 'FILTROS', 'ACEITES', 'NEUMATICOS', 'OTROS'];
-            
-            categoryOrder.forEach(categoryKey => {
-                if (!categories[categoryKey]) return;
-                
-                const category = categories[categoryKey];
-                const categoryDiv = createCategoryElement(categoryKey, category);
-                container.appendChild(categoryDiv);
-            });
-        }
-
-        // Crear elemento de categoría
-        function createCategoryElement(categoryKey, category) {
-            const categoryNames = {
-                'MOTOR': 'Motor',
-                'TRANSMISION': 'Transmisión',
-                'FRENOS': 'Frenos',
-                'SUSPENSION': 'Suspensión',
-                'ELECTRICO': 'Eléctrico',
-                'CARROCERIA': 'Carrocería',
-                'INTERIOR': 'Interior',
-                'FILTROS': 'Filtros',
-                'ACEITES': 'Aceites',
-                'NEUMATICOS': 'Neumáticos',
-                'OTROS': 'Otros'
-            };
-
-            const div = document.createElement('div');
-            div.className = 'category-section';
-            
-            const stats = category.stats;
-            const skus = category.skus || [];
-            
-            div.innerHTML = `
-                <div class="category-header">
-                    <h3 class="category-title">🔧 ${categoryNames[categoryKey] || categoryKey}</h3>
-                    <div class="category-stats">
-                        <span>Total: ${stats.total}</span>
-                        <span>Pendientes: ${stats.pending}</span>
-                    </div>
-                </div>
-                <div class="category-body">
-                    ${skus.length === 0 ? 
-                        '<div class="empty-category">📦 No hay SKUs en esta categoría</div>' :
-                        skus.map(sku => createSKUElement(sku)).join('')
-                    }
-                </div>
-            `;
-            
-            return div;
-        }
-
-        // Crear elemento SKU
-        function createSKUElement(sku) {
-            const statusClasses = {
-                'pending': 'status-pending',
-                'printed': 'status-printed',
-                'applied': 'status-applied'
-            };
-
-            const statusLabels = {
-                'pending': '⏳ Pendiente',
-                'printed': '🖨️ Impreso',
-                'applied': '✅ Aplicado'
-            };
-
-            const formattedDate = new Date(sku.createdAt).toLocaleDateString('es-ES');
-
-            return `
-                <div class="sku-item">
-                    <div class="sku-info">
-                        <div class="sku-code">${sku.code}</div>
-                        <div class="sku-description">${sku.description}</div>
-                        <div class="sku-meta">
-                            <span>📅 ${formattedDate}</span>
-                            ${sku.brand ? `<span>🏷️ ${sku.brand}</span>` : ''}
-                            ${sku.location ? `<span>📍 ${sku.location}</span>` : ''}
-                        </div>
-                        <div class="notes-section">📝 <span id="n-${sku._id}">${sku.notes || ''}</span>
-                          <button class="action-btn" style="margin-left:8px;" onclick="editNotes('${sku._id}')" title="Editar notas">✏️</button>
-                        </div>
-                    </div>
-                    <div class="sku-status ${statusClasses[sku.printStatus]}">
-                        ${statusLabels[sku.printStatus]}
-                    </div>
-                    <div class="sku-actions">
-                        ${sku.printStatus === 'pending' ? `<button class="action-btn btn-print" onclick="markAsPrinted('${sku._id}')" title="Marcar como impreso">🖨️</button>` : ''}
-                        ${sku.printStatus === 'printed' ? `<button class="action-btn btn-apply" onclick="markAsApplied('${sku._id}')" title="Marcar como aplicado">✅</button>` : ''}
-                    </div>
-                </div>
-            `;
-        }
-
-        // Verificar sugerencia de código
-        async function checkCodeSuggestion() {
-            const codeInput = document.getElementById('sku-code');
-            const hint = document.getElementById('suggestion-hint');
-            if (!codeInput || !hint) return; // modal eliminado
-            const code = codeInput.value.trim();
-            
-            if (code.length < 2) {
-                hint.style.display = 'none';
-                return;
-            }
-
-            try {
-                const response = await API.skus.getSuggestion(code);
-                hint.innerHTML = `💡 Sugerencia: <strong>${response.suggestion}</strong>`;
-                hint.style.display = 'block';
-            } catch (error) {
-                hint.style.display = 'none';
-            }
-        }
-
-        // Crear/Editar SKUs desde Inventario: funciones de modal deshabilitadas
-        function openCreateModal() { showNotification('La creación de SKUs ahora se realiza desde Inventario.', 'info'); }
-        function closeModal() { /* sin-op */ }
-        async function saveSKU() { showNotification('Edición/creación de SKUs movida a Inventario.', 'info'); }
-        async function editSKU() { showNotification('La edición de SKUs ahora se realiza desde Inventario.', 'info'); }
-
-        // Marcar como impreso
-        async function markAsPrinted(id) {
-            try {
-                await API.skus.markAsPrinted(id);
-                showNotification('SKU marcado como impreso', 'success');
-                loadSKUsData();
-            } catch (error) {
-                console.error('Error:', error);
-                showNotification('Error: ' + error.message, 'error');
-            }
-        }
-
-        // Marcar como aplicado
-        async function markAsApplied(id) {
-            try {
-                await API.skus.markAsApplied(id);
-                showNotification('SKU marcado como aplicado', 'success');
-                loadSKUsData();
-            } catch (error) {
-                console.error('Error:', error);
-                showNotification('Error: ' + error.message, 'error');
-            }
-        }
-
-        // Eliminar SKU
-        async function deleteSKU(id) {
-            if (!confirm('¿Estás seguro de que quieres eliminar este SKU?')) {
-                return;
-            }
-
-            try {
-                await API.skus.delete(id);
-                showNotification('SKU eliminado correctamente', 'success');
-                loadSKUsData();
-            } catch (error) {
-                console.error('Error:', error);
-                showNotification('Error: ' + error.message, 'error');
-            }
-        }
-
-        // Editar notas inline
-        async function editNotes(id){
-            try{
-                const span = document.getElementById('n-'+id);
-                const current = span ? span.textContent : '';
-                const value = prompt('Notas para el SKU:', current || '');
-                if (value === null) return;
-                await API.skus.updateNotes(id, value);
-                if (span) span.textContent = value;
-                showNotification('Notas actualizadas', 'success');
-            }catch(e){
-                showNotification('No se pudieron actualizar las notas: '+e.message, 'error');
-            }
-        }
-
-        // Actualizar datos
-        function refreshData() {
-            loadSKUsData();
-        }
+                // Modal Notas
+                function openNotesModal(id){
+                    const span = document.getElementById('n-'+id);
+                    const current = span ? span.textContent : '';
+                    const modal = document.getElementById('modal');
+                    const body = document.getElementById('modalBody');
+                    const close = document.getElementById('modalClose');
+                    if(!modal||!body||!close){ return alert('Modal no disponible'); }
+                    body.innerHTML = `
+                        <h3>Notas del SKU</h3>
+                        <textarea id="sku-notes-text" rows="6" style="width:100%;resize:vertical;">${current.replace(/</g,'&lt;')}</textarea>
+                        <div class="row right" style="gap:8px;margin-top:12px;">
+                            <button id="notes-cancel" class="btn btn-secondary">Cancelar</button>
+                            <button id="notes-save" class="btn btn-primary">Guardar</button>
+                        </div>`;
+                    modal.classList.remove('hidden');
+                    document.body.classList.add('modal-open');
+                    const closeAll = () => { modal.classList.add('hidden'); body.innerHTML=''; document.body.classList.remove('modal-open'); };
+                    close.onclick = closeAll;
+                    document.getElementById('notes-cancel').onclick = closeAll;
+                    document.getElementById('notes-save').onclick = async () => {
+                        try{
+                            const value = document.getElementById('sku-notes-text').value || '';
+                            await API.skus.updateNotes(id, value);
+                            if (span) span.textContent = value;
+                            showNotification('Notas actualizadas', 'success');
+                            closeAll();
+                        }catch(e){ showNotification('No se pudieron actualizar las notas: '+e.message, 'error'); }
+                    };
+                }
 
         // Mostrar notificación
         function showNotification(message, type = 'info') {
@@ -782,21 +761,6 @@
 
         // Impresión movida a Inventario
         async function printStickers() { showNotification('Imprimir stickers: usa las acciones en Inventario.', 'info'); }
-
-        // Debounce utility
-        function debounce(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
-        }
-
-        // Sin modales en esta página.
     </script>
         </section>
     </main>
