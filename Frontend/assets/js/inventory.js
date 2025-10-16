@@ -1295,11 +1295,10 @@ if (__ON_INV_PAGE__) {
     const lines = [];
     const brand = it.brand ? `Marca: ${it.brand}` : '';
     if (brand) lines.push(brand);
-    lines.push(`SKU: ${it.sku||''}`.trim());
     lines.push(`Precio: ${fmtMoney(it.salePrice||0)}`);
     lines.push(`Stock: ${Number(it.stock||0)}`);
-    if (it.vehicleTarget) lines.push(`Procedencia: ${it.vehicleTarget}`);
-    lines.push('Estado: Usado');
+    // Estado solicitado por el cliente
+    lines.push('Estado: Original - Usado en perfecto estado.');
     lines.push('Entrega inmediata.');
 
     // Llamado claro para nuestra audiencia (mecánicos y dueños de vehículo)
