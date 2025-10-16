@@ -284,6 +284,18 @@ function ensureHtml2Canvas(){
   });
 }
 
+// Cargar JSZip on-demand para empaquetar imágenes
+function ensureJSZip(){
+  return new Promise((resolve, reject) => {
+    if (window.JSZip) return resolve(window.JSZip);
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
+    s.onload = () => resolve(window.JSZip);
+    s.onerror = () => reject(new Error('No se pudo cargar JSZip'));
+    document.head.appendChild(s);
+  });
+}
+
 function blobToDataURL(blob) {
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -719,6 +731,7 @@ if (__ON_INV_PAGE__) {
           <button class="secondary" data-qr-dl="${it._id}">Descargar QR</button>
           <button class="secondary" data-qr="${it._id}">Expandir codigo QR</button>
           <button class="secondary" data-stock-in="${it._id}">Agregar stock</button>
+          <button class="secondary" data-mp="${it._id}">Marketplace</button>
         </div>`;
 
       div.querySelector(`input[type="checkbox"][data-id]`).onchange = (e) => toggleSelected(it, e.target.checked);
@@ -742,6 +755,7 @@ if (__ON_INV_PAGE__) {
       div.querySelector("[data-qr]").onclick = () => openQrModal(it, companyId);
       div.querySelector("[data-qr-dl]").onclick = () => downloadQrPng(it._id, 720, `QR_${it.sku || it._id}.png`);
   div.querySelector("[data-stock-in]").onclick = () => openStockInModal(it);
+    div.querySelector("[data-mp]").onclick = () => openMarketplaceHelper(it);
 
       div.addEventListener("click", (e) => {
         const el = e.target.closest(".item-thumb");
@@ -1269,6 +1283,134 @@ if (__ON_INV_PAGE__) {
   }
 
   // ---- Stickers ----
+
+  function buildMarketplaceTitle(it){
+    const brand = (it.brand||'').toString().trim();
+    const name = (it.name||'').toString().trim();
+    const sku = (it.sku||'').toString().trim();
+    return `${brand? brand+ ' ' : ''}${name}${sku? ' • '+sku: ''}`.trim();
+  }
+
+  function buildMarketplaceDescription(it){
+    const lines = [];
+    const brand = it.brand ? `Marca: ${it.brand}` : '';
+    if (brand) lines.push(brand);
+    lines.push(`SKU: ${it.sku||''}`.trim());
+    lines.push(`Precio: ${fmtMoney(it.salePrice||0)}`);
+    lines.push(`Stock: ${Number(it.stock||0)}`);
+    if (it.vehicleTarget) lines.push(`Procedencia: ${it.vehicleTarget}`);
+    lines.push('Estado: Usado');
+    lines.push('Entrega inmediata.');
+    lines.push('Escríbenos por WhatsApp para más detalles.');
+    return lines.filter(Boolean).join('\n');
+  }
+
+  function downloadUrl(url, filename){
+    const a = document.createElement('a');
+    a.href = url; a.download = filename || '';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  async function downloadAllImagesZip(item){
+    try{
+      const JSZip = await ensureJSZip();
+      const zip = new JSZip();
+      const media = Array.isArray(item.images) ? item.images : [];
+      if (!media.length) throw new Error('Este ítem no tiene imágenes');
+      const folder = zip.folder(`${item.sku||'ITEM'}_${(item.name||'').replace(/[^A-Za-z0-9_-]+/g,'_')}`) || zip;
+      // Descargar como blobs y agregar al zip
+      for (let i=0; i<media.length; i++){
+        const m = media[i];
+        const res = await fetch(m.url);
+        if (!res.ok) throw new Error('Error descargando imagen');
+        const blob = await res.blob();
+        const ext = (m.mimetype||'image/jpeg').split('/')[1]||'jpg';
+        const fname = `${String(i+1).padStart(2,'0')}.${ext}`;
+        folder.file(fname, blob);
+      }
+      const content = await zip.generateAsync({type:'blob'});
+      const fn = `${(item.sku||'ITEM')}_IMAGENES.zip`;
+      const url = URL.createObjectURL(content);
+      downloadUrl(url, fn);
+      setTimeout(()=>URL.revokeObjectURL(url), 2000);
+    }catch(e){ alert(e?.message||'No se pudo crear el ZIP'); }
+  }
+
+  function openMarketplaceHelper(item){
+    const media = Array.isArray(item.images) ? item.images : [];
+    const titleDefault = buildMarketplaceTitle(item);
+    const descDefault  = buildMarketplaceDescription(item);
+    const priceValue = Number(item.salePrice||0);
+    const thumbs = media.map((m,i)=>`<div style="display:flex;align-items:center;gap:8px;margin:6px 0;">
+        ${(m.mimetype||'').startsWith('video/') ? `<video src="${m.url}" style="max-width:160px;max-height:120px;object-fit:contain;" muted></video>` : `<img src="${m.url}" style="max-width:160px;max-height:120px;object-fit:contain;"/>`}
+        <button class="secondary" data-dl-index="${i}">Descargar</button>
+      </div>`).join('') || '<div class="muted">Sin imágenes.</div>';
+
+    invOpenModal(`
+      <h3>Publicación Marketplace</h3>
+      <div class="grid-2" style="gap:12px;">
+        <div>
+          <label>Título</label>
+          <input id="mp-title" value="${titleDefault}" />
+          <div class="row" style="gap:6px;margin:6px 0 12px 0;">
+            <button class="secondary" id="mp-copy-title">Copiar título</button>
+          </div>
+
+          <label>Precio</label>
+          <input id="mp-price" type="number" min="0" step="1" value="${Math.round(priceValue)}" />
+          <div class="row" style="gap:6px;margin:6px 0 12px 0;">
+            <button class="secondary" id="mp-copy-price">Copiar precio</button>
+          </div>
+
+          <label>Descripción</label>
+          <textarea id="mp-desc" style="min-height:180px;white-space:pre-wrap;">${descDefault}</textarea>
+          <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap;">
+            <button class="secondary" id="mp-copy-desc">Copiar descripción</button>
+            <button id="mp-copy-all">Copiar todo</button>
+          </div>
+          <div class="muted" style="font-size:12px;margin-top:6px;">Consejo: en Marketplace selecciona la categoría y estado (Nuevo/Usado) manualmente.</div>
+        </div>
+        <div>
+          <h4>Imágenes</h4>
+          <div id="mp-thumbs">${thumbs}</div>
+          <div class="row" style="gap:6px;margin-top:8px;">
+            <button class="secondary" id="mp-dl-first">Descargar principal</button>
+            <button class="secondary" id="mp-dl-all">Descargar todas (ZIP)</button>
+          </div>
+        </div>
+      </div>
+    `);
+
+    const titleEl = document.getElementById('mp-title');
+    const priceEl = document.getElementById('mp-price');
+    const descEl  = document.getElementById('mp-desc');
+    document.getElementById('mp-copy-title').onclick = async ()=>{ try{ await navigator.clipboard.writeText(titleEl.value||''); }catch{ alert('No se pudo copiar'); } };
+    document.getElementById('mp-copy-price').onclick = async ()=>{ try{ await navigator.clipboard.writeText(String(Math.round(Number(priceEl.value||0)))) }catch{ alert('No se pudo copiar'); } };
+    document.getElementById('mp-copy-desc').onclick  = async ()=>{ try{ await navigator.clipboard.writeText(descEl.value||''); }catch{ alert('No se pudo copiar'); } };
+    document.getElementById('mp-copy-all').onclick   = async ()=>{
+      const txt = `${titleEl.value||''}\n\n$ ${Math.round(Number(priceEl.value||0))}\n\n${descEl.value||''}`;
+      try{ await navigator.clipboard.writeText(txt); }catch{ alert('No se pudo copiar'); }
+    };
+
+    // Descargar primera imagen
+    document.getElementById('mp-dl-first').onclick = ()=>{
+      const m = media[0]; if(!m){ alert('No hay imágenes'); return; }
+      const ext = (m.mimetype||'image/jpeg').split('/')[1]||'jpg';
+      downloadUrl(m.url, `${(item.sku||'ITEM')}_1.${ext}`);
+    };
+    // Descargar todas como ZIP
+    document.getElementById('mp-dl-all').onclick = ()=> downloadAllImagesZip(item);
+
+    // Descargar individuales en la lista
+    document.querySelectorAll('#mp-thumbs [data-dl-index]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const idx = parseInt(btn.getAttribute('data-dl-index'),10);
+        const m = media[idx]; if(!m) return;
+        const ext = (m.mimetype||'image/jpeg').split('/')[1]||'jpg';
+        downloadUrl(m.url, `${(item.sku||'ITEM')}_${String(idx+1).padStart(2,'0')}.${ext}`);
+      });
+    });
+  }
   async function generateStickersFromSelection(variant = 'qr') {
     if (!state.selected.size) return;
     const ids = Array.from(state.selected);
