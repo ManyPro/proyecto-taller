@@ -1301,7 +1301,27 @@ if (__ON_INV_PAGE__) {
     if (it.vehicleTarget) lines.push(`Procedencia: ${it.vehicleTarget}`);
     lines.push('Estado: Usado');
     lines.push('Entrega inmediata.');
-    lines.push('Escríbenos por WhatsApp para más detalles.');
+
+    // Llamado claro para nuestra audiencia (mecánicos y dueños de vehículo)
+    lines.push('Compatibilidad garantizada: te asesoramos para que compres el repuesto correcto.');
+
+    // Mensaje de negociación
+    lines.push('Precios negociables — estamos abiertos a llegar a un buen acuerdo.');
+
+    // Contacto (placeholder editable en el modal antes de copiar)
+    lines.push('WhatsApp: xxxx');
+
+    // Link al catálogo público
+    try{
+      const base = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+      const cid  = (typeof API !== 'undefined' && API.companyId?.get) ? (API.companyId.get() || '') : '';
+      const u = new URL('catalogo.html', base);
+      if (cid) u.searchParams.set('companyId', cid);
+      lines.push('Catálogo completo 👉 ' + u.toString());
+    }catch{}
+
+    // Cierre con CTA
+    lines.push('¿Tienes taller? ¿Eres mecánico? Escríbenos y te atendemos al instante.');
     return lines.filter(Boolean).join('\n');
   }
 
