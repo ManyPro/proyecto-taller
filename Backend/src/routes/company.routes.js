@@ -41,7 +41,7 @@ router.get('/preferences', (req, res) => {
 });
 
 router.put('/preferences', async (req, res) => {
-  let { laborPercents } = req.body || {};
+  let { laborPercents, whatsAppNumber } = req.body || {};
   if (laborPercents) {
     if (!Array.isArray(laborPercents)) return res.status(400).json({ error: 'laborPercents debe ser array' });
     laborPercents = laborPercents
@@ -52,6 +52,11 @@ router.put('/preferences', async (req, res) => {
     laborPercents = Array.from(new Set(laborPercents)).sort((a,b)=>a-b);
     req.companyDoc.preferences ||= {};
     req.companyDoc.preferences.laborPercents = laborPercents;
+  }
+  if (typeof whatsAppNumber === 'string') {
+    req.companyDoc.preferences ||= {};
+    // store as-is; client should send E.164 or local
+    req.companyDoc.preferences.whatsAppNumber = whatsAppNumber.trim();
   }
   await req.companyDoc.save();
   res.json({ preferences: req.companyDoc.preferences });

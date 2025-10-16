@@ -8,7 +8,7 @@ function toQuery(params={}){ const q=new URLSearchParams(); Object.entries(param
 async function fetchJSON(path){ const res = await fetch(apiBase + path); const txt = await res.text(); let body; try{ body=JSON.parse(txt);}catch{ body=txt;} if(!res.ok) throw new Error(body?.error || res.statusText); return body; }
 async function postJSON(path, body){ const res = await fetch(apiBase + path, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) }); const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; } if(!res.ok) throw new Error(data?.error || res.statusText); return data; }
 
-const state = { filters:{ page:1, limit:20 }, items:[], meta:{}, cart:new Map(), theme:'dark', companyId:null };
+const state = { filters:{ page:1, limit:20, order:'recent' }, items:[], meta:{}, cart:new Map(), theme:'dark', companyId:null, companyInfo:null };
 
 function money(n){ const v=Math.round((n||0)*100)/100; try{ return v.toLocaleString('es-CO',{ style:'currency', currency:'COP'});}catch{ return '$'+v; } }
 function applyTheme(){ document.body.classList.toggle('theme-light', state.theme==='light'); const btn=document.getElementById('toggleTheme'); if(btn){ btn.textContent = state.theme==='light'? 'Oscuro':'Claro'; } }
@@ -28,26 +28,104 @@ function resolveCompanyId(){
   return null;
 }
 
-function buildItemCard(it){ const img=(it.images && it.images[0] && it.images[0].url)||'assets/favicon.svg'; const price=money(it.price||0); const tags=Array.isArray(it.tags)? it.tags.slice(0,6):[]; const card=document.createElement('div'); card.className='item-card'; card.innerHTML=`<img src="${img}" alt="${it.name}" loading="lazy"/><div class='item-name'>${it.name}</div><div class='item-price'>${price}</div><div class='item-tags'>${tags.map(t=>`<span>${t}</span>`).join('')}</div><div class='card-actions'><button class='secondary' data-detail='${it.id}'>Ver</button><button data-add='${it.id}'>Agregar</button></div>`; card.querySelector('[data-add]').onclick=()=>addToCart(it); card.querySelector('[data-detail]').onclick=()=>openDetail(it.id); return card; }
+function buildItemCard(it){
+  const img=(it.images && it.images[0] && it.images[0].url)||'assets/favicon.svg';
+  const price=money(it.price||0);
+  const tags=Array.isArray(it.tags)? it.tags.slice(0,6):[];
+  const low = (it.stock||0) <= 1 && (it.stock||0) > 0;
+  const out = (it.stock||0) === 0;
+  const card=document.createElement('div');
+  card.className='item-card';
+  card.innerHTML=`
+    <div class='media'>
+      <img src="${img}" alt="${it.name}" loading="lazy" referrerpolicy="no-referrer" />
+      ${out? `<span class='badge low'>AGOTADO</span>`: low? `<span class='badge'>BAJO STOCK</span>`:''}
+    </div>
+    <div class='item-name'>${it.name}</div>
+    ${it.brand? `<div class='item-brand'>Marca: ${it.brand}</div>`:''}
+    <div class='item-price'>${price}</div>
+    <div class='item-tags'>${tags.map(t=>`<span>${t}</span>`).join('')}</div>
+    <div class='card-actions'>
+      <button class='secondary' data-detail='${it.id}'>Ver</button>
+      <button data-add='${it.id}' ${out? 'disabled':''}>Agregar</button>
+    </div>`;
+  card.querySelector('[data-add]')?.addEventListener('click', ()=>addToCart(it));
+  card.querySelector('[data-detail]')?.addEventListener('click', ()=>openDetail(it.id));
+  return card;
+}
 function renderItems(){ const grid=document.getElementById('itemsGrid'); const pag=document.getElementById('pagination'); if(!grid||!pag) return; grid.innerHTML=''; if(!state.items.length){ grid.innerHTML="<div class='empty'>No hay ítems publicados para esta empresa.</div>"; pag.innerHTML=''; return; } state.items.forEach(it=> grid.appendChild(buildItemCard(it))); renderPagination(); }
 function renderPagination(){ const pag=document.getElementById('pagination'); pag.innerHTML=''; const { page=1 }=state.filters; const pages=state.meta.pages||1; function makeBtn(p){ const b=document.createElement('button'); b.textContent=String(p); if(p===page) b.disabled=true; b.onclick=()=>{ state.filters.page=p; loadItems();}; return b;} if(pages<=1) return; let start=Math.max(1,page-4); let end=Math.min(pages,start+9); if(end-start<9){ start=Math.max(1,end-9);} if(page>1){ const prev=document.createElement('button'); prev.textContent='«'; prev.onclick=()=>{ state.filters.page=Math.max(1,page-1); loadItems();}; pag.appendChild(prev);} for(let p=start;p<=end;p++){ pag.appendChild(makeBtn(p)); } if(page<pages){ const next=document.createElement('button'); next.textContent='»'; next.onclick=()=>{ state.filters.page=Math.min(pages,page+1); loadItems();}; pag.appendChild(next);} }
 
 function updateCartUI(){ const listEl=document.getElementById('cartItems'); const countEl=document.getElementById('cartCount'); const totalEl=document.getElementById('cartTotal'); const checkoutBtn=document.getElementById('cartCheckout'); const badge=document.getElementById('cartBadge'); if(!listEl||!countEl||!totalEl||!checkoutBtn) return; listEl.innerHTML=''; let total=0; let count=0; state.cart.forEach(entry=>{ total+=(entry.item.price||0)*entry.qty; count+=entry.qty; }); countEl.textContent=String(count); totalEl.textContent=money(total); checkoutBtn.disabled=count===0; if(badge){ if(count>0){ badge.style.display='block'; badge.textContent=String(count);} else { badge.style.display='none'; } } state.cart.forEach(({item,qty})=>{ const row=document.createElement('div'); row.className='cart-item'; row.innerHTML=`<span style='flex:1;'>${item.name}</span><input type='number' min='1' step='1' value='${qty}' data-id='${item.id}' /><button class='danger' data-rm='${item.id}'>x</button>`; row.querySelector('input').onchange=e=>{ const v=parseInt(e.target.value||'1',10); if(v<1) e.target.value='1'; state.cart.get(item.id).qty=Math.max(1,v); updateCartUI();}; row.querySelector('[data-rm]').onclick=()=>{ state.cart.delete(item.id); updateCartUI();}; listEl.appendChild(row); }); }
 function addToCart(it){ const existing=state.cart.get(it.id); if(existing){ existing.qty=Math.min(existing.qty+1,999);} else { state.cart.set(it.id,{ item:it, qty:1 }); } updateCartUI(); }
 
-async function openDetail(id){ try{ const data=await fetchJSON(`/api/v1/public/catalog/${state.companyId}/items/${id}`); const it=data.item; if(!it){ alert('Item no encontrado'); return;} const imgs=Array.isArray(it.images)? it.images:[]; const content=`<h3>${it.name}</h3><div style='display:flex;gap:8px;flex-wrap:wrap;'>${imgs.map(im=>`<img src='${im.url}' alt='${im.alt||''}' style='width:120px;height:90px;object-fit:cover;border-radius:6px;'/>`).join('')}</div><p style='font-size:13px;line-height:1.3;margin-top:10px;'>${(it.description||'').replace(/</g,'&lt;')}</p><div style='margin-top:10px;font-weight:600;'>Precio: ${money(it.price||0)}</div><div style='display:flex;gap:8px;margin-top:14px;'><button id='d-add'>Agregar al carrito</button><button class='secondary' id='d-close'>Cerrar</button></div>`; openModal(content); document.getElementById('d-close').onclick=closeModal; document.getElementById('d-add').onclick=()=>{ addToCart(it); closeModal(); }; }catch(e){ alert('Error detalle: '+ e.message); } }
+async function openDetail(id){
+  try{
+    const data=await fetchJSON(`/api/v1/public/catalog/${state.companyId}/items/${id}`);
+    const it=data.item; if(!it){ alert('Item no encontrado'); return;}
+    const imgs=Array.isArray(it.images)? it.images:[];
+    const wa = state.companyInfo?.whatsAppNumber || '';
+    const waUrl = wa? `https://wa.me/${wa.replace(/[^0-9+]/g,'')}` : '';
+    const waText = encodeURIComponent(`Hola, me interesa ${it.name} (${it.sku||''}). ¿Está disponible?`);
+    const contactBtn = wa? `<a href='${waUrl}?text=${waText}' target='_blank' rel='noopener' class='secondary' id='d-wa'>WhatsApp</a>`: '';
+    const stockBadge = (it.stock||0)===0? '<span style="color:#ef4444;font-weight:700;">Agotado</span>' : (it.stock||0)<=1? '<span style="color:#f59e0b;">Bajo stock</span>':'';
+    const content=`
+      <h3 style='margin:0 0 6px;'>${it.name}</h3>
+      ${it.brand? `<div style='font-size:12px;opacity:.8;'>Marca: ${it.brand}</div>`:''}
+      <div style='display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;'>
+        ${imgs.map(im=>`<img src='${im.url}' alt='${im.alt||''}' style='width:120px;height:90px;object-fit:cover;border-radius:6px;' loading='lazy' referrerpolicy='no-referrer'/>`).join('')}
+      </div>
+      <p style='font-size:13px;line-height:1.35;margin-top:10px;'>${(it.description||'').replace(/</g,'&lt;')}</p>
+      <div style='margin-top:10px;font-weight:700;'>Precio: ${money(it.price||0)} ${stockBadge? '• '+stockBadge:''}</div>
+      <div style='display:flex;gap:8px;margin-top:14px;justify-content:flex-end;'>
+        ${contactBtn}
+        <button id='d-add' ${it.stock===0? 'disabled':''}>Agregar al carrito</button>
+        <button class='secondary' id='d-close'>Cerrar</button>
+      </div>`;
+    openModal(content);
+    document.getElementById('d-close').onclick=closeModal;
+    document.getElementById('d-add').onclick=()=>{ addToCart(it); closeModal(); };
+  }catch(e){ alert('Error detalle: '+ e.message); }
+}
 
 function ensureModal(){ let m=document.getElementById('public-modal'); if(m) return m; m=document.createElement('div'); m.id='public-modal'; m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:1000;'; m.innerHTML='<div id="public-modal-box" style="background:var(--card);color:var(--text);padding:18px 20px;border-radius:12px;max-width:600px;width:92vw;max-height:80vh;overflow:auto;position:relative;"></div>'; document.body.appendChild(m); return m; }
 function openModal(html){ const m=ensureModal(); const box=m.querySelector('#public-modal-box'); box.innerHTML= html; m.style.display='flex'; }
 function closeModal(){ const m=ensureModal(); m.style.display='none'; }
 
-function readFilters(){ const fq=document.getElementById('f-q'); const fc=document.getElementById('f-category'); const ft=document.getElementById('f-tags'); const fs=document.getElementById('f-stock'); const fl=document.getElementById('f-limit'); state.filters.page=1; state.filters.limit= fl?.value || 20; state.filters.q = fq?.value.trim() || undefined; state.filters.category = fc?.value.trim() || undefined; const tagsRaw = ft?.value.trim(); state.filters.tags = tagsRaw? tagsRaw : undefined; state.filters.stock = fs?.value ? 1 : undefined; }
+function readFilters(){
+  const fq=document.getElementById('f-q');
+  const fbrand=document.getElementById('f-brand');
+  const fc=document.getElementById('f-category');
+  const ft=document.getElementById('f-tags');
+  const fs=document.getElementById('f-stock');
+  const fl=document.getElementById('f-limit');
+  const fo=document.getElementById('f-order');
+  state.filters.page=1;
+  state.filters.limit= fl?.value || 20;
+  state.filters.order= fo?.value || 'recent';
+  state.filters.q = fq?.value.trim() || undefined;
+  state.filters.brand = fbrand?.value.trim() || undefined;
+  state.filters.category = fc?.value.trim() || undefined;
+  const tagsRaw = ft?.value.trim();
+  state.filters.tags = tagsRaw? tagsRaw : undefined;
+  state.filters.stock = fs?.value ? 1 : undefined;
+}
 async function loadItems(){
   if(!state.companyId){ alert('Falta companyId'); return; }
   try{
+    const grid=document.getElementById('itemsGrid'); const pag=document.getElementById('pagination');
+    if(grid){ grid.innerHTML = Array.from({length:8}).map(()=>`<div class='item-card'><div class='media'><div class='skeleton' style='width:100%;aspect-ratio:4/3;border-radius:10px;'></div></div><div class='skeleton' style='height:16px;margin:10px 0 6px;border-radius:6px;'></div><div class='skeleton' style='height:14px;width:60%;border-radius:6px;'></div></div>`).join(''); if(pag) pag.innerHTML=''; }
     const q= toQuery(state.filters);
     const data= await fetchJSON(`/api/v1/public/catalog/${state.companyId}/items${q}`);
-    state.items=data.data||[]; state.meta=data.meta||{}; renderItems();
+    let items=data.data||[]; state.meta=data.meta||{};
+    // Client-side ordering for UX flexibility
+    const order = state.filters.order;
+    items = items.slice();
+    if(order==='price-asc') items.sort((a,b)=> (a.price||0)-(b.price||0));
+    else if(order==='price-desc') items.sort((a,b)=> (b.price||0)-(a.price||0));
+    else if(order==='name-asc') items.sort((a,b)=> String(a.name||'').localeCompare(String(b.name||'')));
+    // recent is default; keep backend order
+    state.items = items; renderItems();
   }catch(e){
     console.error(e);
     const grid=document.getElementById('itemsGrid'); const pag=document.getElementById('pagination');
@@ -59,7 +137,18 @@ async function loadItems(){
     }
   }
 }
-function bindFilters(){ const apply=document.getElementById('f-apply'); const clear=document.getElementById('f-clear'); apply.onclick=()=>{ readFilters(); loadItems(); }; clear.onclick=()=>{ ['f-q','f-category','f-tags'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; }); const fs=document.getElementById('f-stock'); if(fs) fs.value=''; readFilters(); loadItems(); }; ['f-q','f-category','f-tags'].forEach(id=>{ const el=document.getElementById(id); el && el.addEventListener('keydown', e=>{ if(e.key==='Enter'){ readFilters(); loadItems(); }});}); }
+function bindFilters(){
+  const apply=document.getElementById('f-apply');
+  const clear=document.getElementById('f-clear');
+  apply.onclick=()=>{ readFilters(); loadItems(); };
+  clear.onclick=()=>{
+    ['f-q','f-category','f-tags','f-brand'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    const fs=document.getElementById('f-stock'); if(fs) fs.value='';
+    const fo=document.getElementById('f-order'); if(fo) fo.value='recent';
+    readFilters(); loadItems();
+  };
+  ['f-q','f-category','f-tags','f-brand'].forEach(id=>{ const el=document.getElementById(id); el && el.addEventListener('keydown', e=>{ if(e.key==='Enter'){ readFilters(); loadItems(); }});});
+}
 
 function updateDeliveryHint(delivery, install){ let text=''; if(delivery==='pickup') text='Recolección en punto.'; else if(delivery==='home-bogota') text='Envío gratis Bogotá urbano.'; else if(delivery==='store') text='Retiro en taller.'; if(install && delivery==='home-bogota'){ text+='\n⚠ Instalación requiere presencia, ajusta a Retiro en taller.';} return text; }
 
@@ -74,4 +163,26 @@ function bindCheckoutEvents(){ const form=document.getElementById('checkoutForm'
   form.onsubmit= async (e)=>{ e.preventDefault(); const idNumber=idEl.value.trim(); const name=nameEl.value.trim(); const phone=phoneEl.value.trim(); if(!idNumber || !name || !phone){ alert('Completa identificación, nombre y celular'); return; } submitBtn.disabled=true; submitBtn.textContent='Enviando...'; try{ const itemsPayload= Array.from(state.cart.values()).map(e=>({ id:e.item.id, qty:e.qty })); const body={ items:itemsPayload, customer:{ idNumber, name, phone, email: emailEl.value.trim(), address: addressEl.value.trim() }, deliveryMethod: deliveryEl.value, requiresInstallation: !!installEl.checked }; const resp= await postJSON(`/api/v1/public/catalog/${state.companyId}/checkout`, body); closeModal(); state.cart.clear(); updateCartUI(); openModal(`<h3>Pedido recibido</h3><p style='font-size:13px;'>Solicitud registrada. ID interna: <b>${resp?.sale?.id || '(desconocido)'}</b>.</p><div style='text-align:right;margin-top:14px;'><button id='ok-done'>Cerrar</button></div>`); document.getElementById('ok-done').onclick=()=> closeModal(); }catch(err){ submitBtn.disabled=false; submitBtn.textContent='Confirmar pedido'; alert('Error en checkout: '+ err.message); } };
 }
 
-(function init(){ if(document.body?.dataset?.page !== 'catalog-public') return; resolveCompanyId(); if(!state.companyId){ console.warn('[Catalog] Falta companyId; añade ?companyId=<id> a la URL.'); return; } initTheme(); bindFilters(); document.getElementById('cartCheckout')?.addEventListener('click', ()=> openCheckoutModal()); readFilters(); loadItems(); updateCartUI(); document.getElementById('toggleTheme')?.addEventListener('click', toggleTheme); })();
+(async function init(){
+  if(document.body?.dataset?.page !== 'catalog-public') return;
+  resolveCompanyId();
+  if(!state.companyId){ console.warn('[Catalog] Falta companyId; añade ?companyId=<id> a la URL.'); return; }
+  initTheme();
+  bindFilters();
+  document.getElementById('cartCheckout')?.addEventListener('click', ()=> openCheckoutModal());
+  // Try load company public info for WhatsApp CTA
+  try{
+    const info = await fetchJSON(`/api/v1/public/catalog/${state.companyId}/info`);
+    state.companyInfo = info.company || null;
+    const waEl = document.getElementById('waHeader');
+    if(state.companyInfo?.whatsAppNumber && waEl){
+      const wa = state.companyInfo.whatsAppNumber.replace(/[^0-9+]/g,'');
+      waEl.href = `https://wa.me/${wa}?text=${encodeURIComponent('Hola, tengo una consulta del catálogo.')}`;
+      waEl.style.display = 'inline-block';
+    }
+  }catch{}
+  readFilters();
+  loadItems();
+  updateCartUI();
+  document.getElementById('toggleTheme')?.addEventListener('click', toggleTheme);
+})();

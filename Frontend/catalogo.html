@@ -34,20 +34,26 @@
   .slider-cta { align-self:flex-start; margin-top:4px; background:#fff; color:#0f172a; font-weight:600; padding:8px 14px; border-radius:8px; border:0; cursor:pointer; font-size:13px; }
   .slider-cta:hover { background:#e2e8f0; }
   .visually-hidden { position:absolute !important; width:1px !important; height:1px !important; padding:0 !important; margin:-1px !important; overflow:hidden !important; clip:rect(0 0 0 0) !important; white-space:nowrap !important; border:0 !important; }
-    .filters { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+  .filters { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px; align-items:flex-end; }
     .filters input, .filters select { min-width:160px; }
-    .grid { display:grid; grid-template-columns: repeat(auto-fill,minmax(210px,1fr)); gap:14px; }
-    .item-card { background: var(--card); border-radius:10px; padding:10px; display:flex; flex-direction:column; box-shadow:0 4px 12px rgba(0,0,0,.08); position:relative; }
-    .item-card img { width:100%; aspect-ratio: 4/3; object-fit:cover; border-radius:8px; background:#fff; }
-    .item-name { font-weight:600; margin:8px 0 4px; font-size:14px; line-height:1.2; }
-    .item-price { font-size:15px; font-weight:700; color: var(--accent, #2563eb); }
-    .item-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
-    .item-tags span { background: var(--chip-bg,#1e293b); color: var(--chip-text,#fff); padding:3px 6px; border-radius:6px; font-size:10px; letter-spacing:.3px; }
+  .grid { display:grid; grid-template-columns: repeat(auto-fill,minmax(230px,1fr)); gap:14px; }
+  .item-card { background: var(--card); border-radius:12px; padding:10px; display:flex; flex-direction:column; box-shadow:0 6px 16px rgba(0,0,0,.09); position:relative; border:1px solid rgba(148,163,184,.15); }
+  .item-card .media { position:relative; }
+  .item-card img { width:100%; aspect-ratio: 4/3; object-fit:cover; border-radius:10px; background:linear-gradient(180deg,#0b1220,#0f172a); }
+  .badge { position:absolute; left:8px; top:8px; background:rgba(2,132,199,.9); color:#fff; font-size:11px; padding:3px 8px; border-radius:999px; box-shadow:0 2px 8px rgba(2,132,199,.4); }
+  .badge.low { background:#ef4444; }
+  .item-name { font-weight:700; margin:10px 0 2px; font-size:14px; line-height:1.25; }
+  .item-brand { font-size:11px; opacity:.8; }
+  .item-price { font-size:16px; font-weight:800; color: var(--accent, #0ea5e9); margin-top:6px; }
+  .item-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:8px; }
+  .item-tags span { background: var(--chip-bg,#0b1220); color: var(--chip-text,#e2e8f0); padding:4px 7px; border-radius:999px; font-size:10px; letter-spacing:.3px; border:1px solid rgba(148,163,184,.2); }
     .card-actions { margin-top:auto; display:flex; gap:6px; }
     .pagination { margin:22px 0; display:flex; gap:6px; justify-content:center; flex-wrap:wrap; }
     .pagination button { min-width:42px; }
     .empty { text-align:center; padding:40px 10px; opacity:.7; }
     .theme-toggle { position:fixed; right:10px; bottom:10px; z-index:100; }
+  .skeleton { background: linear-gradient(90deg, rgba(148,163,184,.15), rgba(148,163,184,.25), rgba(148,163,184,.15)); background-size:200% 100%; animation: shimmer 1.2s infinite; }
+  @keyframes shimmer { 0%{ background-position:200% 0; } 100%{ background-position: -200% 0; } }
   /* Floating action button for cart */
   .fab-cart { position:fixed; right:16px; bottom:16px; z-index:80; }
   .fab-cart button { width:56px; height:56px; border-radius:50%; background:var(--accent,#2563eb); color:#fff; border:0; box-shadow:0 6px 20px rgba(0,0,0,.3); font-weight:700; cursor:pointer; }
@@ -107,6 +113,7 @@
         <a href="#" class="btn-link disabled" title="Próximamente">Promociones</a>
       </nav>
       <button id="toggleTheme" class="secondary pill" style="margin-left:auto;">Oscuro</button>
+      <a id="waHeader" href="#" target="_blank" rel="noopener" class="pill" style="display:none;background:#22c55e;color:#07210e;padding:6px 12px;text-decoration:none;border:1px solid rgba(34,197,94,.35);">WhatsApp</a>
     </div>
   </header>
   <div class="catalog-container" id="catalogContainer">
@@ -143,20 +150,47 @@
     </section>
 
     <section class="filters" id="filters">
-      <input id="f-q" placeholder="Buscar nombre o SKU" />
-      <input id="f-category" placeholder="Categoría" />
-      <input id="f-tags" placeholder="Tags coma" />
-      <select id="f-stock">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;">
+        <label style="display:flex;flex-direction:column;gap:4px;">
+          <span style="font-size:12px;opacity:.8;">Buscar</span>
+          <input id="f-q" placeholder="Nombre o SKU" />
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;">
+          <span style="font-size:12px;opacity:.8;">Marca</span>
+          <input id="f-brand" placeholder="Ej: RENAULT" />
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;">
+          <span style="font-size:12px;opacity:.8;">Categoría</span>
+          <input id="f-category" placeholder="Ej: Frenos" />
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;">
+          <span style="font-size:12px;opacity:.8;">Tags</span>
+          <input id="f-tags" placeholder="Coma: pastillas,logan" />
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;">
+          <span style="font-size:12px;opacity:.8;">Stock</span>
+          <select id="f-stock">
         <option value="">Stock (todos)</option>
         <option value="1">Sólo con stock</option>
-      </select>
-      <select id="f-limit">
+          </select>
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;">
+          <span style="font-size:12px;opacity:.8;">Ordenar</span>
+          <select id="f-order">
+            <option value="recent">Más recientes</option>
+            <option value="price-asc">Precio: menor a mayor</option>
+            <option value="price-desc">Precio: mayor a menor</option>
+            <option value="name-asc">Nombre A-Z</option>
+          </select>
+        </label>
+        <select id="f-limit">
         <option value="12">12</option>
         <option value="20" selected>20</option>
         <option value="40">40</option>
-      </select>
-      <button id="f-apply" class="secondary">Filtrar</button>
-      <button id="f-clear" class="secondary">Limpiar</button>
+        </select>
+        <button id="f-apply" class="secondary">Filtrar</button>
+        <button id="f-clear" class="secondary">Limpiar</button>
+      </div>
     </section>
 
     <section id="catalogItemsSection">

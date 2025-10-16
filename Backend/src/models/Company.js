@@ -14,7 +14,9 @@ const CompanySchema = new mongoose.Schema(
     technicians: { type: [String], default: [] },
     // Preferencias de la empresa
     preferences: {
-      laborPercents: { type: [Number], default: [30, 40, 50] }
+      laborPercents: { type: [Number], default: [30, 40, 50] },
+      // Número de WhatsApp para contacto público (E.164 o local). Ej: +573001234567
+      whatsAppNumber: { type: String, default: '' }
     }
   },
   { timestamps: true }

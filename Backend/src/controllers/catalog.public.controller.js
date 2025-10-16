@@ -43,6 +43,7 @@ function mapPublicItem(doc){
     id: String(doc._id),
     sku: doc.sku,
     name: doc.name,
+    brand: doc.brand || '',
     price,
     stock: doc.stock || 0,
     category: doc.category || '',
@@ -52,6 +53,26 @@ function mapPublicItem(doc){
     publishedAt: doc.publishedAt || null
   };
 }
+
+// GET /public/catalog/:companyId/info
+export const getPublicCompanyInfo = async (req, res) => {
+  const { companyId } = req.params;
+  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
+  const company = await Company.findById(companyId).select('name email address phone logoUrl preferences active');
+  if(!company || company.active === false) return res.status(404).json({ error: 'Empresa no encontrada o inactiva' });
+  res.setHeader('Cache-Control','public, max-age=120');
+  res.json({
+    company: {
+      id: String(company._id),
+      name: company.name || '',
+      address: company.address || '',
+      phone: company.phone || '',
+      email: company.email || '',
+      logoUrl: company.logoUrl || '',
+      whatsAppNumber: company.preferences?.whatsAppNumber || ''
+    }
+  });
+};
 
 // GET /public/catalog/items
 export const listPublishedItems = async (req, res) => {
@@ -64,7 +85,7 @@ export const listPublishedItems = async (req, res) => {
   const page = Math.min(coercePositiveInt(req.query.page,1), 5000);
   const limit = Math.min(coercePositiveInt(req.query.limit,20), 50);
   const skip = (page-1)*limit;
-  const { q, category, tags, stock } = req.query;
+  const { q, category, tags, stock, brand } = req.query;
 
   const filter = { published: true, companyId: company._id };
   if(q){
@@ -73,6 +94,9 @@ export const listPublishedItems = async (req, res) => {
   }
   if(category){
     filter.category = new RegExp(String(category).trim(), 'i');
+  }
+  if(brand){
+    filter.brand = new RegExp(String(brand).trim(), 'i');
   }
   if(tags){
     const arr = String(tags).split(',').map(s=>s.trim()).filter(Boolean);

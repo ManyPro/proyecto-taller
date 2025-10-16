@@ -6,7 +6,8 @@ import {
   lookupCustomerByIdNumber,
   sitemapPlain,
   sitemapXml,
-  feedCsv
+  feedCsv,
+  getPublicCompanyInfo
 } from '../controllers/catalog.public.controller.js';
 
 const router = Router();
@@ -14,6 +15,7 @@ const router = Router();
 // Todas las rutas ahora requieren :companyId
 router.get('/:companyId/items', listPublishedItems);
 router.get('/:companyId/items/:id', getPublishedItem);
+router.get('/:companyId/info', getPublicCompanyInfo);
 router.get('/:companyId/customer', lookupCustomerByIdNumber);
 router.post('/:companyId/checkout', checkoutCatalog);
 router.get('/:companyId/sitemap.txt', sitemapPlain);
