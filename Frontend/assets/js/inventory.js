@@ -10,6 +10,7 @@ const state = {
   items: [],
   selected: new Set(),
   itemCache: new Map(),
+  paging: { page: 1, limit: 10, pages: 1, total: 0 },
 };
 
 // ---- Helpers ----
@@ -702,9 +703,32 @@ if (__ON_INV_PAGE__) {
   }
 
   async function refreshItems(params = {}) {
-    state.lastItemsParams = params;
-    const { data, meta } = await invAPI.listItems(params);
+    // Merge persisted paging with incoming params; reset to page 1 if filters changed
+    const prev = state.lastItemsParams || {};
+    const filters = { ...params };
+    delete filters.page; delete filters.limit;
+    const prevFilters = { ...prev }; delete prevFilters.page; delete prevFilters.limit;
+    const filtersChanged = JSON.stringify(filters) !== JSON.stringify(prevFilters);
+    const paging = state.paging || { page: 1, limit: 10 };
+    const page = filtersChanged ? 1 : (params.page || prev.page || paging.page || 1);
+    const limit = params.limit || prev.limit || paging.limit || 10;
+    const nextParams = { ...filters, page, limit };
+    state.lastItemsParams = nextParams;
+    const { data, meta } = await invAPI.listItems(nextParams);
     state.items = data || [];
+    // Update paging info if meta was returned
+    if (meta && (meta.total != null || meta.pages != null || meta.page != null)) {
+      state.paging = {
+        page: meta.page || page || 1,
+        pages: meta.pages || Math.max(1, Math.ceil((meta.total || state.items.length || 0) / (meta.limit || limit || 10))),
+        total: meta.total || state.items.length || 0,
+        limit: meta.limit || limit || 10,
+        truncated: !!meta.truncated,
+      };
+    } else {
+      // No meta -> single page with all items
+      state.paging = { page: 1, pages: 1, total: state.items.length, limit: state.items.length || 10, truncated: false };
+    }
 
     itemsList.innerHTML = "";
     state.items.forEach((it) => {
@@ -787,27 +811,60 @@ if (__ON_INV_PAGE__) {
       itemsList.appendChild(div);
     });
 
-    // Mostrar aviso si la lista fue truncada por falta de filtros
-    // Crear/actualizar aviso justo encima de itemsList
-    const existingNotice = document.getElementById('itemsNotice');
-    if (meta?.truncated) {
-      const msg = `Mostrando ${meta.limit} ítems de ${meta.total}. Usa los filtros para ver más resultados.`;
-      if (existingNotice) {
-        existingNotice.textContent = msg;
-        existingNotice.style.display = 'block';
-      } else {
-        const n = document.createElement('div');
-        n.id = 'itemsNotice';
-        n.className = 'card muted';
-        n.style.margin = '6px 0';
-        n.textContent = msg;
-        itemsList.parentNode.insertBefore(n, itemsList);
-      }
-    } else if (existingNotice) {
-      existingNotice.style.display = 'none';
-    }
+    renderPaginationControls();
 
     updateSelectionBar();
+  }
+
+  function renderPaginationControls() {
+    const top = document.getElementById('itemsPaginationTop');
+    const bottom = document.getElementById('itemsPaginationBottom');
+    if (!top || !bottom) return;
+    const { page, pages, total, limit } = state.paging || { page: 1, pages: 1, total: 0, limit: 10 };
+    const start = total ? (Math.min((page - 1) * limit + 1, total)) : 0;
+    const end = Math.min(page * limit, total);
+    const info = total ? `Mostrando ${start}-${end} de ${total}` : 'Sin resultados';
+
+    const disabledPrev = page <= 1 ? 'disabled' : '';
+    const disabledNext = page >= pages ? 'disabled' : '';
+
+    const build = () => `
+      <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;">
+        <button id="inv-prev" class="secondary" ${disabledPrev}>◀ Anterior</button>
+        <span class="muted">Página ${page} de ${pages} — ${info}</span>
+        <button id="inv-next" class="secondary" ${disabledNext}>Siguiente ▶</button>
+        <span class="muted" style="margin-left:8px;">Por página:</span>
+        <select id="inv-limit" class="secondary">
+          ${[10,20,40,80].map(n=>`<option value="${n}" ${n===limit?'selected':''}>${n}</option>`).join('')}
+        </select>
+      </div>`;
+
+    top.innerHTML = build();
+    bottom.innerHTML = build();
+
+    const bind = (root) => {
+      const prevBtn = root.querySelector('#inv-prev');
+      const nextBtn = root.querySelector('#inv-next');
+      const limitSel = root.querySelector('#inv-limit');
+      if (prevBtn) prevBtn.onclick = () => gotoPage(page - 1);
+      if (nextBtn) nextBtn.onclick = () => gotoPage(page + 1);
+      if (limitSel) limitSel.onchange = () => setLimit(parseInt(limitSel.value,10));
+    };
+    bind(top); bind(bottom);
+  }
+
+  function gotoPage(p) {
+    const { pages } = state.paging || { pages: 1 };
+    const page = Math.max(1, Math.min(p, pages));
+    const limit = state.paging?.limit || 10;
+    const params = { ...state.lastItemsParams, page, limit };
+    refreshItems(params);
+  }
+
+  function setLimit(n) {
+    const limit = Math.max(1, Math.min(n || 10, 100));
+    const params = { ...state.lastItemsParams, page: 1, limit };
+    refreshItems(params);
   }
   // ---- Agregar Stock ----
   function openStockInModal(it){
@@ -1040,7 +1097,8 @@ if (__ON_INV_PAGE__) {
       brand: qBrand ? qBrand.value.trim() : undefined,
       vehicleIntakeId: qIntake.value || undefined,
     };
-    refreshItems(params);
+    // When searching, start from first page and keep current limit
+    refreshItems({ ...params, page: 1, limit: state.paging?.limit || 10 });
   }
 
   qApply.onclick = doSearch;
@@ -1049,7 +1107,7 @@ if (__ON_INV_PAGE__) {
     qSku.value = "";
     if (qBrand) qBrand.value = "";
     qIntake.value = "";
-    refreshItems({});
+    refreshItems({ page: 1, limit: state.paging?.limit || 10 });
   };
   [qName, qSku, qBrand].forEach((el) => el && el.addEventListener("keydown", (e) => e.key === "Enter" && doSearch()));
   qIntake && qIntake.addEventListener("change", doSearch);
@@ -1883,7 +1941,8 @@ if (__ON_INV_PAGE__) {
 
   // ---- Boot ----
   refreshIntakes();
-  refreshItems({});
+  // Initial load: page 1, 10 per page
+  refreshItems({ page: 1, limit: state.paging.limit });
 
 }
 

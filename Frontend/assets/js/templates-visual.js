@@ -802,6 +802,33 @@
     };
   }
 
+  // ======== ROTATION HELPERS ========
+  function getRotationDeg(el){
+    if (!el) return 0;
+    const ds = el.dataset || {};
+    if (ds.rotationDeg != null && ds.rotationDeg !== '') {
+      const n = parseFloat(ds.rotationDeg);
+      return Number.isFinite(n) ? n : 0;
+    }
+    const t = el.style?.transform || '';
+    const m = t.match(/rotate\(([-\d.]+)deg\)/i);
+    if (m) {
+      const n = parseFloat(m[1]);
+      return Number.isFinite(n) ? n : 0;
+    }
+    // Try computed style (matrix to deg is complex; skip)
+    return 0;
+  }
+  function setRotationDeg(el, deg){
+    if (!el) return;
+    const d = Math.max(-180, Math.min(180, Math.round(deg)));
+    // Preserve only rotation for simplicity; left/top are absolute
+    el.style.transform = `rotate(${d}deg)`;
+    el.style.transformOrigin = 'center center';
+    if (!el.dataset) el.dataset = {};
+    el.dataset.rotationDeg = String(d);
+  }
+
   function selectElement(element, preferredTextEl=null) {
     // Remove previous selection
     document.querySelectorAll('.tpl-element').forEach(el => {
@@ -860,6 +887,7 @@
       const isImage = !!element.querySelector('img');
       const w = parseInt((element.style.width || element.offsetWidth) ,10);
       const h = parseInt((element.style.height || element.offsetHeight) ,10);
+      const currentRotation = getRotationDeg(element);
       bodyContainer.innerHTML = `
         <div style="padding: 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 6px; margin: 10px 0;">
           <h4 style="margin: 0 0 15px 0; color: #333;">Propiedades del Elemento</h4>
@@ -920,6 +948,14 @@
                 <option value="hidden" ${computedStyle.overflow==='hidden'?'selected':''}>Recortar</option>
                 <option value="auto" ${computedStyle.overflow==='auto'?'selected':''}>Scroll</option>
               </select>
+            </div>
+            <div style="margin-top:8px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <label style="font-size:12px; color:#555;">Rotación (°)</label>
+              <input type="range" id="prop-rotate" min="-180" max="180" step="1" value="${currentRotation}" style="flex:1; min-width:140px;">
+              <input type="number" id="prop-rotate-input" min="-180" max="180" step="1" value="${currentRotation}" style="width:84px;">
+              <button id="prop-rotate-left" class="secondary" title="Girar -15°">⟲ 15°</button>
+              <button id="prop-rotate-right" class="secondary" title="Girar +15°">⟳ 15°</button>
+              <button id="prop-rotate-reset" class="secondary" title="Restablecer rotación">Reiniciar</button>
             </div>
           </div>
 
@@ -1033,6 +1069,11 @@
   const overflowSel = qs('#prop-overflow');
   const imgWidthRange = qs('#prop-img-width');
   const imgHeightRange = qs('#prop-img-height');
+  const rotRange = qs('#prop-rotate');
+  const rotInput = qs('#prop-rotate-input');
+  const rotLeft = qs('#prop-rotate-left');
+  const rotRight = qs('#prop-rotate-right');
+  const rotReset = qs('#prop-rotate-reset');
 
     if (fontSelect) {
       fontSelect.onchange = () => {
@@ -1119,6 +1160,21 @@
     if (boxW) boxW.oninput = () => { element.style.width = boxW.value ? (parseInt(boxW.value,10)+'px') : ''; };
     if (boxH) boxH.oninput = () => { element.style.height = boxH.value ? (parseInt(boxH.value,10)+'px') : ''; };
     if (overflowSel) overflowSel.onchange = () => { element.style.overflow = overflowSel.value; };
+
+    // Rotation controls
+    const syncRotationUI = (deg) => {
+      if (rotRange) rotRange.value = String(deg);
+      if (rotInput) rotInput.value = String(deg);
+    };
+    const applyRotation = (deg) => {
+      setRotationDeg(element, deg);
+      syncRotationUI(getRotationDeg(element));
+    };
+    if (rotRange) rotRange.oninput = () => applyRotation(parseInt(rotRange.value,10));
+    if (rotInput) rotInput.onchange = () => applyRotation(parseInt(rotInput.value,10));
+    if (rotLeft) rotLeft.onclick = () => applyRotation(getRotationDeg(element) - 15);
+    if (rotRight) rotRight.onclick = () => applyRotation(getRotationDeg(element) + 15);
+    if (rotReset) rotReset.onclick = () => applyRotation(0);
 
     // Image width control
     if (imgWidthRange || imgHeightRange) {

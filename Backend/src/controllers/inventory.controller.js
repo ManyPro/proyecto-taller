@@ -300,8 +300,24 @@ export const listItems = async (req, res) => {
     q.vehicleTarget = new RegExp((vehicleTarget || "").trim().toUpperCase(), "i");
   }
 
+  // Paginación opcional: si viene page o limit, respetar y devolver meta
+  const pageRaw = parseInt(req.query.page, 10);
+  const limitRaw = parseInt(req.query.limit, 10);
+  const hasPaging = Number.isFinite(pageRaw) || Number.isFinite(limitRaw);
+
+  if (hasPaging) {
+    const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+    const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 10;
+    const total = await Item.countDocuments(q);
+    const pages = Math.max(1, Math.ceil(total / limit));
+    const safePage = Math.min(page, pages);
+    const skip = (safePage - 1) * limit;
+    const data = await Item.find(q).sort({ createdAt: -1 }).skip(skip).limit(limit);
+    return res.json({ data, meta: { page: safePage, pages, total, limit } });
+  }
+
   // Si no hay filtros, limitar a 10 por defecto para ahorrar recursos
-  const hasFilter = !!(name || sku || vehicleTarget || vehicleIntakeId);
+  const hasFilter = !!(name || sku || vehicleTarget || vehicleIntakeId || brand);
   const DEFAULT_LIMIT = 10;
 
   if (!hasFilter) {
@@ -309,10 +325,10 @@ export const listItems = async (req, res) => {
     const data = await Item.find(q).sort({ createdAt: -1 }).limit(limit);
     const total = await Item.countDocuments(q);
     const truncated = total > limit;
-    return res.json({ data, meta: { truncated, total, limit } });
+    return res.json({ data, meta: { truncated, total, limit, page: 1, pages: Math.max(1, Math.ceil(total / limit)) } });
   }
 
-  // Si hay filtros, devolver todos los resultados (o respeta paginado si lo añades luego)
+  // Si hay filtros y no hay paginación, devolver todos los resultados
   const data = await Item.find(q).sort({ createdAt: -1 });
   return res.json({ data });
 };
