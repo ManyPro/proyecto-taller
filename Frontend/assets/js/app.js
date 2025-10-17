@@ -416,13 +416,20 @@ logoutBtn?.addEventListener('click', async () => {
     }catch{ return {}; }
   };
   let polling = null; let panel = null; let bell = null; let lastIds = new Set();
+  function getHeaderActionsRow(){
+    const appHeaderEl = document.getElementById('appHeader');
+    if(!appHeaderEl) return null;
+    const rows = appHeaderEl.querySelectorAll('.row');
+    if(rows && rows.length){ return rows[rows.length - 1]; }
+    return null;
+  }
   function ensureBell(){
-    const header = document.querySelector('.app-header .row');
+    const header = getHeaderActionsRow();
     if(!header) return;
     if(document.getElementById('notifBell')) return;
     bell = document.createElement('button');
     bell.id='notifBell'; bell.className='secondary'; bell.style.position='relative'; bell.innerHTML='\uD83D\uDD14 <span id="notifCount" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;padding:2px 6px;border-radius:14px;font-size:10px;line-height:1;display:none;">0</span>';
-    header.appendChild(bell);
+  header.appendChild(bell);
     bell.addEventListener('click', togglePanel);
   }
   function ensurePanel(){
