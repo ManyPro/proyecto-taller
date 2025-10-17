@@ -6,7 +6,7 @@ services:
     container_name: taller-mongo
     restart: unless-stopped
     ports:
-      #- "27017:27017"  expose for local debugging; on server you can remove this line
+      - "27017:27017"  #expose for local debugging; on server you can remove this line
     volumes:
       - mongo_data:/data/db
 
