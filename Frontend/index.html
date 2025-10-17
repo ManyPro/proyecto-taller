@@ -15,8 +15,51 @@
   <script>
     window.QUOTES_KEYS = { lastNumber: 'quotes:lastNumber', draft: 'quotes:current' };
   </script>
+  <style>
+    /* Portal de acceso (ligero y compatible con estilos actuales) */
+    #portalSection { max-width: 980px; margin: 24px auto 8px; }
+    .portal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+    .portal-card { background: var(--card); border:1px solid var(--border); padding:18px; border-radius:12px; box-shadow: var(--shadow-elev); }
+    .portal-card h3 { margin: 0 0 6px 0; }
+    .badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--tab-bg-active); color: var(--tab-text-active); }
+    .sep { height: 1px; background: var(--border); margin: 10px 0; }
+  </style>
 </head>
 <body data-page="home">
+  <!-- ========== PORTAL (selección de tipo de acceso) ========== -->
+  <section id="portalSection" class="hidden">
+    <h1 style="margin:0 0 8px;">Portal de Acceso</h1>
+    <p class="muted" style="margin-top:0">Elige el tipo de sesión que deseas iniciar.</p>
+    <div class="portal-grid">
+      <div class="portal-card">
+        <div class="row between" style="align-items:center;">
+          <h3>Empresa</h3>
+          <span class="badge">Producción</span>
+        </div>
+        <div class="sep"></div>
+        <p class="muted">Panel de la empresa para operar Notas, Ventas, etc.</p>
+        <div class="row right"><a class="button" href="#loginSection">Ir a Empresa</a></div>
+      </div>
+      <div class="portal-card">
+        <div class="row between" style="align-items:center;">
+          <h3>Admin</h3>
+          <span class="badge">Administración</span>
+        </div>
+        <div class="sep"></div>
+        <p class="muted">Gestiona empresas, habilita módulos y configura el entorno.</p>
+        <div class="row right"><a class="button" href="admin.html">Ir a Admin</a></div>
+      </div>
+      <div class="portal-card">
+        <div class="row between" style="align-items:center;">
+          <h3>Developer</h3>
+          <span class="badge">Dev</span>
+        </div>
+        <div class="sep"></div>
+        <p class="muted">Login técnico para pruebas y validaciones de API.</p>
+        <div class="row right"><a class="button" href="dev.html">Ir a Dev</a></div>
+      </div>
+    </div>
+  </section>
   <!-- ========== LOGIN ========== -->
   <section id="loginSection">
     <h2>Ingreso de Empresa</h2>

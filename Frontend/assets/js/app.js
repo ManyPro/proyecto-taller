@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
 const sectionLogin = document.getElementById('loginSection');
 const sectionApp = document.getElementById('appSection');
 const appHeader = document.getElementById('appHeader');
+const portalSection = document.getElementById('portalSection');
 const emailSpan = document.getElementById('companyEmail');
 const nameSpan = document.getElementById('companyName');
 const welcomeSpan = document.getElementById('welcomeCompany');
@@ -154,6 +155,7 @@ function enterApp() {
   sectionLogin?.classList.add('hidden');
   sectionApp?.classList.remove('hidden');
   appHeader?.classList.remove('hidden');
+  portalSection?.classList.add('hidden');
   logoutBtn?.classList.remove('hidden');
   applyFeatureGating();
   setupNavigation();
@@ -344,6 +346,10 @@ const storedEmail = API.getActiveCompany?.();
 const storedToken = storedEmail ? API.token.get(storedEmail) : API.token.get();
 // Guard: si no hay sesión y no estamos en Inicio, redirigir a Inicio para login
 if (!storedEmail || !storedToken) {
+  // Mostrar el portal de acceso en Inicio cuando no hay sesión
+  if (getCurrentPage() === 'home') {
+    portalSection?.classList.remove('hidden');
+  }
   if (getCurrentPage() !== 'home') {
     try { sessionStorage.setItem('app:pending', window.location.pathname); } catch {}
     window.location.href = 'index.html';
