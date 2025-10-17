@@ -465,6 +465,13 @@ export const closeSale = async (req, res) => {
         ).session(session);
         if (upd.matchedCount === 0) throw new Error(`Stock update failed for ${target.sku || target.name}`);
 
+        // Si quedó en 0, despublicar automáticamente para ocultarlo del catálogo
+        const fresh = await Item.findOne({ _id: target._id, companyId: req.companyId }).session(session);
+        if ((fresh?.stock || 0) <= 0 && fresh?.published) {
+          fresh.published = false;
+          await fresh.save({ session });
+        }
+
         await StockMove.create([{
           companyId: req.companyId,
           itemId: target._id,

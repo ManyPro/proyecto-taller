@@ -8,7 +8,7 @@ function toQuery(params={}){ const q=new URLSearchParams(); Object.entries(param
 async function fetchJSON(path){ const res = await fetch(apiBase + path); const txt = await res.text(); let body; try{ body=JSON.parse(txt);}catch{ body=txt;} if(!res.ok) throw new Error(body?.error || res.statusText); return body; }
 async function postJSON(path, body){ const res = await fetch(apiBase + path, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(body) }); const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; } if(!res.ok) throw new Error(data?.error || res.statusText); return data; }
 
-const state = { filters:{ page:1, limit:20, order:'recent' }, items:[], meta:{}, cart:new Map(), theme:'dark', companyId:null, companyInfo:null };
+const state = { filters:{ page:1, limit:40, order:'recent', stock:1 }, items:[], meta:{}, cart:new Map(), theme:'dark', companyId:null, companyInfo:null };
 
 function money(n){ const v=Math.round((n||0)*100)/100; try{ return v.toLocaleString('es-CO',{ style:'currency', currency:'COP'});}catch{ return '$'+v; } }
 function applyTheme(){ document.body.classList.toggle('theme-light', state.theme==='light'); const btn=document.getElementById('toggleTheme'); if(btn){ btn.textContent = state.theme==='light'? 'Oscuro':'Claro'; } }
@@ -108,7 +108,8 @@ function readFilters(){
   state.filters.category = fc?.value.trim() || undefined;
   const tagsRaw = ft?.value.trim();
   state.filters.tags = tagsRaw? tagsRaw : undefined;
-  state.filters.stock = fs?.value ? 1 : undefined;
+  const sval = fs?.value || '1';
+  state.filters.stock = sval === 'all' ? 'all' : 1;
 }
 async function loadItems(){
   if(!state.companyId){ alert('Falta companyId'); return; }

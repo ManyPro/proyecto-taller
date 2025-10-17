@@ -170,8 +170,8 @@
         <label style="display:flex;flex-direction:column;gap:4px;">
           <span style="font-size:12px;opacity:.8;">Stock</span>
           <select id="f-stock">
-        <option value="">Stock (todos)</option>
-        <option value="1">Sólo con stock</option>
+            <option value="1" selected>Solo con stock</option>
+            <option value="all">Incluir agotados</option>
           </select>
         </label>
         <label style="display:flex;flex-direction:column;gap:4px;">
@@ -183,10 +183,10 @@
             <option value="name-asc">Nombre A-Z</option>
           </select>
         </label>
-        <select id="f-limit">
-        <option value="12">12</option>
-        <option value="20" selected>20</option>
-        <option value="40">40</option>
+  <select id="f-limit">
+  <option value="12">12</option>
+  <option value="20">20</option>
+  <option value="40" selected>40</option>
         </select>
         <button id="f-apply" class="secondary">Filtrar</button>
         <button id="f-clear" class="secondary">Limpiar</button>

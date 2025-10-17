@@ -15,8 +15,9 @@ export const createOrder = async (req, res) => {
       const it = await Item.findOne({ _id: ln.itemId, companyId: req.companyId }).session(session);
       if (!it) throw new Error("Item no encontrado");
       if (it.stock < ln.qty) throw new Error(`Stock insuficiente para ${it.sku}`);
-      it.stock -= ln.qty;
-      await it.save({ session });
+  it.stock -= ln.qty;
+  if (it.stock <= 0 && it.published) it.published = false;
+  await it.save({ session });
       await StockMove.create([{ companyId: req.companyId, itemId: it._id, qty: -ln.qty, reason: "OUT", meta: { order: true } }], { session });
       total += ln.qty * ln.unitPrice;
     }

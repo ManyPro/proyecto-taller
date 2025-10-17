@@ -15,7 +15,8 @@ import {
   addItemsStockBulk,
   bulkPublishItems,
   downloadImportTemplate,
-  importItemsFromExcel
+  importItemsFromExcel,
+  unpublishZeroStock
 } from '../controllers/inventory.controller.js';
 
 const router = Router();
@@ -37,6 +38,8 @@ router.post('/items/publish/bulk', bulkPublishItems);
 // Import desde Excel
 router.get('/items/import/template', downloadImportTemplate);
 router.post('/items/import/excel', importItemsFromExcel);
+// Mantenimiento
+router.post('/items/maintenance/unpublish-zero-stock', unpublishZeroStock);
 
 router.get('/items/:id/qr.png', itemQrPng);
 

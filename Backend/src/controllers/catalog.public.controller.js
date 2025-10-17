@@ -83,7 +83,7 @@ export const listPublishedItems = async (req, res) => {
   // Nota: Permitimos listar el catálogo aunque publicCatalogEnabled sea false, para evitar bloqueo accidental.
   // El control de visibilidad se delega a "published" por ítem y al UI que expone el enlace.
   const page = Math.min(coercePositiveInt(req.query.page,1), 5000);
-  const limit = Math.min(coercePositiveInt(req.query.limit,20), 50);
+  const limit = Math.min(coercePositiveInt(req.query.limit,40), 50);
   const skip = (page-1)*limit;
   const { q, category, tags, stock, brand } = req.query;
 
@@ -102,7 +102,9 @@ export const listPublishedItems = async (req, res) => {
     const arr = String(tags).split(',').map(s=>s.trim()).filter(Boolean);
     if(arr.length) filter.tags = { $in: arr };
   }
-  if(stock){
+  // Por defecto, sólo con stock. Si stock=all, incluye agotados.
+  const stockParam = String(stock||'').trim().toLowerCase();
+  if(stockParam !== 'all'){
     filter.stock = { $gt: 0 };
   }
 

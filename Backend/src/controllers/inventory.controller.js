@@ -109,11 +109,11 @@ export const listVehicleIntakes = async (req, res) => {
 // ============ IMPORT DESDE EXCEL ============
 // Cabeceras amigables para humanos
 const IMPORT_HEADERS = [
-  'SKU', 'Nombre', 'Marca', 'Ubicación', 'Procedencia final', 'Precio entrada', 'Precio venta', 'Original (SI/NO)', 'Stock', 'Stock mínimo'
+  'SKU', 'Nombre', 'Nombre interno', 'Marca', 'Ubicación', 'Procedencia final', 'Precio entrada', 'Precio venta', 'Original (SI/NO)', 'Stock', 'Stock mínimo'
 ];
 
 export const downloadImportTemplate = async (req, res) => {
-  const wsData = [IMPORT_HEADERS, ['COMP0001','PASTILLAS DE FRENO','RENAULT','','GENERAL','25000','85000','NO','5','0']];
+  const wsData = [IMPORT_HEADERS, ['COMP0001','PASTILLAS DE FRENO','PASTILLAS DELANTERAS','RENAULT','','GENERAL','25000','85000','NO','5','0']];
   const wb = xlsx.utils.book_new();
   const ws = xlsx.utils.aoa_to_sheet(wsData);
   xlsx.utils.book_append_sheet(wb, ws, 'INVENTARIO');
@@ -138,7 +138,8 @@ export const importItemsFromExcel = async (req, res) => {
         const sku = String(r['SKU']||'').trim().toUpperCase();
         const name = String(r['Nombre']||'').trim().toUpperCase();
         if(!sku || !name){ skipped++; continue; }
-        const brand = String(r['Marca']||'').trim().toUpperCase();
+  const internalName = String(r['Nombre interno']||'').trim().toUpperCase();
+  const brand = String(r['Marca']||'').trim().toUpperCase();
         const location = String(r['Ubicación']||'').trim().toUpperCase();
         const vehicleTarget = String(r['Procedencia final']||'').trim().toUpperCase() || 'GENERAL';
         const entryPrice = toNumberSafe(r['Precio entrada']);
@@ -150,6 +151,7 @@ export const importItemsFromExcel = async (req, res) => {
           const existing = await Item.findOne({ companyId: req.company.id, sku });
           if(existing){
             existing.name = name || existing.name;
+            if (internalName) existing.internalName = internalName;
             existing.brand = brand;
             existing.location = location;
             existing.vehicleTarget = vehicleTarget;
@@ -158,12 +160,14 @@ export const importItemsFromExcel = async (req, res) => {
             existing.original = !!original;
             if(Number.isFinite(minStock)) existing.minStock = minStock;
             if(Number.isFinite(stock)) existing.stock = stock; // fijar stock
+            // Auto-despublicar si stock en 0
+            if ((existing.stock || 0) <= 0 && existing.published) existing.published = false;
             await existing.save(); updated++;
           } else {
             await Item.create({
               companyId: req.company.id,
               sku, name,
-              internalName: '', brand, location,
+              internalName: internalName || '', brand, location,
               vehicleTarget,
               entryPrice: Number.isFinite(entryPrice)? entryPrice: 0,
               salePrice: Number.isFinite(salePrice)? salePrice: 0,
@@ -494,6 +498,12 @@ export const updateItem = async (req, res) => {
     { new: true }
   );
 
+  // Auto-despublicar si stock quedó en cero o menos
+  if ((item?.stock || 0) <= 0 && item?.published) {
+    item.published = false;
+    await item.save();
+  }
+
   // Asegura que tenga qrData
   if (!item.qrData) {
     item.qrData = makeQrData({ companyId: req.companyId, item });
@@ -622,6 +632,12 @@ export const addItemStock = async (req, res) => {
   res.json({ item: updated });
   // Al subir stock, si supera el mínimo limpiar bandera de alerta; si sigue por debajo, no notifica (solo notifica en bajadas o si han pasado 24h)
   try { await checkLowStockAndNotify(req.companyId, updated._id); } catch {}
+};
+
+// ===== Mantenimiento: despublicar agotados =====
+export const unpublishZeroStock = async (req, res) => {
+  const r = await Item.updateMany({ companyId: req.companyId, published: true, stock: { $lte: 0 } }, { $set: { published: false } });
+  res.json({ matched: r.matchedCount ?? r.n, modified: r.modifiedCount ?? r.nModified });
 };
 
 // ===== Stock IN (Bulk) =====
