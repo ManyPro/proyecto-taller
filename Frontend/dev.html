@@ -23,11 +23,32 @@
         </div>
       </div>
     </section>
+    <section id="appSection" class="hidden">
+      <div class="card" style="max-width:980px;margin:20px auto;">
+        <div class="row between" style="align-items:center;gap:8px;">
+          <h3 style="margin:0;">Solicitudes de Admin</h3>
+          <button id="d-refresh" class="secondary">Actualizar</button>
+        </div>
+        <div id="d-list" style="margin-top:10px;"></div>
+      </div>
+      <div class="card" style="max-width:980px;margin:12px auto;">
+        <div class="row between" style="align-items:center;gap:8px;">
+          <h3 style="margin:0;">Admins existentes</h3>
+          <button id="a-refresh" class="secondary">Actualizar</button>
+        </div>
+        <div id="a-list" style="margin-top:10px;"></div>
+      </div>
+    </section>
   </main>
   <script type="module">
   import { API } from './assets/js/api.esm.js';
+  const LS_KEY='dev:token';
+  function setTok(t){ try{ localStorage.setItem(LS_KEY, t||''); }catch{} }
+  function getTok(){ try{ return localStorage.getItem(LS_KEY)||''; }catch{return '';} }
   async function req(path, opts={}){
-    const res = await fetch((API.base||'')+path, { ...opts, headers: { 'Content-Type':'application/json' }, body: opts.body?JSON.stringify(opts.body):undefined });
+    const headers = { 'Content-Type':'application/json' };
+    const tok = getTok(); if(tok) headers.Authorization = 'Bearer '+tok;
+    const res = await fetch((API.base||'')+path, { ...opts, headers, body: opts.body?JSON.stringify(opts.body):undefined });
     const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
     if(!res.ok) throw new Error(data?.error || res.statusText);
     return data;
@@ -37,9 +58,94 @@
     const password = document.getElementById('d-password').value;
     try{
       const r = await req('/api/v1/admin/auth/login', { method:'POST', body:{ email, password } });
-      alert('Login OK (developer). Abre admin.html para gestionar empresas.');
+      setTok(r.token);
+      document.getElementById('loginSection').classList.add('hidden');
+      document.getElementById('appSection').classList.remove('hidden');
+      loadReqs();
     }catch(e){ alert(e.message||'Error'); }
   };
+  async function loadReqs(){
+    const wrap = document.getElementById('d-list');
+    wrap.innerHTML = '<div class="muted">Cargando...</div>';
+    try{
+      const r = await req('/api/v1/admin/signup/requests');
+      wrap.innerHTML = '';
+      const companies = r.companies||[];
+      (r.items||[]).forEach(item=>{
+        const div = document.createElement('div');
+        div.className='card'; div.style.marginBottom='8px';
+        div.innerHTML = `<div class='row between' style='align-items:center;'>
+          <div>
+            <div><strong>${item.email}</strong></div>
+            <div class='muted' style='font-size:12px;'>Estado: ${item.status}</div>
+          </div>
+          <div>
+            <details>
+              <summary>Asignar empresas</summary>
+              <div class='row wrap' style='gap:6px;margin-top:6px;'>
+                ${companies.map(c=>`<label class='chip'><input type='checkbox' data-c='${c._id}' ${item.assignedCompanies?.some?.(ac=>String(ac?._id||ac)===String(c._id))?'checked':''}/> ${c.name||c.email}</label>`).join('')}
+              </div>
+            </details>
+            <div class='row right' style='gap:6px;margin-top:6px;'>
+              <button class='approve'>Aprobar</button>
+            </div>
+          </div>
+        </div>`;
+        div.querySelector('.approve').onclick = async ()=>{
+          const selected = Array.from(div.querySelectorAll('input[type=checkbox][data-c]:checked')).map(x=>x.dataset.c);
+          try{
+            const res = await req(`/api/v1/admin/signup/requests/${item._id}/approve`, { method:'POST', body:{ companies: selected } });
+            alert(`Código generado: ${res.code}\nCompártelo con el solicitante.`);
+            loadReqs();
+          }catch(e){ alert(e.message||'Error'); }
+        };
+        wrap.appendChild(div);
+      });
+      if(!wrap.children.length){ wrap.innerHTML = '<div class="muted">Sin solicitudes pendientes</div>'; }
+    }catch(e){ wrap.innerHTML = `<div class='muted'>${e.message||'Error'}</div>`; }
+  }
+  document.getElementById('d-refresh').onclick = loadReqs;
+
+  // Admins existentes: listar y editar asignación de empresas
+  async function loadAdmins(){
+    const wrap = document.getElementById('a-list');
+    wrap.innerHTML = '<div class="muted">Cargando...</div>';
+    try{
+      // Usamos /companies para catálogo, y buscamos admins vía /api/v1/admin/auth/me? (no hay listado). Implementamos llamado directo a un endpoint opcional: de momento, pedimos los admins por email manualmente.
+      // Para no ampliar backend más, haremos una llamada simple al servidor que no existe; como sí ampliamos antes, mejor listemos AdminUsers developers y admins: añadimos endpoint rápido.
+      const list = await (async()=>{
+        try{ const r = await req('/api/v1/admin/admins'); return r.items||[]; }catch{ return []; }
+      })();
+      const companies = await (async()=>{ try{ const c = await req('/api/v1/admin/companies'); return c.items||[]; }catch{ return []; } })();
+      wrap.innerHTML = '';
+      if(!list.length){ wrap.innerHTML = '<div class="muted">Aún no hay admins creados o falta endpoint.</div>'; return; }
+      list.forEach(u=>{
+        const div = document.createElement('div'); div.className='card'; div.style.marginBottom='8px';
+        div.innerHTML = `<div class='row between' style='align-items:center;'>
+          <div>
+            <div><strong>${u.email}</strong> <span class='muted' style='font-size:12px;'>(${u.role})</span></div>
+          </div>
+          <div style='flex:1;margin:0 12px;'>
+            <div class='row wrap' style='gap:6px;'>
+              ${companies.map(c=>`<label class='chip'><input type='checkbox' data-c='${c._id}' ${u.companies?.some?.(ac=>String(ac)===String(c._id))?'checked':''}/> ${c.name||c.email}</label>`).join('')}
+            </div>
+          </div>
+          <div>
+            <button class='save secondary'>Guardar</button>
+          </div>
+        </div>`;
+        div.querySelector('.save').onclick = async ()=>{
+          const selected = Array.from(div.querySelectorAll('input[type=checkbox][data-c]:checked')).map(x=>x.dataset.c);
+          try{
+            await req(`/api/v1/admin/admins/${u._id}/companies`, { method:'PATCH', body:{ companies: selected } });
+            alert('Guardado');
+          }catch(e){ alert(e.message||'Error'); }
+        };
+        wrap.appendChild(div);
+      });
+    }catch(e){ wrap.innerHTML = `<div class='muted'>${e.message||'Error'}</div>`; }
+  }
+  document.getElementById('a-refresh').onclick = loadAdmins;
   </script>
 </body>
 </html>
