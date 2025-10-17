@@ -792,7 +792,7 @@
       initialX = rect.left - canvasRect.left;
       initialY = rect.top - canvasRect.top;
       
-      element.style.zIndex = '1000';
+  element.style.zIndex = '1000';
       element.style.userSelect = 'none';
       selectElement(element);
       
@@ -849,7 +849,8 @@
     const endDrag = () => {
       if (isDragging) {
         isDragging = false;
-        element.style.zIndex = '1';
+  // Restore z-index so it doesn't keep blocking clicks on other elements
+  element.style.zIndex = '';
         element.style.userSelect = 'auto';
         
         if (dragHandle) {
