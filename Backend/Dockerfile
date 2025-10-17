@@ -12,14 +12,14 @@ ENV NODE_ENV=production \
 WORKDIR /app
 
 # Install dependencies first (better layer caching)
-COPY Backend/package.json ./package.json
+COPY package.json ./package.json
 # If you later add a lockfile, prefer `npm ci --omit=dev`
 RUN npm install --omit=dev && npm cache clean --force
 
 # Copy source code
-COPY Backend/src ./src
-COPY Backend/uploads ./uploads
-COPY Backend/perfiles.json ./perfiles.json
+COPY src ./src
+COPY uploads ./uploads
+COPY perfiles.json ./perfiles.json
 
 # Expose application port
 EXPOSE 3000
