@@ -3272,6 +3272,7 @@
       if (window.currentTemplateSession) {
         window.currentTemplateSession.name = template.name;
         window.currentTemplateSession.formatId = formatId;
+        window.currentTemplateSession.contentCss = template.contentCss || '';
       }
       
       // Load content into editor
@@ -3387,9 +3388,47 @@
     if (!canvas) return;
     const elements = canvas.querySelectorAll('.tpl-element');
     if (elements.length === 0) {
-      // Fallback: legacy/HTML-only content — wrap as a single editable block
-      makeTemplateEditable(canvas);
-      console.log('↺ No se encontraron .tpl-element. Se envolvió el contenido para edición.');
+      // Fallback mejorado: convertir nodos existentes en elementos interactivos
+      try {
+        // Forzar layout antes de medir
+        const canvasRect = canvas.getBoundingClientRect();
+        const children = Array.from(canvas.children);
+        let converted = 0;
+        children.forEach(el => {
+          // Ignorar nodos vacíos o contenedores sin contenido visual
+          if (!el || el.classList.contains('tpl-element')) return;
+          const tag = (el.tagName || '').toLowerCase();
+          if (tag === 'script' || tag === 'style') return;
+          const rect = el.getBoundingClientRect();
+          const left = Math.max(0, Math.round(rect.left - canvasRect.left));
+          const top = Math.max(0, Math.round(rect.top - canvasRect.top));
+          // Promover a elemento interactivo
+          el.classList.add('tpl-element');
+          // Asegurar posicionamiento absoluto para poder arrastrar
+          el.style.position = 'absolute';
+          el.style.left = left + 'px';
+          el.style.top = top + 'px';
+          // Mantener tamaño actual si no está fijado
+          const cs = window.getComputedStyle(el);
+          if (!el.style.width || el.style.width === 'auto') el.style.width = rect.width + 'px';
+          if (!el.style.height || el.style.height === 'auto') {
+            // Solo fijar height si es un bloque no auto-ajustable
+            if (cs.display !== 'inline') el.style.height = rect.height + 'px';
+          }
+          makeElementInteractive(el);
+          converted++;
+        });
+        if (converted === 0) {
+          // Último recurso: edición de texto inline
+          makeTemplateEditable(canvas);
+          console.log('↺ Sin elementos convertibles. Modo edición de texto activado.');
+        } else {
+          console.log(`✅ Convertidos ${converted} elementos legacy a interactivos`);
+        }
+      } catch (e) {
+        console.warn('⚠️ Conversión legacy falló, usando edición de texto:', e?.message || e);
+        makeTemplateEditable(canvas);
+      }
     } else {
       elements.forEach(el => makeElementInteractive(el));
       console.log(`🔄 ${elements.length} elementos reinicializados`);
@@ -3795,8 +3834,7 @@
         name: templateName,
         type: templateType,
         contentHtml: content,
-        contentCss: '',
-        activate: false
+        contentCss: (window.currentTemplateSession && window.currentTemplateSession.contentCss) || ''
       });
 
       const company = API.getActiveCompany() || 'empresa actual';
@@ -4019,7 +4057,7 @@
       const result = await API.templates.preview({
         type: templateType,
         contentHtml: content,
-        contentCss: ''
+        contentCss: (window.currentTemplateSession && window.currentTemplateSession.contentCss) || ''
       });
 
       // Show preview in new window with PDF-like styles
@@ -4095,6 +4133,7 @@
               }
               
               /* Ensure proper PDF rendering */
+              /* Ensure proper PDF rendering */
               .tpl-element {
                 border: none !important;
                 outline: none !important;
@@ -4130,6 +4169,7 @@
                 }
               }
             </style>
+            <style id="template-css">${(result && result.css) || (window.currentTemplateSession && window.currentTemplateSession.contentCss) || ''}</style>
           </head>
           <body>
             <div class="preview-header">
@@ -4226,7 +4266,8 @@
               outline: none !important;
               box-shadow: none !important;
             }
-          </style>
+            </style>
+            <style id="template-css">${(window.currentTemplateSession && window.currentTemplateSession.contentCss) || ''}</style>
         </head>
         <body>
           <div class="pdf-viewer">
@@ -4497,6 +4538,8 @@
     if (!canvas) return;
 
     const content = canvas.innerHTML;
+    const sessionInfo = window.currentTemplateSession || null;
+    const templateCss = (sessionInfo && sessionInfo.contentCss) || '';
     const hasElements = !!canvas.querySelector('.tpl-element');
     if ((!content || content.includes('Haz clic en los botones') || content.includes('Tu plantilla está vacía')) && !hasElements) {
       alert('❌ No hay contenido para previsualizar.\n\nPor favor agrega elementos a la plantilla antes de ver la vista previa.');
@@ -4504,11 +4547,10 @@
     }
 
     // Auto-detect template type based on content or session
-    const session = window.currentTemplateSession;
-    let templateType = session?.type || 'invoice';
+    let templateType = (sessionInfo && sessionInfo.type) || 'invoice';
     
     // Try to detect from content if session is not available
-    if (!session) {
+    if (!sessionInfo) {
       if (content.toLowerCase().includes('cotización')) {
         templateType = 'quote';
       } else if (content.toLowerCase().includes('orden de trabajo')) {
@@ -4533,7 +4575,7 @@
       const result = await API.templates.preview({
         type: templateType,
         contentHtml: content,
-        contentCss: ''
+        contentCss: templateCss
       });
       
       console.log('📄 Respuesta de vista previa:', result);
@@ -4684,8 +4726,7 @@
                 outline: none !important;
                 box-shadow: none !important;
                 color: #333 !important;
-                position: static !important;
-                cursor: default !important;
+                /* No cambiar position/top/left/transform para respetar layout y rotaciones */
               }
               
               /* Ensure tables look good */
@@ -4740,6 +4781,7 @@
                 }
               }
             </style>
+            <style id="template-css">${(result && result.css) || templateCss || ''}</style>
           </head>
           <body>
             <div class="preview-header">

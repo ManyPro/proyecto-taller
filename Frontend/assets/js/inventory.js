@@ -504,6 +504,7 @@ if (__ON_INV_PAGE__) {
   const qBrand = document.getElementById("q-brand");
   const qIntake = document.getElementById("q-intakeId");
   const qClear = document.getElementById("q-clear");
+  const btnUnpublishZero = document.getElementById('btn-unpublish-zero');
 
   // Mini-toolbar selección stickers
   const selectionBar = document.createElement("div");
@@ -614,6 +615,29 @@ if (__ON_INV_PAGE__) {
   // Botón global en filtros: abrir publicación sin selección previa
   const btnPubGlobal = document.getElementById('pub-bulk-global');
   if (btnPubGlobal) btnPubGlobal.onclick = openBulkPublishModal;
+
+  // Mantenimiento: despublicar todos los agotados (stock 0)
+  if (btnUnpublishZero) btnUnpublishZero.onclick = () => {
+    invOpenModal(`
+      <h3>Despublicar agotados</h3>
+      <p class="muted">Esta acción despublicará todos los ítems con stock igual a 0. No afecta precios ni stock.</p>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button id="u0-apply">Sí, despublicar</button>
+        <button id="u0-cancel" class="secondary">Cancelar</button>
+      </div>
+    `);
+    document.getElementById('u0-cancel').onclick = invCloseModal;
+    document.getElementById('u0-apply').onclick = async () => {
+      try{
+        showBusy('Despublicando agotados...');
+        const res = await request('/api/v1/inventory/items/maintenance/unpublish-zero-stock', { method:'POST' });
+        invCloseModal(); hideBusy();
+        await refreshItems(state.lastItemsParams);
+        const count = res?.modified ?? res?.count ?? res?.matched ?? 0;
+        showToast(`Despublicados ${count} ítems agotados`);
+      }catch(e){ hideBusy(); alert('No se pudo despublicar: ' + e.message); }
+    };
+  };
 
   // ---- Intakes ----
   async function refreshIntakes() {
@@ -839,8 +863,10 @@ if (__ON_INV_PAGE__) {
         </select>
       </div>`;
 
-    top.innerHTML = build();
-    bottom.innerHTML = build();
+  // Ensure top pager is below filters/stickerBar
+  top.innerHTML = build();
+  // Ensure bottom pager is strictly below the list and also below selection tools
+  bottom.innerHTML = build();
 
     const bind = (root) => {
       const prevBtn = root.querySelector('#inv-prev');
@@ -850,7 +876,8 @@ if (__ON_INV_PAGE__) {
       if (nextBtn) nextBtn.onclick = () => gotoPage(page + 1);
       if (limitSel) limitSel.onchange = () => setLimit(parseInt(limitSel.value,10));
     };
-    bind(top); bind(bottom);
+    bind(top);
+    bind(bottom);
   }
 
   function gotoPage(p) {
