@@ -1,10 +1,9 @@
-version: "3.9"
-
 services:
   mongo:
     image: mongo:7
     container_name: taller-mongo
     restart: unless-stopped
+    profiles: ["dev"]
     ports:
       - "27017:27017"  #expose for local debugging; on server you can remove this line
     volumes:
@@ -21,7 +20,7 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=${PORT:-3000}
-      - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017}
+      - MONGODB_URI=${MONGODB_URI}
       - MONGODB_DB=${MONGODB_DB:-taller}
       - JWT_SECRET=${JWT_SECRET}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
@@ -37,8 +36,6 @@ services:
       - CACHE_VERSION=${CACHE_VERSION:-v1}
     ports:
       - "4000:3000"  # host:container (so you can reach http://localhost:4000)
-    depends_on:
-      - mongo
     volumes:
       - uploads_data:/app/uploads # persist local uploads if UPLOAD_DRIVER=local
 
