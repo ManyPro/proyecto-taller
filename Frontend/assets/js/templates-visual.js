@@ -624,7 +624,7 @@
         
       case 'table':
         element.innerHTML = `
-          <table style="border-collapse: collapse; width: 100%; min-width: 300px;">
+          <table style="border-collapse: collapse; width: 100%;">
             <thead>
               <tr>
                 <th style="border: 1px solid #ddd; padding: 8px; background: #f5f5f5;" contenteditable="true">Cantidad</th>
@@ -1243,8 +1243,16 @@
     }
 
     // Box sizing and overflow
-    if (boxW) boxW.oninput = () => { element.style.width = boxW.value ? (parseInt(boxW.value,10)+'px') : ''; };
-    if (boxH) boxH.oninput = () => { element.style.height = boxH.value ? (parseInt(boxH.value,10)+'px') : ''; };
+    if (boxW) boxW.oninput = () => {
+      const w = boxW.value ? (parseInt(boxW.value,10)+'px') : '';
+      element.style.width = w;
+      if (contentElement && contentElement.style) contentElement.style.width = '100%';
+    };
+    if (boxH) boxH.oninput = () => {
+      const h = boxH.value ? (parseInt(boxH.value,10)+'px') : '';
+      element.style.height = h;
+      if (contentElement && contentElement.style) contentElement.style.height = '100%';
+    };
     if (overflowSel) overflowSel.onchange = () => { element.style.overflow = overflowSel.value; };
 
     // Rotation controls
@@ -1703,7 +1711,7 @@
         padding: '15px', 
         borderRadius: '8px',
         border: '1px solid #e9ecef',
-        minWidth: '700px'
+        width: '700px'
       }
     });
     canvas.appendChild(vehicleSection);
@@ -1719,8 +1727,7 @@
       position: { left: 30, top: 360 },
       styles: { 
         fontSize: '14px',
-        minHeight: '120px',
-        minWidth: '700px',
+        width: '700px',
         border: '1px solid #ddd',
         padding: '15px',
         backgroundColor: '#fff',
@@ -1848,7 +1855,7 @@
         padding: '10px', 
         borderLeft: '4px solid #28a745',
         borderRadius: '4px',
-        minWidth: '600px'
+        width: '600px'
       }
     });
     canvas.appendChild(vehicleSection);
@@ -1870,8 +1877,7 @@
         background: '#f8f9fa',
         padding: '15px',
         borderRadius: '4px',
-        minWidth: '600px',
-        minHeight: '120px'
+        width: '600px'
       }
     });
     canvas.appendChild(itemsContainer);
@@ -1879,7 +1885,7 @@
     // 6. Totals section
     const subtotalLabel = createEditableElement('text', 'Subtotal:', {
       position: { left: 450, top: 520 },
-      styles: { fontSize: '14px', color: '#333', textAlign: 'right', minWidth: '100px' }
+      styles: { fontSize: '14px', color: '#333', textAlign: 'right', width: '100px' }
     });
     canvas.appendChild(subtotalLabel);
 
@@ -1891,7 +1897,7 @@
 
     const taxLabel = createEditableElement('text', 'IVA (16%):', {
       position: { left: 450, top: 545 },
-      styles: { fontSize: '14px', color: '#333', textAlign: 'right', minWidth: '100px' }
+      styles: { fontSize: '14px', color: '#333', textAlign: 'right', width: '100px' }
     });
     canvas.appendChild(taxLabel);
 
@@ -1903,7 +1909,7 @@
 
     const totalLabel = createEditableElement('text', 'TOTAL:', {
       position: { left: 450, top: 580 },
-      styles: { fontSize: '18px', color: '#28a745', fontWeight: 'bold', textAlign: 'right', minWidth: '100px' }
+      styles: { fontSize: '18px', color: '#28a745', fontWeight: 'bold', textAlign: 'right', width: '100px' }
     });
     canvas.appendChild(totalLabel);
 
@@ -2000,7 +2006,7 @@
         padding: '10px', 
         borderLeft: '4px solid #fd7e14',
         borderRadius: '4px',
-        minWidth: '600px'
+        width: '600px'
       }
     });
     canvas.appendChild(vehicleSection);
@@ -2026,8 +2032,7 @@
         background: '#f8d7da', 
         padding: '10px',
         borderRadius: '4px',
-        minWidth: '600px',
-        minHeight: '60px'
+        width: '600px'
       }
     });
     canvas.appendChild(problemDescription);
@@ -2049,8 +2054,7 @@
         background: '#d4edda',
         padding: '15px',
         borderRadius: '4px',
-        minWidth: '600px',
-        minHeight: '100px'
+        width: '600px'
       }
     });
     canvas.appendChild(workDescription);
@@ -2094,9 +2098,10 @@
     element.style.left = pos.left + 'px';
     element.style.top = pos.top + 'px';
     element.style.cursor = 'move';
-    element.style.border = '2px solid transparent';
-    element.style.minWidth = '100px';
-    element.style.minHeight = '20px';
+  element.style.border = '2px solid transparent';
+  // No hard minimums; allow resizing down freely
+  element.style.minWidth = '0';
+  element.style.minHeight = '0';
 
     // Create content based on type
     let contentElement;
@@ -2145,7 +2150,7 @@
       background: #2563eb;
       color: white;
       display: flex;
-      min-width: 700px;
+      width: 700px;
       border: 2px solid transparent;
       cursor: move;
     `;
@@ -2202,7 +2207,7 @@
       top: 20px;
       border: 2px solid transparent;
       cursor: move;
-      min-width: 700px;
+      width: 700px;
       background: white;
       border-radius: 4px;
       overflow: hidden;
@@ -2332,6 +2337,14 @@
     if (!style.position) element.style.position = 'absolute';
     if (!style.left) element.style.left = (getSafeInsetPx() || 20) + 'px';
     if (!style.top) element.style.top = (getSafeInsetPx() || 20) + 'px';
+    // Clear legacy min constraints so user can shrink freely
+    element.style.minWidth = '0';
+    element.style.minHeight = '0';
+    const inner = element.firstElementChild;
+    if (inner && inner.style) {
+      inner.style.minWidth = '0';
+      inner.style.minHeight = '0';
+    }
 
     // Rebind core interactions
     try { makeDraggable(element); } catch(_) {}
@@ -2710,7 +2723,8 @@
         // Add variable at cursor position or append
         if (isMultiline) {
           contentEl.style.whiteSpace = 'pre-line';
-          contentEl.style.minHeight = '60px';
+          // allow shrinking: no minHeight clamp
+          contentEl.style.minHeight = '0';
         }
         
         // Insert at cursor position if possible
@@ -2756,7 +2770,7 @@
       styles = { 
         fontSize: '14px', 
         whiteSpace: 'pre-line', 
-        minHeight: '60px',
+        // no minHeight clamp
         fontFamily: 'monospace',
         backgroundColor: '#f8f9fa',
         padding: '10px',
@@ -3416,6 +3430,38 @@
           // For sticker templates, ensure elements are interactive even in legacy content
           if (template.type === 'sticker-qr' || template.type === 'sticker-brand') {
             try {
+              // Helper: recursively convert legacy nodes into interactive elements, avoiding full-page wrappers
+              const convertLegacyToInteractive = (parentEl, refRect) => {
+                if (!parentEl) return;
+                const children = Array.from(parentEl.children || []);
+                children.forEach(el => {
+                  if (!el || el.classList?.contains('tpl-element')) return;
+                  const tag = (el.tagName || '').toLowerCase();
+                  if (tag === 'script' || tag === 'style') return;
+                  const rect = el.getBoundingClientRect();
+                  const isWrapper = (
+                    (el.querySelector && el.querySelector('.tpl-element')) ||
+                    el.children.length > 1 ||
+                    rect.width >= (refRect.width * 0.9) ||
+                    rect.height >= (refRect.height * 0.9)
+                  );
+                  if (isWrapper) {
+                    // Make wrapper transparent to pointer events so inner items are clickable
+                    try { el.style.pointerEvents = 'none'; } catch(_) {}
+                    convertLegacyToInteractive(el, refRect);
+                    return;
+                  }
+                  // Promote leaf to interactive element
+                  el.classList.add('tpl-element');
+                  el.style.position = 'absolute';
+                  el.style.left = Math.max(0, Math.round(rect.left - refRect.left)) + 'px';
+                  el.style.top = Math.max(0, Math.round(rect.top - refRect.top)) + 'px';
+                  const cs = window.getComputedStyle(el);
+                  if (!el.style.width || el.style.width === 'auto') el.style.width = rect.width + 'px';
+                  if (!el.style.height || el.style.height === 'auto') { if (cs.display !== 'inline') el.style.height = rect.height + 'px'; }
+                  try { makeElementInteractive(el); } catch(_) {}
+                });
+              };
               // Prefer working inside each page so we don't accidentally wrap page containers
               const pages = Array.from(canvas.querySelectorAll('.editor-page'));
               if (pages.length > 0) {
@@ -3427,23 +3473,7 @@
                   } else {
                     // Legacy: promote page's direct children to interactive elements
                     const pRect = page.getBoundingClientRect();
-                    const kids = Array.from(page.children);
-                    kids.forEach(el => {
-                      if (!el || el.classList.contains('tpl-element')) return;
-                      const tag = (el.tagName || '').toLowerCase();
-                      if (tag === 'script' || tag === 'style') return;
-                      const r = el.getBoundingClientRect();
-                      el.classList.add('tpl-element');
-                      el.style.position = 'absolute';
-                      el.style.left = Math.max(0, Math.round(r.left - pRect.left)) + 'px';
-                      el.style.top = Math.max(0, Math.round(r.top - pRect.top)) + 'px';
-                      const cs = window.getComputedStyle(el);
-                      if (!el.style.width || el.style.width === 'auto') el.style.width = r.width + 'px';
-                      if (!el.style.height || el.style.height === 'auto') {
-                        if (cs.display !== 'inline') el.style.height = r.height + 'px';
-                      }
-                      makeElementInteractive(el);
-                    });
+                    convertLegacyToInteractive(page, pRect);
                   }
                 });
               } else {
@@ -3454,23 +3484,7 @@
                   tpls.forEach(el => makeElementInteractive(el));
                 } else {
                   const cRect = container.getBoundingClientRect();
-                  const kids = Array.from(container.children);
-                  kids.forEach(el => {
-                    if (!el || el.classList.contains('tpl-element')) return;
-                    const tag = (el.tagName || '').toLowerCase();
-                    if (tag === 'script' || tag === 'style') return;
-                    const r = el.getBoundingClientRect();
-                    el.classList.add('tpl-element');
-                    el.style.position = 'absolute';
-                    el.style.left = Math.max(0, Math.round(r.left - cRect.left)) + 'px';
-                    el.style.top = Math.max(0, Math.round(r.top - cRect.top)) + 'px';
-                    const cs = window.getComputedStyle(el);
-                    if (!el.style.width || el.style.width === 'auto') el.style.width = r.width + 'px';
-                    if (!el.style.height || el.style.height === 'auto') {
-                      if (cs.display !== 'inline') el.style.height = r.height + 'px';
-                    }
-                    makeElementInteractive(el);
-                  });
+                  convertLegacyToInteractive(container, cRect);
                 }
               }
             } catch(e) {
