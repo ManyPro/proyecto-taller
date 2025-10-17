@@ -26,7 +26,8 @@ EXPOSE 3000
 
 # Run as non-root where possible
 # node image already has `node` user, but our deps may write to uploads. Ensure perms.
-RUN chown -R node:node /app
+RUN mkdir -p /app/uploads \
+ && chown -R node:node /app
 USER node
 
 ENTRYPOINT ["/sbin/tini","--"]
