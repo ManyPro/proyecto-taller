@@ -594,8 +594,9 @@
     const id = `element_${visualEditor.nextId++}`;
     const element = document.createElement('div');
     element.id = id;
-    element.className = 'tpl-element';
-    element.style.cssText = 'position: absolute; cursor: move; border: 2px solid transparent; padding: 8px; min-width: 100px; min-height: 30px;';
+  element.className = 'tpl-element';
+  // Base style for interactive blocks; padding/min-sizes are adjusted per type (images need tight boxes)
+  element.style.cssText = 'position: absolute; cursor: move; border: 2px solid transparent;';
 
     const inset = getSafeInsetPx();
     switch (type) {
@@ -615,6 +616,10 @@
         element.innerHTML = '<div class="image-placeholder" style="width: 150px; height: 100px; background: #f0f0f0; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; color: #666;">Haz clic para agregar imagen</div>';
         element.style.left = (inset || 20) + 'px';
         element.style.top = ((inset || 20) + 60) + 'px';
+        // Tighten wrapper to image size: no padding or min-size so the selection box matches the image
+        element.style.padding = '0';
+        element.style.minWidth = '0';
+        element.style.minHeight = '0';
         break;
         
       case 'table':
@@ -1319,11 +1324,12 @@
         reader.onload = (e) => {
           const imgContainer = document.createElement('div');
           imgContainer.className = 'image-container';
-          imgContainer.style.cssText = 'position: relative; display: inline-block; max-width: 100%;';
+          // Tight box around the image with no padding/margins; size follows the image exactly
+          imgContainer.style.cssText = 'position: relative; display: inline-block; padding:0; margin:0; line-height:0;';
           
           const img = document.createElement('img');
           img.src = e.target.result;
-          img.style.cssText = 'width: 150px; height: auto; display: block; user-select: none;';
+          img.style.cssText = 'width:150px; height:auto; display:block; user-select:none; margin:0; padding:0;';
           img.draggable = false;
           
           imgContainer.appendChild(img);
@@ -1400,6 +1406,11 @@
     const updateHandles = () => {
       const shouldShow = !!(visualEditor.selectedElement && visualEditor.selectedElement.contains(container));
       Object.values(handleElements).forEach(h => h.style.display = shouldShow ? 'block' : 'none');
+      // Ensure container hugs image size (no extra whitespace)
+      try {
+        container.style.width = img.offsetWidth + 'px';
+        container.style.height = img.offsetHeight + 'px';
+      } catch(_) {}
     };
 
     // Update on selection polling (lightweight)
@@ -1482,6 +1493,19 @@
 
       img.style.width = newWidth + 'px';
       img.style.height = newHeight + 'px';
+      // Keep container and parent element sized to the image for tight hitbox
+      try {
+        container.style.width = img.offsetWidth + 'px';
+        container.style.height = img.offsetHeight + 'px';
+        const parentTpl = container.closest('.tpl-element');
+        if (parentTpl) {
+          parentTpl.style.width = container.style.width;
+          parentTpl.style.height = container.style.height;
+          parentTpl.style.padding = '0';
+          parentTpl.style.minWidth = '0';
+          parentTpl.style.minHeight = '0';
+        }
+      } catch(_) {}
       
       e.preventDefault();
     };
@@ -2319,7 +2343,27 @@
       const imgContainer = element.querySelector && element.querySelector('.image-container');
       if (imgContainer) {
         const img = imgContainer.querySelector('img');
-        if (img) addResizeHandles(imgContainer, img);
+        if (img) {
+          // Normalize wrappers to image size on load
+          imgContainer.style.padding = '0';
+          imgContainer.style.margin = '0';
+          imgContainer.style.lineHeight = '0';
+          imgContainer.style.display = 'inline-block';
+          // If widths/heights exist, sync outer tpl-element too
+          const parentTpl = element.closest('.tpl-element') || element;
+          const w = img.offsetWidth || parseInt(img.style.width, 10) || 0;
+          const h = img.offsetHeight || parseInt(img.style.height, 10) || 0;
+          if (w && h) {
+            imgContainer.style.width = w + 'px';
+            imgContainer.style.height = h + 'px';
+            parentTpl.style.width = w + 'px';
+            parentTpl.style.height = h + 'px';
+            parentTpl.style.padding = '0';
+            parentTpl.style.minWidth = '0';
+            parentTpl.style.minHeight = '0';
+          }
+          addResizeHandles(imgContainer, img);
+        }
       }
     } catch(_) {}
 
@@ -2759,7 +2803,7 @@
 
     const img = document.createElement('img');
     img.src = '{{item.qr}}';
-    img.style.cssText = 'width:80px; height:auto; display:block; user-select:none;';
+  img.style.cssText = 'width:80px; height:auto; display:block; user-select:none; margin:0; padding:0;';
     img.draggable = false;
     imgContainer.appendChild(img);
     wrapper.appendChild(imgContainer);
@@ -3370,33 +3414,68 @@
           canvas.innerHTML = template.contentHtml;
           // For sticker templates, ensure elements are interactive even in legacy content
           if (template.type === 'sticker-qr' || template.type === 'sticker-brand') {
-            const container = canvas.querySelector('[data-pages-container="true"]') || canvas;
-            let allElements = container.querySelectorAll('.tpl-element');
-            if (!allElements.length) {
-              // Legacy content without wrappers: convert children to interactive elements
-              try {
-                const cRect = container.getBoundingClientRect();
-                const kids = Array.from(container.children);
-                kids.forEach(el => {
-                  if (!el || el.classList.contains('tpl-element')) return;
-                  const tag = (el.tagName || '').toLowerCase();
-                  if (tag === 'script' || tag === 'style') return;
-                  const r = el.getBoundingClientRect();
-                  el.classList.add('tpl-element');
-                  el.style.position = 'absolute';
-                  el.style.left = Math.max(0, Math.round(r.left - cRect.left)) + 'px';
-                  el.style.top = Math.max(0, Math.round(r.top - cRect.top)) + 'px';
-                  const cs = window.getComputedStyle(el);
-                  if (!el.style.width || el.style.width === 'auto') el.style.width = r.width + 'px';
-                  if (!el.style.height || el.style.height === 'auto') { if (cs.display !== 'inline') el.style.height = r.height + 'px'; }
-                  makeElementInteractive(el);
+            try {
+              // Prefer working inside each page so we don't accidentally wrap page containers
+              const pages = Array.from(canvas.querySelectorAll('.editor-page'));
+              if (pages.length > 0) {
+                pages.forEach(page => {
+                  // Rebind existing interactive elements first
+                  const pageTpls = Array.from(page.querySelectorAll('.tpl-element'));
+                  if (pageTpls.length > 0) {
+                    pageTpls.forEach(el => makeElementInteractive(el));
+                  } else {
+                    // Legacy: promote page's direct children to interactive elements
+                    const pRect = page.getBoundingClientRect();
+                    const kids = Array.from(page.children);
+                    kids.forEach(el => {
+                      if (!el || el.classList.contains('tpl-element')) return;
+                      const tag = (el.tagName || '').toLowerCase();
+                      if (tag === 'script' || tag === 'style') return;
+                      const r = el.getBoundingClientRect();
+                      el.classList.add('tpl-element');
+                      el.style.position = 'absolute';
+                      el.style.left = Math.max(0, Math.round(r.left - pRect.left)) + 'px';
+                      el.style.top = Math.max(0, Math.round(r.top - pRect.top)) + 'px';
+                      const cs = window.getComputedStyle(el);
+                      if (!el.style.width || el.style.width === 'auto') el.style.width = r.width + 'px';
+                      if (!el.style.height || el.style.height === 'auto') {
+                        if (cs.display !== 'inline') el.style.height = r.height + 'px';
+                      }
+                      makeElementInteractive(el);
+                    });
+                  }
                 });
-                allElements = container.querySelectorAll('.tpl-element');
-              } catch(e) {
-                console.warn('Sticker legacy conversion failed:', e?.message || e);
+              } else {
+                // No explicit pages: operate on the canvas content directly
+                const container = canvas.querySelector('[data-pages-container="true"]') || canvas;
+                const tpls = Array.from(container.querySelectorAll('.tpl-element'));
+                if (tpls.length > 0) {
+                  tpls.forEach(el => makeElementInteractive(el));
+                } else {
+                  const cRect = container.getBoundingClientRect();
+                  const kids = Array.from(container.children);
+                  kids.forEach(el => {
+                    if (!el || el.classList.contains('tpl-element')) return;
+                    const tag = (el.tagName || '').toLowerCase();
+                    if (tag === 'script' || tag === 'style') return;
+                    const r = el.getBoundingClientRect();
+                    el.classList.add('tpl-element');
+                    el.style.position = 'absolute';
+                    el.style.left = Math.max(0, Math.round(r.left - cRect.left)) + 'px';
+                    el.style.top = Math.max(0, Math.round(r.top - cRect.top)) + 'px';
+                    const cs = window.getComputedStyle(el);
+                    if (!el.style.width || el.style.width === 'auto') el.style.width = r.width + 'px';
+                    if (!el.style.height || el.style.height === 'auto') {
+                      if (cs.display !== 'inline') el.style.height = r.height + 'px';
+                    }
+                    makeElementInteractive(el);
+                  });
+                }
               }
+            } catch(e) {
+              console.warn('Sticker legacy conversion failed:', e?.message || e);
             }
-            allElements.forEach(el => { makeDraggable(el); makeSelectable(el); });
+
             // Detect pages and setup controls when present; default to single page for QR-only
             const pageCount = canvas.querySelectorAll('.editor-page').length || 1;
             if (!state.pages) state.pages = { count: pageCount, current: 1 };
@@ -3405,6 +3484,7 @@
             setupPagesControls(pageCount);
             if (typeof window._showEditorPage === 'function') window._showEditorPage(1);
             insertStickerVarsHint();
+            updateSafeGuidesVisibility && updateSafeGuidesVisibility();
           } else {
             // For non-sticker, reinitialize as before
             reinitializeElements();
