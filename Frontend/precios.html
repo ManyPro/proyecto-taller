@@ -1,19 +1,7 @@
 ﻿<!doctype html>
 <html lang="es">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>M&M - Lista de Precios</title>
-  <link rel="stylesheet" href="assets/styles.css?v=20250923-2" />
-  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
-  <script src="./assets/js/config.js"></script>
-  <script src="./assets/js/api.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
-  <script>
-    window.QUOTES_KEYS = { lastNumber: 'quotes:lastNumber', draft: 'quotes:current' };
+  <main>
+    <section id="appSection" class="hidden">
   </script>
 </head>
 <body data-page="precios">
@@ -23,7 +11,6 @@
         <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
           <div class="brand">
             <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" />
-            <h1>M&amp;M</h1>
             <div class="company">Empresa: <span id="companyName">-</span></div>
           </div>
           <div class="row" style="gap:6px;align-items:center;">
