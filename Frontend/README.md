@@ -1,6 +1,6 @@
 # Taller Frontend (Vanilla JS + Netlify)
 
-1) Edita `assets/config.js` y coloca la URL de tu backend desplegado.
+1) Edita `assets/js/config.js` si necesitas forzar una URL de backend (en general no hace falta; en producción se usa mismo origen y en local http://localhost:4000).
 2) Abre `index.html` en local para probar, o súbelo a Netlify.
 
 El login es por **empresa** (email/contraseña). Cada empresa ve sus propios datos.
