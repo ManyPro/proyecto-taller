@@ -196,6 +196,22 @@ function invCloseModal() {
   document.body.classList.remove("modal-open");
 }
 
+// Opens a stacked overlay above the main modal without closing it (used for image/video previews)
+function invOpenOverlay(innerHTML) {
+  const overlay = document.createElement('div');
+  overlay.id = 'inv-stacked-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;';
+  overlay.innerHTML = `<div id="inv-stacked-box" style="position:relative;background:var(--card,#0b1220);color:var(--text,#e5e7eb);padding:10px;border-radius:10px;max-width:95vw;max-height:90vh;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.35)">
+    <button id="inv-overlay-close" aria-label="Cerrar" style="position:absolute;top:6px;right:8px;line-height:1;border:0;background:transparent;font-size:24px;color:#94a3b8;cursor:pointer">&times;</button>
+    ${innerHTML}
+  </div>`;
+  document.body.appendChild(overlay);
+  const close = () => { try{ document.body.removeChild(overlay); }catch{} };
+  overlay.addEventListener('click', (e)=>{ if (e.target === overlay) close(); });
+  document.getElementById('inv-overlay-close')?.addEventListener('click', close);
+  document.addEventListener('keydown', function esc(e){ if(e.key==='Escape'){ close(); } }, { once: true });
+}
+
 function openLightbox(media) {
   const isVideo = (media.mimetype || "").startsWith("video/");
   invOpenModal(
@@ -1269,13 +1285,29 @@ if (__ON_INV_PAGE__) {
     const sale = document.getElementById("e-it-sale");
     const original = document.getElementById("e-it-original");
     const stock = document.getElementById("e-it-stock");
-  const files = document.getElementById("e-it-files");
+    const files = document.getElementById("e-it-files");
   const minInput = document.getElementById("e-it-min");
     const eBrand = document.getElementById("e-it-brand");
     const thumbs = document.getElementById("e-it-thumbs");
     const viewer = document.getElementById("e-it-viewer");
     const save = document.getElementById("e-it-save");
     const cancel = document.getElementById("e-it-cancel");
+
+    // Track ongoing uploads to prevent saving while media is uploading
+    let pendingUploads = 0;
+    const setSaveLoading = (loading) => {
+      if (!save) return;
+      if (loading) {
+        save.disabled = true;
+        save.dataset.loading = '1';
+        if (!save.dataset._label) save.dataset._label = save.textContent || 'Guardar cambios';
+        save.textContent = 'Subiendo imágenes...';
+      } else {
+        delete save.dataset.loading;
+        save.disabled = false;
+        save.textContent = save.dataset._label || 'Guardar cambios';
+      }
+    };
 
     function renderThumbs() {
       thumbs.innerHTML = "";
@@ -1290,9 +1322,10 @@ if (__ON_INV_PAGE__) {
   previewBtn.title = "Vista previa";
   previewBtn.innerHTML = `<svg width='18' height='18' viewBox='0 0 20 20' fill='none'><path d='M1 10C3.5 5.5 8 3 12 5.5C16 8 18.5 13 17 15C15.5 17 10.5 17 7 15C3.5 13 1 10 1 10Z' stroke='#2563eb' stroke-width='2' fill='none'/><circle cx='10' cy='10' r='3' fill='#2563eb'/></svg>`;
         previewBtn.onclick = (ev) => {
-          invOpenModal(
-            `<div class='viewer-modal'>` +
-            (m.mimetype?.startsWith("video/")
+          const isVideo = m.mimetype?.startsWith('video/');
+          invOpenOverlay(
+            `<div class='viewer-modal'>`+
+            (isVideo
               ? `<video controls src='${m.url}' style='max-width:90vw;max-height:80vh;object-fit:contain;'></video>`
               : `<img src='${m.url}' alt='media' style='max-width:90vw;max-height:80vh;object-fit:contain;'/>`)
             + `</div>`
@@ -1342,6 +1375,8 @@ if (__ON_INV_PAGE__) {
     files.addEventListener("change", async () => {
       if (!files.files?.length) return;
       try {
+        pendingUploads++;
+        setSaveLoading(true);
         const up = await invAPI.mediaUpload(files.files);
         const list = (up && up.files) ? up.files : [];
         images.push(...list);
@@ -1349,12 +1384,19 @@ if (__ON_INV_PAGE__) {
         renderThumbs();
       } catch (e) {
         alert("No se pudieron subir los archivos: " + e.message);
+      } finally {
+        pendingUploads = Math.max(0, pendingUploads - 1);
+        if (pendingUploads === 0) setSaveLoading(false);
       }
     });
 
     cancel.onclick = invCloseModal;
 
     save.onclick = async () => {
+      if (save?.dataset.loading === '1' || pendingUploads > 0) {
+        alert('Espera a que termine la subida de imágenes antes de guardar.');
+        return;
+      }
       try {
         const body = {
           sku: (sku.value || "").trim().toUpperCase(),
