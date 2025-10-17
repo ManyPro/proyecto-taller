@@ -150,11 +150,13 @@ const defaultAllow = [
 ];
 
 const allowList = envAllow.length ? envAllow : defaultAllow;
-logger.info('[CORS] allowList', { allowList });
+const allowAll = allowList.includes('*');
+logger.info('[CORS] allowList', { allowList, allowAll });
 
 const corsOptions = {
   origin(origin, cb) {
-    if (!origin) return cb(null, true);           // Postman/cURL
+    if (allowAll) return cb(null, true);
+    if (!origin) return cb(null, true);           // Postman/cURL o mismo origen sin Origin
     if (allowList.includes(origin)) return cb(null, true);
     return cb(new Error('Not allowed by CORS'));
   },

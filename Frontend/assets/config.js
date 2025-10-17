@@ -14,6 +14,14 @@
   // - Desarrollo local: usar http://localhost:4000 que mapea al backend del docker-compose.
   // - Hosts conocidos (netlify/render): puedes apuntar a tu dominio o IP del droplet si no usas proxy.
 
+  // Permitir override temporal por query (?api=) o localStorage (backend_url)
+  try {
+    const usp = new URLSearchParams(window.location.search);
+    const qApi = usp.get('api');
+    if (qApi) localStorage.setItem('backend_url', qApi);
+  } catch { }
+  const stored = (() => { try { return localStorage.getItem('backend_url') || ''; } catch { return ''; } })();
+
   if (isLocalhost) {
     window.BACKEND_URL = 'http://localhost:4000'; // docker-compose expone backend en 4000
     window.IS_PRODUCTION = false;
@@ -21,12 +29,12 @@
   } else if (isNetlify || isRender) {
     // Si sigues usando un hosting externo para el frontend, apunta temporalmente a tu servidor.
     // Reemplaza por tu dominio en DigitalOcean cuando lo tengas.
-    window.BACKEND_URL = '';
+    window.BACKEND_URL = stored || '';
     window.IS_PRODUCTION = true;
-    console.log('🌐 Modo PRODUCCIÓN - Mismo origen vía proxy Nginx');
+    console.log('🌐 Modo PRODUCCIÓN -', window.BACKEND_URL ? `Backend override: ${window.BACKEND_URL}` : 'Mismo origen vía proxy Nginx');
   } else {
     // Producción en tu propio droplet con Nginx proxy -> mismo origen (dejar vacío)
-    window.BACKEND_URL = '';
+    window.BACKEND_URL = stored || '';
     window.IS_PRODUCTION = true;
     console.log('🌐 Producción (mismo origen).');
   }
