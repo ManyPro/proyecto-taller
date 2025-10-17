@@ -10,7 +10,8 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "prepare:profiles": "node scripts/prepare_profiles_from_legacy.js",
-    "migrate:skus": "node scripts/migrate_skus_companyId.js"
+  "migrate:skus": "node scripts/migrate_skus_companyId.js",
+  "seed:admin": "node scripts/seed_admin.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
