@@ -112,6 +112,7 @@ const API = {
     activeCompany.set(email);
     tokenStore.set(res.token, email);
       try { if(res?.company?.id) companyIdStore.set(res.company.id, email); } catch {}
+      try { if(res?.company?.features) localStorage.setItem(`taller.features:${SCOPE}:${email}`, JSON.stringify(res.company.features)); } catch {}
       return { ...res, email };
   },
     companyMe: async () => {
@@ -120,6 +121,7 @@ const API = {
         const email = activeCompany.get();
         const cid = body?.company?.id || body?.id || body?._id || '';
         if (cid) companyIdStore.set(cid, email);
+        if (body?.company?.features) localStorage.setItem(`taller.features:${SCOPE}:${email}`, JSON.stringify(body.company.features));
       } catch {}
       return body;
     },
@@ -245,7 +247,9 @@ const API = {
     removeTechnician: (name) => http.del(`/api/v1/company/technicians/${encodeURIComponent(name)}`).then(r => r.technicians || []),
     getPreferences: () => http.get('/api/v1/company/preferences').then(r => r.preferences || { laborPercents: [] }),
     setPreferences: (prefs) => http.put('/api/v1/company/preferences', prefs).then(r => r.preferences || { laborPercents: [] }),
-    togglePublicCatalog: (enabled) => http.patch('/api/v1/company/public-catalog', { enabled }).then(r => !!r.publicCatalogEnabled)
+    togglePublicCatalog: (enabled) => http.patch('/api/v1/company/public-catalog', { enabled }).then(r => !!r.publicCatalogEnabled),
+    getFeatures: () => http.get('/api/v1/company/features').then(r => r.features || {}),
+    setFeatures: (patch) => http.patch('/api/v1/company/features', patch).then(r => r.features || {})
   },
   accounts: {
     list: () => http.get('/api/v1/cashflow/accounts'),

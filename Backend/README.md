@@ -297,6 +297,36 @@ Notas:
 4. Backend descuenta inventario y guarda datos de pago/labor.
 5. `laborShare` queda listo para reportes futuros por técnico.
 
+## Feature flags por empresa (UI/BE)
+
+Cada empresa puede habilitar/deshabilitar módulos principales mediante `Company.features`:
+
+```jsonc
+{
+	"notas": true,
+	"ventas": true,
+	"cotizaciones": true,
+	"inventario": true,
+	"precios": true,
+	"cashflow": true,
+	"templates": true,
+	"skus": true,
+	"techreport": true
+}
+```
+
+Endpoints:
+
+```
+GET    /api/v1/company/features
+PATCH  /api/v1/company/features   { "cashflow": false }
+```
+
+Notas:
+- Si un flag no existe, se considera habilitado (backward compatible).
+- El frontend oculta pestañas según estos flags.
+- El backend protege `cashflow` con un chequeo de feature (retorna 403 si está deshabilitado).
+
 
 ### Envío real de correos (SMTP)
 

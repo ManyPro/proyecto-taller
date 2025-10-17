@@ -62,6 +62,28 @@ router.put('/preferences', async (req, res) => {
   res.json({ preferences: req.companyDoc.preferences });
 });
 
+// ========== Features (flags por empresa) ==========
+// GET actual
+router.get('/features', (req, res) => {
+  const features = req.companyDoc.features || {};
+  res.json({ features });
+});
+
+// PATCH merge parcial de flags
+router.patch('/features', async (req, res) => {
+  const patch = req.body || {};
+  if (typeof patch !== 'object' || Array.isArray(patch)) {
+    return res.status(400).json({ error: 'payload inválido' });
+  }
+  req.companyDoc.features ||= {};
+  Object.keys(patch).forEach(k => {
+    const v = !!patch[k];
+    req.companyDoc.features[k] = v;
+  });
+  await req.companyDoc.save();
+  res.json({ features: req.companyDoc.features });
+});
+
 // ========== Toggle Catálogo Público ==========
 // Permite activar/desactivar el catálogo público segmentado para la empresa autenticada.
 // PATCH /api/v1/company/public-catalog { "enabled": true|false }

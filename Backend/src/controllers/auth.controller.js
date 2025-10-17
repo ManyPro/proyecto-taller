@@ -27,7 +27,7 @@ export async function registerCompany(req, res) {
     const token = signCompany(company);
     return res.status(201).json({
       token,
-      company: { id: company._id, name: company.name, email: company.email, publicCatalogEnabled: company.publicCatalogEnabled }
+      company: { id: company._id, name: company.name, email: company.email, publicCatalogEnabled: company.publicCatalogEnabled, features: company.features || {} }
     });
   } catch (e) {
     return res.status(500).json({ error: 'Error al registrar empresa' });
@@ -49,7 +49,7 @@ export async function loginCompany(req, res) {
     const token = signCompany(company);
     return res.json({
       token,
-      company: { id: company._id, name: company.name, email: company.email, publicCatalogEnabled: company.publicCatalogEnabled }
+      company: { id: company._id, name: company.name, email: company.email, publicCatalogEnabled: company.publicCatalogEnabled, features: company.features || {} }
     });
   } catch (e) {
     return res.status(500).json({ error: 'Error en login' });
@@ -62,7 +62,7 @@ export async function meCompany(req, res) {
     if (!companyId) return res.status(401).json({ error: 'No autorizado' });
     const c = await Company.findById(companyId).lean();
     if (!c) return res.status(404).json({ error: 'Empresa no encontrada' });
-  res.json({ company: { id: c._id, name: c.name, email: c.email, publicCatalogEnabled: c.publicCatalogEnabled } });
+  res.json({ company: { id: c._id, name: c.name, email: c.email, publicCatalogEnabled: c.publicCatalogEnabled, features: c.features || {} } });
   } catch {
     res.status(500).json({ error: 'Error al obtener empresa' });
   }

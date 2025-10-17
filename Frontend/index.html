@@ -51,15 +51,15 @@
         <div class="top-tabs">
           <nav class="tabs">
             <button data-tab="home" data-href="index.html" class="active">Inicio</button>
-            <button data-tab="notas" data-href="notas.html">Notas</button>
-            <button data-tab="ventas" data-href="ventas.html">Ventas</button>
-            <button data-tab="cotizaciones" data-href="cotizaciones.html">Cotizaciones</button>
-            <button data-tab="inventario" data-href="inventario.html">Inventario</button>
-            <button data-tab="precios" data-href="precios.html">Lista de precios</button>
-            <button data-tab="cashflow" data-href="cashflow.html">Flujo de Caja</button>
-            <button data-tab="reporte-tecnico" data-href="reporte-tecnico.html">Reporte Técnico</button>
-            <button data-tab="formatos" data-href="template-selector.html">Formatos</button>
-            <button data-tab="skus" data-href="skus.html">SKUs</button>
+            <button data-tab="notas" data-feature="notas" data-href="notas.html">Notas</button>
+            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html">Ventas</button>
+            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html">Cotizaciones</button>
+            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html">Inventario</button>
+            <button data-tab="precios" data-feature="precios" data-href="precios.html">Lista de precios</button>
+            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html">Flujo de Caja</button>
+            <button data-tab="reporte-tecnico" data-feature="techreport" data-href="reporte-tecnico.html">Reporte Técnico</button>
+            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html">Formatos</button>
+            <button data-tab="skus" data-feature="skus" data-href="skus.html">SKUs</button>
           </nav>
         </div>
       </div>
@@ -76,6 +76,20 @@
           <h2 style="font-size:24px;margin:0;color:var(--muted);">Bienvenido a</h2>
           <h1 style="font-size:40px;margin:16px 0 8px 0;"> <span id="welcomeCompany">Tu empresa</span></h1>
           <p class="muted" style="font-size:16px;">Usa la barra de navegación para acceder a cada herramienta de tu taller.</p>
+        </div>
+
+        <!-- Panel de administración simple: toggles de módulos por empresa -->
+        <div class="card" id="home-admin-card" style="max-width:840px;margin:0 auto 40px;">
+          <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
+            <h3 style="margin:0;">Configuración de módulos</h3>
+            <small class="muted">Activa o desactiva secciones de la app para tu empresa</small>
+          </div>
+          <div id="features-panel" class="row wrap" style="gap:10px;margin-top:10px;"></div>
+          <div class="row right" style="gap:8px;margin-top:10px;">
+            <button id="features-refresh" class="secondary">Descartar cambios</button>
+            <button id="features-save">Guardar cambios</button>
+          </div>
+          <div id="features-msg" class="muted" style="margin-top:8px;font-size:12px;"></div>
         </div>
       </section>
 

@@ -103,7 +103,7 @@ export function initQuotes({ getCompanyEmail }) {
   function ensureInit(){
     if(inited) return; inited = true;
 
-    emailScope = (getCompanyEmail?.()||'').trim().toLowerCase();
+  emailScope = (getCompanyEmail?.()||API.getActiveCompany?.()||'').trim().toLowerCase();
 
     iNumber.value = nextNumber();
     iNumberBig.textContent = iNumber.value;

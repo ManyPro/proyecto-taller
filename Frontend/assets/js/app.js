@@ -53,6 +53,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
   initDenseToggle();
   const main = document.querySelector('main');
   if (main) initPullToRefresh(main);
+  // Prefill email if stored
+  try{
+    const em = API.getActiveCompany?.();
+    if(em && document.getElementById('email')) document.getElementById('email').value = em;
+  }catch{}
 });
 
 // Navegación y boot por página
@@ -64,6 +69,12 @@ const nameSpan = document.getElementById('companyName');
 const welcomeSpan = document.getElementById('welcomeCompany');
 const logoutBtn = document.getElementById('logoutBtn');
 const lastTabKey = 'app:lastTab';
+function __scopeFromBase(base){
+  try{ return new URL(base || window.location.origin, window.location.origin).host || 'local'; }
+  catch{ return 'local'; }
+}
+const __SCOPE = __scopeFromBase(window.API_BASE || window.BACKEND_URL || '');
+const featuresKeyFor = (email) => `taller.features:${__SCOPE}:${String(email||'').toLowerCase()}`;
 const getCurrentPage = () => document.body?.dataset?.page || 'home';
 const setLastTab = (name) => {
   if (!name || name === 'home') return;
@@ -144,9 +155,11 @@ function enterApp() {
   sectionApp?.classList.remove('hidden');
   appHeader?.classList.remove('hidden');
   logoutBtn?.classList.remove('hidden');
+  applyFeatureGating();
   setupNavigation();
   bootCurrentPage();
   // Siempre permanecer en Inicio tras login; el usuario elige a dónde ir.
+  maybeRenderFeaturesPanel();
 }
 
 // ================= FAB (Botón flotante móviles) =================
@@ -361,11 +374,13 @@ async function doLogin(isRegister = false) {
     const compName = res?.company?.name || '';
     updateCompanyLabels({ email: resolvedEmail, name: compName });
     API.setActiveCompany(resolvedEmail);
+  try{ if(res?.company?.features) localStorage.setItem(featuresKeyFor(resolvedEmail), JSON.stringify(res.company.features)); }catch{}
     enterApp();
+    applyFeatureGating();
     // Tras login exitoso, siempre ir a Inicio
-    if (getCurrentPage() !== 'home') {
-      showTab('home');
-    }
+    // pero si había una página pendiente, ir allí
+    let pending = null; try{ pending = sessionStorage.getItem('app:pending'); sessionStorage.removeItem('app:pending'); }catch{}
+    if (pending) window.location.href = pending; else if (getCurrentPage() !== 'home') showTab('home');
   } catch (e) {
     alert(e?.message || 'Error');
   }
@@ -393,6 +408,8 @@ logoutBtn?.addEventListener('click', async () => {
     if (company?.email) {
       API.setActiveCompany(company.email);
       updateCompanyLabels({ email: company.email, name: company.name });
+      // Persist features if provided
+      try{ if(company.features) localStorage.setItem(featuresKeyFor(company.email), JSON.stringify(company.features)); }catch{}
       enterApp();
     } else {
       const active = API.getActiveCompany?.();
@@ -528,6 +545,100 @@ logoutBtn?.addEventListener('click', async () => {
   function startPolling(){ if(polling) return; polling = setInterval(fetchNotifications, 30000); fetchNotifications(); }
   document.addEventListener('DOMContentLoaded', ()=>{ ensureBell(); startPolling(); });
 })();
+
+// ================= Feature gating (UI) =================
+function getFeatures(){
+  const email = API.getActiveCompany?.() || '';
+  const key = featuresKeyFor(email);
+  try{ const raw = localStorage.getItem(key); if(!raw) return null; return JSON.parse(raw); }catch{ return null; }
+}
+function isFeatureEnabled(name){
+  const f = getFeatures();
+  if(!f) return true; // por compatibilidad, si no hay flags, todo habilitado
+  if(Object.prototype.hasOwnProperty.call(f, name)) return !!f[name];
+  return true;
+}
+function applyFeatureGating(){
+  document.querySelectorAll('.tabs button[data-feature]').forEach(btn => {
+    const feature = btn.getAttribute('data-feature');
+    if(!feature) return;
+    const enabled = isFeatureEnabled(feature);
+    btn.style.display = enabled ? '' : 'none';
+    // Si la pestaña actual está deshabilitada, redirigir a Inicio
+    if(!enabled && btn.dataset.tab === getCurrentPage()){
+      showTab('home');
+    }
+  });
+}
+
+// ============== Panel simple de features (Home) ==============
+function featureList(){
+  // listado y etiquetas amigables
+  return [
+    ['notas','Notas'],
+    ['ventas','Ventas'],
+    ['cotizaciones','Cotizaciones'],
+    ['inventario','Inventario'],
+    ['precios','Lista de precios'],
+    ['cashflow','Flujo de Caja'],
+    ['techreport','Reporte Técnico'],
+    ['templates','Formatos / Plantillas'],
+    ['skus','SKUs']
+  ];
+}
+async function loadCompanyFeatures(){
+  try{ return await API.company.getFeatures(); }catch{ return getFeatures() || {}; }
+}
+function setLocalFeatures(email, feats){
+  try{ localStorage.setItem(featuresKeyFor(email), JSON.stringify(feats||{})); }catch{}
+}
+async function maybeRenderFeaturesPanel(){
+  if(getCurrentPage()!=='home') return;
+  const wrap = document.getElementById('features-panel');
+  if(!wrap) return;
+  const email = API.getActiveCompany?.() || '';
+  const msg = document.getElementById('features-msg');
+  const btnSave = document.getElementById('features-save');
+  const btnRefresh = document.getElementById('features-refresh');
+  let current = await loadCompanyFeatures();
+
+  function render(){
+    wrap.innerHTML='';
+    featureList().forEach(([key,label])=>{
+      const enabled = (current?.[key] !== false);
+      const id = 'ft-'+key;
+      const div = document.createElement('div');
+      div.className='chip';
+      div.style.cssText='display:flex;align-items:center;gap:6px;padding:8px 12px;';
+      div.innerHTML = `<input type="checkbox" id="${id}" ${enabled?'checked':''}/> <label for="${id}" style="cursor:pointer;">${label}</label>`;
+      wrap.appendChild(div);
+      div.querySelector('input').addEventListener('change', (e)=>{
+        const checked = e.target.checked;
+        current ||= {};
+        current[key] = !!checked;
+      });
+    });
+  }
+  render();
+
+  async function save(){
+    try{
+      // enviar solo cambios respecto a true por defecto si queremos ahorrar payload; más simple: enviar objeto completo
+      const feats = {};
+      featureList().forEach(([key])=>{ feats[key] = (current?.[key] !== false); });
+      const saved = await API.company.setFeatures(feats);
+      setLocalFeatures(email, saved);
+      if(msg){ msg.textContent = 'Cambios guardados.'; msg.style.color='var(--muted)'; }
+      applyFeatureGating();
+    }catch(e){ if(msg){ msg.textContent = e?.message || 'Error al guardar'; msg.style.color='#ef4444'; } }
+  }
+  async function refresh(){
+    current = await loadCompanyFeatures();
+    render(); if(msg) msg.textContent='';
+  }
+  btnSave?.addEventListener('click', save);
+  btnRefresh?.addEventListener('click', refresh);
+}
 
 
 

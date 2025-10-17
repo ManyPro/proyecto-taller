@@ -7,6 +7,22 @@ const CompanySchema = new mongoose.Schema(
     passwordHash: { type: String, required: true },
     active: { type: Boolean, default: true },
   publicCatalogEnabled: { type: Boolean, default: false }, // habilita catálogo público segmentado
+    // Conjunto de funcionalidades habilitadas por empresa
+    // Si una clave no existe, el front asumirá true por retrocompatibilidad.
+    features: {
+      type: Object,
+      default: {
+        notas: true,
+        ventas: true,
+        cotizaciones: true,
+        inventario: true,
+        precios: true,
+        cashflow: true,
+        templates: true,
+        skus: true,
+        techreport: true
+      }
+    },
     // Legacy reset fields (pueden quedar vacíos en modo local)
     passwordResetTokenHash: { type: String, default: '' },
     passwordResetExpires: { type: Date, default: null },
