@@ -113,6 +113,25 @@ const invAPI = {
   deleteItem: (id) => request(`/api/v1/inventory/items/${id}`, { method: "DELETE" }),
 
   mediaUpload: (files) => API.mediaUpload(files),
+  // Import template and upload
+  downloadImportTemplate: async () => {
+    const url = `${apiBase}/api/v1/inventory/items/import/template`;
+    const res = await fetch(url, { headers: { ...authHeader() } });
+    if(!res.ok) throw new Error('No se pudo descargar la plantilla');
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'plantilla-inventario.xlsx';
+    document.body.appendChild(a); a.click(); a.remove();
+  },
+  importExcel: async (file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch(`${apiBase}/api/v1/inventory/items/import/excel`, { method:'POST', headers: { ...authHeader() }, body: fd });
+    const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
+    if(!res.ok) throw new Error(data?.error || 'Error importando');
+    return data;
+  }
 };
 
 // ---- Modal helpers ----
@@ -1323,6 +1342,46 @@ if (__ON_INV_PAGE__) {
     lines.push('¿Tienes taller? ¿Eres mecánico? Escríbenos y te atendemos al instante.');
     return lines.filter(Boolean).join('\n');
   }
+
+  // ---- Import Excel (amigable) ----
+  (function bindImportExcel(){
+    const btnTpl = document.getElementById('btn-download-template');
+    const btnImp = document.getElementById('btn-import-excel');
+    const fileEl = document.getElementById('excel-file');
+    const statusEl = document.getElementById('import-status');
+    if(!btnTpl || !btnImp || !fileEl || !statusEl) return;
+    btnTpl.onclick = async ()=>{
+      try{ btnTpl.disabled=true; await invAPI.downloadImportTemplate(); }
+      catch(e){ alert(e.message); }
+      finally{ btnTpl.disabled=false; }
+    };
+    btnImp.onclick = async ()=>{
+      const f = fileEl.files?.[0];
+      if(!f) { alert('Selecciona un archivo .xlsx'); return; }
+      statusEl.textContent = 'Subiendo y procesando...';
+      btnImp.disabled = true;
+      try{
+        const resp = await invAPI.importExcel(f);
+        const s = resp?.summary || {};
+        const errs = Array.isArray(s.errors)? s.errors: [];
+        const lines = [
+          'Importación terminada:',
+          `• Creados: ${s.created||0}`,
+          `• Actualizados: ${s.updated||0}`,
+          `• Saltados (sin SKU/Nombre): ${s.skipped||0}`
+        ];
+        if(errs.length){
+          lines.push('', 'Errores:');
+          errs.slice(0,20).forEach(e=> lines.push(`- ${e.sku||'?'}: ${e.error||'Error'}`));
+          if(errs.length>20) lines.push(`...y ${errs.length-20} más`);
+        }
+        statusEl.textContent = lines.join('\n');
+        // refrescar lista
+        await refreshItems(state.lastItemsParams);
+      }catch(e){ statusEl.textContent = 'Error: ' + e.message; }
+      finally{ btnImp.disabled=false; }
+    };
+  })();
 
   function downloadUrl(url, filename){
     const a = document.createElement('a');

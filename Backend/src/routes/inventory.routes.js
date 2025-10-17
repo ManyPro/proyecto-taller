@@ -13,7 +13,9 @@ import {
   itemQrPng,
   addItemStock,
   addItemsStockBulk,
-  bulkPublishItems
+  bulkPublishItems,
+  downloadImportTemplate,
+  importItemsFromExcel
 } from '../controllers/inventory.controller.js';
 
 const router = Router();
@@ -32,6 +34,9 @@ router.delete('/items/:id', deleteItem);
 router.post('/items/:id/stock-in', addItemStock);
 router.post('/items/stock-in/bulk', addItemsStockBulk);
 router.post('/items/publish/bulk', bulkPublishItems);
+// Import desde Excel
+router.get('/items/import/template', downloadImportTemplate);
+router.post('/items/import/excel', importItemsFromExcel);
 
 router.get('/items/:id/qr.png', itemQrPng);
 

@@ -149,6 +149,30 @@
           </div>
           <div id="itemsList" class="list"></div>
         </div>
+
+        <div class="card span-2" id="import-excel-card">
+          <h3>Importar desde Excel</h3>
+          <p class="muted" style="margin-top:0;">Ideal para cargar o actualizar muchos productos a la vez. Si no manejas muy bien Excel, no te preocupes: sigue los pasos.</p>
+          <ol style="margin:6px 0 10px;">
+            <li>Descarga la <b>plantilla base</b>.</li>
+            <li>Abre el archivo y llena las columnas. Las obligatorias son <b>SKU</b> y <b>Nombre</b>.</li>
+            <li>Guarda los cambios y vuelve aquí para subir el archivo.</li>
+          </ol>
+          <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;">
+            <button id="btn-download-template" class="secondary">Descargar plantilla</button>
+            <input type="file" id="excel-file" accept=".xlsx" />
+            <button id="btn-import-excel">Importar</button>
+          </div>
+          <div id="import-status" class="muted" style="white-space:pre-wrap;margin-top:10px;"></div>
+          <div class="muted" style="font-size:12px;margin-top:10px;">
+            Consejos:
+            <ul>
+              <li>En <b>Original (SI/NO)</b> puedes escribir SI o NO.</li>
+              <li>Para decimales, puedes usar coma o punto. Ej: 85.000 o 85,000.</li>
+              <li>Si un SKU ya existe, se <b>actualiza</b> (precio, stock, etc.). Si no existe, se <b>crea</b>.</li>
+            </ul>
+          </div>
+        </div>
       </section>
 
     </section>

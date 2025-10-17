@@ -6,6 +6,8 @@ import Notification from "../models/Notification.js";
 import StockMove from "../models/StockMove.js";
 import SKU from "../models/SKU.js";
 import { checkLowStockAndNotify, checkLowStockForMany } from "../lib/stockAlerts.js";
+import xlsx from 'xlsx';
+import multer from 'multer';
 
 // Generador de QR en PNG
 import QRCode from "qrcode";
@@ -103,6 +105,95 @@ export const listVehicleIntakes = async (req, res) => {
   const data = await VehicleIntake.find(q).sort({ intakeDate: -1, createdAt: -1 });
   res.json({ data });
 };
+
+// ============ IMPORT DESDE EXCEL ============
+// Cabeceras amigables para humanos
+const IMPORT_HEADERS = [
+  'SKU', 'Nombre', 'Marca', 'Ubicación', 'Procedencia final', 'Precio entrada', 'Precio venta', 'Original (SI/NO)', 'Stock', 'Stock mínimo'
+];
+
+export const downloadImportTemplate = async (req, res) => {
+  const wsData = [IMPORT_HEADERS, ['COMP0001','PASTILLAS DE FRENO','RENAULT','','GENERAL','25000','85000','NO','5','0']];
+  const wb = xlsx.utils.book_new();
+  const ws = xlsx.utils.aoa_to_sheet(wsData);
+  xlsx.utils.book_append_sheet(wb, ws, 'INVENTARIO');
+  const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  res.setHeader('Content-Disposition','attachment; filename="plantilla-inventario.xlsx"');
+  res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.send(buf);
+};
+
+const uploadExcel = multer({ storage: multer.memoryStorage(), limits:{ fileSize: 10*1024*1024 } }).single('file');
+
+export const importItemsFromExcel = async (req, res) => {
+  uploadExcel(req, res, async (err) => {
+    try{
+      if(err) return res.status(400).json({ error: 'Error de carga: ' + err.message });
+      if(!req.file) return res.status(400).json({ error: 'Falta archivo .xlsx' });
+      const wb = xlsx.read(req.file.buffer, { type: 'buffer' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = xlsx.utils.sheet_to_json(sheet, { header: IMPORT_HEADERS, range: 1, defval: '' });
+      let created=0, updated=0, skipped=0; const errors=[];
+      for(const r of rows){
+        const sku = String(r['SKU']||'').trim().toUpperCase();
+        const name = String(r['Nombre']||'').trim().toUpperCase();
+        if(!sku || !name){ skipped++; continue; }
+        const brand = String(r['Marca']||'').trim().toUpperCase();
+        const location = String(r['Ubicación']||'').trim().toUpperCase();
+        const vehicleTarget = String(r['Procedencia final']||'').trim().toUpperCase() || 'GENERAL';
+        const entryPrice = toNumberSafe(r['Precio entrada']);
+        const salePrice = toNumberSafe(r['Precio venta']);
+        const original = yesNoToBool(r['Original (SI/NO)']);
+        const stock = Math.max(0, Math.floor(toNumberSafe(r['Stock'])));
+        const minStock = Math.max(0, Math.floor(toNumberSafe(r['Stock mínimo'])));
+        try{
+          const existing = await Item.findOne({ companyId: req.company.id, sku });
+          if(existing){
+            existing.name = name || existing.name;
+            existing.brand = brand;
+            existing.location = location;
+            existing.vehicleTarget = vehicleTarget;
+            if(Number.isFinite(entryPrice)) existing.entryPrice = entryPrice;
+            if(Number.isFinite(salePrice)) existing.salePrice = salePrice;
+            existing.original = !!original;
+            if(Number.isFinite(minStock)) existing.minStock = minStock;
+            if(Number.isFinite(stock)) existing.stock = stock; // fijar stock
+            await existing.save(); updated++;
+          } else {
+            await Item.create({
+              companyId: req.company.id,
+              sku, name,
+              internalName: '', brand, location,
+              vehicleTarget,
+              entryPrice: Number.isFinite(entryPrice)? entryPrice: 0,
+              salePrice: Number.isFinite(salePrice)? salePrice: 0,
+              original: !!original,
+              stock: Number.isFinite(stock)? stock: 0,
+              minStock: Number.isFinite(minStock)? minStock: 0,
+            });
+            created++;
+          }
+        }catch(e){ errors.push({ sku, error: e.message }); }
+      }
+      res.json({ ok:true, summary:{ created, updated, skipped, errors } });
+    }catch(e){
+      res.status(400).json({ error: e.message || 'Error procesando el archivo' });
+    }
+  });
+};
+
+function yesNoToBool(v){
+  const s = String(v||'').trim().toUpperCase();
+  if(['SI','SÍ','YES','Y','TRUE','1'].includes(s)) return true;
+  if(['NO','N','FALSE','0'].includes(s)) return false;
+  return null;
+}
+function toNumberSafe(v){
+  if(v==null || v==='') return NaN;
+  const s = String(v).replace(/\./g,'').replace(/,/g,'.');
+  const n = Number(s);
+  return Number.isFinite(n) ? n : NaN;
+}
 
 export const createVehicleIntake = async (req, res) => {
   const b = req.body || {};
