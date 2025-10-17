@@ -1716,63 +1716,68 @@
     });
     canvas.appendChild(vehicleSection);
 
-    // 5. Items table header
-    const tableHeaderRow = createItemsTableHeader();
-    tableHeaderRow.style.left = '30px';
-    tableHeaderRow.style.top = '320px';
-    canvas.appendChild(tableHeaderRow);
-
-    // 6. Dynamic items section
-    const itemsContainer = createEditableElement('text', '{{#each sale.items}}\n• {{qty}}x {{description}} - {{money total}}\n{{/each}}', {
-      position: { left: 30, top: 360 },
-      styles: { 
-        fontSize: '14px',
-        width: '700px',
-        border: '1px solid #ddd',
-        padding: '15px',
-        backgroundColor: '#fff',
-        fontFamily: 'monospace',
-        whiteSpace: 'pre-line'
-      }
-    });
-    canvas.appendChild(itemsContainer);
-
-    // 7. Totals section (right aligned)
-    const subtotalLabel = createEditableElement('text', 'Subtotal:', {
-      position: { left: 500, top: 520 },
-      styles: { fontSize: '14px', textAlign: 'right' }
-    });
-    canvas.appendChild(subtotalLabel);
-
-    const subtotalValue = createEditableElement('text', '{{money sale.subtotal}}', {
-      position: { left: 600, top: 520 },
-      styles: { fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }
-    });
-    canvas.appendChild(subtotalValue);
-
-    const taxLabel = createEditableElement('text', 'IVA (16%):', {
-      position: { left: 500, top: 550 },
-      styles: { fontSize: '14px', textAlign: 'right' }
-    });
-    canvas.appendChild(taxLabel);
-
-    const taxValue = createEditableElement('text', '{{money sale.tax}}', {
-      position: { left: 600, top: 550 },
-      styles: { fontSize: '14px', fontWeight: 'bold', textAlign: 'right' }
-    });
-    canvas.appendChild(taxValue);
-
-    const totalLabel = createEditableElement('text', 'TOTAL:', {
-      position: { left: 500, top: 590 },
-      styles: { fontSize: '18px', fontWeight: 'bold', color: '#2563eb', textAlign: 'right' }
-    });
-    canvas.appendChild(totalLabel);
-
-    const totalValue = createEditableElement('text', '{{money sale.total}}', {
-      position: { left: 600, top: 590 },
-      styles: { fontSize: '18px', fontWeight: 'bold', color: '#2563eb', textAlign: 'right' }
-    });
-    canvas.appendChild(totalValue);
+    // 5. Items table + flowing totals block (single container so totals follow the table)
+    const itemsTableBlock = document.createElement('div');
+    itemsTableBlock.className = 'tpl-element items-table';
+    itemsTableBlock.id = `element_${visualEditor.nextId++}`;
+    itemsTableBlock.style.cssText = `
+      position: absolute;
+      left: 30px;
+      top: 320px;
+      width: 700px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 10px;
+      cursor: move;
+    `;
+    itemsTableBlock.innerHTML = `
+      <style>
+        .doc-table { width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; }
+        .doc-table thead th { background: #2563eb; color: #fff; }
+        .doc-table th, .doc-table td { border: 1px solid #ddd; padding: 10px; }
+        .doc-table td.t-right { text-align: right; }
+        .doc-table td.t-center { text-align: center; }
+        thead { display: table-header-group; }
+        tfoot { display: table-footer-group; }
+        tr { page-break-inside: avoid; }
+        .totals { margin-top: 12px; display: flex; justify-content: flex-end; }
+        .totals-inner { min-width: 320px; }
+        .totals-row { display: flex; justify-content: space-between; padding: 4px 0; }
+        .totals-total { font-weight: 700; font-size: 16px; color: #2563eb; border-top: 1px solid #ddd; margin-top: 6px; padding-top: 6px; }
+      </style>
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th style="text-align:left; width: 80px;" contenteditable="true">Cant.</th>
+            <th style="text-align:left;" contenteditable="true">Descripción</th>
+            <th style="text-align:right; width: 120px;" contenteditable="true">Precio Unit.</th>
+            <th style="text-align:right; width: 120px;" contenteditable="true">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each sale.items}}
+          <tr>
+            <td class="t-center">{{qty}}</td>
+            <td>{{description}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right"><strong>{{money total}}</strong></td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      <div class="totals">
+        <div class="totals-inner">
+          <div class="totals-row"><span>Subtotal:</span><span>{{money sale.subtotal}}</span></div>
+          <div class="totals-row"><span>IVA (16%):</span><span>{{money sale.tax}}</span></div>
+          <div class="totals-row totals-total"><span>TOTAL:</span><span>{{money sale.total}}</span></div>
+        </div>
+      </div>
+    `;
+    makeDraggable(itemsTableBlock);
+    makeSelectable(itemsTableBlock);
+    canvas.appendChild(itemsTableBlock);
+    visualEditor.elements.push({ id: itemsTableBlock.id, type: 'items-table', element: itemsTableBlock });
 
     // 8. Footer
     const footer = createEditableElement('text', 'Garantía de 30 días en mano de obra | Válido solo con esta factura', {
@@ -1867,57 +1872,68 @@
     });
     canvas.appendChild(servicesTitle);
 
-    const itemsContainer = createEditableElement('text', '{{#each quote.items}}\n• {{qty}}x {{description}} - {{money price}} c/u = {{money total}}\n{{/each}}', {
-      position: { left: 50, top: 350 },
-      styles: { 
-        fontSize: '14px', 
-        color: '#333', 
-        whiteSpace: 'pre-line',
-        fontFamily: 'monospace',
-        background: '#f8f9fa',
-        padding: '15px',
-        borderRadius: '4px',
-        width: '600px'
-      }
-    });
-    canvas.appendChild(itemsContainer);
-
-    // 6. Totals section
-    const subtotalLabel = createEditableElement('text', 'Subtotal:', {
-      position: { left: 450, top: 520 },
-      styles: { fontSize: '14px', color: '#333', textAlign: 'right', width: '100px' }
-    });
-    canvas.appendChild(subtotalLabel);
-
-    const subtotalValue = createEditableElement('text', '{{money quote.subtotal}}', {
-      position: { left: 570, top: 520 },
-      styles: { fontSize: '14px', color: '#333', fontWeight: 'bold' }
-    });
-    canvas.appendChild(subtotalValue);
-
-    const taxLabel = createEditableElement('text', 'IVA (16%):', {
-      position: { left: 450, top: 545 },
-      styles: { fontSize: '14px', color: '#333', textAlign: 'right', width: '100px' }
-    });
-    canvas.appendChild(taxLabel);
-
-    const taxValue = createEditableElement('text', '{{money quote.tax}}', {
-      position: { left: 570, top: 545 },
-      styles: { fontSize: '14px', color: '#333', fontWeight: 'bold' }
-    });
-    canvas.appendChild(taxValue);
-
-    const totalLabel = createEditableElement('text', 'TOTAL:', {
-      position: { left: 450, top: 580 },
-      styles: { fontSize: '18px', color: '#28a745', fontWeight: 'bold', textAlign: 'right', width: '100px' }
-    });
-    canvas.appendChild(totalLabel);
-
-    const totalValue = createEditableElement('text', '{{money quote.total}}', {
-      position: { left: 570, top: 580 },
-      styles: { fontSize: '18px', color: '#28a745', fontWeight: 'bold' }
-    });
-    canvas.appendChild(totalValue);
+    // 5. Items table + flowing totals block for quotes
+    const quoteTableBlock = document.createElement('div');
+    quoteTableBlock.className = 'tpl-element items-table';
+    quoteTableBlock.id = `element_${visualEditor.nextId++}`;
+    quoteTableBlock.style.cssText = `
+      position: absolute;
+      left: 50px;
+      top: 350px;
+      width: 600px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 10px;
+      cursor: move;
+    `;
+    quoteTableBlock.innerHTML = `
+      <style>
+        .doc-table { width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; }
+        .doc-table thead th { background: #28a745; color: #fff; }
+        .doc-table th, .doc-table td { border: 1px solid #ddd; padding: 10px; }
+        .doc-table td.t-right { text-align: right; }
+        .doc-table td.t-center { text-align: center; }
+        thead { display: table-header-group; }
+        tfoot { display: table-footer-group; }
+        tr { page-break-inside: avoid; }
+        .totals { margin-top: 12px; display: flex; justify-content: flex-end; }
+        .totals-inner { min-width: 300px; }
+        .totals-row { display: flex; justify-content: space-between; padding: 4px 0; }
+        .totals-total { font-weight: 700; font-size: 16px; color: #28a745; border-top: 1px solid #ddd; margin-top: 6px; padding-top: 6px; }
+      </style>
+      <table class="doc-table">
+        <thead>
+          <tr>
+            <th style="text-align:left; width: 80px;" contenteditable="true">Cant.</th>
+            <th style="text-align:left;" contenteditable="true">Descripción</th>
+            <th style="text-align:right; width: 120px;" contenteditable="true">Precio Unit.</th>
+            <th style="text-align:right; width: 120px;" contenteditable="true">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each quote.items}}
+          <tr>
+            <td class="t-center">{{qty}}</td>
+            <td>{{description}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right"><strong>{{money total}}</strong></td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      <div class="totals">
+        <div class="totals-inner">
+          <div class="totals-row"><span>Subtotal:</span><span>{{money quote.subtotal}}</span></div>
+          <div class="totals-row"><span>IVA (16%):</span><span>{{money quote.tax}}</span></div>
+          <div class="totals-row totals-total"><span>TOTAL:</span><span>{{money quote.total}}</span></div>
+        </div>
+      </div>
+    `;
+    makeDraggable(quoteTableBlock);
+    makeSelectable(quoteTableBlock);
+    canvas.appendChild(quoteTableBlock);
+    visualEditor.elements.push({ id: quoteTableBlock.id, type: 'items-table', element: quoteTableBlock });
 
     // 7. Footer with validity and conditions
     const footer = createEditableElement('text', 'Cotización válida por 15 días | Los precios incluyen IVA | Sujeto a disponibilidad de repuestos', {
@@ -2229,7 +2245,7 @@
           <tr style="border-bottom: 1px solid #ddd;">
             <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">{{qty}}</td>
             <td style="border: 1px solid #ddd; padding: 8px;">{{description}}</td>
-            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">{{money price}}</td>
+            <td style="border: 1px solid #ddd; padding: 8px; text-align: right;">{{money unitPrice}}</td>
             <td style="border: 1px solid #ddd; padding: 8px; text-align: right; font-weight: bold;">{{money total}}</td>
           </tr>
           {{/each}}
@@ -2463,7 +2479,7 @@
       title: 'Items/Servicios',
       items: [
         { label: 'Lista de items', value: '{{#each sale.items}}\n• {{qty}}x {{description}} - {{money total}}\n{{/each}}' },
-        { label: 'Tabla de items', value: '{{#each sale.items}}\n<tr><td>{{qty}}</td><td>{{description}}</td><td>{{money price}}</td><td>{{money total}}</td></tr>\n{{/each}}' },
+  { label: 'Tabla de items', value: '{{#each sale.items}}\n<tr><td>{{qty}}</td><td>{{description}}</td><td>{{money unitPrice}}</td><td>{{money total}}</td></tr>\n{{/each}}' },
         { label: 'Solo descripciones', value: '{{#each sale.items}}{{description}}{{#unless @last}}, {{/unless}}{{/each}}' }
       ]
     },
