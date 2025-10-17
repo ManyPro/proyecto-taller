@@ -1,0 +1,18 @@
+{
+  # optional: change to your email for ACME notifications
+  email admin@example.com
+}
+
+# Replace example.com with your domain
+example.com {
+  encode zstd gzip
+
+  @api path /api/*
+  handle @api {
+    reverse_proxy backend:3000
+  }
+
+  handle {
+    reverse_proxy frontend:80
+  }
+}
