@@ -31,3 +31,23 @@ export function authCompany(req, res, next) {
     return res.status(401).json({ error: 'Invalid token' });
   }
 }
+
+export function authAdmin(req, res, next){
+  try{
+    const token = parseBearer(req);
+    if(!token) return res.status(401).json({ error: 'Missing Bearer token' });
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    if(payload?.kind !== 'admin') return res.status(403).json({ error: 'No admin token' });
+    req.user = { id: payload.sub, ...payload };
+    next();
+  }catch{ return res.status(401).json({ error: 'Invalid token' }); }
+}
+
+export function requireAdminRole(...roles){
+  return function(req, res, next){
+    const r = req.user?.role;
+    if(!r) return res.status(403).json({ error: 'No role' });
+    if(roles.length && !roles.includes(r)) return res.status(403).json({ error: 'Forbidden' });
+    next();
+  };
+}

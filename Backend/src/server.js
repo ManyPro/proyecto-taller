@@ -30,6 +30,7 @@ import cashflowRouter from './routes/cashflow.routes.js';
 import templatesRouter from './routes/templates.routes.js';
 import notificationsRouter from './routes/notifications.routes.js';
 import publicCatalogRouter from './routes/catalog.public.routes.js';
+import adminRouter from './routes/admin.routes.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -189,6 +190,7 @@ app.use('/api/v1/media', mediaRouter);
 app.use('/api/v1/sales', salesStreamRouter);
 app.use('/api/v1/auth/company', companyAuthRouter);
 app.use('/api/v1/public/catalog', publicCatalogRouter);
+app.use('/api/v1/admin', adminRouter);
 
 function withCompanyDefaults(req, _res, next) {
   if (req.company?.id) {
