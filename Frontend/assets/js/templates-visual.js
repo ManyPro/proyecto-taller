@@ -2217,6 +2217,43 @@
     selectElement(wrapper);
   }
 
+  // Make a previously saved .tpl-element interactive again (drag/select/resize, image hooks)
+  function makeElementInteractive(element) {
+    if (!element || !(element instanceof HTMLElement)) return;
+    if (element.dataset && element.dataset.interactive === 'true') return;
+
+    // Ensure absolute positioning if missing
+    const style = element.style || {};
+    if (!style.position) element.style.position = 'absolute';
+    if (!style.left) element.style.left = (getSafeInsetPx() || 20) + 'px';
+    if (!style.top) element.style.top = (getSafeInsetPx() || 20) + 'px';
+
+    // Rebind core interactions
+    try { makeDraggable(element); } catch(_) {}
+    try { makeSelectable(element); } catch(_) {}
+
+    // Image handling: placeholder or existing container
+    try {
+      const placeholder = element.querySelector && element.querySelector('.image-placeholder');
+      if (placeholder) setupImageUpload(element);
+      const imgContainer = element.querySelector && element.querySelector('.image-container');
+      if (imgContainer) {
+        const img = imgContainer.querySelector('img');
+        if (img) addResizeHandles(imgContainer, img);
+      }
+    } catch(_) {}
+
+    // Register into editor model if not present
+    try {
+      const exists = visualEditor.elements.some(rec => rec && rec.element === element);
+      if (!exists) {
+        visualEditor.elements.push({ id: element.id || `element_${visualEditor.nextId++}`, type: element.dataset?.type || 'unknown', element });
+      }
+    } catch(_) {}
+
+    if (element.dataset) element.dataset.interactive = 'true';
+  }
+
   function hideElementProperties() {
     const propertiesPanel = qs('#element-properties');
     if (propertiesPanel) {
@@ -3346,12 +3383,17 @@
 
   function reinitializeElements() {
     // Reinitialize all interactive elements after loading content
-    const elements = document.querySelectorAll('#ce-canvas .tpl-element');
-    elements.forEach(element => {
-      makeElementInteractive(element);
-    });
-    
-    console.log(`🔄 ${elements.length} elementos reinicializados`);
+    const canvas = qs('#ce-canvas');
+    if (!canvas) return;
+    const elements = canvas.querySelectorAll('.tpl-element');
+    if (elements.length === 0) {
+      // Fallback: legacy/HTML-only content — wrap as a single editable block
+      makeTemplateEditable(canvas);
+      console.log('↺ No se encontraron .tpl-element. Se envolvió el contenido para edición.');
+    } else {
+      elements.forEach(el => makeElementInteractive(el));
+      console.log(`🔄 ${elements.length} elementos reinicializados`);
+    }
     updateSafeGuidesVisibility();
   }
 
