@@ -663,6 +663,12 @@
     let isDragging = false;
     let startX, startY, initialX, initialY;
     let dragHandle = null;
+    // Rotation state/handle
+    let isRotating = false;
+    let rotateHandle = null;
+    let startAngleRad = 0;
+    let startRotationDeg = 0;
+    let centerX = 0, centerY = 0;
 
     // Create drag handle for better UX
     const createDragHandle = () => {
@@ -687,17 +693,84 @@
       return dragHandle;
     };
 
+    // Rotation handle creation
+    const doRotate = (e) => {
+      if (!isRotating) return;
+      const currentAngleRad = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+      const deltaDeg = (currentAngleRad - startAngleRad) * (180 / Math.PI);
+      const newDeg = startRotationDeg + deltaDeg;
+      setRotationDeg(element, newDeg);
+      // Sync rotation UI if visible
+      const rotRange = document.querySelector('#prop-rotate');
+      const rotInput = document.querySelector('#prop-rotate-input');
+      if (rotRange) rotRange.value = String(getRotationDeg(element));
+      if (rotInput) rotInput.value = String(getRotationDeg(element));
+      e.preventDefault();
+    };
+    const endRotate = () => {
+      if (isRotating) {
+        isRotating = false;
+        if (rotateHandle) rotateHandle.style.cursor = 'grab';
+        // Hide handle on end to reduce clutter if mouse has left
+        if (rotateHandle && !element.matches(':hover')) rotateHandle.style.display = 'none';
+      }
+      document.removeEventListener('mousemove', doRotate);
+      document.removeEventListener('mouseup', endRotate);
+    };
+    const startRotate = (e) => {
+      // Avoid triggering drag
+      e.stopPropagation();
+      e.preventDefault();
+      isRotating = true;
+      if (rotateHandle) rotateHandle.style.cursor = 'grabbing';
+      const rect = element.getBoundingClientRect();
+      centerX = rect.left + rect.width / 2;
+      centerY = rect.top + rect.height / 2;
+      startAngleRad = Math.atan2(e.clientY - centerY, e.clientX - centerX);
+      startRotationDeg = getRotationDeg(element);
+      document.addEventListener('mousemove', doRotate);
+      document.addEventListener('mouseup', endRotate);
+    };
+    const createRotateHandle = () => {
+      rotateHandle = document.createElement('div');
+      rotateHandle.className = 'rotate-handle';
+      rotateHandle.style.cssText = `
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        width: 20px;
+        height: 20px;
+        background: #10b981; /* emerald */
+        border: 2px solid white;
+        border-radius: 50%;
+        cursor: grab;
+        display: none;
+        z-index: 1001;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      `;
+      // Add a small rotate indicator glyph
+      rotateHandle.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" style="pointer-events:none; margin:1px; fill:white"><path d="M7.1 7.1A7 7 0 0 1 19 12h2a9 9 0 1 0-2.64 6.36l-1.42-1.42A7 7 0 1 1 7.1 7.1zM13 3v6h6l-2.24-2.24A7.97 7.97 0 0 0 13 3z"/></svg>';
+      element.appendChild(rotateHandle);
+      rotateHandle.addEventListener('mousedown', startRotate);
+      return rotateHandle;
+    };
+
     // Show/hide drag handle on selection
     element.addEventListener('mouseenter', () => {
       if (!dragHandle) dragHandle = createDragHandle();
+      if (!rotateHandle) rotateHandle = createRotateHandle();
       if (visualEditor.selectedElement === element) {
         dragHandle.style.display = 'block';
+        rotateHandle.style.display = 'block';
       }
     });
 
     element.addEventListener('mouseleave', () => {
       if (dragHandle && !isDragging) {
         dragHandle.style.display = 'none';
+      }
+      if (rotateHandle && !isRotating) {
+        rotateHandle.style.display = 'none';
       }
     });
 
@@ -790,6 +863,11 @@
       element.removeEventListener('mousedown', startDrag);
       document.removeEventListener('mousemove', doDrag);
       document.removeEventListener('mouseup', endDrag);
+      if (rotateHandle) {
+        rotateHandle.removeEventListener('mousedown', startRotate);
+      }
+      document.removeEventListener('mousemove', doRotate);
+      document.removeEventListener('mouseup', endRotate);
     };
   }
 
@@ -842,6 +920,8 @@
       }
       const dh = el.querySelector('.drag-handle');
       if (dh) dh.style.display = 'none';
+      const rh = el.querySelector('.rotate-handle');
+      if (rh) rh.style.display = 'none';
     });
 
     visualEditor.selectedElement = element;
@@ -3268,11 +3348,12 @@
         throw new Error('Formato no encontrado');
       }
       
-      // Set template name and ID in session
+      // Set template session basics
       if (window.currentTemplateSession) {
         window.currentTemplateSession.name = template.name;
         window.currentTemplateSession.formatId = formatId;
         window.currentTemplateSession.contentCss = template.contentCss || '';
+        window.currentTemplateSession.type = template.type || window.currentTemplateSession.type || '';
       }
       
       // Load content into editor
@@ -3287,23 +3368,42 @@
         if (template.contentHtml && template.contentHtml.trim() !== '') {
           // Load existing content
           canvas.innerHTML = template.contentHtml;
-          // For sticker templates, reinitialize all .tpl-element children as interactive
+          // For sticker templates, ensure elements are interactive even in legacy content
           if (template.type === 'sticker-qr' || template.type === 'sticker-brand') {
-            // Rebind draggable/selectable to all .tpl-element children
-            const pagesContainer = canvas.querySelector('[data-pages-container="true"]');
-            if (pagesContainer) {
-              const allElements = pagesContainer.querySelectorAll('.tpl-element');
-              allElements.forEach(el => { makeDraggable(el); makeSelectable(el); });
+            const container = canvas.querySelector('[data-pages-container="true"]') || canvas;
+            let allElements = container.querySelectorAll('.tpl-element');
+            if (!allElements.length) {
+              // Legacy content without wrappers: convert children to interactive elements
+              try {
+                const cRect = container.getBoundingClientRect();
+                const kids = Array.from(container.children);
+                kids.forEach(el => {
+                  if (!el || el.classList.contains('tpl-element')) return;
+                  const tag = (el.tagName || '').toLowerCase();
+                  if (tag === 'script' || tag === 'style') return;
+                  const r = el.getBoundingClientRect();
+                  el.classList.add('tpl-element');
+                  el.style.position = 'absolute';
+                  el.style.left = Math.max(0, Math.round(r.left - cRect.left)) + 'px';
+                  el.style.top = Math.max(0, Math.round(r.top - cRect.top)) + 'px';
+                  const cs = window.getComputedStyle(el);
+                  if (!el.style.width || el.style.width === 'auto') el.style.width = r.width + 'px';
+                  if (!el.style.height || el.style.height === 'auto') { if (cs.display !== 'inline') el.style.height = r.height + 'px'; }
+                  makeElementInteractive(el);
+                });
+                allElements = container.querySelectorAll('.tpl-element');
+              } catch(e) {
+                console.warn('Sticker legacy conversion failed:', e?.message || e);
+              }
             }
-            // Detect pages in DOM and initialize pagination state + controls
+            allElements.forEach(el => { makeDraggable(el); makeSelectable(el); });
+            // Detect pages and setup controls when present; default to single page for QR-only
             const pageCount = canvas.querySelectorAll('.editor-page').length || 1;
             if (!state.pages) state.pages = { count: pageCount, current: 1 };
             state.pages.count = pageCount;
             state.pages.current = 1;
             setupPagesControls(pageCount);
-            if (typeof window._showEditorPage === 'function') {
-              window._showEditorPage(1);
-            }
+            if (typeof window._showEditorPage === 'function') window._showEditorPage(1);
             insertStickerVarsHint();
           } else {
             // For non-sticker, reinitialize as before
