@@ -22,6 +22,13 @@ function applyTheme(theme){
   const btn = document.getElementById('themeToggle');
   if(btn) btn.textContent = theme === 'light' ? '🌙' : '🌗';
   if(btn) btn.title = theme === 'light' ? 'Cambiar a oscuro' : 'Cambiar a claro';
+  // Swap logo by theme
+  const logo = document.getElementById('brandLogo');
+  if(logo){
+    // theme-light => usa darklogo (logo negro). Tema oscuro => usa lightlogo.
+    const src = theme === 'light' ? 'assets/darklogo.png' : 'assets/lightlogo.png';
+    if(logo.getAttribute('src') !== src) logo.setAttribute('src', src);
+  }
 }
 function detectInitialTheme(){
   try{

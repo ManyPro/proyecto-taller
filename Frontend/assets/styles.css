@@ -431,6 +431,38 @@ html{ font-size:16px; }
 /* Header & main adjustments */
 @media (max-width:900px){
   header{ padding:12px 16px; }
+
+  /* Sticky topbar container */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: var(--header-bg);
+    /* subtle blur + shadow */
+    backdrop-filter: saturate(120%) blur(6px);
+    box-shadow: 0 4px 18px rgba(0,0,0,.35);
+  }
+  .topbar-inner{
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 10px 14px 12px 14px; /* margen exacto para alinear con tabs */
+  }
+  .topbar-card{
+    background: var(--card-alt);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px; /* margen exacto */
+  }
+  .brand{
+    display:flex; align-items:center; gap:10px;
+  }
+  .brand img{ width:28px; height:28px; border-radius:6px; display:block; }
+  .brand h1{ margin:0; font-size:18px; }
+  .brand .company{ font-size:12px; opacity:.85; }
+
+  /* Tabs inside the same card */
+  .top-tabs{ margin-top:8px; }
+  .top-tabs .tabs{ margin:0; }
   h1{ font-size:18px; }
   main{ padding:12px 10px; }
 }
