@@ -147,6 +147,8 @@ const envAllow = (process.env.ALLOWED_ORIGINS || '')
 
 const defaultAllow = [
   'https://proyecto-taller.netlify.app',
+  'http://localhost',
+  'http://127.0.0.1',
   'http://localhost:5173',
   'http://localhost:3000'
 ];
@@ -249,5 +251,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   logger.info('server.listen', { port: PORT });
 });
-
 
