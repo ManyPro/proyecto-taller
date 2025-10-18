@@ -23,6 +23,36 @@ const CompanySchema = new mongoose.Schema(
         techreport: true
       }
     },
+    // Sub-funciones por módulo (todas habilitadas por defecto para compatibilidad)
+    featureOptions: {
+      type: Object,
+      default: {
+        inventario: {
+          ingresoVehiculo: true,
+          ingresoCompra: true,
+          marketplace: true,
+          publicCatalogFields: true
+        },
+        ventas: {
+          importarCotizacion: true,
+          ordenesTrabajo: true
+        },
+        precios: {
+          importarCSV: true
+        },
+        templates: {
+          duplicar: true,
+          activar: true
+        }
+      }
+    },
+    // Restricciones administradas por Admin (no visibles para empresa)
+    restrictions: {
+      type: Object,
+      default: {
+        cashflow: { hideBalances: false }
+      }
+    },
     // Legacy reset fields (pueden quedar vacíos en modo local)
     passwordResetTokenHash: { type: String, default: '' },
     passwordResetExpires: { type: Date, default: null },

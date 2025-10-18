@@ -66,7 +66,9 @@ router.put('/preferences', async (req, res) => {
 // GET actual
 router.get('/features', (req, res) => {
   const features = req.companyDoc.features || {};
-  res.json({ features });
+  const featureOptions = req.companyDoc.featureOptions || {};
+  const restrictions = req.companyDoc.restrictions || {};
+  res.json({ features, featureOptions, restrictions });
 });
 
 // PATCH merge parcial de flags
@@ -82,6 +84,42 @@ router.patch('/features', async (req, res) => {
   });
   await req.companyDoc.save();
   res.json({ features: req.companyDoc.features });
+});
+
+// GET /company/feature-options
+router.get('/feature-options', (req, res) => {
+  res.json({ featureOptions: req.companyDoc.featureOptions || {} });
+});
+
+// PATCH /company/feature-options
+router.patch('/feature-options', async (req, res) => {
+  const patch = req.body || {};
+  req.companyDoc.featureOptions ||= {};
+  Object.entries(patch).forEach(([moduleName, moduleOpts]) => {
+    if(typeof moduleOpts !== 'object' || Array.isArray(moduleOpts)) return;
+    req.companyDoc.featureOptions[moduleName] ||= {};
+    Object.entries(moduleOpts).forEach(([k,v]) => { req.companyDoc.featureOptions[moduleName][k] = !!v; });
+  });
+  await req.companyDoc.save();
+  res.json({ featureOptions: req.companyDoc.featureOptions });
+});
+
+// GET /company/restrictions
+router.get('/restrictions', (req, res) => {
+  res.json({ restrictions: req.companyDoc.restrictions || {} });
+});
+
+// PATCH /company/restrictions (empresa puede ver pero no debería poder cambiar; mantener para futuros casos)
+router.patch('/restrictions', async (req, res) => {
+  const patch = req.body || {};
+  req.companyDoc.restrictions ||= {};
+  Object.entries(patch).forEach(([area, cfg]) => {
+    if(typeof cfg !== 'object' || Array.isArray(cfg)) return;
+    req.companyDoc.restrictions[area] ||= {};
+    Object.entries(cfg).forEach(([k,v]) => { req.companyDoc.restrictions[area][k] = !!v; });
+  });
+  await req.companyDoc.save();
+  res.json({ restrictions: req.companyDoc.restrictions });
 });
 
 // ========== Toggle Catálogo Público ==========

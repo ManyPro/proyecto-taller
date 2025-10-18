@@ -577,6 +577,28 @@ function applyFeatureGating(){
   });
 }
 
+// --- Sub-feature gating (front only) ---
+let __featureOptionsCache = null;
+let __restrictionsCache = null;
+export async function loadFeatureOptionsAndRestrictions(){
+  try{
+    const { featureOptions } = await API.company.getFeatureOptions().then(o=>({ featureOptions:o }));
+    __featureOptionsCache = featureOptions || {};
+  }catch{ /* ignore */ }
+  try{
+    const { restrictions } = await API.company.getRestrictions().then(r=>({ restrictions:r }));
+    __restrictionsCache = restrictions || {};
+  }catch{ /* ignore */ }
+  return { featureOptions: __featureOptionsCache||{}, restrictions: __restrictionsCache||{} };
+}
+export function getFeatureOptions(){ return __featureOptionsCache || {}; }
+export function getRestrictions(){ return __restrictionsCache || {}; }
+
+// Helper to quickly hide elements by selector when a sub-feature is disabled
+export function gateElement(enabled, selector){
+  try{ document.querySelectorAll(selector).forEach(el => { el.style.display = enabled ? '' : 'none'; }); }catch{}
+}
+
 // ============== Panel simple de features (Home) ==============
 function featureList(){
   // listado y etiquetas amigables

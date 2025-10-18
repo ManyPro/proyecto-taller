@@ -7,6 +7,7 @@
      API.live.connect()                 (SSE; opcional)
 */
 import { API } from './api.esm.js';
+import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from './app.js';
 
 // ---------- helpers ----------
 const $  = (s, r=document)=>r.querySelector(s);
@@ -1353,6 +1354,22 @@ function connectLive(){
 // ---------- init ----------
 export function initSales(){
   const ventas = document.getElementById('tab-ventas'); if (!ventas) return;
+
+  // Sub-feature gating: ventas.importarCotizacion y ventas.ordenesTrabajo
+  (async ()=>{
+    await loadFeatureOptionsAndRestrictions();
+    const fo = getFeatureOptions();
+    const v = (fo.ventas||{});
+    // Importar cotización (botones relacionados)
+    const canImport = v.importarCotizacion !== false; // default true
+    gateElement(canImport, '#sv-loadQuote');
+    gateElement(canImport, '#sv-applyQuoteCV');
+    gateElement(canImport, '#sv-q-to-sale');
+    // Orden de trabajo (imprimir)
+    const canWO = v.ordenesTrabajo !== false; // default true
+    gateElement(canWO, '#sv-wo-card');
+    gateElement(canWO, '#sv-print-wo');
+  })();
 
   refreshOpenSales();
   startSalesAutoRefresh();

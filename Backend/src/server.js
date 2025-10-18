@@ -31,6 +31,7 @@ import templatesRouter from './routes/templates.routes.js';
 import notificationsRouter from './routes/notifications.routes.js';
 import publicCatalogRouter from './routes/catalog.public.routes.js';
 import adminRouter from './routes/admin.routes.js';
+import adminCompanyRouter from './routes/admin.company.routes.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -191,6 +192,7 @@ app.use('/api/v1/sales', salesStreamRouter);
 app.use('/api/v1/auth/company', companyAuthRouter);
 app.use('/api/v1/public/catalog', publicCatalogRouter);
 app.use('/api/v1/admin', adminRouter);
+app.use('/api/v1/admin/company', adminCompanyRouter);
 
 function withCompanyDefaults(req, _res, next) {
   if (req.company?.id) {

@@ -25,13 +25,25 @@
     </section>
     <section id="appSection" class="hidden">
       <div class="card" style="max-width:980px;margin:20px auto;">
+        <nav class="tabs" id="devTabs" style="margin-bottom:10px;">
+          <button data-t="reqs" class="active">Solicitudes</button>
+          <button data-t="companies">Empresas y Funciones</button>
+          <button data-t="admins">Admins</button>
+        </nav>
         <div class="row between" style="align-items:center;gap:8px;">
           <h3 style="margin:0;">Solicitudes de Admin</h3>
           <button id="d-refresh" class="secondary">Actualizar</button>
         </div>
         <div id="d-list" style="margin-top:10px;"></div>
       </div>
-      <div class="card" style="max-width:980px;margin:12px auto;">
+      <div class="card" id="companiesCard" style="max-width:980px;margin:12px auto;display:none;">
+        <div class="row between" style="align-items:center;gap:8px;">
+          <h3 style="margin:0;">Empresas y Funciones</h3>
+          <button id="c-refresh" class="secondary">Actualizar</button>
+        </div>
+        <div id="c-list" style="margin-top:10px;"></div>
+      </div>
+      <div class="card" style="max-width:980px;margin:12px auto;" id="adminsCard">
         <div class="row between" style="align-items:center;gap:8px;">
           <h3 style="margin:0;">Admins existentes</h3>
           <button id="a-refresh" class="secondary">Actualizar</button>
@@ -146,6 +158,127 @@
     }catch(e){ wrap.innerHTML = `<div class='muted'>${e.message||'Error'}</div>`; }
   }
   document.getElementById('a-refresh').onclick = loadAdmins;
+
+  // ===== Empresas y Funciones =====
+  async function loadCompanies(){
+    const wrap = document.getElementById('c-list');
+    wrap.innerHTML = '<div class="muted">Cargando...</div>';
+    try{
+      const res = await req('/api/v1/admin/company/companies');
+      const items = res.items || [];
+      wrap.innerHTML = '';
+      items.forEach(c => {
+        const id = String(c._id || c.id || '');
+        const div = document.createElement('div');
+        div.className = 'card'; div.style.marginBottom='10px';
+        const feat = c.features || {};
+        const fopts = c.featureOptions || {};
+        const restr = c.restrictions || {};
+        const check = (id, checked) => `<label class='chip'><input type='checkbox' id='${id}' ${checked?'checked':''}/> ${id.split(':').slice(1).join(':')||id}</label>`;
+        div.innerHTML = `
+          <div class='row between' style='align-items:flex-start;gap:10px;'>
+            <div style='min-width:260px;'>
+              <div><strong>${c.name || c.email}</strong></div>
+              <div class='muted' style='font-size:12px;'>${c.email}</div>
+              <div class='muted' style='font-size:12px;'>Activa: ${c.active? 'Sí':'No'}</div>
+            </div>
+            <div style='flex:1;'>
+              <details open>
+                <summary><b>Módulos</b></summary>
+                <div class='row wrap' style='gap:6px;margin-top:6px;' id='feat-${id}'></div>
+                <div class='row right' style='margin-top:6px;'><button class='secondary' data-save-feat>Guardar módulos</button></div>
+              </details>
+              <details>
+                <summary><b>Opciones</b></summary>
+                <div id='fopts-${id}' style='display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px;margin-top:6px;'></div>
+                <div class='row right' style='margin-top:6px;'><button class='secondary' data-save-fopts>Guardar opciones</button></div>
+              </details>
+              <details>
+                <summary><b>Restricciones</b></summary>
+                <div class='row wrap' style='gap:6px;margin-top:6px;' id='restr-${id}'></div>
+                <div class='row right' style='margin-top:6px;'><button class='secondary' data-save-restr>Guardar restricciones</button></div>
+              </details>
+            </div>
+          </div>`;
+        // Render módulos
+        const FEATS = ['notas','ventas','cotizaciones','inventario','precios','cashflow','techreport','templates','skus'];
+        const wrapFeat = div.querySelector(`#feat-${id}`);
+        FEATS.forEach(k=>{
+          const cid = `f:${k}`; const enabled = feat[k] !== false;
+          wrapFeat.insertAdjacentHTML('beforeend', `<label class='chip'><input type='checkbox' id='${cid}' ${enabled?'checked':''}/> ${k}</label>`);
+        });
+        // Render opciones
+        const fowrap = div.querySelector(`#fopts-${id}`);
+        const blocks = {
+          ventas: { importarCotizacion:'Importar cotización', ordenesTrabajo:'Órdenes de trabajo' },
+          inventario: { ingresoVehiculo:'Ingreso de vehículo', ingresoCompra:'Ingreso de compra', marketplace:'Marketplace', publicar:'Publicación masiva', publicarAgotados:'Despublicar agotados', publicCatalogFields:'Campos de catálogo' },
+          templates: { stickerQR:'Sticker: solo QR', stickerMarca:'Sticker: marca', stickerQRyMarca:'Sticker: QR + marca' }
+        };
+        Object.entries(blocks).forEach(([mod, opts])=>{
+          const box = document.createElement('div');
+          box.className='card';
+          box.innerHTML = `<div><b>${mod}</b></div><div class='row wrap' style='gap:6px;margin-top:6px;'></div>`;
+          const row = box.querySelector('.row');
+          Object.entries(opts).forEach(([key,label])=>{
+            const enabled = (fopts?.[mod]?.[key] !== false);
+            const cid = `fo:${mod}:${key}`;
+            row.insertAdjacentHTML('beforeend', `<label class='chip'><input type='checkbox' id='${cid}' ${enabled?'checked':''}/> ${label}</label>`);
+          });
+          fowrap.appendChild(box);
+        });
+        // Restricciones
+        const rwrap = div.querySelector(`#restr-${id}`);
+        const hideBalances = !!(restr?.cashflow?.hideBalances);
+        rwrap.insertAdjacentHTML('beforeend', `<label class='chip'><input type='checkbox' id='r:cashflow:hideBalances' ${hideBalances?'checked':''}/> Ocultar saldos de cuentas</label>`);
+
+        // Handlers guardar
+        div.querySelector('[data-save-feat]').onclick = async ()=>{
+          try{
+            const payload = {};
+            FEATS.forEach(k=>{ const el = div.querySelector(`#f:${k}`); payload[k] = !!el?.checked; });
+            const saved = await req(`/api/v1/admin/company/companies/${id}/features`, { method:'PATCH', body: payload });
+            alert('Módulos guardados');
+          }catch(e){ alert(e.message||'Error'); }
+        };
+        div.querySelector('[data-save-fopts]').onclick = async ()=>{
+          try{
+            const payload = { ventas:{}, inventario:{}, templates:{} };
+            Object.keys(blocks.ventas).forEach(k=>{ payload.ventas[k] = !!div.querySelector(`#fo:ventas:${k}`)?.checked; });
+            Object.keys(blocks.inventario).forEach(k=>{ payload.inventario[k] = !!div.querySelector(`#fo:inventario:${k}`)?.checked; });
+            Object.keys(blocks.templates).forEach(k=>{ payload.templates[k] = !!div.querySelector(`#fo:templates:${k}`)?.checked; });
+            await req(`/api/v1/admin/company/companies/${id}/feature-options`, { method:'PATCH', body: payload });
+            alert('Opciones guardadas');
+          }catch(e){ alert(e.message||'Error'); }
+        };
+        div.querySelector('[data-save-restr]').onclick = async ()=>{
+          try{
+            const payload = { cashflow: { hideBalances: !!div.querySelector('#r:cashflow:hideBalances')?.checked } };
+            await req(`/api/v1/admin/company/companies/${id}/restrictions`, { method:'PATCH', body: payload });
+            alert('Restricciones guardadas');
+          }catch(e){ alert(e.message||'Error'); }
+        };
+        wrap.appendChild(div);
+      });
+      if(!wrap.children.length){ wrap.innerHTML = '<div class="muted">No hay empresas</div>'; }
+    }catch(e){ wrap.innerHTML = `<div class='muted'>${e.message||'Error'}</div>`; }
+  }
+
+  // Tabs behavior
+  const devTabs = document.getElementById('devTabs');
+  devTabs?.addEventListener('click', (e)=>{
+    const btn = e.target.closest('button[data-t]'); if(!btn) return;
+    devTabs.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const t = btn.dataset.t;
+    document.querySelector('h3').textContent = t==='reqs' ? 'Solicitudes de Admin' : (t==='companies' ? 'Empresas y Funciones' : 'Admins existentes');
+    document.getElementById('companiesCard').style.display = (t==='companies') ? '' : 'none';
+    document.getElementById('adminsCard').style.display = (t==='admins') ? '' : '';
+    // Toggle first card list and headers
+    document.getElementById('d-refresh').parentElement.parentElement.style.display = (t==='reqs') ? '' : 'none';
+    if(t==='companies') loadCompanies();
+    if(t==='admins') loadAdmins();
+    if(t==='reqs') loadReqs();
+  });
   </script>
 </body>
 </html>

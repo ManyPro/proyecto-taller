@@ -248,8 +248,20 @@ const API = {
     getPreferences: () => http.get('/api/v1/company/preferences').then(r => r.preferences || { laborPercents: [] }),
     setPreferences: (prefs) => http.put('/api/v1/company/preferences', prefs).then(r => r.preferences || { laborPercents: [] }),
     togglePublicCatalog: (enabled) => http.patch('/api/v1/company/public-catalog', { enabled }).then(r => !!r.publicCatalogEnabled),
+    // Note: getFeatures returns just the features object for backward compatibility
     getFeatures: () => http.get('/api/v1/company/features').then(r => r.features || {}),
-    setFeatures: (patch) => http.patch('/api/v1/company/features', patch).then(r => r.features || {})
+    // New: get all toggles at once { features, featureOptions, restrictions }
+    getToggles: () => http.get('/api/v1/company/features').then(r => ({
+      features: r?.features || {},
+      featureOptions: r?.featureOptions || {},
+      restrictions: r?.restrictions || {}
+    })),
+    setFeatures: (patch) => http.patch('/api/v1/company/features', patch).then(r => r.features || {}),
+    // Feature options (sub-features per module)
+    getFeatureOptions: () => http.get('/api/v1/company/feature-options').then(r => r.featureOptions || {}),
+    setFeatureOptions: (patch) => http.patch('/api/v1/company/feature-options', patch).then(r => r.featureOptions || {}),
+    // Restrictions (read-only for company in general, but exposed for UI masking)
+    getRestrictions: () => http.get('/api/v1/company/restrictions').then(r => r.restrictions || {})
   },
   accounts: {
     list: () => http.get('/api/v1/cashflow/accounts'),

@@ -1,5 +1,6 @@
 // Frontend/assets/inventory.js
 import { API } from "./api.esm.js";
+import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from './app.js';
 import { upper } from "./utils.js";
 import { bindStickersButton, downloadStickersPdf } from './pdf.js';
 
@@ -521,6 +522,7 @@ if (__ON_INV_PAGE__) {
   const qIntake = document.getElementById("q-intakeId");
   const qClear = document.getElementById("q-clear");
   const btnUnpublishZero = document.getElementById('btn-unpublish-zero');
+  const btnPubGlobal = document.getElementById('pub-bulk-global');
 
   // Mini-toolbar selección stickers
   const selectionBar = document.createElement("div");
@@ -570,6 +572,16 @@ if (__ON_INV_PAGE__) {
     if (btnBulk) btnBulk.onclick = openBulkStockInModal;
     const btnPub = selectionBar.querySelector('#sel-publish-bulk');
     if (btnPub) btnPub.onclick = openBulkPublishModal;
+
+    // Apply sub-feature gating for sticker options
+    try{
+      const fo = (typeof getFeatureOptions === 'function') ? getFeatureOptions() : {};
+      const tpl = (fo.templates||{});
+      const allowQR = (tpl.stickerQR !== false);
+      const allowBrand = (tpl.stickerQRyMarca !== false);
+      if (btnQR) btnQR.style.display = allowQR ? '' : 'none';
+      if (btnBrand) btnBrand.style.display = allowBrand ? '' : 'none';
+    }catch{}
   }
 
   function toggleSelected(itemOrId, checked) {
@@ -629,7 +641,6 @@ if (__ON_INV_PAGE__) {
   }
 
   // Botón global en filtros: abrir publicación sin selección previa
-  const btnPubGlobal = document.getElementById('pub-bulk-global');
   if (btnPubGlobal) btnPubGlobal.onclick = openBulkPublishModal;
 
   // Mantenimiento: despublicar todos los agotados (stock 0)
@@ -724,6 +735,39 @@ if (__ON_INV_PAGE__) {
       viList.appendChild(row);
     });
   }
+
+  // --- Sub-feature gating for Inventario ---
+  (async ()=>{
+    await loadFeatureOptionsAndRestrictions();
+    const fo = getFeatureOptions();
+    const inv = (fo.inventario||{});
+    // Ingresos: vehículo y compra
+    const allowVeh = inv.ingresoVehiculo !== false; // default true
+    const allowPurch = inv.ingresoCompra !== false; // default true
+    gateElement(allowVeh, '#vi-kind-vehicle');
+    gateElement(allowVeh, '#vi-form-vehicle');
+    gateElement(allowPurch, '#vi-kind-purchase');
+    gateElement(allowPurch, '#vi-form-purchase');
+
+    // Catálogo público y publicación
+    // If company has publicCatalogEnabled=false, treat any catalog sub-options as disabled
+    let publicEnabled = true;
+    try{ const me = await API.companyMe(); publicEnabled = (me?.company?.publicCatalogEnabled !== false); }catch{}
+    const allowMarketplace = publicEnabled && (inv.marketplace !== false);
+    const allowPublishOps = publicEnabled && (inv.publicar !== false);
+    const allowUnpublishZero = publicEnabled && (inv.publicarAgotados !== false);
+    // Buttons and selectionBar entries
+    gateElement(allowPublishOps, '#pub-bulk-global');
+    gateElement(allowUnpublishZero, '#btn-unpublish-zero');
+    // Selection bar ids are created dynamically; hide container if all actions off
+    if (!allowPublishOps) {
+      // hide selection bar publish button once rendered
+      const obs = new MutationObserver(()=>{
+        const btn = document.getElementById('sel-publish-bulk'); if(btn) btn.style.display = 'none';
+      });
+      obs.observe(selectionBar, { childList:true, subtree:true }); setTimeout(()=>obs.disconnect(), 4000);
+    }
+  })();
 
   // ---- Items list ----
   function buildThumbGrid(it) {
