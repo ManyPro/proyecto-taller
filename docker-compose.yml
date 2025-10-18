@@ -11,8 +11,8 @@ services:
 
   backend:
     build:
-      context: .
-      dockerfile: Backend/Dockerfile
+      context: ./Backend
+      dockerfile: Dockerfile
     container_name: taller-backend
     restart: unless-stopped
     env_file:
@@ -41,8 +41,8 @@ services:
 
   frontend:
     build:
-      context: .
-      dockerfile: Frontend/Dockerfile
+      context: ./Frontend
+      dockerfile: Dockerfile
     container_name: taller-frontend
     restart: unless-stopped
     depends_on:
