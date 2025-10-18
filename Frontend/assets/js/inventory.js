@@ -1,6 +1,6 @@
 // Frontend/assets/inventory.js
 import { API } from "./api.esm.js";
-import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from './app.js';
+import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from './feature-gating.js';
 import { upper } from "./utils.js";
 import { bindStickersButton, downloadStickersPdf } from './pdf.js';
 

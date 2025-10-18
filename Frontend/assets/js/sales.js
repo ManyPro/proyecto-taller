@@ -7,7 +7,7 @@
      API.live.connect()                 (SSE; opcional)
 */
 import { API } from './api.esm.js';
-import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from './app.js';
+import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from './feature-gating.js';
 
 // ---------- helpers ----------
 const $  = (s, r=document)=>r.querySelector(s);
