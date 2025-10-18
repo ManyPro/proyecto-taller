@@ -18,6 +18,7 @@ RUN npm install --omit=dev && npm cache clean --force
 
 # Copy source code
 COPY src ./src
+COPY scripts ./scripts
 COPY perfiles.json ./perfiles.json
 
 # Expose application port
