@@ -1070,7 +1070,10 @@ function renderQuoteMini(q){
   }
 
   const clientName = q?.client?.name || q?.customer?.name || '';
-  head.textContent = Cotizacion # - ;
+  const number = q?.number ?? q?.code ?? q?._id ?? '';
+  const titleParts = [`Cotizacion #${number ? String(number) : '-'}`];
+  if (clientName) titleParts.push(clientName);
+  head.textContent = titleParts.join(' - ');
   body.innerHTML = '';
 
   const itemsAlready = Array.isArray(current?.items) ? current.items : [];
@@ -1078,8 +1081,18 @@ function renderQuoteMini(q){
   (q?.items || []).forEach(it => {
     const unit = Number(it.unitPrice ?? it.unit ?? 0) || 0;
     const qty = Number(it.qty || 1) || 1;
+    const total = unit * qty;
+    const sku = it.sku || '';
+    const name = it.description || it.name || '';
     const tr = document.createElement('tr');
-    tr.innerHTML = <td></td><td></td><td class="t-center"></td><td class="t-right"></td><td class="t-right"></td><td class="t-center"><button class="add secondary">→</button></td>;
+    tr.innerHTML = `
+      <td>${sku}</td>
+      <td>${name || 'Item'}</td>
+      <td class="t-center">${qty}</td>
+      <td class="t-right">${money(unit)}</td>
+      <td class="t-right">${money(total)}</td>
+      <td class="t-center"><button class="add secondary" type="button">+</button></td>
+    `;
     const btn = tr.querySelector('button.add');
     const alreadyInSale = itemsAlready.some(ci => {
       const skuMatch = (ci.sku || '').toUpperCase() === String(it.sku || '').toUpperCase();
@@ -1099,10 +1112,11 @@ function renderQuoteMini(q){
           current = await API.sales.addItem(current._id, payload);
           syncCurrentIntoOpenList();
           renderTabs();
-          renderSale(); renderWO();
+          renderSale();
+          renderWO();
           tr.classList.add('added');
           btn.disabled = true;
-          btn.textContent = '✓';
+          btn.textContent = 'V';
         } catch (err) {
           alert(err?.message || 'No se pudo agregar el item');
         }
@@ -1112,7 +1126,7 @@ function renderQuoteMini(q){
       tr.classList.add('added');
       if (btn) {
         btn.disabled = true;
-        btn.textContent = '✓';
+        btn.textContent = 'V';
       }
     }
     body.appendChild(tr);
@@ -1133,17 +1147,18 @@ function renderQuoteMini(q){
         current = await API.sales.addItemsBatch(current._id, batchPayload);
         syncCurrentIntoOpenList();
         renderTabs();
-        renderSale(); renderWO();
+        renderSale();
+        renderWO();
       } catch (err) {
         alert(err?.message || 'No se pudo agregar items (batch)');
         return;
       }
       Array.from(document.querySelectorAll('#sv-q-body tr')).forEach(row => {
         row.classList.add('added');
-        const b = row.querySelector('button.add');
-        if (b) {
-          b.disabled = true;
-          b.textContent = '✓';
+        const button = row.querySelector('button.add');
+        if (button) {
+          button.disabled = true;
+          button.textContent = 'V';
         }
       });
     };
@@ -1535,5 +1550,7 @@ export function initSales(){
 
   connectLive();
 }
+
+
 
 
