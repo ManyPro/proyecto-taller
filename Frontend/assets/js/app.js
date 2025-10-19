@@ -1,4 +1,4 @@
-/* assets/js/app.js
+﻿/* assets/js/app.js
    Orquestador de la UI: login, tabs y boot de módulos (notas, inventario, cotizaciones, precios, ventas)
 */
 
@@ -495,8 +495,11 @@ logoutBtn?.addEventListener('click', async () => {
       const who = by ? ` por ${by}` : '';
       // Map known events
       switch(true){
-        case /^inventory\.lowstock$/.test(t):
-          return { icon:'⚠️', title:'Stock bajo', body:`${d?.sku ? d.sku+': ' : ''}${d?.name || 'Producto'} — quedan ${d?.stock ?? '?'} (mínimo ${d?.minStock ?? '?'}) · ¡Pedir más!`, meta: ago };
+        case /^inventory\.lowstock$/.test(t):{
+          const baseText = `${d?.sku ? d.sku + ': ' : ''}${d?.name || 'Producto'} - quedan ${d?.stock ?? '?'} (minimo ${d?.minStock ?? '?'})`;
+          const action = d?.purchaseLabel ? ` - Pedir mas en (${d.purchaseLabel})` : ' - Pedir mas';
+          return { icon:'!!', title:'Stock bajo', body: baseText + action, meta: ago };
+        }
         case /^sale\.created$/.test(t):
           return { icon:'🛒', title:'Nueva venta creada', body:`Se registró un nuevo pedido${d?.origin==='catalog'?' desde el catálogo público':''}.`, meta: ago };
         case /^workOrder\.created$/.test(t):
@@ -648,6 +651,7 @@ async function maybeRenderFeaturesPanel(){
   btnSave?.addEventListener('click', save);
   btnRefresh?.addEventListener('click', refresh);
 }
+
 
 
 
