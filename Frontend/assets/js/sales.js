@@ -1,4 +1,4 @@
-/* assets/js/sales.js — FRONTEND PURO
+﻿/* assets/js/sales.js — FRONTEND PURO
    Hace funcionar la pestaña de Ventas: botones, render de tabla, QR (fallback jsQR) y SSE.
    Requiere que api.js exponga API con:
      API.sales.{start,get,addItem,updateItem,removeItem,setCustomerVehicle,close,list,cancel}
@@ -128,6 +128,81 @@ let technicianSelectInitialized = false;
 let starting = false;  // evita doble clic en "Nueva venta"
 let salesRefreshTimer = null;
 let lastQuoteLoaded = null; // referencia a la cotización mostrada en el mini panel
+const QUOTE_LINK_KEY = 'sales:quoteBySale';
+let saleQuoteLinks = loadSaleQuoteLinks();
+const saleQuoteCache = new Map();
+let saleQuoteRequestToken = 0;
+
+function loadSaleQuoteLinks(){
+  if (typeof localStorage === 'undefined') return {};
+  try{
+    const raw = localStorage.getItem(QUOTE_LINK_KEY);
+    if(!raw) return {};
+    const parsed = JSON.parse(raw);
+    if(parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
+  }catch{}
+  return {};
+}
+
+function persistSaleQuoteLinks(){
+  if (typeof localStorage === 'undefined') return;
+  try{ localStorage.setItem(QUOTE_LINK_KEY, JSON.stringify(saleQuoteLinks)); }catch{}
+}
+
+function setSaleQuoteLink(saleId, quoteId){
+  if(!saleId) return;
+  if(quoteId){
+    saleQuoteLinks[saleId] = quoteId;
+  } else {
+    delete saleQuoteLinks[saleId];
+  }
+  persistSaleQuoteLinks();
+}
+
+function getSaleQuoteId(saleId){
+  return saleQuoteLinks?.[saleId] || '';
+}
+
+function ensureSaleQuoteLink(q){
+  if(!current?._id) return;
+  const quoteId = q?._id || q?.id || '';
+  if(!quoteId) return;
+  saleQuoteCache.set(quoteId, q);
+  setSaleQuoteLink(current._id, quoteId);
+}
+
+async function renderQuoteForCurrentSale(){
+  const saleId = current?._id;
+  if(!saleId){
+    renderQuoteMini(null);
+    return;
+  }
+  const quoteId = getSaleQuoteId(saleId);
+  if(!quoteId){
+    renderQuoteMini(null);
+    return;
+  }
+  const token = ++saleQuoteRequestToken;
+  try{
+    let quote = saleQuoteCache.get(quoteId);
+    if(!quote){
+      quote = await API.quoteGet(quoteId);
+      if(quote) saleQuoteCache.set(quoteId, quote);
+    }
+    if(token !== saleQuoteRequestToken) return;
+    if(quote){
+      renderQuoteMini(quote);
+    } else {
+      setSaleQuoteLink(saleId, null);
+      renderQuoteMini(null);
+    }
+  }catch(err){
+    if(token === saleQuoteRequestToken){
+      console.warn('No se pudo cargar la cotizacion vinculada', err);
+      renderQuoteMini(null);
+    }
+  }
+}
 
 // ---- helper: mapear item de cotización -> payload addItem/addItemsBatch ----
 function mapQuoteItemToSale(it){
@@ -190,6 +265,7 @@ async function refreshOpenSales(options = {}) {
     renderTabs();
     renderSale();
     renderWO();
+    await renderQuoteForCurrentSale();
   } catch (err) {
     console.error('refreshOpenSales failed', err);
   }
@@ -444,6 +520,7 @@ function fillCloseModal(){
       await API.sales.close(current._id, payload);
       alert('Venta cerrada');
       document.getElementById('modal')?.classList.add('hidden');
+      setSaleQuoteLink(current._id, null);
       current = null;
       await refreshOpenSales();
     }catch(e){ msg.textContent = e?.message||'Error'; msg.classList.add('error'); }
@@ -463,7 +540,7 @@ async function switchTo(id){
     const sale = await API.sales.get(id);
     current = sale;
     syncCurrentIntoOpenList();
-    renderTabs(); renderSale(); renderWO();
+    renderTabs(); renderSale(); renderWO(); await renderQuoteForCurrentSale();
   }catch(e){ console.error(e); }
 }
 
@@ -492,6 +569,7 @@ function renderCapsules(){
       e.stopPropagation();
       if(!confirm('Cancelar esta venta?')) return;
       try{ await API.sales.cancel(sale._id); }catch(err){ alert(err?.message||'No se pudo cancelar'); }
+      setSaleQuoteLink(sale._id, null);
       if(current && current._id===sale._id) current=null;
       await refreshOpenSales();
     });
@@ -948,7 +1026,7 @@ async function loadQuote(){
       const btn=document.createElement('button'); btn.className='secondary';
       btn.textContent = `${(qq.number||'').toString().padStart(5,'0')} - ${qq?.client?.name||qq?.customer?.name||''} (${qq?.vehicle?.plate||''})`;
       btn.style.cssText='display:block;width:100%;text-align:left;margin-top:6px;';
-      btn.onclick = ()=>{ closeModal(); renderQuoteMini(qq); try{ localStorage.setItem('sales:lastQuoteId', qq.id||qq._id||''); }catch{} };
+      btn.onclick = ()=>{ closeModal(); renderQuoteMini(qq); };
       list.appendChild(btn);
     });
     if(items.length===0){
@@ -972,58 +1050,101 @@ async function loadQuote(){
   fetchList();
 }
 function renderQuoteMini(q){
-  const head=document.getElementById('sv-q-header'), body=document.getElementById('sv-q-body');
-  head.textContent = q ? `Cotización #${String(q.number||'').toString().padStart(5,'0')} - ${q?.client?.name||''}` : '— ninguna cotización cargada —';
-  body.innerHTML='';
+  const head = document.getElementById('sv-q-header');
+  const body = document.getElementById('sv-q-body');
+  if (!head || !body) return;
   lastQuoteLoaded = q || null;
-  (q?.items||[]).forEach(it=>{
-    const unit=Number(it.unitPrice??it.unit??0)||0;
-    const qty =Number(it.qty||1)||1;
-    const tr=document.createElement('tr');
-    tr.innerHTML = `<td>${it.type||'—'}</td><td>${it.description||it.name||''}</td><td class="t-center">${qty}</td><td class="t-right">${money(unit)}</td><td class="t-right">${money(qty*unit)}</td><td class="t-center"><button class="add secondary">→</button></td>`;
-    tr.querySelector('button.add').onclick = async ()=>{
-      if(!current){
-        current = await API.sales.start();
-        syncCurrentIntoOpenList();
-        renderTabs();
+
+  if (lastQuoteLoaded && current?._id) {
+    ensureSaleQuoteLink(lastQuoteLoaded);
+  } else if (!lastQuoteLoaded && current?._id) {
+    setSaleQuoteLink(current._id, null);
+  }
+
+  if (!q) {
+    head.textContent = '- ninguna cotizacion cargada -';
+    body.innerHTML = '';
+    const btnReset = document.getElementById('sv-q-to-sale');
+    if (btnReset) btnReset.onclick = null;
+    return;
+  }
+
+  const clientName = q?.client?.name || q?.customer?.name || '';
+  head.textContent = Cotizacion # - ;
+  body.innerHTML = '';
+
+  const itemsAlready = Array.isArray(current?.items) ? current.items : [];
+
+  (q?.items || []).forEach(it => {
+    const unit = Number(it.unitPrice ?? it.unit ?? 0) || 0;
+    const qty = Number(it.qty || 1) || 1;
+    const tr = document.createElement('tr');
+    tr.innerHTML = <td></td><td></td><td class="t-center"></td><td class="t-right"></td><td class="t-right"></td><td class="t-center"><button class="add secondary">→</button></td>;
+    const btn = tr.querySelector('button.add');
+    const alreadyInSale = itemsAlready.some(ci => {
+      const skuMatch = (ci.sku || '').toUpperCase() === String(it.sku || '').toUpperCase();
+      const nameMatch = (ci.name || '').toUpperCase() === String(it.description || it.name || '').toUpperCase();
+      return skuMatch || nameMatch;
+    });
+    if (btn) {
+      btn.onclick = async () => {
+        if (!current) {
+          current = await API.sales.start();
+          syncCurrentIntoOpenList();
+          renderTabs();
+        }
+        ensureSaleQuoteLink(q);
+        try {
+          const payload = mapQuoteItemToSale(it);
+          current = await API.sales.addItem(current._id, payload);
+          syncCurrentIntoOpenList();
+          renderTabs();
+          renderSale(); renderWO();
+          tr.classList.add('added');
+          btn.disabled = true;
+          btn.textContent = '✓';
+        } catch (err) {
+          alert(err?.message || 'No se pudo agregar el item');
+        }
+      };
+    }
+    if (alreadyInSale) {
+      tr.classList.add('added');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '✓';
       }
-      try {
-        const payload = mapQuoteItemToSale(it);
-        current = await API.sales.addItem(current._id, payload);
-        syncCurrentIntoOpenList();
-        renderTabs();
-        renderSale(); renderWO();
-        tr.classList.add('added');
-        const btn = tr.querySelector('button.add'); if (btn){ btn.disabled = true; btn.textContent = '✔'; }
-      } catch(e){
-        alert(e?.message||'No se pudo agregar el item');
-      }
-    };
+    }
     body.appendChild(tr);
   });
 
   const btnAll = document.getElementById('sv-q-to-sale');
-  if (btnAll){
-    btnAll.onclick = async ()=>{
-      if(!q?.items?.length) return;
-      if(!current){
+  if (btnAll) {
+    btnAll.onclick = async () => {
+      if (!q?.items?.length) return;
+      if (!current) {
         current = await API.sales.start();
         syncCurrentIntoOpenList();
         renderTabs();
       }
+      ensureSaleQuoteLink(q);
       try {
         const batchPayload = q.items.map(mapQuoteItemToSale);
         current = await API.sales.addItemsBatch(current._id, batchPayload);
         syncCurrentIntoOpenList();
         renderTabs();
         renderSale(); renderWO();
-      } catch(e){
-        alert(e?.message||'No se pudo agregar items (batch)');
+      } catch (err) {
+        alert(err?.message || 'No se pudo agregar items (batch)');
+        return;
       }
-      // Refrescar marca visual
-      Array.from(document.querySelectorAll('#sv-q-body tr')).forEach(tr=>{
-        tr.classList.add('added');
-        const b=tr.querySelector('button.add'); if(b){ b.disabled=true; b.textContent='✔'; }
+      Array.from(document.querySelectorAll('#sv-q-body tr')).forEach(row => {
+        row.classList.add('added');
+        const b = row.querySelector('button.add');
+        if (b) {
+          b.disabled = true;
+          b.textContent = '✓';
+        }
       });
     };
   }
@@ -1039,6 +1160,7 @@ async function applyQuoteCustomerVehicle(){
       renderTabs();
     }
     const q = lastQuoteLoaded;
+    ensureSaleQuoteLink(q);
     const payload = {
       customer: {
         name: q?.client?.name || q?.customer?.name || '',
@@ -1336,7 +1458,7 @@ function connectLive(){
       if (event === 'sale:updated'){
         if (current && current._id === data.id){
           API.sales.get(current._id)
-            .then((s)=>{ current = s; syncCurrentIntoOpenList(); renderTabs(); renderSale(); renderWO(); })
+            .then(async (s)=>{ current = s; syncCurrentIntoOpenList(); renderTabs(); renderSale(); renderWO(); await renderQuoteForCurrentSale(); })
             .catch((err)=> { console.warn('No se pudo refrescar venta en vivo', err); refreshOpenSales({ focusId: current?._id || null }); });
         } else {
           refreshOpenSales({ focusId: current?._id || null });
@@ -1344,6 +1466,7 @@ function connectLive(){
         return;
       }
       if (event === 'sale:closed' || event === 'sale:cancelled'){
+        setSaleQuoteLink(data.id, null);
         if (current && current._id === data.id) current = null;
         refreshOpenSales({ focusId: current?._id || null });
       }
@@ -1371,6 +1494,8 @@ export function initSales(){
     gateElement(canWO, '#sv-print-wo');
   })();
 
+  try { localStorage.removeItem('sales:lastQuoteId'); } catch {}
+
   refreshOpenSales();
   startSalesAutoRefresh();
 
@@ -1381,7 +1506,7 @@ export function initSales(){
       const s = await API.sales.start();
       current = s;
       syncCurrentIntoOpenList();
-        renderTabs(); renderSale(); renderWO();
+        renderTabs(); renderSale(); renderWO(); await renderQuoteForCurrentSale();
       await refreshOpenSales({ focusId: s._id, preferCurrent: s });
     }catch(e){ alert(e?.message||'No se pudo crear la venta'); }
     finally{ starting=false; if(btn) btn.disabled=false; }
@@ -1394,14 +1519,6 @@ export function initSales(){
   document.getElementById('sv-edit-cv')?.addEventListener('click', openEditCV);
   document.getElementById('sv-loadQuote')?.addEventListener('click', loadQuote);
   document.getElementById('sv-applyQuoteCV')?.addEventListener('click', applyQuoteCustomerVehicle);
-
-  // Restaurar última cotización cargada (si existe)
-  try {
-    const lastQuoteId = localStorage.getItem('sales:lastQuoteId');
-    if (lastQuoteId) {
-      API.quoteGet(lastQuoteId).then(q=>{ if(q) renderQuoteMini(q); }).catch(()=>{});
-    }
-  } catch {}
 
   document.getElementById('sales-close')?.addEventListener('click', async ()=>{
     if (!current) return;

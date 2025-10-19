@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
@@ -8,53 +8,342 @@
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <script src="./assets/js/config.js"></script>
   <script src="./assets/js/api.js"></script>
+  <style>
+    body[data-page="developer"]{
+      background:
+        radial-gradient(circle at 15% -10%, rgba(79,70,229,0.18), transparent 55%),
+        linear-gradient(160deg, rgba(8,145,178,0.18), transparent 60%);
+      min-height:100vh;
+    }
+    body[data-page="developer"] main{
+      padding:32px 16px 64px;
+    }
+    .dev-main{
+      max-width:1100px;
+      margin:0 auto;
+    }
+    .dev-login{
+      display:flex;
+      justify-content:center;
+    }
+    .dev-login-card{
+      max-width:420px;
+      margin:36px auto;
+      padding:32px 36px;
+      border-radius:20px;
+      box-shadow:0 16px 40px rgba(15,23,42,0.28);
+    }
+    .dev-login-card h2{
+      margin-top:0;
+      margin-bottom:16px;
+      text-align:center;
+    }
+    .dev-login-card label{
+      font-size:14px;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+      color:var(--muted, rgba(226,232,240,0.65));
+    }
+    .dev-login-card input{
+      width:100%;
+      margin:6px 0 14px;
+      border-radius:12px;
+      border:1px solid rgba(148,163,184,0.25);
+      background:rgba(15,23,42,0.45);
+      color:inherit;
+      padding:10px 14px;
+      transition:border .2s, box-shadow .2s;
+    }
+    .dev-login-card input:focus{
+      outline:none;
+      border-color:var(--accent,#38bdf8);
+      box-shadow:0 0 0 2px rgba(56,189,248,0.25);
+    }
+    .dev-app{
+      animation:fadeIn .45s ease .08s both;
+    }
+    @keyframes fadeIn{
+      from{ opacity:0; transform:translateY(12px); }
+      to{ opacity:1; transform:translateY(0); }
+    }
+    .dev-shell{
+      display:grid;
+      gap:24px;
+    }
+    .dev-hero{
+      display:flex;
+      flex-wrap:wrap;
+      gap:24px;
+      align-items:flex-start;
+      padding:28px 32px;
+      border-radius:24px;
+      border:1px solid rgba(148,163,184,0.22);
+      background:linear-gradient(135deg, rgba(15,23,42,0.85), rgba(30,41,59,0.7));
+      box-shadow:0 24px 60px rgba(8,15,35,0.45);
+      backdrop-filter:blur(18px);
+    }
+    .dev-hero h1{
+      margin:0 0 8px;
+      font-size:2rem;
+      letter-spacing:-0.02em;
+    }
+    .dev-hero p{
+      margin:0;
+      max-width:520px;
+      color:var(--muted, rgba(226,232,240,0.65));
+      font-size:0.95rem;
+    }
+    .dev-hero-text{
+      flex:1 1 320px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .dev-stat-grid{
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      align-items:stretch;
+    }
+    .dev-stat{
+      min-width:150px;
+      padding:14px 18px;
+      border-radius:16px;
+      background:rgba(15,23,42,0.45);
+      border:1px solid rgba(148,163,184,0.25);
+      box-shadow:0 12px 32px rgba(8,15,35,0.35);
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+    .dev-stat span{
+      font-size:12px;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      color:var(--muted, rgba(226,232,240,0.6));
+    }
+    .dev-stat strong{
+      font-size:28px;
+      line-height:1;
+      color:var(--accent,#38bdf8);
+      font-weight:700;
+    }
+    .dev-section{
+      padding:24px 28px;
+      border-radius:20px;
+      box-shadow:0 18px 44px rgba(8,15,35,0.35);
+      border:1px solid rgba(148,163,184,0.18);
+      background:rgba(15,23,42,0.55);
+      backdrop-filter:blur(12px);
+    }
+    .dev-section-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:16px;
+      flex-wrap:wrap;
+    }
+    .dev-section-head h3{
+      margin:0;
+      font-size:1.35rem;
+    }
+    .dev-section-head p{
+      margin:4px 0 0;
+      max-width:520px;
+      color:var(--muted, rgba(226,232,240,0.65));
+      font-size:0.95rem;
+    }
+    .dev-head-actions{
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    #devTabs{
+      display:flex;
+      gap:10px;
+      margin-bottom:18px;
+      background:rgba(15,23,42,0.35);
+      border-radius:16px;
+      padding:6px;
+      border:1px solid rgba(148,163,184,0.18);
+    }
+    #devTabs button{
+      flex:1;
+      min-width:160px;
+      border:none;
+      border-radius:12px;
+      padding:10px 14px;
+      font-weight:600;
+      color:inherit;
+      background:transparent;
+      transition:background .2s, box-shadow .2s, transform .2s;
+    }
+    #devTabs button:hover{
+      background:rgba(59,130,246,0.15);
+    }
+    #devTabs button.active{
+      background:linear-gradient(135deg, rgba(79,70,229,0.32), rgba(59,130,246,0.25));
+      box-shadow:0 12px 26px rgba(59,130,246,0.35);
+      transform:translateY(-1px);
+    }
+    .dev-toolbar{
+      margin-top:16px;
+      display:flex;
+      flex-wrap:wrap;
+      gap:12px;
+      align-items:center;
+    }
+    .dev-search{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .dev-search input[type="search"]{
+      min-width:240px;
+      padding:10px 14px;
+      border-radius:12px;
+      border:1px solid rgba(148,163,184,0.28);
+      background:rgba(15,23,42,0.45);
+      color:inherit;
+      transition:border .2s, box-shadow .2s;
+    }
+    .dev-search input[type="search"]::placeholder{
+      color:var(--muted, rgba(226,232,240,0.55));
+      letter-spacing:.01em;
+    }
+    .dev-search input[type="search"]:focus{
+      outline:none;
+      border-color:var(--accent,#38bdf8);
+      box-shadow:0 0 0 2px rgba(56,189,248,0.25);
+    }
+    .dev-toolbar-meta{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      font-size:13px;
+      color:var(--muted, rgba(226,232,240,0.6));
+    }
+    .dev-toolbar-meta .bullet{
+      width:6px;
+      height:6px;
+      border-radius:50%;
+      background:rgba(148,163,184,0.45);
+      display:inline-block;
+    }
+    .dev-grid{
+      display:grid;
+      gap:16px;
+      margin-top:18px;
+    }
+    .dev-company-card{
+      padding:22px 24px;
+      border-radius:20px;
 </head>
 <body data-page="developer">
-  <main>
-    <section id="loginSection">
-      <div class="card" style="max-width:420px;margin:40px auto;">
+    <main class="dev-main">
+    <section id="loginSection" class="dev-login">
+      <div class="card dev-login-card">
         <h2>Ingreso Developer</h2>
         <label>Correo</label>
         <input id="d-email" type="email" />
-        <label>Contraseña</label>
+        <label>Contrasena</label>
         <input id="d-password" type="password" />
-        <div class="row" style="gap:8px;margin-top:8px;">
+        <div class="row" style="gap:8px;margin-top:12px;">
           <button id="d-login">Entrar</button>
         </div>
       </div>
     </section>
-    <section id="appSection" class="hidden">
-      <div class="card" style="max-width:980px;margin:20px auto;">
-        <nav class="tabs" id="devTabs" style="margin-bottom:10px;">
-          <button data-t="reqs" class="active">Solicitudes</button>
-          <button data-t="companies">Empresas y Funciones</button>
-          <button data-t="admins">Admins</button>
-        </nav>
-        <div class="row between" style="align-items:center;gap:8px;">
-          <h3 style="margin:0;">Solicitudes de Admin</h3>
-          <button id="d-refresh" class="secondary">Actualizar</button>
-        </div>
-        <div id="d-list" style="margin-top:10px;"></div>
-      </div>
-      <div class="card" id="companiesCard" style="max-width:980px;margin:12px auto;display:none;">
-        <div class="row between" style="align-items:center;gap:8px;">
-          <h3 style="margin:0;">Empresas y Funciones</h3>
-          <button id="c-refresh" class="secondary">Actualizar</button>
-        </div>
-        <div id="c-list" style="margin-top:10px;"></div>
-      </div>
-      <div class="card" style="max-width:980px;margin:12px auto;" id="adminsCard">
-        <div class="row between" style="align-items:center;gap:8px;">
-          <h3 style="margin:0;">Admins existentes</h3>
-          <button id="a-refresh" class="secondary">Actualizar</button>
-        </div>
-        <div id="a-list" style="margin-top:10px;"></div>
+    <section id="appSection" class="hidden dev-app">
+      <div class="dev-shell">
+        <article class="card dev-hero">
+          <div class="dev-hero-text">
+            <h1>Panel Developer</h1>
+            <p>Administra solicitudes de acceso, configura modulos por empresa y supervisa al equipo de administradores desde un mismo lugar.</p>
+          </div>
+          <div class="dev-stat-grid">
+            <div class="dev-stat">
+              <span>Solicitudes</span>
+              <strong id="stat-requests">0</strong>
+            </div>
+            <div class="dev-stat">
+              <span>Empresas</span>
+              <strong id="stat-companies">0</strong>
+            </div>
+            <div class="dev-stat">
+              <span>Activas</span>
+              <strong id="stat-companies-active">0</strong>
+            </div>
+            <div class="dev-stat">
+              <span>Admins</span>
+              <strong id="stat-admins">0</strong>
+            </div>
+          </div>
+        </article>
+
+        <article class="card dev-section" id="requestsCard">
+          <nav class="tabs" id="devTabs">
+            <button data-t="reqs" class="active">Solicitudes</button>
+            <button data-t="companies">Empresas y Funciones</button>
+            <button data-t="admins">Admins</button>
+          </nav>
+          <div id="requestsContent">
+            <div class="dev-section-head">
+              <div>
+                <h3>Solicitudes de Admin</h3>
+                <p>Aprueba nuevos usuarios y asigna rapidamente las empresas que podran gestionar.</p>
+              </div>
+              <div class="dev-head-actions">
+                <button id="d-refresh" class="secondary">Actualizar</button>
+              </div>
+            </div>
+            <div id="d-list" class="dev-collection"></div>
+          </div>
+        </article>
+
+        <article class="card dev-section" id="companiesCard" style="display:none;">
+          <div class="dev-section-head">
+            <div>
+              <h3>Empresas y funciones</h3>
+              <p>Activa modulos, subfunciones y restricciones especificas para cada empresa.</p>
+            </div>
+            <div class="dev-head-actions">
+              <button id="c-refresh" class="secondary">Actualizar</button>
+            </div>
+          </div>
+          <div class="dev-toolbar">
+            <div class="dev-search">
+              <input type="search" id="c-filter" placeholder="Buscar por nombre, correo o NIT..." autocomplete="off" />
+              <button class="secondary" type="button" id="c-clear">Limpiar</button>
+            </div>
+            <div class="dev-toolbar-meta" id="c-stats">0 empresas</div>
+          </div>
+          <div id="c-list" class="dev-grid"></div>
+        </article>
+
+        <article class="card dev-section" id="adminsCard">
+          <div class="dev-section-head">
+            <div>
+              <h3>Admins existentes</h3>
+              <p>Consulta y ajusta la asignacion de empresas para cada administrador.</p>
+            </div>
+            <div class="dev-head-actions">
+              <button id="a-refresh" class="secondary">Actualizar</button>
+            </div>
+          </div>
+          <div id="a-list" class="dev-collection"></div>
+        </article>
       </div>
     </section>
   </main>
   <script type="module">
   import { API } from './assets/js/api.esm.js';
   const LS_KEY='dev:token';
+  let companiesData = [];
+  function setHeroStat(id, value){
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(value);
+  }
   function setTok(t){ try{ localStorage.setItem(LS_KEY, t||''); }catch{} }
   function getTok(){ try{ return localStorage.getItem(LS_KEY)||''; }catch{return '';} }
   async function req(path, opts={}){
@@ -83,7 +372,9 @@
       const r = await req('/api/v1/admin/signup/requests');
       wrap.innerHTML = '';
       const companies = r.companies||[];
-      (r.items||[]).forEach(item=>{
+      const requests = r.items||[];
+      setHeroStat('stat-requests', requests.length);
+      requests.forEach(item=>{
         const div = document.createElement('div');
         div.className='card'; div.style.marginBottom='8px';
         div.innerHTML = `<div class='row between' style='align-items:center;'>
@@ -107,30 +398,36 @@
           const selected = Array.from(div.querySelectorAll('input[type=checkbox][data-c]:checked')).map(x=>x.dataset.c);
           try{
             const res = await req(`/api/v1/admin/signup/requests/${item._id}/approve`, { method:'POST', body:{ companies: selected } });
-            alert(`Código generado: ${res.code}\nCompártelo con el solicitante.`);
+            alert(`Codigo generado: ${res.code}\nCompartelo con el solicitante.`);
             loadReqs();
           }catch(e){ alert(e.message||'Error'); }
         };
         wrap.appendChild(div);
       });
       if(!wrap.children.length){ wrap.innerHTML = '<div class="muted">Sin solicitudes pendientes</div>'; }
-    }catch(e){ wrap.innerHTML = `<div class='muted'>${e.message||'Error'}</div>`; }
+    }catch(e){
+      wrap.innerHTML = `<div class='muted'>${e.message||'Error'}</div>`;
+      setHeroStat('stat-requests', 0);
+    }
   }
   document.getElementById('d-refresh').onclick = loadReqs;
 
-  // Admins existentes: listar y editar asignación de empresas
+  // Admins existentes: listar y editar asignacion de empresas
   async function loadAdmins(){
     const wrap = document.getElementById('a-list');
     wrap.innerHTML = '<div class="muted">Cargando...</div>';
     try{
-      // Usamos /companies para catálogo, y buscamos admins vía /api/v1/admin/auth/me? (no hay listado). Implementamos llamado directo a un endpoint opcional: de momento, pedimos los admins por email manualmente.
-      // Para no ampliar backend más, haremos una llamada simple al servidor que no existe; como sí ampliamos antes, mejor listemos AdminUsers developers y admins: añadimos endpoint rápido.
+      // Usamos /companies para catalogo, y buscamos admins via /api/v1/admin/auth/me? (no hay listado). Implementamos llamado directo a un endpoint opcional: de momento, pedimos los admins por email manualmente.
+      // Para no ampliar backend mas, haremos una llamada simple al servidor que no existe; como si ampliamos antes, mejor listemos AdminUsers developers y admins: anadimos endpoint rapido.
       const list = await (async()=>{
         try{ const r = await req('/api/v1/admin/admins'); return r.items||[]; }catch{ return []; }
       })();
-      const companies = await (async()=>{ try{ const c = await req('/api/v1/admin/companies'); return c.items||[]; }catch{ return []; } })();
+      const companies = await (async()=>{
+        try{ const c = await req('/api/v1/admin/companies'); return c.items||[]; }catch{ return []; }
+      })();
       wrap.innerHTML = '';
-      if(!list.length){ wrap.innerHTML = '<div class="muted">Aún no hay admins creados o falta endpoint.</div>'; return; }
+      setHeroStat('stat-admins', list.length);
+      if(!list.length){ wrap.innerHTML = '<div class="muted">Aun no hay admins creados o falta endpoint.</div>'; return; }
       list.forEach(u=>{
         const div = document.createElement('div'); div.className='card'; div.style.marginBottom='8px';
         div.innerHTML = `<div class='row between' style='align-items:center;'>
@@ -160,125 +457,197 @@
   document.getElementById('a-refresh').onclick = loadAdmins;
 
   // ===== Empresas y Funciones =====
-  async function loadCompanies(){
-    const wrap = document.getElementById('c-list');
-    wrap.innerHTML = '<div class="muted">Cargando...</div>';
-    try{
-      const res = await req('/api/v1/admin/company/companies');
-      const items = res.items || [];
-      wrap.innerHTML = '';
-      items.forEach(c => {
-        const id = String(c._id || c.id || '');
-        const div = document.createElement('div');
-        div.className = 'card'; div.style.marginBottom='10px';
-        const feat = c.features || {};
-        const fopts = c.featureOptions || {};
-        const restr = c.restrictions || {};
-        const check = (id, checked) => `<label class='chip'><input type='checkbox' id='${id}' ${checked?'checked':''}/> ${id.split(':').slice(1).join(':')||id}</label>`;
-        div.innerHTML = `
-          <div class='row between' style='align-items:flex-start;gap:10px;'>
-            <div style='min-width:260px;'>
-              <div><strong>${c.name || c.email}</strong></div>
-              <div class='muted' style='font-size:12px;'>${c.email}</div>
-              <div class='muted' style='font-size:12px;'>Activa: ${c.active? 'Sí':'No'}</div>
-            </div>
-            <div style='flex:1;'>
-              <details open>
-                <summary><b>Módulos</b></summary>
-                <div class='row wrap' style='gap:6px;margin-top:6px;' id='feat-${id}'></div>
-                <div class='row right' style='margin-top:6px;'><button class='secondary' data-save-feat>Guardar módulos</button></div>
-              </details>
-              <details>
-                <summary><b>Opciones</b></summary>
-                <div id='fopts-${id}' style='display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px;margin-top:6px;'></div>
-                <div class='row right' style='margin-top:6px;'><button class='secondary' data-save-fopts>Guardar opciones</button></div>
-              </details>
-              <details>
-                <summary><b>Restricciones</b></summary>
-                <div class='row wrap' style='gap:6px;margin-top:6px;' id='restr-${id}'></div>
-                <div class='row right' style='margin-top:6px;'><button class='secondary' data-save-restr>Guardar restricciones</button></div>
-              </details>
-            </div>
-          </div>`;
-        // Render módulos
-        const FEATS = ['notas','ventas','cotizaciones','inventario','precios','cashflow','techreport','templates','skus'];
-        const wrapFeat = div.querySelector(`#feat-${id}`);
-        FEATS.forEach(k=>{
-          const cid = `f:${k}`; const enabled = feat[k] !== false;
-          wrapFeat.insertAdjacentHTML('beforeend', `<label class='chip'><input type='checkbox' id='${cid}' ${enabled?'checked':''}/> ${k}</label>`);
-        });
-        // Render opciones
-        const fowrap = div.querySelector(`#fopts-${id}`);
-        const blocks = {
-          ventas: { importarCotizacion:'Importar cotización', ordenesTrabajo:'Órdenes de trabajo' },
-          inventario: { ingresoVehiculo:'Ingreso de vehículo', ingresoCompra:'Ingreso de compra', marketplace:'Marketplace', publicar:'Publicación masiva', publicarAgotados:'Despublicar agotados', publicCatalogFields:'Campos de catálogo' },
-          templates: { stickerQR:'Sticker: solo QR', stickerMarca:'Sticker: marca', stickerQRyMarca:'Sticker: QR + marca' }
-        };
-        Object.entries(blocks).forEach(([mod, opts])=>{
-          const box = document.createElement('div');
-          box.className='card';
-          box.innerHTML = `<div><b>${mod}</b></div><div class='row wrap' style='gap:6px;margin-top:6px;'></div>`;
-          const row = box.querySelector('.row');
-          Object.entries(opts).forEach(([key,label])=>{
-            const enabled = (fopts?.[mod]?.[key] !== false);
-            const cid = `fo:${mod}:${key}`;
-            row.insertAdjacentHTML('beforeend', `<label class='chip'><input type='checkbox' id='${cid}' ${enabled?'checked':''}/> ${label}</label>`);
-          });
-          fowrap.appendChild(box);
-        });
-        // Restricciones
-        const rwrap = div.querySelector(`#restr-${id}`);
-        const hideBalances = !!(restr?.cashflow?.hideBalances);
-        rwrap.insertAdjacentHTML('beforeend', `<label class='chip'><input type='checkbox' id='r:cashflow:hideBalances' ${hideBalances?'checked':''}/> Ocultar saldos de cuentas</label>`);
-
-        // Handlers guardar
-        div.querySelector('[data-save-feat]').onclick = async ()=>{
-          try{
-            const payload = {};
-            FEATS.forEach(k=>{ const el = div.querySelector(`#f:${k}`); payload[k] = !!el?.checked; });
-            const saved = await req(`/api/v1/admin/company/companies/${id}/features`, { method:'PATCH', body: payload });
-            alert('Módulos guardados');
-          }catch(e){ alert(e.message||'Error'); }
-        };
-        div.querySelector('[data-save-fopts]').onclick = async ()=>{
-          try{
-            const payload = { ventas:{}, inventario:{}, templates:{} };
-            Object.keys(blocks.ventas).forEach(k=>{ payload.ventas[k] = !!div.querySelector(`#fo:ventas:${k}`)?.checked; });
-            Object.keys(blocks.inventario).forEach(k=>{ payload.inventario[k] = !!div.querySelector(`#fo:inventario:${k}`)?.checked; });
-            Object.keys(blocks.templates).forEach(k=>{ payload.templates[k] = !!div.querySelector(`#fo:templates:${k}`)?.checked; });
-            await req(`/api/v1/admin/company/companies/${id}/feature-options`, { method:'PATCH', body: payload });
-            alert('Opciones guardadas');
-          }catch(e){ alert(e.message||'Error'); }
-        };
-        div.querySelector('[data-save-restr]').onclick = async ()=>{
-          try{
-            const payload = { cashflow: { hideBalances: !!div.querySelector('#r:cashflow:hideBalances')?.checked } };
-            await req(`/api/v1/admin/company/companies/${id}/restrictions`, { method:'PATCH', body: payload });
-            alert('Restricciones guardadas');
-          }catch(e){ alert(e.message||'Error'); }
-        };
-        wrap.appendChild(div);
+  function buildCompanyCard(company){
+    const id = String(company._id || company.id || '');
+    const feat = company.features || {};
+    const fopts = company.featureOptions || {};
+    const restr = company.restrictions || {};
+    const modulesCount = Object.keys(feat).filter(k => feat[k] !== false).length;
+    const div = document.createElement("div");
+    div.className = "card dev-company-card";
+    div.innerHTML = `
+      <div class="dev-company-head">
+        <div>
+          <h4 class="dev-company-name">${company.name || company.email || 'Empresa'}</h4>
+          <div class="dev-company-meta">
+            <span>${company.email || 'Sin correo'}</span>
+            ${company.documentNumber ? `<span>NIT ${company.documentNumber}</span>` : ''}
+            ${company.city ? `<span>${company.city}</span>` : ''}
+          </div>
+        </div>
+        <div class="dev-company-badges">
+          <span class="badge ${company.active ? 'badge-success' : 'badge-danger'}">${company.active ? 'Activa' : 'Inactiva'}</span>
+          <span class="badge">Modulos ${modulesCount}</span>
+        </div>
+      </div>
+      <div class="dev-company-body">
+        <details open>
+          <summary>Modulos</summary>
+          <div class="dev-chip-grid" id="feat-${id}"></div>
+          <div class="dev-actions-row"><button class="secondary" data-save-feat>Guardar modulos</button></div>
+        </details>
+        <details>
+          <summary>Opciones</summary>
+          <div class="dev-options-grid" id="fopts-${id}"></div>
+          <div class="dev-actions-row"><button class="secondary" data-save-fopts>Guardar opciones</button></div>
+        </details>
+        <details>
+          <summary>Restricciones</summary>
+          <div class="dev-chip-grid" id="restr-${id}"></div>
+          <div class="dev-actions-row"><button class="secondary" data-save-restr>Guardar restricciones</button></div>
+        </details>
+      </div>
+    `;
+    const FEATS = ['notas','ventas','cotizaciones','inventario','precios','cashflow','techreport','templates','skus'];
+    const wrapFeat = div.querySelector(`#feat-${id}`);
+    FEATS.forEach(k=>{
+      const cid = `f-${id}-${k}`;
+      const enabled = feat[k] !== false;
+      wrapFeat.insertAdjacentHTML('beforeend', `<label class='chip'><input type='checkbox' id='${cid}' ${enabled?'checked':''}/> ${k}</label>`);
+    });
+    const blocks = {
+      ventas: { importarCotizacion:'Importar cotizacion', ordenesTrabajo:'Ordenes de trabajo' },
+      inventario: { ingresoVehiculo:'Ingreso de vehiculo', ingresoCompra:'Ingreso de compra', marketplace:'Marketplace', publicar:'Publicacion masiva', publicarAgotados:'Despublicar agotados', publicCatalogFields:'Campos de catalogo' },
+      templates: { stickerQR:'Sticker: solo QR', stickerMarca:'Sticker: marca', stickerQRyMarca:'Sticker: QR + marca' }
+    };
+    const fowrap = div.querySelector(`#fopts-${id}`);
+    Object.entries(blocks).forEach(([mod, opts])=>{
+      const box = document.createElement("div");
+      box.className='card';
+      box.innerHTML = `<div><b>${mod}</b></div><div class='dev-chip-grid'></div>`;
+      const row = box.querySelector('.dev-chip-grid');
+      Object.entries(opts).forEach(([key,label])=>{
+        const cid = `fo-${id}-${mod}-${key}`;
+        const enabled = (fopts?.[mod]?.[key] !== false);
+        row.insertAdjacentHTML('beforeend', `<label class='chip'><input type='checkbox' id='${cid}' ${enabled?'checked':''}/> ${label}</label>`);
       });
-      if(!wrap.children.length){ wrap.innerHTML = '<div class="muted">No hay empresas</div>'; }
-    }catch(e){ wrap.innerHTML = `<div class='muted'>${e.message||'Error'}</div>`; }
+      fowrap.appendChild(box);
+    });
+    const restrWrap = div.querySelector(`#restr-${id}`);
+    const hideId = `r-${id}-cashflow-hideBalances`;
+    const hideBalances = !!(restr?.cashflow?.hideBalances);
+    restrWrap.insertAdjacentHTML('beforeend', `<label class='chip'><input type='checkbox' id='${hideId}' ${hideBalances?'checked':''}/> Ocultar saldos de cuentas</label>`);
+    div.querySelector('[data-save-feat]').onclick = async ()=>{
+      try{
+        const payload = {};
+        FEATS.forEach(k=>{
+          const el = div.querySelector(`#f-${id}-${k}`);
+          payload[k] = !!el?.checked;
+        });
+        await req(`/api/v1/admin/company/companies/${id}/features`, { method:'PATCH', body: payload });
+        alert('Modulos guardados');
+      }catch(e){ alert(e.message||'Error'); }
+    };
+    div.querySelector('[data-save-fopts]').onclick = async ()=>{
+      try{
+        const payload = { ventas:{}, inventario:{}, templates:{} };
+        Object.keys(blocks.ventas).forEach(k=>{ payload.ventas[k] = !!div.querySelector(`#fo-${id}-ventas-${k}`)?.checked; });
+        Object.keys(blocks.inventario).forEach(k=>{ payload.inventario[k] = !!div.querySelector(`#fo-${id}-inventario-${k}`)?.checked; });
+        Object.keys(blocks.templates).forEach(k=>{ payload.templates[k] = !!div.querySelector(`#fo-${id}-templates-${k}`)?.checked; });
+        await req(`/api/v1/admin/company/companies/${id}/feature-options`, { method:'PATCH', body: payload });
+        alert('Opciones guardadas');
+      }catch(e){ alert(e.message||'Error'); }
+    };
+    div.querySelector('[data-save-restr]').onclick = async ()=>{
+      try{
+        const payload = { cashflow: { hideBalances: !!div.querySelector(`#${hideId}`)?.checked } };
+        await req(`/api/v1/admin/company/companies/${id}/restrictions`, { method:'PATCH', body: payload });
+        alert('Restricciones guardadas');
+      }catch(e){ alert(e.message||'Error'); }
+    };
+    return div;
   }
+
+  function renderCompaniesList(){
+    const wrap = document.getElementById('c-list');
+    if(!wrap) return;
+    if(!companiesData.length){
+      wrap.innerHTML = '<div class="dev-empty">No hay empresas registradas</div>';
+      const statsEl = document.getElementById('c-stats');
+      if(statsEl) statsEl.textContent = '0 empresas';
+      return;
+    }
+    const term = (document.getElementById('c-filter')?.value || '').trim().toLowerCase();
+    const filtered = term
+      ? companiesData.filter(c=>{
+          const vals = [c.name, c.email, c.documentNumber, c.city].filter(Boolean).map(v=>String(v).toLowerCase());
+          return vals.some(v=> v.includes(term));
+        })
+      : [...companiesData];
+    const statsEl = document.getElementById('c-stats');
+    wrap.innerHTML = '';
+    if(!filtered.length){
+      wrap.innerHTML = '<div class="dev-empty">No se encontraron empresas</div>';
+    }else{
+      filtered.forEach(c=> wrap.appendChild(buildCompanyCard(c)));
+    }
+    if(statsEl){
+      const activeFiltered = filtered.filter(c=> c.active).length;
+      statsEl.innerHTML = `${filtered.length} de ${companiesData.length} empresas <span class="bullet"></span> ${activeFiltered} activas`;
+    }
+  }
+
+  async function loadCompanies(force=false){
+    const wrap = document.getElementById('c-list');
+    if(!wrap) return;
+    if(force || !companiesData.length){
+      wrap.innerHTML = '<div class="muted">Cargando...</div>';
+      try{
+        const res = await req('/api/v1/admin/company/companies');
+        companiesData = res.items || [];
+        setHeroStat('stat-companies', companiesData.length);
+        setHeroStat('stat-companies-active', companiesData.filter(c=>c.active).length);
+      }catch(e){
+        wrap.innerHTML = `<div class='muted'>${e.message||'Error'}</div>`;
+        return;
+      }
+    }
+    renderCompaniesList();
+  }
+
+  document.getElementById('c-refresh').onclick = () => loadCompanies(true);
+  document.getElementById('c-filter')?.addEventListener('input', () => renderCompaniesList());
+  document.getElementById('c-clear')?.addEventListener('click', ()=>{
+    const input = document.getElementById('c-filter');
+    if(!input) return;
+    input.value = '';
+    renderCompaniesList();
+    input.focus();
+  });
 
   // Tabs behavior
   const devTabs = document.getElementById('devTabs');
+  const requestsCard = document.getElementById('requestsCard');
+  const requestsContent = document.getElementById('requestsContent');
+  const companiesCard = document.getElementById('companiesCard');
+  const adminsCard = document.getElementById('adminsCard');
+  const toggleSections = (t)=>{
+    if(requestsContent) requestsContent.style.display = (t==='reqs') ? '' : 'none';
+    if(companiesCard) companiesCard.style.display = (t==='companies') ? '' : 'none';
+    if(adminsCard) adminsCard.style.display = (t==='admins') ? '' : 'none';
+    if(requestsCard) requestsCard.classList.toggle('active', t==='reqs');
+  };
   devTabs?.addEventListener('click', (e)=>{
     const btn = e.target.closest('button[data-t]'); if(!btn) return;
     devTabs.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
     const t = btn.dataset.t;
-    document.querySelector('h3').textContent = t==='reqs' ? 'Solicitudes de Admin' : (t==='companies' ? 'Empresas y Funciones' : 'Admins existentes');
-    document.getElementById('companiesCard').style.display = (t==='companies') ? '' : 'none';
-    document.getElementById('adminsCard').style.display = (t==='admins') ? '' : '';
-    // Toggle first card list and headers
-    document.getElementById('d-refresh').parentElement.parentElement.style.display = (t==='reqs') ? '' : 'none';
+    toggleSections(t);
     if(t==='companies') loadCompanies();
     if(t==='admins') loadAdmins();
     if(t==='reqs') loadReqs();
   });
+  const activeTab = devTabs?.querySelector('button.active')?.dataset.t;
+  if(activeTab) toggleSections(activeTab);
   </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
