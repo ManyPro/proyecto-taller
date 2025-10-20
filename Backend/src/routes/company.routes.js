@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import Company from '../models/Company.js';
+import TechnicianConfig from '../models/TechnicianConfig.js';
 import { authCompany } from '../middlewares/auth.js';
 
 const router = Router();
@@ -135,3 +136,38 @@ router.patch('/public-catalog', async (req, res) => {
 });
 
 export default router;
+
+// ===== Technician config (labor kinds + technician rates) =====
+// GET /api/v1/company/tech-config
+router.get('/tech-config', async (req, res) => {
+  let cfg = await TechnicianConfig.findOne({ companyId: req.companyDoc._id });
+  if (!cfg) {
+    // bootstrap from Company preferences if present
+    const kinds = req.companyDoc?.preferences?.laborKinds || ['MOTOR','SUSPENSION','FRENOS'];
+    cfg = await TechnicianConfig.create({ companyId: req.companyDoc._id, laborKinds: kinds, technicians: [] });
+  }
+  res.json({ config: cfg.toObject() });
+});
+
+// PUT /api/v1/company/tech-config
+router.put('/tech-config', async (req, res) => {
+  const body = req.body || {};
+  const kinds = Array.isArray(body.laborKinds) ? body.laborKinds.map(s=>String(s||'').trim().toUpperCase()).filter(Boolean) : undefined;
+  const techs = Array.isArray(body.technicians) ? body.technicians : undefined;
+  let cfg = await TechnicianConfig.findOne({ companyId: req.companyDoc._id });
+  if (!cfg) cfg = new TechnicianConfig({ companyId: req.companyDoc._id });
+  if (kinds) cfg.laborKinds = Array.from(new Set(kinds));
+  if (techs) {
+    const cleaned = [];
+    for (const t of techs) {
+      const name = String(t?.name||'').trim().toUpperCase(); if (!name) continue;
+      const active = !!t?.active;
+      const rates = Array.isArray(t?.rates) ? t.rates.map(r=>({ kind: String(r?.kind||'').trim().toUpperCase(), percent: Number(r?.percent||0) })) : [];
+      const valRates = rates.filter(r=> r.kind && Number.isFinite(r.percent) && r.percent>=0 && r.percent<=100);
+      cleaned.push({ name, active, rates: valRates });
+    }
+    cfg.technicians = cleaned;
+  }
+  await cfg.save();
+  res.json({ config: cfg.toObject() });
+});

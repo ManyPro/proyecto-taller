@@ -58,6 +58,16 @@ const SaleSchema = new mongoose.Schema({
   laborValue: { type: Number, default: 0 },            // valor base mano de obra
   laborPercent: { type: Number, default: 0 },          // porcentaje asignado al técnico
   laborShare: { type: Number, default: 0 },            // valor calculado = laborValue * laborPercent/100
+  // Identificador de origen (import legacy)
+  legacyOrId: { type: String, default: '', index: true },
+  // Nuevo: despiece de comisiones por técnico y tipo de maniobra
+  laborCommissions: { type: [{
+    technician: { type: String, default: '' },        // nombre técnico
+    kind: { type: String, default: '' },              // tipo de maniobra (motor, suspensión, etc.)
+    laborValue: { type: Number, default: 0 },         // base de mano de obra para esta línea
+    percent: { type: Number, default: 0 },            // % de participación
+    share: { type: Number, default: 0 }               // valor = laborValue * percent/100
+  }], default: [] },
   closedAt: { type: Date },
   cancelledAt: { type: Date }
 }, { timestamps: true });

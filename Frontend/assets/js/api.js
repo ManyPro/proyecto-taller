@@ -98,6 +98,22 @@ const API = {
   base: API_BASE,
   token: tokenStore,
   companyId: companyIdStore,
+  
+  company: {
+    getPreferences: () => http.get('/api/v1/company/preferences').then(r=> r.preferences || { laborPercents: [] }),
+    setPreferences: (prefs) => http.put('/api/v1/company/preferences', prefs).then(r=> r.preferences || {}),
+    getTechnicians: () => http.get('/api/v1/company/technicians').then(r=> r.technicians || []),
+    addTechnician: async (name) => {
+      const res = await http.post('/api/v1/company/technicians', { name });
+      return res.technicians || [];
+    },
+    deleteTechnician: async (name) => {
+      const res = await http.del(`/api/v1/company/technicians/${encodeURIComponent(String(name||''))}`);
+      return res.technicians || [];
+    },
+    getTechConfig: () => http.get('/api/v1/company/tech-config').then(r=> r.config || { laborKinds:[], technicians:[] }),
+    setTechConfig: (config) => http.put('/api/v1/company/tech-config', config).then(r=> r.config || config)
+  },
 
   // Empresa activa
   setActiveCompany: (email) => activeCompany.set(email),

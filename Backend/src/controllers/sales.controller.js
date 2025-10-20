@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+﻿import mongoose from 'mongoose';
 import { checkLowStockForMany } from '../lib/stockAlerts.js';
 import { registerSaleIncome } from './cashflow.controller.js';
 import Sale from '../models/Sale.js';
@@ -207,7 +207,7 @@ export const addItem = async (req, res) => {
         total: Math.round(q * up)
       };
     } else {
-      // Línea manual de servicio
+      // LÃ­nea manual de servicio
       const q = asNum(qty) || 1;
       const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : 0;
       itemData = {
@@ -221,7 +221,7 @@ export const addItem = async (req, res) => {
       };
     }
   } else if (src === 'service') {
-    // Si decides mantener la fuente "service" explícita
+    // Si decides mantener la fuente "service" explÃ­cita
     const q = asNum(qty) || 1;
     const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : 0;
     itemData = {
@@ -245,13 +245,13 @@ export const addItem = async (req, res) => {
   res.json(sale.toObject());
 };
 
-// ===== Batch add items (desde cotización u otro origen) =====
+// ===== Batch add items (desde cotizaciÃ³n u otro origen) =====
 // Payload esperado: { items: [ { source, refId, sku, name, qty, unitPrice } ... ] }
 // - source: 'inventory' | 'price' | 'service'
 // - Si source=='inventory' puede venir refId o sku (se intenta resolver)
 // - Para 'price' puede venir refId o datos manuales (como en addItem)
-// - Para 'service' se acepta línea manual
-// Realiza validación mínima y agrega todas las líneas en memoria antes de guardar para computar totales una sola vez.
+// - Para 'service' se acepta lÃ­nea manual
+// Realiza validaciÃ³n mÃ­nima y agrega todas las lÃ­neas en memoria antes de guardar para computar totales una sola vez.
 export const addItemsBatch = async (req, res) => {
   const { id } = req.params;
   const list = Array.isArray(req.body?.items) ? req.body.items : [];
@@ -316,7 +316,7 @@ export const addItemsBatch = async (req, res) => {
         continue;
       }
 
-      // service (línea manual)
+      // service (lÃ­nea manual)
       const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : 0;
       added.push({
         source: source === 'service' ? 'service' : 'price',
@@ -328,13 +328,13 @@ export const addItemsBatch = async (req, res) => {
         total: Math.round(qty * up)
       });
     } catch (err) {
-      // Continúa con los demás items; opcionalmente podríamos acumular errores
-      // Para transparencia, se podría devolver summary, pero mantenemos simple.
+      // ContinÃºa con los demÃ¡s items; opcionalmente podrÃ­amos acumular errores
+      // Para transparencia, se podrÃ­a devolver summary, pero mantenemos simple.
       continue;
     }
   }
 
-  if (!added.length) return res.status(400).json({ error: 'No se pudo agregar ningún item' });
+  if (!added.length) return res.status(400).json({ error: 'No se pudo agregar ningÃºn item' });
   sale.items.push(...added);
   computeTotals(sale);
   await sale.save();
@@ -378,7 +378,7 @@ export const removeItem = async (req, res) => {
   res.json(sale.toObject());
 };
 
-// ===== Técnico asignado =====
+// ===== TÃ©cnico asignado =====
 export const updateTechnician = async (req, res) => {
   const { id } = req.params;
   const { technician } = req.body || {};
@@ -427,7 +427,7 @@ export const setCustomerVehicle = async (req, res) => {
   res.json(sale.toObject());
 };
 
-// ===== Cierre: descuenta inventario con transacción =====
+// ===== Cierre: descuenta inventario con transacciÃ³n =====
 export const closeSale = async (req, res) => {
   const { id } = req.params;
   const session = await mongoose.startSession();
@@ -439,19 +439,19 @@ export const closeSale = async (req, res) => {
       if (sale.status !== 'draft') throw new Error('Sale not open (draft)');
       if (!sale.items?.length) throw new Error('Sale has no items');
 
-      // Descuento inventario por líneas 'inventory'
+      // Descuento inventario por lÃ­neas 'inventory'
       for (const it of sale.items) {
         if (String(it.source) !== 'inventory') continue;
         const q = asNum(it.qty) || 0;
         if (q <= 0) continue;
         let target = null;
-        // Fallback: si no hay refId válido intentar por SKU
+        // Fallback: si no hay refId vÃ¡lido intentar por SKU
         if (it.refId) {
           target = await Item.findOne({ _id: it.refId, companyId: req.companyId }).session(session);
         }
         if (!target && it.sku) {
           target = await Item.findOne({ sku: String(it.sku).trim().toUpperCase(), companyId: req.companyId }).session(session);
-          // Si lo encontramos por sku y no había refId, opcionalmente lo guardamos para trazabilidad
+          // Si lo encontramos por sku y no habÃ­a refId, opcionalmente lo guardamos para trazabilidad
           if (target && !it.refId) {
             it.refId = target._id; // queda persistido al save posterior
           }
@@ -465,7 +465,7 @@ export const closeSale = async (req, res) => {
         ).session(session);
         if (upd.matchedCount === 0) throw new Error(`Stock update failed for ${target.sku || target.name}`);
 
-        // Si quedó en 0, despublicar automáticamente para ocultarlo del catálogo
+        // Si quedÃ³ en 0, despublicar automÃ¡ticamente para ocultarlo del catÃ¡logo
         const fresh = await Item.findOne({ _id: target._id, companyId: req.companyId }).session(session);
         if ((fresh?.stock || 0) <= 0 && fresh?.published) {
           fresh.published = false;
@@ -486,23 +486,23 @@ export const closeSale = async (req, res) => {
       const pm = String(req.body?.paymentMethod || '').trim();
       const technician = String(req.body?.technician || sale.technician || '').trim().toUpperCase();
       const laborValueRaw = req.body?.laborValue;
-      const laborPercentRaw = req.body?.laborPercent;
+      const laborPercentRaw = req.body?.laborPercent;\n      const laborLines = Array.isArray(req.body?.laborCommissions) ? req.body.laborCommissions : null;
       const paymentReceiptUrl = String(req.body?.paymentReceiptUrl || '').trim();
 
       // ---- Multi-payment (nuevo) ----
-      // Frontend envía paymentMethods: [{ method, amount, accountId } ... ]
+      // Frontend envÃ­a paymentMethods: [{ method, amount, accountId } ... ]
       // Validamos y persistimos en sale.paymentMethods antes de guardar.
       let rawMethods = Array.isArray(req.body?.paymentMethods) ? req.body.paymentMethods : [];
       if (rawMethods.length) {
-        // Normalizar y filtrar válidos
+        // Normalizar y filtrar vÃ¡lidos
         const cleaned = rawMethods.map(m => ({
           method: String(m?.method || '').trim().toUpperCase(),
           amount: Number(m?.amount || 0) || 0,
           accountId: m?.accountId ? new mongoose.Types.ObjectId(m.accountId) : null
         })).filter(m => m.method && m.amount > 0);
         if (cleaned.length) {
-          // Validar suma contra total (luego de computeTotals más abajo)
-          // Aún no tenemos total actualizado si items cambiaron durante la sesión, así que haremos computeTotals antes de validar.
+          // Validar suma contra total (luego de computeTotals mÃ¡s abajo)
+          // AÃºn no tenemos total actualizado si items cambiaron durante la sesiÃ³n, asÃ­ que haremos computeTotals antes de validar.
           computeTotals(sale);
           const sum = cleaned.reduce((a,b)=> a + b.amount, 0);
           const total = Number(sale.total || 0);
@@ -516,8 +516,8 @@ export const closeSale = async (req, res) => {
 
       const laborValue = Number(laborValueRaw);
       const laborPercent = Number(laborPercentRaw);
-      if (laborValueRaw != null && (!Number.isFinite(laborValue) || laborValue < 0)) throw new Error('laborValue inválido');
-      if (laborPercentRaw != null && (!Number.isFinite(laborPercent) || laborPercent < 0 || laborPercent > 100)) throw new Error('laborPercent inválido');
+      if (laborValueRaw != null && (!Number.isFinite(laborValue) || laborValue < 0)) throw new Error('laborValue invÃ¡lido');
+      if (laborPercentRaw != null && (!Number.isFinite(laborPercent) || laborPercent < 0 || laborPercent > 100)) throw new Error('laborPercent invÃ¡lido');
 
       // computeTotals ya pudo ejecutarse arriba para validar pagos; lo ejecutamos de nuevo por seguridad (idempotente)
       computeTotals(sale);
@@ -525,26 +525,26 @@ export const closeSale = async (req, res) => {
       sale.closedAt = new Date();
       if (!Number.isFinite(Number(sale.number))) sale.number = await getNextSaleNumber(req.companyId);
 
-      // Sólo asignar paymentMethod legacy si no se estableció vía array
+      // SÃ³lo asignar paymentMethod legacy si no se estableciÃ³ vÃ­a array
       if (!sale.paymentMethods?.length && pm) sale.paymentMethod = pm.toUpperCase();
       if (technician) {
         sale.technician = technician;
-        // Si aún no hay técnico inicial, lo establecemos
+        // Si aÃºn no hay tÃ©cnico inicial, lo establecemos
         if (!sale.initialTechnician) {
           sale.initialTechnician = technician;
           if (!sale.technicianAssignedAt) sale.technicianAssignedAt = new Date();
         }
-        // Registrar técnico de cierre y timestamp
+        // Registrar tÃ©cnico de cierre y timestamp
         sale.closingTechnician = technician;
         sale.technicianClosedAt = new Date();
       }
       if (laborValueRaw != null) sale.laborValue = Math.round(laborValue);
       if (laborPercentRaw != null) sale.laborPercent = Math.round(laborPercent);
-      if (sale.laborValue && sale.laborPercent) sale.laborShare = Math.round(sale.laborValue * (sale.laborPercent / 100));
+      if (sale.laborValue && sale.laborPercent) sale.laborShare = Math.round(sale.laborValue * (sale.laborPercent / 100));\n      if (laborLines && laborLines.length) {\n        const lines = [];\n        for (const ln of laborLines) {\n          const tech = String(ln?.technician||technician||'').trim().toUpperCase();\n          const kind = String(ln?.kind||'').trim().toUpperCase();\n          const lv = Number(ln?.laborValue||0);\n          const pc = Number(ln?.percent||0);\n          if (!tech || !kind) continue;\n          if (!Number.isFinite(lv) || lv < 0) continue;\n          if (!Number.isFinite(pc) || pc < 0 || pc > 100) continue;\n          const share = Math.round(lv * (pc/100));\n          lines.push({ technician: tech, kind, laborValue: Math.round(lv), percent: Math.round(pc), share });\n        }\n        sale.laborCommissions = lines;\n        const sumVal = lines.reduce((a,b)=> a + (b.laborValue||0), 0);\n        const sumShare = lines.reduce((a,b)=> a + (b.share||0), 0);\n        if (!sale.laborValue || sumVal > sale.laborValue) sale.laborValue = sumVal;\n        if (!sale.laborShare || sumShare > sale.laborShare) sale.laborShare = sumShare;\n        if (!sale.laborPercent && sale.laborValue) sale.laborPercent = Math.round((sale.laborShare / sale.laborValue) * 100);\n      }
       if (paymentReceiptUrl) sale.paymentReceiptUrl = paymentReceiptUrl;
       await sale.save({ session });
     });
-    // Fuera de la transacción: verificar alertas de stock bajo con stocks ya comprometidos
+    // Fuera de la transacciÃ³n: verificar alertas de stock bajo con stocks ya comprometidos
     if (affectedItemIds.length) {
       try { await checkLowStockForMany(req.companyId, affectedItemIds); } catch {}
     }
@@ -567,13 +567,13 @@ export const closeSale = async (req, res) => {
   }
 };
 
-// ===== Cancelar (X de pestaña) =====
+// ===== Cancelar (X de pestaÃ±a) =====
 export const cancelSale = async (req, res) => {
   const { id } = req.params;
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
   if (sale.status === 'closed') return res.status(400).json({ error: 'Closed sale cannot be cancelled' });
-  // Política actual: eliminar; si prefieres histórico, cambia a status:'cancelled' y setea cancelledAt.
+  // PolÃ­tica actual: eliminar; si prefieres histÃ³rico, cambia a status:'cancelled' y setea cancelledAt.
   await Sale.deleteOne({ _id: id, companyId: req.companyId });
   try{ publish(req.companyId, 'sale:cancelled', { id: (sale?._id)||undefined }) }catch{}
   res.json({ ok: true });
@@ -641,7 +641,7 @@ export const addByQR = async (req, res) => {
 
 // ===== Listado y resumen =====
 
-// ===== Perfil de cliente/vehículo =====
+// ===== Perfil de cliente/vehÃ­culo =====
 export const getProfileByPlate = async (req, res) => {
   const plate = String(req.params.plate || '').trim().toUpperCase();
   if (!plate) return res.status(400).json({ error: 'plate required' });
@@ -650,7 +650,7 @@ export const getProfileByPlate = async (req, res) => {
   const fuzzy = String(req.query.fuzzy || 'false').toLowerCase() === 'true';
   let query;
   if (fuzzy) {
-    // Permite confusión entre 0 y O y coincidencia parcial inicial
+    // Permite confusiÃ³n entre 0 y O y coincidencia parcial inicial
     const pattern = '^' + plate.replace(/[0O]/g, '[0O]');
     const rx = new RegExp(pattern, 'i');
     query = { companyId, $or: [ { plate: rx }, { 'vehicle.plate': rx } ] };
@@ -697,12 +697,12 @@ export const getProfileByPlate = async (req, res) => {
   res.json(primary.toObject());
 };
 
-// Buscar perfil por número de identificación
+// Buscar perfil por nÃºmero de identificaciÃ³n
 export const getProfileByIdNumber = async (req, res) => {
   const idNumber = String(req.params.id || '').trim();
   if (!idNumber) return res.status(400).json({ error: 'id required' });
   const companyId = String(req.companyId);
-  // Búsqueda exacta, más reciente primero
+  // BÃºsqueda exacta, mÃ¡s reciente primero
   const matches = await CustomerProfile.find({ companyId, identificationNumber: idNumber }).sort({ updatedAt: -1, createdAt: -1 });
   if (!matches.length) return res.json(null);
   const ordered = orderProfiles(matches);
@@ -754,7 +754,7 @@ export const summarySales = async (req, res) => {
   res.json({ count: agg.count, total: agg.total });
 };
 
-// ===== Reporte técnico (laborShare) =====
+// ===== Reporte tÃ©cnico (laborShare) =====
 export const technicianReport = async (req, res) => {
   try {
     let { from, to, technician, page = 1, limit = 100 } = req.query || {};
@@ -793,16 +793,21 @@ export const technicianReport = async (req, res) => {
       { $match: match },
       { $addFields: {
           _reportDate: { $ifNull: ['$closedAt', '$updatedAt'] },
+          _laborShareLines: { $sum: { $ifNull: ['$laborCommissions.share', []] } },
           _laborShareCalc: {
             $cond: [
-              { $and: [ { $gt: ['$laborValue', 0] }, { $gt: ['$laborPercent', 0] } ] },
-              { $round: [ { $multiply: ['$laborValue', { $divide: ['$laborPercent', 100] }] }, 0 ] },
-              { $ifNull: ['$laborShare', 0] }
+              { $gt: [ { $sum: { $ifNull: ['$laborCommissions.share', []] } }, 0 ] },
+              { $sum: { $ifNull: ['$laborCommissions.share', []] } },
+              { $cond: [
+                { $and: [ { $gt: ['$laborValue', 0] }, { $gt: ['$laborPercent', 0] } ] },
+                { $round: [ { $multiply: ['$laborValue', { $divide: ['$laborPercent', 100] }] }, 0 ] },
+                { $ifNull: ['$laborShare', 0] }
+              ] }
             ]
           }
         }
       },
-      // Filtrar solo las que tengan participación > 0
+      // Filtrar solo las que tengan participaciÃ³n > 0
       { $match: { _laborShareCalc: { $gt: 0 } } },
       { $sort: { _reportDate: -1, _id: -1 } },
       { $facet: {
@@ -823,7 +828,7 @@ export const technicianReport = async (req, res) => {
     const totalsRaw = pack.totals?.[0] || { count:0, salesTotal:0, laborShareTotal:0 };
     const totalDocs = totalsRaw.count || 0;
 
-    // Fallback simple si no se obtuvieron filas pero deberían existir (debug)
+    // Fallback simple si no se obtuvieron filas pero deberÃ­an existir (debug)
     if (!rows.length) {
       const quick = await Sale.find({ companyId: req.companyId, status:'closed', laborShare: { $gt: 0 } })
         .sort({ closedAt:-1, updatedAt:-1 })
@@ -847,6 +852,8 @@ export const technicianReport = async (req, res) => {
     });
   } catch (err) {
     console.error('technicianReport error:', err);
-    return res.status(500).json({ error: 'Error generando reporte técnico' });
+    return res.status(500).json({ error: 'Error generando reporte tÃ©cnico' });
   }
 };
+
+

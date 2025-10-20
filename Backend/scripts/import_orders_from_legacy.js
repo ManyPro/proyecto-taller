@@ -200,8 +200,12 @@ async function main() {
 
     if (dryRun) { counters.imported++; if (progressEvery && counters.total % progressEvery === 0) logProgress(); continue; }
 
-    // Idempotencia: buscar por marcador en notas (solo por or_id, SIN condicionar la placa para permitir múltiples visitas de la misma placa)
-    const existing = await Sale.findOne({ companyId, notes: { $regex: new RegExp(`\\b${legacyOrId}\\b`) } });
+    // Idempotencia por or_id: primero busca por campo dedicado 'legacyOrId'; si no existe (importes anteriores), busca por marcador en notes
+    let existing = await Sale.findOne({ companyId, legacyOrId: legacyOrId });
+    if (!existing) {
+      const rx = new RegExp(`\\bor_id=${legacyOrId}\\b`);
+      existing = await Sale.findOne({ companyId, notes: { $regex: rx } });
+    }
     if (existing) {
       counters.duplicates++;
       // opcional: actualizar campos faltantes
@@ -225,6 +229,7 @@ async function main() {
       status: 'closed',
       origin: 'internal',
       technician: '',
+      legacyOrId: legacyOrId,
       items: [],
       customer: { idNumber, name: customerName, phone, email, address },
       vehicle: { plate, brand: '', line: '', engine, year, mileage },

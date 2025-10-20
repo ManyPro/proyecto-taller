@@ -286,9 +286,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
 // ===== Modal Cerrar Venta =====
 let companyPrefs = { laborPercents: [] };
+let techConfig = { laborKinds: [], technicians: [] };
 async function ensureCompanyData(){
   try { companyTechnicians = await API.company.getTechnicians(); } catch { companyTechnicians = []; }
   try { companyPrefs = await API.company.getPreferences(); } catch { companyPrefs = { laborPercents: [] }; }
+  try { techConfig = await API.company.getTechConfig(); } catch { techConfig = { laborKinds: [], technicians: [] }; }
 }
 
 // === Multi-payment close sale modal construction ===
@@ -402,6 +404,69 @@ function fillCloseModal(){
     computePreview();
   });
 
+  // ---- Desglose por maniobra (dinámico, sin tocar el HTML base) ----
+  try {
+    const grid = laborValueInput.closest('.grid-2');
+    const wrap = document.createElement('div');
+    wrap.style.gridColumn = '1/3';
+    wrap.innerHTML = `
+      <label>Desglose por maniobra (opcional)</label>
+      <div class="card" style="padding:8px;">
+        <div class="row between" style="align-items:center;">
+          <strong>Participación técnica</strong>
+          <div class="row" style="gap:6px;align-items:center;">
+            <button id="cv-add-commission" type="button" class="small secondary">+ Línea</button>
+          </div>
+        </div>
+        <table class="table small" style="width:100%;">
+          <thead><tr><th>Técnico</th><th>Tipo</th><th class="t-right">Valor MO</th><th class="t-right">% Tec</th><th class="t-right">Participación</th><th></th></tr></thead>
+          <tbody id="cv-comm-body"></tbody>
+        </table>
+      </div>`;
+    grid.insertBefore(wrap, grid.querySelector('#cv-receipt')?.parentElement);
+
+    const tbody = wrap.querySelector('#cv-comm-body');
+    function addLine(pref={}){
+      const tr = document.createElement('tr');
+      const techOpts = ['',''].concat(companyTechnicians||[]).map(t=> `<option value="${t}">${t}</option>`).join('');
+      const kindOpts = ['',''].concat(techConfig?.laborKinds||[]).map(k=> `<option value="${k}">${k}</option>`).join('');
+      tr.innerHTML = `
+        <td><select data-role="tech">${techOpts}</select></td>
+        <td><select data-role="kind">${kindOpts}</select></td>
+        <td class="t-right"><input data-role="lv" type="number" min="0" step="1" value="${Number(pref.laborValue||0)||0}" style="width:100px;"></td>
+        <td class="t-right"><input data-role="pc" type="number" min="0" max="100" step="1" value="${Number(pref.percent||0)||0}" style="width:80px;"></td>
+        <td class="t-right" data-role="share">$0</td>
+        <td class="t-center"><button type="button" class="small danger" data-role="del">×</button></td>`;
+      tbody.appendChild(tr);
+      const techSel2 = tr.querySelector('select[data-role=tech]');
+      const kindSel2 = tr.querySelector('select[data-role=kind]');
+      const lvInp = tr.querySelector('input[data-role=lv]');
+      const pcInp = tr.querySelector('input[data-role=pc]');
+      const shareCell = tr.querySelector('[data-role=share]');
+      const delBtn = tr.querySelector('button[data-role=del]');
+      if(pref.technician) techSel2.value = pref.technician;
+      if(pref.kind) kindSel2.value = pref.kind;
+      function recalc(){
+        const lv = Number(lvInp.value||0)||0; const pc=Number(pcInp.value||0)||0; const sh = Math.round(lv*pc/100);
+        shareCell.textContent = money(sh);
+      }
+      [lvInp, pcInp, techSel2, kindSel2].forEach(el=> el.addEventListener('input', recalc));
+      delBtn.addEventListener('click', ()=> tr.remove());
+      recalc();
+      // autocompletar % desde perfil si existe
+      techSel2.addEventListener('change', ()=>{
+        const name = techSel2.value; const kind = (kindSel2.value||'').toUpperCase();
+        const prof = (techConfig?.technicians||[]).find(t=> t.name===name);
+        if(prof && kind){ const r = (prof.rates||[]).find(x=> String(x.kind||'').toUpperCase()===kind); if(r){ pcInp.value = Number(r.percent||0); recalc(); } }
+      });
+      kindSel2.addEventListener('change', ()=> techSel2.dispatchEvent(new Event('change')));
+      return tr;
+    }
+    wrap.querySelector('#cv-add-commission').addEventListener('click', ()=> addLine({}));
+    // precargar una línea si hay técnico
+    if((techSel.value||'').trim()){ addLine({ technician: techSel.value }); }
+  } catch{}
+
   // Dynamic payments
   const pmBody = document.getElementById('cv-payments-body');
   const addBtn = document.getElementById('cv-add-payment');
@@ -510,11 +575,24 @@ function fillCloseModal(){
           receiptUrl = uploadRes.files[0].url || uploadRes.files[0].path || '';
         }
       }
+      // Build labor commissions from table if present
+      const comm = [];
+      const commBody = document.getElementById('cv-comm-body');
+      if (commBody) {
+        commBody.querySelectorAll('tr').forEach(tr=>{
+          const tech = tr.querySelector('select[data-role=tech]')?.value?.trim().toUpperCase();
+          const kind = tr.querySelector('select[data-role=kind]')?.value?.trim().toUpperCase();
+          const lv = Number(tr.querySelector('input[data-role=lv]')?.value||0)||0;
+          const pc = Number(tr.querySelector('input[data-role=pc]')?.value||0)||0;
+          if(tech && kind && lv>0 && pc>=0) comm.push({ technician: tech, kind, laborValue: lv, percent: pc });
+        });
+      }
       const payload = {
         paymentMethods: filtered.map(p=>({ method:p.method, amount:Number(p.amount)||0, accountId:p.accountId||null })),
         technician: techSel.value||'',
         laborValue: Number(laborValueInput.value||0)||0,
         laborPercent: !percSel.disabled ? Number(percSel.value||0)||0 : Number(manualPercentInput.value||0)||0,
+        laborCommissions: comm,
         paymentReceiptUrl: receiptUrl
       };
       await API.sales.close(current._id, payload);
@@ -1591,6 +1669,7 @@ export function initSales(){
 
   connectLive();
 }
+
 
 
 

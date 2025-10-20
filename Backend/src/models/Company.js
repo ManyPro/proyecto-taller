@@ -56,11 +56,10 @@ const CompanySchema = new mongoose.Schema(
     // Legacy reset fields (pueden quedar vacÃ­os en modo local)
     passwordResetTokenHash: { type: String, default: '' },
     passwordResetExpires: { type: Date, default: null },
-    // Lista de tÃ©cnicos configurables por empresa (mayÃºsculas)
-    technicians: { type: [String], default: [] },
+    // Lista simple (legacy) de técnicos (mayúsculas)\ntechnicians: { type: [String], default: [] },\n    // Perfiles de técnico con tasas por tipo de maniobra\n    technicianProfiles: { type: [{\n      name: { type: String, required: true, uppercase: true, trim: true },\n      active: { type: Boolean, default: true },\n      rates: { type: [{ kind: String, percent: Number }], default: [] }\n    }], default: [] },
     // Preferencias de la empresa
     preferences: {
-      laborPercents: { type: [Number], default: [30, 40, 50] },
+      laborPercents: { type: [Number], default: [30, 40, 50] },\n      laborKinds: { type: [String], default: ['MOTOR','SUSPENSION','FRENOS'] },
       // NÃºmero de WhatsApp para contacto pÃºblico (E.164 o local). Ej: +573001234567
       whatsAppNumber: { type: String, default: '' }
     }
@@ -69,3 +68,4 @@ const CompanySchema = new mongoose.Schema(
 );
 
 export default mongoose.model('Company', CompanySchema);
+
