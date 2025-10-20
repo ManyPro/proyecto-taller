@@ -8,6 +8,7 @@ const RateSchema = new mongoose.Schema({
 const TechnicianSchema = new mongoose.Schema({
   name: { type: String, required: true, uppercase: true, trim: true },
   active: { type: Boolean, default: true },
+  color: { type: String, default: '#2563EB' }, // color identificador (hex)
   rates: { type: [RateSchema], default: [] }
 }, { _id: false });
 
@@ -20,4 +21,3 @@ const TechnicianConfigSchema = new mongoose.Schema({
 TechnicianConfigSchema.index({ companyId: 1 }, { unique: true });
 
 export default mongoose.model('TechnicianConfig', TechnicianConfigSchema);
-

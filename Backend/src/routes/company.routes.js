@@ -1,4 +1,4 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import Company from '../models/Company.js';
 import TechnicianConfig from '../models/TechnicianConfig.js';
 import { authCompany } from '../middlewares/auth.js';
@@ -76,7 +76,7 @@ router.get('/features', (req, res) => {
 router.patch('/features', async (req, res) => {
   const patch = req.body || {};
   if (typeof patch !== 'object' || Array.isArray(patch)) {
-    return res.status(400).json({ error: 'payload inválido' });
+    return res.status(400).json({ error: 'payload invÃ¡lido' });
   }
   req.companyDoc.features ||= {};
   Object.keys(patch).forEach(k => {
@@ -110,7 +110,7 @@ router.get('/restrictions', (req, res) => {
   res.json({ restrictions: req.companyDoc.restrictions || {} });
 });
 
-// PATCH /company/restrictions (empresa puede ver pero no debería poder cambiar; mantener para futuros casos)
+// PATCH /company/restrictions (empresa puede ver pero no deberÃ­a poder cambiar; mantener para futuros casos)
 router.patch('/restrictions', async (req, res) => {
   const patch = req.body || {};
   req.companyDoc.restrictions ||= {};
@@ -123,13 +123,13 @@ router.patch('/restrictions', async (req, res) => {
   res.json({ restrictions: req.companyDoc.restrictions });
 });
 
-// ========== Toggle Catálogo Público ==========
-// Permite activar/desactivar el catálogo público segmentado para la empresa autenticada.
+// ========== Toggle CatÃ¡logo PÃºblico ==========
+// Permite activar/desactivar el catÃ¡logo pÃºblico segmentado para la empresa autenticada.
 // PATCH /api/v1/company/public-catalog { "enabled": true|false }
 router.patch('/public-catalog', async (req, res) => {
   const { enabled } = req.body || {};
   if (typeof enabled !== 'boolean') return res.status(400).json({ error: 'enabled (boolean) requerido' });
-  if (!req.companyDoc.active) return res.status(400).json({ error: 'Empresa inactiva, no se puede cambiar el catálogo' });
+  if (!req.companyDoc.active) return res.status(400).json({ error: 'Empresa inactiva, no se puede cambiar el catÃ¡logo' });
   req.companyDoc.publicCatalogEnabled = enabled;
   await req.companyDoc.save();
   res.json({ publicCatalogEnabled: req.companyDoc.publicCatalogEnabled });
@@ -162,12 +162,15 @@ router.put('/tech-config', async (req, res) => {
     for (const t of techs) {
       const name = String(t?.name||'').trim().toUpperCase(); if (!name) continue;
       const active = !!t?.active;
+      const colorRaw = String(t?.color||'').trim();
+      const color = /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(colorRaw) ? colorRaw.toUpperCase() : '#2563EB';
       const rates = Array.isArray(t?.rates) ? t.rates.map(r=>({ kind: String(r?.kind||'').trim().toUpperCase(), percent: Number(r?.percent||0) })) : [];
       const valRates = rates.filter(r=> r.kind && Number.isFinite(r.percent) && r.percent>=0 && r.percent<=100);
-      cleaned.push({ name, active, rates: valRates });
+      cleaned.push({ name, active, color, rates: valRates });
     }
     cfg.technicians = cleaned;
   }
   await cfg.save();
   res.json({ config: cfg.toObject() });
 });
+

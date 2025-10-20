@@ -25,9 +25,10 @@ function renderTechList(){
     const card = document.createElement('div'); card.className='card'; card.style.marginTop='8px';
     card.innerHTML = `
       <div class="row between" style="align-items:center;">
-        <div class="row" style="gap:6px;align-items:center;">
+        <div class="row" style="gap:10px;align-items:center;">
           <strong>${t.name}</strong>
           <label class="row" style="gap:4px;align-items:center;"><input type="checkbox" data-role="active" ${t.active?'checked':''}/> Activo</label>
+          <label class="row" style="gap:4px;align-items:center;">Color <input type="color" data-role="color" value="${t.color||'#2563EB'}" /></label>
         </div>
         <button class="secondary" data-role="add-rate">+ Tasa</button>
       </div>
@@ -37,7 +38,10 @@ function renderTechList(){
       </table>`;
     const ratesBody = card.querySelector('[data-role=rates]');
     const activeChk = card.querySelector('[data-role=active]');
+    const colorInp = card.querySelector('[data-role=color]');
     activeChk.addEventListener('change', ()=>{ t.active = activeChk.checked; });
+    colorInp.addEventListener('input', ()=>{ t.color = colorInp.value; card.style.borderLeft = `4px solid ${t.color||'#2563EB'}`; });
+    card.style.borderLeft = `4px solid ${t.color||'#2563EB'}`;
     function renderRates(){
       ratesBody.innerHTML='';
       (t.rates||[]).forEach((r,idx)=>{
@@ -72,4 +76,3 @@ async function init(){
 }
 
 document.addEventListener('DOMContentLoaded', init);
-
