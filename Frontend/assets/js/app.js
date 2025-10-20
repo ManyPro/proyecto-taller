@@ -68,6 +68,7 @@ const sectionLogin = document.getElementById('loginSection');
 const sectionApp = document.getElementById('appSection');
 const appHeader = document.getElementById('appHeader');
 const portalSection = document.getElementById('portalSection');
+const portalCompanyBtn = document.getElementById('openCompanyLogin');
 const emailSpan = document.getElementById('companyEmail');
 const nameSpan = document.getElementById('companyName');
 const welcomeSpan = document.getElementById('welcomeCompany');
@@ -397,6 +398,16 @@ async function doLogin(isRegister = false) {
 
 loginBtn?.addEventListener('click', () => doLogin(false));
 registerBtn?.addEventListener('click', () => doLogin(true));
+portalCompanyBtn?.addEventListener('click', () => {
+  portalSection?.classList.add('hidden');
+  sectionLogin?.classList.remove('hidden');
+  try {
+    document.getElementById('email')?.focus();
+  } catch {}
+  try {
+    sectionLogin?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch {}
+});
 
 logoutBtn?.addEventListener('click', async () => {
   try { await API.logout(); } catch {}
