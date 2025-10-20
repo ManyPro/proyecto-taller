@@ -1,3 +1,2 @@
-/api/*  http://143.110.131.35:4000/api/:splat  200
-/uploads/*  http://143.110.131.35:4000/uploads/:splat  200
+/api/* http://143.110.131.3:4000/api/:splat 200
 

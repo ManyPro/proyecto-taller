@@ -1,30 +1,41 @@
-// Frontend/assets/js/config.js
+﻿// Frontend/assets/js/config.js
 // Config universal del FRONTEND para elegir el backend sin CORS ni mixed content
 (function(){
-	const host = (typeof window !== 'undefined' ? window.location.hostname : '');
-	const isLocal = host === 'localhost' || host === '127.0.0.1';
+  const host = (typeof window !== 'undefined' ? window.location.hostname : '');
+  const isLocal = host === 'localhost' || host === '127.0.0.1';
 
-	// Permitir override rápido: ?api=http://IP:PUERTO  (se guarda en localStorage)
-	try {
-		const usp = new URLSearchParams(window.location.search);
-		const qApi = usp.get('api');
-		if (qApi) localStorage.setItem('backend_url', qApi);
-	} catch {}
-	const stored = (()=>{ try { return localStorage.getItem('backend_url') || ''; } catch { return ''; } })();
+  let stored = '';
+  try {
+    const usp = new URLSearchParams(window.location.search);
+    const qApi = usp.get('api');
+    if (qApi) {
+      const normalized = qApi.trim();
+      if (window.location.protocol === 'https:' && normalized.startsWith('http:')) {
+        console.warn('Ignoring backend_url override with http:// on https origin');
+        localStorage.removeItem('backend_url');
+      } else {
+        localStorage.setItem('backend_url', normalized);
+      }
+    }
+    stored = localStorage.getItem('backend_url') || '';
+    if (stored && window.location.protocol === 'https:' && stored.startsWith('http:')) {
+      console.warn('Removing stored backend_url http:// override to avoid mixed content');
+      localStorage.removeItem('backend_url');
+      stored = '';
+    }
+  } catch {}
 
-	// Estrategia:
-	// - En local: usar http://localhost:4000 (docker-compose)
-	// - En producción (Netlify o droplet): usar mismo origen (dejar vacío) para que /api funcione vía proxy.
-	//   Si necesitas apuntar directo temporalmente, usa el override almacenado en 'backend_url'.
-	let backend = '';
-	if (isLocal) backend = 'http://localhost:4000';
-	if (stored) backend = stored;  // override manual siempre gana
+  let backend = '';
+  if (isLocal) backend = 'http://localhost:4000';
+  if (stored) backend = stored;
 
-	window.BACKEND_URL = backend;   // Preferido por api.js
-	window.API_BASE = backend;      // Retro-compatibilidad
+  // En Netlify (https) sin override: usa mismo origen para aprovechar el proxy /api/*
+  const isNetlify = /\.netlify\.app$/i.test(host);
+  if (!stored && isNetlify) backend = '';
 
-	// Cloudinary (si se usa en el front)
-	window.CLOUDINARY_CLOUD_NAME = window.CLOUDINARY_CLOUD_NAME || "dzj1yqcdf";
-	window.CLOUDINARY_UPLOAD_PRESET = window.CLOUDINARY_UPLOAD_PRESET || "inventory_unsigned";
+  window.BACKEND_URL = backend;
+  window.API_BASE = backend;
+
+  window.CLOUDINARY_CLOUD_NAME = window.CLOUDINARY_CLOUD_NAME || "dzj1yqcdf";
+  window.CLOUDINARY_UPLOAD_PRESET = window.CLOUDINARY_UPLOAD_PRESET || "inventory_unsigned";
 })();
-
