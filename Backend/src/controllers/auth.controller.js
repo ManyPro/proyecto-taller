@@ -1,6 +1,6 @@
-import bcrypt from 'bcryptjs';
+﻿import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import Company from '../models/Company.clean.js';
+import Company from '../models/Company.js';
 
 function signCompany(company) {
   const payload = {
@@ -19,7 +19,7 @@ export async function registerCompany(req, res) {
       return res.status(400).json({ error: 'name, email y password son requeridos' });
     }
     const exists = await Company.findOne({ email: String(email).toLowerCase() }).lean();
-    if (exists) return res.status(409).json({ error: 'El email ya está registrado' });
+    if (exists) return res.status(409).json({ error: 'El email ya estÃ¡ registrado' });
 
     const passwordHash = await bcrypt.hash(password, 10);
     const company = await Company.create({ name, email, passwordHash });
@@ -41,10 +41,10 @@ export async function loginCompany(req, res) {
       return res.status(400).json({ error: 'email y password son requeridos' });
     }
     const company = await Company.findOne({ email: String(email).toLowerCase() });
-    if (!company) return res.status(401).json({ error: 'Credenciales inválidas' });
+    if (!company) return res.status(401).json({ error: 'Credenciales invÃ¡lidas' });
 
     const ok = await bcrypt.compare(password, company.passwordHash);
-    if (!ok) return res.status(401).json({ error: 'Credenciales inválidas' });
+    if (!ok) return res.status(401).json({ error: 'Credenciales invÃ¡lidas' });
 
     const token = signCompany(company);
     return res.json({
@@ -67,3 +67,4 @@ export async function meCompany(req, res) {
     res.status(500).json({ error: 'Error al obtener empresa' });
   }
 }
+

@@ -1,7 +1,7 @@
-import Template from '../models/Template.js';
+﻿import Template from '../models/Template.js';
 import Sale from '../models/Sale.js';
 import Quote from '../models/Quote.js';
-import Company from '../models/Company.clean.js';
+import Company from '../models/Company.js';
 import Order from '../models/Order.js';
 import Item from '../models/Item.js';
 import Handlebars from 'handlebars';
@@ -11,7 +11,7 @@ import QRCode from 'qrcode';
 // Params:
 //  - type: tipo de plantilla (invoice, workOrder, quote, sticker, order)
 //  - sampleType (opcional): fuerza el tipo de documento para el contexto (si distinto al type de la plantilla)
-//  - sampleId (opcional): id específico del documento
+//  - sampleId (opcional): id especÃ­fico del documento
 async function buildContext({ companyId, type, sampleType, sampleId }) {
   const ctx = { company: {}, now: new Date(), meta: { requestedType: type, sampleType: sampleType || null } };
   const company = await Company.findOne({ _id: companyId });
@@ -34,7 +34,7 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
     else sale = await Sale.findOne({ companyId, status: 'closed' }).sort({ createdAt: -1 });
     if (sale) ctx.sale = sale.toObject();
   }
-  // Cotización
+  // CotizaciÃ³n
   if (effective === 'quote') {
     let quote = null;
     if (sampleId) quote = await Quote.findOne({ _id: sampleId, companyId });
@@ -58,7 +58,7 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
       try {
         const qrValue = ctx.item.sku || String(ctx.item._id || '');
         if (qrValue) {
-          // Márgenes mínimos para mejor densidad en stickers pequeños
+          // MÃ¡rgenes mÃ­nimos para mejor densidad en stickers pequeÃ±os
           ctx.item.qr = await QRCode.toDataURL(qrValue, { margin: 0, scale: 4, color: { dark: '#000000', light: '#FFFFFF' } });
           ctx.item.qrText = qrValue;
         }
@@ -156,7 +156,7 @@ export async function previewTemplate(req, res) {
   res.json({ rendered: html, css: contentCss, context: ctx });
 }
 
-// Obtener plantilla activa para un tipo (uso futuro impresión)
+// Obtener plantilla activa para un tipo (uso futuro impresiÃ³n)
 export async function activeTemplate(req, res) {
   const { type } = req.params;
   const doc = await Template.findOne({ companyId: req.companyId, type, active: true }).sort({ updatedAt: -1 });
@@ -218,3 +218,4 @@ export async function deleteTemplate(req, res) {
   
   res.json({ success: true, deletedId: id });
 }
+

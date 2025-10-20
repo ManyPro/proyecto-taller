@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import Company from '../models/Company.clean.js';
+﻿import { Router } from 'express';
+import Company from '../models/Company.js';
 import { authAdmin, requireAdminRole } from '../middlewares/auth.js';
 
 const router = Router();
@@ -59,3 +59,4 @@ router.patch('/companies/:id/restrictions', requireAdminRole('developer','admin'
 });
 
 export default router;
+

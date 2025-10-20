@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import Company from '../models/Company.clean.js';
+﻿import { Router } from 'express';
+import Company from '../models/Company.js';
 import { authCompany } from '../middlewares/auth.js';
 import { listAccounts, createAccount, updateAccount, getBalances, listEntries, createEntry, updateEntry, deleteEntry } from '../controllers/cashflow.controller.js';
 
@@ -29,3 +29,4 @@ router.patch('/entries/:id', updateEntry);
 router.delete('/entries/:id', deleteEntry);
 
 export default router;
+

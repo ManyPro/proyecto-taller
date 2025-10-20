@@ -1,7 +1,7 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import { adminLogin, adminMe } from '../controllers/admin.auth.controller.js';
 import { authAdmin, requireAdminRole } from '../middlewares/auth.js';
-import Company from '../models/Company.clean.js';
+import Company from '../models/Company.js';
 import AdminSignupRequest from '../models/AdminSignupRequest.js';
 import AdminUser from '../models/AdminUser.js';
 import bcrypt from 'bcryptjs';
@@ -57,13 +57,13 @@ router.post('/signup/requests/:id/approve', authAdmin, requireAdminRole('develop
   r.codeHash = await bcrypt.hash(code, 10);
   r.status = 'approved';
   r.approvedBy = req.user?.id || null;
-  // Opcionalmente, asignar compañías enviadas en el body
+  // Opcionalmente, asignar compaÃ±Ã­as enviadas en el body
   const assign = req.body?.companies || [];
   if(Array.isArray(assign) && assign.length){
     r.assignedCompanies = assign;
   }
   await r.save();
-  res.json({ requestId: String(r._id), code }); // dev comparte el código al solicitante
+  res.json({ requestId: String(r._id), code }); // dev comparte el cÃ³digo al solicitante
 });
 
 // Step 4 (public): Confirm signup with email + code + password -> create AdminUser
@@ -77,7 +77,7 @@ router.post('/signup/confirm', async (req, res) => {
   const reqDoc = await AdminSignupRequest.findOne({ email, status: 'approved' }).sort({ createdAt: -1 });
   if(!reqDoc || !reqDoc.codeHash) return res.status(400).json({ error: 'Solicitud no aprobada o no encontrada' });
   const ok = await bcrypt.compare(code, reqDoc.codeHash);
-  if(!ok) return res.status(401).json({ error: 'Código inválido' });
+  if(!ok) return res.status(401).json({ error: 'CÃ³digo invÃ¡lido' });
   // Create admin user
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await AdminUser.create({ email, passwordHash, role: 'admin', companies: reqDoc.assignedCompanies || [], active: true });
@@ -143,3 +143,4 @@ router.patch('/admins/:id/companies', authAdmin, requireAdminRole('developer'), 
 });
 
 export default router;
+

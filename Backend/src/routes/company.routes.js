@@ -1,5 +1,5 @@
 ﻿import { Router } from 'express';
-import Company from '../models/Company.clean.js';
+import Company from '../models/Company.js';
 import TechnicianConfig from '../models/TechnicianConfig.js';
 import { authCompany } from '../middlewares/auth.js';
 
@@ -173,4 +173,5 @@ router.put('/tech-config', async (req, res) => {
   await cfg.save();
   res.json({ config: cfg.toObject() });
 });
+
 

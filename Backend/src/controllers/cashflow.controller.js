@@ -1,6 +1,6 @@
-import Account from '../models/Account.js';
+﻿import Account from '../models/Account.js';
 import CashFlowEntry from '../models/CashFlowEntry.js';
-import Company from '../models/Company.clean.js';
+import Company from '../models/Company.js';
 import mongoose from 'mongoose';
 
 // Helpers
@@ -13,7 +13,7 @@ async function ensureDefaultCashAccount(companyId) {
 }
 
 async function computeBalance(accountId, companyId) {
-  // Usa el balanceAfter del último movimiento si existe
+  // Usa el balanceAfter del Ãºltimo movimiento si existe
   const last = await CashFlowEntry.findOne({ companyId, accountId }).sort({ date: -1, _id: -1 });
   if (last) return last.balanceAfter;
   const acc = await Account.findOne({ _id: accountId, companyId });
@@ -151,7 +151,7 @@ async function recomputeAccountBalances(companyId, accountId){
   let running = acc.initialBalance || 0;
   for(const e of entries){
     if(e.kind === 'IN') running += e.amount; else if(e.kind === 'OUT') running -= e.amount;
-    // Solo actualizar si cambió para minimizar writes
+    // Solo actualizar si cambiÃ³ para minimizar writes
     if(e.balanceAfter !== running){
       e.balanceAfter = running;
       await e.save();
@@ -165,12 +165,12 @@ export async function updateEntry(req, res){
   const { amount, description, date, kind } = req.body || {};
   const entry = await CashFlowEntry.findOne({ _id: id, companyId: req.companyId });
   if(!entry) return res.status(404).json({ error: 'entry not found' });
-  // Opcional: restringir edición de movimientos generados por venta a sólo descripción
-  // Permitimos edición completa para correcciones manuales.
+  // Opcional: restringir ediciÃ³n de movimientos generados por venta a sÃ³lo descripciÃ³n
+  // Permitimos ediciÃ³n completa para correcciones manuales.
   let mutated = false;
   if(amount!=null){
     const a = Number(amount);
-    if(!Number.isFinite(a) || a<=0) return res.status(400).json({ error: 'amount inválido' });
+    if(!Number.isFinite(a) || a<=0) return res.status(400).json({ error: 'amount invÃ¡lido' });
     entry.amount = Math.round(a); mutated = true;
   }
   if(description!==undefined){ entry.description = String(description||''); mutated = true; }
@@ -200,12 +200,12 @@ export async function registerSaleIncome({ companyId, sale, accountId }) {
   const existing = await CashFlowEntry.find({ companyId, source: 'SALE', sourceRef: sale._id });
   if (existing.length) return existing;
 
-  // Determinar métodos de pago: nuevo array o fallback al legacy
+  // Determinar mÃ©todos de pago: nuevo array o fallback al legacy
   let methods = Array.isArray(sale.paymentMethods) && sale.paymentMethods.length
     ? sale.paymentMethods.filter(m=>m && m.method && Number(m.amount)>0)
     : [];
   if (!methods.length) {
-    // fallback al paymentMethod único con total completo
+    // fallback al paymentMethod Ãºnico con total completo
     methods = [{ method: sale.paymentMethod || 'DESCONOCIDO', amount: Number(sale.total||0), accountId }];
   }
 
@@ -234,3 +234,4 @@ export async function registerSaleIncome({ companyId, sale, accountId }) {
   }
   return entries;
 }
+

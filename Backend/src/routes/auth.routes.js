@@ -1,9 +1,9 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 // Eliminado flujo de email/token para modo local
-import crypto from 'crypto'; // (podría eliminarse si ya no se usan tokens)
-import Company from '../models/Company.clean.js';
+import crypto from 'crypto'; // (podrÃ­a eliminarse si ya no se usan tokens)
+import Company from '../models/Company.js';
 import { authCompany } from '../middlewares/auth.js';
 
 const router = Router();
@@ -32,7 +32,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'email y password son requeridos' });
     }
     const exists = await Company.findOne({ email }).lean();
-    if (exists) return res.status(409).json({ error: 'El email ya está registrado' });
+    if (exists) return res.status(409).json({ error: 'El email ya estÃ¡ registrado' });
 
     const passwordHash = await bcrypt.hash(password, 10);
     const company = await Company.create({ name: name || 'EMPRESA', email, passwordHash });
@@ -59,10 +59,10 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'email y password son requeridos' });
     }
     const company = await Company.findOne({ email });
-    if (!company) return res.status(401).json({ error: 'Credenciales inválidas' });
+    if (!company) return res.status(401).json({ error: 'Credenciales invÃ¡lidas' });
 
     const ok = await bcrypt.compare(password, company.passwordHash);
-    if (!ok) return res.status(401).json({ error: 'Credenciales inválidas' });
+    if (!ok) return res.status(401).json({ error: 'Credenciales invÃ¡lidas' });
 
     const token = signCompany(company);
     return res.json({
@@ -84,11 +84,11 @@ router.get('/me', authCompany, async (req, res) => {
   res.json({ company: { id: company._id, name: company.name, email: company.email } });
 });
 
-// Modo local: endpoint placeholder que siempre responde ok (no envía nada)
+// Modo local: endpoint placeholder que siempre responde ok (no envÃ­a nada)
 router.post('/password/forgot', async (req, res) => {
   const email = String(req.body?.email || '').toLowerCase().trim();
   if (!email) return res.status(400).json({ error: 'email requerido' });
-  // Respuesta genérica (sin token ni email real)
+  // Respuesta genÃ©rica (sin token ni email real)
   return res.json({ ok: true, local: true });
 });
 
@@ -107,7 +107,7 @@ router.post('/password/reset-local', async (req, res) => {
       return res.status(400).json({ error: 'email, companyName y newPassword requeridos' });
     }
     const company = await Company.findOne({ email });
-    if (!company) return res.status(400).json({ error: 'Datos inválidos' });
+    if (!company) return res.status(400).json({ error: 'Datos invÃ¡lidos' });
     if (String(company.name || '').toUpperCase() !== companyName) {
       return res.status(400).json({ error: 'Nombre de empresa no coincide' });
     }
@@ -123,3 +123,4 @@ router.post('/password/reset-local', async (req, res) => {
 });
 
 export default router;
+

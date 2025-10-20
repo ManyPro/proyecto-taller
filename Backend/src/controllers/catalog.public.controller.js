@@ -1,10 +1,10 @@
-import mongoose from 'mongoose';
+﻿import mongoose from 'mongoose';
 import Item from '../models/Item.js';
 import Sale from '../models/Sale.js';
 import Notification from '../models/Notification.js';
 import WorkOrder from '../models/WorkOrder.js';
 import CustomerProfile from '../models/CustomerProfile.js';
-import Company from '../models/Company.clean.js';
+import Company from '../models/Company.js';
 import { publish } from '../lib/live.js';
 
 // ---- Helpers ----
@@ -57,7 +57,7 @@ function mapPublicItem(doc){
 // GET /public/catalog/:companyId/info
 export const getPublicCompanyInfo = async (req, res) => {
   const { companyId } = req.params;
-  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
+  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId invÃ¡lido' });
   const company = await Company.findById(companyId).select('name email address phone logoUrl preferences active');
   if(!company || company.active === false) return res.status(404).json({ error: 'Empresa no encontrada o inactiva' });
   res.setHeader('Cache-Control','public, max-age=120');
@@ -77,11 +77,11 @@ export const getPublicCompanyInfo = async (req, res) => {
 // GET /public/catalog/items
 export const listPublishedItems = async (req, res) => {
   const { companyId } = req.params;
-  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
+  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId invÃ¡lido' });
   const company = await Company.findById(companyId).select('_id active publicCatalogEnabled');
   if(!company || company.active === false) return res.status(404).json({ error: 'Empresa no encontrada o inactiva' });
-  // Nota: Permitimos listar el catálogo aunque publicCatalogEnabled sea false, para evitar bloqueo accidental.
-  // El control de visibilidad se delega a "published" por ítem y al UI que expone el enlace.
+  // Nota: Permitimos listar el catÃ¡logo aunque publicCatalogEnabled sea false, para evitar bloqueo accidental.
+  // El control de visibilidad se delega a "published" por Ã­tem y al UI que expone el enlace.
   const page = Math.min(coercePositiveInt(req.query.page,1), 5000);
   const limit = Math.min(coercePositiveInt(req.query.limit,40), 50);
   const skip = (page-1)*limit;
@@ -102,7 +102,7 @@ export const listPublishedItems = async (req, res) => {
     const arr = String(tags).split(',').map(s=>s.trim()).filter(Boolean);
     if(arr.length) filter.tags = { $in: arr };
   }
-  // Por defecto, sólo con stock. Si stock=all, incluye agotados.
+  // Por defecto, sÃ³lo con stock. Si stock=all, incluye agotados.
   const stockParam = String(stock||'').trim().toLowerCase();
   if(stockParam !== 'all'){
     filter.stock = { $gt: 0 };
@@ -121,7 +121,7 @@ export const listPublishedItems = async (req, res) => {
 // GET /public/catalog/items/:id
 export const getPublishedItem = async (req, res) => {
   const { id, companyId } = req.params;
-  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
+  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId invÃ¡lido' });
   if(!mongoose.Types.ObjectId.isValid(id)) return res.status(404).json({ error: 'Item no encontrado' });
   const doc = await Item.findOne({ _id: id, companyId, published: true });
   if(!doc) return res.status(404).json({ error: 'Item no publicado para esta empresa' });
@@ -132,7 +132,7 @@ export const getPublishedItem = async (req, res) => {
 // GET /public/catalog/customer?idNumber=123
 export const lookupCustomerByIdNumber = async (req, res) => {
   const { companyId } = req.params;
-  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
+  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId invÃ¡lido' });
   const idNumber = String(req.query.idNumber||'').trim();
   if(!idNumber) return res.status(400).json({ error: 'Falta idNumber' });
   const profile = await CustomerProfile.findOne({ identificationNumber: idNumber, companyId });
@@ -149,13 +149,13 @@ export const lookupCustomerByIdNumber = async (req, res) => {
 // POST /public/catalog/checkout
 export const checkoutCatalog = async (req, res) => {
   const { companyId } = req.params;
-  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
+  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId invÃ¡lido' });
   const company = await Company.findById(companyId).select('_id active publicCatalogEnabled');
-  // Relajar gating: permitir checkout si la empresa está activa, aunque publicCatalogEnabled sea false.
+  // Relajar gating: permitir checkout si la empresa estÃ¡ activa, aunque publicCatalogEnabled sea false.
   if(!company || company.active === false) return res.status(404).json({ error: 'Empresa no encontrada o inactiva' });
   const b = req.body || {};
   const itemsReq = Array.isArray(b.items) ? b.items : [];
-  if(!itemsReq.length) return res.status(400).json({ error: 'Carrito vacío' });
+  if(!itemsReq.length) return res.status(400).json({ error: 'Carrito vacÃ­o' });
 
   // Customer data
   const customer = b.customer || {};
@@ -166,7 +166,7 @@ export const checkoutCatalog = async (req, res) => {
   const deliveryMethod = ['pickup','home-bogota','store'].includes(b.deliveryMethod) ? b.deliveryMethod : 'pickup';
   const requiresInstallation = !!b.requiresInstallation;
 
-  // Regla: instalación en taller incompatible con envío a domicilio Bogotá
+  // Regla: instalaciÃ³n en taller incompatible con envÃ­o a domicilio BogotÃ¡
   let finalDelivery = deliveryMethod;
   let adjusted = false;
   if(requiresInstallation && deliveryMethod === 'home-bogota') {
@@ -223,13 +223,13 @@ export const checkoutCatalog = async (req, res) => {
     deliveryMethod: finalDelivery,
     requiresInstallation
   });
-  // Política de stock: no descontar en checkout. El descuento ocurre al cerrar la venta internamente.
+  // PolÃ­tica de stock: no descontar en checkout. El descuento ocurre al cerrar la venta internamente.
 
-  // Upsert customer profile (básico) con placa única por cliente para evitar duplicados
+  // Upsert customer profile (bÃ¡sico) con placa Ãºnica por cliente para evitar duplicados
   if (idNumber) {
     try {
       const companyIdStr = String(sale.companyId || '');
-      const plateValue = `CATALOGO-${String(idNumber).trim().toUpperCase()}`; // único por cliente
+      const plateValue = `CATALOGO-${String(idNumber).trim().toUpperCase()}`; // Ãºnico por cliente
       await CustomerProfile.findOneAndUpdate(
         { companyId: companyIdStr, $or: [ { identificationNumber: idNumber }, { plate: plateValue } ] },
         {
@@ -267,7 +267,7 @@ export const checkoutCatalog = async (req, res) => {
   });
   try{ publish(String(sale.companyId||''), 'sale:created', { id: String(sale._id), origin: 'catalog' }); }catch{}
 
-  // Crear WorkOrder si requiere instalación
+  // Crear WorkOrder si requiere instalaciÃ³n
   let workOrder = null;
   if(requiresInstallation){
     try {
@@ -276,7 +276,7 @@ export const checkoutCatalog = async (req, res) => {
         saleId: sale._id,
         customer: sale.customer,
         items: sale.items.map(it => ({ refId: it.refId, sku: it.sku, name: it.name, qty: it.qty })),
-        notes: 'Generada desde checkout público (instalación).'
+        notes: 'Generada desde checkout pÃºblico (instalaciÃ³n).'
       });
       await Notification.create({ companyId: sale.companyId, type: 'workOrder.created', data: { workOrderId: workOrder._id, saleId: sale._id } });
     } catch (e) {
@@ -287,14 +287,14 @@ export const checkoutCatalog = async (req, res) => {
   res.status(201).json({ 
     sale: { id: sale._id, status: sale.status, total: sale.total, deliveryMethod: finalDelivery, adjusted }, 
     workOrder: workOrder ? { id: workOrder._id } : null,
-    message: adjusted ? 'Instalación requiere retiro en taller. Método de entrega ajustado.' : undefined
+    message: adjusted ? 'InstalaciÃ³n requiere retiro en taller. MÃ©todo de entrega ajustado.' : undefined
   });
 };
 
 // GET /public/catalog/sitemap.txt (simple list of item URLs)
 export const sitemapPlain = async (req, res) => {
   const { companyId } = req.params;
-  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
+  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId invÃ¡lido' });
   const base = (req.protocol + '://' + req.get('host'));
   const items = await Item.find({ published: true, companyId }).select('_id updatedAt');
   const lines = items.map(i => `${base}/catalog/${companyId}/item/${i._id}`);
@@ -305,7 +305,7 @@ export const sitemapPlain = async (req, res) => {
 // GET /public/catalog/sitemap.xml (basic SEO sitemap)
 export const sitemapXml = async (req, res) => {
   const { companyId } = req.params;
-  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
+  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId invÃ¡lido' });
   const base = (req.protocol + '://' + req.get('host'));
   const items = await Item.find({ published: true, companyId }).select('_id updatedAt');
   const urls = items.map(i => {
@@ -322,7 +322,7 @@ export const sitemapXml = async (req, res) => {
 // GET /public/catalog/feed.csv?key=SECRET
 export const feedCsv = async (req, res) => {
   const { companyId } = req.params;
-  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId inválido' });
+  if(!mongoose.Types.ObjectId.isValid(companyId)) return res.status(400).json({ error: 'companyId invÃ¡lido' });
   const key = String(req.query.key||'');
   const expected = process.env.CATALOG_FEED_KEY || '';
   if(!expected || key !== expected) return res.status(403).json({ error: 'Forbidden' });
@@ -345,3 +345,4 @@ export const feedCsv = async (req, res) => {
   res.setHeader('Content-Type','text/csv');
   res.send(rows.join('\n'));
 };
+

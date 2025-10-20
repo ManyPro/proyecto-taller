@@ -486,7 +486,8 @@ export const closeSale = async (req, res) => {
       const pm = String(req.body?.paymentMethod || '').trim();
       const technician = String(req.body?.technician || sale.technician || '').trim().toUpperCase();
       const laborValueRaw = req.body?.laborValue;
-      const laborPercentRaw = req.body?.laborPercent;\n      const laborLines = Array.isArray(req.body?.laborCommissions) ? req.body.laborCommissions : null;
+      const laborPercentRaw = req.body?.laborPercent;
+      const laborLines = Array.isArray(req.body?.laborCommissions) ? req.body.laborCommissions : null;
       const paymentReceiptUrl = String(req.body?.paymentReceiptUrl || '').trim();
 
       // ---- Multi-payment (nuevo) ----
@@ -540,7 +541,31 @@ export const closeSale = async (req, res) => {
       }
       if (laborValueRaw != null) sale.laborValue = Math.round(laborValue);
       if (laborPercentRaw != null) sale.laborPercent = Math.round(laborPercent);
-      if (sale.laborValue && sale.laborPercent) sale.laborShare = Math.round(sale.laborValue * (sale.laborPercent / 100));\n      if (laborLines && laborLines.length) {\n        const lines = [];\n        for (const ln of laborLines) {\n          const tech = String(ln?.technician||technician||'').trim().toUpperCase();\n          const kind = String(ln?.kind||'').trim().toUpperCase();\n          const lv = Number(ln?.laborValue||0);\n          const pc = Number(ln?.percent||0);\n          if (!tech || !kind) continue;\n          if (!Number.isFinite(lv) || lv < 0) continue;\n          if (!Number.isFinite(pc) || pc < 0 || pc > 100) continue;\n          const share = Math.round(lv * (pc/100));\n          lines.push({ technician: tech, kind, laborValue: Math.round(lv), percent: Math.round(pc), share });\n        }\n        sale.laborCommissions = lines;\n        const sumVal = lines.reduce((a,b)=> a + (b.laborValue||0), 0);\n        const sumShare = lines.reduce((a,b)=> a + (b.share||0), 0);\n        if (!sale.laborValue || sumVal > sale.laborValue) sale.laborValue = sumVal;\n        if (!sale.laborShare || sumShare > sale.laborShare) sale.laborShare = sumShare;\n        if (!sale.laborPercent && sale.laborValue) sale.laborPercent = Math.round((sale.laborShare / sale.laborValue) * 100);\n      }
+      if (sale.laborValue && sale.laborPercent) {
+        sale.laborShare = Math.round(sale.laborValue * (sale.laborPercent / 100));
+      }
+      if (laborLines && laborLines.length) {
+        const lines = [];
+        for (const ln of laborLines) {
+          const tech = String(ln?.technician || technician || '').trim().toUpperCase();
+          const kind = String(ln?.kind || '').trim().toUpperCase();
+          const lv = Number(ln?.laborValue || 0);
+          const pc = Number(ln?.percent || 0);
+          if (!tech || !kind) continue;
+          if (!Number.isFinite(lv) || lv < 0) continue;
+          if (!Number.isFinite(pc) || pc < 0 || pc > 100) continue;
+          const share = Math.round(lv * (pc / 100));
+          lines.push({ technician: tech, kind, laborValue: Math.round(lv), percent: Math.round(pc), share });
+        }
+        sale.laborCommissions = lines;
+        const sumVal = lines.reduce((a, b) => a + (b.laborValue || 0), 0);
+        const sumShare = lines.reduce((a, b) => a + (b.share || 0), 0);
+        if (!sale.laborValue || sumVal > sale.laborValue) sale.laborValue = sumVal;
+        if (!sale.laborShare || sumShare > sale.laborShare) sale.laborShare = sumShare;
+        if (!sale.laborPercent && sale.laborValue) {
+          sale.laborPercent = Math.round((sale.laborShare / sale.laborValue) * 100);
+        }
+      }
       if (paymentReceiptUrl) sale.paymentReceiptUrl = paymentReceiptUrl;
       await sale.save({ session });
     });
@@ -855,5 +880,9 @@ export const technicianReport = async (req, res) => {
     return res.status(500).json({ error: 'Error generando reporte tÃ©cnico' });
   }
 };
+
+
+
+
 
 
