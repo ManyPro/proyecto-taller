@@ -89,10 +89,27 @@ router.post('/signup/confirm', async (req, res) => {
 });
 
 // Companies listing (developer only)
-router.get('/companies', authAdmin, requireAdminRole('developer'), async (req, res) => {
-  const q = {};
-  const list = await Company.find(q).select('name email active features publicCatalogEnabled').lean();
-  res.json({ items: list });
+router.get('/companies', authAdmin, requireAdminRole('developer','admin'), async (req, res) => {
+  if(req.user?.role === 'developer'){
+    const list = await Company.find({}).select('name email active features featureOptions restrictions publicCatalogEnabled').lean();
+    return res.json({ items: list, role: 'developer' });
+  }
+  // Admins: return only assigned companies
+  const admin = await AdminUser.findById(req.user?.id).populate({
+    path: 'companies',
+    select: 'name email active features featureOptions restrictions publicCatalogEnabled'
+  }).lean();
+  const items = admin?.companies?.map?.(c => ({
+    _id: c._id,
+    name: c.name,
+    email: c.email,
+    active: c.active,
+    features: c.features,
+    featureOptions: c.featureOptions,
+    restrictions: c.restrictions,
+    publicCatalogEnabled: c.publicCatalogEnabled
+  })) || [];
+  res.json({ items, role: 'admin' });
 });
 
 // Update company features (developer or admin)

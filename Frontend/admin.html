@@ -102,15 +102,26 @@
   const appSec = document.getElementById('appSection');
   const header = document.getElementById('appHeader');
   const emailLbl = document.getElementById('adminEmail');
+  const logoutBtn = document.getElementById('adminLogout');
+  let currentRole = null;
+
+  async function enterDashboard(user, fallbackEmail){
+    currentRole = user?.role || 'admin';
+    emailLbl.textContent = user?.email || fallbackEmail || '-';
+    loginSec.classList.add('hidden');
+    appSec.classList.remove('hidden');
+    header.classList.remove('hidden');
+    logoutBtn.classList.remove('hidden');
+    loadCompanies();
+  }
+
   document.getElementById('a-login').onclick = async ()=>{
     const email = document.getElementById('a-email').value.trim().toLowerCase();
     const password = document.getElementById('a-password').value;
     try{
       const r = await req('/api/v1/admin/auth/login', { method:'POST', body:{ email, password } });
       setToken(r.token);
-      emailLbl.textContent = r?.user?.email || email;
-      loginSec.classList.add('hidden'); appSec.classList.remove('hidden'); header.classList.remove('hidden');
-      loadCompanies();
+      await enterDashboard(r.user, email);
     }catch(e){ alert(e.message||'Error'); }
   };
 
@@ -120,8 +131,8 @@
     const msg = document.getElementById('s-msg');
     msg.textContent = '';
     try{
-      const r = await req('/api/v1/admin/signup/request', { method:'POST', body:{ email } });
-      msg.textContent = 'Solicitud enviada. Contacta al developer para recibir tu código.';
+      await req('/api/v1/admin/signup/request', { method:'POST', body:{ email } });
+      msg.textContent = 'Solicitud enviada. Contacta al developer para recibir tu codigo.';
     }catch(e){ msg.textContent = e.message||'Error'; }
   };
   document.getElementById('s-confirm').onclick = async ()=>{
@@ -132,31 +143,128 @@
     msg.textContent='';
     try{
       const r = await req('/api/v1/admin/signup/confirm', { method:'POST', body:{ email, code, password } });
-      // Log in immediately with returned token
       setToken(r.token);
-      emailLbl.textContent = r?.user?.email || email;
-      loginSec.classList.add('hidden'); appSec.classList.remove('hidden'); header.classList.remove('hidden');
-      loadCompanies();
+      await enterDashboard(r.user, email);
     }catch(e){ msg.textContent = e.message||'Error'; }
   };
+
+  logoutBtn.addEventListener('click', ()=>{
+    setToken('');
+    currentRole = null;
+    emailLbl.textContent = '-';
+    appSec.classList.add('hidden');
+    header.classList.add('hidden');
+    logoutBtn.classList.add('hidden');
+    document.getElementById('adm-body').innerHTML = '';
+    loginSec.classList.remove('hidden');
+  });
+
   async function loadCompanies(){
     const tbody = document.getElementById('adm-body');
     tbody.innerHTML = '<tr><td colspan="5" class="t-center">Cargando...</td></tr>';
     try{
       const r = await req('/api/v1/admin/companies');
+      const companies = r.items || [];
+      const role = currentRole || r.role || 'admin';
       tbody.innerHTML='';
-      (r.items||[]).forEach(c=>{
+      if(!companies.length){
+        tbody.innerHTML = '<tr><td colspan="5" class="t-center muted">Sin empresas asignadas</td></tr>';
+        return;
+      }
+      companies.forEach(c=>{
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${c.name}</td><td>${c.email}</td><td>${c.active?'Sí':'No'}</td><td><div class='row wrap' style='gap:6px;'>${Object.entries(c.features||{}).map(([k,v])=>`<label class='chip'><input type='checkbox' data-k='${k}' ${v!==false?'checked':''}/> ${k}</label>`).join('')}</div></td><td><button class='save secondary'>Guardar</button></td>`;
-        tr.querySelector('.save').onclick = async ()=>{
-          const patch = {}; tr.querySelectorAll('input[type=checkbox][data-k]').forEach(ch=>{ patch[ch.dataset.k] = ch.checked; });
-          try{ const u = await req(`/api/v1/admin/companies/${c._id}/features`, { method:'PATCH', body: patch }); alert('Guardado'); }catch(e){ alert(e.message||'Error'); }
-        };
+        tr.innerHTML = `<td>${c.name || '-'}</td><td>${c.email || '-'}</td><td>${c.active ? 'Si' : 'No'}</td><td class="adm-features"></td><td class="adm-actions"></td>`;
+        const featuresTd = tr.querySelector('.adm-features');
+        const actionsTd = tr.querySelector('.adm-actions');
+        const hideBalances = !!(c?.restrictions?.cashflow?.hideBalances);
+
+        if(role === 'developer'){
+          const list = document.createElement('div');
+          list.className = 'row wrap';
+          list.style.gap = '6px';
+          const feats = c.features || {};
+          Object.keys(feats).forEach(k=>{
+            const label = document.createElement('label');
+            label.className = 'chip';
+            label.innerHTML = `<input type="checkbox" data-feature="${k}" ${feats[k] !== false ? 'checked' : ''}/> ${k}`;
+            list.appendChild(label);
+          });
+          featuresTd.appendChild(list);
+        }else{
+          featuresTd.innerHTML = hideBalances
+            ? '<span class="muted">Balances ocultos</span>'
+            : '<span>Balances visibles</span>';
+        }
+
+        const actions = document.createElement('div');
+        actions.className = 'row wrap';
+        actions.style.gap = '6px';
+        const hideLabel = document.createElement('label');
+        hideLabel.className = 'chip';
+        hideLabel.innerHTML = `<input type="checkbox" data-hide="${c._id}" ${hideBalances ? 'checked' : ''}/> Ocultar balances`;
+        actions.appendChild(hideLabel);
+
+        if(role === 'developer'){
+          const saveFeatures = document.createElement('button');
+          saveFeatures.className = 'secondary';
+          saveFeatures.textContent = 'Guardar features';
+          saveFeatures.onclick = async ()=>{
+            const patch = {};
+            featuresTd.querySelectorAll('input[data-feature]').forEach(ch => {
+              patch[ch.dataset.feature] = ch.checked;
+            });
+            try{
+              await req(`/api/v1/admin/company/companies/${c._id}/features`, { method:'PATCH', body: patch });
+              alert('Features guardados');
+            }catch(e){ alert(e.message||'Error'); }
+          };
+          actions.appendChild(saveFeatures);
+
+          const saveRestrictions = document.createElement('button');
+          saveRestrictions.className = 'secondary';
+          saveRestrictions.textContent = 'Guardar restricciones';
+          saveRestrictions.onclick = async ()=>{
+            const hide = !!tr.querySelector(`input[data-hide="${c._id}"]`)?.checked;
+            try{
+              await req(`/api/v1/admin/company/companies/${c._id}/restrictions`, { method:'PATCH', body:{ cashflow:{ hideBalances: hide } } });
+              alert('Restricciones guardadas');
+            }catch(e){ alert(e.message||'Error'); }
+          };
+          actions.appendChild(saveRestrictions);
+        }else{
+          const saveHide = document.createElement('button');
+          saveHide.className = 'secondary';
+          saveHide.textContent = 'Guardar';
+          saveHide.onclick = async ()=>{
+            const hide = !!tr.querySelector(`input[data-hide="${c._id}"]`)?.checked;
+            try{
+              await req(`/api/v1/admin/company/companies/${c._id}/restrictions`, { method:'PATCH', body:{ cashflow:{ hideBalances: hide } } });
+              alert('Restriccion actualizada');
+            }catch(e){ alert(e.message||'Error'); }
+          };
+          actions.appendChild(saveHide);
+        }
+
+        actionsTd.appendChild(actions);
         tbody.appendChild(tr);
       });
-    }catch(e){ tbody.innerHTML = `<tr><td colspan='5' class='t-center'>${e.message||'Error'}</td></tr>`; }
+    }catch(e){
+      tbody.innerHTML = `<tr><td colspan='5' class='t-center'>${e.message||'Error'}</td></tr>`;
+    }
   }
   document.getElementById('loadCompanies').onclick = loadCompanies;
+
+  (async ()=>{
+    if(!getToken()) return;
+    try{
+      const me = await req('/api/v1/admin/auth/me');
+      await enterDashboard(me.user, me?.user?.email);
+    }catch{
+      setToken('');
+    }
+  })();
   </script>
 </body>
 </html>
+
+
