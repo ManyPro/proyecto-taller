@@ -1391,6 +1391,8 @@ function openSalesHistory(){
   openModal(node);
   const from=$('#sh-from',node), to=$('#sh-to',node), plate=$('#sh-plate',node);
   const body=$('#sh-body',node), total=$('#sh-total',node);
+  const prevBtn=$('#sh-prev',node), nextBtn=$('#sh-next',node), pagEl=$('#sh-pag',node);
+  let page = 1;
   // Set default date range to today ONLY when no plate filter is used
   try {
     const setToday = !plate.value; // if plate is empty
@@ -1409,12 +1411,13 @@ function openSalesHistory(){
     const hasPlate = !!plate.value.trim();
     if (hasPlate){
       params.plate = plate.value.trim();
-      // When searching by plate, fetch a larger page and ignore default date to show full history
-      params.limit = 500;
+      params.limit = 50;
     } else {
       if(from.value) params.from=from.value;
       if(to.value)   params.to=to.value;
+      params.limit = 50;
     }
+    params.page = page;
     const res = await API.sales.list(params);
     body.innerHTML=''; let acc=0;
     (res?.items||[]).forEach(s=>{
@@ -1426,8 +1429,21 @@ function openSalesHistory(){
       body.appendChild(tr); acc += Number(s.total||0);
     });
     total.textContent = money(acc);
+    // pagination state
+    try{
+      const cur = Number(res?.page||page||1);
+      const lim = Number(res?.limit||params.limit||50);
+      const tot = Number(res?.total||0);
+      const pages = Math.max(1, Math.ceil((tot||0)/(lim||50)));
+      page = Math.min(Math.max(1, cur), pages);
+      if (pagEl) pagEl.textContent = `Página ${page} de ${pages} · ${tot} registros`;
+      if (prevBtn) prevBtn.disabled = page <= 1;
+      if (nextBtn) nextBtn.disabled = page >= pages;
+    } catch{}
   }
-  $('#sh-search',node).onclick = load;
+  $('#sh-search',node).onclick = ()=>{ page = 1; load(); };
+  if (prevBtn) prevBtn.onclick = ()=>{ if(page>1){ page--; load(); } };
+  if (nextBtn) nextBtn.onclick = ()=>{ page++; load(); };
   load();
 }
 
