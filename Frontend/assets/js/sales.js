@@ -1391,6 +1391,16 @@ function openSalesHistory(){
   openModal(node);
   const from=$('#sh-from',node), to=$('#sh-to',node), plate=$('#sh-plate',node);
   const body=$('#sh-body',node), total=$('#sh-total',node);
+  // Set default date range to today to avoid heavy queries
+  try {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    const today = `${yyyy}-${mm}-${dd}`;
+    from.value = from.value || today;
+    to.value = to.value || today;
+  } catch {}
   async function load(){
     const params = { status:'closed' };
     if(from.value) params.from=from.value;
@@ -1430,6 +1440,12 @@ async function openSaleHistoryDetail(id){
       tr.innerHTML = `<td>${it.sku || ''}</td><td>${it.name || ''}</td><td class="t-center">${it.qty || 0}</td><td class="t-right">${money(it.unitPrice || 0)}</td><td class="t-right">${money(it.total || 0)}</td>`;
       itemsBody.appendChild(tr);
     });
+    // If no items (e.g., legacy import), show notes as a hint of work done
+    if ((!sale.items || sale.items.length === 0) && sale.notes) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td colspan="5" class="muted">Notas: ${sale.notes.replace(/\n/g,'<br/>')}</td>`;
+      itemsBody.appendChild(tr);
+    }
     node.querySelector('[data-subtotal]').textContent = money(sale.subtotal || 0);
     node.querySelector('[data-total]').textContent = money(sale.total || 0);
     // Render pagos (multi-payment)

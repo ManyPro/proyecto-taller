@@ -39,6 +39,7 @@ const delimiter = args.delimiter || ';';
 const encoding = args.encoding || 'utf8';
 const limit = args.limit ? parseInt(args.limit,10) : null;
 const dryRun = !!args.dry;
+const progressEvery = args.progressInterval ? parseInt(args.progressInterval,10) : 2000;
 
 let companyMap = {};
 if (args.companyMap) {
@@ -81,6 +82,19 @@ async function main(){
   if(!dryRun && !uri){ console.error('Falta --mongo o MONGODB_URI'); process.exit(1); }
   if(!dryRun) await connectDB(uri);
 
+  // Métrica total a procesar
+  const totalToProcess = Array.from(perCompany.values()).reduce((a,s)=> a + s.size, 0);
+  const started = Date.now();
+  function logProgress(){
+    const p = totalToProcess ? Math.min(100, (counters.processed/totalToProcess)*100) : 0;
+    const elapsed = (Date.now()-started)/1000;
+    const rate = counters.processed>0 ? elapsed/counters.processed : 0;
+    const remaining = Math.max(0, totalToProcess - counters.processed);
+    const eta = rate * remaining;
+    const fmt = (s)=>{ if(!Number.isFinite(s)) return '---'; if(s<60) return `${s.toFixed(0)}s`; const m=Math.floor(s/60); const sec=Math.floor(s%60); return `${m}m ${sec}s`; };
+    console.log(`[${p.toFixed(1)}%] ${counters.processed}/${totalToProcess} · creados=${counters.created} · actualizados=${counters.updated} · ETA ${fmt(eta)}`);
+  }
+
   for(const [legacyCompany, setIds] of perCompany.entries()){
     const companyId = companyMap[legacyCompany];
     const companyIdStr = String(companyId);
@@ -97,7 +111,7 @@ async function main(){
       const hasId = !!idNumber;
       const plateSynthetic = hasId ? `CATALOGO-${idNumber.toUpperCase()}` : `CLIENT-${legacyClientId}`;
 
-      if(dryRun){ counters.processed++; continue; }
+      if(dryRun){ counters.processed++; if(progressEvery && counters.processed % progressEvery===0) logProgress(); continue; }
 
       const query = { companyId: companyIdStr, $or: [ { identificationNumber: idNumber }, { plate: plateSynthetic } ] };
       const existing = await CustomerProfile.findOne(query);
@@ -123,11 +137,14 @@ async function main(){
         else counters.unchanged++;
       }
       counters.processed++;
+      if(progressEvery && counters.processed % progressEvery===0) logProgress();
     }
   }
 
+  logProgress();
+  const dur = ((Date.now()-started)/1000).toFixed(1);
+  console.log(`Tiempo total: ${dur}s`);
   console.log('Clientes import (resumen):', JSON.stringify(counters, null, 2));
 }
 
 main().then(()=>{ if(!dryRun) mongoose.connection.close().catch(()=>{}); }).catch(e=>{ console.error(e); process.exit(1); });
-

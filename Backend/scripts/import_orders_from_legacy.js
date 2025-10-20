@@ -69,6 +69,7 @@ const encoding = args.encoding || 'utf8';
 const limit = args.limit ? parseInt(args.limit, 10) : null;
 const dryRun = !!args.dry;
 const doProfile = !args.noProfile;
+const progressEvery = args.progressInterval ? parseInt(args.progressInterval, 10) : 2000; // filas
 
 let companyMap = {};
 // 1) Bandera --companyMap tiene prioridad
@@ -140,6 +141,17 @@ async function main() {
 
   const clientIndex = new Map(clientRows.map(c => [String(c['cl_id']), c]));
   const vehicleIndex = new Map(vehicleRows.map(v => [String(v['au_id']), v]));
+  const started = Date.now();
+  const totalRows = ordersRows.length;
+  function logProgress() {
+    const p = Math.min(100, (counters.total / totalRows) * 100);
+    const elapsed = (Date.now() - started) / 1000; // seg
+    const rate = counters.total > 0 ? elapsed / counters.total : 0; // seg por fila
+    const remaining = Math.max(0, totalRows - counters.total);
+    const etaSec = rate * remaining;
+    const fmt = (s)=>{ if (!Number.isFinite(s)) return '---'; if (s < 60) return `${s.toFixed(0)}s`; const m=Math.floor(s/60); const sec=Math.floor(s%60); return `${m}m ${sec}s`; };
+    console.log(`[${p.toFixed(1)}%] ${counters.total}/${totalRows} · importados=${counters.imported} · actualizados=${counters.updated} · skippedEmp=${counters.skippedCompany} · sinPlaca=${counters.skippedNoPlate} · ETA ${fmt(etaSec)}`);
+  }
 
   if (!dryRun) {
     const uri = args.mongo || process.env.MONGODB_URI;
@@ -186,10 +198,7 @@ async function main() {
     const legacyMarker = `LEGACY or_id=${legacyOrId} empresa=${legacyCompanyId}`;
     const notes = [legacyMarker, obs && `Obs: ${obs}`, otros && `Otros: ${otros}`].filter(Boolean).join('\n');
 
-    if (dryRun) {
-      counters.imported++;
-      continue;
-    }
+    if (dryRun) { counters.imported++; if (progressEvery && counters.total % progressEvery === 0) logProgress(); continue; }
 
     // Idempotencia: buscar por marcador en notas
     const existing = await Sale.findOne({ companyId, notes: { $regex: new RegExp(`\\b${legacyOrId}\\b`) }, 'vehicle.plate': plate });
@@ -207,6 +216,7 @@ async function main() {
       if (existing.vehicle?.year == null && year != null) update.$set['vehicle.year'] = year;
       if (existing.vehicle?.mileage == null && mileage != null) update.$set['vehicle.mileage'] = mileage;
       if (Object.keys(update.$set).length) { await Sale.updateOne({ _id: existing._id }, update); counters.updated++; }
+      if (progressEvery && counters.total % progressEvery === 0) logProgress();
       continue;
     }
 
@@ -232,6 +242,7 @@ async function main() {
     }
 
     counters.imported++;
+    if (progressEvery && counters.total % progressEvery === 0) logProgress();
   }
 
   console.log('Resumen importación:', JSON.stringify(counters, null, 2));
