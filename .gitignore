@@ -6,3 +6,5 @@ Frontend/node_modules/
 Thumbs.db
 .vscode/
 .idea/
+Backend/data/legacy/
+Backend/data/**/*.csv

@@ -36,6 +36,43 @@ Parámetros opcionales:
 
 Nota: El script intenta mapear columnas potenciales (`placa`, `veh_placa`, etc.). Si los nombres difieren confirma las cabeceras para ajustar el mapeo.
 
+## Importación (Órdenes legacy por placa)
+Importa órdenes históricas (solo empresas legacy 2=Shelby y 3=Casa Renault por defecto) y las enlaza por placa creando ventas cerradas con los datos disponibles. Incluye un marcador en `notes` para idempotencia: `LEGACY or_id=<N> empresa=<2|3>`.
+
+1. Ejecuta en modo simulación (dry-run) para validar conteos:
+
+```
+npm run import:legacy:orders -- --orders path/a/ordenesfinal.csv --clients path/a/clientesfinal.csv --vehicles path/a/automovilfinal.csv --dry
+```
+
+2. Importar a Mongo (pasa `--mongo` o define `MONGODB_URI`):
+
+```
+npm run import:legacy:orders -- --orders path/a/ordenesfinal.csv --clients path/a/clientesfinal.csv --vehicles path/a/automovilfinal.csv --mongo "${MONGODB_URI}"
+```
+
+Parámetros útiles:
+- `--companyMap 2:<mongoIdShelby>,3:<mongoIdRenault>` para ajustar IDs reales de tu DB.
+- `--limit 1000` para pruebas.
+- `--noProfile` si no deseas actualizar/crear `CustomerProfile` durante la importación.
+
+Notas:
+- Si `or_fecha_entrega` está vacía se usa `or_fecha` como `closedAt`.
+- Se guardan `customer` y `vehicle` mínimos (placa, cilindraje como `engine`, `year`, `mileage`).
+- Las observaciones se guardan en `notes` junto con el marcador LEGACY para evitar duplicados en re-ejecuciones.
+
+### Company IDs (produccion)
+Puedes fijar los IDs reales de cada empresa por cualquiera de estas opciones (prioridad descendente):
+- Bandera: `--companyMap "2:<ID_SHELBY>,3:<ID_RENAULT>"`
+- Variable: `COMPANY_MAP=2:<ID_SHELBY>,3:<ID_RENAULT>`
+- Variables dedicadas: `COMPANY_ID_SHELBY` y `COMPANY_ID_RENAULT` (o `COMPANY_ID_2`, `COMPANY_ID_3`)
+
+### Ubicacion de CSVs
+Sugerido: `Backend/data/legacy/` (excluido del repo por .gitignore). Ejemplo:
+```
+npm run import:legacy:orders -- --orders Backend/data/legacy/ordenesfinal.csv --clients Backend/data/legacy/clientesfinal.csv --vehicles Backend/data/legacy/automovilfinal.csv --mongo "${MONGODB_URI}"
+```
+
 ## Autocompletado de cotizaciones por placa
 
 Endpoint para que el Front obtenga datos existentes de cliente/vehículo al ingresar una placa:
@@ -502,6 +539,4 @@ Migración desde versión previa (sin segmentación):
 2. Verificar que los ítems existentes tengan `companyId` correcto (parte del modelo ya presente).
 3. Invalidar caches anteriores (cambiar `CACHE_VERSION`).
 4. Revisar analytics / logs para adaptar dashboards a nuevo patrón de ruta.
-
-
 
