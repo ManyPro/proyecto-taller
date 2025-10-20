@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 // Eliminado flujo de email/token para modo local
 import crypto from 'crypto'; // (podría eliminarse si ya no se usan tokens)
-import Company from '../models/Company.js';
+import Company from '../models/Company.clean.js';
 import { authCompany } from '../middlewares/auth.js';
 
 const router = Router();

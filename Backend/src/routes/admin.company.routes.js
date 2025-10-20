@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import Company from '../models/Company.js';
+import Company from '../models/Company.clean.js';
 import { authAdmin, requireAdminRole } from '../middlewares/auth.js';
 
 const router = Router();

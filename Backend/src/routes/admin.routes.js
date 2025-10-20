@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { adminLogin, adminMe } from '../controllers/admin.auth.controller.js';
 import { authAdmin, requireAdminRole } from '../middlewares/auth.js';
-import Company from '../models/Company.js';
+import Company from '../models/Company.clean.js';
 import AdminSignupRequest from '../models/AdminSignupRequest.js';
 import AdminUser from '../models/AdminUser.js';
 import bcrypt from 'bcryptjs';

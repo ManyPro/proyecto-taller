@@ -1,6 +1,6 @@
 import Account from '../models/Account.js';
 import CashFlowEntry from '../models/CashFlowEntry.js';
-import Company from '../models/Company.js';
+import Company from '../models/Company.clean.js';
 import mongoose from 'mongoose';
 
 // Helpers

@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import Company from '../models/Company.js';
+import Company from '../models/Company.clean.js';
 
 function signCompany(company) {
   const payload = {

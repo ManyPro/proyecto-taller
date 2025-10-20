@@ -4,7 +4,7 @@ import Sale from '../models/Sale.js';
 import Notification from '../models/Notification.js';
 import WorkOrder from '../models/WorkOrder.js';
 import CustomerProfile from '../models/CustomerProfile.js';
-import Company from '../models/Company.js';
+import Company from '../models/Company.clean.js';
 import { publish } from '../lib/live.js';
 
 // ---- Helpers ----
