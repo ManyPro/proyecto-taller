@@ -1316,6 +1316,79 @@
     }
   }
 
+  function optimizeImageDataUrl(dataUrl, options = {}) {
+    const {
+      maxWidth = 1200,
+      maxHeight = 1200,
+      maxBytes = 550 * 1024,
+      quality = 0.82
+    } = options;
+
+    if (!dataUrl || typeof dataUrl !== 'string') return Promise.resolve(dataUrl);
+
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const needsResize = img.width > maxWidth || img.height > maxHeight;
+        const needsCompression = dataUrl.length > maxBytes;
+        if (!needsResize && !needsCompression) {
+          resolve(dataUrl);
+          return;
+        }
+
+        const ratio = Math.min(1, maxWidth / img.width, maxHeight / img.height);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.width * ratio));
+        canvas.height = Math.max(1, Math.round(img.height * ratio));
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const sourceMime = (dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);/) || [])[1] || 'image/png';
+        const candidates = sourceMime === 'image/png'
+          ? [['image/webp', quality], ['image/png']]
+          : [['image/webp', quality], ['image/jpeg', quality]];
+
+        let best = dataUrl;
+        for (const [mime, q] of candidates) {
+          try {
+            const candidate = q !== undefined ? canvas.toDataURL(mime, q) : canvas.toDataURL(mime);
+            if (candidate && candidate.length < best.length) {
+              best = candidate;
+            }
+          } catch (_) {
+            // Ignore unsupported mime conversions
+          }
+        }
+
+        resolve(best);
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
+  function optimizeCanvasImages(canvas) {
+    if (!canvas) return Promise.resolve();
+    const images = Array.from(canvas.querySelectorAll('img[src^="data:image/"]'));
+    if (!images.length) return Promise.resolve();
+
+    const tasks = images.map(async (img) => {
+      const originalSrc = img.src;
+      try {
+        const optimizedSrc = await optimizeImageDataUrl(originalSrc);
+        if (optimizedSrc && optimizedSrc !== originalSrc) {
+          console.log(`Imagen optimizada (${Math.round(originalSrc.length / 1024)} KB → ${Math.round(optimizedSrc.length / 1024)} KB)`);
+          img.src = optimizedSrc;
+        }
+      } catch (error) {
+        console.warn('No se pudo optimizar una imagen antes de guardar:', error);
+      }
+    });
+
+    return Promise.all(tasks);
+  }
+
   function setupImageUpload(element) {
     const placeholder = element.querySelector('.image-placeholder');
     if (!placeholder) return;
@@ -1330,16 +1403,35 @@
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (event) => {
+          const rawDataUrl = event?.target?.result;
+          if (typeof rawDataUrl !== 'string') {
+            alert('El archivo seleccionado no se pudo leer correctamente.');
+            return;
+          }
+
+          const optimizedSrc = await optimizeImageDataUrl(rawDataUrl);
+          if (optimizedSrc !== rawDataUrl) {
+            console.log(`Imagen reducida antes de insertar (${Math.round(rawDataUrl.length / 1024)} KB → ${Math.round(optimizedSrc.length / 1024)} KB)`);
+          }
+
           const imgContainer = document.createElement('div');
           imgContainer.className = 'image-container';
           // Tight box around the image with no padding/margins; size follows the image exactly
           imgContainer.style.cssText = 'position: relative; display: inline-block; padding:0; margin:0; line-height:0;';
           
           const img = document.createElement('img');
-          img.src = e.target.result;
+          img.src = optimizedSrc;
           img.style.cssText = 'width:150px; height:auto; display:block; user-select:none; margin:0; padding:0;';
           img.draggable = false;
+          img.onload = () => {
+            try {
+              imgContainer.style.width = img.naturalWidth + 'px';
+              imgContainer.style.height = img.naturalHeight + 'px';
+            } catch (_) {
+              // Ignore sizing issues
+            }
+          };
           
           imgContainer.appendChild(img);
           
@@ -3926,6 +4018,7 @@
 
     // Consider non-empty if any .tpl-element exists
     const hasElements = !!canvas.querySelector('.tpl-element');
+    await optimizeCanvasImages(canvas);
     const content = canvas.innerHTML;
     if ((!content || content.includes('Haz clic en los botones')) && !hasElements) {
       alert('Por favor crea contenido antes de guardar');
@@ -3994,6 +4087,7 @@
     const canvas = qs('#ce-canvas');
     if (!canvas) return;
 
+    await optimizeCanvasImages(canvas);
     const content = canvas.innerHTML;
     if (!content || content.includes('Haz clic en los botones')) {
       alert('Por favor crea contenido antes de guardar');
@@ -4239,6 +4333,7 @@
     const canvas = qs('#ce-canvas');
     if (!canvas) return;
 
+    await optimizeCanvasImages(canvas);
     const content = canvas.innerHTML;
     if (!content || content.includes('Haz clic en los botones')) {
       alert('Por favor crea contenido antes de hacer vista previa');
@@ -4641,8 +4736,10 @@
       return;
     }
 
-    const content = canvas.innerHTML;
+    let content = canvas.innerHTML;
     const hasElements = !!canvas.querySelector('.tpl-element');
+    await optimizeCanvasImages(canvas);
+    content = canvas.innerHTML;
     console.log('📄 Contenido del canvas:', content.substring(0, 100) + '...');
     
     if ((!content || content.includes('Haz clic en los botones') || content.includes('Tu plantilla está vacía')) && !hasElements) {
@@ -4748,10 +4845,11 @@
     const canvas = qs('#ce-canvas');
     if (!canvas) return;
 
-    const content = canvas.innerHTML;
     const sessionInfo = window.currentTemplateSession || null;
     const templateCss = (sessionInfo && sessionInfo.contentCss) || '';
     const hasElements = !!canvas.querySelector('.tpl-element');
+    await optimizeCanvasImages(canvas);
+    const content = canvas.innerHTML;
     if ((!content || content.includes('Haz clic en los botones') || content.includes('Tu plantilla está vacía')) && !hasElements) {
       alert('❌ No hay contenido para previsualizar.\n\nPor favor agrega elementos a la plantilla antes de ver la vista previa.');
       return;
