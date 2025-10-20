@@ -1,33 +1,15 @@
 #!/usr/bin/env node
 import 'dotenv/config';
+import fs from 'fs';
+import path from 'path';
 import mongoose from 'mongoose';
 import Template from '../src/models/Template.js';
+import Company from '../src/models/Company.js';
 
-/*
- Seed de plantillas de producción para: invoice, workOrder, quote.
- - Usa helpers existentes: {{money ...}}, {{date ...}}, {{pad ...}}, {{uppercase ...}}
- - Contexto esperado:
-   - company: { name, address, phone, email, logoUrl }
-   - sale: { number, customer{...}, vehicle{...}, items[], subtotal, tax, total, closedAt, createdAt, notes, technician }
-   - quote: { number, customer{...}, vehicle{...}, items[], total, createdAt }
+// Util: timestamp string
+const ts = () => new Date().toISOString().replace(/[:.]/g,'-');
 
- Uso:
-   node scripts/seed_templates_production.js --company <companyId>
-   Opcionales: --activate (activa como formato por defecto)  --nameSuffix "Prod"
-*/
-
-function args() {
-  const out = {}; const a = process.argv.slice(2);
-  for (let i=0;i<a.length;i++) { const t=a[i]; if(!t.startsWith('--')) continue; const k=t.slice(2); const n=a[i+1]; if(n && !n.startsWith('--')){ out[k]=n; i++; } else out[k]=true; }
-  return out;
-}
-
-const argv = args();
-const companyId = argv.company || argv.c;
-if (!companyId) { console.error('Falta --company <companyId>'); process.exit(1); }
-const activate = !!argv.activate;
-const nameSuffix = argv.nameSuffix ? String(argv.nameSuffix) : 'Producción';
-
+// Base CSS y HTML (mismos que seed_templates_production.js)
 const baseCss = `
   :root { --primary:#1E3A8A; --text:#222; --muted:#666; --border:#ddd; }
   body { font-family: Arial, Helvetica, sans-serif; color:var(--text); }
@@ -241,24 +223,137 @@ const quoteHtml = `
   </div>
 `;
 
-async function upsertTemplate(companyId, type, name, contentHtml, contentCss, activate=false){
+function isInvoiceValid(t){
+  const h = (t?.contentHtml||'').toLowerCase();
+  return h.includes('{{sale.customer.name') && h.includes('{{#each sale.items') && h.includes('{{money sale.total');
+}
+function isWorkOrderValid(t){
+  const h = (t?.contentHtml||'').toLowerCase();
+  return h.includes('{{sale.vehicle.plate') && (h.includes('{{sale.technician') || h.includes('técnico'));
+}
+function isQuoteValid(t){
+  const h = (t?.contentHtml||'').toLowerCase();
+  return h.includes('{{quote.customer.name') && h.includes('{{#each quote.items') && h.includes('{{money quote.total');
+}
+
+function decideObsolete(t){
+  if (!t?.contentHtml || String(t.contentHtml).trim()==='') return true;
+  const h = t.contentHtml;
+  // Marcadamente obsoleto: placeholders incorrectos típicos
+  const badTokens = ['{{sale.customername}}','{{date sale.date}}'];
+  if (badTokens.some(b=> h.includes(b))) return true;
+  return false;
+}
+
+async function upsert(companyId, type, name, html, css, activate){
+  if (activate) await Template.updateMany({ companyId, type, active: true }, { $set: { active: false } });
   const last = await Template.findOne({ companyId, type }).sort({ version: -1 });
   const version = last ? last.version + 1 : 1;
-  if (activate) await Template.updateMany({ companyId, type, active: true }, { $set: { active: false } });
-  const doc = await Template.create({ companyId, type, name, contentHtml, contentCss, version, active: !!activate });
+  const doc = await Template.create({ companyId, type, name, contentHtml: html, contentCss: css, version, active: !!activate });
   return doc;
+}
+
+async function setActiveTemplate(companyId, type, id){
+  await Template.updateMany({ companyId, type, active: true }, { $set: { active: false } });
+  await Template.updateOne({ _id: id, companyId, type }, { $set: { active: true } });
 }
 
 async function run(){
   const uri = process.env.MONGODB_URI || process.env.MONGO;
   if(!uri){ console.error('MONGODB_URI no configurado'); process.exit(1); }
+  const args = process.argv.slice(2);
+  const APPLY = args.includes('--apply');
+  const PURGE = args.includes('--purge');
+  const UPGRADE = args.includes('--upgrade');
+  const backupDir = path.join(process.cwd(), 'Backend', 'tmp');
+  try { fs.mkdirSync(backupDir, { recursive: true }); } catch {}
+  const backupPath = path.join(backupDir, `templates_backup_${ts()}.json`);
+
   await mongoose.connect(uri, { dbName: process.env.MONGODB_DB || 'taller' });
-  const opts = { activate };
-  const inv = await upsertTemplate(companyId, 'invoice', `Factura ${nameSuffix}`, invoiceHtml, baseCss, opts.activate);
-  const wo  = await upsertTemplate(companyId, 'workOrder', `Orden de Trabajo ${nameSuffix}`, workOrderHtml, baseCss, opts.activate);
-  const qt  = await upsertTemplate(companyId, 'quote', `Cotización ${nameSuffix}`, quoteHtml, baseCss, opts.activate);
-  console.log('Plantillas creadas:', { invoice: inv._id, workOrder: wo._id, quote: qt._id });
+  const companies = await Company.find({});
+  const report = [];
+
+  for (const c of companies){
+    const cid = String(c._id);
+    const templates = await Template.find({ companyId: cid });
+    const byType = (t)=> templates.filter(x=>x.type===t);
+    const inv = byType('invoice');
+    const wo  = byType('workOrder');
+    const qt  = byType('quote');
+
+    const actions = { company: { id: cid, name: c.name||c.email||'' }, created: [], preservedActive: [], activatedNow: [], purged: [] };
+    // Política: NO tocar formatos custom existentes; crear por defecto si faltan y activar solo si no hay activo para el tipo.
+    // Invoice
+    if (inv.length === 0){
+      if (APPLY){ const d = await upsert(cid,'invoice','Factura Producción', invoiceHtml, baseCss, true); actions.created.push({type:'invoice', id: d._id}); }
+      else actions.created.push({type:'invoice', preview:true});
+    } else {
+      const act = inv.find(t=>t.active) || null;
+      if (act && UPGRADE && /producci[óo]n/i.test(String(act.name||''))){
+        if (APPLY){ const d = await upsert(cid,'invoice','Factura Producción', invoiceHtml, baseCss, true); actions.activatedNow.push({ type:'invoice', id:String(d._id), upgradedFrom:String(act._id) }); }
+        else actions.activatedNow.push({ type:'invoice', preview:true, upgradedFrom:String(act._id) });
+      } else if (act) actions.preservedActive.push({ type:'invoice', id: String(act._id) });
+      else {
+        // No hay activo: activar Producción si existe; si no, crear y activar Producción
+        const prod = inv.find(t=> /producci[óo]n/i.test(t.name||'')) || inv.find(isInvoiceValid);
+        if (APPLY){
+          if (prod) { await setActiveTemplate(cid,'invoice', prod._id); actions.activatedNow.push({ type:'invoice', id:String(prod._id) }); }
+          else { const d = await upsert(cid,'invoice','Factura Producción', invoiceHtml, baseCss, true); actions.created.push({type:'invoice', id:d._id}); actions.activatedNow.push({ type:'invoice', id:String(d._id) }); }
+        } else actions.activatedNow.push({ type:'invoice', preview:true });
+      }
+    }
+    // WorkOrder
+    if (wo.length === 0){
+      if (APPLY){ const d=await upsert(cid,'workOrder','Orden de Trabajo Producción', workOrderHtml, baseCss, true); actions.created.push({type:'workOrder', id:d._id}); }
+      else actions.created.push({type:'workOrder', preview:true});
+    } else {
+      const act = wo.find(t=>t.active) || null;
+      if (act && UPGRADE && /producci[óo]n/i.test(String(act.name||''))){
+        if (APPLY){ const d=await upsert(cid,'workOrder','Orden de Trabajo Producción', workOrderHtml, baseCss, true); actions.activatedNow.push({ type:'workOrder', id:String(d._id), upgradedFrom:String(act._id) }); }
+        else actions.activatedNow.push({ type:'workOrder', preview:true, upgradedFrom:String(act._id) });
+      } else if (act) actions.preservedActive.push({ type:'workOrder', id: String(act._id) });
+      else {
+        const prod = wo.find(t=> /producci[óo]n/i.test(t.name||'')) || wo.find(isWorkOrderValid);
+        if (APPLY){
+          if (prod) { await setActiveTemplate(cid,'workOrder', prod._id); actions.activatedNow.push({ type:'workOrder', id:String(prod._id) }); }
+          else { const d=await upsert(cid,'workOrder','Orden de Trabajo Producción', workOrderHtml, baseCss, true); actions.created.push({type:'workOrder', id:d._id}); actions.activatedNow.push({ type:'workOrder', id:String(d._id) }); }
+        } else actions.activatedNow.push({ type:'workOrder', preview:true });
+      }
+    }
+    // Quote
+    if (qt.length === 0){
+      if (APPLY){ const d=await upsert(cid,'quote','Cotización Producción', quoteHtml, baseCss, true); actions.created.push({type:'quote', id:d._id}); }
+      else actions.created.push({type:'quote', preview:true});
+    } else {
+      const act = qt.find(t=>t.active) || null;
+      if (act && UPGRADE && /producci[óo]n/i.test(String(act.name||''))){
+        if (APPLY){ const d=await upsert(cid,'quote','Cotización Producción', quoteHtml, baseCss, true); actions.activatedNow.push({ type:'quote', id:String(d._id), upgradedFrom:String(act._id) }); }
+        else actions.activatedNow.push({ type:'quote', preview:true, upgradedFrom:String(act._id) });
+      } else if (act) actions.preservedActive.push({ type:'quote', id: String(act._id) });
+      else {
+        const prod = qt.find(t=> /producci[óo]n/i.test(t.name||'')) || qt.find(isQuoteValid);
+        if (APPLY){
+          if (prod) { await setActiveTemplate(cid,'quote', prod._id); actions.activatedNow.push({ type:'quote', id:String(prod._id) }); }
+          else { const d=await upsert(cid,'quote','Cotización Producción', quoteHtml, baseCss, true); actions.created.push({type:'quote', id:d._id}); actions.activatedNow.push({ type:'quote', id:String(d._id) }); }
+        } else actions.activatedNow.push({ type:'quote', preview:true });
+      }
+    }
+
+    if (PURGE){
+      const doomed = templates.filter(t=> decideObsolete(t) && !t.active);
+      if (doomed.length){
+        // backup
+        try { fs.appendFileSync(backupPath, JSON.stringify({ companyId: cid, remove: doomed.map(d=>d.toObject()) })+"\n"); } catch {}
+        if (APPLY){ await Template.deleteMany({ _id: { $in: doomed.map(d=>d._id) }, companyId: cid }); actions.purged = doomed.map(d=>({type:d.type, id:d._id})); }
+        else actions.purged = doomed.map(d=>({type:d.type, id:String(d._id), preview:true}));
+      }
+    }
+
+    report.push(actions);
+  }
+
   await mongoose.disconnect();
+  console.log(JSON.stringify({ apply: APPLY, purge: PURGE, backupPath, companies: report }, null, 2));
 }
 
-run().catch(e=>{ console.error('seed_templates_production error', e); process.exit(1); });
+run().catch(e=>{ console.error('normalize_templates_all_companies error', e); process.exit(1); });

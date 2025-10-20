@@ -1391,21 +1391,30 @@ function openSalesHistory(){
   openModal(node);
   const from=$('#sh-from',node), to=$('#sh-to',node), plate=$('#sh-plate',node);
   const body=$('#sh-body',node), total=$('#sh-total',node);
-  // Set default date range to today to avoid heavy queries
+  // Set default date range to today ONLY when no plate filter is used
   try {
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth()+1).padStart(2,'0');
-    const dd = String(d.getDate()).padStart(2,'0');
-    const today = `${yyyy}-${mm}-${dd}`;
-    from.value = from.value || today;
-    to.value = to.value || today;
+    const setToday = !plate.value; // if plate is empty
+    if (setToday){
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth()+1).padStart(2,'0');
+      const dd = String(d.getDate()).padStart(2,'0');
+      const today = `${yyyy}-${mm}-${dd}`;
+      from.value = from.value || today;
+      to.value = to.value || today;
+    }
   } catch {}
   async function load(){
     const params = { status:'closed' };
-    if(from.value) params.from=from.value;
-    if(to.value)   params.to=to.value;
-    if(plate.value) params.plate = plate.value.trim();
+    const hasPlate = !!plate.value.trim();
+    if (hasPlate){
+      params.plate = plate.value.trim();
+      // When searching by plate, fetch a larger page and ignore default date to show full history
+      params.limit = 500;
+    } else {
+      if(from.value) params.from=from.value;
+      if(to.value)   params.to=to.value;
+    }
     const res = await API.sales.list(params);
     body.innerHTML=''; let acc=0;
     (res?.items||[]).forEach(s=>{

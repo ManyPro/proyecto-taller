@@ -14,6 +14,7 @@
     "import:legacy:orders": "node scripts/import_orders_from_legacy.js",
     "check:profiles:dupes": "node scripts/check_profile_dupes.js",
     "seed:templates": "node scripts/seed_templates_production.js",
+    "templates:normalize": "node scripts/normalize_templates_all_companies.js",
   "migrate:skus": "node scripts/migrate_skus_companyId.js",
   "seed:admin": "node scripts/seed_admin.js"
   },

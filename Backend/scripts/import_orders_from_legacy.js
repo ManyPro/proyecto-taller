@@ -200,8 +200,8 @@ async function main() {
 
     if (dryRun) { counters.imported++; if (progressEvery && counters.total % progressEvery === 0) logProgress(); continue; }
 
-    // Idempotencia: buscar por marcador en notas
-    const existing = await Sale.findOne({ companyId, notes: { $regex: new RegExp(`\\b${legacyOrId}\\b`) }, 'vehicle.plate': plate });
+    // Idempotencia: buscar por marcador en notas (solo por or_id, SIN condicionar la placa para permitir múltiples visitas de la misma placa)
+    const existing = await Sale.findOne({ companyId, notes: { $regex: new RegExp(`\\b${legacyOrId}\\b`) } });
     if (existing) {
       counters.duplicates++;
       // opcional: actualizar campos faltantes
