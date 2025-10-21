@@ -480,6 +480,8 @@ if (__ON_INV_PAGE__) {
   const itBrand = document.getElementById("it-brand"); if (itBrand) upper(itBrand);
   const itVehicleTarget = document.getElementById("it-vehicleTarget"); upper(itVehicleTarget);
   // Controles de Ingreso
+  const viCardForm = document.getElementById('vi-card-form');
+  const viKindRow = document.getElementById('vi-kind-row');
   const viKindVehicle = document.getElementById('vi-kind-vehicle');
   const viKindPurchase = document.getElementById('vi-kind-purchase');
   const viFormVehicle = document.getElementById('vi-form-vehicle');
@@ -495,9 +497,25 @@ if (__ON_INV_PAGE__) {
   const viSave = document.getElementById('vi-save');
   const viList = document.getElementById('vi-list');
   function updateIntakeKindUI(){
-    const isPurchase = !!viKindPurchase?.checked;
-    if (viFormVehicle) viFormVehicle.classList.toggle('hidden', isPurchase);
-    if (viFormPurchase) viFormPurchase.classList.toggle('hidden', !isPurchase);
+    const perms = state.permissions || {};
+    const canVeh = perms.allowVehicle !== false;
+    const canPurch = perms.allowPurchase !== false;
+    if (viKindRow) viKindRow.style.display = (canVeh || canPurch) ? '' : 'none';
+    if (viCardForm) viCardForm.style.display = (canVeh || canPurch) ? '' : 'none';
+    if (viSave) viSave.disabled = !(canVeh || canPurch);
+
+    if (!canVeh && !canPurch) {
+      if (viFormVehicle) viFormVehicle.classList.add('hidden');
+      if (viFormPurchase) viFormPurchase.classList.add('hidden');
+      return;
+    }
+
+    if (!canVeh && viKindVehicle) viKindVehicle.checked = false;
+    if (!canPurch && viKindPurchase) viKindPurchase.checked = false;
+    if (!canVeh && canPurch && viKindPurchase) viKindPurchase.checked = true;
+    const usePurchase = (!canVeh && canPurch) || (!!viKindPurchase?.checked && canPurch);
+    if (viFormVehicle) viFormVehicle.classList.toggle('hidden', usePurchase);
+    if (viFormPurchase) viFormPurchase.classList.toggle('hidden', !usePurchase);
   }
   viKindVehicle?.addEventListener('change', updateIntakeKindUI);
   viKindPurchase?.addEventListener('change', updateIntakeKindUI);
@@ -751,6 +769,7 @@ if (__ON_INV_PAGE__) {
       const label = input.closest('label') || input.parentElement;
       if (label) label.style.display = enabled ? '' : 'none';
       input.disabled = !enabled;
+      if (!enabled) input.checked = false;
     };
     wrapRadio('vi-kind-vehicle', allowVeh);
     wrapRadio('vi-kind-purchase', allowPurch);
@@ -775,6 +794,7 @@ if (__ON_INV_PAGE__) {
       allowUnpublishZero,
       allowCatalogFields
     };
+    updateIntakeKindUI();
     if (!allowVeh && allowPurch && viKindPurchase) {
       viKindPurchase.checked = true;
       updateIntakeKindUI();
@@ -785,6 +805,16 @@ if (__ON_INV_PAGE__) {
     // Buttons and selectionBar entries
     gateElement(allowPublishOps, '#pub-bulk-global');
     gateElement(allowUnpublishZero, '#btn-unpublish-zero');
+    const pubBulkBtn = document.getElementById('pub-bulk-global');
+    if (pubBulkBtn) {
+      pubBulkBtn.disabled = !allowPublishOps;
+      pubBulkBtn.title = allowPublishOps ? 'Publicación catálogo' : 'Función deshabilitada';
+    }
+    const unpublishBtn = document.getElementById('btn-unpublish-zero');
+    if (unpublishBtn) {
+      unpublishBtn.disabled = !allowUnpublishZero;
+      unpublishBtn.title = allowUnpublishZero ? 'Despublicar agotados' : 'Función deshabilitada';
+    }
     // Selection bar ids are created dynamically; hide container if all actions off
     if (!allowPublishOps) {
       // hide selection bar publish button once rendered
@@ -1619,10 +1649,14 @@ if (__ON_INV_PAGE__) {
     }catch(e){ alert(e?.message||'No se pudo crear el ZIP'); }
   }
 
-  function openMarketplaceHelper(item){
-    const media = Array.isArray(item.images) ? item.images : [];
-    const titleDefault = buildMarketplaceTitle(item);
-    const descDefault  = buildMarketplaceDescription(item);
+function openMarketplaceHelper(item){
+  if (state.permissions?.allowMarketplace === false) {
+    alert('Marketplace deshabilitado para esta empresa.');
+    return;
+  }
+  const media = Array.isArray(item.images) ? item.images : [];
+  const titleDefault = buildMarketplaceTitle(item);
+  const descDefault  = buildMarketplaceDescription(item);
     const priceValue = Number(item.salePrice||0);
     const thumbs = media.map((m,i)=>`<div style="display:flex;align-items:center;gap:8px;margin:6px 0;">
         ${(m.mimetype||'').startsWith('video/') ? `<video src="${m.url}" style="max-width:160px;max-height:120px;object-fit:contain;" muted></video>` : `<img src="${m.url}" style="max-width:160px;max-height:120px;object-fit:contain;"/>`}
