@@ -21,6 +21,7 @@ const CompanySchema = new mongoose.Schema(
         inventario: true,
         precios: true,
         cashflow: true,
+        tecnicos: true,
         templates: true,
         skus: true,
         techreport: true
@@ -77,4 +78,3 @@ const CompanySchema = new mongoose.Schema(
 );
 
 export default mongoose.model('Company', CompanySchema);
-

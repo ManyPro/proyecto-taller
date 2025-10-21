@@ -1,5 +1,5 @@
-Ôªø/* assets/js/app.js
-   Orquestador de la UI: login, tabs y boot de m√≥dulos (notas, inventario, cotizaciones, precios, ventas)
+/* assets/js/app.js
+   Orquestador de la UI: login, tabs y boot de mÛdulos (notas, inventario, cotizaciones, precios, ventas)
 */
 
 import { initNotes } from "./notes.js";
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   }catch{}
 });
 
-// Navegaci√≥n y boot por p√°gina
+// NavegaciÛn y boot por p·gina
 const sectionLogin = document.getElementById('loginSection');
 const sectionApp = document.getElementById('appSection');
 const appHeader = document.getElementById('appHeader');
@@ -87,7 +87,8 @@ const FEATURE_CATALOG = [
   { key: 'inventario', label: 'Inventario' },
   { key: 'precios', label: 'Lista de precios' },
   { key: 'cashflow', label: 'Flujo de Caja' },
-  { key: 'techreport', label: 'Reporte t√©cnico' },
+  { key: 'techreport', label: 'Reporte tecnico' },
+  { key: 'tecnicos', label: 'Tecnicos' },
   { key: 'templates', label: 'Formatos / Plantillas' },
   { key: 'skus', label: 'SKUs' }
 ];
@@ -176,22 +177,22 @@ function enterApp() {
   applyFeatureGating();
   setupNavigation();
   bootCurrentPage();
-  // Siempre permanecer en Inicio tras login; el usuario elige a d√≥nde ir.
+  // Siempre permanecer en Inicio tras login; el usuario elige a dÛnde ir.
   syncFeaturesFromServer(true);
   maybeRenderFeaturesPanel();
 }
 
-// ================= FAB (Bot√≥n flotante m√≥viles) =================
+// ================= FAB (BotÛn flotante mÛviles) =================
 function initFAB(){
   const existing = document.getElementById('app-fab');
   if(existing) return;
   const fab = document.createElement('div');
   fab.id='app-fab';
-  fab.innerHTML = `<button id="fab-main" title="Acciones r√°pidas">+</button>
+  fab.innerHTML = `<button id="fab-main" title="Acciones r·pidas">+</button>
     <div id="fab-menu" class="hidden">
       <button data-act="venta">Nueva Venta</button>
       <button data-act="nota">Nueva Nota</button>
-      <button data-act="cotizacion">Nueva Cotizaci√≥n</button>
+      <button data-act="cotizacion">Nueva CotizaciÛn</button>
     </div>`;
   document.body.appendChild(fab);
   const mainBtn = fab.querySelector('#fab-main');
@@ -303,7 +304,7 @@ function refreshActiveTab(tab){
   }
 }
 
-// ================= Secciones Colapsables en m√≥vil =================
+// ================= Secciones Colapsables en mÛvil =================
 function initCollapsibles(){
   const rules = [
     { sel:'#q-history-card h3', body:'#q-history-list' },
@@ -312,7 +313,7 @@ function initCollapsibles(){
   rules.forEach(r=>{
     const h = document.querySelector(r.sel); const body = document.querySelector(r.body);
     if(!h || !body) return;
-    if(window.innerWidth>800) return; // solo m√≥vil/tablet
+    if(window.innerWidth>800) return; // solo mÛvil/tablet
     h.style.cursor='pointer';
     const stateKey='col:'+r.body;
     const collapsed = sessionStorage.getItem(stateKey)==='1';
@@ -361,9 +362,9 @@ const loginBtn = document.getElementById('loginBtn');
 const registerBtn = document.getElementById('registerBtn');
 const storedEmail = API.getActiveCompany?.();
 const storedToken = storedEmail ? API.token.get(storedEmail) : API.token.get();
-// Guard: si no hay sesi√≥n y no estamos en Inicio, redirigir a Inicio para login
+// Guard: si no hay sesiÛn y no estamos en Inicio, redirigir a Inicio para login
 if (!storedEmail || !storedToken) {
-  // Mostrar el portal de acceso en Inicio cuando no hay sesi√≥n
+  // Mostrar el portal de acceso en Inicio cuando no hay sesiÛn
   if (getCurrentPage() === 'home') {
     portalSection?.classList.remove('hidden');
   }
@@ -384,7 +385,7 @@ async function doLogin(isRegister = false) {
   const email = (document.getElementById('email').value || '').trim().toLowerCase();
   const password = (document.getElementById('password').value || '').trim();
   if (!email || !password) {
-    alert('Ingresa correo y contrase√±a');
+    alert('Ingresa correo y contraseÒa');
     return;
   }
   try {
@@ -401,7 +402,7 @@ async function doLogin(isRegister = false) {
     enterApp();
     applyFeatureGating();
     // Tras login exitoso, siempre ir a Inicio
-    // pero si hab√≠a una p√°gina pendiente, ir all√≠
+    // pero si habÌa una p·gina pendiente, ir allÌ
     let pending = null; try{ pending = sessionStorage.getItem('app:pending'); sessionStorage.removeItem('app:pending'); }catch{}
     if (pending) window.location.href = pending; else if (getCurrentPage() !== 'home') showTab('home');
   } catch (e) {
@@ -433,7 +434,7 @@ logoutBtn?.addEventListener('click', async () => {
   window.location.reload();
 });
 
-// Reanudar sesi√≥n si hay token+empresa activos
+// Reanudar sesiÛn si hay token+empresa activos
 (async () => {
   try {
     const me = await API.me(); // requiere token
@@ -458,7 +459,7 @@ logoutBtn?.addEventListener('click', async () => {
 
 // === Notificaciones (campana) ===
 (function(){
-  // Header de autorizaci√≥n local para este m√≥dulo
+  // Header de autorizaciÛn local para este mÛdulo
   const authHeader = () => {
     try{
       const t = API?.token?.get?.();
@@ -525,21 +526,21 @@ logoutBtn?.addEventListener('click', async () => {
           return { icon:'!!', title:'Stock bajo', body: baseText + action, meta: ago };
         }
         case /^sale\.created$/.test(t):
-          return { icon:'??', title:'Nueva venta creada', body:`Se registr√≥ un nuevo pedido${d?.origin==='catalog'?' desde el cat√°logo p√∫blico':''}.`, meta: ago };
+          return { icon:'??', title:'Nueva venta creada', body:`Se registrÛ un nuevo pedido${d?.origin==='catalog'?' desde el cat·logo p˙blico':''}.`, meta: ago };
         case /^workOrder\.created$/.test(t):
-          return { icon:'??', title:'Nueva orden de trabajo', body:'Se gener√≥ una orden para instalaci√≥n/servicio.', meta: ago };
+          return { icon:'??', title:'Nueva orden de trabajo', body:'Se generÛ una orden para instalaciÛn/servicio.', meta: ago };
         case /^item\.published$/.test(t):
-          return { icon:'??', title:'Art√≠culo publicado', body:`SKU ${d?.sku ? `(${d.sku}) ` : ''}ahora es p√∫blico.`, meta: ago };
+          return { icon:'??', title:'ArtÌculo publicado', body:`SKU ${d?.sku ? `(${d.sku}) ` : ''}ahora es p˙blico.`, meta: ago };
         case /^items\.published\.bulk$/.test(t):
-          return { icon:'??', title:'Publicaci√≥n masiva completada', body:`Se publicaron ${d?.modified ?? d?.count ?? d?.matched ?? ''} art√≠culos.`, meta: ago };
+          return { icon:'??', title:'PublicaciÛn masiva completada', body:`Se publicaron ${d?.modified ?? d?.count ?? d?.matched ?? ''} artÌculos.`, meta: ago };
         case /^items\.unpublished\.bulk$/.test(t):
-          return { icon:'??', title:'Despublicaci√≥n masiva completada', body:`Se despublicaron ${d?.modified ?? d?.count ?? d?.matched ?? ''} art√≠culos.`, meta: ago };
+          return { icon:'??', title:'DespublicaciÛn masiva completada', body:`Se despublicaron ${d?.modified ?? d?.count ?? d?.matched ?? ''} artÌculos.`, meta: ago };
         case /^price\./.test(t):
-          return { icon:'??', title:'Actualizaci√≥n de precios', body:'Se actualizaron precios en la lista.', meta: ago };
+          return { icon:'??', title:'ActualizaciÛn de precios', body:'Se actualizaron precios en la lista.', meta: ago };
         case /^inventory\./.test(t):
-          return { icon:'??', title:'Movimiento de inventario', body:'Se registr√≥ un movimiento en inventario.', meta: ago };
+          return { icon:'??', title:'Movimiento de inventario', body:'Se registrÛ un movimiento en inventario.', meta: ago };
         default:
-          return { icon:'??', title: t.replace(/\./g,' ¬∑ '), body: Object.keys(d||{}).length? JSON.stringify(d):'Sin detalles', meta: ago };
+          return { icon:'??', title: t.replace(/\./g,' ∑ '), body: Object.keys(d||{}).length? JSON.stringify(d):'Sin detalles', meta: ago };
       }
     };
 
@@ -555,7 +556,7 @@ logoutBtn?.addEventListener('click', async () => {
           <div style='opacity:.9;margin:4px 0;'>${info.body}</div>
           <div style='display:flex;justify-content:space-between;align-items:center;margin-top:6px;'>
             <span style='font-size:11px;opacity:.6;'>${info.meta}</span>
-            <button data-read='${n._id}' style='font-size:11px;' class='secondary'>Marcar le√≠do</button>
+            <button data-read='${n._id}' style='font-size:11px;' class='secondary'>Marcar leÌdo</button>
           </div>
         </div>`;
       div.querySelector('[data-read]').onclick = () => markRead(n._id, div);
@@ -600,7 +601,7 @@ function applyFeatureGating(){
     if(!feature) return;
     const enabled = isFeatureEnabled(feature);
     btn.style.display = enabled ? '' : 'none';
-    // Si la pesta√±a actual est√° deshabilitada, redirigir a Inicio
+    // Si la pestaÒa actual est· deshabilitada, redirigir a Inicio
     if(!enabled && btn.dataset.tab === getCurrentPage()){
       showTab('home');
     }
@@ -669,7 +670,7 @@ async function maybeRenderFeaturesPanel(){
 
   async function save(){
     try{
-      // enviar solo cambios respecto a true por defecto si queremos ahorrar payload; m√°s simple: enviar objeto completo
+      // enviar solo cambios respecto a true por defecto si queremos ahorrar payload; m·s simple: enviar objeto completo
       const feats = {};
       featureList().forEach(({ key })=>{ feats[key] = (current?.[key] !== false); });
       const saved = await API.company.setFeatures(feats);
@@ -688,6 +689,9 @@ async function maybeRenderFeaturesPanel(){
   btnSave?.addEventListener('click', save);
   btnRefresh?.addEventListener('click', refresh);
 }
+
+
+
 
 
 
