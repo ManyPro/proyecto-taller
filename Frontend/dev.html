@@ -602,11 +602,20 @@
           payload[key] = !!el?.checked;
         });
         const saved = await req(`/api/v1/admin/company/companies/${id}/features`, { method:'PATCH', body: payload });
+        if(saved?._id){
+          const fresh = await req(`/api/v1/admin/company/companies`);
+          companiesData = fresh.items || [];
+          renderCompaniesList();
+          alert('Módulos guardados');
+          return;
+        }
         if(saved?.features){
           company.features = saved.features;
           const idx = companiesData.findIndex(c=> String(c._id||c.id||'') === id);
           if(idx >= 0) companiesData[idx].features = saved.features;
           renderCompaniesList();
+          alert('Módulos guardados');
+          return;
         }
         refreshModulesBadge();
         alert('Módulos guardados');
@@ -619,11 +628,20 @@
         Object.keys(blocks.inventario).forEach(k=>{ payload.inventario[k] = !!div.querySelector(`#fo-${id}-inventario-${k}`)?.checked; });
         Object.keys(blocks.templates).forEach(k=>{ payload.templates[k] = !!div.querySelector(`#fo-${id}-templates-${k}`)?.checked; });
         const saved = await req(`/api/v1/admin/company/companies/${id}/feature-options`, { method:'PATCH', body: payload });
+        if(saved?._id){
+          const fresh = await req(`/api/v1/admin/company/companies`);
+          companiesData = fresh.items || [];
+          renderCompaniesList();
+          alert('Opciones guardadas');
+          return;
+        }
         if(saved?.featureOptions){
           company.featureOptions = saved.featureOptions;
           const idx = companiesData.findIndex(c=> String(c._id||c.id||'') === id);
           if(idx >= 0) companiesData[idx].featureOptions = saved.featureOptions;
           renderCompaniesList();
+          alert('Opciones guardadas');
+          return;
         }
         alert('Opciones guardadas');
       }catch(e){ alert(e.message||'Error'); }
@@ -632,11 +650,20 @@
       try{
         const payload = { cashflow: { hideBalances: !!div.querySelector(`#${hideId}`)?.checked } };
         const saved = await req(`/api/v1/admin/company/companies/${id}/restrictions`, { method:'PATCH', body: payload });
+        if(saved?._id){
+          const fresh = await req(`/api/v1/admin/company/companies`);
+          companiesData = fresh.items || [];
+          renderCompaniesList();
+          alert('Restricciones guardadas');
+          return;
+        }
         if(saved?.restrictions){
           company.restrictions = saved.restrictions;
           const idx = companiesData.findIndex(c=> String(c._id||c.id||'') === id);
           if(idx >= 0) companiesData[idx].restrictions = saved.restrictions;
           renderCompaniesList();
+          alert('Restricciones guardadas');
+          return;
         }
         alert('Restricciones guardadas');
       }catch(e){ alert(e.message||'Error'); }
