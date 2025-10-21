@@ -579,7 +579,14 @@
       Object.entries(opts).forEach(([key,label])=>{
         const cid = `fo-${id}-${mod}-${key}`;
         const enabled = (fopts?.[mod]?.[key] !== false);
-        row.insertAdjacentHTML('beforeend', `<label class='chip'><input type='checkbox' id='${cid}' ${enabled?'checked':''}/> ${label}</label>`);
+        const toggle = document.createElement('label');
+        toggle.className = 'toggle';
+        toggle.innerHTML = `
+          <span class="toggle-text">${label}</span>
+          <input type="checkbox" id="${cid}" ${enabled ? 'checked' : ''}/>
+          <span class="toggle-slider" aria-hidden="true"></span>
+        `;
+        row.appendChild(toggle);
       });
       fowrap.appendChild(box);
     });

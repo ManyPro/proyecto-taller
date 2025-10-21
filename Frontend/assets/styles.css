@@ -135,6 +135,28 @@ body.theme-light .toggle input:checked + .toggle-slider{
   cursor:not-allowed;
 }
 
+.dev-options-grid{
+  display:grid;
+  gap:12px;
+  margin-top:10px;
+}
+.dev-options-grid .card{
+  background:rgba(15,23,42,0.6);
+  border:1px solid rgba(148,163,184,0.2);
+  border-radius:16px;
+  padding:16px 18px;
+}
+.dev-options-grid .card > b{
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  font-size:.9rem;
+  color:var(--muted,rgba(226,232,240,0.7));
+}
+.dev-options-grid .toggle{
+  width:100%;
+  margin-top:10px;
+}
+
 /* Tema claro: se aplica añadiendo body.theme-light */
 body.theme-light{
   --bg:#f5f7fb;
