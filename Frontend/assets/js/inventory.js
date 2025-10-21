@@ -12,6 +12,7 @@ const state = {
   selected: new Set(),
   itemCache: new Map(),
   paging: { page: 1, limit: 10, pages: 1, total: 0 },
+  permissions: {}
 };
 
 // ---- Helpers ----
@@ -744,6 +745,15 @@ if (__ON_INV_PAGE__) {
     // Ingresos: vehículo y compra
     const allowVeh = inv.ingresoVehiculo !== false; // default true
     const allowPurch = inv.ingresoCompra !== false; // default true
+    const wrapRadio = (id, enabled) => {
+      const input = document.getElementById(id);
+      if (!input) return;
+      const label = input.closest('label') || input.parentElement;
+      if (label) label.style.display = enabled ? '' : 'none';
+      input.disabled = !enabled;
+    };
+    wrapRadio('vi-kind-vehicle', allowVeh);
+    wrapRadio('vi-kind-purchase', allowPurch);
     gateElement(allowVeh, '#vi-kind-vehicle');
     gateElement(allowVeh, '#vi-form-vehicle');
     gateElement(allowPurch, '#vi-kind-purchase');
@@ -756,6 +766,22 @@ if (__ON_INV_PAGE__) {
     const allowMarketplace = publicEnabled && (inv.marketplace !== false);
     const allowPublishOps = publicEnabled && (inv.publicar !== false);
     const allowUnpublishZero = publicEnabled && (inv.publicarAgotados !== false);
+    const allowCatalogFields = publicEnabled && (inv.publicCatalogFields !== false);
+    state.permissions = {
+      allowVehicle: allowVeh,
+      allowPurchase: allowPurch,
+      allowMarketplace,
+      allowPublishOps,
+      allowUnpublishZero,
+      allowCatalogFields
+    };
+    if (!allowVeh && allowPurch && viKindPurchase) {
+      viKindPurchase.checked = true;
+      updateIntakeKindUI();
+    } else if (!allowPurch && allowVeh && viKindVehicle) {
+      viKindVehicle.checked = true;
+      updateIntakeKindUI();
+    }
     // Buttons and selectionBar entries
     gateElement(allowPublishOps, '#pub-bulk-global');
     gateElement(allowUnpublishZero, '#btn-unpublish-zero');
@@ -766,6 +792,9 @@ if (__ON_INV_PAGE__) {
         const btn = document.getElementById('sel-publish-bulk'); if(btn) btn.style.display = 'none';
       });
       obs.observe(selectionBar, { childList:true, subtree:true }); setTimeout(()=>obs.disconnect(), 4000);
+    }
+    if (!allowMarketplace) {
+      document.querySelectorAll('[data-mp]').forEach(btn => btn.remove());
     }
   })();
 
@@ -881,8 +910,13 @@ if (__ON_INV_PAGE__) {
       };
       div.querySelector("[data-qr]").onclick = () => openQrModal(it, companyId);
       div.querySelector("[data-qr-dl]").onclick = () => downloadQrPng(it._id, 720, `QR_${it.sku || it._id}.png`);
-  div.querySelector("[data-stock-in]").onclick = () => openStockInModal(it);
-    div.querySelector("[data-mp]").onclick = () => openMarketplaceHelper(it);
+      div.querySelector("[data-stock-in]").onclick = () => openStockInModal(it);
+      const mpBtn = div.querySelector("[data-mp]");
+      if (!state.permissions?.allowMarketplace && mpBtn) {
+        mpBtn.remove();
+      } else if (mpBtn) {
+        mpBtn.onclick = () => openMarketplaceHelper(it);
+      }
 
       div.addEventListener("click", (e) => {
         const el = e.target.closest(".item-thumb");
