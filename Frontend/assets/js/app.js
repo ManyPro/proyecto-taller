@@ -1,5 +1,5 @@
-/* assets/js/app.js
-   Orquestador de la UI: login, tabs y boot de mÛdulos (notas, inventario, cotizaciones, precios, ventas)
+Ôªø/* assets/js/app.js
+   Orquestador de la UI: login, tabs y boot de m√≥dulos (notas, inventario, cotizaciones, precios, ventas)
 */
 
 import { initNotes } from "./notes.js";
@@ -23,7 +23,7 @@ function applyTheme(theme){
   if(theme === 'light') body.classList.add('theme-light'); else body.classList.remove('theme-light');
   try{ localStorage.setItem(THEME_KEY, theme); }catch{}
   const btn = document.getElementById('themeToggle');
-  if(btn) btn.textContent = theme === 'light' ? '??' : '??';
+  if(btn) btn.textContent = theme === 'light' ? 'üåô' : 'üåû';
   if(btn) btn.title = theme === 'light' ? 'Cambiar a oscuro' : 'Cambiar a claro';
   // Swap logo by theme
   const logo = document.getElementById('brandLogo');
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   }catch{}
 });
 
-// NavegaciÛn y boot por p·gina
+// Navegaci√≥n y boot por p√°gina
 const sectionLogin = document.getElementById('loginSection');
 const sectionApp = document.getElementById('appSection');
 const appHeader = document.getElementById('appHeader');
@@ -177,22 +177,22 @@ function enterApp() {
   applyFeatureGating();
   setupNavigation();
   bootCurrentPage();
-  // Siempre permanecer en Inicio tras login; el usuario elige a dÛnde ir.
+  // Siempre permanecer en Inicio tras login; el usuario elige a d√≥nde ir.
   syncFeaturesFromServer(true);
   maybeRenderFeaturesPanel();
 }
 
-// ================= FAB (BotÛn flotante mÛviles) =================
+// ================= FAB (Bot√≥n flotante m√≥viles) =================
 function initFAB(){
   const existing = document.getElementById('app-fab');
   if(existing) return;
   const fab = document.createElement('div');
   fab.id='app-fab';
-  fab.innerHTML = `<button id="fab-main" title="Acciones r·pidas">+</button>
+  fab.innerHTML = `<button id="fab-main" title="Acciones r√°pidas">+</button>
     <div id="fab-menu" class="hidden">
       <button data-act="venta">Nueva Venta</button>
       <button data-act="nota">Nueva Nota</button>
-      <button data-act="cotizacion">Nueva CotizaciÛn</button>
+      <button data-act="cotizacion">Nueva Cotizaci√≥n</button>
     </div>`;
   document.body.appendChild(fab);
   const mainBtn = fab.querySelector('#fab-main');
@@ -304,7 +304,7 @@ function refreshActiveTab(tab){
   }
 }
 
-// ================= Secciones Colapsables en mÛvil =================
+// ================= Secciones Colapsables en m√≥vil =================
 function initCollapsibles(){
   const rules = [
     { sel:'#q-history-card h3', body:'#q-history-list' },
@@ -313,7 +313,7 @@ function initCollapsibles(){
   rules.forEach(r=>{
     const h = document.querySelector(r.sel); const body = document.querySelector(r.body);
     if(!h || !body) return;
-    if(window.innerWidth>800) return; // solo mÛvil/tablet
+    if(window.innerWidth>800) return; // solo m√≥vil/tablet
     h.style.cursor='pointer';
     const stateKey='col:'+r.body;
     const collapsed = sessionStorage.getItem(stateKey)==='1';
@@ -345,7 +345,7 @@ function initDenseToggle(){
       btn.id='denseToggle';
       btn.className='secondary';
       btn.title='Modo compacto';
-      btn.textContent='??';
+      btn.textContent='‚Üï';
       themeBtn.parentElement.insertBefore(btn, themeBtn);
     }
   }
@@ -362,9 +362,9 @@ const loginBtn = document.getElementById('loginBtn');
 const registerBtn = document.getElementById('registerBtn');
 const storedEmail = API.getActiveCompany?.();
 const storedToken = storedEmail ? API.token.get(storedEmail) : API.token.get();
-// Guard: si no hay sesiÛn y no estamos en Inicio, redirigir a Inicio para login
+// Guard: si no hay sesi√≥n y no estamos en Inicio, redirigir a Inicio para login
 if (!storedEmail || !storedToken) {
-  // Mostrar el portal de acceso en Inicio cuando no hay sesiÛn
+  // Mostrar el portal de acceso en Inicio cuando no hay sesi√≥n
   if (getCurrentPage() === 'home') {
     portalSection?.classList.remove('hidden');
   }
@@ -385,7 +385,7 @@ async function doLogin(isRegister = false) {
   const email = (document.getElementById('email').value || '').trim().toLowerCase();
   const password = (document.getElementById('password').value || '').trim();
   if (!email || !password) {
-    alert('Ingresa correo y contraseÒa');
+    alert('Ingresa correo y contrase√±a');
     return;
   }
   try {
@@ -402,7 +402,7 @@ async function doLogin(isRegister = false) {
     enterApp();
     applyFeatureGating();
     // Tras login exitoso, siempre ir a Inicio
-    // pero si habÌa una p·gina pendiente, ir allÌ
+    // pero si hab√≠a una p√°gina pendiente, ir all√≠
     let pending = null; try{ pending = sessionStorage.getItem('app:pending'); sessionStorage.removeItem('app:pending'); }catch{}
     if (pending) window.location.href = pending; else if (getCurrentPage() !== 'home') showTab('home');
   } catch (e) {
@@ -434,7 +434,7 @@ logoutBtn?.addEventListener('click', async () => {
   window.location.reload();
 });
 
-// Reanudar sesiÛn si hay token+empresa activos
+// Reanudar sesi√≥n si hay token+empresa activos
 (async () => {
   try {
     const me = await API.me(); // requiere token
@@ -459,7 +459,7 @@ logoutBtn?.addEventListener('click', async () => {
 
 // === Notificaciones (campana) ===
 (function(){
-  // Header de autorizaciÛn local para este mÛdulo
+  // Header de autorizaci√≥n local para este m√≥dulo
   const authHeader = () => {
     try{
       const t = API?.token?.get?.();
@@ -526,21 +526,21 @@ logoutBtn?.addEventListener('click', async () => {
           return { icon:'!!', title:'Stock bajo', body: baseText + action, meta: ago };
         }
         case /^sale\.created$/.test(t):
-          return { icon:'??', title:'Nueva venta creada', body:`Se registrÛ un nuevo pedido${d?.origin==='catalog'?' desde el cat·logo p˙blico':''}.`, meta: ago };
+          return { icon:'??', title:'Nueva venta creada', body:`Se registr√≥ un nuevo pedido${d?.origin==='catalog'?' desde el cat√°logo p√∫blico':''}.`, meta: ago };
         case /^workOrder\.created$/.test(t):
-          return { icon:'??', title:'Nueva orden de trabajo', body:'Se generÛ una orden para instalaciÛn/servicio.', meta: ago };
+          return { icon:'??', title:'Nueva orden de trabajo', body:'Se gener√≥ una orden para instalaci√≥n/servicio.', meta: ago };
         case /^item\.published$/.test(t):
-          return { icon:'??', title:'ArtÌculo publicado', body:`SKU ${d?.sku ? `(${d.sku}) ` : ''}ahora es p˙blico.`, meta: ago };
+          return { icon:'??', title:'Art√≠culo publicado', body:`SKU ${d?.sku ? `(${d.sku}) ` : ''}ahora es p√∫blico.`, meta: ago };
         case /^items\.published\.bulk$/.test(t):
-          return { icon:'??', title:'PublicaciÛn masiva completada', body:`Se publicaron ${d?.modified ?? d?.count ?? d?.matched ?? ''} artÌculos.`, meta: ago };
+          return { icon:'??', title:'Publicaci√≥n masiva completada', body:`Se publicaron ${d?.modified ?? d?.count ?? d?.matched ?? ''} art√≠culos.`, meta: ago };
         case /^items\.unpublished\.bulk$/.test(t):
-          return { icon:'??', title:'DespublicaciÛn masiva completada', body:`Se despublicaron ${d?.modified ?? d?.count ?? d?.matched ?? ''} artÌculos.`, meta: ago };
+          return { icon:'??', title:'Despublicaci√≥n masiva completada', body:`Se despublicaron ${d?.modified ?? d?.count ?? d?.matched ?? ''} art√≠culos.`, meta: ago };
         case /^price\./.test(t):
-          return { icon:'??', title:'ActualizaciÛn de precios', body:'Se actualizaron precios en la lista.', meta: ago };
+          return { icon:'??', title:'Actualizaci√≥n de precios', body:'Se actualizaron precios en la lista.', meta: ago };
         case /^inventory\./.test(t):
-          return { icon:'??', title:'Movimiento de inventario', body:'Se registrÛ un movimiento en inventario.', meta: ago };
+          return { icon:'??', title:'Movimiento de inventario', body:'Se registr√≥ un movimiento en inventario.', meta: ago };
         default:
-          return { icon:'??', title: t.replace(/\./g,' ∑ '), body: Object.keys(d||{}).length? JSON.stringify(d):'Sin detalles', meta: ago };
+          return { icon:'??', title: t.replace(/\./g,' ¬∑ '), body: Object.keys(d||{}).length? JSON.stringify(d):'Sin detalles', meta: ago };
       }
     };
 
@@ -556,7 +556,7 @@ logoutBtn?.addEventListener('click', async () => {
           <div style='opacity:.9;margin:4px 0;'>${info.body}</div>
           <div style='display:flex;justify-content:space-between;align-items:center;margin-top:6px;'>
             <span style='font-size:11px;opacity:.6;'>${info.meta}</span>
-            <button data-read='${n._id}' style='font-size:11px;' class='secondary'>Marcar leÌdo</button>
+            <button data-read='${n._id}' style='font-size:11px;' class='secondary'>Marcar le√≠do</button>
           </div>
         </div>`;
       div.querySelector('[data-read]').onclick = () => markRead(n._id, div);
@@ -601,7 +601,7 @@ function applyFeatureGating(){
     if(!feature) return;
     const enabled = isFeatureEnabled(feature);
     btn.style.display = enabled ? '' : 'none';
-    // Si la pestaÒa actual est· deshabilitada, redirigir a Inicio
+    // Si la pesta√±a actual est√° deshabilitada, redirigir a Inicio
     if(!enabled && btn.dataset.tab === getCurrentPage()){
       showTab('home');
     }
@@ -670,7 +670,7 @@ async function maybeRenderFeaturesPanel(){
 
   async function save(){
     try{
-      // enviar solo cambios respecto a true por defecto si queremos ahorrar payload; m·s simple: enviar objeto completo
+      // enviar solo cambios respecto a true por defecto si queremos ahorrar payload; m√°s simple: enviar objeto completo
       const feats = {};
       featureList().forEach(({ key })=>{ feats[key] = (current?.[key] !== false); });
       const saved = await API.company.setFeatures(feats);
@@ -689,6 +689,8 @@ async function maybeRenderFeaturesPanel(){
   btnSave?.addEventListener('click', save);
   btnRefresh?.addEventListener('click', refresh);
 }
+
+
 
 
 

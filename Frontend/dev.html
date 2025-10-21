@@ -154,6 +154,10 @@
       background:rgba(15,23,42,0.55);
       backdrop-filter:blur(12px);
     }
+    .dev-company-card.dev-card-flash{
+      box-shadow:0 0 0 2px rgba(56,189,248,0.6),0 18px 44px rgba(8,15,35,0.35);
+      transition:box-shadow .3s ease;
+    }
     .dev-section-head{
       display:flex;
       justify-content:space-between;
@@ -510,6 +514,7 @@
     const modulesCount = featureList.reduce((acc,item)=> acc + (feat[item.key] !== false ? 1 : 0), 0);
     const div = document.createElement("div");
     div.className = "card dev-company-card";
+    div.dataset.companyId = id;
     div.innerHTML = `
       <div class="dev-company-head">
         <div>
@@ -594,78 +599,47 @@
     const hideId = `r-${id}-cashflow-hideBalances`;
     const hideBalances = !!(restr?.cashflow?.hideBalances);
     restrWrap.insertAdjacentHTML('beforeend', `<label class='chip'><input type='checkbox' id='${hideId}' ${hideBalances?'checked':''}/> Ocultar saldos de cuentas</label>`);
-    div.querySelector('[data-save-feat]').onclick = async ()=>{
+            div.querySelector('[data-save-feat]').onclick = async ()=>{
       try{
         const payload = {};
         featureList.forEach(({ key })=>{
-          const el = div.querySelector(`#f-${id}-${key}`);
-          payload[key] = !!el?.checked;
+          const input = div.querySelector(`#f-${id}-${key}`);
+          payload[key] = !!input?.checked;
         });
         const saved = await req(`/api/v1/admin/company/companies/${id}/features`, { method:'PATCH', body: payload });
-        if(saved?._id){
-          const fresh = await req(`/api/v1/admin/company/companies`);
-          companiesData = fresh.items || [];
-          renderCompaniesList();
-          alert('Módulos guardados');
-          return;
-        }
         if(saved?.features){
           company.features = saved.features;
           const idx = companiesData.findIndex(c=> String(c._id||c.id||'') === id);
           if(idx >= 0) companiesData[idx].features = saved.features;
-          renderCompaniesList();
-          alert('Módulos guardados');
-          return;
         }
-        refreshModulesBadge();
-        alert('Módulos guardados');
+        await reloadCompaniesAndFocus(id, 'Modulos guardados');
       }catch(e){ alert(e.message||'Error'); }
     };
-    div.querySelector('[data-save-fopts]').onclick = async ()=>{
+            div.querySelector('[data-save-fopts]').onclick = async ()=>{
       try{
         const payload = { ventas:{}, inventario:{}, templates:{} };
         Object.keys(blocks.ventas).forEach(k=>{ payload.ventas[k] = !!div.querySelector(`#fo-${id}-ventas-${k}`)?.checked; });
         Object.keys(blocks.inventario).forEach(k=>{ payload.inventario[k] = !!div.querySelector(`#fo-${id}-inventario-${k}`)?.checked; });
         Object.keys(blocks.templates).forEach(k=>{ payload.templates[k] = !!div.querySelector(`#fo-${id}-templates-${k}`)?.checked; });
         const saved = await req(`/api/v1/admin/company/companies/${id}/feature-options`, { method:'PATCH', body: payload });
-        if(saved?._id){
-          const fresh = await req(`/api/v1/admin/company/companies`);
-          companiesData = fresh.items || [];
-          renderCompaniesList();
-          alert('Opciones guardadas');
-          return;
-        }
         if(saved?.featureOptions){
           company.featureOptions = saved.featureOptions;
           const idx = companiesData.findIndex(c=> String(c._id||c.id||'') === id);
           if(idx >= 0) companiesData[idx].featureOptions = saved.featureOptions;
-          renderCompaniesList();
-          alert('Opciones guardadas');
-          return;
         }
-        alert('Opciones guardadas');
+        await reloadCompaniesAndFocus(id, 'Opciones guardadas');
       }catch(e){ alert(e.message||'Error'); }
     };
-    div.querySelector('[data-save-restr]').onclick = async ()=>{
+            div.querySelector('[data-save-restr]').onclick = async ()=>{
       try{
         const payload = { cashflow: { hideBalances: !!div.querySelector(`#${hideId}`)?.checked } };
         const saved = await req(`/api/v1/admin/company/companies/${id}/restrictions`, { method:'PATCH', body: payload });
-        if(saved?._id){
-          const fresh = await req(`/api/v1/admin/company/companies`);
-          companiesData = fresh.items || [];
-          renderCompaniesList();
-          alert('Restricciones guardadas');
-          return;
-        }
         if(saved?.restrictions){
           company.restrictions = saved.restrictions;
           const idx = companiesData.findIndex(c=> String(c._id||c.id||'') === id);
           if(idx >= 0) companiesData[idx].restrictions = saved.restrictions;
-          renderCompaniesList();
-          alert('Restricciones guardadas');
-          return;
         }
-        alert('Restricciones guardadas');
+        await reloadCompaniesAndFocus(id, 'Restricciones guardadas');
       }catch(e){ alert(e.message||'Error'); }
     };
     return div;
@@ -734,6 +708,20 @@
   const requestsContent = document.getElementById('requestsContent');
   const companiesCard = document.getElementById('companiesCard');
   const adminsCard = document.getElementById('adminsCard');
+  function focusCompanyCard(id, message){
+    const safeId = (window.CSS && CSS.escape) ? CSS.escape(id) : String(id).replace(/[^a-zA-Z0-9_-]/g,'');
+    const card = document.querySelector(`.dev-company-card[data-company-id="${safeId}"]`);
+    if(card){
+      card.scrollIntoView({ behavior:'smooth', block:'start' });
+      card.classList.add('dev-card-flash');
+      setTimeout(()=> card.classList.remove('dev-card-flash'), 900);
+    }
+    if(message) alert(message);
+  }
+  async function reloadCompaniesAndFocus(id, message){
+    await loadCompanies(true);
+    requestAnimationFrame(()=> focusCompanyCard(id, message));
+  }
   const toggleSections = (t)=>{
     if(requestsContent) requestsContent.style.display = (t==='reqs') ? '' : 'none';
     if(companiesCard) companiesCard.style.display = (t==='companies') ? '' : 'none';
@@ -755,6 +743,21 @@
   </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
