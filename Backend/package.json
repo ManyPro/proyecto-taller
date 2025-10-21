@@ -12,6 +12,7 @@
     "prepare:profiles": "node scripts/prepare_profiles_from_legacy.js",
     "import:legacy:clients": "node scripts/import_clients_from_legacy.js",
     "import:legacy:orders": "node scripts/import_orders_from_legacy.js",
+    "purge:legacy:orders": "node scripts/purge_incomplete_legacy_sales.js",
     "check:profiles:dupes": "node scripts/check_profile_dupes.js",
     "seed:templates": "node scripts/seed_templates_production.js",
     "templates:normalize": "node scripts/normalize_templates_all_companies.js",

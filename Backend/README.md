@@ -12,67 +12,48 @@
 
 <!-- Se eliminaron instrucciones de importación legacy y CSV en preparación para un nuevo flujo de migración -->
 
-## Importación (Perfiles desde legacy órdenes CSV)
-Script inicial para preparar/crear perfiles (cliente + vehículo) a partir del archivo `ordenes.csv` de la BD legacy.
+## Importacion (Ordenes legacy con detalle)
+Importa las ordenes historicas filtradas por placa y reconstruye los items de servicios y productos usando los nuevos CSV de relaciones. El script agrega cada linea con su precio y ajusta los totales con los valores de remisions.
 
-1. Coloca el archivo `ordenes.csv` (delimitador por defecto `;`).
-2. Ejecuta en modo dry-run para ver resumen y exportar JSON:
+### Limpieza previa de importes incompletos
+1. `npm run purge:legacy:orders -- --mongo "${MONGODB_URI}" --dry`
+2. `npm run purge:legacy:orders -- --mongo "${MONGODB_URI}" --force`
+- Agrega `--all` (y opcionalmente `--companyIds`) si necesitas eliminar **todas** las ventas existentes. Usa siempre `--dry` primero para revisar cuántos documentos coinciden.
 
-```
-npm run prepare:profiles -- --orders path/a/ordenes.csv --jsonOut perfiles.json
-```
-
-3. Importar a Mongo (usa tu `MONGODB_URI` o pasa `--mongo` explícito):
-
-```
-npm run prepare:profiles -- --orders path/a/ordenes.csv --import --mongo "${MONGODB_URI}" 
-```
-
-Parámetros opcionales:
-- `--companyMap 2:68cb18f4202d108152a26e4c,3:68c871198d7595062498d7a1` (por defecto ya incluidos)
-- `--delimiter ;` (cambiar si el archivo usa coma)
-- `--limit 500` (para pruebas)
-- `--jsonOut salida.json` (exporta los perfiles detectados)
-
-Nota: El script intenta mapear columnas potenciales (`placa`, `veh_placa`, etc.). Si los nombres difieren confirma las cabeceras para ajustar el mapeo.
-
-## Importación (Órdenes legacy por placa)
-Importa órdenes históricas (solo empresas legacy 2=Shelby y 3=Casa Renault por defecto) y las enlaza por placa creando ventas cerradas con los datos disponibles. Incluye un marcador en `notes` para idempotencia: `LEGACY or_id=<N> empresa=<2|3>`.
-
-1. Ejecuta en modo simulación (dry-run) para validar conteos:
+### Importar ventas con precios
+1. Ejecuta un dry-run para validar conteos y mapeos:
 
 ```
-npm run import:legacy:orders -- --orders path/a/ordenesfinal.csv --clients path/a/clientesfinal.csv --vehicles path/a/automovilfinal.csv --dry
+npm run import:legacy:orders -- --orders Backend/data/legacy/ordenesfinal.csv --clients Backend/data/legacy/clientesfinal.csv --vehicles Backend/data/legacy/automovilfinal.csv --orderProducts Backend/data/legacy/relaorder.csv --products Backend/data/legacy/productos.csv --orderServices Backend/data/legacy/relaservice.csv --services Backend/data/legacy/servicios.csv --remisions Backend/data/legacy/remisions.csv --dry
 ```
 
-2. Importar a Mongo (pasa `--mongo` o define `MONGODB_URI`):
+2. Importa a Mongo con tus credenciales:
 
 ```
-npm run import:legacy:orders -- --orders path/a/ordenesfinal.csv --clients path/a/clientesfinal.csv --vehicles path/a/automovilfinal.csv --mongo "${MONGODB_URI}"
+npm run import:legacy:orders -- --orders Backend/data/legacy/ordenesfinal.csv --clients Backend/data/legacy/clientesfinal.csv --vehicles Backend/data/legacy/automovilfinal.csv --orderProducts Backend/data/legacy/relaorder.csv --products Backend/data/legacy/productos.csv --orderServices Backend/data/legacy/relaservice.csv --services Backend/data/legacy/servicios.csv --remisions Backend/data/legacy/remisions.csv --mongo "${MONGODB_URI}"
 ```
 
-Parámetros útiles:
-- `--companyMap 2:<mongoIdShelby>,3:<mongoIdRenault>` para ajustar IDs reales de tu DB.
-- `--limit 1000` para pruebas.
-- `--noProfile` si no deseas actualizar/crear `CustomerProfile` durante la importación.
+#### Flags utiles
+- `--companyMap 2:<mongoIdShelby>,3:<mongoIdRenault>` para mapear las companias reales.
+- `--limit 1000` para pruebas rapidas.
+- `--noProfile` si no deseas actualizar CustomerProfile durante la importacion.
+- `--orders`, `--clients`, `--vehicles` son obligatorios; el resto de CSV agrega detalle de items y totales (recomendado).
 
-Notas:
-- Si `or_fecha_entrega` está vacía se usa `or_fecha` como `closedAt`.
-- Se guardan `customer` y `vehicle` mínimos (placa, cilindraje como `engine`, `year`, `mileage`).
-- Las observaciones se guardan en `notes` junto con el marcador LEGACY para evitar duplicados en re-ejecuciones.
+#### Notas de mapeo
+- Las lineas de productos se agrupan por orden usando `relaorder.csv` y se completan con los nombres de `productos.csv`.
+- Las lineas de servicios provienen de `relaservice.csv` y `servicios.csv`; si faltan precios se usan los totales de `remisions.csv`.
+- El script agrega ajustes cuando los totales de remision no coinciden con la suma de items.
+- `closedAt` usa `or_fecha_entrega`; si esta vacio se busca la ultima fecha de servicio o se cae en `or_fecha`.
+- En `notes` se mantiene el marcador `LEGACY or_id=<id>` junto con observaciones y datos relevantes de remision para idempotencia.
 
 ### Company IDs (produccion)
-Puedes fijar los IDs reales de cada empresa por cualquiera de estas opciones (prioridad descendente):
+Puedes fijar los IDs reales de cada empresa en este orden de prioridad:
 - Bandera: `--companyMap "2:<ID_SHELBY>,3:<ID_RENAULT>"`
 - Variable: `COMPANY_MAP=2:<ID_SHELBY>,3:<ID_RENAULT>`
-- Variables dedicadas: `COMPANY_ID_SHELBY` y `COMPANY_ID_RENAULT` (o `COMPANY_ID_2`, `COMPANY_ID_3`)
+- Variables dedicadas: `COMPANY_ID_SHELBY` y/o `COMPANY_ID_RENAULT` (tambien `COMPANY_ID_2`, `COMPANY_ID_3`)
 
 ### Ubicacion de CSVs
-Sugerido: `Backend/data/legacy/` (excluido del repo por .gitignore). Ejemplo:
-```
-npm run import:legacy:orders -- --orders Backend/data/legacy/ordenesfinal.csv --clients Backend/data/legacy/clientesfinal.csv --vehicles Backend/data/legacy/automovilfinal.csv --mongo "${MONGODB_URI}"
-```
-
+Sugerido: `Backend/data/legacy/`. Coloca en esa carpeta todos los archivos exportados (`ordenesfinal.csv`, `clientesfinal.csv`, `automovilfinal.csv`, `relaorder.csv`, `relaservice.csv`, `productos.csv`, `servicios.csv`, `remisions.csv`) para simplificar los comandos.
 ## Autocompletado de cotizaciones por placa
 
 Endpoint para que el Front obtenga datos existentes de cliente/vehículo al ingresar una placa:
@@ -539,4 +520,3 @@ Migración desde versión previa (sin segmentación):
 2. Verificar que los ítems existentes tengan `companyId` correcto (parte del modelo ya presente).
 3. Invalidar caches anteriores (cambiar `CACHE_VERSION`).
 4. Revisar analytics / logs para adaptar dashboards a nuevo patrón de ruta.
-

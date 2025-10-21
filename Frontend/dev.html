@@ -258,6 +258,14 @@
       padding:22px 24px;
       border-radius:20px;
     }
+    .dev-chip-grid{
+      display:grid;
+      gap:12px;
+      grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    }
+    .dev-chip-grid .toggle{
+      width:100%;
+    }
   </style>
 </head>
 <body data-page="developer">
@@ -484,10 +492,21 @@
   // ===== Empresas y Funciones =====
   function buildCompanyCard(company){
     const id = String(company._id || company.id || '');
+    const featureList = [
+      { key:'notas', label:'Notas' },
+      { key:'ventas', label:'Ventas' },
+      { key:'cotizaciones', label:'Cotizaciones' },
+      { key:'inventario', label:'Inventario' },
+      { key:'precios', label:'Lista de precios' },
+      { key:'cashflow', label:'Flujo de caja' },
+      { key:'techreport', label:'Reporte técnico' },
+      { key:'templates', label:'Formatos / Plantillas' },
+      { key:'skus', label:'SKUs' }
+    ];
     const feat = company.features || {};
     const fopts = company.featureOptions || {};
     const restr = company.restrictions || {};
-    const modulesCount = Object.keys(feat).filter(k => feat[k] !== false).length;
+    const modulesCount = featureList.reduce((acc,item)=> acc + (feat[item.key] !== false ? 1 : 0), 0);
     const div = document.createElement("div");
     div.className = "card dev-company-card";
     div.innerHTML = `
@@ -502,12 +521,12 @@
         </div>
         <div class="dev-company-badges">
           <span class="badge ${company.active ? 'badge-success' : 'badge-danger'}">${company.active ? 'Activa' : 'Inactiva'}</span>
-          <span class="badge">Modulos ${modulesCount}</span>
+          <span class="badge" data-modules-count>Módulos ${modulesCount}</span>
         </div>
       </div>
       <div class="dev-company-body">
         <details open>
-          <summary>Modulos</summary>
+          <summary>Módulos</summary>
           <div class="dev-chip-grid" id="feat-${id}"></div>
           <div class="dev-actions-row"><button class="secondary" data-save-feat>Guardar modulos</button></div>
         </details>
@@ -523,13 +542,28 @@
         </details>
       </div>
     `;
-    const FEATS = ['notas','ventas','cotizaciones','inventario','precios','cashflow','techreport','templates','skus'];
     const wrapFeat = div.querySelector(`#feat-${id}`);
-    FEATS.forEach(k=>{
-      const cid = `f-${id}-${k}`;
-      const enabled = feat[k] !== false;
-      wrapFeat.insertAdjacentHTML('beforeend', `<label class='chip'><input type='checkbox' id='${cid}' ${enabled?'checked':''}/> ${k}</label>`);
+    featureList.forEach(({ key, label })=>{
+      const cid = `f-${id}-${key}`;
+      const enabled = feat[key] !== false;
+      wrapFeat.insertAdjacentHTML('beforeend', `
+        <label class="toggle" data-feature-toggle="${key}">
+          <span class="toggle-text">${label}</span>
+          <input type="checkbox" id="${cid}" ${enabled ? 'checked' : ''}/>
+          <span class="toggle-slider" aria-hidden="true"></span>
+        </label>`);
     });
+    const modulesBadge = div.querySelector('[data-modules-count]');
+    const refreshModulesBadge = ()=>{
+      if(!modulesBadge) return;
+      const count = featureList.reduce((acc,item)=>{
+        const el = div.querySelector(`#f-${id}-${item.key}`);
+        return acc + (el?.checked ? 1 : 0);
+      }, 0);
+      modulesBadge.textContent = `Módulos ${count}`;
+    };
+    wrapFeat.addEventListener('change', refreshModulesBadge);
+    refreshModulesBadge();
     const blocks = {
       ventas: { importarCotizacion:'Importar cotizacion', ordenesTrabajo:'Ordenes de trabajo' },
       inventario: { ingresoVehiculo:'Ingreso de vehiculo', ingresoCompra:'Ingreso de compra', marketplace:'Marketplace', publicar:'Publicacion masiva', publicarAgotados:'Despublicar agotados', publicCatalogFields:'Campos de catalogo' },
@@ -555,12 +589,13 @@
     div.querySelector('[data-save-feat]').onclick = async ()=>{
       try{
         const payload = {};
-        FEATS.forEach(k=>{
-          const el = div.querySelector(`#f-${id}-${k}`);
-          payload[k] = !!el?.checked;
+        featureList.forEach(({ key })=>{
+          const el = div.querySelector(`#f-${id}-${key}`);
+          payload[key] = !!el?.checked;
         });
         await req(`/api/v1/admin/company/companies/${id}/features`, { method:'PATCH', body: payload });
-        alert('Modulos guardados');
+        refreshModulesBadge();
+        alert('Módulos guardados');
       }catch(e){ alert(e.message||'Error'); }
     };
     div.querySelector('[data-save-fopts]').onclick = async ()=>{

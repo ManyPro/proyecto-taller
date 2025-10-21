@@ -23,7 +23,7 @@ function applyTheme(theme){
   if(theme === 'light') body.classList.add('theme-light'); else body.classList.remove('theme-light');
   try{ localStorage.setItem(THEME_KEY, theme); }catch{}
   const btn = document.getElementById('themeToggle');
-  if(btn) btn.textContent = theme === 'light' ? '🌙' : '🌗';
+  if(btn) btn.textContent = theme === 'light' ? '??' : '??';
   if(btn) btn.title = theme === 'light' ? 'Cambiar a oscuro' : 'Cambiar a claro';
   // Swap logo by theme
   const logo = document.getElementById('brandLogo');
@@ -80,6 +80,18 @@ function __scopeFromBase(base){
 }
 const __SCOPE = __scopeFromBase(window.API_BASE || window.BACKEND_URL || '');
 const featuresKeyFor = (email) => `taller.features:${__SCOPE}:${String(email||'').toLowerCase()}`;
+const FEATURE_CATALOG = [
+  { key: 'notas', label: 'Notas' },
+  { key: 'ventas', label: 'Ventas' },
+  { key: 'cotizaciones', label: 'Cotizaciones' },
+  { key: 'inventario', label: 'Inventario' },
+  { key: 'precios', label: 'Lista de precios' },
+  { key: 'cashflow', label: 'Flujo de Caja' },
+  { key: 'techreport', label: 'Reporte técnico' },
+  { key: 'templates', label: 'Formatos / Plantillas' },
+  { key: 'skus', label: 'SKUs' }
+];
+let lastFeaturesSyncTs = 0;
 const getCurrentPage = () => document.body?.dataset?.page || 'home';
 const setLastTab = (name) => {
   if (!name || name === 'home') return;
@@ -165,6 +177,7 @@ function enterApp() {
   setupNavigation();
   bootCurrentPage();
   // Siempre permanecer en Inicio tras login; el usuario elige a dónde ir.
+  syncFeaturesFromServer(true);
   maybeRenderFeaturesPanel();
 }
 
@@ -174,7 +187,7 @@ function initFAB(){
   if(existing) return;
   const fab = document.createElement('div');
   fab.id='app-fab';
-  fab.innerHTML = `<button id="fab-main" title="Acciones rápidas">＋</button>
+  fab.innerHTML = `<button id="fab-main" title="Acciones rápidas">+</button>
     <div id="fab-menu" class="hidden">
       <button data-act="venta">Nueva Venta</button>
       <button data-act="nota">Nueva Nota</button>
@@ -304,12 +317,12 @@ function initCollapsibles(){
     const stateKey='col:'+r.body;
     const collapsed = sessionStorage.getItem(stateKey)==='1';
     if(collapsed){ body.style.display='none'; h.classList.add('collapsed'); }
-    const iconSpan = document.createElement('span'); iconSpan.textContent = collapsed ? ' ▶' : ' ▼'; iconSpan.style.fontSize='12px';
+    const iconSpan = document.createElement('span'); iconSpan.textContent = collapsed ? ' ?' : ' ?'; iconSpan.style.fontSize='12px';
     h.appendChild(iconSpan);
     h.addEventListener('click', ()=>{
       const isHidden = body.style.display==='none';
       body.style.display = isHidden? '' : 'none';
-      iconSpan.textContent = isHidden ? ' ▼' : ' ▶';
+      iconSpan.textContent = isHidden ? ' ?' : ' ?';
       sessionStorage.setItem(stateKey, isHidden ? '0':'1');
     });
   });
@@ -331,7 +344,7 @@ function initDenseToggle(){
       btn.id='denseToggle';
       btn.className='secondary';
       btn.title='Modo compacto';
-      btn.textContent='📏';
+      btn.textContent='??';
       themeBtn.parentElement.insertBefore(btn, themeBtn);
     }
   }
@@ -512,21 +525,21 @@ logoutBtn?.addEventListener('click', async () => {
           return { icon:'!!', title:'Stock bajo', body: baseText + action, meta: ago };
         }
         case /^sale\.created$/.test(t):
-          return { icon:'🛒', title:'Nueva venta creada', body:`Se registró un nuevo pedido${d?.origin==='catalog'?' desde el catálogo público':''}.`, meta: ago };
+          return { icon:'??', title:'Nueva venta creada', body:`Se registró un nuevo pedido${d?.origin==='catalog'?' desde el catálogo público':''}.`, meta: ago };
         case /^workOrder\.created$/.test(t):
-          return { icon:'🧰', title:'Nueva orden de trabajo', body:'Se generó una orden para instalación/servicio.', meta: ago };
+          return { icon:'??', title:'Nueva orden de trabajo', body:'Se generó una orden para instalación/servicio.', meta: ago };
         case /^item\.published$/.test(t):
-          return { icon:'📢', title:'Artículo publicado', body:`SKU ${d?.sku ? `(${d.sku}) ` : ''}ahora es público.`, meta: ago };
+          return { icon:'??', title:'Artículo publicado', body:`SKU ${d?.sku ? `(${d.sku}) ` : ''}ahora es público.`, meta: ago };
         case /^items\.published\.bulk$/.test(t):
-          return { icon:'📢', title:'Publicación masiva completada', body:`Se publicaron ${d?.modified ?? d?.count ?? d?.matched ?? ''} artículos.`, meta: ago };
+          return { icon:'??', title:'Publicación masiva completada', body:`Se publicaron ${d?.modified ?? d?.count ?? d?.matched ?? ''} artículos.`, meta: ago };
         case /^items\.unpublished\.bulk$/.test(t):
-          return { icon:'📪', title:'Despublicación masiva completada', body:`Se despublicaron ${d?.modified ?? d?.count ?? d?.matched ?? ''} artículos.`, meta: ago };
+          return { icon:'??', title:'Despublicación masiva completada', body:`Se despublicaron ${d?.modified ?? d?.count ?? d?.matched ?? ''} artículos.`, meta: ago };
         case /^price\./.test(t):
-          return { icon:'💲', title:'Actualización de precios', body:'Se actualizaron precios en la lista.', meta: ago };
+          return { icon:'??', title:'Actualización de precios', body:'Se actualizaron precios en la lista.', meta: ago };
         case /^inventory\./.test(t):
-          return { icon:'📦', title:'Movimiento de inventario', body:'Se registró un movimiento en inventario.', meta: ago };
+          return { icon:'??', title:'Movimiento de inventario', body:'Se registró un movimiento en inventario.', meta: ago };
         default:
-          return { icon:'🔔', title: t.replace(/\./g,' · '), body: Object.keys(d||{}).length? JSON.stringify(d):'Sin detalles', meta: ago };
+          return { icon:'??', title: t.replace(/\./g,' · '), body: Object.keys(d||{}).length? JSON.stringify(d):'Sin detalles', meta: ago };
       }
     };
 
@@ -594,26 +607,33 @@ function applyFeatureGating(){
   });
 }
 
+async function syncFeaturesFromServer(force=false){
+  const email = API.getActiveCompany?.() || '';
+  if(!email) return;
+  const now = Date.now();
+  if(!force && lastFeaturesSyncTs && (now - lastFeaturesSyncTs) < 60000) return;
+  try{
+    const remote = await API.company.getFeatures();
+    if(remote && typeof remote === 'object'){
+      setLocalFeatures(email, remote);
+      lastFeaturesSyncTs = now;
+      applyFeatureGating();
+    }
+  }catch(err){
+    console.warn('feature sync failed', err?.message || err);
+  }
+}
+
 // ============== Panel simple de features (Home) ==============
 function featureList(){
-  // listado y etiquetas amigables
-  return [
-    ['notas','Notas'],
-    ['ventas','Ventas'],
-    ['cotizaciones','Cotizaciones'],
-    ['inventario','Inventario'],
-    ['precios','Lista de precios'],
-    ['cashflow','Flujo de Caja'],
-    ['techreport','Reporte Técnico'],
-    ['templates','Formatos / Plantillas'],
-    ['skus','SKUs']
-  ];
+  return FEATURE_CATALOG;
 }
 async function loadCompanyFeatures(){
   try{ return await API.company.getFeatures(); }catch{ return getFeatures() || {}; }
 }
 function setLocalFeatures(email, feats){
   try{ localStorage.setItem(featuresKeyFor(email), JSON.stringify(feats||{})); }catch{}
+  lastFeaturesSyncTs = Date.now();
 }
 async function maybeRenderFeaturesPanel(){
   if(getCurrentPage()!=='home') return;
@@ -627,15 +647,18 @@ async function maybeRenderFeaturesPanel(){
 
   function render(){
     wrap.innerHTML='';
-    featureList().forEach(([key,label])=>{
+    featureList().forEach(({ key, label })=>{
       const enabled = (current?.[key] !== false);
       const id = 'ft-'+key;
-      const div = document.createElement('div');
-      div.className='chip';
-      div.style.cssText='display:flex;align-items:center;gap:6px;padding:8px 12px;';
-      div.innerHTML = `<input type="checkbox" id="${id}" ${enabled?'checked':''}/> <label for="${id}" style="cursor:pointer;">${label}</label>`;
-      wrap.appendChild(div);
-      div.querySelector('input').addEventListener('change', (e)=>{
+      const toggle = document.createElement('label');
+      toggle.className='toggle';
+      toggle.innerHTML = `
+        <span class="toggle-text">${label}</span>
+        <input type="checkbox" id="${id}" ${enabled ? 'checked' : ''}/>
+        <span class="toggle-slider" aria-hidden="true"></span>
+      `;
+      wrap.appendChild(toggle);
+      toggle.querySelector('input').addEventListener('change', (e)=>{
         const checked = e.target.checked;
         current ||= {};
         current[key] = !!checked;
@@ -648,7 +671,7 @@ async function maybeRenderFeaturesPanel(){
     try{
       // enviar solo cambios respecto a true por defecto si queremos ahorrar payload; más simple: enviar objeto completo
       const feats = {};
-      featureList().forEach(([key])=>{ feats[key] = (current?.[key] !== false); });
+      featureList().forEach(({ key })=>{ feats[key] = (current?.[key] !== false); });
       const saved = await API.company.setFeatures(feats);
       setLocalFeatures(email, saved);
       if(msg){ msg.textContent = 'Cambios guardados.'; msg.style.color='var(--muted)'; }
@@ -657,11 +680,18 @@ async function maybeRenderFeaturesPanel(){
   }
   async function refresh(){
     current = await loadCompanyFeatures();
-    render(); if(msg) msg.textContent='';
+    setLocalFeatures(email, current);
+    render();
+    if(msg) msg.textContent='';
+    applyFeatureGating();
   }
   btnSave?.addEventListener('click', save);
   btnRefresh?.addEventListener('click', refresh);
 }
+
+
+
+
 
 
 
