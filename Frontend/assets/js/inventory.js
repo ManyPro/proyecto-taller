@@ -1,4 +1,4 @@
-// Frontend/assets/inventory.js
+﻿// Frontend/assets/inventory.js
 import { API } from "./api.esm.js";
 import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from './feature-gating.js';
 import { upper } from "./utils.js";
@@ -823,10 +823,18 @@ if (__ON_INV_PAGE__) {
       });
       obs.observe(selectionBar, { childList:true, subtree:true }); setTimeout(()=>obs.disconnect(), 4000);
     }
-    if (!allowMarketplace) {
-      document.querySelectorAll('[data-mp]').forEach(btn => btn.remove());
-    }
+    applyMarketplacePermissions();
   })();
+
+  function applyMarketplacePermissions(){
+    const allow = state.permissions?.allowMarketplace !== false;
+    document.querySelectorAll('[data-mp]').forEach(btn=>{
+      if(!(btn instanceof HTMLElement)) return;
+      btn.style.display = allow ? '' : 'none';
+      btn.disabled = !allow;
+      btn.title = allow ? 'Scripts Facebook Marketplace' : 'Función deshabilitada';
+    });
+  }
 
   // ---- Items list ----
   function buildThumbGrid(it) {
@@ -877,8 +885,8 @@ if (__ON_INV_PAGE__) {
     state.items.forEach((it) => {
       const cacheKey = String(it._id);
       state.itemCache.set(cacheKey, it);
-      const div = document.createElement("div");
-      div.className = "note";
+    const div = document.createElement("div");
+    div.className = "note";
 
       const unit = it.entryPrice ?? 0;
       const total = unit * Math.max(0, it.stock || 0);
@@ -940,11 +948,16 @@ if (__ON_INV_PAGE__) {
       };
       div.querySelector("[data-qr]").onclick = () => openQrModal(it, companyId);
       div.querySelector("[data-qr-dl]").onclick = () => downloadQrPng(it._id, 720, `QR_${it.sku || it._id}.png`);
-      div.querySelector("[data-stock-in]").onclick = () => openStockInModal(it);
-      const mpBtn = div.querySelector("[data-mp]");
-      if (!state.permissions?.allowMarketplace && mpBtn) {
-        mpBtn.remove();
+     div.querySelector("[data-stock-in]").onclick = () => openStockInModal(it);
+     const mpBtn = div.querySelector("[data-mp]");
+     if (!state.permissions?.allowMarketplace && mpBtn) {
+        mpBtn.style.display = 'none';
+        mpBtn.disabled = true;
+        mpBtn.title = 'Función deshabilitada';
       } else if (mpBtn) {
+        mpBtn.style.display = '';
+        mpBtn.disabled = false;
+        mpBtn.title = 'Scripts Facebook Marketplace';
         mpBtn.onclick = () => openMarketplaceHelper(it);
       }
 
@@ -962,6 +975,7 @@ if (__ON_INV_PAGE__) {
     renderPaginationControls();
 
     updateSelectionBar();
+    applyMarketplacePermissions();
   }
 
   function renderPaginationControls() {
@@ -1546,39 +1560,26 @@ if (__ON_INV_PAGE__) {
   }
 
   function buildMarketplaceDescription(it){
-    const lines = [];
-    const brand = it.brand ? `Marca: ${it.brand}` : '';
-    if (brand) lines.push(brand);
-    lines.push(`Precio: ${fmtMoney(it.salePrice||0)}`);
-    lines.push(`Stock: ${Number(it.stock||0)}`);
-    // Estado solicitado por el cliente
-    lines.push('Estado: Original - Usado en perfecto estado.');
-    lines.push('Entrega inmediata.');
-
-    // Llamado claro para nuestra audiencia (mecánicos y dueños de vehículo)
-    lines.push('Compatibilidad garantizada: te asesoramos para que compres el repuesto correcto.');
-
-    // Mensaje de negociación
-    lines.push('Precios negociables — estamos abiertos a llegar a un buen acuerdo.');
-
-    // Contacto (placeholder editable en el modal antes de copiar)
-    lines.push('WhatsApp: xxxx');
-
-    // Link al catálogo público
-    try{
-      const base = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
-      const cid  = (typeof API !== 'undefined' && API.companyId?.get) ? (API.companyId.get() || '') : '';
-      const u = new URL('catalogo.html', base);
-      if (cid) u.searchParams.set('companyId', cid);
-      lines.push('Catálogo completo 👉 ' + u.toString());
-    }catch{}
-
-    // Cierre con CTA
-    lines.push('¿Tienes taller? ¿Eres mecánico? Escríbenos y te atendemos al instante.');
-    return lines.filter(Boolean).join('\n');
-  }
-
-  // ---- Import Excel (amigable) ----
+  const lines = [];
+  if (it.brand) lines.push(`Marca: ${it.brand}`);
+  lines.push(`Precio: ${fmtMoney(it.salePrice || 0)}`);
+  lines.push(`Stock: ${Number(it.stock || 0)}`);
+  lines.push('Estado: Original - Usado en perfecto estado.');
+  lines.push('Entrega inmediata.');
+  lines.push('Compatibilidad garantizada: te asesoramos para que compres el repuesto correcto.');
+  lines.push('Precios negociables � estamos abiertos a llegar a un buen acuerdo.');
+  lines.push('WhatsApp: https://wa.me/3043593520 (3043593520)');
+  try {
+    const base = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+    const cid  = (typeof API !== 'undefined' && API.companyId?.get) ? (API.companyId.get() || '') : '';
+    const u = new URL('catalogo.html', base);
+    if (cid) u.searchParams.set('companyId', cid);
+    lines.push('Catalogo completo: ' + u.toString());
+  } catch {}
+  lines.push('�Tienes taller? �Eres mec�nico? Escr�benos y te atendemos al instante.');
+  return lines.filter(Boolean).join('\n');
+}
+// ---- Import Excel (amigable) ----
   (function bindImportExcel(){
     const btnTpl = document.getElementById('btn-download-template');
     const btnImp = document.getElementById('btn-import-excel');
@@ -1657,8 +1658,18 @@ function openMarketplaceHelper(item){
   const media = Array.isArray(item.images) ? item.images : [];
   const titleDefault = buildMarketplaceTitle(item);
   const descDefault  = buildMarketplaceDescription(item);
-    const priceValue = Number(item.salePrice||0);
-    const thumbs = media.map((m,i)=>`<div style="display:flex;align-items:center;gap:8px;margin:6px 0;">
+  const priceValue = Number(item.salePrice||0);
+  const whatsappLink = 'https://wa.me/3043593520';
+  const baseScript = (title, price, desc) => [
+    `¡Hola! Tengo disponible ${title || 'este repuesto'}.`,
+    price ? `Precio publicado: $ ${price}` : '',
+    '',
+    desc || '',
+    '',
+    `📞 Escríbeme al WhatsApp ${whatsappLink}`
+  ].filter(Boolean).join('\n');
+  const scriptDefault = baseScript(titleDefault, Math.round(priceValue), descDefault);
+  const thumbs = media.map((m,i)=>`<div style="display:flex;align-items:center;gap:8px;margin:6px 0;">
         ${(m.mimetype||'').startsWith('video/') ? `<video src="${m.url}" style="max-width:160px;max-height:120px;object-fit:contain;" muted></video>` : `<img src="${m.url}" style="max-width:160px;max-height:120px;object-fit:contain;"/>`}
         <button class="secondary" data-dl-index="${i}">Descargar</button>
       </div>`).join('') || '<div class="muted">Sin imágenes.</div>';
@@ -1686,6 +1697,14 @@ function openMarketplaceHelper(item){
             <button id="mp-copy-all">Copiar todo</button>
           </div>
           <div class="muted" style="font-size:12px;margin-top:6px;">Consejo: en Marketplace selecciona la categoría y estado (Nuevo/Usado) manualmente.</div>
+          <div style="margin:16px 0 8px;">
+            <h4 style="margin:0 0 6px;">Script sugerido</h4>
+            <textarea id="mp-script" style="min-height:140px;white-space:pre-wrap;">${scriptDefault}</textarea>
+            <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap;">
+              <button class="secondary" id="mp-copy-script">Copiar script Facebook</button>
+              <a class="secondary" id="mp-open-whatsapp" href="${whatsappLink}" target="_blank">Abrir WhatsApp 3043593520</a>
+            </div>
+          </div>
         </div>
         <div>
           <h4>Imágenes</h4>
@@ -1701,13 +1720,30 @@ function openMarketplaceHelper(item){
     const titleEl = document.getElementById('mp-title');
     const priceEl = document.getElementById('mp-price');
     const descEl  = document.getElementById('mp-desc');
+    const scriptEl = document.getElementById('mp-script');
     document.getElementById('mp-copy-title').onclick = async ()=>{ try{ await navigator.clipboard.writeText(titleEl.value||''); }catch{ alert('No se pudo copiar'); } };
     document.getElementById('mp-copy-price').onclick = async ()=>{ try{ await navigator.clipboard.writeText(String(Math.round(Number(priceEl.value||0)))) }catch{ alert('No se pudo copiar'); } };
     document.getElementById('mp-copy-desc').onclick  = async ()=>{ try{ await navigator.clipboard.writeText(descEl.value||''); }catch{ alert('No se pudo copiar'); } };
+    const updateScript = ()=>{
+      const title = titleEl.value || '';
+      const price = Math.round(Number(priceEl.value||0)) || 0;
+      const desc = descEl.value || '';
+      if (scriptEl) scriptEl.value = baseScript(title, price, desc);
+    };
+    titleEl.addEventListener('input', updateScript);
+    priceEl.addEventListener('input', updateScript);
+    descEl.addEventListener('input', updateScript);
     document.getElementById('mp-copy-all').onclick   = async ()=>{
-      const txt = `${titleEl.value||''}\n\n$ ${Math.round(Number(priceEl.value||0))}\n\n${descEl.value||''}`;
+      updateScript();
+      const txt = `${titleEl.value||''}\n\n$ ${Math.round(Number(priceEl.value||0))}\n\n${descEl.value||''}\n\n${scriptEl?.value||''}`;
       try{ await navigator.clipboard.writeText(txt); }catch{ alert('No se pudo copiar'); }
     };
+    document.getElementById('mp-copy-script').onclick = async ()=>{
+      updateScript();
+      try{ await navigator.clipboard.writeText(scriptEl?.value||''); }catch{ alert('No se pudo copiar'); }
+    };
+
+    updateScript();
 
     // Descargar primera imagen
     document.getElementById('mp-dl-first').onclick = ()=>{
@@ -2131,4 +2167,16 @@ function openMarketplaceHelper(item){
 export function initInventory() {
   // The module already self-initializes on this page; keep this as a safe no-op.
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
