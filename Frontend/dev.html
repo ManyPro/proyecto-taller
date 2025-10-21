@@ -566,7 +566,7 @@
         const el = div.querySelector(`#f-${id}-${item.key}`);
         return acc + (el?.checked ? 1 : 0);
       }, 0);
-      modulesBadge.textContent = `Módulos ${count}`;
+      modulesBadge.textContent = `Modulos ${count}`;
     };
     wrapFeat.addEventListener('change', refreshModulesBadge);
     refreshModulesBadge();
@@ -599,7 +599,7 @@
     const hideId = `r-${id}-cashflow-hideBalances`;
     const hideBalances = !!(restr?.cashflow?.hideBalances);
     restrWrap.insertAdjacentHTML('beforeend', `<label class='chip'><input type='checkbox' id='${hideId}' ${hideBalances?'checked':''}/> Ocultar saldos de cuentas</label>`);
-            div.querySelector('[data-save-feat]').onclick = async ()=>{
+    div.querySelector('[data-save-feat]').onclick = async ()=>{
       try{
         const payload = {};
         featureList.forEach(({ key })=>{
@@ -615,7 +615,7 @@
         await reloadCompaniesAndFocus(id, 'Modulos guardados');
       }catch(e){ alert(e.message||'Error'); }
     };
-            div.querySelector('[data-save-fopts]').onclick = async ()=>{
+    div.querySelector('[data-save-fopts]').onclick = async ()=>{
       try{
         const payload = { ventas:{}, inventario:{}, templates:{} };
         Object.keys(blocks.ventas).forEach(k=>{ payload.ventas[k] = !!div.querySelector(`#fo-${id}-ventas-${k}`)?.checked; });
@@ -630,7 +630,7 @@
         await reloadCompaniesAndFocus(id, 'Opciones guardadas');
       }catch(e){ alert(e.message||'Error'); }
     };
-            div.querySelector('[data-save-restr]').onclick = async ()=>{
+    div.querySelector('[data-save-restr]').onclick = async ()=>{
       try{
         const payload = { cashflow: { hideBalances: !!div.querySelector(`#${hideId}`)?.checked } };
         const saved = await req(`/api/v1/admin/company/companies/${id}/restrictions`, { method:'PATCH', body: payload });

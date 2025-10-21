@@ -757,7 +757,7 @@ if (__ON_INV_PAGE__) {
 
   // --- Sub-feature gating for Inventario ---
   (async ()=>{
-    await loadFeatureOptionsAndRestrictions();
+    await loadFeatureOptionsAndRestrictions({ force: true });
     const fo = getFeatureOptions();
     const inv = (fo.inventario||{});
     // Ingresos: vehículo y compra
@@ -2176,6 +2176,7 @@ function openMarketplaceHelper(item){
 export function initInventory() {
   // The module already self-initializes on this page; keep this as a safe no-op.
 }
+
 
 
 
