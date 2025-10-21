@@ -833,6 +833,15 @@ if (__ON_INV_PAGE__) {
       btn.style.display = allow ? '' : 'none';
       btn.disabled = !allow;
       btn.title = allow ? 'Scripts Facebook Marketplace' : 'Función deshabilitada';
+      if (allow) {
+        btn.onclick = () => {
+          const id = btn.getAttribute('data-mp');
+          const item = state.itemCache.get(String(id)) || state.items.find(it => String(it._id) === String(id));
+          if (item) openMarketplaceHelper(item);
+        };
+      } else {
+        btn.onclick = null;
+      }
     });
   }
 
