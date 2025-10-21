@@ -560,87 +560,108 @@
         </label>`);
     });
     const modulesBadge = div.querySelector('[data-modules-count]');
-    const refreshModulesBadge = ()=>{
-      if(!modulesBadge) return;
-      const count = featureList.reduce((acc,item)=>{
-        const el = div.querySelector(`#f-${id}-${item.key}`);
-        return acc + (el?.checked ? 1 : 0);
+    const refreshModulesBadge = () => {
+      if (!modulesBadge) return;
+      const count = featureList.reduce((acc, item) => {
+        const input = div.querySelector(`#f-${id}-${item.key}`);
+        return acc + (input && input.checked ? 1 : 0);
       }, 0);
       modulesBadge.textContent = `Modulos ${count}`;
     };
     wrapFeat.addEventListener('change', refreshModulesBadge);
     refreshModulesBadge();
+
     const blocks = {
       ventas: { importarCotizacion:'Importar cotizacion', ordenesTrabajo:'Ordenes de trabajo' },
       inventario: { ingresoVehiculo:'Ingreso de vehiculo', ingresoCompra:'Ingreso de compra', marketplace:'Marketplace', publicar:'Publicacion masiva', publicarAgotados:'Despublicar agotados', publicCatalogFields:'Campos de catalogo' },
       templates: { stickerQR:'Sticker: solo QR', stickerMarca:'Sticker: marca', stickerQRyMarca:'Sticker: QR + marca' }
     };
-    const fowrap = div.querySelector(`#fopts-${id}`);
-    Object.entries(blocks).forEach(([mod, opts])=>{
-      const box = document.createElement("div");
-      box.className='card';
-      box.innerHTML = `<div><b>${mod}</b></div><div class='dev-chip-grid'></div>`;
-      const row = box.querySelector('.dev-chip-grid');
-      Object.entries(opts).forEach(([key,label])=>{
-        const cid = `fo-${id}-${mod}-${key}`;
-        const enabled = (fopts?.[mod]?.[key] !== false);
-        const toggle = document.createElement('label');
-        toggle.className = 'toggle';
-        toggle.innerHTML = `
+
+    const buildOptionToggle = (mod, key, label) => {
+      const cid = `fo-${id}-${mod}-${key}`;
+      const enabled = (fopts?.[mod]?.[key] !== false);
+      return `
+        <label class="toggle">
           <span class="toggle-text">${label}</span>
           <input type="checkbox" id="${cid}" ${enabled ? 'checked' : ''}/>
           <span class="toggle-slider" aria-hidden="true"></span>
-        `;
-        row.appendChild(toggle);
+        </label>`;
+    };
+
+    const fowrap = div.querySelector(`#fopts-${id}`);
+    Object.entries(blocks).forEach(([mod, opts]) => {
+      const box = document.createElement('div');
+      box.className = 'card';
+      box.innerHTML = `<div><b>${mod}</b></div><div class='dev-chip-grid'></div>`;
+      const row = box.querySelector('.dev-chip-grid');
+      Object.entries(opts).forEach(([key, label]) => {
+        row.insertAdjacentHTML('beforeend', buildOptionToggle(mod, key, label));
       });
       fowrap.appendChild(box);
     });
+
     const restrWrap = div.querySelector(`#restr-${id}`);
     const hideId = `r-${id}-cashflow-hideBalances`;
     const hideBalances = !!(restr?.cashflow?.hideBalances);
-    restrWrap.insertAdjacentHTML('beforeend', `<label class='chip'><input type='checkbox' id='${hideId}' ${hideBalances?'checked':''}/> Ocultar saldos de cuentas</label>`);
-    div.querySelector('[data-save-feat]').onclick = async ()=>{
-      try{
-        const payload = {};
-        featureList.forEach(({ key })=>{
-          const input = div.querySelector(`#f-${id}-${key}`);
-          payload[key] = !!input?.checked;
+    restrWrap.insertAdjacentHTML('beforeend', `<label class='chip'><input type='checkbox' id='${hideId}' ${hideBalances ? 'checked' : ''}/> Ocultar saldos de cuentas</label>`);
+
+    const readFeaturePayload = () => {
+      const payload = {};
+      featureList.forEach(({ key }) => {
+        const input = div.querySelector(`#f-${id}-${key}`);
+        payload[key] = !!input?.checked;
+      });
+      return payload;
+    };
+
+    const readFeatureOptionsPayload = () => {
+      const payload = { ventas:{}, inventario:{}, templates:{} };
+      Object.entries(blocks).forEach(([mod, opts]) => {
+        Object.keys(opts).forEach(key => {
+          const input = div.querySelector(`#fo-${id}-${mod}-${key}`);
+          payload[mod][key] = !!input?.checked;
         });
+      });
+      return payload;
+    };
+
+    div.querySelector('[data-save-feat]').onclick = async () => {
+      try {
+        const payload = readFeaturePayload();
         const saved = await req(`/api/v1/admin/company/companies/${id}/features`, { method:'PATCH', body: payload });
-        if(saved?.features){
+        if (saved?.features) {
           company.features = saved.features;
-          const idx = companiesData.findIndex(c=> String(c._id||c.id||'') === id);
-          if(idx >= 0) companiesData[idx].features = saved.features;
+          const idx = companiesData.findIndex(c => String(c._id || c.id || '') === id);
+          if (idx >= 0) companiesData[idx].features = saved.features;
         }
         await reloadCompaniesAndFocus(id, 'Modulos guardados');
-      }catch(e){ alert(e.message||'Error'); }
+      } catch (e) { alert(e.message || 'Error'); }
     };
-    div.querySelector('[data-save-fopts]').onclick = async ()=>{
-      try{
-        const payload = { ventas:{}, inventario:{}, templates:{} };
-        Object.keys(blocks.ventas).forEach(k=>{ payload.ventas[k] = !!div.querySelector(`#fo-${id}-ventas-${k}`)?.checked; });
-        Object.keys(blocks.inventario).forEach(k=>{ payload.inventario[k] = !!div.querySelector(`#fo-${id}-inventario-${k}`)?.checked; });
-        Object.keys(blocks.templates).forEach(k=>{ payload.templates[k] = !!div.querySelector(`#fo-${id}-templates-${k}`)?.checked; });
+
+    div.querySelector('[data-save-fopts]').onclick = async () => {
+      try {
+        const payload = readFeatureOptionsPayload();
         const saved = await req(`/api/v1/admin/company/companies/${id}/feature-options`, { method:'PATCH', body: payload });
-        if(saved?.featureOptions){
+        if (saved?.featureOptions) {
           company.featureOptions = saved.featureOptions;
-          const idx = companiesData.findIndex(c=> String(c._id||c.id||'') === id);
-          if(idx >= 0) companiesData[idx].featureOptions = saved.featureOptions;
+          const idx = companiesData.findIndex(c => String(c._id || c.id || '') === id);
+          if (idx >= 0) companiesData[idx].featureOptions = saved.featureOptions;
         }
         await reloadCompaniesAndFocus(id, 'Opciones guardadas');
-      }catch(e){ alert(e.message||'Error'); }
+      } catch (e) { alert(e.message || 'Error'); }
     };
-    div.querySelector('[data-save-restr]').onclick = async ()=>{
-      try{
+
+    div.querySelector('[data-save-restr]').onclick = async () => {
+      try {
         const payload = { cashflow: { hideBalances: !!div.querySelector(`#${hideId}`)?.checked } };
         const saved = await req(`/api/v1/admin/company/companies/${id}/restrictions`, { method:'PATCH', body: payload });
-        if(saved?.restrictions){
+        if (saved?.restrictions) {
           company.restrictions = saved.restrictions;
-          const idx = companiesData.findIndex(c=> String(c._id||c.id||'') === id);
-          if(idx >= 0) companiesData[idx].restrictions = saved.restrictions;
+          const idx = companiesData.findIndex(c => String(c._id || c.id || '') === id);
+          if (idx >= 0) companiesData[idx].restrictions = saved.restrictions;
         }
         await reloadCompaniesAndFocus(id, 'Restricciones guardadas');
-      }catch(e){ alert(e.message||'Error'); }
+      } catch (e) { alert(e.message || 'Error'); }
     };
     return div;
   }
