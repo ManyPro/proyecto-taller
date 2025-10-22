@@ -934,7 +934,7 @@ if (__ON_INV_PAGE__) {
           <button class="secondary" data-qr-dl="${it._id}">Descargar QR</button>
           <button class="secondary" data-qr="${it._id}">Expandir codigo QR</button>
           <button class="secondary" data-stock-in="${it._id}">Agregar stock</button>
-          <button class="secondary" data-mp="${it._id}">Marketplace</button>
+          <button class="secondary" data-mp="${it._id}" ${it.marketplacePublished ? 'style="background:var(--success);color:white;"' : ''}>${it.marketplacePublished ? '✓ Publicado' : 'Marketplace'}</button>
         </div>`;
 
       div.querySelector(`input[type="checkbox"][data-id]`).onchange = (e) => toggleSelected(it, e.target.checked);
@@ -1696,6 +1696,14 @@ function openMarketplaceHelper(item){
             <button id="mp-copy-all">Copiar todo</button>
           </div>
           <div class="muted" style="font-size:12px;margin-top:6px;">Consejo: en Marketplace selecciona la categoría y estado (Nuevo/Usado) manualmente.</div>
+          
+          <div style="margin-top:16px;padding:12px;background:var(--card-alt);border-radius:8px;border:1px solid var(--border);">
+            <div class="row" style="gap:8px;align-items:center;margin-bottom:8px;">
+              <input type="checkbox" id="mp-published" ${item.marketplacePublished ? 'checked' : ''} />
+              <label for="mp-published" style="margin:0;font-weight:600;">Marcar como publicado en Marketplace</label>
+            </div>
+            <div class="muted" style="font-size:12px;">Activa esto cuando hayas publicado el artículo en Facebook Marketplace para evitar duplicados.</div>
+          </div>
         </div>
         <div>
           <h4>Imágenes</h4>
@@ -1712,6 +1720,7 @@ function openMarketplaceHelper(item){
     const skuEl = document.getElementById('mp-sku');
     const priceEl = document.getElementById('mp-price');
     const descEl  = document.getElementById('mp-desc');
+    const publishedEl = document.getElementById('mp-published');
     document.getElementById('mp-copy-title').onclick = async ()=>{ try{ await navigator.clipboard.writeText(titleEl.value||''); }catch{ alert('No se pudo copiar'); } };
     document.getElementById('mp-copy-sku').onclick = async ()=>{ try{ await navigator.clipboard.writeText(skuEl.value||''); }catch{ alert('No se pudo copiar'); } };
     document.getElementById('mp-copy-price').onclick = async ()=>{ try{ await navigator.clipboard.writeText(String(Math.round(Number(priceEl.value||0)))) }catch{ alert('No se pudo copiar'); } };
@@ -1729,6 +1738,30 @@ function openMarketplaceHelper(item){
     };
     // Descargar todas como ZIP
     document.getElementById('mp-dl-all').onclick = ()=> downloadAllImagesZip(item);
+    
+    // Manejar checkbox de publicado
+    publishedEl.addEventListener('change', async () => {
+      try {
+        const published = publishedEl.checked;
+        await invAPI.updateItem(item._id, { marketplacePublished: published });
+        // Actualizar el item en el cache
+        if (state.itemCache.has(String(item._id))) {
+          const cachedItem = state.itemCache.get(String(item._id));
+          cachedItem.marketplacePublished = published;
+        }
+        // Actualizar en la lista de items
+        const listItem = state.items.find(it => String(it._id) === String(item._id));
+        if (listItem) {
+          listItem.marketplacePublished = published;
+        }
+        console.log(`Item ${item.sku || item._id} marcado como ${published ? 'publicado' : 'no publicado'} en Marketplace`);
+      } catch (error) {
+        console.error('Error actualizando estado de publicación:', error);
+        alert('Error al actualizar el estado de publicación');
+        // Revertir el checkbox si hay error
+        publishedEl.checked = !publishedEl.checked;
+      }
+    });
 
     // Descargar individuales en la lista
     document.querySelectorAll('#mp-thumbs [data-dl-index]').forEach(btn=>{

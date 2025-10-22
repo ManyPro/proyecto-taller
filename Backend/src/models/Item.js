@@ -46,12 +46,16 @@ const itemSchema = new mongoose.Schema({
   tags: { type: [String], default: [], index: true },
   category: { type: String, trim: true, default: "" },
   publishedAt: { type: Date },
-  publishedBy: { type: mongoose.Types.ObjectId, ref: 'Account' }
+  publishedBy: { type: mongoose.Types.ObjectId, ref: 'Account' },
+  
+  // === Marketplace ===
+  marketplacePublished: { type: Boolean, default: false, index: true }
 }, { timestamps: true });
 
 itemSchema.index({ companyId: 1, sku: 1 }, { unique: true });
 itemSchema.index({ companyId: 1, vehicleIntakeId: 1 });
 itemSchema.index({ companyId: 1, published: 1 });
+itemSchema.index({ companyId: 1, marketplacePublished: 1 });
 itemSchema.index({ companyId: 1, published: 1, category: 1 });
 itemSchema.index({ companyId: 1, published: 1, tags: 1 });
 
