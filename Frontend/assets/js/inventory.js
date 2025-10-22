@@ -1669,15 +1669,7 @@ function openMarketplaceHelper(item){
   const descDefault  = buildMarketplaceDescription(item);
   const priceValue = Number(item.salePrice||0);
   const whatsappLink = 'https://wa.me/3043593520';
-  const baseScript = (title, price, desc) => [
-    `¡Hola! Tengo disponible ${title || 'este repuesto'}.`,
-    price ? `Precio publicado: $ ${price}` : '',
-    '',
-    desc || '',
-    '',
-    `📞 Escríbeme al WhatsApp ${whatsappLink}`
-  ].filter(Boolean).join('\n');
-  const scriptDefault = baseScript(titleDefault, Math.round(priceValue), descDefault);
+  // Removido el script sugerido
   const thumbs = media.map((m,i)=>`<div style="display:flex;align-items:center;gap:8px;margin:6px 0;">
         ${(m.mimetype||'').startsWith('video/') ? `<video src="${m.url}" style="max-width:160px;max-height:120px;object-fit:contain;" muted></video>` : `<img src="${m.url}" style="max-width:160px;max-height:120px;object-fit:contain;"/>`}
         <button class="secondary" data-dl-index="${i}">Descargar</button>
@@ -1693,6 +1685,12 @@ function openMarketplaceHelper(item){
             <button class="secondary" id="mp-copy-title">Copiar título</button>
           </div>
 
+          <label>SKU (Uso interno)</label>
+          <input id="mp-sku" value="${item.sku || ''}" readonly style="background-color: var(--card-alt);" />
+          <div class="row" style="gap:6px;margin:6px 0 12px 0;">
+            <button class="secondary" id="mp-copy-sku">Copiar SKU</button>
+          </div>
+
           <label>Precio</label>
           <input id="mp-price" type="number" min="0" step="1" value="${Math.round(priceValue)}" />
           <div class="row" style="gap:6px;margin:6px 0 12px 0;">
@@ -1706,14 +1704,6 @@ function openMarketplaceHelper(item){
             <button id="mp-copy-all">Copiar todo</button>
           </div>
           <div class="muted" style="font-size:12px;margin-top:6px;">Consejo: en Marketplace selecciona la categoría y estado (Nuevo/Usado) manualmente.</div>
-          <div style="margin:16px 0 8px;">
-            <h4 style="margin:0 0 6px;">Script sugerido</h4>
-            <textarea id="mp-script" style="min-height:140px;white-space:pre-wrap;">${scriptDefault}</textarea>
-            <div class="row" style="gap:6px;margin-top:6px;flex-wrap:wrap;">
-              <button class="secondary" id="mp-copy-script">Copiar script Facebook</button>
-              <a class="secondary" id="mp-open-whatsapp" href="${whatsappLink}" target="_blank">Abrir WhatsApp 3043593520</a>
-            </div>
-          </div>
         </div>
         <div>
           <h4>Imágenes</h4>
@@ -1727,32 +1717,17 @@ function openMarketplaceHelper(item){
     `);
 
     const titleEl = document.getElementById('mp-title');
+    const skuEl = document.getElementById('mp-sku');
     const priceEl = document.getElementById('mp-price');
     const descEl  = document.getElementById('mp-desc');
-    const scriptEl = document.getElementById('mp-script');
     document.getElementById('mp-copy-title').onclick = async ()=>{ try{ await navigator.clipboard.writeText(titleEl.value||''); }catch{ alert('No se pudo copiar'); } };
+    document.getElementById('mp-copy-sku').onclick = async ()=>{ try{ await navigator.clipboard.writeText(skuEl.value||''); }catch{ alert('No se pudo copiar'); } };
     document.getElementById('mp-copy-price').onclick = async ()=>{ try{ await navigator.clipboard.writeText(String(Math.round(Number(priceEl.value||0)))) }catch{ alert('No se pudo copiar'); } };
     document.getElementById('mp-copy-desc').onclick  = async ()=>{ try{ await navigator.clipboard.writeText(descEl.value||''); }catch{ alert('No se pudo copiar'); } };
-    const updateScript = ()=>{
-      const title = titleEl.value || '';
-      const price = Math.round(Number(priceEl.value||0)) || 0;
-      const desc = descEl.value || '';
-      if (scriptEl) scriptEl.value = baseScript(title, price, desc);
-    };
-    titleEl.addEventListener('input', updateScript);
-    priceEl.addEventListener('input', updateScript);
-    descEl.addEventListener('input', updateScript);
     document.getElementById('mp-copy-all').onclick   = async ()=>{
-      updateScript();
-      const txt = `${titleEl.value||''}\n\n$ ${Math.round(Number(priceEl.value||0))}\n\n${descEl.value||''}\n\n${scriptEl?.value||''}`;
+      const txt = `${titleEl.value||''}\n\n$ ${Math.round(Number(priceEl.value||0))}\n\n${descEl.value||''}`;
       try{ await navigator.clipboard.writeText(txt); }catch{ alert('No se pudo copiar'); }
     };
-    document.getElementById('mp-copy-script').onclick = async ()=>{
-      updateScript();
-      try{ await navigator.clipboard.writeText(scriptEl?.value||''); }catch{ alert('No se pudo copiar'); }
-    };
-
-    updateScript();
 
     // Descargar primera imagen
     document.getElementById('mp-dl-first').onclick = ()=>{
