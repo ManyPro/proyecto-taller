@@ -934,7 +934,7 @@ if (__ON_INV_PAGE__) {
           <button class="secondary" data-qr-dl="${it._id}">Descargar QR</button>
           <button class="secondary" data-qr="${it._id}">Expandir codigo QR</button>
           <button class="secondary" data-stock-in="${it._id}">Agregar stock</button>
-          <button class="secondary" data-mp="${it._id}" ${it.marketplacePublished ? 'style="background:var(--success);color:white;"' : ''}>${it.marketplacePublished ? '✓ Publicado' : 'Marketplace'}</button>
+          <button class="secondary" data-mp="${it._id}" ${it.marketplacePublished ? 'style="background:linear-gradient(135deg, #10b981, #059669);color:white;font-weight:600;box-shadow:0 2px 8px rgba(16,185,129,0.3);"' : ''}>${it.marketplacePublished ? '✓ Publicado' : 'Marketplace'}</button>
         </div>`;
 
       div.querySelector(`input[type="checkbox"][data-id]`).onchange = (e) => toggleSelected(it, e.target.checked);
@@ -1696,14 +1696,6 @@ function openMarketplaceHelper(item){
             <button id="mp-copy-all">Copiar todo</button>
           </div>
           <div class="muted" style="font-size:12px;margin-top:6px;">Consejo: en Marketplace selecciona la categoría y estado (Nuevo/Usado) manualmente.</div>
-          
-          <div style="margin-top:16px;padding:12px;background:var(--card-alt);border-radius:8px;border:1px solid var(--border);">
-            <div class="row" style="gap:8px;align-items:center;margin-bottom:8px;">
-              <input type="checkbox" id="mp-published" ${item.marketplacePublished ? 'checked' : ''} />
-              <label for="mp-published" style="margin:0;font-weight:600;">Marcar como publicado en Marketplace</label>
-            </div>
-            <div class="muted" style="font-size:12px;">Activa esto cuando hayas publicado el artículo en Facebook Marketplace para evitar duplicados.</div>
-          </div>
         </div>
         <div>
           <h4>Imágenes</h4>
@@ -1711,6 +1703,14 @@ function openMarketplaceHelper(item){
           <div class="row" style="gap:6px;margin-top:8px;">
             <button class="secondary" id="mp-dl-first">Descargar principal</button>
             <button class="secondary" id="mp-dl-all">Descargar todas (ZIP)</button>
+          </div>
+          
+          <div style="margin-top:20px;padding:16px;background:linear-gradient(135deg, var(--card-alt), var(--card));border-radius:12px;border:2px solid var(--border);box-shadow:0 4px 12px rgba(0,0,0,0.1);">
+            <div class="row" style="gap:12px;align-items:center;margin-bottom:8px;">
+              <input type="checkbox" id="mp-published" ${item.marketplacePublished ? 'checked' : ''} style="transform:scale(1.2);" />
+              <label for="mp-published" style="margin:0;font-weight:700;font-size:14px;color:var(--text);">📢 Marcar como publicado en Marketplace</label>
+            </div>
+            <div class="muted" style="font-size:12px;line-height:1.4;">✅ Activa esto cuando hayas publicado el artículo en Facebook Marketplace para evitar duplicados y mantener un registro.</div>
           </div>
         </div>
       </div>

@@ -492,6 +492,9 @@ export const updateItem = async (req, res) => {
   if('publicPrice' in updateDoc){
     updateDoc.publicPrice = Number.isFinite(+updateDoc.publicPrice)? +updateDoc.publicPrice : undefined;
   }
+  if('marketplacePublished' in updateDoc){
+    updateDoc.marketplacePublished = !!updateDoc.marketplacePublished;
+  }
   // published toggle: gestionar publishedAt/publishedBy
   let publishingAction = null;
   if('published' in updateDoc){
