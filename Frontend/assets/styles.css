@@ -380,7 +380,7 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 }
 #modal.modal:not(.hidden){ display:flex; }
 #modal .modal-content{
-  position:relative; width:min(95vw,1200px); max-height:95vh; overflow:auto;
+  position:relative; width:min(95vw,1600px); max-height:95vh; overflow:auto;
   background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; box-shadow:var(--shadow-elev);
   transition:background .25s ease, border-color .25s ease, box-shadow .25s ease;
 }
@@ -460,6 +460,19 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 
 #modal .modal-content.image-modal .zoom-controls button:hover{
   background:white !important;
+}
+
+/* Modal específico para formularios */
+#modal .modal-content.form-modal{
+  width:min(95vw, 1800px) !important; 
+  max-width:95vw !important; 
+  max-height:95vh !important;
+}
+
+/* Modal para contenido general más ancho */
+#modal .modal-content:not(.image-modal):not(.form-modal){
+  width:min(95vw, 1600px) !important;
+  max-width:95vw !important;
 }
 #modal .close{
   position:absolute; top:8px; right:8px; background:transparent; border:0; color:#cbd5e1;
@@ -665,7 +678,19 @@ html{ font-size:16px; }
 @media (max-width:640px){
   #modal.modal{ padding:0; }
   #modal .modal-content{ width:100%; height:100%; max-height:none; border-radius:0; padding:16px 14px 60px; }
+  #modal .modal-content.image-modal{ width:100% !important; height:100% !important; }
+  #modal .modal-content.form-modal{ width:100% !important; }
   #modal .close{ top:10px; right:10px; }
+}
+
+/* Responsive adjustments for larger screens */
+@media (min-width: 1200px){
+  #modal .modal-content:not(.image-modal){
+    width:min(90vw, 1600px) !important;
+  }
+  #modal .modal-content.form-modal{
+    width:min(90vw, 1800px) !important;
+  }
 }
 
 /* Sales grid tighter gap on small */

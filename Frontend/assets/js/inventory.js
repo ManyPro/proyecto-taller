@@ -148,11 +148,11 @@ function invOpenModal(innerHTML) {
   modal.classList.remove("hidden");
   document.body.classList.add("modal-open");
 
-  // Enhanced zoom logic for modal image
+  // Enhanced modal setup
   setTimeout(() => {
-    // Setup zoom functionality
-    if (window.setupImageZoom) {
-      window.setupImageZoom();
+    // Setup modal (detects type and applies appropriate styling)
+    if (window.setupModal) {
+      window.setupModal();
     }
     const closeModalBtn = document.getElementById("close-modal");
     if (closeModalBtn) closeModalBtn.onclick = () => invCloseModal();

@@ -1,6 +1,47 @@
 // Enhanced image zoom functionality for modals
 // This script provides improved zoom, pan, and touch support for image modals
 
+// Function to detect modal content type and apply appropriate class
+window.detectModalType = function() {
+  const modalContent = document.querySelector('#modal .modal-content');
+  const modalBody = document.getElementById('modalBody');
+  
+  if (!modalContent || !modalBody) return;
+  
+  // Remove existing type classes
+  modalContent.classList.remove('image-modal', 'form-modal');
+  
+  // Check if it's an image modal
+  const img = document.getElementById('modal-img');
+  if (img && img.src) {
+    modalContent.classList.add('image-modal');
+    console.log('Modal type: Image');
+    return 'image';
+  }
+  
+  // Check if it's a form modal (look for form elements)
+  const formElements = modalBody.querySelectorAll('form, input, textarea, select, button[type="submit"]');
+  if (formElements.length > 0) {
+    modalContent.classList.add('form-modal');
+    console.log('Modal type: Form');
+    return 'form';
+  }
+  
+  console.log('Modal type: General');
+  return 'general';
+};
+
+// Global function to setup modal (detects type and sets up accordingly)
+window.setupModal = function() {
+  // First detect the modal type
+  const modalType = window.detectModalType();
+  
+  // If it's an image modal, setup zoom
+  if (modalType === 'image') {
+    window.setupImageZoom();
+  }
+};
+
 // Global function to setup zoom when modal opens
 window.setupImageZoom = function() {
   console.log("Setting up image zoom...");
