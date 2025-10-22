@@ -150,10 +150,7 @@ function invOpenModal(innerHTML) {
 
   // Enhanced zoom logic for modal image
   setTimeout(() => {
-    // Import and initialize the enhanced zoom functionality
-    import('./image-zoom.js').then(module => {
-      module.initImageZoom();
-    });
+    // The zoom functionality is now handled by modal-zoom.js
     const closeModalBtn = document.getElementById("close-modal");
     if (closeModalBtn) closeModalBtn.onclick = () => invCloseModal();
   }, 50);

@@ -387,16 +387,18 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 
 /* Modal específico para imágenes */
 #modal .modal-content.image-modal{
-  width:min(98vw,1400px); max-height:98vh; padding:8px; display:flex; flex-direction:column;
+  width:min(90vh, 90vw); height:min(90vh, 90vw); max-width:90vw; max-height:90vh; 
+  padding:0; display:flex; flex-direction:column; border-radius:12px;
 }
 
 #modal .modal-content.image-modal #modal-img-wrap{
-  flex:1; display:flex; justify-content:center; align-items:center; flex-direction:column; overflow:hidden; position:relative;
+  flex:1; display:flex; justify-content:center; align-items:center; flex-direction:column; 
+  overflow:hidden; position:relative; padding:8px; box-sizing:border-box;
 }
 
 #modal .modal-content.image-modal #modal-img{
-  max-width:100%; max-height:calc(98vh - 80px); width:auto; height:auto; 
-  transition:transform 0.3s ease; cursor:zoom-in; object-fit:contain;
+  width:100%; height:100%; max-width:100%; max-height:calc(100% - 60px); 
+  object-fit:contain; transition:transform 0.3s ease; cursor:zoom-in;
 }
 
 #modal .modal-content.image-modal #modal-img.zoomed{
@@ -405,6 +407,20 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 
 #modal .modal-content.image-modal #modal-img.zoomed:active{
   cursor:grabbing;
+}
+
+#modal .modal-content.image-modal .zoom-controls{
+  position:absolute; bottom:8px; left:50%; transform:translateX(-50%); 
+  display:flex; gap:8px; background:rgba(0,0,0,0.7); padding:8px; border-radius:8px;
+}
+
+#modal .modal-content.image-modal .zoom-controls button{
+  background:rgba(255,255,255,0.9); color:#333; border:none; padding:6px 12px; 
+  border-radius:4px; cursor:pointer; font-weight:bold;
+}
+
+#modal .modal-content.image-modal .zoom-controls button:hover{
+  background:white;
 }
 #modal .close{
   position:absolute; top:8px; right:8px; background:transparent; border:0; color:#cbd5e1;
