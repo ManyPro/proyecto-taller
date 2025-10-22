@@ -511,7 +511,25 @@
     const feat = company.features || {};
     const fopts = company.featureOptions || {};
     const restr = company.restrictions || {};
-    const modulesCount = featureList.reduce((acc,item)=> acc + (feat[item.key] !== false ? 1 : 0), 0);
+    
+    // Default features if not set (all enabled by default)
+    const defaultFeatures = {
+      notas: true,
+      ventas: true,
+      cotizaciones: true,
+      inventario: true,
+      precios: true,
+      cashflow: true,
+      techreport: true,
+      tecnicos: true,
+      templates: true,
+      skus: true
+    };
+    
+    // Merge with defaults
+    const mergedFeatures = { ...defaultFeatures, ...feat };
+    
+    const modulesCount = featureList.reduce((acc,item)=> acc + (mergedFeatures[item.key] !== false ? 1 : 0), 0);
     const div = document.createElement("div");
     div.className = "card dev-company-card";
     div.dataset.companyId = id;
@@ -551,7 +569,7 @@
     const wrapFeat = div.querySelector(`#feat-${id}`);
     featureList.forEach(({ key, label })=>{
       const cid = `f-${id}-${key}`;
-      const enabled = feat[key] !== false;
+      const enabled = mergedFeatures[key] !== false;
       wrapFeat.insertAdjacentHTML('beforeend', `
         <label class="toggle" data-feature-toggle="${key}">
           <span class="toggle-text">${label}</span>
@@ -634,7 +652,9 @@
           if (idx >= 0) companiesData[idx].features = saved.features;
         }
         await reloadCompaniesAndFocus(id, 'Modulos guardados');
-      } catch (e) { alert(e.message || 'Error'); }
+      } catch (e) { 
+        alert(e.message || 'Error'); 
+      }
     };
 
     div.querySelector('[data-save-fopts]').onclick = async () => {

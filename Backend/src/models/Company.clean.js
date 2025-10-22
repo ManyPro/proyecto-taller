@@ -14,18 +14,7 @@ const CompanySchema = new mongoose.Schema(
     // Features (module flags)
     features: {
       type: Object,
-      default: {
-        notas: true,
-        ventas: true,
-        cotizaciones: true,
-        inventario: true,
-        precios: true,
-        cashflow: true,
-        techreport: true,
-        tecnicos: true,
-        templates: true,
-        skus: true
-      }
+      default: {}
     },
 
     // Sub-features per module (UI gating)

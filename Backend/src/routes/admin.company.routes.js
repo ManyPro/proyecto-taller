@@ -19,8 +19,17 @@ router.patch('/companies/:id/features', requireAdminRole('developer'), async (re
   const body = req.body || {};
   const c = await Company.findById(id);
   if(!c) return res.status(404).json({ error: 'Empresa no encontrada' });
-  c.features ||= {};
-  Object.entries(body).forEach(([k,v]) => { c.features[k] = !!v; });
+  
+  // Initialize features if not exists
+  if (!c.features) {
+    c.features = {};
+  }
+  
+  // Update features with provided values
+  Object.entries(body).forEach(([k,v]) => { 
+    c.features[k] = !!v; 
+  });
+  
   await c.save();
   res.json({ features: c.features });
 });

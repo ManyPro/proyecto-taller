@@ -1577,9 +1577,7 @@ if (__ON_INV_PAGE__) {
   lines.push('Entrega inmediata.');
   lines.push('Compatibilidad garantizada: te asesoramos para que compres el repuesto correcto.');
   lines.push('Precios negociables - estamos abiertos a llegar a un buen acuerdo.');
-  lines.push('WhatsApp: 3043593520 - Escríbenos directo para más información');
   lines.push('¿Buscas otro repuesto? Pregúntanos por nuestro catálogo completo.');
-  lines.push('¿Tienes taller? ¿Eres mecánico? Escríbenos y te atendemos al instante.');
   return lines.filter(Boolean).join('\n');
 }
 // ---- Import Excel (amigable) ----
