@@ -6,16 +6,24 @@ window.detectModalType = function() {
   const modalContent = document.querySelector('#modal .modal-content');
   const modalBody = document.getElementById('modalBody');
   
-  if (!modalContent || !modalBody) return;
+  if (!modalContent || !modalBody) {
+    console.log('Modal content or body not found');
+    return 'general';
+  }
   
   // Remove existing type classes
   modalContent.classList.remove('image-modal', 'form-modal');
   
-  // Check if it's an image modal
+  // Check if it's an image modal - look for modal-img element
   const img = document.getElementById('modal-img');
-  if (img && img.src) {
+  console.log('Looking for modal-img:', !!img);
+  if (img) {
+    console.log('Image src:', img.src);
+    console.log('Image has src:', !!img.src);
+    
+    // Force image modal class
     modalContent.classList.add('image-modal');
-    console.log('Modal type: Image');
+    console.log('Modal type: Image (forced)');
     return 'image';
   }
   
@@ -34,6 +42,20 @@ window.detectModalType = function() {
 // Global function to setup modal (detects type and sets up accordingly)
 window.setupModal = function() {
   console.log("Setting up modal...");
+  
+  // Check if there's a modal-img element (force image modal)
+  const img = document.getElementById('modal-img');
+  if (img) {
+    console.log("Found modal-img element, forcing image modal...");
+    const modalContent = document.querySelector('#modal .modal-content');
+    if (modalContent) {
+      modalContent.classList.add('image-modal');
+      console.log("Added image-modal class");
+    }
+    window.setupImageZoom();
+    return;
+  }
+  
   // First detect the modal type
   const modalType = window.detectModalType();
   
@@ -210,3 +232,36 @@ window.setupImageZoom = function() {
     }
   }, 100);
 };
+
+// Auto-setup when modal opens (observer)
+window.autoSetupModal = function() {
+  const modal = document.getElementById('modal');
+  if (!modal) return;
+  
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+        if (!modal.classList.contains('hidden')) {
+          console.log('Modal opened, checking for image...');
+          setTimeout(() => {
+            const img = document.getElementById('modal-img');
+            if (img) {
+              console.log('Image found in modal, setting up...');
+              window.setupModal();
+            }
+          }, 100);
+        }
+      }
+    });
+  });
+  
+  observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
+  console.log('Modal observer set up');
+};
+
+// Auto-initialize
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', window.autoSetupModal);
+} else {
+  window.autoSetupModal();
+}

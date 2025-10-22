@@ -467,11 +467,58 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
   min-width:100% !important;
   min-height:100% !important;
   flex:1 !important;
+  position:absolute !important;
+  top:0 !important;
+  left:0 !important;
+  right:0 !important;
+  bottom:0 !important;
 }
 
 /* Asegurar que el contenedor de la imagen ocupe todo el modal */
 #modal .modal-content.image-modal #modal-img-wrap{
   min-height:calc(100% - 0px) !important;
+  position:relative !important;
+}
+
+/* Forzar estilos en cualquier modal que contenga modal-img */
+#modal .modal-content:has(#modal-img){
+  width:min(90vh, 90vw) !important; 
+  height:min(90vh, 90vw) !important; 
+  max-width:90vw !important; 
+  max-height:90vh !important; 
+  padding:0 !important; 
+  display:flex !important; 
+  flex-direction:column !important; 
+  border-radius:12px !important;
+}
+
+#modal .modal-content:has(#modal-img) #modal-img-wrap{
+  flex:1 !important; 
+  display:flex !important; 
+  justify-content:center !important; 
+  align-items:center !important; 
+  flex-direction:column !important; 
+  overflow:hidden !important; 
+  position:relative !important; 
+  padding:0 !important; 
+  box-sizing:border-box !important;
+  width:100% !important;
+  height:100% !important;
+}
+
+#modal .modal-content:has(#modal-img) #modal-img{
+  width:100% !important; 
+  height:100% !important; 
+  max-width:100% !important; 
+  max-height:100% !important; 
+  object-fit:contain !important; 
+  transition:transform 0.3s ease !important; 
+  cursor:zoom-in !important;
+  display:block !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:none !important;
+  outline:none !important;
 }
 
 /* Modal específico para formularios */
