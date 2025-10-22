@@ -33,12 +33,16 @@ window.detectModalType = function() {
 
 // Global function to setup modal (detects type and sets up accordingly)
 window.setupModal = function() {
+  console.log("Setting up modal...");
   // First detect the modal type
   const modalType = window.detectModalType();
   
   // If it's an image modal, setup zoom
   if (modalType === 'image') {
+    console.log("Detected image modal, setting up zoom...");
     window.setupImageZoom();
+  } else {
+    console.log("Non-image modal detected, skipping zoom setup");
   }
 };
 
@@ -191,4 +195,18 @@ window.setupImageZoom = function() {
   
   // Inicializar
   applyTransform();
+  
+  // Añadir indicador visual de que el zoom está activo
+  console.log("Image zoom setup completed successfully");
+  
+  // Asegurar que la imagen tenga el tamaño correcto
+  setTimeout(() => {
+    if (img) {
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.style.maxWidth = '100%';
+      img.style.maxHeight = '100%';
+      console.log("Image dimensions set to 100%");
+    }
+  }, 100);
 };
