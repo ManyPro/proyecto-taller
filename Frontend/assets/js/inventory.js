@@ -1577,14 +1577,8 @@ if (__ON_INV_PAGE__) {
   lines.push('Entrega inmediata.');
   lines.push('Compatibilidad garantizada: te asesoramos para que compres el repuesto correcto.');
   lines.push('Precios negociables - estamos abiertos a llegar a un buen acuerdo.');
-  lines.push('WhatsApp: https://wa.me/3043593520 (3043593520)');
-  try {
-    const base = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
-    const cid  = (typeof API !== 'undefined' && API.companyId?.get) ? (API.companyId.get() || '') : '';
-    const u = new URL('catalogo.html', base);
-    if (cid) u.searchParams.set('companyId', cid);
-    lines.push('Catálogo completo: ' + u.toString());
-  } catch {}
+  lines.push('WhatsApp: 3043593520 - Escríbenos directo para más información');
+  lines.push('¿Buscas otro repuesto? Pregúntanos por nuestro catálogo completo.');
   lines.push('¿Tienes taller? ¿Eres mecánico? Escríbenos y te atendemos al instante.');
   return lines.filter(Boolean).join('\n');
 }

@@ -176,8 +176,6 @@
         tr.innerHTML = `<td>${c.name || '-'}</td><td>${c.email || '-'}</td><td>${c.active ? 'Si' : 'No'}</td><td class="adm-features"></td><td class="adm-actions"></td>`;
         const featuresTd = tr.querySelector('.adm-features');
         const actionsTd = tr.querySelector('.adm-actions');
-        const hideBalances = !!(c?.restrictions?.cashflow?.hideBalances);
-
         if(role === 'developer'){
           const list = document.createElement('div');
           list.className = 'row wrap';
@@ -191,18 +189,12 @@
           });
           featuresTd.appendChild(list);
         }else{
-          featuresTd.innerHTML = hideBalances
-            ? '<span class="muted">Balances ocultos</span>'
-            : '<span>Balances visibles</span>';
+          featuresTd.innerHTML = '<span>Funciones disponibles</span>';
         }
 
         const actions = document.createElement('div');
         actions.className = 'row wrap';
         actions.style.gap = '6px';
-        const hideLabel = document.createElement('label');
-        hideLabel.className = 'chip';
-        hideLabel.innerHTML = `<input type="checkbox" data-hide="${c._id}" ${hideBalances ? 'checked' : ''}/> Ocultar balances`;
-        actions.appendChild(hideLabel);
 
         if(role === 'developer'){
           const saveFeatures = document.createElement('button');
@@ -220,30 +212,7 @@
           };
           actions.appendChild(saveFeatures);
 
-          const saveRestrictions = document.createElement('button');
-          saveRestrictions.className = 'secondary';
-          saveRestrictions.textContent = 'Guardar restricciones';
-          saveRestrictions.onclick = async ()=>{
-            const hide = !!tr.querySelector(`input[data-hide="${c._id}"]`)?.checked;
-            try{
-              await req(`/api/v1/admin/company/companies/${c._id}/restrictions`, { method:'PATCH', body:{ cashflow:{ hideBalances: hide } } });
-              alert('Restricciones guardadas');
-            }catch(e){ alert(e.message||'Error'); }
-          };
-          actions.appendChild(saveRestrictions);
-        }else{
-          const saveHide = document.createElement('button');
-          saveHide.className = 'secondary';
-          saveHide.textContent = 'Guardar';
-          saveHide.onclick = async ()=>{
-            const hide = !!tr.querySelector(`input[data-hide="${c._id}"]`)?.checked;
-            try{
-              await req(`/api/v1/admin/company/companies/${c._id}/restrictions`, { method:'PATCH', body:{ cashflow:{ hideBalances: hide } } });
-              alert('Restriccion actualizada');
-            }catch(e){ alert(e.message||'Error'); }
-          };
-          actions.appendChild(saveHide);
-        }
+          // Restricciones removidas - no hay botón de guardar restricciones
 
         actionsTd.appendChild(actions);
         tbody.appendChild(tr);

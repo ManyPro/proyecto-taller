@@ -21,10 +21,10 @@ const CompanySchema = new mongoose.Schema(
         inventario: true,
         precios: true,
         cashflow: true,
+        techreport: true,
         tecnicos: true,
         templates: true,
-        skus: true,
-        techreport: true
+        skus: true
       }
     },
 
@@ -55,9 +55,7 @@ const CompanySchema = new mongoose.Schema(
     // Restrictions (read-only preferences)
     restrictions: {
       type: Object,
-      default: {
-        cashflow: { hideBalances: false }
-      }
+      default: {}
     },
 
     // Password reset (legacy)

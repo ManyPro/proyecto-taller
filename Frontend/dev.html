@@ -601,9 +601,8 @@
     });
 
     const restrWrap = div.querySelector(`#restr-${id}`);
-    const hideId = `r-${id}-cashflow-hideBalances`;
-    const hideBalances = !!(restr?.cashflow?.hideBalances);
-    restrWrap.insertAdjacentHTML('beforeend', `<label class='chip'><input type='checkbox' id='${hideId}' ${hideBalances ? 'checked' : ''}/> Ocultar saldos de cuentas</label>`);
+    // Restricciones removidas - sección vacía por ahora
+    restrWrap.insertAdjacentHTML('beforeend', `<div class='muted'>Sin restricciones configuradas</div>`);
 
     const readFeaturePayload = () => {
       const payload = {};
@@ -652,16 +651,8 @@
     };
 
     div.querySelector('[data-save-restr]').onclick = async () => {
-      try {
-        const payload = { cashflow: { hideBalances: !!div.querySelector(`#${hideId}`)?.checked } };
-        const saved = await req(`/api/v1/admin/company/companies/${id}/restrictions`, { method:'PATCH', body: payload });
-        if (saved?.restrictions) {
-          company.restrictions = saved.restrictions;
-          const idx = companiesData.findIndex(c => String(c._id || c.id || '') === id);
-          if (idx >= 0) companiesData[idx].restrictions = saved.restrictions;
-        }
-        await reloadCompaniesAndFocus(id, 'Restricciones guardadas');
-      } catch (e) { alert(e.message || 'Error'); }
+      // Restricciones removidas - no hay nada que guardar
+      alert('No hay restricciones configuradas');
     };
     return div;
   }

@@ -21,23 +21,8 @@ async function computeBalance(accountId, companyId) {
 }
 
 export async function listAccounts(req, res) {
-  const [rows, company] = await Promise.all([
-    Account.find({ companyId: req.companyId }).sort({ createdAt: 1 }),
-    Company.findById(req.companyId).select('restrictions').lean()
-  ]);
-  const hide = !!company?.restrictions?.cashflow?.hideBalances;
-  if (!hide) return res.json(rows);
-  // Mask balances-related fields (accounts only have initialBalance stored)
-  const masked = rows.map(r => ({
-    _id: r._id,
-    companyId: r.companyId,
-    name: r.name,
-    type: r.type,
-    currency: r.currency,
-    active: r.active,
-    notes: r.notes
-  }));
-  res.json(masked);
+  const rows = await Account.find({ companyId: req.companyId }).sort({ createdAt: 1 });
+  res.json(rows);
 }
 
 export async function createAccount(req, res) {
@@ -65,18 +50,14 @@ export async function updateAccount(req, res) {
 
 export async function getBalances(req, res) {
   const companyId = req.companyId;
-  const [accounts, company] = await Promise.all([
-    Account.find({ companyId }),
-    Company.findById(companyId).select('restrictions').lean()
-  ]);
-  const hide = !!company?.restrictions?.cashflow?.hideBalances;
+  const accounts = await Account.find({ companyId });
   const balances = [];
   for (const acc of accounts) {
-    const bal = hide ? 0 : await computeBalance(acc._id, companyId);
-    balances.push({ accountId: acc._id, name: acc.name, type: acc.type, balance: hide ? null : bal });
+    const bal = await computeBalance(acc._id, companyId);
+    balances.push({ accountId: acc._id, name: acc.name, type: acc.type, balance: bal });
   }
-  const total = hide ? null : balances.reduce((a, b) => a + (b.balance || 0), 0);
-  res.json({ balances, total, masked: hide === true });
+  const total = balances.reduce((a, b) => a + (b.balance || 0), 0);
+  res.json({ balances, total });
 }
 
 export async function listEntries(req, res) {
@@ -102,22 +83,7 @@ export async function listEntries(req, res) {
     { $group: { _id: null, in: { $sum: { $cond: [{ $eq: ['$kind', 'IN'] }, '$amount', 0] } }, out: { $sum: { $cond: [{ $eq: ['$kind', 'OUT'] }, '$amount', 0] } } } }
   ]);
   const totals = agg[0] || { in: 0, out: 0 };
-  // Mask amounts if hideBalances
-  const company = await Company.findById(req.companyId).select('restrictions').lean();
-  const hide = !!company?.restrictions?.cashflow?.hideBalances;
-  const items = hide ? rows.map(e => ({
-    _id: e._id,
-    companyId: e.companyId,
-    accountId: e.accountId,
-    kind: e.kind,
-    amount: null,
-    description: e.description,
-    source: e.source,
-    date: e.date,
-    balanceAfter: null
-  })) : rows;
-  const maskedTotals = hide ? { in: null, out: null } : totals;
-  res.json({ items, page: pg, limit: lim, total: count, totals: maskedTotals, masked: hide === true });
+  res.json({ items: rows, page: pg, limit: lim, total: count, totals });
 }
 
 export async function createEntry(req, res) {
