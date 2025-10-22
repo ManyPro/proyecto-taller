@@ -148,32 +148,12 @@ function invOpenModal(innerHTML) {
   modal.classList.remove("hidden");
   document.body.classList.add("modal-open");
 
-  // Zoom logic for modal image
+  // Enhanced zoom logic for modal image
   setTimeout(() => {
-    const img = document.getElementById("modal-img");
-    const zoomIn = document.getElementById("zoom-in");
-    const zoomOut = document.getElementById("zoom-out");
-    let scale = 2;
-    if (img) {
-      img.style.transform = `scale(${scale})`;
-      if (zoomIn) zoomIn.onclick = () => {
-        scale = Math.min(scale + 0.2, 5);
-        img.style.transform = `scale(${scale})`;
-      };
-      if (zoomOut) zoomOut.onclick = () => {
-        scale = Math.max(scale - 0.2, 1);
-        img.style.transform = `scale(${scale})`;
-      };
-      img.onwheel = (e) => {
-        e.preventDefault();
-        if (e.deltaY < 0) {
-          scale = Math.min(scale + 0.1, 5);
-        } else {
-          scale = Math.max(scale - 0.1, 1);
-        }
-        img.style.transform = `scale(${scale})`;
-      };
-    }
+    // Import and initialize the enhanced zoom functionality
+    import('./image-zoom.js').then(module => {
+      module.initImageZoom();
+    });
     const closeModalBtn = document.getElementById("close-modal");
     if (closeModalBtn) closeModalBtn.onclick = () => invCloseModal();
   }, 50);

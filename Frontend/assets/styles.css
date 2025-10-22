@@ -380,9 +380,31 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 }
 #modal.modal:not(.hidden){ display:flex; }
 #modal .modal-content{
-  position:relative; width:min(800px,100%); max-height:85vh; overflow:auto;
+  position:relative; width:min(95vw,1200px); max-height:95vh; overflow:auto;
   background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; box-shadow:var(--shadow-elev);
   transition:background .25s ease, border-color .25s ease, box-shadow .25s ease;
+}
+
+/* Modal específico para imágenes */
+#modal .modal-content.image-modal{
+  width:min(98vw,1400px); max-height:98vh; padding:8px; display:flex; flex-direction:column;
+}
+
+#modal .modal-content.image-modal #modal-img-wrap{
+  flex:1; display:flex; justify-content:center; align-items:center; flex-direction:column; overflow:hidden; position:relative;
+}
+
+#modal .modal-content.image-modal #modal-img{
+  max-width:100%; max-height:calc(98vh - 80px); width:auto; height:auto; 
+  transition:transform 0.3s ease; cursor:zoom-in; object-fit:contain;
+}
+
+#modal .modal-content.image-modal #modal-img.zoomed{
+  cursor:grab; transform-origin:center;
+}
+
+#modal .modal-content.image-modal #modal-img.zoomed:active{
+  cursor:grabbing;
 }
 #modal .close{
   position:absolute; top:8px; right:8px; background:transparent; border:0; color:#cbd5e1;

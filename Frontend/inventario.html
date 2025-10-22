@@ -54,14 +54,15 @@
 
       <!-- MODAL GLOBAL -->
       <div id="modal" class="modal hidden">
-        <div class="modal-content">
+        <div class="modal-content image-modal">
           <button id="modalClose" class="close">&times;</button>
           <div id="modalBody">
-            <div id="modal-img-wrap" style="display:flex;justify-content:center;align-items:center;flex-direction:column;">
-              <img id="modal-img" src="" alt="Vista previa" style="max-width:90vw;max-height:90vh;width:1200px;height:auto;transition:transform 0.2s;" />
-              <div style="margin-top:12px;display:flex;gap:8px;">
+            <div id="modal-img-wrap">
+              <img id="modal-img" src="" alt="Vista previa" />
+              <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;">
                 <button id="zoom-in" class="secondary">+</button>
                 <button id="zoom-out" class="secondary">-</button>
+                <button id="zoom-reset" class="secondary">Reset</button>
               </div>
             </div>
           </div>
