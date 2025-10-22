@@ -6,11 +6,12 @@ import VehicleIntake from '../models/VehicleIntake.js';
 // Rules:
 // - Only if item.minStock > 0
 // - Trigger when item.stock <= item.minStock
+// - CRITICAL: when item.stock <= (item.minStock / 2) - URGENT notification
 // - Throttle: if lowStockAlertedAt within last 24h, skip
 // - When stock goes above minStock, clear lowStockAlertedAt to enable future alerts
 export async function checkLowStockAndNotify(companyId, itemId) {
   try {
-    const item = await Item.findOne({ _id: itemId, companyId }).select('sku name stock minStock lowStockAlertedAt vehicleIntakeId');
+    const item = await Item.findOne({ _id: itemId, companyId }).select('sku name stock minStock lowStockAlertedAt lowStockCriticalAlertedAt vehicleIntakeId');
     if (!item) return false;
     const min = Number(item.minStock || 0);
     const current = Number(item.stock || 0);
@@ -21,13 +22,60 @@ export async function checkLowStockAndNotify(companyId, itemId) {
         item.lowStockAlertedAt = null;
         await item.save();
       }
+      if (item.lowStockCriticalAlertedAt) {
+        item.lowStockCriticalAlertedAt = null;
+        await item.save();
+      }
       return false;
     }
 
-    if (current <= min) {
+    const criticalThreshold = Math.ceil(min / 2); // La mitad del mínimo
+    const now = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+
+    // STOCK CRÍTICO: <= mitad del mínimo
+    if (current <= criticalThreshold) {
+      const lastCritical = item.lowStockCriticalAlertedAt ? new Date(item.lowStockCriticalAlertedAt).getTime() : 0;
+      if (!lastCritical || (now - lastCritical) > day) {
+        let purchaseLabel = null;
+        if (item.vehicleIntakeId) {
+          try {
+            const intake = await VehicleIntake.findOne({ _id: item.vehicleIntakeId, companyId }).select('intakeKind purchasePlace intakeDate');
+            if (intake && String(intake.intakeKind).toLowerCase() === 'purchase') {
+              const place = (intake.purchasePlace || '').trim();
+              const date = intake.intakeDate ? new Date(intake.intakeDate) : null;
+              const ymd = date && !Number.isNaN(date.getTime()) ? date.toISOString().slice(0, 10) : '';
+              const label = `COMPRA${place ? ': ' + place : ''}${ymd ? ' ' + ymd : ''}`.trim();
+              purchaseLabel = label || null;
+            }
+          } catch (err) {
+            // swallow intake lookup errors but continue with notification
+          }
+        }
+
+        // Create CRITICAL notification
+        await Notification.create({
+          companyId,
+          type: 'inventory.criticalstock',
+          data: {
+            itemId: item._id,
+            sku: item.sku,
+            name: item.name,
+            stock: current,
+            minStock: min,
+            criticalThreshold,
+            purchaseLabel: purchaseLabel || undefined
+          }
+        });
+        item.lowStockCriticalAlertedAt = new Date();
+        await item.save();
+        return true;
+      }
+      return false;
+    }
+    // STOCK BAJO: <= mínimo pero > mitad del mínimo
+    else if (current <= min) {
       const last = item.lowStockAlertedAt ? new Date(item.lowStockAlertedAt).getTime() : 0;
-      const now = Date.now();
-      const day = 24 * 60 * 60 * 1000;
       if (!last || (now - last) > day) {
         let purchaseLabel = null;
         if (item.vehicleIntakeId) {
@@ -45,7 +93,7 @@ export async function checkLowStockAndNotify(companyId, itemId) {
           }
         }
 
-        // Create notification
+        // Create normal low stock notification
         await Notification.create({
           companyId,
           type: 'inventory.lowstock',
@@ -64,9 +112,13 @@ export async function checkLowStockAndNotify(companyId, itemId) {
       }
       return false;
     } else {
-      // If stock recovered above threshold, clear alert flag
+      // If stock recovered above threshold, clear alert flags
       if (item.lowStockAlertedAt) {
         item.lowStockAlertedAt = null;
+        await item.save();
+      }
+      if (item.lowStockCriticalAlertedAt) {
+        item.lowStockCriticalAlertedAt = null;
         await item.save();
       }
       return false;

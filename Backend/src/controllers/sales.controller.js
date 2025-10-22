@@ -582,6 +582,16 @@ export const closeSale = async (req, res) => {
       const resEntries = await registerSaleIncome({ companyId: req.companyId, sale, accountId });
       cashflowEntries = Array.isArray(resEntries) ? resEntries : (resEntries ? [resEntries] : []);
     } catch(e) { console.warn('registerSaleIncome failed:', e?.message||e); }
+    
+    // Verificar alertas de stock después del cierre de venta
+    try {
+      if (affectedItemIds.length > 0) {
+        await checkLowStockForMany(req.companyId, affectedItemIds);
+      }
+    } catch (e) {
+      console.error('Error checking stock alerts after sale close:', e?.message);
+    }
+    
     try{ publish(req.companyId, 'sale:closed', { id: (sale?._id)||undefined }) }catch{}
     res.json({ ok: true, sale: sale.toObject(), cashflowEntries });
   } catch (err) {

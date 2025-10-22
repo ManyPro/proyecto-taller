@@ -523,7 +523,12 @@ logoutBtn?.addEventListener('click', async () => {
         case /^inventory\.lowstock$/.test(t):{
           const baseText = `${d?.sku ? d.sku + ': ' : ''}${d?.name || 'Producto'} - quedan ${d?.stock ?? '?'} (minimo ${d?.minStock ?? '?'})`;
           const action = d?.purchaseLabel ? ` - Pedir mas en (${d.purchaseLabel})` : ' - Pedir mas';
-          return { icon:'!!', title:'Stock bajo', body: baseText + action, meta: ago };
+          return { icon:'⚠️', title:'Stock bajo', body: baseText + action, meta: ago, urgent: false };
+        }
+        case /^inventory\.criticalstock$/.test(t):{
+          const baseText = `${d?.sku ? d.sku + ': ' : ''}${d?.name || 'Producto'} - quedan ${d?.stock ?? '?'} (minimo ${d?.minStock ?? '?'})`;
+          const action = d?.purchaseLabel ? ` - Pedir mas en (${d.purchaseLabel})` : ' - Pedir mas';
+          return { icon:'🚨', title:'STOCK MUY BAJO', body: baseText + action, meta: ago, urgent: true };
         }
         case /^sale\.created$/.test(t):
           return { icon:'??', title:'Nueva venta creada', body:`Se registró un nuevo pedido${d?.origin==='catalog'?' desde el catálogo público':''}.`, meta: ago };
@@ -548,12 +553,28 @@ logoutBtn?.addEventListener('click', async () => {
       lastIds.add(String(n._id));
       const info = fmt(n);
       const div = document.createElement('div');
-      div.style.cssText='background:var(--card-alt,#1e293b);padding:10px;border-radius:10px;border:1px solid var(--border);display:flex;gap:10px;align-items:flex-start;';
+      
+      // Aplicar estilos urgentes si es necesario
+      const isUrgent = info.urgent === true;
+      const urgentStyles = isUrgent ? 
+        'background:linear-gradient(135deg, #dc2626, #b91c1c);border:2px solid #fca5a5;box-shadow:0 4px 12px rgba(220,38,38,0.3);' : 
+        'background:var(--card-alt,#1e293b);border:1px solid var(--border);';
+      
+      div.style.cssText=`${urgentStyles}padding:10px;border-radius:10px;display:flex;gap:10px;align-items:flex-start;`;
+      
+      const titleStyle = isUrgent ? 
+        'font-weight:900;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.5);' : 
+        'font-weight:700;';
+      
+      const bodyStyle = isUrgent ? 
+        'opacity:1;margin:4px 0;color:#fff;' : 
+        'opacity:.9;margin:4px 0;';
+      
       div.innerHTML = `
         <div style="font-size:20px;line-height:1.2;">${info.icon}</div>
         <div style="flex:1;min-width:0;">
-          <div style='font-weight:700;'>${info.title}</div>
-          <div style='opacity:.9;margin:4px 0;'>${info.body}</div>
+          <div style='${titleStyle}'>${info.title}</div>
+          <div style='${bodyStyle}'>${info.body}</div>
           <div style='display:flex;justify-content:space-between;align-items:center;margin-top:6px;'>
             <span style='font-size:11px;opacity:.6;'>${info.meta}</span>
             <button data-read='${n._id}' style='font-size:11px;' class='secondary'>Marcar leído</button>

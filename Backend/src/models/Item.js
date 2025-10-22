@@ -32,6 +32,8 @@ const itemSchema = new mongoose.Schema({
   minStock: { type: Number, default: 0, min: 0 },
   // Marca de última alerta enviada para evitar spam
   lowStockAlertedAt: { type: Date, default: null },
+  // Marca de última alerta crítica enviada para evitar spam
+  lowStockCriticalAlertedAt: { type: Date, default: null },
 
   images: { type: [mediaSchema], default: [] },
 
