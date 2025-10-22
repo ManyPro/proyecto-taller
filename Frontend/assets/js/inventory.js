@@ -1564,28 +1564,28 @@ if (__ON_INV_PAGE__) {
   function buildMarketplaceTitle(it){
     const brand = (it.brand||'').toString().trim();
     const name = (it.name||'').toString().trim();
-    const sku = (it.sku||'').toString().trim();
-    return `${brand? brand+ ' ' : ''}${name}${sku? ' • '+sku: ''}`.trim();
+    // Removido el SKU del título para uso público
+    return `${brand? brand+ ' ' : ''}${name}`.trim();
   }
 
   function buildMarketplaceDescription(it){
   const lines = [];
   if (it.brand) lines.push(`Marca: ${it.brand}`);
   lines.push(`Precio: ${fmtMoney(it.salePrice || 0)}`);
-  lines.push(`Stock: ${Number(it.stock || 0)}`);
+  // Removido el stock de la descripción pública
   lines.push('Estado: Original - Usado en perfecto estado.');
   lines.push('Entrega inmediata.');
   lines.push('Compatibilidad garantizada: te asesoramos para que compres el repuesto correcto.');
-  lines.push('Precios negociables � estamos abiertos a llegar a un buen acuerdo.');
+  lines.push('Precios negociables - estamos abiertos a llegar a un buen acuerdo.');
   lines.push('WhatsApp: https://wa.me/3043593520 (3043593520)');
   try {
     const base = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
     const cid  = (typeof API !== 'undefined' && API.companyId?.get) ? (API.companyId.get() || '') : '';
     const u = new URL('catalogo.html', base);
     if (cid) u.searchParams.set('companyId', cid);
-    lines.push('Catalogo completo: ' + u.toString());
+    lines.push('Catálogo completo: ' + u.toString());
   } catch {}
-  lines.push('�Tienes taller? �Eres mec�nico? Escr�benos y te atendemos al instante.');
+  lines.push('¿Tienes taller? ¿Eres mecánico? Escríbenos y te atendemos al instante.');
   return lines.filter(Boolean).join('\n');
 }
 // ---- Import Excel (amigable) ----
