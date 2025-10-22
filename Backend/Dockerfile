@@ -12,9 +12,8 @@ ENV NODE_ENV=production \
 WORKDIR /app
 
 # Install dependencies first (better layer caching)
-COPY package.json ./package.json
-# If you later add a lockfile, prefer `npm ci --omit=dev`
-RUN npm install --omit=dev && npm cache clean --force
+COPY package.json package-lock.json* ./
+RUN npm ci --omit=dev && npm cache clean --force
 
 # Copy source code
 COPY src ./src
@@ -27,7 +26,7 @@ EXPOSE 3000
 # Run as non-root where possible
 # node image already has `node` user, but our deps may write to uploads. Ensure perms.
 RUN mkdir -p /app/uploads \
- && chown -R node:node /app
+ && chown -R node:node /app/uploads
 USER node
 
 ENTRYPOINT ["/sbin/tini","--"]

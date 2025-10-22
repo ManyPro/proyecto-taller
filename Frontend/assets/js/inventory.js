@@ -1705,12 +1705,12 @@ function openMarketplaceHelper(item){
             <button class="secondary" id="mp-dl-all">Descargar todas (ZIP)</button>
           </div>
           
-          <div style="margin-top:20px;padding:16px;background:linear-gradient(135deg, var(--card-alt), var(--card));border-radius:12px;border:2px solid var(--border);box-shadow:0 4px 12px rgba(0,0,0,0.1);">
-            <div class="row" style="gap:12px;align-items:center;margin-bottom:8px;">
-              <input type="checkbox" id="mp-published" ${item.marketplacePublished ? 'checked' : ''} style="transform:scale(1.2);" />
-              <label for="mp-published" style="margin:0;font-weight:700;font-size:14px;color:var(--text);">📢 Marcar como publicado en Marketplace</label>
+          <div style="margin-top:16px;padding:12px;background:var(--card-alt);border-radius:8px;border:1px solid var(--border);">
+            <div class="row" style="gap:8px;align-items:center;">
+              <input type="checkbox" id="mp-published" ${item.marketplacePublished ? 'checked' : ''} />
+              <label for="mp-published" style="margin:0;font-weight:600;font-size:13px;">Marcar como publicado en Marketplace</label>
             </div>
-            <div class="muted" style="font-size:12px;line-height:1.4;">✅ Activa esto cuando hayas publicado el artículo en Facebook Marketplace para evitar duplicados y mantener un registro.</div>
+            <div class="muted" style="font-size:11px;margin-top:4px;">Para evitar duplicados al publicar en Facebook Marketplace.</div>
           </div>
         </div>
       </div>
@@ -1741,25 +1741,41 @@ function openMarketplaceHelper(item){
     
     // Manejar checkbox de publicado
     publishedEl.addEventListener('change', async () => {
+      const published = publishedEl.checked;
+      const originalState = !published;
+      
       try {
-        const published = publishedEl.checked;
-        await invAPI.updateItem(item._id, { marketplacePublished: published });
-        // Actualizar el item en el cache
+        // Actualizar inmediatamente en la UI para feedback visual
+        item.marketplacePublished = published;
+        
+        // Actualizar en cache y lista local
         if (state.itemCache.has(String(item._id))) {
-          const cachedItem = state.itemCache.get(String(item._id));
-          cachedItem.marketplacePublished = published;
+          state.itemCache.get(String(item._id)).marketplacePublished = published;
         }
-        // Actualizar en la lista de items
         const listItem = state.items.find(it => String(it._id) === String(item._id));
         if (listItem) {
           listItem.marketplacePublished = published;
         }
-        console.log(`Item ${item.sku || item._id} marcado como ${published ? 'publicado' : 'no publicado'} en Marketplace`);
+        
+        // Enviar al servidor en background
+        invAPI.updateItem(item._id, { marketplacePublished: published }).catch(error => {
+          console.error('Error actualizando estado:', error);
+          // Revertir solo en caso de error
+          item.marketplacePublished = originalState;
+          publishedEl.checked = originalState;
+          if (state.itemCache.has(String(item._id))) {
+            state.itemCache.get(String(item._id)).marketplacePublished = originalState;
+          }
+          if (listItem) {
+            listItem.marketplacePublished = originalState;
+          }
+          alert('Error al guardar. Intenta nuevamente.');
+        });
+        
       } catch (error) {
-        console.error('Error actualizando estado de publicación:', error);
-        alert('Error al actualizar el estado de publicación');
-        // Revertir el checkbox si hay error
-        publishedEl.checked = !publishedEl.checked;
+        console.error('Error:', error);
+        publishedEl.checked = originalState;
+        alert('Error inesperado');
       }
     });
 
