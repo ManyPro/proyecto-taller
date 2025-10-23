@@ -49,8 +49,13 @@ export function initQuotes({ getCompanyEmail }) {
   const iLine  = $('#q-line');
   const iYear  = $('#q-year');
   const iCc    = $('#q-cc');
+  const iMileage = $('#q-mileage');
 
   const iValidDays = $('#q-valid-days');
+
+  // Notas especiales
+  const iSpecialNotesList = $('#q-special-notes-list');
+  const iAddSpecialNote = $('#q-add-special-note');
 
   // Botones cabecera/acciones
   const iSaveDraft = $('#q-saveDraft');
@@ -148,8 +153,8 @@ export function initQuotes({ getCompanyEmail }) {
     return {
       number:iNumber.value, datetime:iDatetime.value,
       clientName:iClientName.value, clientPhone:iClientPhone.value, clientEmail:iClientEmail.value,
-      plate:iPlate.value, brand:iBrand.value, line:iLine.value, year:iYear.value, cc:iCc.value,
-      validDays:iValidDays.value, rows:readRows()
+      plate:iPlate.value, brand:iBrand.value, line:iLine.value, year:iYear.value, cc:iCc.value, mileage:iMileage.value,
+      validDays:iValidDays.value, specialNotes:specialNotes, rows:readRows()
     };
   }
   function saveDraft(){
@@ -167,13 +172,48 @@ export function initQuotes({ getCompanyEmail }) {
       iClientPhone.value = d.clientPhone || '';
       iClientEmail.value = d.clientEmail || '';
       iPlate.value = d.plate || ''; iBrand.value = d.brand || ''; iLine.value = d.line || '';
-      iYear.value  = d.year  || ''; iCc.value   = d.cc   || '';
+      iYear.value  = d.year  || ''; iCc.value   = d.cc   || ''; iMileage.value = d.mileage || '';
       iValidDays.value = d.validDays || '';
+      specialNotes = d.specialNotes || [];
+      renderSpecialNotes();
       clearRows(); (d.rows||[]).forEach(addRowFromData);
       clearDirtyFlags();
     }catch{}
   }
   function clearDraft(){ localStorage.removeItem(kDraft()); }
+
+  // ====== Notas Especiales ======
+  let specialNotes = [];
+  
+  function addSpecialNote() {
+    const note = prompt('Ingresa la nota especial:');
+    if (note && note.trim()) {
+      specialNotes.push(note.trim());
+      renderSpecialNotes();
+      recalcAll();
+    }
+  }
+  
+  function removeSpecialNote(index) {
+    specialNotes.splice(index, 1);
+    renderSpecialNotes();
+    recalcAll();
+  }
+  
+  function renderSpecialNotes() {
+    if (!iSpecialNotesList) return;
+    iSpecialNotesList.innerHTML = '';
+    specialNotes.forEach((note, index) => {
+      const noteDiv = document.createElement('div');
+      noteDiv.className = 'special-note-item';
+      noteDiv.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px;';
+      noteDiv.innerHTML = `
+        <span style="flex: 1;">${note}</span>
+        <button type="button" class="secondary" onclick="removeSpecialNote(${index})" style="font-size: 12px; padding: 4px 8px;">Eliminar</button>
+      `;
+      iSpecialNotesList.appendChild(noteDiv);
+    });
+  }
 
   // ====== Filas ======
   function clearRows(){ rowsBox.innerHTML=''; }
@@ -183,6 +223,18 @@ export function initQuotes({ getCompanyEmail }) {
     row.querySelectorAll('input')[0].value = r.desc  || '';
     row.querySelectorAll('input')[1].value = r.qty   || '';
     row.querySelectorAll('input')[2].value = r.price || '';
+    
+    // Precio mínimo
+    if (r.minPrice && r.minPrice > 0) {
+      const minPriceInput = row.querySelector('.min-price-input');
+      const minPriceBtn = row.querySelector('.min-price-btn');
+      if (minPriceInput && minPriceBtn) {
+        minPriceInput.value = r.minPrice;
+        minPriceInput.style.display = 'block';
+        minPriceBtn.style.display = 'none';
+      }
+    }
+    
     // Metadata origen (inventario / lista precios)
     if(r.source) row.dataset.source = r.source;
     if(r.refId)  row.dataset.refId = r.refId;
@@ -197,6 +249,32 @@ export function initQuotes({ getCompanyEmail }) {
       el.addEventListener('input',()=>{ updateRowSubtotal(n); recalcAll(); });
     });
     n.querySelector('button')?.addEventListener('click',()=>{ n.remove(); recalcAll(); });
+    
+    // Funcionalidad del precio mínimo
+    const minPriceBtn = n.querySelector('.min-price-btn');
+    const minPriceInput = n.querySelector('.min-price-input');
+    if (minPriceBtn && minPriceInput) {
+      minPriceBtn.addEventListener('click', () => {
+        if (minPriceInput.style.display === 'none') {
+          minPriceInput.style.display = 'block';
+          minPriceBtn.style.display = 'none';
+          minPriceInput.focus();
+        }
+      });
+      
+      minPriceInput.addEventListener('blur', () => {
+        if (minPriceInput.value.trim() === '') {
+          minPriceInput.style.display = 'none';
+          minPriceBtn.style.display = 'block';
+        }
+      });
+      
+      minPriceInput.addEventListener('input', () => {
+        updateRowSubtotal(n);
+        recalcAll();
+      });
+    }
+    
     return n;
   }
   function readRows(){
@@ -205,9 +283,12 @@ export function initQuotes({ getCompanyEmail }) {
       const desc=r.querySelectorAll('input')[0].value;
       const qty =Number(r.querySelectorAll('input')[1].value||0);
       const price=Number(r.querySelectorAll('input')[2].value||0);
+      const minPriceInput = r.querySelector('.min-price-input');
+      const minPrice = minPriceInput ? Number(minPriceInput.value||0) : undefined;
       if(!desc && !price && !qty) return;
       rows.push({
         type,desc,qty,price,
+        minPrice: minPrice || undefined,
         source: r.dataset.source || undefined,
         refId: r.dataset.refId || undefined,
         sku: r.dataset.sku || undefined
@@ -240,12 +321,12 @@ export function initQuotes({ getCompanyEmail }) {
     const num=iNumber.value;
   const cliente=iClientName.value||'—';
     const veh=`${iBrand.value||''} ${iLine.value||''} ${iYear.value||''}`.trim();
-  const placa=iPlate.value||'—'; const cc=iCc.value||'—';
+  const placa=iPlate.value||'—'; const cc=iCc.value||'—'; const mileage=iMileage.value||'—';
   const val=iValidDays.value?`\nValidez: ${iValidDays.value} días`:'';
     const lines=[];
   lines.push(`*Cotización ${num}*`);
     lines.push(`Cliente: ${cliente}`);
-  lines.push(`Vehículo: ${veh} — Placa: ${placa} — Cilindraje: ${cc}`);
+  lines.push(`Vehículo: ${veh} — Placa: ${placa} — Cilindraje: ${cc} — Kilometraje: ${mileage}`);
     lines.push('');
     rows.forEach(({type,desc,qty,price})=>{
       const q=qty>0?qty:1; const st=q*(price||0);
@@ -258,6 +339,15 @@ export function initQuotes({ getCompanyEmail }) {
     lines.push(`Subtotal Productos: ${money(subP)}`);
     lines.push(`Subtotal Servicios: ${money(subS)}`);
     lines.push(`*TOTAL: ${money(total)}*`);
+    
+    // Añadir notas especiales antes de "Valores SIN IVA"
+    if (specialNotes.length > 0) {
+      lines.push('');
+      specialNotes.forEach(note => {
+        lines.push(`📝 ${note}`);
+      });
+    }
+    
     lines.push(`Valores SIN IVA`);
     lines.push(val.trim());
     return lines.join('\n').replace(/\n{3,}/g,'\n\n');
@@ -328,8 +418,9 @@ export function initQuotes({ getCompanyEmail }) {
       number:iNumber.value,
       datetime:iDatetime.value||todayIso(),
       customer:{ name:iClientName.value,clientPhone:iClientPhone.value, email:iClientEmail.value },
-      vehicle:{ make:iBrand.value, line:iLine.value, modelYear:iYear.value, plate:iPlate.value, displacement:iCc.value },
+      vehicle:{ make:iBrand.value, line:iLine.value, modelYear:iYear.value, plate:iPlate.value, displacement:iCc.value, mileage:iMileage.value },
       validity:iValidDays.value,
+      specialNotes:specialNotes,
       items:readRows().map(r=>({
         kind:r.type, description:r.desc, qty:r.qty, unitPrice:r.price,
         subtotal:(r.qty>0?r.qty:1)*(r.price||0)
@@ -395,7 +486,7 @@ export function initQuotes({ getCompanyEmail }) {
 
     const veh = [doc.vehicle?.make, doc.vehicle?.line, doc.vehicle?.modelYear].filter(Boolean).join(' ');
   d.text(`Vehículo: ${veh || '—'}  —  Placa: ${doc.vehicle?.plate || '—'} —`, left, 231);
-  d.text(`Cilindraje: ${doc.vehicle?.displacement || '—'}`, left, 245);
+  d.text(`Cilindraje: ${doc.vehicle?.displacement || '—'} — Kilometraje: ${doc.vehicle?.mileage || '—'}`, left, 245);
 
     // ====== Marca de agua ======
     const supportsOpacity = !!(d.saveGraphicsState && d.setGState && d.GState);
@@ -431,6 +522,17 @@ export function initQuotes({ getCompanyEmail }) {
 
     // ====== Totales y notas ======
     let y = d.lastAutoTable.finalY + 18;
+    
+    // Notas especiales
+    if (doc.specialNotes && doc.specialNotes.length > 0) {
+      d.setFont('helvetica','normal'); d.setFontSize(10);
+      doc.specialNotes.forEach(note => {
+        d.text(`📝 ${note}`, left, y);
+        y += 12;
+      });
+      y += 8;
+    }
+    
     d.setFont('helvetica','italic'); d.setFontSize(10);
     d.text('Valores SIN IVA', left, y); y += 14;
   if(doc.validity) d.text(`Validez: ${doc.validity} días`, left, y);
@@ -464,12 +566,14 @@ export function initQuotes({ getCompanyEmail }) {
       if(r.source){ base.source=r.source; }
       if(r.refId){ base.refId=r.refId; }
       if(r.sku){ base.sku=r.sku; }
+      if(r.minPrice && r.minPrice > 0){ base.minPrice=Number(r.minPrice); }
       return base;
     });
     return {
       customer:{ name:iClientName.value||'', phone:iClientPhone.value||'', email:iClientEmail.value||'' },
-      vehicle:{ plate:iPlate.value||'', make:iBrand.value||'', line:iLine.value||'', modelYear:iYear.value||'', displacement:iCc.value||'' },
+      vehicle:{ plate:iPlate.value||'', make:iBrand.value||'', line:iLine.value||'', modelYear:iYear.value||'', displacement:iCc.value||'', mileage:iMileage.value||'' },
       validity:iValidDays.value||'',
+      specialNotes:specialNotes,
       items
     };
   }
@@ -601,6 +705,9 @@ export function initQuotes({ getCompanyEmail }) {
           <input id="m-year" placeholder="Año" />
           <input id="m-cc" placeholder="Cilindraje" />
         </div>
+        <div class="row">
+          <input id="m-mileage" placeholder="Kilometraje" type="number" min="0" step="1" />
+        </div>
   <label>Validez (días, opcional)</label>
         <input id="m-valid-days" type="number" min="0" step="1" placeholder="p. ej. 8" />
       </div>
@@ -627,6 +734,11 @@ export function initQuotes({ getCompanyEmail }) {
             <div class="small">
               <label class="sr-only">Precio</label>
               <input type="number" min="0" step="0.01" placeholder="Precio" />
+            </div>
+            <div class="small">
+              <label class="sr-only">Precio mínimo</label>
+              <input type="number" min="0" step="0.01" placeholder="Precio mín." class="min-price-input" style="display: none;" />
+              <button type="button" class="secondary min-price-btn" style="font-size: 12px; padding: 4px 8px;">Precio mín.</button>
             </div>
             <div class="small">
               <label class="sr-only">Subtotal</label>
@@ -731,7 +843,7 @@ export function initQuotes({ getCompanyEmail }) {
   const val = iValid.value ? `\nValidez: ${iValid.value} días` : '';
   lines.push(`*Cotización ${iNumber.value || '—'}*`);
   lines.push(`Cliente: ${iName.value||'—'}`);
-  lines.push(`Vehículo: ${veh} — Placa: ${iPlate.value||'—'} — Cilindraje: ${iCc.value||'—'}`);
+  lines.push(`Vehículo: ${veh} — Placa: ${iPlate.value||'—'} — Cilindraje: ${iCc.value||'—'} — Kilometraje: ${iMileage.value||'—'}`);
       lines.push('');
       rows.forEach(({type,desc,qty,price})=>{
         const q=qty>0?qty:1; const st=q*(price||0);
@@ -772,10 +884,11 @@ export function initQuotes({ getCompanyEmail }) {
     iLine.value  = doc?.vehicle?.line || '';
     iYear.value  = doc?.vehicle?.modelYear || '';
     iCc.value    = doc?.vehicle?.displacement || '';
+    iMileage.value = doc?.vehicle?.mileage || '';
     iValid.value = doc?.validity || '';
     rowsBox.innerHTML='';
     (doc?.items||[]).forEach(it=>{
-      addRowFromData({ type:(String(it.kind||'PRODUCTO').toUpperCase()==='SERVICIO'?'SERVICIO':'PRODUCTO'), desc:it.description||'', qty:it.qty??'', price:it.unitPrice||0, source:it.source, refId:it.refId, sku:it.sku });
+      addRowFromData({ type:(String(it.kind||'PRODUCTO').toUpperCase()==='SERVICIO'?'SERVICIO':'PRODUCTO'), desc:it.description||'', qty:it.qty??'', price:it.unitPrice||0, minPrice:it.minPrice||0, source:it.source, refId:it.refId, sku:it.sku });
     });
     if(!(doc?.items||[]).length) addRow();
     recalc();
@@ -793,8 +906,9 @@ export function initQuotes({ getCompanyEmail }) {
         number: iNumber.value,
         datetime: iDatetime.value,
         customer: { name:iName.value, clientPhone:iPhone.value, email:iEmail.value },
-        vehicle: { make:iBrand.value, line:iLine.value, modelYear:iYear.value, plate:iPlate.value, displacement:iCc.value },
+        vehicle: { make:iBrand.value, line:iLine.value, modelYear:iYear.value, plate:iPlate.value, displacement:iCc.value, mileage:iMileage.value },
         validity: iValid.value,
+        specialNotes: [],
         items
       }).catch(e=>alert(e?.message||'Error generando PDF'));
     });
@@ -803,8 +917,9 @@ export function initQuotes({ getCompanyEmail }) {
         const rows=readRows();
         const payload = {
           customer:{ name:iName.value||'', phone:iPhone.value||'', email:iEmail.value||'' },
-          vehicle:{ plate:iPlate.value||'', make:iBrand.value||'', line:iLine.value||'', modelYear:iYear.value||'', displacement:iCc.value||'' },
+          vehicle:{ plate:iPlate.value||'', make:iBrand.value||'', line:iLine.value||'', modelYear:iYear.value||'', displacement:iCc.value||'', mileage:iMileage.value||'' },
           validity:iValid.value||'',
+          specialNotes:[],
           items: rows.map(r=>{
             const base={ kind:r.type, description:r.desc, qty:r.qty?Number(r.qty):null, unitPrice:Number(r.price||0) };
             if(r.source) base.source=r.source;
@@ -837,8 +952,13 @@ export function initQuotes({ getCompanyEmail }) {
     iLine.value  = d?.vehicle?.line || '';
     iYear.value  = d?.vehicle?.modelYear || '';
     iCc.value    = d?.vehicle?.displacement || '';
+    iMileage.value = d?.vehicle?.mileage || '';
 
     iValidDays.value = d?.validity || '';
+    
+    // Cargar notas especiales
+    specialNotes = d?.specialNotes || [];
+    renderSpecialNotes();
 
     clearRows();
     (d?.items||[]).forEach(it=>{
@@ -851,6 +971,7 @@ export function initQuotes({ getCompanyEmail }) {
         desc:it.description||'',
         qty:it.qty??'',
         price:it.unitPrice||0,
+        minPrice:it.minPrice||0,
         source, refId:it.refId, sku:it.sku
       });
     });
@@ -865,6 +986,7 @@ export function initQuotes({ getCompanyEmail }) {
       customer:d.customer||{},
       vehicle:d.vehicle||{},
       validity:d.validity||'',
+      specialNotes:d.specialNotes||[],
       items:(d.items||[]).map(it=>({
         ...it,
         subtotal:(it.qty && it.qty>0 ? it.qty : 1) * (it.unitPrice || 0)
@@ -882,12 +1004,13 @@ export function initQuotes({ getCompanyEmail }) {
         type:it.kind==='SERVICIO'?'SERVICIO':'PRODUCTO',
         desc:it.description, qty:it.qty, price:it.unitPrice
       }));
-      const bak={ n:iNumber.value, c:iClientName.value, b:iBrand.value, l:iLine.value, y:iYear.value, p:iPlate.value, cc:iCc.value, v:iValidDays.value };
+      const bak={ n:iNumber.value, c:iClientName.value, b:iBrand.value, l:iLine.value, y:iYear.value, p:iPlate.value, cc:iCc.value, m:iMileage.value, v:iValidDays.value, sn:specialNotes };
       iNumber.value=d.number||iNumber.value;
       iClientName.value=d.customer?.name||'';
-      iBrand.value=d.vehicle?.make||''; iLine.value=d.vehicle?.line||''; iYear.value=d.vehicle?.modelYear||''; iPlate.value=d.vehicle?.plate||''; iCc.value=d.vehicle?.displacement||''; iValidDays.value=d.validity||'';
+      iBrand.value=d.vehicle?.make||''; iLine.value=d.vehicle?.line||''; iYear.value=d.vehicle?.modelYear||''; iPlate.value=d.vehicle?.plate||''; iCc.value=d.vehicle?.displacement||''; iMileage.value=d.vehicle?.mileage||''; iValidDays.value=d.validity||'';
+      specialNotes=d.specialNotes||[];
       const text=buildWhatsAppText(rows,subP,subS,total);
-      iNumber.value=bak.n; iClientName.value=bak.c; iBrand.value=bak.b; iLine.value=bak.l; iYear.value=bak.y; iPlate.value=bak.p; iCc.value=bak.cc; iValidDays.value=bak.v;
+      iNumber.value=bak.n; iClientName.value=bak.c; iBrand.value=bak.b; iLine.value=bak.l; iYear.value=bak.y; iPlate.value=bak.p; iCc.value=bak.cc; iMileage.value=bak.m; iValidDays.value=bak.v; specialNotes=bak.sn;
       return text;
     })();
 
@@ -896,7 +1019,9 @@ export function initQuotes({ getCompanyEmail }) {
 
   // ===== Reset de formulario (post-crear) =====
   function resetQuoteForm(){
-    [iClientName,iClientPhone,iClientEmail,iPlate,iBrand,iLine,iYear,iCc,iValidDays].forEach(i=>{ if(i) i.value=''; });
+    [iClientName,iClientPhone,iClientEmail,iPlate,iBrand,iLine,iYear,iCc,iMileage,iValidDays].forEach(i=>{ if(i) i.value=''; });
+    specialNotes = [];
+    renderSpecialNotes();
     clearRows(); addRow();
     lblSubtotalProducts.textContent='$0';
     lblSubtotalServices.textContent='$0';
@@ -917,9 +1042,18 @@ export function initQuotes({ getCompanyEmail }) {
     btnWA?.addEventListener('click',openWhatsApp);
     btnPDF?.addEventListener('click',()=>{ exportPDF().catch(err=>alert(err?.message||err)); });
     btnSaveBackend?.addEventListener('click',saveToBackend);
+    
+    // Notas especiales
+    iAddSpecialNote?.addEventListener('click', addSpecialNote);
+    
+    // Kilometraje
+    iMileage?.addEventListener('input', recalcAll);
+    
     btnClear?.addEventListener('click',()=>{
   if(!confirm('¿Borrar todo el contenido de la cotización actual?')) return;
-      [iClientName,iClientPhone,iClientEmail,iPlate,iBrand,iLine,iYear,iCc,iValidDays].forEach(i=>i.value='');
+      [iClientName,iClientPhone,iClientEmail,iPlate,iBrand,iLine,iYear,iCc,iMileage,iValidDays].forEach(i=>i.value='');
+      specialNotes = [];
+      renderSpecialNotes();
       clearRows(); addRow(); recalcAll(); clearDraft(); currentQuoteId=null;
     });
 

@@ -521,6 +521,27 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
   outline:none !important;
 }
 
+/* Fallback: Direct targeting of modal-img */
+#modal-img{
+  width:100% !important;
+  height:100% !important;
+  max-width:100% !important;
+  max-height:100% !important;
+  object-fit:contain !important;
+  cursor:zoom-in !important;
+}
+
+/* Force modal to be square when it contains an image */
+#modal:has(#modal-img) .modal-content{
+  width:min(90vh, 90vw) !important;
+  height:min(90vh, 90vw) !important;
+  max-width:90vw !important;
+  max-height:90vh !important;
+  padding:0 !important;
+  display:flex !important;
+  flex-direction:column !important;
+}
+
 /* Modal específico para formularios */
 #modal .modal-content.form-modal{
   width:min(95vw, 1800px) !important; 

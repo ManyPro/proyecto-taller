@@ -150,9 +150,18 @@ function invOpenModal(innerHTML) {
 
   // Enhanced modal setup
   setTimeout(() => {
-    // Setup modal (detects type and applies appropriate styling)
-    if (window.setupModal) {
-      window.setupModal();
+    // Check if this is an image modal and force it
+    const img = document.getElementById('modal-img');
+    if (img) {
+      console.log('Image modal detected, forcing image modal setup...');
+      if (window.forceImageModal) {
+        window.forceImageModal();
+      }
+    } else {
+      // Setup modal (detects type and applies appropriate styling)
+      if (window.setupModal) {
+        window.setupModal();
+      }
     }
     const closeModalBtn = document.getElementById("close-modal");
     if (closeModalBtn) closeModalBtn.onclick = () => invCloseModal();

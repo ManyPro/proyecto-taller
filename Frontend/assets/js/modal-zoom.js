@@ -246,8 +246,16 @@ window.autoSetupModal = function() {
           setTimeout(() => {
             const img = document.getElementById('modal-img');
             if (img) {
-              console.log('Image found in modal, setting up...');
-              window.setupModal();
+              console.log('Image found in modal, forcing image modal setup...');
+              // Force image modal class immediately
+              const modalContent = document.querySelector('#modal .modal-content');
+              if (modalContent) {
+                modalContent.classList.remove('form-modal');
+                modalContent.classList.add('image-modal');
+                console.log('Forced image-modal class');
+              }
+              // Setup zoom directly
+              window.setupImageZoom();
             }
           }, 100);
         }
@@ -257,6 +265,32 @@ window.autoSetupModal = function() {
   
   observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
   console.log('Modal observer set up');
+};
+
+// Direct image modal setup function
+window.forceImageModal = function() {
+  console.log('Force image modal called');
+  const img = document.getElementById('modal-img');
+  const modalContent = document.querySelector('#modal .modal-content');
+  
+  if (img && modalContent) {
+    console.log('Found image and modal content, forcing image modal...');
+    modalContent.classList.remove('form-modal', 'general-modal');
+    modalContent.classList.add('image-modal');
+    
+    // Force image sizing
+    img.style.width = '100%';
+    img.style.height = '100%';
+    img.style.maxWidth = '100%';
+    img.style.maxHeight = '100%';
+    img.style.objectFit = 'contain';
+    
+    // Setup zoom
+    window.setupImageZoom();
+    console.log('Image modal forced successfully');
+  } else {
+    console.log('Image or modal content not found');
+  }
 };
 
 // Auto-initialize
