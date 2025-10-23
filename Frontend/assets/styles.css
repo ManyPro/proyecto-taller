@@ -1184,4 +1184,42 @@ button[class*="secondary"]:not(.min-price-btn):hover {
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
+/* Estilos para modal de descuento */
+.discount-modal {
+  backdrop-filter: blur(8px);
+}
+
+.discount-modal .modal-content {
+  border: 2px solid var(--accent);
+  box-shadow: 0 20px 60px rgba(37, 99, 235, 0.3);
+}
+
+.discount-modal input[type="number"] {
+  border: 2px solid var(--accent);
+  background: var(--card-alt);
+  font-weight: 600;
+  text-align: center;
+}
+
+.discount-modal input[type="number"]:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+/* Animación para notificaciones de éxito */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.success-notification {
+  animation: slideInRight 0.3s ease-out;
+}
+
 

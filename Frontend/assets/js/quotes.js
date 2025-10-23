@@ -915,6 +915,141 @@ export function initQuotes({ getCompanyEmail }) {
     
     // Variable para almacenar el descuento
     let currentDiscount = { type: null, value: 0 };
+    
+    // Función para mostrar mensaje de éxito elegante
+    function showSuccessMessage(message) {
+      const notification = document.createElement('div');
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        padding: 16px 24px;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);
+        z-index: 10001;
+        font-weight: 600;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        animation: slideInRight 0.3s ease-out;
+        max-width: 300px;
+      `;
+      
+      notification.innerHTML = `
+        <div style="font-size: 20px;">✅</div>
+        <div>${message}</div>
+      `;
+      
+      // Agregar animación CSS
+      const style = document.createElement('style');
+      style.textContent = `
+        @keyframes slideInRight {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `;
+      document.head.appendChild(style);
+      
+      document.body.appendChild(notification);
+      
+      // Remover después de 3 segundos
+      setTimeout(() => {
+        notification.style.animation = 'slideInRight 0.3s ease-out reverse';
+        setTimeout(() => {
+          notification.remove();
+          style.remove();
+        }, 300);
+      }, 3000);
+    }
+    
+    // Función para abrir modal de descuento elegante
+    function openDiscountModal(type) {
+      const isPercent = type === 'percent';
+      const title = isPercent ? 'Descuento por Porcentaje' : 'Descuento por Monto Fijo';
+      const placeholder = isPercent ? 'Ej: 15 para 15%' : 'Ej: 50000';
+      const currentValue = currentDiscount.type === type ? currentDiscount.value : '';
+      
+      const modal = document.createElement('div');
+      modal.className = 'modal discount-modal';
+      modal.innerHTML = `
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+          <div class="card">
+            <h3 style="margin: 0 0 16px 0; color: var(--text);">${title}</h3>
+            <p style="margin: 0 0 16px 0; color: var(--muted); font-size: 14px;">
+              ${isPercent ? 'Ingrese el porcentaje de descuento' : 'Ingrese el monto de descuento'}
+            </p>
+            <input 
+              id="discount-input" 
+              type="number" 
+              placeholder="${placeholder}"
+              value="${currentValue}"
+              style="width: 100%; margin-bottom: 16px; text-align: center; font-size: 16px;"
+              min="0"
+              ${isPercent ? 'max="100"' : ''}
+              step="${isPercent ? '0.01' : '1'}"
+            />
+            <div class="row" style="justify-content: center; gap: 12px;">
+              <button id="discount-cancel" class="secondary" style="background: #6b7280; color: white; border: none;">
+                Cancelar
+              </button>
+              <button id="discount-apply" style="background: ${isPercent ? '#10b981' : '#3b82f6'}; color: white; border: none;">
+                Aplicar Descuento
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      modal.classList.remove('hidden');
+      
+      const input = modal.querySelector('#discount-input');
+      const applyBtn = modal.querySelector('#discount-apply');
+      const cancelBtn = modal.querySelector('#discount-cancel');
+      
+      input.focus();
+      input.select();
+      
+      const closeModal = () => {
+        modal.remove();
+      };
+      
+      const applyDiscount = () => {
+        const value = parseFloat(input.value);
+        if (!isNaN(value) && value > 0) {
+          if (isPercent && value > 100) {
+            alert('El porcentaje no puede ser mayor a 100%');
+            return;
+          }
+          currentDiscount = { type, value };
+          recalc();
+          closeModal();
+        } else {
+          alert('Por favor ingrese un valor válido');
+        }
+      };
+      
+      applyBtn.onclick = applyDiscount;
+      cancelBtn.onclick = closeModal;
+      
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          applyDiscount();
+        } else if (e.key === 'Escape') {
+          closeModal();
+        }
+      });
+    }
 
     function cloneRow(){
       const n = rowTpl.cloneNode(true);
@@ -1057,6 +1192,17 @@ export function initQuotes({ getCompanyEmail }) {
     iCc.value    = doc?.vehicle?.displacement || '';
     iMileage.value = doc?.vehicle?.mileage || '';
     iValid.value = doc?.validity || '';
+    
+    // Cargar descuento si existe
+    if (doc?.discount && doc.discount.value > 0) {
+      currentDiscount = {
+        type: doc.discount.type,
+        value: doc.discount.value
+      };
+    } else {
+      currentDiscount = { type: null, value: 0 };
+    }
+    
     rowsBox.innerHTML='';
     (doc?.items||[]).forEach(it=>{
       addRowFromData({ type:(String(it.kind||'PRODUCTO').toUpperCase()==='SERVICIO'?'SERVICIO':'PRODUCTO'), desc:it.description||'', qty:it.qty??'', price:it.unitPrice||0, minPrice:it.minPrice||0, source:it.source, refId:it.refId, sku:it.sku });
@@ -1070,19 +1216,11 @@ export function initQuotes({ getCompanyEmail }) {
     
     // Event listeners para descuentos
     btnDiscountPercent?.addEventListener('click', () => {
-      const percent = prompt('Ingrese el porcentaje de descuento (ej: 10 para 10%):');
-      if (percent !== null && !isNaN(percent) && percent > 0) {
-        currentDiscount = { type: 'percent', value: parseFloat(percent) };
-        recalc();
-      }
+      openDiscountModal('percent');
     });
     
     btnDiscountFixed?.addEventListener('click', () => {
-      const amount = prompt('Ingrese el monto de descuento (ej: 50000):');
-      if (amount !== null && !isNaN(amount) && amount > 0) {
-        currentDiscount = { type: 'fixed', value: parseFloat(amount) };
-        recalc();
-      }
+      openDiscountModal('fixed');
     });
     
     btnDiscountClear?.addEventListener('click', () => {
@@ -1119,11 +1257,26 @@ export function initQuotes({ getCompanyEmail }) {
     q('#m-save')?.addEventListener('click', async ()=>{
       try{
         const rows=readRows();
+        
+        // Calcular descuento para guardar
+        let discountValue = 0;
+        const subtotal = rows.reduce((sum, r) => sum + ((r.qty>0?r.qty:1)*(r.price||0)), 0);
+        if (currentDiscount.type === 'percent' && currentDiscount.value > 0) {
+          discountValue = (subtotal * currentDiscount.value) / 100;
+        } else if (currentDiscount.type === 'fixed' && currentDiscount.value > 0) {
+          discountValue = currentDiscount.value;
+        }
+        
         const payload = {
           customer:{ name:iName.value||'', phone:iPhone.value||'', email:iEmail.value||'' },
           vehicle:{ plate:iPlate.value||'', make:iBrand.value||'', line:iLine.value||'', modelYear:iYear.value||'', displacement:iCc.value||'', mileage:iMileage.value||'' },
           validity:iValid.value||'',
           specialNotes:[],
+          discount: discountValue > 0 ? { 
+            type: currentDiscount.type, 
+            value: currentDiscount.value, 
+            amount: discountValue 
+          } : null,
           items: rows.map(r=>{
             const base={ kind:r.type, description:r.desc, qty:r.qty?Number(r.qty):null, unitPrice:Number(r.price||0) };
             if(r.source) base.source=r.source;
@@ -1133,9 +1286,18 @@ export function initQuotes({ getCompanyEmail }) {
           })
         };
         await API.quotePatch(doc._id, payload);
-  toast('Cotización actualizada.');
-        loadHistory();
-      }catch(e){ alert(e?.message||'No se pudo guardar'); }
+        
+        // Mostrar mensaje de confirmación elegante
+        showSuccessMessage('Cotización actualizada correctamente');
+        
+        // Cerrar modal después de un breve delay
+        setTimeout(() => {
+          closeModal();
+          loadHistory();
+        }, 1500);
+      }catch(e){ 
+        alert(e?.message||'No se pudo guardar'); 
+      }
     });
 
     // Aplicar clase CSS para modal más ancho
