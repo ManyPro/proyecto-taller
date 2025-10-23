@@ -549,6 +549,13 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
   max-height:95vh !important;
 }
 
+/* Modal específico para editar cotizaciones - más ancho */
+#modal .modal-content.quote-edit-modal{
+  width:min(98vw, 2000px) !important; 
+  max-width:98vw !important; 
+  max-height:95vh !important;
+}
+
 /* Modal para contenido general más ancho */
 #modal .modal-content:not(.image-modal):not(.form-modal){
   width:min(95vw, 1600px) !important;
@@ -1145,6 +1152,36 @@ img + select,
   pointer-events: auto !important;
   user-select: text !important;
   z-index: 25 !important;
+}
+
+/* Estilos para notas especiales */
+.special-note-item {
+  transition: all 0.2s ease;
+}
+
+.special-note-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Estilos para botones de precio mínimo */
+.min-price-btn {
+  transition: all 0.2s ease;
+}
+
+.min-price-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* Estilos para botones de quitar */
+button[class*="secondary"]:not(.min-price-btn) {
+  transition: all 0.2s ease;
+}
+
+button[class*="secondary"]:not(.min-price-btn):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 

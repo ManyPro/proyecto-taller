@@ -186,19 +186,67 @@ export function initQuotes({ getCompanyEmail }) {
   let specialNotes = [];
   
   function addSpecialNote() {
-    const note = prompt('Ingresa la nota especial:');
-    if (note && note.trim()) {
-      specialNotes.push(note.trim());
+    // Crear modal bonito para agregar nota
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width: 500px;">
+        <div class="card">
+          <h3>Agregar Nota Especial</h3>
+          <textarea id="special-note-input" placeholder="Escribe tu nota especial aquí..." style="width: 100%; height: 100px; margin: 16px 0; padding: 12px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+          <div class="row" style="justify-content: flex-end; gap: 8px;">
+            <button id="cancel-note" class="secondary">Cancelar</button>
+            <button id="save-note" class="primary">Agregar Nota</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.classList.remove('hidden');
+    
+    const input = modal.querySelector('#special-note-input');
+    const saveBtn = modal.querySelector('#save-note');
+    const cancelBtn = modal.querySelector('#cancel-note');
+    
+    input.focus();
+    
+    const closeModal = () => {
+      modal.remove();
+    };
+    
+    saveBtn.onclick = () => {
+      const note = input.value.trim();
+      if (note) {
+        specialNotes.push(note);
+        renderSpecialNotes();
+        recalcAll();
+        closeModal();
+      }
+    };
+    
+    cancelBtn.onclick = closeModal;
+    
+    // Cerrar con ESC
+    const handleKeydown = (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', handleKeydown);
+      }
+    };
+    document.addEventListener('keydown', handleKeydown);
+  }
+  
+  function removeSpecialNote(index) {
+    if (confirm('¿Eliminar esta nota especial?')) {
+      specialNotes.splice(index, 1);
       renderSpecialNotes();
       recalcAll();
     }
   }
   
-  function removeSpecialNote(index) {
-    specialNotes.splice(index, 1);
-    renderSpecialNotes();
-    recalcAll();
-  }
+  // Hacer la función global para que funcione desde el HTML
+  window.removeSpecialNote = removeSpecialNote;
   
   function renderSpecialNotes() {
     if (!iSpecialNotesList) return;
@@ -206,10 +254,24 @@ export function initQuotes({ getCompanyEmail }) {
     specialNotes.forEach((note, index) => {
       const noteDiv = document.createElement('div');
       noteDiv.className = 'special-note-item';
-      noteDiv.style.cssText = 'display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 8px; background: #f5f5f5; border-radius: 4px;';
+      noteDiv.style.cssText = `
+        display: flex; 
+        align-items: center; 
+        gap: 12px; 
+        margin-bottom: 12px; 
+        padding: 12px; 
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
+        border-radius: 8px; 
+        border-left: 4px solid #007bff;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.2s ease;
+      `;
       noteDiv.innerHTML = `
-        <span style="flex: 1;">${note}</span>
-        <button type="button" class="secondary" onclick="removeSpecialNote(${index})" style="font-size: 12px; padding: 4px 8px;">Eliminar</button>
+        <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 16px;">📝</span>
+          <span style="flex: 1; line-height: 1.4;">${note}</span>
+        </div>
+        <button type="button" class="secondary" onclick="removeSpecialNote(${index})" style="font-size: 12px; padding: 6px 12px; border-radius: 4px; background: #dc3545; color: white; border: none; cursor: pointer; transition: background 0.2s ease;" onmouseover="this.style.background='#c82333'" onmouseout="this.style.background='#dc3545'">Eliminar</button>
       `;
       iSpecialNotesList.appendChild(noteDiv);
     });
@@ -232,6 +294,19 @@ export function initQuotes({ getCompanyEmail }) {
         minPriceInput.value = r.minPrice;
         minPriceInput.style.display = 'block';
         minPriceBtn.style.display = 'none';
+        
+        // Añadir event listeners al precio mínimo cargado
+        minPriceInput.addEventListener('input', () => {
+          updateRowSubtotal(row);
+          recalcAll();
+        });
+        
+        minPriceInput.addEventListener('blur', () => {
+          if (minPriceInput.value.trim() === '') {
+            minPriceInput.style.display = 'none';
+            minPriceBtn.style.display = 'block';
+          }
+        });
       }
     }
     
@@ -248,14 +323,25 @@ export function initQuotes({ getCompanyEmail }) {
     n.querySelectorAll('input,select').forEach(el=>{
       el.addEventListener('input',()=>{ updateRowSubtotal(n); recalcAll(); });
     });
-    n.querySelector('button')?.addEventListener('click',()=>{ n.remove(); recalcAll(); });
+    // Botón de quitar - más específico
+    const removeBtn = n.querySelector('button:not(.min-price-btn)');
+    if (removeBtn) {
+      removeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        n.remove(); 
+        recalcAll();
+      });
+    }
     
     // Funcionalidad del precio mínimo
     const minPriceBtn = n.querySelector('.min-price-btn');
     const minPriceInput = n.querySelector('.min-price-input');
     if (minPriceBtn && minPriceInput) {
-      minPriceBtn.addEventListener('click', () => {
-        if (minPriceInput.style.display === 'none') {
+      minPriceBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (minPriceInput.style.display === 'none' || minPriceInput.style.display === '') {
           minPriceInput.style.display = 'block';
           minPriceBtn.style.display = 'none';
           minPriceInput.focus();
@@ -272,6 +358,11 @@ export function initQuotes({ getCompanyEmail }) {
       minPriceInput.addEventListener('input', () => {
         updateRowSubtotal(n);
         recalcAll();
+      });
+      
+      // Prevenir que el click en el input elimine la fila
+      minPriceInput.addEventListener('click', (e) => {
+        e.stopPropagation();
       });
     }
     
@@ -445,7 +536,15 @@ export function initQuotes({ getCompanyEmail }) {
     ]);
     const subP = (doc.items||[]).filter(i=>i.kind!=='SERVICIO').reduce((a,i)=>a+(i.subtotal||0),0);
     const subS = (doc.items||[]).filter(i=>i.kind==='SERVICIO').reduce((a,i)=>a+(i.subtotal||0),0);
-    const tot  = subP + subS;
+    const subtotal = subP + subS;
+    
+    // Calcular descuento si existe
+    let discountValue = 0;
+    if (doc.discount && doc.discount.value > 0) {
+      discountValue = doc.discount.value;
+    }
+    
+    const tot = subtotal - discountValue;
 
   // === DETECCIÓN CORRECTA (UMD) ===
     const jsPDFClass = window.jspdf?.jsPDF;
@@ -537,8 +636,16 @@ export function initQuotes({ getCompanyEmail }) {
     d.text('Valores SIN IVA', left, y); y += 14;
   if(doc.validity) d.text(`Validez: ${doc.validity} días`, left, y);
 
+    // Mostrar descuento si existe
+    let totalY = d.lastAutoTable.finalY + 18;
+    if (discountValue > 0) {
+      d.setFont('helvetica','normal'); d.setFontSize(10);
+      d.text(`Descuento: ${money(discountValue)}`, pageW - right, totalY, { align:'right' });
+      totalY += 14;
+    }
+
     d.setFont('helvetica','bold'); d.setFontSize(11);
-    d.text(`TOTAL: ${money(tot)}`, pageW - right, d.lastAutoTable.finalY + 18, { align:'right' });
+    d.text(`TOTAL: ${money(tot)}`, pageW - right, totalY, { align:'right' });
 
     const footY = (doc.validity ? y + 28 : d.lastAutoTable.finalY + 36);
     d.setFont('helvetica','normal'); d.setFontSize(9);
@@ -737,15 +844,15 @@ export function initQuotes({ getCompanyEmail }) {
             </div>
             <div class="small">
               <label class="sr-only">Precio mínimo</label>
-              <input type="number" min="0" step="0.01" placeholder="Precio mín." class="min-price-input" style="display: none;" />
-              <button type="button" class="secondary min-price-btn" style="font-size: 12px; padding: 4px 8px;">Precio mín.</button>
+              <input type="number" min="0" step="0.01" placeholder="Precio mín." class="min-price-input" style="display: none; width: 100%;" />
+              <button type="button" class="secondary min-price-btn" style="font-size: 11px; padding: 6px 10px; width: 100%; border-radius: 4px; background: #6c757d; color: white; border: none; cursor: pointer; transition: background 0.2s ease;">Precio mín.</button>
             </div>
             <div class="small">
               <label class="sr-only">Subtotal</label>
               <input disabled placeholder="$0" />
             </div>
             <div class="small">
-              <button class="secondary">Quitar</button>
+              <button class="secondary" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; transition: background 0.2s ease; width: 100%;">Quitar</button>
             </div>
           </div>
         </div>
@@ -755,7 +862,17 @@ export function initQuotes({ getCompanyEmail }) {
         <div class="totals">
           <div>Subtotal Productos: <strong id="m-subP">$0</strong></div>
           <div>Subtotal Servicios: <strong id="m-subS">$0</strong></div>
+          <div id="m-discount-section" style="display: none;">
+            <div>Descuento: <strong id="m-discount-amount">$0</strong></div>
+          </div>
           <div>Total: <strong id="m-total">$0</strong></div>
+        </div>
+        
+        <!-- Botones de descuento -->
+        <div class="row" style="margin-top: 12px; gap: 8px;">
+          <button id="m-discount-percent" class="secondary" style="background: #10b981; color: white; border: none;">Descuento %</button>
+          <button id="m-discount-fixed" class="secondary" style="background: #3b82f6; color: white; border: none;">Descuento $</button>
+          <button id="m-discount-clear" class="secondary" style="background: #ef4444; color: white; border: none; display: none;">Quitar descuento</button>
         </div>
         <div class="row">
           <button id="m-save">Guardar cambios</button>
@@ -788,6 +905,16 @@ export function initQuotes({ getCompanyEmail }) {
     const lblS    = q('#m-subS');
     const lblT    = q('#m-total');
     const prevWA  = q('#m-wa-prev');
+    
+    // Elementos de descuento
+    const discountSection = q('#m-discount-section');
+    const discountAmount = q('#m-discount-amount');
+    const btnDiscountPercent = q('#m-discount-percent');
+    const btnDiscountFixed = q('#m-discount-fixed');
+    const btnDiscountClear = q('#m-discount-clear');
+    
+    // Variable para almacenar el descuento
+    let currentDiscount = { type: null, value: 0 };
 
     function cloneRow(){
       const n = rowTpl.cloneNode(true);
@@ -795,7 +922,16 @@ export function initQuotes({ getCompanyEmail }) {
       n.querySelectorAll('input,select').forEach(el=>{
         el.addEventListener('input',()=>{ updateRowSubtotal(n); recalc(); });
       });
-      n.querySelector('button')?.addEventListener('click',()=>{ n.remove(); recalc(); });
+      // Botón de quitar - más específico para evitar conflictos
+      const removeBtn = n.querySelector('button:not(.min-price-btn)');
+      if (removeBtn) {
+        removeBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          n.remove(); 
+          recalc();
+        });
+      }
       return n;
     }
     function addRow(){ rowsBox.appendChild(cloneRow()); }
@@ -837,7 +973,17 @@ export function initQuotes({ getCompanyEmail }) {
         const q=qty>0?qty:1; const st=q*(price||0);
         if((type||'PRODUCTO')==='PRODUCTO') subP+=st; else subS+=st;
       });
-      const total=subP+subS;
+      const subtotal=subP+subS;
+      
+      // Calcular descuento
+      let discountValue = 0;
+      if (currentDiscount.type === 'percent' && currentDiscount.value > 0) {
+        discountValue = (subtotal * currentDiscount.value) / 100;
+      } else if (currentDiscount.type === 'fixed' && currentDiscount.value > 0) {
+        discountValue = currentDiscount.value;
+      }
+      
+      const total = subtotal - discountValue;
       const lines=[];
       const veh = `${iBrand.value||''} ${iLine.value||''} ${iYear.value||''}`.trim();
   const val = iValid.value ? `\nValidez: ${iValid.value} días` : '';
@@ -855,6 +1001,9 @@ export function initQuotes({ getCompanyEmail }) {
       lines.push('');
       lines.push(`Subtotal Productos: ${money(subP)}`);
       lines.push(`Subtotal Servicios: ${money(subS)}`);
+      if (discountValue > 0) {
+        lines.push(`Descuento: ${money(discountValue)}`);
+      }
       lines.push(`*TOTAL: ${money(total)}*`);
       lines.push(`Valores SIN IVA`);
       lines.push(val.trim());
@@ -866,9 +1015,31 @@ export function initQuotes({ getCompanyEmail }) {
         const q=qty>0?qty:1; const st=q*(price||0);
         if((type||'PRODUCTO')==='PRODUCTO') subP+=st; else subS+=st;
       });
-      const total=subP+subS;
+      const subtotal=subP+subS;
+      
+      // Calcular descuento
+      let discountValue = 0;
+      if (currentDiscount.type === 'percent' && currentDiscount.value > 0) {
+        discountValue = (subtotal * currentDiscount.value) / 100;
+      } else if (currentDiscount.type === 'fixed' && currentDiscount.value > 0) {
+        discountValue = currentDiscount.value;
+      }
+      
+      const total = subtotal - discountValue;
+      
       lblP.textContent=money(subP);
       lblS.textContent=money(subS);
+      
+      // Mostrar/ocultar sección de descuento
+      if (discountValue > 0) {
+        discountSection.style.display = 'block';
+        discountAmount.textContent = money(discountValue);
+        btnDiscountClear.style.display = 'inline-block';
+      } else {
+        discountSection.style.display = 'none';
+        btnDiscountClear.style.display = 'none';
+      }
+      
       lblT.textContent=money(total);
       prevWA.textContent = buildWAText();
     }
@@ -896,12 +1067,44 @@ export function initQuotes({ getCompanyEmail }) {
     // ---- acciones ----
     btnAdd?.addEventListener('click',()=>{ addRow(); recalc(); });
     q('#m-close')?.addEventListener('click',()=> closeModal());
+    
+    // Event listeners para descuentos
+    btnDiscountPercent?.addEventListener('click', () => {
+      const percent = prompt('Ingrese el porcentaje de descuento (ej: 10 para 10%):');
+      if (percent !== null && !isNaN(percent) && percent > 0) {
+        currentDiscount = { type: 'percent', value: parseFloat(percent) };
+        recalc();
+      }
+    });
+    
+    btnDiscountFixed?.addEventListener('click', () => {
+      const amount = prompt('Ingrese el monto de descuento (ej: 50000):');
+      if (amount !== null && !isNaN(amount) && amount > 0) {
+        currentDiscount = { type: 'fixed', value: parseFloat(amount) };
+        recalc();
+      }
+    });
+    
+    btnDiscountClear?.addEventListener('click', () => {
+      currentDiscount = { type: null, value: 0 };
+      recalc();
+    });
     q('#m-wa')?.addEventListener('click',()=>{
       const text = buildWAText(); if(!text.trim()) return; window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,'_blank');
     });
     q('#m-pdf')?.addEventListener('click',()=>{
       const rows=readRows();
       const items = rows.map(r=>({ kind:r.type, description:r.desc, qty:r.qty, unitPrice:r.price, subtotal:(r.qty>0?r.qty:1)*(r.price||0) }));
+      
+      // Calcular descuento para PDF
+      let discountValue = 0;
+      const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
+      if (currentDiscount.type === 'percent' && currentDiscount.value > 0) {
+        discountValue = (subtotal * currentDiscount.value) / 100;
+      } else if (currentDiscount.type === 'fixed' && currentDiscount.value > 0) {
+        discountValue = currentDiscount.value;
+      }
+      
       exportPDFFromData({
         number: iNumber.value,
         datetime: iDatetime.value,
@@ -909,7 +1112,8 @@ export function initQuotes({ getCompanyEmail }) {
         vehicle: { make:iBrand.value, line:iLine.value, modelYear:iYear.value, plate:iPlate.value, displacement:iCc.value, mileage:iMileage.value },
         validity: iValid.value,
         specialNotes: [],
-        items
+        items,
+        discount: discountValue > 0 ? { value: discountValue, type: currentDiscount.type } : null
       }).catch(e=>alert(e?.message||'Error generando PDF'));
     });
     q('#m-save')?.addEventListener('click', async ()=>{
@@ -934,6 +1138,13 @@ export function initQuotes({ getCompanyEmail }) {
       }catch(e){ alert(e?.message||'No se pudo guardar'); }
     });
 
+    // Aplicar clase CSS para modal más ancho
+    const modal = document.getElementById('modal');
+    const modalContent = modal.querySelector('.modal-content');
+    if (modalContent) {
+      modalContent.classList.add('quote-edit-modal');
+    }
+    
     openModal(root);
   }
 
