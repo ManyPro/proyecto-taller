@@ -180,7 +180,17 @@
             <div class="totals">
               <div>Subtotal Productos: <strong id="q-subtotal-products">$0</strong></div>
               <div>Subtotal Servicios: <strong id="q-subtotal-services">$0</strong></div>
+              <div id="q-discount-section" style="display: none;">
+                <div>Descuento: <strong id="q-discount-amount">$0</strong></div>
+              </div>
               <div>Total: <strong id="q-total">$0</strong></div>
+            </div>
+            
+            <!-- Botones de descuento -->
+            <div class="row" style="margin-top: 12px; gap: 8px;">
+              <button id="q-discount-percent" class="secondary" style="background: #10b981; color: white; border: none;">Descuento %</button>
+              <button id="q-discount-fixed" class="secondary" style="background: #3b82f6; color: white; border: none;">Descuento $</button>
+              <button id="q-discount-clear" class="secondary" style="background: #ef4444; color: white; border: none; display: none;">Quitar descuento</button>
             </div>
 
             <div class="row">

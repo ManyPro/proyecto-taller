@@ -18,6 +18,7 @@ export function initQuotes({ getCompanyEmail }) {
   let inited = false;
   let emailScope = '';       // para scoping del localStorage
   let currentQuoteId = null; // si estamos editando una del historial
+  let currentDiscount = { type: null, value: 0 }; // descuento actual
   // Dirty flags para evitar sobre-escritura al autocompletar por placa
   const dirty = {
     clientName:false, clientPhone:false, clientEmail:false,
@@ -73,6 +74,13 @@ export function initQuotes({ getCompanyEmail }) {
   const lblSubtotalProducts = $('#q-subtotal-products');
   const lblSubtotalServices = $('#q-subtotal-services');
   const lblTotal = $('#q-total');
+  
+  // Elementos de descuento
+  const discountSection = $('#q-discount-section');
+  const discountAmount = $('#q-discount-amount');
+  const btnDiscountPercent = $('#q-discount-percent');
+  const btnDiscountFixed = $('#q-discount-fixed');
+  const btnDiscountClear = $('#q-discount-clear');
 
   // Resumen
   const previewWA = $('#q-whatsappPreview');
@@ -400,9 +408,33 @@ export function initQuotes({ getCompanyEmail }) {
       const q=qty>0?qty:1; const st=q*(price||0);
       if((type||'PRODUCTO')==='PRODUCTO') subP+=st; else subS+=st;
     });
-    const total=subP+subS;
+    const subtotal=subP+subS;
+    
+    // Calcular descuento
+    let discountValue = 0;
+    if (currentDiscount.type && currentDiscount.value > 0) {
+      if (currentDiscount.type === 'percent') {
+        discountValue = (subtotal * currentDiscount.value) / 100;
+      } else {
+        discountValue = currentDiscount.value;
+      }
+    }
+    
+    const total = subtotal - discountValue;
+    
     lblSubtotalProducts.textContent=money(subP);
     lblSubtotalServices.textContent=money(subS);
+    
+    // Mostrar/ocultar sección de descuento
+    if (discountValue > 0) {
+      discountSection.style.display = 'block';
+      discountAmount.textContent = money(discountValue);
+      btnDiscountClear.style.display = 'inline-block';
+    } else {
+      discountSection.style.display = 'none';
+      btnDiscountClear.style.display = 'none';
+    }
+    
     lblTotal.textContent=money(total);
     previewWA.textContent=buildWhatsAppText(rows,subP,subS,total);
     syncSummaryHeight();
@@ -429,6 +461,15 @@ export function initQuotes({ getCompanyEmail }) {
     lines.push('');
     lines.push(`Subtotal Productos: ${money(subP)}`);
     lines.push(`Subtotal Servicios: ${money(subS)}`);
+    
+    // Agregar descuento si existe
+    if (currentDiscount.type && currentDiscount.value > 0) {
+      const discountValue = currentDiscount.type === 'percent' 
+        ? (subP + subS) * currentDiscount.value / 100 
+        : currentDiscount.value;
+      lines.push(`Descuento: ${money(discountValue)}`);
+    }
+    
     lines.push(`*TOTAL: ${money(total)}*`);
     
     // Añadir notas especiales antes de "Valores SIN IVA"
@@ -681,7 +722,8 @@ export function initQuotes({ getCompanyEmail }) {
       vehicle:{ plate:iPlate.value||'', make:iBrand.value||'', line:iLine.value||'', modelYear:iYear.value||'', displacement:iCc.value||'', mileage:iMileage.value||'' },
       validity:iValidDays.value||'',
       specialNotes:specialNotes,
-      items
+      items,
+      discount: currentDiscount.type && currentDiscount.value > 0 ? currentDiscount : null
     };
   }
 
@@ -980,6 +1022,7 @@ export function initQuotes({ getCompanyEmail }) {
       
       const modal = document.createElement('div');
       modal.className = 'modal discount-modal';
+      modal.style.cssText = 'position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 10001;';
       modal.innerHTML = `
         <div class="modal-content" style="max-width: 400px; text-align: center;">
           <div class="card">
@@ -1332,6 +1375,9 @@ export function initQuotes({ getCompanyEmail }) {
     // Cargar notas especiales
     specialNotes = d?.specialNotes || [];
     renderSpecialNotes();
+    
+    // Cargar descuento
+    currentDiscount = d?.discount || { type: null, value: 0 };
 
     clearRows();
     (d?.items||[]).forEach(it=>{
@@ -1419,6 +1465,20 @@ export function initQuotes({ getCompanyEmail }) {
     // Notas especiales
     iAddSpecialNote?.addEventListener('click', addSpecialNote);
     
+    // Descuentos
+    btnDiscountPercent?.addEventListener('click', () => {
+      openDiscountModal('percent');
+    });
+    
+    btnDiscountFixed?.addEventListener('click', () => {
+      openDiscountModal('fixed');
+    });
+    
+    btnDiscountClear?.addEventListener('click', () => {
+      currentDiscount = { type: null, value: 0 };
+      recalcAll();
+    });
+    
     // Kilometraje
     iMileage?.addEventListener('input', recalcAll);
     
@@ -1427,6 +1487,7 @@ export function initQuotes({ getCompanyEmail }) {
       [iClientName,iClientPhone,iClientEmail,iPlate,iBrand,iLine,iYear,iCc,iMileage,iValidDays].forEach(i=>i.value='');
       specialNotes = [];
       renderSpecialNotes();
+      currentDiscount = { type: null, value: 0 };
       clearRows(); addRow(); recalcAll(); clearDraft(); currentQuoteId=null;
     });
 
@@ -1444,6 +1505,87 @@ export function initQuotes({ getCompanyEmail }) {
 
     qhApply?.addEventListener('click',loadHistory);
     qhClear?.addEventListener('click',()=>{ qhText.value=''; qhFrom.value=''; qhTo.value=''; loadHistory(); });
+  }
+
+  // ===== Función para abrir modal de descuento en formulario principal =====
+  function openDiscountModal(type) {
+    const isPercent = type === 'percent';
+    const title = isPercent ? 'Descuento por Porcentaje' : 'Descuento por Monto Fijo';
+    const placeholder = isPercent ? 'Ej: 15 para 15%' : 'Ej: 50000';
+    const currentValue = currentDiscount.type === type ? currentDiscount.value : '';
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal discount-modal';
+    modal.style.cssText = 'position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 10001;';
+    modal.innerHTML = `
+      <div class="modal-content" style="max-width: 400px; text-align: center;">
+        <div class="card">
+          <h3 style="margin: 0 0 16px 0; color: var(--text);">${title}</h3>
+          <p style="margin: 0 0 16px 0; color: var(--muted); font-size: 14px;">
+            ${isPercent ? 'Ingrese el porcentaje de descuento' : 'Ingrese el monto de descuento'}
+          </p>
+          <input 
+            id="discount-input" 
+            type="number" 
+            placeholder="${placeholder}"
+            value="${currentValue}"
+            style="width: 100%; margin-bottom: 16px; text-align: center; font-size: 16px;"
+            min="0"
+            ${isPercent ? 'max="100"' : ''}
+            step="${isPercent ? '0.01' : '1'}"
+          />
+          <div class="row" style="justify-content: center; gap: 12px;">
+            <button id="discount-cancel" class="secondary" style="background: #6b7280; color: white; border: none;">
+              Cancelar
+            </button>
+            <button id="discount-apply" style="background: ${isPercent ? '#10b981' : '#3b82f6'}; color: white; border: none;">
+              Aplicar Descuento
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    modal.classList.remove('hidden');
+    
+    const input = modal.querySelector('#discount-input');
+    const applyBtn = modal.querySelector('#discount-apply');
+    const cancelBtn = modal.querySelector('#discount-cancel');
+    
+    input.focus();
+    input.select();
+    
+    const closeModal = () => {
+      modal.remove();
+    };
+    
+    const applyDiscount = () => {
+      const value = parseFloat(input.value);
+      if (!isNaN(value) && value > 0) {
+        if (isPercent && value > 100) {
+          alert('El porcentaje no puede ser mayor a 100%');
+          return;
+        }
+        currentDiscount = { type, value };
+        recalcAll();
+        closeModal();
+      } else {
+        alert('Por favor ingrese un valor válido');
+      }
+    };
+    
+    applyBtn.onclick = applyDiscount;
+    cancelBtn.onclick = closeModal;
+    
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyDiscount();
+      } else if (e.key === 'Escape') {
+        closeModal();
+      }
+    });
   }
 
   // ====== Pickers para agregar ítems con metadata ======
