@@ -290,14 +290,76 @@ export const listItems = async (req, res) => {
   const { name, sku, vehicleTarget, vehicleIntakeId, brand } = req.query;
   const q = { companyId: new mongoose.Types.ObjectId(req.companyId) };
 
-  if (name) q.$or = [{ name: new RegExp((name || "").trim().toUpperCase(), "i") }, { internalName: new RegExp((name || "").trim().toUpperCase(), "i") }];
-  if (sku) q.sku = new RegExp((sku || "").trim().toUpperCase(), "i");
-  if (brand) q.brand = new RegExp((brand || "").trim().toUpperCase(), "i");
+  if (name) {
+    const normalizedName = (name || "").trim().toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    if (normalizedName) {
+      // Crear regex que busque todas las palabras en cualquier orden
+      const words = normalizedName.split(' ').filter(w => w.length > 0);
+      if (words.length > 0) {
+        const regexPattern = words.map(word => `(?=.*${word})`).join('');
+        q.$or = [
+          { name: new RegExp(regexPattern, "i") }, 
+          { internalName: new RegExp(regexPattern, "i") }
+        ];
+      }
+    }
+  }
+  if (sku) {
+    const normalizedSku = (sku || "").trim().toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    if (normalizedSku) {
+      const words = normalizedSku.split(' ').filter(w => w.length > 0);
+      if (words.length > 0) {
+        const regexPattern = words.map(word => `(?=.*${word})`).join('');
+        q.sku = new RegExp(regexPattern, "i");
+      }
+    }
+  }
+  if (brand) {
+    const normalizedBrand = (brand || "").trim().toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    if (normalizedBrand) {
+      const words = normalizedBrand.split(' ').filter(w => w.length > 0);
+      if (words.length > 0) {
+        const regexPattern = words.map(word => `(?=.*${word})`).join('');
+        q.brand = new RegExp(regexPattern, "i");
+      }
+    }
+  }
 
   if (vehicleIntakeId && mongoose.Types.ObjectId.isValid(vehicleIntakeId)) {
     q.vehicleIntakeId = new mongoose.Types.ObjectId(vehicleIntakeId);
   } else if (vehicleTarget) {
-    q.vehicleTarget = new RegExp((vehicleTarget || "").trim().toUpperCase(), "i");
+    const normalizedVehicleTarget = (vehicleTarget || "").trim().toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    if (normalizedVehicleTarget) {
+      const words = normalizedVehicleTarget.split(' ').filter(w => w.length > 0);
+      if (words.length > 0) {
+        const regexPattern = words.map(word => `(?=.*${word})`).join('');
+        q.vehicleTarget = new RegExp(regexPattern, "i");
+      }
+    }
   }
 
   // Paginación opcional: si viene page o limit, respetar y devolver meta

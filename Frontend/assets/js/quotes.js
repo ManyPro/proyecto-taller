@@ -8,6 +8,7 @@
   - Historial (listar/buscar/ver/editar/eliminar; re-enviar WA; re-generar PDF)
 */
 import { API } from "./api.esm.js";
+import { normalizeText, matchesSearch } from "./search-utils.js";
 
 export function initQuotes({ getCompanyEmail }) {
   // ====== Helpers DOM ======

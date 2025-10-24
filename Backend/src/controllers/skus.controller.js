@@ -134,14 +134,27 @@ export const listSKUs = async (req, res) => {
     }
     
     if (search && search.trim()) {
-      const searchRegex = new RegExp(search.trim(), 'i');
-      filters.$or = [
-        { code: searchRegex },
-        { description: searchRegex },
-        { brand: searchRegex },
-        { partNumber: searchRegex },
-        { notes: searchRegex }
-      ];
+      const normalizedSearch = search.trim().toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\w\s]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      if (normalizedSearch) {
+        const words = normalizedSearch.split(' ').filter(w => w.length > 0);
+        if (words.length > 0) {
+          const regexPattern = words.map(word => `(?=.*${word})`).join('');
+          const searchRegex = new RegExp(regexPattern, 'i');
+          filters.$or = [
+            { code: searchRegex },
+            { description: searchRegex },
+            { brand: searchRegex },
+            { partNumber: searchRegex },
+            { notes: searchRegex }
+          ];
+        }
+      }
     }
     
     // Calcular paginación
@@ -518,8 +531,21 @@ export const bulkMarkAsPrinted = async (req, res) => {
       if (q.category && q.category !== 'all') filters.category = q.category;
       if (q.printStatus && q.printStatus !== 'all') filters.printStatus = q.printStatus;
       if (q.search && q.search.trim()) {
-        const rx = new RegExp(q.search.trim(), 'i');
-        filters.$or = [{ code: rx }, { description: rx }, { brand: rx }, { partNumber: rx }, { notes: rx }];
+        const normalizedSearch = q.search.trim().toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^\w\s]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        
+        if (normalizedSearch) {
+          const words = normalizedSearch.split(' ').filter(w => w.length > 0);
+          if (words.length > 0) {
+            const regexPattern = words.map(word => `(?=.*${word})`).join('');
+            const rx = new RegExp(regexPattern, 'i');
+            filters.$or = [{ code: rx }, { description: rx }, { brand: rx }, { partNumber: rx }, { notes: rx }];
+          }
+        }
       }
   const r = await SKU.updateMany(filters, { $set: { printStatus: 'printed', printedAt: new Date(), pendingStickers: 0 } });
       matched = r.matchedCount || 0; modified = r.modifiedCount || 0;
@@ -547,8 +573,21 @@ export const bulkMarkAsApplied = async (req, res) => {
       if (q.category && q.category !== 'all') filters.category = q.category;
       if (q.printStatus && q.printStatus !== 'all') filters.printStatus = q.printStatus;
       if (q.search && q.search.trim()) {
-        const rx = new RegExp(q.search.trim(), 'i');
-        filters.$or = [{ code: rx }, { description: rx }, { brand: rx }, { partNumber: rx }, { notes: rx }];
+        const normalizedSearch = q.search.trim().toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^\w\s]/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        
+        if (normalizedSearch) {
+          const words = normalizedSearch.split(' ').filter(w => w.length > 0);
+          if (words.length > 0) {
+            const regexPattern = words.map(word => `(?=.*${word})`).join('');
+            const rx = new RegExp(regexPattern, 'i');
+            filters.$or = [{ code: rx }, { description: rx }, { brand: rx }, { partNumber: rx }, { notes: rx }];
+          }
+        }
       }
       const r = await SKU.updateMany(filters, { $set: { printStatus: 'applied' } });
       matched = r.matchedCount || 0; modified = r.modifiedCount || 0;

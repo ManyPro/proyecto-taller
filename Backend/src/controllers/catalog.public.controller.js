@@ -89,14 +89,53 @@ export const listPublishedItems = async (req, res) => {
 
   const filter = { published: true, companyId: company._id };
   if(q){
-    const r = new RegExp(String(q).trim().toUpperCase(), 'i');
-    filter.$or = [{ name: r }, { sku: r }];
+    const normalizedQ = String(q).trim().toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    if (normalizedQ) {
+      const words = normalizedQ.split(' ').filter(w => w.length > 0);
+      if (words.length > 0) {
+        const regexPattern = words.map(word => `(?=.*${word})`).join('');
+        const r = new RegExp(regexPattern, 'i');
+        filter.$or = [{ name: r }, { sku: r }];
+      }
+    }
   }
   if(category){
-    filter.category = new RegExp(String(category).trim(), 'i');
+    const normalizedCategory = String(category).trim().toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    if (normalizedCategory) {
+      const words = normalizedCategory.split(' ').filter(w => w.length > 0);
+      if (words.length > 0) {
+        const regexPattern = words.map(word => `(?=.*${word})`).join('');
+        filter.category = new RegExp(regexPattern, 'i');
+      }
+    }
   }
   if(brand){
-    filter.brand = new RegExp(String(brand).trim(), 'i');
+    const normalizedBrand = String(brand).trim().toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    if (normalizedBrand) {
+      const words = normalizedBrand.split(' ').filter(w => w.length > 0);
+      if (words.length > 0) {
+        const regexPattern = words.map(word => `(?=.*${word})`).join('');
+        filter.brand = new RegExp(regexPattern, 'i');
+      }
+    }
   }
   if(tags){
     const arr = String(tags).split(',').map(s=>s.trim()).filter(Boolean);

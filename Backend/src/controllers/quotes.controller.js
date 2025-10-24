@@ -118,11 +118,37 @@ export async function listQuotes(req, res) {
   const q = { companyId };
 
   if (text) {
-    const rx = new RegExp(`${text}`, 'i');
-    q.$or = [{ 'customer.name': rx }, { 'vehicle.plate': rx }];
+    const normalizedText = text.trim().toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    if (normalizedText) {
+      const words = normalizedText.split(' ').filter(w => w.length > 0);
+      if (words.length > 0) {
+        const regexPattern = words.map(word => `(?=.*${word})`).join('');
+        const rx = new RegExp(regexPattern, 'i');
+        q.$or = [{ 'customer.name': rx }, { 'vehicle.plate': rx }];
+      }
+    }
   }
   if (plate) {
-    q['vehicle.plate'] = new RegExp(`${plate}`, 'i');
+    const normalizedPlate = plate.trim().toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    if (normalizedPlate) {
+      const words = normalizedPlate.split(' ').filter(w => w.length > 0);
+      if (words.length > 0) {
+        const regexPattern = words.map(word => `(?=.*${word})`).join('');
+        q['vehicle.plate'] = new RegExp(regexPattern, 'i');
+      }
+    }
   }
 
   if (from || to) {
