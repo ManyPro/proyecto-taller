@@ -298,7 +298,10 @@
             <h1>Panel de Desarrollo</h1>
             <p>Configura módulos y opciones específicas para tu empresa desde un mismo lugar.</p>
           </div>
-          <button id="dev-logout" style="padding:8px 16px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:rgba(239,68,68,0.1);color:#ef4444;cursor:pointer;">Cerrar Sesión</button>
+          <div style="display:flex;gap:8px;">
+            <button id="dev-apply" style="padding:8px 16px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:rgba(34,197,94,0.1);color:#22c55e;cursor:pointer;">Aplicar Cambios</button>
+            <button id="dev-logout" style="padding:8px 16px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:rgba(239,68,68,0.1);color:#ef4444;cursor:pointer;">Cerrar Sesión</button>
+          </div>
         </div>
           </div>
           <div class="dev-stat-grid">
@@ -418,19 +421,69 @@
     }
     
     if (path === '/api/v1/company/features' && opts.method === 'PATCH') {
-      // Simular guardado de features
+      // Guardar features en localStorage para que se apliquen realmente
       const company = companiesData[0];
       if (company) {
         company.features = { ...company.features, ...opts.body };
+        
+        // Guardar en localStorage para que la UI principal lo lea
+        const email = company.email || 'demo@empresa.com';
+        const scope = window.API_BASE || 'local';
+        const key = `taller.features:${scope}:${email.toLowerCase()}`;
+        try {
+          localStorage.setItem(key, JSON.stringify(opts.body));
+          console.log('Features guardados en localStorage:', key, opts.body);
+          
+          // También guardar en la clave que usa la aplicación principal
+          const mainKey = `taller.features:${scope}:${email.toLowerCase()}`;
+          localStorage.setItem(mainKey, JSON.stringify(opts.body));
+          
+          // Forzar actualización del timestamp
+          localStorage.setItem(`taller.features.ts:${scope}:${email.toLowerCase()}`, Date.now().toString());
+        } catch (e) {
+          console.warn('No se pudo guardar en localStorage:', e);
+        }
+        
+        // Aplicar cambios inmediatamente a la UI
+        setTimeout(() => {
+          if (typeof window.applyDevChanges === 'function') {
+            window.applyDevChanges();
+          }
+        }, 100);
       }
       return Promise.resolve({ features: opts.body });
     }
     
     if (path === '/api/v1/company/feature-options' && opts.method === 'PATCH') {
-      // Simular guardado de feature options
+      // Guardar feature options en localStorage para que se apliquen realmente
       const company = companiesData[0];
       if (company) {
         company.featureOptions = { ...company.featureOptions, ...opts.body };
+        
+        // Guardar en localStorage para que la UI principal lo lea
+        const email = company.email || 'demo@empresa.com';
+        const scope = window.API_BASE || 'local';
+        const key = `taller.featureOptions:${scope}:${email.toLowerCase()}`;
+        try {
+          localStorage.setItem(key, JSON.stringify(opts.body));
+          console.log('Feature options guardados en localStorage:', key, opts.body);
+          
+          // También guardar en la clave que usa la aplicación principal
+          const mainKey = `taller.featureOptions:${scope}:${email.toLowerCase()}`;
+          localStorage.setItem(mainKey, JSON.stringify(opts.body));
+          
+          // Forzar actualización del timestamp
+          localStorage.setItem(`taller.featureOptions.ts:${scope}:${email.toLowerCase()}`, Date.now().toString());
+        } catch (e) {
+          console.warn('No se pudo guardar feature options en localStorage:', e);
+        }
+        
+        // Aplicar cambios inmediatamente a la UI
+        setTimeout(() => {
+          if (typeof window.applyDevChanges === 'function') {
+            window.applyDevChanges();
+          }
+        }, 100);
       }
       return Promise.resolve({ featureOptions: opts.body });
     }
@@ -851,6 +904,27 @@
   const activeTab = devTabs?.querySelector('button.active')?.dataset.t;
   if(activeTab) toggleSections(activeTab);
   
+  // Botón de aplicar cambios
+  document.getElementById('dev-apply').onclick = () => {
+    // Aplicar cambios inmediatamente
+    if (typeof window.applyDevChanges === 'function') {
+      window.applyDevChanges();
+    }
+    
+    // Mostrar mensaje de confirmación
+    const btn = document.getElementById('dev-apply');
+    const originalText = btn.textContent;
+    btn.textContent = '✓ Aplicado';
+    btn.style.background = 'rgba(34,197,94,0.2)';
+    btn.style.color = '#16a34a';
+    
+    setTimeout(() => {
+      btn.textContent = originalText;
+      btn.style.background = 'rgba(34,197,94,0.1)';
+      btn.style.color = '#22c55e';
+    }, 2000);
+  };
+  
   // Botón de cerrar sesión
   document.getElementById('dev-logout').onclick = () => {
     setTok('');
@@ -865,6 +939,37 @@
       document.getElementById('d-login').click();
     }
   });
+  
+  // Función global para aplicar cambios a la UI principal
+  window.applyDevChanges = function() {
+    console.log('Aplicando cambios a la UI principal...');
+    
+    // Aplicar feature gating si está disponible
+    if (typeof window.applyFeatureGating === 'function') {
+      console.log('Aplicando feature gating...');
+      window.applyFeatureGating();
+    }
+    
+    // Recargar feature options si está disponible
+    if (typeof window.reloadFeatureOptions === 'function') {
+      console.log('Recargando feature options...');
+      window.reloadFeatureOptions();
+    }
+    
+    // Forzar recarga de la página principal si está abierta
+    if (window.opener && !window.opener.closed) {
+      console.log('Recargando ventana principal...');
+      window.opener.location.reload();
+    }
+    
+    // También intentar aplicar cambios en la misma ventana si estamos en la app principal
+    if (window.location.href.includes('index.html') || window.location.href.includes('proyecto-taller')) {
+      console.log('Recargando página actual...');
+      window.location.reload();
+    }
+    
+    console.log('Cambios aplicados a la UI principal');
+  };
   </script>
 </body>
 </html>
