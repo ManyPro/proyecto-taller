@@ -12,6 +12,29 @@ const router = Router();
 // Public admin login
 router.post('/auth/login', adminLogin);
 
+// Dev panel authentication with PIN
+router.post('/auth/dev-login', async (req, res) => {
+  const { pin } = req.body || {};
+  const DEV_PIN = '122923'; // Same PIN as frontend
+  
+  if (pin !== DEV_PIN) {
+    return res.status(401).json({ error: 'PIN incorrecto' });
+  }
+  
+  // Create a special dev token
+  const devToken = jwt.sign(
+    { sub: 'dev-panel', kind: 'dev', role: 'developer' },
+    process.env.JWT_SECRET,
+    { expiresIn: '24h' }
+  );
+  
+  res.json({ 
+    token: devToken, 
+    user: { id: 'dev-panel', role: 'developer' },
+    message: 'Dev panel access granted'
+  });
+});
+
 // Authenticated admin
 router.get('/auth/me', authAdmin, adminMe);
 
@@ -122,6 +145,36 @@ router.patch('/companies/:id/features', authAdmin, requireAdminRole('developer',
   Object.entries(patch).forEach(([k,v]) => { c.features[k] = !!v; });
   await c.save();
   res.json({ features: c.features });
+});
+
+// Dev panel: Update company features by company ID
+router.patch('/dev/companies/:id/features', authAdmin, requireAdminRole('developer'), async (req, res) => {
+  const id = req.params.id;
+  const patch = req.body || {};
+  const c = await Company.findById(id);
+  if(!c) return res.status(404).json({ error: 'Empresa no encontrada' });
+  c.features ||= {};
+  Object.entries(patch).forEach(([k,v]) => { c.features[k] = !!v; });
+  await c.save();
+  res.json({ features: c.features });
+});
+
+// Dev panel: Update company feature options by company ID
+router.patch('/dev/companies/:id/feature-options', authAdmin, requireAdminRole('developer'), async (req, res) => {
+  const id = req.params.id;
+  const patch = req.body || {};
+  const c = await Company.findById(id);
+  if(!c) return res.status(404).json({ error: 'Empresa no encontrada' });
+  c.featureOptions ||= {};
+  Object.entries(patch).forEach(([k,v]) => { 
+    if (typeof v === 'object' && v !== null) {
+      c.featureOptions[k] = { ...c.featureOptions[k], ...v };
+    } else {
+      c.featureOptions[k] = v;
+    }
+  });
+  await c.save();
+  res.json({ featureOptions: c.featureOptions });
 });
 
 // List admins (developer only)

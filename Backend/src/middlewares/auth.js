@@ -37,7 +37,7 @@ export function authAdmin(req, res, next){
     const token = parseBearer(req);
     if(!token) return res.status(401).json({ error: 'Missing Bearer token' });
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    if(payload?.kind !== 'admin') return res.status(403).json({ error: 'No admin token' });
+    if(payload?.kind !== 'admin' && payload?.kind !== 'dev') return res.status(403).json({ error: 'No admin token' });
     req.user = { id: payload.sub, ...payload };
     next();
   }catch{ return res.status(401).json({ error: 'Invalid token' }); }
