@@ -360,17 +360,22 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 /* Controles de zoom */
 .zoom-controls {
   position: absolute;
-  top: 20px;
-  right: 20px;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   gap: 10px;
   z-index: 10;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 10px 15px;
+  border-radius: 25px;
+  backdrop-filter: blur(10px);
 }
 
 .zoom-btn {
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(255, 255, 255, 0.2);
   color: white;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
   width: 40px;
   height: 40px;
@@ -381,15 +386,18 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
   font-size: 18px;
   font-weight: bold;
   transition: all 0.2s ease;
+  backdrop-filter: blur(5px);
 }
 
 .zoom-btn:hover {
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.5);
   transform: scale(1.1);
 }
 
 .zoom-btn:active {
   transform: scale(0.95);
+  background: rgba(255, 255, 255, 0.4);
 }
 .item-media img { max-width:200px; height:auto; border-radius:8px; margin:6px 6px 0 0; box-shadow:0 2px 4px rgba(0,0,0,.3); border:1px solid var(--border); }
 .item-media video { max-width:260px; border-radius:8px; margin:6px 6px 0 0; }
