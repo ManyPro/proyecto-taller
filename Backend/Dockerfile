@@ -24,7 +24,6 @@ COPY perfiles.json ./perfiles.json
 EXPOSE 3000
 
 # Run as non-root where possible
-# node image already has `node` user, but our deps may write to uploads. Ensure perms.
 RUN mkdir -p /app/uploads \
  && chown -R node:node /app/uploads
 USER node
