@@ -1075,23 +1075,19 @@ if (__ON_INV_PAGE__) {
         await request(`/api/v1/inventory/items/${it._id}/stock-in`, { method: 'POST', json: { qty, vehicleIntakeId, note } });
         showToast('Stock agregado');
         
-        // Usar la función existente de generar stickers que ya funciona correctamente
+        // Usar exactamente la misma lógica que generateStickersFromSelection
         const list = [{ it, count: qty }];
         
         // Intentar usar la PLANTILLA ACTIVA del tipo QR
+        const type = 'sticker-qr';
         try {
-          const tpl = await API.templates.active('sticker-qr');
+          const tpl = await API.templates.active(type);
           if (tpl && tpl.contentHtml) {
             // Construir copias por cantidad y renderizar con datos reales (sampleId)
             const tasks = [];
             list.forEach(({ it, count }) => {
               for (let i = 0; i < count; i++) {
-                tasks.push(() => API.templates.preview({ 
-                  type: 'sticker-qr', 
-                  contentHtml: tpl.contentHtml, 
-                  contentCss: tpl.contentCss, 
-                  sampleId: it._id 
-                }));
+                tasks.push(() => API.templates.preview({ type, contentHtml: tpl.contentHtml, contentCss: tpl.contentCss, sampleId: it._id }));
               }
             });
 
@@ -1127,81 +1123,85 @@ if (__ON_INV_PAGE__) {
             document.body.appendChild(root);
 
             // Helper: wait for images to finish loading inside a container
-            const waitForImages = (container) => {
-              return new Promise((resolve) => {
-                const imgs = container.querySelectorAll('img');
-                if (!imgs.length) return resolve();
-                let loaded = 0;
-                const total = imgs.length;
-                const checkComplete = () => {
-                  loaded++;
-                  if (loaded >= total) resolve();
-                };
-                imgs.forEach((img) => {
-                  if (img.complete) checkComplete();
-                  else img.onload = checkComplete;
-                });
-              });
-            };
-
-            const canvases = [];
-            for (let i = 0; i < results.length; i++) {
-              const html = results[i];
-              if (!html) continue;
-              
-              const div = document.createElement('div');
-              div.innerHTML = html;
-              root.appendChild(div);
-              
-              await waitForImages(div);
-              
-              const canvas = await html2canvas(div, {
-                width: 200,
-                height: 120,
-                scale: 2,
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#ffffff'
-              });
-              
-              canvases.push(canvas);
-              div.remove();
+            async function waitForImages(rootEl, timeoutMs = 3000) {
+              const imgs = Array.from(rootEl.querySelectorAll('img'));
+              if (!imgs.length) return;
+              await Promise.all(imgs.map(img => new Promise((res) => {
+                if (img.complete && img.naturalWidth > 0) return res();
+                let done = false;
+                const clean = () => { if (done) return; done = true; img.removeEventListener('load', onLoad); img.removeEventListener('error', onErr); clearTimeout(t); res(); };
+                const onLoad = () => clean();
+                const onErr = () => clean();
+                const t = setTimeout(clean, timeoutMs);
+                img.addEventListener('load', onLoad, { once: true });
+                img.addEventListener('error', onErr, { once: true });
+              })));
             }
-            
-            root.remove();
 
-            if (!canvases.length) throw new Error('No se pudieron generar los canvas.');
+            const images = [];
+            for (const html of results) {
+              // Para 'brand', el contenido puede tener 2 páginas (.editor-page[data-page="1"] y [data-page="2"]) que se deben capturar por separado
+              const tmp = document.createElement('div');
+              tmp.innerHTML = html || '';
+              const pages = (type === 'brand') ? Array.from(tmp.querySelectorAll('.editor-page')) : [];
 
-            // Crear PDF
-            const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-            const pageWidth = doc.internal.pageSize.getWidth();
-            const pageHeight = doc.internal.pageSize.getHeight();
-            const stickerWidth = 50; // 50mm
-            const stickerHeight = 30; // 30mm
-            const margin = 10;
-            const stickersPerRow = Math.floor((pageWidth - 2 * margin) / stickerWidth);
-            const stickersPerCol = Math.floor((pageHeight - 2 * margin) / stickerHeight);
-            const stickersPerPage = stickersPerRow * stickersPerCol;
+              const captureSingleBox = async (contentFragment) => {
+                const box = document.createElement('div');
+                box.className = 'sticker-capture';
+                box.style.cssText = 'width:5cm;height:3cm;overflow:hidden;background:#fff;';
+                const style = document.createElement('style');
+                style.textContent = `\n${(tpl.contentCss || '').toString()}\n` +
+                  `/* Ocultar handles y selección del editor durante el render */\n` +
+                  `.drag-handle,.resize-handle,.selection-box,.resizer,.handles,.ve-selected,.ce-selected,.selected{display:none!important;}\n` +
+                  `.sticker-capture, .sticker-capture *{outline:none!important;-webkit-tap-highlight-color:transparent!important;user-select:none!important;caret-color:transparent!important;}\n` +
+                  `.sticker-capture *::selection{background:transparent!important;color:inherit!important;}\n` +
+                  `img,svg,canvas{outline:none!important;border:none!important;-webkit-user-drag:none!important;}`;
+                box.appendChild(style);
+                const inner = document.createElement('div');
+                if (contentFragment) {
+                  inner.appendChild(contentFragment);
+                } else {
+                  inner.innerHTML = html || '';
+                }
+                try {
+                  inner.querySelectorAll('[contenteditable]')
+                    .forEach(el => { el.setAttribute('contenteditable', 'false'); el.removeAttribute('contenteditable'); });
+                } catch(_) {}
+                box.appendChild(inner);
+                root.appendChild(box);
+                // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
+                try { await waitForImages(box, 4000); } catch(_) {}
+                const canvas = await html2canvas(box, { scale: Math.max(2, window.devicePixelRatio || 2), backgroundColor: '#ffffff', useCORS: true, allowTaint: true, imageTimeout: 4000 });
+                images.push(canvas.toDataURL('image/png'));
+                root.removeChild(box);
+              };
 
-            let currentPage = 0;
-            let stickerIndex = 0;
-
-            canvases.forEach((canvas, idx) => {
-              if (stickerIndex % stickersPerPage === 0 && stickerIndex > 0) {
-                doc.addPage();
-                currentPage++;
+              if (pages.length >= 2) {
+                // Clonar contenido de cada página y capturar en orden
+                const p1 = pages.find(p => p.dataset.page === '1') || pages[0];
+                const p2 = pages.find(p => p.dataset.page === '2') || pages[1];
+                // Usar su contenido interno para evitar contenedor del editor
+                const frag1 = document.createElement('div');
+                frag1.innerHTML = p1.innerHTML;
+                const frag2 = document.createElement('div');
+                frag2.innerHTML = p2.innerHTML;
+                await captureSingleBox(frag1);
+                await captureSingleBox(frag2);
+              } else {
+                // Plantilla de 1 página (qr) o fallback si no se detectan páginas
+                await captureSingleBox(null);
               }
+            }
+            document.body.removeChild(root);
 
-              const row = Math.floor((stickerIndex % stickersPerPage) / stickersPerRow);
-              const col = stickerIndex % stickersPerRow;
-              const x = margin + col * stickerWidth;
-              const y = margin + row * stickerHeight;
+            if (!images.length) throw new Error('No se pudo rasterizar el contenido de los stickers');
 
-              const imgData = canvas.toDataURL('image/png');
-              doc.addImage(imgData, 'PNG', x, y, stickerWidth, stickerHeight);
-              stickerIndex++;
+            // Forzar orientación horizontal (5cm ancho x 3cm alto) - UN STICKER POR PÁGINA
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [50, 30] });
+            images.forEach((src, idx) => {
+              if (idx > 0) doc.addPage([50, 30]);
+              doc.addImage(src, 'PNG', 0, 0, 50, 30);
             });
-
             doc.save(`stickers-${it.sku || it._id}.pdf`);
             invCloseModal();
             await refreshItems(state.lastItemsParams);
