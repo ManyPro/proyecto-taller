@@ -788,6 +788,8 @@
   function renderCompaniesList(){
     const wrap = document.getElementById('c-list');
     if(!wrap) return;
+    console.log('renderCompaniesList called with companiesData:', companiesData);
+    
     if(!companiesData.length){
       wrap.innerHTML = '<div class="dev-empty">No hay empresas registradas</div>';
       const statsEl = document.getElementById('c-stats');
@@ -806,7 +808,12 @@
     if(!filtered.length){
       wrap.innerHTML = '<div class="dev-empty">No se encontraron empresas</div>';
     }else{
-      filtered.forEach(c=> wrap.appendChild(buildCompanyCard(c)));
+      console.log('Rendering', filtered.length, 'companies');
+      filtered.forEach(c=> {
+        console.log('Building card for company:', c);
+        const card = buildCompanyCard(c);
+        wrap.appendChild(card);
+      });
     }
     if(statsEl){
       const activeFiltered = filtered.filter(c=> c.active).length;
@@ -817,12 +824,15 @@
   async function loadCompanies(force=false){
     const wrap = document.getElementById('c-list');
     if(!wrap) return;
+    console.log('loadCompanies called, force:', force, 'companiesData.length:', companiesData.length);
+    
     if(force || !companiesData.length){
       wrap.innerHTML = '<div class="muted">Cargando...</div>';
       try{
         // Cargar todas las empresas usando endpoint público o crear empresa demo
         const res = await req('/api/v1/admin/company/companies');
         companiesData = res.items || [];
+        console.log('Loaded companies from API:', companiesData);
         
         // Si no hay empresas, crear una empresa demo para desarrollo
         if (companiesData.length === 0) {
@@ -834,11 +844,13 @@
             features: {},
             featureOptions: {}
           }];
+          console.log('Created demo company:', companiesData);
         }
         
         setHeroStat('stat-companies', companiesData.length);
         setHeroStat('stat-companies-active', companiesData.filter(c=>c.active).length);
       }catch(e){
+        console.log('Error loading companies, creating demo:', e);
         // Si falla, crear empresa demo
         companiesData = [{
           _id: 'dev-company',
@@ -852,6 +864,7 @@
         setHeroStat('stat-companies-active', 1);
       }
     }
+    console.log('Rendering companies list with:', companiesData);
     renderCompaniesList();
   }
 
