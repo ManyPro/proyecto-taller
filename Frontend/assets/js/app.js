@@ -651,17 +651,58 @@ async function syncFeaturesFromServer(force=false){
   }
 }
 
-// ============== Panel simple de features (Home) ==============
+// ============== Panel completo de features y feature options (Home) ==============
 function featureList(){
   return FEATURE_CATALOG;
 }
+
+function featureOptionsList(){
+  return {
+    inventario: {
+      label: 'Inventario',
+      options: [
+        { key: 'ingresoVehiculo', label: 'Ingreso por Vehículo' },
+        { key: 'ingresoCompra', label: 'Ingreso por Compra' },
+        { key: 'marketplace', label: 'Marketplace' },
+        { key: 'publicCatalogFields', label: 'Campos Catálogo Público' }
+      ]
+    },
+    ventas: {
+      label: 'Ventas',
+      options: [
+        { key: 'importarCotizacion', label: 'Importar Cotización' },
+        { key: 'ordenesTrabajo', label: 'Órdenes de Trabajo' }
+      ]
+    },
+    precios: {
+      label: 'Precios',
+      options: [
+        { key: 'importarCSV', label: 'Importar CSV' }
+      ]
+    },
+    templates: {
+      label: 'Formatos/Plantillas',
+      options: [
+        { key: 'duplicar', label: 'Duplicar Plantillas' },
+        { key: 'activar', label: 'Activar/Desactivar Plantillas' }
+      ]
+    }
+  };
+}
+
 async function loadCompanyFeatures(){
   try{ return await API.company.getFeatures(); }catch{ return getFeatures() || {}; }
 }
+
+async function loadCompanyFeatureOptions(){
+  try{ return await API.company.getFeatureOptions(); }catch{ return {}; }
+}
+
 function setLocalFeatures(email, feats){
   try{ localStorage.setItem(featuresKeyFor(email), JSON.stringify(feats||{})); }catch{}
   lastFeaturesSyncTs = Date.now();
 }
+
 async function maybeRenderFeaturesPanel(){
   if(getCurrentPage()!=='home') return;
   const wrap = document.getElementById('features-panel');
@@ -670,12 +711,20 @@ async function maybeRenderFeaturesPanel(){
   const msg = document.getElementById('features-msg');
   const btnSave = document.getElementById('features-save');
   const btnRefresh = document.getElementById('features-refresh');
-  let current = await loadCompanyFeatures();
+  let currentFeatures = await loadCompanyFeatures();
+  let currentFeatureOptions = await loadCompanyFeatureOptions();
 
   function render(){
     wrap.innerHTML='';
+    
+    // Renderizar features principales
+    const featuresSection = document.createElement('div');
+    featuresSection.innerHTML = '<h4 style="margin:0 0 16px 0;color:var(--text);border-bottom:1px solid var(--border);padding-bottom:8px;">Módulos Principales</h4>';
+    const featuresGrid = document.createElement('div');
+    featuresGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px;';
+    
     featureList().forEach(({ key, label })=>{
-      const enabled = (current?.[key] !== false);
+      const enabled = (currentFeatures?.[key] !== false);
       const id = 'ft-'+key;
       const toggle = document.createElement('label');
       toggle.className='toggle';
@@ -684,34 +733,95 @@ async function maybeRenderFeaturesPanel(){
         <input type="checkbox" id="${id}" ${enabled ? 'checked' : ''}/>
         <span class="toggle-slider" aria-hidden="true"></span>
       `;
-      wrap.appendChild(toggle);
+      featuresGrid.appendChild(toggle);
       toggle.querySelector('input').addEventListener('change', (e)=>{
         const checked = e.target.checked;
-        current ||= {};
-        current[key] = !!checked;
+        currentFeatures ||= {};
+        currentFeatures[key] = !!checked;
       });
     });
+    
+    featuresSection.appendChild(featuresGrid);
+    wrap.appendChild(featuresSection);
+    
+    // Renderizar feature options (módulos específicos)
+    const optionsSection = document.createElement('div');
+    optionsSection.innerHTML = '<h4 style="margin:0 0 16px 0;color:var(--text);border-bottom:1px solid var(--border);padding-bottom:8px;">Módulos Específicos</h4>';
+    
+    const featureOptions = featureOptionsList();
+    Object.entries(featureOptions).forEach(([moduleKey, moduleData]) => {
+      const moduleDiv = document.createElement('div');
+      moduleDiv.style.cssText = 'margin-bottom:20px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:8px;';
+      
+      const moduleTitle = document.createElement('h5');
+      moduleTitle.textContent = moduleData.label;
+      moduleTitle.style.cssText = 'margin:0 0 12px 0;color:var(--text);font-size:14px;font-weight:600;';
+      moduleDiv.appendChild(moduleTitle);
+      
+      const optionsGrid = document.createElement('div');
+      optionsGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;';
+      
+      moduleData.options.forEach(({ key, label }) => {
+        const enabled = (currentFeatureOptions?.[moduleKey]?.[key] !== false);
+        const id = `fo-${moduleKey}-${key}`;
+        const toggle = document.createElement('label');
+        toggle.className='toggle';
+        toggle.style.cssText = 'padding:8px 12px;font-size:13px;';
+        toggle.innerHTML = `
+          <span class="toggle-text">${label}</span>
+          <input type="checkbox" id="${id}" ${enabled ? 'checked' : ''}/>
+          <span class="toggle-slider" aria-hidden="true"></span>
+        `;
+        optionsGrid.appendChild(toggle);
+        toggle.querySelector('input').addEventListener('change', (e)=>{
+          const checked = e.target.checked;
+          currentFeatureOptions ||= {};
+          currentFeatureOptions[moduleKey] ||= {};
+          currentFeatureOptions[moduleKey][key] = !!checked;
+        });
+      });
+      
+      moduleDiv.appendChild(optionsGrid);
+      optionsSection.appendChild(moduleDiv);
+    });
+    
+    wrap.appendChild(optionsSection);
   }
   render();
 
   async function save(){
     try{
-      // enviar solo cambios respecto a true por defecto si queremos ahorrar payload; más simple: enviar objeto completo
+      // Guardar features principales
       const feats = {};
-      featureList().forEach(({ key })=>{ feats[key] = (current?.[key] !== false); });
-      const saved = await API.company.setFeatures(feats);
-      setLocalFeatures(email, saved);
-      if(msg){ msg.textContent = 'Cambios guardados.'; msg.style.color='var(--muted)'; }
+      featureList().forEach(({ key })=>{ feats[key] = (currentFeatures?.[key] !== false); });
+      const savedFeatures = await API.company.setFeatures(feats);
+      setLocalFeatures(email, savedFeatures);
+      
+      // Guardar feature options
+      const savedOptions = await API.company.setFeatureOptions(currentFeatureOptions || {});
+      
+      if(msg){ 
+        msg.textContent = 'Cambios guardados correctamente.'; 
+        msg.style.color='var(--success)'; 
+      }
       applyFeatureGating();
-    }catch(e){ if(msg){ msg.textContent = e?.message || 'Error al guardar'; msg.style.color='#ef4444'; } }
+    }catch(e){ 
+      if(msg){ 
+        msg.textContent = e?.message || 'Error al guardar'; 
+        msg.style.color='#ef4444'; 
+      } 
+    }
   }
+  
   async function refresh(){
-    current = await loadCompanyFeatures();
-    setLocalFeatures(email, current);
+    currentFeatures = await loadCompanyFeatures();
+    currentFeatureOptions = await loadCompanyFeatureOptions();
+    setLocalFeatures(email, currentFeatures);
     render();
     if(msg) msg.textContent='';
     applyFeatureGating();
   }
+  
   btnSave?.addEventListener('click', save);
   btnRefresh?.addEventListener('click', refresh);
 }
