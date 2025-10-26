@@ -627,6 +627,11 @@ function applyFeatureGating(){
       showTab('home');
     }
   });
+  
+  // Re-renderizar el panel de features si estamos en home
+  if (getCurrentPage() === 'home') {
+    maybeRenderFeaturesPanel();
+  }
 }
 
 async function syncFeaturesFromServer(force=false){
@@ -710,6 +715,22 @@ async function maybeRenderFeaturesPanel(){
   btnSave?.addEventListener('click', save);
   btnRefresh?.addEventListener('click', refresh);
 }
+
+// ===== INICIALIZACIÓN DEL PANEL DE FEATURES =====
+// Llamar al panel cuando se carga la página home
+document.addEventListener('DOMContentLoaded', () => {
+  // Verificar si estamos en la página home y renderizar el panel
+  if (getCurrentPage() === 'home') {
+    maybeRenderFeaturesPanel();
+  }
+});
+
+// También llamar cuando se cambia a la pestaña home
+window.addEventListener('hashchange', () => {
+  if (getCurrentPage() === 'home') {
+    maybeRenderFeaturesPanel();
+  }
+});
 
 
 

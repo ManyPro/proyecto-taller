@@ -156,6 +156,21 @@
           <p class="muted" style="font-size:16px;">Usa la barra de navegación para acceder a cada herramienta de tu taller.</p>
         </div>
 
+        <!-- Panel de Desarrollo - Configuración de Features -->
+        <div class="card" style="max-width:800px;margin:20px auto;padding:24px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="margin:0;color:var(--text);">Panel de Desarrollo</h3>
+            <div style="display:flex;gap:8px;">
+              <button id="features-refresh" class="secondary" style="padding:8px 16px;">🔄 Actualizar</button>
+              <button id="features-save" style="padding:8px 16px;">💾 Guardar Cambios</button>
+            </div>
+          </div>
+          <div id="features-msg" style="margin-bottom:16px;font-size:14px;min-height:20px;"></div>
+          <div id="features-panel" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+            <!-- Los toggles se generan dinámicamente aquí -->
+          </div>
+        </div>
+
 
       <!-- Modal global reutilizable -->
       <div id="modal" class="modal hidden">
