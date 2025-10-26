@@ -923,6 +923,7 @@ if (__ON_INV_PAGE__) {
           <button class="secondary" data-qr-dl="${it._id}">Descargar QR</button>
           <button class="secondary" data-qr="${it._id}">Expandir codigo QR</button>
           <button class="secondary" data-stock-in="${it._id}">Agregar stock</button>
+          <button class="secondary" data-stickers="${it._id}" style="background: #3b82f6; color: white;">Generar Stickers</button>
           <button class="secondary" data-mp="${it._id}" ${it.marketplacePublished ? 'style="background:linear-gradient(135deg, #10b981, #059669);color:white;font-weight:600;box-shadow:0 2px 8px rgba(16,185,129,0.3);"' : ''}>${it.marketplacePublished ? '✓ Publicado' : 'Marketplace'}</button>
         </div>`;
 
@@ -947,6 +948,7 @@ if (__ON_INV_PAGE__) {
       div.querySelector("[data-qr]").onclick = () => openQrModal(it, companyId);
       div.querySelector("[data-qr-dl]").onclick = () => downloadQrPng(it._id, 720, `QR_${it.sku || it._id}.png`);
      div.querySelector("[data-stock-in]").onclick = () => openStockInModal(it);
+     div.querySelector("[data-stickers]").onclick = () => openStickersModal(it);
      const mpBtn = div.querySelector("[data-mp]");
      if (!state.permissions?.allowMarketplace && mpBtn) {
         mpBtn.style.display = 'none';
@@ -1029,6 +1031,51 @@ if (__ON_INV_PAGE__) {
     const params = { ...state.lastItemsParams, page: 1, limit };
     refreshItems(params);
   }
+  // ---- Generar Stickers ----
+  function openStickersModal(it){
+    invOpenModal(`
+      <h3>Generar stickers para ${it.name || it.sku || it._id}</h3>
+      <label>Cantidad de stickers</label><input id="stk-stickers-qty" type="number" min="1" step="1" value="1"/>
+      <div style="margin-top:10px;display:flex;gap:8px;">
+        <button id="stk-stickers-generate">Generar PDF</button>
+        <button id="stk-stickers-cancel" class="secondary">Cancelar</button>
+      </div>
+    `);
+    document.getElementById('stk-stickers-cancel').onclick = invCloseModal;
+    document.getElementById('stk-stickers-generate').onclick = async () => {
+      const qty = parseInt(document.getElementById('stk-stickers-qty').value||'1',10);
+      if (!Number.isFinite(qty) || qty<=0) return alert('Cantidad inválida');
+      try{
+        showBusy('Generando stickers...');
+        const response = await fetch(`/api/v1/inventory/items/${it._id}/stickers?quantity=${qty}`, {
+          headers: authHeader()
+        });
+        
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `stickers-${it.sku || it._id}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+          showToast('Stickers generados y descargados');
+        } else {
+          const error = await response.json();
+          throw new Error(error.error || 'Error generando stickers');
+        }
+        
+        invCloseModal();
+        hideBusy();
+      }catch(e){ 
+        hideBusy();
+        alert('No se pudieron generar stickers: '+e.message); 
+      }
+    };
+  }
+
   // ---- Agregar Stock ----
   function openStockInModal(it){
     const optionsIntakes = [
@@ -1060,23 +1107,37 @@ if (__ON_INV_PAGE__) {
         });
         
         if (response.ok) {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/pdf')) {
-            // Descargar automáticamente el PDF de stickers
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `stickers-${it.sku || it._id}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-            showToast('Stock agregado y stickers generados');
-          } else {
-            // Respuesta JSON normal
-            const data = await response.json();
-            showToast('Stock agregado');
+          const data = await response.json();
+          showToast('Stock agregado');
+          
+          // Mostrar opción para generar stickers si se agregó stock
+          if (data.stickersGenerated && data.stickerCount > 0) {
+            const generateStickers = confirm(`¿Deseas generar ${data.stickerCount} sticker(s) para "${it.name}"?`);
+            if (generateStickers) {
+              try {
+                const stickerResponse = await fetch(`/api/v1/inventory/items/${it._id}/stickers?quantity=${data.stickerCount}`, {
+                  headers: authHeader()
+                });
+                
+                if (stickerResponse.ok) {
+                  const blob = await stickerResponse.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `stickers-${it.sku || it._id}.pdf`;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  URL.revokeObjectURL(url);
+                  showToast('Stickers generados y descargados');
+                } else {
+                  showToast('Error generando stickers');
+                }
+              } catch (e) {
+                console.error('Error generando stickers:', e);
+                showToast('Error generando stickers');
+              }
+            }
           }
         } else {
           const error = await response.json();
@@ -1170,23 +1231,40 @@ if (__ON_INV_PAGE__) {
         });
         
         if (response.ok) {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/pdf')) {
-            // Descargar automáticamente el PDF de stickers
-            const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'stickers-masivo.pdf';
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(url);
-            showToast('Stock agregado (masivo) y stickers generados');
-          } else {
-            // Respuesta JSON normal
-            const data = await response.json();
-            showToast('Stock agregado (masivo)');
+          const data = await response.json();
+          showToast('Stock agregado (masivo)');
+          
+          // Mostrar opción para generar stickers si se agregó stock
+          const totalStickers = data.results?.filter(r => r.ok && r.added > 0).reduce((sum, r) => sum + r.added, 0) || 0;
+          if (totalStickers > 0) {
+            const generateStickers = confirm(`¿Deseas generar ${totalStickers} sticker(s) para los items actualizados?`);
+            if (generateStickers) {
+              try {
+                // Generar stickers para cada item que tuvo stock agregado
+                const itemsWithStock = data.results.filter(r => r.ok && r.added > 0);
+                for (const result of itemsWithStock) {
+                  const stickerResponse = await fetch(`/api/v1/inventory/items/${result.id}/stickers?quantity=${result.added}`, {
+                    headers: authHeader()
+                  });
+                  
+                  if (stickerResponse.ok) {
+                    const blob = await stickerResponse.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `stickers-item-${result.id}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                  }
+                }
+                showToast('Stickers generados y descargados');
+              } catch (e) {
+                console.error('Error generando stickers:', e);
+                showToast('Error generando stickers');
+              }
+            }
           }
         } else {
           const error = await response.json();

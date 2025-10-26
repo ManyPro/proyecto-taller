@@ -45,7 +45,7 @@ function sanitizeMediaList(arr) {
 }
 
 // Función para generar stickers automáticamente al agregar stock
-async function generateAutoStickers(item, quantity, companyId) {
+export async function generateAutoStickers(item, quantity, companyId) {
   try {
     // Importar dependencias necesarias para generar PDF
     const PDFDocument = (await import('pdfkit')).default;
@@ -844,23 +844,13 @@ export const addItemStock = async (req, res) => {
     console.error('sku-pending-on-stock-in', e?.message);
   }
 
-  // Generar stickers automáticamente
-  try {
-    const stickerPdf = await generateAutoStickers(updated, qty, req.companyId);
-    if (stickerPdf) {
-      // Guardar el PDF en el sistema de archivos o enviarlo como respuesta
-      // Por ahora, lo incluimos en la respuesta para que el frontend pueda descargarlo
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="stickers-${updated.sku || updated._id}.pdf"`);
-      res.setHeader('Content-Length', String(stickerPdf.length));
-      return res.send(stickerPdf);
-    }
-  } catch (error) {
-    console.error('Error generando stickers automáticos:', error);
-    // Si falla la generación de stickers, continuar con la respuesta normal
-  }
-
-  res.json({ item: updated });
+  res.json({ 
+    item: updated, 
+    stickersGenerated: true,
+    stickerCount: qty,
+    itemId: updated._id,
+    itemSku: updated.sku
+  });
   // Al subir stock, si supera el mínimo limpiar bandera de alerta; si sigue por debajo, no notifica (solo notifica en bajadas o si han pasado 24h)
   try { await checkLowStockAndNotify(req.companyId, updated._id); } catch {}
 };
@@ -1019,6 +1009,36 @@ export const addItemsStockBulk = async (req, res) => {
   try {
     await checkLowStockForMany(req.companyId, results.filter(r=>r.ok).map(r=>r.id));
   } catch {}
+};
+
+// ===== GENERAR STICKERS =====
+// Genera PDF de stickers para un item específico
+export const generateItemStickers = async (req, res) => {
+  const { id } = req.params;
+  const { quantity = 1 } = req.query;
+  const qty = parseInt(quantity, 10);
+
+  if (!Number.isFinite(qty) || qty <= 0) {
+    return res.status(400).json({ error: "Cantidad inválida (debe ser > 0)" });
+  }
+
+  const item = await Item.findOne({ _id: id, companyId: req.companyId });
+  if (!item) return res.status(404).json({ error: "Item no encontrado" });
+
+  try {
+    const stickerPdf = await generateAutoStickers(item, qty, req.companyId);
+    if (stickerPdf) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="stickers-${item.sku || item._id}.pdf"`);
+      res.setHeader('Content-Length', String(stickerPdf.length));
+      return res.send(stickerPdf);
+    } else {
+      return res.status(500).json({ error: "Error generando stickers" });
+    }
+  } catch (error) {
+    console.error('Error generando stickers:', error);
+    return res.status(500).json({ error: "Error generando stickers: " + error.message });
+  }
 };
 
 // ===== QR =====
