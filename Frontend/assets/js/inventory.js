@@ -1075,23 +1075,25 @@ if (__ON_INV_PAGE__) {
         await request(`/api/v1/inventory/items/${it._id}/stock-in`, { method: 'POST', json: { qty, vehicleIntakeId, note } });
         showToast('Stock agregado');
         
-        // Usar la funcionalidad existente de generar stickers
+        // Usar la función existente de generar stickers que ya funciona correctamente
         const list = [{ it, count: qty }];
         
-        // Intentar usar la plantilla activa del tipo QR
+        // Intentar usar la PLANTILLA ACTIVA del tipo QR
         try {
           const tpl = await API.templates.active('sticker-qr');
           if (tpl && tpl.contentHtml) {
-            // Construir copias por cantidad y renderizar con datos reales
+            // Construir copias por cantidad y renderizar con datos reales (sampleId)
             const tasks = [];
-            for (let i = 0; i < qty; i++) {
-              tasks.push(() => API.templates.preview({ 
-                type: 'sticker-qr', 
-                contentHtml: tpl.contentHtml, 
-                contentCss: tpl.contentCss, 
-                sampleId: it._id 
-              }));
-            }
+            list.forEach(({ it, count }) => {
+              for (let i = 0; i < count; i++) {
+                tasks.push(() => API.templates.preview({ 
+                  type: 'sticker-qr', 
+                  contentHtml: tpl.contentHtml, 
+                  contentCss: tpl.contentCss, 
+                  sampleId: it._id 
+                }));
+              }
+            });
 
             // Ejecutar en serie para evitar saturar el backend
             const results = [];
@@ -1106,11 +1108,11 @@ if (__ON_INV_PAGE__) {
 
             if (!results.length) throw new Error('No se pudieron renderizar los stickers.');
 
-            // Generar PDF descargable usando html2canvas + jsPDF
+            // Generar PDF descargable (50mm x 30mm por sticker) usando html2canvas + jsPDF
             const html2canvas = await ensureHtml2Canvas();
             const jsPDF = await ensureJsPDF();
 
-            // Asegurar que no haya selección activa
+            // Asegurar que no haya selección activa ni foco que agregue bordes/handles
             try {
               if (document.activeElement && typeof document.activeElement.blur === 'function') {
                 document.activeElement.blur();
@@ -1124,7 +1126,7 @@ if (__ON_INV_PAGE__) {
             root.style.cssText = 'position:fixed;left:-10000px;top:0;width:0;height:0;overflow:hidden;background:#fff;z-index:-1;';
             document.body.appendChild(root);
 
-            // Helper: wait for images to finish loading
+            // Helper: wait for images to finish loading inside a container
             const waitForImages = (container) => {
               return new Promise((resolve) => {
                 const imgs = container.querySelectorAll('img');
@@ -1154,8 +1156,8 @@ if (__ON_INV_PAGE__) {
               await waitForImages(div);
               
               const canvas = await html2canvas(div, {
-                width: 150, // Reducido para 5cm
-                height: 90,  // Reducido para 3cm
+                width: 200,
+                height: 120,
                 scale: 2,
                 useCORS: true,
                 allowTaint: true,
@@ -1174,9 +1176,9 @@ if (__ON_INV_PAGE__) {
             const doc = new jsPDF({ unit: 'mm', format: 'a4' });
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight();
-            const stickerWidth = 50; // 5cm = 50mm
-            const stickerHeight = 30; // 3cm = 30mm
-            const margin = 5; // Margen más pequeño
+            const stickerWidth = 50; // 50mm
+            const stickerHeight = 30; // 30mm
+            const margin = 10;
             const stickersPerRow = Math.floor((pageWidth - 2 * margin) / stickerWidth);
             const stickersPerCol = Math.floor((pageHeight - 2 * margin) / stickerHeight);
             const stickersPerPage = stickersPerRow * stickersPerCol;
@@ -1211,33 +1213,32 @@ if (__ON_INV_PAGE__) {
           console.warn('Fallo plantilla activa; se usará el backend PDF por defecto:', e?.message || e);
         }
 
-        // Fallback: backend PDF por defecto
+        // Fallback: backend PDF por variante (layout por defecto)
         const payload = [];
-        for (let i = 0; i < qty; i++) {
-          payload.push({ sku: it.sku, name: it.name });
+        list.forEach(({ it, count }) => {
+          for (let i = 0; i < count; i++) payload.push({ sku: it.sku, name: it.name });
+        });
+        
+        try {
+          const base = API.base?.replace(/\/$/, '') || '';
+          const variantPath = '/api/v1/media/stickers/pdf/qr';
+          const endpoint = base + variantPath;
+          const headers = Object.assign({ 'Content-Type': 'application/json' }, authHeader());
+          const resp = await fetch(endpoint, { method: 'POST', headers, credentials: 'same-origin', body: JSON.stringify({ items: payload }) });
+          if (!resp.ok) throw new Error('No se pudo generar PDF');
+          const blob = await resp.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = `stickers-${it.sku || it._id}.pdf`; document.body.appendChild(a); a.click(); a.remove();
+          URL.revokeObjectURL(url);
+          invCloseModal();
+          await refreshItems(state.lastItemsParams);
+          hideBusy();
+          showToast('Stock agregado y stickers generados');
+        } catch (err) {
+          hideBusy();
+          alert('Error creando stickers: ' + (err.message || err));
         }
-        
-        const base = API.base?.replace(/\/$/, '') || '';
-        const endpoint = base + '/api/v1/media/stickers/pdf/qr';
-        const headers = Object.assign({ 'Content-Type': 'application/json' }, authHeader());
-        const resp = await fetch(endpoint, { method: 'POST', headers, credentials: 'same-origin', body: JSON.stringify({ items: payload }) });
-        
-        if (!resp.ok) throw new Error('No se pudo generar PDF');
-        
-        const blob = await resp.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; 
-        a.download = `stickers-${it.sku || it._id}.pdf`; 
-        document.body.appendChild(a); 
-        a.click(); 
-        a.remove();
-        URL.revokeObjectURL(url);
-        
-        invCloseModal();
-        await refreshItems(state.lastItemsParams);
-        hideBusy();
-        showToast('Stock agregado y stickers generados');
         
       } catch (err) {
         hideBusy();
