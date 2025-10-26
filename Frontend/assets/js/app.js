@@ -605,6 +605,7 @@ logoutBtn?.addEventListener('click', async () => {
 })();
 
 // ================= Feature gating (UI) =================
+import { loadFeatureOptionsAndRestrictions } from './feature-gating.js';
 function getFeatures(){
   const email = API.getActiveCompany?.() || '';
   const key = featuresKeyFor(email);
@@ -804,7 +805,13 @@ async function maybeRenderFeaturesPanel(){
         msg.textContent = 'Cambios guardados correctamente.'; 
         msg.style.color='var(--success)'; 
       }
+      
+      // Aplicar cambios a la UI
       applyFeatureGating();
+      
+      // Recargar feature options globalmente
+      await window.reloadFeatureOptions();
+      
     }catch(e){ 
       if(msg){ 
         msg.textContent = e?.message || 'Error al guardar'; 
@@ -817,6 +824,10 @@ async function maybeRenderFeaturesPanel(){
     currentFeatures = await loadCompanyFeatures();
     currentFeatureOptions = await loadCompanyFeatureOptions();
     setLocalFeatures(email, currentFeatures);
+    
+    // Recargar feature options en el cache
+    await loadFeatureOptionsAndRestrictions({ force: true });
+    
     render();
     if(msg) msg.textContent='';
     applyFeatureGating();
@@ -825,6 +836,27 @@ async function maybeRenderFeaturesPanel(){
   btnSave?.addEventListener('click', save);
   btnRefresh?.addEventListener('click', refresh);
 }
+
+// ===== FUNCIÓN GLOBAL PARA RECARGAR FEATURE OPTIONS =====
+window.reloadFeatureOptions = async function() {
+  try {
+    await loadFeatureOptionsAndRestrictions({ force: true });
+    
+    // Recargar inventario si estamos en esa página
+    if (getCurrentPage() === 'inventario' && typeof renderIntakesList === 'function') {
+      renderIntakesList();
+    }
+    
+    // Recargar ventas si estamos en esa página
+    if (getCurrentPage() === 'ventas' && typeof initSales === 'function') {
+      initSales();
+    }
+    
+    console.log('Feature options recargados correctamente');
+  } catch (error) {
+    console.error('Error al recargar feature options:', error);
+  }
+};
 
 // ===== INICIALIZACIÓN DEL PANEL DE FEATURES =====
 // Llamar al panel cuando se carga la página home
