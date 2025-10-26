@@ -923,7 +923,6 @@ if (__ON_INV_PAGE__) {
           <button class="secondary" data-qr-dl="${it._id}">Descargar QR</button>
           <button class="secondary" data-qr="${it._id}">Expandir codigo QR</button>
           <button class="secondary" data-stock-in="${it._id}">Agregar stock</button>
-          <button class="secondary" data-stickers="${it._id}" style="background: #3b82f6; color: white;">Generar Stickers</button>
           <button class="secondary" data-mp="${it._id}" ${it.marketplacePublished ? 'style="background:linear-gradient(135deg, #10b981, #059669);color:white;font-weight:600;box-shadow:0 2px 8px rgba(16,185,129,0.3);"' : ''}>${it.marketplacePublished ? '✓ Publicado' : 'Marketplace'}</button>
         </div>`;
 
@@ -948,7 +947,6 @@ if (__ON_INV_PAGE__) {
       div.querySelector("[data-qr]").onclick = () => openQrModal(it, companyId);
       div.querySelector("[data-qr-dl]").onclick = () => downloadQrPng(it._id, 720, `QR_${it.sku || it._id}.png`);
      div.querySelector("[data-stock-in]").onclick = () => openStockInModal(it);
-     div.querySelector("[data-stickers]").onclick = () => openStickersModal(it);
      const mpBtn = div.querySelector("[data-mp]");
      if (!state.permissions?.allowMarketplace && mpBtn) {
         mpBtn.style.display = 'none';
@@ -1031,50 +1029,6 @@ if (__ON_INV_PAGE__) {
     const params = { ...state.lastItemsParams, page: 1, limit };
     refreshItems(params);
   }
-  // ---- Generar Stickers ----
-  function openStickersModal(it){
-    invOpenModal(`
-      <h3>Generar stickers para ${it.name || it.sku || it._id}</h3>
-      <label>Cantidad de stickers</label><input id="stk-stickers-qty" type="number" min="1" step="1" value="1"/>
-      <div style="margin-top:10px;display:flex;gap:8px;">
-        <button id="stk-stickers-generate">Generar PDF</button>
-        <button id="stk-stickers-cancel" class="secondary">Cancelar</button>
-      </div>
-    `);
-    document.getElementById('stk-stickers-cancel').onclick = invCloseModal;
-    document.getElementById('stk-stickers-generate').onclick = async () => {
-      const qty = parseInt(document.getElementById('stk-stickers-qty').value||'1',10);
-      if (!Number.isFinite(qty) || qty<=0) return alert('Cantidad inválida');
-      try{
-        showBusy('Generando stickers...');
-        const response = await fetch(`/api/v1/inventory/items/${it._id}/stickers?quantity=${qty}`, {
-          headers: authHeader()
-        });
-        
-        if (response.ok) {
-          const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `stickers-${it.sku || it._id}.pdf`;
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          URL.revokeObjectURL(url);
-          showToast('Stickers generados y descargados');
-        } else {
-          const error = await response.json();
-          throw new Error(error.error || 'Error generando stickers');
-        }
-        
-        invCloseModal();
-        hideBusy();
-      }catch(e){ 
-        hideBusy();
-        alert('No se pudieron generar stickers: '+e.message); 
-      }
-    };
-  }
 
   // ---- Agregar Stock ----
   function openStockInModal(it){
@@ -1089,6 +1043,7 @@ if (__ON_INV_PAGE__) {
       <label>Nota (opcional)</label><input id="stk-note" placeholder="ej: reposición, compra, etc."/>
       <div style="margin-top:10px;display:flex;gap:8px;">
         <button id="stk-save">Agregar</button>
+        <button id="stk-generate-stickers" class="secondary" style="background: #3b82f6; color: white;">Generar Stickers</button>
         <button id="stk-cancel" class="secondary">Cancelar</button>
       </div>
     `);
@@ -1099,57 +1054,186 @@ if (__ON_INV_PAGE__) {
       const vehicleIntakeId = document.getElementById('stk-intake').value || undefined;
       const note = document.getElementById('stk-note').value || '';
       try{
-        showBusy('Agregando stock y generando stickers...');
-        const response = await fetch(`/api/v1/inventory/items/${it._id}/stock-in`, { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json', ...authHeader() },
-          body: JSON.stringify({ qty, vehicleIntakeId, note })
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          showToast('Stock agregado');
-          
-          // Mostrar opción para generar stickers si se agregó stock
-          if (data.stickersGenerated && data.stickerCount > 0) {
-            const generateStickers = confirm(`¿Deseas generar ${data.stickerCount} sticker(s) para "${it.name}"?`);
-            if (generateStickers) {
-              try {
-                const stickerResponse = await fetch(`/api/v1/inventory/items/${it._id}/stickers?quantity=${data.stickerCount}`, {
-                  headers: authHeader()
-                });
-                
-                if (stickerResponse.ok) {
-                  const blob = await stickerResponse.blob();
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `stickers-${it.sku || it._id}.pdf`;
-                  document.body.appendChild(a);
-                  a.click();
-                  a.remove();
-                  URL.revokeObjectURL(url);
-                  showToast('Stickers generados y descargados');
-                } else {
-                  showToast('Error generando stickers');
-                }
-              } catch (e) {
-                console.error('Error generando stickers:', e);
-                showToast('Error generando stickers');
-              }
-            }
-          }
-        } else {
-          const error = await response.json();
-          throw new Error(error.error || 'Error agregando stock');
-        }
-        
+        await request(`/api/v1/inventory/items/${it._id}/stock-in`, { method: 'POST', json: { qty, vehicleIntakeId, note } });
         invCloseModal();
         await refreshItems(state.lastItemsParams);
+        showToast('Stock agregado');
+      }catch(e){ alert('No se pudo agregar stock: '+e.message); }
+    };
+
+    // Botón para generar stickers usando el formato existente de la empresa
+    document.getElementById('stk-generate-stickers').onclick = async () => {
+      const qty = parseInt(document.getElementById('stk-qty').value||'0',10);
+      if (!Number.isFinite(qty) || qty<=0) return alert('Cantidad inválida');
+      
+      try {
+        showBusy('Generando stickers...');
+        
+        // Usar la funcionalidad existente de generar stickers
+        const list = [{ it, count: qty }];
+        
+        // Intentar usar la plantilla activa del tipo QR
+        try {
+          const tpl = await API.templates.active('sticker-qr');
+          if (tpl && tpl.contentHtml) {
+            // Construir copias por cantidad y renderizar con datos reales
+            const tasks = [];
+            for (let i = 0; i < qty; i++) {
+              tasks.push(() => API.templates.preview({ 
+                type: 'sticker-qr', 
+                contentHtml: tpl.contentHtml, 
+                contentCss: tpl.contentCss, 
+                sampleId: it._id 
+              }));
+            }
+
+            // Ejecutar en serie para evitar saturar el backend
+            const results = [];
+            for (const job of tasks) {
+              try {
+                const pv = await job();
+                results.push(pv && (pv.rendered || ''));
+              } catch (e) {
+                results.push('');
+              }
+            }
+
+            if (!results.length) throw new Error('No se pudieron renderizar los stickers.');
+
+            // Generar PDF descargable usando html2canvas + jsPDF
+            const html2canvas = await ensureHtml2Canvas();
+            const jsPDF = await ensureJsPDF();
+
+            // Asegurar que no haya selección activa
+            try {
+              if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+              }
+              const sel = window.getSelection && window.getSelection();
+              if (sel && sel.removeAllRanges) sel.removeAllRanges();
+            } catch (_) {}
+
+            const root = document.createElement('div');
+            root.id = 'sticker-capture-root';
+            root.style.cssText = 'position:fixed;left:-10000px;top:0;width:0;height:0;overflow:hidden;background:#fff;z-index:-1;';
+            document.body.appendChild(root);
+
+            // Helper: wait for images to finish loading
+            const waitForImages = (container) => {
+              return new Promise((resolve) => {
+                const imgs = container.querySelectorAll('img');
+                if (!imgs.length) return resolve();
+                let loaded = 0;
+                const total = imgs.length;
+                const checkComplete = () => {
+                  loaded++;
+                  if (loaded >= total) resolve();
+                };
+                imgs.forEach((img) => {
+                  if (img.complete) checkComplete();
+                  else img.onload = checkComplete;
+                });
+              });
+            };
+
+            const canvases = [];
+            for (let i = 0; i < results.length; i++) {
+              const html = results[i];
+              if (!html) continue;
+              
+              const div = document.createElement('div');
+              div.innerHTML = html;
+              root.appendChild(div);
+              
+              await waitForImages(div);
+              
+              const canvas = await html2canvas(div, {
+                width: 200,
+                height: 120,
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff'
+              });
+              
+              canvases.push(canvas);
+              div.remove();
+            }
+            
+            root.remove();
+
+            if (!canvases.length) throw new Error('No se pudieron generar los canvas.');
+
+            // Crear PDF
+            const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const pageHeight = doc.internal.pageSize.getHeight();
+            const stickerWidth = 50; // 50mm
+            const stickerHeight = 30; // 30mm
+            const margin = 10;
+            const stickersPerRow = Math.floor((pageWidth - 2 * margin) / stickerWidth);
+            const stickersPerCol = Math.floor((pageHeight - 2 * margin) / stickerHeight);
+            const stickersPerPage = stickersPerRow * stickersPerCol;
+
+            let currentPage = 0;
+            let stickerIndex = 0;
+
+            canvases.forEach((canvas, idx) => {
+              if (stickerIndex % stickersPerPage === 0 && stickerIndex > 0) {
+                doc.addPage();
+                currentPage++;
+              }
+
+              const row = Math.floor((stickerIndex % stickersPerPage) / stickersPerRow);
+              const col = stickerIndex % stickersPerRow;
+              const x = margin + col * stickerWidth;
+              const y = margin + row * stickerHeight;
+
+              const imgData = canvas.toDataURL('image/png');
+              doc.addImage(imgData, 'PNG', x, y, stickerWidth, stickerHeight);
+              stickerIndex++;
+            });
+
+            doc.save(`stickers-${it.sku || it._id}.pdf`);
+            invCloseModal();
+            hideBusy();
+            showToast('Stickers generados y descargados');
+            return;
+          }
+        } catch (e) {
+          console.warn('Fallo plantilla activa; se usará el backend PDF por defecto:', e?.message || e);
+        }
+
+        // Fallback: backend PDF por defecto
+        const payload = [];
+        for (let i = 0; i < qty; i++) {
+          payload.push({ sku: it.sku, name: it.name });
+        }
+        
+        const base = API.base?.replace(/\/$/, '') || '';
+        const endpoint = base + '/api/v1/media/stickers/pdf/qr';
+        const headers = Object.assign({ 'Content-Type': 'application/json' }, authHeader());
+        const resp = await fetch(endpoint, { method: 'POST', headers, credentials: 'same-origin', body: JSON.stringify({ items: payload }) });
+        
+        if (!resp.ok) throw new Error('No se pudo generar PDF');
+        
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; 
+        a.download = `stickers-${it.sku || it._id}.pdf`; 
+        document.body.appendChild(a); 
+        a.click(); 
+        a.remove();
+        URL.revokeObjectURL(url);
+        
+        invCloseModal();
         hideBusy();
-      }catch(e){ 
+        showToast('Stickers generados y descargados');
+        
+      } catch (err) {
         hideBusy();
-        alert('No se pudo agregar stock: '+e.message); 
+        alert('Error generando stickers: ' + (err.message || err));
       }
     };
   }
@@ -1222,54 +1306,9 @@ if (__ON_INV_PAGE__) {
           .filter(row => Number.isFinite(row.qty) && row.qty > 0);
         if (!itemsPayload.length) return alert('Indica cantidades (>0) para al menos un ítem.');
         if (itemsPayload.length > 500) return alert('Máximo 500 ítems por lote.');
-        showBusy('Agregando stock (masivo) y generando stickers...');
-        
-        const response = await fetch('/api/v1/inventory/items/stock-in/bulk', { 
-          method: 'POST', 
-          headers: { 'Content-Type': 'application/json', ...authHeader() },
-          body: JSON.stringify({ items: itemsPayload, vehicleIntakeId, note })
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          showToast('Stock agregado (masivo)');
-          
-          // Mostrar opción para generar stickers si se agregó stock
-          const totalStickers = data.results?.filter(r => r.ok && r.added > 0).reduce((sum, r) => sum + r.added, 0) || 0;
-          if (totalStickers > 0) {
-            const generateStickers = confirm(`¿Deseas generar ${totalStickers} sticker(s) para los items actualizados?`);
-            if (generateStickers) {
-              try {
-                // Generar stickers para cada item que tuvo stock agregado
-                const itemsWithStock = data.results.filter(r => r.ok && r.added > 0);
-                for (const result of itemsWithStock) {
-                  const stickerResponse = await fetch(`/api/v1/inventory/items/${result.id}/stickers?quantity=${result.added}`, {
-                    headers: authHeader()
-                  });
-                  
-                  if (stickerResponse.ok) {
-                    const blob = await stickerResponse.blob();
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `stickers-item-${result.id}.pdf`;
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                    URL.revokeObjectURL(url);
-                  }
-                }
-                showToast('Stickers generados y descargados');
-              } catch (e) {
-                console.error('Error generando stickers:', e);
-                showToast('Error generando stickers');
-              }
-            }
-          }
-        } else {
-          const error = await response.json();
-          throw new Error(error.error || 'Error agregando stock masivo');
-        }
+        showBusy('Agregando stock (masivo)...');
+        await request('/api/v1/inventory/items/stock-in/bulk', { method: 'POST', json: { items: itemsPayload, vehicleIntakeId, note } });
+        showToast('Stock agregado (masivo)');
         
         invCloseModal(); 
         hideBusy();

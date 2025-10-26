@@ -44,139 +44,6 @@ function sanitizeMediaList(arr) {
   return out;
 }
 
-// Función para generar stickers automáticamente al agregar stock
-export async function generateAutoStickers(item, quantity, companyId) {
-  try {
-    // Importar dependencias necesarias para generar PDF
-    const PDFDocument = (await import('pdfkit')).default;
-    const QRCode = (await import('qrcode')).default;
-    
-    // Crear array de items para el PDF (uno por cada cantidad agregada)
-    let itemsForPdf = [];
-    
-    // Si item tiene propiedad 'items', es stock masivo
-    if (item.items && Array.isArray(item.items)) {
-      itemsForPdf = item.items;
-    } else {
-      // Stock individual
-      for (let i = 0; i < quantity; i++) {
-        itemsForPdf.push({
-          sku: item.sku || item.name || '',
-          name: item.name || '',
-          companyName: 'CASA RENAULT H&H', // Puedes personalizar esto
-          companyLogo: null
-        });
-      }
-    }
-
-    // Configuración del PDF
-    const CM = 28.3464567;
-    const STICKER_W = 5 * CM; // 5 cm
-    const STICKER_H = 3 * CM; // 3 cm
-    const MARGIN = 0.25 * CM; // 0.25 cm
-
-    const doc = new PDFDocument({ autoFirstPage: false, bufferPages: true });
-    doc.info = { Title: 'Stickers Automáticos', Author: 'proyecto-taller' };
-    const buffers = [];
-    doc.on('data', (b) => buffers.push(b));
-
-    // Función para dibujar un sticker
-    const drawSticker = async (item) => {
-      const sku = (item.sku || item.name || '').toString();
-      
-      // Generar QR
-      let qrBuf = null;
-      try {
-        const qrDataUrl = await QRCode.toDataURL(String(sku || ''), { margin: 0, width: 120 });
-        qrBuf = Buffer.from(qrDataUrl.split(',')[1], 'base64');
-      } catch (e) {
-        console.warn('Error generando QR:', e.message);
-      }
-
-      doc.addPage({ size: [STICKER_W, STICKER_H], margin: 0 });
-      doc.save();
-      doc.rect(0, 0, STICKER_W, STICKER_H).fill('#FFFFFF');
-
-      const vx = MARGIN, vy = MARGIN, vw = STICKER_W - 2*MARGIN, vh = STICKER_H - 2*MARGIN;
-      const gap = 6;
-      const qrColW = vw * 0.55;
-      const skuColW = vw - qrColW - gap;
-      const skuColX = vx; 
-      const qrColX = vx + skuColW + gap;
-
-      // SKU a la izquierda en recuadro gris
-      const skuSquareSize = Math.min(skuColW, vh);
-      const skuSquareX = skuColX + (skuColW - skuSquareSize)/2;
-      const skuSquareY = vy + (vh - skuSquareSize)/2;
-      const INTERNAL_PADDING = 2;
-      const skuInnerSize = Math.max(0, skuSquareSize - INTERNAL_PADDING*2);
-
-      doc.save();
-      doc.fillColor('#c0b7b7ff');
-      if (typeof doc.roundedRect === 'function') {
-        doc.roundedRect(skuSquareX, skuSquareY, skuSquareSize, skuSquareSize, 6).fill();
-      } else {
-        doc.rect(skuSquareX, skuSquareY, skuSquareSize, skuSquareSize).fill();
-      }
-      doc.restore();
-
-      // Texto SKU
-      doc.fillColor('#000').font('Helvetica-Bold');
-      let skuFont = Math.floor(skuInnerSize * 0.18);
-      if (skuFont < 8) skuFont = 8;
-      if (skuFont > 20) skuFont = 20;
-      doc.fontSize(skuFont);
-      doc.text(String(sku || ''), skuSquareX + INTERNAL_PADDING,
-        skuSquareY + (skuSquareSize - skuFont) / 2,
-        {
-          width: skuInnerSize,
-          align: 'center',
-          ellipsis: true
-        }
-      );
-
-      // QR a la derecha
-      if (qrBuf) {
-        try {
-          const qrSquareSize = Math.min(qrColW, vh);
-          const qrInnerSize = Math.max(0, qrSquareSize - INTERNAL_PADDING*2);
-          const qrX = qrColX + (qrColW - qrSquareSize) / 2 + INTERNAL_PADDING;
-          const qrY = vy + (vh - qrSquareSize) / 2 + INTERNAL_PADDING;
-          doc.image(qrBuf, qrX, qrY, {
-            fit: [qrInnerSize, qrInnerSize],
-            align: 'center',
-            valign: 'center'
-          });
-        } catch (e) {
-          doc.fontSize(8).text('QR ERR', qrColX + qrColW / 2, vy + vh / 2, { align: 'center' });
-        }
-      } else {
-        doc.fontSize(8).text('QR', qrColX + qrColW / 2, vy + vh / 2, { align: 'center' });
-      }
-
-      doc.restore();
-    };
-
-    // Generar stickers para cada item
-    for (const item of itemsForPdf) {
-      await drawSticker(item);
-    }
-
-    // Retornar el PDF como buffer
-    return new Promise((resolve, reject) => {
-      doc.on('end', () => {
-        const pdf = Buffer.concat(buffers);
-        resolve(pdf);
-      });
-      doc.on('error', reject);
-      doc.end();
-    });
-
-  } catch (error) {
-    console.error('Error generando stickers automáticos:', error);
-    return null;
-  }
-}
 
 // Sanitización estricta para descripción pública (allowlist de etiquetas básicas)
 function sanitizePublicDescription(html){
@@ -844,13 +711,7 @@ export const addItemStock = async (req, res) => {
     console.error('sku-pending-on-stock-in', e?.message);
   }
 
-  res.json({ 
-    item: updated, 
-    stickersGenerated: true,
-    stickerCount: qty,
-    itemId: updated._id,
-    itemSku: updated.sku
-  });
+  res.json({ item: updated });
   // Al subir stock, si supera el mínimo limpiar bandera de alerta; si sigue por debajo, no notifica (solo notifica en bajadas o si han pasado 24h)
   try { await checkLowStockAndNotify(req.companyId, updated._id); } catch {}
 };
@@ -1011,35 +872,6 @@ export const addItemsStockBulk = async (req, res) => {
   } catch {}
 };
 
-// ===== GENERAR STICKERS =====
-// Genera PDF de stickers para un item específico
-export const generateItemStickers = async (req, res) => {
-  const { id } = req.params;
-  const { quantity = 1 } = req.query;
-  const qty = parseInt(quantity, 10);
-
-  if (!Number.isFinite(qty) || qty <= 0) {
-    return res.status(400).json({ error: "Cantidad inválida (debe ser > 0)" });
-  }
-
-  const item = await Item.findOne({ _id: id, companyId: req.companyId });
-  if (!item) return res.status(404).json({ error: "Item no encontrado" });
-
-  try {
-    const stickerPdf = await generateAutoStickers(item, qty, req.companyId);
-    if (stickerPdf) {
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="stickers-${item.sku || item._id}.pdf"`);
-      res.setHeader('Content-Length', String(stickerPdf.length));
-      return res.send(stickerPdf);
-    } else {
-      return res.status(500).json({ error: "Error generando stickers" });
-    }
-  } catch (error) {
-    console.error('Error generando stickers:', error);
-    return res.status(500).json({ error: "Error generando stickers: " + error.message });
-  }
-};
 
 // ===== QR =====
 // Devuelve un PNG con el QR del item

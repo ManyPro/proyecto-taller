@@ -16,8 +16,7 @@ import {
   bulkPublishItems,
   downloadImportTemplate,
   importItemsFromExcel,
-  unpublishZeroStock,
-  generateItemStickers
+  unpublishZeroStock
 } from '../controllers/inventory.controller.js';
 
 const router = Router();
@@ -43,6 +42,5 @@ router.post('/items/import/excel', importItemsFromExcel);
 router.post('/items/maintenance/unpublish-zero-stock', unpublishZeroStock);
 
 router.get('/items/:id/qr.png', itemQrPng);
-router.get('/items/:id/stickers', generateItemStickers);
 
 export default router;
