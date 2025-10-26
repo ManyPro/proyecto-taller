@@ -408,52 +408,100 @@
   // Manejar sesión de desarrollador con respuestas simuladas
   function handleDevSession(path, opts) {
     if (path === '/api/v1/admin/company/companies') {
-      // Intentar cargar empresas reales primero
-      return fetch('/api/v1/admin/company/companies')
-        .then(res => res.json())
-        .then(data => {
-          console.log('Real companies loaded:', data);
-          return data;
-        })
-        .catch(error => {
-          console.log('Failed to load real companies, using demo:', error);
-          return Promise.resolve({
-            items: companiesData.length > 0 ? companiesData : [{
-              _id: 'dev-company',
-              name: 'Empresa Demo',
-              email: 'demo@empresa.com',
-              active: true,
-              features: {},
-              featureOptions: {}
-            }]
-          });
-        });
+      // Para el panel de desarrollo, usar datos simulados pero realistas
+      return Promise.resolve({
+        items: companiesData.length > 0 ? companiesData : [{
+          _id: 'dev-company-1',
+          name: 'Empresa Demo 1',
+          email: 'demo1@empresa.com',
+          documentNumber: '12345678-9',
+          city: 'Bogotá',
+          active: true,
+          features: {
+            notas: true,
+            ventas: true,
+            cotizaciones: true,
+            inventario: true,
+            precios: true,
+            cashflow: true,
+            techreport: true,
+            tecnicos: true,
+            templates: true,
+            skus: true
+          },
+          featureOptions: {
+            inventario: {
+              ingresoVehiculo: true,
+              ingresoCompra: true,
+              marketplace: false,
+              publicCatalogFields: true
+            },
+            ventas: {
+              importarCotizacion: true,
+              ordenesTrabajo: false
+            },
+            templates: {
+              stickerQR: true,
+              stickerMarca: false,
+              stickerQRyMarca: true
+            }
+          }
+        }, {
+          _id: 'dev-company-2',
+          name: 'Empresa Demo 2',
+          email: 'demo2@empresa.com',
+          documentNumber: '87654321-0',
+          city: 'Medellín',
+          active: true,
+          features: {
+            notas: true,
+            ventas: false,
+            cotizaciones: true,
+            inventario: true,
+            precios: false,
+            cashflow: true,
+            techreport: false,
+            tecnicos: true,
+            templates: true,
+            skus: false
+          },
+          featureOptions: {
+            inventario: {
+              ingresoVehiculo: false,
+              ingresoCompra: true,
+              marketplace: true,
+              publicCatalogFields: false
+            },
+            ventas: {
+              importarCotizacion: false,
+              ordenesTrabajo: true
+            },
+            templates: {
+              stickerQR: false,
+              stickerMarca: true,
+              stickerQRyMarca: false
+            }
+          }
+        }]
+      });
     }
     
     if (path === '/api/v1/company/features' && opts.method === 'PATCH') {
-      // Intentar guardar en la API real primero
-      return fetch('/api/v1/company/features', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(opts.body)
-      })
-      .then(res => res.json())
-      .then(data => {
-        console.log('Features saved to real API:', data);
+      // Simular guardado de features para el panel de desarrollo
+      const company = companiesData[0];
+      if (company) {
+        company.features = { ...company.features, ...opts.body };
         
-        // También guardar en localStorage para que la UI principal lo lea
-        const company = companiesData[0];
-        if (company) {
-          const email = company.email || 'demo@empresa.com';
-          const scope = window.API_BASE || 'local';
-          const key = `taller.features:${scope}:${email.toLowerCase()}`;
-          try {
-            localStorage.setItem(key, JSON.stringify(opts.body));
-            localStorage.setItem(`taller.features.ts:${scope}:${email.toLowerCase()}`, Date.now().toString());
-            console.log('Features también guardados en localStorage:', key, opts.body);
-          } catch (e) {
-            console.warn('No se pudo guardar en localStorage:', e);
-          }
+        // Guardar en localStorage para que la UI principal lo lea
+        const email = company.email || 'demo@empresa.com';
+        const scope = window.API_BASE || 'local';
+        const key = `taller.features:${scope}:${email.toLowerCase()}`;
+        try {
+          localStorage.setItem(key, JSON.stringify(opts.body));
+          localStorage.setItem(`taller.features.ts:${scope}:${email.toLowerCase()}`, Date.now().toString());
+          console.log('Features guardados en localStorage (dev panel):', key, opts.body);
+        } catch (e) {
+          console.warn('No se pudo guardar features en localStorage:', e);
         }
         
         // Aplicar cambios inmediatamente a la UI
@@ -462,61 +510,26 @@
             window.applyDevChanges();
           }
         }, 100);
-        
-        return data;
-      })
-      .catch(error => {
-        console.log('Failed to save to real API, using localStorage only:', error);
-        
-        // Fallback: solo localStorage
-        const company = companiesData[0];
-        if (company) {
-          company.features = { ...company.features, ...opts.body };
-          const email = company.email || 'demo@empresa.com';
-          const scope = window.API_BASE || 'local';
-          const key = `taller.features:${scope}:${email.toLowerCase()}`;
-          try {
-            localStorage.setItem(key, JSON.stringify(opts.body));
-            localStorage.setItem(`taller.features.ts:${scope}:${email.toLowerCase()}`, Date.now().toString());
-          } catch (e) {
-            console.warn('No se pudo guardar en localStorage:', e);
-          }
-        }
-        
-        setTimeout(() => {
-          if (typeof window.applyDevChanges === 'function') {
-            window.applyDevChanges();
-          }
-        }, 100);
-        
-        return { features: opts.body };
-      });
+      }
+      return Promise.resolve({ features: opts.body });
     }
     
     if (path === '/api/v1/company/feature-options' && opts.method === 'PATCH') {
-      // Intentar guardar en la API real primero
-      return fetch('/api/v1/company/feature-options', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(opts.body)
-      })
-      .then(res => res.json())
-      .then(data => {
-        console.log('Feature options saved to real API:', data);
+      // Simular guardado de feature options para el panel de desarrollo
+      const company = companiesData[0];
+      if (company) {
+        company.featureOptions = { ...company.featureOptions, ...opts.body };
         
-        // También guardar en localStorage para que la UI principal lo lea
-        const company = companiesData[0];
-        if (company) {
-          const email = company.email || 'demo@empresa.com';
-          const scope = window.API_BASE || 'local';
-          const key = `taller.featureOptions:${scope}:${email.toLowerCase()}`;
-          try {
-            localStorage.setItem(key, JSON.stringify(opts.body));
-            localStorage.setItem(`taller.featureOptions.ts:${scope}:${email.toLowerCase()}`, Date.now().toString());
-            console.log('Feature options también guardados en localStorage:', key, opts.body);
-          } catch (e) {
-            console.warn('No se pudo guardar feature options en localStorage:', e);
-          }
+        // Guardar en localStorage para que la UI principal lo lea
+        const email = company.email || 'demo@empresa.com';
+        const scope = window.API_BASE || 'local';
+        const key = `taller.featureOptions:${scope}:${email.toLowerCase()}`;
+        try {
+          localStorage.setItem(key, JSON.stringify(opts.body));
+          localStorage.setItem(`taller.featureOptions.ts:${scope}:${email.toLowerCase()}`, Date.now().toString());
+          console.log('Feature options guardados en localStorage (dev panel):', key, opts.body);
+        } catch (e) {
+          console.warn('No se pudo guardar feature options en localStorage:', e);
         }
         
         // Aplicar cambios inmediatamente a la UI
@@ -525,35 +538,8 @@
             window.applyDevChanges();
           }
         }, 100);
-        
-        return data;
-      })
-      .catch(error => {
-        console.log('Failed to save feature options to real API, using localStorage only:', error);
-        
-        // Fallback: solo localStorage
-        const company = companiesData[0];
-        if (company) {
-          company.featureOptions = { ...company.featureOptions, ...opts.body };
-          const email = company.email || 'demo@empresa.com';
-          const scope = window.API_BASE || 'local';
-          const key = `taller.featureOptions:${scope}:${email.toLowerCase()}`;
-          try {
-            localStorage.setItem(key, JSON.stringify(opts.body));
-            localStorage.setItem(`taller.featureOptions.ts:${scope}:${email.toLowerCase()}`, Date.now().toString());
-          } catch (e) {
-            console.warn('No se pudo guardar feature options en localStorage:', e);
-          }
-        }
-        
-        setTimeout(() => {
-          if (typeof window.applyDevChanges === 'function') {
-            window.applyDevChanges();
-          }
-        }, 100);
-        
-        return { featureOptions: opts.body };
-      });
+      }
+      return Promise.resolve({ featureOptions: opts.body });
     }
     
     // Para otras rutas, devolver datos vacíos
@@ -900,36 +886,18 @@
     
     if(force || !companiesData.length){
       wrap.innerHTML = '<div class="muted">Cargando empresas...</div>';
-      try{
-        // Intentar cargar empresas reales primero
-        const res = await fetch('/api/v1/admin/company/companies')
-          .then(res => res.json())
-          .catch(error => {
-            console.log('Failed to load real companies, trying dev session:', error);
-            return req('/api/v1/admin/company/companies');
-          });
-        
+      
+      // Usar el sistema de sesión de desarrollador para cargar empresas
+      try {
+        const res = await req('/api/v1/admin/company/companies');
         companiesData = res.items || [];
-        console.log('Loaded companies from API:', companiesData);
-        
-        // Si no hay empresas, crear una empresa demo para desarrollo
-        if (companiesData.length === 0) {
-          companiesData = [{
-            _id: 'dev-company',
-            name: 'Empresa Demo',
-            email: 'demo@empresa.com',
-            active: true,
-            features: {},
-            featureOptions: {}
-          }];
-          console.log('Created demo company:', companiesData);
-        }
+        console.log('Loaded companies from dev session:', companiesData);
         
         setHeroStat('stat-companies', companiesData.length);
         setHeroStat('stat-companies-active', companiesData.filter(c=>c.active).length);
-      }catch(e){
-        console.log('Error loading companies, creating demo:', e);
-        // Si falla, crear empresa demo
+      } catch(e) {
+        console.log('Error loading companies from dev session:', e);
+        // Fallback: crear empresa demo
         companiesData = [{
           _id: 'dev-company',
           name: 'Empresa Demo',
