@@ -295,8 +295,8 @@
       <div class="dev-shell">
         <article class="card dev-hero">
           <div class="dev-hero-text">
-            <h1>Panel Developer</h1>
-            <p>Administra solicitudes de acceso, configura modulos por empresa y supervisa al equipo de administradores desde un mismo lugar.</p>
+        <h1>Panel de Desarrollo</h1>
+        <p>Configura módulos y opciones específicas para tu empresa desde un mismo lugar.</p>
           </div>
           <div class="dev-stat-grid">
             <div class="dev-stat">
@@ -318,8 +318,8 @@
           </div>
         </article>
 
-        <article class="card dev-section" id="requestsCard">
-          <nav class="tabs" id="devTabs">
+        <article class="card dev-section" id="requestsCard" style="display:none;">
+          <nav class="tabs" id="devTabs" style="display:none;">
             <button data-t="reqs" class="active">Solicitudes</button>
             <button data-t="companies">Empresas y Funciones</button>
             <button data-t="admins">Admins</button>
@@ -338,7 +338,7 @@
           </div>
         </article>
 
-        <article class="card dev-section" id="companiesCard" style="display:none;">
+        <article class="card dev-section" id="companiesCard">
           <div class="dev-section-head">
             <div>
               <h3>Empresas y funciones</h3>
@@ -395,7 +395,8 @@
     const email = document.getElementById('d-email').value.trim().toLowerCase();
     const password = document.getElementById('d-password').value;
     try{
-      const r = await req('/api/v1/admin/auth/login', { method:'POST', body:{ email, password } });
+      // Usar login de empresa normal en lugar de admin
+      const r = await req('/api/v1/auth/company/login', { method:'POST', body:{ email, password } });
       setTok(r.token);
       document.getElementById('loginSection').classList.add('hidden');
       document.getElementById('appSection').classList.remove('hidden');
@@ -645,7 +646,7 @@
     div.querySelector('[data-save-feat]').onclick = async () => {
       try {
         const payload = readFeaturePayload();
-        const saved = await req(`/api/v1/admin/company/companies/${id}/features`, { method:'PATCH', body: payload });
+        const saved = await req('/api/v1/company/features', { method:'PATCH', body: payload });
         if (saved?.features) {
           company.features = saved.features;
           const idx = companiesData.findIndex(c => String(c._id || c.id || '') === id);
@@ -660,7 +661,7 @@
     div.querySelector('[data-save-fopts]').onclick = async () => {
       try {
         const payload = readFeatureOptionsPayload();
-        const saved = await req(`/api/v1/admin/company/companies/${id}/feature-options`, { method:'PATCH', body: payload });
+        const saved = await req('/api/v1/company/feature-options', { method:'PATCH', body: payload });
         if (saved?.featureOptions) {
           company.featureOptions = saved.featureOptions;
           const idx = companiesData.findIndex(c => String(c._id || c.id || '') === id);
@@ -712,8 +713,10 @@
     if(force || !companiesData.length){
       wrap.innerHTML = '<div class="muted">Cargando...</div>';
       try{
-        const res = await req('/api/v1/admin/company/companies');
-        companiesData = res.items || [];
+        // Cargar solo la empresa actual
+        const res = await req('/api/v1/company/me');
+        const company = res.company;
+        companiesData = company ? [company] : [];
         setHeroStat('stat-companies', companiesData.length);
         setHeroStat('stat-companies-active', companiesData.filter(c=>c.active).length);
       }catch(e){
