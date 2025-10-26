@@ -824,45 +824,6 @@ export const addItemsStockBulk = async (req, res) => {
     console.error('sku-bulk-pending-on-stock-in', e?.message);
   }
 
-  // Generar stickers automáticamente para items con stock agregado
-  try {
-    const itemsWithStock = results.filter(r => r.ok && r.added > 0);
-    if (itemsWithStock.length > 0) {
-      // Obtener los items actualizados para generar stickers
-      const itemIds = itemsWithStock.map(r => r.id);
-      const updatedItems = await Item.find({ _id: { $in: itemIds }, companyId: req.companyId });
-      
-      // Crear array de items para stickers
-      const itemsForStickers = [];
-      for (const result of itemsWithStock) {
-        const item = updatedItems.find(i => String(i._id) === result.id);
-        if (item) {
-          for (let i = 0; i < result.added; i++) {
-            itemsForStickers.push({
-              sku: item.sku || item.name || '',
-              name: item.name || '',
-              companyName: 'CASA RENAULT H&H',
-              companyLogo: null
-            });
-          }
-        }
-      }
-      
-      if (itemsForStickers.length > 0) {
-        // Generar PDF de stickers
-        const stickerPdf = await generateAutoStickers({ items: itemsForStickers }, itemsForStickers.length, req.companyId);
-        if (stickerPdf) {
-          res.setHeader('Content-Type', 'application/pdf');
-          res.setHeader('Content-Disposition', 'attachment; filename="stickers-masivo.pdf"');
-          res.setHeader('Content-Length', String(stickerPdf.length));
-          return res.send(stickerPdf);
-        }
-      }
-    }
-  } catch (error) {
-    console.error('Error generando stickers automáticos (masivo):', error);
-    // Si falla la generación de stickers, continuar con la respuesta normal
-  }
 
   // Opcional: devolver stocks finales recargados (evitar segundo query grande)
   res.json({ updatedCount: updates.length, results });
