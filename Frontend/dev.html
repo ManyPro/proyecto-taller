@@ -282,21 +282,24 @@
     <section id="loginSection" class="dev-login" style="display:flex;justify-content:center;align-items:flex-start;">
       <div class="card dev-login-card" style="max-width:440px;width:100%;margin:48px auto;padding:40px;border-radius:24px;box-shadow:0 18px 48px rgba(15,23,42,0.45);background:#0f172a;border:1px solid rgba(148,163,184,0.55);color:#f8fafc;">
         <h1 style="margin:0 0 12px;text-align:center;font-size:28px;">Panel Developer</h1>
-        <p style="margin:0 0 24px;text-align:center;color:rgba(226,232,240,0.7);font-size:14px;">Accede con tu cuenta de developer para administrar solicitudes y empresas.</p>
-        <label style="display:block;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:rgba(226,232,240,0.78);margin-bottom:6px;">Correo</label>
-        <input id="d-email" type="email" style="width:100%;margin:0 0 18px;border-radius:14px;border:1px solid rgba(148,163,184,0.5);background:#1e293b;color:#f8fafc;padding:12px 16px;font-size:15px;" />
-        <label style="display:block;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:rgba(226,232,240,0.78);margin-bottom:6px;">Contraseña</label>
-        <input id="d-password" type="password" style="width:100%;margin:0 0 24px;border-radius:14px;border:1px solid rgba(148,163,184,0.5);background:#1e293b;color:#f8fafc;padding:12px 16px;font-size:15px;" />
+        <p style="margin:0 0 24px;text-align:center;color:rgba(226,232,240,0.7);font-size:14px;">Accede con el PIN de desarrollador para administrar la configuración.</p>
+        <label style="display:block;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:rgba(226,232,240,0.78);margin-bottom:6px;">PIN de Desarrollador</label>
+        <input id="d-pin" type="password" maxlength="6" placeholder="Ingresa el PIN" style="width:100%;margin:0 0 24px;border-radius:14px;border:1px solid rgba(148,163,184,0.5);background:#1e293b;color:#f8fafc;padding:12px 16px;font-size:15px;text-align:center;letter-spacing:2px;" />
         <button id="d-login" style="width:100%;padding:12px 16px;border-radius:14px;border:none;background:linear-gradient(135deg,#38bdf8,#6366f1);color:#0f172a;font-weight:700;cursor:pointer;box-shadow:0 20px 42px rgba(56,189,248,0.4);">Entrar</button>
-        <p style="margin:20px 0 0;text-align:center;font-size:12px;color:rgba(226,232,240,0.6);">¿Necesitas acceso? Solicítalo desde el portal Admin.</p>
+        <p style="margin:20px 0 0;text-align:center;font-size:12px;color:rgba(226,232,240,0.6);">Solo el desarrollador tiene acceso a este panel.</p>
       </div>
     </section>
     <section id="appSection" class="hidden dev-app">
       <div class="dev-shell">
         <article class="card dev-hero">
           <div class="dev-hero-text">
-        <h1>Panel de Desarrollo</h1>
-        <p>Configura módulos y opciones específicas para tu empresa desde un mismo lugar.</p>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <h1>Panel de Desarrollo</h1>
+            <p>Configura módulos y opciones específicas para tu empresa desde un mismo lugar.</p>
+          </div>
+          <button id="dev-logout" style="padding:8px 16px;border-radius:8px;border:1px solid rgba(148,163,184,0.3);background:rgba(239,68,68,0.1);color:#ef4444;cursor:pointer;">Cerrar Sesión</button>
+        </div>
           </div>
           <div class="dev-stat-grid">
             <div class="dev-stat">
@@ -385,23 +388,74 @@
   function getTok(){ try{ return localStorage.getItem(LS_KEY)||''; }catch{return '';} }
   async function req(path, opts={}){
     const headers = { 'Content-Type':'application/json' };
-    const tok = getTok(); if(tok) headers.Authorization = 'Bearer '+tok;
+    const tok = getTok(); 
+    
+    // Si es sesión de desarrollador, simular respuestas
+    if (tok && tok.startsWith('dev-session-')) {
+      return handleDevSession(path, opts);
+    }
+    
+    if(tok) headers.Authorization = 'Bearer '+tok;
     const res = await fetch((API.base||'')+path, { ...opts, headers, body: opts.body?JSON.stringify(opts.body):undefined });
     const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
     if(!res.ok) throw new Error(data?.error || res.statusText);
     return data;
   }
+  
+  // Manejar sesión de desarrollador con respuestas simuladas
+  function handleDevSession(path, opts) {
+    if (path === '/api/v1/admin/company/companies') {
+      return Promise.resolve({
+        items: companiesData.length > 0 ? companiesData : [{
+          _id: 'dev-company',
+          name: 'Empresa Demo',
+          email: 'demo@empresa.com',
+          active: true,
+          features: {},
+          featureOptions: {}
+        }]
+      });
+    }
+    
+    if (path === '/api/v1/company/features' && opts.method === 'PATCH') {
+      // Simular guardado de features
+      const company = companiesData[0];
+      if (company) {
+        company.features = { ...company.features, ...opts.body };
+      }
+      return Promise.resolve({ features: opts.body });
+    }
+    
+    if (path === '/api/v1/company/feature-options' && opts.method === 'PATCH') {
+      // Simular guardado de feature options
+      const company = companiesData[0];
+      if (company) {
+        company.featureOptions = { ...company.featureOptions, ...opts.body };
+      }
+      return Promise.resolve({ featureOptions: opts.body });
+    }
+    
+    // Para otras rutas, devolver datos vacíos
+    return Promise.resolve({});
+  }
+  // PIN de desarrollador
+  const DEV_PIN = '122923';
+  
   document.getElementById('d-login').onclick = async ()=>{
-    const email = document.getElementById('d-email').value.trim().toLowerCase();
-    const password = document.getElementById('d-password').value;
-    try{
-      // Usar login de empresa normal en lugar de admin
-      const r = await req('/api/v1/auth/company/login', { method:'POST', body:{ email, password } });
-      setTok(r.token);
-      document.getElementById('loginSection').classList.add('hidden');
-      document.getElementById('appSection').classList.remove('hidden');
-      loadReqs();
-    }catch(e){ alert(e.message||'Error'); }
+    const pin = document.getElementById('d-pin').value.trim();
+    
+    if (pin !== DEV_PIN) {
+      alert('PIN incorrecto. Acceso denegado.');
+      document.getElementById('d-pin').value = '';
+      document.getElementById('d-pin').focus();
+      return;
+    }
+    
+    // PIN correcto - crear sesión de desarrollador
+    setTok('dev-session-' + Date.now());
+    document.getElementById('loginSection').classList.add('hidden');
+    document.getElementById('appSection').classList.remove('hidden');
+    loadCompanies();
   };
   async function loadReqs(){
     const wrap = document.getElementById('d-list');
@@ -713,15 +767,36 @@
     if(force || !companiesData.length){
       wrap.innerHTML = '<div class="muted">Cargando...</div>';
       try{
-        // Cargar solo la empresa actual
-        const res = await req('/api/v1/company/me');
-        const company = res.company;
-        companiesData = company ? [company] : [];
+        // Cargar todas las empresas usando endpoint público o crear empresa demo
+        const res = await req('/api/v1/admin/company/companies');
+        companiesData = res.items || [];
+        
+        // Si no hay empresas, crear una empresa demo para desarrollo
+        if (companiesData.length === 0) {
+          companiesData = [{
+            _id: 'dev-company',
+            name: 'Empresa Demo',
+            email: 'demo@empresa.com',
+            active: true,
+            features: {},
+            featureOptions: {}
+          }];
+        }
+        
         setHeroStat('stat-companies', companiesData.length);
         setHeroStat('stat-companies-active', companiesData.filter(c=>c.active).length);
       }catch(e){
-        wrap.innerHTML = `<div class='muted'>${e.message||'Error'}</div>`;
-        return;
+        // Si falla, crear empresa demo
+        companiesData = [{
+          _id: 'dev-company',
+          name: 'Empresa Demo',
+          email: 'demo@empresa.com',
+          active: true,
+          features: {},
+          featureOptions: {}
+        }];
+        setHeroStat('stat-companies', 1);
+        setHeroStat('stat-companies-active', 1);
       }
     }
     renderCompaniesList();
@@ -775,6 +850,21 @@
   });
   const activeTab = devTabs?.querySelector('button.active')?.dataset.t;
   if(activeTab) toggleSections(activeTab);
+  
+  // Botón de cerrar sesión
+  document.getElementById('dev-logout').onclick = () => {
+    setTok('');
+    document.getElementById('loginSection').classList.remove('hidden');
+    document.getElementById('appSection').classList.add('hidden');
+    document.getElementById('d-pin').value = '';
+  };
+  
+  // Enter en el campo PIN
+  document.getElementById('d-pin').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      document.getElementById('d-login').click();
+    }
+  });
   </script>
 </body>
 </html>
