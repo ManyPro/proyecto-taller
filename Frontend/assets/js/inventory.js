@@ -1065,9 +1065,15 @@ if (__ON_INV_PAGE__) {
     document.getElementById('stk-generate-stickers').onclick = async () => {
       const qty = parseInt(document.getElementById('stk-qty').value||'0',10);
       if (!Number.isFinite(qty) || qty<=0) return alert('Cantidad inválida');
+      const vehicleIntakeId = document.getElementById('stk-intake').value || undefined;
+      const note = document.getElementById('stk-note').value || '';
       
       try {
-        showBusy('Generando stickers...');
+        showBusy('Agregando stock y generando stickers...');
+        
+        // Primero agregar el stock
+        await request(`/api/v1/inventory/items/${it._id}/stock-in`, { method: 'POST', json: { qty, vehicleIntakeId, note } });
+        showToast('Stock agregado');
         
         // Usar la funcionalidad existente de generar stickers
         const list = [{ it, count: qty }];
@@ -1148,8 +1154,8 @@ if (__ON_INV_PAGE__) {
               await waitForImages(div);
               
               const canvas = await html2canvas(div, {
-                width: 200,
-                height: 120,
+                width: 150, // Reducido para 5cm
+                height: 90,  // Reducido para 3cm
                 scale: 2,
                 useCORS: true,
                 allowTaint: true,
@@ -1168,9 +1174,9 @@ if (__ON_INV_PAGE__) {
             const doc = new jsPDF({ unit: 'mm', format: 'a4' });
             const pageWidth = doc.internal.pageSize.getWidth();
             const pageHeight = doc.internal.pageSize.getHeight();
-            const stickerWidth = 50; // 50mm
-            const stickerHeight = 30; // 30mm
-            const margin = 10;
+            const stickerWidth = 50; // 5cm = 50mm
+            const stickerHeight = 30; // 3cm = 30mm
+            const margin = 5; // Margen más pequeño
             const stickersPerRow = Math.floor((pageWidth - 2 * margin) / stickerWidth);
             const stickersPerCol = Math.floor((pageHeight - 2 * margin) / stickerHeight);
             const stickersPerPage = stickersPerRow * stickersPerCol;
@@ -1196,8 +1202,9 @@ if (__ON_INV_PAGE__) {
 
             doc.save(`stickers-${it.sku || it._id}.pdf`);
             invCloseModal();
+            await refreshItems(state.lastItemsParams);
             hideBusy();
-            showToast('Stickers generados y descargados');
+            showToast('Stock agregado y stickers generados');
             return;
           }
         } catch (e) {
@@ -1228,8 +1235,9 @@ if (__ON_INV_PAGE__) {
         URL.revokeObjectURL(url);
         
         invCloseModal();
+        await refreshItems(state.lastItemsParams);
         hideBusy();
-        showToast('Stickers generados y descargados');
+        showToast('Stock agregado y stickers generados');
         
       } catch (err) {
         hideBusy();
