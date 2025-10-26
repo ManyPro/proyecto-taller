@@ -208,11 +208,159 @@ function openLightbox(media) {
   invOpenModal(
     `<h3>Vista previa</h3>
      <div class="viewer">
-       ${isVideo ? `<video controls src="${media.url}"></video>` : `<img src="${media.url}" alt="media" />`}
+       ${isVideo ? 
+         `<video controls src="${media.url}" style="max-width: 90vw; max-height: 80vh; object-fit: contain;"></video>` : 
+         `<img src="${media.url}" alt="media" id="modal-img" style="max-width: 90vw; max-height: 80vh; object-fit: contain;" />`
+       }
+       ${!isVideo ? `
+         <div class="zoom-controls">
+           <button class="zoom-btn" id="zoom-in" title="Acercar">+</button>
+           <button class="zoom-btn" id="zoom-out" title="Alejar">-</button>
+           <button class="zoom-btn" id="zoom-reset" title="Resetear">⌂</button>
+         </div>
+       ` : ''}
      </div>
      <div class="row"><button class="secondary" id="lb-close">Cerrar</button></div>`
   );
   document.getElementById("lb-close").onclick = invCloseModal;
+  
+  // Configurar zoom solo para imágenes
+  if (!isVideo) {
+    setupImageZoom();
+  }
+}
+
+// ===== FUNCIONALIDAD DE ZOOM PARA IMÁGENES =====
+function setupImageZoom() {
+  const img = document.getElementById("modal-img");
+  const zoomIn = document.getElementById("zoom-in");
+  const zoomOut = document.getElementById("zoom-out");
+  const zoomReset = document.getElementById("zoom-reset");
+  
+  if (!img) return;
+  
+  let scale = 1;
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let translateX = 0;
+  let translateY = 0;
+  
+  // Función para aplicar transformaciones
+  const applyTransform = () => {
+    img.style.transform = `scale(${scale}) translate(${translateX}px, ${translateY}px)`;
+    img.classList.toggle('zoomed', scale > 1);
+  };
+  
+  // Función para resetear zoom
+  const resetZoom = () => {
+    scale = 1;
+    translateX = 0;
+    translateY = 0;
+    applyTransform();
+  };
+  
+  // Click para zoom in/out
+  img.onclick = (e) => {
+    e.preventDefault();
+    if (scale === 1) {
+      scale = 2;
+      applyTransform();
+    } else {
+      resetZoom();
+    }
+  };
+  
+  // Controles de zoom
+  if (zoomIn) zoomIn.onclick = () => {
+    scale = Math.min(scale + 0.3, 5);
+    applyTransform();
+  };
+  
+  if (zoomOut) zoomOut.onclick = () => {
+    scale = Math.max(scale - 0.3, 0.5);
+    applyTransform();
+  };
+  
+  if (zoomReset) zoomReset.onclick = resetZoom;
+  
+  // Zoom con rueda del mouse
+  img.onwheel = (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.2 : 0.2;
+    scale = Math.max(0.5, Math.min(5, scale + delta));
+    applyTransform();
+  };
+  
+  // Arrastrar cuando está con zoom
+  img.onmousedown = (e) => {
+    if (scale > 1) {
+      isDragging = true;
+      startX = e.clientX - translateX;
+      startY = e.clientY - translateY;
+      img.style.cursor = 'grabbing';
+    }
+  };
+  
+  document.onmousemove = (e) => {
+    if (isDragging && scale > 1) {
+      translateX = e.clientX - startX;
+      translateY = e.clientY - startY;
+      applyTransform();
+    }
+  };
+  
+  document.onmouseup = () => {
+    if (isDragging) {
+      isDragging = false;
+      img.style.cursor = scale > 1 ? 'grab' : 'pointer';
+    }
+  };
+  
+  // Touch support para móviles
+  let lastTouchDistance = 0;
+  let lastTouchX = 0;
+  let lastTouchY = 0;
+  
+  img.ontouchstart = (e) => {
+    if (e.touches.length === 2) {
+      // Pinch zoom
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      lastTouchDistance = Math.sqrt(
+        Math.pow(touch2.clientX - touch1.clientX, 2) + 
+        Math.pow(touch2.clientY - touch1.clientY, 2)
+      );
+    } else if (e.touches.length === 1 && scale > 1) {
+      // Pan
+      const touch = e.touches[0];
+      lastTouchX = touch.clientX - translateX;
+      lastTouchY = touch.clientY - translateY;
+    }
+  };
+  
+  img.ontouchmove = (e) => {
+    e.preventDefault();
+    if (e.touches.length === 2) {
+      // Pinch zoom
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      const distance = Math.sqrt(
+        Math.pow(touch2.clientX - touch1.clientX, 2) + 
+        Math.pow(touch2.clientY - touch1.clientY, 2)
+      );
+      const delta = (distance - lastTouchDistance) * 0.01;
+      scale = Math.max(0.5, Math.min(5, scale + delta));
+      lastTouchDistance = distance;
+      applyTransform();
+    } else if (e.touches.length === 1 && scale > 1) {
+      // Pan
+      const touch = e.touches[0];
+      translateX = touch.clientX - lastTouchX;
+      translateY = touch.clientY - lastTouchY;
+      applyTransform();
+    }
+  };
 }
 
 // ---- QR helpers ----

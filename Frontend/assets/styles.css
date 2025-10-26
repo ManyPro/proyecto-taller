@@ -315,8 +315,82 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 .it-gallery img{
   width:96px; height:96px; object-fit:cover; border-radius:8px; border:1px solid rgba(255,255,255,.08);
 }
-.viewer img, .viewer video { max-width:200px; height:auto; border-radius:8px; margin:18px auto 0 auto; box-shadow:0 2px 4px rgba(0,0,0,.3); border:1px solid var(--border); cursor:pointer; display:block; transition:box-shadow .2s; }
-.viewer img:hover, .viewer video:hover { box-shadow:0 4px 16px rgba(0,0,0,.28); }
+/* ===== VISOR DE IMÁGENES MEJORADO ===== */
+.viewer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: 20px;
+  position: relative;
+}
+
+.viewer img, .viewer video { 
+  max-width: 90vw; 
+  max-height: 80vh; 
+  width: auto;
+  height: auto;
+  border-radius: 8px; 
+  margin: 0 auto; 
+  box-shadow: 0 4px 20px rgba(0,0,0,.4); 
+  border: 1px solid var(--border); 
+  cursor: pointer; 
+  display: block; 
+  transition: all 0.3s ease;
+  object-fit: contain;
+}
+
+.viewer img:hover, .viewer video:hover { 
+  box-shadow: 0 8px 30px rgba(0,0,0,.5); 
+  transform: scale(1.02);
+}
+
+/* ===== FUNCIONALIDAD DE ZOOM ===== */
+.viewer img.zoomed {
+  cursor: grab;
+  transform-origin: center;
+  transition: transform 0.2s ease;
+}
+
+.viewer img.zoomed:active {
+  cursor: grabbing;
+}
+
+/* Controles de zoom */
+.zoom-controls {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  display: flex;
+  gap: 10px;
+  z-index: 10;
+}
+
+.zoom-btn {
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.zoom-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+  transform: scale(1.1);
+}
+
+.zoom-btn:active {
+  transform: scale(0.95);
+}
 .item-media img { max-width:200px; height:auto; border-radius:8px; margin:6px 6px 0 0; box-shadow:0 2px 4px rgba(0,0,0,.3); border:1px solid var(--border); }
 .item-media video { max-width:260px; border-radius:8px; margin:6px 6px 0 0; }
 .it-qr{ display:flex; flex-direction:column; align-items:center; gap:6px; }
