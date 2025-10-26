@@ -408,35 +408,14 @@
   // Manejar sesión de desarrollador con respuestas simuladas
   function handleDevSession(path, opts) {
     if (path === '/api/v1/admin/company/companies') {
-      // Intentar cargar empresas reales primero, fallback a demo si falla
-      return fetch('/api/v1/admin/company/companies', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          // Intentar con token de admin si existe
-          'Authorization': localStorage.getItem('admin-token') ? `Bearer ${localStorage.getItem('admin-token')}` : ''
-        }
-      })
-      .then(res => {
-        if (res.ok) {
-          return res.json();
-        } else {
-          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-        }
-      })
-      .then(data => {
-        console.log('Real companies loaded successfully:', data);
-        return data;
-      })
-      .catch(error => {
-        console.log('Failed to load real companies, using demo data:', error);
-        // Fallback a datos demo si no se pueden cargar las reales
-        return Promise.resolve({
-          items: companiesData.length > 0 ? companiesData : [{
-            _id: 'dev-company-1',
-            name: 'Empresa Demo 1',
-            email: 'demo1@empresa.com',
-            documentNumber: '12345678-9',
+      // Simular empresas reales del sistema
+      return Promise.resolve({
+        items: companiesData.length > 0 ? companiesData : [
+          {
+            _id: 'company-001',
+            name: 'Taller Mecánico Central',
+            email: 'taller@central.com',
+            documentNumber: '900123456-7',
             city: 'Bogotá',
             active: true,
             features: {
@@ -460,22 +439,99 @@
               },
               ventas: {
                 importarCotizacion: true,
+                ordenesTrabajo: true
+              },
+              templates: {
+                stickerQR: true,
+                stickerMarca: true,
+                stickerQRyMarca: true
+              }
+            }
+          },
+          {
+            _id: 'company-002',
+            name: 'AutoServicio Plus',
+            email: 'info@autoservicio.com',
+            documentNumber: '800987654-3',
+            city: 'Medellín',
+            active: true,
+            features: {
+              notas: true,
+              ventas: false,
+              cotizaciones: true,
+              inventario: true,
+              precios: false,
+              cashflow: true,
+              techreport: false,
+              tecnicos: true,
+              templates: true,
+              skus: false
+            },
+            featureOptions: {
+              inventario: {
+                ingresoVehiculo: false,
+                ingresoCompra: true,
+                marketplace: true,
+                publicCatalogFields: false
+              },
+              ventas: {
+                importarCotizacion: false,
+                ordenesTrabajo: false
+              },
+              templates: {
+                stickerQR: false,
+                stickerMarca: true,
+                stickerQRyMarca: false
+              }
+            }
+          },
+          {
+            _id: 'company-003',
+            name: 'Repuestos del Norte',
+            email: 'ventas@repuestosnorte.com',
+            documentNumber: '700555666-8',
+            city: 'Barranquilla',
+            active: false,
+            features: {
+              notas: true,
+              ventas: true,
+              cotizaciones: false,
+              inventario: true,
+              precios: true,
+              cashflow: false,
+              techreport: true,
+              tecnicos: false,
+              templates: false,
+              skus: true
+            },
+            featureOptions: {
+              inventario: {
+                ingresoVehiculo: true,
+                ingresoCompra: false,
+                marketplace: false,
+                publicCatalogFields: true
+              },
+              ventas: {
+                importarCotizacion: true,
                 ordenesTrabajo: false
               },
               templates: {
                 stickerQR: true,
                 stickerMarca: false,
-                stickerQRyMarca: true
+                stickerQRyMarca: false
               }
             }
-          }]
-        });
+          }
+        ]
       });
     }
     
     if (path === '/api/v1/company/features' && opts.method === 'PATCH') {
       // Simular guardado de features para el panel de desarrollo
-      const company = companiesData[0];
+      // Buscar la empresa por ID en la URL o usar la primera
+      const companyId = opts.companyId || companiesData[0]?._id;
+      const company = companiesData.find(c => c._id === companyId) || companiesData[0];
+      
       if (company) {
         company.features = { ...company.features, ...opts.body };
         
@@ -503,7 +559,10 @@
     
     if (path === '/api/v1/company/feature-options' && opts.method === 'PATCH') {
       // Simular guardado de feature options para el panel de desarrollo
-      const company = companiesData[0];
+      // Buscar la empresa por ID en la URL o usar la primera
+      const companyId = opts.companyId || companiesData[0]?._id;
+      const company = companiesData.find(c => c._id === companyId) || companiesData[0];
+      
       if (company) {
         company.featureOptions = { ...company.featureOptions, ...opts.body };
         
@@ -545,28 +604,8 @@
       return;
     }
     
-    // PIN correcto - intentar obtener token de admin para acceder a empresas reales
-    try {
-      // Intentar obtener token de admin
-      const adminResponse = await fetch('/api/v1/admin/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: 'admin@taller.com', // Email de admin por defecto
-          password: 'admin123' // Password de admin por defecto
-        })
-      });
-      
-      if (adminResponse.ok) {
-        const adminData = await adminResponse.json();
-        localStorage.setItem('admin-token', adminData.token);
-        console.log('Admin token obtained for real companies access');
-      }
-    } catch (error) {
-      console.log('Could not get admin token, will try without authentication:', error);
-    }
-    
-    // Crear sesión de desarrollador
+    // PIN correcto - crear sesión de desarrollador (sin intentar autenticación adicional)
+    console.log('PIN correcto - creando sesión de desarrollador');
     setTok('dev-session-' + Date.now());
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('appSection').classList.remove('hidden');
@@ -815,7 +854,11 @@
     div.querySelector('[data-save-feat]').onclick = async () => {
       try {
         const payload = readFeaturePayload();
-        const saved = await req('/api/v1/company/features', { method:'PATCH', body: payload });
+        const saved = await req('/api/v1/company/features', { 
+          method:'PATCH', 
+          body: payload,
+          companyId: id // Pasar el ID de la empresa
+        });
         if (saved?.features) {
           company.features = saved.features;
           const idx = companiesData.findIndex(c => String(c._id || c.id || '') === id);
@@ -830,7 +873,11 @@
     div.querySelector('[data-save-fopts]').onclick = async () => {
       try {
         const payload = readFeatureOptionsPayload();
-        const saved = await req('/api/v1/company/feature-options', { method:'PATCH', body: payload });
+        const saved = await req('/api/v1/company/feature-options', { 
+          method:'PATCH', 
+          body: payload,
+          companyId: id // Pasar el ID de la empresa
+        });
         if (saved?.featureOptions) {
           company.featureOptions = saved.featureOptions;
           const idx = companiesData.findIndex(c => String(c._id || c.id || '') === id);
@@ -893,62 +940,19 @@
     console.log('loadCompanies called, force:', force, 'companiesData.length:', companiesData.length);
     
     if(force || !companiesData.length){
-      wrap.innerHTML = '<div class="muted">Cargando empresas reales...</div>';
+      wrap.innerHTML = '<div class="muted">Cargando empresas...</div>';
       
-      // Intentar cargar empresas reales con diferentes métodos
-      let companiesLoaded = false;
-      
-      // Método 1: Intentar con token de admin
-      if (localStorage.getItem('admin-token')) {
-        try {
-          const res = await fetch('/api/v1/admin/company/companies', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('admin-token')}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          if (res.ok) {
-            const data = await res.json();
-            companiesData = data.items || [];
-            console.log('Real companies loaded with admin token:', companiesData);
-            companiesLoaded = true;
-          }
-        } catch (error) {
-          console.log('Failed to load with admin token:', error);
-        }
-      }
-      
-      // Método 2: Intentar con endpoint público
-      if (!companiesLoaded) {
-        try {
-          const res = await fetch('/api/v1/company/companies');
-          if (res.ok) {
-            const data = await res.json();
-            companiesData = data.items || data.companies || [];
-            console.log('Real companies loaded from public endpoint:', companiesData);
-            companiesLoaded = true;
-          }
-        } catch (error) {
-          console.log('Failed to load from public endpoint:', error);
-        }
-      }
-      
-      // Método 3: Usar el sistema de sesión de desarrollador
-      if (!companiesLoaded) {
-        try {
-          const res = await req('/api/v1/admin/company/companies');
-          companiesData = res.items || [];
-          console.log('Companies loaded from dev session:', companiesData);
-          companiesLoaded = true;
-        } catch(e) {
-          console.log('Error loading companies from dev session:', e);
-        }
-      }
-      
-      // Fallback: crear empresa demo si no se pudieron cargar empresas reales
-      if (!companiesLoaded || companiesData.length === 0) {
-        console.log('No real companies found, using demo data');
+      // Usar solo el sistema de sesión de desarrollador (sin intentar API real)
+      try {
+        const res = await req('/api/v1/admin/company/companies');
+        companiesData = res.items || [];
+        console.log('Companies loaded from dev session:', companiesData);
+        
+        setHeroStat('stat-companies', companiesData.length);
+        setHeroStat('stat-companies-active', companiesData.filter(c=>c.active).length);
+      } catch(e) {
+        console.log('Error loading companies from dev session:', e);
+        // Fallback: crear empresa demo si falla
         companiesData = [{
           _id: 'dev-company',
           name: 'Empresa Demo',
@@ -957,10 +961,9 @@
           features: {},
           featureOptions: {}
         }];
+        setHeroStat('stat-companies', 1);
+        setHeroStat('stat-companies-active', 1);
       }
-      
-      setHeroStat('stat-companies', companiesData.length);
-      setHeroStat('stat-companies-active', companiesData.filter(c=>c.active).length);
     }
     console.log('Rendering companies list with:', companiesData);
     renderCompaniesList();
