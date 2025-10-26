@@ -1052,11 +1052,44 @@ if (__ON_INV_PAGE__) {
       const vehicleIntakeId = document.getElementById('stk-intake').value || undefined;
       const note = document.getElementById('stk-note').value || '';
       try{
-        await request(`/api/v1/inventory/items/${it._id}/stock-in`, { method: 'POST', json: { qty, vehicleIntakeId, note } });
+        showBusy('Agregando stock y generando stickers...');
+        const response = await fetch(`/api/v1/inventory/items/${it._id}/stock-in`, { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ qty, vehicleIntakeId, note })
+        });
+        
+        if (response.ok) {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/pdf')) {
+            // Descargar automáticamente el PDF de stickers
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `stickers-${it.sku || it._id}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            showToast('Stock agregado y stickers generados');
+          } else {
+            // Respuesta JSON normal
+            const data = await response.json();
+            showToast('Stock agregado');
+          }
+        } else {
+          const error = await response.json();
+          throw new Error(error.error || 'Error agregando stock');
+        }
+        
         invCloseModal();
         await refreshItems(state.lastItemsParams);
-        showToast('Stock agregado');
-      }catch(e){ alert('No se pudo agregar stock: '+e.message); }
+        hideBusy();
+      }catch(e){ 
+        hideBusy();
+        alert('No se pudo agregar stock: '+e.message); 
+      }
     };
   }
 
@@ -1128,11 +1161,41 @@ if (__ON_INV_PAGE__) {
           .filter(row => Number.isFinite(row.qty) && row.qty > 0);
         if (!itemsPayload.length) return alert('Indica cantidades (>0) para al menos un ítem.');
         if (itemsPayload.length > 500) return alert('Máximo 500 ítems por lote.');
-        showBusy('Agregando stock (masivo)...');
-        await request('/api/v1/inventory/items/stock-in/bulk', { method: 'POST', json: { items: itemsPayload, vehicleIntakeId, note } });
-        invCloseModal(); hideBusy();
+        showBusy('Agregando stock (masivo) y generando stickers...');
+        
+        const response = await fetch('/api/v1/inventory/items/stock-in/bulk', { 
+          method: 'POST', 
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ items: itemsPayload, vehicleIntakeId, note })
+        });
+        
+        if (response.ok) {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/pdf')) {
+            // Descargar automáticamente el PDF de stickers
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'stickers-masivo.pdf';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            showToast('Stock agregado (masivo) y stickers generados');
+          } else {
+            // Respuesta JSON normal
+            const data = await response.json();
+            showToast('Stock agregado (masivo)');
+          }
+        } else {
+          const error = await response.json();
+          throw new Error(error.error || 'Error agregando stock masivo');
+        }
+        
+        invCloseModal(); 
+        hideBusy();
         await refreshItems(state.lastItemsParams);
-        showToast('Stock agregado (masivo)');
       }catch(e){ hideBusy(); alert('No se pudo agregar stock masivo: '+e.message); }
     };
   }
