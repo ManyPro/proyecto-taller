@@ -787,7 +787,11 @@
 
   function renderCompaniesList(){
     const wrap = document.getElementById('c-list');
-    if(!wrap) return;
+    console.log('Looking for #c-list element:', wrap);
+    if(!wrap) {
+      console.error('Element #c-list not found!');
+      return;
+    }
     console.log('renderCompaniesList called with companiesData:', companiesData);
     
     if(!companiesData.length){
@@ -916,6 +920,12 @@
   });
   const activeTab = devTabs?.querySelector('button.active')?.dataset.t;
   if(activeTab) toggleSections(activeTab);
+  
+  // Mostrar la sección de empresas por defecto en el panel de desarrollo
+  if(companiesCard) {
+    companiesCard.style.display = '';
+    console.log('Companies section made visible');
+  }
   
   // Botón de aplicar cambios
   document.getElementById('dev-apply').onclick = () => {
