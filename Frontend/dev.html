@@ -394,7 +394,7 @@
     const tok = getTok(); 
     
     if(tok) headers.Authorization = 'Bearer '+tok;
-    const res = await fetch((API.base||'')+path, { ...opts, headers, body: opts.body?JSON.stringify(opts.body):undefined });
+    const res = await fetch((window.API_BASE||'')+path, { ...opts, headers, body: opts.body?JSON.stringify(opts.body):undefined });
     const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
     if(!res.ok) throw new Error(data?.error || res.statusText);
     return data;
@@ -681,10 +681,17 @@
     div.querySelector('[data-save-feat]').onclick = async () => {
       try {
         const payload = readFeaturePayload();
+        console.log('Saving features for company:', id, 'payload:', payload);
+        console.log('API_BASE:', window.API_BASE);
+        console.log('Full URL:', (window.API_BASE||'') + `/api/v1/admin/dev/companies/${id}/features`);
+        
         const saved = await req(`/api/v1/admin/dev/companies/${id}/features`, { 
           method:'PATCH', 
           body: payload
         });
+        
+        console.log('Save response:', saved);
+        
         if (saved?.features) {
           company.features = saved.features;
           const idx = companiesData.findIndex(c => String(c._id || c.id || '') === id);
@@ -692,6 +699,7 @@
         }
         await reloadCompaniesAndFocus(id, 'Modulos guardados');
       } catch (e) { 
+        console.error('Error saving features:', e);
         alert(e.message || 'Error'); 
       }
     };
@@ -699,17 +707,27 @@
     div.querySelector('[data-save-fopts]').onclick = async () => {
       try {
         const payload = readFeatureOptionsPayload();
+        console.log('Saving feature options for company:', id, 'payload:', payload);
+        console.log('API_BASE:', window.API_BASE);
+        console.log('Full URL:', (window.API_BASE||'') + `/api/v1/admin/dev/companies/${id}/feature-options`);
+        
         const saved = await req(`/api/v1/admin/dev/companies/${id}/feature-options`, { 
           method:'PATCH', 
           body: payload
         });
+        
+        console.log('Save response:', saved);
+        
         if (saved?.featureOptions) {
           company.featureOptions = saved.featureOptions;
           const idx = companiesData.findIndex(c => String(c._id || c.id || '') === id);
           if (idx >= 0) companiesData[idx].featureOptions = saved.featureOptions;
         }
         await reloadCompaniesAndFocus(id, 'Opciones guardadas');
-      } catch (e) { alert(e.message || 'Error'); }
+      } catch (e) { 
+        console.error('Error saving feature options:', e);
+        alert(e.message || 'Error'); 
+      }
     };
 
     div.querySelector('[data-save-restr]').onclick = async () => {
