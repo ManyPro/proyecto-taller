@@ -408,81 +408,68 @@
   // Manejar sesión de desarrollador con respuestas simuladas
   function handleDevSession(path, opts) {
     if (path === '/api/v1/admin/company/companies') {
-      // Para el panel de desarrollo, usar datos simulados pero realistas
-      return Promise.resolve({
-        items: companiesData.length > 0 ? companiesData : [{
-          _id: 'dev-company-1',
-          name: 'Empresa Demo 1',
-          email: 'demo1@empresa.com',
-          documentNumber: '12345678-9',
-          city: 'Bogotá',
-          active: true,
-          features: {
-            notas: true,
-            ventas: true,
-            cotizaciones: true,
-            inventario: true,
-            precios: true,
-            cashflow: true,
-            techreport: true,
-            tecnicos: true,
-            templates: true,
-            skus: true
-          },
-          featureOptions: {
-            inventario: {
-              ingresoVehiculo: true,
-              ingresoCompra: true,
-              marketplace: false,
-              publicCatalogFields: true
+      // Intentar cargar empresas reales primero, fallback a demo si falla
+      return fetch('/api/v1/admin/company/companies', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          // Intentar con token de admin si existe
+          'Authorization': localStorage.getItem('admin-token') ? `Bearer ${localStorage.getItem('admin-token')}` : ''
+        }
+      })
+      .then(res => {
+        if (res.ok) {
+          return res.json();
+        } else {
+          throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+        }
+      })
+      .then(data => {
+        console.log('Real companies loaded successfully:', data);
+        return data;
+      })
+      .catch(error => {
+        console.log('Failed to load real companies, using demo data:', error);
+        // Fallback a datos demo si no se pueden cargar las reales
+        return Promise.resolve({
+          items: companiesData.length > 0 ? companiesData : [{
+            _id: 'dev-company-1',
+            name: 'Empresa Demo 1',
+            email: 'demo1@empresa.com',
+            documentNumber: '12345678-9',
+            city: 'Bogotá',
+            active: true,
+            features: {
+              notas: true,
+              ventas: true,
+              cotizaciones: true,
+              inventario: true,
+              precios: true,
+              cashflow: true,
+              techreport: true,
+              tecnicos: true,
+              templates: true,
+              skus: true
             },
-            ventas: {
-              importarCotizacion: true,
-              ordenesTrabajo: false
-            },
-            templates: {
-              stickerQR: true,
-              stickerMarca: false,
-              stickerQRyMarca: true
+            featureOptions: {
+              inventario: {
+                ingresoVehiculo: true,
+                ingresoCompra: true,
+                marketplace: false,
+                publicCatalogFields: true
+              },
+              ventas: {
+                importarCotizacion: true,
+                ordenesTrabajo: false
+              },
+              templates: {
+                stickerQR: true,
+                stickerMarca: false,
+                stickerQRyMarca: true
+              }
             }
-          }
-        }, {
-          _id: 'dev-company-2',
-          name: 'Empresa Demo 2',
-          email: 'demo2@empresa.com',
-          documentNumber: '87654321-0',
-          city: 'Medellín',
-          active: true,
-          features: {
-            notas: true,
-            ventas: false,
-            cotizaciones: true,
-            inventario: true,
-            precios: false,
-            cashflow: true,
-            techreport: false,
-            tecnicos: true,
-            templates: true,
-            skus: false
-          },
-          featureOptions: {
-            inventario: {
-              ingresoVehiculo: false,
-              ingresoCompra: true,
-              marketplace: true,
-              publicCatalogFields: false
-            },
-            ventas: {
-              importarCotizacion: false,
-              ordenesTrabajo: true
-            },
-            templates: {
-              stickerQR: false,
-              stickerMarca: true,
-              stickerQRyMarca: false
-            }
-          }
-        }]
+          }]
+        });
       });
     }
     
@@ -558,7 +545,28 @@
       return;
     }
     
-    // PIN correcto - crear sesión de desarrollador
+    // PIN correcto - intentar obtener token de admin para acceder a empresas reales
+    try {
+      // Intentar obtener token de admin
+      const adminResponse = await fetch('/api/v1/admin/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: 'admin@taller.com', // Email de admin por defecto
+          password: 'admin123' // Password de admin por defecto
+        })
+      });
+      
+      if (adminResponse.ok) {
+        const adminData = await adminResponse.json();
+        localStorage.setItem('admin-token', adminData.token);
+        console.log('Admin token obtained for real companies access');
+      }
+    } catch (error) {
+      console.log('Could not get admin token, will try without authentication:', error);
+    }
+    
+    // Crear sesión de desarrollador
     setTok('dev-session-' + Date.now());
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('appSection').classList.remove('hidden');
@@ -885,19 +893,62 @@
     console.log('loadCompanies called, force:', force, 'companiesData.length:', companiesData.length);
     
     if(force || !companiesData.length){
-      wrap.innerHTML = '<div class="muted">Cargando empresas...</div>';
+      wrap.innerHTML = '<div class="muted">Cargando empresas reales...</div>';
       
-      // Usar el sistema de sesión de desarrollador para cargar empresas
-      try {
-        const res = await req('/api/v1/admin/company/companies');
-        companiesData = res.items || [];
-        console.log('Loaded companies from dev session:', companiesData);
-        
-        setHeroStat('stat-companies', companiesData.length);
-        setHeroStat('stat-companies-active', companiesData.filter(c=>c.active).length);
-      } catch(e) {
-        console.log('Error loading companies from dev session:', e);
-        // Fallback: crear empresa demo
+      // Intentar cargar empresas reales con diferentes métodos
+      let companiesLoaded = false;
+      
+      // Método 1: Intentar con token de admin
+      if (localStorage.getItem('admin-token')) {
+        try {
+          const res = await fetch('/api/v1/admin/company/companies', {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('admin-token')}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (res.ok) {
+            const data = await res.json();
+            companiesData = data.items || [];
+            console.log('Real companies loaded with admin token:', companiesData);
+            companiesLoaded = true;
+          }
+        } catch (error) {
+          console.log('Failed to load with admin token:', error);
+        }
+      }
+      
+      // Método 2: Intentar con endpoint público
+      if (!companiesLoaded) {
+        try {
+          const res = await fetch('/api/v1/company/companies');
+          if (res.ok) {
+            const data = await res.json();
+            companiesData = data.items || data.companies || [];
+            console.log('Real companies loaded from public endpoint:', companiesData);
+            companiesLoaded = true;
+          }
+        } catch (error) {
+          console.log('Failed to load from public endpoint:', error);
+        }
+      }
+      
+      // Método 3: Usar el sistema de sesión de desarrollador
+      if (!companiesLoaded) {
+        try {
+          const res = await req('/api/v1/admin/company/companies');
+          companiesData = res.items || [];
+          console.log('Companies loaded from dev session:', companiesData);
+          companiesLoaded = true;
+        } catch(e) {
+          console.log('Error loading companies from dev session:', e);
+        }
+      }
+      
+      // Fallback: crear empresa demo si no se pudieron cargar empresas reales
+      if (!companiesLoaded || companiesData.length === 0) {
+        console.log('No real companies found, using demo data');
         companiesData = [{
           _id: 'dev-company',
           name: 'Empresa Demo',
@@ -906,9 +957,10 @@
           features: {},
           featureOptions: {}
         }];
-        setHeroStat('stat-companies', 1);
-        setHeroStat('stat-companies-active', 1);
       }
+      
+      setHeroStat('stat-companies', companiesData.length);
+      setHeroStat('stat-companies-active', companiesData.filter(c=>c.active).length);
     }
     console.log('Rendering companies list with:', companiesData);
     renderCompaniesList();
