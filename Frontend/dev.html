@@ -270,6 +270,104 @@
     .dev-chip-grid .toggle{
       width:100%;
     }
+    
+    /* Estilos específicos para toggles en el panel de desarrollo */
+    .dev-company-card .toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+      margin-bottom: 8px;
+    }
+    
+    .dev-company-card .toggle:hover {
+      background: var(--highlight-bg);
+      border-color: var(--accent);
+    }
+    
+    .dev-company-card .toggle-text {
+      font-weight: 500;
+      color: var(--text);
+      margin-right: 12px;
+    }
+    
+    .dev-company-card .toggle input[type="checkbox"] {
+      display: none;
+    }
+    
+    .dev-company-card .toggle-slider {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background: var(--border);
+      border-radius: 12px;
+      transition: all 0.3s ease;
+    }
+    
+    .dev-company-card .toggle-slider::before {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .dev-company-card .toggle input[type="checkbox"]:checked + .toggle-slider {
+      background: var(--accent);
+    }
+    
+    .dev-company-card .toggle input[type="checkbox"]:checked + .toggle-slider::before {
+      transform: translateX(20px);
+    }
+    
+    .dev-company-card .toggle input[type="checkbox"]:focus + .toggle-slider {
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    /* Estilos para las opciones específicas */
+    .dev-options-grid .card {
+      margin-bottom: 16px;
+      padding: 16px;
+      background: var(--card-alt);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    
+    .dev-options-grid .card > div:first-child {
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text);
+    }
+    
+    .dev-actions-row {
+      margin-top: 12px;
+      text-align: right;
+    }
+    
+    .dev-actions-row button {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--accent);
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .dev-actions-row button:hover {
+      background: var(--accent-hover);
+    }
   </style>
 </head>
 <body data-page="developer">
@@ -394,9 +492,25 @@
     const tok = getTok(); 
     
     if(tok) headers.Authorization = 'Bearer '+tok;
-    const res = await fetch((window.API_BASE||'')+path, { ...opts, headers, body: opts.body?JSON.stringify(opts.body):undefined });
-    const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
-    if(!res.ok) throw new Error(data?.error || res.statusText);
+    
+    const fullUrl = (window.API_BASE||'')+path;
+    console.log('Making request to:', fullUrl, 'with options:', opts);
+    
+    const res = await fetch(fullUrl, { ...opts, headers, body: opts.body?JSON.stringify(opts.body):undefined });
+    const txt = await res.text(); 
+    let data; 
+    try{ 
+      data=JSON.parse(txt);
+    }catch{ 
+      data=txt; 
+    }
+    
+    console.log('Response status:', res.status, 'Response data:', data);
+    
+    if(!res.ok) {
+      console.error('Request failed:', res.status, data);
+      throw new Error(data?.error || res.statusText);
+    }
     return data;
   }
   
@@ -416,11 +530,16 @@
     // PIN correcto - obtener token de desarrollador del backend
     try {
       console.log('PIN correcto - obteniendo token de desarrollador');
-      const response = await fetch('/api/v1/admin/auth/dev-login', {
+      const fullUrl = (window.API_BASE||'') + '/api/v1/admin/auth/dev-login';
+      console.log('Login URL:', fullUrl);
+      
+      const response = await fetch(fullUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pin })
       });
+      
+      console.log('Login response status:', response.status);
       
       if (response.ok) {
         const data = await response.json();
@@ -431,6 +550,7 @@
         loadCompanies();
       } else {
         const error = await response.json();
+        console.error('Login error:', error);
         alert('Error al autenticar: ' + (error.error || 'Error desconocido'));
       }
     } catch (error) {
@@ -530,6 +650,90 @@
   document.getElementById('a-refresh').onclick = loadAdmins;
 
   // ===== Empresas y Funciones =====
+  
+  // Función para actualizar los toggles visualmente después de guardar
+  function updateTogglesFromData(div, company) {
+    const id = String(company._id || company.id || '');
+    const feat = company.features || {};
+    const fopts = company.featureOptions || {};
+    
+    console.log('updateTogglesFromData called for company:', id, 'features:', feat, 'featureOptions:', fopts);
+    
+    // Actualizar toggles de módulos principales
+    const featureList = [
+      { key:'notas', label:'Notas' },
+      { key:'ventas', label:'Ventas' },
+      { key:'cotizaciones', label:'Cotizaciones' },
+      { key:'inventario', label:'Inventario' },
+      { key:'precios', label:'Lista de precios' },
+      { key:'cashflow', label:'Flujo de caja' },
+      { key:'techreport', label:'Reporte tecnico' },
+      { key:'tecnicos', label:'Tecnicos' },
+      { key:'templates', label:'Formatos / Plantillas' },
+      { key:'skus', label:'SKUs' }
+    ];
+    
+    // Default features if not set (all enabled by default)
+    const defaultFeatures = {
+      notas: true, ventas: true, cotizaciones: true, inventario: true, precios: true,
+      cashflow: true, techreport: true, tecnicos: true, templates: true, skus: true
+    };
+    
+    // Merge with defaults
+    const mergedFeatures = { ...defaultFeatures, ...feat };
+    console.log('Merged features:', mergedFeatures);
+    
+    featureList.forEach(({ key }) => {
+      const input = div.querySelector(`#f-${id}-${key}`);
+      if (input) {
+        const newValue = mergedFeatures[key] !== false;
+        console.log(`Updating toggle ${key}: ${input.checked} -> ${newValue}`);
+        input.checked = newValue;
+        
+        // Forzar actualización visual del toggle
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      } else {
+        console.warn(`Toggle input not found: #f-${id}-${key}`);
+      }
+    });
+    
+    // Actualizar toggles de opciones específicas
+    const blocks = {
+      ventas: { importarCotizacion:'Importar cotizacion', ordenesTrabajo:'Ordenes de trabajo' },
+      inventario: { ingresoVehiculo:'Ingreso de vehiculo', ingresoCompra:'Ingreso de compra', marketplace:'Marketplace', publicar:'Publicacion masiva', publicarAgotados:'Despublicar agotados', publicCatalogFields:'Campos de catalogo' },
+      templates: { stickerQR:'Sticker: solo QR', stickerMarca:'Sticker: marca', stickerQRyMarca:'Sticker: QR + marca' }
+    };
+    
+    Object.entries(blocks).forEach(([mod, opts]) => {
+      Object.keys(opts).forEach(key => {
+        const input = div.querySelector(`#fo-${id}-${mod}-${key}`);
+        if (input) {
+          const newValue = (fopts?.[mod]?.[key] !== false);
+          console.log(`Updating feature option ${mod}.${key}: ${input.checked} -> ${newValue}`);
+          input.checked = newValue;
+          
+          // Forzar actualización visual del toggle
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+        } else {
+          console.warn(`Feature option input not found: #fo-${id}-${mod}-${key}`);
+        }
+      });
+    });
+    
+    // Actualizar el badge de módulos
+    const modulesBadge = div.querySelector('[data-modules-count]');
+    if (modulesBadge) {
+      const count = featureList.reduce((acc, item) => {
+        const input = div.querySelector(`#f-${id}-${item.key}`);
+        return acc + (input && input.checked ? 1 : 0);
+      }, 0);
+      modulesBadge.textContent = `Modulos ${count}`;
+      console.log('Updated modules badge:', count);
+    }
+    
+    console.log('updateTogglesFromData completed');
+  }
+  
   function buildCompanyCard(company){
     const id = String(company._id || company.id || '');
     const featureList = [
@@ -622,7 +826,12 @@
       }, 0);
       modulesBadge.textContent = `Modulos ${count}`;
     };
-    wrapFeat.addEventListener('change', refreshModulesBadge);
+    // Event listener para actualizar el badge de módulos
+    wrapFeat.addEventListener('change', (e) => {
+      if (e.target.type === 'checkbox') {
+        refreshModulesBadge();
+      }
+    });
     refreshModulesBadge();
 
     const blocks = {
@@ -678,57 +887,86 @@
       return payload;
     };
 
-    div.querySelector('[data-save-feat]').onclick = async () => {
-      try {
-        const payload = readFeaturePayload();
-        console.log('Saving features for company:', id, 'payload:', payload);
-        console.log('API_BASE:', window.API_BASE);
-        console.log('Full URL:', (window.API_BASE||'') + `/api/v1/admin/dev/companies/${id}/features`);
-        
-        const saved = await req(`/api/v1/admin/dev/companies/${id}/features`, { 
-          method:'PATCH', 
-          body: payload
-        });
-        
-        console.log('Save response:', saved);
-        
-        if (saved?.features) {
-          company.features = saved.features;
-          const idx = companiesData.findIndex(c => String(c._id || c.id || '') === id);
-          if (idx >= 0) companiesData[idx].features = saved.features;
+    const saveFeatBtn = div.querySelector('[data-save-feat]');
+    console.log('Save features button found:', saveFeatBtn);
+    
+    if (saveFeatBtn) {
+      saveFeatBtn.onclick = async () => {
+        try {
+          const payload = readFeaturePayload();
+          console.log('Saving features for company:', id, 'payload:', payload);
+          console.log('API_BASE:', window.API_BASE);
+          console.log('Full URL:', (window.API_BASE||'') + `/api/v1/admin/dev/companies/${id}/features`);
+          
+          const saved = await req(`/api/v1/admin/dev/companies/${id}/features`, { 
+            method:'PATCH', 
+            body: payload
+          });
+          
+          console.log('Save response:', saved);
+          
+          if (saved?.features) {
+            company.features = saved.features;
+            const idx = companiesData.findIndex(c => String(c._id || c.id || '') === id);
+            if (idx >= 0) companiesData[idx].features = saved.features;
+          }
+          
+          // Actualizar los toggles visualmente
+          console.log('Updating toggles for company:', company);
+          updateTogglesFromData(div, company);
+          
+          await reloadCompaniesAndFocus(id, 'Modulos guardados');
+          
+          // Aplicar cambios a la UI principal
+          window.applyDevChanges();
+        } catch (e) { 
+          console.error('Error saving features:', e);
+          alert(e.message || 'Error'); 
         }
-        await reloadCompaniesAndFocus(id, 'Modulos guardados');
-      } catch (e) { 
-        console.error('Error saving features:', e);
-        alert(e.message || 'Error'); 
-      }
-    };
+      };
+    } else {
+      console.error('Save features button not found!');
+    }
 
-    div.querySelector('[data-save-fopts]').onclick = async () => {
-      try {
-        const payload = readFeatureOptionsPayload();
-        console.log('Saving feature options for company:', id, 'payload:', payload);
-        console.log('API_BASE:', window.API_BASE);
-        console.log('Full URL:', (window.API_BASE||'') + `/api/v1/admin/dev/companies/${id}/feature-options`);
-        
-        const saved = await req(`/api/v1/admin/dev/companies/${id}/feature-options`, { 
-          method:'PATCH', 
-          body: payload
-        });
-        
-        console.log('Save response:', saved);
-        
-        if (saved?.featureOptions) {
-          company.featureOptions = saved.featureOptions;
-          const idx = companiesData.findIndex(c => String(c._id || c.id || '') === id);
-          if (idx >= 0) companiesData[idx].featureOptions = saved.featureOptions;
+    const saveFoptsBtn = div.querySelector('[data-save-fopts]');
+    console.log('Save feature options button found:', saveFoptsBtn);
+    
+    if (saveFoptsBtn) {
+      saveFoptsBtn.onclick = async () => {
+        try {
+          const payload = readFeatureOptionsPayload();
+          console.log('Saving feature options for company:', id, 'payload:', payload);
+          console.log('API_BASE:', window.API_BASE);
+          console.log('Full URL:', (window.API_BASE||'') + `/api/v1/admin/dev/companies/${id}/feature-options`);
+          
+          const saved = await req(`/api/v1/admin/dev/companies/${id}/feature-options`, { 
+            method:'PATCH', 
+            body: payload
+          });
+          
+          console.log('Save response:', saved);
+          
+          if (saved?.featureOptions) {
+            company.featureOptions = saved.featureOptions;
+            const idx = companiesData.findIndex(c => String(c._id || c.id || '') === id);
+            if (idx >= 0) companiesData[idx].featureOptions = saved.featureOptions;
+          }
+          
+          // Actualizar los toggles visualmente
+          updateTogglesFromData(div, company);
+          
+          await reloadCompaniesAndFocus(id, 'Opciones guardadas');
+          
+          // Aplicar cambios a la UI principal
+          window.applyDevChanges();
+        } catch (e) { 
+          console.error('Error saving feature options:', e);
+          alert(e.message || 'Error'); 
         }
-        await reloadCompaniesAndFocus(id, 'Opciones guardadas');
-      } catch (e) { 
-        console.error('Error saving feature options:', e);
-        alert(e.message || 'Error'); 
-      }
-    };
+      };
+    } else {
+      console.error('Save feature options button not found!');
+    }
 
     div.querySelector('[data-save-restr]').onclick = async () => {
       // Restricciones removidas - no hay nada que guardar
@@ -787,6 +1025,7 @@
       
       // Cargar empresas reales usando el token de desarrollador
       try {
+        console.log('Loading companies from API...');
         const res = await req('/api/v1/admin/company/companies');
         companiesData = res.items || [];
         console.log('Real companies loaded from API:', companiesData);
@@ -839,8 +1078,27 @@
     if(message) alert(message);
   }
   async function reloadCompaniesAndFocus(id, message){
-    await loadCompanies(true);
-    requestAnimationFrame(()=> focusCompanyCard(id, message));
+    // En lugar de recargar todo, solo actualizar los datos y los toggles
+    try {
+      const res = await req('/api/v1/admin/company/companies');
+      companiesData = res.items || [];
+      
+      // Actualizar solo la tarjeta específica
+      const card = document.querySelector(`.dev-company-card[data-company-id="${id}"]`);
+      if (card) {
+        const company = companiesData.find(c => String(c._id || c.id || '') === id);
+        if (company) {
+          updateTogglesFromData(card, company);
+        }
+      }
+      
+      requestAnimationFrame(()=> focusCompanyCard(id, message));
+    } catch (e) {
+      console.error('Error reloading company data:', e);
+      // Fallback: recargar todo
+      await loadCompanies(true);
+      requestAnimationFrame(()=> focusCompanyCard(id, message));
+    }
   }
   const toggleSections = (t)=>{
     if(requestsContent) requestsContent.style.display = (t==='reqs') ? '' : 'none';
@@ -907,6 +1165,19 @@
   window.applyDevChanges = function() {
     console.log('Aplicando cambios a la UI principal...');
     
+    // Limpiar cache de features en localStorage
+    try {
+      const keys = Object.keys(localStorage);
+      keys.forEach(key => {
+        if (key.includes('features') || key.includes('featureOptions')) {
+          localStorage.removeItem(key);
+          console.log('Cleared cache key:', key);
+        }
+      });
+    } catch (e) {
+      console.warn('Error clearing cache:', e);
+    }
+    
     // Aplicar feature gating si está disponible
     if (typeof window.applyFeatureGating === 'function') {
       console.log('Aplicando feature gating...');
@@ -931,8 +1202,56 @@
       window.location.reload();
     }
     
+    // Notificar a la aplicación principal
+    notifyMainApp();
+    
     console.log('Cambios aplicados a la UI principal');
   };
+  
+  // Función para probar los toggles
+  function testToggles() {
+    console.log('Probando toggles...');
+    const toggles = document.querySelectorAll('.dev-company-card .toggle input[type="checkbox"]');
+    console.log('Toggles encontrados:', toggles.length);
+    
+    toggles.forEach((toggle, index) => {
+      console.log(`Toggle ${index}:`, {
+        id: toggle.id,
+        checked: toggle.checked,
+        parent: toggle.closest('.toggle')?.querySelector('.toggle-text')?.textContent
+      });
+    });
+  }
+  
+  // Función para notificar a la aplicación principal sobre cambios
+  function notifyMainApp() {
+    // Enviar mensaje a la ventana principal si está abierta
+    if (window.opener && !window.opener.closed) {
+      try {
+        window.opener.postMessage({
+          type: 'DEV_PANEL_CHANGES',
+          action: 'reload_features',
+          timestamp: Date.now()
+        }, '*');
+        console.log('Notificación enviada a la ventana principal');
+      } catch (e) {
+        console.warn('Error enviando notificación:', e);
+      }
+    }
+    
+    // También notificar a través de localStorage
+    try {
+      localStorage.setItem('dev_panel_changes', Date.now().toString());
+      console.log('Notificación guardada en localStorage');
+    } catch (e) {
+      console.warn('Error guardando notificación:', e);
+    }
+  }
+  
+  // Ejecutar prueba de toggles después de cargar las empresas
+  setTimeout(() => {
+    testToggles();
+  }, 2000);
   </script>
 </body>
 </html>

@@ -65,7 +65,78 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const em = API.getActiveCompany?.();
     if(em && document.getElementById('email')) document.getElementById('email').value = em;
   }catch{}
+  
+  // Escuchar cambios del panel de desarrollo
+  setupDevPanelListener();
 });
+
+// Función para escuchar cambios del panel de desarrollo
+function setupDevPanelListener() {
+  // Escuchar mensajes de postMessage
+  window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'DEV_PANEL_CHANGES') {
+      console.log('Cambios detectados desde el panel de desarrollo:', event.data);
+      reloadFeaturesFromDevPanel();
+    }
+  });
+  
+  // Escuchar cambios en localStorage
+  window.addEventListener('storage', (event) => {
+    if (event.key === 'dev_panel_changes') {
+      console.log('Cambios detectados en localStorage desde el panel de desarrollo');
+      reloadFeaturesFromDevPanel();
+    }
+  });
+  
+  // Verificar cambios periódicamente
+  setInterval(() => {
+    try {
+      const lastChange = localStorage.getItem('dev_panel_changes');
+      if (lastChange && window.lastDevPanelChange !== lastChange) {
+        window.lastDevPanelChange = lastChange;
+        console.log('Cambios detectados periódicamente desde el panel de desarrollo');
+        reloadFeaturesFromDevPanel();
+      }
+    } catch (e) {
+      // Ignorar errores de localStorage
+    }
+  }, 5000);
+}
+
+// Función para recargar features desde el panel de desarrollo
+async function reloadFeaturesFromDevPanel() {
+  try {
+    console.log('Recargando features desde el panel de desarrollo...');
+    
+    // Limpiar cache
+    const email = API.getActiveCompany?.();
+    if (email) {
+      const featuresKey = `taller.features:${email}`;
+      const optionsKey = `taller.featureOptions:${email}`;
+      try {
+        localStorage.removeItem(featuresKey);
+        localStorage.removeItem(optionsKey);
+        console.log('Cache de features limpiado');
+      } catch (e) {
+        console.warn('Error limpiando cache:', e);
+      }
+    }
+    
+    // Recargar feature options
+    if (typeof window.reloadFeatureOptions === 'function') {
+      await window.reloadFeatureOptions();
+    }
+    
+    // Aplicar feature gating
+    if (typeof applyFeatureGating === 'function') {
+      applyFeatureGating();
+    }
+    
+    console.log('Features recargados desde el panel de desarrollo');
+  } catch (e) {
+    console.error('Error recargando features desde el panel de desarrollo:', e);
+  }
+}
 
 // Navegación y boot por página
 let sectionLogin, sectionApp, appHeader, portalSection, portalCompanyBtn, emailSpan, nameSpan, welcomeSpan, logoutBtn;
@@ -189,7 +260,6 @@ function enterApp() {
   bootCurrentPage();
   // Siempre permanecer en Inicio tras login; el usuario elige a dónde ir.
   syncFeaturesFromServer(true);
-  maybeRenderFeaturesPanel();
 }
 
 // ================= FAB (Botón flotante móviles) =================
@@ -646,10 +716,6 @@ function applyFeatureGating(){
     }
   });
   
-  // Re-renderizar el panel de features si estamos en home
-  if (getCurrentPage() === 'home') {
-    maybeRenderFeaturesPanel();
-  }
 }
 
 async function syncFeaturesFromServer(force=false){
@@ -721,138 +787,6 @@ function setLocalFeatures(email, feats){
   lastFeaturesSyncTs = Date.now();
 }
 
-async function maybeRenderFeaturesPanel(){
-  if(getCurrentPage()!=='home') return;
-  const wrap = document.getElementById('features-panel');
-  if(!wrap) return;
-  const email = API.getActiveCompany?.() || '';
-  const msg = document.getElementById('features-msg');
-  const btnSave = document.getElementById('features-save');
-  const btnRefresh = document.getElementById('features-refresh');
-  let currentFeatures = await loadCompanyFeatures();
-  let currentFeatureOptions = await loadCompanyFeatureOptions();
-
-  function render(){
-    wrap.innerHTML='';
-    
-    // Renderizar features principales
-    const featuresSection = document.createElement('div');
-    featuresSection.innerHTML = '<h4 style="margin:0 0 16px 0;color:var(--text);border-bottom:1px solid var(--border);padding-bottom:8px;">Módulos Principales</h4>';
-    const featuresGrid = document.createElement('div');
-    featuresGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px;';
-    
-    featureList().forEach(({ key, label })=>{
-      const enabled = (currentFeatures?.[key] !== false);
-      const id = 'ft-'+key;
-      const toggle = document.createElement('label');
-      toggle.className='toggle';
-      toggle.innerHTML = `
-        <span class="toggle-text">${label}</span>
-        <input type="checkbox" id="${id}" ${enabled ? 'checked' : ''}/>
-        <span class="toggle-slider" aria-hidden="true"></span>
-      `;
-      featuresGrid.appendChild(toggle);
-      toggle.querySelector('input').addEventListener('change', (e)=>{
-        const checked = e.target.checked;
-        currentFeatures ||= {};
-        currentFeatures[key] = !!checked;
-      });
-    });
-    
-    featuresSection.appendChild(featuresGrid);
-    wrap.appendChild(featuresSection);
-    
-    // Renderizar feature options (módulos específicos)
-    const optionsSection = document.createElement('div');
-    optionsSection.innerHTML = '<h4 style="margin:0 0 16px 0;color:var(--text);border-bottom:1px solid var(--border);padding-bottom:8px;">Módulos Específicos</h4>';
-    
-    const featureOptions = featureOptionsList();
-    Object.entries(featureOptions).forEach(([moduleKey, moduleData]) => {
-      const moduleDiv = document.createElement('div');
-      moduleDiv.style.cssText = 'margin-bottom:20px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:8px;';
-      
-      const moduleTitle = document.createElement('h5');
-      moduleTitle.textContent = moduleData.label;
-      moduleTitle.style.cssText = 'margin:0 0 12px 0;color:var(--text);font-size:14px;font-weight:600;';
-      moduleDiv.appendChild(moduleTitle);
-      
-      const optionsGrid = document.createElement('div');
-      optionsGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;';
-      
-      moduleData.options.forEach(({ key, label }) => {
-        const enabled = (currentFeatureOptions?.[moduleKey]?.[key] !== false);
-        const id = `fo-${moduleKey}-${key}`;
-        const toggle = document.createElement('label');
-        toggle.className='toggle';
-        toggle.style.cssText = 'padding:8px 12px;font-size:13px;';
-        toggle.innerHTML = `
-          <span class="toggle-text">${label}</span>
-          <input type="checkbox" id="${id}" ${enabled ? 'checked' : ''}/>
-          <span class="toggle-slider" aria-hidden="true"></span>
-        `;
-        optionsGrid.appendChild(toggle);
-        toggle.querySelector('input').addEventListener('change', (e)=>{
-          const checked = e.target.checked;
-          currentFeatureOptions ||= {};
-          currentFeatureOptions[moduleKey] ||= {};
-          currentFeatureOptions[moduleKey][key] = !!checked;
-        });
-      });
-      
-      moduleDiv.appendChild(optionsGrid);
-      optionsSection.appendChild(moduleDiv);
-    });
-    
-    wrap.appendChild(optionsSection);
-  }
-  render();
-
-  async function save(){
-    try{
-      // Guardar features principales
-      const feats = {};
-      featureList().forEach(({ key })=>{ feats[key] = (currentFeatures?.[key] !== false); });
-      const savedFeatures = await API.company.setFeatures(feats);
-      setLocalFeatures(email, savedFeatures);
-      
-      // Guardar feature options
-      const savedOptions = await API.company.setFeatureOptions(currentFeatureOptions || {});
-      
-      if(msg){ 
-        msg.textContent = 'Cambios guardados correctamente.'; 
-        msg.style.color='var(--success)'; 
-      }
-      
-      // Aplicar cambios a la UI
-      applyFeatureGating();
-      
-      // Recargar feature options globalmente
-      await window.reloadFeatureOptions();
-      
-    }catch(e){ 
-      if(msg){ 
-        msg.textContent = e?.message || 'Error al guardar'; 
-        msg.style.color='#ef4444'; 
-      } 
-    }
-  }
-  
-  async function refresh(){
-    currentFeatures = await loadCompanyFeatures();
-    currentFeatureOptions = await loadCompanyFeatureOptions();
-    setLocalFeatures(email, currentFeatures);
-    
-    // Recargar feature options en el cache
-    await loadFeatureOptionsAndRestrictions({ force: true });
-    
-    render();
-    if(msg) msg.textContent='';
-    applyFeatureGating();
-  }
-  
-  btnSave?.addEventListener('click', save);
-  btnRefresh?.addEventListener('click', refresh);
-}
 
 // ===== FUNCIÓN GLOBAL PARA RECARGAR FEATURE OPTIONS =====
 window.reloadFeatureOptions = async function() {
@@ -875,21 +809,6 @@ window.reloadFeatureOptions = async function() {
   }
 };
 
-// ===== INICIALIZACIÓN DEL PANEL DE FEATURES =====
-// Llamar al panel cuando se carga la página home
-document.addEventListener('DOMContentLoaded', () => {
-  // Verificar si estamos en la página home y renderizar el panel
-  if (getCurrentPage() === 'home') {
-    maybeRenderFeaturesPanel();
-  }
-});
-
-// También llamar cuando se cambia a la pestaña home
-window.addEventListener('hashchange', () => {
-  if (getCurrentPage() === 'home') {
-    maybeRenderFeaturesPanel();
-  }
-});
 
 
 
