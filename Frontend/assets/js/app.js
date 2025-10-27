@@ -623,7 +623,6 @@ function initializeLogoutListener() {
 })();
 
 // ================= Feature gating (UI) =================
-import { loadFeatureOptionsAndRestrictions } from './feature-gating.js';
 function getFeatures(){
   const email = API.getActiveCompany?.() || '';
   const key = featuresKeyFor(email);
