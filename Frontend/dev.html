@@ -688,10 +688,16 @@
       if (input) {
         const newValue = mergedFeatures[key] !== false;
         console.log(`Updating toggle ${key}: ${input.checked} -> ${newValue}`);
+        
+        // Cambiar el valor del input
         input.checked = newValue;
         
-        // Forzar actualización visual del toggle
-        input.dispatchEvent(new Event('change', { bubbles: true }));
+        // Forzar actualización visual del toggle con un pequeño delay
+        setTimeout(() => {
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          // También disparar un evento click para asegurar la actualización visual
+          input.dispatchEvent(new Event('click', { bubbles: true }));
+        }, 10);
       } else {
         console.warn(`Toggle input not found: #f-${id}-${key}`);
       }
@@ -710,10 +716,16 @@
         if (input) {
           const newValue = (fopts?.[mod]?.[key] !== false);
           console.log(`Updating feature option ${mod}.${key}: ${input.checked} -> ${newValue}`);
+          
+          // Cambiar el valor del input
           input.checked = newValue;
           
-          // Forzar actualización visual del toggle
-          input.dispatchEvent(new Event('change', { bubbles: true }));
+          // Forzar actualización visual del toggle con un pequeño delay
+          setTimeout(() => {
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+            // También disparar un evento click para asegurar la actualización visual
+            input.dispatchEvent(new Event('click', { bubbles: true }));
+          }, 10);
         } else {
           console.warn(`Feature option input not found: #fo-${id}-${mod}-${key}`);
         }
@@ -731,7 +743,55 @@
       console.log('Updated modules badge:', count);
     }
     
+    // Forzar re-renderizado visual de todos los toggles
+    setTimeout(() => {
+      forceToggleVisualUpdate(div, id);
+    }, 50);
+    
     console.log('updateTogglesFromData completed');
+  }
+  
+  // Función para forzar la actualización visual de los toggles
+  function forceToggleVisualUpdate(div, id) {
+    console.log('Forcing visual update for toggles...');
+    
+    // Obtener todos los inputs de toggles
+    const allInputs = div.querySelectorAll('input[type="checkbox"]');
+    console.log('Found toggle inputs:', allInputs.length);
+    
+    allInputs.forEach((input, index) => {
+      const isChecked = input.checked;
+      console.log(`Toggle ${index}: ${input.id} = ${isChecked}`);
+      
+      // Forzar actualización del estado visual
+      input.style.display = 'none';
+      input.offsetHeight; // Trigger reflow
+      input.style.display = '';
+      
+      // Disparar eventos para actualizar el slider visual
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      
+      // También actualizar el slider manualmente si existe
+      const slider = input.nextElementSibling;
+      if (slider && slider.classList.contains('toggle-slider')) {
+        if (isChecked) {
+          slider.style.background = 'var(--accent)';
+          const knob = slider.querySelector('::before') || slider;
+          if (knob) {
+            knob.style.transform = 'translateX(20px)';
+          }
+        } else {
+          slider.style.background = 'var(--border)';
+          const knob = slider.querySelector('::before') || slider;
+          if (knob) {
+            knob.style.transform = 'translateX(0px)';
+          }
+        }
+      }
+    });
+    
+    console.log('Visual update completed');
   }
   
   function buildCompanyCard(company){
@@ -911,11 +971,12 @@
             if (idx >= 0) companiesData[idx].features = saved.features;
           }
           
-          // Actualizar los toggles visualmente
+          // Actualizar los toggles visualmente inmediatamente
           console.log('Updating toggles for company:', company);
           updateTogglesFromData(div, company);
           
-          await reloadCompaniesAndFocus(id, 'Modulos guardados');
+          // Mostrar mensaje de éxito
+          alert('Modulos guardados');
           
           // Aplicar cambios a la UI principal
           window.applyDevChanges();
@@ -952,10 +1013,11 @@
             if (idx >= 0) companiesData[idx].featureOptions = saved.featureOptions;
           }
           
-          // Actualizar los toggles visualmente
+          // Actualizar los toggles visualmente inmediatamente
           updateTogglesFromData(div, company);
           
-          await reloadCompaniesAndFocus(id, 'Opciones guardadas');
+          // Mostrar mensaje de éxito
+          alert('Opciones guardadas');
           
           // Aplicar cambios a la UI principal
           window.applyDevChanges();
@@ -1248,10 +1310,37 @@
     }
   }
   
+  // Función de debug para verificar el estado de los toggles
+  function debugToggles() {
+    console.log('=== DEBUG TOGGLES ===');
+    const allToggles = document.querySelectorAll('.dev-company-card .toggle input[type="checkbox"]');
+    console.log('Total toggles found:', allToggles.length);
+    
+    allToggles.forEach((toggle, index) => {
+      const parent = toggle.closest('.toggle');
+      const label = parent?.querySelector('.toggle-text')?.textContent || 'Unknown';
+      const slider = toggle.nextElementSibling;
+      const sliderStyle = slider ? window.getComputedStyle(slider) : null;
+      
+      console.log(`Toggle ${index}:`, {
+        id: toggle.id,
+        label: label,
+        checked: toggle.checked,
+        sliderBackground: sliderStyle?.background,
+        sliderTransform: sliderStyle?.transform
+      });
+    });
+    console.log('=== END DEBUG ===');
+  }
+  
   // Ejecutar prueba de toggles después de cargar las empresas
   setTimeout(() => {
     testToggles();
+    debugToggles();
   }, 2000);
+  
+  // Función global para debug
+  window.debugToggles = debugToggles;
   </script>
 </body>
 </html>
