@@ -368,6 +368,29 @@
     .dev-actions-row button:hover {
       background: var(--accent-hover);
     }
+    
+    /* Estilos para forzar actualización visual de toggles */
+    .dev-company-card .toggle input[type="checkbox"]:checked + .toggle-slider {
+      background: var(--accent) !important;
+      box-shadow: 0 0 0 2px rgba(16,185,129,.35) !important;
+    }
+    
+    .dev-company-card .toggle input[type="checkbox"]:checked + .toggle-slider::before {
+      transform: translateX(20px) !important;
+      background: #ecfdf5 !important;
+      box-shadow: 0 2px 8px rgba(16,185,129,.35) !important;
+    }
+    
+    .dev-company-card .toggle input[type="checkbox"]:not(:checked) + .toggle-slider {
+      background: rgba(100,116,139,.45) !important;
+      box-shadow: inset 0 0 0 1px rgba(15,23,42,.35) !important;
+    }
+    
+    .dev-company-card .toggle input[type="checkbox"]:not(:checked) + .toggle-slider::before {
+      transform: translateX(0px) !important;
+      background: white !important;
+      box-shadow: 0 2px 6px rgba(15,23,42,.35) !important;
+    }
   </style>
 </head>
 <body data-page="developer">
@@ -772,20 +795,29 @@
       input.dispatchEvent(new Event('change', { bubbles: true }));
       input.dispatchEvent(new Event('input', { bubbles: true }));
       
-      // También actualizar el slider manualmente si existe
+      // Actualizar el slider manualmente usando CSS
       const slider = input.nextElementSibling;
       if (slider && slider.classList.contains('toggle-slider')) {
+        console.log(`Updating slider for ${input.id}: checked=${isChecked}`);
+        
         if (isChecked) {
-          slider.style.background = 'var(--accent)';
-          const knob = slider.querySelector('::before') || slider;
-          if (knob) {
-            knob.style.transform = 'translateX(20px)';
-          }
+          slider.style.setProperty('background', 'var(--accent)', 'important');
+          slider.style.setProperty('box-shadow', '0 0 0 2px rgba(16,185,129,.35)', 'important');
         } else {
-          slider.style.background = 'var(--border)';
-          const knob = slider.querySelector('::before') || slider;
-          if (knob) {
-            knob.style.transform = 'translateX(0px)';
+          slider.style.setProperty('background', 'rgba(100,116,139,.45)', 'important');
+          slider.style.setProperty('box-shadow', 'inset 0 0 0 1px rgba(15,23,42,.35)', 'important');
+        }
+        
+        // Actualizar el knob (::before pseudo-element)
+        const knob = slider;
+        if (knob) {
+          if (isChecked) {
+            knob.style.setProperty('--knob-transform', 'translateX(20px)');
+            // Forzar actualización del pseudo-element
+            const beforeStyle = window.getComputedStyle(knob, '::before');
+            console.log('Knob before style:', beforeStyle.transform);
+          } else {
+            knob.style.setProperty('--knob-transform', 'translateX(0px)');
           }
         }
       }
@@ -889,6 +921,7 @@
     // Event listener para actualizar el badge de módulos
     wrapFeat.addEventListener('change', (e) => {
       if (e.target.type === 'checkbox') {
+        console.log('Feature toggle changed:', e.target.id, 'checked:', e.target.checked);
         refreshModulesBadge();
       }
     });
@@ -922,6 +955,16 @@
       });
       fowrap.appendChild(box);
     });
+    
+    // Agregar event listeners a los toggles de opciones específicas
+    const fowrap = div.querySelector(`#fopts-${id}`);
+    if (fowrap) {
+      fowrap.addEventListener('change', (e) => {
+        if (e.target.type === 'checkbox') {
+          console.log('Feature option toggle changed:', e.target.id, 'checked:', e.target.checked);
+        }
+      });
+    }
 
     const restrWrap = div.querySelector(`#restr-${id}`);
     // Restricciones removidas - sección vacía por ahora
@@ -941,9 +984,12 @@
       Object.entries(blocks).forEach(([mod, opts]) => {
         Object.keys(opts).forEach(key => {
           const input = div.querySelector(`#fo-${id}-${mod}-${key}`);
-          payload[mod][key] = !!input?.checked;
+          const isChecked = input?.checked || false;
+          console.log(`Reading feature option ${mod}.${key}: input.checked = ${input?.checked}, final value = ${isChecked}`);
+          payload[mod][key] = isChecked;
         });
       });
+      console.log('Feature options payload:', payload);
       return payload;
     };
 
@@ -971,9 +1017,17 @@
             if (idx >= 0) companiesData[idx].features = saved.features;
           }
           
-          // Actualizar los toggles visualmente inmediatamente
+          // Actualizar los toggles visualmente inmediatamente usando los datos guardados
           console.log('Updating toggles for company:', company);
-          updateTogglesFromData(div, company);
+          console.log('Saved features:', saved.features);
+          console.log('Saved feature options:', saved.featureOptions);
+          
+          // Usar los datos que realmente se guardaron
+          const updatedCompany = { ...company };
+          if (saved.features) updatedCompany.features = saved.features;
+          if (saved.featureOptions) updatedCompany.featureOptions = saved.featureOptions;
+          
+          updateTogglesFromData(div, updatedCompany);
           
           // Mostrar mensaje de éxito
           alert('Modulos guardados');
@@ -1013,8 +1067,17 @@
             if (idx >= 0) companiesData[idx].featureOptions = saved.featureOptions;
           }
           
-          // Actualizar los toggles visualmente inmediatamente
-          updateTogglesFromData(div, company);
+          // Actualizar los toggles visualmente inmediatamente usando los datos guardados
+          console.log('Updating toggles for company:', company);
+          console.log('Saved features:', saved.features);
+          console.log('Saved feature options:', saved.featureOptions);
+          
+          // Usar los datos que realmente se guardaron
+          const updatedCompany = { ...company };
+          if (saved.features) updatedCompany.features = saved.features;
+          if (saved.featureOptions) updatedCompany.featureOptions = saved.featureOptions;
+          
+          updateTogglesFromData(div, updatedCompany);
           
           // Mostrar mensaje de éxito
           alert('Opciones guardadas');
