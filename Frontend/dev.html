@@ -1178,32 +1178,41 @@
         companiesData = res.items || [];
         console.log('Real companies loaded from API:', companiesData);
         
-        // Cargar features y feature options para cada empresa
-        console.log('Loading features and feature options for each company...');
+        // Inicializar features y feature options con valores por defecto
+        console.log('Initializing features and feature options for each company...');
         for (let i = 0; i < companiesData.length; i++) {
           const company = companiesData[i];
-          const companyId = String(company._id || company.id || '');
           
-          try {
-            // Cargar features
-            const featuresRes = await req(`/api/v1/admin/dev/companies/${companyId}/features`);
-            if (featuresRes?.features) {
-              company.features = featuresRes.features;
-              console.log(`Loaded features for ${company.name}:`, company.features);
+          // Inicializar con valores por defecto si no existen
+          company.features = company.features || {
+            notas: true, ventas: true, cotizaciones: true, inventario: true, precios: true,
+            cashflow: true, techreport: true, tecnicos: true, templates: true, skus: true
+          };
+          
+          company.featureOptions = company.featureOptions || {
+            ventas: {
+              importarCotizacion: true,
+              ordenesTrabajo: true
+            },
+            inventario: {
+              ingresoVehiculo: true,
+              ingresoCompra: true,
+              marketplace: true,
+              publicacionMasiva: true,
+              despublicarAgotados: true,
+              publicCatalogFields: true
+            },
+            templates: {
+              stickerQR: true,
+              stickerMarca: true,
+              stickerQRyMarca: true
             }
-            
-            // Cargar feature options
-            const featureOptionsRes = await req(`/api/v1/admin/dev/companies/${companyId}/feature-options`);
-            if (featureOptionsRes?.featureOptions) {
-              company.featureOptions = featureOptionsRes.featureOptions;
-              console.log(`Loaded feature options for ${company.name}:`, company.featureOptions);
-            }
-          } catch (e) {
-            console.warn(`Error loading features/options for ${company.name}:`, e);
-            // Asegurar que existan las propiedades
-            company.features = company.features || {};
-            company.featureOptions = company.featureOptions || {};
-          }
+          };
+          
+          console.log(`Initialized data for ${company.name}:`, {
+            features: company.features,
+            featureOptions: company.featureOptions
+          });
         }
         
         console.log('Companies with full data loaded:', companiesData);
@@ -1483,17 +1492,16 @@
     console.log('Checking company state for:', companyId);
     
     try {
-      // Obtener features
-      const features = await req(`/api/v1/admin/dev/companies/${companyId}/features`);
-      console.log('Server features:', features);
-      
-      // Obtener feature options
-      const featureOptions = await req(`/api/v1/admin/dev/companies/${companyId}/feature-options`);
-      console.log('Server feature options:', featureOptions);
-      
       // Obtener datos completos de la empresa
       const company = await req(`/api/v1/admin/dev/companies/${companyId}`);
       console.log('Server company data:', company);
+      
+      // Los features y feature options vienen incluidos en los datos de la empresa
+      const features = company?.features || {};
+      const featureOptions = company?.featureOptions || {};
+      
+      console.log('Server features:', features);
+      console.log('Server feature options:', featureOptions);
       
       return { features, featureOptions, company };
     } catch (e) {
@@ -1515,7 +1523,7 @@
       
       // Comparar features
       const localFeatures = localCompany?.features || {};
-      const serverFeatures = serverData.features?.features || {};
+      const serverFeatures = serverData.features || {};
       console.log('Features comparison:', {
         local: localFeatures,
         server: serverFeatures,
@@ -1524,7 +1532,7 @@
       
       // Comparar feature options
       const localOptions = localCompany?.featureOptions || {};
-      const serverOptions = serverData.featureOptions?.featureOptions || {};
+      const serverOptions = serverData.featureOptions || {};
       console.log('Feature options comparison:', {
         local: localOptions,
         server: serverOptions,
