@@ -46,6 +46,10 @@ function detectInitialTheme(){
   return 'dark';
 }
 document.addEventListener('DOMContentLoaded', ()=>{
+  initializeDOMElements();
+  initializeEventListeners();
+  initializeLogoutListener();
+  initializeAuth();
   applyTheme(detectInitialTheme());
   document.getElementById('themeToggle')?.addEventListener('click', ()=>{
     const isLight = document.body.classList.contains('theme-light');
@@ -64,15 +68,21 @@ document.addEventListener('DOMContentLoaded', ()=>{
 });
 
 // Navegación y boot por página
-const sectionLogin = document.getElementById('loginSection');
-const sectionApp = document.getElementById('appSection');
-const appHeader = document.getElementById('appHeader');
-const portalSection = document.getElementById('portalSection');
-const portalCompanyBtn = document.getElementById('openCompanyLogin');
-const emailSpan = document.getElementById('companyEmail');
-const nameSpan = document.getElementById('companyName');
-const welcomeSpan = document.getElementById('welcomeCompany');
-const logoutBtn = document.getElementById('logoutBtn');
+let sectionLogin, sectionApp, appHeader, portalSection, portalCompanyBtn, emailSpan, nameSpan, welcomeSpan, logoutBtn;
+
+function initializeDOMElements() {
+  sectionLogin = document.getElementById('loginSection');
+  sectionApp = document.getElementById('appSection');
+  appHeader = document.getElementById('appHeader');
+  portalSection = document.getElementById('portalSection');
+  portalCompanyBtn = document.getElementById('openCompanyLogin');
+  emailSpan = document.getElementById('companyEmail');
+  nameSpan = document.getElementById('companyName');
+  welcomeSpan = document.getElementById('welcomeCompany');
+  logoutBtn = document.getElementById('logoutBtn');
+  loginBtn = document.getElementById('loginBtn');
+  registerBtn = document.getElementById('registerBtn');
+}
 const lastTabKey = 'app:lastTab';
 function __scopeFromBase(base){
   try{ return new URL(base || window.location.origin, window.location.origin).host || 'local'; }
@@ -358,25 +368,29 @@ function initDenseToggle(){
 }
 
 // Login simple (usa tu API)
-const loginBtn = document.getElementById('loginBtn');
-const registerBtn = document.getElementById('registerBtn');
-const storedEmail = API.getActiveCompany?.();
-const storedToken = storedEmail ? API.token.get(storedEmail) : API.token.get();
-// Guard: si no hay sesión y no estamos en Inicio, redirigir a Inicio para login
-if (!storedEmail || !storedToken) {
-  // Mostrar el portal de acceso en Inicio cuando no hay sesión
-  if (getCurrentPage() === 'home') {
-    portalSection?.classList.remove('hidden');
+let loginBtn, registerBtn;
+
+// Mover la lógica de autenticación dentro de DOMContentLoaded
+function initializeAuth() {
+  const storedEmail = API.getActiveCompany?.();
+  const storedToken = storedEmail ? API.token.get(storedEmail) : API.token.get();
+  
+  // Guard: si no hay sesión y no estamos en Inicio, redirigir a Inicio para login
+  if (!storedEmail || !storedToken) {
+    // Mostrar el portal de acceso en Inicio cuando no hay sesión
+    if (getCurrentPage() === 'home') {
+      portalSection?.classList.remove('hidden');
+    }
+    if (getCurrentPage() !== 'home') {
+      try { sessionStorage.setItem('app:pending', window.location.pathname); } catch {}
+      window.location.href = 'index.html';
+    }
   }
-  if (getCurrentPage() !== 'home') {
-    try { sessionStorage.setItem('app:pending', window.location.pathname); } catch {}
-    window.location.href = 'index.html';
+  if (storedEmail && storedToken) {
+    API.setActiveCompany(storedEmail);
+    updateCompanyLabels(storedEmail);
+    enterApp();
   }
-}
-if (storedEmail && storedToken) {
-  API.setActiveCompany(storedEmail);
-  updateCompanyLabels(storedEmail);
-  enterApp();
 }
 
 
@@ -410,29 +424,33 @@ async function doLogin(isRegister = false) {
   }
 }
 
-loginBtn?.addEventListener('click', () => doLogin(false));
-registerBtn?.addEventListener('click', () => doLogin(true));
-portalCompanyBtn?.addEventListener('click', () => {
-  portalSection?.classList.add('hidden');
-  sectionLogin?.classList.remove('hidden');
-  try {
-    document.getElementById('email')?.focus();
-  } catch {}
-  try {
-    sectionLogin?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  } catch {}
-});
+function initializeEventListeners() {
+  loginBtn?.addEventListener('click', () => doLogin(false));
+  registerBtn?.addEventListener('click', () => doLogin(true));
+  portalCompanyBtn?.addEventListener('click', () => {
+    portalSection?.classList.add('hidden');
+    sectionLogin?.classList.remove('hidden');
+    try {
+      document.getElementById('email')?.focus();
+    } catch {}
+    try {
+      sectionLogin?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch {}
+  });
+}
 
-logoutBtn?.addEventListener('click', async () => {
-  try { await API.logout(); } catch {}
-  try { sessionStorage.removeItem(lastTabKey); } catch {}
-  updateCompanyLabels('');
-  sectionApp?.classList.add('hidden');
-  sectionLogin?.classList.remove('hidden');
-  appHeader?.classList.add('hidden');
-  logoutBtn.classList.add('hidden');
-  window.location.reload();
-});
+function initializeLogoutListener() {
+  logoutBtn?.addEventListener('click', async () => {
+    try { await API.logout(); } catch {}
+    try { sessionStorage.removeItem(lastTabKey); } catch {}
+    updateCompanyLabels('');
+    sectionApp?.classList.add('hidden');
+    sectionLogin?.classList.remove('hidden');
+    appHeader?.classList.add('hidden');
+    logoutBtn.classList.add('hidden');
+    window.location.reload();
+  });
+}
 
 // Reanudar sesión si hay token+empresa activos
 (async () => {
