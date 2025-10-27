@@ -717,9 +717,21 @@
         
         // Forzar actualización visual del toggle con un pequeño delay
         setTimeout(() => {
+          // Disparar eventos para activar listeners
           input.dispatchEvent(new Event('change', { bubbles: true }));
-          // También disparar un evento click para asegurar la actualización visual
           input.dispatchEvent(new Event('click', { bubbles: true }));
+          
+          // Forzar actualización visual del slider manualmente
+          const slider = input.nextElementSibling;
+          if (slider && slider.classList.contains('toggle-slider')) {
+            if (newValue) {
+              slider.style.background = 'var(--accent)';
+              slider.style.boxShadow = '0 0 0 2px rgba(16,185,129,.35)';
+            } else {
+              slider.style.background = 'rgba(100,116,139,.45)';
+              slider.style.boxShadow = 'inset 0 0 0 1px rgba(15,23,42,.35)';
+            }
+          }
         }, 10);
       } else {
         console.warn(`Toggle input not found: #f-${id}-${key}`);
@@ -745,9 +757,21 @@
           
           // Forzar actualización visual del toggle con un pequeño delay
           setTimeout(() => {
+            // Disparar eventos para activar listeners
             input.dispatchEvent(new Event('change', { bubbles: true }));
-            // También disparar un evento click para asegurar la actualización visual
             input.dispatchEvent(new Event('click', { bubbles: true }));
+            
+            // Forzar actualización visual del slider manualmente
+            const slider = input.nextElementSibling;
+            if (slider && slider.classList.contains('toggle-slider')) {
+              if (newValue) {
+                slider.style.background = 'var(--accent)';
+                slider.style.boxShadow = '0 0 0 2px rgba(16,185,129,.35)';
+              } else {
+                slider.style.background = 'rgba(100,116,139,.45)';
+                slider.style.boxShadow = 'inset 0 0 0 1px rgba(15,23,42,.35)';
+              }
+            }
           }, 10);
         } else {
           console.warn(`Feature option input not found: #fo-${id}-${mod}-${key}`);
@@ -1289,15 +1313,27 @@
   window.applyDevChanges = function() {
     console.log('Aplicando cambios a la UI principal...');
     
-    // Limpiar cache de features en localStorage
+    // Limpiar cache de features en localStorage con patrones más específicos
     try {
       const keys = Object.keys(localStorage);
       keys.forEach(key => {
-        if (key.includes('features') || key.includes('featureOptions')) {
+        // Limpiar todas las claves relacionadas con features
+        if (key.includes('taller.features') || 
+            key.includes('taller.featureOptions') || 
+            key.includes('features') || 
+            key.includes('featureOptions')) {
           localStorage.removeItem(key);
           console.log('Cleared cache key:', key);
         }
       });
+      
+      // También limpiar claves específicas que sabemos que existen
+      const email = getTok()?.email || 'default';
+      const featuresKey = `taller.features:${email}`;
+      const optionsKey = `taller.featureOptions:${email}`;
+      localStorage.removeItem(featuresKey);
+      localStorage.removeItem(optionsKey);
+      console.log('Cleared specific cache keys:', featuresKey, optionsKey);
     } catch (e) {
       console.warn('Error clearing cache:', e);
     }
@@ -1349,15 +1385,19 @@
   
   // Función para notificar a la aplicación principal sobre cambios
   function notifyMainApp() {
+    console.log('Notificando a la aplicación principal...');
+    
     // Enviar mensaje a la ventana principal si está abierta
     if (window.opener && !window.opener.closed) {
       try {
-        window.opener.postMessage({
+        const message = {
           type: 'DEV_PANEL_CHANGES',
           action: 'reload_features',
-          timestamp: Date.now()
-        }, '*');
-        console.log('Notificación enviada a la ventana principal');
+          timestamp: Date.now(),
+          source: 'dev_panel'
+        };
+        window.opener.postMessage(message, '*');
+        console.log('Notificación enviada a la ventana principal:', message);
       } catch (e) {
         console.warn('Error enviando notificación:', e);
       }
@@ -1365,10 +1405,22 @@
     
     // También notificar a través de localStorage
     try {
-      localStorage.setItem('dev_panel_changes', Date.now().toString());
-      console.log('Notificación guardada en localStorage');
+      const timestamp = Date.now().toString();
+      localStorage.setItem('dev_panel_changes', timestamp);
+      localStorage.setItem('dev_panel_last_update', timestamp);
+      console.log('Notificación guardada en localStorage:', timestamp);
     } catch (e) {
       console.warn('Error guardando notificación:', e);
+    }
+    
+    // También intentar notificar a través de un evento personalizado
+    try {
+      window.dispatchEvent(new CustomEvent('devPanelChanges', {
+        detail: { timestamp: Date.now(), source: 'dev_panel' }
+      }));
+      console.log('Evento personalizado disparado');
+    } catch (e) {
+      console.warn('Error disparando evento personalizado:', e);
     }
   }
   
@@ -1394,6 +1446,67 @@
     });
     console.log('=== END DEBUG ===');
   }
+  
+  // Función para verificar el estado de una empresa específica en el servidor
+  async function debugCompanyState(companyId) {
+    console.log('=== DEBUG COMPANY STATE ===');
+    console.log('Checking company state for:', companyId);
+    
+    try {
+      // Obtener features
+      const features = await req(`/api/v1/admin/dev/companies/${companyId}/features`);
+      console.log('Server features:', features);
+      
+      // Obtener feature options
+      const featureOptions = await req(`/api/v1/admin/dev/companies/${companyId}/feature-options`);
+      console.log('Server feature options:', featureOptions);
+      
+      // Obtener datos completos de la empresa
+      const company = await req(`/api/v1/admin/dev/companies/${companyId}`);
+      console.log('Server company data:', company);
+      
+      return { features, featureOptions, company };
+    } catch (e) {
+      console.error('Error checking company state:', e);
+      return null;
+    }
+  }
+  
+  // Función para comparar estado local vs servidor
+  async function compareLocalVsServer(companyId) {
+    console.log('=== COMPARING LOCAL VS SERVER ===');
+    
+    const localCompany = companiesData.find(c => String(c._id || c.id || '') === companyId);
+    console.log('Local company data:', localCompany);
+    
+    const serverData = await debugCompanyState(companyId);
+    if (serverData) {
+      console.log('Server data:', serverData);
+      
+      // Comparar features
+      const localFeatures = localCompany?.features || {};
+      const serverFeatures = serverData.features?.features || {};
+      console.log('Features comparison:', {
+        local: localFeatures,
+        server: serverFeatures,
+        match: JSON.stringify(localFeatures) === JSON.stringify(serverFeatures)
+      });
+      
+      // Comparar feature options
+      const localOptions = localCompany?.featureOptions || {};
+      const serverOptions = serverData.featureOptions?.featureOptions || {};
+      console.log('Feature options comparison:', {
+        local: localOptions,
+        server: serverOptions,
+        match: JSON.stringify(localOptions) === JSON.stringify(serverOptions)
+      });
+    }
+  }
+  
+  // Hacer las funciones disponibles globalmente para debugging
+  window.debugToggles = debugToggles;
+  window.debugCompanyState = debugCompanyState;
+  window.compareLocalVsServer = compareLocalVsServer;
   
   // Ejecutar prueba de toggles después de cargar las empresas
   setTimeout(() => {
