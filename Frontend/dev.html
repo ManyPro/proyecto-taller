@@ -1025,9 +1025,9 @@
           const payload = readFeaturePayload();
           console.log('Saving features for company:', id, 'payload:', payload);
           console.log('API_BASE:', window.API_BASE);
-          console.log('Full URL:', (window.API_BASE||'') + `/api/v1/admin/dev/companies/${id}/features`);
+          console.log('Full URL:', (window.API_BASE||'') + `/api/v1/admin/companies/${id}/features`);
           
-          const saved = await req(`/api/v1/admin/dev/companies/${id}/features`, { 
+          const saved = await req(`/api/v1/admin/companies/${id}/features`, { 
             method:'PATCH', 
             body: payload
           });
@@ -1075,9 +1075,9 @@
           const payload = readFeatureOptionsPayload();
           console.log('Saving feature options for company:', id, 'payload:', payload);
           console.log('API_BASE:', window.API_BASE);
-          console.log('Full URL:', (window.API_BASE||'') + `/api/v1/admin/dev/companies/${id}/feature-options`);
+          console.log('Full URL:', (window.API_BASE||'') + `/api/v1/admin/companies/${id}/feature-options`);
           
-          const saved = await req(`/api/v1/admin/dev/companies/${id}/feature-options`, { 
+          const saved = await req(`/api/v1/admin/companies/${id}/feature-options`, { 
             method:'PATCH', 
             body: payload
           });
@@ -1493,17 +1493,18 @@
     
     try {
       // Obtener datos completos de la empresa
-      const company = await req(`/api/v1/admin/dev/companies/${companyId}`);
-      console.log('Server company data:', company);
+      const company = await req(`/api/v1/admin/company/companies`);
+      const companyData = company?.items?.find(c => String(c._id || c.id || '') === companyId);
+      console.log('Server company data:', companyData);
       
       // Los features y feature options vienen incluidos en los datos de la empresa
-      const features = company?.features || {};
-      const featureOptions = company?.featureOptions || {};
+      const features = companyData?.features || {};
+      const featureOptions = companyData?.featureOptions || {};
       
       console.log('Server features:', features);
       console.log('Server feature options:', featureOptions);
       
-      return { features, featureOptions, company };
+      return { features, featureOptions, company: companyData };
     } catch (e) {
       console.error('Error checking company state:', e);
       return null;
