@@ -1178,6 +1178,36 @@
         companiesData = res.items || [];
         console.log('Real companies loaded from API:', companiesData);
         
+        // Cargar features y feature options para cada empresa
+        console.log('Loading features and feature options for each company...');
+        for (let i = 0; i < companiesData.length; i++) {
+          const company = companiesData[i];
+          const companyId = String(company._id || company.id || '');
+          
+          try {
+            // Cargar features
+            const featuresRes = await req(`/api/v1/admin/dev/companies/${companyId}/features`);
+            if (featuresRes?.features) {
+              company.features = featuresRes.features;
+              console.log(`Loaded features for ${company.name}:`, company.features);
+            }
+            
+            // Cargar feature options
+            const featureOptionsRes = await req(`/api/v1/admin/dev/companies/${companyId}/feature-options`);
+            if (featureOptionsRes?.featureOptions) {
+              company.featureOptions = featureOptionsRes.featureOptions;
+              console.log(`Loaded feature options for ${company.name}:`, company.featureOptions);
+            }
+          } catch (e) {
+            console.warn(`Error loading features/options for ${company.name}:`, e);
+            // Asegurar que existan las propiedades
+            company.features = company.features || {};
+            company.featureOptions = company.featureOptions || {};
+          }
+        }
+        
+        console.log('Companies with full data loaded:', companiesData);
+        
         setHeroStat('stat-companies', companiesData.length);
         setHeroStat('stat-companies-active', companiesData.filter(c=>c.active).length);
       } catch(e) {
