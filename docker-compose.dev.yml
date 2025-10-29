@@ -23,8 +23,8 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=3000
-      - MONGODB_URI=mongodb://mongo:27017/taller_dev
-      - MONGODB_DB=taller_dev
+      - MONGODB_URI=${MONGODB_URI}
+      - MONGODB_DB=${MONGODB_DB}
       - JWT_SECRET=${JWT_SECRET}
       - ALLOWED_ORIGINS=*
       - UPLOAD_DRIVER=${UPLOAD_DRIVER:-cloudinary}
