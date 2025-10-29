@@ -3,7 +3,6 @@
 services:
   mongo:
     image: mongo:7
-    container_name: taller-mongo-dev
     restart: unless-stopped
     ports:
       - "27018:27017"  # Puerto diferente para no conflictos
@@ -16,7 +15,6 @@ services:
     build:
       context: ./Backend
       dockerfile: Dockerfile
-    container_name: taller-backend-dev
     restart: unless-stopped
     env_file:
       - .env.dev
@@ -49,7 +47,6 @@ services:
     build:
       context: ./Frontend
       dockerfile: Dockerfile
-    container_name: taller-frontend-dev
     restart: unless-stopped
     depends_on:
       - backend

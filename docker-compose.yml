@@ -1,7 +1,6 @@
 services:
   mongo:
     image: mongo:7
-    container_name: taller-mongo
     restart: unless-stopped
     profiles: ["dev"]
     ports:
@@ -13,7 +12,6 @@ services:
     build:
       context: ./Backend
       dockerfile: Dockerfile
-    container_name: taller-backend
     restart: unless-stopped
     env_file:
       - .env
@@ -43,7 +41,6 @@ services:
     build:
       context: ./Frontend
       dockerfile: Dockerfile
-    container_name: taller-frontend
     restart: unless-stopped
     depends_on:
       - backend
