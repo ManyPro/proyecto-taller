@@ -1,19 +1,18 @@
-# Configuración para Netlify - Entorno de desarrollo
-# Este archivo se usa cuando despliegas el branch 'develop' en Netlify
+# Configuración para Netlify
 
 [build]
   publish = "Frontend"
-  command = "echo 'Frontend de desarrollo listo'"
+  command = "echo 'Frontend listo'"
 
 # Redirecciones para el API
 [[redirects]]
   from = "/api/*"
-  to = "https://tu-backend-dev.onrender.com/api/:splat"
+  to = "http://143.110.131.35:4000/api/:splat"
   status = 200
 
 [[redirects]]
   from = "/uploads/*"
-  to = "https://tu-backend-dev.onrender.com/uploads/:splat"
+  to = "http://143.110.131.35:4000/uploads/:splat"
   status = 200
 
 # Headers de seguridad
