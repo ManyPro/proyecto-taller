@@ -1,0 +1,63 @@
+# Docker Compose para entorno de DESARROLLO/PRUEBAS
+# Usa la misma base de datos pero con configuraciones de desarrollo
+services:
+  mongo:
+    image: mongo:7
+    container_name: taller-mongo-dev
+    restart: unless-stopped
+    ports:
+      - "27018:27017"  # Puerto diferente para no conflictos
+    volumes:
+      - mongo_data_dev:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=taller_dev
+
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: taller-backend-dev
+    restart: unless-stopped
+    env_file:
+      - .env.dev
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - MONGODB_URI=mongodb://mongo:27017/taller_dev
+      - MONGODB_DB=taller_dev
+      - JWT_SECRET=${JWT_SECRET}
+      - ALLOWED_ORIGINS=*
+      - UPLOAD_DRIVER=${UPLOAD_DRIVER:-cloudinary}
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+      - CLD_FOLDER=${CLD_FOLDER:-taller-dev}
+      - LOG_LEVEL=debug
+      - PUBLIC_RATE_MAX=1000
+      - CHECKOUT_RATE_MAX=1000
+      - AUTH_RATE_MAX=1000
+      - CACHE_VERSION=dev-v1
+    ports:
+      - "4001:3000"  # Puerto diferente para desarrollo
+    volumes:
+      - uploads_data_dev:/app/uploads
+      - ./Backend:/app  # Hot reload para desarrollo
+    depends_on:
+      - mongo
+
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    container_name: taller-frontend-dev
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"  # Puerto diferente para desarrollo
+    environment:
+      - NGINX_PORT=80
+
+volumes:
+  mongo_data_dev:
+  uploads_data_dev:
