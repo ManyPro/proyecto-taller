@@ -29,9 +29,21 @@
   if (isLocal) backend = 'http://localhost:4000';
   if (stored) backend = stored;
 
-  // En Netlify (https) sin override: usa mismo origen para aprovechar el proxy /api/*
-  const isNetlify = /\.netlify\.app$/i.test(host);
-  if (!stored && isNetlify) backend = '';
+  // Configuración automática por entorno
+  if (!stored) {
+    // Localhost desarrollo
+    if (isLocal) {
+      backend = 'http://localhost:4001'; // Puerto de desarrollo
+    }
+    // Netlify (mantener compatibilidad)
+    else if (host.includes('.netlify.app')) {
+      backend = ''; // Usa proxy /api/*
+    }
+    // Otros dominios (producción)
+    else {
+      backend = ''; // Usa mismo origen
+    }
+  }
 
   window.BACKEND_URL = backend;
   window.API_BASE = backend;

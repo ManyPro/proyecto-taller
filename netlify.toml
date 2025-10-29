@@ -1,0 +1,32 @@
+# Configuración para Netlify - Entorno de desarrollo
+# Este archivo se usa cuando despliegas el branch 'develop' en Netlify
+
+[build]
+  publish = "Frontend"
+  command = "echo 'Frontend de desarrollo listo'"
+
+# Redirecciones para el API
+[[redirects]]
+  from = "/api/*"
+  to = "https://tu-backend-dev.onrender.com/api/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/uploads/*"
+  to = "https://tu-backend-dev.onrender.com/uploads/:splat"
+  status = 200
+
+# Headers de seguridad
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Headers específicos para archivos estáticos
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
