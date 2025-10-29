@@ -25,11 +25,7 @@ if ! command -v docker &> /dev/null; then
 fi
 
 # Verificar que Docker Compose esté instalado
-if ! command -v docker-compose &> /dev/null; then
-    echo "❌ Docker Compose no está instalado. Instalando..."
-    sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    sudo chmod +x /usr/local/bin/docker-compose
-fi
+echo "ℹ️ Usando Docker Compose V2 (docker compose)"
 
 # Crear archivo .env.dev si no existe
 if [ ! -f ".env.dev" ]; then
@@ -53,11 +49,11 @@ fi
 
 # Parar contenedores existentes
 echo "🛑 Parando contenedores existentes..."
-docker-compose -f docker-compose.dev.yml down
+docker compose -p taller-dev -f docker-compose.dev.yml down || true
 
 # Construir y levantar contenedores
 echo "🐳 Construyendo y levantando contenedores de desarrollo..."
-docker-compose -f docker-compose.dev.yml up --build -d
+docker compose -p taller-dev -f docker-compose.dev.yml up --build -d
 
 # Esperar a que los servicios estén listos
 echo "⏳ Esperando a que los servicios estén listos..."
@@ -65,7 +61,7 @@ sleep 10
 
 # Verificar estado de los contenedores
 echo "📊 Estado de los contenedores:"
-docker-compose -f docker-compose.dev.yml ps
+docker compose -p taller-dev -f docker-compose.dev.yml ps
 
 echo ""
 echo "✅ Entorno de desarrollo configurado!"
@@ -76,7 +72,7 @@ echo "   Backend:  http://localhost:4001"
 echo "   MongoDB:  localhost:27018"
 echo ""
 echo "📝 Comandos útiles:"
-echo "   Ver logs:     docker-compose -f docker-compose.dev.yml logs -f"
-echo "   Parar:        docker-compose -f docker-compose.dev.yml down"
-echo "   Reiniciar:    docker-compose -f docker-compose.dev.yml restart"
+echo "   Ver logs:     docker compose -p taller-dev -f docker-compose.dev.yml logs -f"
+echo "   Parar:        docker compose -p taller-dev -f docker-compose.dev.yml down"
+echo "   Reiniciar:    docker compose -p taller-dev -f docker-compose.dev.yml restart"
 echo "   Actualizar:   ./scripts/dev-update.sh"

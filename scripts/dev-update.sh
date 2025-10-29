@@ -15,20 +15,20 @@ echo "📥 Haciendo pull de los últimos cambios..."
 git pull origin develop
 
 # Parar contenedores existentes
-echo "🛑 Parando contenedores existentes..."
-docker-compose -f docker-compose.dev.yml down
+echo "🛑 Parando contenedores existentes (taller-dev)..."
+docker compose -p taller-dev -f docker-compose.dev.yml down || true
 
 # Construir y levantar contenedores con los cambios
-echo "🐳 Construyendo y levantando contenedores con los cambios..."
-docker-compose -f docker-compose.dev.yml up --build -d
+echo "🐳 Construyendo y levantando contenedores con los cambios (taller-dev)..."
+docker compose -p taller-dev -f docker-compose.dev.yml up --build -d
 
 # Esperar a que los servicios estén listos
 echo "⏳ Esperando a que los servicios estén listos..."
 sleep 5
 
 # Verificar estado de los contenedores
-echo "📊 Estado de los contenedores:"
-docker-compose -f docker-compose.dev.yml ps
+echo "📊 Estado de los contenedores (taller-dev):"
+docker compose -p taller-dev -f docker-compose.dev.yml ps
 
 echo ""
 echo "✅ Entorno de desarrollo actualizado!"
@@ -38,4 +38,4 @@ echo "   Frontend: http://localhost:8080"
 echo "   Backend:  http://localhost:4001"
 echo ""
 echo "📝 Para ver logs en tiempo real:"
-echo "   docker-compose -f docker-compose.dev.yml logs -f"
+echo "   docker compose -p taller-dev -f docker-compose.dev.yml logs -f"
