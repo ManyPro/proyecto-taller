@@ -15,6 +15,7 @@
     "purge:legacy:orders": "node scripts/purge_incomplete_legacy_sales.js",
     "check:profiles:dupes": "node scripts/check_profile_dupes.js",
     "seed:templates": "node scripts/seed_templates_production.js",
+    "seed:payroll": "node scripts/seed_payroll_defaults.js",
     "templates:normalize": "node scripts/normalize_templates_all_companies.js",
     "migrate:skus": "node scripts/migrate_skus_companyId.js",
     "migrate:features": "node scripts/migrate_company_features.js",

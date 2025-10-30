@@ -218,3 +218,42 @@ netstat -tulpn | grep :8080
 - Usa `env.dev.example` y `env.prod.example` como plantillas
 - Los scripts de deploy están en `scripts/`
 - La configuración de Render está en `render.yaml`
+
+---
+
+## Nómina y Técnicos - Guía rápida
+
+### Endpoints (backend)
+- Base: `/api/v1/payroll` (requiere `authCompany`; escritura solo `owner/admin`)
+- Conceptos: GET `/concepts`, POST `/concepts`, PATCH `/concepts/:id`, DELETE `/concepts/:id`
+- Asignaciones por técnico (por nombre): GET `/assignments?technicianName=...`, POST `/assignments`, DELETE `/assignments`
+- Períodos: GET `/periods/open`, POST `/periods`
+- Liquidaciones: POST `/settlements/preview`, POST `/settlements/approve`, POST `/settlements/pay`, GET `/settlements`, GET `/settlements/:id/pdf`
+
+### Frontend (desarrollo)
+- Página: `Frontend/nomina.html`
+- Funcionalidad: conceptos, asignaciones, períodos, liquidación, pago (flujo de caja), PDF básico.
+
+### Seed (opcional)
+```bash
+cd Backend
+npm ci --omit=dev
+npm run seed:payroll
+cd ..
+```
+
+### Flujo recomendado
+1) Crear/confirmar conceptos por empresa
+2) Crear período (semanal/quincenal/mensual)
+3) Asignar overrides por técnico si aplica
+4) Previsualizar y aprobar liquidación
+5) Pagar → registra salida en Flujo de Caja
+6) Descargar PDF (básico). Integración con plantillas en próxima fase.
+
+### Despliegue rápido
+```bash
+cd /root/proyecto-taller
+git checkout develop && git pull origin develop
+./scripts/dev-update.sh
+./scripts/dev-logs.sh
+```

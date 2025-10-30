@@ -29,6 +29,7 @@ import companyRouter from './routes/company.routes.js';
 import cashflowRouter from './routes/cashflow.routes.js';
 import templatesRouter from './routes/templates.routes.js';
 import notificationsRouter from './routes/notifications.routes.js';
+import payrollRouter from './routes/payroll.routes.js';
 import publicCatalogRouter from './routes/catalog.public.routes.js';
 import adminRouter from './routes/admin.routes.js';
 import adminCompanyRouter from './routes/admin.company.routes.js';
@@ -225,6 +226,7 @@ app.use('/api/v1/cashflow', authCompany, withCompanyDefaults, cashflowRouter);
 app.use('/api/v1/templates', authCompany, withCompanyDefaults, templatesRouter);
 app.use('/api/v1/notifications', authCompany, withCompanyDefaults, notificationsRouter);
 app.use('/api/v1/skus', authCompany, withCompanyDefaults, skusRouter);
+app.use('/api/v1/payroll', authCompany, withCompanyDefaults, payrollRouter);
 
 app.use((err, _req, res, _next) => {
   const isJsonParse = err?.type === 'entity.parse.failed' || (err instanceof SyntaxError && 'body' in err);
