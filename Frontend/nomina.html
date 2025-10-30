@@ -10,6 +10,16 @@
   <link rel="stylesheet" href="assets/css/components/cards.css" />
   <link rel="stylesheet" href="assets/css/components/buttons.css" />
   <link rel="stylesheet" href="assets/css/components/modals.css" />
+  <style>
+    /* Tabs internas de Nómina */
+    .payroll-tabs{background:var(--card);border:1px solid var(--border);padding:8px;border-radius:12px;}
+    .payroll-tabs button{border:1px solid rgba(148,163,184,.25);background:rgba(30,64,175,.15);color:var(--text);padding:8px 14px;border-radius:10px;cursor:pointer;transition:all .15s;margin:0 2px;}
+    .payroll-tabs button:hover{background:rgba(30,64,175,.25);box-shadow:0 8px 22px rgba(30,64,175,.25)}
+    .payroll-tabs button.active{background:var(--tab-bg-active);color:var(--tab-text-active);border-color:rgba(59,130,246,.55)}
+    /* Chips técnicos */
+    .chip{display:inline-flex;align-items:center;gap:6px;background:rgba(148,163,184,.12);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:999px;font-size:12px}
+    .chip .danger{margin-left:4px}
+  </style>
 </head>
 <body data-page="nomina">
   <div class="topbar hidden" id="appHeader">
