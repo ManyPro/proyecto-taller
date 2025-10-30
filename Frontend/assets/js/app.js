@@ -8,7 +8,6 @@ import { initQuotes } from "./quotes.js";
 import { API } from "./api.esm.js";
 import { initPrices } from "./prices.js";
 import { initSales } from "./sales.js";
-import { initTechReport } from "./techreport.js";
 import { initCashFlow } from "./cashflow.js";
 import { loadFeatureOptionsAndRestrictions, getFeatureOptions, getRestrictions, gateElement } from "./feature-gating.js";
 
@@ -168,8 +167,7 @@ const FEATURE_CATALOG = [
   { key: 'inventario', label: 'Inventario' },
   { key: 'precios', label: 'Lista de precios' },
   { key: 'cashflow', label: 'Flujo de Caja' },
-  { key: 'techreport', label: 'Reporte tecnico' },
-  { key: 'tecnicos', label: 'Tecnicos' },
+  { key: 'payroll', label: 'Nómina' },
   { key: 'templates', label: 'Formatos / Plantillas' },
   { key: 'skus', label: 'SKUs' }
 ];
@@ -213,7 +211,6 @@ const pageInitializers = {
   precios: () => initPrices(),
   ventas: () => initSales(),
   cashflow: () => initCashFlow(),
-  'reporte-tecnico': () => initTechReport(),
 };
 
 let pageBooted = false;
