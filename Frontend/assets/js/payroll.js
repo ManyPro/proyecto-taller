@@ -1,4 +1,5 @@
-import { api } from './api.esm.js';
+import API from './api.esm.js';
+const api = API;
 
 function el(id){ return document.getElementById(id); }
 function htmlEscape(s){ return (s||'').replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
@@ -52,6 +53,17 @@ async function loadTechnicians(){
   if (techSel) techSel.innerHTML = '<option value="">Seleccione técnico…</option>' + opts;
   const techSel2 = document.getElementById('pa-technicianSel');
   if (techSel2) techSel2.innerHTML = '<option value="">Seleccione técnico…</option>' + opts;
+  // render listado y permitir eliminar
+  const listEl = document.getElementById('tk-list');
+  if (listEl) {
+    listEl.innerHTML = names.map(n => `<span class="chip">${htmlEscape(n)} <button class="danger x-del" data-name="${htmlEscape(n)}">×</button></span>`).join('') || '<div class="muted">Sin técnicos</div>';
+    listEl.querySelectorAll('.x-del').forEach(btn => btn.addEventListener('click', async ()=>{
+      const name = btn.getAttribute('data-name');
+      if(!name) return;
+      await api.del('/api/v1/company/technicians/'+encodeURIComponent(name));
+      await loadTechnicians();
+    }));
+  }
 }
 
 async function loadOpenPeriods(){
@@ -175,11 +187,32 @@ function init(){
   el('pp-pay').addEventListener('click', pay);
   const btnCreate = document.getElementById('ppd-create');
   if (btnCreate) btnCreate.addEventListener('click', createPeriod);
+  const addTechBtn = document.getElementById('tk-add-btn');
+  if (addTechBtn) addTechBtn.addEventListener('click', createTechnician);
+  // Tabs internas
+  document.querySelectorAll('.payroll-tabs button[data-subtab]').forEach(b=>{
+    b.addEventListener('click', ()=> switchTab(b.dataset.subtab));
+  });
   loadConcepts();
   loadTechnicians();
   loadOpenPeriods();
   // Cargar listados al inicio
   setTimeout(loadSettlements, 0);
+  switchTab('concepts');
+}
+
+function switchTab(name){
+  document.querySelectorAll('.payroll-tabs button[data-subtab]').forEach(b=> b.classList.toggle('active', b.dataset.subtab===name));
+  document.querySelectorAll('[data-subsection]').forEach(sec=> sec.classList.toggle('hidden', sec.dataset.subsection!==name));
+}
+
+async function createTechnician(){
+  const input = document.getElementById('tk-add-name');
+  const name = (input?.value || '').trim();
+  if(!name) return alert('Ingresa un nombre de técnico');
+  await api.post('/api/v1/company/technicians', { name });
+  input.value='';
+  await loadTechnicians();
 }
 
 document.addEventListener('DOMContentLoaded', init);
