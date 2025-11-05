@@ -777,33 +777,211 @@ export const printSettlementHtml = async (req, res) => {
 };
 
 export const generateSettlementPdf = async (req, res) => {
-  const { id } = req.params;
-  const st = await PayrollSettlement.findOne({ _id: id, companyId: req.companyId });
-  if(!st) return res.status(404).json({ error: 'Settlement not found' });
-
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `inline; filename="comprobante_${String(st._id)}.pdf"`);
-
-  const doc = new PDFDocument({ size: 'A4', margin: 36 });
-  doc.pipe(res);
-  doc.fontSize(16).text('Comprobante de pago', { align: 'center' });
-  doc.moveDown(0.5);
-  doc.fontSize(10).text(`ID: ${String(st._id)}`);
-  doc.text(`Técnico: ${String(st.technicianName || st.technicianId || '')}`);
-  doc.text(`Periodo: ${String(st.periodId || '')}`);
-  doc.text(`Estado: ${st.status}`);
-  doc.moveDown();
-  doc.fontSize(12).text('Detalle', { underline: true });
-  doc.moveDown(0.5);
-  doc.fontSize(10);
-  (st.items||[]).forEach(i => {
-    doc.text(`${i.type.toUpperCase()} · ${i.name}  |  ${i.value}`);
-  });
-  doc.moveDown();
-  doc.fontSize(11).text(`Total bruto: ${st.grossTotal}`);
-  doc.text(`Total descuentos: ${st.deductionsTotal}`);
-  doc.text(`Neto a pagar: ${st.netTotal}`);
-  doc.end();
+  try {
+    const { id } = req.params;
+    const st = await PayrollSettlement.findOne({ _id: id, companyId: req.companyId }).populate('periodId');
+    if(!st) return res.status(404).json({ error: 'Settlement not found' });
+    
+    // Reutilizar la misma lógica de printSettlementHtml para obtener HTML
+    const [tpl, company, period] = await Promise.all([
+      Template.findOne({ companyId: req.companyId, type: 'payroll', active: true }).sort({ updatedAt: -1 }),
+      Company.findOne({ _id: req.companyId }),
+      PayrollPeriod.findOne({ _id: st.periodId, companyId: req.companyId })
+    ]);
+    
+    const settlementObj = st.toObject();
+    const periodObj = period ? period.toObject() : null;
+    
+    const itemsByType = {
+      earnings: (settlementObj.items || []).filter(i => i.type === 'earning'),
+      deductions: (settlementObj.items || []).filter(i => i.type === 'deduction'),
+      surcharges: (settlementObj.items || []).filter(i => i.type === 'surcharge')
+    };
+    
+    const context = {
+      company: {
+        name: company?.name || company?.email || '',
+        email: company?.email || '',
+        phone: company?.phone || '',
+        address: company?.address || '',
+        logoUrl: company?.logoUrl || ''
+      },
+      settlement: {
+        ...settlementObj,
+        itemsByType,
+        formattedGrossTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(settlementObj.grossTotal || 0),
+        formattedDeductionsTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(settlementObj.deductionsTotal || 0),
+        formattedNetTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(settlementObj.netTotal || 0)
+      },
+      period: periodObj ? {
+        ...periodObj,
+        formattedStartDate: period.startDate ? new Date(period.startDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '',
+        formattedEndDate: period.endDate ? new Date(period.endDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '',
+        periodTypeLabel: periodObj.periodType === 'monthly' ? 'Mensual' : periodObj.periodType === 'biweekly' ? 'Quincenal' : periodObj.periodType === 'weekly' ? 'Semanal' : periodObj.periodType
+      } : null,
+      now: new Date(),
+      formattedNow: new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    };
+    
+    let html = '';
+    let css = '';
+    if (tpl) {
+      ensureHB();
+      try {
+        html = Handlebars.compile(tpl.contentHtml||'')(context);
+        css = tpl.contentCss || '';
+      } catch(e){ 
+        console.error('Template error:', e);
+        // Fallback si hay error en template
+      }
+    }
+    
+    // Si no hay template o hubo error, usar fallback
+    if (!html) {
+      const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
+      const earningsRows = itemsByType.earnings.map(i => `<tr><td>${i.name}</td><td style="text-align:right">${formatMoney(i.value)}</td></tr>`).join('');
+      const deductionsRows = itemsByType.deductions.map(i => `<tr><td>${i.name}</td><td style="text-align:right">${formatMoney(i.value)}</td></tr>`).join('');
+      const surchargesRows = itemsByType.surcharges.map(i => `<tr><td>${i.name}</td><td style="text-align:right">${formatMoney(i.value)}</td></tr>`).join('');
+      const periodRange = periodObj ? `${new Date(periodObj.startDate).toLocaleDateString('es-CO')} → ${new Date(periodObj.endDate).toLocaleDateString('es-CO')}` : '';
+      
+      html = `
+        <div style="max-width:800px;margin:0 auto;padding:20px;font-family:Arial,sans-serif;">
+          <h2 style="text-align:center;margin-bottom:20px;">Comprobante de Pago de Nómina</h2>
+          <div style="margin-bottom:20px;">
+            <div><strong>Empresa:</strong> ${context.company.name}</div>
+            <div><strong>Técnico:</strong> ${settlementObj.technicianName||''}</div>
+            ${periodRange ? `<div><strong>Período:</strong> ${periodRange}</div>` : ''}
+            <div><strong>Fecha de liquidación:</strong> ${context.formattedNow}</div>
+          </div>
+          ${earningsRows ? `
+            <h3 style="margin-top:20px;margin-bottom:10px;">Ingresos</h3>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+              <thead>
+                <tr style="background:#f0f0f0;">
+                  <th style="text-align:left;padding:8px;border-bottom:2px solid #ddd;">Concepto</th>
+                  <th style="text-align:right;padding:8px;border-bottom:2px solid #ddd;">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${earningsRows}
+              </tbody>
+            </table>
+          ` : ''}
+          ${surchargesRows ? `
+            <h3 style="margin-top:20px;margin-bottom:10px;">Recargos</h3>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+              <thead>
+                <tr style="background:#f0f0f0;">
+                  <th style="text-align:left;padding:8px;border-bottom:2px solid #ddd;">Concepto</th>
+                  <th style="text-align:right;padding:8px;border-bottom:2px solid #ddd;">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${surchargesRows}
+              </tbody>
+            </table>
+          ` : ''}
+          ${deductionsRows ? `
+            <h3 style="margin-top:20px;margin-bottom:10px;">Descuentos</h3>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+              <thead>
+                <tr style="background:#f0f0f0;">
+                  <th style="text-align:left;padding:8px;border-bottom:2px solid #ddd;">Concepto</th>
+                  <th style="text-align:right;padding:8px;border-bottom:2px solid #ddd;">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${deductionsRows}
+              </tbody>
+            </table>
+          ` : ''}
+          <div style="margin-top:30px;padding-top:20px;border-top:2px solid #333;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+              <strong>Total bruto:</strong>
+              <strong>${formatMoney(settlementObj.grossTotal)}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+              <strong>Total descuentos:</strong>
+              <strong>${formatMoney(settlementObj.deductionsTotal)}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding-top:10px;border-top:1px solid #ddd;font-size:18px;">
+              <strong>Neto a pagar:</strong>
+              <strong style="color:#10b981;">${formatMoney(settlementObj.netTotal)}</strong>
+            </div>
+          </div>
+        </div>`;
+      css = `table td{border-bottom:1px solid #ddd;padding:8px}`;
+    }
+    
+    // Generar PDF usando PDFKit con HTML renderizado
+    // Por ahora, redirigir al HTML print con parámetro para descarga PDF
+    // TODO: Implementar conversión HTML a PDF con puppeteer si es necesario
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="comprobante_nomina_${String(st._id)}.pdf"`);
+    
+    // Por ahora usar PDFKit básico mejorado
+    const doc = new PDFDocument({ size: 'A4', margin: 36 });
+    doc.pipe(res);
+    
+    // Título
+    doc.fontSize(18).font('Helvetica-Bold').text('COMPROBANTE DE PAGO DE NÓMINA', { align: 'center' });
+    doc.moveDown(1);
+    
+    // Información de empresa y técnico
+    doc.fontSize(10).font('Helvetica');
+    doc.text(`Empresa: ${context.company.name}`, { align: 'left' });
+    doc.text(`Técnico: ${settlementObj.technicianName||''}`, { align: 'left' });
+    if (periodObj) {
+      doc.text(`Período: ${context.period.formattedStartDate} → ${context.period.formattedEndDate}`, { align: 'left' });
+    }
+    doc.text(`Fecha de liquidación: ${context.formattedNow}`, { align: 'left' });
+    doc.moveDown(1);
+    
+    // Items
+    if (itemsByType.earnings.length > 0) {
+      doc.fontSize(12).font('Helvetica-Bold').text('INGRESOS', { underline: true });
+      doc.moveDown(0.3);
+      doc.fontSize(10).font('Helvetica');
+      itemsByType.earnings.forEach(i => {
+        doc.text(`${i.name.padEnd(40)} ${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(i.value)}`, { align: 'left' });
+      });
+      doc.moveDown(0.5);
+    }
+    
+    if (itemsByType.surcharges.length > 0) {
+      doc.fontSize(12).font('Helvetica-Bold').text('RECARGOS', { underline: true });
+      doc.moveDown(0.3);
+      doc.fontSize(10).font('Helvetica');
+      itemsByType.surcharges.forEach(i => {
+        doc.text(`${i.name.padEnd(40)} ${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(i.value)}`, { align: 'left' });
+      });
+      doc.moveDown(0.5);
+    }
+    
+    if (itemsByType.deductions.length > 0) {
+      doc.fontSize(12).font('Helvetica-Bold').text('DESCUENTOS', { underline: true });
+      doc.moveDown(0.3);
+      doc.fontSize(10).font('Helvetica');
+      itemsByType.deductions.forEach(i => {
+        doc.text(`${i.name.padEnd(40)} ${new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(i.value)}`, { align: 'left' });
+      });
+      doc.moveDown(1);
+    }
+    
+    // Totales
+    doc.moveDown(0.5);
+    doc.fontSize(11).font('Helvetica');
+    doc.text(`Total bruto: ${context.settlement.formattedGrossTotal}`, { align: 'right' });
+    doc.text(`Total descuentos: ${context.settlement.formattedDeductionsTotal}`, { align: 'right' });
+    doc.moveDown(0.3);
+    doc.fontSize(14).font('Helvetica-Bold');
+    doc.text(`Neto a pagar: ${context.settlement.formattedNetTotal}`, { align: 'right' });
+    
+    doc.end();
+  } catch (err) {
+    console.error('Error in generateSettlementPdf:', err);
+    res.status(500).json({ error: 'Error al generar PDF', message: err.message });
+  }
 };
 
 

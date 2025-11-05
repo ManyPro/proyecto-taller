@@ -2597,17 +2597,67 @@
     const varList = qs('#var-list');
     if (!varList) return;
 
+    // Obtener el tipo de documento actual
+    const templateType = window.currentTemplateSession?.type || new URLSearchParams(window.location.search).get('type') || 'invoice';
+
     // Create user-friendly variable interface
-    const html = `
+    let html = `
       <div style="margin-bottom: 20px;">
         <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">📋 Información de la Empresa</h4>
         ${createFriendlyButtons([
           { label: 'Nombre de mi taller', icon: '🏢', value: '{{company.name}}' },
           { label: 'Mi dirección', icon: '📍', value: '{{company.address}}' },
-          { label: 'Mi teléfono', icon: '📞', value: '{{company.phone}}' }
+          { label: 'Mi teléfono', icon: '📞', value: '{{company.phone}}' },
+          { label: 'Mi email', icon: '📧', value: '{{company.email}}' },
+          { label: 'URL del logo', icon: '🖼️', value: '{{company.logoUrl}}' }
+        ])}
+      </div>`;
+
+    // Variables específicas según el tipo de documento
+    if (templateType === 'payroll') {
+      html += `
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">💰 Datos de Liquidación de Nómina</h4>
+        ${createFriendlyButtons([
+          { label: 'Nombre del técnico', icon: '👤', value: '{{settlement.technicianName}}' },
+          { label: 'Fecha de liquidación', icon: '📅', value: '{{date now}}' },
+          { label: 'Estado de liquidación', icon: '📊', value: '{{settlement.status}}' }
         ])}
       </div>
 
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">📅 Período de Liquidación</h4>
+        ${createFriendlyButtons([
+          { label: 'Fecha inicio período', icon: '📅', value: '{{period.formattedStartDate}}' },
+          { label: 'Fecha fin período', icon: '📅', value: '{{period.formattedEndDate}}' },
+          { label: 'Tipo de período', icon: '📆', value: '{{period.periodTypeLabel}}' }
+        ])}
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">💵 Totales de Liquidación</h4>
+        ${createFriendlyButtons([
+          { label: 'Total bruto', icon: '💰', value: '{{settlement.formattedGrossTotal}}' },
+          { label: 'Total descuentos', icon: '📉', value: '{{settlement.formattedDeductionsTotal}}' },
+          { label: 'Neto a pagar', icon: '💵', value: '{{settlement.formattedNetTotal}}' }
+        ])}
+      </div>
+
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">📋 Items de Liquidación</h4>
+        <div style="background: #fff3cd; padding: 10px; border-radius: 6px; border: 1px solid #ffc107; margin-bottom: 8px;">
+          <small style="color: #856404; font-size: 11px;">💡 Estos loops muestran los items agrupados por tipo</small>
+        </div>
+        ${createFriendlyButtons([
+          { label: 'Lista de ingresos', icon: '📈', value: '{{#each settlement.itemsByType.earnings}}\n• {{name}}: {{money value}}\n{{/each}}', multiline: true },
+          { label: 'Lista de descuentos', icon: '📉', value: '{{#each settlement.itemsByType.deductions}}\n• {{name}}: {{money value}}\n{{/each}}', multiline: true },
+          { label: 'Lista de recargos', icon: '⚡', value: '{{#each settlement.itemsByType.surcharges}}\n• {{name}}: {{money value}}\n{{/each}}', multiline: true },
+          { label: 'Tabla de ingresos', icon: '📊', value: '{{#each settlement.itemsByType.earnings}}\n<tr><td>{{name}}</td><td>{{money value}}</td></tr>\n{{/each}}', multiline: true },
+          { label: 'Tabla de descuentos', icon: '📊', value: '{{#each settlement.itemsByType.deductions}}\n<tr><td>{{name}}</td><td>{{money value}}</td></tr>\n{{/each}}', multiline: true }
+        ])}
+      </div>`;
+    } else {
+      html += `
       <div style="margin-bottom: 20px;">
         <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">💰 Datos de Venta/Factura</h4>
         ${createFriendlyButtons([
@@ -2641,16 +2691,20 @@
           { label: 'Técnico asignado', icon: '👨‍🔧', value: '{{workOrder.technician}}' },
           { label: 'Problema reportado', icon: '⚠️', value: '{{workOrder.problemDescription}}' }
         ])}
-      </div>
+      </div>`;
+    }
 
+    html += `
       <div style="margin-bottom: 20px;">
-  <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">👤 Datos del Cliente</h4>
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">👤 Datos del Cliente</h4>
         ${createFriendlyButtons([
           { label: 'Nombre del cliente', icon: '👤', value: '{{sale.customerName || quote.customerName || workOrder.customerName}}' },
           { label: 'Teléfono del cliente', icon: '📱', value: '{{sale.customerPhone || quote.customerPhone || workOrder.customerPhone}}' }
         ])}
-      </div>
+      </div>`;
 
+    if (templateType !== 'payroll') {
+      html += `
       <div style="margin-bottom: 20px;">
         <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">🚗 Datos del Vehículo</h4>
         ${createFriendlyButtons([

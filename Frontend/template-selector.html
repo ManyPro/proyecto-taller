@@ -115,6 +115,12 @@
           <h3>Sticker: Marca + QR</h3>
           <p>Etiqueta con logo/marca y QR</p>
         </div>
+
+        <div class="document-type-card" data-type="payroll">
+          <div class="icon">💰</div>
+          <h3>Nómina</h3>
+          <p>Comprobante de pago de nómina para técnicos</p>
+        </div>
       </div>
 
       <!-- Formats Section -->
@@ -208,6 +214,17 @@
               <option value="">Cargando formatos...</option>
             </select>
             <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">Se usará para imprimir stickers con marca y QR</p>
+          </div>
+
+          <div class="format-config-card" data-type="payroll">
+            <h4 style="margin: 0 0 15px 0; color: #333; display: flex; align-items: center; gap: 8px;">
+              <span>💰</span>
+              <span>Formato de Nómina Activo</span>
+            </h4>
+            <select id="active-payroll-format" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px;">
+              <option value="">Cargando formatos...</option>
+            </select>
+            <p style="margin: 10px 0 0 0; font-size: 12px; color: #666;">Este formato se usará para imprimir comprobantes de nómina</p>
           </div>
         </div>
       </div>
@@ -376,7 +393,8 @@
         'workOrder': 'Formatos de Orden de Trabajo',
         'sticker': 'Formatos de Stickers',
         'sticker-qr': 'Formatos: Sticker Solo QR',
-        'sticker-brand': 'Formatos: Sticker Marca + QR'
+        'sticker-brand': 'Formatos: Sticker Marca + QR',
+        'payroll': 'Formatos de Nómina'
       };
       document.getElementById('formats-title').textContent = titles[selectedDocumentType];
       
@@ -595,7 +613,7 @@
     async function loadActiveFormats() {
       console.log('🔄 Cargando formatos activos...');
       
-  const documentTypes = ['invoice', 'quote', 'workOrder', 'sticker-qr', 'sticker-brand'];
+  const documentTypes = ['invoice', 'quote', 'workOrder', 'sticker-qr', 'sticker-brand', 'payroll'];
       
       for (const type of documentTypes) {
         try {
@@ -673,7 +691,8 @@
         'quote': 'Cotización', 
         'workOrder': 'Orden de Trabajo',
         'sticker-qr': 'Sticker Solo QR',
-        'sticker-brand': 'Sticker con Marca'
+        'sticker-brand': 'Sticker con Marca',
+        'payroll': 'Nómina'
       };
       return names[type] || type;
     }
@@ -684,7 +703,8 @@
         'quote': 'Cotizaciones', 
         'workOrder': 'Órdenes de Trabajo',
         'sticker-qr': 'Stickers (Solo QR)',
-        'sticker-brand': 'Stickers (Marca + QR)'
+        'sticker-brand': 'Stickers (Marca + QR)',
+        'payroll': 'Nóminas'
       };
       return names[type] || type;
     }
@@ -709,7 +729,8 @@
         'quote': '💰',
         'workOrder': '🔧',
         'sticker-qr': '🏷️',
-        'sticker-brand': '🏷️'
+        'sticker-brand': '🏷️',
+        'payroll': '💰'
       };
       
       modalTitle.textContent = `🎨 Crear Nuevo ${documentTypeName}`;

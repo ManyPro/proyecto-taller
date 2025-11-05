@@ -1220,7 +1220,7 @@ async function loadSettlements(){
       // Obtener API_BASE para los enlaces
       const apiBase = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
       const printUrl = `${apiBase}/api/v1/payroll/settlements/${s._id}/print`;
-      const pdfUrl = `${apiBase}/api/v1/payroll/settlements/${s._id}/pdf`;
+      const settlementId = s._id;
       
       return `<div class="settlement-row" style="padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--card);transition:all 0.2s;">
         <div class="row between" style="align-items:center;flex-wrap:wrap;gap:8px;">
@@ -1247,9 +1247,9 @@ async function loadSettlements(){
               <a href="${printUrl}" target="_blank" style="padding:6px 12px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);text-decoration:none;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(59,130,246,0.1)'" onmouseout="this.style.background='var(--bg)'" title="Imprimir con template configurado">
                 🖨️ Imprimir
               </a>
-              <a href="${pdfUrl}" target="_blank" style="padding:6px 12px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);text-decoration:none;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background='var(--bg)'" title="Descargar PDF básico">
+              <button data-settlement-id="${settlementId}" class="pdf-download-btn" style="padding:6px 12px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background='var(--bg)'" title="Descargar PDF">
                 📄 PDF
-              </a>
+              </button>
             </div>
           </div>
         </div>
@@ -1306,6 +1306,90 @@ async function loadSettlements(){
       container.innerHTML = `<div style="padding:12px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:13px;">
         ❌ Error al cargar liquidaciones: ${htmlEscape(err.message || 'Error desconocido')}
       </div>`;
+    }
+  }
+}
+
+async function downloadSettlementPdf(settlementId, button) {
+  if (!settlementId) {
+    alert('❌ ID de liquidación no válido');
+    return;
+  }
+  
+  const originalText = button?.textContent || '';
+  const originalDisabled = button?.disabled;
+  
+  try {
+    // Deshabilitar botón durante la descarga
+    if (button) {
+      button.disabled = true;
+      button.textContent = '⏳ Descargando...';
+    }
+    
+    // Obtener token y API base
+    const apiBase = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
+    const token = api.token.get();
+    
+    if (!token) {
+      alert('❌ No hay sesión activa. Por favor, inicia sesión nuevamente.');
+      return;
+    }
+    
+    // Fetch PDF con autenticación
+    const response = await fetch(`${apiBase}/api/v1/payroll/settlements/${settlementId}/pdf`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      let errorMsg = `HTTP ${response.status}`;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMsg = errorJson.error || errorMsg;
+      } catch {
+        errorMsg = errorText || errorMsg;
+      }
+      throw new Error(errorMsg);
+    }
+    
+    // Obtener blob del PDF
+    const blob = await response.blob();
+    
+    // Crear URL temporal y abrir en nueva ventana
+    const blobUrl = URL.createObjectURL(blob);
+    const newWindow = window.open(blobUrl, '_blank');
+    
+    if (!newWindow) {
+      // Si el popup fue bloqueado, intentar descargar directamente
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `liquidacion-${settlementId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+    
+    // Limpiar URL después de un tiempo
+    setTimeout(() => {
+      URL.revokeObjectURL(blobUrl);
+    }, 10000);
+    
+    // Restaurar botón
+    if (button) {
+      button.textContent = originalText;
+      button.disabled = originalDisabled;
+    }
+  } catch (err) {
+    console.error('Error downloading PDF:', err);
+    alert('❌ Error al descargar PDF: ' + (err.message || 'Error desconocido'));
+    
+    // Restaurar botón
+    if (button) {
+      button.textContent = originalText;
+      button.disabled = originalDisabled;
     }
   }
 }
@@ -1500,6 +1584,17 @@ function init(){
   if (btnCreate) btnCreate.addEventListener('click', createPeriod);
   const addTechBtn = document.getElementById('tk-add-btn');
   if (addTechBtn) addTechBtn.addEventListener('click', createTechnician);
+  
+  // Event delegation para botones de PDF (se crean dinámicamente)
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.pdf-download-btn');
+    if (!btn) return;
+    const settlementId = btn.getAttribute('data-settlement-id');
+    if (!settlementId) return;
+    e.preventDefault();
+    await downloadSettlementPdf(settlementId, btn);
+  });
+  
   // Tabs internas
   document.querySelectorAll('.payroll-tabs button[data-subtab]').forEach(b=>{
     b.addEventListener('click', ()=> switchTab(b.dataset.subtab));
