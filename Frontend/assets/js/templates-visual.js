@@ -4748,11 +4748,15 @@
         minute: '2-digit'
       });
       
+      // Prepare variables for template string to avoid syntax issues
+      const docTypeName = getDocumentTypeName(templateType);
+      const companyName = company;
+      
       const previewHTML = `
         <!DOCTYPE html>
         <html lang="es">
           <head>
-            <title>Vista Previa PDF - ${getDocumentTypeName(templateType)} | ${company}</title>
+            <title>Vista Previa PDF - ${docTypeName} | ${companyName}</title>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
@@ -4925,8 +4929,8 @@
             <div class="preview-header">
               <div class="header-left">
                 <div class="header-title">📄 Vista Previa PDF</div>
-                <div class="header-info">${getDocumentTypeName(templateType)}</div>
-                <div class="header-info">${company}</div>
+                <div class="header-info">${docTypeName}</div>
+                <div class="header-info">${companyName}</div>
                 <div class="header-info">${currentDate}</div>
               </div>
               <div class="header-buttons">
@@ -4975,7 +4979,7 @@
               });
               
               window.addEventListener('afterprint', function() {
-                document.title = 'Vista Previa PDF - ${getDocumentTypeName(templateType)} | ${company}';
+                document.title = 'Vista Previa PDF - ${docTypeName} | ${companyName}';
               });
             </script>
           </body>
