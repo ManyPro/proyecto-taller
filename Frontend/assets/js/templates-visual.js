@@ -4951,7 +4951,11 @@
             <script>
               console.log('📊 Vista previa generada exitosamente');
               console.log('🔧 Tipo de plantilla:', '${templateType}');
-              console.log('📋 Contexto de datos:', ${JSON.stringify((result && result.context) || {}, null, 2)});
+              try {
+                console.log('📋 Contexto de datos:', ${JSON.stringify((result && result.context) || {})});
+              } catch (e) {
+                console.log('📋 Contexto de datos: [error al serializar]');
+              }
               
               // Add keyboard shortcuts
               document.addEventListener('keydown', function(e) {
@@ -4997,6 +5001,13 @@
     }
   }
 
+  // Make functions globally available for button onclick handlers
+  // These must be defined after the functions are declared
+  window.saveTemplateToBackend = saveTemplateAndReturn;
+  window.previewWithRealData = previewTemplateEnhanced;
+  window.saveTemplateAndReturn = saveTemplateAndReturn;
+  window.previewTemplateEnhanced = previewTemplateEnhanced;
+
   // Global error handler
   window.addEventListener('error', function(event) {
     const isProduction = window.IS_PRODUCTION || false;
@@ -5034,11 +5045,5 @@
     
     event.preventDefault();
   });
-
-  // Make functions globally available for button onclick handlers
-  window.saveTemplateToBackend = saveTemplateAndReturn;
-  window.previewWithRealData = previewTemplateEnhanced;
-  window.saveTemplateAndReturn = saveTemplateAndReturn;
-  window.previewTemplateEnhanced = previewTemplateEnhanced;
 
 })();
