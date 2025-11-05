@@ -1738,460 +1738,230 @@
   }
 
   function createInvoiceTemplate(canvas) {
-    // Clear placeholder text
+    // Clear canvas
     canvas.innerHTML = '';
-
-    // Create individual editable elements for invoice
     
-    // 1. Header - Title and number
-    const headerTitle = createEditableElement('title', 'FACTURA', {
-      position: { left: 300, top: 30 },
-      styles: { fontSize: '32px', fontWeight: 'bold', color: '#2563eb', textAlign: 'center' }
-    });
-    canvas.appendChild(headerTitle);
-
-    const invoiceNumber = createEditableElement('text', '{{sale.number}}', {
-      position: { left: 280, top: 80 },
-      styles: { fontSize: '18px', color: '#666', textAlign: 'center' }
-    });
-    canvas.appendChild(invoiceNumber);
-
-    // 2. Company info (left side)
-    const companyTitle = createEditableElement('text', '{{company.name}}', {
-      position: { left: 30, top: 140 },
-      styles: { fontSize: '18px', fontWeight: 'bold', color: '#2563eb' }
-    });
-    canvas.appendChild(companyTitle);
-
-    const companyAddress = createEditableElement('text', '{{company.address}}', {
-      position: { left: 30, top: 170 },
-      styles: { fontSize: '14px', color: '#666' }
-    });
-    canvas.appendChild(companyAddress);
-
-    const companyPhone = createEditableElement('text', 'Tel: {{company.phone}}', {
-      position: { left: 30, top: 195 },
-      styles: { fontSize: '14px', color: '#666' }
-    });
-    canvas.appendChild(companyPhone);
-
-    // 3. Customer info (right side)
-    const customerLabel = createEditableElement('text', 'CLIENTE:', {
-      position: { left: 500, top: 140 },
-      styles: { fontSize: '16px', fontWeight: 'bold', color: '#333' }
-    });
-    canvas.appendChild(customerLabel);
-
-    const customerName = createEditableElement('text', '{{sale.customerName}}', {
-      position: { left: 500, top: 170 },
-      styles: { fontSize: '14px', fontWeight: 'bold' }
-    });
-    canvas.appendChild(customerName);
-
-    const saleDate = createEditableElement('text', 'Fecha: {{date sale.date}}', {
-      position: { left: 500, top: 195 },
-      styles: { fontSize: '14px', color: '#666' }
-    });
-    canvas.appendChild(saleDate);
-
-    // 4. Vehicle info section
-    const vehicleSection = createEditableElement('text', 'VEHÍCULO: {{sale.vehicle.plate}} - {{sale.vehicle.brand}}', {
-      position: { left: 30, top: 250 },
-      styles: { 
-        fontSize: '14px', 
-        backgroundColor: '#f8f9fa', 
-        padding: '15px', 
-        borderRadius: '8px',
-        border: '1px solid #e9ecef',
-        width: '700px'
-      }
-    });
-    canvas.appendChild(vehicleSection);
-
-    // 5. Items table + flowing totals block (single container so totals follow the table)
-    const itemsTableBlock = document.createElement('div');
-    itemsTableBlock.className = 'tpl-element items-table';
-    itemsTableBlock.id = `element_${visualEditor.nextId++}`;
-    itemsTableBlock.style.cssText = `
+    // Fondo beige claro (como en la imagen)
+    canvas.style.backgroundColor = '#f5f5f0';
+    
+    // 1. HEADER - Título "FACTURA" + Nº en caja + Logo
+    const headerContainer = document.createElement('div');
+    headerContainer.className = 'tpl-element';
+    headerContainer.id = `element_${visualEditor.nextId++}`;
+    headerContainer.style.cssText = `
       position: absolute;
-      left: 30px;
-      top: 320px;
+      left: 40px;
+      top: 30px;
       width: 700px;
-      background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      padding: 10px;
+      height: 80px;
       cursor: move;
     `;
-    itemsTableBlock.innerHTML = `
-      <style>
-        .doc-table { width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; }
-        .doc-table thead th { background: #2563eb; color: #fff; }
-        .doc-table th, .doc-table td { border: 1px solid #ddd; padding: 10px; }
-        .doc-table td.t-right { text-align: right; }
-        .doc-table td.t-center { text-align: center; }
-        thead { display: table-header-group; }
-        tfoot { display: table-footer-group; }
-        tr { page-break-inside: avoid; }
-        .totals { margin-top: 12px; display: flex; justify-content: flex-end; }
-        .totals-inner { min-width: 320px; }
-        .totals-row { display: flex; justify-content: space-between; padding: 4px 0; }
-        .totals-total { font-weight: 700; font-size: 16px; color: #2563eb; border-top: 1px solid #ddd; margin-top: 6px; padding-top: 6px; }
-      </style>
-      <table class="doc-table">
+    headerContainer.innerHTML = `
+      <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+        <div>
+          <h1 style="margin: 0; font-size: 48px; font-weight: bold; color: #333; font-family: Arial, sans-serif; letter-spacing: 2px;">FACTURA</h1>
+          <div style="margin-top: 8px; padding: 8px 16px; border: 2px solid #333; display: inline-block; background: #fff;">
+            <span style="font-size: 16px; font-weight: bold;">Nº: </span>
+            <span contenteditable="true" style="font-size: 16px; font-weight: bold;">{{pad sale.number 2}}</span>
+          </div>
+        </div>
+        <div style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center;">
+          <svg width="60" height="60" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 20 50 L 30 40 L 30 20 L 50 20 L 50 30 L 70 30 L 70 50 L 80 50 L 80 70 L 70 70 L 70 80 L 50 80 L 50 70 L 30 70 L 30 60 L 20 50 Z" 
+                  fill="#2563eb" stroke="#1e40af" stroke-width="2" stroke-linejoin="round"/>
+            <circle cx="50" cy="50" r="8" fill="#fff"/>
+            <path d="M 35 50 L 45 50 M 55 50 L 65 50" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+          </svg>
+        </div>
+      </div>
+    `;
+    makeDraggable(headerContainer);
+    makeSelectable(headerContainer);
+    canvas.appendChild(headerContainer);
+    visualEditor.elements.push({ id: headerContainer.id, type: 'header', element: headerContainer });
+
+    // 2. SECCIÓN DATOS - Cliente (izquierda) y Empresa (derecha)
+    const datosSection = document.createElement('div');
+    datosSection.className = 'tpl-element';
+    datosSection.id = `element_${visualEditor.nextId++}`;
+    datosSection.style.cssText = `
+      position: absolute;
+      left: 40px;
+      top: 140px;
+      width: 700px;
+      cursor: move;
+    `;
+    datosSection.innerHTML = `
+      <div style="display: flex; gap: 20px; border-bottom: 1px solid #ddd; padding-bottom: 20px;">
+        <!-- Datos del Cliente -->
+        <div style="flex: 1;">
+          <h3 style="margin: 0 0 12px 0; font-size: 14px; font-weight: bold; color: #333; text-transform: uppercase;">DATOS DEL CLIENTE</h3>
+          <div style="font-size: 13px; line-height: 1.8; color: #333;">
+            <div><strong>Nombre:</strong> <span contenteditable="true">{{sale.customerName}}</span></div>
+            <div><strong>Email:</strong> <span contenteditable="true">{{sale.customerEmail}}</span></div>
+            <div><strong>Teléfono:</strong> <span contenteditable="true">{{sale.customerPhone}}</span></div>
+            <div><strong>Dirección:</strong> <span contenteditable="true">{{sale.customerAddress}}</span></div>
+          </div>
+        </div>
+        
+        <!-- Línea divisoria -->
+        <div style="width: 1px; background: #ddd; margin: 0 10px;"></div>
+        
+        <!-- Datos de la Empresa -->
+        <div style="flex: 1;">
+          <h3 style="margin: 0 0 12px 0; font-size: 14px; font-weight: bold; color: #333; text-transform: uppercase;">DATOS DE LA EMPRESA</h3>
+          <div style="font-size: 13px; line-height: 1.8; color: #333;">
+            <div><strong>Nombre:</strong> <span contenteditable="true">{{company.name}}</span></div>
+            <div><strong>Email:</strong> <span contenteditable="true">{{company.email}}</span></div>
+            <div><strong>Teléfono:</strong> <span contenteditable="true">{{company.phone}}</span></div>
+            <div><strong>Dirección:</strong> <span contenteditable="true">{{company.address}}</span></div>
+          </div>
+        </div>
+      </div>
+    `;
+    makeDraggable(datosSection);
+    makeSelectable(datosSection);
+    canvas.appendChild(datosSection);
+    visualEditor.elements.push({ id: datosSection.id, type: 'datos-section', element: datosSection });
+
+    // 3. TABLA DE SERVICIOS
+    const itemsTable = document.createElement('div');
+    itemsTable.className = 'tpl-element items-table';
+    itemsTable.id = `element_${visualEditor.nextId++}`;
+    itemsTable.style.cssText = `
+      position: absolute;
+      left: 40px;
+      top: 280px;
+      width: 700px;
+      cursor: move;
+    `;
+    itemsTable.innerHTML = `
+      <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; background: #fff;">
         <thead>
-          <tr>
-            <th style="text-align:left; width: 80px;" contenteditable="true">Cant.</th>
-            <th style="text-align:left;" contenteditable="true">Descripción</th>
-            <th style="text-align:right; width: 120px;" contenteditable="true">Precio Unit.</th>
-            <th style="text-align:right; width: 120px;" contenteditable="true">Total</th>
+          <tr style="background: #f8f8f8; border-bottom: 2px solid #ddd;">
+            <th style="padding: 12px; text-align: left; font-weight: bold; font-size: 13px; color: #333; border-bottom: 1px solid #ddd;">Detalle</th>
+            <th style="padding: 12px; text-align: center; font-weight: bold; font-size: 13px; color: #333; border-bottom: 1px solid #ddd; width: 100px;">Cantidad</th>
+            <th style="padding: 12px; text-align: right; font-weight: bold; font-size: 13px; color: #333; border-bottom: 1px solid #ddd; width: 120px;">Precio</th>
+            <th style="padding: 12px; text-align: right; font-weight: bold; font-size: 13px; color: #333; border-bottom: 1px solid #ddd; width: 120px;">Total</th>
           </tr>
         </thead>
         <tbody>
           {{#each sale.items}}
-          <tr>
-            <td class="t-center">{{qty}}</td>
-            <td>{{description}}</td>
-            <td class="t-right">{{money unitPrice}}</td>
-            <td class="t-right"><strong>{{money total}}</strong></td>
+          <tr style="border-bottom: 1px solid #eee;">
+            <td style="padding: 12px; font-size: 13px; color: #333;">{{description}}</td>
+            <td style="padding: 12px; text-align: center; font-size: 13px; color: #333;">{{qty}}</td>
+            <td style="padding: 12px; text-align: right; font-size: 13px; color: #333;">{{money unitPrice}}</td>
+            <td style="padding: 12px; text-align: right; font-size: 13px; color: #333; font-weight: 600;">{{money total}}</td>
           </tr>
           {{/each}}
         </tbody>
       </table>
-      <div class="totals">
-        <div class="totals-inner">
-          <div class="totals-row"><span>Subtotal:</span><span>{{money sale.subtotal}}</span></div>
-          <div class="totals-row"><span>IVA (16%):</span><span>{{money sale.tax}}</span></div>
-          <div class="totals-row totals-total"><span>TOTAL:</span><span>{{money sale.total}}</span></div>
+    `;
+    makeDraggable(itemsTable);
+    makeSelectable(itemsTable);
+    canvas.appendChild(itemsTable);
+    visualEditor.elements.push({ id: itemsTable.id, type: 'items-table', element: itemsTable });
+
+    // 4. RESUMEN - IVA y TOTAL
+    const summarySection = document.createElement('div');
+    summarySection.className = 'tpl-element';
+    summarySection.id = `element_${visualEditor.nextId++}`;
+    summarySection.style.cssText = `
+      position: absolute;
+      left: 500px;
+      top: 480px;
+      width: 240px;
+      cursor: move;
+    `;
+    summarySection.innerHTML = `
+      <div style="font-size: 13px; line-height: 2;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+          <span style="color: #333;">IVA</span>
+          <span style="color: #333; margin: 0 10px;">21%</span>
+          <span style="color: #333; font-weight: 600;">{{money sale.tax}}</span>
+        </div>
+        <div style="margin-top: 12px; padding: 12px; border: 2px solid #333; background: #fff;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: bold; font-size: 14px; color: #333;">TOTAL</span>
+            <span style="font-weight: bold; font-size: 16px; color: #333; border: 2px solid #333; padding: 4px 12px;">{{money sale.total}}</span>
+          </div>
         </div>
       </div>
     `;
-    makeDraggable(itemsTableBlock);
-    makeSelectable(itemsTableBlock);
-    canvas.appendChild(itemsTableBlock);
-    visualEditor.elements.push({ id: itemsTableBlock.id, type: 'items-table', element: itemsTableBlock });
+    makeDraggable(summarySection);
+    makeSelectable(summarySection);
+    canvas.appendChild(summarySection);
+    visualEditor.elements.push({ id: summarySection.id, type: 'summary', element: summarySection });
 
-    // 8. Footer
-    const footer = createEditableElement('text', 'Garantía de 30 días en mano de obra | Válido solo con esta factura', {
-      position: { left: 200, top: 650 },
-      styles: { fontSize: '12px', color: '#333', textAlign: 'center' }
-    });
+    // 5. INFORMACIÓN DE PAGO
+    const paymentInfo = document.createElement('div');
+    paymentInfo.className = 'tpl-element';
+    paymentInfo.id = `element_${visualEditor.nextId++}`;
+    paymentInfo.style.cssText = `
+      position: absolute;
+      left: 40px;
+      top: 580px;
+      width: 400px;
+      cursor: move;
+    `;
+    paymentInfo.innerHTML = `
+      <div style="padding: 16px; border: 2px solid #333; background: #fff;">
+        <h3 style="margin: 0 0 12px 0; font-size: 13px; font-weight: bold; color: #333; text-transform: uppercase;">INFORMACIÓN DE PAGO</h3>
+        <div style="font-size: 12px; line-height: 1.8; color: #333;">
+          <div><strong>Método:</strong> <span contenteditable="true">Transferencia bancaria</span></div>
+          <div><strong>Banco:</strong> <span contenteditable="true">{{company.bankName}}</span></div>
+          <div><strong>Nombre:</strong> <span contenteditable="true">{{company.name}}</span></div>
+          <div><strong>Número de cuenta:</strong> <span contenteditable="true">{{company.accountNumber}}</span></div>
+        </div>
+      </div>
+    `;
+    makeDraggable(paymentInfo);
+    makeSelectable(paymentInfo);
+    canvas.appendChild(paymentInfo);
+    visualEditor.elements.push({ id: paymentInfo.id, type: 'payment-info', element: paymentInfo });
+
+    // 6. FOOTER - URL del sitio
+    const footer = document.createElement('div');
+    footer.className = 'tpl-element';
+    footer.id = `element_${visualEditor.nextId++}`;
+    footer.style.cssText = `
+      position: absolute;
+      left: 40px;
+      top: 720px;
+      width: 700px;
+      text-align: center;
+      cursor: move;
+    `;
+    footer.innerHTML = `
+      <div style="font-size: 12px; color: #333; font-weight: 600; letter-spacing: 1px;">
+        <span contenteditable="true">{{company.website}}</span>
+      </div>
+    `;
+    makeDraggable(footer);
+    makeSelectable(footer);
     canvas.appendChild(footer);
+    visualEditor.elements.push({ id: footer.id, type: 'footer', element: footer });
+
+    // Make all elements interactive
+    reinitializeElements();
   }
 
   function createQuoteTemplate(canvas) {
-    // Clear placeholder text
+    // Clear canvas - plantilla será creada desde cero
     canvas.innerHTML = '';
+    reinitializeElements();
+  }
 
-    // Create individual editable elements for quote
-    
-    // 1. Header - Title and number
-    const headerTitle = createEditableElement('title', 'COTIZACIÓN', {
-      position: { left: 300, top: 30 },
-      styles: { fontSize: '32px', fontWeight: 'bold', color: '#28a745', textAlign: 'center' }
-    });
-    canvas.appendChild(headerTitle);
-
-    const quoteNumber = createEditableElement('text', '# {{quote.number}}', {
-      position: { left: 320, top: 80 },
-      styles: { fontSize: '18px', color: '#333', textAlign: 'center' }
-    });
-    canvas.appendChild(quoteNumber);
-
-    // 2. Company information (left side)
-    const companyTitle = createEditableElement('text', '{{company.name}}', {
-      position: { left: 50, top: 130 },
-      styles: { fontSize: '18px', fontWeight: 'bold', color: '#28a745' }
-    });
-    canvas.appendChild(companyTitle);
-
-    const companyAddress = createEditableElement('text', '{{company.address}}', {
-      position: { left: 50, top: 160 },
-      styles: { fontSize: '14px', color: '#333' }
-    });
-    canvas.appendChild(companyAddress);
-
-    const companyPhone = createEditableElement('text', 'Tel: {{company.phone}}', {
-      position: { left: 50, top: 185 },
-      styles: { fontSize: '14px', color: '#333' }
-    });
-    canvas.appendChild(companyPhone);
-
-    // 3. Customer information (right side)
-    const customerLabel = createEditableElement('text', 'CLIENTE:', {
-      position: { left: 450, top: 130 },
-      styles: { fontSize: '16px', fontWeight: 'bold', color: '#333' }
-    });
-    canvas.appendChild(customerLabel);
-
-    const customerName = createEditableElement('text', '{{quote.customerName}}', {
-      position: { left: 450, top: 160 },
-      styles: { fontSize: '14px', color: '#333', fontWeight: 'bold' }
-    });
-    canvas.appendChild(customerName);
-
-    const quoteDate = createEditableElement('text', 'Fecha: {{date quote.date}}', {
-      position: { left: 450, top: 185 },
-      styles: { fontSize: '14px', color: '#333' }
-    });
-    canvas.appendChild(quoteDate);
-
-    const validUntil = createEditableElement('text', 'Válida hasta: {{date quote.validUntil}}', {
-      position: { left: 450, top: 210 },
-      styles: { fontSize: '14px', color: '#333' }
-    });
-    canvas.appendChild(validUntil);
-
-    // 4. Vehicle information
-    const vehicleSection = createEditableElement('text', 'VEHÍCULO: {{quote.vehicle.plate}} - {{quote.vehicle.brand}} {{quote.vehicle.model}}', {
-      position: { left: 50, top: 250 },
-      styles: { 
-        fontSize: '14px', 
-        color: '#333', 
-        background: '#e8f5e8', 
-        padding: '10px', 
-        borderLeft: '4px solid #28a745',
-        borderRadius: '4px',
-        width: '600px'
-      }
-    });
-    canvas.appendChild(vehicleSection);
-
-    // 5. Services/Items section
-    const servicesTitle = createEditableElement('text', 'SERVICIOS COTIZADOS:', {
-      position: { left: 50, top: 320 },
-      styles: { fontSize: '16px', fontWeight: 'bold', color: '#333', textDecoration: 'underline' }
-    });
-    canvas.appendChild(servicesTitle);
-
-    // 5. Items table + flowing totals block for quotes
-    const quoteTableBlock = document.createElement('div');
-    quoteTableBlock.className = 'tpl-element items-table';
-    quoteTableBlock.id = `element_${visualEditor.nextId++}`;
-    quoteTableBlock.style.cssText = `
-      position: absolute;
-      left: 50px;
-      top: 350px;
-      width: 600px;
-      background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      padding: 10px;
-      cursor: move;
-    `;
-    quoteTableBlock.innerHTML = `
-      <style>
-        .doc-table { width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; }
-        .doc-table thead th { background: #28a745; color: #fff; }
-        .doc-table th, .doc-table td { border: 1px solid #ddd; padding: 10px; }
-        .doc-table td.t-right { text-align: right; }
-        .doc-table td.t-center { text-align: center; }
-        thead { display: table-header-group; }
-        tfoot { display: table-footer-group; }
-        tr { page-break-inside: avoid; }
-        .totals { margin-top: 12px; display: flex; justify-content: flex-end; }
-        .totals-inner { min-width: 300px; }
-        .totals-row { display: flex; justify-content: space-between; padding: 4px 0; }
-        .totals-total { font-weight: 700; font-size: 16px; color: #28a745; border-top: 1px solid #ddd; margin-top: 6px; padding-top: 6px; }
-      </style>
-      <table class="doc-table">
-        <thead>
-          <tr>
-            <th style="text-align:left; width: 80px;" contenteditable="true">Cant.</th>
-            <th style="text-align:left;" contenteditable="true">Descripción</th>
-            <th style="text-align:right; width: 120px;" contenteditable="true">Precio Unit.</th>
-            <th style="text-align:right; width: 120px;" contenteditable="true">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {{#each quote.items}}
-          <tr>
-            <td class="t-center">{{qty}}</td>
-            <td>{{description}}</td>
-            <td class="t-right">{{money unitPrice}}</td>
-            <td class="t-right"><strong>{{money total}}</strong></td>
-          </tr>
-          {{/each}}
-        </tbody>
-      </table>
-      <div class="totals">
-        <div class="totals-inner">
-          <div class="totals-row"><span>Subtotal:</span><span>{{money quote.subtotal}}</span></div>
-          <div class="totals-row"><span>IVA (16%):</span><span>{{money quote.tax}}</span></div>
-          <div class="totals-row totals-total"><span>TOTAL:</span><span>{{money quote.total}}</span></div>
-        </div>
-      </div>
-    `;
-    makeDraggable(quoteTableBlock);
-    makeSelectable(quoteTableBlock);
-    canvas.appendChild(quoteTableBlock);
-    visualEditor.elements.push({ id: quoteTableBlock.id, type: 'items-table', element: quoteTableBlock });
-
-    // 7. Footer with validity and conditions
-    const footer = createEditableElement('text', 'Cotización válida por 15 días | Los precios incluyen IVA | Sujeto a disponibilidad de repuestos', {
-      position: { left: 200, top: 650 },
-      styles: { fontSize: '12px', color: '#333', textAlign: 'center' }
-    });
-    canvas.appendChild(footer);
+  function createPayrollTemplate(canvas) {
+    // Clear canvas - plantilla será creada desde cero
+    canvas.innerHTML = '';
+    reinitializeElements();
   }
 
   function createWorkOrderTemplate(canvas) {
-    // Clear placeholder text
+    // Clear canvas - plantilla será creada desde cero
     canvas.innerHTML = '';
-
-    // Create individual editable elements for work order
-    
-    // 1. Header - Title and number
-    const headerTitle = createEditableElement('title', 'ORDEN DE TRABAJO', {
-      position: { left: 280, top: 30 },
-      styles: { fontSize: '28px', fontWeight: 'bold', color: '#fd7e14', textAlign: 'center' }
-    });
-    canvas.appendChild(headerTitle);
-
-    const orderNumber = createEditableElement('text', '# {{workOrder.number}}', {
-      position: { left: 320, top: 75 },
-      styles: { fontSize: '18px', color: '#333', textAlign: 'center' }
-    });
-    canvas.appendChild(orderNumber);
-
-    // 2. Company information (left side)
-    const companyTitle = createEditableElement('text', '{{company.name}}', {
-      position: { left: 50, top: 120 },
-      styles: { fontSize: '18px', fontWeight: 'bold', color: '#fd7e14' }
-    });
-    canvas.appendChild(companyTitle);
-
-    const companyAddress = createEditableElement('text', '{{company.address}}', {
-      position: { left: 50, top: 150 },
-      styles: { fontSize: '14px', color: '#333' }
-    });
-    canvas.appendChild(companyAddress);
-
-    const companyPhone = createEditableElement('text', 'Tel: {{company.phone}}', {
-      position: { left: 50, top: 175 },
-      styles: { fontSize: '14px', color: '#333' }
-    });
-    canvas.appendChild(companyPhone);
-
-    // 3. Customer and dates (right side)
-    const customerLabel = createEditableElement('text', 'CLIENTE:', {
-      position: { left: 450, top: 120 },
-      styles: { fontSize: '16px', fontWeight: 'bold', color: '#333' }
-    });
-    canvas.appendChild(customerLabel);
-
-    const customerName = createEditableElement('text', '{{workOrder.customerName}}', {
-      position: { left: 450, top: 150 },
-      styles: { fontSize: '14px', color: '#333', fontWeight: 'bold' }
-    });
-    canvas.appendChild(customerName);
-
-    const startDate = createEditableElement('text', 'Fecha inicio: {{date workOrder.startDate}}', {
-      position: { left: 450, top: 175 },
-      styles: { fontSize: '14px', color: '#333' }
-    });
-    canvas.appendChild(startDate);
-
-    const estimatedDate = createEditableElement('text', 'Fecha estimada: {{date workOrder.estimatedDate}}', {
-      position: { left: 450, top: 200 },
-      styles: { fontSize: '14px', color: '#333' }
-    });
-    canvas.appendChild(estimatedDate);
-
-    const status = createEditableElement('text', 'Estado: {{workOrder.status}}', {
-      position: { left: 450, top: 225 },
-      styles: { fontSize: '14px', color: '#333', fontWeight: 'bold' }
-    });
-    canvas.appendChild(status);
-
-    // 4. Vehicle information
-    const vehicleSection = createEditableElement('text', 'VEHÍCULO: {{workOrder.vehicle.plate}} - {{workOrder.vehicle.brand}} {{workOrder.vehicle.model}} ({{workOrder.vehicle.year}})', {
-      position: { left: 50, top: 270 },
-      styles: { 
-        fontSize: '14px', 
-        color: '#333', 
-        background: '#fff3cd', 
-        padding: '10px', 
-        borderLeft: '4px solid #fd7e14',
-        borderRadius: '4px',
-        width: '600px'
-      }
-    });
-    canvas.appendChild(vehicleSection);
-
-    const mileage = createEditableElement('text', 'Kilometraje: {{workOrder.vehicle.mileage}} km', {
-      position: { left: 50, top: 310 },
-      styles: { fontSize: '14px', color: '#333' }
-    });
-    canvas.appendChild(mileage);
-
-    // 5. Problem description
-    const problemTitle = createEditableElement('text', 'PROBLEMA REPORTADO:', {
-      position: { left: 50, top: 350 },
-      styles: { fontSize: '16px', fontWeight: 'bold', color: '#333', textDecoration: 'underline' }
-    });
-    canvas.appendChild(problemTitle);
-
-    const problemDescription = createEditableElement('text', '{{workOrder.problemDescription}}', {
-      position: { left: 50, top: 380 },
-      styles: { 
-        fontSize: '14px', 
-        color: '#333', 
-        background: '#f8d7da', 
-        padding: '10px',
-        borderRadius: '4px',
-        width: '600px'
-      }
-    });
-    canvas.appendChild(problemDescription);
-
-    // 6. Work to be performed
-    const workTitle = createEditableElement('text', 'TRABAJOS A REALIZAR:', {
-      position: { left: 50, top: 470 },
-      styles: { fontSize: '16px', fontWeight: 'bold', color: '#333', textDecoration: 'underline' }
-    });
-    canvas.appendChild(workTitle);
-
-    const workDescription = createEditableElement('text', '{{#each workOrder.tasks}}\n• {{description}} - Técnico: {{technician}}\n{{/each}}', {
-      position: { left: 50, top: 500 },
-      styles: { 
-        fontSize: '14px', 
-        color: '#333', 
-        whiteSpace: 'pre-line',
-        fontFamily: 'monospace',
-        background: '#d4edda',
-        padding: '15px',
-        borderRadius: '4px',
-        width: '600px'
-      }
-    });
-    canvas.appendChild(workDescription);
-
-    // 7. Estimated cost
-    const estimatedCostLabel = createEditableElement('text', 'COSTO ESTIMADO:', {
-      position: { left: 450, top: 630 },
-      styles: { fontSize: '16px', fontWeight: 'bold', color: '#fd7e14' }
-    });
-    canvas.appendChild(estimatedCostLabel);
-
-    const estimatedCostValue = createEditableElement('text', '{{money workOrder.estimatedCost}}', {
-      position: { left: 580, top: 630 },
-      styles: { fontSize: '18px', color: '#fd7e14', fontWeight: 'bold' }
-    });
-    canvas.appendChild(estimatedCostValue);
-
-    // 8. Footer with signature areas
-    const footer = createEditableElement('text', 'Responsable: {{workOrder.technician}} | Cualquier cambio será consultado previamente', {
-      position: { left: 200, top: 690 },
-      styles: { fontSize: '12px', color: '#333', textAlign: 'center' }
-    });
-    canvas.appendChild(footer);
-
-    const signatureSection = createEditableElement('text', '_________________     _________________\n   Firma Cliente              Firma Taller', {
-      position: { left: 200, top: 720 },
-      styles: { fontSize: '12px', color: '#333', textAlign: 'center', whiteSpace: 'pre-line' }
-    });
-    canvas.appendChild(signatureSection);
+    reinitializeElements();
   }
 
   function createEditableElement(type, content, options = {}) {
@@ -3729,6 +3499,9 @@
       applyStickerCanvasSize('brand');
       createStickerTemplateBrand(canvas);
       showQuickNotification(`🏷️ Plantilla de Sticker (Marca + SKU) cargada`, 'success');
+    } else if (documentType === 'payroll') {
+      createPayrollTemplate(canvas);
+      showQuickNotification(`💰 Plantilla de Nómina cargada`, 'success');
     } else {
       // Fallback - this shouldn't happen with proper selector flow
       canvas.innerHTML = '<div style="color: #666; text-align: center; padding: 50px; background: #f8f9fa; border: 2px dashed #dee2e6; border-radius: 8px;"><h3>⚠️ Tipo de documento no reconocido</h3><p>Por favor usa el <a href="template-selector.html" style="color: #007bff;">selector de plantillas</a> para comenzar.</p></div>';
@@ -3911,71 +3684,15 @@
   }
 
   function createStickerTemplateQR(canvas) {
-    // 1 página
-    initPages(1);
-    const page = getPageEl(1);
-    if (!page) return;
-
-    const wrapper = document.createElement('div');
-    wrapper.className = 'tpl-element sticker-wrapper';
-    wrapper.id = `element_${visualEditor.nextId++}`;
-  // Márgenes seguros en cm para no salirnos del área física
-  wrapper.style.cssText = 'position:absolute; left:0.2cm; top:0.2cm; border:2px solid transparent; cursor:move; width:calc(5cm - 0.4cm); height:calc(3cm - 0.4cm);';
-
-    // Layout solicitado: izquierda SKU (sin fondo azul), derecha QR
-    wrapper.innerHTML = `
-      <div style="width:100%; height:100%; box-sizing:border-box; padding:0.1cm; display:flex; align-items:center; justify-content:space-between; border:1px dashed var(--border); border-radius:4px; background:#fff; color:#111; overflow:hidden;">
-        <div style="width:2.05cm; height:2.05cm; border-radius:6px; display:flex; align-items:center; justify-content:center;">
-          <div style="font-weight:700; font-size:14px; letter-spacing:0.5px;" contenteditable="true">{{item.sku}}</div>
-        </div>
-        <div style="width:2.05cm; height:2.05cm; display:flex; align-items:center; justify-content:center;">
-          <img src="{{item.qr}}" alt="QR" style="max-width:100%; max-height:100%; object-fit:contain;" />
-        </div>
-      </div>
-    `;
-
-  page.appendChild(wrapper);
-  updateSafeGuidesVisibility();
-    makeDraggable(wrapper);
-    makeSelectable(wrapper);
-    visualEditor.elements.push({ id: wrapper.id, type: 'sticker-qr', element: wrapper });
-    insertStickerVarsHint();
+    // Clear canvas - plantilla será creada desde cero
+    canvas.innerHTML = '';
+    reinitializeElements();
   }
 
   function createStickerTemplateBrand(canvas) {
-    // 2 páginas independientes
-    initPages(2);
-    const page1 = getPageEl(1);
-    const page2 = getPageEl(2);
-    if (!page1 || !page2) return;
-
-    // Página 1: Vacía (el usuario agregará su marca si lo desea)
-    // No agregamos ningún elemento por defecto en la página 1.
-
-    // Página 2: QR (SKU + QR) para pegar sobre la pieza
-    const page2Wrap = document.createElement('div');
-    page2Wrap.className = 'tpl-element sticker-brand-page2';
-    page2Wrap.id = `element_${visualEditor.nextId++}`;
-    page2Wrap.style.cssText = 'position:absolute; left:0.2cm; top:0.2cm; border:2px solid transparent; cursor:move; width:calc(5cm - 0.4cm); height:calc(3cm - 0.4cm);';
-    page2Wrap.innerHTML = `
-      <div style="width:100%; height:100%; box-sizing:border-box; padding:0.1cm; display:flex; align-items:center; justify-content:space-between; border:1px dashed var(--border); border-radius:4px; background:#fff; color:#111; overflow:hidden;">
-        <div style="width:2.05cm; height:2.05cm; border-radius:6px; display:flex; align-items:center; justify-content:center;">
-          <div style="font-weight:700; font-size:14px; letter-spacing:0.5px;" contenteditable="true">{{item.sku}}</div>
-        </div>
-        <div style="width:2.05cm; height:2.05cm; display:flex; align-items:center; justify-content:center;">
-          <img src="{{item.qr}}" alt="QR" style="max-width:100%; max-height:100%; object-fit:contain;" />
-        </div>
-      </div>`;
-    page2.appendChild(page2Wrap);
-    makeDraggable(page2Wrap); makeSelectable(page2Wrap);
-    visualEditor.elements.push({ id: page2Wrap.id, type: 'sticker-brand-page2', element: page2Wrap });
-
-    insertStickerVarsHint();
-    updateSafeGuidesVisibility();
-    // Mostrar directamente la página 2 (SKU+QR) para editar
-    if (typeof window._showEditorPage === 'function') {
-      window._showEditorPage(2);
-    }
+    // Clear canvas - plantilla será creada desde cero
+    canvas.innerHTML = '';
+    reinitializeElements();
   }
 
   function getDocumentTypeName(type) {
@@ -4043,7 +3760,7 @@
       
       const icon = action === 'edit' ? '✏️' : '➕';
       const actionText = action === 'edit' ? 'Editando' : 'Creando';
-  const typeIcon = documentType === 'invoice' ? '🧾' : documentType === 'quote' ? '💰' : documentType === 'workOrder' ? '🔧' : '🏷️';
+  const typeIcon = documentType === 'invoice' ? '🧾' : documentType === 'quote' ? '💰' : documentType === 'workOrder' ? '🔧' : documentType === 'payroll' ? '💰' : '🏷️';
       
       // Get current session name
       const currentName = window.currentTemplateSession?.name || formatName;
