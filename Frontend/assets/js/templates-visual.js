@@ -1738,11 +1738,28 @@
   }
 
   function createInvoiceTemplate(canvas) {
-    // Clear canvas
+    if (!canvas) {
+      console.error('❌ Canvas no encontrado en createInvoiceTemplate');
+      return;
+    }
+    
+    console.log('🎨 Creando plantilla de factura...');
+    
+    // Clear canvas y resetear estilos
     canvas.innerHTML = '';
     
-    // Fondo beige claro (como en la imagen)
-    canvas.style.backgroundColor = '#f5f5f0';
+    // Fondo beige claro (como en la imagen) y altura mínima para mostrar todos los elementos
+    // Usar Object.assign para no sobrescribir todos los estilos
+    Object.assign(canvas.style, {
+      backgroundColor: '#f5f5f0',
+      minHeight: '900px',
+      height: 'auto',
+      position: 'relative',
+      overflow: 'visible',
+      padding: '20px'
+    });
+    
+    console.log('✅ Canvas configurado, agregando elementos...');
     
     // 1. HEADER - Título "FACTURA" + Nº en caja + Logo
     const headerContainer = document.createElement('div');
@@ -1779,6 +1796,7 @@
     makeSelectable(headerContainer);
     canvas.appendChild(headerContainer);
     visualEditor.elements.push({ id: headerContainer.id, type: 'header', element: headerContainer });
+    console.log('✅ Header agregado');
 
     // 2. SECCIÓN DATOS - Cliente (izquierda) y Empresa (derecha)
     const datosSection = document.createElement('div');
@@ -1823,6 +1841,7 @@
     makeSelectable(datosSection);
     canvas.appendChild(datosSection);
     visualEditor.elements.push({ id: datosSection.id, type: 'datos-section', element: datosSection });
+    console.log('✅ Sección de datos agregada');
 
     // 3. TABLA DE SERVICIOS
     const itemsTable = document.createElement('div');
@@ -1861,6 +1880,7 @@
     makeSelectable(itemsTable);
     canvas.appendChild(itemsTable);
     visualEditor.elements.push({ id: itemsTable.id, type: 'items-table', element: itemsTable });
+    console.log('✅ Tabla de items agregada');
 
     // 4. RESUMEN - IVA y TOTAL
     const summarySection = document.createElement('div');
@@ -1892,6 +1912,7 @@
     makeSelectable(summarySection);
     canvas.appendChild(summarySection);
     visualEditor.elements.push({ id: summarySection.id, type: 'summary', element: summarySection });
+    console.log('✅ Resumen agregado');
 
     // 5. INFORMACIÓN DE PAGO
     const paymentInfo = document.createElement('div');
@@ -1919,6 +1940,7 @@
     makeSelectable(paymentInfo);
     canvas.appendChild(paymentInfo);
     visualEditor.elements.push({ id: paymentInfo.id, type: 'payment-info', element: paymentInfo });
+    console.log('✅ Información de pago agregada');
 
     // 6. FOOTER - URL del sitio
     const footer = document.createElement('div');
@@ -1941,9 +1963,36 @@
     makeSelectable(footer);
     canvas.appendChild(footer);
     visualEditor.elements.push({ id: footer.id, type: 'footer', element: footer });
+    console.log('✅ Footer agregado');
 
     // Make all elements interactive
-    reinitializeElements();
+    console.log(`✅ Plantilla de factura creada: ${visualEditor.elements.length} elementos agregados`);
+    console.log('Elementos:', visualEditor.elements.map(e => e.type));
+    
+    // Verificar que los elementos estén en el DOM
+    const elementsInDOM = canvas.querySelectorAll('.tpl-element');
+    console.log(`📊 Elementos en DOM: ${elementsInDOM.length}`);
+    
+    if (elementsInDOM.length === 0) {
+      console.error('❌ ERROR: Los elementos no se agregaron al DOM!');
+      console.log('Canvas children:', canvas.children.length);
+    }
+    
+    // Asegurar que el canvas tenga altura suficiente
+    const maxTop = Math.max(...Array.from(elementsInDOM).map(el => {
+      const top = parseInt(el.style.top) || 0;
+      const height = el.offsetHeight || 0;
+      return top + height;
+    }), 900);
+    
+    canvas.style.minHeight = (maxTop + 50) + 'px';
+    console.log(`📏 Altura del canvas ajustada a: ${canvas.style.minHeight}`);
+    
+    // Forzar un pequeño delay para asegurar que el DOM esté actualizado
+    setTimeout(() => {
+      reinitializeElements();
+      console.log('🔄 Reinitialización completada');
+    }, 100);
   }
 
   function createQuoteTemplate(canvas) {
