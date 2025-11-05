@@ -1979,14 +1979,23 @@
     }
     
     // Asegurar que el canvas tenga altura suficiente
-    const maxTop = Math.max(...Array.from(elementsInDOM).map(el => {
-      const top = parseInt(el.style.top) || 0;
-      const height = el.offsetHeight || 0;
-      return top + height;
-    }), 900);
-    
-    canvas.style.minHeight = (maxTop + 50) + 'px';
-    console.log(`📏 Altura del canvas ajustada a: ${canvas.style.minHeight}`);
+    if (elementsInDOM.length > 0) {
+      const positions = Array.from(elementsInDOM).map(el => {
+        const top = parseInt(el.style.top) || 0;
+        const height = el.offsetHeight || 0;
+        return top + height;
+      });
+      if (positions.length > 0) {
+        const maxTop = Math.max(...positions, 900);
+        canvas.style.minHeight = (maxTop + 50) + 'px';
+        console.log(`📏 Altura del canvas ajustada a: ${canvas.style.minHeight}`);
+      } else {
+        canvas.style.minHeight = '900px';
+      }
+    } else {
+      canvas.style.minHeight = '900px';
+      console.log('📏 Altura del canvas establecida a 900px (sin elementos)');
+    }
     
     // Forzar un pequeño delay para asegurar que el DOM esté actualizado
     setTimeout(() => {
