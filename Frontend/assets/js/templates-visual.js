@@ -4751,6 +4751,9 @@
       // Prepare variables for template string to avoid syntax issues
       const docTypeName = getDocumentTypeName(templateType);
       const companyName = company;
+      // Escape for use in JavaScript string within template
+      const docTypeEscaped = docTypeName.replace(/'/g, "\\'").replace(/"/g, '\\"');
+      const companyEscaped = companyName.replace(/'/g, "\\'").replace(/"/g, '\\"');
       
       const previewHTML = `
         <!DOCTYPE html>
@@ -4979,7 +4982,7 @@
               });
               
               window.addEventListener('afterprint', function() {
-                document.title = 'Vista Previa PDF - ${docTypeName} | ${companyName}';
+                document.title = 'Vista Previa PDF - ${docTypeEscaped} | ${companyEscaped}';
               });
             </script>
           </body>
