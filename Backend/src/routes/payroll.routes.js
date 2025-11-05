@@ -22,7 +22,8 @@ const router = Router();
 
 function requireCompanyManager(req, res, next){
   const role = req.user?.role || '';
-  if (!['owner','admin'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
+  // Permitir 'owner', 'admin' y 'company' (empresas pueden gestionar su propia nómina)
+  if (!['owner','admin','company'].includes(role)) return res.status(403).json({ error: 'Forbidden' });
   next();
 }
 
