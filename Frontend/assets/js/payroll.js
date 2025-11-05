@@ -255,6 +255,16 @@ async function loadTechnicians(){
                 el('pa-list').innerHTML = '<div class="muted" style="padding:16px;text-align:center;border:1px dashed var(--border);border-radius:8px;font-size:13px;">Selecciona un técnico para ver sus asignaciones personalizadas.</div>';
               }
               
+              // Limpiar también el selector de liquidaciones si está seleccionado
+              const techSel3 = document.getElementById('pl-technicianSel');
+              if (techSel3 && techSel3.value === name) {
+                techSel3.value = '';
+                const conceptsContainer = document.getElementById('pl-concepts-container');
+                if (conceptsContainer) {
+                  conceptsContainer.innerHTML = '<div class="muted" style="width:100%;text-align:center;font-size:12px;padding:8px;">Selecciona período y técnico primero</div>';
+                }
+              }
+              
               await loadTechnicians();
             } catch (err) {
               alert('❌ Error al eliminar técnico: ' + (err.message || 'Error desconocido'));
@@ -614,30 +624,62 @@ async function saveAssignment(){
   }
 }
 
-// Función para cargar conceptos cuando se selecciona un período
-async function loadConceptsForPeriod(){
+// Función para cargar conceptos asignados al técnico seleccionado
+async function loadConceptsForTechnician(){
   try {
-    const concepts = await api.get('/api/v1/payroll/concepts');
+    const technicianName = document.getElementById('pl-technicianSel')?.value?.trim();
     const container = document.getElementById('pl-concepts-container');
     if (!container) return;
     
-    if (!concepts || concepts.length === 0) {
-      container.innerHTML = '<div class="muted" style="width:100%;text-align:center;font-size:12px;padding:8px;">No hay conceptos configurados. Crea conceptos en la pestaña "Conceptos".</div>';
+    if (!technicianName) {
+      container.innerHTML = '<div class="muted" style="width:100%;text-align:center;font-size:12px;padding:8px;">Selecciona período y técnico primero</div>';
       return;
     }
     
-    // Renderizar checkboxes de conceptos
+    // Obtener asignaciones del técnico
+    const assignments = await api.get('/api/v1/payroll/assignments', { technicianName });
+    
+    if (!assignments || assignments.length === 0) {
+      container.innerHTML = '<div class="muted" style="width:100%;text-align:center;font-size:12px;padding:8px;">Este técnico no tiene conceptos asignados. Asigna conceptos en la pestaña "Asignaciones".</div>';
+      return;
+    }
+    
+    // Obtener los conceptos de las asignaciones
+    const conceptIds = assignments.map(a => a.conceptId).filter(Boolean);
+    if (conceptIds.length === 0) {
+      container.innerHTML = '<div class="muted" style="width:100%;text-align:center;font-size:12px;padding:8px;">No se encontraron conceptos asignados.</div>';
+      return;
+    }
+    
+    // Obtener detalles de los conceptos
+    const allConcepts = await api.get('/api/v1/payroll/concepts');
+    const assignedConcepts = allConcepts.filter(c => conceptIds.some(id => String(id) === String(c._id)));
+    
+    if (assignedConcepts.length === 0) {
+      container.innerHTML = '<div class="muted" style="width:100%;text-align:center;font-size:12px;padding:8px;">No se encontraron conceptos activos asignados.</div>';
+      return;
+    }
+    
+    // Renderizar checkboxes de conceptos asignados
     const typeLabels = {
       'earning': { label: 'Ingreso', color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
       'deduction': { label: 'Descuento', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
       'surcharge': { label: 'Recargo', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' }
     };
     
-    container.innerHTML = concepts.map(c => {
+    container.innerHTML = assignedConcepts.map(c => {
+      // Buscar asignación para obtener valueOverride si existe
+      const assignment = assignments.find(a => String(a.conceptId) === String(c._id));
+      const displayValue = assignment?.valueOverride !== null && assignment?.valueOverride !== undefined 
+        ? (c.amountType === 'percent' ? `${assignment.valueOverride}%` : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(assignment.valueOverride))
+        : (c.amountType === 'percent' 
+          ? `${c.defaultValue || 0}%` 
+          : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(c.defaultValue || 0));
+      
       const typeInfo = typeLabels[c.type] || { label: c.type, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
-      const valueDisplay = c.amountType === 'percent' 
-        ? `${c.defaultValue || 0}%` 
-        : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(c.defaultValue || 0);
+      const overrideBadge = assignment?.valueOverride !== null && assignment?.valueOverride !== undefined 
+        ? '<span style="padding:2px 6px;border-radius:3px;font-size:9px;font-weight:600;background:rgba(59,130,246,0.1);color:#3b82f6;border:1px solid #3b82f6;">Personalizado</span>'
+        : '';
       
       return `<label style="display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--border);border-radius:6px;background:var(--card);cursor:pointer;transition:all 0.2s;user-select:none;" onmouseover="this.style.background='rgba(148,163,184,0.1)'" onmouseout="this.style.background='var(--card)'">
         <input type="checkbox" value="${c._id}" data-concept-id="${c._id}" style="cursor:pointer;margin:0;" />
@@ -645,7 +687,8 @@ async function loadConceptsForPeriod(){
           ${htmlEscape(typeInfo.label)}
         </span>
         <span style="font-weight:500;color:var(--text);font-size:13px;">${htmlEscape(c.code)} · ${htmlEscape(c.name)}</span>
-        <span style="margin-left:auto;font-size:12px;color:var(--muted);">${valueDisplay}</span>
+        ${overrideBadge}
+        <span style="margin-left:auto;font-size:12px;color:var(--muted);">${displayValue}</span>
       </label>`;
     }).join('');
     
@@ -656,10 +699,10 @@ async function loadConceptsForPeriod(){
       });
     });
   } catch (err) {
-    console.error('Error loading concepts:', err);
+    console.error('Error loading assigned concepts:', err);
     const container = document.getElementById('pl-concepts-container');
     if (container) {
-      container.innerHTML = '<div style="color:#ef4444;font-size:12px;padding:8px;">Error al cargar conceptos</div>';
+      container.innerHTML = '<div style="color:#ef4444;font-size:12px;padding:8px;">Error al cargar conceptos asignados</div>';
     }
   }
 }
@@ -675,12 +718,19 @@ function getSelectedConceptIds(){
 async function preview(){
   try {
     const periodId = document.getElementById('pl-periodSel')?.value?.trim();
+    const technicianName = document.getElementById('pl-technicianSel')?.value?.trim();
     const selectedConceptIds = getSelectedConceptIds();
     
     // Validaciones
     if (!periodId) {
       alert('⚠️ Selecciona un período');
       document.getElementById('pl-periodSel')?.focus();
+      return;
+    }
+    
+    if (!technicianName) {
+      alert('⚠️ Selecciona un técnico');
+      document.getElementById('pl-technicianSel')?.focus();
       return;
     }
     
@@ -691,6 +741,7 @@ async function preview(){
     
     const payload = {
       periodId,
+      technicianName,
       selectedConceptIds
     };
     
@@ -715,101 +766,64 @@ async function preview(){
         'surcharge': { label: 'Recargo', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' }
       };
       
-      const renderTechnicianSettlement = (tech) => {
-        const earnings = tech.items.filter(i => i.type === 'earning');
-        const deductions = tech.items.filter(i => i.type === 'deduction');
-        const surcharges = tech.items.filter(i => i.type === 'surcharge');
-        
-        const renderItems = (items, title) => {
-          if (!items || items.length === 0) return '';
-          return `
-            <div style="margin-bottom:12px;">
-              <h5 style="margin:0 0 6px 0;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;">${title}</h5>
-              ${items.map(i => {
-                const typeInfo = typeLabels[i.type] || { label: i.type, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
-                return `<div class="row between" style="padding:6px;border:1px solid var(--border);border-radius:4px;margin-bottom:4px;background:var(--card);">
-                  <div class="row" style="gap:8px;align-items:center;flex:1;">
-                    <span style="padding:3px 6px;border-radius:3px;font-size:10px;font-weight:600;background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}20;">
-                      ${htmlEscape(typeInfo.label)}
-                    </span>
-                    <span style="font-weight:500;color:var(--text);font-size:12px;">${htmlEscape(i.name)}</span>
-                    ${i.calcRule ? `<span class="muted" style="font-size:10px;">(${htmlEscape(i.calcRule)})</span>` : ''}
-                  </div>
-                  <div style="font-weight:600;color:var(--text);font-size:13px;">
-                    ${formatMoney(i.value)}
-                  </div>
-                </div>`;
-              }).join('')}
-            </div>`;
-        };
-        
+      // Separar items por tipo
+      const earnings = r.items.filter(i => i.type === 'earning');
+      const deductions = r.items.filter(i => i.type === 'deduction');
+      const surcharges = r.items.filter(i => i.type === 'surcharge');
+      
+      const renderItems = (items, title) => {
+        if (!items || items.length === 0) return '';
         return `
-          <div style="padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:12px;background:var(--card);">
-            <div style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border);">
-              <h4 style="margin:0;font-size:15px;font-weight:600;color:var(--text);">👤 ${htmlEscape(tech.technicianName)}</h4>
-            </div>
-            ${renderItems(earnings, 'Ingresos')}
-            ${renderItems(surcharges, 'Recargos')}
-            ${renderItems(deductions, 'Descuentos')}
-            <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
-              <div class="row between" style="margin-bottom:4px;">
-                <span style="font-weight:600;color:var(--text);font-size:13px;">Bruto:</span>
-                <span style="font-weight:600;color:var(--text);font-size:13px;">${formatMoney(tech.grossTotal)}</span>
-              </div>
-              <div class="row between" style="margin-bottom:4px;">
-                <span style="font-weight:600;color:var(--text);font-size:13px;">Descuentos:</span>
-                <span style="font-weight:600;color:#ef4444;font-size:13px;">-${formatMoney(tech.deductionsTotal)}</span>
-              </div>
-              <div class="row between" style="padding:8px;background:rgba(59,130,246,0.1);border-radius:4px;margin-top:6px;">
-                <span style="font-weight:700;color:var(--text);font-size:14px;">Neto:</span>
-                <span style="font-weight:700;color:#10b981;font-size:16px;">${formatMoney(tech.netTotal)}</span>
-              </div>
-            </div>
+          <div style="margin-bottom:16px;">
+            <h4 style="margin:0 0 8px 0;font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;">${title}</h4>
+            ${items.map(i => {
+              const typeInfo = typeLabels[i.type] || { label: i.type, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
+              return `<div class="row between" style="padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;background:var(--card);">
+                <div class="row" style="gap:10px;align-items:center;flex:1;">
+                  <span style="padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}20;">
+                    ${htmlEscape(typeInfo.label)}
+                  </span>
+                  <span style="font-weight:500;color:var(--text);">${htmlEscape(i.name)}</span>
+                  ${i.calcRule ? `<span class="muted" style="font-size:11px;">(${htmlEscape(i.calcRule)})</span>` : ''}
+                </div>
+                <div style="font-weight:600;color:var(--text);font-size:14px;">
+                  ${formatMoney(i.value)}
+                </div>
+              </div>`;
+            }).join('')}
           </div>`;
       };
-      
-      if (!r.technicians || r.technicians.length === 0) {
-        el('pl-result').innerHTML = `
-          <div style="padding:24px;text-align:center;border:1px dashed var(--border);border-radius:8px;background:var(--card);">
-            <div style="font-size:48px;margin-bottom:12px;">📊</div>
-            <div style="font-weight:600;color:var(--text);margin-bottom:8px;">No hay técnicos con comisiones</div>
-            <div class="muted" style="font-size:13px;">No se encontraron ventas cerradas con comisiones para este período.</div>
-          </div>
-        `;
-        if (previewBtn) {
-          previewBtn.disabled = false;
-          previewBtn.textContent = originalPreviewText;
-        }
-        if (approveBtn) approveBtn.disabled = false;
-        return;
-      }
       
       el('pl-result').innerHTML = `
         <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;">
           <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
             <h4 style="margin:0 0 8px 0;font-size:16px;font-weight:600;">Vista previa de liquidación</h4>
-            <div style="font-size:13px;color:var(--muted);">
-              <strong>Período seleccionado:</strong> ${document.getElementById('pl-periodSel').options[document.getElementById('pl-periodSel').selectedIndex]?.textContent || 'N/A'}
-            </div>
-            <div style="font-size:13px;color:var(--muted);margin-top:4px;">
-              <strong>Técnicos incluidos:</strong> ${r.technicians.length}
+            <div class="row" style="gap:16px;flex-wrap:wrap;">
+              <div style="font-size:13px;color:var(--muted);">
+                <strong>Técnico:</strong> ${htmlEscape(r.technicianName || technicianName)}
+              </div>
+              <div style="font-size:13px;color:var(--muted);">
+                <strong>Período:</strong> ${document.getElementById('pl-periodSel').options[document.getElementById('pl-periodSel').selectedIndex]?.textContent || 'N/A'}
+              </div>
             </div>
           </div>
           
-          ${r.technicians.map(tech => renderTechnicianSettlement(tech)).join('')}
+          ${renderItems(earnings, 'Ingresos')}
+          ${renderItems(surcharges, 'Recargos')}
+          ${renderItems(deductions, 'Descuentos')}
           
           <div style="margin-top:16px;padding-top:16px;border-top:2px solid var(--border);">
             <div class="row between" style="margin-bottom:8px;">
-              <span style="font-weight:600;color:var(--text);font-size:15px;">Total bruto:</span>
-              <span style="font-weight:600;color:var(--text);font-size:15px;">${formatMoney(r.totalGrossTotal)}</span>
+              <span style="font-weight:600;color:var(--text);">Total bruto:</span>
+              <span style="font-weight:600;color:var(--text);font-size:16px;">${formatMoney(r.grossTotal)}</span>
             </div>
             <div class="row between" style="margin-bottom:8px;">
-              <span style="font-weight:600;color:var(--text);font-size:15px;">Total descuentos:</span>
-              <span style="font-weight:600;color:#ef4444;font-size:15px;">-${formatMoney(r.totalDeductionsTotal)}</span>
+              <span style="font-weight:600;color:var(--text);">Total descuentos:</span>
+              <span style="font-weight:600;color:#ef4444;font-size:16px;">-${formatMoney(r.deductionsTotal)}</span>
             </div>
             <div class="row between" style="padding:12px;background:rgba(59,130,246,0.1);border-radius:6px;margin-top:8px;">
-              <span style="font-weight:700;color:var(--text);font-size:18px;">Total neto a pagar:</span>
-              <span style="font-weight:700;color:#10b981;font-size:22px;">${formatMoney(r.totalNetTotal)}</span>
+              <span style="font-weight:700;color:var(--text);font-size:16px;">Neto a pagar:</span>
+              <span style="font-weight:700;color:#10b981;font-size:20px;">${formatMoney(r.netTotal)}</span>
             </div>
           </div>
         </div>
@@ -840,12 +854,19 @@ async function preview(){
 async function approve(){
   try {
     const periodId = document.getElementById('pl-periodSel')?.value?.trim();
+    const technicianName = document.getElementById('pl-technicianSel')?.value?.trim();
     const selectedConceptIds = getSelectedConceptIds();
     
     // Validaciones
     if (!periodId) {
       alert('⚠️ Selecciona un período');
       document.getElementById('pl-periodSel')?.focus();
+      return;
+    }
+    
+    if (!technicianName) {
+      alert('⚠️ Selecciona un técnico');
+      document.getElementById('pl-technicianSel')?.focus();
       return;
     }
     
@@ -856,12 +877,13 @@ async function approve(){
     
     // Confirmar aprobación
     const periodText = document.getElementById('pl-periodSel').options[document.getElementById('pl-periodSel').selectedIndex]?.textContent || 'este período';
-    if (!confirm(`¿Aprobar la liquidación del período ${periodText}?\n\nSe calcularán las comisiones de todos los técnicos y se aplicarán los conceptos seleccionados.`)) {
+    if (!confirm(`¿Aprobar la liquidación de ${technicianName} para el período ${periodText}?\n\nSe calcularán las comisiones y se aplicarán los conceptos seleccionados.`)) {
       return;
     }
     
     const payload = {
       periodId,
+      technicianName,
       selectedConceptIds
     };
     
@@ -887,13 +909,13 @@ async function approve(){
             <h4 style="margin:0;font-size:16px;font-weight:600;color:#10b981;">Liquidación aprobada</h4>
           </div>
           <div style="font-size:13px;color:var(--text);margin-bottom:4px;">
+            <strong>Técnico:</strong> ${htmlEscape(r.technicianName || technicianName)}
+          </div>
+          <div style="font-size:13px;color:var(--text);margin-bottom:4px;">
             <strong>Período:</strong> ${periodText}
           </div>
           <div style="font-size:13px;color:var(--text);margin-bottom:4px;">
-            <strong>Técnicos incluidos:</strong> ${r.technicians?.length || 0}
-          </div>
-          <div style="font-size:13px;color:var(--text);margin-bottom:4px;">
-            <strong>Total neto a pagar:</strong> ${formatMoney(r.totalNetTotal || 0)}
+            <strong>Neto a pagar:</strong> ${formatMoney(r.netTotal || 0)}
           </div>
           <div style="font-size:12px;color:var(--muted);margin-top:8px;">
             ID: <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:11px;">${String(r._id).slice(-8)}</code>
@@ -1200,10 +1222,6 @@ async function loadSettlements(){
       const printUrl = `${apiBase}/api/v1/payroll/settlements/${s._id}/print`;
       const pdfUrl = `${apiBase}/api/v1/payroll/settlements/${s._id}/pdf`;
       
-      // Contar técnicos
-      const technicianCount = s.technicians?.length || 0;
-      const techniciansList = s.technicians?.map(t => t.technicianName).filter(Boolean).join(', ') || 'Sin técnicos';
-      
       return `<div class="settlement-row" style="padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--card);transition:all 0.2s;">
         <div class="row between" style="align-items:center;flex-wrap:wrap;gap:8px;">
           <div class="row" style="gap:12px;align-items:center;flex:1;min-width:200px;">
@@ -1212,10 +1230,7 @@ async function loadSettlements(){
             </span>
             <div style="flex:1;">
               <div style="font-weight:600;color:var(--text);margin-bottom:2px;">
-                📅 Período liquidación
-              </div>
-              <div style="font-size:12px;color:var(--muted);margin-bottom:2px;">
-                ${technicianCount} técnico${technicianCount !== 1 ? 's' : ''}: ${htmlEscape(techniciansList.length > 50 ? techniciansList.substring(0, 50) + '...' : techniciansList)}
+                👤 ${htmlEscape(s.technicianName||'Sin nombre')}
               </div>
               <div style="font-size:12px;color:var(--muted);">
                 ${createdAt}
@@ -1224,9 +1239,9 @@ async function loadSettlements(){
           </div>
           <div class="row" style="gap:16px;align-items:center;flex-wrap:wrap;">
             <div style="text-align:right;font-size:12px;color:var(--muted);">
-              <div>Bruto: <strong style="color:var(--text);">${formatMoney(s.totalGrossTotal || s.grossTotal || 0)}</strong></div>
-              <div>Desc: <strong style="color:#ef4444;">-${formatMoney(s.totalDeductionsTotal || s.deductionsTotal || 0)}</strong></div>
-              <div style="margin-top:4px;font-size:14px;font-weight:600;color:#10b981;">Neto: ${formatMoney(s.totalNetTotal || s.netTotal || 0)}</div>
+              <div>Bruto: <strong style="color:var(--text);">${formatMoney(s.grossTotal)}</strong></div>
+              <div>Desc: <strong style="color:#ef4444;">-${formatMoney(s.deductionsTotal)}</strong></div>
+              <div style="margin-top:4px;font-size:14px;font-weight:600;color:#10b981;">Neto: ${formatMoney(s.netTotal)}</div>
             </div>
             <div class="row" style="gap:8px;">
               <a href="${printUrl}" target="_blank" style="padding:6px 12px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);text-decoration:none;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(59,130,246,0.1)'" onmouseout="this.style.background='var(--bg)'" title="Imprimir con template configurado">
@@ -1458,19 +1473,26 @@ function init(){
   el('pl-preview')?.addEventListener('click', preview);
   el('pl-approve')?.addEventListener('click', approve);
   
-  // Recargar conceptos cuando cambie el período
+  // Recargar conceptos cuando cambie el técnico
+  const technicianSel = document.getElementById('pl-technicianSel');
+  if (technicianSel) {
+    technicianSel.addEventListener('change', () => {
+      loadConceptsForTechnician();
+    });
+  }
+  
+  // Recargar liquidaciones cuando cambie el período
   const periodSel = document.getElementById('pl-periodSel');
   if (periodSel) {
     periodSel.addEventListener('change', () => {
-      loadConceptsForPeriod();
       loadSettlements();
     });
   }
   
-  // Cargar conceptos al iniciar si hay un período seleccionado
+  // Cargar conceptos al iniciar si hay un técnico seleccionado
   setTimeout(() => {
-    if (periodSel?.value) {
-      loadConceptsForPeriod();
+    if (technicianSel?.value) {
+      loadConceptsForTechnician();
     }
   }, 500);
   el('pp-pay')?.addEventListener('click', pay);

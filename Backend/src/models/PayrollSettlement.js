@@ -10,32 +10,26 @@ const ItemSchema = new mongoose.Schema({
   notes: { type: String, default: '' }
 }, { _id: false });
 
-const TechnicianSettlementSchema = new mongoose.Schema({
-  technicianId: { type: mongoose.Schema.Types.ObjectId, default: null },
-  technicianName: { type: String, required: true },
+const PayrollSettlementSchema = new mongoose.Schema({
+  companyId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
+  technicianId: { type: mongoose.Schema.Types.ObjectId, required: false, index: true },
+  technicianName: { type: String, required: true, index: true },
+  periodId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true, ref: 'PayrollPeriod' },
+  selectedConceptIds: { type: [mongoose.Schema.Types.ObjectId], default: [] }, // Conceptos seleccionados para aplicar
   items: { type: [ItemSchema], default: [] },
   grossTotal: { type: Number, default: 0 },
   deductionsTotal: { type: Number, default: 0 },
-  netTotal: { type: Number, default: 0 }
-}, { _id: false });
-
-const PayrollSettlementSchema = new mongoose.Schema({
-  companyId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },
-  periodId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true, ref: 'PayrollPeriod', unique: true },
-  selectedConceptIds: { type: [mongoose.Schema.Types.ObjectId], default: [] }, // Conceptos seleccionados para aplicar
-  technicians: { type: [TechnicianSettlementSchema], default: [] }, // Liquidaciones por técnico
-  totalGrossTotal: { type: Number, default: 0 },
-  totalDeductionsTotal: { type: Number, default: 0 },
-  totalNetTotal: { type: Number, default: 0 },
+  netTotal: { type: Number, default: 0 },
   approvedBy: { type: mongoose.Schema.Types.ObjectId, default: null },
   approvedAt: { type: Date, default: null },
-  paidCashflowIds: { type: [mongoose.Schema.Types.ObjectId], default: [] }, // Múltiples pagos posibles
+  paidCashflowId: { type: mongoose.Schema.Types.ObjectId, default: null, ref: 'CashFlowEntry' },
   pdfUrl: { type: String, default: '' },
   status: { type: String, enum: ['draft','approved','paid'], default: 'draft', index: true }
 }, { timestamps: true });
 
-// Índice único por período (una liquidación por período)
-PayrollSettlementSchema.index({ companyId: 1, periodId: 1 }, { unique: true });
+// Índice único por técnico y período (una liquidación por técnico por período)
+PayrollSettlementSchema.index({ companyId: 1, technicianId: 1, periodId: 1 }, { unique: true, partialFilterExpression: { technicianId: { $type: 'objectId' } } });
+PayrollSettlementSchema.index({ companyId: 1, technicianName: 1, periodId: 1 }, { unique: true, partialFilterExpression: { technicianName: { $type: 'string' } } });
 
 export default mongoose.model('PayrollSettlement', PayrollSettlementSchema);
 

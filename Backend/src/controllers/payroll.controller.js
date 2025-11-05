@@ -305,11 +305,14 @@ function calculateTotals(items){
 
 export const previewSettlement = async (req, res) => {
   try {
-    const { periodId, selectedConceptIds = [] } = req.body;
+    const { periodId, technicianId, technicianName, selectedConceptIds = [] } = req.body;
     
     // Validaciones
     if (!periodId) {
       return res.status(400).json({ error: 'periodId requerido' });
+    }
+    if (!technicianName && !technicianId) {
+      return res.status(400).json({ error: 'technicianId o technicianName requerido' });
     }
     
     // Buscar período
@@ -318,108 +321,94 @@ export const previewSettlement = async (req, res) => {
       return res.status(404).json({ error: 'Período no encontrado' });
     }
     
-    // Buscar conceptos seleccionados (solo los que el usuario eligió)
+    const techNameUpper = technicianName ? String(technicianName).toUpperCase() : null;
+    
+    // Buscar asignaciones de conceptos para este técnico específico
+    const assignmentFilter = { companyId: req.companyId, isActive: true };
+    if (technicianId && technicianId.trim() !== '') {
+      assignmentFilter.technicianId = technicianId;
+    } else if (techNameUpper) {
+      assignmentFilter.technicianName = techNameUpper;
+    }
+    
+    const assignments = await TechnicianAssignment.find(assignmentFilter);
+    
+    // Obtener los conceptos asignados a este técnico
+    const assignedConceptIds = assignments.map(a => a.conceptId);
+    
+    // Buscar conceptos asignados que el usuario seleccionó (debe estar en ambos arrays)
+    const validConceptIds = selectedConceptIds.filter(id => assignedConceptIds.some(aid => String(aid) === String(id)));
     const selectedConcepts = await CompanyPayrollConcept.find({ 
       companyId: req.companyId, 
-      _id: { $in: selectedConceptIds },
+      _id: { $in: validConceptIds },
       isActive: true 
     });
     
-    // Buscar todas las ventas cerradas del período para calcular comisiones
+    // Calcular comisión del técnico en el período
     const sales = await Sale.find({
       companyId: req.companyId,
       status: 'closed',
-      closedAt: { $gte: period.startDate, $lte: period.endDate }
-    }).select({ laborCommissions: 1, closingTechnician: 1, technician: 1 });
+      closedAt: { $gte: period.startDate, $lte: period.endDate },
+      $or: [
+        { 'laborCommissions.technician': techNameUpper },
+        { 'laborCommissions.technicianName': techNameUpper },
+        { closingTechnician: techNameUpper },
+        { technician: techNameUpper }
+      ]
+    }).select({ laborCommissions: 1 });
     
-    // Agrupar comisiones por técnico
-    const technicianCommissions = {};
-    sales.forEach(sale => {
-      (sale.laborCommissions || []).forEach(lc => {
-        const techName = String(lc.technician || lc.technicianName || '').toUpperCase().trim();
-        if (techName) {
-          if (!technicianCommissions[techName]) {
-            technicianCommissions[techName] = 0;
-          }
-          technicianCommissions[techName] += Number(lc.share || 0);
-        }
-      });
+    const commission = sales.reduce((acc, s) => {
+      const fromBreakdown = (s.laborCommissions||[])
+        .filter(lc => {
+          const techMatch = String(lc.technician || lc.technicianName || '').toUpperCase();
+          return techMatch === techNameUpper;
+        })
+        .reduce((a,b)=> a + (Number(b.share)||0), 0);
+      return acc + fromBreakdown;
+    }, 0);
+    
+    const commissionRounded = Math.round(commission * 100) / 100;
+    
+    // Calcular items con la comisión como base para porcentajes
+    const items = computeSettlementItems({ 
+      selectedConcepts, 
+      assignments, 
+      technicianName: techNameUpper 
     });
     
-    // Obtener lista de técnicos de la empresa
-    const Company = (await import('../models/Company.js')).default;
-    const company = await Company.findById(req.companyId);
-    const allTechnicians = (company?.technicians || []).map(t => String(t).toUpperCase());
-    
-    // Crear liquidaciones para cada técnico con comisiones
-    const technicians = [];
-    const allTechNames = new Set([...Object.keys(technicianCommissions), ...allTechnicians]);
-    
-    for (const techName of allTechNames) {
-      const commission = Math.round((technicianCommissions[techName] || 0) * 100) / 100;
-      
-      // Solo incluir técnicos con comisiones > 0
-      if (commission > 0 || allTechnicians.includes(techName)) {
-        // Buscar asignaciones para este técnico
-        const assignments = await TechnicianAssignment.find({
-          companyId: req.companyId,
-          technicianName: techName,
-          isActive: true
-        });
-        
-        // Calcular items con la comisión como base para porcentajes
-        const items = computeSettlementItems({ 
-          selectedConcepts, 
-          assignments, 
-          technicianName: techName 
-        });
-        
-        // Agregar comisión como primer item
-        if (commission > 0) {
-          items.unshift({
-            conceptId: null,
-            name: 'Comisión por ventas',
-            type: 'earning',
-            base: 0,
-            value: commission,
-            calcRule: 'sales.laborCommissions',
-            notes: ''
-          });
-        }
-        
-        // Calcular valores de porcentajes sobre la comisión
-        items.forEach(item => {
-          if (item.isPercent && item.percentValue) {
-            item.value = Math.round((commission * item.percentValue) / 100);
-            item.base = commission;
-          }
-        });
-        
-        const { grossTotal, deductionsTotal, netTotal } = calculateTotals(items);
-        
-        technicians.push({
-          technicianId: null,
-          technicianName: techName,
-          items,
-          grossTotal,
-          deductionsTotal,
-          netTotal
-        });
-      }
+    // Agregar comisión como primer item si existe
+    if (commissionRounded > 0) {
+      items.unshift({
+        conceptId: null,
+        name: 'Comisión por ventas',
+        type: 'earning',
+        base: 0,
+        value: commissionRounded,
+        calcRule: 'sales.laborCommissions',
+        notes: ''
+      });
     }
     
-    // Calcular totales generales
-    const totalGrossTotal = technicians.reduce((sum, t) => sum + t.grossTotal, 0);
-    const totalDeductionsTotal = technicians.reduce((sum, t) => sum + t.deductionsTotal, 0);
-    const totalNetTotal = technicians.reduce((sum, t) => sum + t.netTotal, 0);
+    // Calcular valores de porcentajes sobre la comisión
+    items.forEach(item => {
+      if (item.isPercent && item.percentValue) {
+        item.value = Math.round((commissionRounded * item.percentValue) / 100);
+        item.base = commissionRounded;
+      }
+    });
+    
+    const { grossTotal, deductionsTotal, netTotal } = calculateTotals(items);
     
     res.json({
       periodId,
+      technicianId,
+      technicianName: techNameUpper,
       selectedConceptIds,
-      technicians,
-      totalGrossTotal,
-      totalDeductionsTotal,
-      totalNetTotal
+      assignedConceptIds, // Devolver también los conceptos asignados disponibles
+      items,
+      grossTotal,
+      deductionsTotal,
+      netTotal
     });
   } catch (err) {
     console.error('Error in previewSettlement:', err);
@@ -429,11 +418,14 @@ export const previewSettlement = async (req, res) => {
 
 export const approveSettlement = async (req, res) => {
   try {
-    const { periodId, selectedConceptIds = [] } = req.body;
+    const { periodId, technicianId, technicianName, selectedConceptIds = [] } = req.body;
     
     // Validaciones
     if (!periodId) {
       return res.status(400).json({ error: 'periodId requerido' });
+    }
+    if (!technicianName && !technicianId) {
+      return res.status(400).json({ error: 'technicianId o technicianName requerido' });
     }
     
     // Usar la misma lógica que previewSettlement para calcular
@@ -442,99 +434,98 @@ export const approveSettlement = async (req, res) => {
       return res.status(404).json({ error: 'Período no encontrado' });
     }
     
+    const techNameUpper = technicianName ? String(technicianName).toUpperCase() : null;
+    
+    // Buscar asignaciones de conceptos para este técnico
+    const assignmentFilter = { companyId: req.companyId, isActive: true };
+    if (technicianId && technicianId.trim() !== '') {
+      assignmentFilter.technicianId = technicianId;
+    } else if (techNameUpper) {
+      assignmentFilter.technicianName = techNameUpper;
+    }
+    
+    const assignments = await TechnicianAssignment.find(assignmentFilter);
+    const assignedConceptIds = assignments.map(a => a.conceptId);
+    
+    // Buscar conceptos seleccionados que están asignados al técnico
+    const validConceptIds = selectedConceptIds.filter(id => assignedConceptIds.some(aid => String(aid) === String(id)));
     const selectedConcepts = await CompanyPayrollConcept.find({ 
       companyId: req.companyId, 
-      _id: { $in: selectedConceptIds },
+      _id: { $in: validConceptIds },
       isActive: true 
     });
     
+    // Calcular comisión
     const sales = await Sale.find({
       companyId: req.companyId,
       status: 'closed',
-      closedAt: { $gte: period.startDate, $lte: period.endDate }
+      closedAt: { $gte: period.startDate, $lte: period.endDate },
+      $or: [
+        { 'laborCommissions.technician': techNameUpper },
+        { 'laborCommissions.technicianName': techNameUpper },
+        { closingTechnician: techNameUpper },
+        { technician: techNameUpper }
+      ]
     }).select({ laborCommissions: 1 });
     
-    const technicianCommissions = {};
-    sales.forEach(sale => {
-      (sale.laborCommissions || []).forEach(lc => {
-        const techName = String(lc.technician || lc.technicianName || '').toUpperCase().trim();
-        if (techName) {
-          if (!technicianCommissions[techName]) {
-            technicianCommissions[techName] = 0;
-          }
-          technicianCommissions[techName] += Number(lc.share || 0);
-        }
-      });
+    const commission = sales.reduce((acc, s) => {
+      const fromBreakdown = (s.laborCommissions||[])
+        .filter(lc => {
+          const techMatch = String(lc.technician || lc.technicianName || '').toUpperCase();
+          return techMatch === techNameUpper;
+        })
+        .reduce((a,b)=> a + (Number(b.share)||0), 0);
+      return acc + fromBreakdown;
+    }, 0);
+    
+    const commissionRounded = Math.round(commission * 100) / 100;
+    
+    // Calcular items
+    const items = computeSettlementItems({ 
+      selectedConcepts, 
+      assignments, 
+      technicianName: techNameUpper 
     });
     
-    const Company = (await import('../models/Company.js')).default;
-    const company = await Company.findById(req.companyId);
-    const allTechnicians = (company?.technicians || []).map(t => String(t).toUpperCase());
-    
-    const technicians = [];
-    const allTechNames = new Set([...Object.keys(technicianCommissions), ...allTechnicians]);
-    
-    for (const techName of allTechNames) {
-      const commission = Math.round((technicianCommissions[techName] || 0) * 100) / 100;
-      
-      if (commission > 0 || allTechnicians.includes(techName)) {
-        const assignments = await TechnicianAssignment.find({
-          companyId: req.companyId,
-          technicianName: techName,
-          isActive: true
-        });
-        
-        const items = computeSettlementItems({ 
-          selectedConcepts, 
-          assignments, 
-          technicianName: techName 
-        });
-        
-        if (commission > 0) {
-          items.unshift({
-            conceptId: null,
-            name: 'Comisión por ventas',
-            type: 'earning',
-            base: 0,
-            value: commission,
-            calcRule: 'sales.laborCommissions',
-            notes: ''
-          });
-        }
-        
-        items.forEach(item => {
-          if (item.isPercent && item.percentValue) {
-            item.value = Math.round((commission * item.percentValue) / 100);
-            item.base = commission;
-          }
-        });
-        
-        const { grossTotal, deductionsTotal, netTotal } = calculateTotals(items);
-        
-        technicians.push({
-          technicianId: null,
-          technicianName: techName,
-          items,
-          grossTotal,
-          deductionsTotal,
-          netTotal
-        });
-      }
+    if (commissionRounded > 0) {
+      items.unshift({
+        conceptId: null,
+        name: 'Comisión por ventas',
+        type: 'earning',
+        base: 0,
+        value: commissionRounded,
+        calcRule: 'sales.laborCommissions',
+        notes: ''
+      });
     }
     
-    const totalGrossTotal = technicians.reduce((sum, t) => sum + t.grossTotal, 0);
-    const totalDeductionsTotal = technicians.reduce((sum, t) => sum + t.deductionsTotal, 0);
-    const totalNetTotal = technicians.reduce((sum, t) => sum + t.netTotal, 0);
+    items.forEach(item => {
+      if (item.isPercent && item.percentValue) {
+        item.value = Math.round((commissionRounded * item.percentValue) / 100);
+        item.base = commissionRounded;
+      }
+    });
     
-    // Guardar liquidación (una por período)
+    const { grossTotal, deductionsTotal, netTotal } = calculateTotals(items);
+    
+    // Guardar liquidación por técnico
+    const updateFilter = { companyId: req.companyId, periodId };
+    if (technicianId && technicianId.trim() !== '') {
+      updateFilter.technicianId = technicianId;
+    } else if (techNameUpper) {
+      updateFilter.technicianName = techNameUpper;
+    }
+    
     const doc = await PayrollSettlement.findOneAndUpdate(
-      { companyId: req.companyId, periodId },
+      updateFilter,
       { 
         selectedConceptIds,
-        technicians,
-        totalGrossTotal,
-        totalDeductionsTotal,
-        totalNetTotal,
+        items,
+        grossTotal,
+        deductionsTotal,
+        netTotal,
+        technicianName: techNameUpper,
+        technicianId: technicianId || null,
         status: 'approved',
         approvedBy: req.user?.id || null,
         approvedAt: new Date()
@@ -551,7 +542,7 @@ export const approveSettlement = async (req, res) => {
 
 export const paySettlement = async (req, res) => {
   try {
-    const { settlementId, accountId, date, technicianIndex } = req.body;
+    const { settlementId, accountId, date, notes } = req.body;
     
     // Validaciones
     if (!settlementId) {
@@ -573,47 +564,31 @@ export const paySettlement = async (req, res) => {
     if(st.status === 'paid') return res.status(400).json({ error: 'Esta liquidación ya fue pagada' });
     if(st.status !== 'approved') return res.status(400).json({ error: 'Solo se pueden pagar liquidaciones aprobadas' });
 
-    // Si se especifica technicianIndex, pagar solo ese técnico; si no, pagar todos
-    let techniciansToPay = [];
-    if (technicianIndex !== undefined && technicianIndex !== null) {
-      const tech = st.technicians?.[technicianIndex];
-      if (!tech) return res.status(404).json({ error: 'Técnico no encontrado en la liquidación' });
-      techniciansToPay = [tech];
-    } else {
-      techniciansToPay = st.technicians || [];
-    }
-
-    // Crear una entrada de CashFlow por cada técnico (o una sola si se paga todo)
-    const cashflowEntries = [];
-    for (const tech of techniciansToPay) {
-      const entry = await CashFlowEntry.create({
-        companyId: req.companyId,
-        accountId,
-        date: date ? new Date(date) : new Date(),
-        kind: 'OUT',
-        source: 'MANUAL',
-        sourceRef: settlementId,
-        description: `Pago de nómina: ${tech.technicianName || 'Sin nombre'}`,
-        amount: Math.abs(tech.netTotal),
-        meta: { 
-          type: 'PAYROLL', 
-          technicianId: tech.technicianId, 
-          technicianName: tech.technicianName,
-          settlementId 
-        }
-      });
-      cashflowEntries.push(entry._id);
-    }
+    // Crear entrada de CashFlow para el técnico
+    const entry = await CashFlowEntry.create({
+      companyId: req.companyId,
+      accountId,
+      date: date ? new Date(date) : new Date(),
+      kind: 'OUT',
+      source: 'MANUAL',
+      sourceRef: settlementId,
+      description: `Pago de nómina: ${st.technicianName || 'Sin nombre'}`,
+      amount: Math.abs(st.netTotal),
+      notes: notes || '',
+      meta: { 
+        type: 'PAYROLL', 
+        technicianId: st.technicianId, 
+        technicianName: st.technicianName,
+        settlementId 
+      }
+    });
 
     // Actualizar liquidación
-    if (technicianIndex === undefined || technicianIndex === null) {
-      // Si se pagaron todos, marcar como pagada
-      st.status = 'paid';
-    }
-    st.paidCashflowIds = [...(st.paidCashflowIds || []), ...cashflowEntries];
+    st.status = 'paid';
+    st.paidCashflowId = entry._id;
     await st.save();
 
-    res.json({ ok: true, settlement: st, cashflow: cashflowEntries.length === 1 ? { _id: cashflowEntries[0] } : cashflowEntries });
+    res.json({ ok: true, settlement: st, cashflow: entry });
   } catch (err) {
     res.status(500).json({ error: 'Error al procesar pago', message: err.message });
   }
@@ -621,18 +596,20 @@ export const paySettlement = async (req, res) => {
 
 export const listSettlements = async (req, res) => {
   try {
-    const { periodId, status } = req.query;
+    const { periodId, technicianId, technicianName, status } = req.query;
     const filter = { companyId: req.companyId };
     if (periodId) filter.periodId = periodId;
+    if (technicianId) filter.technicianId = technicianId;
+    if (technicianName) filter.technicianName = String(technicianName).toUpperCase();
     if (status) filter.status = status;
     
     const items = await PayrollSettlement.find(filter).sort({ createdAt: -1 });
     
-    // Agregar resumen simple usando los nuevos campos
+    // Agregar resumen simple
     const summary = items.reduce((acc, s) => {
-      acc.grossTotal += (s.totalGrossTotal || 0);
-      acc.deductionsTotal += (s.totalDeductionsTotal || 0);
-      acc.netTotal += (s.totalNetTotal || 0);
+      acc.grossTotal += (s.grossTotal || 0);
+      acc.deductionsTotal += (s.deductionsTotal || 0);
+      acc.netTotal += (s.netTotal || 0);
       return acc;
     }, { grossTotal: 0, deductionsTotal: 0, netTotal: 0 });
     
@@ -672,18 +649,12 @@ export const printSettlementHtml = async (req, res) => {
     const settlementObj = st.toObject();
     const periodObj = period ? period.toObject() : null;
     
-    // Preparar técnicos con items agrupados por tipo
-    const techniciansWithItems = (settlementObj.technicians || []).map(tech => ({
-      ...tech,
-      itemsByType: {
-        earnings: (tech.items || []).filter(i => i.type === 'earning'),
-        deductions: (tech.items || []).filter(i => i.type === 'deduction'),
-        surcharges: (tech.items || []).filter(i => i.type === 'surcharge')
-      },
-      formattedGrossTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(tech.grossTotal || 0),
-      formattedDeductionsTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(tech.deductionsTotal || 0),
-      formattedNetTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(tech.netTotal || 0)
-    }));
+    // Separar items por tipo para facilitar el template
+    const itemsByType = {
+      earnings: (settlementObj.items || []).filter(i => i.type === 'earning'),
+      deductions: (settlementObj.items || []).filter(i => i.type === 'deduction'),
+      surcharges: (settlementObj.items || []).filter(i => i.type === 'surcharge')
+    };
     
     const context = {
       company: {
@@ -695,10 +666,10 @@ export const printSettlementHtml = async (req, res) => {
       },
       settlement: {
         ...settlementObj,
-        technicians: techniciansWithItems, // Técnicos con items agrupados
-        formattedTotalGrossTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(settlementObj.totalGrossTotal || 0),
-        formattedTotalDeductionsTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(settlementObj.totalDeductionsTotal || 0),
-        formattedTotalNetTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(settlementObj.totalNetTotal || 0)
+        itemsByType, // Agregar items agrupados por tipo
+        formattedGrossTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(settlementObj.grossTotal || 0),
+        formattedDeductionsTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(settlementObj.deductionsTotal || 0),
+        formattedNetTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(settlementObj.netTotal || 0)
       },
       period: periodObj ? {
         ...periodObj,
@@ -722,86 +693,76 @@ export const printSettlementHtml = async (req, res) => {
         html = `<!-- template error: ${e.message} --><div style="padding:20px;color:red;">Error al renderizar template: ${e.message}</div>`; 
       }
     } else {
-      // Fallback HTML simple con mejor formato para múltiples técnicos
+      // Fallback HTML simple con mejor formato
       const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
+      const earningsRows = itemsByType.earnings.map(i => `<tr><td>${i.name}</td><td style="text-align:right">${formatMoney(i.value)}</td></tr>`).join('');
+      const deductionsRows = itemsByType.deductions.map(i => `<tr><td>${i.name}</td><td style="text-align:right">${formatMoney(i.value)}</td></tr>`).join('');
+      const surchargesRows = itemsByType.surcharges.map(i => `<tr><td>${i.name}</td><td style="text-align:right">${formatMoney(i.value)}</td></tr>`).join('');
       const periodRange = periodObj ? `${new Date(periodObj.startDate).toLocaleDateString('es-CO')} → ${new Date(periodObj.endDate).toLocaleDateString('es-CO')}` : '';
-      
-      const renderTechnician = (tech) => {
-        const earnings = (tech.items || []).filter(i => i.type === 'earning');
-        const deductions = (tech.items || []).filter(i => i.type === 'deduction');
-        const earningsRows = earnings.map(i => `<tr><td>${i.name}</td><td style="text-align:right">${formatMoney(i.value)}</td></tr>`).join('');
-        const deductionsRows = deductions.map(i => `<tr><td>${i.name}</td><td style="text-align:right">${formatMoney(i.value)}</td></tr>`).join('');
-        
-        return `
-          <div style="margin-bottom:30px;padding:20px;border:1px solid #ddd;border-radius:8px;">
-            <h3 style="margin-top:0;margin-bottom:15px;color:#333;">Técnico: ${tech.technicianName || 'Sin nombre'}</h3>
-            ${earningsRows ? `
-              <h4 style="margin-top:15px;margin-bottom:8px;font-size:14px;color:#666;">Ingresos</h4>
-              <table style="width:100%;border-collapse:collapse;margin-bottom:15px;">
-                <thead>
-                  <tr style="background:#f0f0f0;">
-                    <th style="text-align:left;padding:8px;border-bottom:2px solid #ddd;">Concepto</th>
-                    <th style="text-align:right;padding:8px;border-bottom:2px solid #ddd;">Valor</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${earningsRows}
-                </tbody>
-              </table>
-            ` : ''}
-            ${deductionsRows ? `
-              <h4 style="margin-top:15px;margin-bottom:8px;font-size:14px;color:#666;">Descuentos</h4>
-              <table style="width:100%;border-collapse:collapse;margin-bottom:15px;">
-                <thead>
-                  <tr style="background:#f0f0f0;">
-                    <th style="text-align:left;padding:8px;border-bottom:2px solid #ddd;">Concepto</th>
-                    <th style="text-align:right;padding:8px;border-bottom:2px solid #ddd;">Valor</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${deductionsRows}
-                </tbody>
-              </table>
-            ` : ''}
-            <div style="margin-top:15px;padding-top:15px;border-top:1px solid #ddd;">
-              <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-                <strong>Total bruto:</strong>
-                <strong>${formatMoney(tech.grossTotal)}</strong>
-              </div>
-              <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-                <strong>Total descuentos:</strong>
-                <strong>${formatMoney(tech.deductionsTotal)}</strong>
-              </div>
-              <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid #ddd;font-size:16px;">
-                <strong>Neto a pagar:</strong>
-                <strong style="color:#10b981;">${formatMoney(tech.netTotal)}</strong>
-              </div>
-            </div>
-          </div>`;
-      };
       
       html = `
         <div style="max-width:800px;margin:0 auto;padding:20px;font-family:Arial,sans-serif;">
           <h2 style="text-align:center;margin-bottom:20px;">Comprobante de Pago de Nómina</h2>
-          <div style="margin-bottom:20px;padding-bottom:15px;border-bottom:2px solid #333;">
+          <div style="margin-bottom:20px;">
             <div><strong>Empresa:</strong> ${context.company.name}</div>
+            <div><strong>Técnico:</strong> ${settlementObj.technicianName||''}</div>
             ${periodRange ? `<div><strong>Período:</strong> ${periodRange}</div>` : ''}
             <div><strong>Fecha de liquidación:</strong> ${context.formattedNow}</div>
-            <div><strong>Técnicos incluidos:</strong> ${techniciansWithItems.length}</div>
           </div>
-          ${techniciansWithItems.map(tech => renderTechnician(tech)).join('')}
-          <div style="margin-top:30px;padding-top:20px;border-top:3px solid #333;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:16px;">
-              <strong>Total bruto general:</strong>
-              <strong>${formatMoney(settlementObj.totalGrossTotal)}</strong>
+          ${earningsRows ? `
+            <h3 style="margin-top:20px;margin-bottom:10px;">Ingresos</h3>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+              <thead>
+                <tr style="background:#f0f0f0;">
+                  <th style="text-align:left;padding:8px;border-bottom:2px solid #ddd;">Concepto</th>
+                  <th style="text-align:right;padding:8px;border-bottom:2px solid #ddd;">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${earningsRows}
+              </tbody>
+            </table>
+          ` : ''}
+          ${surchargesRows ? `
+            <h3 style="margin-top:20px;margin-bottom:10px;">Recargos</h3>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+              <thead>
+                <tr style="background:#f0f0f0;">
+                  <th style="text-align:left;padding:8px;border-bottom:2px solid #ddd;">Concepto</th>
+                  <th style="text-align:right;padding:8px;border-bottom:2px solid #ddd;">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${surchargesRows}
+              </tbody>
+            </table>
+          ` : ''}
+          ${deductionsRows ? `
+            <h3 style="margin-top:20px;margin-bottom:10px;">Descuentos</h3>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+              <thead>
+                <tr style="background:#f0f0f0;">
+                  <th style="text-align:left;padding:8px;border-bottom:2px solid #ddd;">Concepto</th>
+                  <th style="text-align:right;padding:8px;border-bottom:2px solid #ddd;">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${deductionsRows}
+              </tbody>
+            </table>
+          ` : ''}
+          <div style="margin-top:30px;padding-top:20px;border-top:2px solid #333;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+              <strong>Total bruto:</strong>
+              <strong>${formatMoney(settlementObj.grossTotal)}</strong>
             </div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:16px;">
-              <strong>Total descuentos general:</strong>
-              <strong>${formatMoney(settlementObj.totalDeductionsTotal)}</strong>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+              <strong>Total descuentos:</strong>
+              <strong>${formatMoney(settlementObj.deductionsTotal)}</strong>
             </div>
-            <div style="display:flex;justify-content:space-between;padding-top:10px;border-top:2px solid #ddd;font-size:20px;">
-              <strong>Total neto a pagar:</strong>
-              <strong style="color:#10b981;">${formatMoney(settlementObj.totalNetTotal)}</strong>
+            <div style="display:flex;justify-content:space-between;padding-top:10px;border-top:1px solid #ddd;font-size:18px;">
+              <strong>Neto a pagar:</strong>
+              <strong style="color:#10b981;">${formatMoney(settlementObj.netTotal)}</strong>
             </div>
           </div>
         </div>`;
