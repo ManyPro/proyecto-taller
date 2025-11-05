@@ -3223,6 +3223,47 @@
     throw new Error('Redirecting to template selector');
   }
 
+  // Helper function to wait for appSection to be visible
+  function waitForAppSection(callback) {
+    const appSection = document.getElementById('appSection');
+    if (!appSection) {
+      console.warn('⚠️ appSection no encontrado, esperando...');
+      setTimeout(() => waitForAppSection(callback), 100);
+      return;
+    }
+    
+    // Check if already visible
+    if (!appSection.classList.contains('hidden')) {
+      callback();
+      return;
+    }
+    
+    // Wait for it to become visible
+    const observer = new MutationObserver((mutations) => {
+      if (!appSection.classList.contains('hidden')) {
+        observer.disconnect();
+        callback();
+      }
+    });
+    
+    observer.observe(appSection, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+    
+    // Fallback: try after a delay in case observer doesn't fire
+    setTimeout(() => {
+      if (!appSection.classList.contains('hidden')) {
+        observer.disconnect();
+        callback();
+      } else {
+        console.warn('⚠️ appSection sigue oculto después de esperar, inicializando de todos modos...');
+        observer.disconnect();
+        callback();
+      }
+    }, 2000);
+  }
+
   // Initialize when DOM is ready
   document.addEventListener('DOMContentLoaded', function() {
     console.log('🎨 Inicializando Editor Visual Completo...');
@@ -3237,6 +3278,14 @@
     
     console.log('📋 Sesión de plantilla:', window.currentTemplateSession);
     
+    // Wait for appSection to be visible before initializing
+    waitForAppSection(() => {
+      console.log('✅ appSection visible, procediendo con inicialización...');
+      initializeEditor();
+    });
+  });
+
+  function initializeEditor() {
     try {
       // Check if API is available
       if (typeof API === 'undefined') {
@@ -3314,10 +3363,17 @@
       // Add header info to show current session
       addSessionHeader(documentType, action, formatId);
       
-      // Load format based on action with delay to ensure DOM is ready
+      // Load format based on action with delay to ensure DOM is ready and canvas is visible
       console.log(`🎯 Acción: ${action}, Tipo: ${documentType}, FormatId: ${formatId}`);
       
+      // Wait a bit longer to ensure canvas is fully visible and rendered
       setTimeout(() => {
+        const canvas = qs('#ce-canvas');
+        if (canvas) {
+          // Force a layout recalculation to ensure canvas is properly sized
+          canvas.offsetHeight; // Trigger reflow
+        }
+        
         if (action === 'edit' && formatId) {
           console.log('📝 Cargando formato existente...');
           loadExistingFormat(formatId);
@@ -3327,7 +3383,7 @@
         } else {
           console.error('❌ Acción no reconocida:', action);
         }
-      }, 500);
+      }, 800);
       
       // Load existing templates from backend (for reference)
       loadExistingTemplates();
@@ -3368,7 +3424,7 @@
     // Quick save button removed - only save template and preview remain
     
     console.log('✅ Editor Visual inicializado correctamente');
-  });
+  }
 
   // Global: deseleccionar al hacer clic fuera de cualquier elemento del editor
   // (ignora clics dentro de .tpl-element, #element-properties, #ce-toolbar y #pages-controls)
@@ -3407,14 +3463,32 @@
       
       // Load content into editor
       const canvas = qs('#ce-canvas');
-      if (canvas) {
-        // If sticker types, enforce proper size before injecting
-        if (template.type === 'sticker-qr') {
-          applyStickerCanvasSize('qr');
-        } else if (template.type === 'sticker-brand') {
-          applyStickerCanvasSize('brand');
-        }
-        if (template.contentHtml && template.contentHtml.trim() !== '') {
+      if (!canvas) {
+        throw new Error('Canvas del editor no encontrado');
+      }
+      
+      // Ensure canvas is visible and properly sized
+      const appSection = document.getElementById('appSection');
+      if (appSection && appSection.classList.contains('hidden')) {
+        console.warn('⚠️ appSection está oculto, forzando visibilidad...');
+        appSection.classList.remove('hidden');
+      }
+      
+      // Force canvas to be visible
+      canvas.style.display = 'block';
+      canvas.style.visibility = 'visible';
+      
+      // Trigger a reflow to ensure canvas is properly rendered
+      canvas.offsetHeight;
+      
+      // If sticker types, enforce proper size before injecting
+      if (template.type === 'sticker-qr') {
+        applyStickerCanvasSize('qr');
+      } else if (template.type === 'sticker-brand') {
+        applyStickerCanvasSize('brand');
+      }
+      
+      if (template.contentHtml && template.contentHtml.trim() !== '') {
           // Load existing content
           canvas.innerHTML = template.contentHtml;
           // For sticker templates, ensure elements are interactive even in legacy content
@@ -3513,9 +3587,6 @@
             showQuickNotification(`ℹ️ "${template.name}" no tiene contenido guardado aún.`, 'info');
           }
         }
-      } else {
-        throw new Error('Canvas del editor no encontrado');
-      }
       
     } catch (error) {
       console.error('Error cargando formato:', error);
@@ -3535,7 +3606,21 @@
       return;
     }
     
-    console.log('✅ Canvas encontrado, procediendo con carga de plantilla...');
+    // Ensure canvas is visible and properly sized
+    const appSection = document.getElementById('appSection');
+    if (appSection && appSection.classList.contains('hidden')) {
+      console.warn('⚠️ appSection está oculto, forzando visibilidad...');
+      appSection.classList.remove('hidden');
+    }
+    
+    // Force canvas to be visible
+    canvas.style.display = 'block';
+    canvas.style.visibility = 'visible';
+    
+    // Trigger a reflow to ensure canvas is properly rendered
+    canvas.offsetHeight;
+    
+    console.log('✅ Canvas encontrado y visible, procediendo con carga de plantilla...');
     
     // Always load the appropriate template for the document type
     if (documentType === 'invoice') {
