@@ -1,10 +1,19 @@
 # Configuración para Netlify
+# IMPORTANTE: Para evitar conflictos entre producción y desarrollo:
+# - Crear DOS SITIOS SEPARADOS en Netlify:
+#   1. Sitio de PRODUCCIÓN: conectado al branch 'main'
+#   2. Sitio de DESARROLLO: conectado al branch 'develop'
+#
+# Esta configuración se aplica a ambos, pero cada sitio tiene su propia URL y deploy independiente.
 
 [build]
   publish = "Frontend"
   command = "echo 'Frontend listo'"
 
 # Redirecciones para el API
+# NOTA: Ambos sitios (producción y desarrollo) apuntan al mismo backend por defecto
+# Si necesitas diferentes backends, crea un netlify.toml específico para cada branch
+# o configura redirects condicionales en el dashboard de Netlify
 [[redirects]]
   from = "/api/*"
   to = "http://143.110.131.35:4000/api/:splat"

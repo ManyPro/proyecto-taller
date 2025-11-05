@@ -130,22 +130,22 @@ docker-compose -f docker-compose.dev.yml up --build
 ### Opción 2: Netlify (opcional)
 Si quieres un entorno de desarrollo en la nube:
 
+📖 **Guía completa:** Ver [NETLIFY-DEPLOY.md](./NETLIFY-DEPLOY.md) para instrucciones detalladas.
+
+**Resumen rápido:**
 1. **Crear sitio en Netlify:**
    - Ve a [netlify.com](https://netlify.com)
    - Crea un nuevo sitio
    - Conecta tu repo de GitHub
    - Selecciona el branch `develop`
 
-2. **Configurar variables de entorno:**
-   - `NODE_ENV=development`
-   - `MONGODB_URI=<tu-mongodb-uri>`
-   - `JWT_SECRET=XfOvU9NYHxoNgKAl`
-   - `ALLOWED_ORIGINS=*`
-   - `CLD_FOLDER=taller-dev`
-
-3. **Configurar build:**
+2. **Configurar build:**
    - Build Command: `echo "Frontend de desarrollo listo"`
    - Publish Directory: `Frontend`
+
+3. **El archivo `netlify.toml` ya está configurado** con las redirecciones necesarias para el API.
+
+**Nota:** Las variables de entorno no son necesarias para el frontend en Netlify, ya que el frontend detecta automáticamente el entorno y usa el proxy configurado.
 
 ### Opción 3: Tu servidor actual (alternativa)
 Si tienes un servidor donde puedas hacer deploy:
