@@ -4951,11 +4951,7 @@
             <script>
               console.log('📊 Vista previa generada exitosamente');
               console.log('🔧 Tipo de plantilla:', '${templateType}');
-              try {
-                console.log('📋 Contexto de datos:', ${JSON.stringify((result && result.context) || {})});
-              } catch (e) {
-                console.log('📋 Contexto de datos: [error al serializar]');
-              }
+              // Context data logging removed to avoid template string syntax issues
               
               // Add keyboard shortcuts
               document.addEventListener('keydown', function(e) {
