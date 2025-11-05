@@ -99,6 +99,24 @@ const API = {
   token: tokenStore,
   companyId: companyIdStore,
   
+  // Métodos HTTP directos para uso general
+  get: (path, params) => {
+    // Si params es undefined o null, usar objeto vacío
+    // Si es string, asumir que ya es query string
+    if (params === undefined || params === null) {
+      return http.get(path);
+    }
+    if (typeof params === 'string') {
+      return http.get(`${path}${params}`);
+    }
+    const query = toQuery(params || {});
+    return http.get(`${path}${query}`);
+  },
+  post: (path, payload) => http.post(path, payload),
+  put: (path, payload) => http.put(path, payload),
+  patch: (path, payload) => http.patch(path, payload),
+  del: (path) => http.del(path),
+  
   company: {
     getPreferences: () => http.get('/api/v1/company/preferences').then(r=> r.preferences || { laborPercents: [] }),
     setPreferences: (prefs) => http.put('/api/v1/company/preferences', prefs).then(r=> r.preferences || {}),
