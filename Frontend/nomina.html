@@ -19,6 +19,15 @@
     /* Chips técnicos */
     .chip{display:inline-flex;align-items:center;gap:6px;background:rgba(148,163,184,.12);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:999px;font-size:12px}
     .chip .danger{margin-left:4px}
+    /* Conceptos */
+    .concept-row:hover{background:var(--hover-bg, rgba(148,163,184,.05));transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.05)}
+    .concept-badge{font-family:inherit;letter-spacing:0.3px}
+    /* Períodos */
+    .period-row:hover{background:var(--hover-bg, rgba(148,163,184,.05));transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.05)}
+    /* Liquidaciones */
+    .settlement-row:hover{background:var(--hover-bg, rgba(148,163,184,.05));transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.05)}
+    /* Pagos */
+    .pending-settlement-row:hover{background:var(--hover-bg, rgba(148,163,184,.05));transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.05);border-color:rgba(59,130,246,0.3)!important}
   </style>
 </head>
 <body data-page="nomina">
@@ -67,79 +76,272 @@
       </div>
 
       <div class="card" data-subsection="concepts">
-        <h3>Conceptos por empresa</h3>
-        <div class="row wrap" style="gap:8px;align-items:center;">
-          <select id="pc-type">
-            <option value="earning">Ingreso</option>
-            <option value="deduction">Descuento</option>
-            <option value="surcharge">Recargo</option>
-          </select>
-          <select id="pc-amountType">
-            <option value="fixed">Fijo</option>
-            <option value="percent">Porcentaje</option>
-          </select>
-          <input id="pc-code" placeholder="COD" style="width:100px" />
-          <input id="pc-name" placeholder="Nombre" />
-          <input id="pc-value" type="number" step="0.01" placeholder="Valor" style="width:120px" />
-          <button id="pc-add" class="secondary">+ Agregar</button>
+        <div style="margin-bottom:16px;">
+          <h3 style="margin:0 0 4px 0;">Conceptos por empresa</h3>
+          <p class="muted" style="margin:0;font-size:13px;">Configura los conceptos de nómina (ingresos, descuentos, recargos) que se aplicarán a todos los técnicos de tu empresa.</p>
         </div>
-        <div id="pc-list" style="margin-top:10px"></div>
+        
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div class="row wrap" style="gap:12px;align-items:end;">
+            <div style="flex:1;min-width:140px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Tipo</label>
+              <select id="pc-type" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="earning">💰 Ingreso</option>
+                <option value="deduction">➖ Descuento</option>
+                <option value="surcharge">➕ Recargo</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:140px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Tipo de monto</label>
+              <select id="pc-amountType" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="fixed">Fijo (COP)</option>
+                <option value="percent">Porcentaje (%)</option>
+              </select>
+            </div>
+            <div style="min-width:100px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Código</label>
+              <input id="pc-code" placeholder="Ej: SAL" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);text-transform:uppercase;" maxlength="10" />
+            </div>
+            <div style="flex:2;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre</label>
+              <input id="pc-name" placeholder="Ej: Salario base" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+            </div>
+            <div style="min-width:140px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Valor</label>
+              <input id="pc-value" type="number" step="0.01" min="0" placeholder="0.00" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+            </div>
+            <div style="min-width:120px;">
+              <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+              <button id="pc-add" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
+                ➕ Agregar concepto
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div id="pc-list" style="margin-top:0;"></div>
       </div>
 
       <div class="card" style="margin-top:12px;" data-subsection="assign" class="hidden">
-        <div class="row between" style="align-items:center;">
-          <h3>Asignaciones por técnico</h3>
-          <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;">
-            <select id="pa-technicianSel" style="min-width:220px"></select>
-            <select id="pa-conceptSel" style="min-width:260px"></select>
-            <input id="pa-value" type="number" step="0.01" placeholder="Valor override" style="width:140px" />
-            <button id="pa-save" class="secondary">Guardar</button>
+        <div style="margin-bottom:16px;">
+          <h3 style="margin:0 0 4px 0;">Asignaciones por técnico</h3>
+          <p class="muted" style="margin:0;font-size:13px;">Personaliza valores de conceptos para técnicos específicos. Los técnicos creados aquí son los únicos disponibles para usar en Ventas.</p>
+        </div>
+
+        <!-- Gestión de técnicos -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="margin-bottom:12px;">
+            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Técnicos de la empresa</h4>
+            <p class="muted" style="margin:0;font-size:12px;">Crea y gestiona los técnicos que aparecerán en Ventas y estarán disponibles para liquidaciones.</p>
+          </div>
+          <div class="row wrap" style="gap:12px;align-items:end;margin-bottom:12px;">
+            <div style="flex:1;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre del técnico</label>
+              <input id="tk-add-name" placeholder="Ej: Juan Pérez" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" maxlength="100" />
+            </div>
+            <div style="min-width:140px;">
+              <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+              <button id="tk-add-btn" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
+                ➕ Agregar técnico
+              </button>
+            </div>
+          </div>
+          <div id="tk-list" class="row wrap" style="gap:8px;margin-top:8px;"></div>
+        </div>
+
+        <!-- Asignaciones personalizadas -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="margin-bottom:12px;">
+            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Asignar valor personalizado</h4>
+            <p class="muted" style="margin:0;font-size:12px;">Sobrescribe el valor por defecto de un concepto para un técnico específico.</p>
+          </div>
+          <div class="row wrap" style="gap:12px;align-items:end;">
+            <div style="flex:1;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Técnico</label>
+              <select id="pa-technicianSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="">Seleccione técnico…</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Concepto</label>
+              <select id="pa-conceptSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="">Seleccione concepto…</option>
+              </select>
+            </div>
+            <div style="min-width:140px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Valor personalizado</label>
+              <input id="pa-value" type="number" step="0.01" min="0" placeholder="0.00" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+              <p class="muted" style="margin:4px 0 0 0;font-size:11px;">Deja vacío para usar valor por defecto</p>
+            </div>
+            <div style="min-width:120px;">
+              <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+              <button id="pa-save" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
+                💾 Guardar
+              </button>
+            </div>
           </div>
         </div>
-        <div class="row wrap" style="gap:8px;margin-top:8px;align-items:center;">
-          <input id="tk-add-name" placeholder="Nuevo técnico (nombre)" style="min-width:220px" />
-          <button id="tk-add-btn" class="secondary">+ Agregar técnico</button>
+
+        <!-- Listado de asignaciones -->
+        <div id="pa-list-container" style="margin-top:0;">
+          <div id="pa-list" class="muted" style="padding:16px;text-align:center;border:1px dashed var(--border);border-radius:8px;font-size:13px;">
+            Selecciona un técnico para ver sus asignaciones personalizadas.
+          </div>
         </div>
-        <div id="tk-list" class="row wrap" style="gap:6px;margin-top:8px;"></div>
-        <div id="pa-list" class="muted" style="margin-top:6px;font-size:12px;">Selecciona un técnico para ver asignaciones.</div>
       </div>
 
       <div class="card hidden" style="margin-top:12px;" data-subsection="settlements">
-        <h3>Liquidación</h3>
-        <div class="row wrap" style="gap:8px;align-items:center;">
-          <select id="pl-periodSel" style="min-width:240px"></select>
-          <select id="pl-technicianSel" style="min-width:240px"></select>
-          <input id="pl-base" type="number" step="0.01" placeholder="Sueldo base" style="width:140px" />
-          <button id="pl-preview" class="secondary">Previsualizar</button>
-          <button id="pl-approve">Aprobar</button>
+        <div style="margin-bottom:16px;">
+          <h3 style="margin:0 0 4px 0;">Liquidación de nómina</h3>
+          <p class="muted" style="margin:0;font-size:13px;">Calcula y aprueba liquidaciones de técnicos. Las comisiones se calculan automáticamente desde ventas cerradas del período.</p>
         </div>
-        <div class="muted" style="margin-top:6px;font-size:12px;">La comisión se calcula por nombre del técnico en ventas cerradas del período.</div>
-        <div id="pl-result" style="margin-top:10px"></div>
+
+        <!-- Formulario de liquidación -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="margin-bottom:12px;">
+            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Crear nueva liquidación</h4>
+            <p class="muted" style="margin:0;font-size:12px;">Selecciona período, técnico e ingresa sueldo base. Las comisiones se calcularán automáticamente.</p>
+          </div>
+          <div class="row wrap" style="gap:12px;align-items:end;">
+            <div style="flex:1;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Período</label>
+              <select id="pl-periodSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="">Seleccione período…</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Técnico</label>
+              <select id="pl-technicianSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="">Seleccione técnico…</option>
+              </select>
+            </div>
+            <div style="min-width:160px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Sueldo base (COP)</label>
+              <input id="pl-base" type="number" step="0.01" min="0" placeholder="0.00" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+            </div>
+            <div style="min-width:120px;">
+              <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+              <button id="pl-preview" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
+                👁️ Previsualizar
+              </button>
+            </div>
+            <div style="min-width:120px;">
+              <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+              <button id="pl-approve" style="width:100%;padding:8px 16px;font-weight:600;">
+                ✓ Aprobar
+              </button>
+            </div>
+          </div>
+          <div class="muted" style="margin-top:8px;font-size:12px;padding:8px;background:rgba(59,130,246,0.05);border-radius:6px;">
+            💡 <strong>Nota:</strong> La comisión se calcula automáticamente desde las ventas cerradas del período donde el técnico participó. Puedes configurar el formato del comprobante en <a href="template-selector.html" style="color:var(--primary);text-decoration:underline;">Formatos</a> (tipo: Nómina).
+          </div>
+        </div>
+
+        <!-- Resultado preview/lista -->
+        <div id="pl-result" style="margin-top:0;"></div>
       </div>
 
       <div class="card hidden" style="margin-top:12px;" data-subsection="periods">
-        <h3>Períodos</h3>
-        <div class="row wrap" style="gap:8px;align-items:center;">
-          <input id="ppd-start" type="date" />
-          <input id="ppd-end" type="date" />
-          <select id="ppd-type" style="min-width:160px">
-            <option value="monthly">Mensual</option>
-            <option value="biweekly">Quincenal</option>
-            <option value="weekly">Semanal</option>
-          </select>
-          <button id="ppd-create" class="secondary">Crear período</button>
+        <div style="margin-bottom:16px;">
+          <h3 style="margin:0 0 4px 0;">Períodos de liquidación</h3>
+          <p class="muted" style="margin:0;font-size:13px;">Define períodos de tiempo (mensual, quincenal, semanal) para calcular comisiones por ventas y generar liquidaciones.</p>
         </div>
-        <div id="ppd-msg" class="muted" style="margin-top:6px;font-size:12px;"></div>
+
+        <!-- Crear nuevo período -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="margin-bottom:12px;">
+            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Crear nuevo período</h4>
+            <p class="muted" style="margin:0;font-size:12px;">Las fechas no pueden solaparse con períodos existentes.</p>
+          </div>
+          <div class="row wrap" style="gap:12px;align-items:end;">
+            <div style="flex:1;min-width:160px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Fecha inicio</label>
+              <input id="ppd-start" type="date" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+            </div>
+            <div style="flex:1;min-width:160px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Fecha fin</label>
+              <input id="ppd-end" type="date" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+            </div>
+            <div style="min-width:160px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Tipo</label>
+              <select id="ppd-type" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="monthly">📅 Mensual</option>
+                <option value="biweekly">📆 Quincenal</option>
+                <option value="weekly">🗓️ Semanal</option>
+              </select>
+            </div>
+            <div style="min-width:140px;">
+              <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+              <button id="ppd-create" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
+                ➕ Crear período
+              </button>
+            </div>
+          </div>
+          <div id="ppd-msg" style="margin-top:12px;font-size:13px;"></div>
+        </div>
+
+        <!-- Listado de períodos -->
+        <div>
+          <div style="margin-bottom:12px;">
+            <h4 style="margin:0;font-size:14px;font-weight:600;">Períodos creados</h4>
+            <p class="muted" style="margin:4px 0 0 0;font-size:12px;">Gestiona períodos abiertos y cerrados.</p>
+          </div>
+          <div id="ppd-list" style="margin-top:0;"></div>
+        </div>
       </div>
 
       <div class="card hidden" style="margin-top:12px;" data-subsection="pay">
-        <h3>Pagar</h3>
-        <div class="row wrap" style="gap:8px;align-items:center;">
-          <input id="pp-settlementId" placeholder="SettlementId" style="width:240px" />
-          <input id="pp-accountId" placeholder="AccountId" style="width:240px" />
-          <button id="pp-pay">Pagar</button>
+        <div style="margin-bottom:16px;">
+          <h3 style="margin:0 0 4px 0;">Pagar liquidaciones</h3>
+          <p class="muted" style="margin:0;font-size:13px;">Registra el pago de liquidaciones aprobadas en el Flujo de Caja. El pago se reflejará como salida de la cuenta seleccionada.</p>
         </div>
-        <div id="pp-result" style="margin-top:10px"></div>
+
+        <!-- Listado de liquidaciones pendientes -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="margin-bottom:12px;">
+            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Liquidaciones pendientes de pago</h4>
+            <p class="muted" style="margin:0;font-size:12px;">Selecciona una liquidación aprobada para procesar el pago.</p>
+          </div>
+          <div id="pp-pending-list" style="margin-top:0;"></div>
+        </div>
+
+        <!-- Formulario de pago -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="margin-bottom:12px;">
+            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Registrar pago</h4>
+            <p class="muted" style="margin:0;font-size:12px;">Selecciona la liquidación y la cuenta de donde saldrá el dinero.</p>
+          </div>
+          <div class="row wrap" style="gap:12px;align-items:end;">
+            <div style="flex:1;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Liquidación</label>
+              <select id="pp-settlementSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="">Seleccione liquidación…</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Cuenta de pago</label>
+              <select id="pp-accountSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="">Seleccione cuenta…</option>
+              </select>
+            </div>
+            <div style="min-width:160px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Fecha de pago</label>
+              <input id="pp-date" type="date" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+            </div>
+            <div style="min-width:120px;">
+              <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+              <button id="pp-pay" style="width:100%;padding:8px 16px;font-weight:600;">
+                💰 Pagar
+              </button>
+            </div>
+          </div>
+          <div id="pp-settlement-info" style="margin-top:12px;padding:12px;background:rgba(59,130,246,0.05);border-radius:6px;font-size:13px;display:none;">
+            <!-- Información de la liquidación seleccionada -->
+          </div>
+        </div>
+
+        <!-- Resultado -->
+        <div id="pp-result" style="margin-top:0;"></div>
       </div>
     </section>
   </main>

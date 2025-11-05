@@ -18,6 +18,22 @@ git pull origin develop
 echo "🛑 Parando contenedores existentes (taller-dev)..."
 docker compose -p taller-dev -f docker-compose.dev.yml down || true
 
+# Detener contenedores antiguos que puedan estar usando los puertos
+echo "🧹 Limpiando contenedores antiguos que puedan estar usando los puertos..."
+docker stop proyecto-taller-backend-1 proyecto-taller-frontend-1 2>/dev/null || true
+docker rm proyecto-taller-backend-1 proyecto-taller-frontend-1 2>/dev/null || true
+
+# Verificar y liberar puertos si están ocupados
+if ss -tlnp | grep -q ":4001"; then
+    echo "⚠️  Puerto 4001 aún ocupado, intentando liberar..."
+    PIDS=$(ss -tlnp | grep ":4001" | grep -oP 'pid=\K[0-9]+' | head -2)
+    if [ ! -z "$PIDS" ]; then
+        echo "   Matando procesos docker-proxy: $PIDS"
+        sudo kill -9 $PIDS 2>/dev/null || true
+        sleep 1
+    fi
+fi
+
 # Construir y levantar contenedores con los cambios
 echo "🐳 Construyendo y levantando contenedores con los cambios (taller-dev)..."
 docker compose -p taller-dev -f docker-compose.dev.yml up --build -d

@@ -8,6 +8,8 @@ import {
   removeAssignment,
   createPeriod,
   listOpenPeriods,
+  listAllPeriods,
+  closePeriod,
   previewSettlement,
   approveSettlement,
   paySettlement,
@@ -37,7 +39,9 @@ router.delete('/assignments', requireCompanyManager, removeAssignment);
 
 // Periods
 router.get('/periods/open', listOpenPeriods);
+router.get('/periods', listAllPeriods);
 router.post('/periods', requireCompanyManager, createPeriod);
+router.patch('/periods/:id/close', requireCompanyManager, closePeriod);
 
 // Settlements
 router.post('/settlements/preview', previewSettlement);

@@ -30,10 +30,31 @@ router.post('/technicians', async (req, res) => {
 });
 
 router.delete('/technicians/:name', async (req, res) => {
-  const name = String(req.params.name || '').trim().toUpperCase();
-  req.companyDoc.technicians = (req.companyDoc.technicians || []).filter(t => t.toUpperCase() !== name);
-  await req.companyDoc.save();
-  res.json({ technicians: req.companyDoc.technicians });
+  try {
+    const name = String(req.params.name || '').trim().toUpperCase();
+    if (!name) return res.status(400).json({ error: 'nombre requerido' });
+    
+    // Verificar que el técnico existe
+    const technicians = req.companyDoc.technicians || [];
+    if (!technicians.some(t => t.toUpperCase() === name)) {
+      return res.status(404).json({ error: 'Técnico no encontrado' });
+    }
+    
+    // Eliminar técnico de la lista
+    req.companyDoc.technicians = technicians.filter(t => t.toUpperCase() !== name);
+    await req.companyDoc.save();
+    
+    // Eliminar todas las asignaciones de este técnico
+    const { default: TechnicianAssignment } = await import('../models/TechnicianAssignment.js');
+    await TechnicianAssignment.deleteMany({ 
+      companyId: req.companyDoc._id, 
+      technicianName: name 
+    });
+    
+    res.json({ technicians: req.companyDoc.technicians });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar técnico', message: err.message });
+  }
 });
 
 // ========== Preferences ==========

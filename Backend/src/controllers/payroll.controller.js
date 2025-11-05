@@ -10,23 +10,109 @@ import Handlebars from 'handlebars';
 import Company from '../models/Company.js';
 
 export const listConcepts = async (req, res) => {
-  const concepts = await CompanyPayrollConcept.find({ companyId: req.companyId, isActive: true }).sort({ ordering: 1, name: 1 });
-  res.json(concepts);
+  try {
+    const concepts = await CompanyPayrollConcept.find({ companyId: req.companyId, isActive: true }).sort({ ordering: 1, name: 1 });
+    res.json(concepts);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al listar conceptos', message: err.message });
+  }
 };
 
 export const upsertConcept = async (req, res) => {
-  const { id } = req.params;
-  const data = { ...req.body, companyId: req.companyId };
-  const doc = id
-    ? await CompanyPayrollConcept.findOneAndUpdate({ _id: id, companyId: req.companyId }, data, { new: true })
-    : await CompanyPayrollConcept.create(data);
-  res.status(id ? 200 : 201).json(doc);
+  try {
+    const { id } = req.params;
+    const { type, amountType, code, name, defaultValue, isActive, ordering } = req.body;
+    
+    // Validaciones
+    if (!type || !['earning', 'deduction', 'surcharge'].includes(type)) {
+      return res.status(400).json({ error: 'Tipo inválido. Debe ser: earning, deduction o surcharge' });
+    }
+    if (!amountType || !['fixed', 'percent'].includes(amountType)) {
+      return res.status(400).json({ error: 'Tipo de monto inválido. Debe ser: fixed o percent' });
+    }
+    if (!code || typeof code !== 'string' || code.trim().length === 0) {
+      return res.status(400).json({ error: 'Código requerido' });
+    }
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return res.status(400).json({ error: 'Nombre requerido' });
+    }
+    if (typeof defaultValue !== 'number' || defaultValue < 0) {
+      return res.status(400).json({ error: 'Valor por defecto debe ser un número positivo' });
+    }
+    if (amountType === 'percent' && defaultValue > 100 && !req.body.allowOver100) {
+      // Permitir porcentajes > 100 solo si se solicita explícitamente
+      return res.status(400).json({ error: 'Porcentaje no puede ser mayor a 100%' });
+    }
+    
+    const data = {
+      companyId: req.companyId,
+      type,
+      amountType,
+      code: code.trim().toUpperCase(),
+      name: name.trim(),
+      defaultValue,
+      isActive: isActive !== false,
+      ordering: ordering || 0
+    };
+    
+    let doc;
+    if (id) {
+      // Actualizar: verificar que existe y pertenece a la empresa
+      const existing = await CompanyPayrollConcept.findOne({ _id: id, companyId: req.companyId });
+      if (!existing) {
+        return res.status(404).json({ error: 'Concepto no encontrado' });
+      }
+      // Verificar duplicado de código (si cambió)
+      if (data.code !== existing.code) {
+        const duplicate = await CompanyPayrollConcept.findOne({ 
+          companyId: req.companyId, 
+          code: data.code,
+          _id: { $ne: id }
+        });
+        if (duplicate) {
+          return res.status(409).json({ error: 'Ya existe un concepto con ese código en esta empresa' });
+        }
+      }
+      doc = await CompanyPayrollConcept.findOneAndUpdate(
+        { _id: id, companyId: req.companyId },
+        data,
+        { new: true, runValidators: true }
+      );
+    } else {
+      // Crear: verificar que no exista código duplicado
+      const duplicate = await CompanyPayrollConcept.findOne({ 
+        companyId: req.companyId, 
+        code: data.code 
+      });
+      if (duplicate) {
+        return res.status(409).json({ error: 'Ya existe un concepto con ese código en esta empresa' });
+      }
+      doc = await CompanyPayrollConcept.create(data);
+    }
+    
+    res.status(id ? 200 : 201).json(doc);
+  } catch (err) {
+    if (err.name === 'ValidationError') {
+      return res.status(400).json({ error: 'Error de validación', message: err.message });
+    }
+    if (err.code === 11000) {
+      return res.status(409).json({ error: 'Ya existe un concepto con ese código en esta empresa' });
+    }
+    res.status(500).json({ error: 'Error al guardar concepto', message: err.message });
+  }
 };
 
 export const deleteConcept = async (req, res) => {
-  const { id } = req.params;
-  await CompanyPayrollConcept.deleteOne({ _id: id, companyId: req.companyId });
-  res.status(204).end();
+  try {
+    const { id } = req.params;
+    const result = await CompanyPayrollConcept.deleteOne({ _id: id, companyId: req.companyId });
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Concepto no encontrado' });
+    }
+    res.status(204).end();
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar concepto', message: err.message });
+  }
 };
 
 export const listAssignments = async (req, res) => {
@@ -49,23 +135,132 @@ export const upsertAssignment = async (req, res) => {
 };
 
 export const removeAssignment = async (req, res) => {
-  const { technicianId, technicianName, conceptId } = req.body;
-  const filter = { companyId: req.companyId, conceptId };
-  if (technicianId) filter.technicianId = technicianId;
-  if (!technicianId && technicianName) filter.technicianName = String(technicianName).trim().toUpperCase();
-  await TechnicianAssignment.deleteOne(filter);
-  res.status(204).end();
+  try {
+    const { technicianId, technicianName, conceptId } = req.body;
+    if (!conceptId) {
+      return res.status(400).json({ error: 'conceptId requerido' });
+    }
+    
+    const filter = { companyId: req.companyId, conceptId };
+    if (technicianId) filter.technicianId = technicianId;
+    if (!technicianId && technicianName) {
+      filter.technicianName = String(technicianName).trim().toUpperCase();
+    } else if (!technicianId && !technicianName) {
+      return res.status(400).json({ error: 'technicianId o technicianName requerido' });
+    }
+    
+    const result = await TechnicianAssignment.deleteOne(filter);
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Asignación no encontrada' });
+    }
+    
+    res.status(204).end();
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar asignación', message: err.message });
+  }
 };
 
 export const createPeriod = async (req, res) => {
-  const { periodType, startDate, endDate } = req.body;
-  const doc = await PayrollPeriod.create({ companyId: req.companyId, periodType, startDate, endDate });
-  res.status(201).json(doc);
+  try {
+    const { periodType, startDate, endDate } = req.body;
+    
+    // Validaciones
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'startDate y endDate son requeridos' });
+    }
+    
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      return res.status(400).json({ error: 'Fechas inválidas' });
+    }
+    
+    if (end <= start) {
+      return res.status(400).json({ error: 'La fecha de fin debe ser posterior a la fecha de inicio' });
+    }
+    
+    // Verificar que no haya solapamiento con períodos existentes
+    const overlapping = await PayrollPeriod.findOne({
+      companyId: req.companyId,
+      $or: [
+        { startDate: { $lte: end }, endDate: { $gte: start } }
+      ]
+    });
+    
+    if (overlapping) {
+      return res.status(409).json({ 
+        error: 'Ya existe un período que se solapa con estas fechas',
+        existing: {
+          startDate: overlapping.startDate,
+          endDate: overlapping.endDate,
+          status: overlapping.status
+        }
+      });
+    }
+    
+    const validTypes = ['monthly', 'biweekly', 'weekly'];
+    const type = validTypes.includes(periodType) ? periodType : 'monthly';
+    
+    const doc = await PayrollPeriod.create({ 
+      companyId: req.companyId, 
+      periodType: type, 
+      startDate: start, 
+      endDate: end 
+    });
+    
+    res.status(201).json(doc);
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ error: 'Ya existe un período con estas fechas exactas' });
+    }
+    res.status(500).json({ error: 'Error al crear período', message: err.message });
+  }
 };
 
 export const listOpenPeriods = async (req, res) => {
-  const items = await PayrollPeriod.find({ companyId: req.companyId, status: 'open' }).sort({ startDate: -1 });
-  res.json(items);
+  try {
+    const items = await PayrollPeriod.find({ companyId: req.companyId, status: 'open' }).sort({ startDate: -1 });
+    res.json(items);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al listar períodos abiertos', message: err.message });
+  }
+};
+
+export const listAllPeriods = async (req, res) => {
+  try {
+    const { status } = req.query;
+    const filter = { companyId: req.companyId };
+    if (status === 'open' || status === 'closed') {
+      filter.status = status;
+    }
+    const items = await PayrollPeriod.find(filter).sort({ startDate: -1 });
+    res.json(items);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al listar períodos', message: err.message });
+  }
+};
+
+export const closePeriod = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const period = await PayrollPeriod.findOne({ _id: id, companyId: req.companyId });
+    
+    if (!period) {
+      return res.status(404).json({ error: 'Período no encontrado' });
+    }
+    
+    if (period.status === 'closed') {
+      return res.status(400).json({ error: 'El período ya está cerrado' });
+    }
+    
+    period.status = 'closed';
+    await period.save();
+    
+    res.json(period);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al cerrar período', message: err.message });
+  }
 };
 
 function computeSettlementItems({ baseSalary, concepts, assignments }){
@@ -179,28 +374,54 @@ export const approveSettlement = async (req, res) => {
 };
 
 export const paySettlement = async (req, res) => {
-  const { settlementId, accountId, date, notes } = req.body;
-  const st = await PayrollSettlement.findOne({ _id: settlementId, companyId: req.companyId });
-  if(!st) return res.status(404).json({ error: 'Settlement not found' });
-  if(st.status === 'paid') return res.status(400).json({ error: 'Already paid' });
+  try {
+    const { settlementId, accountId, date, notes } = req.body;
+    
+    // Validaciones
+    if (!settlementId) {
+      return res.status(400).json({ error: 'settlementId requerido' });
+    }
+    if (!accountId) {
+      return res.status(400).json({ error: 'accountId requerido' });
+    }
+    
+    // Verificar que la cuenta existe
+    const Account = (await import('../models/Account.js')).default;
+    const account = await Account.findOne({ _id: accountId, companyId: req.companyId });
+    if (!account) {
+      return res.status(404).json({ error: 'Cuenta no encontrada' });
+    }
+    
+    const st = await PayrollSettlement.findOne({ _id: settlementId, companyId: req.companyId });
+    if(!st) return res.status(404).json({ error: 'Liquidación no encontrada' });
+    if(st.status === 'paid') return res.status(400).json({ error: 'Esta liquidación ya fue pagada' });
+    if(st.status !== 'approved') return res.status(400).json({ error: 'Solo se pueden pagar liquidaciones aprobadas' });
 
-  const entry = await CashFlowEntry.create({
-    companyId: req.companyId,
-    accountId,
-    date: date ? new Date(date) : new Date(),
-    kind: 'OUT',
-    source: 'MANUAL',
-    sourceRef: settlementId,
-    description: `Pago a empleado (${st.technicianId})`,
-    amount: Math.abs(st.netTotal),
-    meta: { type: 'PAYROLL', technicianId: st.technicianId, settlementId }
-  });
+    const entry = await CashFlowEntry.create({
+      companyId: req.companyId,
+      accountId,
+      date: date ? new Date(date) : new Date(),
+      kind: 'OUT',
+      source: 'MANUAL',
+      sourceRef: settlementId,
+      description: `Pago a empleado: ${st.technicianName || st.technicianId || 'Sin nombre'}`,
+      amount: Math.abs(st.netTotal),
+      meta: { 
+        type: 'PAYROLL', 
+        technicianId: st.technicianId, 
+        technicianName: st.technicianName,
+        settlementId 
+      }
+    });
 
-  st.status = 'paid';
-  st.paidCashflowId = entry._id;
-  await st.save();
+    st.status = 'paid';
+    st.paidCashflowId = entry._id;
+    await st.save();
 
-  res.json({ ok: true, settlement: st, cashflow: entry });
+    res.json({ ok: true, settlement: st, cashflow: entry });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al procesar pago', message: err.message });
+  }
 };
 
 export const listSettlements = async (req, res) => {
@@ -224,53 +445,143 @@ export const listSettlements = async (req, res) => {
 function ensureHB(){
   if (ensureHB._inited) return; ensureHB._inited = true;
   Handlebars.registerHelper('money', (v) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(Number(v||0)));
-  Handlebars.registerHelper('date', (v, fmt) => { const d = v ? new Date(v) : new Date(); return fmt==='iso' ? d.toISOString().slice(0,10) : d.toLocaleString('es-CO'); });
+  Handlebars.registerHelper('date', (v, fmt) => { 
+    const d = v ? new Date(v) : new Date(); 
+    if (fmt === 'iso') return d.toISOString().slice(0, 10);
+    if (fmt === 'short') return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return d.toLocaleString('es-CO'); 
+  });
+  Handlebars.registerHelper('pad', (v, len = 5) => String(v ?? '').toString().padStart(len, '0'));
+  Handlebars.registerHelper('uppercase', (v) => String(v || '').toUpperCase());
+  Handlebars.registerHelper('lowercase', (v) => String(v || '').toLowerCase());
 }
 
 export const printSettlementHtml = async (req, res) => {
-  const { id } = req.params;
-  const st = await PayrollSettlement.findOne({ _id: id, companyId: req.companyId });
-  if(!st) return res.status(404).send('Not found');
-  const [tpl, company] = await Promise.all([
-    Template.findOne({ companyId: req.companyId, type: 'payroll', active: true }).sort({ updatedAt: -1 }),
-    Company.findOne({ _id: req.companyId })
-  ]);
-  const context = {
-    company: {
-      name: company?.name || company?.email || '',
-      email: company?.email || '',
-      phone: company?.phone || '',
-      address: company?.address || '',
-      logoUrl: company?.logoUrl || ''
-    },
-    settlement: st.toObject(),
-    now: new Date()
-  };
-  let html = '';
-  let css = '';
-  if (tpl) {
-    ensureHB();
-    try {
-      html = Handlebars.compile(tpl.contentHtml||'')(context);
-      css = tpl.contentCss || '';
-    } catch(e){ html = `<!-- template error: ${e.message} -->`; }
-  } else {
-    // Fallback HTML simple
-    const rows = (st.items||[]).map(i=>`<tr><td>${i.type}</td><td>${i.name}</td><td style="text-align:right">${i.value}</td></tr>`).join('');
-    html = `
-      <h2>Comprobante de pago</h2>
-      <div><strong>Técnico:</strong> ${st.technicianName||''}</div>
-      <div><strong>Período:</strong> ${String(st.periodId||'')}</div>
-      <table style="width:100%;border-collapse:collapse;margin-top:10px">${rows}</table>
-      <div style="margin-top:10px;text-align:right">
-        <div>Total bruto: <strong>${st.grossTotal}</strong></div>
-        <div>Total descuentos: <strong>${st.deductionsTotal}</strong></div>
-        <div>Neto a pagar: <strong>${st.netTotal}</strong></div>
-      </div>`;
-    css = `table td{border-bottom:1px solid #ddd;padding:4px}`;
+  try {
+    const { id } = req.params;
+    const st = await PayrollSettlement.findOne({ _id: id, companyId: req.companyId }).populate('periodId');
+    if(!st) return res.status(404).send('Not found');
+    
+    const [tpl, company, period] = await Promise.all([
+      Template.findOne({ companyId: req.companyId, type: 'payroll', active: true }).sort({ updatedAt: -1 }),
+      Company.findOne({ _id: req.companyId }),
+      PayrollPeriod.findOne({ _id: st.periodId, companyId: req.companyId })
+    ]);
+    
+    // Preparar contexto completo para el template
+    const settlementObj = st.toObject();
+    const periodObj = period ? period.toObject() : null;
+    
+    // Separar items por tipo para facilitar el template
+    const itemsByType = {
+      earnings: (settlementObj.items || []).filter(i => i.type === 'earning'),
+      deductions: (settlementObj.items || []).filter(i => i.type === 'deduction'),
+      surcharges: (settlementObj.items || []).filter(i => i.type === 'surcharge')
+    };
+    
+    const context = {
+      company: {
+        name: company?.name || company?.email || '',
+        email: company?.email || '',
+        phone: company?.phone || '',
+        address: company?.address || '',
+        logoUrl: company?.logoUrl || ''
+      },
+      settlement: {
+        ...settlementObj,
+        itemsByType, // Agregar items agrupados por tipo
+        formattedGrossTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(settlementObj.grossTotal || 0),
+        formattedDeductionsTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(settlementObj.deductionsTotal || 0),
+        formattedNetTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(settlementObj.netTotal || 0)
+      },
+      period: periodObj ? {
+        ...periodObj,
+        formattedStartDate: period.startDate ? new Date(period.startDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '',
+        formattedEndDate: period.endDate ? new Date(period.endDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '',
+        periodTypeLabel: periodObj.periodType === 'monthly' ? 'Mensual' : periodObj.periodType === 'biweekly' ? 'Quincenal' : periodObj.periodType === 'weekly' ? 'Semanal' : periodObj.periodType
+      } : null,
+      now: new Date(),
+      formattedNow: new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    };
+    
+    let html = '';
+    let css = '';
+    if (tpl) {
+      ensureHB();
+      try {
+        html = Handlebars.compile(tpl.contentHtml||'')(context);
+        css = tpl.contentCss || '';
+      } catch(e){ 
+        console.error('Template error:', e);
+        html = `<!-- template error: ${e.message} --><div style="padding:20px;color:red;">Error al renderizar template: ${e.message}</div>`; 
+      }
+    } else {
+      // Fallback HTML simple con mejor formato
+      const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
+      const earningsRows = itemsByType.earnings.map(i => `<tr><td>${i.name}</td><td style="text-align:right">${formatMoney(i.value)}</td></tr>`).join('');
+      const deductionsRows = itemsByType.deductions.map(i => `<tr><td>${i.name}</td><td style="text-align:right">${formatMoney(i.value)}</td></tr>`).join('');
+      const periodRange = periodObj ? `${new Date(periodObj.startDate).toLocaleDateString('es-CO')} → ${new Date(periodObj.endDate).toLocaleDateString('es-CO')}` : '';
+      
+      html = `
+        <div style="max-width:800px;margin:0 auto;padding:20px;font-family:Arial,sans-serif;">
+          <h2 style="text-align:center;margin-bottom:20px;">Comprobante de Pago de Nómina</h2>
+          <div style="margin-bottom:20px;">
+            <div><strong>Empresa:</strong> ${context.company.name}</div>
+            <div><strong>Técnico:</strong> ${settlementObj.technicianName||''}</div>
+            ${periodRange ? `<div><strong>Período:</strong> ${periodRange}</div>` : ''}
+            <div><strong>Fecha de liquidación:</strong> ${context.formattedNow}</div>
+          </div>
+          ${earningsRows ? `
+            <h3 style="margin-top:20px;margin-bottom:10px;">Ingresos</h3>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+              <thead>
+                <tr style="background:#f0f0f0;">
+                  <th style="text-align:left;padding:8px;border-bottom:2px solid #ddd;">Concepto</th>
+                  <th style="text-align:right;padding:8px;border-bottom:2px solid #ddd;">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${earningsRows}
+              </tbody>
+            </table>
+          ` : ''}
+          ${deductionsRows ? `
+            <h3 style="margin-top:20px;margin-bottom:10px;">Descuentos</h3>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+              <thead>
+                <tr style="background:#f0f0f0;">
+                  <th style="text-align:left;padding:8px;border-bottom:2px solid #ddd;">Concepto</th>
+                  <th style="text-align:right;padding:8px;border-bottom:2px solid #ddd;">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${deductionsRows}
+              </tbody>
+            </table>
+          ` : ''}
+          <div style="margin-top:30px;padding-top:20px;border-top:2px solid #333;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+              <strong>Total bruto:</strong>
+              <strong>${formatMoney(settlementObj.grossTotal)}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+              <strong>Total descuentos:</strong>
+              <strong>${formatMoney(settlementObj.deductionsTotal)}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding-top:10px;border-top:1px solid #ddd;font-size:18px;">
+              <strong>Neto a pagar:</strong>
+              <strong style="color:#10b981;">${formatMoney(settlementObj.netTotal)}</strong>
+            </div>
+          </div>
+        </div>`;
+      css = `table td{border-bottom:1px solid #ddd;padding:8px}`;
+    }
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.end(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body>${html}</body></html>`);
+  } catch (err) {
+    console.error('Error in printSettlementHtml:', err);
+    res.status(500).send(`<html><body><h1>Error</h1><p>${err.message}</p></body></html>`);
   }
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.end(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body>${html}</body></html>`);
 };
 
 export const generateSettlementPdf = async (req, res) => {
