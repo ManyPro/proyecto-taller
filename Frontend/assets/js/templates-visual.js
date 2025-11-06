@@ -187,13 +187,27 @@
       
       // Load format based on action
       console.log(`🔌 Acción: ${session.action}, Tipo: ${session.type}`);
+      
+      // Asegurar que el canvas esté visible ANTES de cargar
+      const canvas = qs('#ce-canvas');
+      if (canvas) {
+        canvas.style.display = 'block';
+        canvas.style.visibility = 'visible';
+        canvas.style.background = '#ffffff';
+      }
+      
       setTimeout(() => {
         if (session.action === 'edit' && session.formatId) {
           loadExistingFormat(session.formatId);
         } else if (session.action === 'create') {
+          console.log('📝 Creando nueva plantilla, cargando template por defecto...');
+          loadDefaultTemplate(session.type);
+        } else {
+          // Si no hay acción específica pero hay tipo, cargar plantilla por defecto
+          console.log('📝 Cargando plantilla por defecto sin acción específica...');
           loadDefaultTemplate(session.type);
         }
-      }, 500);
+      }, 800); // Aumentar delay para asegurar que el DOM esté listo
       
     } catch (error) {
       console.error('❌ Error inicializando editor:', error);
@@ -215,20 +229,24 @@
       container.appendChild(canvas);
     }
 
-    // Make canvas suitable for visual editing
+    // Make canvas suitable for visual editing - FONDO BLANCO OBLIGATORIO
     canvas.style.cssText = `
-      border: 2px dashed var(--border);
-      padding: 0;
+      border: 2px dashed #ccc;
+      padding: 20px;
       position: relative;
-      background: var(--card);
-      color: var(--text);
-      overflow: hidden;
+      background: #ffffff !important;
+      color: #333;
+      overflow: visible;
       border-radius: 8px;
       margin: 10px 0;
+      min-height: 600px;
+      width: 100%;
+      box-sizing: border-box;
     `;
 
     canvas.contentEditable = 'false';
-    canvas.innerHTML = '<div style="color: #999; text-align: center; padding: 50px; pointer-events: none;">Haz clic en los botones de arriba para agregar elementos</div>';
+    // No mostrar placeholder inicial - se cargará la plantilla automáticamente
+    canvas.innerHTML = '';
 
     // Setup button handlers
     setupButtonHandlers();
@@ -653,38 +671,69 @@
   }
 
   function loadDefaultTemplate(documentType) {
-    console.log('Cargando plantilla por defecto:', documentType);
+    console.log('🎨 Cargando plantilla por defecto:', documentType);
     const canvas = qs('#ce-canvas');
     if (!canvas) {
       console.error('❌ Canvas no encontrado');
+      showQuickNotification('❌ Error: Canvas no encontrado', 'error');
       return;
     }
 
-    // Asegurar que el canvas sea visible
+    console.log('✅ Canvas encontrado, verificando visibilidad...');
+
+    // Asegurar que el canvas sea visible y tenga fondo blanco
     canvas.style.display = 'block';
     canvas.style.visibility = 'visible';
+    canvas.style.background = '#ffffff';
+    canvas.style.minHeight = '600px';
+    canvas.style.width = '100%';
     canvas.offsetHeight; // Force reflow
+    
+    console.log('✅ Canvas visible, limpiando contenido anterior...');
 
     // Limpiar canvas primero
     canvas.innerHTML = '';
     visualEditor.elements = [];
     visualEditor.nextId = 1;
 
+    console.log('📋 Creando plantilla para tipo:', documentType);
+
     // Cargar plantilla según el tipo
-    if (documentType === 'invoice') {
-      createInvoiceTemplate(canvas);
-      showQuickNotification('📄 Plantilla de Factura cargada', 'success');
-    } else if (documentType === 'quote') {
-      createQuoteTemplate(canvas);
-      showQuickNotification('💰 Plantilla de Cotización cargada', 'success');
-    } else if (documentType === 'workOrder') {
-      createWorkOrderTemplate(canvas);
-      showQuickNotification('🔧 Plantilla de Orden de Trabajo cargada', 'success');
-    } else if (documentType === 'sticker-qr' || documentType === 'sticker-brand') {
-      createStickerTemplate(canvas, documentType);
-      showQuickNotification('🏷️ Plantilla de Sticker cargada', 'success');
-    } else {
-      showQuickNotification('⚠️ Tipo de documento no reconocido', 'warning');
+    try {
+      if (documentType === 'invoice') {
+        createInvoiceTemplate(canvas);
+        showQuickNotification('📄 Plantilla de Factura cargada', 'success');
+      } else if (documentType === 'quote') {
+        createQuoteTemplate(canvas);
+        showQuickNotification('💰 Plantilla de Cotización cargada', 'success');
+      } else if (documentType === 'workOrder') {
+        createWorkOrderTemplate(canvas);
+        showQuickNotification('🔧 Plantilla de Orden de Trabajo cargada', 'success');
+      } else if (documentType === 'sticker-qr' || documentType === 'sticker-brand') {
+        createStickerTemplate(canvas, documentType);
+        showQuickNotification('🏷️ Plantilla de Sticker cargada', 'success');
+      } else {
+        console.warn('⚠️ Tipo de documento no reconocido:', documentType);
+        showQuickNotification('⚠️ Tipo de documento no reconocido: ' + documentType, 'warning');
+        // Cargar factura por defecto si no se reconoce el tipo
+        createInvoiceTemplate(canvas);
+        showQuickNotification('📄 Cargada plantilla de Factura por defecto', 'info');
+      }
+      
+      console.log('✅ Plantilla creada, elementos en canvas:', visualEditor.elements.length);
+      
+      // Verificar que los elementos se agregaron
+      const elementsInDOM = canvas.querySelectorAll('.tpl-element');
+      console.log('📊 Elementos en DOM:', elementsInDOM.length);
+      
+      if (elementsInDOM.length === 0) {
+        console.error('❌ ERROR: No se agregaron elementos al canvas!');
+        showQuickNotification('❌ Error: No se pudieron crear los elementos', 'error');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error creando plantilla:', error);
+      showQuickNotification('❌ Error al crear plantilla: ' + error.message, 'error');
     }
   }
 
