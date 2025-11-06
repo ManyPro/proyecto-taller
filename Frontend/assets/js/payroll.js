@@ -779,12 +779,15 @@ async function preview(){
             ${items.map(i => {
               const typeInfo = typeLabels[i.type] || { label: i.type, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
               return `<div class="row between" style="padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;background:var(--card);">
-                <div class="row" style="gap:10px;align-items:center;flex:1;">
-                  <span style="padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}20;">
-                    ${htmlEscape(typeInfo.label)}
-                  </span>
-                  <span style="font-weight:500;color:var(--text);">${htmlEscape(i.name)}</span>
-                  ${i.calcRule ? `<span class="muted" style="font-size:11px;">(${htmlEscape(i.calcRule)})</span>` : ''}
+                <div style="flex:1;">
+                  <div class="row" style="gap:10px;align-items:center;margin-bottom:${i.notes ? '4px' : '0'};">
+                    <span style="padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}20;">
+                      ${htmlEscape(typeInfo.label)}
+                    </span>
+                    <span style="font-weight:500;color:var(--text);">${htmlEscape(i.name)}</span>
+                    ${i.calcRule ? `<span class="muted" style="font-size:11px;">(${htmlEscape(i.calcRule)})</span>` : ''}
+                  </div>
+                  ${i.notes ? `<div class="muted" style="font-size:11px;margin-top:4px;color:var(--muted);">${htmlEscape(i.notes)}</div>` : ''}
                 </div>
                 <div style="font-weight:600;color:var(--text);font-size:14px;">
                   ${formatMoney(i.value)}
@@ -1521,6 +1524,21 @@ function init(){
     }
   });
   
+  // Gestión de tipos de mano de obra
+  el('lk-add')?.addEventListener('click', addLaborKind);
+  ['lk-name', 'lk-percent'].forEach(id => {
+    const input = el(id);
+    if (input) {
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          addLaborKind();
+        }
+      });
+    }
+  });
+  loadLaborKinds();
+  
   el('pa-save')?.addEventListener('click', saveAssignment);
   const tSel = document.getElementById('pa-technicianSel');
   if (tSel) {
@@ -1689,6 +1707,167 @@ async function createTechnician(){
     }
   } catch (err) {
     console.error('Error in createTechnician:', err);
+    alert('❌ Error inesperado: ' + (err.message || 'Error desconocido'));
+  }
+}
+
+// ===== Gestión de tipos de mano de obra =====
+async function loadLaborKinds(){
+  try {
+    const r = await API.company.getTechConfig();
+    const config = r.config || {};
+    const laborKinds = config.laborKinds || [];
+    
+    const container = el('lk-list');
+    if (!container) return;
+    
+    if (laborKinds.length === 0) {
+      container.innerHTML = '<div class="muted" style="text-align:center;padding:24px;border:1px dashed var(--border);border-radius:8px;">No hay tipos de mano de obra configurados. Crea el primero arriba.</div>';
+      return;
+    }
+    
+    const rows = laborKinds.map(k => {
+      const name = typeof k === 'string' ? k : (k?.name || '');
+      const defaultPercent = typeof k === 'object' && k?.defaultPercent !== undefined ? k.defaultPercent : 0;
+      
+      return `<div class="concept-row" style="padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--card);transition:all 0.2s;">
+        <div class="row between" style="align-items:center;flex-wrap:wrap;gap:8px;">
+          <div class="row" style="gap:12px;align-items:center;flex:1;min-width:200px;">
+            <div style="flex:1;">
+              <div style="font-weight:600;color:var(--text);margin-bottom:2px;">
+                ${htmlEscape(name)}
+              </div>
+              <div style="font-size:12px;color:var(--muted);">
+                % Predeterminado: <strong style="color:var(--text);">${defaultPercent}%</strong>
+              </div>
+            </div>
+          </div>
+          <div class="row" style="gap:6px;align-items:center;">
+            <button data-name="${htmlEscape(name)}" class="secondary x-del-lk" style="padding:6px 12px;font-size:12px;border-color:var(--danger, #ef4444);color:var(--danger, #ef4444);" title="Eliminar tipo">
+              🗑️ Eliminar
+            </button>
+          </div>
+        </div>
+      </div>`;
+    });
+    
+    container.innerHTML = rows.join('');
+    
+    // Agregar event listeners para eliminar
+    container.querySelectorAll('.x-del-lk').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const name = btn.getAttribute('data-name');
+        if (!name) return;
+        
+        if (!confirm(`¿Estás seguro de eliminar el tipo "${name}"? Esta acción no se puede deshacer.`)) return;
+        
+        try {
+          btn.disabled = true;
+          btn.textContent = 'Eliminando...';
+          
+          const r = await API.company.getTechConfig();
+          const config = r.config || {};
+          const laborKinds = (config.laborKinds || []).filter(k => {
+            const kindName = typeof k === 'string' ? k : (k?.name || '');
+            return kindName !== name;
+          });
+          
+          await API.company.updateTechConfig({ laborKinds });
+          await loadLaborKinds();
+        } catch (err) {
+          alert('❌ Error al eliminar tipo: ' + (err.message || 'Error desconocido'));
+          btn.disabled = false;
+          btn.innerHTML = '🗑️ Eliminar';
+        }
+      });
+    });
+  } catch (err) {
+    console.error('Error loading labor kinds:', err);
+    const container = el('lk-list');
+    if (container) {
+      container.innerHTML = `<div style="padding:12px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:13px;">
+        ❌ Error al cargar tipos: ${htmlEscape(err.message || 'Error desconocido')}
+      </div>`;
+    }
+  }
+}
+
+async function addLaborKind(){
+  try {
+    const name = (el('lk-name')?.value || '').trim().toUpperCase();
+    const percentStr = (el('lk-percent')?.value || '').trim();
+    
+    if (!name) {
+      alert('⚠️ El nombre del tipo es requerido');
+      el('lk-name')?.focus();
+      return;
+    }
+    
+    const defaultPercent = percentStr ? parseFloat(percentStr) : 0;
+    if (isNaN(defaultPercent) || defaultPercent < 0 || defaultPercent > 100) {
+      alert('⚠️ El porcentaje debe ser un número entre 0 y 100');
+      el('lk-percent')?.focus();
+      return;
+    }
+    
+    const btn = el('lk-add');
+    const originalText = btn?.textContent || '';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Creando...';
+    }
+    
+    try {
+      const r = await API.company.getTechConfig();
+      const config = r.config || {};
+      const laborKinds = config.laborKinds || [];
+      
+      // Verificar si ya existe
+      const exists = laborKinds.some(k => {
+        const kindName = typeof k === 'string' ? k : (k?.name || '');
+        return kindName === name;
+      });
+      
+      if (exists) {
+        alert('⚠️ Ya existe un tipo con ese nombre. Usa un nombre diferente.');
+        el('lk-name')?.focus();
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
+        return;
+      }
+      
+      // Agregar nuevo tipo
+      const newKinds = [...laborKinds, { name, defaultPercent }];
+      await API.company.updateTechConfig({ laborKinds: newKinds });
+      
+      // Limpiar formulario
+      el('lk-name').value = '';
+      el('lk-percent').value = '';
+      
+      // Recargar lista
+      await loadLaborKinds();
+      
+      // Feedback visual
+      if (btn) {
+        btn.textContent = '✓ Creado';
+        setTimeout(() => {
+          if (btn) {
+            btn.textContent = originalText;
+            btn.disabled = false;
+          }
+        }, 1500);
+      }
+    } catch (err) {
+      alert('❌ Error al crear tipo: ' + (err.message || 'Error desconocido'));
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = originalText;
+      }
+    }
+  } catch (err) {
+    console.error('Error in addLaborKind:', err);
     alert('❌ Error inesperado: ' + (err.message || 'Error desconocido'));
   }
 }

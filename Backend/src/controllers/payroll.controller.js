@@ -357,17 +357,38 @@ export const previewSettlement = async (req, res) => {
       ]
     }).select({ laborCommissions: 1 });
     
+    // Recolectar detalles de comisiones con porcentajes
+    const commissionDetails = [];
     const commission = sales.reduce((acc, s) => {
       const fromBreakdown = (s.laborCommissions||[])
         .filter(lc => {
           const techMatch = String(lc.technician || lc.technicianName || '').toUpperCase();
           return techMatch === techNameUpper;
-        })
-        .reduce((a,b)=> a + (Number(b.share)||0), 0);
-      return acc + fromBreakdown;
+        });
+      fromBreakdown.forEach(lc => {
+        commissionDetails.push({
+          kind: lc.kind || '',
+          laborValue: Number(lc.laborValue || 0),
+          percent: Number(lc.percent || 0),
+          share: Number(lc.share || 0)
+        });
+      });
+      return acc + fromBreakdown.reduce((a,b)=> a + (Number(b.share)||0), 0);
     }, 0);
     
     const commissionRounded = Math.round(commission * 100) / 100;
+    
+    // Construir notas con detalles de porcentajes
+    let commissionNotes = '';
+    if (commissionDetails.length > 0) {
+      const details = commissionDetails.map(d => {
+        if (d.kind) {
+          return `${d.kind}: ${d.percent}% sobre ${Math.round(d.laborValue).toLocaleString('es-CO')} = ${Math.round(d.share).toLocaleString('es-CO')}`;
+        }
+        return `${d.percent}% sobre ${Math.round(d.laborValue).toLocaleString('es-CO')} = ${Math.round(d.share).toLocaleString('es-CO')}`;
+      }).join('; ');
+      commissionNotes = details;
+    }
     
     // Calcular items con la comisión como base para porcentajes
     const items = computeSettlementItems({ 
@@ -376,8 +397,25 @@ export const previewSettlement = async (req, res) => {
       technicianName: techNameUpper 
     });
     
-    // Agregar comisión como primer item si existe
-    if (commissionRounded > 0) {
+    // Agregar items individuales para cada porcentaje de participación
+    if (commissionDetails.length > 0) {
+      // Agregar un item por cada línea de comisión con su porcentaje
+      commissionDetails.forEach(detail => {
+        const itemName = detail.kind 
+          ? `Participación ${detail.kind} (${detail.percent}%)`
+          : `Participación técnico (${detail.percent}%)`;
+        items.unshift({
+          conceptId: null,
+          name: itemName,
+          type: 'earning',
+          base: Math.round(detail.laborValue),
+          value: Math.round(detail.share),
+          calcRule: `laborPercent:${detail.percent}`,
+          notes: `${detail.percent}% sobre ${Math.round(detail.laborValue).toLocaleString('es-CO')}`
+        });
+      });
+    } else if (commissionRounded > 0) {
+      // Fallback: si no hay detalles pero hay comisión, agregar item genérico
       items.unshift({
         conceptId: null,
         name: 'Comisión por ventas',
@@ -385,7 +423,7 @@ export const previewSettlement = async (req, res) => {
         base: 0,
         value: commissionRounded,
         calcRule: 'sales.laborCommissions',
-        notes: ''
+        notes: commissionNotes
       });
     }
     
@@ -468,17 +506,38 @@ export const approveSettlement = async (req, res) => {
       ]
     }).select({ laborCommissions: 1 });
     
+    // Recolectar detalles de comisiones con porcentajes
+    const commissionDetails = [];
     const commission = sales.reduce((acc, s) => {
       const fromBreakdown = (s.laborCommissions||[])
         .filter(lc => {
           const techMatch = String(lc.technician || lc.technicianName || '').toUpperCase();
           return techMatch === techNameUpper;
-        })
-        .reduce((a,b)=> a + (Number(b.share)||0), 0);
-      return acc + fromBreakdown;
+        });
+      fromBreakdown.forEach(lc => {
+        commissionDetails.push({
+          kind: lc.kind || '',
+          laborValue: Number(lc.laborValue || 0),
+          percent: Number(lc.percent || 0),
+          share: Number(lc.share || 0)
+        });
+      });
+      return acc + fromBreakdown.reduce((a,b)=> a + (Number(b.share)||0), 0);
     }, 0);
     
     const commissionRounded = Math.round(commission * 100) / 100;
+    
+    // Construir notas con detalles de porcentajes
+    let commissionNotes = '';
+    if (commissionDetails.length > 0) {
+      const details = commissionDetails.map(d => {
+        if (d.kind) {
+          return `${d.kind}: ${d.percent}% sobre ${Math.round(d.laborValue).toLocaleString('es-CO')} = ${Math.round(d.share).toLocaleString('es-CO')}`;
+        }
+        return `${d.percent}% sobre ${Math.round(d.laborValue).toLocaleString('es-CO')} = ${Math.round(d.share).toLocaleString('es-CO')}`;
+      }).join('; ');
+      commissionNotes = details;
+    }
     
     // Calcular items
     const items = computeSettlementItems({ 
@@ -487,7 +546,25 @@ export const approveSettlement = async (req, res) => {
       technicianName: techNameUpper 
     });
     
-    if (commissionRounded > 0) {
+    // Agregar items individuales para cada porcentaje de participación
+    if (commissionDetails.length > 0) {
+      // Agregar un item por cada línea de comisión con su porcentaje
+      commissionDetails.forEach(detail => {
+        const itemName = detail.kind 
+          ? `Participación ${detail.kind} (${detail.percent}%)`
+          : `Participación técnico (${detail.percent}%)`;
+        items.unshift({
+          conceptId: null,
+          name: itemName,
+          type: 'earning',
+          base: Math.round(detail.laborValue),
+          value: Math.round(detail.share),
+          calcRule: `laborPercent:${detail.percent}`,
+          notes: `${detail.percent}% sobre ${Math.round(detail.laborValue).toLocaleString('es-CO')}`
+        });
+      });
+    } else if (commissionRounded > 0) {
+      // Fallback: si no hay detalles pero hay comisión, agregar item genérico
       items.unshift({
         conceptId: null,
         name: 'Comisión por ventas',
@@ -495,7 +572,7 @@ export const approveSettlement = async (req, res) => {
         base: 0,
         value: commissionRounded,
         calcRule: 'sales.laborCommissions',
-        notes: ''
+        notes: commissionNotes
       });
     }
     

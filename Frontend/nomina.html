@@ -120,6 +120,35 @@
         </div>
         
         <div id="pc-list" style="margin-top:0;"></div>
+        
+        <!-- Gestión de tipos de mano de obra -->
+        <div style="margin-top:24px;padding-top:24px;border-top:2px solid var(--border);">
+          <div style="margin-bottom:16px;">
+            <h3 style="margin:0 0 4px 0;">Tipos de mano de obra</h3>
+            <p class="muted" style="margin:0;font-size:13px;">Configura los tipos de participación técnica (ej: MOTOR, SUSPENSIÓN) con su porcentaje predeterminado. Al cerrar una venta, al seleccionar técnico y tipo, el porcentaje se completará automáticamente.</p>
+          </div>
+          
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+            <div class="row wrap" style="gap:12px;align-items:end;">
+              <div style="flex:2;min-width:200px;">
+                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre del tipo</label>
+                <input id="lk-name" placeholder="Ej: MOTOR" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);text-transform:uppercase;" maxlength="50" />
+              </div>
+              <div style="min-width:140px;">
+                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">% Predeterminado</label>
+                <input id="lk-percent" type="number" step="1" min="0" max="100" placeholder="0" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+              </div>
+              <div style="min-width:120px;">
+                <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+                <button id="lk-add" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
+                  ➕ Agregar tipo
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div id="lk-list" style="margin-top:0;"></div>
+        </div>
       </div>
 
       <div class="card" style="margin-top:12px;" data-subsection="assign" class="hidden">

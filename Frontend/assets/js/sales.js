@@ -319,16 +319,12 @@ function buildCloseModalContent(){
       <div id="cv-payments-summary" style="margin-top:6px; font-size:11px;" class="muted"></div>
     </div>
     <div class="grid-2" style="gap:12px;">
-      <div>
+      <div style="display:none;">
         <label>Técnico (cierre)</label>
         <select id="cv-technician"></select>
         <div id="cv-initial-tech" class="muted" style="margin-top:4px;font-size:11px;display:none;"></div>
       </div>
-      <div>
-        <label>Valor mano de obra</label>
-        <input id="cv-laborValue" type="number" min="0" step="1" />
-      </div>
-      <div>
+      <div style="display:none;">
         <label>% Técnico</label>
         <select id="cv-laborPercent"></select>
         <input id="cv-laborPercentManual" type="number" min="0" max="100" placeholder="Manual %" style="margin-top:4px;display:none;" />
@@ -338,7 +334,7 @@ function buildCloseModalContent(){
         <label>Comprobante (opcional)</label>
         <input id="cv-receipt" type="file" accept="image/*,.pdf" />
       </div>
-      <div style="grid-column:1/3; font-size:12px;" class="muted" id="cv-laborSharePreview"></div>
+      <div style="grid-column:1/3; font-size:12px; display:none;" class="muted" id="cv-laborSharePreview"></div>
       <div class="sticky-actions" style="grid-column:1/3; margin-top:8px; display:flex; gap:8px;">
         <button id="cv-confirm">Confirmar cierre</button>
         <button type="button" class="secondary" id="cv-cancel">Cancelar</button>
@@ -377,40 +373,22 @@ function fillCloseModal(){
     }
   }
 
-  // Labor percent options
+  // Labor percent options (ocultos pero necesarios para compatibilidad)
   const percSel = document.getElementById('cv-laborPercent');
   const perc = (companyPrefs?.laborPercents||[]);
   percSel.innerHTML = '<option value="">-- % --</option>' + perc.map(p=>`<option value="${p}">${p}%</option>`).join('');
-  const laborValueInput = document.getElementById('cv-laborValue');
   const manualPercentInput = document.getElementById('cv-laborPercentManual');
   const percentToggle = document.getElementById('cv-toggle-percent');
   const sharePrev = document.getElementById('cv-laborSharePreview');
   const msg = document.getElementById('cv-msg');
 
-  function computePreview(){
-    const lv = Number(laborValueInput.value||0)||0; let lp=null;
-    if(!manualPercentInput.style.display.includes('none')) lp = Number(manualPercentInput.value||0)||0; else lp = Number(percSel.value||0)||0;
-    if(lv>0 && lp>0){ sharePrev.textContent = 'Participación estimada técnico: ' + money(Math.round(lv*lp/100)); }
-    else sharePrev.textContent='';
-  }
-  laborValueInput.addEventListener('input', computePreview);
-  percSel.addEventListener('change', computePreview);
-  manualPercentInput.addEventListener('input', computePreview);
-  percentToggle.addEventListener('click', ()=>{
-    const manual = manualPercentInput.style.display.includes('none');
-    manualPercentInput.style.display = manual? 'block':'none';
-    percSel.disabled = manual;
-    percentToggle.textContent = manual? 'Usar lista %':'Manual %';
-    computePreview();
-  });
-
   // ---- Desglose por maniobra (dinámico, sin tocar el HTML base) ----
   try {
-    const grid = laborValueInput.closest('.grid-2');
+    const grid = document.querySelector('.grid-2');
     const wrap = document.createElement('div');
     wrap.style.gridColumn = '1/3';
     wrap.innerHTML = `
-      <label>Desglose por maniobra (opcional)</label>
+      <label>Desglose de mano de obra</label>
       <div class="card" style="padding:8px;">
         <div class="row between" style="align-items:center;">
           <strong>Participación técnica</strong>
@@ -429,7 +407,11 @@ function fillCloseModal(){
     function addLine(pref={}){
       const tr = document.createElement('tr');
       const techOpts = ['',''].concat(companyTechnicians||[]).map(t=> `<option value="${t}">${t}</option>`).join('');
-      const kindOpts = ['',''].concat(techConfig?.laborKinds||[]).map(k=> `<option value="${k}">${k}</option>`).join('');
+      // Manejar laborKinds como objetos o strings (compatibilidad)
+      const kindOpts = ['',''].concat((techConfig?.laborKinds||[]).map(k=> {
+        const name = typeof k === 'string' ? k : (k?.name || '');
+        return name;
+      })).map(k=> `<option value="${k}">${k}</option>`).join('');
       tr.innerHTML = `
         <td><select data-role="tech">${techOpts}</select></td>
         <td><select data-role="kind">${kindOpts}</select></td>
@@ -453,13 +435,32 @@ function fillCloseModal(){
       [lvInp, pcInp, techSel2, kindSel2].forEach(el=> el.addEventListener('input', recalc));
       delBtn.addEventListener('click', ()=> tr.remove());
       recalc();
-      // autocompletar % desde perfil si existe
-      techSel2.addEventListener('change', ()=>{
+      // autocompletar % desde perfil del técnico o desde defaultPercent del tipo
+      function autoFillPercent(){
         const name = techSel2.value; const kind = (kindSel2.value||'').toUpperCase();
+        if(!name || !kind) return;
+        // Primero buscar en el perfil del técnico
         const prof = (techConfig?.technicians||[]).find(t=> t.name===name);
-        if(prof && kind){ const r = (prof.rates||[]).find(x=> String(x.kind||'').toUpperCase()===kind); if(r){ pcInp.value = Number(r.percent||0); recalc(); } }
-      });
-      kindSel2.addEventListener('change', ()=> techSel2.dispatchEvent(new Event('change')));
+        if(prof && kind){ 
+          const r = (prof.rates||[]).find(x=> String(x.kind||'').toUpperCase()===kind); 
+          if(r && r.percent > 0){ 
+            pcInp.value = Number(r.percent||0); 
+            recalc(); 
+            return;
+          }
+        }
+        // Si no está en el perfil, usar el defaultPercent del tipo
+        const laborKind = (techConfig?.laborKinds||[]).find(k=> {
+          const kindName = typeof k === 'string' ? k : (k?.name || '');
+          return String(kindName).toUpperCase() === kind;
+        });
+        if(laborKind && typeof laborKind === 'object' && laborKind.defaultPercent > 0){
+          pcInp.value = Number(laborKind.defaultPercent||0);
+          recalc();
+        }
+      }
+      techSel2.addEventListener('change', autoFillPercent);
+      kindSel2.addEventListener('change', autoFillPercent);
       return tr;
     }
     wrap.querySelector('#cv-add-commission').addEventListener('click', ()=> addLine({}));
@@ -590,8 +591,8 @@ function fillCloseModal(){
       const payload = {
         paymentMethods: filtered.map(p=>({ method:p.method, amount:Number(p.amount)||0, accountId:p.accountId||null })),
         technician: techSel.value||'',
-        laborValue: Number(laborValueInput.value||0)||0,
-        laborPercent: !percSel.disabled ? Number(percSel.value||0)||0 : Number(manualPercentInput.value||0)||0,
+        laborValue: 0,
+        laborPercent: 0,
         laborCommissions: comm,
         paymentReceiptUrl: receiptUrl
       };
