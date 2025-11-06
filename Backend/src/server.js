@@ -148,10 +148,12 @@ const envAllow = (process.env.ALLOWED_ORIGINS || '')
 
 const defaultAllow = [
   'https://proyecto-taller.netlify.app',
+  'https://proyecto-taller-dev.netlify.app',
   'http://localhost',
   'http://127.0.0.1',
   'http://localhost:5173',
-  'http://localhost:3000'
+  'http://localhost:3000',
+  'http://localhost:8080'
 ];
 
 const allowList = envAllow.length ? envAllow : defaultAllow;
