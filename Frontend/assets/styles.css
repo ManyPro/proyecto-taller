@@ -639,6 +639,13 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
   max-height:95vh !important;
 }
 
+/* Modal específico para cierre de venta - más ancho */
+#modal .modal-content.close-sale-modal{
+  width:min(95vw, 1800px) !important; 
+  max-width:95vw !important; 
+  max-height:95vh !important;
+}
+
 /* Modal para contenido general más ancho */
 #modal .modal-content:not(.image-modal):not(.form-modal){
   width:min(95vw, 1600px) !important;
