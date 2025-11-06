@@ -251,6 +251,41 @@
     // Setup button handlers
     setupButtonHandlers();
 
+    // Setup existing buttons if they exist in HTML
+    const saveBtn = qs('#save-template');
+    if (saveBtn) {
+      console.log('✅ Botón Guardar Plantilla encontrado');
+      saveBtn.onclick = function(e) {
+        e.preventDefault();
+        console.log('🔄 Ejecutando saveTemplateAndReturn...');
+        if (typeof window.saveTemplateAndReturn === 'function') {
+          window.saveTemplateAndReturn();
+        } else {
+          console.error('❌ saveTemplateAndReturn no está definido');
+          alert('Error: Función de guardar no disponible');
+        }
+      };
+    } else {
+      console.error('❌ No se encontró el botón save-template');
+    }
+    
+    const previewBtn = qs('#preview-template');
+    if (previewBtn) {
+      console.log('✅ Botón Vista Previa encontrado');
+      previewBtn.onclick = function(e) {
+        e.preventDefault();
+        console.log('🔄 Ejecutando previewTemplateEnhanced...');
+        if (typeof window.previewTemplateEnhanced === 'function') {
+          window.previewTemplateEnhanced();
+        } else {
+          console.error('❌ previewTemplateEnhanced no está definido');
+          alert('Error: Función de vista previa no disponible');
+        }
+      };
+    } else {
+      console.error('❌ No se encontró el botón preview-template');
+    }
+
     // Canvas click handler
     canvas.onclick = (e) => {
       if (e.target === canvas) {
