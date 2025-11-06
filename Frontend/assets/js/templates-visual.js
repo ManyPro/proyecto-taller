@@ -2097,15 +2097,232 @@
     return tableContainer;
   }
 
-  // Global functions
+  function optimizeCanvasImages(canvas) {
+    if (!canvas) return Promise.resolve();
+    const images = Array.from(canvas.querySelectorAll('img[src^="data:image/"]'));
+    if (!images.length) return Promise.resolve();
+
+    const tasks = images.map(async (img) => {
+      const originalSrc = img.src;
+      try {
+        const optimizedSrc = await optimizeImageDataUrl(originalSrc);
+        if (optimizedSrc && optimizedSrc !== originalSrc) {
+          console.log(`Imagen optimizada (${Math.round(originalSrc.length / 1024)} KB → ${Math.round(optimizedSrc.length / 1024)} KB)`);
+          img.src = optimizedSrc;
+        }
+      } catch (error) {
+        console.warn('No se pudo optimizar una imagen antes de guardar:', error);
+      }
+    });
+
+    return Promise.all(tasks);
+  }
+
+  function getDocumentTypeName(type) {
+    const names = {
+      'invoice': 'Factura',
+      'quote': 'Cotización', 
+      'workOrder': 'Orden de Trabajo',
+      'sticker-qr': 'Sticker (Solo QR)',
+      'sticker-brand': 'Sticker (Marca + QR)',
+      'payroll': 'Nómina'
+    };
+    return names[type] || type;
+  }
+
+  // Enhanced save function with redirect to template selector
   window.saveTemplateAndReturn = async function() {
-    console.log('Guardando plantilla...');
-    showQuickNotification('Funcionalidad de guardado pendiente', 'info');
+    console.log('🔄 Iniciando saveTemplateAndReturn...');
+    
+    const canvas = qs('#ce-canvas');
+    if (!canvas) {
+      console.error('❌ No se encontró el canvas');
+      alert('Error: No se encontró el canvas del editor');
+      return;
+    }
+
+    let content = canvas.innerHTML;
+    const hasElements = !!canvas.querySelector('.tpl-element');
+    await optimizeCanvasImages(canvas);
+    content = canvas.innerHTML;
+    console.log('📄 Contenido del canvas:', content.substring(0, 100) + '...');
+    
+    if ((!content || content.includes('Haz clic en los botones') || content.includes('Tu plantilla está vacía')) && !hasElements) {
+      alert('❌ No se puede guardar una plantilla vacía.\n\nPor favor agrega contenido antes de guardar.');
+      return;
+    }
+
+    if (typeof API === 'undefined') {
+      console.error('❌ API no está disponible');
+      alert('❌ Error: API no disponible\n\nPor favor recarga la página y asegúrate de que config.js y api.js estén cargados correctamente.');
+      return;
+    }
+
+    const session = window.currentTemplateSession;
+    let templateName = session?.name;
+    let templateType = session?.type || 'invoice';
+    let isUpdate = session?.action === 'edit';
+
+    if (!templateName || session?.action === 'create') {
+      templateName = prompt('📝 Nombre del formato:', templateName || `Nuevo ${getDocumentTypeName(templateType)}`);
+      if (!templateName) return;
+      if (window.currentTemplateSession) {
+        window.currentTemplateSession.name = templateName;
+      }
+    }
+
+    const activate = isUpdate ? 
+      confirm(`💾 ¿Actualizar formato existente "${templateName}"?\n\n✅ Sí - Actualizar formato\n❌ No - Cancelar`) :
+      confirm(`📋 ¿Activar "${templateName}" como formato principal?\n\n✅ Sí - Activar como principal (Recomendado)\n❌ No - Guardar como borrador`);
+
+    if (isUpdate && !activate) return;
+
+    try {
+      showQuickNotification('💾 Guardando plantilla...', 'info');
+      
+      let savedTemplate;
+      
+      if (isUpdate && session?.formatId) {
+        savedTemplate = await API.templates.update(session.formatId, {
+          name: templateName,
+          contentHtml: content,
+          contentCss: '',
+          activate: activate
+        });
+      } else {
+        savedTemplate = await API.templates.create({
+          name: templateName,
+          type: templateType,
+          contentHtml: content,
+          contentCss: '',
+          activate: activate
+        });
+      }
+      
+      showQuickNotification(`✅ "${templateName}" guardada correctamente`, 'success');
+      console.log('✅ Plantilla guardada exitosamente:', savedTemplate);
+      
+      setTimeout(() => {
+        console.log('🔄 Redirigiendo al selector de plantillas...');
+        window.location.href = 'template-selector.html';
+      }, 1500);
+      
+    } catch (error) {
+      console.error('❌ Error saving template:', error);
+      let errorMsg = '❌ Error al guardar la plantilla:\n\n';
+      if (error.message) {
+        errorMsg += error.message;
+      } else if (error.status === 401) {
+        errorMsg += 'No tienes permisos para guardar. Verifica tu sesión.';
+      } else if (error.status === 500) {
+        errorMsg += 'Error del servidor. Intenta nuevamente.';
+      } else {
+        errorMsg += 'Error desconocido. Revisa la consola para más detalles.';
+      }
+      alert(errorMsg);
+      showQuickNotification('❌ Error al guardar plantilla', 'error');
+    }
   };
 
+  // Enhanced preview function with better error handling
   window.previewTemplateEnhanced = async function() {
-    console.log('Vista previa...');
-    showQuickNotification('Funcionalidad de vista previa pendiente', 'info');
+    const canvas = qs('#ce-canvas');
+    if (!canvas) return;
+
+    const sessionInfo = window.currentTemplateSession || null;
+    const templateCss = (sessionInfo && sessionInfo.contentCss) || '';
+    const hasElements = !!canvas.querySelector('.tpl-element');
+    await optimizeCanvasImages(canvas);
+    const content = canvas.innerHTML;
+    if ((!content || content.includes('Haz clic en los botones') || content.includes('Tu plantilla está vacía')) && !hasElements) {
+      alert('❌ No hay contenido para previsualizar.\n\nPor favor agrega elementos a la plantilla antes de ver la vista previa.');
+      return;
+    }
+
+    let templateType = (sessionInfo && sessionInfo.type) || 'invoice';
+    if (!sessionInfo) {
+      if (content.toLowerCase().includes('cotización')) {
+        templateType = 'quote';
+      } else if (content.toLowerCase().includes('orden de trabajo')) {
+        templateType = 'workOrder';
+      } else if (content.toLowerCase().includes('factura')) {
+        templateType = 'invoice';
+      }
+    }
+
+    if (typeof API === 'undefined') {
+      alert('❌ Error: API no disponible\n\nPor favor recarga la página y asegúrate de que config.js y api.js estén cargados correctamente.');
+      return;
+    }
+
+    try {
+      showQuickNotification('🔄 Generando vista previa con datos reales...', 'info');
+      
+      const result = await API.templates.preview({
+        type: templateType,
+        contentHtml: content,
+        contentCss: templateCss
+      });
+      
+      let renderedContent;
+      if (typeof result === 'string') {
+        renderedContent = result;
+      } else if (result && result.rendered) {
+        renderedContent = result.rendered;
+      } else {
+        renderedContent = content;
+      }
+
+      const previewWindow = window.open('', '_blank', 'width=900,height=1200,scrollbars=yes,resizable=yes');
+      if (!previewWindow) {
+        alert('❌ No se pudo abrir la ventana de vista previa.\n\nVerifica que tu navegador no esté bloqueando ventanas emergentes.');
+        return;
+      }
+      
+      const docTypeName = getDocumentTypeName(templateType);
+      const previewHTML = `
+        <!DOCTYPE html>
+        <html lang="es">
+          <head>
+            <title>Vista Previa - ${docTypeName}</title>
+            <meta charset="UTF-8">
+            <style>
+              * { box-sizing: border-box; }
+              body { 
+                font-family: 'Arial', 'Helvetica', sans-serif; 
+                margin: 0; 
+                padding: 20px; 
+                background: #f5f5f5;
+              }
+              .preview-container {
+                background: white;
+                width: 21cm;
+                min-height: 29.7cm;
+                padding: 2cm;
+                margin: 0 auto;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+              }
+              .tpl-element { position: relative !important; }
+            </style>
+            ${templateCss ? `<style>${templateCss}</style>` : ''}
+          </head>
+          <body>
+            <div class="preview-container">
+              ${renderedContent}
+            </div>
+          </body>
+        </html>
+      `;
+      
+      previewWindow.document.write(previewHTML);
+      previewWindow.document.close();
+      showQuickNotification('✅ Vista previa generada', 'success');
+      
+    } catch (error) {
+      console.error('❌ Error generating preview:', error);
+      alert(`❌ Error al generar vista previa:\n\n${error.message || 'Error desconocido'}`);
+      showQuickNotification('❌ Error al generar vista previa', 'error');
+    }
   };
 
 })(); // End IIFE
