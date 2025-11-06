@@ -290,7 +290,12 @@ let techConfig = { laborKinds: [], technicians: [] };
 async function ensureCompanyData(){
   try { companyTechnicians = await API.company.getTechnicians(); } catch { companyTechnicians = []; }
   try { companyPrefs = await API.company.getPreferences(); } catch { companyPrefs = { laborPercents: [] }; }
-  try { techConfig = await API.company.getTechConfig(); } catch { techConfig = { laborKinds: [], technicians: [] }; }
+  try { 
+    const r = await API.company.getTechConfig();
+    techConfig = r.config || r || { laborKinds: [], technicians: [] };
+  } catch { 
+    techConfig = { laborKinds: [], technicians: [] }; 
+  }
 }
 
 // === Multi-payment close sale modal construction ===
@@ -353,6 +358,11 @@ function openCloseModal(){
     const content = buildCloseModalContent();
     body.appendChild(content);
     fillCloseModal();
+    // Agregar clase para hacer el modal más ancho
+    const modalContent = modal.querySelector('.modal-content');
+    if(modalContent) {
+      modalContent.classList.add('close-sale-modal');
+    }
     modal.classList.remove('hidden');
   });
 }
@@ -408,10 +418,11 @@ function fillCloseModal(){
       const tr = document.createElement('tr');
       const techOpts = ['',''].concat(companyTechnicians||[]).map(t=> `<option value="${t}">${t}</option>`).join('');
       // Manejar laborKinds como objetos o strings (compatibilidad)
-      const kindOpts = ['',''].concat((techConfig?.laborKinds||[]).map(k=> {
+      const laborKindsList = (techConfig?.laborKinds||[]).map(k=> {
         const name = typeof k === 'string' ? k : (k?.name || '');
         return name;
-      })).map(k=> `<option value="${k}">${k}</option>`).join('');
+      }).filter(k => k && k.trim() !== ''); // Filtrar vacíos
+      const kindOpts = '<option value="">-- Seleccione tipo --</option>' + laborKindsList.map(k=> `<option value="${k}">${k}</option>`).join('');
       tr.innerHTML = `
         <td><select data-role="tech">${techOpts}</select></td>
         <td><select data-role="kind">${kindOpts}</select></td>
