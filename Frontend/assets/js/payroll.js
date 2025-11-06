@@ -1714,7 +1714,7 @@ async function createTechnician(){
 // ===== Gestión de tipos de mano de obra =====
 async function loadLaborKinds(){
   try {
-    const r = await API.company.getTechConfig();
+    const r = await api.get('/api/v1/company/tech-config');
     const config = r.config || {};
     const laborKinds = config.laborKinds || [];
     
@@ -1765,14 +1765,14 @@ async function loadLaborKinds(){
           btn.disabled = true;
           btn.textContent = 'Eliminando...';
           
-          const r = await API.company.getTechConfig();
+          const r = await api.get('/api/v1/company/tech-config');
           const config = r.config || {};
           const laborKinds = (config.laborKinds || []).filter(k => {
             const kindName = typeof k === 'string' ? k : (k?.name || '');
             return kindName !== name;
           });
           
-          await API.company.updateTechConfig({ laborKinds });
+          await api.put('/api/v1/company/tech-config', { ...config, laborKinds });
           await loadLaborKinds();
         } catch (err) {
           alert('❌ Error al eliminar tipo: ' + (err.message || 'Error desconocido'));
@@ -1818,7 +1818,7 @@ async function addLaborKind(){
     }
     
     try {
-      const r = await API.company.getTechConfig();
+      const r = await api.get('/api/v1/company/tech-config');
       const config = r.config || {};
       const laborKinds = config.laborKinds || [];
       
@@ -1840,7 +1840,7 @@ async function addLaborKind(){
       
       // Agregar nuevo tipo
       const newKinds = [...laborKinds, { name, defaultPercent }];
-      await API.company.updateTechConfig({ laborKinds: newKinds });
+      await api.put('/api/v1/company/tech-config', { ...config, laborKinds: newKinds });
       
       // Limpiar formulario
       el('lk-name').value = '';
