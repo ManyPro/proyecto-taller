@@ -130,7 +130,14 @@ const API = {
       return res.technicians || [];
     },
     getTechConfig: () => http.get('/api/v1/company/tech-config').then(r=> r.config || { laborKinds:[], technicians:[] }),
-    setTechConfig: (config) => http.put('/api/v1/company/tech-config', config).then(r=> r.config || config)
+    setTechConfig: (config) => http.put('/api/v1/company/tech-config', config).then(r=> r.config || config),
+    updateTechConfig: (updates) => {
+      return http.get('/api/v1/company/tech-config').then(r => {
+        const current = r.config || { laborKinds: [], technicians: [] };
+        const merged = { ...current, ...updates };
+        return http.put('/api/v1/company/tech-config', merged).then(res => res.config || merged);
+      });
+    }
   },
 
   // Empresa activa
