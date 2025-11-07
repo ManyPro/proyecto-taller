@@ -82,11 +82,12 @@
           </div>
           <div class="row" id="filters-bar" style="gap:8px;flex-wrap:wrap;align-items:end;">
             <div style="flex:1;min-width:250px;position:relative;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Vehículo</label>
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Vehículo (para crear precio específico)</label>
               <input id="pf-vehicle-search" placeholder="Buscar vehículo (marca, línea, cilindraje)..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
               <div id="pf-vehicle-dropdown" style="display:none;position:absolute;z-index:1000;background:var(--card);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;margin-top:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:100%;"></div>
               <input type="hidden" id="pf-vehicle-id" />
               <div id="pf-vehicle-selected" style="margin-top:4px;font-size:12px;color:var(--muted);"></div>
+              <p class="muted" style="margin-top:4px;font-size:11px;">Selecciona un vehículo para crear un precio específico para ese vehículo</p>
             </div>
             <button id="pf-search" class="secondary" style="padding:8px 16px;">🔍 Buscar</button>
             <button id="pf-clear" class="secondary" style="padding:8px 16px;">🗑️ Limpiar</button>
