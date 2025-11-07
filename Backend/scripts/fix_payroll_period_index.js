@@ -2,18 +2,51 @@
 /**
  * Script para eliminar el índice único de PayrollPeriod
  * Permite crear períodos con las mismas fechas si están cerrados
+ * 
+ * Uso:
+ *   npm run fix:payroll:index
+ *   o
+ *   node scripts/fix_payroll_period_index.js --mongo "mongodb://..."
  */
 
 import mongoose from 'mongoose';
+import 'dotenv/config';
 import { connectDB } from '../src/lib/db.js';
 
 const COLLECTION_NAME = 'payrollperiods';
 const INDEX_NAME = 'companyId_1_startDate_1_endDate_1';
 
+// Parsear argumentos de línea de comandos
+function parseArgs(argv) {
+  const args = {};
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (!arg.startsWith('--')) continue;
+    const key = arg.slice(2);
+    const value = argv[i + 1];
+    if (value && !value.startsWith('--')) {
+      args[key] = value;
+      i++;
+    } else {
+      args[key] = true;
+    }
+  }
+  return args;
+}
+
 async function main() {
-  const uri = process.env.MONGODB_URI;
+  const cmdArgs = parseArgs(process.argv.slice(2));
+  const uri = cmdArgs.mongo || process.env.MONGODB_URI;
+  
   if (!uri) {
     console.error('❌ Error: MONGODB_URI no está definido');
+    console.error('');
+    console.error('Opciones:');
+    console.error('  1. Define la variable de entorno MONGODB_URI');
+    console.error('  2. Pásala como argumento: --mongo "mongodb://..."');
+    console.error('');
+    console.error('Ejemplo:');
+    console.error('  npm run fix:payroll:index -- --mongo "mongodb://usuario:password@host:27017/db"');
     process.exit(1);
   }
 
