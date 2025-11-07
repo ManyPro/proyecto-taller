@@ -54,6 +54,13 @@ git fetch origin main develop || error "No se pudo hacer fetch desde origin"
 echo ""
 echo "📦 [2/6] Actualizando develop..."
 git checkout develop || error "No se pudo cambiar a develop"
+
+# Si hay cambios locales, hacer reset para evitar conflictos
+if ! git diff-index --quiet HEAD --; then
+    warning "Hay cambios locales en develop, haciendo reset..."
+    git reset --hard origin/develop || error "No se pudo resetear develop"
+fi
+
 git pull origin develop || error "No se pudo hacer pull de develop"
 success "Develop actualizado"
 
