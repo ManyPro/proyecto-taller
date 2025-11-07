@@ -14,6 +14,7 @@ const CustomerProfileSchema = new mongoose.Schema({
   },
   vehicle: {
     plate:  { type: String, index: true, required: true, uppercase: true, trim: true },
+    vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle', default: null },
     brand:  { type: String, default: '' },
     line:   { type: String, default: '' },
     engine: { type: String, default: '' },

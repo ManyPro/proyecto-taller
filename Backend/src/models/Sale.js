@@ -35,6 +35,7 @@ const SaleSchema = new mongoose.Schema({
   },
   vehicle: {
     plate: { type: String, default: '' },
+    vehicleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle', default: null }, // Referencia al vehículo de la BD
     brand: { type: String, default: '' },
     line: { type: String, default: '' },
     engine: { type: String, default: '' },

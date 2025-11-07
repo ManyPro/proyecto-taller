@@ -1,5 +1,6 @@
 import PriceEntry from '../models/PriceEntry.js';
 import Service from '../models/Service.js';
+import Vehicle from '../models/Vehicle.js';
 import xlsx from 'xlsx'; // 0.18.x
 
 // ============ helpers ============
@@ -42,47 +43,86 @@ function computeTotal(service, variables = {}) {
 
 // ============ list ============
 export const listPrices = async (req, res) => {
-  const { serviceId, brand, line, engine, year } = req.query || {};
+  const { serviceId, vehicleId, brand, line, engine, year } = req.query || {};
   const q = { companyId: req.companyId };
   if (serviceId) q.serviceId = serviceId;
-  if (brand) q.brand = cleanStr(brand);
-  if (line) q.line = cleanStr(line);
-  if (engine) q.engine = cleanStr(engine);
-  if (year) q.year = Number(year);
+  
+  // Prioridad: vehicleId (nuevo) sobre brand/line/engine/year (legacy)
+  if (vehicleId) {
+    q.vehicleId = vehicleId;
+  } else {
+    // Filtros legacy (mantener compatibilidad)
+    if (brand) q.brand = cleanStr(brand);
+    if (line) q.line = cleanStr(line);
+    if (engine) q.engine = cleanStr(engine);
+    if (year) q.year = Number(year);
+  }
 
-  const items = await PriceEntry.find(q).sort({ brand: 1, line: 1, engine: 1, year: 1 }).lean();
+  const items = await PriceEntry.find(q)
+    .populate('vehicleId', 'make line displacement modelYear')
+    .sort({ brand: 1, line: 1, engine: 1, year: 1 })
+    .lean();
   res.json({ items });
 };
 
 // ============ create ============
 export const createPrice = async (req, res) => {
-  const { serviceId, brand, line, engine, year, variables = {} } = req.body || {};
+  const { serviceId, vehicleId, brand, line, engine, year, variables = {} } = req.body || {};
   if (!serviceId) return res.status(400).json({ error: 'serviceId requerido' });
   const svc = await getService(req.companyId, serviceId);
   if (!svc) return res.status(404).json({ error: 'Servicio no encontrado' });
 
+  // Si se proporciona vehicleId, validar y obtener datos del vehículo
+  let vehicleData = null;
+  if (vehicleId) {
+    const vehicle = await Vehicle.findById(vehicleId);
+    if (!vehicle) return res.status(404).json({ error: 'Vehículo no encontrado' });
+    if (!vehicle.active) return res.status(400).json({ error: 'Vehículo inactivo' });
+    vehicleData = {
+      vehicleId: vehicle._id,
+      brand: vehicle.make,
+      line: vehicle.line,
+      engine: vehicle.displacement,
+      year: null // No usar year del vehículo, se maneja por modelYear
+    };
+  }
+
   const doc = {
     companyId: req.companyId,
     serviceId,
-    brand: cleanStr(brand),
-    line: cleanStr(line),
-    engine: cleanStr(engine),
-    year: Number(year) || null,
+    vehicleId: vehicleData?.vehicleId || null,
+    brand: vehicleData?.brand || cleanStr(brand || ''),
+    line: vehicleData?.line || cleanStr(line || ''),
+    engine: vehicleData?.engine || cleanStr(engine || ''),
+    year: vehicleData ? null : (Number(year) || null),
     variables,
     total: computeTotal(svc, variables)
   };
+  
   try {
     const created = await PriceEntry.create(doc);
-    res.json(created.toObject());
+    const populated = await PriceEntry.findById(created._id)
+      .populate('vehicleId', 'make line displacement modelYear')
+      .lean();
+    res.json(populated);
   } catch (e) {
     // Si ya existe por índice único, intenta actualizar
     if (e?.code === 11000) {
-      const filter = {
-        companyId: req.companyId, serviceId: serviceId,
-        brand: doc.brand, line: doc.line, engine: doc.engine, year: doc.year
-      };
-      const up = await PriceEntry.findOneAndUpdate(filter, { variables, total: doc.total }, { new: true, upsert: true });
-      return res.json(up.toObject());
+      const filter = vehicleId
+        ? { companyId: req.companyId, serviceId, vehicleId }
+        : {
+            companyId: req.companyId, serviceId: serviceId,
+            brand: doc.brand, line: doc.line, engine: doc.engine, year: doc.year
+          };
+      const up = await PriceEntry.findOneAndUpdate(
+        filter, 
+        { ...doc, variables, total: doc.total }, 
+        { new: true, upsert: true }
+      );
+      const populated = await PriceEntry.findById(up._id)
+        .populate('vehicleId', 'make line displacement modelYear')
+        .lean();
+      return res.json(populated);
     }
     throw e;
   }
@@ -91,22 +131,44 @@ export const createPrice = async (req, res) => {
 // ============ update ============
 export const updatePrice = async (req, res) => {
   const id = req.params.id;
-  const { brand, line, engine, year, variables = {} } = req.body || {};
+  const { vehicleId, brand, line, engine, year, variables = {} } = req.body || {};
   const row = await PriceEntry.findOne({ _id: id, companyId: req.companyId });
   if (!row) return res.status(404).json({ error: 'No encontrado' });
 
   const svc = await getService(req.companyId, row.serviceId);
   const total = computeTotal(svc, variables);
 
-  row.brand = cleanStr(brand ?? row.brand);
-  row.line = cleanStr(line ?? row.line);
-  row.engine = cleanStr(engine ?? row.engine);
-  row.year = year != null ? Number(year) : row.year;
+  // Si se proporciona vehicleId, actualizar desde el vehículo
+  if (vehicleId !== undefined) {
+    if (vehicleId === null || vehicleId === '') {
+      // Eliminar referencia a vehículo
+      row.vehicleId = null;
+    } else {
+      const vehicle = await Vehicle.findById(vehicleId);
+      if (!vehicle) return res.status(404).json({ error: 'Vehículo no encontrado' });
+      if (!vehicle.active) return res.status(400).json({ error: 'Vehículo inactivo' });
+      row.vehicleId = vehicle._id;
+      row.brand = vehicle.make;
+      row.line = vehicle.line;
+      row.engine = vehicle.displacement;
+      row.year = null; // No usar year cuando hay vehicleId
+    }
+  } else {
+    // Actualizar campos legacy
+    if (brand !== undefined) row.brand = cleanStr(brand);
+    if (line !== undefined) row.line = cleanStr(line);
+    if (engine !== undefined) row.engine = cleanStr(engine);
+    if (year !== undefined) row.year = year != null ? Number(year) : null;
+  }
+
   row.variables = variables;
   row.total = total;
 
   await row.save();
-  res.json(row.toObject());
+  const populated = await PriceEntry.findById(row._id)
+    .populate('vehicleId', 'make line displacement modelYear')
+    .lean();
+  res.json(populated);
 };
 
 // ============ delete (single) ============

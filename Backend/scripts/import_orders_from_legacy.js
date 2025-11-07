@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { connectDB } from '../src/db.js';
 import Sale from '../src/models/Sale.js';
+import Vehicle from '../src/models/Vehicle.js';
 import { upsertProfileFromSource } from '../src/controllers/profile.helper.js';
 
 dotenv.config();
@@ -455,9 +456,27 @@ async function main() {
     const email = clean(cli['cl_mail'] || '');
     const address = clean(cli['cl_direccion'] || '');
 
+    const brand = veh && veh['au_marca'] ? clean(veh['au_marca']).toUpperCase() : '';
+    const line = veh && veh['au_linea'] ? clean(veh['au_linea']).toUpperCase() : '';
     const engine = veh && veh['au_cilidraje'] ? String(veh['au_cilidraje']) : '';
     const year = parseNumber(veh && veh['au_modelo']);
     const mileage = parseNumber(row['or_kilometraje']);
+    
+    // Buscar vehículo en BD global
+    let vehicleId = null;
+    if (brand && line && engine && !dryRun) {
+      try {
+        const vehicle = await Vehicle.findOne({
+          make: brand,
+          line: line,
+          displacement: engine.toUpperCase(),
+          active: true
+        });
+        if (vehicle) vehicleId = vehicle._id;
+      } catch (err) {
+        // Ignorar errores de búsqueda
+      }
+    }
     const obs = clean(row['or_observacion'] || '');
     const otros = clean(row['or_otros'] || '');
     const legacyOrId = String(row['or_id'] || '').trim();
@@ -551,9 +570,12 @@ async function main() {
       if (!existing.customer?.address && address) update.$set['customer.address'] = address;
 
       if (!existing.vehicle?.plate || existing.vehicle.plate !== plate) update.$set['vehicle.plate'] = plate;
+      if (brand && (!existing.vehicle?.brand || existing.vehicle.brand !== brand)) update.$set['vehicle.brand'] = brand;
+      if (line && (!existing.vehicle?.line || existing.vehicle.line !== line)) update.$set['vehicle.line'] = line;
       if (!existing.vehicle?.engine && engine) update.$set['vehicle.engine'] = engine;
       if (year != null && (existing.vehicle?.year == null || existing.vehicle.year !== year)) update.$set['vehicle.year'] = year;
       if (mileage != null && (existing.vehicle?.mileage == null || existing.vehicle.mileage !== mileage)) update.$set['vehicle.mileage'] = mileage;
+      if (vehicleId && (!existing.vehicle?.vehicleId || String(existing.vehicle.vehicleId) !== String(vehicleId))) update.$set['vehicle.vehicleId'] = vehicleId;
 
       if (notes && (!existing.notes || existing.notes.includes('LEGACY or_id='))) update.$set.notes = notes;
 
@@ -575,7 +597,7 @@ async function main() {
       name: saleName,
       items,
       customer: { idNumber, name: customerName, phone, email, address },
-      vehicle: { plate, brand: '', line: '', engine, year, mileage },
+      vehicle: { plate, brand, line, engine, year, mileage, vehicleId },
       notes,
       subtotal,
       tax,

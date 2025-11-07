@@ -33,6 +33,7 @@ import payrollRouter from './routes/payroll.routes.js';
 import publicCatalogRouter from './routes/catalog.public.routes.js';
 import adminRouter from './routes/admin.routes.js';
 import adminCompanyRouter from './routes/admin.company.routes.js';
+import vehiclesRouter from './routes/vehicles.routes.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -229,6 +230,7 @@ app.use('/api/v1/templates', authCompany, withCompanyDefaults, templatesRouter);
 app.use('/api/v1/notifications', authCompany, withCompanyDefaults, notificationsRouter);
 app.use('/api/v1/skus', authCompany, withCompanyDefaults, skusRouter);
 app.use('/api/v1/payroll', authCompany, withCompanyDefaults, payrollRouter);
+app.use('/api/v1/vehicles', authCompany, vehiclesRouter); // Global, sin companyId
 
 app.use((err, _req, res, _next) => {
   const isJsonParse = err?.type === 'entity.parse.failed' || (err instanceof SyntaxError && 'body' in err);
