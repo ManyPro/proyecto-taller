@@ -10,6 +10,7 @@ import Template from '../models/Template.js';
 import Handlebars from 'handlebars';
 import Company from '../models/Company.js';
 import { computeBalance } from './cashflow.controller.js';
+import mongoose from 'mongoose';
 
 export const listConcepts = async (req, res) => {
   try {
@@ -819,6 +820,26 @@ export const approveSettlement = async (req, res) => {
     const { grossTotal, deductionsTotal, netTotal } = calculateTotals(items);
     
     // Guardar liquidación por técnico
+    // Filtrar selectedConceptIds para solo incluir ObjectIds válidos (excluir 'COMMISSION' y 'LOAN_PAYMENT')
+    const validConceptIds = selectedConceptIds.filter(id => {
+      // Solo incluir si es un ObjectId válido (excluir strings especiales)
+      if (typeof id === 'string' && (id === 'COMMISSION' || id === 'LOAN_PAYMENT')) {
+        return false;
+      }
+      // Verificar si es un ObjectId válido
+      try {
+        if (typeof id === 'string' && mongoose.Types.ObjectId.isValid(id)) {
+          return true;
+        }
+        if (id instanceof mongoose.Types.ObjectId) {
+          return true;
+        }
+      } catch (e) {
+        return false;
+      }
+      return false;
+    });
+    
     const updateFilter = { companyId: req.companyId, periodId };
     if (technicianId && technicianId.trim() !== '') {
       updateFilter.technicianId = technicianId;
@@ -829,7 +850,7 @@ export const approveSettlement = async (req, res) => {
     const doc = await PayrollSettlement.findOneAndUpdate(
       updateFilter,
       { 
-        selectedConceptIds,
+        selectedConceptIds: validConceptIds, // Solo ObjectIds válidos
         items,
         grossTotal,
         deductionsTotal,
