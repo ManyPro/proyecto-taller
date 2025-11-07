@@ -24,7 +24,11 @@ export const listConcepts = async (req, res) => {
 export const upsertConcept = async (req, res) => {
   try {
     const { id } = req.params;
-    const { type, amountType, code, name, defaultValue, isActive, ordering, isVariable, variableFixedAmount } = req.body;
+    const { 
+      type, amountType, code, name, defaultValue, isActive, ordering, 
+      isVariable, variableFixedAmount,
+      percentBaseType, percentBaseConceptId, percentBaseFixedValue 
+    } = req.body;
     
     // Validaciones
     if (!type || !['earning', 'deduction', 'surcharge'].includes(type)) {
@@ -52,6 +56,19 @@ export const upsertConcept = async (req, res) => {
       return res.status(400).json({ error: 'Si el concepto es variable, debe tener un monto fijo mayor a 0' });
     }
     
+    // Validar base de porcentaje
+    if (amountType === 'percent') {
+      if (!percentBaseType || !['total_gross', 'specific_concept', 'fixed_value'].includes(percentBaseType)) {
+        return res.status(400).json({ error: 'Tipo de base de porcentaje inválido. Debe ser: total_gross, specific_concept o fixed_value' });
+      }
+      if (percentBaseType === 'specific_concept' && !percentBaseConceptId) {
+        return res.status(400).json({ error: 'Si la base es un concepto específico, debe proporcionar el ID del concepto' });
+      }
+      if (percentBaseType === 'fixed_value' && (!percentBaseFixedValue || percentBaseFixedValue <= 0)) {
+        return res.status(400).json({ error: 'Si la base es un valor fijo, debe ser mayor a 0' });
+      }
+    }
+    
     const data = {
       companyId: req.companyId,
       type,
@@ -62,7 +79,11 @@ export const upsertConcept = async (req, res) => {
       isActive: isActive !== false,
       ordering: ordering || 0,
       isVariable: isVariable === true,
-      variableFixedAmount: isVariable ? (Number(variableFixedAmount) || 0) : 0
+      variableFixedAmount: isVariable ? (Number(variableFixedAmount) || 0) : 0,
+      // Base para porcentajes
+      percentBaseType: amountType === 'percent' ? (percentBaseType || 'total_gross') : 'total_gross',
+      percentBaseConceptId: amountType === 'percent' && percentBaseType === 'specific_concept' ? percentBaseConceptId : null,
+      percentBaseFixedValue: amountType === 'percent' && percentBaseType === 'fixed_value' ? (Number(percentBaseFixedValue) || 0) : 0
     };
     
     let doc;
@@ -335,7 +356,11 @@ function computeSettlementItems({ selectedConcepts, assignments, technicianName 
       value: amount, 
       calcRule: c.amountType,
       isPercent: c.amountType === 'percent',
-      percentValue: c.amountType === 'percent' ? value : null
+      percentValue: c.amountType === 'percent' ? value : null,
+      // Información de base para porcentajes
+      percentBaseType: c.percentBaseType || 'total_gross',
+      percentBaseConceptId: c.percentBaseConceptId || null,
+      percentBaseFixedValue: c.percentBaseFixedValue || 0
     });
   }
   return items;
@@ -515,13 +540,29 @@ export const previewSettlement = async (req, res) => {
     const tempGross = items.filter(i => i.type !== 'deduction').reduce((sum, i) => sum + (i.value || 0), 0);
     items.forEach(item => {
       if (item.isPercent && item.percentValue) {
-        if (item.type === 'earning') {
-          item.value = Math.round((commissionRounded * item.percentValue) / 100);
-          item.base = commissionRounded;
+        let baseAmount = 0;
+        
+        // Determinar la base según la configuración
+        if (item.percentBaseType === 'fixed_value') {
+          // Base es un valor fijo
+          baseAmount = item.percentBaseFixedValue || 0;
+        } else if (item.percentBaseType === 'specific_concept' && item.percentBaseConceptId) {
+          // Base es un concepto específico (buscar el item con ese conceptId)
+          const baseConceptItem = items.find(i => String(i.conceptId) === String(item.percentBaseConceptId));
+          if (baseConceptItem) {
+            baseAmount = baseConceptItem.value || 0;
+          }
         } else {
-          item.value = Math.round((tempGross * item.percentValue) / 100);
-          item.base = tempGross;
+          // Base es el total bruto (comportamiento por defecto)
+          if (item.type === 'earning') {
+            baseAmount = commissionRounded;
+          } else {
+            baseAmount = tempGross;
+          }
         }
+        
+        item.value = Math.round((baseAmount * item.percentValue) / 100);
+        item.base = baseAmount;
       }
     });
     
@@ -790,13 +831,29 @@ export const approveSettlement = async (req, res) => {
     const tempGross = items.filter(i => i.type !== 'deduction').reduce((sum, i) => sum + (i.value || 0), 0);
     items.forEach(item => {
       if (item.isPercent && item.percentValue) {
-        if (item.type === 'earning') {
-          item.value = Math.round((commissionRounded * item.percentValue) / 100);
-          item.base = commissionRounded;
+        let baseAmount = 0;
+        
+        // Determinar la base según la configuración
+        if (item.percentBaseType === 'fixed_value') {
+          // Base es un valor fijo
+          baseAmount = item.percentBaseFixedValue || 0;
+        } else if (item.percentBaseType === 'specific_concept' && item.percentBaseConceptId) {
+          // Base es un concepto específico (buscar el item con ese conceptId)
+          const baseConceptItem = items.find(i => String(i.conceptId) === String(item.percentBaseConceptId));
+          if (baseConceptItem) {
+            baseAmount = baseConceptItem.value || 0;
+          }
         } else {
-          item.value = Math.round((tempGross * item.percentValue) / 100);
-          item.base = tempGross;
+          // Base es el total bruto (comportamiento por defecto)
+          if (item.type === 'earning') {
+            baseAmount = commissionRounded;
+          } else {
+            baseAmount = tempGross;
+          }
         }
+        
+        item.value = Math.round((baseAmount * item.percentValue) / 100);
+        item.base = baseAmount;
       }
     });
     
