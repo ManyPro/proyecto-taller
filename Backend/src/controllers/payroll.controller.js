@@ -498,6 +498,7 @@ export const previewSettlement = async (req, res) => {
     // AGREGAR PRÉSTAMOS PENDIENTES del empleado (solo si están seleccionados)
     const includeLoans = specialConcepts.includes('LOAN_PAYMENT');
     const { loanPayments = [] } = req.body;
+    let loansInfo = []; // Inicializar loansInfo
     
     if (includeLoans) {
       const pendingLoans = await EmployeeLoan.find({
@@ -518,6 +519,16 @@ export const previewSettlement = async (req, res) => {
           // Si no hay monto específico, usar el total pendiente
           totalLoanPayment = pendingLoans.reduce((sum, l) => sum + (l.amount - (l.paidAmount || 0)), 0);
         }
+        
+        // Construir información detallada de préstamos
+        loansInfo = pendingLoans.map(loan => ({
+          loanId: String(loan._id),
+          amount: loan.amount,
+          paidAmount: loan.paidAmount || 0,
+          pending: loan.amount - (loan.paidAmount || 0),
+          description: loan.description || '',
+          loanDate: loan.loanDate
+        }));
         
         if (totalLoanPayment > 0) {
           // Agregar como un solo item de préstamos (no individual)
