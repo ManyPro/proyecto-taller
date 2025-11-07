@@ -9,6 +9,7 @@ import PDFDocument from 'pdfkit';
 import Template from '../models/Template.js';
 import Handlebars from 'handlebars';
 import Company from '../models/Company.js';
+import { computeBalance } from './cashflow.controller.js';
 
 export const listConcepts = async (req, res) => {
   try {
@@ -873,7 +874,30 @@ export const paySettlement = async (req, res) => {
     if(st.status === 'paid') return res.status(400).json({ error: 'Esta liquidación ya fue pagada' });
     if(st.status !== 'approved') return res.status(400).json({ error: 'Solo se pueden pagar liquidaciones aprobadas' });
 
-    // Crear entrada de CashFlow para el técnico
+    // Calcular el monto a pagar
+    const paymentAmount = Math.abs(st.netTotal);
+    
+    // Calcular el balance actual de la cuenta
+    const currentBalance = await computeBalance(accountId, req.companyId);
+    
+    // Validar que haya balance suficiente
+    if (currentBalance < paymentAmount) {
+      const formatMoney = (val) => new Intl.NumberFormat('es-CO', { 
+        style: 'currency', 
+        currency: 'COP', 
+        minimumFractionDigits: 0 
+      }).format(val || 0);
+      
+      return res.status(400).json({ 
+        error: 'Saldo insuficiente', 
+        message: `La cuenta "${account.name}" no tiene saldo suficiente. Saldo disponible: ${formatMoney(currentBalance)}, Monto requerido: ${formatMoney(paymentAmount)}` 
+      });
+    }
+    
+    // Calcular el nuevo balance después del pago
+    const newBalance = currentBalance - paymentAmount;
+
+    // Crear entrada de CashFlow para el técnico con balanceAfter
     const entry = await CashFlowEntry.create({
       companyId: req.companyId,
       accountId,
@@ -882,7 +906,8 @@ export const paySettlement = async (req, res) => {
       source: 'MANUAL',
       sourceRef: settlementId,
       description: `Pago de nómina: ${st.technicianName || 'Sin nombre'}`,
-      amount: Math.abs(st.netTotal),
+      amount: paymentAmount,
+      balanceAfter: newBalance,
       notes: notes || '',
       meta: { 
         type: 'PAYROLL', 

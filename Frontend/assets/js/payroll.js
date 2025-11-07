@@ -649,11 +649,15 @@ async function loadConceptsForTechnician(){
     // Obtener préstamos pendientes del técnico
     let pendingLoans = [];
     try {
-      const loansData = await API.cashflow.loans.list({ technicianName, status: 'pending,partially_paid' });
+      // Asegurar que el nombre del técnico esté en mayúsculas para la búsqueda
+      const techNameUpper = technicianName.toUpperCase();
+      const loansData = await API.cashflow.loans.list({ technicianName: techNameUpper, status: 'pending,partially_paid' });
+      console.log('Loans data for', techNameUpper, ':', loansData);
       pendingLoans = (loansData.items || []).filter(l => {
         const pending = l.amount - (l.paidAmount || 0);
         return pending > 0;
       });
+      console.log('Pending loans after filter:', pendingLoans);
     } catch (err) {
       console.error('Error loading loans:', err);
     }
@@ -1490,6 +1494,9 @@ async function pay(){
         userMsg = '⚠️ Esta liquidación ya fue pagada anteriormente.';
       } else if (errorMsg.includes('aprobadas')) {
         userMsg = '⚠️ Solo se pueden pagar liquidaciones aprobadas.';
+      } else if (errorMsg.includes('Saldo insuficiente') || errorMsg.includes('saldo suficiente')) {
+        // El mensaje ya viene completo del backend con los detalles
+        userMsg = '⚠️ ' + errorMsg;
       }
       
       el('pp-result').innerHTML = `

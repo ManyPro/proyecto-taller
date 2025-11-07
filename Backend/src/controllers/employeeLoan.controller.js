@@ -73,10 +73,17 @@ export const listLoans = async (req, res) => {
     const query = { companyId: req.companyId };
 
     if (technicianName) {
-      query.technicianName = { $regex: technicianName.trim().toUpperCase(), $options: 'i' };
+      // Los nombres se guardan en mayúsculas, así que buscar exactamente
+      query.technicianName = technicianName.trim().toUpperCase();
     }
     if (status) {
-      query.status = status;
+      // Manejar múltiples estados separados por comas
+      const statusList = String(status).split(',').map(s => s.trim()).filter(Boolean);
+      if (statusList.length === 1) {
+        query.status = statusList[0];
+      } else if (statusList.length > 1) {
+        query.status = { $in: statusList };
+      }
     }
 
     const skip = (Number(page) - 1) * Number(limit);
