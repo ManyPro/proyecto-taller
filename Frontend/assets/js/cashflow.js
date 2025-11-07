@@ -161,8 +161,10 @@ function openNewLoanModal(){
   if(!modal||!body) return;
   const div = document.createElement('div');
   div.innerHTML = `<h3>Nuevo Préstamo a Empleado</h3>
-    <label>Nombre del Empleado</label>
-    <input id='nloan-tech' placeholder='Nombre del técnico/empleado' style='text-transform:uppercase;'/>
+    <label>Técnico/Empleado</label>
+    <select id='nloan-tech'>
+      <option value=''>Cargando técnicos...</option>
+    </select>
     <label>Cuenta</label>
     <select id='nloan-account'></select>
     <label>Monto</label>
@@ -180,11 +182,26 @@ function openNewLoanModal(){
     <div id='nloan-msg' class='muted' style='margin-top:6px;font-size:12px;'></div>`;
   body.innerHTML=''; body.appendChild(div); modal.classList.remove('hidden');
   const sel = div.querySelector('#nloan-account');
+  const techSel = div.querySelector('#nloan-tech');
   const dateInput = div.querySelector('#nloan-date');
   dateInput.value = new Date().toISOString().split('T')[0]; // Fecha de hoy por defecto
   
+  // Cargar cuentas
   API.accounts.list().then(list=>{ 
     sel.innerHTML=list.map(a=>`<option value='${a._id}'>${a.name}</option>`).join(''); 
+  });
+  
+  // Cargar técnicos
+  API.company.getTechnicians().then(technicians=>{
+    if(technicians && technicians.length > 0){
+      techSel.innerHTML = '<option value="">-- Seleccione técnico --</option>' + 
+        technicians.map(t=>`<option value="${t}">${t}</option>`).join('');
+    } else {
+      techSel.innerHTML = '<option value="">No hay técnicos registrados</option>';
+    }
+  }).catch(err=>{
+    console.error('Error cargando técnicos:', err);
+    techSel.innerHTML = '<option value="">Error al cargar técnicos</option>';
   });
   
   div.querySelector('#nloan-cancel').onclick=()=> modal.classList.add('hidden');
@@ -192,9 +209,10 @@ function openNewLoanModal(){
     const msg = div.querySelector('#nloan-msg');
     msg.textContent='Guardando...';
     try{
-      const technicianName = div.querySelector('#nloan-tech').value?.trim();
+      const technicianName = techSel.value?.trim();
       if(!technicianName){
-        msg.textContent='⚠️ El nombre del empleado es requerido';
+        msg.textContent='⚠️ Selecciona un técnico/empleado';
+        techSel.focus();
         return;
       }
       const amount = Number(div.querySelector('#nloan-amount').value||0)||0;
