@@ -2393,7 +2393,7 @@ function init(){
   loadCashFlowAccounts();
   // Cargar listados al inicio
   setTimeout(loadSettlements, 0);
-  switchTab('concepts');
+  switchTab('settlements');
 }
 
 function switchTab(name){
