@@ -96,6 +96,7 @@
             <button id="cf-apply" class="secondary">Aplicar</button>
             <button id="cf-new-entry">+ Entrada manual</button>
             <button id="cf-new-expense" class="danger">- Salida</button>
+            <button id="cf-new-loan" class="danger" style="background:var(--accent);">💰 Préstamo</button>
           </div>
           <div id="cf-mov-summary" class="muted" style="margin-top:8px;font-size:12px;">—</div>
           <div class="table-wrap" style="max-height:360px;overflow:auto;margin-top:8px;">
@@ -111,6 +112,39 @@
               <button id="cf-next" class="secondary" disabled>→</button>
             </div>
           </div>
+        </div>
+        
+        <!-- Sección de Préstamos a Empleados -->
+        <div class="card" style="margin-top:16px;">
+          <h3>Préstamos a Empleados</h3>
+          <div class="row wrap" style="gap:8px; align-items:flex-end;">
+            <select id="cf-loan-filter-tech"><option value="">-- Todos los empleados --</option></select>
+            <select id="cf-loan-filter-status">
+              <option value="">Todos</option>
+              <option value="pending">Pendientes</option>
+              <option value="partially_paid">Parcialmente pagados</option>
+              <option value="paid">Pagados</option>
+            </select>
+            <button id="cf-refresh-loans" class="secondary">Actualizar</button>
+          </div>
+          <div class="table-wrap" style="max-height:300px;overflow:auto;margin-top:8px;">
+            <table class="table small">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Empleado</th>
+                  <th>Monto</th>
+                  <th>Pagado</th>
+                  <th>Pendiente</th>
+                  <th>Estado</th>
+                  <th>Descripción</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="cf-loans-body"></tbody>
+            </table>
+          </div>
+          <div id="cf-loans-summary" class="muted" style="margin-top:6px;font-size:12px;">—</div>
         </div>
       </section>
     </section>
