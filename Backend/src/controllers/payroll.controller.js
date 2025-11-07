@@ -180,24 +180,8 @@ export const createPeriod = async (req, res) => {
       return res.status(400).json({ error: 'La fecha de fin debe ser posterior a la fecha de inicio' });
     }
     
-    // Verificar que no haya solapamiento con períodos existentes
-    const overlapping = await PayrollPeriod.findOne({
-      companyId: req.companyId,
-      $or: [
-        { startDate: { $lte: end }, endDate: { $gte: start } }
-      ]
-    });
-    
-    if (overlapping) {
-      return res.status(409).json({ 
-        error: 'Ya existe un período que se solapa con estas fechas',
-        existing: {
-          startDate: overlapping.startDate,
-          endDate: overlapping.endDate,
-          status: overlapping.status
-        }
-      });
-    }
+    // NOTA: Se permiten períodos que se solapen para soportar diferentes frecuencias de pago
+    // (ej: algunos empleados quincenal, otros semanal)
     
     const validTypes = ['monthly', 'biweekly', 'weekly'];
     const type = validTypes.includes(periodType) ? periodType : 'monthly';

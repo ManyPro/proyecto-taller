@@ -1483,10 +1483,9 @@ async function createPeriod(){
       const errorMsg = err.message || 'Error desconocido';
       let userMsg = '❌ Error al crear período: ' + errorMsg;
       
-      if (errorMsg.includes('solapa') || errorMsg.includes('overlapping')) {
-        userMsg = '⚠️ Ya existe un período que se solapa con estas fechas. Verifica las fechas e intenta nuevamente.';
-      } else if (errorMsg.includes('duplicate') || errorMsg.includes('unique')) {
-        userMsg = '⚠️ Ya existe un período con estas fechas exactas.';
+      // El solapamiento ya no es un error, se permite
+      if (errorMsg.includes('duplicate') || errorMsg.includes('unique') || errorMsg.includes('11000')) {
+        userMsg = '⚠️ Ya existe un período con estas fechas exactas (mismo inicio y fin).';
       }
       
       if (msgEl) {
