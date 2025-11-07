@@ -527,12 +527,24 @@ export const previewSettlement = async (req, res) => {
     
     // APLICAR CONCEPTO VARIABLE (antes de préstamos)
     // Calcular total SIN préstamos para verificar si necesita completar
+    // IMPORTANTE: Incluir TODOS los descuentos, excluir SOLO préstamos (identificados por calcRule único)
     if (includeVariable && variableConcept && variableConcept.variableFixedAmount > 0) {
-      const tempTotals = calculateTotals(items);
+      // Filtrar items excluyendo préstamos (usando ID único LOAN_PAYMENT_DEDUCTION)
+      // También excluir el concepto variable mismo si ya existe
+      const itemsWithoutLoans = items.filter(item => {
+        const calcRule = item.calcRule || '';
+        // Excluir préstamos (usando ID único) y el concepto variable mismo
+        return calcRule !== 'LOAN_PAYMENT_DEDUCTION' && 
+               calcRule !== 'employee_loans' && 
+               calcRule !== 'employee_loan' && 
+               !calcRule.startsWith('variable:');
+      });
+      
+      const tempTotals = calculateTotals(itemsWithoutLoans);
       const netBeforeVariable = tempTotals.netTotal;
       const fixedAmount = variableConcept.variableFixedAmount;
       
-      // Si el neto (sin préstamos) es menor que el monto fijo, agregar diferencia como ingreso
+      // Si el neto (sin préstamos, pero CON todos los descuentos) es menor que el monto fijo, agregar diferencia como ingreso
       if (netBeforeVariable < fixedAmount) {
         const variableAmount = fixedAmount - netBeforeVariable;
         items.push({
@@ -584,13 +596,14 @@ export const previewSettlement = async (req, res) => {
         
         if (totalLoanPayment > 0) {
           // Agregar como un solo item de préstamos (no individual)
+          // Usar un ID único para identificar préstamos y excluirlos del cálculo del concepto variable
           items.push({
             conceptId: loanConcept._id,
             name: 'Pago préstamos',
             type: 'deduction',
             base: pendingLoans.reduce((sum, l) => sum + (l.amount - (l.paidAmount || 0)), 0),
             value: totalLoanPayment,
-            calcRule: 'employee_loans',
+            calcRule: 'LOAN_PAYMENT_DEDUCTION', // ID único para préstamos
             notes: `${pendingLoans.length} préstamo(s) pendiente(s)`
           });
         }
@@ -799,12 +812,24 @@ export const approveSettlement = async (req, res) => {
     
     // APLICAR CONCEPTO VARIABLE (antes de préstamos)
     // Calcular total SIN préstamos para verificar si necesita completar
+    // IMPORTANTE: Incluir TODOS los descuentos, excluir SOLO préstamos (identificados por calcRule único)
     if (includeVariable && variableConcept && variableConcept.variableFixedAmount > 0) {
-      const tempTotals = calculateTotals(items);
+      // Filtrar items excluyendo préstamos (usando ID único LOAN_PAYMENT_DEDUCTION)
+      // También excluir el concepto variable mismo si ya existe
+      const itemsWithoutLoans = items.filter(item => {
+        const calcRule = item.calcRule || '';
+        // Excluir préstamos (usando ID único) y el concepto variable mismo
+        return calcRule !== 'LOAN_PAYMENT_DEDUCTION' && 
+               calcRule !== 'employee_loans' && 
+               calcRule !== 'employee_loan' && 
+               !calcRule.startsWith('variable:');
+      });
+      
+      const tempTotals = calculateTotals(itemsWithoutLoans);
       const netBeforeVariable = tempTotals.netTotal;
       const fixedAmount = variableConcept.variableFixedAmount;
       
-      // Si el neto (sin préstamos) es menor que el monto fijo, agregar diferencia como ingreso
+      // Si el neto (sin préstamos, pero CON todos los descuentos) es menor que el monto fijo, agregar diferencia como ingreso
       if (netBeforeVariable < fixedAmount) {
         const variableAmount = fixedAmount - netBeforeVariable;
         items.push({
@@ -864,7 +889,7 @@ export const approveSettlement = async (req, res) => {
                   type: 'deduction',
                   base: pending,
                   value: paymentAmount,
-                  calcRule: 'employee_loan',
+                  calcRule: 'LOAN_PAYMENT_DEDUCTION', // ID único para préstamos
                   loanId: String(loan._id),
                   notes: `Pago: ${paymentAmount.toLocaleString('es-CO')} de ${pending.toLocaleString('es-CO')} pendiente`
                 });
