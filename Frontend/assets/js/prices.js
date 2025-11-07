@@ -11,7 +11,7 @@ const clone=(id)=>document.getElementById(id)?.content?.firstElementChild?.clone
 function normalizeNumber(v){ if(v==null || v==='') return 0; if(typeof v==='number') return v; const s=String(v).replace(/\s+/g,'').replace(/\$/g,'').replace(/\./g,'').replace(/,/g,'.'); const n=Number(s); return Number.isFinite(n)?n:0; }
 
 // Función para abrir QR simplificado (solo un escaneo)
-function openQRForItem() {
+export function openQRForItem() {
   return new Promise(async (resolve, reject) => {
     // Crear modal simplificado
     const qrModal = document.createElement('div');
@@ -151,7 +151,8 @@ function openQRForItem() {
     function accept(value) {
       const normalized = String(value || '').trim().toUpperCase();
       const t = Date.now();
-      if (lastCode === normalized && t - lastTs < 1000) return false;
+      // Delay más corto (500ms) para permitir escaneos rápidos pero evitar duplicados
+      if (lastCode === normalized && t - lastTs < 500) return false;
       lastCode = normalized;
       lastTs = t;
       return true;
@@ -745,22 +746,30 @@ export function initPrices(){
         <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Productos del combo</label>
         <div id="pe-modal-combo-products" style="margin-bottom:8px;">
           ${comboProducts.map((cp, idx) => `
-            <div class="combo-product-item" data-index="${idx}" style="padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;">
+            <div class="combo-product-item" data-index="${idx}" style="padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;${cp.isOpenSlot ? 'border-left:4px solid var(--warning, #f59e0b);' : ''}">
               <div class="row" style="gap:8px;margin-bottom:8px;">
                 <input type="text" class="combo-product-name" placeholder="Nombre del producto" value="${cp.name || ''}" style="flex:2;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
                 <input type="number" class="combo-product-qty" placeholder="Cant." value="${cp.qty || 1}" min="1" style="width:80px;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
                 <input type="number" class="combo-product-price" placeholder="Precio" step="0.01" value="${cp.unitPrice || 0}" style="width:120px;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
                 <button class="combo-product-remove danger" style="padding:6px 12px;">✕</button>
               </div>
-              <div class="row" style="gap:8px;">
-                <input type="text" class="combo-product-item-search" placeholder="Buscar item del inventario (opcional)..." style="flex:1;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" value="${cp.itemId ? (cp.itemId.name || cp.itemId.sku || '') : ''}" />
-                <button class="combo-product-item-qr secondary" style="padding:6px 12px;">📷 QR</button>
+              <div class="row" style="gap:8px;margin-bottom:8px;align-items:center;">
+                <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+                  <input type="checkbox" class="combo-product-open-slot" ${cp.isOpenSlot ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;" />
+                  <span style="color:var(--text);">Slot abierto (se completa con QR al crear venta)</span>
+                </label>
               </div>
-              <div class="combo-product-item-selected" style="margin-top:8px;padding:6px;background:var(--card);border-radius:4px;font-size:11px;${cp.itemId ? '' : 'display:none;'}">
-                ${cp.itemId ? `<div style="display:flex;justify-content:space-between;align-items:center;">
-                  <div><strong>${cp.itemId.name || cp.itemId.sku}</strong> <span class="muted">SKU: ${cp.itemId.sku} | Stock: ${cp.itemId.stock || 0}</span></div>
-                  <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
-                </div>` : ''}
+              <div class="combo-product-item-section" style="${cp.isOpenSlot ? 'display:none;' : ''}">
+                <div class="row" style="gap:8px;">
+                  <input type="text" class="combo-product-item-search" placeholder="Buscar item del inventario (opcional)..." style="flex:1;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" value="${cp.itemId ? (cp.itemId.name || cp.itemId.sku || '') : ''}" />
+                  <button class="combo-product-item-qr secondary" style="padding:6px 12px;">📷 QR</button>
+                </div>
+                <div class="combo-product-item-selected" style="margin-top:8px;padding:6px;background:var(--card);border-radius:4px;font-size:11px;${cp.itemId ? '' : 'display:none;'}">
+                  ${cp.itemId ? `<div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div><strong>${cp.itemId.name || cp.itemId.sku}</strong> <span class="muted">SKU: ${cp.itemId.sku} | Stock: ${cp.itemId.stock || 0}</span></div>
+                    <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+                  </div>` : ''}
+                </div>
               </div>
               <input type="hidden" class="combo-product-item-id" value="${cp.itemId?._id || ''}" />
             </div>
@@ -1012,9 +1021,10 @@ export function initPrices(){
       const addComboProductBtn = node.querySelector('#pe-modal-add-combo-product');
       
       function addComboProductRow(productData = {}) {
+        const isOpenSlot = Boolean(productData.isOpenSlot);
         const row = document.createElement('div');
         row.className = 'combo-product-item';
-        row.style.cssText = 'padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;';
+        row.style.cssText = `padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;${isOpenSlot ? 'border-left:4px solid var(--warning, #f59e0b);' : ''}`;
         row.innerHTML = `
           <div class="row" style="gap:8px;margin-bottom:8px;">
             <input type="text" class="combo-product-name" placeholder="Nombre del producto" value="${productData.name || ''}" style="flex:2;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
@@ -1022,11 +1032,19 @@ export function initPrices(){
             <input type="number" class="combo-product-price" placeholder="Precio" step="0.01" value="${productData.unitPrice || 0}" style="width:120px;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
             <button class="combo-product-remove danger" style="padding:6px 12px;">✕</button>
           </div>
-          <div class="row" style="gap:8px;">
-            <input type="text" class="combo-product-item-search" placeholder="Buscar item del inventario (opcional)..." style="flex:1;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
-            <button class="combo-product-item-qr secondary" style="padding:6px 12px;">📷 QR</button>
+          <div class="row" style="gap:8px;margin-bottom:8px;align-items:center;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+              <input type="checkbox" class="combo-product-open-slot" ${isOpenSlot ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;" />
+              <span style="color:var(--text);">Slot abierto (se completa con QR al crear venta)</span>
+            </label>
           </div>
-          <div class="combo-product-item-selected" style="margin-top:8px;padding:6px;background:var(--card);border-radius:4px;font-size:11px;display:none;"></div>
+          <div class="combo-product-item-section" style="${isOpenSlot ? 'display:none;' : ''}">
+            <div class="row" style="gap:8px;">
+              <input type="text" class="combo-product-item-search" placeholder="Buscar item del inventario (opcional)..." style="flex:1;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" value="${productData.itemId ? (productData.itemId.sku || '') + ' - ' + (productData.itemId.name || '') : ''}" />
+              <button class="combo-product-item-qr secondary" style="padding:6px 12px;">📷 QR</button>
+            </div>
+            <div class="combo-product-item-selected" style="margin-top:8px;padding:6px;background:var(--card);border-radius:4px;font-size:11px;display:none;"></div>
+          </div>
           <input type="hidden" class="combo-product-item-id" value="${productData.itemId?._id || ''}" />
         `;
         
@@ -1258,6 +1276,29 @@ export function initPrices(){
       // Inicializar productos existentes si es edición
       if (comboProducts.length === 0) {
         addComboProductRow();
+      } else {
+        // Agregar event listeners a los checkboxes existentes
+        comboProductsContainer.querySelectorAll('.combo-product-open-slot').forEach(checkbox => {
+          const row = checkbox.closest('.combo-product-item');
+          const itemSection = row.querySelector('.combo-product-item-section');
+          checkbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            if (isChecked) {
+              itemSection.style.display = 'none';
+              const itemIdInput = row.querySelector('.combo-product-item-id');
+              const itemSearch = row.querySelector('.combo-product-item-search');
+              const itemSelected = row.querySelector('.combo-product-item-selected');
+              itemIdInput.value = '';
+              itemSearch.value = '';
+              itemSelected.style.display = 'none';
+              row.style.borderLeft = '4px solid var(--warning, #f59e0b)';
+            } else {
+              itemSection.style.display = 'block';
+              row.style.borderLeft = '';
+            }
+            updateComboTotal();
+          });
+        });
       }
     }
     
@@ -1316,12 +1357,16 @@ export function initPrices(){
         
         if (isCombo) {
           const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
-          payload.comboProducts = products.map(prod => ({
-            name: prod.querySelector('.combo-product-name')?.value.trim() || '',
-            qty: normalizeNumber(prod.querySelector('.combo-product-qty')?.value || 1),
-            unitPrice: normalizeNumber(prod.querySelector('.combo-product-price')?.value || 0),
-            itemId: prod.querySelector('.combo-product-item-id')?.value || null
-          })).filter(p => p.name);
+          payload.comboProducts = products.map(prod => {
+            const isOpenSlot = prod.querySelector('.combo-product-open-slot')?.checked || false;
+            return {
+              name: prod.querySelector('.combo-product-name')?.value.trim() || '',
+              qty: normalizeNumber(prod.querySelector('.combo-product-qty')?.value || 1),
+              unitPrice: normalizeNumber(prod.querySelector('.combo-product-price')?.value || 0),
+              itemId: isOpenSlot ? null : (prod.querySelector('.combo-product-item-id')?.value || null),
+              isOpenSlot: isOpenSlot
+            };
+          }).filter(p => p.name);
         }
         
         if (isEdit) {

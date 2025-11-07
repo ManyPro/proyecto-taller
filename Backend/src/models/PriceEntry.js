@@ -17,11 +17,13 @@ const PriceEntrySchema = new mongoose.Schema({
   
   // Productos del combo (solo para type: 'combo')
   // Array de productos que incluye el combo, cada uno puede estar vinculado a un item del inventario
+  // Si isOpenSlot=true, el itemId se asignará al momento de crear la venta mediante QR
   comboProducts: [{
     name: { type: String, trim: true, required: true },
     itemId: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', default: null }, // Opcional: vincular con inventario
     qty: { type: Number, default: 1, min: 1 },
-    unitPrice: { type: Number, default: 0, min: 0 }
+    unitPrice: { type: Number, default: 0, min: 0 }, // Precio estimado para slots abiertos
+    isOpenSlot: { type: Boolean, default: false } // true = slot abierto que requiere QR al crear venta
   }],
 
   // Legacy: mantener por compatibilidad (deprecated)
