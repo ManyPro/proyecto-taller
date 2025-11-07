@@ -134,6 +134,22 @@ const invAPI = {
     const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
     if(!res.ok) throw new Error(data?.error || 'Error importando');
     return data;
+  },
+  exportInventory: async () => {
+    const url = `${apiBase}/api/v1/inventory/items/export/excel`;
+    const res = await fetch(url, { headers: { ...authHeader() } });
+    if(!res.ok) throw new Error('No se pudo exportar el inventario');
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const contentDisposition = res.headers.get('Content-Disposition');
+    const filename = contentDisposition 
+      ? contentDisposition.split('filename=')[1]?.replace(/"/g, '') || 'inventario.xlsx'
+      : `inventario-${new Date().toISOString().split('T')[0]}.xlsx`;
+    a.download = filename;
+    document.body.appendChild(a); 
+    a.click(); 
+    a.remove();
   }
 };
 
@@ -1906,9 +1922,10 @@ if (__ON_INV_PAGE__) {
   lines.push('¿Buscas otro repuesto? Pregúntanos por nuestro catálogo completo.');
   return lines.filter(Boolean).join('\n');
 }
-// ---- Import Excel (amigable) ----
+// ---- Import/Export Excel (amigable) ----
   (function bindImportExcel(){
     const btnTpl = document.getElementById('btn-download-template');
+    const btnExp = document.getElementById('btn-export-inventory');
     const btnImp = document.getElementById('btn-import-excel');
     const fileEl = document.getElementById('excel-file');
     const statusEl = document.getElementById('import-status');
@@ -1918,6 +1935,20 @@ if (__ON_INV_PAGE__) {
       catch(e){ alert(e.message); }
       finally{ btnTpl.disabled=false; }
     };
+    if(btnExp){
+      btnExp.onclick = async ()=>{
+        try{ 
+          btnExp.disabled=true; 
+          btnExp.textContent = 'Exportando...';
+          await invAPI.exportInventory(); 
+        }
+        catch(e){ alert('Error al exportar: ' + e.message); }
+        finally{ 
+          btnExp.disabled=false; 
+          btnExp.textContent = '📥 Exportar inventario';
+        }
+      };
+    }
     btnImp.onclick = async ()=>{
       const f = fileEl.files?.[0];
       if(!f) { alert('Selecciona un archivo .xlsx'); return; }

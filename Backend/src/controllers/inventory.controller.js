@@ -124,6 +124,47 @@ export const downloadImportTemplate = async (req, res) => {
   res.send(buf);
 };
 
+// Exportar inventario completo a Excel
+export const exportInventoryToExcel = async (req, res) => {
+  try {
+    const items = await Item.find({ companyId: req.companyId })
+      .sort({ sku: 1 })
+      .lean();
+    
+    // Preparar datos para Excel usando las mismas cabeceras que la plantilla de import
+    const wsData = [IMPORT_HEADERS];
+    
+    for (const item of items) {
+      const row = [
+        item.sku || '',
+        item.name || '',
+        item.internalName || '',
+        item.brand || '',
+        item.location || '',
+        item.vehicleTarget || 'GENERAL',
+        item.entryPrice || 0,
+        item.salePrice || 0,
+        item.original ? 'SI' : 'NO',
+        item.stock || 0,
+        item.minStock || 0
+      ];
+      wsData.push(row);
+    }
+    
+    const wb = xlsx.utils.book_new();
+    const ws = xlsx.utils.aoa_to_sheet(wsData);
+    xlsx.utils.book_append_sheet(wb, ws, 'INVENTARIO');
+    const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    
+    const filename = `inventario-${new Date().toISOString().split('T')[0]}.xlsx`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buf);
+  } catch (err) {
+    res.status(500).json({ error: 'Error al exportar inventario', message: err.message });
+  }
+};
+
 const uploadExcel = multer({ storage: multer.memoryStorage(), limits:{ fileSize: 10*1024*1024 } }).single('file');
 
 export const importItemsFromExcel = async (req, res) => {
@@ -151,14 +192,18 @@ export const importItemsFromExcel = async (req, res) => {
         try{
           const existing = await Item.findOne({ companyId: req.company.id, sku });
           if(existing){
+            // Actualizar todos los campos que vienen en el Excel, incluso si están vacíos
             existing.name = name || existing.name;
-            if (internalName) existing.internalName = internalName;
-            existing.brand = brand;
-            existing.location = location;
-            existing.vehicleTarget = vehicleTarget;
+            existing.internalName = internalName || existing.internalName || '';
+            existing.brand = brand || existing.brand || '';
+            existing.location = location || existing.location || '';
+            existing.vehicleTarget = vehicleTarget || existing.vehicleTarget || 'GENERAL';
             if(Number.isFinite(entryPrice)) existing.entryPrice = entryPrice;
             if(Number.isFinite(salePrice)) existing.salePrice = salePrice;
-            existing.original = !!original;
+            // Si original viene en el Excel, actualizarlo (incluso si es false)
+            if (r['Original (SI/NO)'] !== undefined && r['Original (SI/NO)'] !== null && r['Original (SI/NO)'] !== '') {
+              existing.original = !!original;
+            }
             if(Number.isFinite(minStock)) existing.minStock = minStock;
             if(Number.isFinite(stock)) existing.stock = stock; // fijar stock
             // Auto-despublicar si stock en 0
