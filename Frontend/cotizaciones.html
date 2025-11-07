@@ -165,11 +165,6 @@
                   <input type="number" min="0" step="0.01" placeholder="Precio" />
                 </div>
                 <div class="small">
-                  <label class="sr-only">Precio mínimo</label>
-                  <input type="number" min="0" step="0.01" placeholder="Precio mín." class="min-price-input" style="display: none; width: 100%;" />
-                  <button type="button" class="secondary min-price-btn" style="font-size: 11px; padding: 6px 10px; width: 100%; border-radius: 4px; background: #6c757d; color: white; border: none; cursor: pointer; transition: background 0.2s ease;" onmouseover="this.style.background='#5a6268'" onmouseout="this.style.background='#6c757d'">Precio mín.</button>
-                </div>
-                <div class="small">
                   <label class="sr-only">Subtotal</label>
                   <input disabled placeholder="$0" />
                 </div>
@@ -180,8 +175,7 @@
             </div>
 
             <div class="row" id="q-addbar">
-              <button id="q-addRow">+ Agregar línea</button>
-              <button id="q-addQR" class="secondary">Agregar por QR</button>
+              <button id="q-add-unified" class="primary">➕ Agregar</button>
             </div>
 
             <div class="totals">
@@ -225,6 +219,36 @@
     </section>
   </main>
 
+  <!-- Lector QR (Cotizaciones) -->
+  <template id="tpl-qr-scanner-quote">
+    <div>
+      <h3>Lector de QR</h3>
+      <div class="qrbar row">
+        <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;">
+          <label>Camara</label>
+          <select id="qr-cam-quote"></select>
+        </div>
+        <div class="row" style="gap:8px;flex-wrap:wrap;">
+          <button id="qr-single-mode-quote" class="secondary" style="white-space:nowrap;">📦 Agregar solo un item</button>
+          <button id="qr-multi-mode-quote" class="secondary" style="white-space:nowrap;">➕ Agregar múltiples items</button>
+          <button id="qr-finish-multi-quote" class="secondary" style="white-space:nowrap;display:none;">✓ Terminar de agregar</button>
+        </div>
+      </div>
+      <div class="qrwrap">
+        <video id="qr-video-quote" playsinline muted></video>
+        <canvas id="qr-canvas-quote" style="display:none;"></canvas>
+        <div class="qr-hud"></div>
+      </div>
+      <div class="row" style="gap:8px;margin-top:8px;">
+        <input id="qr-manual-quote" placeholder="Ingresar código manualmente (fallback)">
+        <button id="qr-add-manual-quote">Agregar</button>
+      </div>
+      <div class="muted" id="qr-msg-quote" style="margin-top:6px;">Permite la cámara para escanear. Si no hay soporte nativo, usa jsQR.</div>
+      <ul id="qr-history-quote" class="qr-history"></ul>
+    </div>
+  </template>
+
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script src="./assets/js/api.js"></script>
   <script type="module" src="./assets/js/quotes.js" charset="utf-8"></script>
   <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
