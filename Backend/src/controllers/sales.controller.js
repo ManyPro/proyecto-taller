@@ -799,9 +799,60 @@ export const listSales = async (req, res) => {
   const q = { companyId: req.companyId };
   if (status) q.status = String(status);
   if (from || to) {
-    q.createdAt = {};
-    if (from) q.createdAt.$gte = new Date(from);
-    if (to) q.createdAt.$lte = new Date(`${to}T23:59:59.999Z`);
+    // Usar closedAt si está disponible, sino createdAt
+    // Para ventas cerradas, es más preciso usar closedAt
+    const fromDate = from ? new Date(from) : null;
+    const toDate = to ? new Date(`${to}T23:59:59.999Z`) : null;
+    
+    // Construir filtro de fecha usando $expr para manejar closedAt o createdAt
+    const dateConditions = [];
+    
+    if (fromDate && toDate) {
+      dateConditions.push({
+        $and: [
+          { $ne: ['$closedAt', null] },
+          { $gte: ['$closedAt', fromDate] },
+          { $lte: ['$closedAt', toDate] }
+        ]
+      });
+      dateConditions.push({
+        $and: [
+          { $or: [{ $eq: ['$closedAt', null] }, { $not: { $ifNull: ['$closedAt', false] } }] },
+          { $gte: ['$createdAt', fromDate] },
+          { $lte: ['$createdAt', toDate] }
+        ]
+      });
+    } else if (fromDate) {
+      dateConditions.push({
+        $and: [
+          { $ne: ['$closedAt', null] },
+          { $gte: ['$closedAt', fromDate] }
+        ]
+      });
+      dateConditions.push({
+        $and: [
+          { $or: [{ $eq: ['$closedAt', null] }, { $not: { $ifNull: ['$closedAt', false] } }] },
+          { $gte: ['$createdAt', fromDate] }
+        ]
+      });
+    } else if (toDate) {
+      dateConditions.push({
+        $and: [
+          { $ne: ['$closedAt', null] },
+          { $lte: ['$closedAt', toDate] }
+        ]
+      });
+      dateConditions.push({
+        $and: [
+          { $or: [{ $eq: ['$closedAt', null] }, { $not: { $ifNull: ['$closedAt', false] } }] },
+          { $lte: ['$createdAt', toDate] }
+        ]
+      });
+    }
+    
+    if (dateConditions.length > 0) {
+      q.$expr = { $or: dateConditions };
+    }
   }
   if (plate) {
     q['vehicle.plate'] = String(plate).toUpperCase();
@@ -810,7 +861,7 @@ export const listSales = async (req, res) => {
   const lim = Math.max(1, Math.min(500, Number(limit || 50)));
 
   const [items, total] = await Promise.all([
-    Sale.find(q).sort({ createdAt: -1 }).skip((pg - 1) * lim).limit(lim),
+    Sale.find(q).sort({ closedAt: -1, createdAt: -1 }).skip((pg - 1) * lim).limit(lim).lean(),
     Sale.countDocuments(q)
   ]);
   res.json({ items, page: pg, limit: lim, total });

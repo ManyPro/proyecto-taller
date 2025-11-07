@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from 'fs';
+import readline from 'readline';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { connectDB } from '../src/db.js';
@@ -10,23 +11,25 @@ dotenv.config();
 
 /*
 Script: import_vehicles_from_excel.js
-Goal: Importar vehículos desde un archivo Excel masivo
+Goal: Importar vehículos desde un archivo Excel o CSV masivo
 
 Usage:
   node scripts/import_vehicles_from_excel.js \
-    --file Backend/data/vehiculos_renault.xlsx \
-    [--dry] [--skip-duplicates]
+    --file Backend/data/vehiculos_colombia_2025_completo.csv \
+    [--dry] [--skip-duplicates] [--delimiter ";"] [--encoding "utf8"]
 
-Formato esperado del Excel:
-  - Columna A: Marca (MAKE)
-  - Columna B: Línea (LINE)
-  - Columna C: Cilindraje (DISPLACEMENT)
-  - Columna D: Modelo (MODEL_YEAR) - opcional, puede ser año fijo o rango
+Formato esperado del archivo:
+  - Columna: Marca (MAKE)
+  - Columna: Línea (LINE)
+  - Columna: Cilindraje (DISPLACEMENT)
+  - Columna: Modelo (MODEL_YEAR) - opcional, puede ser año fijo o rango
 
 Flags:
-  --file              Ruta al archivo Excel (requerido)
+  --file              Ruta al archivo Excel o CSV (requerido)
   --dry               Preview sin escribir a la base de datos
   --skip-duplicates   No mostrar error si ya existe el vehículo
+  --delimiter         Delimitador CSV (default: "," o detectado automáticamente)
+  --encoding          Codificación del archivo (default: "utf8")
 */
 
 function parseArgs(argv) {
@@ -51,6 +54,14 @@ function cleanStr(v) {
   return String(v ?? '').trim().toUpperCase();
 }
 
+// Normalizar string removiendo acentos para comparación
+function normalizeForMatch(str) {
+  return String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+}
+
 function validateModelYear(modelYear) {
   if (!modelYear) return true;
   const trimmed = String(modelYear).trim();
@@ -73,48 +84,126 @@ if (!args.file) {
 const filePath = args.file;
 const dryRun = !!args.dry;
 const skipDuplicates = !!args.skipDuplicates;
+const delimiter = args.delimiter || ',';
+const encoding = args.encoding || 'utf8';
 
 if (!fs.existsSync(filePath)) {
   console.error(`❌ Error: El archivo no existe: ${filePath}`);
   process.exit(1);
 }
 
+const isCSV = filePath.toLowerCase().endsWith('.csv');
+const isExcel = filePath.toLowerCase().endsWith('.xlsx') || filePath.toLowerCase().endsWith('.xls');
+
+if (!isCSV && !isExcel) {
+  console.error(`❌ Error: El archivo debe ser CSV (.csv) o Excel (.xlsx, .xls)`);
+  process.exit(1);
+}
+
+// Función para parsear CSV
+async function parseCSV(filePath, { delimiter, encoding }) {
+  const rows = [];
+  const rl = readline.createInterface({
+    input: fs.createReadStream(filePath, { encoding }),
+    crlfDelay: Infinity
+  });
+  let headers = null;
+  for await (const rawLine of rl) {
+    const line = rawLine.trim();
+    if (!line) continue;
+    const cols = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < rawLine.length; i++) {
+      const ch = rawLine[i];
+      if (ch === '"') { inQuotes = !inQuotes; continue; }
+      if (ch === delimiter && !inQuotes) { cols.push(current.trim()); current = ''; continue; }
+      current += ch;
+    }
+    if (current.length) cols.push(current.trim());
+    const cleanCols = cols.map(c => c.replace(/^\"|\"$/g, '').trim());
+    if (!headers) { headers = cleanCols; continue; }
+    const obj = Object.fromEntries(headers.map((h, idx) => [h, cleanCols[idx] ?? '']));
+    rows.push(obj);
+  }
+  return { headers, rows };
+}
+
 async function main() {
   try {
     if (!dryRun) {
-      await connectDB();
+      const uri = process.env.MONGODB_URI;
+      if (!uri) {
+        console.error('❌ Error: MONGODB_URI no está definido en las variables de entorno');
+        console.error('   Asegúrate de tener un archivo .env con MONGODB_URI o ejecuta:');
+        console.error('   MONGODB_URI="mongodb://..." node scripts/import_vehicles_from_excel.js --file ...');
+        process.exit(1);
+      }
+      await connectDB(uri);
       console.log('✅ Conectado a MongoDB');
     } else {
       console.log('🔍 Modo DRY RUN - No se escribirán cambios');
     }
 
-    // Leer Excel
-    console.log(`📖 Leyendo archivo: ${filePath}`);
-    const workbook = XLSX.readFile(filePath);
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+    let headers = [];
+    let rows = [];
+    let headerMap = {};
 
-    console.log(`📊 Filas encontradas: ${data.length}`);
+    // Leer archivo según tipo
+    console.log(`📖 Leyendo archivo: ${filePath} (${isCSV ? 'CSV' : 'Excel'})`);
+    
+    if (isCSV) {
+      const parsed = await parseCSV(filePath, { delimiter, encoding });
+      headers = parsed.headers || [];
+      rows = parsed.rows || [];
+      console.log(`📊 Filas encontradas: ${rows.length}`);
+      
+      // Mapear headers por nombre de columna (normalizando para ignorar acentos)
+      headers.forEach((h, idx) => {
+        const key = normalizeForMatch(h);
+        if (key.includes('MARCA') || key.includes('MAKE')) headerMap.make = h;
+        if (key.includes('LINEA') || key.includes('LINE')) headerMap.line = h;
+        if (key.includes('CILINDRAJE') || key.includes('DISPLACEMENT') || key.includes('MOTOR') || key.includes('ENGINE')) headerMap.displacement = h;
+        if (key.includes('MODELO') || key.includes('MODEL') || key.includes('YEAR') || key.includes('ANO')) headerMap.modelYear = h;
+      });
+      
+      // Si no se detectaron headers, usar primeras columnas por posición
+      if (Object.keys(headerMap).length === 0 && headers.length > 0) {
+        console.log('⚠️  No se detectaron headers, usando primeras columnas: Col1=Marca, Col2=Línea, Col3=Cilindraje, Col4=Modelo');
+        headerMap.make = headers[0] || '';
+        headerMap.line = headers[1] || '';
+        headerMap.displacement = headers[2] || '';
+        headerMap.modelYear = headers[3] || '';
+      }
+    } else {
+      // Leer Excel
+      const workbook = XLSX.readFile(filePath);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const data = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+      console.log(`📊 Filas encontradas: ${data.length}`);
 
-    // Detectar headers (primera fila)
-    const headers = data[0] || [];
-    const headerMap = {};
-    headers.forEach((h, idx) => {
-      const key = cleanStr(h);
-      if (key.includes('MARCA') || key.includes('MAKE')) headerMap.make = idx;
-      if (key.includes('LINEA') || key.includes('LINE')) headerMap.line = idx;
-      if (key.includes('CILINDRAJE') || key.includes('DISPLACEMENT') || key.includes('MOTOR') || key.includes('ENGINE')) headerMap.displacement = idx;
-      if (key.includes('MODELO') || key.includes('MODEL') || key.includes('YEAR') || key.includes('AÑO')) headerMap.modelYear = idx;
-    });
+      // Detectar headers (primera fila)
+      headers = data[0] || [];
+      headers.forEach((h, idx) => {
+        const key = normalizeForMatch(h);
+        if (key.includes('MARCA') || key.includes('MAKE')) headerMap.make = idx;
+        if (key.includes('LINEA') || key.includes('LINE')) headerMap.line = idx;
+        if (key.includes('CILINDRAJE') || key.includes('DISPLACEMENT') || key.includes('MOTOR') || key.includes('ENGINE')) headerMap.displacement = idx;
+        if (key.includes('MODELO') || key.includes('MODEL') || key.includes('YEAR') || key.includes('ANO')) headerMap.modelYear = idx;
+      });
 
-    // Si no se detectaron headers, usar posiciones por defecto (A=0, B=1, C=2, D=3)
-    if (Object.keys(headerMap).length === 0) {
-      console.log('⚠️  No se detectaron headers, usando posiciones por defecto: A=Marca, B=Línea, C=Cilindraje, D=Modelo');
-      headerMap.make = 0;
-      headerMap.line = 1;
-      headerMap.displacement = 2;
-      headerMap.modelYear = 3;
+      // Si no se detectaron headers, usar posiciones por defecto (A=0, B=1, C=2, D=3)
+      if (Object.keys(headerMap).length === 0) {
+        console.log('⚠️  No se detectaron headers, usando posiciones por defecto: A=Marca, B=Línea, C=Cilindraje, D=Modelo');
+        headerMap.make = 0;
+        headerMap.line = 1;
+        headerMap.displacement = 2;
+        headerMap.modelYear = 3;
+      }
+      
+      // Para Excel, mantener data como array de arrays
+      rows = data;
     }
 
     console.log('📋 Mapeo de columnas:', headerMap);
@@ -124,15 +213,28 @@ async function main() {
     let errors = 0;
     const errorsList = [];
 
-    // Procesar filas (saltar header si existe)
-    const startRow = headers.some(h => cleanStr(h).includes('MARCA') || cleanStr(h).includes('MAKE')) ? 1 : 0;
+    // Determinar fila inicial (saltar header si existe)
+    const startRow = isCSV ? 0 : (headers.some(h => cleanStr(h).includes('MARCA') || cleanStr(h).includes('MAKE')) ? 1 : 0);
 
-    for (let i = startRow; i < data.length; i++) {
-      const row = data[i] || [];
-      const make = cleanStr(row[headerMap.make]);
-      const line = cleanStr(row[headerMap.line]);
-      const displacement = cleanStr(row[headerMap.displacement]);
-      const modelYearRaw = row[headerMap.modelYear];
+    // Procesar filas
+    for (let i = startRow; i < rows.length; i++) {
+      const row = rows[i];
+      let make, line, displacement, modelYearRaw;
+      
+      if (isCSV) {
+        // CSV: row es un objeto con nombres de columnas
+        make = cleanStr(row[headerMap.make] || '');
+        line = cleanStr(row[headerMap.line] || '');
+        displacement = cleanStr(row[headerMap.displacement] || '');
+        modelYearRaw = row[headerMap.modelYear];
+      } else {
+        // Excel: row es un array, usar índices
+        make = cleanStr((row[headerMap.make] || '').toString());
+        line = cleanStr((row[headerMap.line] || '').toString());
+        displacement = cleanStr((row[headerMap.displacement] || '').toString());
+        modelYearRaw = row[headerMap.modelYear];
+      }
+      
       const modelYear = modelYearRaw ? cleanStr(String(modelYearRaw)) : '';
 
       // Validar campos requeridos
