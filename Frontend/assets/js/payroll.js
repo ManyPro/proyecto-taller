@@ -156,6 +156,30 @@ async function addConcept(){
       return;
     }
     
+    // Obtener configuración de base de porcentaje si es porcentaje
+    let percentBaseType = 'total_gross';
+    let percentBaseConceptId = null;
+    let percentBaseFixedValue = 0;
+    
+    if (!isVariable && amountType === 'percent') {
+      percentBaseType = el('pc-percentBaseType')?.value || 'total_gross';
+      if (percentBaseType === 'specific_concept') {
+        percentBaseConceptId = el('pc-percentBaseConceptId')?.value || null;
+        if (!percentBaseConceptId) {
+          alert('⚠️ Si la base es un concepto específico, debes seleccionar el concepto');
+          return;
+        }
+      } else if (percentBaseType === 'fixed_value') {
+        const fixedValueStr = el('pc-percentBaseFixedValue')?.value || '0';
+        percentBaseFixedValue = parseFloat(fixedValueStr);
+        if (isNaN(percentBaseFixedValue) || percentBaseFixedValue <= 0) {
+          alert('⚠️ Si la base es un valor fijo, debe ser mayor a 0');
+          el('pc-percentBaseFixedValue')?.focus();
+          return;
+        }
+      }
+    }
+    
     const payload = {
       type: isVariable ? 'earning' : type, // Los conceptos variables son de tipo 'earning'
       amountType: isVariable ? 'fixed' : amountType,
@@ -165,6 +189,9 @@ async function addConcept(){
       isActive: true,
       isVariable,
       variableFixedAmount: isVariable ? variableFixedAmount : 0,
+      percentBaseType,
+      percentBaseConceptId,
+      percentBaseFixedValue,
       ...(isVariable ? {} : (allowOver100 ? { allowOver100: true } : {}))
     };
     
@@ -185,14 +212,17 @@ async function addConcept(){
       el('pc-value').value = '';
       el('pc-type').value = 'earning';
       el('pc-variableFixedAmount').value = '';
+      el('pc-percentBaseType').value = 'total_gross';
+      el('pc-percentBaseConceptId').value = '';
+      el('pc-percentBaseFixedValue').value = '';
       // Actualizar campos según el tipo (usar el selector del DOM directamente)
       const typeSelAfter = el('pc-type');
       if (typeSelAfter) {
         typeSelAfter.dispatchEvent(new Event('change'));
       }
       
-      // Recargar lista
-      await loadConcepts();
+      // Recargar lista y conceptos para selector
+      await Promise.all([loadConcepts(), loadConceptsForPercentBase()]);
       
       // Feedback visual
       if (btn) {
@@ -2111,6 +2141,9 @@ async function createPeriod(){
 function init(){
   el('pc-add')?.addEventListener('click', addConcept);
   
+  // Cargar conceptos para el selector de base de porcentaje
+  loadConceptsForPercentBase();
+  
   // Actualizar campos según el tipo seleccionado
   const typeSel = el('pc-type');
   const amountTypeSel = el('pc-amountType');
@@ -2151,6 +2184,12 @@ function init(){
   
   function updateValueField() {
     const amountType = amountTypeSel?.value;
+    const percentBaseContainer = document.getElementById('pc-percent-base-container');
+    const percentBaseConceptContainer = document.getElementById('pc-percent-base-concept-container');
+    const percentBaseValueContainer = document.getElementById('pc-percent-base-value-container');
+    const percentBaseTypeSel = document.getElementById('pc-percentBaseType');
+    const percentBaseConceptSel = document.getElementById('pc-percentBaseConceptId');
+    
     if (amountType === 'percent') {
       if (valueLabel) valueLabel.textContent = 'Porcentaje (%)';
       if (valueInput) {
@@ -2158,6 +2197,20 @@ function init(){
         valueInput.step = '0.01';
       }
       if (valueHint) valueHint.textContent = 'Ingresa el porcentaje (ej: 10 para 10%, 15.5 para 15.5%)';
+      
+      // Mostrar configuración de base de porcentaje
+      if (percentBaseContainer) percentBaseContainer.style.display = 'flex';
+      
+      // Actualizar campos según el tipo de base seleccionado
+      if (percentBaseTypeSel) {
+        const baseType = percentBaseTypeSel.value;
+        if (percentBaseConceptContainer) {
+          percentBaseConceptContainer.style.display = baseType === 'specific_concept' ? 'flex' : 'none';
+        }
+        if (percentBaseValueContainer) {
+          percentBaseValueContainer.style.display = baseType === 'fixed_value' ? 'block' : 'none';
+        }
+      }
     } else {
       if (valueLabel) valueLabel.textContent = 'Valor (COP)';
       if (valueInput) {
@@ -2165,7 +2218,50 @@ function init(){
         valueInput.step = '0.01';
       }
       if (valueHint) valueHint.textContent = 'Ingresa el valor fijo en pesos colombianos';
+      
+      // Ocultar configuración de base de porcentaje
+      if (percentBaseContainer) percentBaseContainer.style.display = 'none';
+      if (percentBaseConceptContainer) percentBaseConceptContainer.style.display = 'none';
+      if (percentBaseValueContainer) percentBaseValueContainer.style.display = 'none';
     }
+  }
+  
+  // Cargar conceptos para el selector de base de porcentaje
+  async function loadConceptsForPercentBase() {
+    try {
+      const concepts = await api.get('/api/v1/payroll/concepts');
+      const sel = document.getElementById('pc-percentBaseConceptId');
+      if (sel) {
+        const currentValue = sel.value;
+        sel.innerHTML = '<option value="">Seleccione concepto...</option>' + 
+          concepts
+            .filter(c => c.amountType === 'fixed' && c.type === 'earning') // Solo conceptos fijos de tipo ingreso
+            .map(c => `<option value="${c._id}">${htmlEscape(c.code)} · ${htmlEscape(c.name)}</option>`)
+            .join('');
+        if (currentValue) {
+          sel.value = currentValue;
+        }
+      }
+    } catch (err) {
+      console.error('Error loading concepts for percent base:', err);
+    }
+  }
+  
+  // Event listener para cambiar el tipo de base de porcentaje
+  const percentBaseTypeSel = document.getElementById('pc-percentBaseType');
+  if (percentBaseTypeSel) {
+    percentBaseTypeSel.addEventListener('change', () => {
+      const baseType = percentBaseTypeSel.value;
+      const percentBaseConceptContainer = document.getElementById('pc-percent-base-concept-container');
+      const percentBaseValueContainer = document.getElementById('pc-percent-base-value-container');
+      
+      if (percentBaseConceptContainer) {
+        percentBaseConceptContainer.style.display = baseType === 'specific_concept' ? 'flex' : 'none';
+      }
+      if (percentBaseValueContainer) {
+        percentBaseValueContainer.style.display = baseType === 'fixed_value' ? 'block' : 'none';
+      }
+    });
   }
   
   if (typeSel) {

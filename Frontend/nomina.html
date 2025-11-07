@@ -112,6 +112,24 @@
               <input id="pc-value" type="number" step="0.01" min="0" placeholder="0.00" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
               <p class="muted" style="margin:4px 0 0 0;font-size:11px;" id="pc-value-hint">Para porcentajes, ingresa el % (ej: 10 para 10%)</p>
             </div>
+            <div id="pc-percent-base-container" style="display:none;flex:1;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Base del porcentaje</label>
+              <select id="pc-percentBaseType" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="total_gross">Total bruto (todos los ingresos)</option>
+                <option value="specific_concept">Concepto específico</option>
+                <option value="fixed_value">Valor fijo</option>
+              </select>
+            </div>
+            <div id="pc-percent-base-concept-container" style="display:none;flex:1;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Concepto base</label>
+              <select id="pc-percentBaseConceptId" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="">Seleccione concepto...</option>
+              </select>
+            </div>
+            <div id="pc-percent-base-value-container" style="display:none;min-width:140px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Valor fijo base (COP)</label>
+              <input id="pc-percentBaseFixedValue" type="number" step="1" min="0" placeholder="Ej: 1000000" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+            </div>
             <div id="pc-variable-amount-container" style="flex:1;min-width:200px;display:none;">
               <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Monto fijo a completar (COP)</label>
               <input id="pc-variableFixedAmount" type="number" step="1" min="0" placeholder="Ej: 1000000" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
