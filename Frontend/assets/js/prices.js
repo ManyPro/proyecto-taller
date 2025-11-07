@@ -836,18 +836,31 @@ export function initPrices(){
       let searchTimeout = null;
       
       async function searchItems(query) {
-        if (!query || query.length < 2) {
+        if (!query || query.trim().length === 0) {
           itemDropdown.style.display = 'none';
           return;
         }
+        const trimmedQuery = query.trim();
+        if (trimmedQuery.length < 1) {
+          itemDropdown.style.display = 'none';
+          return;
+        }
+        
         try {
-          // Buscar por SKU o nombre (el backend acepta ambos parámetros)
-          // Intentamos primero por SKU, luego por nombre
           let items = [];
           try {
-            items = await API.itemsList({ sku: query });
+            // Buscar primero por SKU exacto (case insensitive)
+            items = await API.itemsList({ sku: trimmedQuery.toUpperCase() });
+            // Si no encuentra por SKU exacto, buscar por SKU parcial
             if (items.length === 0) {
-              items = await API.itemsList({ name: query });
+              const allItems = await API.itemsList({});
+              items = allItems.filter(item => 
+                item.sku && item.sku.toUpperCase().includes(trimmedQuery.toUpperCase())
+              );
+            }
+            // Si aún no encuentra, buscar por nombre
+            if (items.length === 0) {
+              items = await API.itemsList({ name: trimmedQuery });
             }
           } catch (err) {
             console.error('Error al buscar items:', err);
@@ -855,6 +868,38 @@ export function initPrices(){
           if (!items || items.length === 0) {
             itemDropdown.innerHTML = '<div style="padding:12px;text-align:center;color:var(--muted);font-size:12px;">No se encontraron items</div>';
             itemDropdown.style.display = 'block';
+            return;
+          }
+          
+          // Si hay exactamente un resultado y coincide exactamente con el SKU, seleccionarlo automáticamente
+          if (items.length === 1 && items[0].sku && items[0].sku.toUpperCase() === trimmedQuery.toUpperCase()) {
+            const item = items[0];
+            selectedItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+            itemIdInput.value = item._id;
+            itemSearch.value = `${item.sku} - ${item.name}`;
+            itemDropdown.style.display = 'none';
+            itemSelected.innerHTML = `
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <strong>${item.name}</strong><br>
+                  <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span>
+                </div>
+                <button id="pe-modal-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
+              </div>
+            `;
+            itemSelected.style.display = 'block';
+            const newRemoveBtn = itemSelected.querySelector('#pe-modal-item-remove');
+            if (newRemoveBtn) {
+              newRemoveBtn.onclick = () => {
+                selectedItem = null;
+                itemIdInput.value = '';
+                itemSearch.value = '';
+                itemSelected.style.display = 'none';
+              };
+            }
+            if (!priceInput.value || priceInput.value === '0') {
+              priceInput.value = item.salePrice || 0;
+            }
             return;
           }
           itemDropdown.replaceChildren(...items.map(item => {
@@ -914,57 +959,132 @@ export function initPrices(){
         }, 300);
       });
       
+      // Permitir seleccionar con Enter si hay un solo resultado
+      itemSearch.addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const query = itemSearch.value.trim();
+          if (!query) return;
+          
+          // Si ya hay un item seleccionado, no hacer nada
+          if (selectedItem) return;
+          
+          // Buscar items
+          try {
+            let items = [];
+            items = await API.itemsList({ sku: query.toUpperCase() });
+            if (items.length === 0) {
+              const allItems = await API.itemsList({});
+              items = allItems.filter(item => 
+                item.sku && item.sku.toUpperCase().includes(query.toUpperCase())
+              );
+            }
+            if (items.length === 0) {
+              items = await API.itemsList({ name: query });
+            }
+            
+            if (items && items.length > 0) {
+              // Si hay un solo resultado o el primero coincide exactamente, seleccionarlo
+              const item = items.find(i => i.sku && i.sku.toUpperCase() === query.toUpperCase()) || items[0];
+              selectedItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+              itemIdInput.value = item._id;
+              itemSearch.value = `${item.sku} - ${item.name}`;
+              itemDropdown.style.display = 'none';
+              itemSelected.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div>
+                    <strong>${item.name}</strong><br>
+                    <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span>
+                  </div>
+                  <button id="pe-modal-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
+                </div>
+              `;
+              itemSelected.style.display = 'block';
+              const newRemoveBtn = itemSelected.querySelector('#pe-modal-item-remove');
+              if (newRemoveBtn) {
+                newRemoveBtn.onclick = () => {
+                  selectedItem = null;
+                  itemIdInput.value = '';
+                  itemSearch.value = '';
+                  itemSelected.style.display = 'none';
+                };
+              }
+              if (!priceInput.value || priceInput.value === '0') {
+                priceInput.value = item.salePrice || 0;
+              }
+              // Limpiar dropdown si existe
+              itemDropdown.style.display = 'none';
+            }
+          } catch (err) {
+            console.error('Error al buscar item:', err);
+          }
+        }
+      });
+      
       itemQrBtn.onclick = async () => {
         try {
           const qrCode = await openQRForItem();
           if (!qrCode) return;
           
-          // Parsear QR: IT:<companyId>:<itemId>:<sku>
-          if (qrCode.toUpperCase().startsWith('IT:')) {
+          const normalizedCode = String(qrCode || '').trim().toUpperCase();
+          let item = null;
+          
+          // Intentar parsear como formato IT:companyId:itemId:sku
+          if (normalizedCode.startsWith('IT:')) {
             const parts = qrCode.split(':').map(p => p.trim()).filter(Boolean);
             const itemId = parts.length >= 3 ? parts[2] : null;
             if (itemId) {
-              const items = await API.itemsList({});
-              const item = items.find(i => String(i._id) === itemId);
-              if (item) {
-                selectedItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
-                itemIdInput.value = item._id;
-                itemSearch.value = `${item.sku} - ${item.name}`;
-                itemDropdown.style.display = 'none';
-                itemSelected.innerHTML = `
-                  <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div>
-                      <strong>${item.name}</strong><br>
-                      <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span>
-                    </div>
-                    <button id="pe-modal-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
-                  </div>
-                `;
-                itemSelected.style.display = 'block';
-                const newRemoveBtn = itemSelected.querySelector('#pe-modal-item-remove');
-                if (newRemoveBtn) {
-                  newRemoveBtn.onclick = () => {
-                    selectedItem = null;
-                    itemIdInput.value = '';
-                    itemSearch.value = '';
-                    itemSelected.style.display = 'none';
-                  };
-                }
-                if (!priceInput.value || priceInput.value === '0') {
-                  priceInput.value = item.salePrice || 0;
-                }
-                return;
+              try {
+                const allItems = await API.itemsList({});
+                item = allItems.find(i => String(i._id) === itemId);
+              } catch (err) {
+                console.error('Error al buscar por itemId:', err);
               }
             }
           }
           
-          // Fallback: buscar por SKU
-          const items = await API.itemsList({ sku: qrCode, limit: 1 });
-          if (items && items.length > 0) {
-            const item = items[0];
+          // Si no se encontró por itemId, buscar por SKU exacto
+          if (!item) {
+            try {
+              const items = await API.itemsList({ sku: normalizedCode });
+              if (items && items.length > 0) {
+                item = items[0];
+              }
+            } catch (err) {
+              console.error('Error al buscar por SKU exacto:', err);
+            }
+          }
+          
+          // Si aún no se encontró, buscar por SKU parcial (case insensitive)
+          if (!item) {
+            try {
+              const allItems = await API.itemsList({});
+              item = allItems.find(i => 
+                i.sku && i.sku.toUpperCase() === normalizedCode
+              );
+            } catch (err) {
+              console.error('Error al buscar por SKU parcial:', err);
+            }
+          }
+          
+          // Si aún no se encontró, intentar buscar si el código es un ObjectId de MongoDB
+          if (!item) {
+            const objectIdMatch = normalizedCode.match(/^[A-F0-9]{24}$/);
+            if (objectIdMatch) {
+              try {
+                const allItems = await API.itemsList({});
+                item = allItems.find(i => String(i._id).toUpperCase() === normalizedCode);
+              } catch (err) {
+                console.error('Error al buscar por ObjectId:', err);
+              }
+            }
+          }
+          
+          if (item) {
             selectedItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
             itemIdInput.value = item._id;
             itemSearch.value = `${item.sku} - ${item.name}`;
+            itemDropdown.style.display = 'none';
             itemSelected.innerHTML = `
               <div style="display:flex;justify-content:space-between;align-items:center;">
                 <div>
@@ -988,11 +1108,12 @@ export function initPrices(){
               priceInput.value = item.salePrice || 0;
             }
           } else {
-            alert('Item no encontrado');
+            alert(`Item no encontrado para el código: ${qrCode}`);
           }
         } catch (err) {
           // Ignorar error si el usuario canceló
           if (err?.message !== 'Cancelado por el usuario') {
+            console.error('Error al leer QR:', err);
             alert('Error al leer QR: ' + (err?.message || 'Error desconocido'));
           }
         }
@@ -1073,18 +1194,73 @@ export function initPrices(){
         
         let searchTimeout = null;
         async function searchComboItems(query) {
-          if (!query || query.length < 2) return;
+          if (!query || query.trim().length === 0) {
+            // Limpiar dropdown si el query está vacío
+            const existingDropdown = itemSearch.parentElement.querySelector('div[style*="position:absolute"]');
+            if (existingDropdown) existingDropdown.remove();
+            return;
+          }
+          const trimmedQuery = query.trim();
+          if (trimmedQuery.length < 1) return;
+          
           try {
             let items = [];
             try {
-              items = await API.itemsList({ sku: query });
+              // Buscar primero por SKU exacto (case insensitive)
+              items = await API.itemsList({ sku: trimmedQuery.toUpperCase() });
+              // Si no encuentra por SKU exacto, buscar por SKU parcial
               if (items.length === 0) {
-                items = await API.itemsList({ name: query });
+                const allItems = await API.itemsList({});
+                items = allItems.filter(item => 
+                  item.sku && item.sku.toUpperCase().includes(trimmedQuery.toUpperCase())
+                );
+              }
+              // Si aún no encuentra, buscar por nombre
+              if (items.length === 0) {
+                items = await API.itemsList({ name: trimmedQuery });
               }
             } catch (err) {
               console.error('Error al buscar items:', err);
             }
-            if (!items || items.length === 0) return;
+            if (!items || items.length === 0) {
+              // Limpiar dropdown si no hay resultados
+              const existingDropdown = itemSearch.parentElement.querySelector('div[style*="position:absolute"]');
+              if (existingDropdown) existingDropdown.remove();
+              return;
+            }
+            
+            // Si hay exactamente un resultado y coincide exactamente con el SKU, seleccionarlo automáticamente
+            if (items.length === 1 && items[0].sku && items[0].sku.toUpperCase() === trimmedQuery.toUpperCase()) {
+              const item = items[0];
+              selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+              itemIdInput.value = item._id;
+              itemSearch.value = `${item.sku} - ${item.name}`;
+              itemSelected.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
+                  <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+                </div>
+              `;
+              itemSelected.style.display = 'block';
+              const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
+              if (removeBtn2) {
+                removeBtn2.onclick = () => {
+                  selectedComboItem = null;
+                  itemIdInput.value = '';
+                  itemSearch.value = '';
+                  itemSelected.style.display = 'none';
+                };
+              }
+              const priceInput = row.querySelector('.combo-product-price');
+              if (!priceInput.value || priceInput.value === '0') {
+                priceInput.value = item.salePrice || 0;
+              }
+              updateComboTotal();
+              // Limpiar dropdown
+              const existingDropdown = itemSearch.parentElement.querySelector('div[style*="position:absolute"]');
+              if (existingDropdown) existingDropdown.remove();
+              return;
+            }
             
             // Crear dropdown temporal
             const dropdown = document.createElement('div');
@@ -1154,50 +1330,127 @@ export function initPrices(){
           }, 300);
         });
         
+        // Permitir seleccionar con Enter si hay un solo resultado
+        itemSearch.addEventListener('keydown', async (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            const query = itemSearch.value.trim();
+            if (!query) return;
+            
+            // Si ya hay un item seleccionado, no hacer nada
+            if (selectedComboItem) return;
+            
+            // Buscar items
+            try {
+              let items = [];
+              items = await API.itemsList({ sku: query.toUpperCase() });
+              if (items.length === 0) {
+                const allItems = await API.itemsList({});
+                items = allItems.filter(item => 
+                  item.sku && item.sku.toUpperCase().includes(query.toUpperCase())
+                );
+              }
+              if (items.length === 0) {
+                items = await API.itemsList({ name: query });
+              }
+              
+              if (items && items.length > 0) {
+                // Si hay un solo resultado o el primero coincide exactamente, seleccionarlo
+                const item = items.find(i => i.sku && i.sku.toUpperCase() === query.toUpperCase()) || items[0];
+                selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+                itemIdInput.value = item._id;
+                itemSearch.value = `${item.sku} - ${item.name}`;
+                itemSelected.innerHTML = `
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
+                    <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+                  </div>
+                `;
+                itemSelected.style.display = 'block';
+                const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
+                if (removeBtn2) {
+                  removeBtn2.onclick = () => {
+                    selectedComboItem = null;
+                    itemIdInput.value = '';
+                    itemSearch.value = '';
+                    itemSelected.style.display = 'none';
+                  };
+                }
+                const priceInput = row.querySelector('.combo-product-price');
+                if (!priceInput.value || priceInput.value === '0') {
+                  priceInput.value = item.salePrice || 0;
+                }
+                updateComboTotal();
+                // Limpiar dropdown si existe
+                const existingDropdown = itemSearch.parentElement.querySelector('div[style*="position:absolute"]');
+                if (existingDropdown) existingDropdown.remove();
+              }
+            } catch (err) {
+              console.error('Error al buscar item:', err);
+            }
+          }
+        });
+        
         itemQrBtn.onclick = async () => {
           try {
             const qrCode = await openQRForItem();
             if (!qrCode) return;
             
-            if (qrCode.toUpperCase().startsWith('IT:')) {
+            const normalizedCode = String(qrCode || '').trim().toUpperCase();
+            let item = null;
+            
+            // Intentar parsear como formato IT:companyId:itemId:sku
+            if (normalizedCode.startsWith('IT:')) {
               const parts = qrCode.split(':').map(p => p.trim()).filter(Boolean);
               const itemId = parts.length >= 3 ? parts[2] : null;
               if (itemId) {
-                const items = await API.itemsList({});
-                const item = items.find(i => String(i._id) === itemId);
-                if (item) {
-                  selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
-                  itemIdInput.value = item._id;
-                  itemSearch.value = `${item.sku} - ${item.name}`;
-                  itemSelected.innerHTML = `
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                      <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
-                      <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
-                    </div>
-                  `;
-                  itemSelected.style.display = 'block';
-                  const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
-                  if (removeBtn2) {
-                    removeBtn2.onclick = () => {
-                      selectedComboItem = null;
-                      itemIdInput.value = '';
-                      itemSearch.value = '';
-                      itemSelected.style.display = 'none';
-                    };
-                  }
-                  const priceInput = row.querySelector('.combo-product-price');
-                  if (!priceInput.value || priceInput.value === '0') {
-                    priceInput.value = item.salePrice || 0;
-                  }
-                  updateComboTotal();
-                  return;
+                try {
+                  const allItems = await API.itemsList({});
+                  item = allItems.find(i => String(i._id) === itemId);
+                } catch (err) {
+                  console.error('Error al buscar por itemId:', err);
                 }
               }
             }
             
-            const items = await API.itemsList({ sku: qrCode, limit: 1 });
-            if (items && items.length > 0) {
-              const item = items[0];
+            // Si no se encontró por itemId, buscar por SKU exacto
+            if (!item) {
+              try {
+                const items = await API.itemsList({ sku: normalizedCode });
+                if (items && items.length > 0) {
+                  item = items[0];
+                }
+              } catch (err) {
+                console.error('Error al buscar por SKU exacto:', err);
+              }
+            }
+            
+            // Si aún no se encontró, buscar por SKU parcial (case insensitive)
+            if (!item) {
+              try {
+                const allItems = await API.itemsList({});
+                item = allItems.find(i => 
+                  i.sku && i.sku.toUpperCase() === normalizedCode
+                );
+              } catch (err) {
+                console.error('Error al buscar por SKU parcial:', err);
+              }
+            }
+            
+            // Si aún no se encontró, intentar buscar si el código es un ObjectId de MongoDB
+            if (!item) {
+              const objectIdMatch = normalizedCode.match(/^[A-F0-9]{24}$/);
+              if (objectIdMatch) {
+                try {
+                  const allItems = await API.itemsList({});
+                  item = allItems.find(i => String(i._id).toUpperCase() === normalizedCode);
+                } catch (err) {
+                  console.error('Error al buscar por ObjectId:', err);
+                }
+              }
+            }
+            
+            if (item) {
               selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
               itemIdInput.value = item._id;
               itemSearch.value = `${item.sku} - ${item.name}`;
@@ -1223,11 +1476,12 @@ export function initPrices(){
               }
               updateComboTotal();
             } else {
-              alert('Item no encontrado');
+              alert(`Item no encontrado para el código: ${qrCode}`);
             }
           } catch (err) {
             // Ignorar error si el usuario canceló
             if (err?.message !== 'Cancelado por el usuario') {
+              console.error('Error al leer QR:', err);
               alert('Error al leer QR: ' + (err?.message || 'Error desconocido'));
             }
           }
