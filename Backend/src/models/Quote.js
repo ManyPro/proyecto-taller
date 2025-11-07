@@ -26,6 +26,7 @@ const QuoteSchema = new mongoose.Schema({
   },
   vehicle: {
     plate:        { type: String, trim: true },
+    vehicleId:    { type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle', default: null }, // Referencia al vehículo de la BD
     make:         { type: String, trim: true },
     line:         { type: String, trim: true },
     modelYear:    { type: String, trim: true },

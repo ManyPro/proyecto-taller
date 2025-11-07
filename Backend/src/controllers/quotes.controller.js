@@ -1,6 +1,7 @@
 // Backend/src/controllers/quotes.controller.js
 import Counter from '../models/Counter.js';
 import Quote from '../models/Quote.js';
+import Vehicle from '../models/Vehicle.js';
 import { upsertProfileFromSource } from './profile.helper.js';
 import CustomerProfile from '../models/CustomerProfile.js';
 
@@ -61,6 +62,40 @@ export async function createQuote(req, res) {
   const { customer = {}, vehicle = {}, validity = '', items: itemsInput = [] } = req.body || {};
   const { items, total } = computeItems(itemsInput);
 
+  // Si se proporciona vehicleId, obtener datos del vehículo
+  let vehicleData = {
+    plate:        vehicle.plate        || '',
+    vehicleId:    vehicle.vehicleId   || null,
+    make:         vehicle.make         || '',
+    line:         vehicle.line         || '',
+    modelYear:    vehicle.modelYear    || '',
+    displacement: vehicle.displacement || ''
+  };
+
+  if (vehicle.vehicleId) {
+    const vehicleDoc = await Vehicle.findById(vehicle.vehicleId);
+    if (vehicleDoc && vehicleDoc.active) {
+      vehicleData.vehicleId = vehicleDoc._id;
+      vehicleData.make = vehicleDoc.make;
+      vehicleData.line = vehicleDoc.line;
+      vehicleData.displacement = vehicleDoc.displacement;
+      // Validar año si se proporciona
+      if (vehicle.modelYear) {
+        const yearNum = Number(vehicle.modelYear);
+        if (!vehicleDoc.isYearInRange(yearNum)) {
+          const range = vehicleDoc.getYearRange();
+          return res.status(400).json({ 
+            error: 'Año fuera de rango',
+            message: `El año ${yearNum} está fuera del rango permitido para este vehículo${range ? ` (${range.start}-${range.end})` : ''}`
+          });
+        }
+        vehicleData.modelYear = String(yearNum);
+      }
+    } else {
+      return res.status(404).json({ error: 'Vehículo no encontrado o inactivo' });
+    }
+  }
+
   const doc = await Quote.create({
     companyId,
     createdBy: req.userId || req.user?.id || undefined,
@@ -70,13 +105,7 @@ export async function createQuote(req, res) {
       phone: customer.phone || '',
       email: customer.email || ''
     },
-    vehicle: {
-      plate:        vehicle.plate        || '',
-      make:         vehicle.make         || '',
-      line:         vehicle.line         || '',
-      modelYear:    vehicle.modelYear    || '',
-      displacement: vehicle.displacement || ''
-    },
+    vehicle: vehicleData,
     validity,
     items,
     total
@@ -224,13 +253,41 @@ export async function updateQuote(req, res) {
     phone: customer.phone ?? exists.customer.phone,
     email: customer.email ?? exists.customer.email
   };
-  exists.vehicle = {
+  // Si se proporciona vehicleId, obtener datos del vehículo
+  let vehicleData = {
     plate:        vehicle.plate        ?? exists.vehicle.plate,
+    vehicleId:    vehicle.vehicleId   ?? exists.vehicle.vehicleId,
     make:         vehicle.make         ?? exists.vehicle.make,
     line:         vehicle.line         ?? exists.vehicle.line,
     modelYear:    vehicle.modelYear    ?? exists.vehicle.modelYear,
     displacement: vehicle.displacement ?? exists.vehicle.displacement
   };
+
+  if (vehicle.vehicleId !== undefined && vehicle.vehicleId !== null) {
+    const vehicleDoc = await Vehicle.findById(vehicle.vehicleId);
+    if (vehicleDoc && vehicleDoc.active) {
+      vehicleData.vehicleId = vehicleDoc._id;
+      vehicleData.make = vehicleDoc.make;
+      vehicleData.line = vehicleDoc.line;
+      vehicleData.displacement = vehicleDoc.displacement;
+      // Validar año si se proporciona
+      if (vehicle.modelYear) {
+        const yearNum = Number(vehicle.modelYear);
+        if (!vehicleDoc.isYearInRange(yearNum)) {
+          const range = vehicleDoc.getYearRange();
+          return res.status(400).json({ 
+            error: 'Año fuera de rango',
+            message: `El año ${yearNum} está fuera del rango permitido para este vehículo${range ? ` (${range.start}-${range.end})` : ''}`
+          });
+        }
+        vehicleData.modelYear = String(yearNum);
+      }
+    } else {
+      return res.status(404).json({ error: 'Vehículo no encontrado o inactivo' });
+    }
+  }
+
+  exists.vehicle = vehicleData;
   exists.validity = validity ?? exists.validity;
   exists.items = items;
   exists.total = total;

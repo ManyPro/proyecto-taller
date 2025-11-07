@@ -241,6 +241,110 @@ const quoteHtml = `
   </div>
 `;
 
+const payrollHtml = `
+  <div class="doc">
+    <div class="header">
+      <div style="display:flex; gap:10px; align-items:flex-start;">
+        <div class="logo-wrap">{{#if company.logoUrl}}<img src="{{company.logoUrl}}" alt="logo" />{{/if}}</div>
+        <div class="brand">{{company.name}}</div>
+        <div class="small">{{company.address}}</div>
+        <div class="small">Tel: {{company.phone}} · {{company.email}}</div>
+      </div>
+      <div class="right">
+        <h1>COMPROBANTE DE PAGO DE NÓMINA</h1>
+        <div class="muted">Fecha: {{date now}}</div>
+      </div>
+    </div>
+
+    <table class="no-border">
+      <tr>
+        <td>
+          <div class="small"><strong>TÉCNICO</strong></div>
+          <div style="font-size: 16px; font-weight: 600;">{{settlement.technicianName}}</div>
+        </td>
+        <td>
+          <div class="small"><strong>PERÍODO</strong></div>
+          <div>{{period.formattedStartDate}} → {{period.formattedEndDate}}</div>
+          <div class="small muted">{{period.periodTypeLabel}}</div>
+        </td>
+      </tr>
+    </table>
+
+    {{#if settlement.itemsByType.earnings}}
+    <div class="section">
+      <h3 style="margin: 0 0 8px 0; font-size: 14px; color: var(--primary);">INGRESOS</h3>
+      <table>
+        <thead>
+          <tr><th style="text-align:left;">Concepto</th><th style="width:140px;text-align:right;">Valor</th></tr>
+        </thead>
+        <tbody>
+          {{#each settlement.itemsByType.earnings}}
+          <tr>
+            <td>{{name}}</td>
+            <td class="t-right">{{money value}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+    {{/if}}
+
+    {{#if settlement.itemsByType.surcharges}}
+    <div class="section">
+      <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #f59e0b;">RECARGOS</h3>
+      <table>
+        <thead>
+          <tr><th style="text-align:left;">Concepto</th><th style="width:140px;text-align:right;">Valor</th></tr>
+        </thead>
+        <tbody>
+          {{#each settlement.itemsByType.surcharges}}
+          <tr>
+            <td>{{name}}</td>
+            <td class="t-right">{{money value}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+    {{/if}}
+
+    {{#if settlement.itemsByType.deductions}}
+    <div class="section">
+      <h3 style="margin: 0 0 8px 0; font-size: 14px; color: #ef4444;">DESCUENTOS</h3>
+      <table>
+        <thead>
+          <tr><th style="text-align:left;">Concepto</th><th style="width:140px;text-align:right;">Valor</th></tr>
+        </thead>
+        <tbody>
+          {{#each settlement.itemsByType.deductions}}
+          <tr>
+            <td>{{name}}</td>
+            <td class="t-right">{{money value}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+    {{/if}}
+
+    <table class="no-border section">
+      <tr>
+        <td></td>
+        <td style="width:280px;">
+          <table class="totals" style="width:100%">
+            <tr><td>Total bruto:</td><td class="t-right">{{settlement.formattedGrossTotal}}</td></tr>
+            <tr><td>Total descuentos:</td><td class="t-right">{{settlement.formattedDeductionsTotal}}</td></tr>
+            <tr style="border-top: 2px solid var(--primary); padding-top: 8px;"><td style="font-weight: 700; font-size: 16px;">NETO A PAGAR:</td><td class="t-right" style="font-weight: 700; font-size: 16px; color: #10b981;">{{settlement.formattedNetTotal}}</td></tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <div class="hr"></div>
+    <div class="small muted">Documento generado por sistema. Este comprobante es válido para efectos contables.</div>
+  </div>
+`;
+
 async function upsertTemplate(companyId, type, name, contentHtml, contentCss, activate=false){
   const last = await Template.findOne({ companyId, type }).sort({ version: -1 });
   const version = last ? last.version + 1 : 1;
@@ -257,7 +361,8 @@ async function run(){
   const inv = await upsertTemplate(companyId, 'invoice', `Factura ${nameSuffix}`, invoiceHtml, baseCss, opts.activate);
   const wo  = await upsertTemplate(companyId, 'workOrder', `Orden de Trabajo ${nameSuffix}`, workOrderHtml, baseCss, opts.activate);
   const qt  = await upsertTemplate(companyId, 'quote', `Cotización ${nameSuffix}`, quoteHtml, baseCss, opts.activate);
-  console.log('Plantillas creadas:', { invoice: inv._id, workOrder: wo._id, quote: qt._id });
+  const py  = await upsertTemplate(companyId, 'payroll', `Nómina ${nameSuffix}`, payrollHtml, baseCss, opts.activate);
+  console.log('Plantillas creadas:', { invoice: inv._id, workOrder: wo._id, quote: qt._id, payroll: py._id });
   await mongoose.disconnect();
 }
 

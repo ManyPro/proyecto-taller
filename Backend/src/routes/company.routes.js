@@ -30,10 +30,31 @@ router.post('/technicians', async (req, res) => {
 });
 
 router.delete('/technicians/:name', async (req, res) => {
-  const name = String(req.params.name || '').trim().toUpperCase();
-  req.companyDoc.technicians = (req.companyDoc.technicians || []).filter(t => t.toUpperCase() !== name);
-  await req.companyDoc.save();
-  res.json({ technicians: req.companyDoc.technicians });
+  try {
+    const name = String(req.params.name || '').trim().toUpperCase();
+    if (!name) return res.status(400).json({ error: 'nombre requerido' });
+    
+    // Verificar que el técnico existe
+    const technicians = req.companyDoc.technicians || [];
+    if (!technicians.some(t => t.toUpperCase() === name)) {
+      return res.status(404).json({ error: 'Técnico no encontrado' });
+    }
+    
+    // Eliminar técnico de la lista
+    req.companyDoc.technicians = technicians.filter(t => t.toUpperCase() !== name);
+    await req.companyDoc.save();
+    
+    // Eliminar todas las asignaciones de este técnico
+    const { default: TechnicianAssignment } = await import('../models/TechnicianAssignment.js');
+    await TechnicianAssignment.deleteMany({ 
+      companyId: req.companyDoc._id, 
+      technicianName: name 
+    });
+    
+    res.json({ technicians: req.companyDoc.technicians });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al eliminar técnico', message: err.message });
+  }
 });
 
 // ========== Preferences ==========
@@ -143,8 +164,17 @@ router.get('/tech-config', async (req, res) => {
   let cfg = await TechnicianConfig.findOne({ companyId: req.companyDoc._id });
   if (!cfg) {
     // bootstrap from Company preferences if present
-    const kinds = req.companyDoc?.preferences?.laborKinds || ['MOTOR','SUSPENSION','FRENOS'];
+    const legacyKinds = req.companyDoc?.preferences?.laborKinds || ['MOTOR','SUSPENSION','FRENOS'];
+    const kinds = Array.isArray(legacyKinds) && legacyKinds.length > 0 && typeof legacyKinds[0] === 'string'
+      ? legacyKinds.map(k => ({ name: String(k).toUpperCase(), defaultPercent: 0 }))
+      : legacyKinds;
     cfg = await TechnicianConfig.create({ companyId: req.companyDoc._id, laborKinds: kinds, technicians: [] });
+  } else {
+    // Migrar laborKinds antiguos (strings) a objetos
+    if (cfg.laborKinds && cfg.laborKinds.length > 0 && typeof cfg.laborKinds[0] === 'string') {
+      cfg.laborKinds = cfg.laborKinds.map(k => ({ name: String(k).toUpperCase(), defaultPercent: 0 }));
+      await cfg.save();
+    }
   }
   res.json({ config: cfg.toObject() });
 });
@@ -152,11 +182,35 @@ router.get('/tech-config', async (req, res) => {
 // PUT /api/v1/company/tech-config
 router.put('/tech-config', async (req, res) => {
   const body = req.body || {};
-  const kinds = Array.isArray(body.laborKinds) ? body.laborKinds.map(s=>String(s||'').trim().toUpperCase()).filter(Boolean) : undefined;
+  const kinds = Array.isArray(body.laborKinds) ? body.laborKinds : undefined;
   const techs = Array.isArray(body.technicians) ? body.technicians : undefined;
   let cfg = await TechnicianConfig.findOne({ companyId: req.companyDoc._id });
   if (!cfg) cfg = new TechnicianConfig({ companyId: req.companyDoc._id });
-  if (kinds) cfg.laborKinds = Array.from(new Set(kinds));
+  if (kinds) {
+    const cleaned = [];
+    for (const k of kinds) {
+      if (typeof k === 'string') {
+        // Migración: convertir string a objeto
+        cleaned.push({ name: String(k).trim().toUpperCase(), defaultPercent: 0 });
+      } else if (k && k.name) {
+        const name = String(k.name || '').trim().toUpperCase();
+        if (!name) continue;
+        const defaultPercent = Number(k.defaultPercent || 0);
+        if (!Number.isFinite(defaultPercent) || defaultPercent < 0 || defaultPercent > 100) continue;
+        cleaned.push({ name, defaultPercent });
+      }
+    }
+    // Eliminar duplicados por nombre
+    const unique = [];
+    const seen = new Set();
+    for (const k of cleaned) {
+      if (!seen.has(k.name)) {
+        seen.add(k.name);
+        unique.push(k);
+      }
+    }
+    cfg.laborKinds = unique;
+  }
   if (techs) {
     const cleaned = [];
     for (const t of techs) {

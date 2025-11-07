@@ -32,8 +32,7 @@
             <button data-tab="inventario" data-feature="inventario" data-href="inventario.html">Inventario</button>
             <button data-tab="precios" data-feature="precios" data-href="precios.html">Lista de precios</button>
             <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html">Flujo de Caja</button>
-            <button data-tab="reporte-tecnico" data-feature="techreport" data-href="reporte-tecnico.html">Reporte Tecnico</button>
-            <button data-tab="tecnicos" data-feature="tecnicos" data-href="tecnicos.html">Tecnicos</button>
+            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html">Nómina</button>
             <button data-tab="formatos" data-feature="templates" data-href="template-selector.html">Formatos</button>
             <button data-tab="skus" data-feature="skus" data-href="skus.html">SKUs</button>
           </nav>
@@ -78,9 +77,7 @@
         <!-- Barra de acciones debajo -->
         <div id="sales-actions-bar" class="card fullwidth-bar" style="margin-bottom:14px;">
           <div class="row wrap" style="gap:6px;">
-            <button id="sales-scan-qr" class="secondary">Escanear QR</button>
-            <button id="sales-add-general" class="secondary">Agregar</button>
-            <button id="sales-add-manual" class="secondary">Agregar manual</button>
+            <button id="sales-add-unified" class="primary">➕ Agregar</button>
             <button id="sales-print" class="secondary">Imprimir factura</button>
             <button id="sales-close" class="danger">Cerrar</button>
           </div>
@@ -199,10 +196,18 @@
                   </div>
                   <div class="col">
                     <input id="v-plate" placeholder="Placa (ABC123)">
-                    <input id="v-brand" placeholder="Marca">
-                    <input id="v-line" placeholder="Línea">
-                    <input id="v-engine" placeholder="Motor">
+                    <div style="position:relative;">
+                      <label style="display:block;font-size:12px;color:var(--muted);margin:8px 0 4px 0;font-weight:500;">Vehículo (opcional)</label>
+                      <input id="v-vehicle-search" placeholder="Buscar vehículo (marca, línea, cilindraje)..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+                      <div id="v-vehicle-dropdown" style="display:none;position:absolute;z-index:1000;background:var(--card);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;margin-top:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:100%;"></div>
+                      <input type="hidden" id="v-vehicle-id" />
+                      <div id="v-vehicle-selected" style="margin-top:4px;font-size:12px;color:var(--muted);"></div>
+                    </div>
+                    <input id="v-brand" placeholder="Marca" readonly style="background:var(--bg-secondary);">
+                    <input id="v-line" placeholder="Línea" readonly style="background:var(--bg-secondary);">
+                    <input id="v-engine" placeholder="Motor" readonly style="background:var(--bg-secondary);">
                     <input id="v-year" placeholder="Año" type="number">
+                    <div id="v-year-warning" style="display:none;font-size:11px;color:var(--danger,#ef4444);margin-top:4px;"></div>
                     <input id="v-mile" placeholder="Kilometraje" type="number">
                   </div>
                 </div>
@@ -395,14 +400,13 @@
           <div class="picker-head">
             <div class="row" style="gap:6px;">
               <select id="p-pr-svc"></select>
-              <input id="p-pr-brand" placeholder="Marca" />
-              <input id="p-pr-line" placeholder="Línea" />
-              <input id="p-pr-engine" placeholder="Motor" />
-              <input id="p-pr-year" placeholder="Año" type="number" />
             </div>
             <div class="row" style="gap:6px;">
               <button id="p-pr-search" class="secondary">Buscar</button>
               <button id="p-pr-more" class="secondary">Cargar más</button>
+            </div>
+            <div class="muted" style="margin-top:8px;font-size:12px;">
+              Se mostrarán solo los precios del vehículo seleccionado en la venta (si aplica).
             </div>
           </div>
           <div class="picker-table table-wrap">
@@ -423,10 +427,7 @@
       <!-- Fila del picker de precios -->
       <template id="tpl-price-row">
         <tr>
-          <td data-brand></td>
-          <td data-line></td>
-          <td data-engine></td>
-          <td data-year></td>
+          <td data-vehicle></td>
           <td class="t-right" data-price></td>
           <td class="t-center"><button class="add">Agregar</button></td>
         </tr>
@@ -471,14 +472,14 @@
         <div>
           <h3>Lector de QR</h3>
           <div class="qrbar row">
-            <div class="row" style="gap:8px;align-items:center;">
+            <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;">
               <label>Camara</label>
               <select id="qr-cam"></select>
-              <label class="row" style="gap:6px;"><input type="checkbox" id="qr-autoclose" checked> Cerrar al agregar</label>
             </div>
-            <div class="row" style="gap:8px;">
-              <button id="qr-start" class="secondary">Iniciar</button>
-              <button id="qr-stop" class="secondary">Detener</button>
+            <div class="row" style="gap:8px;flex-wrap:wrap;">
+              <button id="qr-single-mode" class="secondary" style="white-space:nowrap;">📦 Agregar solo un item</button>
+              <button id="qr-multi-mode" class="secondary" style="white-space:nowrap;">➕ Agregar múltiples items</button>
+              <button id="qr-finish-multi" class="secondary" style="white-space:nowrap;display:none;">✓ Terminar de agregar</button>
             </div>
           </div>
           <div class="qrwrap">
@@ -498,10 +499,8 @@
   <!-- Fila de edición de precios (tab precios) -->
       <template id="tpl-price-edit-row">
         <tr>
-          <td><input data-brand /></td>
-          <td><input data-line /></td>
-          <td><input data-engine /></td>
-          <td><input data-year type="number" /></td>
+          <td data-vehicle></td>
+          <td data-name></td>
           <td class="t-right"><input data-price type="number" step="0.01" /></td>
           <td class="t-center">
             <button class="save">Guardar</button>

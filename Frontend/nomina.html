@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M&M - Nómina</title>
+  <link rel="stylesheet" href="assets/styles.css?v=20251020" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <script src="./assets/js/config.js"></script>
+  <link rel="stylesheet" href="assets/css/components/cards.css" />
+  <link rel="stylesheet" href="assets/css/components/buttons.css" />
+  <link rel="stylesheet" href="assets/css/components/modals.css" />
+  <style>
+    /* Tabs internas de Nómina */
+    .payroll-tabs{background:var(--card);border:1px solid var(--border);padding:8px;border-radius:12px;}
+    .payroll-tabs button{border:1px solid rgba(148,163,184,.25);background:rgba(30,64,175,.15);color:var(--text);padding:8px 14px;border-radius:10px;cursor:pointer;transition:all .15s;margin:0 2px;}
+    .payroll-tabs button:hover{background:rgba(30,64,175,.25);box-shadow:0 8px 22px rgba(30,64,175,.25)}
+    .payroll-tabs button.active{background:var(--tab-bg-active);color:var(--tab-text-active);border-color:rgba(59,130,246,.55)}
+    /* Chips técnicos */
+    .chip{display:inline-flex;align-items:center;gap:6px;background:rgba(148,163,184,.12);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:999px;font-size:12px}
+    .chip .danger{margin-left:4px}
+    /* Conceptos */
+    .concept-row:hover{background:var(--hover-bg, rgba(148,163,184,.05));transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.05)}
+    .concept-badge{font-family:inherit;letter-spacing:0.3px}
+    /* Períodos */
+    .period-row:hover{background:var(--hover-bg, rgba(148,163,184,.05));transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.05)}
+    /* Liquidaciones */
+    .settlement-row:hover{background:var(--hover-bg, rgba(148,163,184,.05));transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.05)}
+    /* Pagos */
+    .pending-settlement-row:hover{background:var(--hover-bg, rgba(148,163,184,.05));transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.05);border-color:rgba(59,130,246,0.3)!important}
+  </style>
+</head>
+<body data-page="nomina">
+  <div class="topbar hidden" id="appHeader">
+    <div class="topbar-inner">
+      <div class="topbar-card">
+        <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
+          <div class="brand">
+            <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" />
+            <div class="company">Empresa: <span id="companyName">-</span></div>
+          </div>
+          <div class="row" style="gap:6px;align-items:center;">
+            <button id="logoutBtn" class="secondary hidden">Salir</button>
+            <button id="denseToggle" class="secondary" title="Modo compacto">??</button>
+            <button id="themeToggle" class="secondary" title="Cambiar tema">??</button>
+          </div>
+        </div>
+        <div class="top-tabs">
+          <nav class="tabs">
+            <button data-tab="home" data-href="index.html">Inicio</button>
+            <button data-tab="notas" data-feature="notas" data-href="notas.html">Notas</button>
+            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html">Ventas</button>
+            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html">Cotizaciones</button>
+            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html">Inventario</button>
+            <button data-tab="precios" data-feature="precios" data-href="precios.html">Lista de precios</button>
+            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html">Flujo de Caja</button>
+            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="active">Nómina</button>
+            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html">Formatos</button>
+            <button data-tab="skus" data-feature="skus" data-href="skus.html">SKUs</button>
+          </nav>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <section class="tab active">
+      <div class="card">
+        <div class="payroll-tabs row wrap" style="gap:6px;align-items:center;">
+          <button class="secondary active" data-subtab="settlements">Liquidaciones</button>
+          <button class="secondary" data-subtab="pay">Pagar</button>
+          <button class="secondary" data-subtab="periods">Períodos</button>
+          <button class="secondary" data-subtab="concepts">Conceptos</button>
+          <button class="secondary" data-subtab="assign">Asignaciones</button>
+        </div>
+      </div>
+
+      <div class="card hidden" data-subsection="concepts">
+        <div style="margin-bottom:16px;">
+          <h3 style="margin:0 0 4px 0;">Conceptos por empresa</h3>
+          <p class="muted" style="margin:0;font-size:13px;">Configura los conceptos de nómina (ingresos, descuentos, recargos) que se aplicarán a todos los técnicos de tu empresa.</p>
+        </div>
+        
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div class="row wrap" style="gap:12px;align-items:end;">
+            <div style="flex:1;min-width:140px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Tipo</label>
+              <select id="pc-type" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="earning">💰 Ingreso</option>
+                <option value="deduction">➖ Descuento</option>
+                <option value="surcharge">➕ Recargo</option>
+                <option value="variable">🔧 Variable (completa monto fijo)</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:140px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Tipo de monto</label>
+              <select id="pc-amountType" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="fixed">Fijo (COP)</option>
+                <option value="percent">Porcentaje (%)</option>
+              </select>
+            </div>
+            <div style="min-width:100px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Código</label>
+              <input id="pc-code" placeholder="Ej: SAL" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);text-transform:uppercase;" maxlength="10" />
+            </div>
+            <div style="flex:2;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre</label>
+              <input id="pc-name" placeholder="Ej: Salario base" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+            </div>
+            <div id="pc-value-container" style="min-width:140px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;" id="pc-value-label">Valor</label>
+              <input id="pc-value" type="number" step="0.01" min="0" placeholder="0.00" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+              <p class="muted" style="margin:4px 0 0 0;font-size:11px;" id="pc-value-hint">Para porcentajes, ingresa el % (ej: 10 para 10%)</p>
+            </div>
+            <div id="pc-percent-base-container" style="display:none;flex:1;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Base del porcentaje</label>
+              <select id="pc-percentBaseType" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="total_gross">Total bruto (todos los ingresos)</option>
+                <option value="specific_concept">Concepto específico</option>
+                <option value="fixed_value">Valor fijo</option>
+              </select>
+            </div>
+            <div id="pc-percent-base-concept-container" style="display:none;flex:1;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Concepto base</label>
+              <select id="pc-percentBaseConceptId" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="">Seleccione concepto...</option>
+              </select>
+            </div>
+            <div id="pc-percent-base-value-container" style="display:none;min-width:140px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Valor fijo base (COP)</label>
+              <input id="pc-percentBaseFixedValue" type="number" step="1" min="0" placeholder="Ej: 1000000" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+            </div>
+            <div id="pc-variable-amount-container" style="flex:1;min-width:200px;display:none;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Monto fijo a completar (COP)</label>
+              <input id="pc-variableFixedAmount" type="number" step="1" min="0" placeholder="Ej: 1000000" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+            </div>
+            <div style="min-width:120px;">
+              <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+              <button id="pc-add" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
+                ➕ Agregar concepto
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        <div id="pc-list" style="margin-top:0;"></div>
+        
+        <!-- Gestión de tipos de mano de obra -->
+        <div style="margin-top:24px;padding-top:24px;border-top:2px solid var(--border);">
+          <div style="margin-bottom:16px;">
+            <h3 style="margin:0 0 4px 0;">Tipos de mano de obra</h3>
+            <p class="muted" style="margin:0;font-size:13px;">Configura los tipos de participación técnica (ej: MOTOR, SUSPENSIÓN) con su porcentaje predeterminado. Al cerrar una venta, al seleccionar técnico y tipo, el porcentaje se completará automáticamente.</p>
+          </div>
+          
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+            <div class="row wrap" style="gap:12px;align-items:end;">
+              <div style="flex:2;min-width:200px;">
+                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre del tipo</label>
+                <input id="lk-name" placeholder="Ej: MOTOR" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);text-transform:uppercase;" maxlength="50" />
+              </div>
+              <div style="min-width:140px;">
+                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">% Predeterminado</label>
+                <input id="lk-percent" type="number" step="1" min="0" max="100" placeholder="0" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+              </div>
+              <div style="min-width:120px;">
+                <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+                <button id="lk-add" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
+                  ➕ Agregar tipo
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div id="lk-list" style="margin-top:0;"></div>
+        </div>
+      </div>
+
+      <div class="card hidden" style="margin-top:12px;" data-subsection="assign">
+        <div style="margin-bottom:16px;">
+          <h3 style="margin:0 0 4px 0;">Asignaciones por técnico</h3>
+          <p class="muted" style="margin:0;font-size:13px;">Personaliza valores de conceptos para técnicos específicos. Los técnicos creados aquí son los únicos disponibles para usar en Ventas.</p>
+        </div>
+
+        <!-- Gestión de técnicos -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="margin-bottom:12px;">
+            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Técnicos de la empresa</h4>
+            <p class="muted" style="margin:0;font-size:12px;">Crea y gestiona los técnicos que aparecerán en Ventas y estarán disponibles para liquidaciones.</p>
+          </div>
+          <div class="row wrap" style="gap:12px;align-items:end;margin-bottom:12px;">
+            <div style="flex:1;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre del técnico</label>
+              <input id="tk-add-name" placeholder="Ej: Juan Pérez" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" maxlength="100" />
+            </div>
+            <div style="min-width:140px;">
+              <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+              <button id="tk-add-btn" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
+                ➕ Agregar técnico
+              </button>
+            </div>
+          </div>
+          <div id="tk-list" class="row wrap" style="gap:8px;margin-top:8px;"></div>
+        </div>
+
+        <!-- Asignaciones personalizadas -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="margin-bottom:12px;">
+            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Asignar valor personalizado</h4>
+            <p class="muted" style="margin:0;font-size:12px;">Sobrescribe el valor por defecto de un concepto para un técnico específico.</p>
+          </div>
+          <div class="row wrap" style="gap:12px;align-items:end;">
+            <div style="flex:1;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Técnico</label>
+              <select id="pa-technicianSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="">Seleccione técnico…</option>
+              </select>
+            </div>
+            <div style="flex:1;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Concepto</label>
+              <select id="pa-conceptSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="">Seleccione concepto…</option>
+              </select>
+            </div>
+            <div style="min-width:140px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Valor personalizado</label>
+              <input id="pa-value" type="number" step="0.01" min="0" placeholder="0.00" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+              <p class="muted" style="margin:4px 0 0 0;font-size:11px;">Deja vacío para usar valor por defecto</p>
+            </div>
+            <div style="min-width:120px;">
+              <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+              <button id="pa-save" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
+                💾 Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Listado de asignaciones -->
+        <div id="pa-list-container" style="margin-top:0;">
+          <div id="pa-list" class="muted" style="padding:16px;text-align:center;border:1px dashed var(--border);border-radius:8px;font-size:13px;">
+            Selecciona un técnico para ver sus asignaciones personalizadas.
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px;" data-subsection="settlements">
+        <div style="margin-bottom:16px;">
+          <h3 style="margin:0 0 4px 0;">Liquidación de nómina</h3>
+          <p class="muted" style="margin:0;font-size:13px;">Calcula y aprueba liquidaciones de técnicos. Las comisiones se calculan automáticamente desde ventas cerradas del período.</p>
+        </div>
+
+        <!-- Formulario de liquidación -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="margin-bottom:12px;">
+            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Crear nueva liquidación</h4>
+            <p class="muted" style="margin:0;font-size:12px;">Selecciona período, técnico y los conceptos asignados a ese técnico que deseas aplicar. Las comisiones se calcularán automáticamente.</p>
+          </div>
+          <div class="row wrap" style="gap:16px;">
+            <!-- Selección de período y técnico -->
+            <div class="row wrap" style="gap:12px;flex:1;min-width:300px;">
+              <div style="flex:1;min-width:200px;">
+                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Período</label>
+                <select id="pl-periodSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                  <option value="">Seleccione período…</option>
+                </select>
+              </div>
+              <div style="flex:1;min-width:200px;">
+                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Técnico</label>
+                <select id="pl-technicianSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                  <option value="">Seleccione técnico…</option>
+                </select>
+              </div>
+            </div>
+            
+            <!-- Botones de acción -->
+            <div class="row" style="gap:8px;align-items:end;">
+              <button id="pl-preview" class="secondary" style="padding:8px 16px;font-weight:600;">
+                👁️ Previsualizar
+              </button>
+              <button id="pl-approve" style="padding:8px 16px;font-weight:600;">
+                ✓ Aprobar
+              </button>
+            </div>
+          </div>
+          
+          <!-- Conceptos asignados con tarjetas bonitas -->
+          <div style="margin-top:16px;">
+            <label style="display:block;font-size:13px;color:var(--muted);margin-bottom:8px;font-weight:600;">Conceptos asignados (selecciona cuáles aplicar)</label>
+            <div id="pl-concepts-container" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:12px;min-height:60px;">
+              <div class="muted" style="grid-column:1/-1;text-align:center;font-size:12px;padding:16px;border:1px dashed var(--border);border-radius:8px;">Selecciona período y técnico primero</div>
+            </div>
+          </div>
+          <div class="muted" style="margin-top:8px;font-size:12px;padding:8px;background:rgba(59,130,246,0.05);border-radius:6px;">
+            💡 <strong>Nota:</strong> Solo se mostrarán los conceptos que están asignados al técnico seleccionado. Las comisiones se calculan automáticamente desde las ventas cerradas del período. Puedes configurar el formato del comprobante en <a href="template-selector.html" style="color:var(--primary);text-decoration:underline;">Formatos</a> (tipo: Nómina).
+          </div>
+        </div>
+
+        <!-- Resultado preview/lista -->
+        <div id="pl-result" style="margin-top:0;"></div>
+      </div>
+
+      <div class="card hidden" style="margin-top:12px;" data-subsection="periods">
+        <div style="margin-bottom:16px;">
+          <h3 style="margin:0 0 4px 0;">Períodos de liquidación</h3>
+          <p class="muted" style="margin:0;font-size:13px;">Define períodos de tiempo (mensual, quincenal, semanal) para calcular comisiones por ventas y generar liquidaciones.</p>
+        </div>
+
+        <!-- Crear nuevo período -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="margin-bottom:12px;">
+            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Crear nuevo período</h4>
+            <p class="muted" style="margin:0;font-size:12px;">Puedes crear períodos que se solapen para manejar diferentes frecuencias de pago (quincenal, semanal, etc.).</p>
+          </div>
+          <div class="row wrap" style="gap:12px;align-items:end;">
+            <div style="flex:1;min-width:160px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Fecha inicio</label>
+              <input id="ppd-start" type="date" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+            </div>
+            <div style="flex:1;min-width:160px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Fecha fin</label>
+              <input id="ppd-end" type="date" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+            </div>
+            <div style="min-width:160px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Tipo</label>
+              <select id="ppd-type" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="monthly">📅 Mensual</option>
+                <option value="biweekly">📆 Quincenal</option>
+                <option value="weekly">🗓️ Semanal</option>
+              </select>
+            </div>
+            <div style="min-width:140px;">
+              <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+              <button id="ppd-create" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
+                ➕ Crear período
+              </button>
+            </div>
+          </div>
+          <div id="ppd-msg" style="margin-top:12px;font-size:13px;"></div>
+        </div>
+
+        <!-- Listado de períodos -->
+        <div>
+          <div style="margin-bottom:12px;">
+            <h4 style="margin:0;font-size:14px;font-weight:600;">Períodos creados</h4>
+            <p class="muted" style="margin:4px 0 0 0;font-size:12px;">Gestiona períodos abiertos y cerrados.</p>
+          </div>
+          <div id="ppd-list" style="margin-top:0;"></div>
+        </div>
+      </div>
+
+      <div class="card hidden" style="margin-top:12px;" data-subsection="pay">
+        <div style="margin-bottom:16px;">
+          <h3 style="margin:0 0 4px 0;">Pagar liquidaciones</h3>
+          <p class="muted" style="margin:0;font-size:13px;">Registra el pago de liquidaciones aprobadas en el Flujo de Caja. El pago se reflejará como salida de la cuenta seleccionada.</p>
+        </div>
+
+        <!-- Listado de liquidaciones pendientes -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="margin-bottom:12px;">
+            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Liquidaciones pendientes de pago</h4>
+            <p class="muted" style="margin:0;font-size:12px;">Selecciona una liquidación aprobada para procesar el pago.</p>
+          </div>
+          <div id="pp-pending-list" style="margin-top:0;"></div>
+        </div>
+
+        <!-- Formulario de pago -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="margin-bottom:12px;">
+            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Registrar pago</h4>
+            <p class="muted" style="margin:0;font-size:12px;">Selecciona la liquidación y la cuenta de donde saldrá el dinero.</p>
+          </div>
+          <div class="row wrap" style="gap:12px;align-items:end;">
+            <div style="flex:1;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Liquidación</label>
+              <select id="pp-settlementSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="">Seleccione liquidación…</option>
+              </select>
+            </div>
+            <div style="min-width:160px;display:none;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Fecha de pago</label>
+              <input id="pp-date" type="datetime-local" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+            </div>
+            <div style="min-width:120px;">
+              <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+              <button id="pp-pay" style="width:100%;padding:8px 16px;font-weight:600;">
+                💰 Pagar
+              </button>
+            </div>
+          </div>
+          <div id="pp-settlement-info" style="margin-top:12px;padding:12px;background:rgba(59,130,246,0.05);border-radius:6px;font-size:13px;display:none;">
+            <!-- Información de la liquidación seleccionada -->
+          </div>
+          <div id="pp-payments-container" style="margin-top:16px;display:none;">
+            <div style="margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <label style="display:block;font-size:13px;color:var(--muted);font-weight:600;">Pagos parciales</label>
+                <button id="pp-add-payment" class="secondary" style="padding:6px 12px;font-size:12px;font-weight:600;">
+                  + Agregar pago
+                </button>
+              </div>
+              <div id="pp-payments-list" style="display:flex;flex-direction:column;gap:8px;">
+                <!-- Los pagos se agregarán aquí dinámicamente -->
+              </div>
+              <div id="pp-payments-summary" style="margin-top:12px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:6px;display:none;">
+                <!-- Resumen de pagos -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resultado -->
+        <div id="pp-result" style="margin-top:0;"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="./assets/js/api.js"></script>
+  <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
+  <script type="module" src="./assets/js/payroll.js"></script>
+  <script src="./assets/js/input-fix.js"></script>
+</body>
+<!-- Nota: en una iteración siguiente reemplazaremos IDs manuales por selectores bonitos. -->
+</html>
+
+

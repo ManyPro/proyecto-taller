@@ -1,10 +1,26 @@
 import CustomerProfile from '../models/CustomerProfile.js';
 import CustomerProfileHistory from '../models/CustomerProfileHistory.js';
+import Vehicle from '../models/Vehicle.js';
 
 function cleanString(value) {
   return typeof value === 'string' ? value.trim() : String(value ?? '').trim();
 }
 function upper(value) { return cleanString(value).toUpperCase(); }
+
+async function findOrCreateVehicle(brand, line, engine) {
+  if (!brand || !line || !engine) return null;
+  try {
+    const vehicle = await Vehicle.findOne({
+      make: brand,
+      line: line,
+      displacement: engine,
+      active: true
+    });
+    return vehicle?._id || null;
+  } catch {
+    return null;
+  }
+}
 
 function buildPayload(companyId, src = {}) {
   const plate = upper(src?.vehicle?.plate || src?.vehicle?.Plate || '');
@@ -21,6 +37,7 @@ function buildPayload(companyId, src = {}) {
     },
     vehicle: {
       plate,
+      vehicleId: src?.vehicle?.vehicleId || null,
       brand: upper(src?.vehicle?.brand || src?.vehicle?.make || ''),
       line: upper(src?.vehicle?.line || ''),
       engine: upper(src?.vehicle?.engine || src?.vehicle?.displacement || ''),
@@ -39,7 +56,7 @@ function score(doc) {
 function merge(base={}, payload, opts={}) {
   const { overwriteCustomer=false, overwriteVehicle=false, overwriteMileage=false, overwriteYear=false } = opts;
   const c = { idNumber:'', name:'', phone:'', email:'', address:'', ...(base.customer||{}) };
-  const v = { plate: payload.plate, brand:'', line:'', engine:'', year:null, mileage:null, ...(base.vehicle||{}) };
+  const v = { plate: payload.plate, vehicleId: payload.vehicle.vehicleId || base.vehicle?.vehicleId || null, brand:'', line:'', engine:'', year:null, mileage:null, ...(base.vehicle||{}) };
   for (const k of Object.keys(payload.customer)) {
     const val = payload.customer[k];
     if (!val) continue;
@@ -49,6 +66,10 @@ function merge(base={}, payload, opts={}) {
     const val = payload.vehicle[k];
     if (!val) continue;
     if (overwriteVehicle || !v[k]) v[k]=val;
+  }
+  // Preservar vehicleId si viene en payload
+  if (payload.vehicle.vehicleId) {
+    v.vehicleId = payload.vehicle.vehicleId;
   }
   if (payload.vehicle.year!=null) {
     if (overwriteYear || v.year==null) v.year = payload.vehicle.year;
@@ -62,6 +83,15 @@ function merge(base={}, payload, opts={}) {
 export async function upsertProfileFromSource(companyId, sourceDoc, options={}) {
   const payload = buildPayload(companyId, sourceDoc);
   if (!payload) return null;
+  
+  // Buscar vehículo en la BD global si no está linkeado y tenemos marca/línea/cilindraje
+  if (!payload.vehicle.vehicleId && payload.vehicle.brand && payload.vehicle.line && payload.vehicle.engine) {
+    const vehicleId = await findOrCreateVehicle(payload.vehicle.brand, payload.vehicle.line, payload.vehicle.engine);
+    if (vehicleId) {
+      payload.vehicle.vehicleId = vehicleId;
+    }
+  }
+  
   const query = { companyId: payload.companyId, $or: [{ plate: payload.plate }, { 'vehicle.plate': payload.plate }] };
   let docs = await CustomerProfile.find(query).sort({ updatedAt: -1, createdAt: -1 });
   if (!docs.length) {
@@ -79,6 +109,15 @@ export async function upsertProfileFromSource(companyId, sourceDoc, options={}) 
   }
   const before = primary.toObject();
   const merged = merge(primary, payload, options);
+  
+  // Si no tiene vehicleId pero tenemos marca/línea/cilindraje, buscar
+  if (!merged.vehicle.vehicleId && merged.vehicle.brand && merged.vehicle.line && merged.vehicle.engine) {
+    const vehicleId = await findOrCreateVehicle(merged.vehicle.brand, merged.vehicle.line, merged.vehicle.engine);
+    if (vehicleId) {
+      merged.vehicle.vehicleId = vehicleId;
+    }
+  }
+  
   primary.set(merged);
   primary.plate = merged.plate;
   if (!primary.vehicle) primary.vehicle = {}; primary.vehicle.plate = merged.vehicle.plate;

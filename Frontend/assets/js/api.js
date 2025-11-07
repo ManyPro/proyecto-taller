@@ -65,7 +65,8 @@ async function coreRequest(method, path, data, extraHeaders = {}) {
   let body; try { body = JSON.parse(text); } catch { body = text; }
 
   if (!res.ok) {
-    const msg = (body && body.error) ? body.error : (typeof body === 'string' ? body : res.statusText);
+    // Preferir 'message' si está disponible (más descriptivo), sino usar 'error'
+    const msg = (body && body.message) ? body.message : ((body && body.error) ? body.error : (typeof body === 'string' ? body : res.statusText));
     throw new Error(msg || `HTTP ${res.status}`);
   }
   return body;
@@ -99,6 +100,24 @@ const API = {
   token: tokenStore,
   companyId: companyIdStore,
   
+  // Métodos HTTP directos para uso general
+  get: (path, params) => {
+    // Si params es undefined o null, usar objeto vacío
+    // Si es string, asumir que ya es query string
+    if (params === undefined || params === null) {
+      return http.get(path);
+    }
+    if (typeof params === 'string') {
+      return http.get(`${path}${params}`);
+    }
+    const query = toQuery(params || {});
+    return http.get(`${path}${query}`);
+  },
+  post: (path, payload) => http.post(path, payload),
+  put: (path, payload) => http.put(path, payload),
+  patch: (path, payload) => http.patch(path, payload),
+  del: (path) => http.del(path),
+  
   company: {
     getPreferences: () => http.get('/api/v1/company/preferences').then(r=> r.preferences || { laborPercents: [] }),
     setPreferences: (prefs) => http.put('/api/v1/company/preferences', prefs).then(r=> r.preferences || {}),
@@ -112,7 +131,14 @@ const API = {
       return res.technicians || [];
     },
     getTechConfig: () => http.get('/api/v1/company/tech-config').then(r=> r.config || { laborKinds:[], technicians:[] }),
-    setTechConfig: (config) => http.put('/api/v1/company/tech-config', config).then(r=> r.config || config)
+    setTechConfig: (config) => http.put('/api/v1/company/tech-config', config).then(r=> r.config || config),
+    updateTechConfig: (updates) => {
+      return http.get('/api/v1/company/tech-config').then(r => {
+        const current = r.config || { laborKinds: [], technicians: [] };
+        const merged = { ...current, ...updates };
+        return http.put('/api/v1/company/tech-config', merged).then(res => res.config || merged);
+      });
+    }
   },
 
   // Empresa activa
@@ -205,6 +231,19 @@ const API = {
     return await res.blob();
   },
 
+  // --- Vehículos (global) ---
+  vehicles: {
+    list: (params = {}) => http.get(`/api/v1/vehicles${toQuery(params)}`),
+    get: (id) => http.get(`/api/v1/vehicles/${id}`),
+    create: (payload) => http.post('/api/v1/vehicles', payload),
+    update: (id, payload) => http.put(`/api/v1/vehicles/${id}`, payload),
+    delete: (id, hard = false) => http.del(`/api/v1/vehicles/${id}${hard ? '?hard=true' : ''}`),
+    search: (params = {}) => http.get(`/api/v1/vehicles/search${toQuery(params)}`),
+    getMakes: () => http.get('/api/v1/vehicles/makes'),
+    getLinesByMake: (make) => http.get(`/api/v1/vehicles/makes/${encodeURIComponent(make)}/lines`),
+    validateYear: (vehicleId, year) => http.get(`/api/v1/vehicles/validate-year?vehicleId=${vehicleId}&year=${year}`)
+  },
+
   // --- Inventario ---
   inventory: {
     itemsList: async (params = {}) => {
@@ -289,7 +328,15 @@ const API = {
     list: (params={}) => http.get(`/api/v1/cashflow/entries${toQuery(params)}`),
     create: (payload) => http.post('/api/v1/cashflow/entries', payload),
     update: (id, payload) => http.patch(`/api/v1/cashflow/entries/${id}`, payload),
-    delete: (id) => http.del(`/api/v1/cashflow/entries/${id}`)
+    delete: (id) => http.del(`/api/v1/cashflow/entries/${id}`),
+    // Préstamos a empleados
+    loans: {
+      list: (params={}) => http.get(`/api/v1/cashflow/loans${toQuery(params)}`),
+      create: (payload) => http.post('/api/v1/cashflow/loans', payload),
+      getPending: (technicianName) => http.get(`/api/v1/cashflow/loans/pending?technicianName=${encodeURIComponent(technicianName)}`),
+      update: (id, payload) => http.patch(`/api/v1/cashflow/loans/${id}`, payload),
+      delete: (id) => http.del(`/api/v1/cashflow/loans/${id}`)
+    }
   },
   templates: {
     list: (params={}) => http.get(`/api/v1/templates${toQuery(params)}`),

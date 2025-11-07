@@ -29,9 +29,11 @@ import companyRouter from './routes/company.routes.js';
 import cashflowRouter from './routes/cashflow.routes.js';
 import templatesRouter from './routes/templates.routes.js';
 import notificationsRouter from './routes/notifications.routes.js';
+import payrollRouter from './routes/payroll.routes.js';
 import publicCatalogRouter from './routes/catalog.public.routes.js';
 import adminRouter from './routes/admin.routes.js';
 import adminCompanyRouter from './routes/admin.company.routes.js';
+import vehiclesRouter from './routes/vehicles.routes.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -147,10 +149,12 @@ const envAllow = (process.env.ALLOWED_ORIGINS || '')
 
 const defaultAllow = [
   'https://proyecto-taller.netlify.app',
+  'https://proyecto-taller-dev.netlify.app',
   'http://localhost',
   'http://127.0.0.1',
   'http://localhost:5173',
-  'http://localhost:3000'
+  'http://localhost:3000',
+  'http://localhost:8080'
 ];
 
 const allowList = envAllow.length ? envAllow : defaultAllow;
@@ -225,6 +229,8 @@ app.use('/api/v1/cashflow', authCompany, withCompanyDefaults, cashflowRouter);
 app.use('/api/v1/templates', authCompany, withCompanyDefaults, templatesRouter);
 app.use('/api/v1/notifications', authCompany, withCompanyDefaults, notificationsRouter);
 app.use('/api/v1/skus', authCompany, withCompanyDefaults, skusRouter);
+app.use('/api/v1/payroll', authCompany, withCompanyDefaults, payrollRouter);
+app.use('/api/v1/vehicles', authCompany, vehiclesRouter); // Global, sin companyId
 
 app.use((err, _req, res, _next) => {
   const isJsonParse = err?.type === 'entity.parse.failed' || (err instanceof SyntaxError && 'body' in err);

@@ -4,6 +4,8 @@ import Quote from '../models/Quote.js';
 import Company from '../models/Company.js';
 import Order from '../models/Order.js';
 import Item from '../models/Item.js';
+import PayrollSettlement from '../models/PayrollSettlement.js';
+import PayrollPeriod from '../models/PayrollPeriod.js';
 import Handlebars from 'handlebars';
 import QRCode from 'qrcode';
 
@@ -65,6 +67,40 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
       } catch (e) {
         // No bloquear si falla QR; continuar sin QR
         ctx.item.qr = '';
+      }
+    }
+  }
+  // Liquidación de nómina (payroll)
+  if (effective === 'payroll') {
+    let settlement = null;
+    if (sampleId) settlement = await PayrollSettlement.findOne({ _id: sampleId, companyId });
+    else settlement = await PayrollSettlement.findOne({ companyId }).sort({ createdAt: -1 });
+    if (settlement) {
+      const settlementObj = settlement.toObject();
+      const period = await PayrollPeriod.findOne({ _id: settlement.periodId, companyId });
+      
+      // Separar items por tipo
+      const itemsByType = {
+        earnings: (settlementObj.items || []).filter(i => i.type === 'earning'),
+        deductions: (settlementObj.items || []).filter(i => i.type === 'deduction'),
+        surcharges: (settlementObj.items || []).filter(i => i.type === 'surcharge')
+      };
+      
+      ctx.settlement = {
+        ...settlementObj,
+        itemsByType,
+        formattedGrossTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(settlementObj.grossTotal || 0),
+        formattedDeductionsTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(settlementObj.deductionsTotal || 0),
+        formattedNetTotal: new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(settlementObj.netTotal || 0)
+      };
+      
+      if (period) {
+        ctx.period = {
+          ...period.toObject(),
+          formattedStartDate: period.startDate ? new Date(period.startDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '',
+          formattedEndDate: period.endDate ? new Date(period.endDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '',
+          periodTypeLabel: period.periodType === 'monthly' ? 'Mensual' : period.periodType === 'biweekly' ? 'Quincenal' : period.periodType === 'weekly' ? 'Semanal' : period.periodType
+        };
       }
     }
   }

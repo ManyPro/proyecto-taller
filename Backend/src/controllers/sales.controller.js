@@ -193,19 +193,92 @@ export const addItem = async (req, res) => {
     };
   } else if (src === 'price') {
     if (refId) {
-      const pe = await PriceEntry.findOne({ _id: refId, companyId: String(req.companyId) });
+      const pe = await PriceEntry.findOne({ _id: refId, companyId: String(req.companyId) })
+        .populate('itemId', 'sku name stock salePrice')
+        .populate('comboProducts.itemId', 'sku name stock salePrice');
       if (!pe) return res.status(404).json({ error: 'PriceEntry not found' });
       const q = asNum(qty) || 1;
       const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNum(pe.total || pe.price);
-      itemData = {
-        source: 'price',
-        refId: pe._id,
-        sku: `SRV-${String(pe._id).slice(-6)}`,
-        name: `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim(),
-        qty: q,
-        unitPrice: up,
-        total: Math.round(q * up)
-      };
+      // Usar pe.name si existe (nuevo modelo), sino fallback a campos legacy
+      const itemName = pe.name && pe.name.trim() 
+        ? pe.name.trim()
+        : `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim() || 'Servicio';
+      
+      // Si es combo, agregar todos los productos del combo
+      if (pe.type === 'combo' && Array.isArray(pe.comboProducts) && pe.comboProducts.length > 0) {
+        // Los combos se agregan como múltiples items, así que usamos addItemsBatch
+        // Por ahora, agregamos el combo como un item principal y luego agregamos los productos
+        // Primero agregamos el combo principal como price
+        sale.items.push({
+          source: 'price',
+          refId: pe._id,
+          sku: `COMBO-${String(pe._id).slice(-6)}`,
+          name: itemName,
+          qty: q,
+          unitPrice: up,
+          total: Math.round(q * up)
+        });
+        
+        // Luego agregamos cada producto del combo
+        for (const cp of pe.comboProducts) {
+          const comboQty = q * (cp.qty || 1);
+          if (cp.itemId) {
+            // Producto vinculado: agregar como inventory para que se descuente
+            const comboItem = cp.itemId;
+            sale.items.push({
+              source: 'inventory',
+              refId: comboItem._id,
+              sku: comboItem.sku || `CP-${String(cp._id || '').slice(-6)}`,
+              name: cp.name || 'Producto del combo',
+              qty: comboQty,
+              unitPrice: cp.unitPrice || 0,
+              total: Math.round(comboQty * (cp.unitPrice || 0))
+            });
+          } else {
+            // Producto sin vincular: agregar como price
+            sale.items.push({
+              source: 'price',
+              refId: new mongoose.Types.ObjectId(),
+              sku: `CP-${String(cp._id || new mongoose.Types.ObjectId()).slice(-6)}`,
+              name: cp.name || 'Producto del combo',
+              qty: comboQty,
+              unitPrice: cp.unitPrice || 0,
+              total: Math.round(comboQty * (cp.unitPrice || 0))
+            });
+          }
+        }
+        
+        computeTotals(sale);
+        await sale.save();
+        await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+        try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+        return res.json(sale.toObject());
+      }
+      
+      // Si es producto vinculado con inventario, agregar como inventory para que se descuente
+      if (pe.type === 'product' && pe.itemId) {
+        const item = pe.itemId;
+        itemData = {
+          source: 'inventory',
+          refId: item._id,
+          sku: item.sku || `PRD-${String(pe._id).slice(-6)}`,
+          name: itemName,
+          qty: q,
+          unitPrice: up,
+          total: Math.round(q * up)
+        };
+      } else {
+        // Servicio o producto sin vincular: agregar como price (no descuenta inventario)
+        itemData = {
+          source: 'price',
+          refId: pe._id,
+          sku: `SRV-${String(pe._id).slice(-6)}`,
+          name: itemName,
+          qty: q,
+          unitPrice: up,
+          total: Math.round(q * up)
+        };
+      }
     } else {
       // LÃ­nea manual de servicio
       const q = asNum(qty) || 1;
@@ -289,18 +362,81 @@ export const addItemsBatch = async (req, res) => {
 
       if (source === 'price') {
         if (raw.refId) {
-          const pe = await PriceEntry.findOne({ _id: raw.refId, companyId: req.companyId });
+          const pe = await PriceEntry.findOne({ _id: raw.refId, companyId: req.companyId })
+            .populate('itemId', 'sku name stock salePrice')
+            .populate('comboProducts.itemId', 'sku name stock salePrice');
           if (!pe) throw new Error('PriceEntry not found');
           const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : asNum(pe.total || pe.price);
-          added.push({
-            source: 'price',
-            refId: pe._id,
-            sku: `SRV-${String(pe._id).slice(-6)}`,
-            name: `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim(),
-            qty,
-            unitPrice: up,
-            total: Math.round(qty * up)
-          });
+          // Usar pe.name si existe (nuevo modelo), sino fallback a campos legacy
+          const itemName = pe.name && pe.name.trim() 
+            ? pe.name.trim()
+            : `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim() || 'Servicio';
+          
+          // Si es combo, agregar todos los productos del combo
+          if (pe.type === 'combo' && Array.isArray(pe.comboProducts) && pe.comboProducts.length > 0) {
+            // Primero agregamos el combo principal como price
+            added.push({
+              source: 'price',
+              refId: pe._id,
+              sku: `COMBO-${String(pe._id).slice(-6)}`,
+              name: itemName,
+              qty,
+              unitPrice: up,
+              total: Math.round(qty * up)
+            });
+            
+            // Luego agregamos cada producto del combo
+            for (const cp of pe.comboProducts) {
+              const comboQty = qty * (cp.qty || 1);
+              if (cp.itemId) {
+                // Producto vinculado: agregar como inventory para que se descuente
+                const comboItem = cp.itemId;
+                added.push({
+                  source: 'inventory',
+                  refId: comboItem._id,
+                  sku: comboItem.sku || `CP-${String(cp._id || '').slice(-6)}`,
+                  name: cp.name || 'Producto del combo',
+                  qty: comboQty,
+                  unitPrice: cp.unitPrice || 0,
+                  total: Math.round(comboQty * (cp.unitPrice || 0))
+                });
+              } else {
+                // Producto sin vincular: agregar como price
+                added.push({
+                  source: 'price',
+                  refId: new mongoose.Types.ObjectId(),
+                  sku: `CP-${String(cp._id || new mongoose.Types.ObjectId()).slice(-6)}`,
+                  name: cp.name || 'Producto del combo',
+                  qty: comboQty,
+                  unitPrice: cp.unitPrice || 0,
+                  total: Math.round(comboQty * (cp.unitPrice || 0))
+                });
+              }
+            }
+          } else if (pe.type === 'product' && pe.itemId) {
+            // Si es producto vinculado con inventario, agregar como inventory para que se descuente
+            const item = pe.itemId;
+            added.push({
+              source: 'inventory',
+              refId: item._id,
+              sku: item.sku || `PRD-${String(pe._id).slice(-6)}`,
+              name: itemName,
+              qty,
+              unitPrice: up,
+              total: Math.round(qty * up)
+            });
+          } else {
+            // Servicio o producto sin vincular: agregar como price (no descuenta inventario)
+            added.push({
+              source: 'price',
+              refId: pe._id,
+              sku: `SRV-${String(pe._id).slice(-6)}`,
+              name: itemName,
+              qty,
+              unitPrice: up,
+              total: Math.round(qty * up)
+            });
+          }
         } else {
           const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : 0;
           added.push({
@@ -411,14 +547,43 @@ export const setCustomerVehicle = async (req, res) => {
     email: (customer.email || '').trim(),
     address: (customer.address || '').trim()
   };
-  sale.vehicle = {
+  // Si se proporciona vehicleId, obtener datos del vehículo
+  let vehicleData = {
     plate: (vehicle.plate || '').toUpperCase(),
+    vehicleId: vehicle.vehicleId || null,
     brand: (vehicle.brand || '').toUpperCase(),
     line: (vehicle.line || '').toUpperCase(),
     engine: (vehicle.engine || '').toUpperCase(),
     year: vehicle.year ?? null,
     mileage: vehicle.mileage ?? null
   };
+
+  if (vehicle.vehicleId) {
+    const Vehicle = (await import('../models/Vehicle.js')).default;
+    const vehicleDoc = await Vehicle.findById(vehicle.vehicleId);
+    if (vehicleDoc && vehicleDoc.active) {
+      vehicleData.vehicleId = vehicleDoc._id;
+      vehicleData.brand = vehicleDoc.make;
+      vehicleData.line = vehicleDoc.line;
+      vehicleData.engine = vehicleDoc.displacement;
+      // Validar año si se proporciona
+      if (vehicle.year !== undefined && vehicle.year !== null) {
+        const yearNum = Number(vehicle.year);
+        if (!vehicleDoc.isYearInRange(yearNum)) {
+          const range = vehicleDoc.getYearRange();
+          return res.status(400).json({ 
+            error: 'Año fuera de rango',
+            message: `El año ${yearNum} está fuera del rango permitido para este vehículo${range ? ` (${range.start}-${range.end})` : ''}`
+          });
+        }
+        vehicleData.year = yearNum;
+      }
+    } else {
+      return res.status(404).json({ error: 'Vehículo no encontrado o inactivo' });
+    }
+  }
+
+  sale.vehicle = vehicleData;
   if (typeof notes === 'string') sale.notes = notes;
 
   await sale.save();
@@ -569,28 +734,25 @@ export const closeSale = async (req, res) => {
       if (paymentReceiptUrl) sale.paymentReceiptUrl = paymentReceiptUrl;
       await sale.save({ session });
     });
-    // Fuera de la transacciÃ³n: verificar alertas de stock bajo con stocks ya comprometidos
-    if (affectedItemIds.length) {
-      try { await checkLowStockForMany(req.companyId, affectedItemIds); } catch {}
-    }
-
+    
     const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
     await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+    
+    // Verificar alertas de stock después del cierre de venta (una sola vez)
+    if (affectedItemIds.length > 0) {
+      try {
+        await checkLowStockForMany(req.companyId, affectedItemIds);
+      } catch (e) {
+        console.error('Error checking stock alerts after sale close:', e?.message);
+      }
+    }
+    
     let cashflowEntries = [];
     try {
       const accountId = req.body?.accountId; // opcional desde frontend
       const resEntries = await registerSaleIncome({ companyId: req.companyId, sale, accountId });
       cashflowEntries = Array.isArray(resEntries) ? resEntries : (resEntries ? [resEntries] : []);
     } catch(e) { console.warn('registerSaleIncome failed:', e?.message||e); }
-    
-    // Verificar alertas de stock después del cierre de venta
-    try {
-      if (affectedItemIds.length > 0) {
-        await checkLowStockForMany(req.companyId, affectedItemIds);
-      }
-    } catch (e) {
-      console.error('Error checking stock alerts after sale close:', e?.message);
-    }
     
     try{ publish(req.companyId, 'sale:closed', { id: (sale?._id)||undefined }) }catch{}
     res.json({ ok: true, sale: sale.toObject(), cashflowEntries });
@@ -722,6 +884,23 @@ export const getProfileByPlate = async (req, res) => {
     primary.vehicle.plate = plate;
     mutated = true;
   }
+  
+  // Buscar y linkear vehículo si no está linkeado y tenemos marca/línea/cilindraje
+  if (!primary.vehicle.vehicleId && primary.vehicle.brand && primary.vehicle.line && primary.vehicle.engine) {
+    try {
+      const Vehicle = (await import('../models/Vehicle.js')).default;
+      const vehicle = await Vehicle.findOne({
+        make: primary.vehicle.brand,
+        line: primary.vehicle.line,
+        displacement: primary.vehicle.engine,
+        active: true
+      });
+      if (vehicle) {
+        primary.vehicle.vehicleId = vehicle._id;
+        mutated = true;
+      }
+    } catch {}
+  }
 
   if (mutated) {
     try {
@@ -753,9 +932,60 @@ export const listSales = async (req, res) => {
   const q = { companyId: req.companyId };
   if (status) q.status = String(status);
   if (from || to) {
-    q.createdAt = {};
-    if (from) q.createdAt.$gte = new Date(from);
-    if (to) q.createdAt.$lte = new Date(`${to}T23:59:59.999Z`);
+    // Usar closedAt si está disponible, sino createdAt
+    // Para ventas cerradas, es más preciso usar closedAt
+    const fromDate = from ? new Date(from) : null;
+    const toDate = to ? new Date(`${to}T23:59:59.999Z`) : null;
+    
+    // Construir filtro de fecha usando $expr para manejar closedAt o createdAt
+    const dateConditions = [];
+    
+    if (fromDate && toDate) {
+      dateConditions.push({
+        $and: [
+          { $ne: ['$closedAt', null] },
+          { $gte: ['$closedAt', fromDate] },
+          { $lte: ['$closedAt', toDate] }
+        ]
+      });
+      dateConditions.push({
+        $and: [
+          { $or: [{ $eq: ['$closedAt', null] }, { $not: { $ifNull: ['$closedAt', false] } }] },
+          { $gte: ['$createdAt', fromDate] },
+          { $lte: ['$createdAt', toDate] }
+        ]
+      });
+    } else if (fromDate) {
+      dateConditions.push({
+        $and: [
+          { $ne: ['$closedAt', null] },
+          { $gte: ['$closedAt', fromDate] }
+        ]
+      });
+      dateConditions.push({
+        $and: [
+          { $or: [{ $eq: ['$closedAt', null] }, { $not: { $ifNull: ['$closedAt', false] } }] },
+          { $gte: ['$createdAt', fromDate] }
+        ]
+      });
+    } else if (toDate) {
+      dateConditions.push({
+        $and: [
+          { $ne: ['$closedAt', null] },
+          { $lte: ['$closedAt', toDate] }
+        ]
+      });
+      dateConditions.push({
+        $and: [
+          { $or: [{ $eq: ['$closedAt', null] }, { $not: { $ifNull: ['$closedAt', false] } }] },
+          { $lte: ['$createdAt', toDate] }
+        ]
+      });
+    }
+    
+    if (dateConditions.length > 0) {
+      q.$expr = { $or: dateConditions };
+    }
   }
   if (plate) {
     q['vehicle.plate'] = String(plate).toUpperCase();
@@ -764,7 +994,7 @@ export const listSales = async (req, res) => {
   const lim = Math.max(1, Math.min(500, Number(limit || 50)));
 
   const [items, total] = await Promise.all([
-    Sale.find(q).sort({ createdAt: -1 }).skip((pg - 1) * lim).limit(lim),
+    Sale.find(q).sort({ closedAt: -1, createdAt: -1 }).skip((pg - 1) * lim).limit(lim).lean(),
     Sale.countDocuments(q)
   ]);
   res.json({ items, page: pg, limit: lim, total });

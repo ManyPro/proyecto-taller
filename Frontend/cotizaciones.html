@@ -35,8 +35,7 @@
             <button data-tab="inventario" data-feature="inventario" data-href="inventario.html">Inventario</button>
             <button data-tab="precios" data-feature="precios" data-href="precios.html">Lista de precios</button>
             <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html">Flujo de Caja</button>
-            <button data-tab="reporte-tecnico" data-feature="techreport" data-href="reporte-tecnico.html">Reporte Tecnico</button>
-            <button data-tab="tecnicos" data-feature="tecnicos" data-href="tecnicos.html">Tecnicos</button>
+            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html">Nómina</button>
             <button data-tab="formatos" data-feature="templates" data-href="template-selector.html">Formatos</button>
             <button data-tab="skus" data-feature="skus" data-href="skus.html">SKUs</button>
           </nav>
@@ -94,14 +93,22 @@
 
             <label>Placa</label>
             <input id="q-plate" placeholder="ABC123" />
+            <div style="position:relative;margin-top:8px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Vehículo (opcional)</label>
+              <input id="q-vehicle-search" placeholder="Buscar vehículo (marca, línea, cilindraje)..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+              <div id="q-vehicle-dropdown" style="display:none;position:absolute;z-index:1000;background:var(--card);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;margin-top:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:100%;"></div>
+              <input type="hidden" id="q-vehicle-id" />
+              <div id="q-vehicle-selected" style="margin-top:4px;font-size:12px;color:var(--muted);"></div>
+            </div>
             <div class="row">
-              <input id="q-brand" placeholder="Marca" />
-              <input id="q-line" placeholder="Línea/Modelo" />
+              <input id="q-brand" placeholder="Marca" readonly style="background:var(--bg-secondary);" />
+              <input id="q-line" placeholder="Línea/Modelo" readonly style="background:var(--bg-secondary);" />
             </div>
             <div class="row">
               <input id="q-year" placeholder="Año" />
-              <input id="q-cc" placeholder="Cilindraje" />
+              <input id="q-cc" placeholder="Cilindraje" readonly style="background:var(--bg-secondary);" />
             </div>
+            <div id="q-year-warning" style="display:none;font-size:11px;color:var(--danger,#ef4444);margin-top:4px;"></div>
             <div class="row">
               <input id="q-mileage" placeholder="Kilometraje" type="number" min="0" step="1" />
             </div>
@@ -158,11 +165,6 @@
                   <input type="number" min="0" step="0.01" placeholder="Precio" />
                 </div>
                 <div class="small">
-                  <label class="sr-only">Precio mínimo</label>
-                  <input type="number" min="0" step="0.01" placeholder="Precio mín." class="min-price-input" style="display: none; width: 100%;" />
-                  <button type="button" class="secondary min-price-btn" style="font-size: 11px; padding: 6px 10px; width: 100%; border-radius: 4px; background: #6c757d; color: white; border: none; cursor: pointer; transition: background 0.2s ease;" onmouseover="this.style.background='#5a6268'" onmouseout="this.style.background='#6c757d'">Precio mín.</button>
-                </div>
-                <div class="small">
                   <label class="sr-only">Subtotal</label>
                   <input disabled placeholder="$0" />
                 </div>
@@ -173,8 +175,7 @@
             </div>
 
             <div class="row" id="q-addbar">
-              <button id="q-addRow">+ Agregar línea</button>
-              <button id="q-addQR" class="secondary">Agregar por QR</button>
+              <button id="q-add-unified" class="primary">➕ Agregar</button>
             </div>
 
             <div class="totals">
@@ -218,6 +219,36 @@
     </section>
   </main>
 
+  <!-- Lector QR (Cotizaciones) -->
+  <template id="tpl-qr-scanner-quote">
+    <div>
+      <h3>Lector de QR</h3>
+      <div class="qrbar row">
+        <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;">
+          <label>Camara</label>
+          <select id="qr-cam-quote"></select>
+        </div>
+        <div class="row" style="gap:8px;flex-wrap:wrap;">
+          <button id="qr-single-mode-quote" class="secondary" style="white-space:nowrap;">📦 Agregar solo un item</button>
+          <button id="qr-multi-mode-quote" class="secondary" style="white-space:nowrap;">➕ Agregar múltiples items</button>
+          <button id="qr-finish-multi-quote" class="secondary" style="white-space:nowrap;display:none;">✓ Terminar de agregar</button>
+        </div>
+      </div>
+      <div class="qrwrap">
+        <video id="qr-video-quote" playsinline muted></video>
+        <canvas id="qr-canvas-quote" style="display:none;"></canvas>
+        <div class="qr-hud"></div>
+      </div>
+      <div class="row" style="gap:8px;margin-top:8px;">
+        <input id="qr-manual-quote" placeholder="Ingresar código manualmente (fallback)">
+        <button id="qr-add-manual-quote">Agregar</button>
+      </div>
+      <div class="muted" id="qr-msg-quote" style="margin-top:6px;">Permite la cámara para escanear. Si no hay soporte nativo, usa jsQR.</div>
+      <ul id="qr-history-quote" class="qr-history"></ul>
+    </div>
+  </template>
+
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
   <script src="./assets/js/api.js"></script>
   <script type="module" src="./assets/js/quotes.js" charset="utf-8"></script>
   <script type="module" src="./assets/js/app.js" charset="utf-8"></script>

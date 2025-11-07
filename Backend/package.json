@@ -15,9 +15,13 @@
     "purge:legacy:orders": "node scripts/purge_incomplete_legacy_sales.js",
     "check:profiles:dupes": "node scripts/check_profile_dupes.js",
     "seed:templates": "node scripts/seed_templates_production.js",
+    "seed:payroll": "node scripts/seed_payroll_defaults.js",
     "templates:normalize": "node scripts/normalize_templates_all_companies.js",
     "migrate:skus": "node scripts/migrate_skus_companyId.js",
     "migrate:features": "node scripts/migrate_company_features.js",
+    "fix:payroll:index": "node scripts/fix_payroll_period_index.js",
+    "import:vehicles": "node scripts/import_vehicles_from_excel.js",
+    "link:vehicles": "node scripts/link_vehicles_to_existing_data.js",
     "seed:admin": "node scripts/seed_admin.js"
   },
   "dependencies": {

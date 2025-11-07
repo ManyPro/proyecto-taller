@@ -639,6 +639,65 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
   max-height:95vh !important;
 }
 
+/* Modal específico para cierre de venta - más ancho y responsive */
+#modal .modal-content.close-sale-modal{
+  width:min(95vw, 1800px) !important; 
+  max-width:95vw !important; 
+  max-height:95vh !important;
+  overflow-y:auto;
+  display:flex;
+  flex-direction:column;
+}
+
+/* Mejoras responsive para modal de cerrar venta */
+@media (max-width:640px){
+  #modal .modal-content.close-sale-modal{
+    width:100% !important;
+    max-width:100% !important;
+    height:100% !important;
+    max-height:100% !important;
+    border-radius:0 !important;
+    padding:16px 14px 90px !important; /* Espacio para sticky-actions */
+  }
+  
+  #modal .modal-content.close-sale-modal h3{
+    font-size:18px;
+    margin-bottom:12px;
+  }
+  
+  #modal .modal-content.close-sale-modal .grid-2{
+    display:flex !important;
+    flex-direction:column !important;
+    gap:12px !important;
+  }
+  
+  #modal .modal-content.close-sale-modal table{
+    font-size:11px;
+  }
+  
+  #modal .modal-content.close-sale-modal table th,
+  #modal .modal-content.close-sale-modal table td{
+    padding:6px 4px;
+  }
+  
+  #modal .modal-content.close-sale-modal .close{
+    z-index:10200 !important;
+    position:fixed !important;
+    top:10px !important;
+    right:10px !important;
+    background:rgba(0,0,0,0.5) !important;
+    backdrop-filter:blur(4px) !important;
+    width:36px !important;
+    height:36px !important;
+    border-radius:50% !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    color:#fff !important;
+    font-size:20px !important;
+  }
+}
+
 /* Modal para contenido general más ancho */
 #modal .modal-content:not(.image-modal):not(.form-modal){
   width:min(95vw, 1600px) !important;
@@ -682,12 +741,13 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 
 /* ===== Lista de precios ===== */
 #tab-precios{ overflow-x:auto; }
-#tab-precios table.table{ min-width:1280px; border-collapse:separate; border-spacing:0; }
-#tab-precios th, #tab-precios td{ white-space:nowrap; padding:6px 8px; }
-#tab-precios td input{ height:28px; padding:2px 6px; font-size:.95rem; border-radius:8px; text-transform:none; }
-#tab-precios td input[type="number"]{ width:8ch; min-width:6ch; max-width:12ch; text-align:right; }
+#tab-precios table.table{ width:100%; border-collapse:separate; border-spacing:0; table-layout:auto; }
+#tab-precios th, #tab-precios td{ padding:10px 12px; word-wrap:break-word; }
+#tab-precios td input{ height:32px; padding:4px 8px; font-size:.95rem; border-radius:6px; text-transform:none; }
+#tab-precios td input[type="number"]{ width:120px; min-width:100px; text-align:right; }
 #tab-precios thead th{ position:sticky; top:0; z-index:1; }
-#tab-precios td:first-child, #tab-precios th:first-child{ position:sticky; left:0; z-index:2; background:inherit; }
+#tab-precios .table-wrap{ overflow-x:visible; width:100%; }
+#tab-precios td[data-name]{ max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* ===== Ventas – layout (dos columnas) ===== */
 .ventas-grid{ display:grid; grid-template-columns:420px minmax(420px,1fr); gap:14px; }
@@ -904,10 +964,8 @@ html{ font-size:16px; }
 }
 
 /* ===== FAB (botón flotante) ===== */
-#app-fab{ position:fixed; bottom:18px; right:18px; z-index:12000; display:flex; flex-direction:column; align-items:flex-end; gap:10px; }
-#app-fab #fab-main{ background:var(--accent); color:var(--text-invert); width:54px; height:54px; border-radius:50%; font-size:26px; box-shadow:0 6px 18px rgba(0,0,0,.45); }
-#app-fab #fab-menu{ display:flex; flex-direction:column; gap:8px; }
-#app-fab #fab-menu button{ background:var(--card); border:1px solid var(--border); color:var(--text); padding:8px 12px; margin-top:0; font-size:13px; border-radius:10px; box-shadow:0 4px 14px rgba(0,0,0,.4); }
+/* ELIMINADO: El FAB ha sido removido completamente para evitar interferencias */
+#app-fab{ display:none !important; visibility:hidden !important; }
 
 /* ===== Sticky action bar dentro de modales en móvil ===== */
 @media (max-width:640px){
@@ -1247,22 +1305,12 @@ img + select,
   box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
-/* Estilos para botones de precio mínimo */
-.min-price-btn {
-  transition: all 0.2s ease;
-}
-
-.min-price-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
 /* Estilos para botones de quitar */
-button[class*="secondary"]:not(.min-price-btn) {
+button[class*="secondary"] {
   transition: all 0.2s ease;
 }
 
-button[class*="secondary"]:not(.min-price-btn):hover {
+button[class*="secondary"]:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }

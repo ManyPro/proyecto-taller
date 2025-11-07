@@ -8,7 +8,6 @@ import { initQuotes } from "./quotes.js";
 import { API } from "./api.esm.js";
 import { initPrices } from "./prices.js";
 import { initSales } from "./sales.js";
-import { initTechReport } from "./techreport.js";
 import { initCashFlow } from "./cashflow.js";
 import { loadFeatureOptionsAndRestrictions, getFeatureOptions, getRestrictions, gateElement } from "./feature-gating.js";
 
@@ -168,8 +167,7 @@ const FEATURE_CATALOG = [
   { key: 'inventario', label: 'Inventario' },
   { key: 'precios', label: 'Lista de precios' },
   { key: 'cashflow', label: 'Flujo de Caja' },
-  { key: 'techreport', label: 'Reporte tecnico' },
-  { key: 'tecnicos', label: 'Tecnicos' },
+  { key: 'payroll', label: 'Nómina' },
   { key: 'templates', label: 'Formatos / Plantillas' },
   { key: 'skus', label: 'SKUs' }
 ];
@@ -213,7 +211,6 @@ const pageInitializers = {
   precios: () => initPrices(),
   ventas: () => initSales(),
   cashflow: () => initCashFlow(),
-  'reporte-tecnico': () => initTechReport(),
 };
 
 let pageBooted = false;
@@ -263,42 +260,15 @@ function enterApp() {
 }
 
 // ================= FAB (Botón flotante móviles) =================
+// ELIMINADO: El FAB ha sido removido completamente para evitar interferencias con modales y otras funciones
 function initFAB(){
+  // Eliminar cualquier FAB existente
   const existing = document.getElementById('app-fab');
-  if(existing) return;
-  const fab = document.createElement('div');
-  fab.id='app-fab';
-  fab.innerHTML = `<button id="fab-main" title="Acciones rápidas">+</button>
-    <div id="fab-menu" class="hidden">
-      <button data-act="venta">Nueva Venta</button>
-      <button data-act="nota">Nueva Nota</button>
-      <button data-act="cotizacion">Nueva Cotización</button>
-    </div>`;
-  document.body.appendChild(fab);
-  const mainBtn = fab.querySelector('#fab-main');
-  const menu = fab.querySelector('#fab-menu');
-  mainBtn.addEventListener('click', ()=> menu.classList.toggle('hidden'));
-  menu.addEventListener('click', async (ev)=>{
-    const btn = ev.target.closest('button[data-act]'); if(!btn) return;
-    menu.classList.add('hidden');
-    const act = btn.dataset.act;
-    if(act==='venta'){
-      try{ const { sales } = await import('./sales.js'); }catch{}
-      // Simular click en Nueva Venta
-      document.getElementById('sales-start')?.click();
-      showTab('ventas');
-    } else if(act==='nota'){
-      showTab('notas');
-      document.getElementById('n-plate')?.focus();
-    } else if(act==='cotizacion'){
-      showTab('cotizaciones');
-      document.getElementById('q-client-name')?.focus();
-    }
-  });
-  // Ocultar fab en desktop
-  const mq = window.matchMedia('(min-width: 861px)');
-  const toggle = ()=>{ fab.style.display = mq.matches ? 'none':'flex'; };
-  mq.addEventListener('change', toggle); toggle();
+  if(existing) {
+    existing.remove();
+  }
+  // No crear nuevo FAB - función deshabilitada
+  return;
 }
 
 

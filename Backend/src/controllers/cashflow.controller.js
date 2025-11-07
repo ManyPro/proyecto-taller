@@ -12,12 +12,31 @@ async function ensureDefaultCashAccount(companyId) {
   return acc;
 }
 
-async function computeBalance(accountId, companyId) {
-  // Usa el balanceAfter del Ãºltimo movimiento si existe
-  const last = await CashFlowEntry.findOne({ companyId, accountId }).sort({ date: -1, _id: -1 });
-  if (last) return last.balanceAfter;
+export async function computeBalance(accountId, companyId) {
+  // Obtener balance inicial de la cuenta
   const acc = await Account.findOne({ _id: accountId, companyId });
-  return acc ? acc.initialBalance : 0;
+  const initialBalance = acc ? acc.initialBalance : 0;
+  
+  // Calcular balance basándose en todas las entradas hasta la fecha actual
+  // Esto asegura que las entradas con fecha futura no afecten el balance actual
+  const now = new Date();
+  const entries = await CashFlowEntry.find({ 
+    companyId, 
+    accountId,
+    date: { $lte: now } // Solo entradas hasta la fecha actual
+  }).sort({ date: 1, _id: 1 }); // Ordenar cronológicamente (más antiguo primero)
+  
+  // Calcular balance sumando/restando todas las entradas en orden cronológico
+  let balance = initialBalance;
+  for (const entry of entries) {
+    if (entry.kind === 'IN') {
+      balance += (entry.amount || 0);
+    } else if (entry.kind === 'OUT') {
+      balance -= (entry.amount || 0);
+    }
+  }
+  
+  return balance;
 }
 
 export async function listAccounts(req, res) {
@@ -176,15 +195,29 @@ export async function registerSaleIncome({ companyId, sale, accountId }) {
   }
 
   const entries = [];
+  // Track balances por cuenta para pagos múltiples a la misma cuenta
+  const accountBalances = new Map();
+  
   for (const m of methods) {
     let accId = m.accountId || accountId;
     if (!accId) {
       const acc = await ensureDefaultCashAccount(companyId);
       accId = acc._id;
     }
-    const prevBal = await computeBalance(accId, companyId);
+    
+    // Si ya procesamos un pago a esta cuenta, usar el balance incremental
+    let prevBal;
+    if (accountBalances.has(String(accId))) {
+      prevBal = accountBalances.get(String(accId));
+    } else {
+      prevBal = await computeBalance(accId, companyId);
+      accountBalances.set(String(accId), prevBal);
+    }
+    
     const amount = Number(m.amount||0);
     const newBal = prevBal + amount;
+    accountBalances.set(String(accId), newBal); // Actualizar para el próximo pago
+    
     const entry = await CashFlowEntry.create({
       companyId,
       accountId: accId,
@@ -194,6 +227,7 @@ export async function registerSaleIncome({ companyId, sale, accountId }) {
       description: `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`,
       amount,
       balanceAfter: newBal,
+      date: new Date(), // Asegurar fecha actual
       meta: { saleNumber: sale.number, paymentMethod: m.method }
     });
     entries.push(entry);
