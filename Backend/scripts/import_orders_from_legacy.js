@@ -214,10 +214,10 @@ function buildLegacyItems({ productRows = [], serviceRows = [], productCatalog, 
   let serviceTotal = 0;
 
   for (const row of productRows) {
-    const productId = String(row['rpo_fk_producto'] ?? '').trim();
-    let qty = parseFloatSafe(row['rpo_cantidad']);
-    let unitPrice = parseMoney(row['rpo_precio']);
-    let total = parseMoney(row['rpo_total']);
+    const productId = String(row['rpo_fk_producto'] ?? row['rpo_producto'] ?? '').trim();
+    let qty = parseFloatSafe(row['rpo_cantidad'] ?? row['cantidad'] ?? '');
+    let unitPrice = parseMoney(row['rpo_precio'] ?? row['precio'] ?? '');
+    let total = parseMoney(row['rpo_total'] ?? row['total'] ?? '');
     if (total === 0 && unitPrice && qty) total = unitPrice * qty;
     if (!unitPrice && total && qty) unitPrice = total / qty;
     if (!qty || qty <= 0) {
@@ -233,10 +233,15 @@ function buildLegacyItems({ productRows = [], serviceRows = [], productCatalog, 
     qty = asQuantity(qty);
 
     const catalog = productCatalog.get(productId) || {};
-    const skuSource = clean(catalog['pr_codigo']);
-    const nameSource = clean(catalog['pr_nombre']);
+    // Intentar múltiples nombres de columnas posibles
+    const skuSource = clean(catalog['pr_codigo'] ?? catalog['codigo'] ?? catalog['pr_cod'] ?? catalog['cod'] ?? '');
+    const nameSource = clean(catalog['pr_nombre'] ?? catalog['nombre'] ?? catalog['pr_name'] ?? catalog['name'] ?? catalog['descripcion'] ?? catalog['desc'] ?? '');
+    
+    // Si no hay nombre en catálogo, intentar usar descripción de la relación si existe
+    const descFromRow = clean(row['rpo_descripcion'] ?? row['descripcion'] ?? row['desc'] ?? '');
+    
     const sku = skuSource || (productId ? `LEGACY-PROD-${productId}` : 'LEGACY-PROD');
-    const name = nameSource || (productId ? `PRODUCTO LEGACY ${productId}` : 'PRODUCTO LEGACY');
+    const name = nameSource || descFromRow || (productId ? `Producto ${productId}` : 'Producto Legacy');
 
     items.push({
       source: 'inventory',
@@ -251,13 +256,19 @@ function buildLegacyItems({ productRows = [], serviceRows = [], productCatalog, 
   }
 
   for (const row of serviceRows) {
-    const serviceId = String(row['rso_idServiciofk'] ?? '').trim();
-    const price = parseMoney(row['rso_precio']);
+    const serviceId = String(row['rso_idServiciofk'] ?? row['rso_servicio'] ?? row['servicio'] ?? '').trim();
+    const price = parseMoney(row['rso_precio'] ?? row['precio'] ?? '');
     const total = asMoney(price);
     const catalog = serviceCatalog.get(serviceId) || {};
-    const nameSource = clean(catalog['ser_nombre']);
+    // Intentar múltiples nombres de columnas posibles
+    const nameSource = clean(catalog['ser_nombre'] ?? catalog['nombre'] ?? catalog['ser_name'] ?? catalog['name'] ?? catalog['descripcion'] ?? catalog['desc'] ?? '');
+    
+    // Si no hay nombre en catálogo, intentar usar descripción de la relación si existe
+    const descFromRow = clean(row['rso_descripcion'] ?? row['descripcion'] ?? row['desc'] ?? '');
+    
     const sku = serviceId ? `LEGACY-SRV-${serviceId}` : 'LEGACY-SRV';
-    const name = nameSource || (serviceId ? `SERVICIO LEGACY ${serviceId}` : 'SERVICIO LEGACY');
+    const name = nameSource || descFromRow || (serviceId ? `Servicio ${serviceId}` : 'Servicio Legacy');
+    
     items.push({
       source: 'service',
       refId: null,
@@ -376,13 +387,61 @@ async function main() {
     console.log(`OrderProducts: ${orderProductRows.length}, Products: ${productRows.length}, OrderServices: ${orderServiceRows.length}, Services: ${serviceRows.length}, Remisions: ${remisionRows.length}`);
   }
 
-  const clientIndex = new Map(clientRows.map(row => [String(row['cl_id']), row]));
-  const vehicleIndex = new Map(vehicleRows.map(row => [String(row['au_id']), row]));
-  const productCatalog = new Map(productRows.map(row => [String(row['pr_id']), row]));
-  const serviceCatalog = new Map(serviceRows.map(row => [String(row['ser_id']), row]));
-  const orderProductMap = indexRows(orderProductRows, 'rpo_fk_orden');
-  const orderServiceMap = indexRows(orderServiceRows, 'rso_idOrdenfk');
-  const remisionMap = mapRows(remisionRows, 'rm_fk_orden');
+  const clientIndex = new Map(clientRows.map(row => [String(row['cl_id'] ?? row['id'] ?? ''), row]));
+  const vehicleIndex = new Map(vehicleRows.map(row => [String(row['au_id'] ?? row['id'] ?? ''), row]));
+  
+  // Mapear catálogo de productos con múltiples posibles nombres de columna
+  const productCatalog = new Map();
+  for (const row of productRows) {
+    const id = String(row['pr_id'] ?? row['id'] ?? row['producto_id'] ?? '').trim();
+    if (id) productCatalog.set(id, row);
+  }
+  
+  // Mapear catálogo de servicios con múltiples posibles nombres de columna
+  const serviceCatalog = new Map();
+  for (const row of serviceRows) {
+    const id = String(row['ser_id'] ?? row['id'] ?? row['servicio_id'] ?? '').trim();
+    if (id) serviceCatalog.set(id, row);
+  }
+  
+  // Mapear relaciones con múltiples posibles nombres de columna
+  const orderProductMap = new Map();
+  for (const row of orderProductRows) {
+    const orderId = String(row['rpo_fk_orden'] ?? row['orden'] ?? row['orden_id'] ?? '').trim();
+    if (orderId) {
+      if (!orderProductMap.has(orderId)) orderProductMap.set(orderId, []);
+      orderProductMap.get(orderId).push(row);
+    }
+  }
+  
+  const orderServiceMap = new Map();
+  for (const row of orderServiceRows) {
+    const orderId = String(row['rso_idOrdenfk'] ?? row['rso_orden'] ?? row['orden'] ?? row['orden_id'] ?? '').trim();
+    if (orderId) {
+      if (!orderServiceMap.has(orderId)) orderServiceMap.set(orderId, []);
+      orderServiceMap.get(orderId).push(row);
+    }
+  }
+  
+  const remisionMap = new Map();
+  for (const row of remisionRows) {
+    const orderId = String(row['rm_fk_orden'] ?? row['orden'] ?? row['orden_id'] ?? '').trim();
+    if (orderId) remisionMap.set(orderId, row);
+  }
+  
+  // Log de depuración
+  if (detailMode) {
+    console.log(`Product catalog size: ${productCatalog.size}, Service catalog size: ${serviceCatalog.size}`);
+    console.log(`Order-Product mappings: ${orderProductMap.size}, Order-Service mappings: ${orderServiceMap.size}`);
+    if (productCatalog.size > 0) {
+      const firstProd = Array.from(productCatalog.entries())[0];
+      console.log(`Sample product catalog entry keys: ${Object.keys(firstProd[1]).join(', ')}`);
+    }
+    if (serviceCatalog.size > 0) {
+      const firstSvc = Array.from(serviceCatalog.entries())[0];
+      console.log(`Sample service catalog entry keys: ${Object.keys(firstSvc[1]).join(', ')}`);
+    }
+  }
 
   const started = Date.now();
   const totalRows = ordersRows.length;

@@ -174,6 +174,7 @@ export function initPrices(){
     fVehicleSelected.innerHTML = `
       <span style="color:var(--success, #10b981);">✓</span> 
       <strong>${vehicle.make} ${vehicle.line}</strong> - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
+      <br><span style="font-size:11px;color:var(--muted);">Filtrando precios para este vehículo. Puedes crear nuevos precios con "Nueva fila".</span>
     `;
     fVehicleDropdown.style.display = 'none';
     loadPrices();
@@ -185,6 +186,7 @@ export function initPrices(){
     fVehicleSearch.value = '';
     fVehicleSelected.innerHTML = '';
     fVehicleDropdown.style.display = 'none';
+    loadPrices(); // Recargar para mostrar todos los precios
   }
 
   // Eventos UI
@@ -211,9 +213,116 @@ export function initPrices(){
   fSearch.onclick = ()=> loadPrices();
   fClear.onclick  = ()=> { clearFilters(); loadPrices(); };
   svcSelect.onchange = ()=>{ currentService = services.find(s=>s._id===svcSelect.value) || null; renderTableHeader(); loadPrices(); };
+  
+  // Crear nuevo servicio
+  svcNewBtn.onclick = async ()=>{
+    const name = prompt('Nombre del nuevo servicio:', '');
+    if(!name || !name.trim()) return;
+    try {
+      const newSvc = await API.serviceCreate({ name: name.trim(), variables: [] });
+      await loadServices();
+      if(newSvc?._id) {
+        svcSelect.value = newSvc._id;
+        currentService = newSvc;
+        renderTableHeader();
+        loadPrices();
+      }
+    } catch(e) {
+      alert('Error al crear servicio: ' + (e?.message || 'Error desconocido'));
+    }
+  };
+  
+  // Editar variables del servicio
+  svcVarsBtn.onclick = ()=>{
+    if(!currentService) return alert('Selecciona un servicio primero');
+    const body=$('#modalBody'), closeBtn=$('#modalClose'); 
+    body.replaceChildren();
+    
+    const node = document.createElement('div');
+    node.className = 'card';
+    node.innerHTML = `
+      <h3>Variables del servicio: ${currentService.name}</h3>
+      <p class="muted" style="font-size:13px;margin-bottom:16px;">
+        Las variables permiten personalizar precios según diferentes criterios (ej: tipo de trabajo, complejidad, etc.)
+      </p>
+      <div id="vars-list" style="margin-bottom:16px;"></div>
+      <div class="row" style="gap:8px;margin-bottom:16px;">
+        <input id="var-key" placeholder="Clave (ej: TIPO)" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);text-transform:uppercase;" />
+        <input id="var-label" placeholder="Etiqueta (ej: Tipo de trabajo)" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+        <button id="var-add" class="secondary" style="padding:8px 16px;">➕ Agregar</button>
+      </div>
+      <div class="row" style="gap:8px;">
+        <button id="vars-save" style="flex:1;padding:10px;">💾 Guardar cambios</button>
+        <button id="vars-cancel" class="secondary" style="flex:1;padding:10px;">Cancelar</button>
+      </div>
+    `;
+    body.appendChild(node);
+    
+    const varsList = node.querySelector('#vars-list');
+    const varKey = node.querySelector('#var-key');
+    const varLabel = node.querySelector('#var-label');
+    const varAdd = node.querySelector('#var-add');
+    const varsSave = node.querySelector('#vars-save');
+    const varsCancel = node.querySelector('#vars-cancel');
+    
+    let variables = [...(currentService.variables || [])];
+    
+    function renderVars() {
+      varsList.innerHTML = '';
+      if(variables.length === 0) {
+        varsList.innerHTML = '<p class="muted" style="text-align:center;padding:16px;">No hay variables definidas</p>';
+        return;
+      }
+      variables.forEach((v, idx) => {
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px;background:var(--card-alt);border-radius:6px;margin-bottom:8px;';
+        div.innerHTML = `
+          <div style="flex:1;">
+            <strong>${v.key || ''}</strong> - ${v.label || ''}
+          </div>
+          <button class="danger" style="padding:4px 8px;font-size:12px;" data-var-index="${idx}">🗑️</button>
+        `;
+        div.querySelector('button').onclick = () => {
+          variables.splice(idx, 1);
+          renderVars();
+        };
+        varsList.appendChild(div);
+      });
+    }
+    
+    varAdd.onclick = () => {
+      const key = varKey.value.trim().toUpperCase();
+      const label = varLabel.value.trim();
+      if(!key) return alert('La clave es requerida');
+      if(variables.some(v => v.key === key)) return alert('Ya existe una variable con esa clave');
+      variables.push({ key, label: label || key });
+      varKey.value = '';
+      varLabel.value = '';
+      renderVars();
+    };
+    
+    varsSave.onclick = async () => {
+      try {
+        await API.serviceUpdate(currentService._id, { variables });
+        await loadServices();
+        currentService = services.find(s=>s._id===currentService._id) || null;
+        renderTableHeader();
+        closeModal();
+      } catch(e) {
+        alert('Error al guardar: ' + (e?.message || 'Error desconocido'));
+      }
+    };
+    
+    varsCancel.onclick = () => closeModal();
+    
+    renderVars();
+    const cleanup = openModal();
+    closeBtn.onclick = () => { cleanup?.(); closeModal(); };
+  };
+  
   btnNew.onclick = async ()=>{
-    if(!currentService) return alert('Selecciona un servicio');
-    if(!selectedVehicle) return alert('Selecciona un vehículo');
+    if(!currentService) return alert('Selecciona un servicio primero');
+    if(!selectedVehicle) return alert('Selecciona un vehículo de la base de datos para crear un precio específico para ese vehículo');
     const payload={ 
       vehicleId: selectedVehicle._id,
       serviceId: currentService._id,
