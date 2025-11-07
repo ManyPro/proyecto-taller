@@ -776,8 +776,45 @@ async function preview(){
         return `
           <div style="margin-bottom:16px;">
             <h4 style="margin:0 0 8px 0;font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;">${title}</h4>
-            ${items.map(i => {
+            ${items.map((i, idx) => {
               const typeInfo = typeLabels[i.type] || { label: i.type, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
+              const isLoan = i.calcRule === 'employee_loan' && i.loanId;
+              const itemId = `item-${idx}-${i.loanId || i.conceptId || 'other'}`;
+              
+              // Si es un préstamo, hacer el monto editable
+              if (isLoan && i.loanPending) {
+                return `<div class="row between" style="padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;background:var(--card);" data-loan-id="${i.loanId}">
+                  <div style="flex:1;">
+                    <div class="row" style="gap:10px;align-items:center;margin-bottom:${i.notes ? '4px' : '0'};">
+                      <span style="padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}20;">
+                        ${htmlEscape(typeInfo.label)}
+                      </span>
+                      <span style="font-weight:500;color:var(--text);">${htmlEscape(i.name)}</span>
+                    </div>
+                    ${i.notes ? `<div class="muted" style="font-size:11px;margin-top:4px;color:var(--muted);">${htmlEscape(i.notes)}</div>` : ''}
+                    <div style="margin-top:6px;display:flex;gap:8px;align-items:center;">
+                      <label style="font-size:11px;color:var(--muted);">Monto a pagar:</label>
+                      <input type="number" 
+                             id="${itemId}" 
+                             class="loan-payment-input" 
+                             data-loan-id="${i.loanId}"
+                             data-max="${i.loanPending}"
+                             min="0" 
+                             max="${i.loanPending}" 
+                             step="1" 
+                             value="${i.value}"
+                             style="width:120px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-size:12px;"
+                             onchange="updateLoanPaymentTotal()" />
+                      <span class="muted" style="font-size:11px;">Máx: ${formatMoney(i.loanPending)}</span>
+                    </div>
+                  </div>
+                  <div style="font-weight:600;color:var(--text);font-size:14px;">
+                    <span class="loan-payment-display" data-loan-id="${i.loanId}">${formatMoney(i.value)}</span>
+                  </div>
+                </div>`;
+              }
+              
+              // Item normal (no préstamo)
               return `<div class="row between" style="padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;background:var(--card);">
                 <div style="flex:1;">
                   <div class="row" style="gap:10px;align-items:center;margin-bottom:${i.notes ? '4px' : '0'};">
@@ -795,6 +832,39 @@ async function preview(){
               </div>`;
             }).join('')}
           </div>`;
+      };
+      
+      // Función para actualizar totales cuando se cambia el monto de un préstamo
+      window.updateLoanPaymentTotal = function() {
+        const loanInputs = document.querySelectorAll('.loan-payment-input');
+        let totalLoanDeduction = 0;
+        
+        loanInputs.forEach(input => {
+          const value = Math.max(0, Math.min(Number(input.value) || 0, Number(input.dataset.max) || 0));
+          input.value = value;
+          const loanId = input.dataset.loanId;
+          const display = document.querySelector(`.loan-payment-display[data-loan-id="${loanId}"]`);
+          if (display) display.textContent = formatMoney(value);
+          totalLoanDeduction += value;
+        });
+        
+        // Recalcular totales
+        const earnings = r.items.filter(i => i.type === 'earning');
+        const surcharges = r.items.filter(i => i.type === 'surcharge');
+        const deductions = r.items.filter(i => i.type === 'deduction' && i.calcRule !== 'employee_loan');
+        const otherDeductions = deductions.reduce((sum, i) => sum + (i.value || 0), 0);
+        
+        const grossTotal = [...earnings, ...surcharges].reduce((sum, i) => sum + (i.value || 0), 0);
+        const deductionsTotal = otherDeductions + totalLoanDeduction;
+        const netTotal = grossTotal - deductionsTotal;
+        
+        // Actualizar totales en la UI
+        const grossEl = document.querySelector('[data-total="gross"]');
+        const dedEl = document.querySelector('[data-total="deductions"]');
+        const netEl = document.querySelector('[data-total="net"]');
+        if (grossEl) grossEl.textContent = formatMoney(grossTotal);
+        if (dedEl) dedEl.textContent = formatMoney(deductionsTotal);
+        if (netEl) netEl.textContent = formatMoney(netTotal);
       };
       
       el('pl-result').innerHTML = `
@@ -818,15 +888,15 @@ async function preview(){
           <div style="margin-top:16px;padding-top:16px;border-top:2px solid var(--border);">
             <div class="row between" style="margin-bottom:8px;">
               <span style="font-weight:600;color:var(--text);">Total bruto:</span>
-              <span style="font-weight:600;color:var(--text);font-size:16px;">${formatMoney(r.grossTotal)}</span>
+              <span style="font-weight:600;color:var(--text);font-size:16px;" data-total="gross">${formatMoney(r.grossTotal)}</span>
             </div>
             <div class="row between" style="margin-bottom:8px;">
               <span style="font-weight:600;color:var(--text);">Total descuentos:</span>
-              <span style="font-weight:600;color:#ef4444;font-size:16px;">-${formatMoney(r.deductionsTotal)}</span>
+              <span style="font-weight:600;color:#ef4444;font-size:16px;" data-total="deductions">-${formatMoney(r.deductionsTotal)}</span>
             </div>
             <div class="row between" style="padding:12px;background:rgba(59,130,246,0.1);border-radius:6px;margin-top:8px;">
               <span style="font-weight:700;color:var(--text);font-size:16px;">Neto a pagar:</span>
-              <span style="font-weight:700;color:#10b981;font-size:20px;">${formatMoney(r.netTotal)}</span>
+              <span style="font-weight:700;color:#10b981;font-size:20px;" data-total="net">${formatMoney(r.netTotal)}</span>
             </div>
           </div>
         </div>
@@ -877,6 +947,17 @@ async function approve(){
       alert('⚠️ Selecciona al menos un concepto para aplicar');
       return;
     }
+    
+    // Recolectar pagos de préstamos editados
+    const loanPayments = [];
+    const loanInputs = document.querySelectorAll('.loan-payment-input');
+    loanInputs.forEach(input => {
+      const loanId = input.dataset.loanId;
+      const amount = Math.max(0, Math.min(Number(input.value) || 0, Number(input.dataset.max) || 0));
+      if (loanId && amount > 0) {
+        loanPayments.push({ loanId, amount });
+      }
+    });
     
     // Confirmar aprobación
     const periodText = document.getElementById('pl-periodSel').options[document.getElementById('pl-periodSel').selectedIndex]?.textContent || 'este período';
