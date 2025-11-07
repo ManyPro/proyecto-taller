@@ -25,6 +25,17 @@ const SaleSchema = new mongoose.Schema({
   technicianAssignedAt: { type: Date },
   technicianClosedAt: { type: Date },
   items: { type: [SaleItemSchema], default: [] },
+  // Slots abiertos pendientes de completar (para combos abiertos)
+  // Array de { comboPriceId, slotIndex, slotName, qty, estimatedPrice }
+  openSlots: { type: [{
+    comboPriceId: { type: mongoose.Schema.Types.ObjectId, ref: 'PriceEntry', required: true },
+    slotIndex: { type: Number, required: true }, // Índice del slot en comboProducts
+    slotName: { type: String, required: true }, // Nombre del slot abierto
+    qty: { type: Number, default: 1, min: 1 },
+    estimatedPrice: { type: Number, default: 0 }, // Precio estimado del slot
+    completed: { type: Boolean, default: false }, // true cuando se escaneó el QR
+    completedItemId: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', default: null } // Item asignado al completar
+  }], default: [] },
   customer: {
     type: { type: String, default: '' },
     idNumber: { type: String, default: '' },
