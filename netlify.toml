@@ -7,8 +7,7 @@
 # Esta configuración se aplica a ambos, pero cada sitio tiene su propia URL y deploy independiente.
 
 [build]
-  base = "Frontend"
-  publish = "."
+  publish = "Frontend"
   command = "echo 'Frontend listo'"
 
 # Redirecciones para el API
