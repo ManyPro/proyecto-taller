@@ -19,6 +19,7 @@
     "templates:normalize": "node scripts/normalize_templates_all_companies.js",
     "migrate:skus": "node scripts/migrate_skus_companyId.js",
     "migrate:features": "node scripts/migrate_company_features.js",
+    "fix:payroll:index": "node scripts/fix_payroll_period_index.js",
     "seed:admin": "node scripts/seed_admin.js"
   },
   "dependencies": {

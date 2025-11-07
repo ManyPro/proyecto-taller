@@ -207,15 +207,48 @@ export const createPeriod = async (req, res) => {
     const validTypes = ['monthly', 'biweekly', 'weekly'];
     const type = validTypes.includes(periodType) ? periodType : 'monthly';
     
-    const doc = await PayrollPeriod.create({ 
-      companyId: req.companyId, 
-      periodType: type, 
-      startDate: start, 
-      endDate: end 
-    });
-    
-    res.status(201).json(doc);
+    try {
+      const doc = await PayrollPeriod.create({ 
+        companyId: req.companyId, 
+        periodType: type, 
+        startDate: start, 
+        endDate: end 
+      });
+      
+      res.status(201).json(doc);
+    } catch (createErr) {
+      // Si el error es por índice único (11000), verificar si es un período abierto
+      if (createErr.code === 11000) {
+        // El índice único todavía existe en la BD, verificar manualmente
+        const existing = await PayrollPeriod.findOne({
+          companyId: req.companyId,
+          startDate: start,
+          endDate: end
+        });
+        
+        if (existing && existing.status === 'open') {
+          return res.status(409).json({ 
+            error: 'Ya existe un período ABIERTO con estas fechas exactas',
+            existing: {
+              id: existing._id,
+              startDate: existing.startDate,
+              endDate: existing.endDate,
+              periodType: existing.periodType
+            }
+          });
+        }
+        
+        // Si está cerrado, intentar crear de nuevo (puede haber un race condition)
+        // O informar que necesita eliminar el índice único
+        return res.status(500).json({ 
+          error: 'Error: El índice único de la base de datos necesita ser eliminado. Contacta al administrador.',
+          message: 'El sistema permite períodos duplicados si están cerrados, pero el índice único de MongoDB está bloqueando la operación.'
+        });
+      }
+      throw createErr;
+    }
   } catch (err) {
+    console.error('Error en createPeriod:', err);
     res.status(500).json({ error: 'Error al crear período', message: err.message });
   }
 };
