@@ -75,23 +75,21 @@
         <!-- Tab: Lista de precios -->
         <div class="card" data-subsection="prices">
           <h3>Lista de precios</h3>
-          <div class="row" id="svc-bar">
-            <select id="svc-select"></select>
-            <button id="svc-vars" class="secondary">Variables del servicio</button>
-            <button id="svc-new" class="secondary">Crear servicio base</button>
-          </div>
-          <div class="row" id="filters-bar" style="gap:8px;flex-wrap:wrap;align-items:end;">
+          <div class="row" id="filters-bar" style="gap:8px;flex-wrap:wrap;align-items:end;margin-bottom:16px;">
             <div style="flex:1;min-width:250px;position:relative;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Vehículo (para crear precio específico)</label>
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Seleccionar vehículo</label>
               <input id="pf-vehicle-search" placeholder="Buscar vehículo (marca, línea, cilindraje)..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
               <div id="pf-vehicle-dropdown" style="display:none;position:absolute;z-index:1000;background:var(--card);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;margin-top:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:100%;"></div>
               <input type="hidden" id="pf-vehicle-id" />
               <div id="pf-vehicle-selected" style="margin-top:4px;font-size:12px;color:var(--muted);"></div>
-              <p class="muted" style="margin-top:4px;font-size:11px;">Selecciona un vehículo para crear un precio específico para ese vehículo</p>
+              <p class="muted" style="margin-top:4px;font-size:11px;">Selecciona un vehículo para ver y gestionar sus servicios y productos</p>
             </div>
-            <button id="pf-search" class="secondary" style="padding:8px 16px;">🔍 Buscar</button>
             <button id="pf-clear" class="secondary" style="padding:8px 16px;">🗑️ Limpiar</button>
-            <button id="pe-new" style="padding:8px 16px;">➕ Nueva fila</button>
+          </div>
+          <div id="pe-actions-bar" style="display:none;margin-bottom:16px;gap:8px;" class="row">
+            <button id="pe-new-service" style="padding:8px 16px;">➕ Nuevo servicio</button>
+            <button id="pe-new-product" style="padding:8px 16px;">➕ Nuevo producto</button>
+            <button id="pf-search" class="secondary" style="padding:8px 16px;">🔍 Buscar</button>
           </div>
           <div class="card" style="margin-top:12px;">
             <div class="table-wrap">
