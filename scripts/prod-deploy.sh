@@ -20,11 +20,26 @@ if [ "$CURRENT_BRANCH" != "main" ]; then
     }
 fi
 
-# Hacer pull de los últimos cambios
-echo "📥 Haciendo pull de los últimos cambios desde origin/main..."
-git pull origin main || {
-    echo "❌ Error: No se pudo hacer pull desde origin/main"
+# Asegurarse de tener los últimos cambios de ambos branches
+echo "📥 Actualizando branches desde remoto..."
+git fetch origin main develop || {
+    echo "❌ Error: No se pudo hacer fetch desde origin"
     exit 1
+}
+
+# Hacer pull de los últimos cambios de main
+echo "📥 Haciendo pull de los últimos cambios desde origin/main..."
+git pull origin main --no-edit || {
+    echo "⚠️  Advertencia: Hay conflictos o cambios locales. Intentando merge de develop..."
+    # Si hay conflictos, intentar merge de develop a main
+    git merge origin/develop --no-edit || {
+        echo "❌ Error: No se pudo hacer merge. Resuelve los conflictos manualmente:"
+        echo "   1. Resuelve los conflictos"
+        echo "   2. git add ."
+        echo "   3. git commit"
+        echo "   4. Ejecuta este script nuevamente"
+        exit 1
+    }
 }
 
 # Verificar que Docker esté instalado
