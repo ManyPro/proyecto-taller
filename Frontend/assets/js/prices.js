@@ -28,15 +28,18 @@ export function initPrices(){
   const btnNewService=$('#pe-new-service'), btnNewProduct=$('#pe-new-product');
   const actionsBar=$('#pe-actions-bar');
   const head=$('#pe-head'), body=$('#pe-body');
-  
+
   let selectedVehicle = null;
   let vehicleSearchTimeout = null;
+  let currentPage = 1;
+  let currentFilters = { name: '', type: '' };
+  let paging = { page: 1, limit: 10, total: 0, pages: 1 };
 
   // Acciones adicionales (import/export) – mantenemos usando DOM APIs
   const filtersBar=document.getElementById('filters-bar')||tab;
   const addBtn=(id, cls, text)=>{ const b=document.createElement('button'); b.id=id; b.className=cls; b.textContent=text; filtersBar?.appendChild(b); return b; };
-  const btnImport=addBtn('pe-import','secondary','Importar XLSX');
-  const btnExport=addBtn('pe-export','secondary','Exportar CSV');
+  const btnImport=addBtn('pe-import','secondary','📥 Importar');
+  const btnExport=addBtn('pe-export','secondary','📤 Exportar');
 
   function renderTableHeader(){
     head.replaceChildren();
@@ -102,17 +105,61 @@ export function initPrices(){
     return tr;
   }
 
+  function renderPagination() {
+    const paginationEl = $('#pe-pagination');
+    if (!paginationEl || !selectedVehicle) return;
+    
+    if (paging.pages <= 1) {
+      paginationEl.innerHTML = '';
+      return;
+    }
+    
+    let html = '<div style="display:flex;align-items:center;gap:8px;justify-content:center;padding:12px;">';
+    html += `<button class="secondary" ${paging.page <= 1 ? 'disabled' : ''} id="pe-prev">← Anterior</button>`;
+    html += `<span style="color:var(--muted);font-size:13px;">Página ${paging.page} de ${paging.pages} (${paging.total} total)</span>`;
+    html += `<button class="secondary" ${paging.page >= paging.pages ? 'disabled' : ''} id="pe-next">Siguiente →</button>`;
+    html += '</div>';
+    paginationEl.innerHTML = html;
+    
+    $('#pe-prev')?.addEventListener('click', () => {
+      if (paging.page > 1) {
+        currentPage = paging.page - 1;
+        loadPrices();
+      }
+    });
+    $('#pe-next')?.addEventListener('click', () => {
+      if (paging.page < paging.pages) {
+        currentPage = paging.page + 1;
+        loadPrices();
+      }
+    });
+  }
+
   async function loadPrices(params={}){
     if (!selectedVehicle) {
       body.replaceChildren();
       renderTableHeader();
       return;
     }
-    params = { ...(params||{}), vehicleId: selectedVehicle._id };
+    params = { 
+      ...(params||{}), 
+      vehicleId: selectedVehicle._id,
+      page: currentPage,
+      limit: 10,
+      name: currentFilters.name,
+      type: currentFilters.type || undefined
+    };
     const r = await API.pricesList(params);
     const rows = Array.isArray(r?.items) ? r.items : (Array.isArray(r) ? r : []);
+    paging = {
+      page: r.page || 1,
+      limit: r.limit || 10,
+      total: r.total || 0,
+      pages: r.pages || 1
+    };
     body.replaceChildren(...rows.map(rowToNode));
     renderTableHeader();
+    renderPagination();
   }
 
   // Búsqueda de vehículos
@@ -163,6 +210,11 @@ export function initPrices(){
     `;
     fVehicleDropdown.style.display = 'none';
     actionsBar.style.display = 'flex';
+    $('#pe-filters').style.display = 'flex';
+    currentPage = 1;
+    currentFilters = { name: '', type: '' };
+    $('#pe-filter-name').value = '';
+    $('#pe-filter-type').value = '';
     loadPrices();
   }
 
@@ -175,6 +227,14 @@ export function initPrices(){
     actionsBar.style.display = 'none';
     body.replaceChildren();
     renderTableHeader();
+    const paginationEl = $('#pe-pagination');
+    if (paginationEl) paginationEl.innerHTML = '';
+    const filtersEl = $('#pe-filters');
+    if (filtersEl) filtersEl.style.display = 'none';
+    currentPage = 1;
+    currentFilters = { name: '', type: '' };
+    if (filterName) filterName.value = '';
+    if (filterType) filterType.value = '';
   }
 
   // Eventos UI
@@ -200,65 +260,283 @@ export function initPrices(){
     }
   });
 
-  if (fSearch) fSearch.onclick = ()=> loadPrices();
+  // Filtros
+  const filterName = $('#pe-filter-name');
+  const filterType = $('#pe-filter-type');
+  let filterTimeout = null;
+  
+  if (filterName) {
+    filterName.addEventListener('input', (e) => {
+      clearTimeout(filterTimeout);
+      filterTimeout = setTimeout(() => {
+        currentFilters.name = e.target.value.trim();
+        currentPage = 1;
+        loadPrices();
+      }, 500);
+    });
+  }
+  
+  if (filterType) {
+    filterType.addEventListener('change', (e) => {
+      currentFilters.type = e.target.value;
+      currentPage = 1;
+      loadPrices();
+    });
+  }
+  
+  if (fSearch) fSearch.onclick = ()=> { 
+    currentFilters.name = filterName?.value.trim() || '';
+    currentFilters.type = filterType?.value || '';
+    currentPage = 1; 
+    loadPrices(); 
+  };
   if (fClear) fClear.onclick  = ()=> { clearFilters(); };
+  
+  // Modal para crear servicio/producto
+  function openCreateModal(type) {
+    if(!selectedVehicle) return alert('Selecciona un vehículo primero');
+    const body=$('#modalBody'), closeBtn=$('#modalClose'); 
+    body.replaceChildren();
+    
+    const node = document.createElement('div');
+    node.className = 'card';
+    node.innerHTML = `
+      <h3>${type === 'service' ? 'Nuevo Servicio' : 'Nuevo Producto'}</h3>
+      <p class="muted" style="margin-bottom:16px;font-size:13px;">
+        Vehículo: <strong>${selectedVehicle.make} ${selectedVehicle.line}</strong>
+      </p>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre</label>
+        <input id="pe-modal-name" placeholder="${type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire'}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Precio</label>
+        <input id="pe-modal-price" type="number" step="0.01" placeholder="0" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+      </div>
+      <div id="pe-modal-msg" style="margin-bottom:16px;font-size:13px;"></div>
+      <div class="row" style="gap:8px;">
+        <button id="pe-modal-save" style="flex:1;padding:10px;">💾 Guardar</button>
+        <button id="pe-modal-cancel" class="secondary" style="flex:1;padding:10px;">Cancelar</button>
+      </div>
+    `;
+    body.appendChild(node);
+    
+    const nameInput = node.querySelector('#pe-modal-name');
+    const priceInput = node.querySelector('#pe-modal-price');
+    const msgEl = node.querySelector('#pe-modal-msg');
+    const saveBtn = node.querySelector('#pe-modal-save');
+    const cancelBtn = node.querySelector('#pe-modal-cancel');
+    
+    nameInput.focus();
+    
+    saveBtn.onclick = async () => {
+      const name = nameInput.value.trim();
+      const price = normalizeNumber(priceInput.value);
+      
+      if (!name) {
+        msgEl.textContent = 'El nombre es requerido';
+        msgEl.style.color = 'var(--danger, #ef4444)';
+        return;
+      }
+      
+      if (price < 0) {
+        msgEl.textContent = 'El precio debe ser mayor o igual a 0';
+        msgEl.style.color = 'var(--danger, #ef4444)';
+        return;
+      }
+      
+      try {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Guardando...';
+        const payload = {
+          vehicleId: selectedVehicle._id,
+          name: name,
+          type: type,
+          total: price
+        };
+        await API.priceCreate(payload);
+        closeModal();
+        loadPrices();
+      } catch(e) {
+        msgEl.textContent = 'Error: ' + (e?.message || 'Error desconocido');
+        msgEl.style.color = 'var(--danger, #ef4444)';
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 Guardar';
+      }
+    };
+    
+    cancelBtn.onclick = () => closeModal();
+    
+    nameInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') saveBtn.click();
+    });
+    priceInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') saveBtn.click();
+    });
+    
+    const cleanup = openModal();
+    closeBtn.onclick = () => { cleanup?.(); closeModal(); };
+  }
   
   // Crear nuevo servicio
   if (btnNewService) {
-    btnNewService.onclick = async ()=>{
-      if(!selectedVehicle) return alert('Selecciona un vehículo primero');
-      const name = prompt('Nombre del servicio:', '');
-      if(!name || !name.trim()) return;
-      try {
-        const payload = {
-          vehicleId: selectedVehicle._id,
-          name: name.trim(),
-          type: 'service',
-          total: 0
-        };
-        await API.priceCreate(payload);
-        loadPrices();
-      } catch(e) {
-        alert('Error al crear servicio: ' + (e?.message || 'Error desconocido'));
-      }
-    };
+    btnNewService.onclick = () => openCreateModal('service');
   }
   
   // Crear nuevo producto
   if (btnNewProduct) {
-    btnNewProduct.onclick = async ()=>{
-      if(!selectedVehicle) return alert('Selecciona un vehículo primero');
-      const name = prompt('Nombre del producto:', '');
-      if(!name || !name.trim()) return;
-      try {
-        const payload = {
-          vehicleId: selectedVehicle._id,
-          name: name.trim(),
-          type: 'product',
-          total: 0
-        };
-        await API.priceCreate(payload);
-        loadPrices();
-      } catch(e) {
-        alert('Error al crear producto: ' + (e?.message || 'Error desconocido'));
-      }
-    };
+    btnNewProduct.onclick = () => openCreateModal('product');
   }
 
   // Import / Export
   if (btnExport) {
-    btnExport.onclick = async ()=>{
+  btnExport.onclick = async ()=>{
       if(!selectedVehicle) return alert('Selecciona un vehículo');
-      const blob = await API.pricesExport({ vehicleId: selectedVehicle._id });
-      const a=document.createElement('a'); const ts=new Date().toISOString().slice(0,10).replace(/-/g,'');
-      a.href=URL.createObjectURL(blob); a.download=`precios_${selectedVehicle.make}_${selectedVehicle.line}_${ts}.csv`; a.click(); URL.revokeObjectURL(a.href);
+      try {
+        btnExport.disabled = true;
+        btnExport.textContent = 'Exportando...';
+        const url = `${API.base || ''}/api/v1/prices/export?vehicleId=${selectedVehicle._id}`;
+        const res = await fetch(url, { headers: { ...(API.token?.get ? { Authorization: `Bearer ${API.token.get()}` } : {}) } });
+        if(!res.ok) throw new Error('No se pudo exportar');
+        const blob = await res.blob();
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        const contentDisposition = res.headers.get('Content-Disposition');
+        const filename = contentDisposition 
+          ? contentDisposition.split('filename=')[1]?.replace(/"/g, '') || 'precios.xlsx'
+          : `precios-${new Date().toISOString().split('T')[0]}.xlsx`;
+        a.download = filename;
+        document.body.appendChild(a); 
+        a.click(); 
+        a.remove();
+        URL.revokeObjectURL(a.href);
+      } catch(e) {
+        alert('Error al exportar: ' + e.message);
+      } finally {
+        btnExport.disabled = false;
+        btnExport.textContent = '📤 Exportar';
+      }
     };
   }
 
   if (btnImport) {
-    btnImport.onclick = ()=>{
+    btnImport.onclick = async ()=>{
       if(!selectedVehicle) return alert('Selecciona un vehículo');
-      alert('Importación por implementar');
+      const body=$('#modalBody'), closeBtn=$('#modalClose'); 
+      body.replaceChildren();
+      
+      const node = document.createElement('div');
+      node.className = 'card';
+      node.innerHTML = `
+        <h3>Importar precios</h3>
+        <p class="muted" style="margin-bottom:16px;font-size:13px;">
+          Vehículo: <strong>${selectedVehicle.make} ${selectedVehicle.line}</strong>
+        </p>
+        <div style="margin-bottom:16px;">
+          <button id="pe-download-template" class="secondary" style="width:100%;padding:10px;margin-bottom:8px;">📥 Descargar plantilla</button>
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Seleccionar archivo Excel (.xlsx)</label>
+          <input type="file" id="pe-import-file" accept=".xlsx" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+        </div>
+        <div id="pe-import-msg" style="margin-bottom:16px;font-size:13px;"></div>
+        <div class="row" style="gap:8px;">
+          <button id="pe-import-run" style="flex:1;padding:10px;">📥 Importar</button>
+          <button id="pe-import-cancel" class="secondary" style="flex:1;padding:10px;">Cancelar</button>
+        </div>
+      `;
+      body.appendChild(node);
+      
+      const fileInput = node.querySelector('#pe-import-file');
+      const msgEl = node.querySelector('#pe-import-msg');
+      const runBtn = node.querySelector('#pe-import-run');
+      const cancelBtn = node.querySelector('#pe-import-cancel');
+      const templateBtn = node.querySelector('#pe-download-template');
+      
+      templateBtn.onclick = async () => {
+        try {
+          templateBtn.disabled = true;
+          const url = `${API.base || ''}/api/v1/prices/import/template?vehicleId=${selectedVehicle._id}`;
+          const res = await fetch(url, { headers: { ...(API.token?.get ? { Authorization: `Bearer ${API.token.get()}` } : {}) } });
+          if(!res.ok) throw new Error('No se pudo descargar la plantilla');
+          const blob = await res.blob();
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = `plantilla-precios-${selectedVehicle.make}-${selectedVehicle.line}.xlsx`;
+          document.body.appendChild(a); 
+          a.click(); 
+          a.remove();
+          URL.revokeObjectURL(a.href);
+        } catch(e) {
+          alert('Error: ' + e.message);
+        } finally {
+          templateBtn.disabled = false;
+        }
+      };
+      
+      runBtn.onclick = async () => {
+        const file = fileInput.files?.[0];
+        if(!file) {
+          msgEl.textContent = 'Selecciona un archivo .xlsx';
+          msgEl.style.color = 'var(--danger, #ef4444)';
+          return;
+        }
+        
+        try {
+          runBtn.disabled = true;
+          runBtn.textContent = 'Importando...';
+          msgEl.textContent = 'Subiendo y procesando...';
+          msgEl.style.color = 'var(--muted)';
+          
+          const formData = new FormData();
+          formData.append('file', file);
+          formData.append('vehicleId', selectedVehicle._id);
+          formData.append('mode', 'upsert');
+          
+          const url = `${API.base || ''}/api/v1/prices/import`;
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { ...(API.token?.get ? { Authorization: `Bearer ${API.token.get()}` } : {}) },
+            body: formData
+          });
+          
+          const text = await res.text();
+          let data;
+          try { data = JSON.parse(text); } catch { data = text; }
+          
+          if(!res.ok) throw new Error(data?.error || 'Error importando');
+          
+          const s = data || {};
+          const errs = Array.isArray(s.errors) ? s.errors : [];
+          const lines = [
+            'Importación completada:',
+            `• Creados: ${s.inserted || 0}`,
+            `• Actualizados: ${s.updated || 0}`,
+            errs.length > 0 ? `• Errores: ${errs.length}` : ''
+          ].filter(Boolean);
+          
+          msgEl.innerHTML = lines.join('<br>');
+          msgEl.style.color = errs.length > 0 ? 'var(--warning, #f59e0b)' : 'var(--success, #10b981)';
+          
+          if (errs.length > 0 && errs.length <= 10) {
+            msgEl.innerHTML += '<br><br><strong>Errores:</strong><br>' + errs.map(e => `Fila ${e.row}: ${e.error}`).join('<br>');
+          } else if (errs.length > 10) {
+            msgEl.innerHTML += `<br><br><strong>Errores (mostrando primeros 10 de ${errs.length}):</strong><br>` + errs.slice(0, 10).map(e => `Fila ${e.row}: ${e.error}`).join('<br>');
+          }
+          
+          await loadPrices();
+        } catch(e) {
+          msgEl.textContent = 'Error: ' + (e?.message || 'Error desconocido');
+          msgEl.style.color = 'var(--danger, #ef4444)';
+        } finally {
+          runBtn.disabled = false;
+          runBtn.textContent = '📥 Importar';
+        }
+      };
+      
+      cancelBtn.onclick = () => closeModal();
+      
+      const cleanup = openModal();
+      closeBtn.onclick = () => { cleanup?.(); closeModal(); };
     };
   }
 

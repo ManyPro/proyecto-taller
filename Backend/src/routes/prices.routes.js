@@ -7,7 +7,8 @@ import {
   updatePrice,
   deletePrice,
   importPrices,
-  exportCsv,
+  exportPrices,
+  downloadImportTemplate,
   deleteAllPrices
 } from '../controllers/prices.controller.js';
 
@@ -27,8 +28,9 @@ r.delete('/:id', deletePrice);
 // NUEVO: borrado masivo por servicio (rápido y eficiente)
 r.delete('/', deleteAllPrices);
 
-// Importar XLSX y exportar CSV
+// Importar/Exportar Excel
+r.get('/import/template', downloadImportTemplate);
 r.post('/import', upload.single('file'), importPrices);
-r.get('/export', exportCsv);
+r.get('/export', exportPrices);
 
 export default r;

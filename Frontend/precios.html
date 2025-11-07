@@ -89,15 +89,32 @@
           <div id="pe-actions-bar" style="display:none;margin-bottom:16px;gap:8px;" class="row">
             <button id="pe-new-service" style="padding:8px 16px;">➕ Nuevo servicio</button>
             <button id="pe-new-product" style="padding:8px 16px;">➕ Nuevo producto</button>
-            <button id="pf-search" class="secondary" style="padding:8px 16px;">🔍 Buscar</button>
+          </div>
+          <div id="pe-filters" style="display:none;margin-bottom:16px;gap:8px;flex-wrap:wrap;" class="row">
+            <div style="flex:1;min-width:200px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Buscar por nombre</label>
+              <input id="pe-filter-name" placeholder="Nombre del servicio/producto..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+            </div>
+            <div style="min-width:150px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Tipo</label>
+              <select id="pe-filter-type" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                <option value="">Todos</option>
+                <option value="service">Servicios</option>
+                <option value="product">Productos</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:end;">
+              <button id="pf-search" class="secondary" style="padding:8px 16px;height:fit-content;">🔍 Buscar</button>
+            </div>
           </div>
           <div class="card" style="margin-top:12px;">
-            <div class="table-wrap">
-              <table class="table" id="pe-table">
+            <div class="table-wrap" style="overflow-x:auto;width:100%;">
+              <table class="table" id="pe-table" style="width:100%;table-layout:auto;">
                 <thead id="pe-head"></thead>
                 <tbody id="pe-body"></tbody>
               </table>
             </div>
+            <div id="pe-pagination"></div>
           </div>
         </div>
 

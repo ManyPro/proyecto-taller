@@ -195,15 +195,29 @@ export async function registerSaleIncome({ companyId, sale, accountId }) {
   }
 
   const entries = [];
+  // Track balances por cuenta para pagos múltiples a la misma cuenta
+  const accountBalances = new Map();
+  
   for (const m of methods) {
     let accId = m.accountId || accountId;
     if (!accId) {
       const acc = await ensureDefaultCashAccount(companyId);
       accId = acc._id;
     }
-    const prevBal = await computeBalance(accId, companyId);
+    
+    // Si ya procesamos un pago a esta cuenta, usar el balance incremental
+    let prevBal;
+    if (accountBalances.has(String(accId))) {
+      prevBal = accountBalances.get(String(accId));
+    } else {
+      prevBal = await computeBalance(accId, companyId);
+      accountBalances.set(String(accId), prevBal);
+    }
+    
     const amount = Number(m.amount||0);
     const newBal = prevBal + amount;
+    accountBalances.set(String(accId), newBal); // Actualizar para el próximo pago
+    
     const entry = await CashFlowEntry.create({
       companyId,
       accountId: accId,
@@ -213,6 +227,7 @@ export async function registerSaleIncome({ companyId, sale, accountId }) {
       description: `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`,
       amount,
       balanceAfter: newBal,
+      date: new Date(), // Asegurar fecha actual
       meta: { saleNumber: sale.number, paymentMethod: m.method }
     });
     entries.push(entry);
