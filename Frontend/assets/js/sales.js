@@ -882,11 +882,13 @@ function openQR(){
   const sel = node.querySelector('#qr-cam');
   const msg = node.querySelector('#qr-msg');
   const list = node.querySelector('#qr-history');
-  const autoclose = node.querySelector('#qr-autoclose');
+  const multiModeBtn = node.querySelector('#qr-multi-mode');
+  const finishMultiBtn = node.querySelector('#qr-finish-multi');
   const manualInput = node.querySelector('#qr-manual');
   const manualBtn = node.querySelector('#qr-add-manual');
 
   let stream=null, running=false, detector=null, lastCode='', lastTs=0;
+  let multiMode = false; // Modo múltiples items activo
 
   async function fillCams(){
     try{
@@ -936,7 +938,8 @@ function openQR(){
   function accept(value){
     const normalized = String(value || '').trim().toUpperCase();
     const t = Date.now();
-    if (lastCode === normalized && t - lastTs < 1200) return false;
+    // Aumentar delay a 3 segundos para evitar escaneos duplicados
+    if (lastCode === normalized && t - lastTs < 3000) return false;
     lastCode = normalized;
     lastTs = t;
     return true;
@@ -1001,7 +1004,7 @@ function openQR(){
       z-index: 10000;
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
       pointer-events: none;
-      animation: fadeInOut 0.5s ease-in-out;
+      animation: fadeInOut 1.5s ease-in-out;
     `;
     
     // Agregar animación CSS si no existe
@@ -1011,7 +1014,8 @@ function openQR(){
       style.textContent = `
         @keyframes fadeInOut {
           0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
-          50% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
           100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
         }
       `;
@@ -1020,10 +1024,10 @@ function openQR(){
     
     document.body.appendChild(popup);
     
-    // Remover después de 0.5 segundos
+    // Remover después de 1.5 segundos
     setTimeout(() => {
       popup.remove();
-    }, 500);
+    }, 1500);
   }
 
   async function handleCode(raw, fromManual = false){
@@ -1049,7 +1053,11 @@ function openQR(){
       // Mostrar popup de confirmación
       showItemAddedPopup();
       
-      if (autoclose.checked && !fromManual){ stop(); closeModal(); }
+      // Solo cerrar automáticamente si NO está en modo múltiples
+      if (!multiMode && !fromManual){ 
+        stop(); 
+        closeModal(); 
+      }
       msg.textContent = '';
     }catch(e){ msg.textContent = e?.message || 'No se pudo agregar'; }
   }
@@ -1073,6 +1081,27 @@ function openQR(){
     }catch{}
     requestAnimationFrame(tickCanvas);
   }
+
+  // Manejar botón de modo múltiples
+  multiModeBtn?.addEventListener('click', () => {
+    multiMode = true;
+    multiModeBtn.style.display = 'none';
+    if (finishMultiBtn) finishMultiBtn.style.display = 'inline-block';
+    msg.textContent = 'Modo múltiples items activado. Escanea varios items seguidos.';
+  });
+
+  // Manejar botón de terminar modo múltiples
+  finishMultiBtn?.addEventListener('click', () => {
+    multiMode = false;
+    multiModeBtn.style.display = 'inline-block';
+    if (finishMultiBtn) finishMultiBtn.style.display = 'none';
+    msg.textContent = 'Modo múltiples items desactivado.';
+    stop();
+    closeModal();
+  });
+
+  // Inicialmente ocultar el botón de terminar
+  if (finishMultiBtn) finishMultiBtn.style.display = 'none';
 
   manualBtn?.addEventListener('click', () => {
     const val = manualInput?.value.trim();

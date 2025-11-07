@@ -470,10 +470,11 @@
         <div>
           <h3>Lector de QR</h3>
           <div class="qrbar row">
-            <div class="row" style="gap:8px;align-items:center;">
+            <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;">
               <label>Camara</label>
               <select id="qr-cam"></select>
-              <label class="row" style="gap:6px;"><input type="checkbox" id="qr-autoclose" checked> Cerrar al agregar</label>
+              <button id="qr-multi-mode" class="secondary" style="white-space:nowrap;">➕ Agregar múltiples items</button>
+              <button id="qr-finish-multi" class="secondary" style="white-space:nowrap;display:none;">✓ Terminar de agregar</button>
             </div>
             <div class="row" style="gap:8px;">
               <button id="qr-start" class="secondary">Iniciar</button>
