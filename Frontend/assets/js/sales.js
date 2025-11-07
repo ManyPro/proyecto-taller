@@ -291,16 +291,10 @@ async function ensureCompanyData(){
   try { companyTechnicians = await API.company.getTechnicians(); } catch { companyTechnicians = []; }
   try { companyPrefs = await API.company.getPreferences(); } catch { companyPrefs = { laborPercents: [] }; }
   try { 
-    const r = await API.company.getTechConfig();
-    // La API devuelve { config: {...} } o directamente el config
-    if (r && r.config) {
-      techConfig = r.config;
-    } else if (r && (r.laborKinds || r.technicians)) {
-      techConfig = r;
-    } else {
-      techConfig = { laborKinds: [], technicians: [] };
-    }
+    // API.company.getTechConfig() ya devuelve r.config || { laborKinds:[], technicians:[] }
+    techConfig = await API.company.getTechConfig();
     console.log('techConfig cargado:', techConfig);
+    console.log('laborKinds:', techConfig?.laborKinds);
   } catch (err) { 
     console.error('Error cargando techConfig:', err);
     techConfig = { laborKinds: [], technicians: [] }; 
@@ -365,6 +359,7 @@ function openCloseModal(){
   ensureCompanyData().then(()=>{
     // Asegurar que techConfig esté cargado
     console.log('techConfig después de ensureCompanyData:', techConfig);
+    console.log('laborKinds disponibles:', techConfig?.laborKinds);
     body.innerHTML='';
     const content = buildCloseModalContent();
     body.appendChild(content);
@@ -428,19 +423,30 @@ function fillCloseModal(){
     grid.insertBefore(wrap, grid.querySelector('#cv-receipt')?.parentElement);
 
     const tbody = wrap.querySelector('#cv-comm-body');
-    function addLine(pref={}){
+    
+    // Función para obtener laborKinds actualizados
+    async function getLaborKinds() {
+      try {
+        const config = await API.company.getTechConfig();
+        return config?.laborKinds || [];
+      } catch {
+        return techConfig?.laborKinds || [];
+      }
+    }
+    
+    async function addLine(pref={}){
       const tr = document.createElement('tr');
       const techOpts = ['',''].concat(companyTechnicians||[]).map(t=> `<option value="${t}">${t}</option>`).join('');
-      // Manejar laborKinds como objetos o strings (compatibilidad)
-      // Asegurar que techConfig esté disponible
-      const currentTechConfig = techConfig || { laborKinds: [], technicians: [] };
-      const laborKindsList = (currentTechConfig.laborKinds||[]).map(k=> {
+      
+      // Obtener laborKinds actualizados
+      const laborKinds = await getLaborKinds();
+      const laborKindsList = laborKinds.map(k=> {
         const name = typeof k === 'string' ? k : (k?.name || '');
         return name;
       }).filter(k => k && k.trim() !== ''); // Filtrar vacíos
       
-      console.log('techConfig:', currentTechConfig);
-      console.log('laborKindsList:', laborKindsList);
+      console.log('laborKinds obtenidos:', laborKinds);
+      console.log('laborKindsList procesado:', laborKindsList);
       
       const kindOpts = '<option value="">-- Seleccione tipo --</option>' + laborKindsList.map(k=> `<option value="${k}">${k}</option>`).join('');
       tr.innerHTML = `
@@ -481,22 +487,24 @@ function fillCloseModal(){
           }
         }
         // Si no está en el perfil, usar el defaultPercent del tipo
-        const laborKind = (techConfig?.laborKinds||[]).find(k=> {
-          const kindName = typeof k === 'string' ? k : (k?.name || '');
-          return String(kindName).toUpperCase() === kind;
+        getLaborKinds().then(laborKinds => {
+          const laborKind = laborKinds.find(k=> {
+            const kindName = typeof k === 'string' ? k : (k?.name || '');
+            return String(kindName).toUpperCase() === kind;
+          });
+          if(laborKind && typeof laborKind === 'object' && laborKind.defaultPercent > 0){
+            pcInp.value = Number(laborKind.defaultPercent||0);
+            recalc();
+          }
         });
-        if(laborKind && typeof laborKind === 'object' && laborKind.defaultPercent > 0){
-          pcInp.value = Number(laborKind.defaultPercent||0);
-          recalc();
-        }
       }
       techSel2.addEventListener('change', autoFillPercent);
       kindSel2.addEventListener('change', autoFillPercent);
       return tr;
     }
-    wrap.querySelector('#cv-add-commission').addEventListener('click', ()=> addLine({}));
+    wrap.querySelector('#cv-add-commission').addEventListener('click', ()=> addLine({}).catch(err => console.error('Error agregando línea:', err)));
     // precargar una línea si hay técnico
-    if((techSel.value||'').trim()){ addLine({ technician: techSel.value }); }
+    if((techSel.value||'').trim()){ addLine({ technician: techSel.value }).catch(err => console.error('Error precargando línea:', err)); }
   } catch{}
 
   // Dynamic payments
