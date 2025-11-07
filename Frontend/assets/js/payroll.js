@@ -1483,9 +1483,9 @@ async function createPeriod(){
       const errorMsg = err.message || 'Error desconocido';
       let userMsg = '❌ Error al crear período: ' + errorMsg;
       
-      // El solapamiento ya no es un error, se permite
-      if (errorMsg.includes('duplicate') || errorMsg.includes('unique') || errorMsg.includes('11000')) {
-        userMsg = '⚠️ Ya existe un período con estas fechas exactas (mismo inicio y fin).';
+      // Solo se previene si hay un período ABIERTO con las mismas fechas exactas
+      if (errorMsg.includes('ABIERTO') || errorMsg.includes('abierto')) {
+        userMsg = '⚠️ Ya existe un período ABIERTO con estas fechas exactas. Cierra el período existente o usa fechas diferentes.';
       }
       
       if (msgEl) {

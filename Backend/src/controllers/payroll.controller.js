@@ -182,6 +182,27 @@ export const createPeriod = async (req, res) => {
     
     // NOTA: Se permiten períodos que se solapen para soportar diferentes frecuencias de pago
     // (ej: algunos empleados quincenal, otros semanal)
+    // Solo se previene crear un período con las mismas fechas exactas si ya existe uno ABIERTO
+    
+    // Verificar si ya existe un período ABIERTO con las mismas fechas exactas
+    const existingOpen = await PayrollPeriod.findOne({
+      companyId: req.companyId,
+      startDate: start,
+      endDate: end,
+      status: 'open'
+    });
+    
+    if (existingOpen) {
+      return res.status(409).json({ 
+        error: 'Ya existe un período ABIERTO con estas fechas exactas',
+        existing: {
+          id: existingOpen._id,
+          startDate: existingOpen.startDate,
+          endDate: existingOpen.endDate,
+          periodType: existingOpen.periodType
+        }
+      });
+    }
     
     const validTypes = ['monthly', 'biweekly', 'weekly'];
     const type = validTypes.includes(periodType) ? periodType : 'monthly';
@@ -195,9 +216,6 @@ export const createPeriod = async (req, res) => {
     
     res.status(201).json(doc);
   } catch (err) {
-    if (err.code === 11000) {
-      return res.status(409).json({ error: 'Ya existe un período con estas fechas exactas' });
-    }
     res.status(500).json({ error: 'Error al crear período', message: err.message });
   }
 };
