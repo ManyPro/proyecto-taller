@@ -894,48 +894,126 @@ function openQR(){
 
   async function fillCams(){
     try{
+      // En móviles, primero solicitar permisos para que los dispositivos tengan labels
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        // Solicitar permisos primero para que los dispositivos aparezcan con labels
+        try {
+          const tempStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+          // Detener el stream inmediatamente, solo necesitábamos los permisos
+          tempStream.getTracks().forEach(track => track.stop());
+        } catch (permErr) {
+          console.warn('Error al solicitar permisos de cámara:', permErr);
+          // Continuar de todas formas, puede que los permisos ya estén dados
+        }
+      }
+      
+      // Ahora enumerar dispositivos (después de solicitar permisos en móviles)
       const devs = await navigator.mediaDevices.enumerateDevices();
       const cams = devs.filter(d=>d.kind==='videoinput');
       
-      // Detectar si es móvil
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      if (cams.length === 0) {
+        // Si no hay cámaras detectadas, crear una opción por defecto
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = isMobile ? 'Cámara trasera (automática)' : 'Cámara predeterminada';
+        sel.replaceChildren(defaultOpt);
+        sel.value = '';
+        return;
+      }
       
       sel.replaceChildren(...cams.map((c,i)=>{
         const o=document.createElement('option'); 
         o.value=c.deviceId; 
         o.textContent=c.label||('Cam '+(i+1)); 
         // Si es móvil y la cámara parece ser trasera (environment), marcarla como seleccionada
-        if (isMobile && (c.label?.toLowerCase().includes('back') || c.label?.toLowerCase().includes('rear') || c.label?.toLowerCase().includes('environment'))) {
+        if (isMobile && (c.label?.toLowerCase().includes('back') || c.label?.toLowerCase().includes('rear') || c.label?.toLowerCase().includes('environment') || c.label?.toLowerCase().includes('trasera'))) {
           o.selected = true;
         }
         return o;
       }));
       
       // Si es móvil y no hay cámara seleccionada, dejar vacío para que start() use facingMode: 'environment'
-      if (isMobile && !sel.value) {
+      if (isMobile && !sel.value && cams.length > 0) {
         sel.value = '';
       }
-    }catch{}
+    }catch(err){
+      console.error('Error al cargar cámaras:', err);
+      // Crear opción por defecto en caso de error
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = 'Cámara predeterminada';
+      sel.replaceChildren(defaultOpt);
+      sel.value = '';
+    }
   }
 
-  function stop(){ try{ video.pause(); }catch{}; try{ (stream?.getTracks()||[]).forEach(t=>t.stop()); }catch{}; running=false; }
+  function stop(){ 
+    try{ 
+      video.pause(); 
+      video.srcObject = null;
+    }catch{}; 
+    try{ 
+      (stream?.getTracks()||[]).forEach(t=>t.stop()); 
+    }catch{}; 
+    running=false; 
+    stream = null;
+  }
+  
   async function start(){
     try{
       stop();
-      // Forzar cámara trasera en móviles (environment = cámara trasera)
-      // Si hay una cámara seleccionada manualmente, usarla; sino, forzar environment
-      const videoConstraints = sel.value 
-        ? { deviceId: { exact: sel.value } }
-        : { facingMode: 'environment' }; // Siempre forzar cámara trasera en móviles
+      
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      // Construir constraints de video
+      let videoConstraints;
+      
+      if (sel.value && sel.value.trim() !== '') {
+        // Si hay una cámara seleccionada manualmente, usarla
+        videoConstraints = { deviceId: { exact: sel.value } };
+      } else if (isMobile) {
+        // En móviles, forzar cámara trasera (environment)
+        videoConstraints = { facingMode: 'environment' };
+      } else {
+        // En desktop, usar cualquier cámara disponible
+        videoConstraints = true;
+      }
       
       const cs = { video: videoConstraints, audio: false };
+      
+      // Solicitar acceso a la cámara
       stream = await navigator.mediaDevices.getUserMedia(cs);
-      video.srcObject = stream; await video.play();
+      video.srcObject = stream; 
+      await video.play();
       running = true;
-      if (window.BarcodeDetector) { detector = new BarcodeDetector({ formats: ['qr_code'] }); tickNative(); }
-      else { tickCanvas(); }
+      
+      // Actualizar lista de cámaras después de obtener permisos (para que aparezcan los labels)
+      if (isMobile && sel.children.length <= 1) {
+        await fillCams();
+      }
+      
+      if (window.BarcodeDetector) { 
+        detector = new BarcodeDetector({ formats: ['qr_code'] }); 
+        tickNative(); 
+      } else { 
+        tickCanvas(); 
+      }
       msg.textContent='';
-    }catch(e){ msg.textContent='No se pudo abrir cámara: '+(e?.message||e?.name||'Desconocido'); }
+    }catch(e){ 
+      console.error('Error al iniciar cámara:', e);
+      let errorMsg = 'No se pudo abrir cámara: ';
+      if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+        errorMsg = 'Permisos de cámara denegados. Por favor, permite el acceso a la cámara en la configuración del navegador.';
+      } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
+        errorMsg = 'No se encontró ninguna cámara. Verifica que tu dispositivo tenga una cámara disponible.';
+      } else {
+        errorMsg += (e?.message||e?.name||'Desconocido');
+      }
+      msg.textContent = errorMsg;
+      msg.style.color = 'var(--danger, #ef4444)';
+    }
   }
   function accept(value){
     // Si la cámara está deshabilitada (durante delay), no aceptar códigos
