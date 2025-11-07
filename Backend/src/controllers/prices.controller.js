@@ -43,60 +43,71 @@ function computeTotal(service, variables = {}) {
 
 // ============ list ============
 export const listPrices = async (req, res) => {
-  const { serviceId, vehicleId, brand, line, engine, year } = req.query || {};
+  const { serviceId, vehicleId, type, brand, line, engine, year } = req.query || {};
   const q = { companyId: req.companyId };
-  if (serviceId) q.serviceId = serviceId;
   
-  // Prioridad: vehicleId (nuevo) sobre brand/line/engine/year (legacy)
+  // Nuevo modelo: vehicleId es prioritario
   if (vehicleId) {
     q.vehicleId = vehicleId;
   } else {
     // Filtros legacy (mantener compatibilidad)
+    if (serviceId) q.serviceId = serviceId;
     if (brand) q.brand = cleanStr(brand);
     if (line) q.line = cleanStr(line);
     if (engine) q.engine = cleanStr(engine);
     if (year) q.year = Number(year);
   }
+  
+  // Filtrar por tipo si se proporciona
+  if (type) q.type = type;
 
   const items = await PriceEntry.find(q)
     .populate('vehicleId', 'make line displacement modelYear')
-    .sort({ brand: 1, line: 1, engine: 1, year: 1 })
+    .sort({ type: 1, name: 1, createdAt: -1 })
     .lean();
   res.json({ items });
 };
 
 // ============ create ============
 export const createPrice = async (req, res) => {
-  const { serviceId, vehicleId, brand, line, engine, year, variables = {} } = req.body || {};
-  if (!serviceId) return res.status(400).json({ error: 'serviceId requerido' });
-  const svc = await getService(req.companyId, serviceId);
-  if (!svc) return res.status(404).json({ error: 'Servicio no encontrado' });
+  const { vehicleId, name, type = 'service', serviceId, variables = {}, total: totalRaw } = req.body || {};
+  
+  // Nuevo modelo: vehicleId y name son requeridos
+  if (!vehicleId) return res.status(400).json({ error: 'vehicleId requerido' });
+  if (!name || !name.trim()) return res.status(400).json({ error: 'name requerido' });
+  
+  // Validar vehículo
+  const vehicle = await Vehicle.findById(vehicleId);
+  if (!vehicle) return res.status(404).json({ error: 'Vehículo no encontrado' });
+  if (!vehicle.active) return res.status(400).json({ error: 'Vehículo inactivo' });
 
-  // Si se proporciona vehicleId, validar y obtener datos del vehículo
-  let vehicleData = null;
-  if (vehicleId) {
-    const vehicle = await Vehicle.findById(vehicleId);
-    if (!vehicle) return res.status(404).json({ error: 'Vehículo no encontrado' });
-    if (!vehicle.active) return res.status(400).json({ error: 'Vehículo inactivo' });
-    vehicleData = {
-      vehicleId: vehicle._id,
-      brand: vehicle.make,
-      line: vehicle.line,
-      engine: vehicle.displacement,
-      year: null // No usar year del vehículo, se maneja por modelYear
-    };
+  // Si hay serviceId, validar servicio (opcional)
+  let svc = null;
+  if (serviceId) {
+    svc = await getService(req.companyId, serviceId);
+    if (!svc) return res.status(404).json({ error: 'Servicio no encontrado' });
+  }
+
+  // Calcular total: si hay servicio con fórmula, usarla; si no, usar el total proporcionado
+  let total = 0;
+  if (svc && Object.keys(variables || {}).length > 0) {
+    total = computeTotal(svc, variables);
+  } else if (totalRaw !== undefined) {
+    total = num(totalRaw);
   }
 
   const doc = {
     companyId: req.companyId,
-    serviceId,
-    vehicleId: vehicleData?.vehicleId || null,
-    brand: vehicleData?.brand || cleanStr(brand || ''),
-    line: vehicleData?.line || cleanStr(line || ''),
-    engine: vehicleData?.engine || cleanStr(engine || ''),
-    year: vehicleData ? null : (Number(year) || null),
-    variables,
-    total: computeTotal(svc, variables)
+    vehicleId: vehicle._id,
+    name: String(name).trim(),
+    type: type === 'product' ? 'product' : 'service',
+    serviceId: svc?._id || null,
+    brand: vehicle.make,
+    line: vehicle.line,
+    engine: vehicle.displacement,
+    year: null,
+    variables: variables || {},
+    total
   };
   
   try {
@@ -108,15 +119,15 @@ export const createPrice = async (req, res) => {
   } catch (e) {
     // Si ya existe por índice único, intenta actualizar
     if (e?.code === 11000) {
-      const filter = vehicleId
-        ? { companyId: req.companyId, serviceId, vehicleId }
-        : {
-            companyId: req.companyId, serviceId: serviceId,
-            brand: doc.brand, line: doc.line, engine: doc.engine, year: doc.year
-          };
+      const filter = {
+        companyId: req.companyId,
+        vehicleId: vehicle._id,
+        name: doc.name,
+        type: doc.type
+      };
       const up = await PriceEntry.findOneAndUpdate(
         filter, 
-        { ...doc, variables, total: doc.total }, 
+        { ...doc, variables, total }, 
         { new: true, upsert: true }
       );
       const populated = await PriceEntry.findById(up._id)
@@ -131,37 +142,43 @@ export const createPrice = async (req, res) => {
 // ============ update ============
 export const updatePrice = async (req, res) => {
   const id = req.params.id;
-  const { vehicleId, brand, line, engine, year, variables = {} } = req.body || {};
+  const { name, type, variables = {}, total: totalRaw, serviceId } = req.body || {};
   const row = await PriceEntry.findOne({ _id: id, companyId: req.companyId });
   if (!row) return res.status(404).json({ error: 'No encontrado' });
 
-  const svc = await getService(req.companyId, row.serviceId);
-  const total = computeTotal(svc, variables);
-
-  // Si se proporciona vehicleId, actualizar desde el vehículo
-  if (vehicleId !== undefined) {
-    if (vehicleId === null || vehicleId === '') {
-      // Eliminar referencia a vehículo
-      row.vehicleId = null;
+  // Actualizar nombre y tipo si se proporcionan
+  if (name !== undefined && name !== null) row.name = String(name).trim();
+  if (type !== undefined && type !== null) row.type = type === 'product' ? 'product' : 'service';
+  
+  // Actualizar serviceId si se proporciona
+  if (serviceId !== undefined) {
+    if (serviceId === null || serviceId === '') {
+      row.serviceId = null;
     } else {
-      const vehicle = await Vehicle.findById(vehicleId);
-      if (!vehicle) return res.status(404).json({ error: 'Vehículo no encontrado' });
-      if (!vehicle.active) return res.status(400).json({ error: 'Vehículo inactivo' });
-      row.vehicleId = vehicle._id;
-      row.brand = vehicle.make;
-      row.line = vehicle.line;
-      row.engine = vehicle.displacement;
-      row.year = null; // No usar year cuando hay vehicleId
+      const svc = await getService(req.companyId, serviceId);
+      if (!svc) return res.status(404).json({ error: 'Servicio no encontrado' });
+      row.serviceId = svc._id;
     }
-  } else {
-    // Actualizar campos legacy
-    if (brand !== undefined) row.brand = cleanStr(brand);
-    if (line !== undefined) row.line = cleanStr(line);
-    if (engine !== undefined) row.engine = cleanStr(engine);
-    if (year !== undefined) row.year = year != null ? Number(year) : null;
   }
 
-  row.variables = variables;
+  // Calcular total
+  let total = 0;
+  if (row.serviceId) {
+    const svc = await getService(req.companyId, row.serviceId);
+    if (svc && Object.keys(variables || {}).length > 0) {
+      total = computeTotal(svc, variables);
+    } else if (totalRaw !== undefined) {
+      total = num(totalRaw);
+    } else {
+      total = row.total || 0;
+    }
+  } else if (totalRaw !== undefined) {
+    total = num(totalRaw);
+  } else {
+    total = row.total || 0;
+  }
+
+  row.variables = variables || row.variables;
   row.total = total;
 
   await row.save();
