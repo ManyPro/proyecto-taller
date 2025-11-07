@@ -13,11 +13,30 @@ async function ensureDefaultCashAccount(companyId) {
 }
 
 export async function computeBalance(accountId, companyId) {
-  // Usa el balanceAfter del Ãºltimo movimiento si existe
-  const last = await CashFlowEntry.findOne({ companyId, accountId }).sort({ date: -1, _id: -1 });
-  if (last) return last.balanceAfter;
+  // Obtener balance inicial de la cuenta
   const acc = await Account.findOne({ _id: accountId, companyId });
-  return acc ? acc.initialBalance : 0;
+  const initialBalance = acc ? acc.initialBalance : 0;
+  
+  // Calcular balance basándose en todas las entradas hasta la fecha actual
+  // Esto asegura que las entradas con fecha futura no afecten el balance actual
+  const now = new Date();
+  const entries = await CashFlowEntry.find({ 
+    companyId, 
+    accountId,
+    date: { $lte: now } // Solo entradas hasta la fecha actual
+  }).sort({ date: 1, _id: 1 }); // Ordenar cronológicamente (más antiguo primero)
+  
+  // Calcular balance sumando/restando todas las entradas en orden cronológico
+  let balance = initialBalance;
+  for (const entry of entries) {
+    if (entry.kind === 'IN') {
+      balance += (entry.amount || 0);
+    } else if (entry.kind === 'OUT') {
+      balance -= (entry.amount || 0);
+    }
+  }
+  
+  return balance;
 }
 
 export async function listAccounts(req, res) {

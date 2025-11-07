@@ -75,7 +75,14 @@ async function loadMovements(reset=false){
       rowsBody.innerHTML = items.map(x=>{
         const inAmt = x.kind==='IN'? money(x.amount):'';
         const outAmt = x.kind==='OUT'? money(x.amount):'';
-        const date = new Date(x.date||x.createdAt||Date.now()).toLocaleString();
+        const date = new Date(x.date||x.createdAt||Date.now()).toLocaleString('es-CO', { 
+          year: 'numeric', 
+          month: '2-digit', 
+          day: '2-digit', 
+          hour: '2-digit', 
+          minute: '2-digit', 
+          second: '2-digit' 
+        });
         const accName = x.accountId?.name||x.accountName||'';
         const desc = x.description||'';
         const canEdit = true; // se podría restringir según x.source
