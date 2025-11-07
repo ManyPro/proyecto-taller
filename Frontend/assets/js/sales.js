@@ -291,8 +291,9 @@ async function ensureCompanyData(){
   try { companyTechnicians = await API.company.getTechnicians(); } catch { companyTechnicians = []; }
   try { companyPrefs = await API.company.getPreferences(); } catch { companyPrefs = { laborPercents: [] }; }
   try { 
-    // API.company.getTechConfig() ya devuelve r.config || { laborKinds:[], technicians:[] }
-    techConfig = await API.company.getTechConfig();
+    // Usar API.get directamente como alternativa más robusta
+    const response = await API.get('/api/v1/company/tech-config');
+    techConfig = response?.config || response || { laborKinds: [], technicians: [] };
     console.log('techConfig cargado:', techConfig);
     console.log('laborKinds:', techConfig?.laborKinds);
   } catch (err) { 
@@ -427,9 +428,13 @@ function fillCloseModal(){
     // Función para obtener laborKinds actualizados
     async function getLaborKinds() {
       try {
-        const config = await API.company.getTechConfig();
+        // Usar API.get directamente como alternativa más robusta
+        const response = await API.get('/api/v1/company/tech-config');
+        const config = response?.config || response || { laborKinds: [] };
         return config?.laborKinds || [];
-      } catch {
+      } catch (err) {
+        console.error('Error obteniendo laborKinds:', err);
+        // Fallback a techConfig cargado previamente
         return techConfig?.laborKinds || [];
       }
     }
