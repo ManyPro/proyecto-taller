@@ -260,64 +260,15 @@ function enterApp() {
 }
 
 // ================= FAB (Botón flotante móviles) =================
+// ELIMINADO: El FAB ha sido removido completamente para evitar interferencias con modales y otras funciones
 function initFAB(){
+  // Eliminar cualquier FAB existente
   const existing = document.getElementById('app-fab');
-  if(existing) return;
-  const fab = document.createElement('div');
-  fab.id='app-fab';
-  fab.innerHTML = `<button id="fab-main" title="Acciones rápidas">+</button>
-    <div id="fab-menu" class="hidden">
-      <button data-act="venta">Nueva Venta</button>
-      <button data-act="nota">Nueva Nota</button>
-      <button data-act="cotizacion">Nueva Cotización</button>
-    </div>`;
-  document.body.appendChild(fab);
-  const mainBtn = fab.querySelector('#fab-main');
-  const menu = fab.querySelector('#fab-menu');
-  mainBtn.addEventListener('click', ()=> menu.classList.toggle('hidden'));
-  menu.addEventListener('click', async (ev)=>{
-    const btn = ev.target.closest('button[data-act]'); if(!btn) return;
-    menu.classList.add('hidden');
-    const act = btn.dataset.act;
-    if(act==='venta'){
-      try{ const { sales } = await import('./sales.js'); }catch{}
-      // Simular click en Nueva Venta
-      document.getElementById('sales-start')?.click();
-      showTab('ventas');
-    } else if(act==='nota'){
-      showTab('notas');
-      document.getElementById('n-plate')?.focus();
-    } else if(act==='cotizacion'){
-      showTab('cotizaciones');
-      document.getElementById('q-client-name')?.focus();
-    }
-  });
-  
-  // Función para verificar si hay un modal abierto
-  function checkModalAndToggle(){
-    const modal = document.getElementById('modal');
-    const isModalOpen = modal && !modal.classList.contains('hidden');
-    const mq = window.matchMedia('(min-width: 861px)');
-    
-    // Ocultar FAB si hay modal abierto o si es desktop
-    if(isModalOpen || mq.matches){
-      fab.style.display = 'none';
-    } else {
-      fab.style.display = 'flex';
-    }
+  if(existing) {
+    existing.remove();
   }
-  
-  // Observar cambios en el modal
-  const modal = document.getElementById('modal');
-  if(modal){
-    const observer = new MutationObserver(checkModalAndToggle);
-    observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
-  }
-  
-  // Ocultar fab en desktop y cuando hay modal abierto
-  const mq = window.matchMedia('(min-width: 861px)');
-  mq.addEventListener('change', checkModalAndToggle);
-  checkModalAndToggle();
+  // No crear nuevo FAB - función deshabilitada
+  return;
 }
 
 
