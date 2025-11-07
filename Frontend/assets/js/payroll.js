@@ -98,10 +98,12 @@ async function loadConcepts(){
 async function addConcept(){
   try {
     const type = el('pc-type')?.value;
-    const amountType = el('pc-amountType')?.value;
+    const isVariable = type === 'variable';
+    const amountType = isVariable ? 'fixed' : el('pc-amountType')?.value;
     const code = (el('pc-code')?.value || '').trim().toUpperCase();
     const name = (el('pc-name')?.value || '').trim();
-    const valueStr = (el('pc-value')?.value || '').trim();
+    const valueStr = isVariable ? '0' : (el('pc-value')?.value || '').trim();
+    const variableFixedAmount = isVariable ? parseFloat(el('pc-variableFixedAmount')?.value || '0') : 0;
     
     // Validaciones
     if (!code) {
@@ -114,51 +116,56 @@ async function addConcept(){
       el('pc-name')?.focus();
       return;
     }
-    if (!valueStr) {
-      alert('⚠️ El valor es requerido');
-      el('pc-value')?.focus();
-      return;
-    }
     
-    const defaultValue = parseFloat(valueStr);
-    if (isNaN(defaultValue) || defaultValue < 0) {
-      alert('⚠️ El valor debe ser un número positivo');
-      el('pc-value')?.focus();
-      return;
-    }
-    
-    let allowOver100 = false;
-    if (amountType === 'percent' && defaultValue > 100) {
-      if (!confirm('⚠️ El porcentaje es mayor a 100%. ¿Deseas continuar?')) {
+    if (isVariable) {
+      if (variableFixedAmount <= 0) {
+        alert('⚠️ El monto fijo a completar debe ser mayor a 0');
+        el('pc-variableFixedAmount')?.focus();
         return;
       }
-      allowOver100 = true;
+    } else {
+      if (!valueStr) {
+        alert('⚠️ El valor es requerido');
+        el('pc-value')?.focus();
+        return;
+      }
+      
+      const defaultValue = parseFloat(valueStr);
+      if (isNaN(defaultValue) || defaultValue < 0) {
+        alert('⚠️ El valor debe ser un número positivo');
+        el('pc-value')?.focus();
+        return;
+      }
+      
+      let allowOver100 = false;
+      if (amountType === 'percent' && defaultValue > 100) {
+        if (!confirm('⚠️ El porcentaje es mayor a 100%. ¿Deseas continuar?')) {
+          return;
+        }
+        allowOver100 = true;
+      }
+      
+      if (!amountType) {
+        alert('⚠️ Selecciona tipo de monto');
+        return;
+      }
     }
     
-    if (!type || !amountType) {
-      alert('⚠️ Selecciona tipo y tipo de monto');
-      return;
-    }
-    
-    const isVariable = el('pc-isVariable')?.checked || false;
-    const variableFixedAmount = isVariable ? parseFloat(el('pc-variableFixedAmount')?.value || '0') : 0;
-    
-    if (isVariable && variableFixedAmount <= 0) {
-      alert('⚠️ Si el concepto es variable, debes especificar un monto fijo mayor a 0');
-      el('pc-variableFixedAmount')?.focus();
+    if (!type) {
+      alert('⚠️ Selecciona un tipo');
       return;
     }
     
     const payload = {
-      type,
-      amountType,
+      type: isVariable ? 'earning' : type, // Los conceptos variables son de tipo 'earning'
+      amountType: isVariable ? 'fixed' : amountType,
       code,
       name,
-      defaultValue,
+      defaultValue: isVariable ? 0 : parseFloat(valueStr),
       isActive: true,
       isVariable,
       variableFixedAmount: isVariable ? variableFixedAmount : 0,
-      ...(allowOver100 ? { allowOver100: true } : {})
+      ...(isVariable ? {} : (allowOver100 ? { allowOver100: true } : {}))
     };
     
     // Deshabilitar botón durante la petición
@@ -176,9 +183,13 @@ async function addConcept(){
       el('pc-code').value = '';
       el('pc-name').value = '';
       el('pc-value').value = '';
-      el('pc-isVariable').checked = false;
+      el('pc-type').value = 'earning';
       el('pc-variableFixedAmount').value = '';
-      document.getElementById('pc-variable-amount-container').style.display = 'none';
+      // Actualizar campos según el tipo (usar el selector del DOM directamente)
+      const typeSelAfter = el('pc-type');
+      if (typeSelAfter) {
+        typeSelAfter.dispatchEvent(new Event('change'));
+      }
       
       // Recargar lista
       await loadConcepts();
@@ -2178,11 +2189,43 @@ async function createPeriod(){
 function init(){
   el('pc-add')?.addEventListener('click', addConcept);
   
-  // Actualizar label y placeholder según el tipo de monto
+  // Actualizar campos según el tipo seleccionado
+  const typeSel = el('pc-type');
   const amountTypeSel = el('pc-amountType');
   const valueInput = el('pc-value');
   const valueLabel = el('pc-value-label');
   const valueHint = el('pc-value-hint');
+  const valueContainer = document.getElementById('pc-value-container');
+  const variableAmountContainer = document.getElementById('pc-variable-amount-container');
+  const amountTypeContainer = document.getElementById('pc-amountType')?.parentElement;
+  
+  function updateFieldsByType() {
+    const type = typeSel?.value;
+    const isVariable = type === 'variable';
+    
+    // Mostrar/ocultar campos según el tipo
+    if (valueContainer) {
+      valueContainer.style.display = isVariable ? 'none' : 'block';
+    }
+    if (variableAmountContainer) {
+      variableAmountContainer.style.display = isVariable ? 'block' : 'none';
+    }
+    if (amountTypeContainer) {
+      amountTypeContainer.style.display = isVariable ? 'none' : 'block';
+    }
+    
+    // Si es variable, enfocar el campo de monto fijo
+    if (isVariable && variableAmountContainer) {
+      setTimeout(() => {
+        document.getElementById('pc-variableFixedAmount')?.focus();
+      }, 100);
+    }
+    
+    // Actualizar label y placeholder según el tipo de monto (solo si no es variable)
+    if (!isVariable) {
+      updateValueField();
+    }
+  }
   
   function updateValueField() {
     const amountType = amountTypeSel?.value;
@@ -2203,21 +2246,14 @@ function init(){
     }
   }
   
+  if (typeSel) {
+    typeSel.addEventListener('change', updateFieldsByType);
+    updateFieldsByType(); // Inicializar
+  }
+  
   if (amountTypeSel) {
     amountTypeSel.addEventListener('change', updateValueField);
     updateValueField(); // Inicializar
-  }
-  
-  // Mostrar/ocultar campo de monto fijo cuando se marca concepto variable
-  const isVariableCheckbox = el('pc-isVariable');
-  const variableAmountContainer = document.getElementById('pc-variable-amount-container');
-  if (isVariableCheckbox && variableAmountContainer) {
-    isVariableCheckbox.addEventListener('change', () => {
-      variableAmountContainer.style.display = isVariableCheckbox.checked ? 'block' : 'none';
-      if (isVariableCheckbox.checked) {
-        document.getElementById('pc-variableFixedAmount')?.focus();
-      }
-    });
   }
   
   // Permitir crear concepto con Enter en cualquier campo del formulario
