@@ -765,6 +765,48 @@ function renderSale(){
   if (!body) return;
   body.innerHTML = '';
 
+  // Mostrar slots abiertos pendientes primero
+  if (current?.openSlots && current.openSlots.length > 0) {
+    const incompleteSlots = current.openSlots.filter(slot => !slot.completed);
+    incompleteSlots.forEach((slot, slotIdx) => {
+      const tr = clone('tpl-sale-row');
+      tr.querySelector('[data-sku]').textContent = 'SLOT';
+      const nameCell = tr.querySelector('[data-name]');
+      nameCell.innerHTML = '';
+      const badge = document.createElement('span');
+      badge.className = 'open-slot-badge';
+      badge.textContent = 'SLOT ABIERTO';
+      badge.style.cssText = 'background:var(--warning, #f59e0b);color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-right:8px;';
+      nameCell.appendChild(badge);
+      nameCell.appendChild(document.createTextNode(slot.slotName || 'Slot abierto'));
+      tr.classList.add('sale-row-open-slot');
+      
+      const qty = tr.querySelector('.qty');
+      qty.value = String(slot.qty || 1);
+      qty.disabled = true; // No se puede editar cantidad de slots abiertos
+      
+      tr.querySelector('[data-unit]').textContent = money(slot.estimatedPrice || 0);
+      tr.querySelector('[data-total]').textContent = money((slot.qty || 1) * (slot.estimatedPrice || 0));
+      
+      const actions = tr.querySelector('td:last-child');
+      actions.innerHTML = '';
+      const btnComplete = document.createElement('button');
+      btnComplete.className = 'primary';
+      btnComplete.textContent = '📷 Completar con QR';
+      btnComplete.style.cssText = 'padding:6px 12px;border-radius:4px;border:none;cursor:pointer;font-size:12px;';
+      btnComplete.onclick = async () => {
+        try {
+          await completeOpenSlotWithQR(current._id, slotIdx, slot);
+        } catch (err) {
+          alert('Error: ' + (err?.message || 'No se pudo completar el slot'));
+        }
+      };
+      actions.appendChild(btnComplete);
+      
+      body.appendChild(tr);
+    });
+  }
+  
   (current?.items||[]).forEach(it=>{
     const tr = clone('tpl-sale-row');
     tr.querySelector('[data-sku]').textContent = it.sku || '';
@@ -847,6 +889,199 @@ function renderSale(){
       legend.innerHTML = html;
     } else if(legend){ legend.remove(); }
   }catch{}
+}
+
+// ---------- completar slot abierto con QR ----------
+async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
+  return new Promise((resolve, reject) => {
+    // Abrir modal QR similar a openQR pero específico para completar slot
+    const tpl = document.getElementById('tpl-qr-scanner');
+    if (!tpl) {
+      reject(new Error('Template de QR no encontrado'));
+      return;
+    }
+    const node = tpl.content.firstElementChild.cloneNode(true);
+    openModal(node);
+    
+    const video = node.querySelector('#qr-video');
+    const canvas = node.querySelector('#qr-canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const sel = node.querySelector('#qr-cam');
+    const msg = node.querySelector('#qr-msg');
+    const list = node.querySelector('#qr-history');
+    const manualInput = node.querySelector('#qr-manual');
+    const manualBtn = node.querySelector('#qr-add-manual');
+    
+    let stream = null, running = false, detector = null, lastCode = '', lastTs = 0;
+    let cameraDisabled = false;
+    
+    msg.textContent = `Escanea el código QR del item para completar el slot: "${slot.slotName}"`;
+    
+    async function fillCams() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        sel.innerHTML = '<option value="">Seleccionar cámara...</option>';
+        videoDevices.forEach((dev, idx) => {
+          const opt = document.createElement('option');
+          opt.value = dev.deviceId;
+          opt.textContent = dev.label || `Cámara ${idx + 1}`;
+          sel.appendChild(opt);
+        });
+        if (videoDevices.length === 1) sel.value = videoDevices[0].deviceId;
+      } catch (err) {
+        console.warn('No se pudieron listar cámaras:', err);
+      }
+    }
+    
+    function stop() {
+      running = false;
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+      if (video.srcObject) video.srcObject = null;
+    }
+    
+    async function start() {
+      if (running || cameraDisabled) return;
+      stop();
+      const deviceId = sel.value;
+      if (!deviceId) {
+        msg.textContent = 'Selecciona una cámara';
+        return;
+      }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: { exact: deviceId }, facingMode: 'environment' }
+        });
+        video.srcObject = stream;
+        await video.play();
+        running = true;
+        msg.textContent = `Escaneando para slot: "${slot.slotName}"...`;
+        tickNative();
+      } catch (err) {
+        console.error('Error al iniciar cámara:', err);
+        msg.textContent = 'Error al acceder a la cámara';
+      }
+    }
+    
+    function parseInventoryCode(text) {
+      if (text.toUpperCase().startsWith('IT:')) {
+        const parts = text.split(':').map(p => p.trim()).filter(Boolean);
+        return { itemId: parts.length >= 3 ? parts[2] : (parts.length === 2 ? parts[1] : null) };
+      }
+      return { sku: text.toUpperCase() };
+    }
+    
+    function accept(text) {
+      const now = Date.now();
+      if (text === lastCode && (now - lastTs) < 2000) return false;
+      lastCode = text;
+      lastTs = now;
+      return true;
+    }
+    
+    async function handleCode(raw, fromManual = false) {
+      const text = String(raw || '').trim();
+      if (!text) return;
+      if (!fromManual && !accept(text)) return;
+      
+      cameraDisabled = true;
+      stop();
+      
+      const li = document.createElement('li');
+      li.textContent = text;
+      list.prepend(li);
+      
+      const parsed = parseInventoryCode(text);
+      try {
+        let itemId = null;
+        let sku = null;
+        
+        if (parsed.itemId) {
+          itemId = parsed.itemId;
+        } else if (parsed.sku) {
+          sku = parsed.sku;
+        }
+        
+        const result = await API.sales.completeSlot(saleId, slotIndex, itemId, sku);
+        current = result.sale;
+        syncCurrentIntoOpenList();
+        renderTabs();
+        renderSale();
+        renderWO();
+        closeModal();
+        playConfirmSound();
+        showItemAddedPopup();
+        resolve(result);
+      } catch (err) {
+        cameraDisabled = false;
+        msg.textContent = 'Error: ' + (err?.message || 'No se pudo completar el slot');
+        msg.style.color = 'var(--danger, #ef4444)';
+        reject(err);
+      }
+    }
+    
+    async function tickNative() {
+      if (!running || cameraDisabled) return;
+      try {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          
+          if (typeof BarcodeDetector !== 'undefined') {
+            if (!detector) detector = new BarcodeDetector({ formats: ['qr_code'] });
+            const codes = await detector.detect(imageData);
+            if (codes && codes.length > 0) {
+              await handleCode(codes[0].rawValue);
+              return;
+            }
+          }
+          
+          // Fallback a jsQR si está disponible
+          if (typeof jsQR !== 'undefined') {
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            if (code && code.data) {
+              await handleCode(code.data);
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error en detección QR:', err);
+      }
+      requestAnimationFrame(tickNative);
+    }
+    
+    sel.addEventListener('change', start);
+    manualBtn?.addEventListener('click', () => {
+      const val = manualInput?.value.trim();
+      if (!val) return;
+      handleCode(val, true);
+      manualInput.value = '';
+    });
+    manualInput?.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        const val = manualInput.value.trim();
+        if (val) handleCode(val, true);
+      }
+    });
+    
+    fillCams();
+    
+    // Limpiar al cerrar modal
+    const originalClose = window.closeModal;
+    window.closeModal = function() {
+      stop();
+      if (originalClose) originalClose();
+      window.closeModal = originalClose;
+      reject(new Error('Cancelado por el usuario'));
+    };
+  });
 }
 
 // ---------- orden de trabajo (preview simple) ----------
@@ -1067,8 +1302,9 @@ function openQR(){
     
     const normalized = String(value || '').trim().toUpperCase();
     const t = Date.now();
-    // Delay de 2 segundos para evitar escaneos duplicados
-    if (lastCode === normalized && t - lastTs < 2000) return false;
+    // Delay más corto en modo múltiple (500ms) vs modo single (1500ms) para evitar escaneos duplicados pero permitir escaneos rápidos
+    const delay = multiMode ? 500 : 1500;
+    if (lastCode === normalized && t - lastTs < delay) return false;
     lastCode = normalized;
     lastTs = t;
     return true;
@@ -1194,18 +1430,20 @@ function openQR(){
         }, 1500);
       }
       
-      // Reanudar cámara después de 2 segundos (1.5s notificación + 0.5s adicional)
+      // Reanudar cámara más rápido en modo múltiple (500ms) vs modo single (1500ms)
+      const resumeDelay = multiMode ? 500 : 1500;
       setTimeout(() => {
         cameraDisabled = false;
-      }, 2000);
+      }, resumeDelay);
       
       msg.textContent = '';
     }catch(e){ 
       msg.textContent = e?.message || 'No se pudo agregar';
-      // Reanudar cámara incluso si hay error
+      // Reanudar cámara incluso si hay error (más rápido en modo múltiple)
+      const resumeDelay = multiMode ? 500 : 1500;
       setTimeout(() => {
         cameraDisabled = false;
-      }, 2000);
+      }, resumeDelay);
     }
   }
 
@@ -1734,6 +1972,13 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
       <input type="hidden" id="price-item-id" />
     </div>
     ` : ''}
+    ${isCombo ? `
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Productos del combo</label>
+      <div id="price-combo-products" style="margin-bottom:8px;"></div>
+      <button id="price-add-combo-product" class="secondary" style="width:100%;padding:8px;margin-bottom:8px;">➕ Agregar producto</button>
+    </div>
+    ` : ''}
     ${!isCombo ? `
     <div style="margin-bottom:16px;">
       <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Precio</label>
@@ -1817,7 +2062,9 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
     
     itemQrBtn.onclick = async () => {
       try {
-        const qrCode = prompt('Escanea el código QR o ingresa el código manualmente:');
+        // Importar openQRForItem desde prices.js
+        const { openQRForItem } = await import('./prices.js');
+        const qrCode = await openQRForItem();
         if (!qrCode) return;
         
         if (qrCode.toUpperCase().startsWith('IT:')) {
@@ -1886,9 +2133,275 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
     }
   }
   
+  // Funcionalidad para combos
+  if (isCombo) {
+    const comboProductsContainer = node.querySelector('#price-combo-products');
+    const addComboProductBtn = node.querySelector('#price-add-combo-product');
+    
+    function addComboProductRow(productData = {}) {
+      const isOpenSlot = Boolean(productData.isOpenSlot);
+      const row = document.createElement('div');
+      row.className = 'combo-product-item';
+      row.style.cssText = `padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;${isOpenSlot ? 'border-left:4px solid var(--warning, #f59e0b);' : ''}`;
+      row.innerHTML = `
+        <div class="row" style="gap:8px;margin-bottom:8px;">
+          <input type="text" class="combo-product-name" placeholder="Nombre del producto" value="${productData.name || ''}" style="flex:2;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
+          <input type="number" class="combo-product-qty" placeholder="Cant." value="${productData.qty || 1}" min="1" style="width:80px;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
+          <input type="number" class="combo-product-price" placeholder="Precio" step="0.01" value="${productData.unitPrice || 0}" style="width:120px;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
+          <button class="combo-product-remove danger" style="padding:6px 12px;">✕</button>
+        </div>
+        <div class="row" style="gap:8px;margin-bottom:8px;align-items:center;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+            <input type="checkbox" class="combo-product-open-slot" ${isOpenSlot ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;" />
+            <span style="color:var(--text);">Slot abierto (se completa con QR al crear venta)</span>
+          </label>
+        </div>
+        <div class="combo-product-item-section" style="${isOpenSlot ? 'display:none;' : ''}">
+          <div class="row" style="gap:8px;">
+            <input type="text" class="combo-product-item-search" placeholder="Buscar item del inventario (opcional)..." style="flex:1;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
+            <button class="combo-product-item-qr secondary" style="padding:6px 12px;">📷 QR</button>
+          </div>
+          <div class="combo-product-item-selected" style="margin-top:8px;padding:6px;background:var(--card);border-radius:4px;font-size:11px;display:none;"></div>
+        </div>
+        <input type="hidden" class="combo-product-item-id" value="${productData.itemId?._id || ''}" />
+      `;
+      
+      const removeBtn = row.querySelector('.combo-product-remove');
+      removeBtn.onclick = () => {
+        row.remove();
+        updateComboTotal();
+      };
+      
+      const openSlotCheckbox = row.querySelector('.combo-product-open-slot');
+      const itemSection = row.querySelector('.combo-product-item-section');
+      
+      openSlotCheckbox.addEventListener('change', (e) => {
+        const isChecked = e.target.checked;
+        if (isChecked) {
+          itemSection.style.display = 'none';
+          const itemIdInput = row.querySelector('.combo-product-item-id');
+          const itemSearch = row.querySelector('.combo-product-item-search');
+          const itemSelected = row.querySelector('.combo-product-item-selected');
+          itemIdInput.value = '';
+          itemSearch.value = '';
+          itemSelected.style.display = 'none';
+          row.style.borderLeft = '4px solid var(--warning, #f59e0b)';
+        } else {
+          itemSection.style.display = 'block';
+          row.style.borderLeft = '';
+        }
+        updateComboTotal();
+      });
+      
+      const itemSearch = row.querySelector('.combo-product-item-search');
+      const itemSelected = row.querySelector('.combo-product-item-selected');
+      const itemIdInput = row.querySelector('.combo-product-item-id');
+      const itemQrBtn = row.querySelector('.combo-product-item-qr');
+      let selectedComboItem = productData.itemId ? { _id: productData.itemId._id, sku: productData.itemId.sku, name: productData.itemId.name, stock: productData.itemId.stock, salePrice: productData.itemId.salePrice } : null;
+      
+      if (productData.itemId) {
+        itemSearch.value = `${productData.itemId.sku || ''} - ${productData.itemId.name || ''}`;
+        itemSelected.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div><strong>${productData.itemId.name || productData.itemId.sku}</strong> <span class="muted">SKU: ${productData.itemId.sku} | Stock: ${productData.itemId.stock || 0}</span></div>
+            <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+          </div>
+        `;
+        itemSelected.style.display = 'block';
+      }
+      
+      let searchTimeout = null;
+      async function searchComboItems(query) {
+        if (!query || query.length < 2) return;
+        try {
+          let items = [];
+          try {
+            items = await API.inventory.itemsList({ sku: query });
+            if (items.length === 0) {
+              items = await API.inventory.itemsList({ name: query });
+            }
+          } catch (err) {
+            console.error('Error al buscar items:', err);
+          }
+          if (!items || items.length === 0) return;
+          
+          const dropdown = document.createElement('div');
+          dropdown.style.cssText = 'position:absolute;z-index:1000;background:var(--card);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:100%;margin-top:4px;';
+          dropdown.replaceChildren(...items.map(item => {
+            const div = document.createElement('div');
+            div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);';
+            div.innerHTML = `
+              <div style="font-weight:600;">${item.name || item.sku}</div>
+              <div style="font-size:12px;color:var(--muted);">SKU: ${item.sku} | Stock: ${item.stock || 0}</div>
+            `;
+            div.addEventListener('click', () => {
+              selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+              itemIdInput.value = item._id;
+              itemSearch.value = `${item.sku} - ${item.name}`;
+              itemSelected.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
+                  <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+                </div>
+              `;
+              itemSelected.style.display = 'block';
+              const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
+              if (removeBtn2) {
+                removeBtn2.onclick = () => {
+                  selectedComboItem = null;
+                  itemIdInput.value = '';
+                  itemSearch.value = '';
+                  itemSelected.style.display = 'none';
+                };
+              }
+              dropdown.remove();
+              const priceInput = row.querySelector('.combo-product-price');
+              if (!priceInput.value || priceInput.value === '0') {
+                priceInput.value = item.salePrice || 0;
+              }
+              updateComboTotal();
+            });
+            div.addEventListener('mouseenter', () => { div.style.background = 'var(--hover, rgba(0,0,0,0.05))'; });
+            div.addEventListener('mouseleave', () => { div.style.background = ''; });
+            return div;
+          }));
+          
+          const searchContainer = itemSearch.parentElement;
+          searchContainer.style.position = 'relative';
+          searchContainer.appendChild(dropdown);
+          
+          setTimeout(() => {
+            document.addEventListener('click', function removeDropdown(e) {
+              if (!searchContainer.contains(e.target)) {
+                dropdown.remove();
+                document.removeEventListener('click', removeDropdown);
+              }
+            }, { once: true });
+          }, 100);
+        } catch (err) {
+          console.error('Error al buscar items:', err);
+        }
+      }
+      
+      itemSearch.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          searchComboItems(e.target.value);
+        }, 300);
+      });
+      
+      itemQrBtn.onclick = async () => {
+        try {
+          const { openQRForItem } = await import('./prices.js');
+          const qrCode = await openQRForItem();
+          if (!qrCode) return;
+          
+          if (qrCode.toUpperCase().startsWith('IT:')) {
+            const parts = qrCode.split(':').map(p => p.trim()).filter(Boolean);
+            const itemId = parts.length >= 3 ? parts[2] : null;
+            if (itemId) {
+              const items = await API.inventory.itemsList({});
+              const item = items.find(i => String(i._id) === itemId);
+              if (item) {
+                selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+                itemIdInput.value = item._id;
+                itemSearch.value = `${item.sku} - ${item.name}`;
+                itemSelected.innerHTML = `
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
+                    <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+                  </div>
+                `;
+                itemSelected.style.display = 'block';
+                const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
+                if (removeBtn2) {
+                  removeBtn2.onclick = () => {
+                    selectedComboItem = null;
+                    itemIdInput.value = '';
+                    itemSearch.value = '';
+                    itemSelected.style.display = 'none';
+                  };
+                }
+                const priceInput = row.querySelector('.combo-product-price');
+                if (!priceInput.value || priceInput.value === '0') {
+                  priceInput.value = item.salePrice || 0;
+                }
+                updateComboTotal();
+                return;
+              }
+            }
+          }
+          
+          const items = await API.inventory.itemsList({ sku: qrCode, limit: 1 });
+          if (items && items.length > 0) {
+            const item = items[0];
+            selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+            itemIdInput.value = item._id;
+            itemSearch.value = `${item.sku} - ${item.name}`;
+            itemSelected.innerHTML = `
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
+                <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+              </div>
+            `;
+            itemSelected.style.display = 'block';
+            const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
+            if (removeBtn2) {
+              removeBtn2.onclick = () => {
+                selectedComboItem = null;
+                itemIdInput.value = '';
+                itemSearch.value = '';
+                itemSelected.style.display = 'none';
+              };
+            }
+            const priceInput = row.querySelector('.combo-product-price');
+            if (!priceInput.value || priceInput.value === '0') {
+              priceInput.value = item.salePrice || 0;
+            }
+            updateComboTotal();
+          } else {
+            alert('Item no encontrado');
+          }
+        } catch (err) {
+          if (err?.message !== 'Cancelado por el usuario') {
+            alert('Error al leer QR: ' + (err?.message || 'Error desconocido'));
+          }
+        }
+      };
+      
+      row.querySelector('.combo-product-price').addEventListener('input', updateComboTotal);
+      row.querySelector('.combo-product-qty').addEventListener('input', updateComboTotal);
+      
+      comboProductsContainer.appendChild(row);
+    }
+    
+    function updateComboTotal() {
+      const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
+      let total = 0;
+      products.forEach(prod => {
+        const qty = Number(prod.querySelector('.combo-product-qty')?.value || 1);
+        const price = Number(prod.querySelector('.combo-product-price')?.value || 0);
+        total += qty * price;
+      });
+      if (totalInput && (!totalInput.value || totalInput.value === '0' || totalInput !== document.activeElement)) {
+        if (totalInput !== document.activeElement) {
+          totalInput.value = total;
+        }
+      }
+    }
+    
+    addComboProductBtn.onclick = () => {
+      addComboProductRow();
+      updateComboTotal();
+    };
+    
+    // Inicializar con un producto por defecto
+    addComboProductRow();
+  }
+  
   saveBtn.onclick = async () => {
     const name = nameInput.value.trim();
-    const total = Number(totalInput.value) || 0;
+    let total = Number(totalInput.value) || 0;
     
     if (!name) {
       msgEl.textContent = 'El nombre es requerido';
@@ -1900,6 +2413,26 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
       msgEl.textContent = 'El precio debe ser mayor o igual a 0';
       msgEl.style.color = 'var(--danger, #ef4444)';
       return;
+    }
+    
+    // Validar combo
+    if (isCombo) {
+      const comboProductsContainer = node.querySelector('#price-combo-products');
+      const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
+      if (products.length === 0) {
+        msgEl.textContent = 'Un combo debe incluir al menos un producto';
+        msgEl.style.color = 'var(--danger, #ef4444)';
+        return;
+      }
+      
+      for (const prod of products) {
+        const prodName = prod.querySelector('.combo-product-name')?.value.trim();
+        if (!prodName) {
+          msgEl.textContent = 'Todos los productos del combo deben tener nombre';
+          msgEl.style.color = 'var(--danger, #ef4444)';
+          return;
+        }
+      }
     }
     
     try {
@@ -1915,6 +2448,21 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
       
       if (isProduct && selectedItem) {
         payload.itemId = selectedItem._id;
+      }
+      
+      if (isCombo) {
+        const comboProductsContainer = node.querySelector('#price-combo-products');
+        const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
+        payload.comboProducts = products.map(prod => {
+          const isOpenSlot = prod.querySelector('.combo-product-open-slot')?.checked || false;
+          return {
+            name: prod.querySelector('.combo-product-name')?.value.trim() || '',
+            qty: Number(prod.querySelector('.combo-product-qty')?.value || 1),
+            unitPrice: Number(prod.querySelector('.combo-product-price')?.value || 0),
+            itemId: isOpenSlot ? null : (prod.querySelector('.combo-product-item-id')?.value || null),
+            isOpenSlot: isOpenSlot
+          };
+        }).filter(p => p.name);
       }
       
       await API.priceCreate(payload);

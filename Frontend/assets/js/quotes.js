@@ -2146,15 +2146,44 @@ export function initQuotes({ getCompanyEmail }) {
           `;
           
           card.querySelector('.add-price-btn').onclick = () => {
-            const row = cloneRow();
-            row.querySelector('select').value = pe.type === 'product' ? 'PRODUCTO' : 'SERVICIO';
-            row.querySelectorAll('input')[0].value = pe.name || '';
-            row.querySelectorAll('input')[1].value = 1;
-            row.querySelectorAll('input')[2].value = Math.round(pe.total || pe.price || 0);
-            row.dataset.source = 'price';
-            if (pe._id) row.dataset.refId = pe._id;
-            updateRowSubtotal(row);
-            rowsBox.appendChild(row);
+            if (pe.type === 'combo' && pe.comboProducts && pe.comboProducts.length > 0) {
+              // Agregar el combo principal
+              const comboRow = cloneRow();
+              comboRow.querySelector('select').value = 'PRODUCTO';
+              comboRow.querySelectorAll('input')[0].value = pe.name || '';
+              comboRow.querySelectorAll('input')[1].value = 1;
+              comboRow.querySelectorAll('input')[2].value = Math.round(pe.total || pe.price || 0);
+              comboRow.dataset.source = 'price';
+              if (pe._id) comboRow.dataset.refId = pe._id;
+              updateRowSubtotal(comboRow);
+              rowsBox.appendChild(comboRow);
+              
+              // Agregar cada producto del combo
+              pe.comboProducts.forEach(cp => {
+                const row = cloneRow();
+                row.querySelector('select').value = 'PRODUCTO';
+                // Para slots abiertos, solo mostrar el nombre (sin indicadores)
+                row.querySelectorAll('input')[0].value = cp.name || '';
+                row.querySelectorAll('input')[1].value = cp.qty || 1;
+                row.querySelectorAll('input')[2].value = Math.round(cp.unitPrice || 0);
+                row.dataset.source = cp.itemId ? 'inventory' : 'price';
+                if (cp.itemId) row.dataset.refId = cp.itemId;
+                if (cp.itemId && cp.sku) row.dataset.sku = cp.sku;
+                updateRowSubtotal(row);
+                rowsBox.appendChild(row);
+              });
+            } else {
+              // Item normal (servicio o producto)
+              const row = cloneRow();
+              row.querySelector('select').value = pe.type === 'product' ? 'PRODUCTO' : 'SERVICIO';
+              row.querySelectorAll('input')[0].value = pe.name || '';
+              row.querySelectorAll('input')[1].value = 1;
+              row.querySelectorAll('input')[2].value = Math.round(pe.total || pe.price || 0);
+              row.dataset.source = 'price';
+              if (pe._id) row.dataset.refId = pe._id;
+              updateRowSubtotal(row);
+              rowsBox.appendChild(row);
+            }
             recalcAll();
             saveDraft();
             closeModal();
@@ -2353,6 +2382,13 @@ export function initQuotes({ getCompanyEmail }) {
         <input type="hidden" id="price-item-id" />
       </div>
       ` : ''}
+      ${isCombo ? `
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Productos del combo</label>
+        <div id="price-combo-products" style="margin-bottom:8px;"></div>
+        <button id="price-add-combo-product" class="secondary" style="width:100%;padding:8px;margin-bottom:8px;">➕ Agregar producto</button>
+      </div>
+      ` : ''}
       ${!isCombo ? `
       <div style="margin-bottom:16px;">
         <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Precio</label>
@@ -2435,7 +2471,9 @@ export function initQuotes({ getCompanyEmail }) {
       
       itemQrBtn.onclick = async () => {
         try {
-          const qrCode = prompt('Escanea el código QR o ingresa el código manualmente:');
+          // Importar openQRForItem desde prices.js
+          const { openQRForItem } = await import('./prices.js');
+          const qrCode = await openQRForItem();
           if (!qrCode) return;
           
           if (qrCode.toUpperCase().startsWith('IT:')) {
@@ -2500,13 +2538,279 @@ export function initQuotes({ getCompanyEmail }) {
           itemIdInput.value = '';
           itemSearch.value = '';
           itemSelected.style.display = 'none';
-        };
+      };
+    }
+  }
+  
+  // Funcionalidad para combos (similar a createPriceFromSale)
+  if (isCombo) {
+    const comboProductsContainer = node.querySelector('#price-combo-products');
+    const addComboProductBtn = node.querySelector('#price-add-combo-product');
+    
+    function addComboProductRow(productData = {}) {
+      const isOpenSlot = Boolean(productData.isOpenSlot);
+      const row = document.createElement('div');
+      row.className = 'combo-product-item';
+      row.style.cssText = `padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;${isOpenSlot ? 'border-left:4px solid var(--warning, #f59e0b);' : ''}`;
+      row.innerHTML = `
+        <div class="row" style="gap:8px;margin-bottom:8px;">
+          <input type="text" class="combo-product-name" placeholder="Nombre del producto" value="${productData.name || ''}" style="flex:2;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
+          <input type="number" class="combo-product-qty" placeholder="Cant." value="${productData.qty || 1}" min="1" style="width:80px;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
+          <input type="number" class="combo-product-price" placeholder="Precio" step="0.01" value="${productData.unitPrice || 0}" style="width:120px;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
+          <button class="combo-product-remove danger" style="padding:6px 12px;">✕</button>
+        </div>
+        <div class="row" style="gap:8px;margin-bottom:8px;align-items:center;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+            <input type="checkbox" class="combo-product-open-slot" ${isOpenSlot ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;" />
+            <span style="color:var(--text);">Slot abierto (se completa con QR al crear venta)</span>
+          </label>
+        </div>
+        <div class="combo-product-item-section" style="${isOpenSlot ? 'display:none;' : ''}">
+          <div class="row" style="gap:8px;">
+            <input type="text" class="combo-product-item-search" placeholder="Buscar item del inventario (opcional)..." style="flex:1;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
+            <button class="combo-product-item-qr secondary" style="padding:6px 12px;">📷 QR</button>
+          </div>
+          <div class="combo-product-item-selected" style="margin-top:8px;padding:6px;background:var(--card);border-radius:4px;font-size:11px;display:none;"></div>
+        </div>
+        <input type="hidden" class="combo-product-item-id" value="${productData.itemId?._id || ''}" />
+      `;
+      
+      const removeBtn = row.querySelector('.combo-product-remove');
+      removeBtn.onclick = () => {
+        row.remove();
+        updateComboTotal();
+      };
+      
+      const openSlotCheckbox = row.querySelector('.combo-product-open-slot');
+      const itemSection = row.querySelector('.combo-product-item-section');
+      
+      openSlotCheckbox.addEventListener('change', (e) => {
+        const isChecked = e.target.checked;
+        if (isChecked) {
+          itemSection.style.display = 'none';
+          const itemIdInput = row.querySelector('.combo-product-item-id');
+          const itemSearch = row.querySelector('.combo-product-item-search');
+          const itemSelected = row.querySelector('.combo-product-item-selected');
+          itemIdInput.value = '';
+          itemSearch.value = '';
+          itemSelected.style.display = 'none';
+          row.style.borderLeft = '4px solid var(--warning, #f59e0b)';
+        } else {
+          itemSection.style.display = 'block';
+          row.style.borderLeft = '';
+        }
+        updateComboTotal();
+      });
+      
+      const itemSearch = row.querySelector('.combo-product-item-search');
+      const itemSelected = row.querySelector('.combo-product-item-selected');
+      const itemIdInput = row.querySelector('.combo-product-item-id');
+      const itemQrBtn = row.querySelector('.combo-product-item-qr');
+      let selectedComboItem = productData.itemId ? { _id: productData.itemId._id, sku: productData.itemId.sku, name: productData.itemId.name, stock: productData.itemId.stock, salePrice: productData.itemId.salePrice } : null;
+      
+      if (productData.itemId) {
+        itemSearch.value = `${productData.itemId.sku || ''} - ${productData.itemId.name || ''}`;
+        itemSelected.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div><strong>${productData.itemId.name || productData.itemId.sku}</strong> <span class="muted">SKU: ${productData.itemId.sku} | Stock: ${productData.itemId.stock || 0}</span></div>
+            <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+          </div>
+        `;
+        itemSelected.style.display = 'block';
+      }
+      
+      let searchTimeout = null;
+      async function searchComboItems(query) {
+        if (!query || query.length < 2) return;
+        try {
+          let items = [];
+          try {
+            items = await API.inventory.itemsList({ sku: query });
+            if (items.length === 0) {
+              items = await API.inventory.itemsList({ name: query });
+            }
+          } catch (err) {
+            console.error('Error al buscar items:', err);
+          }
+          if (!items || items.length === 0) return;
+          
+          const dropdown = document.createElement('div');
+          dropdown.style.cssText = 'position:absolute;z-index:1000;background:var(--card);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:100%;margin-top:4px;';
+          dropdown.replaceChildren(...items.map(item => {
+            const div = document.createElement('div');
+            div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);';
+            div.innerHTML = `
+              <div style="font-weight:600;">${item.name || item.sku}</div>
+              <div style="font-size:12px;color:var(--muted);">SKU: ${item.sku} | Stock: ${item.stock || 0}</div>
+            `;
+            div.addEventListener('click', () => {
+              selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+              itemIdInput.value = item._id;
+              itemSearch.value = `${item.sku} - ${item.name}`;
+              itemSelected.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
+                  <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+                </div>
+              `;
+              itemSelected.style.display = 'block';
+              const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
+              if (removeBtn2) {
+                removeBtn2.onclick = () => {
+                  selectedComboItem = null;
+                  itemIdInput.value = '';
+                  itemSearch.value = '';
+                  itemSelected.style.display = 'none';
+                };
+              }
+              dropdown.remove();
+              const priceInput = row.querySelector('.combo-product-price');
+              if (!priceInput.value || priceInput.value === '0') {
+                priceInput.value = item.salePrice || 0;
+              }
+              updateComboTotal();
+            });
+            div.addEventListener('mouseenter', () => { div.style.background = 'var(--hover, rgba(0,0,0,0.05))'; });
+            div.addEventListener('mouseleave', () => { div.style.background = ''; });
+            return div;
+          }));
+          
+          const searchContainer = itemSearch.parentElement;
+          searchContainer.style.position = 'relative';
+          searchContainer.appendChild(dropdown);
+          
+          setTimeout(() => {
+            document.addEventListener('click', function removeDropdown(e) {
+              if (!searchContainer.contains(e.target)) {
+                dropdown.remove();
+                document.removeEventListener('click', removeDropdown);
+              }
+            }, { once: true });
+          }, 100);
+        } catch (err) {
+          console.error('Error al buscar items:', err);
+        }
+      }
+      
+      itemSearch.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          searchComboItems(e.target.value);
+        }, 300);
+      });
+      
+      itemQrBtn.onclick = async () => {
+        try {
+          const { openQRForItem } = await import('./prices.js');
+          const qrCode = await openQRForItem();
+          if (!qrCode) return;
+          
+          if (qrCode.toUpperCase().startsWith('IT:')) {
+            const parts = qrCode.split(':').map(p => p.trim()).filter(Boolean);
+            const itemId = parts.length >= 3 ? parts[2] : null;
+            if (itemId) {
+              const items = await API.inventory.itemsList({});
+              const item = items.find(i => String(i._id) === itemId);
+              if (item) {
+                selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+                itemIdInput.value = item._id;
+                itemSearch.value = `${item.sku} - ${item.name}`;
+                itemSelected.innerHTML = `
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
+                    <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+                  </div>
+                `;
+                itemSelected.style.display = 'block';
+                const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
+                if (removeBtn2) {
+                  removeBtn2.onclick = () => {
+                    selectedComboItem = null;
+                    itemIdInput.value = '';
+                    itemSearch.value = '';
+                    itemSelected.style.display = 'none';
+                  };
+                }
+                const priceInput = row.querySelector('.combo-product-price');
+                if (!priceInput.value || priceInput.value === '0') {
+                  priceInput.value = item.salePrice || 0;
+                }
+                updateComboTotal();
+                return;
+              }
+            }
+          }
+          
+          const items = await API.inventory.itemsList({ sku: qrCode, limit: 1 });
+          if (items && items.length > 0) {
+            const item = items[0];
+            selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+            itemIdInput.value = item._id;
+            itemSearch.value = `${item.sku} - ${item.name}`;
+            itemSelected.innerHTML = `
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
+                <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+              </div>
+            `;
+            itemSelected.style.display = 'block';
+            const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
+            if (removeBtn2) {
+              removeBtn2.onclick = () => {
+                selectedComboItem = null;
+                itemIdInput.value = '';
+                itemSearch.value = '';
+                itemSelected.style.display = 'none';
+              };
+            }
+            const priceInput = row.querySelector('.combo-product-price');
+            if (!priceInput.value || priceInput.value === '0') {
+              priceInput.value = item.salePrice || 0;
+            }
+            updateComboTotal();
+          } else {
+            alert('Item no encontrado');
+          }
+        } catch (err) {
+          if (err?.message !== 'Cancelado por el usuario') {
+            alert('Error al leer QR: ' + (err?.message || 'Error desconocido'));
+          }
+        }
+      };
+      
+      row.querySelector('.combo-product-price').addEventListener('input', updateComboTotal);
+      row.querySelector('.combo-product-qty').addEventListener('input', updateComboTotal);
+      
+      comboProductsContainer.appendChild(row);
+    }
+    
+    function updateComboTotal() {
+      const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
+      let total = 0;
+      products.forEach(prod => {
+        const qty = Number(prod.querySelector('.combo-product-qty')?.value || 1);
+        const price = Number(prod.querySelector('.combo-product-price')?.value || 0);
+        total += qty * price;
+      });
+      if (totalInput && (!totalInput.value || totalInput.value === '0' || totalInput !== document.activeElement)) {
+        if (totalInput !== document.activeElement) {
+          totalInput.value = total;
+        }
       }
     }
     
+    addComboProductBtn.onclick = () => {
+      addComboProductRow();
+      updateComboTotal();
+    };
+    
+    // Inicializar con un producto por defecto
+    addComboProductRow();
+  }
+    
     saveBtn.onclick = async () => {
       const name = nameInput.value.trim();
-      const total = Number(totalInput.value) || 0;
+      let total = Number(totalInput.value) || 0;
       
       if (!name) {
         msgEl.textContent = 'El nombre es requerido';
@@ -2518,6 +2822,26 @@ export function initQuotes({ getCompanyEmail }) {
         msgEl.textContent = 'El precio debe ser mayor o igual a 0';
         msgEl.style.color = 'var(--danger, #ef4444)';
         return;
+      }
+      
+      // Validar combo
+      if (isCombo) {
+        const comboProductsContainer = node.querySelector('#price-combo-products');
+        const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
+        if (products.length === 0) {
+          msgEl.textContent = 'Un combo debe incluir al menos un producto';
+          msgEl.style.color = 'var(--danger, #ef4444)';
+          return;
+        }
+        
+        for (const prod of products) {
+          const prodName = prod.querySelector('.combo-product-name')?.value.trim();
+          if (!prodName) {
+            msgEl.textContent = 'Todos los productos del combo deben tener nombre';
+            msgEl.style.color = 'var(--danger, #ef4444)';
+            return;
+          }
+        }
       }
       
       try {
@@ -2533,6 +2857,21 @@ export function initQuotes({ getCompanyEmail }) {
         
         if (isProduct && selectedItem) {
           payload.itemId = selectedItem._id;
+        }
+        
+        if (isCombo) {
+          const comboProductsContainer = node.querySelector('#price-combo-products');
+          const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
+          payload.comboProducts = products.map(prod => {
+            const isOpenSlot = prod.querySelector('.combo-product-open-slot')?.checked || false;
+            return {
+              name: prod.querySelector('.combo-product-name')?.value.trim() || '',
+              qty: Number(prod.querySelector('.combo-product-qty')?.value || 1),
+              unitPrice: Number(prod.querySelector('.combo-product-price')?.value || 0),
+              itemId: isOpenSlot ? null : (prod.querySelector('.combo-product-item-id')?.value || null),
+              isOpenSlot: isOpenSlot
+            };
+          }).filter(p => p.name);
         }
         
         await API.priceCreate(payload);

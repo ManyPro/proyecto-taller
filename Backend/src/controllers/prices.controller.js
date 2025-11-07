@@ -120,20 +120,28 @@ export const createPrice = async (req, res) => {
       return res.status(400).json({ error: 'Un combo debe incluir al menos un producto' });
     }
     
-    for (const cp of comboProducts) {
+    for (let idx = 0; idx < comboProducts.length; idx++) {
+      const cp = comboProducts[idx];
       if (!cp.name || !cp.name.trim()) {
         return res.status(400).json({ error: 'Todos los productos del combo deben tener nombre' });
       }
       
+      const isOpenSlot = Boolean(cp.isOpenSlot);
       const comboProduct = {
         name: String(cp.name).trim(),
         qty: Math.max(1, num(cp.qty || 1)),
         unitPrice: Math.max(0, num(cp.unitPrice || 0)),
-        itemId: null
+        itemId: null,
+        isOpenSlot: isOpenSlot
       };
       
-      // Si tiene itemId, validar que existe
-      if (cp.itemId) {
+      // Si es slot abierto, no debe tener itemId al crear
+      if (isOpenSlot && cp.itemId) {
+        return res.status(400).json({ error: `El slot abierto "${comboProduct.name}" no puede tener itemId asignado. Se asignará al crear la venta mediante QR.` });
+      }
+      
+      // Si tiene itemId y NO es slot abierto, validar que existe
+      if (!isOpenSlot && cp.itemId) {
         const comboItem = await Item.findOne({ _id: cp.itemId, companyId: req.companyId });
         if (!comboItem) {
           return res.status(404).json({ error: `Item del inventario no encontrado para producto: ${comboProduct.name}` });

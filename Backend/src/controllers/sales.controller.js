@@ -220,9 +220,23 @@ export const addItem = async (req, res) => {
         });
         
         // Luego agregamos cada producto del combo
-        for (const cp of pe.comboProducts) {
+        for (let idx = 0; idx < pe.comboProducts.length; idx++) {
+          const cp = pe.comboProducts[idx];
           const comboQty = q * (cp.qty || 1);
-          if (cp.itemId) {
+          
+          // Si es slot abierto, agregarlo a openSlots en lugar de items
+          if (cp.isOpenSlot) {
+            if (!sale.openSlots) sale.openSlots = [];
+            sale.openSlots.push({
+              comboPriceId: pe._id,
+              slotIndex: idx,
+              slotName: cp.name || 'Slot abierto',
+              qty: comboQty,
+              estimatedPrice: cp.unitPrice || 0,
+              completed: false,
+              completedItemId: null
+            });
+          } else if (cp.itemId) {
             // Producto vinculado: agregar como inventory para que se descuente
             const comboItem = cp.itemId;
             sale.items.push({
@@ -386,9 +400,23 @@ export const addItemsBatch = async (req, res) => {
             });
             
             // Luego agregamos cada producto del combo
-            for (const cp of pe.comboProducts) {
+            for (let idx = 0; idx < pe.comboProducts.length; idx++) {
+              const cp = pe.comboProducts[idx];
               const comboQty = qty * (cp.qty || 1);
-              if (cp.itemId) {
+              
+              // Si es slot abierto, agregarlo a openSlots en lugar de items
+              if (cp.isOpenSlot) {
+                if (!sale.openSlots) sale.openSlots = [];
+                sale.openSlots.push({
+                  comboPriceId: pe._id,
+                  slotIndex: idx,
+                  slotName: cp.name || 'Slot abierto',
+                  qty: comboQty,
+                  estimatedPrice: cp.unitPrice || 0,
+                  completed: false,
+                  completedItemId: null
+                });
+              } else if (cp.itemId) {
                 // Producto vinculado: agregar como inventory para que se descuente
                 const comboItem = cp.itemId;
                 added.push({
@@ -603,7 +631,37 @@ export const closeSale = async (req, res) => {
       if (!sale) throw new Error('Sale not found');
       if (sale.status !== 'draft') throw new Error('Sale not open (draft)');
       if (!sale.items?.length) throw new Error('Sale has no items');
+      
+      // Validar que todos los slots abiertos estén completos
+      if (sale.openSlots && sale.openSlots.length > 0) {
+        const incompleteSlots = sale.openSlots.filter(slot => !slot.completed || !slot.completedItemId);
+        if (incompleteSlots.length > 0) {
+          const slotNames = incompleteSlots.map(s => s.slotName).join(', ');
+          throw new Error(`Debes completar todos los slots abiertos antes de cerrar la venta. Pendientes: ${slotNames}`);
+        }
+      }
 
+      // Procesar slots abiertos completados: agregarlos como items de inventario
+      if (sale.openSlots && sale.openSlots.length > 0) {
+        for (const slot of sale.openSlots) {
+          if (!slot.completed || !slot.completedItemId) continue;
+          
+          const item = await Item.findOne({ _id: slot.completedItemId, companyId: req.companyId }).session(session);
+          if (!item) throw new Error(`Item del inventario no encontrado para slot: ${slot.slotName}`);
+          
+          // Agregar como item de inventario para que se descuente
+          sale.items.push({
+            source: 'inventory',
+            refId: item._id,
+            sku: item.sku || `SLOT-${String(slot.completedItemId).slice(-6)}`,
+            name: item.name || slot.slotName,
+            qty: slot.qty || 1,
+            unitPrice: item.salePrice || slot.estimatedPrice || 0,
+            total: Math.round((slot.qty || 1) * (item.salePrice || slot.estimatedPrice || 0))
+          });
+        }
+      }
+      
       // Descuento inventario por lÃ­neas 'inventory'
       for (const it of sale.items) {
         if (String(it.source) !== 'inventory') continue;
@@ -774,6 +832,75 @@ export const cancelSale = async (req, res) => {
   await Sale.deleteOne({ _id: id, companyId: req.companyId });
   try{ publish(req.companyId, 'sale:cancelled', { id: (sale?._id)||undefined }) }catch{}
   res.json({ ok: true });
+};
+
+// ===== Completar slot abierto mediante QR =====
+export const completeOpenSlot = async (req, res) => {
+  const { id } = req.params; // saleId
+  const { slotIndex, itemId, sku } = req.body || {};
+  
+  if (slotIndex === undefined || slotIndex === null) {
+    return res.status(400).json({ error: 'slotIndex requerido' });
+  }
+  
+  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+  if (!sale) return res.status(404).json({ error: 'Venta no encontrada' });
+  if (sale.status !== 'draft') return res.status(400).json({ error: 'La venta no está abierta' });
+  
+  if (!sale.openSlots || sale.openSlots.length === 0) {
+    return res.status(400).json({ error: 'Esta venta no tiene slots abiertos' });
+  }
+  
+  const slot = sale.openSlots[slotIndex];
+  if (!slot) {
+    return res.status(404).json({ error: 'Slot abierto no encontrado' });
+  }
+  
+  if (slot.completed) {
+    return res.status(400).json({ error: 'Este slot ya está completado' });
+  }
+  
+  // Buscar item por itemId o SKU
+  let item = null;
+  if (itemId) {
+    item = await Item.findOne({ _id: itemId, companyId: req.companyId });
+  } else if (sku) {
+    item = await Item.findOne({ sku: String(sku).trim().toUpperCase(), companyId: req.companyId });
+  }
+  
+  if (!item) {
+    return res.status(404).json({ error: 'Item del inventario no encontrado' });
+  }
+  
+  // Completar el slot
+  slot.completed = true;
+  slot.completedItemId = item._id;
+  
+  // Actualizar el precio estimado con el precio real del item
+  const realPrice = item.salePrice || slot.estimatedPrice || 0;
+  
+  // Recalcular totales (los slots abiertos no se agregan a items hasta cerrar la venta)
+  computeTotals(sale);
+  await sale.save();
+  
+  await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+  try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+  
+  res.json({ 
+    ok: true, 
+    sale: sale.toObject(),
+    slot: {
+      slotIndex,
+      slotName: slot.slotName,
+      completed: true,
+      item: {
+        _id: item._id,
+        sku: item.sku,
+        name: item.name,
+        salePrice: item.salePrice
+      }
+    }
+  });
 };
 
 // ===== QR helpers =====

@@ -102,7 +102,7 @@ fi
 
 # Paso 6: Deploy a producción
 echo ""
-echo "🐳 [6/6] Iniciando deploy a producción..."
+echo "🐳 [6/7] Iniciando deploy a producción..."
 echo ""
 
 # Verificar que existe el archivo .env
@@ -136,6 +136,30 @@ docker compose -p taller-prod -f docker-compose.yml ps
 if docker compose -p taller-prod -f docker-compose.yml ps | grep -q "Up"; then
     echo ""
     success "Deploy a producción completado exitosamente!"
+    
+    # Paso 7: Sincronizar develop con main (para que develop tenga todos los cambios)
+    echo ""
+    echo "🔄 [7/7] Sincronizando develop con main..."
+    git checkout develop || error "No se pudo cambiar a develop"
+    
+    # Hacer merge de main a develop para mantenerlos sincronizados
+    if git merge origin/main --no-edit; then
+        success "Develop sincronizado con main"
+        
+        # Push a develop
+        if git push origin develop; then
+            success "Push a develop completado"
+        else
+            warning "No se pudo hacer push a develop, pero el merge local está completo"
+        fi
+    else
+        warning "No se pudo hacer merge de main a develop automáticamente"
+        echo "   Puedes hacerlo manualmente con:"
+        echo "   git checkout develop"
+        echo "   git merge origin/main"
+        echo "   git push origin develop"
+    fi
+    
     echo ""
     echo "🌐 Servicios disponibles:"
     echo "   Frontend: http://tu-dominio.com (puerto 80)"
@@ -147,6 +171,8 @@ if docker compose -p taller-prod -f docker-compose.yml ps | grep -q "Up"; then
     echo "   Reiniciar:    ./scripts/restart-both.sh"
     echo ""
     success "¡Proceso completado! El sitio de Netlify debería hacer deploy automáticamente."
+    echo ""
+    success "✅ Cambios guardados en main (producción) y develop (desarrollo)"
 else
     warning "Algunos contenedores pueden no estar corriendo"
     echo "   Revisa los logs con: docker compose -p taller-prod -f docker-compose.yml logs"
