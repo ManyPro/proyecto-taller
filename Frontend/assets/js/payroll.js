@@ -148,29 +148,29 @@ async function addConcept(){
         return;
       }
     } else {
-      if (!valueStr) {
-        alert('⚠️ El valor es requerido');
-        el('pc-value')?.focus();
+    if (!valueStr) {
+      alert('⚠️ El valor es requerido');
+      el('pc-value')?.focus();
+      return;
+    }
+    
+    const defaultValue = parseFloat(valueStr);
+    if (isNaN(defaultValue) || defaultValue < 0) {
+      alert('⚠️ El valor debe ser un número positivo');
+      el('pc-value')?.focus();
+      return;
+    }
+    
+    if (amountType === 'percent' && defaultValue > 100) {
+      if (!confirm('⚠️ El porcentaje es mayor a 100%. ¿Deseas continuar?')) {
         return;
       }
-      
-      const defaultValue = parseFloat(valueStr);
-      if (isNaN(defaultValue) || defaultValue < 0) {
-        alert('⚠️ El valor debe ser un número positivo');
-        el('pc-value')?.focus();
-        return;
-      }
-      
-      if (amountType === 'percent' && defaultValue > 100) {
-        if (!confirm('⚠️ El porcentaje es mayor a 100%. ¿Deseas continuar?')) {
-          return;
-        }
-        allowOver100 = true;
-      }
-      
+      allowOver100 = true;
+    }
+    
       if (!amountType) {
         alert('⚠️ Selecciona tipo de monto');
-        return;
+      return;
       }
     }
     
@@ -767,8 +767,8 @@ async function loadConceptsForTechnician(){
     let assignedConcepts = [];
     
     if (conceptIds.length > 0) {
-      // Obtener detalles de los conceptos
-      const allConcepts = await api.get('/api/v1/payroll/concepts');
+    // Obtener detalles de los conceptos
+    const allConcepts = await api.get('/api/v1/payroll/concepts');
       assignedConcepts = allConcepts.filter(c => conceptIds.some(id => String(id) === String(c._id)));
     }
     
@@ -848,9 +848,9 @@ async function loadConceptsForTechnician(){
           <div style="flex:1;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
               <span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}20;">
-                ${htmlEscape(typeInfo.label)}
-              </span>
-              ${overrideBadge}
+          ${htmlEscape(typeInfo.label)}
+        </span>
+        ${overrideBadge}
               ${variableBadge}
             </div>
             <div style="font-weight:600;color:var(--text);font-size:14px;margin-bottom:2px;">${htmlEscape(c.code)} · ${htmlEscape(c.name)}</div>
@@ -1135,11 +1135,11 @@ async function preview(){
               return `<div class="row between" style="padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;background:var(--card);">
                 <div style="flex:1;">
                   <div class="row" style="gap:10px;align-items:center;margin-bottom:${i.notes ? '4px' : '0'};">
-                    <span style="padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}20;">
-                      ${htmlEscape(typeInfo.label)}
-                    </span>
-                    <span style="font-weight:500;color:var(--text);">${htmlEscape(i.name)}</span>
-                    ${i.calcRule ? `<span class="muted" style="font-size:11px;">(${htmlEscape(i.calcRule)})</span>` : ''}
+                  <span style="padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}20;">
+                    ${htmlEscape(typeInfo.label)}
+                  </span>
+                  <span style="font-weight:500;color:var(--text);">${htmlEscape(i.name)}</span>
+                  ${i.calcRule ? `<span class="muted" style="font-size:11px;">(${htmlEscape(i.calcRule)})</span>` : ''}
                   </div>
                   ${i.notes ? `<div class="muted" style="font-size:11px;margin-top:4px;color:var(--muted);">${htmlEscape(i.notes)}</div>` : ''}
                 </div>
