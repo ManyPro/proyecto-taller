@@ -52,6 +52,15 @@ export function initQuotes({ getCompanyEmail }) {
   const iYear  = $('#q-year');
   const iCc    = $('#q-cc');
   const iMileage = $('#q-mileage');
+  
+  // Selector de vehículo
+  const iVehicleSearch = $('#q-vehicle-search');
+  const iVehicleId = $('#q-vehicle-id');
+  const iVehicleDropdown = $('#q-vehicle-dropdown');
+  const iVehicleSelected = $('#q-vehicle-selected');
+  const iYearWarning = $('#q-year-warning');
+  let selectedQuoteVehicle = null;
+  let quoteVehicleSearchTimeout = null;
 
   const iValidDays = $('#q-valid-days');
 
@@ -113,6 +122,87 @@ export function initQuotes({ getCompanyEmail }) {
   const kLast  = ()=>`${KEYS.lastNumber}:${emailScope}`;
   const kDraft = ()=>`${KEYS.draft}:${emailScope}`;
 
+  // Búsqueda de vehículos para cotizaciones
+  async function searchVehiclesForQuote(query) {
+    if (!query || query.length < 2) {
+      if (iVehicleDropdown) iVehicleDropdown.style.display = 'none';
+      return;
+    }
+    try {
+      const r = await API.vehicles.search({ q: query, limit: 10 });
+      const vehicles = Array.isArray(r?.items) ? r.items : [];
+      if (!iVehicleDropdown) return;
+      if (vehicles.length === 0) {
+        iVehicleDropdown.innerHTML = '<div style="padding:12px;text-align:center;color:var(--muted);font-size:12px;">No se encontraron vehículos</div>';
+        iVehicleDropdown.style.display = 'block';
+        return;
+      }
+      iVehicleDropdown.replaceChildren(...vehicles.map(v => {
+        const div = document.createElement('div');
+        div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);';
+        div.innerHTML = `
+          <div style="font-weight:600;">${v.make} ${v.line}</div>
+          <div style="font-size:12px;color:var(--muted);">Cilindraje: ${v.displacement}${v.modelYear ? ` | Modelo: ${v.modelYear}` : ''}</div>
+        `;
+        div.addEventListener('click', () => {
+          selectedQuoteVehicle = v;
+          if (iVehicleId) iVehicleId.value = v._id;
+          if (iVehicleSearch) iVehicleSearch.value = `${v.make} ${v.line} ${v.displacement}`;
+          if (iVehicleSelected) {
+            iVehicleSelected.innerHTML = `
+              <span style="color:var(--success, #10b981);">✓</span> 
+              <strong>${v.make} ${v.line}</strong> - Cilindraje: ${v.displacement}${v.modelYear ? ` | Modelo: ${v.modelYear}` : ''}
+            `;
+          }
+          if (iVehicleDropdown) iVehicleDropdown.style.display = 'none';
+          if (iBrand) iBrand.value = v.make || '';
+          if (iLine) iLine.value = v.line || '';
+          if (iCc) iCc.value = v.displacement || '';
+          // Validar año si ya está ingresado
+          if (iYear && iYear.value) {
+            validateQuoteYear();
+          }
+        });
+        div.addEventListener('mouseenter', () => {
+          div.style.background = 'var(--hover, rgba(0,0,0,0.05))';
+        });
+        div.addEventListener('mouseleave', () => {
+          div.style.background = '';
+        });
+        return div;
+      }));
+      iVehicleDropdown.style.display = 'block';
+    } catch (err) {
+      console.error('Error al buscar vehículos:', err);
+    }
+  }
+  
+  // Validar año contra rango del vehículo en cotizaciones
+  async function validateQuoteYear() {
+    if (!selectedQuoteVehicle || !iYear || !iYear.value) {
+      if (iYearWarning) iYearWarning.style.display = 'none';
+      return;
+    }
+    const yearNum = Number(iYear.value);
+    if (!Number.isFinite(yearNum)) {
+      if (iYearWarning) iYearWarning.style.display = 'none';
+      return;
+    }
+    try {
+      const validation = await API.vehicles.validateYear(selectedQuoteVehicle._id, yearNum);
+      if (!validation.valid) {
+        if (iYearWarning) {
+          iYearWarning.textContent = validation.message || 'Año fuera de rango';
+          iYearWarning.style.display = 'block';
+        }
+      } else {
+        if (iYearWarning) iYearWarning.style.display = 'none';
+      }
+    } catch (err) {
+      console.error('Error al validar año:', err);
+    }
+  }
+
   // ====== Init ======
   function ensureInit(){
     if(inited) return; inited = true;
@@ -132,6 +222,36 @@ export function initQuotes({ getCompanyEmail }) {
     window.addEventListener('resize', syncSummaryHeight);
 
     loadHistory();
+    
+    // Event listeners para selector de vehículo
+    if (iVehicleSearch) {
+      iVehicleSearch.addEventListener('input', (e) => {
+        clearTimeout(quoteVehicleSearchTimeout);
+        quoteVehicleSearchTimeout = setTimeout(() => {
+          searchVehiclesForQuote(e.target.value);
+        }, 300);
+      });
+      iVehicleSearch.addEventListener('focus', () => {
+        if (iVehicleSearch.value.length >= 2) {
+          searchVehiclesForQuote(iVehicleSearch.value);
+        }
+      });
+    }
+    
+    if (iYear) {
+      iYear.addEventListener('input', () => {
+        if (selectedQuoteVehicle) {
+          validateQuoteYear();
+        }
+      });
+    }
+    
+    // Cerrar dropdown al hacer click fuera
+    document.addEventListener('click', (e) => {
+      if (iVehicleSearch && !iVehicleSearch.contains(e.target) && iVehicleDropdown && !iVehicleDropdown.contains(e.target)) {
+        if (iVehicleDropdown) iVehicleDropdown.style.display = 'none';
+      }
+    });
   }
 
   // ===== Modal helpers (local a cotizaciones) =====
@@ -551,7 +671,15 @@ export function initQuotes({ getCompanyEmail }) {
       number:iNumber.value,
       datetime:iDatetime.value||todayIso(),
       customer:{ name:iClientName.value,clientPhone:iClientPhone.value, email:iClientEmail.value },
-      vehicle:{ make:iBrand.value, line:iLine.value, modelYear:iYear.value, plate:iPlate.value, displacement:iCc.value, mileage:iMileage.value },
+      vehicle:{ 
+        vehicleId: iVehicleId?.value || null,
+        make:iBrand.value, 
+        line:iLine.value, 
+        modelYear:iYear.value, 
+        plate:iPlate.value, 
+        displacement:iCc.value, 
+        mileage:iMileage.value 
+      },
       validity:iValidDays.value,
       specialNotes:specialNotes,
       items:readRows().map(r=>({
@@ -720,7 +848,15 @@ export function initQuotes({ getCompanyEmail }) {
     });
     return {
       customer:{ name:iClientName.value||'', phone:iClientPhone.value||'', email:iClientEmail.value||'' },
-      vehicle:{ plate:iPlate.value||'', make:iBrand.value||'', line:iLine.value||'', modelYear:iYear.value||'', displacement:iCc.value||'', mileage:iMileage.value||'' },
+      vehicle:{ 
+        vehicleId: iVehicleId?.value || null,
+        plate:iPlate.value||'', 
+        make:iBrand.value||'', 
+        line:iLine.value||'', 
+        modelYear:iYear.value||'', 
+        displacement:iCc.value||'', 
+        mileage:iMileage.value||'' 
+      },
       validity:iValidDays.value||'',
       specialNotes:specialNotes,
       items,
@@ -847,14 +983,22 @@ export function initQuotes({ getCompanyEmail }) {
         </div>
         <label>Placa</label>
         <input id="m-plate" placeholder="ABC123" />
+        <div style="position:relative;margin-top:8px;">
+          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Vehículo (opcional)</label>
+          <input id="m-vehicle-search" placeholder="Buscar vehículo (marca, línea, cilindraje)..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+          <div id="m-vehicle-dropdown" style="display:none;position:absolute;z-index:1000;background:var(--card);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;margin-top:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:100%;"></div>
+          <input type="hidden" id="m-vehicle-id" />
+          <div id="m-vehicle-selected" style="margin-top:4px;font-size:12px;color:var(--muted);"></div>
+        </div>
         <div class="row">
-          <input id="m-brand" placeholder="Marca" />
-          <input id="m-line" placeholder="Línea/Modelo" />
+          <input id="m-brand" placeholder="Marca" readonly style="background:var(--bg-secondary);" />
+          <input id="m-line" placeholder="Línea/Modelo" readonly style="background:var(--bg-secondary);" />
         </div>
         <div class="row">
           <input id="m-year" placeholder="Año" />
-          <input id="m-cc" placeholder="Cilindraje" />
+          <input id="m-cc" placeholder="Cilindraje" readonly style="background:var(--bg-secondary);" />
         </div>
+        <div id="m-year-warning" style="display:none;font-size:11px;color:var(--danger,#ef4444);margin-top:4px;"></div>
         <div class="row">
           <input id="m-mileage" placeholder="Kilometraje" type="number" min="0" step="1" />
         </div>
@@ -948,6 +1092,15 @@ export function initQuotes({ getCompanyEmail }) {
     const lblS    = q('#m-subS');
     const lblT    = q('#m-total');
     const prevWA  = q('#m-wa-prev');
+    
+    // Selector de vehículo en modal
+    const mVehicleSearch = q('#m-vehicle-search');
+    const mVehicleId = q('#m-vehicle-id');
+    const mVehicleDropdown = q('#m-vehicle-dropdown');
+    const mVehicleSelected = q('#m-vehicle-selected');
+    const mYearWarning = q('#m-year-warning');
+    let selectedModalVehicle = null;
+    let modalVehicleSearchTimeout = null;
     
     // Elementos de descuento
     const discountSection = q('#m-discount-section');
@@ -1237,6 +1390,162 @@ export function initQuotes({ getCompanyEmail }) {
     iMileage.value = doc?.vehicle?.mileage || '';
     iValid.value = doc?.validity || '';
     
+    // Cargar vehículo si existe vehicleId en el modal
+    if (doc?.vehicle?.vehicleId && mVehicleId) {
+      mVehicleId.value = doc.vehicle.vehicleId;
+      API.vehicles.get(doc.vehicle.vehicleId).then(vehicle => {
+        if (vehicle) {
+          selectedModalVehicle = vehicle;
+          if (mVehicleSearch) mVehicleSearch.value = `${vehicle.make} ${vehicle.line} ${vehicle.displacement}`;
+          if (mVehicleSelected) {
+            mVehicleSelected.innerHTML = `
+              <span style="color:var(--success, #10b981);">✓</span> 
+              <strong>${vehicle.make} ${vehicle.line}</strong> - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
+            `;
+          }
+          if (iBrand) iBrand.value = vehicle.make || '';
+          if (iLine) iLine.value = vehicle.line || '';
+          if (iCc) iCc.value = vehicle.displacement || '';
+        }
+      }).catch(() => {});
+    } else if (doc?.vehicle?.make && doc?.vehicle?.line && doc?.vehicle?.displacement) {
+      // Si no tiene vehicleId pero tiene datos, buscar
+      API.vehicles.search({ 
+        q: `${doc.vehicle.make} ${doc.vehicle.line} ${doc.vehicle.displacement}`, 
+        limit: 1 
+      }).then(result => {
+        if (result?.items?.length > 0) {
+          const vehicle = result.items[0];
+          selectedModalVehicle = vehicle;
+          if (mVehicleId) mVehicleId.value = vehicle._id;
+          if (mVehicleSearch) mVehicleSearch.value = `${vehicle.make} ${vehicle.line} ${vehicle.displacement}`;
+          if (mVehicleSelected) {
+            mVehicleSelected.innerHTML = `
+              <span style="color:var(--success, #10b981);">✓</span> 
+              <strong>${vehicle.make} ${vehicle.line}</strong> - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
+            `;
+          }
+        }
+      }).catch(() => {});
+    }
+    
+    // Búsqueda de vehículos para modal
+    async function searchVehiclesForModal(query) {
+      if (!query || query.length < 2) {
+        if (mVehicleDropdown) mVehicleDropdown.style.display = 'none';
+        return;
+      }
+      try {
+        const r = await API.vehicles.search({ q: query, limit: 10 });
+        const vehicles = Array.isArray(r?.items) ? r.items : [];
+        if (!mVehicleDropdown) return;
+        if (vehicles.length === 0) {
+          mVehicleDropdown.innerHTML = '<div style="padding:12px;text-align:center;color:var(--muted);font-size:12px;">No se encontraron vehículos</div>';
+          mVehicleDropdown.style.display = 'block';
+          return;
+        }
+        mVehicleDropdown.replaceChildren(...vehicles.map(v => {
+          const div = document.createElement('div');
+          div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);';
+          div.innerHTML = `
+            <div style="font-weight:600;">${v.make} ${v.line}</div>
+            <div style="font-size:12px;color:var(--muted);">Cilindraje: ${v.displacement}${v.modelYear ? ` | Modelo: ${v.modelYear}` : ''}</div>
+          `;
+          div.addEventListener('click', () => {
+            selectedModalVehicle = v;
+            if (mVehicleId) mVehicleId.value = v._id;
+            if (mVehicleSearch) mVehicleSearch.value = `${v.make} ${v.line} ${v.displacement}`;
+            if (mVehicleSelected) {
+              mVehicleSelected.innerHTML = `
+                <span style="color:var(--success, #10b981);">✓</span> 
+                <strong>${v.make} ${v.line}</strong> - Cilindraje: ${v.displacement}${v.modelYear ? ` | Modelo: ${v.modelYear}` : ''}
+              `;
+            }
+            if (mVehicleDropdown) mVehicleDropdown.style.display = 'none';
+            if (iBrand) iBrand.value = v.make || '';
+            if (iLine) iLine.value = v.line || '';
+            if (iCc) iCc.value = v.displacement || '';
+            // Validar año si ya está ingresado
+            if (iYear && iYear.value) {
+              validateModalYear();
+            }
+          });
+          div.addEventListener('mouseenter', () => {
+            div.style.background = 'var(--hover, rgba(0,0,0,0.05))';
+          });
+          div.addEventListener('mouseleave', () => {
+            div.style.background = '';
+          });
+          return div;
+        }));
+        mVehicleDropdown.style.display = 'block';
+      } catch (err) {
+        console.error('Error al buscar vehículos:', err);
+      }
+    }
+    
+    // Validar año contra rango del vehículo en modal
+    async function validateModalYear() {
+      if (!selectedModalVehicle || !iYear || !iYear.value) {
+        if (mYearWarning) mYearWarning.style.display = 'none';
+        return;
+      }
+      const yearNum = Number(iYear.value);
+      if (!Number.isFinite(yearNum)) {
+        if (mYearWarning) mYearWarning.style.display = 'none';
+        return;
+      }
+      try {
+        const validation = await API.vehicles.validateYear(selectedModalVehicle._id, yearNum);
+        if (!validation.valid) {
+          if (mYearWarning) {
+            mYearWarning.textContent = validation.message || 'Año fuera de rango';
+            mYearWarning.style.display = 'block';
+          }
+        } else {
+          if (mYearWarning) mYearWarning.style.display = 'none';
+        }
+      } catch (err) {
+        console.error('Error al validar año:', err);
+      }
+    }
+    
+    // Event listeners para selector de vehículo en modal
+    if (mVehicleSearch) {
+      mVehicleSearch.addEventListener('input', (e) => {
+        clearTimeout(modalVehicleSearchTimeout);
+        modalVehicleSearchTimeout = setTimeout(() => {
+          searchVehiclesForModal(e.target.value);
+        }, 300);
+      });
+      mVehicleSearch.addEventListener('focus', () => {
+        if (mVehicleSearch.value.length >= 2) {
+          searchVehiclesForModal(mVehicleSearch.value);
+        }
+      });
+    }
+    
+    if (iYear) {
+      iYear.addEventListener('input', () => {
+        if (selectedModalVehicle) {
+          validateModalYear();
+        }
+      });
+    }
+    
+    // Cerrar dropdown al hacer click fuera
+    const modalClickHandler = (e) => {
+      if (mVehicleSearch && !mVehicleSearch.contains(e.target) && mVehicleDropdown && !mVehicleDropdown.contains(e.target)) {
+        if (mVehicleDropdown) mVehicleDropdown.style.display = 'none';
+      }
+    };
+    document.addEventListener('click', modalClickHandler);
+    
+    // Limpiar listener al cerrar modal
+    q('#m-close')?.addEventListener('click', () => {
+      document.removeEventListener('click', modalClickHandler);
+    });
+    
     // Cargar descuento si existe
     if (doc?.discount && doc.discount.value > 0) {
       currentDiscount = {
@@ -1291,7 +1600,15 @@ export function initQuotes({ getCompanyEmail }) {
         number: iNumber.value,
         datetime: iDatetime.value,
         customer: { name:iName.value, clientPhone:iPhone.value, email:iEmail.value },
-        vehicle: { make:iBrand.value, line:iLine.value, modelYear:iYear.value, plate:iPlate.value, displacement:iCc.value, mileage:iMileage.value },
+        vehicle: { 
+          vehicleId: mVehicleId?.value || null,
+          make:iBrand.value, 
+          line:iLine.value, 
+          modelYear:iYear.value, 
+          plate:iPlate.value, 
+          displacement:iCc.value, 
+          mileage:iMileage.value 
+        },
         validity: iValid.value,
         specialNotes: [],
         items,
@@ -1313,7 +1630,15 @@ export function initQuotes({ getCompanyEmail }) {
         
         const payload = {
           customer:{ name:iName.value||'', phone:iPhone.value||'', email:iEmail.value||'' },
-          vehicle:{ plate:iPlate.value||'', make:iBrand.value||'', line:iLine.value||'', modelYear:iYear.value||'', displacement:iCc.value||'', mileage:iMileage.value||'' },
+          vehicle:{ 
+        vehicleId: mVehicleId?.value || null,
+        plate:iPlate.value||'', 
+        make:iBrand.value||'', 
+        line:iLine.value||'', 
+        modelYear:iYear.value||'', 
+        displacement:iCc.value||'', 
+        mileage:iMileage.value||'' 
+      },
           validity:iValid.value||'',
           specialNotes:[],
           discount: discountValue > 0 ? { 
@@ -1635,42 +1960,70 @@ export function initQuotes({ getCompanyEmail }) {
     // (deprecated) ya no expuesto en UI
     const node=document.createElement('div'); node.className='card';
     node.innerHTML=`<h3>Lista de precios</h3>
-      <div class="row">
-        <input id="qp-brand" placeholder="Marca" />
-  <input id="qp-line" placeholder="Línea" />
-        <button id="qp-search" class="secondary">Buscar</button>
-      </div>
       <div class="table-wrap" style="max-height:320px;overflow:auto;margin-top:8px;">
-  <table class="table compact"><thead><tr><th>Marca</th><th>Línea</th><th>Motor</th><th>Año</th><th class="t-right">Precio</th><th></th></tr></thead><tbody id="qp-body"></tbody></table>
+  <table class="table compact"><thead><tr><th>Vehículo</th><th class="t-right">Precio</th><th></th></tr></thead><tbody id="qp-body"></tbody></table>
       </div>`;
     openModal(node);
     const body=node.querySelector('#qp-body');
+    
+    // Obtener vehicleId de la cotización actual si existe
+    const currentVehicleId = iVehicleId?.value || null;
+    
     async function load(){
-      const brand=node.querySelector('#qp-brand').value.trim();
-      const line=node.querySelector('#qp-line').value.trim();
-      body.innerHTML='<tr><td colspan="6">Cargando...</td></tr>';
+      body.innerHTML='<tr><td colspan="3">Cargando...</td></tr>';
       try{
-        const rows=await API.pricesList({ brand,line,limit:25 });
+        const params = { limit:25 };
+        // Filtrar por vehículo de la cotización si existe
+        if (currentVehicleId) {
+          params.vehicleId = currentVehicleId;
+        }
+        const rows=await API.pricesList(params);
         body.innerHTML='';
         rows.forEach(pe=>{
           const price=Number(pe.total||pe.price||0);
           const tr=document.createElement('tr');
-          tr.innerHTML=`<td>${pe.brand||''}</td><td>${pe.line||''}</td><td>${pe.engine||''}</td><td>${pe.year||''}</td><td class="t-right">${money(price)}</td><td class="t-right"><button class="secondary add">Agregar</button></td>`;
-          tr.querySelector('button.add').onclick=()=>{
+          const vehicleCell = document.createElement('td');
+          if (pe.vehicleId && pe.vehicleId.make) {
+            vehicleCell.innerHTML = `
+              <div style="font-weight:600;">${pe.vehicleId.make} ${pe.vehicleId.line}</div>
+              <div style="font-size:12px;color:var(--muted);">Cilindraje: ${pe.vehicleId.displacement}${pe.vehicleId.modelYear ? ` | Modelo: ${pe.vehicleId.modelYear}` : ''}</div>
+            `;
+          } else {
+            vehicleCell.innerHTML = `
+              <div>${pe.brand || ''} ${pe.line || ''}</div>
+              <div style="font-size:12px;color:var(--muted);">${pe.engine || ''} ${pe.year || ''}</div>
+            `;
+          }
+          tr.appendChild(vehicleCell);
+          const priceCell = document.createElement('td');
+          priceCell.className = 't-right';
+          priceCell.textContent = money(price);
+          tr.appendChild(priceCell);
+          const actionCell = document.createElement('td');
+          actionCell.className = 't-right';
+          const btn = document.createElement('button');
+          btn.className = 'secondary add';
+          btn.textContent = 'Agregar';
+          btn.onclick=()=>{
             const row=cloneRow();
             row.querySelector('select').value='SERVICIO';
-            row.querySelectorAll('input')[0].value=`${pe.brand||''} ${pe.line||''} ${pe.engine||''} ${pe.year||''}`.trim();
+            const desc = pe.vehicleId && pe.vehicleId.make 
+              ? `${pe.vehicleId.make} ${pe.vehicleId.line} ${pe.vehicleId.displacement}`.trim()
+              : `${pe.brand||''} ${pe.line||''} ${pe.engine||''} ${pe.year||''}`.trim();
+            row.querySelectorAll('input')[0].value = desc;
             row.querySelectorAll('input')[1].value=1;
             row.querySelectorAll('input')[2].value=Math.round(price||0);
             row.dataset.source='price'; if(pe._id) row.dataset.refId=pe._id;
             updateRowSubtotal(row); rowsBox.appendChild(row); recalcAll(); saveDraft();
           };
+          actionCell.appendChild(btn);
+          tr.appendChild(actionCell);
           body.appendChild(tr);
         });
-        if(!rows.length) body.innerHTML='<tr><td colspan="6">Sin resultados</td></tr>';
-      }catch(e){ body.innerHTML=`<tr><td colspan="6">Error: ${e.message}</td></tr>`; }
+        if(!rows.length) body.innerHTML='<tr><td colspan="3">Sin resultados</td></tr>';
+      }catch(e){ body.innerHTML=`<tr><td colspan="3">Error: ${e.message}</td></tr>`; }
     }
-    node.querySelector('#qp-search').onclick=load; load();
+    load();
   }
 
   // ===== Agregar por QR (simple: ingresar código -> tratar como SKU inventario) =====
@@ -1741,7 +2094,7 @@ export function initQuotes({ getCompanyEmail }) {
         console.warn('[quotes] profile lookup error', e?.message||e);
       }
     }
-    function applyProfile(prof){
+    async function applyProfile(prof){
       try {
         // Campos de cliente
         if(prof.customer){
@@ -1751,12 +2104,57 @@ export function initQuotes({ getCompanyEmail }) {
           const idEl = document.getElementById('q-client-id');
           if (idEl && !idEl.value && prof.customer.idNumber) idEl.value = prof.customer.idNumber;
         }
-  // Campos de vehículo
+        // Campos de vehículo
         if(prof.vehicle){
           if(!dirty.brand && !iBrand.value) iBrand.value = prof.vehicle.brand || iBrand.value;
           if(!dirty.line && !iLine.value) iLine.value = prof.vehicle.line || iLine.value;
           if(!dirty.year && !iYear.value && prof.vehicle.year) iYear.value = prof.vehicle.year;
           if(!dirty.cc && !iCc.value && prof.vehicle.engine) iCc.value = prof.vehicle.engine; // engine -> cc
+          
+          // Si el perfil tiene vehicleId, cargar y seleccionar el vehículo
+          if(prof.vehicle.vehicleId && iVehicleId) {
+            try {
+              const vehicle = await API.vehicles.get(prof.vehicle.vehicleId);
+              if (vehicle) {
+                selectedQuoteVehicle = vehicle;
+                iVehicleId.value = vehicle._id;
+                if (iVehicleSearch) iVehicleSearch.value = `${vehicle.make} ${vehicle.line} ${vehicle.displacement}`;
+                if (iVehicleSelected) {
+                  iVehicleSelected.innerHTML = `
+                    <span style="color:var(--success, #10b981);">✓</span> 
+                    <strong>${vehicle.make} ${vehicle.line}</strong> - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
+                  `;
+                }
+                if (!dirty.brand && !iBrand.value) iBrand.value = vehicle.make || '';
+                if (!dirty.line && !iLine.value) iLine.value = vehicle.line || '';
+                if (!dirty.cc && !iCc.value) iCc.value = vehicle.displacement || '';
+              }
+            } catch (err) {
+              console.warn('[quotes] No se pudo cargar vehículo del perfil:', err);
+            }
+          } else if (prof.vehicle.brand && prof.vehicle.line && prof.vehicle.engine) {
+            // Si no tiene vehicleId pero tiene marca/línea/cilindraje, buscar en la BD
+            try {
+              const searchResult = await API.vehicles.search({ 
+                q: `${prof.vehicle.brand} ${prof.vehicle.line} ${prof.vehicle.engine}`, 
+                limit: 1 
+              });
+              if (searchResult?.items?.length > 0) {
+                const vehicle = searchResult.items[0];
+                selectedQuoteVehicle = vehicle;
+                iVehicleId.value = vehicle._id;
+                if (iVehicleSearch) iVehicleSearch.value = `${vehicle.make} ${vehicle.line} ${vehicle.displacement}`;
+                if (iVehicleSelected) {
+                  iVehicleSelected.innerHTML = `
+                    <span style="color:var(--success, #10b981);">✓</span> 
+                    <strong>${vehicle.make} ${vehicle.line}</strong> - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
+                  `;
+                }
+              }
+            } catch (err) {
+              console.warn('[quotes] No se pudo buscar vehículo:', err);
+            }
+          }
         }
         recalcAll();
       } catch(err){ console.warn('[quotes] applyProfile error', err); }

@@ -62,32 +62,123 @@
         </div>
       </div>
 
-      <!-- ========== PRECIOS ========== -->
-  <section id="tab-precios" class="tab active">
+      <!-- ========== PRECIOS Y VEHÍCULOS ========== -->
+      <section id="tab-precios" class="tab active">
+        <!-- Tabs internas: Lista de precios y Vehículos -->
         <div class="card">
+          <div class="payroll-tabs row wrap" style="gap:6px;align-items:center;margin-bottom:16px;">
+            <button class="secondary active" data-subtab="prices">💰 Lista de precios</button>
+            <button class="secondary" data-subtab="vehicles">🚗 Vehículos</button>
+          </div>
+        </div>
+
+        <!-- Tab: Lista de precios -->
+        <div class="card" data-subsection="prices">
           <h3>Lista de precios</h3>
           <div class="row" id="svc-bar">
             <select id="svc-select"></select>
             <button id="svc-vars" class="secondary">Variables del servicio</button>
             <button id="svc-new" class="secondary">Crear servicio base</button>
           </div>
-          <div class="row" id="filters-bar">
-            <input id="pf-brand" placeholder="Marca..." />
-            <input id="pf-line" placeholder="Línea..." />
-            <input id="pf-engine" placeholder="Motor..." />
-            <input id="pf-year" placeholder="Año..." type="number" />
-            <button id="pf-search" class="secondary">Buscar</button>
-            <button id="pf-clear" class="secondary">Limpiar</button>
-            <button id="pe-new">Nueva fila</button>
+          <div class="row" id="filters-bar" style="gap:8px;flex-wrap:wrap;align-items:end;">
+            <div style="flex:1;min-width:250px;position:relative;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Vehículo</label>
+              <input id="pf-vehicle-search" placeholder="Buscar vehículo (marca, línea, cilindraje)..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+              <div id="pf-vehicle-dropdown" style="display:none;position:absolute;z-index:1000;background:var(--card);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;margin-top:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:100%;"></div>
+              <input type="hidden" id="pf-vehicle-id" />
+              <div id="pf-vehicle-selected" style="margin-top:4px;font-size:12px;color:var(--muted);"></div>
+            </div>
+            <button id="pf-search" class="secondary" style="padding:8px 16px;">🔍 Buscar</button>
+            <button id="pf-clear" class="secondary" style="padding:8px 16px;">🗑️ Limpiar</button>
+            <button id="pe-new" style="padding:8px 16px;">➕ Nueva fila</button>
+          </div>
+          <div class="card" style="margin-top:12px;">
+            <div class="table-wrap">
+              <table class="table" id="pe-table">
+                <thead id="pe-head"></thead>
+                <tbody id="pe-body"></tbody>
+              </table>
+            </div>
           </div>
         </div>
 
-        <div class="card">
-          <div class="table-wrap">
-            <table class="table" id="pe-table">
-              <thead id="pe-head"></thead>
-              <tbody id="pe-body"></tbody>
-            </table>
+        <!-- Tab: Vehículos -->
+        <div class="card hidden" data-subsection="vehicles">
+          <h3>Base de datos de vehículos</h3>
+          <p class="muted" style="margin:0 0 16px 0;font-size:13px;">Gestiona la base de datos global de vehículos. Esta base es compartida por todas las empresas.</p>
+          
+          <!-- Formulario crear/editar vehículo -->
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+            <div style="margin-bottom:12px;">
+              <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Crear/Editar vehículo</h4>
+            </div>
+            <div class="row wrap" style="gap:12px;align-items:end;">
+              <div style="flex:1;min-width:160px;">
+                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Marca</label>
+                <input id="v-make" placeholder="Ej: RENAULT" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);text-transform:uppercase;" />
+              </div>
+              <div style="flex:1;min-width:160px;">
+                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Línea</label>
+                <input id="v-line" placeholder="Ej: DUSTER" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);text-transform:uppercase;" />
+              </div>
+              <div style="min-width:120px;">
+                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Cilindraje</label>
+                <input id="v-displacement" placeholder="Ej: 1.6" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);text-transform:uppercase;" />
+              </div>
+              <div style="min-width:160px;">
+                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Modelo (año o rango)</label>
+                <input id="v-modelyear" placeholder="Ej: 2020 o 2018-2022" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+                <p class="muted" style="margin:4px 0 0 0;font-size:11px;">Año fijo (2020) o rango (2018-2022). Dejar vacío si no aplica.</p>
+              </div>
+              <div style="min-width:120px;">
+                <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+                <button id="v-save" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
+                  💾 Guardar
+                </button>
+              </div>
+            </div>
+            <div id="v-msg" style="margin-top:12px;font-size:13px;"></div>
+          </div>
+
+          <!-- Filtros y búsqueda -->
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
+            <div class="row wrap" style="gap:12px;align-items:end;">
+              <div style="flex:2;min-width:200px;">
+                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Buscar</label>
+                <input id="v-search" placeholder="Buscar por marca, línea o cilindraje..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+              </div>
+              <div style="min-width:140px;">
+                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Marca</label>
+                <select id="v-filter-make" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+                  <option value="">Todas</option>
+                </select>
+              </div>
+              <div style="min-width:120px;">
+                <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+                <button id="v-filter-btn" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
+                  🔍 Buscar
+                </button>
+              </div>
+              <div style="min-width:120px;">
+                <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+                <button id="v-clear-btn" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
+                  🗑️ Limpiar
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Lista de vehículos -->
+          <div>
+            <div style="margin-bottom:12px;">
+              <h4 style="margin:0;font-size:14px;font-weight:600;">Vehículos registrados</h4>
+              <p class="muted" style="margin:4px 0 0 0;font-size:12px;">Total: <span id="v-count">0</span></p>
+            </div>
+            <div id="v-list" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));gap:12px;">
+              <div class="muted" style="grid-column:1/-1;text-align:center;font-size:12px;padding:16px;border:1px dashed var(--border);border-radius:8px;">
+                Cargando vehículos...
+              </div>
+            </div>
           </div>
         </div>
       </section>

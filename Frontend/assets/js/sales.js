@@ -1381,25 +1381,44 @@ async function openPickerPrices(){
   openModal(node);
   const head=node.querySelector('#p-pr-head'), body=node.querySelector('#p-pr-body'), cnt=node.querySelector('#p-pr-count');
   const svc=node.querySelector('#p-pr-svc');
-  const b=node.querySelector('#p-pr-brand'), l=node.querySelector('#p-pr-line'), e=node.querySelector('#p-pr-engine'), y=node.querySelector('#p-pr-year');
-  head.innerHTML = '<th>Marca</th><th>Línea</th><th>Motor</th><th>Año</th><th class="t-right">Precio</th><th></th>';
+  head.innerHTML = '<th>Vehículo</th><th class="t-right">Precio</th><th></th>';
   try{
     const svcs = await API.servicesList();
     svc.replaceChildren(...(svcs||[]).map(s=>{ const o=document.createElement('option'); o.value=s._id; o.textContent=s.name||('Servicio '+s._id.slice(-6)); return o; }));
   }catch{}
   let page=1, limit=20;
+  
+  // Obtener vehicleId de la venta actual si existe
+  const currentVehicleId = current?.vehicle?.vehicleId || null;
+  
   async function load(reset=false){
     if(reset){ body.innerHTML=''; page=1; }
-    const rows = await API.pricesList({ serviceId: svc.value||'', brand:b.value||'', line:l.value||'', engine:e.value||'', year:y.value||'', page, limit });
+    const params = { serviceId: svc.value||'', page, limit };
+    // Filtrar por vehículo de la venta si existe
+    if (currentVehicleId) {
+      params.vehicleId = currentVehicleId;
+    }
+    const rows = await API.pricesList(params);
     cnt.textContent = rows.length;
     body.innerHTML = '';
     for(const pe of rows){
       const tr = clone('tpl-price-row');
-      tr.querySelector('[data-brand]').textContent = pe.brand||'';
-      tr.querySelector('[data-line]').textContent  = pe.line||'';
-      tr.querySelector('[data-engine]').textContent= pe.engine||'';
-      tr.querySelector('[data-year]').textContent  = pe.year||'';
-      tr.querySelector('[data-price]').textContent = money(pe.total||pe.price||0);
+      const vehicleCell = tr.querySelector('[data-vehicle]') || tr.querySelector('td');
+      if (vehicleCell) {
+        if (pe.vehicleId && pe.vehicleId.make) {
+          vehicleCell.innerHTML = `
+            <div style="font-weight:600;">${pe.vehicleId.make} ${pe.vehicleId.line}</div>
+            <div style="font-size:12px;color:var(--muted);">Cilindraje: ${pe.vehicleId.displacement}${pe.vehicleId.modelYear ? ` | Modelo: ${pe.vehicleId.modelYear}` : ''}</div>
+          `;
+        } else {
+          vehicleCell.innerHTML = `
+            <div>${pe.brand || ''} ${pe.line || ''}</div>
+            <div style="font-size:12px;color:var(--muted);">${pe.engine || ''} ${pe.year || ''}</div>
+          `;
+        }
+      }
+      const priceCell = tr.querySelector('[data-price]');
+      if (priceCell) priceCell.textContent = money(pe.total||pe.price||0);
       tr.querySelector('button.add').onclick = async ()=>{
         current = await API.sales.addItem(current._id, { source:'price', refId: pe._id, qty:1 });
         syncCurrentIntoOpenList();
@@ -1646,6 +1665,140 @@ function openEditCV(){
   node.querySelector('#v-engine').value= v.engine||'';
   node.querySelector('#v-year').value  = v.year??'';
   node.querySelector('#v-mile').value  = v.mileage??'';
+  
+  // Inicializar selector de vehículo
+  const vehicleSearch = $('#v-vehicle-search', node);
+  const vehicleIdInput = $('#v-vehicle-id', node);
+  const vehicleDropdown = $('#v-vehicle-dropdown', node);
+  const vehicleSelected = $('#v-vehicle-selected', node);
+  const yearInput = $('#v-year', node);
+  const yearWarning = $('#v-year-warning', node);
+  let selectedVehicle = null;
+  let vehicleSearchTimeout = null;
+  
+  // Si ya hay vehicleId, cargar datos del vehículo
+  if (v.vehicleId) {
+    vehicleIdInput.value = v.vehicleId;
+    API.vehicles.get(v.vehicleId).then(vehicle => {
+      if (vehicle) {
+        selectedVehicle = vehicle;
+        vehicleSearch.value = `${vehicle.make} ${vehicle.line} ${vehicle.displacement}`;
+        vehicleSelected.innerHTML = `
+          <span style="color:var(--success, #10b981);">✓</span> 
+          <strong>${vehicle.make} ${vehicle.line}</strong> - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
+        `;
+        $('#v-brand', node).value = vehicle.make || '';
+        $('#v-line', node).value = vehicle.line || '';
+        $('#v-engine', node).value = vehicle.displacement || '';
+      }
+    }).catch(() => {});
+  }
+  
+  // Búsqueda de vehículos
+  async function searchVehicles(query) {
+    if (!query || query.length < 2) {
+      vehicleDropdown.style.display = 'none';
+      return;
+    }
+    try {
+      const r = await API.vehicles.search({ q: query, limit: 10 });
+      const vehicles = Array.isArray(r?.items) ? r.items : [];
+      if (vehicles.length === 0) {
+        vehicleDropdown.innerHTML = '<div style="padding:12px;text-align:center;color:var(--muted);font-size:12px;">No se encontraron vehículos</div>';
+        vehicleDropdown.style.display = 'block';
+        return;
+      }
+      vehicleDropdown.replaceChildren(...vehicles.map(v => {
+        const div = document.createElement('div');
+        div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);';
+        div.innerHTML = `
+          <div style="font-weight:600;">${v.make} ${v.line}</div>
+          <div style="font-size:12px;color:var(--muted);">Cilindraje: ${v.displacement}${v.modelYear ? ` | Modelo: ${v.modelYear}` : ''}</div>
+        `;
+        div.addEventListener('click', () => {
+          selectedVehicle = v;
+          vehicleIdInput.value = v._id;
+          vehicleSearch.value = `${v.make} ${v.line} ${v.displacement}`;
+          vehicleSelected.innerHTML = `
+            <span style="color:var(--success, #10b981);">✓</span> 
+            <strong>${v.make} ${v.line}</strong> - Cilindraje: ${v.displacement}${v.modelYear ? ` | Modelo: ${v.modelYear}` : ''}
+          `;
+          vehicleDropdown.style.display = 'none';
+          $('#v-brand', node).value = v.make || '';
+          $('#v-line', node).value = v.line || '';
+          $('#v-engine', node).value = v.displacement || '';
+          // Validar año si ya está ingresado
+          if (yearInput.value) {
+            validateYear();
+          }
+        });
+        div.addEventListener('mouseenter', () => {
+          div.style.background = 'var(--hover, rgba(0,0,0,0.05))';
+        });
+        div.addEventListener('mouseleave', () => {
+          div.style.background = '';
+        });
+        return div;
+      }));
+      vehicleDropdown.style.display = 'block';
+    } catch (err) {
+      console.error('Error al buscar vehículos:', err);
+    }
+  }
+  
+  // Validar año contra rango del vehículo
+  async function validateYear() {
+    if (!selectedVehicle || !yearInput.value) {
+      yearWarning.style.display = 'none';
+      return;
+    }
+    const yearNum = Number(yearInput.value);
+    if (!Number.isFinite(yearNum)) {
+      yearWarning.style.display = 'none';
+      return;
+    }
+    try {
+      const validation = await API.vehicles.validateYear(selectedVehicle._id, yearNum);
+      if (!validation.valid) {
+        yearWarning.textContent = validation.message || 'Año fuera de rango';
+        yearWarning.style.display = 'block';
+      } else {
+        yearWarning.style.display = 'none';
+      }
+    } catch (err) {
+      console.error('Error al validar año:', err);
+    }
+  }
+  
+  if (vehicleSearch) {
+    vehicleSearch.addEventListener('input', (e) => {
+      clearTimeout(vehicleSearchTimeout);
+      vehicleSearchTimeout = setTimeout(() => {
+        searchVehicles(e.target.value);
+      }, 300);
+    });
+    vehicleSearch.addEventListener('focus', () => {
+      if (vehicleSearch.value.length >= 2) {
+        searchVehicles(vehicleSearch.value);
+      }
+    });
+  }
+  
+  if (yearInput) {
+    yearInput.addEventListener('input', () => {
+      if (selectedVehicle) {
+        validateYear();
+      }
+    });
+  }
+  
+  // Cerrar dropdown al hacer click fuera
+  document.addEventListener('click', (e) => {
+    if (vehicleSearch && !vehicleSearch.contains(e.target) && vehicleDropdown && !vehicleDropdown.contains(e.target)) {
+      vehicleDropdown.style.display = 'none';
+    }
+  });
+  
   openModal(node);
 
   const plateInput = $('#v-plate', node);
@@ -1658,7 +1811,7 @@ function openEditCV(){
   let lastLookupId = '';
   let loadingProfile = false;
 
-  const applyProfile = (profile, plateCode) => {
+  const applyProfile = async (profile, plateCode) => {
     if (!profile) return;
     const cust = profile.customer || {};
     const veh = profile.vehicle || {};
@@ -1681,6 +1834,52 @@ function openEditCV(){
     assign('#v-line', veh.line || '');
     assign('#v-engine', veh.engine || '');
     assign('#v-year', veh.year != null ? veh.year : '');
+
+    // Si el perfil tiene vehicleId, cargar y seleccionar el vehículo
+    if (veh.vehicleId && vehicleIdInput) {
+      try {
+        const vehicle = await API.vehicles.get(veh.vehicleId);
+        if (vehicle) {
+          selectedVehicle = vehicle;
+          vehicleIdInput.value = vehicle._id;
+          if (vehicleSearch) vehicleSearch.value = `${vehicle.make} ${vehicle.line} ${vehicle.displacement}`;
+          if (vehicleSelected) {
+            vehicleSelected.innerHTML = `
+              <span style="color:var(--success, #10b981);">✓</span> 
+              <strong>${vehicle.make} ${vehicle.line}</strong> - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
+            `;
+          }
+          // Asegurar que los campos estén sincronizados
+          assign('#v-brand', vehicle.make || '');
+          assign('#v-line', vehicle.line || '');
+          assign('#v-engine', vehicle.displacement || '');
+        }
+      } catch (err) {
+        console.warn('No se pudo cargar vehículo del perfil:', err);
+      }
+    } else if (veh.brand && veh.line && veh.engine) {
+      // Si no tiene vehicleId pero tiene marca/línea/cilindraje, buscar en la BD
+      try {
+        const searchResult = await API.vehicles.search({ 
+          q: `${veh.brand} ${veh.line} ${veh.engine}`, 
+          limit: 1 
+        });
+        if (searchResult?.items?.length > 0) {
+          const vehicle = searchResult.items[0];
+          selectedVehicle = vehicle;
+          vehicleIdInput.value = vehicle._id;
+          if (vehicleSearch) vehicleSearch.value = `${vehicle.make} ${vehicle.line} ${vehicle.displacement}`;
+          if (vehicleSelected) {
+            vehicleSelected.innerHTML = `
+              <span style="color:var(--success, #10b981);">✓</span> 
+              <strong>${vehicle.make} ${vehicle.line}</strong> - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
+            `;
+          }
+        }
+      } catch (err) {
+        console.warn('No se pudo buscar vehículo:', err);
+      }
+    }
 
     if (plateInput) {
       plateInput.value = plateCode;
@@ -1709,7 +1908,7 @@ function openEditCV(){
       try { profile = await API.sales.profileByPlate(raw, { fuzzy: true }); } catch {}
       if (!profile) { try { profile = await API.sales.profileByPlate(raw); } catch {} }
       if (profile) {
-        applyProfile(profile, raw);
+        await applyProfile(profile, raw);
       }
     }catch(err){ console.warn('No se pudo cargar perfil', err?.message||err); }
     finally{
@@ -1729,7 +1928,7 @@ function openEditCV(){
       if (profile) {
         // Mantener placa actual si el usuario ya la ingresó manualmente; si viene en el perfil y el campo no está sucio, aplícala
         const plateCode = (plateInput?.value || '').trim().toUpperCase() || (profile.vehicle?.plate || '').toUpperCase();
-        applyProfile(profile, plateCode);
+        await applyProfile(profile, plateCode);
       }
     } catch (err) {
       console.warn('No se pudo cargar perfil por ID', err?.message || err);
@@ -1799,6 +1998,7 @@ function openEditCV(){
       },
       vehicle:{
         plate: $('#v-plate',node).value.trim(),
+        vehicleId: vehicleIdInput?.value || null,
         brand: $('#v-brand',node).value.trim(),
         line:  $('#v-line',node).value.trim(),
         engine:$('#v-engine',node).value.trim(),

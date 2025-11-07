@@ -231,6 +231,19 @@ const API = {
     return await res.blob();
   },
 
+  // --- Vehículos (global) ---
+  vehicles: {
+    list: (params = {}) => http.get(`/api/v1/vehicles${toQuery(params)}`),
+    get: (id) => http.get(`/api/v1/vehicles/${id}`),
+    create: (payload) => http.post('/api/v1/vehicles', payload),
+    update: (id, payload) => http.put(`/api/v1/vehicles/${id}`, payload),
+    delete: (id, hard = false) => http.del(`/api/v1/vehicles/${id}${hard ? '?hard=true' : ''}`),
+    search: (params = {}) => http.get(`/api/v1/vehicles/search${toQuery(params)}`),
+    getMakes: () => http.get('/api/v1/vehicles/makes'),
+    getLinesByMake: (make) => http.get(`/api/v1/vehicles/makes/${encodeURIComponent(make)}/lines`),
+    validateYear: (vehicleId, year) => http.get(`/api/v1/vehicles/validate-year?vehicleId=${vehicleId}&year=${year}`)
+  },
+
   // --- Inventario ---
   inventory: {
     itemsList: async (params = {}) => {

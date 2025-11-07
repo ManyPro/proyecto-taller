@@ -93,14 +93,22 @@
 
             <label>Placa</label>
             <input id="q-plate" placeholder="ABC123" />
+            <div style="position:relative;margin-top:8px;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Vehículo (opcional)</label>
+              <input id="q-vehicle-search" placeholder="Buscar vehículo (marca, línea, cilindraje)..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+              <div id="q-vehicle-dropdown" style="display:none;position:absolute;z-index:1000;background:var(--card);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;margin-top:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:100%;"></div>
+              <input type="hidden" id="q-vehicle-id" />
+              <div id="q-vehicle-selected" style="margin-top:4px;font-size:12px;color:var(--muted);"></div>
+            </div>
             <div class="row">
-              <input id="q-brand" placeholder="Marca" />
-              <input id="q-line" placeholder="Línea/Modelo" />
+              <input id="q-brand" placeholder="Marca" readonly style="background:var(--bg-secondary);" />
+              <input id="q-line" placeholder="Línea/Modelo" readonly style="background:var(--bg-secondary);" />
             </div>
             <div class="row">
               <input id="q-year" placeholder="Año" />
-              <input id="q-cc" placeholder="Cilindraje" />
+              <input id="q-cc" placeholder="Cilindraje" readonly style="background:var(--bg-secondary);" />
             </div>
+            <div id="q-year-warning" style="display:none;font-size:11px;color:var(--danger,#ef4444);margin-top:4px;"></div>
             <div class="row">
               <input id="q-mileage" placeholder="Kilometraje" type="number" min="0" step="1" />
             </div>

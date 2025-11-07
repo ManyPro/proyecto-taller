@@ -411,14 +411,43 @@ export const setCustomerVehicle = async (req, res) => {
     email: (customer.email || '').trim(),
     address: (customer.address || '').trim()
   };
-  sale.vehicle = {
+  // Si se proporciona vehicleId, obtener datos del vehículo
+  let vehicleData = {
     plate: (vehicle.plate || '').toUpperCase(),
+    vehicleId: vehicle.vehicleId || null,
     brand: (vehicle.brand || '').toUpperCase(),
     line: (vehicle.line || '').toUpperCase(),
     engine: (vehicle.engine || '').toUpperCase(),
     year: vehicle.year ?? null,
     mileage: vehicle.mileage ?? null
   };
+
+  if (vehicle.vehicleId) {
+    const Vehicle = (await import('../models/Vehicle.js')).default;
+    const vehicleDoc = await Vehicle.findById(vehicle.vehicleId);
+    if (vehicleDoc && vehicleDoc.active) {
+      vehicleData.vehicleId = vehicleDoc._id;
+      vehicleData.brand = vehicleDoc.make;
+      vehicleData.line = vehicleDoc.line;
+      vehicleData.engine = vehicleDoc.displacement;
+      // Validar año si se proporciona
+      if (vehicle.year !== undefined && vehicle.year !== null) {
+        const yearNum = Number(vehicle.year);
+        if (!vehicleDoc.isYearInRange(yearNum)) {
+          const range = vehicleDoc.getYearRange();
+          return res.status(400).json({ 
+            error: 'Año fuera de rango',
+            message: `El año ${yearNum} está fuera del rango permitido para este vehículo${range ? ` (${range.start}-${range.end})` : ''}`
+          });
+        }
+        vehicleData.year = yearNum;
+      }
+    } else {
+      return res.status(404).json({ error: 'Vehículo no encontrado o inactivo' });
+    }
+  }
+
+  sale.vehicle = vehicleData;
   if (typeof notes === 'string') sale.notes = notes;
 
   await sale.save();
@@ -721,6 +750,23 @@ export const getProfileByPlate = async (req, res) => {
   } else if (primary.vehicle.plate !== plate) {
     primary.vehicle.plate = plate;
     mutated = true;
+  }
+  
+  // Buscar y linkear vehículo si no está linkeado y tenemos marca/línea/cilindraje
+  if (!primary.vehicle.vehicleId && primary.vehicle.brand && primary.vehicle.line && primary.vehicle.engine) {
+    try {
+      const Vehicle = (await import('../models/Vehicle.js')).default;
+      const vehicle = await Vehicle.findOne({
+        make: primary.vehicle.brand,
+        line: primary.vehicle.line,
+        displacement: primary.vehicle.engine,
+        active: true
+      });
+      if (vehicle) {
+        primary.vehicle.vehicleId = vehicle._id;
+        mutated = true;
+      }
+    } catch {}
   }
 
   if (mutated) {
