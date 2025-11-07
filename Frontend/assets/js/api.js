@@ -65,7 +65,8 @@ async function coreRequest(method, path, data, extraHeaders = {}) {
   let body; try { body = JSON.parse(text); } catch { body = text; }
 
   if (!res.ok) {
-    const msg = (body && body.error) ? body.error : (typeof body === 'string' ? body : res.statusText);
+    // Preferir 'message' si está disponible (más descriptivo), sino usar 'error'
+    const msg = (body && body.message) ? body.message : ((body && body.error) ? body.error : (typeof body === 'string' ? body : res.statusText));
     throw new Error(msg || `HTTP ${res.status}`);
   }
   return body;
