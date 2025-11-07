@@ -1,25 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
-<<<<<<< HEAD
-cd /root/proyecto-taller
-echo "[1/2] (prod) up -d"
-docker compose -p taller-prod -f docker-compose.yml up -d
-echo "[2/2] (dev) up -d"
-docker compose -p taller-dev -f docker-compose.dev.yml up -d
-echo "OK. Estado:"
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-=======
 
-cd /root/proyecto-taller
+# Script para reiniciar ambos servicios (producción y desarrollo)
+# Uso: ./scripts/restart-both.sh
 
-echo "[1/2] (prod) up -d"
+# Cambiar al directorio del proyecto (ajustar según tu ubicación)
+cd /root/proyecto-taller || cd "$(dirname "$0")/.." || exit 1
+
+echo "🔄 Reiniciando servicios de producción y desarrollo..."
+
+echo "[1/2] Reiniciando producción (taller-prod)..."
+docker compose -p taller-prod -f docker-compose.yml restart || \
 docker compose -p taller-prod -f docker-compose.yml up -d
 
-echo "[2/2] (dev) up -d"
+echo "[2/2] Reiniciando desarrollo (taller-dev)..."
+docker compose -p taller-dev -f docker-compose.dev.yml restart || \
 docker compose -p taller-dev -f docker-compose.dev.yml up -d
 
-echo "OK. Estado:"
+echo ""
+echo "✅ Servicios reiniciados. Estado:"
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep -E "(taller-prod|taller-dev|NAMES)" || \
 docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
-
-
->>>>>>> b4a9792452408761de00104e57996b999693e0f9
