@@ -117,6 +117,9 @@ async function addConcept(){
       return;
     }
     
+    // Declarar allowOver100 fuera del bloque para que esté disponible en todo el scope
+    let allowOver100 = false;
+    
     if (isVariable) {
       if (variableFixedAmount <= 0) {
         alert('⚠️ El monto fijo a completar debe ser mayor a 0');
@@ -137,7 +140,6 @@ async function addConcept(){
         return;
       }
       
-      let allowOver100 = false;
       if (amountType === 'percent' && defaultValue > 100) {
         if (!confirm('⚠️ El porcentaje es mayor a 100%. ¿Deseas continuar?')) {
           return;
