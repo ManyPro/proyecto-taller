@@ -16,6 +16,7 @@ import {
   bulkPublishItems,
   downloadImportTemplate,
   importItemsFromExcel,
+  exportInventoryToExcel,
   unpublishZeroStock
 } from '../controllers/inventory.controller.js';
 
@@ -35,9 +36,10 @@ router.delete('/items/:id', deleteItem);
 router.post('/items/:id/stock-in', addItemStock);
 router.post('/items/stock-in/bulk', addItemsStockBulk);
 router.post('/items/publish/bulk', bulkPublishItems);
-// Import desde Excel
+// Import/Export desde Excel
 router.get('/items/import/template', downloadImportTemplate);
 router.post('/items/import/excel', importItemsFromExcel);
+router.get('/items/export/excel', exportInventoryToExcel);
 // Mantenimiento
 router.post('/items/maintenance/unpublish-zero-stock', unpublishZeroStock);
 
