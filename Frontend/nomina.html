@@ -67,15 +67,15 @@
     <section class="tab active">
       <div class="card">
         <div class="payroll-tabs row wrap" style="gap:6px;align-items:center;">
+          <button class="secondary active" data-subtab="settlements">Liquidaciones</button>
+          <button class="secondary" data-subtab="pay">Pagar</button>
+          <button class="secondary" data-subtab="periods">Períodos</button>
           <button class="secondary" data-subtab="concepts">Conceptos</button>
           <button class="secondary" data-subtab="assign">Asignaciones</button>
-          <button class="secondary" data-subtab="periods">Períodos</button>
-          <button class="secondary" data-subtab="settlements">Liquidaciones</button>
-          <button class="secondary" data-subtab="pay">Pagar</button>
         </div>
       </div>
 
-      <div class="card" data-subsection="concepts">
+      <div class="card hidden" data-subsection="concepts">
         <div style="margin-bottom:16px;">
           <h3 style="margin:0 0 4px 0;">Conceptos por empresa</h3>
           <p class="muted" style="margin:0;font-size:13px;">Configura los conceptos de nómina (ingresos, descuentos, recargos) que se aplicarán a todos los técnicos de tu empresa.</p>
@@ -175,7 +175,7 @@
         </div>
       </div>
 
-      <div class="card" style="margin-top:12px;" data-subsection="assign" class="hidden">
+      <div class="card hidden" style="margin-top:12px;" data-subsection="assign">
         <div style="margin-bottom:16px;">
           <h3 style="margin:0 0 4px 0;">Asignaciones por técnico</h3>
           <p class="muted" style="margin:0;font-size:13px;">Personaliza valores de conceptos para técnicos específicos. Los técnicos creados aquí son los únicos disponibles para usar en Ventas.</p>
@@ -243,7 +243,7 @@
         </div>
       </div>
 
-      <div class="card hidden" style="margin-top:12px;" data-subsection="settlements">
+      <div class="card" style="margin-top:12px;" data-subsection="settlements">
         <div style="margin-bottom:16px;">
           <h3 style="margin:0 0 4px 0;">Liquidación de nómina</h3>
           <p class="muted" style="margin:0;font-size:13px;">Calcula y aprueba liquidaciones de técnicos. Las comisiones se calculan automáticamente desde ventas cerradas del período.</p>
