@@ -427,11 +427,22 @@ export const previewSettlement = async (req, res) => {
       });
     }
     
-    // Calcular valores de porcentajes sobre la comisión
+    // Calcular valores de porcentajes
+    // Primero calcular totales temporales para usar como base para porcentajes
+    const tempGross = items.filter(i => i.type !== 'deduction').reduce((sum, i) => sum + (i.value || 0), 0);
+    
     items.forEach(item => {
       if (item.isPercent && item.percentValue) {
-        item.value = Math.round((commissionRounded * item.percentValue) / 100);
-        item.base = commissionRounded;
+        // Para ingresos: calcular sobre la comisión
+        // Para deducciones y recargos: calcular sobre el total bruto (comisión + otros ingresos)
+        if (item.type === 'earning') {
+          item.value = Math.round((commissionRounded * item.percentValue) / 100);
+          item.base = commissionRounded;
+        } else {
+          // Deducciones y recargos se calculan sobre el total bruto
+          item.value = Math.round((tempGross * item.percentValue) / 100);
+          item.base = tempGross;
+        }
       }
     });
     
@@ -576,10 +587,22 @@ export const approveSettlement = async (req, res) => {
       });
     }
     
+    // Calcular valores de porcentajes
+    // Primero calcular totales temporales para usar como base para porcentajes
+    const tempGross = items.filter(i => i.type !== 'deduction').reduce((sum, i) => sum + (i.value || 0), 0);
+    
     items.forEach(item => {
       if (item.isPercent && item.percentValue) {
-        item.value = Math.round((commissionRounded * item.percentValue) / 100);
-        item.base = commissionRounded;
+        // Para ingresos: calcular sobre la comisión
+        // Para deducciones y recargos: calcular sobre el total bruto (comisión + otros ingresos)
+        if (item.type === 'earning') {
+          item.value = Math.round((commissionRounded * item.percentValue) / 100);
+          item.base = commissionRounded;
+        } else {
+          // Deducciones y recargos se calculan sobre el total bruto
+          item.value = Math.round((tempGross * item.percentValue) / 100);
+          item.base = tempGross;
+        }
       }
     });
     

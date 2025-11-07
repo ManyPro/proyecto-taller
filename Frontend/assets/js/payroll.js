@@ -1511,6 +1511,36 @@ async function createPeriod(){
 function init(){
   el('pc-add')?.addEventListener('click', addConcept);
   
+  // Actualizar label y placeholder según el tipo de monto
+  const amountTypeSel = el('pc-amountType');
+  const valueInput = el('pc-value');
+  const valueLabel = el('pc-value-label');
+  const valueHint = el('pc-value-hint');
+  
+  function updateValueField() {
+    const amountType = amountTypeSel?.value;
+    if (amountType === 'percent') {
+      if (valueLabel) valueLabel.textContent = 'Porcentaje (%)';
+      if (valueInput) {
+        valueInput.placeholder = 'Ej: 10';
+        valueInput.step = '0.01';
+      }
+      if (valueHint) valueHint.textContent = 'Ingresa el porcentaje (ej: 10 para 10%, 15.5 para 15.5%)';
+    } else {
+      if (valueLabel) valueLabel.textContent = 'Valor (COP)';
+      if (valueInput) {
+        valueInput.placeholder = '0.00';
+        valueInput.step = '0.01';
+      }
+      if (valueHint) valueHint.textContent = 'Ingresa el valor fijo en pesos colombianos';
+    }
+  }
+  
+  if (amountTypeSel) {
+    amountTypeSel.addEventListener('change', updateValueField);
+    updateValueField(); // Inicializar
+  }
+  
   // Permitir crear concepto con Enter en cualquier campo del formulario
   ['pc-code', 'pc-name', 'pc-value'].forEach(id => {
     const input = el(id);
