@@ -390,21 +390,17 @@ export const previewSettlement = async (req, res) => {
       commissionNotes = details;
     }
     
-    // Calcular items con la comisión como base para porcentajes
-    const items = computeSettlementItems({ 
-      selectedConcepts, 
-      assignments, 
-      technicianName: techNameUpper 
-    });
+    // PRIMERO agregar las comisiones de ventas (siempre se agregan automáticamente)
+    const items = [];
     
-    // Agregar items individuales para cada porcentaje de participación
+    // Agregar items individuales para cada porcentaje de participación de las ventas
     if (commissionDetails.length > 0) {
       // Agregar un item por cada línea de comisión con su porcentaje
       commissionDetails.forEach(detail => {
         const itemName = detail.kind 
           ? `Participación ${detail.kind} (${detail.percent}%)`
           : `Participación técnico (${detail.percent}%)`;
-        items.unshift({
+        items.push({
           conceptId: null,
           name: itemName,
           type: 'earning',
@@ -416,7 +412,7 @@ export const previewSettlement = async (req, res) => {
       });
     } else if (commissionRounded > 0) {
       // Fallback: si no hay detalles pero hay comisión, agregar item genérico
-      items.unshift({
+      items.push({
         conceptId: null,
         name: 'Comisión por ventas',
         type: 'earning',
@@ -426,6 +422,14 @@ export const previewSettlement = async (req, res) => {
         notes: commissionNotes
       });
     }
+    
+    // DESPUÉS agregar los conceptos seleccionados
+    const conceptItems = computeSettlementItems({ 
+      selectedConcepts, 
+      assignments, 
+      technicianName: techNameUpper 
+    });
+    items.push(...conceptItems);
     
     // Calcular valores de porcentajes
     // Primero calcular totales temporales para usar como base para porcentajes
@@ -550,21 +554,17 @@ export const approveSettlement = async (req, res) => {
       commissionNotes = details;
     }
     
-    // Calcular items
-    const items = computeSettlementItems({ 
-      selectedConcepts, 
-      assignments, 
-      technicianName: techNameUpper 
-    });
+    // PRIMERO agregar las comisiones de ventas (siempre se agregan automáticamente)
+    const items = [];
     
-    // Agregar items individuales para cada porcentaje de participación
+    // Agregar items individuales para cada porcentaje de participación de las ventas
     if (commissionDetails.length > 0) {
       // Agregar un item por cada línea de comisión con su porcentaje
       commissionDetails.forEach(detail => {
         const itemName = detail.kind 
           ? `Participación ${detail.kind} (${detail.percent}%)`
           : `Participación técnico (${detail.percent}%)`;
-        items.unshift({
+        items.push({
           conceptId: null,
           name: itemName,
           type: 'earning',
@@ -576,7 +576,7 @@ export const approveSettlement = async (req, res) => {
       });
     } else if (commissionRounded > 0) {
       // Fallback: si no hay detalles pero hay comisión, agregar item genérico
-      items.unshift({
+      items.push({
         conceptId: null,
         name: 'Comisión por ventas',
         type: 'earning',
@@ -586,6 +586,14 @@ export const approveSettlement = async (req, res) => {
         notes: commissionNotes
       });
     }
+    
+    // DESPUÉS agregar los conceptos seleccionados
+    const conceptItems = computeSettlementItems({ 
+      selectedConcepts, 
+      assignments, 
+      technicianName: techNameUpper 
+    });
+    items.push(...conceptItems);
     
     // Calcular valores de porcentajes
     // Primero calcular totales temporales para usar como base para porcentajes
