@@ -1430,13 +1430,15 @@ async function pay(){
     // Validar fecha si se proporciona
     let date = null;
     if (dateInput) {
+      // Convertir datetime-local a ISO string para enviar al backend
       const dateObj = new Date(dateInput);
       if (isNaN(dateObj.getTime())) {
         alert('⚠️ Fecha inválida');
         document.getElementById('pp-date')?.focus();
         return;
       }
-      date = dateInput;
+      // Enviar en formato ISO para que el backend lo interprete correctamente
+      date = dateObj.toISOString();
     }
     
     // Obtener información de la liquidación para confirmación
