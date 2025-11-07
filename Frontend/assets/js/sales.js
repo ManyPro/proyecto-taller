@@ -882,6 +882,7 @@ function openQR(){
   const sel = node.querySelector('#qr-cam');
   const msg = node.querySelector('#qr-msg');
   const list = node.querySelector('#qr-history');
+  const singleModeBtn = node.querySelector('#qr-single-mode');
   const multiModeBtn = node.querySelector('#qr-multi-mode');
   const finishMultiBtn = node.querySelector('#qr-finish-multi');
   const manualInput = node.querySelector('#qr-manual');
@@ -889,6 +890,7 @@ function openQR(){
 
   let stream=null, running=false, detector=null, lastCode='', lastTs=0;
   let multiMode = false; // Modo múltiples items activo
+  let cameraDisabled = false; // Control para deshabilitar cámara durante delay
 
   async function fillCams(){
     try{
@@ -936,10 +938,13 @@ function openQR(){
     }catch(e){ msg.textContent='No se pudo abrir cámara: '+(e?.message||e?.name||'Desconocido'); }
   }
   function accept(value){
+    // Si la cámara está deshabilitada (durante delay), no aceptar códigos
+    if (cameraDisabled) return false;
+    
     const normalized = String(value || '').trim().toUpperCase();
     const t = Date.now();
-    // Aumentar delay a 3 segundos para evitar escaneos duplicados
-    if (lastCode === normalized && t - lastTs < 3000) return false;
+    // Delay de 2 segundos para evitar escaneos duplicados
+    if (lastCode === normalized && t - lastTs < 2000) return false;
     lastCode = normalized;
     lastTs = t;
     return true;
@@ -1034,6 +1039,10 @@ function openQR(){
     const text = String(raw || '').trim();
     if (!text) return;
     if (!fromManual && !accept(text)) return;
+    
+    // Deshabilitar cámara inmediatamente al detectar un código
+    cameraDisabled = true;
+    
     const li=document.createElement('li'); li.textContent=text; list.prepend(li);
     const parsed = parseInventoryCode(text);
     try{
@@ -1050,16 +1059,30 @@ function openQR(){
       // Reproducir sonido de confirmación
       playConfirmSound();
       
-      // Mostrar popup de confirmación
+      // Mostrar popup de confirmación (dura 1.5 segundos)
       showItemAddedPopup();
       
-      // Solo cerrar automáticamente si NO está en modo múltiples
+      // Si es modo single, cerrar después de 1.5 segundos (cuando desaparece la notificación)
       if (!multiMode && !fromManual){ 
-        stop(); 
-        closeModal(); 
+        setTimeout(() => {
+          stop(); 
+          closeModal();
+        }, 1500);
       }
+      
+      // Reanudar cámara después de 2 segundos (1.5s notificación + 0.5s adicional)
+      setTimeout(() => {
+        cameraDisabled = false;
+      }, 2000);
+      
       msg.textContent = '';
-    }catch(e){ msg.textContent = e?.message || 'No se pudo agregar'; }
+    }catch(e){ 
+      msg.textContent = e?.message || 'No se pudo agregar';
+      // Reanudar cámara incluso si hay error
+      setTimeout(() => {
+        cameraDisabled = false;
+      }, 2000);
+    }
   }
 
   function onCode(code){
@@ -1082,17 +1105,32 @@ function openQR(){
     requestAnimationFrame(tickCanvas);
   }
 
+  // Manejar botón de modo single (solo un item)
+  singleModeBtn?.addEventListener('click', async () => {
+    multiMode = false;
+    singleModeBtn.style.display = 'none';
+    multiModeBtn.style.display = 'none';
+    if (finishMultiBtn) finishMultiBtn.style.display = 'none';
+    msg.textContent = 'Modo: Agregar solo un item. Escanea un código para agregarlo y cerrar.';
+    await fillCams();
+    await start();
+  });
+
   // Manejar botón de modo múltiples
-  multiModeBtn?.addEventListener('click', () => {
+  multiModeBtn?.addEventListener('click', async () => {
     multiMode = true;
+    singleModeBtn.style.display = 'none';
     multiModeBtn.style.display = 'none';
     if (finishMultiBtn) finishMultiBtn.style.display = 'inline-block';
     msg.textContent = 'Modo múltiples items activado. Escanea varios items seguidos.';
+    await fillCams();
+    await start();
   });
 
   // Manejar botón de terminar modo múltiples
   finishMultiBtn?.addEventListener('click', () => {
     multiMode = false;
+    singleModeBtn.style.display = 'inline-block';
     multiModeBtn.style.display = 'inline-block';
     if (finishMultiBtn) finishMultiBtn.style.display = 'none';
     msg.textContent = 'Modo múltiples items desactivado.';
@@ -1121,8 +1159,7 @@ function openQR(){
     }
   });
 
-  node.querySelector('#qr-start').onclick = start;
-  node.querySelector('#qr-stop').onclick  = stop;
+  // Cargar cámaras al abrir el modal
   fillCams();
 }
 
