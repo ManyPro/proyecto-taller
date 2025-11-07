@@ -771,6 +771,18 @@ async function preview(){
       const deductions = r.items.filter(i => i.type === 'deduction');
       const surcharges = r.items.filter(i => i.type === 'surcharge');
       
+      // Debug: verificar préstamos
+      const loanItems = deductions.filter(i => i.calcRule === 'employee_loan');
+      if (loanItems.length > 0) {
+        console.log('Préstamos encontrados:', loanItems.map(i => ({
+          name: i.name,
+          calcRule: i.calcRule,
+          loanId: i.loanId,
+          loanPending: i.loanPending,
+          value: i.value
+        })));
+      }
+      
       const renderItems = (items, title) => {
         if (!items || items.length === 0) return '';
         return `
@@ -778,12 +790,18 @@ async function preview(){
             <h4 style="margin:0 0 8px 0;font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;">${title}</h4>
             ${items.map((i, idx) => {
               const typeInfo = typeLabels[i.type] || { label: i.type, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
-              const isLoan = i.calcRule === 'employee_loan' && i.loanId;
               const itemId = `item-${idx}-${i.loanId || i.conceptId || 'other'}`;
               
-              // Si es un préstamo, hacer el monto editable
-              if (isLoan && i.loanPending) {
-                return `<div class="row between" style="padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;background:var(--card);" data-loan-id="${i.loanId}">
+              // Detectar si es un préstamo (por calcRule o por nombre)
+              const isLoanItem = i.calcRule === 'employee_loan' || (i.name && i.name.trim().startsWith('Préstamo'));
+              const loanPendingAmount = i.loanPending !== undefined && i.loanPending !== null 
+                ? i.loanPending 
+                : (i.base || i.value || 0);
+              
+              // Si es un préstamo, hacer el monto editable (usar loanId si existe, sino usar un ID temporal)
+              if (isLoanItem) {
+                const effectiveLoanId = i.loanId || `temp-${idx}`;
+                return `<div class="row between" style="padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;background:var(--card);" data-loan-id="${effectiveLoanId}">
                   <div style="flex:1;">
                     <div class="row" style="gap:10px;align-items:center;margin-bottom:${i.notes ? '4px' : '0'};">
                       <span style="padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}20;">
@@ -792,24 +810,25 @@ async function preview(){
                       <span style="font-weight:500;color:var(--text);">${htmlEscape(i.name)}</span>
                     </div>
                     ${i.notes ? `<div class="muted" style="font-size:11px;margin-top:4px;color:var(--muted);">${htmlEscape(i.notes)}</div>` : ''}
-                    <div style="margin-top:6px;display:flex;gap:8px;align-items:center;">
-                      <label style="font-size:11px;color:var(--muted);">Monto a pagar:</label>
+                    <div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                      <label style="font-size:11px;color:var(--muted);white-space:nowrap;">💰 Monto a pagar:</label>
                       <input type="number" 
                              id="${itemId}" 
                              class="loan-payment-input" 
-                             data-loan-id="${i.loanId}"
-                             data-max="${i.loanPending}"
+                             data-loan-id="${effectiveLoanId}"
+                             data-max="${loanPendingAmount}"
                              min="0" 
-                             max="${i.loanPending}" 
+                             max="${loanPendingAmount}" 
                              step="1" 
-                             value="${i.value}"
-                             style="width:120px;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);font-size:12px;"
-                             onchange="updateLoanPaymentTotal()" />
-                      <span class="muted" style="font-size:11px;">Máx: ${formatMoney(i.loanPending)}</span>
+                             value="${i.value || loanPendingAmount}"
+                             style="width:140px;padding:6px 10px;border:2px solid var(--accent, #3b82f6);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;font-weight:500;"
+                             onchange="updateLoanPaymentTotal()" 
+                             oninput="updateLoanPaymentTotal()" />
+                      <span class="muted" style="font-size:11px;white-space:nowrap;">Máx: ${formatMoney(loanPendingAmount)}</span>
                     </div>
                   </div>
                   <div style="font-weight:600;color:var(--text);font-size:14px;">
-                    <span class="loan-payment-display" data-loan-id="${i.loanId}">${formatMoney(i.value)}</span>
+                    <span class="loan-payment-display" data-loan-id="${effectiveLoanId}">${formatMoney(i.value || loanPendingAmount)}</span>
                   </div>
                 </div>`;
               }
