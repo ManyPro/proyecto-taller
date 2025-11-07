@@ -292,10 +292,32 @@ function initFAB(){
       document.getElementById('q-client-name')?.focus();
     }
   });
-  // Ocultar fab en desktop
+  
+  // Función para verificar si hay un modal abierto
+  function checkModalAndToggle(){
+    const modal = document.getElementById('modal');
+    const isModalOpen = modal && !modal.classList.contains('hidden');
+    const mq = window.matchMedia('(min-width: 861px)');
+    
+    // Ocultar FAB si hay modal abierto o si es desktop
+    if(isModalOpen || mq.matches){
+      fab.style.display = 'none';
+    } else {
+      fab.style.display = 'flex';
+    }
+  }
+  
+  // Observar cambios en el modal
+  const modal = document.getElementById('modal');
+  if(modal){
+    const observer = new MutationObserver(checkModalAndToggle);
+    observer.observe(modal, { attributes: true, attributeFilter: ['class'] });
+  }
+  
+  // Ocultar fab en desktop y cuando hay modal abierto
   const mq = window.matchMedia('(min-width: 861px)');
-  const toggle = ()=>{ fab.style.display = mq.matches ? 'none':'flex'; };
-  mq.addEventListener('change', toggle); toggle();
+  mq.addEventListener('change', checkModalAndToggle);
+  checkModalAndToggle();
 }
 
 
