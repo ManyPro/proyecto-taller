@@ -1305,22 +1305,12 @@ img + select,
   box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
-/* Estilos para botones de precio mínimo */
-.min-price-btn {
-  transition: all 0.2s ease;
-}
-
-.min-price-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
 /* Estilos para botones de quitar */
-button[class*="secondary"]:not(.min-price-btn) {
+button[class*="secondary"] {
   transition: all 0.2s ease;
 }
 
-button[class*="secondary"]:not(.min-price-btn):hover {
+button[class*="secondary"]:hover {
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }

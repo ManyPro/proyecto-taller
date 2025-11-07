@@ -258,14 +258,15 @@ function switchSubTab(name) {
 export function initPrices(){
   const tab = $('#tab-precios'); if(!tab) return;
 
-  const fVehicleSearch=$('#pf-vehicle-search'), fVehicleId=$('#pf-vehicle-id'), fVehicleDropdown=$('#pf-vehicle-dropdown'), fVehicleSelected=$('#pf-vehicle-selected');
+  const fMakeSelect=$('#pf-make-select'), fVehicleId=$('#pf-vehicle-id'), fVehicleSelected=$('#pf-vehicle-selected'), fVehicleName=$('#pf-vehicle-name');
+  const fLinesContainer=$('#pf-lines-container'), fLinesGrid=$('#pf-lines-grid');
   const fSearch=$('#pf-search'), fClear=$('#pf-clear');
   const btnNewService=$('#pe-new-service'), btnNewProduct=$('#pe-new-product');
   const actionsBar=$('#pe-actions-bar');
   const head=$('#pe-head'), body=$('#pe-body');
 
   let selectedVehicle = null;
-  let vehicleSearchTimeout = null;
+  let selectedMake = null;
   let currentPage = 1;
   let currentFilters = { name: '', type: '' };
   let paging = { page: 1, limit: 10, total: 0, pages: 1 };
@@ -443,53 +444,200 @@ export function initPrices(){
     renderPagination();
   }
 
-  // Búsqueda de vehículos
-  async function searchVehicles(query) {
-    if (!query || query.length < 2) {
-      fVehicleDropdown.style.display = 'none';
+  // Cargar marcas al iniciar
+  async function loadMakes() {
+    try {
+      const r = await API.vehicles.getMakes();
+      const makes = Array.isArray(r?.makes) ? r.makes : [];
+      
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = '-- Selecciona una marca --';
+      fMakeSelect.replaceChildren(
+        defaultOpt,
+        ...makes.map(m => {
+          const opt = document.createElement('option');
+          opt.value = m;
+          opt.textContent = m;
+          return opt;
+        })
+      );
+    } catch (err) {
+      console.error('Error al cargar marcas:', err);
+    }
+  }
+
+  // Cargar líneas de una marca
+  async function loadLinesForMake(make) {
+    if (!make) {
+      fLinesContainer.style.display = 'none';
       return;
     }
+    
+    fLinesContainer.style.display = 'block';
+    fLinesGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--muted);">Cargando líneas...</div>';
+    
     try {
-      const r = await API.vehicles.search({ q: query, limit: 10 });
-      const vehicles = Array.isArray(r?.items) ? r.items : [];
-      if (vehicles.length === 0) {
-        fVehicleDropdown.innerHTML = '<div style="padding:12px;text-align:center;color:var(--muted);font-size:12px;">No se encontraron vehículos</div>';
-        fVehicleDropdown.style.display = 'block';
-        return;
-      }
-      fVehicleDropdown.replaceChildren(...vehicles.map(v => {
-        const div = document.createElement('div');
-        div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);';
-        div.innerHTML = `
-          <div style="font-weight:600;">${v.make} ${v.line}</div>
-          <div style="font-size:12px;color:var(--muted);">Cilindraje: ${v.displacement}${v.modelYear ? ` | Modelo: ${v.modelYear}` : ''}</div>
+      // Obtener todas las líneas de esta marca
+      const linesData = await API.vehicles.getLinesByMake(make);
+      const lines = Array.isArray(linesData?.lines) ? linesData.lines : [];
+      
+      // Obtener todos los vehículos de esta marca para agrupar por línea y cilindraje
+      const vehiclesData = await API.vehicles.list({ make });
+      const vehicles = Array.isArray(vehiclesData?.items) ? vehiclesData.items : [];
+      
+      // Agrupar vehículos por línea
+      const linesMap = new Map();
+      vehicles.forEach(v => {
+        const key = `${v.line}|||${v.displacement}`;
+        if (!linesMap.has(key)) {
+          linesMap.set(key, {
+            line: v.line,
+            displacement: v.displacement,
+            vehicles: []
+          });
+        }
+        linesMap.get(key).vehicles.push(v);
+      });
+      
+      fLinesGrid.innerHTML = '';
+      
+      // Crear tarjeta para cada combinación línea/cilindraje
+      linesMap.forEach((lineData, key) => {
+        const card = document.createElement('div');
+        card.style.cssText = 'padding:16px;background:var(--card-alt);border:2px solid var(--border);border-radius:12px;cursor:pointer;transition:all 0.2s;text-align:center;min-height:120px;display:flex;flex-direction:column;justify-content:center;align-items:center;';
+        
+        card.innerHTML = `
+          <div style="font-weight:600;font-size:16px;margin-bottom:4px;color:var(--text);">${lineData.line}</div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">${lineData.displacement}</div>
+          <div style="font-size:11px;color:var(--muted);">${lineData.vehicles.length} variante(s)</div>
         `;
-        div.addEventListener('click', () => {
-          selectVehicle(v);
+        
+        card.addEventListener('mouseenter', () => {
+          card.style.borderColor = 'var(--primary, #3b82f6)';
+          card.style.transform = 'translateY(-2px)';
+          card.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.2)';
         });
-        div.addEventListener('mouseenter', () => {
-          div.style.background = 'var(--hover, rgba(0,0,0,0.05))';
+        
+        card.addEventListener('mouseleave', () => {
+          card.style.borderColor = 'var(--border)';
+          card.style.transform = 'translateY(0)';
+          card.style.boxShadow = '';
         });
-        div.addEventListener('mouseleave', () => {
-          div.style.background = '';
+        
+        card.addEventListener('click', () => {
+          // Seleccionar el primer vehículo de esta línea (o permitir selección más específica)
+          if (lineData.vehicles.length === 1) {
+            selectVehicle(lineData.vehicles[0]);
+          } else {
+            // Si hay múltiples variantes, mostrar un selector
+            showVehicleSelector(lineData.vehicles, lineData.line, lineData.displacement);
+          }
         });
-        return div;
-      }));
-      fVehicleDropdown.style.display = 'block';
+        
+        fLinesGrid.appendChild(card);
+      });
+      
+      // Agregar tarjeta "+" para agregar vehículo
+      const addCard = document.createElement('div');
+      addCard.style.cssText = 'padding:16px;background:var(--card-alt);border:2px dashed var(--border);border-radius:12px;cursor:pointer;transition:all 0.2s;text-align:center;min-height:120px;display:flex;flex-direction:column;justify-content:center;align-items:center;';
+      
+      addCard.innerHTML = `
+        <div style="font-size:48px;color:var(--muted);margin-bottom:8px;">➕</div>
+        <div style="font-weight:600;font-size:14px;color:var(--muted);">Agregar vehículo</div>
+      `;
+      
+      addCard.addEventListener('mouseenter', () => {
+        addCard.style.borderColor = 'var(--primary, #3b82f6)';
+        addCard.style.transform = 'translateY(-2px)';
+        addCard.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.2)';
+        addCard.style.background = 'var(--card)';
+      });
+      
+      addCard.addEventListener('mouseleave', () => {
+        addCard.style.borderColor = 'var(--border)';
+        addCard.style.transform = 'translateY(0)';
+        addCard.style.boxShadow = '';
+        addCard.style.background = 'var(--card-alt)';
+      });
+      
+      addCard.addEventListener('click', () => {
+        // Cambiar a la pestaña de vehículos
+        switchSubTab('vehicles');
+        // Scroll a la sección de vehículos
+        setTimeout(() => {
+          const vehiclesSection = $('[data-subsection="vehicles"]');
+          if (vehiclesSection) {
+            vehiclesSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }, 100);
+      });
+      
+      fLinesGrid.appendChild(addCard);
+      
     } catch (err) {
-      console.error('Error al buscar vehículos:', err);
+      console.error('Error al cargar líneas:', err);
+      fLinesGrid.innerHTML = `
+        <div style="grid-column:1/-1;text-align:center;padding:24px;color:var(--danger);">
+          <p>Error al cargar líneas: ${err?.message || 'Error desconocido'}</p>
+        </div>
+      `;
     }
+  }
+
+  // Mostrar selector de vehículo cuando hay múltiples variantes
+  function showVehicleSelector(vehicles, line, displacement) {
+    const node = document.createElement('div');
+    node.className = 'card';
+    node.style.cssText = 'max-width:500px;margin:0 auto;';
+    node.innerHTML = `
+      <h3 style="margin-top:0;margin-bottom:16px;">Seleccionar variante</h3>
+      <p class="muted" style="margin-bottom:16px;">${line} - ${displacement}</p>
+      <div style="display:grid;gap:8px;margin-bottom:16px;">
+        ${vehicles.map(v => `
+          <div class="vehicle-variant-card" data-vehicle-id="${v._id}" style="padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all 0.2s;">
+            <div style="font-weight:600;">${v.line} ${v.displacement}</div>
+            ${v.modelYear ? `<div style="font-size:12px;color:var(--muted);margin-top:4px;">Modelo: ${v.modelYear}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+      <div style="text-align:center;">
+        <button id="variant-cancel" class="secondary" style="padding:8px 24px;">Cancelar</button>
+      </div>
+    `;
+    
+    openModal(node);
+    
+    node.querySelectorAll('.vehicle-variant-card').forEach(card => {
+      card.addEventListener('mouseenter', () => {
+        card.style.borderColor = 'var(--primary, #3b82f6)';
+        card.style.background = 'var(--card)';
+      });
+      card.addEventListener('mouseleave', () => {
+        card.style.borderColor = 'var(--border)';
+        card.style.background = 'var(--card-alt)';
+      });
+      card.addEventListener('click', () => {
+        const vehicleId = card.dataset.vehicleId;
+        const vehicle = vehicles.find(v => v._id === vehicleId);
+        if (vehicle) {
+          closeModal();
+          selectVehicle(vehicle);
+        }
+      });
+    });
+    
+    node.querySelector('#variant-cancel').onclick = () => {
+      closeModal();
+    };
   }
 
   function selectVehicle(vehicle) {
     selectedVehicle = vehicle;
     fVehicleId.value = vehicle._id;
-    fVehicleSearch.value = `${vehicle.make} ${vehicle.line} ${vehicle.displacement}`;
-    fVehicleSelected.innerHTML = `
-      <span style="color:var(--success, #10b981);">✓</span> 
-      <strong>${vehicle.make} ${vehicle.line}</strong> - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
-    `;
-    fVehicleDropdown.style.display = 'none';
+    fVehicleName.textContent = `${vehicle.make} ${vehicle.line} - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}`;
+    fVehicleSelected.style.display = 'block';
+    fLinesContainer.style.display = 'none';
     actionsBar.style.display = 'flex';
     $('#pe-filters').style.display = 'flex';
     currentPage = 1;
@@ -501,10 +649,11 @@ export function initPrices(){
 
   function clearFilters(){ 
     selectedVehicle = null;
+    selectedMake = null;
     fVehicleId.value = '';
-    fVehicleSearch.value = '';
-    fVehicleSelected.innerHTML = '';
-    fVehicleDropdown.style.display = 'none';
+    fMakeSelect.value = '';
+    fVehicleSelected.style.display = 'none';
+    fLinesContainer.style.display = 'none';
     actionsBar.style.display = 'none';
     body.replaceChildren();
     renderTableHeader();
@@ -514,32 +663,27 @@ export function initPrices(){
     if (filtersEl) filtersEl.style.display = 'none';
     currentPage = 1;
     currentFilters = { name: '', type: '' };
+    const filterName = $('#pe-filter-name');
+    const filterType = $('#pe-filter-type');
     if (filterName) filterName.value = '';
     if (filterType) filterType.value = '';
   }
 
   // Eventos UI
-  if (fVehicleSearch) {
-    fVehicleSearch.addEventListener('input', (e) => {
-      clearTimeout(vehicleSearchTimeout);
-      vehicleSearchTimeout = setTimeout(() => {
-        searchVehicles(e.target.value);
-      }, 300);
-    });
-
-    fVehicleSearch.addEventListener('focus', () => {
-      if (fVehicleSearch.value.length >= 2) {
-        searchVehicles(fVehicleSearch.value);
+  if (fMakeSelect) {
+    fMakeSelect.addEventListener('change', (e) => {
+      selectedMake = e.target.value;
+      if (selectedMake) {
+        loadLinesForMake(selectedMake);
+      } else {
+        fLinesContainer.style.display = 'none';
+        clearFilters();
       }
     });
   }
 
-  // Cerrar dropdown al hacer click fuera
-  document.addEventListener('click', (e) => {
-    if (fVehicleSearch && fVehicleDropdown && !fVehicleSearch.contains(e.target) && !fVehicleDropdown.contains(e.target)) {
-      fVehicleDropdown.style.display = 'none';
-    }
-  });
+  // Cargar marcas al iniciar
+  loadMakes();
 
   // Filtros
   const filterName = $('#pe-filter-name');
