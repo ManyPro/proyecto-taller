@@ -4,8 +4,9 @@ set -euo pipefail
 # Script para reiniciar ambos servicios (producción y desarrollo)
 # Uso: ./scripts/restart-both.sh
 
-# Cambiar al directorio del proyecto (ajustar según tu ubicación)
-cd /root/proyecto-taller || cd "$(dirname "$0")/.." || exit 1
+# Go to repo root (directory above this script)
+REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_DIR"
 
 echo "🔄 Reiniciando servicios de producción y desarrollo..."
 
