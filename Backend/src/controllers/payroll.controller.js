@@ -404,9 +404,9 @@ export const previewSettlement = async (req, res) => {
     // Obtener los conceptos asignados a este técnico
     const assignedConceptIds = assignments.map(a => a.conceptId);
     
-    // Separar conceptos normales de conceptos especiales (COMMISSION, LOAN_PAYMENT, VARIABLE)
-    const specialConcepts = selectedConceptIds.filter(id => id === 'COMMISSION' || id === 'LOAN_PAYMENT' || id === 'VARIABLE');
-    const normalConceptIds = selectedConceptIds.filter(id => id !== 'COMMISSION' && id !== 'LOAN_PAYMENT' && id !== 'VARIABLE');
+    // Separar conceptos normales de conceptos especiales (COMMISSION, LOAN_PAYMENT)
+    const specialConcepts = selectedConceptIds.filter(id => id === 'COMMISSION' || id === 'LOAN_PAYMENT');
+    const normalConceptIds = selectedConceptIds.filter(id => id !== 'COMMISSION' && id !== 'LOAN_PAYMENT');
     
     // Buscar conceptos asignados que el usuario seleccionó (debe estar en ambos arrays)
     const validConceptIds = normalConceptIds.filter(id => assignedConceptIds.some(aid => String(aid) === String(id)));
@@ -416,16 +416,11 @@ export const previewSettlement = async (req, res) => {
       isActive: true 
     });
     
-    // Buscar concepto variable asignado al técnico (si está seleccionado)
-    const includeVariable = specialConcepts.includes('VARIABLE');
+    // Buscar concepto variable entre los conceptos seleccionados (si hay alguno marcado como variable)
+    const includeVariable = selectedConcepts.some(c => c.isVariable);
     let variableConcept = null;
     if (includeVariable) {
-      variableConcept = await CompanyPayrollConcept.findOne({
-        companyId: req.companyId,
-        isVariable: true,
-        isActive: true,
-        _id: { $in: assignedConceptIds }
-      });
+      variableConcept = selectedConcepts.find(c => c.isVariable);
     }
     
     // Calcular comisión del técnico en el período
@@ -669,9 +664,9 @@ export const approveSettlement = async (req, res) => {
     const assignments = await TechnicianAssignment.find(assignmentFilter);
     const assignedConceptIds = assignments.map(a => a.conceptId);
     
-    // Separar conceptos normales de conceptos especiales (COMMISSION, LOAN_PAYMENT, VARIABLE)
-    const specialConcepts = selectedConceptIds.filter(id => id === 'COMMISSION' || id === 'LOAN_PAYMENT' || id === 'VARIABLE');
-    const normalConceptIds = selectedConceptIds.filter(id => id !== 'COMMISSION' && id !== 'LOAN_PAYMENT' && id !== 'VARIABLE');
+    // Separar conceptos normales de conceptos especiales (COMMISSION, LOAN_PAYMENT)
+    const specialConcepts = selectedConceptIds.filter(id => id === 'COMMISSION' || id === 'LOAN_PAYMENT');
+    const normalConceptIds = selectedConceptIds.filter(id => id !== 'COMMISSION' && id !== 'LOAN_PAYMENT');
     
     // Buscar conceptos seleccionados que están asignados al técnico
     const validConceptIds = normalConceptIds.filter(id => assignedConceptIds.some(aid => String(aid) === String(id)));
@@ -681,16 +676,11 @@ export const approveSettlement = async (req, res) => {
       isActive: true 
     });
     
-    // Buscar concepto variable asignado al técnico (si está seleccionado)
-    const includeVariable = specialConcepts.includes('VARIABLE');
+    // Buscar concepto variable entre los conceptos seleccionados (si hay alguno marcado como variable)
+    const includeVariable = selectedConcepts.some(c => c.isVariable);
     let variableConcept = null;
     if (includeVariable) {
-      variableConcept = await CompanyPayrollConcept.findOne({
-        companyId: req.companyId,
-        isVariable: true,
-        isActive: true,
-        _id: { $in: assignedConceptIds }
-      });
+      variableConcept = selectedConcepts.find(c => c.isVariable);
     }
     
     // Calcular comisión
@@ -915,7 +905,7 @@ export const approveSettlement = async (req, res) => {
     const { grossTotal, deductionsTotal, netTotal } = calculateTotals(items);
     
     // Guardar liquidación por técnico
-    // Filtrar selectedConceptIds para solo incluir ObjectIds válidos (excluir 'COMMISSION', 'LOAN_PAYMENT', 'VARIABLE')
+    // Filtrar selectedConceptIds para solo incluir ObjectIds válidos (excluir 'COMMISSION', 'LOAN_PAYMENT')
     // Usar la variable validConceptIds que ya se filtró anteriormente (solo conceptos asignados válidos)
     const validConceptIdsForSave = (validConceptIds || []).filter(id => {
       // Verificar si es un ObjectId válido (manejar strings y ObjectIds)
