@@ -624,73 +624,190 @@ async function saveAssignment(){
   }
 }
 
+// Variable global para almacenar valores editados de préstamos
+let editedLoanPayments = {};
+
+// Variable global para almacenar comisiones calculadas
+let calculatedCommissions = {};
+
 // Función para cargar conceptos asignados al técnico seleccionado
 async function loadConceptsForTechnician(){
   try {
     const technicianName = document.getElementById('pl-technicianSel')?.value?.trim();
+    const periodId = document.getElementById('pl-periodSel')?.value?.trim();
     const container = document.getElementById('pl-concepts-container');
     if (!container) return;
     
-    if (!technicianName) {
-      container.innerHTML = '<div class="muted" style="width:100%;text-align:center;font-size:12px;padding:8px;">Selecciona período y técnico primero</div>';
+    if (!technicianName || !periodId) {
+      container.innerHTML = '<div class="muted" style="grid-column:1/-1;text-align:center;font-size:12px;padding:16px;border:1px dashed var(--border);border-radius:8px;">Selecciona período y técnico primero</div>';
       return;
     }
     
     // Obtener asignaciones del técnico
     const assignments = await api.get('/api/v1/payroll/assignments', { technicianName });
     
-    if (!assignments || assignments.length === 0) {
-      container.innerHTML = '<div class="muted" style="width:100%;text-align:center;font-size:12px;padding:8px;">Este técnico no tiene conceptos asignados. Asigna conceptos en la pestaña "Asignaciones".</div>';
-      return;
+    // Obtener préstamos pendientes del técnico
+    let pendingLoans = [];
+    try {
+      const loansData = await API.cashflow.loans.list({ technicianName, status: 'pending,partially_paid' });
+      pendingLoans = (loansData.items || []).filter(l => {
+        const pending = l.amount - (l.paidAmount || 0);
+        return pending > 0;
+      });
+    } catch (err) {
+      console.error('Error loading loans:', err);
+    }
+    
+    // Obtener comisiones del período (preview temporal para calcular comisiones)
+    let commissionTotal = 0;
+    let commissionDetails = [];
+    try {
+      const previewData = await api.post('/api/v1/payroll/settlements/preview', {
+        periodId,
+        technicianName,
+        selectedConceptIds: [] // Sin conceptos, solo para calcular comisiones
+      });
+      commissionTotal = previewData.grossTotal || 0;
+      // Extraer items de comisión del preview
+      commissionDetails = (previewData.items || []).filter(i => 
+        i.calcRule && (i.calcRule.startsWith('laborPercent') || i.calcRule === 'sales.laborCommissions')
+      );
+      calculatedCommissions[technicianName] = {
+        total: commissionTotal,
+        details: commissionDetails
+      };
+    } catch (err) {
+      console.error('Error calculating commissions:', err);
     }
     
     // Obtener los conceptos de las asignaciones
     const conceptIds = assignments.map(a => a.conceptId).filter(Boolean);
-    if (conceptIds.length === 0) {
-      container.innerHTML = '<div class="muted" style="width:100%;text-align:center;font-size:12px;padding:8px;">No se encontraron conceptos asignados.</div>';
+    let assignedConcepts = [];
+    
+    if (conceptIds.length > 0) {
+      // Obtener detalles de los conceptos
+      const allConcepts = await api.get('/api/v1/payroll/concepts');
+      assignedConcepts = allConcepts.filter(c => conceptIds.some(id => String(id) === String(c._id)));
+    }
+    
+    // Si no hay conceptos, préstamos ni comisiones
+    if (assignedConcepts.length === 0 && pendingLoans.length === 0 && commissionTotal === 0) {
+      container.innerHTML = '<div class="muted" style="grid-column:1/-1;text-align:center;font-size:12px;padding:16px;border:1px dashed var(--border);border-radius:8px;">Este técnico no tiene conceptos asignados, préstamos pendientes ni comisiones en el período.</div>';
       return;
     }
     
-    // Obtener detalles de los conceptos
-    const allConcepts = await api.get('/api/v1/payroll/concepts');
-    const assignedConcepts = allConcepts.filter(c => conceptIds.some(id => String(id) === String(c._id)));
-    
-    if (assignedConcepts.length === 0) {
-      container.innerHTML = '<div class="muted" style="width:100%;text-align:center;font-size:12px;padding:8px;">No se encontraron conceptos activos asignados.</div>';
-      return;
-    }
-    
-    // Renderizar checkboxes de conceptos asignados
+    const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
     const typeLabels = {
       'earning': { label: 'Ingreso', color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
       'deduction': { label: 'Descuento', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
       'surcharge': { label: 'Recargo', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' }
     };
     
-    container.innerHTML = assignedConcepts.map(c => {
-      // Buscar asignación para obtener valueOverride si existe
+    let html = '';
+    
+    // Renderizar comisiones como concepto seleccionable
+    if (commissionTotal > 0) {
+      const storedCommission = editedLoanPayments[`${technicianName}_commission`] || commissionTotal;
+      html += `<div class="concept-card commission-card" style="padding:12px;border:2px solid var(--accent, #3b82f6);border-radius:8px;background:var(--card);transition:all 0.2s;">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0 0 10px 0;">
+          <input type="checkbox" value="COMMISSION" data-commission-concept="true" style="cursor:pointer;width:18px;height:18px;margin:0;" />
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(16,185,129,0.1);color:#10b981;border:1px solid #10b981;">
+                Ingreso
+              </span>
+              <span style="padding:2px 6px;border-radius:3px;font-size:9px;font-weight:600;background:rgba(59,130,246,0.1);color:#3b82f6;border:1px solid #3b82f6;">💰 Comisiones</span>
+            </div>
+            <div style="font-weight:600;color:var(--text);font-size:14px;margin-bottom:2px;">Participación por ventas</div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">${commissionDetails.length} participación(es) · Total calculado: ${formatMoney(commissionTotal)}</div>
+          </div>
+        </label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <label style="font-size:11px;color:var(--muted);white-space:nowrap;">Monto a liquidar:</label>
+          <input type="number" 
+                 id="commission-amount" 
+                 data-technician="${technicianName}"
+                 data-max="${commissionTotal}"
+                 min="0" 
+                 max="${commissionTotal}" 
+                 step="1" 
+                 value="${storedCommission}"
+                 style="width:140px;padding:6px 10px;border:2px solid var(--accent, #3b82f6);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;font-weight:500;"
+                 onchange="saveCommissionAmount('${technicianName}')" />
+          <span class="muted" style="font-size:11px;white-space:nowrap;">Máx: ${formatMoney(commissionTotal)}</span>
+        </div>
+      </div>`;
+    }
+    
+    // Renderizar conceptos normales con tarjetas bonitas
+    assignedConcepts.forEach(c => {
       const assignment = assignments.find(a => String(a.conceptId) === String(c._id));
       const displayValue = assignment?.valueOverride !== null && assignment?.valueOverride !== undefined 
-        ? (c.amountType === 'percent' ? `${assignment.valueOverride}%` : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(assignment.valueOverride))
+        ? (c.amountType === 'percent' ? `${assignment.valueOverride}%` : formatMoney(assignment.valueOverride))
         : (c.amountType === 'percent' 
           ? `${c.defaultValue || 0}%` 
-          : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(c.defaultValue || 0));
+          : formatMoney(c.defaultValue || 0));
       
       const typeInfo = typeLabels[c.type] || { label: c.type, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
       const overrideBadge = assignment?.valueOverride !== null && assignment?.valueOverride !== undefined 
         ? '<span style="padding:2px 6px;border-radius:3px;font-size:9px;font-weight:600;background:rgba(59,130,246,0.1);color:#3b82f6;border:1px solid #3b82f6;">Personalizado</span>'
         : '';
       
-      return `<label style="display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid var(--border);border-radius:6px;background:var(--card);cursor:pointer;transition:all 0.2s;user-select:none;" onmouseover="this.style.background='rgba(148,163,184,0.1)'" onmouseout="this.style.background='var(--card)'">
-        <input type="checkbox" value="${c._id}" data-concept-id="${c._id}" style="cursor:pointer;margin:0;" />
-        <span style="padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}20;">
-          ${htmlEscape(typeInfo.label)}
-        </span>
-        <span style="font-weight:500;color:var(--text);font-size:13px;">${htmlEscape(c.code)} · ${htmlEscape(c.name)}</span>
-        ${overrideBadge}
-        <span style="margin-left:auto;font-size:12px;color:var(--muted);">${displayValue}</span>
-      </label>`;
-    }).join('');
+      html += `<div class="concept-card" style="padding:12px;border:2px solid var(--border);border-radius:8px;background:var(--card);transition:all 0.2s;cursor:pointer;" onmouseover="this.style.borderColor='var(--accent, #3b82f6)';this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='';this.style.boxShadow=''">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;">
+          <input type="checkbox" value="${c._id}" data-concept-id="${c._id}" style="cursor:pointer;width:18px;height:18px;margin:0;" />
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}20;">
+                ${htmlEscape(typeInfo.label)}
+              </span>
+              ${overrideBadge}
+            </div>
+            <div style="font-weight:600;color:var(--text);font-size:14px;margin-bottom:2px;">${htmlEscape(c.code)} · ${htmlEscape(c.name)}</div>
+            <div style="font-size:12px;color:var(--muted);">${displayValue}</div>
+          </div>
+        </label>
+      </div>`;
+    });
+    
+    // Renderizar préstamos pendientes como concepto especial editable
+    if (pendingLoans.length > 0) {
+      const totalPending = pendingLoans.reduce((sum, l) => sum + (l.amount - (l.paidAmount || 0)), 0);
+      const loanCardId = 'loan-payment-card';
+      const storedValue = editedLoanPayments[technicianName] || totalPending;
+      
+      html += `<div class="concept-card loan-card" style="padding:12px;border:2px solid var(--accent, #3b82f6);border-radius:8px;background:var(--card);transition:all 0.2s;" id="${loanCardId}">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0 0 10px 0;">
+          <input type="checkbox" value="LOAN_PAYMENT" data-loan-concept="true" style="cursor:pointer;width:18px;height:18px;margin:0;" />
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid #ef4444;">
+                Descuento
+              </span>
+              <span style="padding:2px 6px;border-radius:3px;font-size:9px;font-weight:600;background:rgba(59,130,246,0.1);color:#3b82f6;border:1px solid #3b82f6;">💰 Préstamos</span>
+            </div>
+            <div style="font-weight:600;color:var(--text);font-size:14px;margin-bottom:2px;">Pago préstamos</div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">${pendingLoans.length} préstamo(s) pendiente(s) · Total pendiente: ${formatMoney(totalPending)}</div>
+          </div>
+        </label>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <label style="font-size:11px;color:var(--muted);white-space:nowrap;">Monto a pagar:</label>
+          <input type="number" 
+                 id="loan-payment-amount" 
+                 data-technician="${technicianName}"
+                 data-max="${totalPending}"
+                 min="0" 
+                 max="${totalPending}" 
+                 step="1" 
+                 value="${storedValue}"
+                 style="width:140px;padding:6px 10px;border:2px solid var(--accent, #3b82f6);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;font-weight:500;"
+                 onchange="saveLoanPaymentAmount('${technicianName}')" />
+          <span class="muted" style="font-size:11px;white-space:nowrap;">Máx: ${formatMoney(totalPending)}</span>
+        </div>
+      </div>`;
+    }
+    
+    container.innerHTML = html;
     
     // Agregar event listeners a los checkboxes
     container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
@@ -702,24 +819,124 @@ async function loadConceptsForTechnician(){
     console.error('Error loading assigned concepts:', err);
     const container = document.getElementById('pl-concepts-container');
     if (container) {
-      container.innerHTML = '<div style="color:#ef4444;font-size:12px;padding:8px;">Error al cargar conceptos asignados</div>';
+      container.innerHTML = '<div style="color:#ef4444;font-size:12px;padding:8px;grid-column:1/-1;">Error al cargar conceptos asignados</div>';
     }
   }
 }
+
+// Función para guardar el monto editado del préstamo (desde la lista de conceptos)
+window.saveLoanPaymentAmount = function(technicianName) {
+  const input = document.getElementById('loan-payment-amount');
+  if (!input) return;
+  
+  const amount = Math.max(0, Math.min(Number(input.value) || 0, Number(input.dataset.max) || 0));
+  input.value = amount;
+  editedLoanPayments[technicianName] = amount;
+  
+  // Mostrar feedback visual
+  const card = input.closest('.loan-card');
+  if (card) {
+    card.style.borderColor = '#10b981';
+    setTimeout(() => {
+      card.style.borderColor = 'var(--accent, #3b82f6)';
+    }, 1000);
+  }
+};
+
+// Función para guardar el monto editado de comisiones (desde la lista de conceptos)
+window.saveCommissionAmount = function(technicianName) {
+  const input = document.getElementById('commission-amount');
+  if (!input) return;
+  
+  const amount = Math.max(0, Math.min(Number(input.value) || 0, Number(input.dataset.max) || 0));
+  input.value = amount;
+  editedLoanPayments[`${technicianName}_commission`] = amount;
+  
+  // Mostrar feedback visual
+  const card = input.closest('.commission-card');
+  if (card) {
+    card.style.borderColor = '#10b981';
+    setTimeout(() => {
+      card.style.borderColor = 'var(--accent, #3b82f6)';
+    }, 1000);
+  }
+};
+
+// Función para guardar el monto editado del préstamo (desde el preview)
+window.saveLoanPaymentFromPreview = function(loanId, inputId) {
+  const input = document.getElementById(inputId);
+  if (!input) return;
+  
+  const amount = Math.max(0, Math.min(Number(input.value) || 0, Number(input.dataset.max) || 0));
+  input.value = amount;
+  
+  // Almacenar el valor editado
+  if (!editedLoanPayments.preview) {
+    editedLoanPayments.preview = {};
+  }
+  editedLoanPayments.preview[loanId] = amount;
+  
+  // Mostrar feedback visual
+  const card = input.closest('[data-loan-id]');
+  if (card) {
+    const originalBorder = card.style.borderColor || 'var(--border)';
+    card.style.borderColor = '#10b981';
+    setTimeout(() => {
+      card.style.borderColor = originalBorder;
+    }, 1000);
+  }
+  
+  // Actualizar totales
+  if (typeof updateLoanPaymentTotal === 'function') {
+    updateLoanPaymentTotal();
+  }
+};
 
 // Obtener conceptos seleccionados
 function getSelectedConceptIds(){
   const container = document.getElementById('pl-concepts-container');
   if (!container) return [];
   const checkboxes = container.querySelectorAll('input[type="checkbox"]:checked');
-  return Array.from(checkboxes).map(cb => cb.value).filter(id => id);
+  return Array.from(checkboxes).map(cb => cb.value).filter(id => id && id !== 'LOAN_PAYMENT' && id !== 'COMMISSION');
+}
+
+// Obtener comisiones configuradas para el técnico
+function getCommissionForTechnician(technicianName) {
+  const commissionCheckbox = document.querySelector('input[data-commission-concept="true"]');
+  if (!commissionCheckbox || !commissionCheckbox.checked) {
+    return null;
+  }
+  
+  const input = document.getElementById('commission-amount');
+  if (!input) return null;
+  
+  const amount = editedLoanPayments[`${technicianName}_commission`] || Number(input.value) || 0;
+  return amount > 0 ? amount : null;
+}
+
+// Obtener préstamos configurados para el técnico
+function getLoanPaymentsForTechnician(technicianName) {
+  const loanCheckbox = document.querySelector('input[data-loan-concept="true"]');
+  if (!loanCheckbox || !loanCheckbox.checked) {
+    return [];
+  }
+  
+  // Obtener el monto editado o usar el máximo disponible
+  const input = document.getElementById('loan-payment-amount');
+  if (!input) return [];
+  
+  const amount = editedLoanPayments[technicianName] || Number(input.value) || 0;
+  if (amount <= 0) return [];
+  
+  // Retornar un array especial que el backend procesará
+  return [{ technicianName, totalAmount: amount }];
 }
 
 async function preview(){
   try {
     const periodId = document.getElementById('pl-periodSel')?.value?.trim();
     const technicianName = document.getElementById('pl-technicianSel')?.value?.trim();
-    const selectedConceptIds = getSelectedConceptIds();
+    let selectedConceptIds = getSelectedConceptIds();
     
     // Validaciones
     if (!periodId) {
@@ -734,15 +951,29 @@ async function preview(){
       return;
     }
     
-    if (selectedConceptIds.length === 0) {
-      alert('⚠️ Selecciona al menos un concepto para aplicar');
+    // Verificar si se seleccionaron comisiones o préstamos
+    const commissionSelected = document.querySelector('input[data-commission-concept="true"]:checked');
+    const loanSelected = document.querySelector('input[data-loan-concept="true"]:checked');
+    
+    if (selectedConceptIds.length === 0 && !commissionSelected && !loanSelected) {
+      alert('⚠️ Selecciona al menos un concepto, comisión o préstamo para aplicar');
       return;
+    }
+    
+    // Agregar comisiones y préstamos a los conceptos seleccionados si están marcados
+    if (commissionSelected) {
+      selectedConceptIds.push('COMMISSION');
+    }
+    if (loanSelected) {
+      selectedConceptIds.push('LOAN_PAYMENT');
     }
     
     const payload = {
       periodId,
       technicianName,
-      selectedConceptIds
+      selectedConceptIds,
+      commissionAmount: commissionSelected ? getCommissionForTechnician(technicianName) : null,
+      loanPayments: loanSelected ? getLoanPaymentsForTechnician(technicianName) : []
     };
     
     // Deshabilitar botones durante la petición
@@ -792,46 +1023,8 @@ async function preview(){
               const typeInfo = typeLabels[i.type] || { label: i.type, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
               const itemId = `item-${idx}-${i.loanId || i.conceptId || 'other'}`;
               
-              // Detectar si es un préstamo (por calcRule o por nombre)
-              const isLoanItem = i.calcRule === 'employee_loan' || (i.name && i.name.trim().startsWith('Préstamo'));
-              const loanPendingAmount = i.loanPending !== undefined && i.loanPending !== null 
-                ? i.loanPending 
-                : (i.base || i.value || 0);
-              
-              // Si es un préstamo, hacer el monto editable (usar loanId si existe, sino usar un ID temporal)
-              if (isLoanItem) {
-                const effectiveLoanId = i.loanId || `temp-${idx}`;
-                return `<div class="row between" style="padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;background:var(--card);" data-loan-id="${effectiveLoanId}">
-                  <div style="flex:1;">
-                    <div class="row" style="gap:10px;align-items:center;margin-bottom:${i.notes ? '4px' : '0'};">
-                      <span style="padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}20;">
-                        ${htmlEscape(typeInfo.label)}
-                      </span>
-                      <span style="font-weight:500;color:var(--text);">${htmlEscape(i.name)}</span>
-                    </div>
-                    ${i.notes ? `<div class="muted" style="font-size:11px;margin-top:4px;color:var(--muted);">${htmlEscape(i.notes)}</div>` : ''}
-                    <div style="margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                      <label style="font-size:11px;color:var(--muted);white-space:nowrap;">💰 Monto a pagar:</label>
-                      <input type="number" 
-                             id="${itemId}" 
-                             class="loan-payment-input" 
-                             data-loan-id="${effectiveLoanId}"
-                             data-max="${loanPendingAmount}"
-                             min="0" 
-                             max="${loanPendingAmount}" 
-                             step="1" 
-                             value="${i.value || loanPendingAmount}"
-                             style="width:140px;padding:6px 10px;border:2px solid var(--accent, #3b82f6);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;font-weight:500;"
-                             onchange="updateLoanPaymentTotal()" 
-                             oninput="updateLoanPaymentTotal()" />
-                      <span class="muted" style="font-size:11px;white-space:nowrap;">Máx: ${formatMoney(loanPendingAmount)}</span>
-                    </div>
-                  </div>
-                  <div style="font-weight:600;color:var(--text);font-size:14px;">
-                    <span class="loan-payment-display" data-loan-id="${effectiveLoanId}">${formatMoney(i.value || loanPendingAmount)}</span>
-                  </div>
-                </div>`;
-              }
+              // Los préstamos y comisiones se muestran como items normales (sin edición en preview)
+              // La edición solo se hace en el menú de conceptos
               
               // Item normal (no préstamo)
               return `<div class="row between" style="padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;background:var(--card);">
@@ -967,16 +1160,30 @@ async function approve(){
       return;
     }
     
-    // Recolectar pagos de préstamos editados
+    // Recolectar pagos de préstamos y comisiones desde la configuración inicial
     const loanPayments = [];
-    const loanInputs = document.querySelectorAll('.loan-payment-input');
-    loanInputs.forEach(input => {
-      const loanId = input.dataset.loanId;
-      const amount = Math.max(0, Math.min(Number(input.value) || 0, Number(input.dataset.max) || 0));
-      if (loanId && amount > 0) {
-        loanPayments.push({ loanId, amount });
+    const commissionAmount = getCommissionForTechnician(technicianName);
+    
+    // Obtener préstamos desde la lista de conceptos
+    const loanCheckbox = document.querySelector('input[data-loan-concept="true"]');
+    if (loanCheckbox && loanCheckbox.checked) {
+      const loanConfig = getLoanPaymentsForTechnician(technicianName);
+      if (loanConfig.length > 0 && loanConfig[0].totalAmount > 0) {
+        loanPayments.push({ technicianName, totalAmount: loanConfig[0].totalAmount });
       }
-    });
+    }
+    
+    // Verificar si se seleccionaron comisiones o préstamos
+    const commissionSelected = document.querySelector('input[data-commission-concept="true"]:checked');
+    const loanSelected = document.querySelector('input[data-loan-concept="true"]:checked');
+    
+    // Agregar comisiones y préstamos a los conceptos seleccionados si están marcados
+    if (commissionSelected) {
+      selectedConceptIds.push('COMMISSION');
+    }
+    if (loanSelected) {
+      selectedConceptIds.push('LOAN_PAYMENT');
+    }
     
     // Confirmar aprobación
     const periodText = document.getElementById('pl-periodSel').options[document.getElementById('pl-periodSel').selectedIndex]?.textContent || 'este período';
@@ -987,7 +1194,9 @@ async function approve(){
     const payload = {
       periodId,
       technicianName,
-      selectedConceptIds
+      selectedConceptIds,
+      commissionAmount, // Monto editado de comisiones
+      loanPayments // Array de { technicianName, totalAmount } para préstamos
     };
     
     // Deshabilitar botones durante la petición
