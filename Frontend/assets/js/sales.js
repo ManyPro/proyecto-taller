@@ -1309,6 +1309,642 @@ function openQR(){
   fillCams();
 }
 
+// ---------- agregar unificado (QR + Manual) ----------
+function openAddUnified(){
+  if (!current) return alert('Crea primero una venta');
+  
+  // Modal inicial: elegir entre QR y Manual
+  const node = document.createElement('div');
+  node.className = 'card';
+  node.style.cssText = 'max-width:600px;margin:0 auto;';
+  node.innerHTML = `
+    <h3 style="margin-top:0;margin-bottom:24px;text-align:center;">Agregar items</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+      <button id="add-qr-btn" class="primary" style="padding:24px;border-radius:12px;font-size:16px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:8px;border:none;cursor:pointer;transition:all 0.2s;">
+        <span style="font-size:48px;">📷</span>
+        <span>Agregar QR</span>
+      </button>
+      <button id="add-manual-btn" class="secondary" style="padding:24px;border-radius:12px;font-size:16px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:8px;border:none;cursor:pointer;transition:all 0.2s;">
+        <span style="font-size:48px;">✏️</span>
+        <span>Agregar manual</span>
+      </button>
+    </div>
+    <div style="text-align:center;">
+      <button id="add-cancel-btn" class="secondary" style="padding:8px 24px;">Cancelar</button>
+    </div>
+  `;
+  
+  openModal(node);
+  
+  // Estilos hover para los botones
+  const qrBtn = node.querySelector('#add-qr-btn');
+  const manualBtn = node.querySelector('#add-manual-btn');
+  const cancelBtn = node.querySelector('#add-cancel-btn');
+  
+  qrBtn.addEventListener('mouseenter', () => {
+    qrBtn.style.transform = 'scale(1.05)';
+    qrBtn.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+  });
+  qrBtn.addEventListener('mouseleave', () => {
+    qrBtn.style.transform = 'scale(1)';
+    qrBtn.style.boxShadow = '';
+  });
+  
+  manualBtn.addEventListener('mouseenter', () => {
+    manualBtn.style.transform = 'scale(1.05)';
+    manualBtn.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+  });
+  manualBtn.addEventListener('mouseleave', () => {
+    manualBtn.style.transform = 'scale(1)';
+    manualBtn.style.boxShadow = '';
+  });
+  
+  // Si selecciona QR, abrir el modal de QR
+  qrBtn.onclick = () => {
+    closeModal();
+    openQR();
+  };
+  
+  // Si selecciona Manual, mostrar navegación entre Lista de precios e Inventario
+  manualBtn.onclick = () => {
+    showManualView(node);
+  };
+  
+  cancelBtn.onclick = () => {
+    closeModal();
+  };
+}
+
+// Vista de agregar manual (navegación entre Lista de precios e Inventario)
+function showManualView(parentNode) {
+  const currentVehicleId = current?.vehicle?.vehicleId || null;
+  let currentView = currentVehicleId ? 'prices' : 'inventory'; // Por defecto, mostrar inventario si no hay vehículo
+  
+  function renderView() {
+    parentNode.innerHTML = `
+      <div style="margin-bottom:16px;">
+        <h3 style="margin-top:0;margin-bottom:16px;">Agregar manual</h3>
+        <div style="display:flex;gap:8px;border-bottom:2px solid var(--border);padding-bottom:8px;">
+          <button id="nav-prices" class="${currentView === 'prices' ? 'primary' : 'secondary'}" style="flex:1;padding:12px;border-radius:8px 8px 0 0;border:none;font-weight:600;cursor:pointer;transition:all 0.2s;">
+            💰 Lista de precios
+          </button>
+          <button id="nav-inventory" class="${currentView === 'inventory' ? 'primary' : 'secondary'}" style="flex:1;padding:12px;border-radius:8px 8px 0 0;border:none;font-weight:600;cursor:pointer;transition:all 0.2s;">
+            📦 Inventario
+          </button>
+        </div>
+      </div>
+      <div id="manual-content" style="min-height:400px;max-height:70vh;overflow-y:auto;"></div>
+      <div style="margin-top:16px;text-align:center;">
+        <button id="manual-back-btn" class="secondary" style="padding:8px 24px;">← Volver</button>
+      </div>
+    `;
+    
+    const navPrices = parentNode.querySelector('#nav-prices');
+    const navInventory = parentNode.querySelector('#nav-inventory');
+    const manualBack = parentNode.querySelector('#manual-back-btn');
+    const content = parentNode.querySelector('#manual-content');
+    
+    navPrices.onclick = () => {
+      currentView = 'prices';
+      renderView();
+    };
+    
+    navInventory.onclick = () => {
+      currentView = 'inventory';
+      renderView();
+    };
+    
+    manualBack.onclick = () => {
+      // Volver al menú inicial
+      openAddUnified();
+    };
+    
+    // Renderizar contenido según la vista actual
+    if (currentView === 'prices') {
+      renderPricesView(content, currentVehicleId);
+    } else {
+      renderInventoryView(content);
+    }
+  }
+  
+  renderView();
+}
+
+// Vista de Lista de precios
+async function renderPricesView(container, vehicleId) {
+  container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">Cargando...</div>';
+  
+  if (!vehicleId) {
+    container.innerHTML = `
+      <div style="text-align:center;padding:48px;">
+        <div style="font-size:48px;margin-bottom:16px;">🚗</div>
+        <h4 style="margin-bottom:8px;">No hay vehículo vinculado</h4>
+        <p style="color:var(--muted);margin-bottom:16px;">Vincula un vehículo a la venta para ver los precios disponibles.</p>
+        <button id="edit-vehicle-btn" class="primary" style="padding:8px 16px;">Editar vehículo</button>
+      </div>
+    `;
+    container.querySelector('#edit-vehicle-btn')?.addEventListener('click', () => {
+      closeModal();
+      openEditCV();
+    });
+    return;
+  }
+  
+  try {
+    // Obtener información del vehículo
+    const vehicle = await API.vehicles.get(vehicleId);
+    
+    // Obtener precios del vehículo
+    const pricesData = await API.pricesList({ vehicleId, page: 1, limit: 10 });
+    const prices = Array.isArray(pricesData?.items) ? pricesData.items : (Array.isArray(pricesData) ? pricesData : []);
+    
+    container.innerHTML = `
+      <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;">
+        <div style="font-weight:600;margin-bottom:4px;">${vehicle?.make || ''} ${vehicle?.line || ''}</div>
+        <div style="font-size:12px;color:var(--muted);">Cilindraje: ${vehicle?.displacement || ''}${vehicle?.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}</div>
+      </div>
+      <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button id="create-service-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;">
+          ➕ Crear servicio
+        </button>
+        <button id="create-product-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;">
+          ➕ Crear producto
+        </button>
+        <button id="create-combo-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;background:#9333ea;color:white;border:none;">
+          🎁 Crear combo
+        </button>
+      </div>
+      <div style="margin-bottom:12px;">
+        <h4 style="margin-bottom:8px;">Precios disponibles (${prices.length})</h4>
+        <div id="prices-list" style="display:grid;gap:8px;"></div>
+      </div>
+    `;
+    
+    const pricesList = container.querySelector('#prices-list');
+    
+    if (prices.length === 0) {
+      pricesList.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">No hay precios registrados para este vehículo.</div>';
+    } else {
+      prices.forEach(pe => {
+        const card = document.createElement('div');
+        card.style.cssText = 'padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:8px;display:flex;justify-content:space-between;align-items:center;';
+        
+        let typeBadge = '';
+        if (pe.type === 'combo') {
+          typeBadge = '<span style="background:#9333ea;color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">COMBO</span>';
+        } else if (pe.type === 'product') {
+          typeBadge = '<span style="background:var(--primary,#3b82f6);color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">PRODUCTO</span>';
+        } else {
+          typeBadge = '<span style="background:var(--success,#10b981);color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">SERVICIO</span>';
+        }
+        
+        card.innerHTML = `
+          <div style="flex:1;">
+            ${typeBadge}
+            <span style="font-weight:600;">${pe.name || 'Sin nombre'}</span>
+          </div>
+          <div style="margin:0 16px;font-weight:600;color:var(--primary);">${money(pe.total || pe.price || 0)}</div>
+          <button class="add-price-btn primary" data-price-id="${pe._id}" style="padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;">Agregar</button>
+        `;
+        
+        card.querySelector('.add-price-btn').onclick = async () => {
+          try {
+            current = await API.sales.addItem(current._id, { source:'price', refId: pe._id, qty:1 });
+            syncCurrentIntoOpenList();
+            renderTabs();
+            renderSale();
+            renderWO();
+            // Mostrar feedback
+            const btn = card.querySelector('.add-price-btn');
+            const originalText = btn.textContent;
+            btn.textContent = '✓ Agregado';
+            btn.disabled = true;
+            btn.style.background = 'var(--success, #10b981)';
+            setTimeout(() => {
+              btn.textContent = originalText;
+              btn.disabled = false;
+              btn.style.background = '';
+            }, 2000);
+          } catch (err) {
+            alert('Error: ' + (err?.message || 'No se pudo agregar'));
+          }
+        };
+        
+        pricesList.appendChild(card);
+      });
+    }
+    
+    // Botones de crear
+    container.querySelector('#create-service-btn').onclick = () => {
+      closeModal();
+      createPriceFromSale('service', vehicleId, vehicle);
+    };
+    
+    container.querySelector('#create-product-btn').onclick = () => {
+      closeModal();
+      createPriceFromSale('product', vehicleId, vehicle);
+    };
+    
+    container.querySelector('#create-combo-btn').onclick = () => {
+      closeModal();
+      createPriceFromSale('combo', vehicleId, vehicle);
+    };
+    
+  } catch (err) {
+    console.error('Error al cargar precios:', err);
+    container.innerHTML = `
+      <div style="text-align:center;padding:24px;color:var(--danger);">
+        <div style="font-size:48px;margin-bottom:16px;">❌</div>
+        <p>Error al cargar precios: ${err?.message || 'Error desconocido'}</p>
+      </div>
+    `;
+  }
+}
+
+// Vista de Inventario
+async function renderInventoryView(container) {
+  container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">Cargando...</div>';
+  
+  let page = 1;
+  const limit = 10;
+  let searchSku = '';
+  let searchName = '';
+  
+  async function loadItems(reset = false) {
+    if (reset) {
+      page = 1;
+      container.querySelector('#inventory-list')?.replaceChildren();
+    }
+    
+    try {
+      const items = await API.inventory.itemsList({ 
+        sku: searchSku || '', 
+        name: searchName || '', 
+        page, 
+        limit 
+      });
+      
+      const listContainer = container.querySelector('#inventory-list');
+      if (!listContainer) return;
+      
+      if (reset) {
+        listContainer.innerHTML = '';
+      }
+      
+      if (items.length === 0 && page === 1) {
+        listContainer.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">No se encontraron items.</div>';
+        return;
+      }
+      
+      items.forEach(item => {
+        const card = document.createElement('div');
+        card.style.cssText = 'padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:8px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;';
+        
+        card.innerHTML = `
+          <div style="flex:1;">
+            <div style="font-weight:600;margin-bottom:4px;">${item.name || 'Sin nombre'}</div>
+            <div style="font-size:12px;color:var(--muted);">SKU: ${item.sku || 'N/A'} | Stock: ${item.stock || 0} | ${money(item.salePrice || 0)}</div>
+          </div>
+          <button class="add-inventory-btn primary" data-item-id="${item._id}" style="padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;margin-left:12px;">Agregar</button>
+        `;
+        
+        card.querySelector('.add-inventory-btn').onclick = async () => {
+          try {
+            current = await API.sales.addItem(current._id, { source:'inventory', refId: item._id, qty:1 });
+            syncCurrentIntoOpenList();
+            renderTabs();
+            renderSale();
+            renderWO();
+            // Mostrar feedback
+            const btn = card.querySelector('.add-inventory-btn');
+            const originalText = btn.textContent;
+            btn.textContent = '✓ Agregado';
+            btn.disabled = true;
+            btn.style.background = 'var(--success, #10b981)';
+            setTimeout(() => {
+              btn.textContent = originalText;
+              btn.disabled = false;
+              btn.style.background = '';
+            }, 2000);
+          } catch (err) {
+            alert('Error: ' + (err?.message || 'No se pudo agregar'));
+          }
+        };
+        
+        listContainer.appendChild(card);
+      });
+      
+      // Mostrar botón "Cargar más" si hay más items
+      const loadMoreBtn = container.querySelector('#load-more-inventory');
+      if (loadMoreBtn) {
+        loadMoreBtn.style.display = items.length >= limit ? 'block' : 'none';
+      }
+      
+    } catch (err) {
+      console.error('Error al cargar inventario:', err);
+      container.querySelector('#inventory-list').innerHTML = `
+        <div style="text-align:center;padding:24px;color:var(--danger);">
+          <p>Error al cargar inventario: ${err?.message || 'Error desconocido'}</p>
+        </div>
+      `;
+    }
+  }
+  
+  container.innerHTML = `
+    <div style="margin-bottom:16px;">
+      <h4 style="margin-bottom:12px;">Filtrar inventario</h4>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
+        <input id="inventory-filter-sku" type="text" placeholder="Buscar por SKU..." style="padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+        <input id="inventory-filter-name" type="text" placeholder="Buscar por nombre..." style="padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+      </div>
+      <button id="inventory-search-btn" class="primary" style="width:100%;padding:10px;border-radius:6px;border:none;font-weight:600;cursor:pointer;">🔍 Buscar</button>
+    </div>
+    <div id="inventory-list" style="max-height:50vh;overflow-y:auto;"></div>
+    <div style="text-align:center;margin-top:12px;">
+      <button id="load-more-inventory" class="secondary" style="padding:8px 16px;display:none;">Cargar más</button>
+    </div>
+  `;
+  
+  const filterSku = container.querySelector('#inventory-filter-sku');
+  const filterName = container.querySelector('#inventory-filter-name');
+  const searchBtn = container.querySelector('#inventory-search-btn');
+  const loadMoreBtn = container.querySelector('#load-more-inventory');
+  
+  let searchTimeout = null;
+  
+  filterSku.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      searchSku = filterSku.value.trim();
+      loadItems(true);
+    }, 500);
+  });
+  
+  filterName.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+      searchName = filterName.value.trim();
+      loadItems(true);
+    }, 500);
+  });
+  
+  searchBtn.onclick = () => {
+    searchSku = filterSku.value.trim();
+    searchName = filterName.value.trim();
+    loadItems(true);
+  };
+  
+  loadMoreBtn.onclick = () => {
+    page++;
+    loadItems(false);
+  };
+  
+  // Cargar items iniciales
+  loadItems(true);
+}
+
+// Crear precio desde venta (reutilizar lógica de prices.js)
+async function createPriceFromSale(type, vehicleId, vehicle) {
+  // Importar la función de prices.js o recrearla aquí
+  // Por ahora, abrir un modal simple para crear el precio
+  const node = document.createElement('div');
+  node.className = 'card';
+  node.style.cssText = 'max-width:600px;margin:0 auto;';
+  
+  const isCombo = type === 'combo';
+  const isProduct = type === 'product';
+  
+  node.innerHTML = `
+    <h3 style="margin-top:0;margin-bottom:16px;">Crear ${type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto')}</h3>
+    <p class="muted" style="margin-bottom:16px;font-size:13px;">
+      Vehículo: <strong>${vehicle?.make || ''} ${vehicle?.line || ''}</strong>
+    </p>
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre</label>
+      <input id="price-name" placeholder="${type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire')}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+    </div>
+    ${isProduct ? `
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Vincular con item del inventario (opcional)</label>
+      <div class="row" style="gap:8px;margin-bottom:8px;">
+        <input id="price-item-search" placeholder="Buscar por SKU o nombre..." style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+        <button id="price-item-qr" class="secondary" style="padding:8px 16px;">📷 QR</button>
+      </div>
+      <div id="price-item-selected" style="margin-top:8px;padding:8px;background:var(--card-alt);border-radius:6px;font-size:12px;display:none;"></div>
+      <input type="hidden" id="price-item-id" />
+    </div>
+    ` : ''}
+    ${!isCombo ? `
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Precio</label>
+      <input id="price-total" type="number" step="0.01" placeholder="0" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+    </div>
+    ` : `
+    <div style="margin-bottom:16px;">
+      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Precio total del combo</label>
+      <input id="price-total" type="number" step="0.01" placeholder="0 (se calcula automáticamente)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+      <p class="muted" style="margin-top:4px;font-size:11px;">El precio se calcula automáticamente desde los productos, o puedes establecerlo manualmente.</p>
+    </div>
+    `}
+    <div id="price-msg" style="margin-bottom:16px;font-size:13px;"></div>
+    <div class="row" style="gap:8px;">
+      <button id="price-save" style="flex:1;padding:10px;">💾 Guardar</button>
+      <button id="price-cancel" class="secondary" style="flex:1;padding:10px;">Cancelar</button>
+    </div>
+  `;
+  
+  openModal(node);
+  
+  const nameInput = node.querySelector('#price-name');
+  const totalInput = node.querySelector('#price-total');
+  const msgEl = node.querySelector('#price-msg');
+  const saveBtn = node.querySelector('#price-save');
+  const cancelBtn = node.querySelector('#price-cancel');
+  let selectedItem = null;
+  
+  // Funcionalidad de búsqueda de items (solo para productos)
+  if (isProduct) {
+    const itemSearch = node.querySelector('#price-item-search');
+    const itemSelected = node.querySelector('#price-item-selected');
+    const itemIdInput = node.querySelector('#price-item-id');
+    const itemQrBtn = node.querySelector('#price-item-qr');
+    
+    let searchTimeout = null;
+    
+    async function searchItems(query) {
+      if (!query || query.length < 2) return;
+      try {
+        let items = [];
+        try {
+          items = await API.inventory.itemsList({ sku: query });
+          if (items.length === 0) {
+            items = await API.inventory.itemsList({ name: query });
+          }
+        } catch (err) {
+          console.error('Error al buscar items:', err);
+        }
+        // Mostrar resultados en un dropdown (simplificado)
+        if (items && items.length > 0) {
+          const item = items[0]; // Tomar el primero
+          selectedItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+          itemIdInput.value = item._id;
+          itemSearch.value = `${item.sku} - ${item.name}`;
+          itemSelected.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <strong>${item.name}</strong><br>
+                <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span>
+              </div>
+              <button id="price-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
+            </div>
+          `;
+          itemSelected.style.display = 'block';
+          if (!totalInput.value || totalInput.value === '0') {
+            totalInput.value = item.salePrice || 0;
+          }
+        }
+      } catch (err) {
+        console.error('Error al buscar items:', err);
+      }
+    }
+    
+    itemSearch.addEventListener('input', (e) => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        searchItems(e.target.value);
+      }, 300);
+    });
+    
+    itemQrBtn.onclick = async () => {
+      try {
+        const qrCode = prompt('Escanea el código QR o ingresa el código manualmente:');
+        if (!qrCode) return;
+        
+        if (qrCode.toUpperCase().startsWith('IT:')) {
+          const parts = qrCode.split(':').map(p => p.trim()).filter(Boolean);
+          const itemId = parts.length >= 3 ? parts[2] : null;
+          if (itemId) {
+            const items = await API.inventory.itemsList({});
+            const item = items.find(i => String(i._id) === itemId);
+            if (item) {
+              selectedItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+              itemIdInput.value = item._id;
+              itemSearch.value = `${item.sku} - ${item.name}`;
+              itemSelected.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div>
+                    <strong>${item.name}</strong><br>
+                    <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span>
+                  </div>
+                  <button id="price-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
+                </div>
+              `;
+              itemSelected.style.display = 'block';
+              if (!totalInput.value || totalInput.value === '0') {
+                totalInput.value = item.salePrice || 0;
+              }
+              return;
+            }
+          }
+        }
+        
+        const items = await API.inventory.itemsList({ sku: qrCode, limit: 1 });
+        if (items && items.length > 0) {
+          const item = items[0];
+          selectedItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+          itemIdInput.value = item._id;
+          itemSearch.value = `${item.sku} - ${item.name}`;
+          itemSelected.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <strong>${item.name}</strong><br>
+                <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span>
+              </div>
+              <button id="price-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
+            </div>
+          `;
+          itemSelected.style.display = 'block';
+          if (!totalInput.value || totalInput.value === '0') {
+            totalInput.value = item.salePrice || 0;
+          }
+        } else {
+          alert('Item no encontrado');
+        }
+      } catch (err) {
+        alert('Error al leer QR: ' + (err?.message || 'Error desconocido'));
+      }
+    };
+    
+    const removeBtn = itemSelected.querySelector('#price-item-remove');
+    if (removeBtn) {
+      removeBtn.onclick = () => {
+        selectedItem = null;
+        itemIdInput.value = '';
+        itemSearch.value = '';
+        itemSelected.style.display = 'none';
+      };
+    }
+  }
+  
+  saveBtn.onclick = async () => {
+    const name = nameInput.value.trim();
+    const total = Number(totalInput.value) || 0;
+    
+    if (!name) {
+      msgEl.textContent = 'El nombre es requerido';
+      msgEl.style.color = 'var(--danger, #ef4444)';
+      return;
+    }
+    
+    if (total < 0) {
+      msgEl.textContent = 'El precio debe ser mayor o igual a 0';
+      msgEl.style.color = 'var(--danger, #ef4444)';
+      return;
+    }
+    
+    try {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Guardando...';
+      
+      const payload = {
+        vehicleId: vehicleId,
+        name: name,
+        type: type,
+        total: total
+      };
+      
+      if (isProduct && selectedItem) {
+        payload.itemId = selectedItem._id;
+      }
+      
+      await API.priceCreate(payload);
+      
+      // Agregar el precio recién creado a la venta
+      const prices = await API.pricesList({ vehicleId, name, limit: 1 });
+      if (prices && prices.length > 0) {
+        const newPrice = prices[0];
+        current = await API.sales.addItem(current._id, { source:'price', refId: newPrice._id, qty:1 });
+        syncCurrentIntoOpenList();
+        renderTabs();
+        renderSale();
+        renderWO();
+      }
+      
+      closeModal();
+    } catch(e) {
+      msgEl.textContent = 'Error: ' + (e?.message || 'Error desconocido');
+      msgEl.style.color = 'var(--danger, #ef4444)';
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = '💾 Guardar';
+    }
+  };
+  
+  cancelBtn.onclick = () => {
+    closeModal();
+  };
+}
+
 // ---------- agregar manual ----------
 function openAddManual(){
   if (!current) return alert('Crea primero una venta');
@@ -2200,9 +2836,7 @@ export function initSales(){
     finally{ starting=false; if(btn) btn.disabled=false; }
   });
 
-  document.getElementById('sales-scan-qr')?.addEventListener('click', openQR);
-  document.getElementById('sales-add-general')?.addEventListener('click', openAddPicker);
-  document.getElementById('sales-add-manual')?.addEventListener('click', openAddManual);
+  document.getElementById('sales-add-unified')?.addEventListener('click', openAddUnified);
   document.getElementById('sales-history')?.addEventListener('click', openSalesHistory);
   document.getElementById('sv-edit-cv')?.addEventListener('click', openEditCV);
   document.getElementById('sv-loadQuote')?.addEventListener('click', loadQuote);
