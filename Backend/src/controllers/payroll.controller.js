@@ -4,6 +4,7 @@ import PayrollPeriod from '../models/PayrollPeriod.js';
 import PayrollSettlement from '../models/PayrollSettlement.js';
 import CashFlowEntry from '../models/CashFlowEntry.js';
 import Sale from '../models/Sale.js';
+import EmployeeLoan from '../models/EmployeeLoan.js';
 import PDFDocument from 'pdfkit';
 import Template from '../models/Template.js';
 import Handlebars from 'handlebars';
@@ -331,6 +332,29 @@ function computeSettlementItems({ selectedConcepts, assignments, technicianName 
   return items;
 }
 
+// Asegurar que el concepto PAGO_PRESTAMOS existe
+async function ensureLoanConcept(companyId) {
+  let concept = await CompanyPayrollConcept.findOne({ 
+    companyId, 
+    code: 'PAGO_PRESTAMOS' 
+  });
+  
+  if (!concept) {
+    concept = await CompanyPayrollConcept.create({
+      companyId,
+      code: 'PAGO_PRESTAMOS',
+      name: 'Pago préstamos',
+      type: 'deduction',
+      amountType: 'fixed',
+      defaultValue: 0,
+      ordering: 200,
+      isActive: true
+    });
+  }
+  
+  return concept;
+}
+
 function calculateTotals(items){
   const grossTotal = items.filter(i => i.type !== 'deduction').reduce((a,b)=>a+b.value,0);
   const deductionsTotal = items.filter(i => i.type === 'deduction').reduce((a,b)=>a+b.value,0);
@@ -465,6 +489,35 @@ export const previewSettlement = async (req, res) => {
       technicianName: techNameUpper 
     });
     items.push(...conceptItems);
+    
+    // AGREGAR PRÉSTAMOS PENDIENTES del empleado
+    const pendingLoans = await EmployeeLoan.find({
+      companyId: req.companyId,
+      technicianName: techNameUpper,
+      status: { $in: ['pending', 'partially_paid'] }
+    }).sort({ loanDate: 1 });
+    
+    if (pendingLoans.length > 0) {
+      // Asegurar que el concepto PAGO_PRESTAMOS existe
+      const loanConcept = await ensureLoanConcept(req.companyId);
+      
+      const totalLoanAmount = pendingLoans.reduce((sum, loan) => {
+        const pending = loan.amount - (loan.paidAmount || 0);
+        return sum + pending;
+      }, 0);
+      
+      if (totalLoanAmount > 0) {
+        items.push({
+          conceptId: loanConcept._id,
+          name: 'Pago préstamos',
+          type: 'deduction',
+          base: totalLoanAmount,
+          value: totalLoanAmount,
+          calcRule: 'employee_loans',
+          notes: `${pendingLoans.length} préstamo(s) pendiente(s)`
+        });
+      }
+    }
     
     // Calcular valores de porcentajes
     // Primero calcular totales temporales para usar como base para porcentajes
@@ -630,6 +683,47 @@ export const approveSettlement = async (req, res) => {
     });
     items.push(...conceptItems);
     
+    // AGREGAR PRÉSTAMOS PENDIENTES del empleado
+    const pendingLoans = await EmployeeLoan.find({
+      companyId: req.companyId,
+      technicianName: techNameUpper,
+      status: { $in: ['pending', 'partially_paid'] }
+    }).sort({ loanDate: 1 });
+    
+    let loanUpdates = [];
+    if (pendingLoans.length > 0) {
+      // Asegurar que el concepto PAGO_PRESTAMOS existe
+      const loanConcept = await ensureLoanConcept(req.companyId);
+      
+      const totalLoanAmount = pendingLoans.reduce((sum, loan) => {
+        const pending = loan.amount - (loan.paidAmount || 0);
+        return sum + pending;
+      }, 0);
+      
+      if (totalLoanAmount > 0) {
+        items.push({
+          conceptId: loanConcept._id,
+          name: 'Pago préstamos',
+          type: 'deduction',
+          base: totalLoanAmount,
+          value: totalLoanAmount,
+          calcRule: 'employee_loans',
+          notes: `${pendingLoans.length} préstamo(s) pendiente(s)`
+        });
+        
+        // Preparar actualizaciones de préstamos
+        loanUpdates = pendingLoans.map(loan => {
+          const pending = loan.amount - (loan.paidAmount || 0);
+          return {
+            loanId: loan._id,
+            pending,
+            newPaidAmount: loan.amount, // Se pagará completamente
+            newStatus: 'paid'
+          };
+        });
+      }
+    }
+    
     // Calcular valores de porcentajes
     // Primero calcular totales temporales para usar como base para porcentajes
     const tempGross = items.filter(i => i.type !== 'deduction').reduce((sum, i) => sum + (i.value || 0), 0);
@@ -675,6 +769,17 @@ export const approveSettlement = async (req, res) => {
       },
       { new: true, upsert: true }
     );
+    
+    // Actualizar estado de préstamos si se pagaron
+    if (loanUpdates.length > 0) {
+      for (const update of loanUpdates) {
+        await EmployeeLoan.findByIdAndUpdate(update.loanId, {
+          paidAmount: update.newPaidAmount,
+          status: update.newStatus,
+          $addToSet: { settlementIds: doc._id }
+        });
+      }
+    }
     
     res.json(doc);
   } catch (err) {

@@ -28,6 +28,13 @@ function bind(){
   document.getElementById('cf-next')?.addEventListener('click', ()=>{ if(cfState.page<cfState.pages){ cfState.page++; loadMovements(); } });
   document.getElementById('cf-new-entry')?.addEventListener('click', openNewEntryModal);
   document.getElementById('cf-new-expense')?.addEventListener('click', ()=> openNewEntryModal('OUT'));
+  document.getElementById('cf-new-loan')?.addEventListener('click', openNewLoanModal);
+  document.getElementById('cf-refresh-loans')?.addEventListener('click', ()=> loadLoans(true));
+  document.getElementById('cf-loan-filter-tech')?.addEventListener('change', ()=> loadLoans());
+  document.getElementById('cf-loan-filter-status')?.addEventListener('change', ()=> loadLoans());
+  
+  // Cargar préstamos al inicializar
+  loadLoans();
 }
 
 async function loadAccounts(){
@@ -146,6 +153,167 @@ function openNewEntryModal(defaultKind='IN'){
       setTimeout(()=>{ modal.classList.add('hidden'); loadAccounts(); loadMovements(); },400);
     }catch(e){ msg.textContent=e?.message||'Error'; }
   };
+}
+
+function openNewLoanModal(){
+  const modal = document.getElementById('modal');
+  const body = document.getElementById('modalBody');
+  if(!modal||!body) return;
+  const div = document.createElement('div');
+  div.innerHTML = `<h3>Nuevo Préstamo a Empleado</h3>
+    <label>Nombre del Empleado</label>
+    <input id='nloan-tech' placeholder='Nombre del técnico/empleado' style='text-transform:uppercase;'/>
+    <label>Cuenta</label>
+    <select id='nloan-account'></select>
+    <label>Monto</label>
+    <input id='nloan-amount' type='number' min='1' step='1'/>
+    <label>Fecha del Préstamo</label>
+    <input id='nloan-date' type='date'/>
+    <label>Descripción (opcional)</label>
+    <input id='nloan-desc' placeholder='Descripción del préstamo'/>
+    <label>Notas (opcional)</label>
+    <textarea id='nloan-notes' placeholder='Notas adicionales' style='min-height:60px;'></textarea>
+    <div style='margin-top:8px;display:flex;gap:8px;'>
+      <button id='nloan-save'>Guardar</button>
+      <button id='nloan-cancel' class='secondary'>Cancelar</button>
+    </div>
+    <div id='nloan-msg' class='muted' style='margin-top:6px;font-size:12px;'></div>`;
+  body.innerHTML=''; body.appendChild(div); modal.classList.remove('hidden');
+  const sel = div.querySelector('#nloan-account');
+  const dateInput = div.querySelector('#nloan-date');
+  dateInput.value = new Date().toISOString().split('T')[0]; // Fecha de hoy por defecto
+  
+  API.accounts.list().then(list=>{ 
+    sel.innerHTML=list.map(a=>`<option value='${a._id}'>${a.name}</option>`).join(''); 
+  });
+  
+  div.querySelector('#nloan-cancel').onclick=()=> modal.classList.add('hidden');
+  div.querySelector('#nloan-save').onclick=async()=>{
+    const msg = div.querySelector('#nloan-msg');
+    msg.textContent='Guardando...';
+    try{
+      const technicianName = div.querySelector('#nloan-tech').value?.trim();
+      if(!technicianName){
+        msg.textContent='⚠️ El nombre del empleado es requerido';
+        return;
+      }
+      const amount = Number(div.querySelector('#nloan-amount').value||0)||0;
+      if(amount<=0){
+        msg.textContent='⚠️ El monto debe ser mayor a 0';
+        return;
+      }
+      const accountId = sel.value;
+      if(!accountId){
+        msg.textContent='⚠️ Selecciona una cuenta';
+        return;
+      }
+      const description = div.querySelector('#nloan-desc').value||'';
+      const loanDate = div.querySelector('#nloan-date').value;
+      const notes = div.querySelector('#nloan-notes').value||'';
+      
+      await API.cashflow.loans.create({ 
+        technicianName, 
+        accountId, 
+        amount, 
+        description, 
+        loanDate,
+        notes 
+      });
+      msg.textContent='✅ Préstamo creado exitosamente';
+      setTimeout(()=>{ 
+        modal.classList.add('hidden'); 
+        loadAccounts(); 
+        loadMovements(); 
+        loadLoans(); 
+      },800);
+    }catch(e){ msg.textContent='❌ '+(e?.message||'Error'); }
+  };
+}
+
+async function loadLoans(reset=false){
+  const techFilter = document.getElementById('cf-loan-filter-tech')?.value||'';
+  const statusFilter = document.getElementById('cf-loan-filter-status')?.value||'';
+  const body = document.getElementById('cf-loans-body');
+  const summary = document.getElementById('cf-loans-summary');
+  
+  try{
+    if(body) body.innerHTML='<tr><td colspan="8">Cargando...</td></tr>';
+    const params = {};
+    if(techFilter) params.technicianName = techFilter;
+    if(statusFilter) params.status = statusFilter;
+    
+    const data = await API.cashflow.loans.list(params);
+    const loans = data.items || [];
+    
+    if(body){
+      body.innerHTML = loans.map(loan=>{
+        const date = new Date(loan.loanDate||loan.createdAt).toLocaleDateString('es-CO');
+        const pending = loan.amount - (loan.paidAmount||0);
+        const statusLabels = {
+          pending: '<span style="color:#f59e0b;">Pendiente</span>',
+          partially_paid: '<span style="color:#3b82f6;">Parcial</span>',
+          paid: '<span style="color:#10b981;">Pagado</span>',
+          cancelled: '<span style="color:#6b7280;">Cancelado</span>'
+        };
+        const canDelete = loan.status === 'pending' && (!loan.settlementIds || loan.settlementIds.length === 0);
+        return `<tr data-id='${loan._id}'>
+          <td>${date}</td>
+          <td>${loan.technicianName}</td>
+          <td class='t-right'>${money(loan.amount)}</td>
+          <td class='t-right'>${money(loan.paidAmount||0)}</td>
+          <td class='t-right' style='font-weight:600;'>${money(pending)}</td>
+          <td>${statusLabels[loan.status]||loan.status}</td>
+          <td>${loan.description||'-'}</td>
+          <td style='white-space:nowrap;'>
+            ${canDelete?`<button class='mini danger' data-act='del' title='Eliminar'>Eliminar</button>`:''}
+          </td>
+        </tr>`;
+      }).join('');
+      
+      // Bind acciones
+      body.querySelectorAll('tr[data-id]').forEach(tr=>{
+        const id = tr.getAttribute('data-id');
+        tr.querySelectorAll('button[data-act]').forEach(btn=>{
+          btn.addEventListener('click', async (e)=>{
+            const act = btn.getAttribute('data-act');
+            if(act==='del'){
+              if(!confirm('¿Eliminar préstamo? Esto también eliminará la salida de caja asociada.')) return;
+              try{ 
+                await API.cashflow.loans.delete(id); 
+                loadAccounts(); 
+                loadMovements(); 
+                loadLoans(); 
+              }catch(err){ alert(err?.message||'Error'); }
+            }
+          });
+        });
+      });
+      
+      if(!loans.length) body.innerHTML='<tr><td colspan="8" class="muted">Sin préstamos</td></tr>';
+    }
+    
+    // Actualizar resumen
+    const totalPending = loans
+      .filter(l => l.status === 'pending' || l.status === 'partially_paid')
+      .reduce((sum, l) => sum + (l.amount - (l.paidAmount||0)), 0);
+    const totalAmount = loans.reduce((sum, l) => sum + l.amount, 0);
+    const totalPaid = loans.reduce((sum, l) => sum + (l.paidAmount||0), 0);
+    
+    if(summary) summary.textContent = `Total préstamos: ${money(totalAmount)} | Pagado: ${money(totalPaid)} | Pendiente: ${money(totalPending)}`;
+    
+    // Cargar lista de técnicos para el filtro
+    const techSel = document.getElementById('cf-loan-filter-tech');
+    if(techSel && loans.length > 0){
+      const techs = [...new Set(loans.map(l => l.technicianName))].sort();
+      const currentVal = techSel.value;
+      techSel.innerHTML = '<option value="">-- Todos los empleados --</option>' + 
+        techs.map(t => `<option value="${t}">${t}</option>`).join('');
+      if(currentVal) techSel.value = currentVal;
+    }
+  }catch(e){ 
+    if(body) body.innerHTML='<tr><td colspan="8" class="muted">Error al cargar préstamos</td></tr>';
+    if(summary) summary.textContent = e?.message||'Error';
+  }
 }
 
 // Auto init when the page contains the cashflow tab

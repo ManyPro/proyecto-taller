@@ -314,7 +314,15 @@ const API = {
     list: (params={}) => http.get(`/api/v1/cashflow/entries${toQuery(params)}`),
     create: (payload) => http.post('/api/v1/cashflow/entries', payload),
     update: (id, payload) => http.patch(`/api/v1/cashflow/entries/${id}`, payload),
-    delete: (id) => http.del(`/api/v1/cashflow/entries/${id}`)
+    delete: (id) => http.del(`/api/v1/cashflow/entries/${id}`),
+    // Préstamos a empleados
+    loans: {
+      list: (params={}) => http.get(`/api/v1/cashflow/loans${toQuery(params)}`),
+      create: (payload) => http.post('/api/v1/cashflow/loans', payload),
+      getPending: (technicianName) => http.get(`/api/v1/cashflow/loans/pending?technicianName=${encodeURIComponent(technicianName)}`),
+      update: (id, payload) => http.patch(`/api/v1/cashflow/loans/${id}`, payload),
+      delete: (id) => http.del(`/api/v1/cashflow/loans/${id}`)
+    }
   },
   templates: {
     list: (params={}) => http.get(`/api/v1/templates${toQuery(params)}`),
