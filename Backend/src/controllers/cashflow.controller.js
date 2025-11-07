@@ -12,7 +12,7 @@ async function ensureDefaultCashAccount(companyId) {
   return acc;
 }
 
-async function computeBalance(accountId, companyId) {
+export async function computeBalance(accountId, companyId) {
   // Usa el balanceAfter del Ãºltimo movimiento si existe
   const last = await CashFlowEntry.findOne({ companyId, accountId }).sort({ date: -1, _id: -1 });
   if (last) return last.balanceAfter;
