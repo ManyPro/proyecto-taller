@@ -892,9 +892,25 @@ function openQR(){
     try{
       const devs = await navigator.mediaDevices.enumerateDevices();
       const cams = devs.filter(d=>d.kind==='videoinput');
+      
+      // Detectar si es móvil
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
       sel.replaceChildren(...cams.map((c,i)=>{
-        const o=document.createElement('option'); o.value=c.deviceId; o.textContent=c.label||('Cam '+(i+1)); return o;
+        const o=document.createElement('option'); 
+        o.value=c.deviceId; 
+        o.textContent=c.label||('Cam '+(i+1)); 
+        // Si es móvil y la cámara parece ser trasera (environment), marcarla como seleccionada
+        if (isMobile && (c.label?.toLowerCase().includes('back') || c.label?.toLowerCase().includes('rear') || c.label?.toLowerCase().includes('environment'))) {
+          o.selected = true;
+        }
+        return o;
       }));
+      
+      // Si es móvil y no hay cámara seleccionada, dejar vacío para que start() use facingMode: 'environment'
+      if (isMobile && !sel.value) {
+        sel.value = '';
+      }
     }catch{}
   }
 
@@ -902,7 +918,13 @@ function openQR(){
   async function start(){
     try{
       stop();
-      const cs = { video: sel.value ? { deviceId:{ exact: sel.value } } : { facingMode:'environment' }, audio:false };
+      // Forzar cámara trasera en móviles (environment = cámara trasera)
+      // Si hay una cámara seleccionada manualmente, usarla; sino, forzar environment
+      const videoConstraints = sel.value 
+        ? { deviceId: { exact: sel.value } }
+        : { facingMode: 'environment' }; // Siempre forzar cámara trasera en móviles
+      
+      const cs = { video: videoConstraints, audio: false };
       stream = await navigator.mediaDevices.getUserMedia(cs);
       video.srcObject = stream; await video.play();
       running = true;
@@ -936,6 +958,74 @@ function openQR(){
     return { companyId:'', itemId: match ? match[0] : '', sku:'', raw:text };
   }
 
+  // Función para reproducir sonido de confirmación
+  function playConfirmSound(){
+    try {
+      // Crear un sonido de beep usando AudioContext
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.value = 800; // Frecuencia del beep
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.1);
+    } catch (err) {
+      console.warn('No se pudo reproducir sonido:', err);
+    }
+  }
+  
+  // Función para mostrar popup de confirmación
+  function showItemAddedPopup(){
+    // Crear popup temporal
+    const popup = document.createElement('div');
+    popup.textContent = '✓ Item agregado!';
+    popup.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(16, 185, 129, 0.95);
+      color: white;
+      padding: 20px 40px;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 600;
+      z-index: 10000;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+      animation: fadeInOut 0.5s ease-in-out;
+    `;
+    
+    // Agregar animación CSS si no existe
+    if (!document.getElementById('qr-popup-style')) {
+      const style = document.createElement('style');
+      style.id = 'qr-popup-style';
+      style.textContent = `
+        @keyframes fadeInOut {
+          0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+          50% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+          100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(popup);
+    
+    // Remover después de 0.5 segundos
+    setTimeout(() => {
+      popup.remove();
+    }, 500);
+  }
+
   async function handleCode(raw, fromManual = false){
     const text = String(raw || '').trim();
     if (!text) return;
@@ -952,6 +1042,13 @@ function openQR(){
       syncCurrentIntoOpenList();
       renderTabs();
       renderSale(); renderWO();
+      
+      // Reproducir sonido de confirmación
+      playConfirmSound();
+      
+      // Mostrar popup de confirmación
+      showItemAddedPopup();
+      
       if (autoclose.checked && !fromManual){ stop(); closeModal(); }
       msg.textContent = '';
     }catch(e){ msg.textContent = e?.message || 'No se pudo agregar'; }
