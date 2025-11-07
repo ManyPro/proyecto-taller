@@ -7,12 +7,14 @@
 # Esta configuración se aplica a ambos, pero cada sitio tiene su propia URL y deploy independiente.
 
 [build]
+  base = "."
   publish = "Frontend"
   command = "echo 'Frontend listo'"
 
 # Redirecciones para el API
 # PRODUCCIÓN (main): puerto 4000
 # DESARROLLO (develop): puerto 4001 - configurar en el dashboard de Netlify o usar variable de entorno
+# Nota: Las redirecciones también están en Frontend/_redirects para compatibilidad
 [[redirects]]
   from = "/api/*"
   to = "http://143.110.131.35:4000/api/:splat"
