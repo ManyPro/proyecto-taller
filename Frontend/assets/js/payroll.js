@@ -967,9 +967,23 @@ async function preview(){
     // Agregar comisiones y préstamos a los conceptos seleccionados si están marcados
     if (commissionSelected) {
       selectedConceptIds.push('COMMISSION');
+      // Asegurar que el valor editado de comisiones se guarde antes de hacer preview
+      const commissionInput = document.getElementById('commission-amount');
+      if (commissionInput) {
+        const amount = Math.max(0, Math.min(Number(commissionInput.value) || 0, Number(commissionInput.dataset.max) || 0));
+        commissionInput.value = amount;
+        editedLoanPayments[`${technicianName}_commission`] = amount;
+      }
     }
     if (loanSelected) {
       selectedConceptIds.push('LOAN_PAYMENT');
+      // Asegurar que el valor editado del préstamo se guarde antes de hacer preview
+      const loanInput = document.getElementById('loan-payment-amount');
+      if (loanInput) {
+        const amount = Math.max(0, Math.min(Number(loanInput.value) || 0, Number(loanInput.dataset.max) || 0));
+        loanInput.value = amount;
+        editedLoanPayments[technicianName] = amount;
+      }
     }
     
     const payload = {
