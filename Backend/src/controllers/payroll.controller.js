@@ -24,7 +24,7 @@ export const listConcepts = async (req, res) => {
 export const upsertConcept = async (req, res) => {
   try {
     const { id } = req.params;
-    const { type, amountType, code, name, defaultValue, isActive, ordering } = req.body;
+    const { type, amountType, code, name, defaultValue, isActive, ordering, isVariable, variableFixedAmount } = req.body;
     
     // Validaciones
     if (!type || !['earning', 'deduction', 'surcharge'].includes(type)) {
@@ -47,6 +47,11 @@ export const upsertConcept = async (req, res) => {
       return res.status(400).json({ error: 'Porcentaje no puede ser mayor a 100%' });
     }
     
+    // Validar concepto variable
+    if (isVariable && (!variableFixedAmount || variableFixedAmount <= 0)) {
+      return res.status(400).json({ error: 'Si el concepto es variable, debe tener un monto fijo mayor a 0' });
+    }
+    
     const data = {
       companyId: req.companyId,
       type,
@@ -55,7 +60,9 @@ export const upsertConcept = async (req, res) => {
       name: name.trim(),
       defaultValue,
       isActive: isActive !== false,
-      ordering: ordering || 0
+      ordering: ordering || 0,
+      isVariable: isVariable === true,
+      variableFixedAmount: isVariable ? (Number(variableFixedAmount) || 0) : 0
     };
     
     let doc;
@@ -397,9 +404,9 @@ export const previewSettlement = async (req, res) => {
     // Obtener los conceptos asignados a este técnico
     const assignedConceptIds = assignments.map(a => a.conceptId);
     
-    // Separar conceptos normales de conceptos especiales (COMMISSION, LOAN_PAYMENT)
-    const specialConcepts = selectedConceptIds.filter(id => id === 'COMMISSION' || id === 'LOAN_PAYMENT');
-    const normalConceptIds = selectedConceptIds.filter(id => id !== 'COMMISSION' && id !== 'LOAN_PAYMENT');
+    // Separar conceptos normales de conceptos especiales (COMMISSION, LOAN_PAYMENT, VARIABLE)
+    const specialConcepts = selectedConceptIds.filter(id => id === 'COMMISSION' || id === 'LOAN_PAYMENT' || id === 'VARIABLE');
+    const normalConceptIds = selectedConceptIds.filter(id => id !== 'COMMISSION' && id !== 'LOAN_PAYMENT' && id !== 'VARIABLE');
     
     // Buscar conceptos asignados que el usuario seleccionó (debe estar en ambos arrays)
     const validConceptIds = normalConceptIds.filter(id => assignedConceptIds.some(aid => String(aid) === String(id)));
@@ -408,6 +415,18 @@ export const previewSettlement = async (req, res) => {
       _id: { $in: validConceptIds },
       isActive: true 
     });
+    
+    // Buscar concepto variable asignado al técnico (si está seleccionado)
+    const includeVariable = specialConcepts.includes('VARIABLE');
+    let variableConcept = null;
+    if (includeVariable) {
+      variableConcept = await CompanyPayrollConcept.findOne({
+        companyId: req.companyId,
+        isVariable: true,
+        isActive: true,
+        _id: { $in: assignedConceptIds }
+      });
+    }
     
     // Calcular comisión del técnico en el período
     const sales = await Sale.find({
@@ -488,13 +507,50 @@ export const previewSettlement = async (req, res) => {
       });
     }
     
-    // DESPUÉS agregar los conceptos seleccionados
+    // DESPUÉS agregar los conceptos seleccionados (excluyendo variables)
+    const normalConcepts = selectedConcepts.filter(c => !c.isVariable);
     const conceptItems = computeSettlementItems({ 
-      selectedConcepts, 
+      selectedConcepts: normalConcepts, 
       assignments, 
       technicianName: techNameUpper 
     });
     items.push(...conceptItems);
+    
+    // Calcular valores de porcentajes antes de aplicar concepto variable
+    const tempGross = items.filter(i => i.type !== 'deduction').reduce((sum, i) => sum + (i.value || 0), 0);
+    items.forEach(item => {
+      if (item.isPercent && item.percentValue) {
+        if (item.type === 'earning') {
+          item.value = Math.round((commissionRounded * item.percentValue) / 100);
+          item.base = commissionRounded;
+        } else {
+          item.value = Math.round((tempGross * item.percentValue) / 100);
+          item.base = tempGross;
+        }
+      }
+    });
+    
+    // APLICAR CONCEPTO VARIABLE (antes de préstamos)
+    // Calcular total SIN préstamos para verificar si necesita completar
+    if (includeVariable && variableConcept && variableConcept.variableFixedAmount > 0) {
+      const tempTotals = calculateTotals(items);
+      const netBeforeVariable = tempTotals.netTotal;
+      const fixedAmount = variableConcept.variableFixedAmount;
+      
+      // Si el neto (sin préstamos) es menor que el monto fijo, agregar diferencia como ingreso
+      if (netBeforeVariable < fixedAmount) {
+        const variableAmount = fixedAmount - netBeforeVariable;
+        items.push({
+          conceptId: variableConcept._id,
+          name: variableConcept.name || 'Comisión ocasional',
+          type: 'earning',
+          base: netBeforeVariable,
+          value: variableAmount,
+          calcRule: `variable:${fixedAmount}`,
+          notes: `Completa monto fijo de ${Math.round(fixedAmount).toLocaleString('es-CO')} (faltaban ${Math.round(variableAmount).toLocaleString('es-CO')})`
+        });
+      }
+    }
     
     // AGREGAR PRÉSTAMOS PENDIENTES del empleado (solo si están seleccionados)
     const includeLoans = specialConcepts.includes('LOAN_PAYMENT');
@@ -546,21 +602,16 @@ export const previewSettlement = async (req, res) => {
       }
     }
     
-    // Calcular valores de porcentajes
-    // Primero calcular totales temporales para usar como base para porcentajes
-    const tempGross = items.filter(i => i.type !== 'deduction').reduce((sum, i) => sum + (i.value || 0), 0);
-    
+    // Recalcular porcentajes después de agregar concepto variable (si aplicó)
+    const finalGross = items.filter(i => i.type !== 'deduction').reduce((sum, i) => sum + (i.value || 0), 0);
     items.forEach(item => {
-      if (item.isPercent && item.percentValue) {
-        // Para ingresos: calcular sobre la comisión
-        // Para deducciones y recargos: calcular sobre el total bruto (comisión + otros ingresos)
+      if (item.isPercent && item.percentValue && !item.calcRule?.startsWith('variable:')) {
         if (item.type === 'earning') {
           item.value = Math.round((commissionRounded * item.percentValue) / 100);
           item.base = commissionRounded;
         } else {
-          // Deducciones y recargos se calculan sobre el total bruto
-          item.value = Math.round((tempGross * item.percentValue) / 100);
-          item.base = tempGross;
+          item.value = Math.round((finalGross * item.percentValue) / 100);
+          item.base = finalGross;
         }
       }
     });
@@ -618,9 +669,9 @@ export const approveSettlement = async (req, res) => {
     const assignments = await TechnicianAssignment.find(assignmentFilter);
     const assignedConceptIds = assignments.map(a => a.conceptId);
     
-    // Separar conceptos normales de conceptos especiales (COMMISSION, LOAN_PAYMENT)
-    const specialConcepts = selectedConceptIds.filter(id => id === 'COMMISSION' || id === 'LOAN_PAYMENT');
-    const normalConceptIds = selectedConceptIds.filter(id => id !== 'COMMISSION' && id !== 'LOAN_PAYMENT');
+    // Separar conceptos normales de conceptos especiales (COMMISSION, LOAN_PAYMENT, VARIABLE)
+    const specialConcepts = selectedConceptIds.filter(id => id === 'COMMISSION' || id === 'LOAN_PAYMENT' || id === 'VARIABLE');
+    const normalConceptIds = selectedConceptIds.filter(id => id !== 'COMMISSION' && id !== 'LOAN_PAYMENT' && id !== 'VARIABLE');
     
     // Buscar conceptos seleccionados que están asignados al técnico
     const validConceptIds = normalConceptIds.filter(id => assignedConceptIds.some(aid => String(aid) === String(id)));
@@ -629,6 +680,18 @@ export const approveSettlement = async (req, res) => {
       _id: { $in: validConceptIds },
       isActive: true 
     });
+    
+    // Buscar concepto variable asignado al técnico (si está seleccionado)
+    const includeVariable = specialConcepts.includes('VARIABLE');
+    let variableConcept = null;
+    if (includeVariable) {
+      variableConcept = await CompanyPayrollConcept.findOne({
+        companyId: req.companyId,
+        isVariable: true,
+        isActive: true,
+        _id: { $in: assignedConceptIds }
+      });
+    }
     
     // Calcular comisión
     const sales = await Sale.find({
@@ -721,13 +784,50 @@ export const approveSettlement = async (req, res) => {
       }
     }
     
-    // DESPUÉS agregar los conceptos seleccionados
+    // DESPUÉS agregar los conceptos seleccionados (excluyendo variables)
+    const normalConcepts = selectedConcepts.filter(c => !c.isVariable);
     const conceptItems = computeSettlementItems({ 
-      selectedConcepts, 
+      selectedConcepts: normalConcepts, 
       assignments, 
       technicianName: techNameUpper 
     });
     items.push(...conceptItems);
+    
+    // Calcular valores de porcentajes antes de aplicar concepto variable
+    const tempGross = items.filter(i => i.type !== 'deduction').reduce((sum, i) => sum + (i.value || 0), 0);
+    items.forEach(item => {
+      if (item.isPercent && item.percentValue) {
+        if (item.type === 'earning') {
+          item.value = Math.round((commissionRounded * item.percentValue) / 100);
+          item.base = commissionRounded;
+        } else {
+          item.value = Math.round((tempGross * item.percentValue) / 100);
+          item.base = tempGross;
+        }
+      }
+    });
+    
+    // APLICAR CONCEPTO VARIABLE (antes de préstamos)
+    // Calcular total SIN préstamos para verificar si necesita completar
+    if (includeVariable && variableConcept && variableConcept.variableFixedAmount > 0) {
+      const tempTotals = calculateTotals(items);
+      const netBeforeVariable = tempTotals.netTotal;
+      const fixedAmount = variableConcept.variableFixedAmount;
+      
+      // Si el neto (sin préstamos) es menor que el monto fijo, agregar diferencia como ingreso
+      if (netBeforeVariable < fixedAmount) {
+        const variableAmount = fixedAmount - netBeforeVariable;
+        items.push({
+          conceptId: variableConcept._id,
+          name: variableConcept.name || 'Comisión ocasional',
+          type: 'earning',
+          base: netBeforeVariable,
+          value: variableAmount,
+          calcRule: `variable:${fixedAmount}`,
+          notes: `Completa monto fijo de ${Math.round(fixedAmount).toLocaleString('es-CO')} (faltaban ${Math.round(variableAmount).toLocaleString('es-CO')})`
+        });
+      }
+    }
     
     // AGREGAR PRÉSTAMOS PENDIENTES del empleado (solo si están seleccionados)
     const includeLoans = specialConcepts.includes('LOAN_PAYMENT');
@@ -798,21 +898,16 @@ export const approveSettlement = async (req, res) => {
       }
     }
     
-    // Calcular valores de porcentajes
-    // Primero calcular totales temporales para usar como base para porcentajes
-    const tempGross = items.filter(i => i.type !== 'deduction').reduce((sum, i) => sum + (i.value || 0), 0);
-    
+    // Recalcular porcentajes después de agregar concepto variable (si aplicó)
+    const finalGross = items.filter(i => i.type !== 'deduction').reduce((sum, i) => sum + (i.value || 0), 0);
     items.forEach(item => {
-      if (item.isPercent && item.percentValue) {
-        // Para ingresos: calcular sobre la comisión
-        // Para deducciones y recargos: calcular sobre el total bruto (comisión + otros ingresos)
+      if (item.isPercent && item.percentValue && !item.calcRule?.startsWith('variable:')) {
         if (item.type === 'earning') {
           item.value = Math.round((commissionRounded * item.percentValue) / 100);
           item.base = commissionRounded;
         } else {
-          // Deducciones y recargos se calculan sobre el total bruto
-          item.value = Math.round((tempGross * item.percentValue) / 100);
-          item.base = tempGross;
+          item.value = Math.round((finalGross * item.percentValue) / 100);
+          item.base = finalGross;
         }
       }
     });
@@ -820,7 +915,7 @@ export const approveSettlement = async (req, res) => {
     const { grossTotal, deductionsTotal, netTotal } = calculateTotals(items);
     
     // Guardar liquidación por técnico
-    // Filtrar selectedConceptIds para solo incluir ObjectIds válidos (excluir 'COMMISSION' y 'LOAN_PAYMENT')
+    // Filtrar selectedConceptIds para solo incluir ObjectIds válidos (excluir 'COMMISSION', 'LOAN_PAYMENT', 'VARIABLE')
     // Usar la variable validConceptIds que ya se filtró anteriormente (solo conceptos asignados válidos)
     const validConceptIdsForSave = (validConceptIds || []).filter(id => {
       // Verificar si es un ObjectId válido (manejar strings y ObjectIds)
@@ -872,36 +967,42 @@ export const approveSettlement = async (req, res) => {
 
 export const paySettlement = async (req, res) => {
   try {
-    const { settlementId, accountId, date, notes } = req.body;
+    // Soporte para pagos parciales: payments es un array de { accountId, amount, date?, notes? }
+    // O formato legacy: { settlementId, accountId, date, notes } para un solo pago completo
+    const { settlementId, accountId, date, notes, payments } = req.body;
     
     // Validaciones
     if (!settlementId) {
       return res.status(400).json({ error: 'settlementId requerido' });
     }
-    if (!accountId) {
-      return res.status(400).json({ error: 'accountId requerido' });
-    }
-    
-    // Verificar que la cuenta existe
-    const Account = (await import('../models/Account.js')).default;
-    const account = await Account.findOne({ _id: accountId, companyId: req.companyId });
-    if (!account) {
-      return res.status(404).json({ error: 'Cuenta no encontrada' });
-    }
     
     const st = await PayrollSettlement.findOne({ _id: settlementId, companyId: req.companyId });
     if(!st) return res.status(404).json({ error: 'Liquidación no encontrada' });
-    if(st.status === 'paid') return res.status(400).json({ error: 'Esta liquidación ya fue pagada' });
-    if(st.status !== 'approved') return res.status(400).json({ error: 'Solo se pueden pagar liquidaciones aprobadas' });
+    if(st.status === 'paid') return res.status(400).json({ error: 'Esta liquidación ya fue pagada completamente' });
+    if(st.status !== 'approved' && st.status !== 'partially_paid') return res.status(400).json({ error: 'Solo se pueden pagar liquidaciones aprobadas' });
 
-    // Calcular el monto a pagar
-    const paymentAmount = Math.abs(st.netTotal);
+    const Account = (await import('../models/Account.js')).default;
+    const netTotal = Math.abs(st.netTotal);
+    const currentPaidAmount = st.paidAmount || 0;
+    const remainingAmount = netTotal - currentPaidAmount;
     
-    // Calcular el balance actual de la cuenta
-    const currentBalance = await computeBalance(accountId, req.companyId);
+    let paymentsToProcess = [];
     
-    // Validar que haya balance suficiente
-    if (currentBalance < paymentAmount) {
+    // Si viene payments (array de pagos parciales), usar ese formato
+    if (Array.isArray(payments) && payments.length > 0) {
+      paymentsToProcess = payments;
+    } 
+    // Si viene accountId (formato legacy), convertir a formato de pagos parciales
+    else if (accountId) {
+      const paymentAmount = remainingAmount; // Por defecto, pagar todo lo restante
+      paymentsToProcess = [{ accountId, amount: paymentAmount, date, notes }];
+    } else {
+      return res.status(400).json({ error: 'Debes proporcionar accountId o payments' });
+    }
+    
+    // Validar que la suma de los pagos no exceda el monto restante
+    const totalPaymentAmount = paymentsToProcess.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    if (totalPaymentAmount > remainingAmount) {
       const formatMoney = (val) => new Intl.NumberFormat('es-CO', { 
         style: 'currency', 
         currency: 'COP', 
@@ -909,40 +1010,120 @@ export const paySettlement = async (req, res) => {
       }).format(val || 0);
       
       return res.status(400).json({ 
-        error: 'Saldo insuficiente', 
-        message: `La cuenta "${account.name}" no tiene saldo suficiente. Saldo disponible: ${formatMoney(currentBalance)}, Monto requerido: ${formatMoney(paymentAmount)}` 
+        error: 'Monto excedido', 
+        message: `El total de los pagos (${formatMoney(totalPaymentAmount)}) excede el monto restante a pagar (${formatMoney(remainingAmount)})` 
       });
     }
     
-    // Calcular el nuevo balance después del pago
-    const newBalance = currentBalance - paymentAmount;
-
-    // Crear entrada de CashFlow para el técnico con balanceAfter
-    const entry = await CashFlowEntry.create({
-      companyId: req.companyId,
-      accountId,
-      date: date ? new Date(date) : new Date(),
-      kind: 'OUT',
-      source: 'MANUAL',
-      sourceRef: settlementId,
-      description: `Pago de nómina: ${st.technicianName || 'Sin nombre'}`,
-      amount: paymentAmount,
-      balanceAfter: newBalance,
-      notes: notes || '',
-      meta: { 
-        type: 'PAYROLL', 
-        technicianId: st.technicianId, 
-        technicianName: st.technicianName,
-        settlementId 
+    // Procesar cada pago
+    const createdEntries = [];
+    const paymentDate = date ? new Date(date) : new Date();
+    // Rastrear balances por cuenta para pagos múltiples a la misma cuenta
+    const accountBalances = new Map();
+    
+    for (const payment of paymentsToProcess) {
+      const { accountId: payAccountId, amount: payAmount, date: payDate, notes: payNotes } = payment;
+      
+      if (!payAccountId) {
+        return res.status(400).json({ error: 'accountId requerido en cada pago' });
       }
-    });
-
-    // Actualizar liquidación
-    st.status = 'paid';
-    st.paidCashflowId = entry._id;
+      
+      const paymentAmount = Math.abs(Number(payAmount) || 0);
+      if (paymentAmount <= 0) {
+        continue; // Saltar pagos con monto 0
+      }
+      
+      // Verificar que la cuenta existe
+      const account = await Account.findOne({ _id: payAccountId, companyId: req.companyId });
+      if (!account) {
+        return res.status(404).json({ error: `Cuenta no encontrada: ${payAccountId}` });
+      }
+      
+      // Calcular el balance actual de la cuenta
+      // Si ya procesamos un pago a esta cuenta en este batch, usar el balance actualizado
+      let currentBalance;
+      if (accountBalances.has(payAccountId)) {
+        // Usar el balance actualizado del pago anterior a esta cuenta
+        currentBalance = accountBalances.get(payAccountId);
+      } else {
+        // Primera vez que procesamos esta cuenta, calcular balance desde la BD
+        currentBalance = await computeBalance(payAccountId, req.companyId);
+      }
+      
+      // Validar que haya balance suficiente
+      if (currentBalance < paymentAmount) {
+        const formatMoney = (val) => new Intl.NumberFormat('es-CO', { 
+          style: 'currency', 
+          currency: 'COP', 
+          minimumFractionDigits: 0 
+        }).format(val || 0);
+        
+        return res.status(400).json({ 
+          error: 'Saldo insuficiente', 
+          message: `La cuenta "${account.name}" no tiene saldo suficiente. Saldo disponible: ${formatMoney(currentBalance)}, Monto requerido: ${formatMoney(paymentAmount)}` 
+        });
+      }
+      
+      // Calcular el nuevo balance después del pago
+      const newBalance = currentBalance - paymentAmount;
+      
+      // Actualizar el balance rastreado para esta cuenta
+      accountBalances.set(payAccountId, newBalance);
+      
+      // Crear entrada de CashFlow para este pago parcial
+      const entry = await CashFlowEntry.create({
+        companyId: req.companyId,
+        accountId: payAccountId,
+        date: payDate ? new Date(payDate) : paymentDate,
+        kind: 'OUT',
+        source: 'MANUAL',
+        sourceRef: settlementId,
+        description: `Pago de nómina: ${st.technicianName || 'Sin nombre'}${paymentsToProcess.length > 1 ? ` (Pago parcial ${createdEntries.length + 1}/${paymentsToProcess.length})` : ''}`,
+        amount: paymentAmount,
+        balanceAfter: newBalance,
+        notes: payNotes || notes || '',
+        meta: { 
+          type: 'PAYROLL', 
+          technicianId: st.technicianId, 
+          technicianName: st.technicianName,
+          settlementId,
+          paymentIndex: createdEntries.length + 1,
+          totalPayments: paymentsToProcess.length
+        }
+      });
+      
+      createdEntries.push(entry);
+    }
+    
+    // Actualizar liquidación con los nuevos pagos
+    const newPaidAmount = currentPaidAmount + totalPaymentAmount;
+    const isFullyPaid = newPaidAmount >= netTotal;
+    
+    // Actualizar arrays de cashflow IDs
+    const existingCashflowIds = st.paidCashflowIds || [];
+    const newCashflowIds = createdEntries.map(e => e._id);
+    const allCashflowIds = [...existingCashflowIds, ...newCashflowIds];
+    
+    st.paidAmount = newPaidAmount;
+    st.paidCashflowIds = allCashflowIds;
+    st.status = isFullyPaid ? 'paid' : 'partially_paid';
+    
+    // Mantener compatibilidad: si es el primer pago y es completo, guardar en paidCashflowId
+    if (createdEntries.length === 1 && isFullyPaid && !st.paidCashflowId) {
+      st.paidCashflowId = createdEntries[0]._id;
+    }
+    
     await st.save();
 
-    res.json({ ok: true, settlement: st, cashflow: entry });
+    res.json({ 
+      ok: true, 
+      settlement: st, 
+      cashflow: createdEntries.length === 1 ? createdEntries[0] : createdEntries,
+      payments: createdEntries.map(e => ({ entryId: e._id, accountId: e.accountId, amount: e.amount })),
+      totalPaid: newPaidAmount,
+      remaining: netTotal - newPaidAmount,
+      isFullyPaid
+    });
   } catch (err) {
     res.status(500).json({ error: 'Error al procesar pago', message: err.message });
   }

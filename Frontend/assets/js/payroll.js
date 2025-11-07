@@ -140,6 +140,15 @@ async function addConcept(){
       return;
     }
     
+    const isVariable = el('pc-isVariable')?.checked || false;
+    const variableFixedAmount = isVariable ? parseFloat(el('pc-variableFixedAmount')?.value || '0') : 0;
+    
+    if (isVariable && variableFixedAmount <= 0) {
+      alert('⚠️ Si el concepto es variable, debes especificar un monto fijo mayor a 0');
+      el('pc-variableFixedAmount')?.focus();
+      return;
+    }
+    
     const payload = {
       type,
       amountType,
@@ -147,6 +156,8 @@ async function addConcept(){
       name,
       defaultValue,
       isActive: true,
+      isVariable,
+      variableFixedAmount: isVariable ? variableFixedAmount : 0,
       ...(allowOver100 ? { allowOver100: true } : {})
     };
     
@@ -165,6 +176,9 @@ async function addConcept(){
       el('pc-code').value = '';
       el('pc-name').value = '';
       el('pc-value').value = '';
+      el('pc-isVariable').checked = false;
+      el('pc-variableFixedAmount').value = '';
+      document.getElementById('pc-variable-amount-container').style.display = 'none';
       
       // Recargar lista
       await loadConcepts();
@@ -687,11 +701,19 @@ async function loadConceptsForTechnician(){
     // Obtener los conceptos de las asignaciones
     const conceptIds = assignments.map(a => a.conceptId).filter(Boolean);
     let assignedConcepts = [];
+    let variableConcept = null;
     
     if (conceptIds.length > 0) {
       // Obtener detalles de los conceptos
       const allConcepts = await api.get('/api/v1/payroll/concepts');
-      assignedConcepts = allConcepts.filter(c => conceptIds.some(id => String(id) === String(c._id)));
+      assignedConcepts = allConcepts.filter(c => {
+        const isAssigned = conceptIds.some(id => String(id) === String(c._id));
+        if (isAssigned && c.isVariable) {
+          variableConcept = c;
+          return false; // Excluir variable de conceptos normales
+        }
+        return isAssigned;
+      });
     }
     
     // Si no hay conceptos, préstamos ni comisiones
@@ -773,6 +795,25 @@ async function loadConceptsForTechnician(){
         </label>
       </div>`;
     });
+    
+    // Renderizar concepto variable como concepto especial seleccionable
+    if (variableConcept) {
+      html += `<div class="concept-card variable-card" style="padding:12px;border:2px solid var(--accent, #3b82f6);border-radius:8px;background:var(--card);transition:all 0.2s;">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;">
+          <input type="checkbox" value="VARIABLE" data-variable-concept="true" style="cursor:pointer;width:18px;height:18px;margin:0;" />
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(16,185,129,0.1);color:#10b981;border:1px solid #10b981;">
+                Ingreso
+              </span>
+              <span style="padding:2px 6px;border-radius:3px;font-size:9px;font-weight:600;background:rgba(139,92,246,0.1);color:#8b5cf6;border:1px solid #8b5cf6;">🔧 Variable</span>
+            </div>
+            <div style="font-weight:600;color:var(--text);font-size:14px;margin-bottom:2px;">${htmlEscape(variableConcept.name || 'Comisión ocasional')}</div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Completa el monto fijo de ${formatMoney(variableConcept.variableFixedAmount || 0)} si el total (sin préstamos) es menor</div>
+          </div>
+        </label>
+      </div>`;
+    }
     
     // Renderizar préstamos pendientes como concepto especial editable
     if (pendingLoans.length > 0) {
@@ -901,7 +942,8 @@ function getSelectedConceptIds(){
   const container = document.getElementById('pl-concepts-container');
   if (!container) return [];
   const checkboxes = container.querySelectorAll('input[type="checkbox"]:checked');
-  return Array.from(checkboxes).map(cb => cb.value).filter(id => id && id !== 'LOAN_PAYMENT' && id !== 'COMMISSION');
+  // Incluir VARIABLE, COMMISSION y LOAN_PAYMENT como strings especiales, filtrar solo valores vacíos
+  return Array.from(checkboxes).map(cb => cb.value).filter(id => id);
 }
 
 // Obtener comisiones configuradas para el técnico
@@ -1325,7 +1367,8 @@ async function loadPendingSettlements(){
     select.innerHTML = '<option value="">Seleccione liquidación…</option>' + items.map(s => {
       const techName = s.technicianName || 'Sin nombre';
       const netTotal = formatMoney(s.netTotal);
-      return `<option value="${s._id}" data-net="${s.netTotal}">${htmlEscape(techName)} - ${netTotal}</option>`;
+      const paidAmount = s.paidAmount || 0;
+      return `<option value="${s._id}" data-net="${s.netTotal}" data-paid="${paidAmount}">${htmlEscape(techName)} - ${netTotal}${paidAmount > 0 ? ` (Pagado: ${formatMoney(paidAmount)})` : ''}</option>`;
     }).join('');
     
     // Event listener para cambiar selección (remover listener anterior si existe)
@@ -1380,19 +1423,51 @@ window.selectSettlementForPayment = function(settlementId){
   }
 };
 
+// Variable global para almacenar los pagos parciales
+let partialPayments = [];
+let currentSettlementNetTotal = 0;
+let currentSettlementPaidAmount = 0;
+
 function updateSettlementInfo(){
   const select = document.getElementById('pp-settlementSel');
   const infoEl = document.getElementById('pp-settlement-info');
+  const paymentsContainer = document.getElementById('pp-payments-container');
+  const dateInput = document.getElementById('pp-date');
   if (!select || !infoEl) return;
   
   const selectedOption = select.options[select.selectedIndex];
   if (!selectedOption || !selectedOption.value) {
     infoEl.style.display = 'none';
+    if (paymentsContainer) paymentsContainer.style.display = 'none';
+    if (dateInput) dateInput.value = '';
+    partialPayments = [];
+    currentSettlementNetTotal = 0;
+    currentSettlementPaidAmount = 0;
     return;
   }
   
-  const netTotal = selectedOption.dataset.net || '0';
+  // Autocompletar fecha y hora actual
+  if (dateInput) {
+    const now = new Date();
+    // Formato para datetime-local: YYYY-MM-DDTHH:mm
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    dateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+  
+  const netTotal = Number(selectedOption.dataset.net || '0');
+  const paidAmount = Number(selectedOption.dataset.paid || '0');
+  currentSettlementNetTotal = netTotal;
+  currentSettlementPaidAmount = paidAmount;
+  const remainingAmount = netTotal - paidAmount;
+  
   const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
+  
+  // Limpiar pagos anteriores
+  partialPayments = [];
   
   infoEl.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;">
@@ -1400,18 +1475,184 @@ function updateSettlementInfo(){
       <div style="flex:1;">
         <div style="font-weight:600;color:var(--text);margin-bottom:2px;">Liquidación seleccionada</div>
         <div style="font-size:12px;color:var(--muted);">
-          Monto a pagar: <strong style="color:#10b981;font-size:14px;">${formatMoney(netTotal)}</strong>
+          Monto total: <strong style="color:#10b981;font-size:14px;">${formatMoney(netTotal)}</strong>
+          ${paidAmount > 0 ? ` · Pagado: ${formatMoney(paidAmount)}` : ''}
+          ${remainingAmount > 0 ? ` · Restante: <strong style="color:#f59e0b;">${formatMoney(remainingAmount)}</strong>` : ''}
         </div>
       </div>
     </div>
   `;
   infoEl.style.display = 'block';
+  
+  // Mostrar contenedor de pagos parciales
+  if (paymentsContainer) {
+    paymentsContainer.style.display = remainingAmount > 0 ? 'block' : 'none';
+    updatePaymentsList();
+    updatePaymentsSummary();
+  }
+}
+
+// Función para agregar un pago parcial
+window.addPayment = function() {
+  const paymentId = `payment-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  partialPayments.push({
+    id: paymentId,
+    accountId: '',
+    amount: 0
+  });
+  updatePaymentsList();
+  updatePaymentsSummary();
+};
+
+// Función para eliminar un pago parcial
+window.removePayment = function(paymentId) {
+  partialPayments = partialPayments.filter(p => p.id !== paymentId);
+  updatePaymentsList();
+  updatePaymentsSummary();
+};
+
+// Función para actualizar un pago parcial
+window.updatePayment = function(paymentId, field, value) {
+  const payment = partialPayments.find(p => p.id === paymentId);
+  if (payment) {
+    if (field === 'accountId') {
+      payment.accountId = value;
+    } else if (field === 'amount') {
+      payment.amount = Math.max(0, Number(value) || 0);
+    }
+    updatePaymentsSummary();
+  }
+};
+
+// Función para actualizar la lista de pagos
+async function updatePaymentsList() {
+  const listContainer = document.getElementById('pp-payments-list');
+  if (!listContainer) return;
+  
+  const remainingAmount = currentSettlementNetTotal - currentSettlementPaidAmount;
+  const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
+  
+  if (partialPayments.length === 0) {
+    listContainer.innerHTML = '<div class="muted" style="text-align:center;padding:12px;font-size:12px;border:1px dashed var(--border);border-radius:6px;">No hay pagos agregados. Haz clic en "Agregar pago" para comenzar.</div>';
+    return;
+  }
+  
+  // Cargar cuentas disponibles
+  let accounts = [];
+  try {
+    accounts = await api.get('/api/v1/cashflow/accounts');
+  } catch (err) {
+    console.error('Error loading accounts:', err);
+  }
+  
+  listContainer.innerHTML = partialPayments.map((payment, index) => {
+    const accountsOptions = accounts.map(a => {
+      const typeLabel = a.type === 'CASH' ? '💵 Efectivo' : '🏦 Banco';
+      const selected = payment.accountId === a._id ? 'selected' : '';
+      return `<option value="${a._id}" ${selected}>${typeLabel} - ${htmlEscape(a.name)}</option>`;
+    }).join('');
+    
+    return `
+      <div class="payment-row" data-payment-id="${payment.id}" style="padding:12px;border:2px solid var(--border);border-radius:8px;background:var(--card);">
+        <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;">
+            <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:500;">Cuenta ${index + 1}</label>
+            <select 
+              class="payment-account" 
+              data-payment-id="${payment.id}"
+              style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);"
+              onchange="updatePayment('${payment.id}', 'accountId', this.value)">
+              <option value="">Seleccione cuenta…</option>
+              ${accountsOptions}
+            </select>
+          </div>
+          <div style="flex:1;min-width:150px;">
+            <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:500;">Monto</label>
+            <input 
+              type="number" 
+              class="payment-amount" 
+              data-payment-id="${payment.id}"
+              min="0" 
+              step="1"
+              value="${payment.amount}"
+              placeholder="0"
+              style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);"
+              onchange="updatePayment('${payment.id}', 'amount', this.value)"
+              oninput="updatePayment('${payment.id}', 'amount', this.value)" />
+          </div>
+          <div style="min-width:80px;">
+            <label style="display:block;font-size:11px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+            <button 
+              class="secondary" 
+              style="width:100%;padding:8px;font-size:12px;font-weight:600;"
+              onclick="removePayment('${payment.id}')">
+              ✕ Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Función para actualizar el resumen de pagos
+function updatePaymentsSummary() {
+  const summaryContainer = document.getElementById('pp-payments-summary');
+  if (!summaryContainer) return;
+  
+  const totalPayments = partialPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+  const remainingAmount = currentSettlementNetTotal - currentSettlementPaidAmount;
+  const remainingAfterPayments = remainingAmount - totalPayments;
+  
+  const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
+  
+  if (partialPayments.length === 0) {
+    summaryContainer.style.display = 'none';
+    return;
+  }
+  
+  summaryContainer.style.display = 'block';
+  summaryContainer.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+      <div style="flex:1;min-width:200px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Total de pagos configurados</div>
+        <div style="font-size:18px;font-weight:700;color:${totalPayments > remainingAmount ? '#ef4444' : '#10b981'};">${formatMoney(totalPayments)}</div>
+      </div>
+      <div style="flex:1;min-width:200px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Monto restante a pagar</div>
+        <div style="font-size:18px;font-weight:700;color:#f59e0b;">${formatMoney(remainingAmount)}</div>
+      </div>
+      <div style="flex:1;min-width:200px;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Después de estos pagos</div>
+        <div style="font-size:18px;font-weight:700;color:${remainingAfterPayments < 0 ? '#ef4444' : remainingAfterPayments === 0 ? '#10b981' : '#f59e0b'};">
+          ${formatMoney(Math.max(0, remainingAfterPayments))}
+        </div>
+      </div>
+    </div>
+    ${totalPayments > remainingAmount ? `
+      <div style="margin-top:12px;padding:8px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:6px;color:#ef4444;font-size:12px;">
+        ⚠️ El total de los pagos excede el monto restante por ${formatMoney(totalPayments - remainingAmount)}
+      </div>
+    ` : ''}
+    ${remainingAfterPayments < 0 ? `
+      <div style="margin-top:8px;padding:8px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:6px;color:#ef4444;font-size:12px;">
+        ⚠️ El total de los pagos excede el monto a pagar. Ajusta los montos.
+      </div>
+    ` : remainingAfterPayments === 0 ? `
+      <div style="margin-top:8px;padding:8px;background:rgba(16,185,129,0.1);border:1px solid #10b981;border-radius:6px;color:#10b981;font-size:12px;">
+        ✓ El pago está completo. Puedes proceder a registrar los pagos.
+      </div>
+    ` : `
+      <div style="margin-top:8px;padding:8px;background:rgba(245,158,11,0.1);border:1px solid #f59e0b;border-radius:6px;color:#f59e0b;font-size:12px;">
+        ℹ️ Quedarán ${formatMoney(remainingAfterPayments)} pendientes después de estos pagos.
+      </div>
+    `}
+  `;
 }
 
 async function pay(){
   try {
     const settlementId = document.getElementById('pp-settlementSel')?.value?.trim();
-    const accountId = document.getElementById('pp-accountSel')?.value?.trim();
     const dateInput = document.getElementById('pp-date')?.value?.trim();
     
     // Validaciones
@@ -1421,41 +1662,67 @@ async function pay(){
       return;
     }
     
-    if (!accountId) {
-      alert('⚠️ Selecciona una cuenta de pago');
-      document.getElementById('pp-accountSel')?.focus();
+    // Validar que haya pagos configurados
+    const validPayments = partialPayments.filter(p => p.accountId && p.amount > 0);
+    if (validPayments.length === 0) {
+      alert('⚠️ Agrega al menos un pago con cuenta y monto');
       return;
     }
     
-    // Validar fecha si se proporciona
+    // La fecha se autocompleta automáticamente, usar la fecha actual si no está definida
     let date = null;
-    if (dateInput) {
+    if (dateInput && dateInput.value) {
       // Convertir datetime-local a ISO string para enviar al backend
-      const dateObj = new Date(dateInput);
+      const dateObj = new Date(dateInput.value);
       if (isNaN(dateObj.getTime())) {
-        alert('⚠️ Fecha inválida');
-        document.getElementById('pp-date')?.focus();
-        return;
+        // Si la fecha es inválida, usar la fecha actual
+        date = new Date().toISOString();
+      } else {
+        // Enviar en formato ISO para que el backend lo interprete correctamente
+        date = dateObj.toISOString();
       }
-      // Enviar en formato ISO para que el backend lo interprete correctamente
-      date = dateObj.toISOString();
+    } else {
+      // Si no hay fecha, usar la fecha actual
+      date = new Date().toISOString();
     }
     
     // Obtener información de la liquidación para confirmación
     const settlementOption = document.getElementById('pp-settlementSel').options[document.getElementById('pp-settlementSel').selectedIndex];
     const technicianName = settlementOption?.textContent?.split(' - ')[0] || 'Técnico';
-    const netTotal = settlementOption?.dataset.net || '0';
+    const netTotal = Number(settlementOption?.dataset.net || '0');
+    const paidAmount = Number(settlementOption?.dataset.paid || '0');
+    const remainingAmount = netTotal - paidAmount;
+    const totalPayments = validPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    
     const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
     
-    // Confirmar pago
-    if (!confirm(`¿Registrar pago de ${formatMoney(netTotal)} a ${technicianName}?\n\nEl pago se registrará en el Flujo de Caja.`)) {
+    // Validar que el total no exceda el monto restante
+    if (totalPayments > remainingAmount) {
+      alert(`⚠️ El total de los pagos (${formatMoney(totalPayments)}) excede el monto restante a pagar (${formatMoney(remainingAmount)})`);
       return;
     }
     
+    // Confirmar pago
+    const paymentsText = validPayments.map((p, idx) => {
+      const accountName = document.querySelector(`select[data-payment-id="${p.id}"]`)?.selectedOptions[0]?.textContent || 'Cuenta';
+      return `  ${idx + 1}. ${accountName}: ${formatMoney(p.amount)}`;
+    }).join('\n');
+    
+    if (!confirm(`¿Registrar ${validPayments.length} pago(s) parcial(es) por un total de ${formatMoney(totalPayments)} a ${technicianName}?\n\n${paymentsText}\n\nEl pago se registrará en el Flujo de Caja.`)) {
+      return;
+    }
+    
+    // Preparar array de pagos para enviar al backend
+    const payments = validPayments.map(p => ({
+      accountId: p.accountId,
+      amount: Number(p.amount),
+      date: date,
+      notes: ''
+    }));
+    
     const payload = {
       settlementId,
-      accountId,
-      ...(date ? { date } : {})
+      payments
     };
     
     // Deshabilitar botón durante la petición
@@ -1471,25 +1738,35 @@ async function pay(){
       
       // Limpiar formulario
       document.getElementById('pp-settlementSel').value = '';
-      document.getElementById('pp-accountSel').value = '';
       document.getElementById('pp-date').value = '';
       document.getElementById('pp-settlement-info').style.display = 'none';
+      document.getElementById('pp-payments-container').style.display = 'none';
+      partialPayments = [];
       
       // Mostrar mensaje de éxito
+      const paymentsInfo = Array.isArray(r.cashflow) 
+        ? r.cashflow.map((cf, idx) => `Pago ${idx + 1}: ${formatMoney(cf.amount)}`).join('<br>')
+        : `Pago: ${formatMoney(r.cashflow.amount)}`;
+      
       el('pp-result').innerHTML = `
         <div style="padding:16px;background:rgba(16,185,129,0.1);border:1px solid #10b981;border-radius:8px;margin-bottom:16px;">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
             <span style="font-size:24px;">✓</span>
-            <h4 style="margin:0;font-size:16px;font-weight:600;color:#10b981;">Pago registrado exitosamente</h4>
+            <h4 style="margin:0;font-size:16px;font-weight:600;color:#10b981;">${r.isFullyPaid ? 'Pago completo registrado exitosamente' : 'Pago(s) parcial(es) registrado(s) exitosamente'}</h4>
           </div>
           <div style="font-size:13px;color:var(--text);margin-bottom:4px;">
             <strong>Técnico:</strong> ${htmlEscape(technicianName)}
           </div>
           <div style="font-size:13px;color:var(--text);margin-bottom:4px;">
-            <strong>Monto:</strong> ${formatMoney(netTotal)}
+            <strong>Total pagado:</strong> ${formatMoney(r.totalPaid || totalPayments)}
           </div>
+          ${r.remaining > 0 ? `
+            <div style="font-size:13px;color:#f59e0b;margin-bottom:4px;">
+              <strong>Restante:</strong> ${formatMoney(r.remaining)}
+            </div>
+          ` : ''}
           <div style="font-size:12px;color:var(--muted);margin-top:8px;">
-            ID CashFlow: <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:11px;">${String(r.cashflow._id).slice(-8)}</code>
+            ${paymentsInfo}
           </div>
         </div>
       `;
@@ -1872,6 +2149,18 @@ function init(){
     updateValueField(); // Inicializar
   }
   
+  // Mostrar/ocultar campo de monto fijo cuando se marca concepto variable
+  const isVariableCheckbox = el('pc-isVariable');
+  const variableAmountContainer = document.getElementById('pc-variable-amount-container');
+  if (isVariableCheckbox && variableAmountContainer) {
+    isVariableCheckbox.addEventListener('change', () => {
+      variableAmountContainer.style.display = isVariableCheckbox.checked ? 'block' : 'none';
+      if (isVariableCheckbox.checked) {
+        document.getElementById('pc-variableFixedAmount')?.focus();
+      }
+    });
+  }
+  
   // Permitir crear concepto con Enter en cualquier campo del formulario
   ['pc-code', 'pc-name', 'pc-value'].forEach(id => {
     const input = el(id);
@@ -1959,6 +2248,9 @@ function init(){
     }
   }, 500);
   el('pp-pay')?.addEventListener('click', pay);
+  el('pp-add-payment')?.addEventListener('click', () => {
+    window.addPayment();
+  });
   const btnCreate = document.getElementById('ppd-create');
   if (btnCreate) btnCreate.addEventListener('click', createPeriod);
   const addTechBtn = document.getElementById('tk-add-btn');

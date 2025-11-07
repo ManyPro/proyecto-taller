@@ -176,8 +176,8 @@ function openNewLoanModal(){
     <select id='nloan-account'></select>
     <label>Monto</label>
     <input id='nloan-amount' type='number' min='1' step='1'/>
-    <label>Fecha del Préstamo</label>
-    <input id='nloan-date' type='date'/>
+    <label style='display:none;'>Fecha del Préstamo</label>
+    <input id='nloan-date' type='datetime-local' style='display:none;'/>
     <label>Descripción (opcional)</label>
     <input id='nloan-desc' placeholder='Descripción del préstamo'/>
     <label>Notas (opcional)</label>
@@ -191,7 +191,14 @@ function openNewLoanModal(){
   const sel = div.querySelector('#nloan-account');
   const techSel = div.querySelector('#nloan-tech');
   const dateInput = div.querySelector('#nloan-date');
-  dateInput.value = new Date().toISOString().split('T')[0]; // Fecha de hoy por defecto
+  // Autocompletar fecha y hora actual
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  dateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`; // Fecha y hora actual
   
   // Cargar cuentas
   API.accounts.list().then(list=>{ 
@@ -233,7 +240,19 @@ function openNewLoanModal(){
         return;
       }
       const description = div.querySelector('#nloan-desc').value||'';
-      const loanDate = div.querySelector('#nloan-date').value;
+      const loanDateInput = div.querySelector('#nloan-date').value;
+      // Usar fecha autocompletada o fecha actual si no está definida
+      let loanDate = null;
+      if (loanDateInput) {
+        const dateObj = new Date(loanDateInput);
+        if (!isNaN(dateObj.getTime())) {
+          loanDate = dateObj.toISOString();
+        }
+      }
+      // Si no hay fecha válida, usar la fecha actual
+      if (!loanDate) {
+        loanDate = new Date().toISOString();
+      }
       const notes = div.querySelector('#nloan-notes').value||'';
       
       await API.cashflow.loans.create({ 
