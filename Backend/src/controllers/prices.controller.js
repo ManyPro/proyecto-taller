@@ -1,6 +1,7 @@
 import PriceEntry from '../models/PriceEntry.js';
 import Service from '../models/Service.js';
 import Vehicle from '../models/Vehicle.js';
+import Item from '../models/Item.js';
 import xlsx from 'xlsx'; // 0.18.x
 
 // ============ helpers ============
@@ -73,6 +74,8 @@ export const listPrices = async (req, res) => {
   const [items, total] = await Promise.all([
     PriceEntry.find(q)
       .populate('vehicleId', 'make line displacement modelYear')
+      .populate('itemId', 'sku name stock salePrice')
+      .populate('comboProducts.itemId', 'sku name stock salePrice')
       .sort({ type: 1, name: 1, createdAt: -1 })
       .skip(skip)
       .limit(lim)
@@ -85,7 +88,7 @@ export const listPrices = async (req, res) => {
 
 // ============ create ============
 export const createPrice = async (req, res) => {
-  const { vehicleId, name, type = 'service', serviceId, variables = {}, total: totalRaw } = req.body || {};
+  const { vehicleId, name, type = 'service', serviceId, variables = {}, total: totalRaw, itemId, comboProducts = [] } = req.body || {};
   
   // Nuevo modelo: vehicleId y name son requeridos
   if (!vehicleId) return res.status(400).json({ error: 'vehicleId requerido' });
@@ -103,20 +106,67 @@ export const createPrice = async (req, res) => {
     if (!svc) return res.status(404).json({ error: 'Servicio no encontrado' });
   }
 
+  // Si es producto y tiene itemId, validar item del inventario
+  let item = null;
+  if (type === 'product' && itemId) {
+    item = await Item.findOne({ _id: itemId, companyId: req.companyId });
+    if (!item) return res.status(404).json({ error: 'Item del inventario no encontrado' });
+  }
+
+  // Si es combo, validar y procesar productos del combo
+  let processedComboProducts = [];
+  if (type === 'combo') {
+    if (!Array.isArray(comboProducts) || comboProducts.length === 0) {
+      return res.status(400).json({ error: 'Un combo debe incluir al menos un producto' });
+    }
+    
+    for (const cp of comboProducts) {
+      if (!cp.name || !cp.name.trim()) {
+        return res.status(400).json({ error: 'Todos los productos del combo deben tener nombre' });
+      }
+      
+      const comboProduct = {
+        name: String(cp.name).trim(),
+        qty: Math.max(1, num(cp.qty || 1)),
+        unitPrice: Math.max(0, num(cp.unitPrice || 0)),
+        itemId: null
+      };
+      
+      // Si tiene itemId, validar que existe
+      if (cp.itemId) {
+        const comboItem = await Item.findOne({ _id: cp.itemId, companyId: req.companyId });
+        if (!comboItem) {
+          return res.status(404).json({ error: `Item del inventario no encontrado para producto: ${comboProduct.name}` });
+        }
+        comboProduct.itemId = comboItem._id;
+      }
+      
+      processedComboProducts.push(comboProduct);
+    }
+  }
+
   // Calcular total: si hay servicio con fórmula, usarla; si no, usar el total proporcionado
   let total = 0;
   if (svc && Object.keys(variables || {}).length > 0) {
     total = computeTotal(svc, variables);
   } else if (totalRaw !== undefined) {
     total = num(totalRaw);
+  } else if (item && totalRaw === undefined) {
+    // Si es producto vinculado y no se proporciona precio, usar precio de venta del item
+    total = num(item.salePrice || 0);
+  } else if (type === 'combo' && totalRaw === undefined) {
+    // Si es combo y no se proporciona precio, calcular suma de productos
+    total = processedComboProducts.reduce((sum, cp) => sum + (cp.unitPrice * cp.qty), 0);
   }
 
   const doc = {
     companyId: req.companyId,
     vehicleId: vehicle._id,
     name: String(name).trim(),
-    type: type === 'product' ? 'product' : 'service',
+    type: type === 'combo' ? 'combo' : (type === 'product' ? 'product' : 'service'),
     serviceId: svc?._id || null,
+    itemId: (type === 'product' && item) ? item._id : null,
+    comboProducts: type === 'combo' ? processedComboProducts : [],
     brand: vehicle.make,
     line: vehicle.line,
     engine: vehicle.displacement,
@@ -127,9 +177,11 @@ export const createPrice = async (req, res) => {
   
   try {
     const created = await PriceEntry.create(doc);
-    const populated = await PriceEntry.findById(created._id)
-      .populate('vehicleId', 'make line displacement modelYear')
-      .lean();
+      const populated = await PriceEntry.findById(created._id)
+        .populate('vehicleId', 'make line displacement modelYear')
+        .populate('itemId', 'sku name stock salePrice')
+        .populate('comboProducts.itemId', 'sku name stock salePrice')
+        .lean();
     res.json(populated);
   } catch (e) {
     // Si ya existe por índice único, intenta actualizar
@@ -147,6 +199,8 @@ export const createPrice = async (req, res) => {
       );
       const populated = await PriceEntry.findById(up._id)
         .populate('vehicleId', 'make line displacement modelYear')
+        .populate('itemId', 'sku name stock salePrice')
+        .populate('comboProducts.itemId', 'sku name stock salePrice')
         .lean();
       return res.json(populated);
     }
@@ -157,13 +211,20 @@ export const createPrice = async (req, res) => {
 // ============ update ============
 export const updatePrice = async (req, res) => {
   const id = req.params.id;
-  const { name, type, variables = {}, total: totalRaw, serviceId } = req.body || {};
+  const { name, type, variables = {}, total: totalRaw, serviceId, itemId, comboProducts } = req.body || {};
   const row = await PriceEntry.findOne({ _id: id, companyId: req.companyId });
   if (!row) return res.status(404).json({ error: 'No encontrado' });
 
   // Actualizar nombre y tipo si se proporcionan
   if (name !== undefined && name !== null) row.name = String(name).trim();
-  if (type !== undefined && type !== null) row.type = type === 'product' ? 'product' : 'service';
+  if (type !== undefined && type !== null) {
+    const newType = type === 'combo' ? 'combo' : (type === 'product' ? 'product' : 'service');
+    row.type = newType;
+    
+    // Limpiar campos según el tipo
+    if (newType !== 'product') row.itemId = null;
+    if (newType !== 'combo') row.comboProducts = [];
+  }
   
   // Actualizar serviceId si se proporciona
   if (serviceId !== undefined) {
@@ -173,6 +234,56 @@ export const updatePrice = async (req, res) => {
       const svc = await getService(req.companyId, serviceId);
       if (!svc) return res.status(404).json({ error: 'Servicio no encontrado' });
       row.serviceId = svc._id;
+    }
+  }
+  
+  // Actualizar itemId si se proporciona (solo para productos)
+  if (itemId !== undefined && row.type === 'product') {
+    if (itemId === null || itemId === '') {
+      row.itemId = null;
+    } else {
+      const item = await Item.findOne({ _id: itemId, companyId: req.companyId });
+      if (!item) return res.status(404).json({ error: 'Item del inventario no encontrado' });
+      row.itemId = item._id;
+    }
+  }
+  
+  // Actualizar comboProducts si se proporciona (solo para combos)
+  if (comboProducts !== undefined && row.type === 'combo') {
+    if (!Array.isArray(comboProducts) || comboProducts.length === 0) {
+      return res.status(400).json({ error: 'Un combo debe incluir al menos un producto' });
+    }
+    
+    const processedComboProducts = [];
+    for (const cp of comboProducts) {
+      if (!cp.name || !cp.name.trim()) {
+        return res.status(400).json({ error: 'Todos los productos del combo deben tener nombre' });
+      }
+      
+      const comboProduct = {
+        name: String(cp.name).trim(),
+        qty: Math.max(1, num(cp.qty || 1)),
+        unitPrice: Math.max(0, num(cp.unitPrice || 0)),
+        itemId: null
+      };
+      
+      // Si tiene itemId, validar que existe
+      if (cp.itemId) {
+        const comboItem = await Item.findOne({ _id: cp.itemId, companyId: req.companyId });
+        if (!comboItem) {
+          return res.status(404).json({ error: `Item del inventario no encontrado para producto: ${comboProduct.name}` });
+        }
+        comboProduct.itemId = comboItem._id;
+      }
+      
+      processedComboProducts.push(comboProduct);
+    }
+    
+    row.comboProducts = processedComboProducts;
+    
+    // Si no se proporciona total, recalcular desde productos
+    if (totalRaw === undefined) {
+      row.total = processedComboProducts.reduce((sum, cp) => sum + (cp.unitPrice * cp.qty), 0);
     }
   }
 
@@ -199,6 +310,8 @@ export const updatePrice = async (req, res) => {
   await row.save();
   const populated = await PriceEntry.findById(row._id)
     .populate('vehicleId', 'make line displacement modelYear')
+    .populate('itemId', 'sku name stock salePrice')
+    .populate('comboProducts.itemId', 'sku name stock salePrice')
     .lean();
   res.json(populated);
 };

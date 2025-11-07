@@ -193,7 +193,9 @@ export const addItem = async (req, res) => {
     };
   } else if (src === 'price') {
     if (refId) {
-      const pe = await PriceEntry.findOne({ _id: refId, companyId: String(req.companyId) });
+      const pe = await PriceEntry.findOne({ _id: refId, companyId: String(req.companyId) })
+        .populate('itemId', 'sku name stock salePrice')
+        .populate('comboProducts.itemId', 'sku name stock salePrice');
       if (!pe) return res.status(404).json({ error: 'PriceEntry not found' });
       const q = asNum(qty) || 1;
       const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNum(pe.total || pe.price);
@@ -201,15 +203,82 @@ export const addItem = async (req, res) => {
       const itemName = pe.name && pe.name.trim() 
         ? pe.name.trim()
         : `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim() || 'Servicio';
-      itemData = {
-        source: 'price',
-        refId: pe._id,
-        sku: `SRV-${String(pe._id).slice(-6)}`,
-        name: itemName,
-        qty: q,
-        unitPrice: up,
-        total: Math.round(q * up)
-      };
+      
+      // Si es combo, agregar todos los productos del combo
+      if (pe.type === 'combo' && Array.isArray(pe.comboProducts) && pe.comboProducts.length > 0) {
+        // Los combos se agregan como múltiples items, así que usamos addItemsBatch
+        // Por ahora, agregamos el combo como un item principal y luego agregamos los productos
+        // Primero agregamos el combo principal como price
+        sale.items.push({
+          source: 'price',
+          refId: pe._id,
+          sku: `COMBO-${String(pe._id).slice(-6)}`,
+          name: itemName,
+          qty: q,
+          unitPrice: up,
+          total: Math.round(q * up)
+        });
+        
+        // Luego agregamos cada producto del combo
+        for (const cp of pe.comboProducts) {
+          const comboQty = q * (cp.qty || 1);
+          if (cp.itemId) {
+            // Producto vinculado: agregar como inventory para que se descuente
+            const comboItem = cp.itemId;
+            sale.items.push({
+              source: 'inventory',
+              refId: comboItem._id,
+              sku: comboItem.sku || `CP-${String(cp._id || '').slice(-6)}`,
+              name: cp.name || 'Producto del combo',
+              qty: comboQty,
+              unitPrice: cp.unitPrice || 0,
+              total: Math.round(comboQty * (cp.unitPrice || 0))
+            });
+          } else {
+            // Producto sin vincular: agregar como price
+            sale.items.push({
+              source: 'price',
+              refId: new mongoose.Types.ObjectId(),
+              sku: `CP-${String(cp._id || new mongoose.Types.ObjectId()).slice(-6)}`,
+              name: cp.name || 'Producto del combo',
+              qty: comboQty,
+              unitPrice: cp.unitPrice || 0,
+              total: Math.round(comboQty * (cp.unitPrice || 0))
+            });
+          }
+        }
+        
+        computeTotals(sale);
+        await sale.save();
+        await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+        try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+        return res.json(sale.toObject());
+      }
+      
+      // Si es producto vinculado con inventario, agregar como inventory para que se descuente
+      if (pe.type === 'product' && pe.itemId) {
+        const item = pe.itemId;
+        itemData = {
+          source: 'inventory',
+          refId: item._id,
+          sku: item.sku || `PRD-${String(pe._id).slice(-6)}`,
+          name: itemName,
+          qty: q,
+          unitPrice: up,
+          total: Math.round(q * up)
+        };
+      } else {
+        // Servicio o producto sin vincular: agregar como price (no descuenta inventario)
+        itemData = {
+          source: 'price',
+          refId: pe._id,
+          sku: `SRV-${String(pe._id).slice(-6)}`,
+          name: itemName,
+          qty: q,
+          unitPrice: up,
+          total: Math.round(q * up)
+        };
+      }
     } else {
       // LÃ­nea manual de servicio
       const q = asNum(qty) || 1;
@@ -293,22 +362,81 @@ export const addItemsBatch = async (req, res) => {
 
       if (source === 'price') {
         if (raw.refId) {
-          const pe = await PriceEntry.findOne({ _id: raw.refId, companyId: req.companyId });
+          const pe = await PriceEntry.findOne({ _id: raw.refId, companyId: req.companyId })
+            .populate('itemId', 'sku name stock salePrice')
+            .populate('comboProducts.itemId', 'sku name stock salePrice');
           if (!pe) throw new Error('PriceEntry not found');
           const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : asNum(pe.total || pe.price);
           // Usar pe.name si existe (nuevo modelo), sino fallback a campos legacy
           const itemName = pe.name && pe.name.trim() 
             ? pe.name.trim()
             : `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim() || 'Servicio';
-          added.push({
-            source: 'price',
-            refId: pe._id,
-            sku: `SRV-${String(pe._id).slice(-6)}`,
-            name: itemName,
-            qty,
-            unitPrice: up,
-            total: Math.round(qty * up)
-          });
+          
+          // Si es combo, agregar todos los productos del combo
+          if (pe.type === 'combo' && Array.isArray(pe.comboProducts) && pe.comboProducts.length > 0) {
+            // Primero agregamos el combo principal como price
+            added.push({
+              source: 'price',
+              refId: pe._id,
+              sku: `COMBO-${String(pe._id).slice(-6)}`,
+              name: itemName,
+              qty,
+              unitPrice: up,
+              total: Math.round(qty * up)
+            });
+            
+            // Luego agregamos cada producto del combo
+            for (const cp of pe.comboProducts) {
+              const comboQty = qty * (cp.qty || 1);
+              if (cp.itemId) {
+                // Producto vinculado: agregar como inventory para que se descuente
+                const comboItem = cp.itemId;
+                added.push({
+                  source: 'inventory',
+                  refId: comboItem._id,
+                  sku: comboItem.sku || `CP-${String(cp._id || '').slice(-6)}`,
+                  name: cp.name || 'Producto del combo',
+                  qty: comboQty,
+                  unitPrice: cp.unitPrice || 0,
+                  total: Math.round(comboQty * (cp.unitPrice || 0))
+                });
+              } else {
+                // Producto sin vincular: agregar como price
+                added.push({
+                  source: 'price',
+                  refId: new mongoose.Types.ObjectId(),
+                  sku: `CP-${String(cp._id || new mongoose.Types.ObjectId()).slice(-6)}`,
+                  name: cp.name || 'Producto del combo',
+                  qty: comboQty,
+                  unitPrice: cp.unitPrice || 0,
+                  total: Math.round(comboQty * (cp.unitPrice || 0))
+                });
+              }
+            }
+          } else if (pe.type === 'product' && pe.itemId) {
+            // Si es producto vinculado con inventario, agregar como inventory para que se descuente
+            const item = pe.itemId;
+            added.push({
+              source: 'inventory',
+              refId: item._id,
+              sku: item.sku || `PRD-${String(pe._id).slice(-6)}`,
+              name: itemName,
+              qty,
+              unitPrice: up,
+              total: Math.round(qty * up)
+            });
+          } else {
+            // Servicio o producto sin vincular: agregar como price (no descuenta inventario)
+            added.push({
+              source: 'price',
+              refId: pe._id,
+              sku: `SRV-${String(pe._id).slice(-6)}`,
+              name: itemName,
+              qty,
+              unitPrice: up,
+              total: Math.round(qty * up)
+            });
+          }
         } else {
           const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : 0;
           added.push({

@@ -44,11 +44,11 @@ export function initPrices(){
   function renderTableHeader(){
     head.replaceChildren();
     if(!selectedVehicle) {
-      head.innerHTML = '<tr><th colspan="4" style="text-align:center;padding:24px;color:var(--muted);">Selecciona un vehículo para ver sus servicios y productos</th></tr>';
+      head.innerHTML = '<tr><th colspan="5" style="text-align:center;padding:24px;color:var(--muted);">Selecciona un vehículo para ver sus servicios y productos</th></tr>';
       return;
     }
     const tr=document.createElement('tr');
-    ['Tipo', 'Nombre', 'Precio', 'Acciones'].forEach(txt=>{
+    ['Tipo', 'Nombre', 'Item vinculado / Productos', 'Precio', 'Acciones'].forEach(txt=>{
       const th=document.createElement('th'); th.textContent=txt; tr.appendChild(th);
     });
     head.appendChild(tr);
@@ -68,7 +68,14 @@ export function initPrices(){
     // Mostrar tipo
     const vehicleCell = tr.querySelector('[data-vehicle]');
     if (vehicleCell) {
-      const typeBadge = r.type === 'product' ? '<span style="background:var(--primary,#3b82f6);color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">PRODUCTO</span>' : '<span style="background:var(--success,#10b981);color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">SERVICIO</span>';
+      let typeBadge = '';
+      if (r.type === 'combo') {
+        typeBadge = '<span style="background:#9333ea;color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">COMBO</span>';
+      } else if (r.type === 'product') {
+        typeBadge = '<span style="background:var(--primary,#3b82f6);color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">PRODUCTO</span>';
+      } else {
+        typeBadge = '<span style="background:var(--success,#10b981);color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">SERVICIO</span>';
+      }
       vehicleCell.innerHTML = typeBadge;
     }
     
@@ -79,8 +86,41 @@ export function initPrices(){
       nameCell.style.fontWeight = '500';
     }
     
+    // Mostrar item vinculado o productos del combo
+    const itemInfoCell = tr.querySelector('[data-item-info]');
+    if (itemInfoCell) {
+      if (r.type === 'combo' && Array.isArray(r.comboProducts) && r.comboProducts.length > 0) {
+        const productsList = r.comboProducts.map(cp => {
+          const linked = cp.itemId ? `✓ ${cp.itemId.name || cp.itemId.sku}` : cp.name;
+          return `<div style="font-size:10px;margin:2px 0;">• ${linked} (x${cp.qty || 1})</div>`;
+        }).join('');
+        itemInfoCell.innerHTML = `
+          <div style="color:#9333ea;font-weight:600;margin-bottom:4px;">${r.comboProducts.length} producto(s)</div>
+          ${productsList}
+        `;
+      } else if (r.type === 'product' && r.itemId) {
+        itemInfoCell.innerHTML = `
+          <div style="color:var(--success, #10b981);">✓ ${r.itemId.name || r.itemId.sku}</div>
+          <div style="font-size:10px;">SKU: ${r.itemId.sku} | Stock: ${r.itemId.stock || 0}</div>
+        `;
+      } else if (r.type === 'product') {
+        itemInfoCell.innerHTML = '<span style="color:var(--muted);font-size:10px;">Sin vincular</span>';
+      } else {
+        itemInfoCell.innerHTML = '<span style="color:var(--muted);font-size:10px;">-</span>';
+      }
+    }
+    
     const inPrice=tr.querySelector('input[data-price]'); 
     if (inPrice) inPrice.value = r.total || r.price || 0;
+
+    const editBtn = tr.querySelector('button.edit');
+    if (editBtn) {
+      const newEditBtn = editBtn.cloneNode(true);
+      editBtn.parentNode.replaceChild(newEditBtn, editBtn);
+      newEditBtn.addEventListener('click', () => {
+        openCreateModal(r.type, r);
+      });
+    }
 
     const saveBtn = tr.querySelector('button.save');
     if (saveBtn) {
@@ -298,30 +338,93 @@ export function initPrices(){
   };
   if (fClear) fClear.onclick  = ()=> { clearFilters(); };
   
-  // Modal para crear servicio/producto
-  function openCreateModal(type) {
+  // Modal para crear/editar servicio/producto
+  function openCreateModal(type, existingPrice = null) {
     if(!selectedVehicle) return alert('Selecciona un vehículo primero');
     const body=$('#modalBody'), closeBtn=$('#modalClose'); 
     body.replaceChildren();
     
+    const isEdit = !!existingPrice;
+    const isProduct = type === 'product';
+    const isCombo = type === 'combo';
+    const linkedItem = existingPrice?.itemId;
+    const comboProducts = existingPrice?.comboProducts || [];
+    
     const node = document.createElement('div');
     node.className = 'card';
     node.innerHTML = `
-      <h3>${type === 'service' ? 'Nuevo Servicio' : 'Nuevo Producto'}</h3>
+      <h3>${isEdit ? 'Editar' : 'Nuevo'} ${type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto')}</h3>
       <p class="muted" style="margin-bottom:16px;font-size:13px;">
         Vehículo: <strong>${selectedVehicle.make} ${selectedVehicle.line}</strong>
       </p>
       <div style="margin-bottom:16px;">
         <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre</label>
-        <input id="pe-modal-name" placeholder="${type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire'}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+        <input id="pe-modal-name" placeholder="${type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire')}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" value="${existingPrice?.name || ''}" />
       </div>
+      ${isCombo ? `
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Productos del combo</label>
+        <div id="pe-modal-combo-products" style="margin-bottom:8px;">
+          ${comboProducts.map((cp, idx) => `
+            <div class="combo-product-item" data-index="${idx}" style="padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;">
+              <div class="row" style="gap:8px;margin-bottom:8px;">
+                <input type="text" class="combo-product-name" placeholder="Nombre del producto" value="${cp.name || ''}" style="flex:2;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
+                <input type="number" class="combo-product-qty" placeholder="Cant." value="${cp.qty || 1}" min="1" style="width:80px;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
+                <input type="number" class="combo-product-price" placeholder="Precio" step="0.01" value="${cp.unitPrice || 0}" style="width:120px;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
+                <button class="combo-product-remove danger" style="padding:6px 12px;">✕</button>
+              </div>
+              <div class="row" style="gap:8px;">
+                <input type="text" class="combo-product-item-search" placeholder="Buscar item del inventario (opcional)..." style="flex:1;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" value="${cp.itemId ? (cp.itemId.name || cp.itemId.sku || '') : ''}" />
+                <button class="combo-product-item-qr secondary" style="padding:6px 12px;">📷 QR</button>
+              </div>
+              <div class="combo-product-item-selected" style="margin-top:8px;padding:6px;background:var(--card);border-radius:4px;font-size:11px;${cp.itemId ? '' : 'display:none;'}">
+                ${cp.itemId ? `<div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div><strong>${cp.itemId.name || cp.itemId.sku}</strong> <span class="muted">SKU: ${cp.itemId.sku} | Stock: ${cp.itemId.stock || 0}</span></div>
+                  <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+                </div>` : ''}
+              </div>
+              <input type="hidden" class="combo-product-item-id" value="${cp.itemId?._id || ''}" />
+            </div>
+          `).join('')}
+        </div>
+        <button id="pe-modal-add-combo-product" class="secondary" style="width:100%;padding:8px;margin-bottom:8px;">➕ Agregar producto</button>
+      </div>
+      ` : ''}
+      ${isProduct ? `
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Vincular con item del inventario (opcional)</label>
+        <div class="row" style="gap:8px;margin-bottom:8px;">
+          <input id="pe-modal-item-search" placeholder="Buscar por SKU o nombre..." style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+          <button id="pe-modal-item-qr" class="secondary" style="padding:8px 16px;">📷 QR</button>
+        </div>
+        <div id="pe-modal-item-dropdown" style="display:none;position:relative;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;background:var(--card);margin-top:4px;"></div>
+        <div id="pe-modal-item-selected" style="margin-top:8px;padding:8px;background:var(--card-alt);border-radius:6px;font-size:12px;${linkedItem ? '' : 'display:none;'}">
+          ${linkedItem ? `<div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <strong>${linkedItem.name || linkedItem.sku}</strong><br>
+              <span class="muted">SKU: ${linkedItem.sku} | Stock: ${linkedItem.stock || 0}</span>
+            </div>
+            <button id="pe-modal-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
+          </div>` : ''}
+        </div>
+        <input type="hidden" id="pe-modal-item-id" value="${linkedItem?._id || ''}" />
+      </div>
+      ` : ''}
+      ${!isCombo ? `
       <div style="margin-bottom:16px;">
         <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Precio</label>
-        <input id="pe-modal-price" type="number" step="0.01" placeholder="0" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+        <input id="pe-modal-price" type="number" step="0.01" placeholder="0" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" value="${existingPrice?.total || ''}" />
       </div>
+      ` : `
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Precio total del combo</label>
+        <input id="pe-modal-price" type="number" step="0.01" placeholder="0 (se calcula automáticamente)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" value="${existingPrice?.total || ''}" />
+        <p class="muted" style="margin-top:4px;font-size:11px;">El precio se calcula automáticamente desde los productos, o puedes establecerlo manualmente.</p>
+      </div>
+      `}
       <div id="pe-modal-msg" style="margin-bottom:16px;font-size:13px;"></div>
       <div class="row" style="gap:8px;">
-        <button id="pe-modal-save" style="flex:1;padding:10px;">💾 Guardar</button>
+        <button id="pe-modal-save" style="flex:1;padding:10px;">💾 ${isEdit ? 'Actualizar' : 'Guardar'}</button>
         <button id="pe-modal-cancel" class="secondary" style="flex:1;padding:10px;">Cancelar</button>
       </div>
     `;
@@ -332,6 +435,447 @@ export function initPrices(){
     const msgEl = node.querySelector('#pe-modal-msg');
     const saveBtn = node.querySelector('#pe-modal-save');
     const cancelBtn = node.querySelector('#pe-modal-cancel');
+    let selectedItem = linkedItem ? { _id: linkedItem._id, sku: linkedItem.sku, name: linkedItem.name, stock: linkedItem.stock } : null;
+    
+    // Funcionalidad de búsqueda de items (solo para productos)
+    if (isProduct) {
+      const itemSearch = node.querySelector('#pe-modal-item-search');
+      const itemDropdown = node.querySelector('#pe-modal-item-dropdown');
+      const itemSelected = node.querySelector('#pe-modal-item-selected');
+      const itemIdInput = node.querySelector('#pe-modal-item-id');
+      const itemQrBtn = node.querySelector('#pe-modal-item-qr');
+      const itemRemoveBtn = node.querySelector('#pe-modal-item-remove');
+      let searchTimeout = null;
+      
+      async function searchItems(query) {
+        if (!query || query.length < 2) {
+          itemDropdown.style.display = 'none';
+          return;
+        }
+        try {
+          // Buscar por SKU o nombre (el backend acepta ambos parámetros)
+          // Intentamos primero por SKU, luego por nombre
+          let items = [];
+          try {
+            items = await API.itemsList({ sku: query });
+            if (items.length === 0) {
+              items = await API.itemsList({ name: query });
+            }
+          } catch (err) {
+            console.error('Error al buscar items:', err);
+          }
+          if (!items || items.length === 0) {
+            itemDropdown.innerHTML = '<div style="padding:12px;text-align:center;color:var(--muted);font-size:12px;">No se encontraron items</div>';
+            itemDropdown.style.display = 'block';
+            return;
+          }
+          itemDropdown.replaceChildren(...items.map(item => {
+            const div = document.createElement('div');
+            div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);';
+            div.innerHTML = `
+              <div style="font-weight:600;">${item.name || item.sku}</div>
+              <div style="font-size:12px;color:var(--muted);">SKU: ${item.sku} | Stock: ${item.stock || 0} | Precio: $${(item.salePrice || 0).toLocaleString()}</div>
+            `;
+            div.addEventListener('click', () => {
+              selectedItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+              itemIdInput.value = item._id;
+              itemSearch.value = `${item.sku} - ${item.name}`;
+              itemDropdown.style.display = 'none';
+              itemSelected.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div>
+                    <strong>${item.name}</strong><br>
+                    <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span>
+                  </div>
+                  <button id="pe-modal-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
+                </div>
+              `;
+              itemSelected.style.display = 'block';
+              const newRemoveBtn = itemSelected.querySelector('#pe-modal-item-remove');
+              if (newRemoveBtn) {
+                newRemoveBtn.onclick = () => {
+                  selectedItem = null;
+                  itemIdInput.value = '';
+                  itemSearch.value = '';
+                  itemSelected.style.display = 'none';
+                };
+              }
+              // Auto-completar precio si no está definido
+              if (!priceInput.value || priceInput.value === '0') {
+                priceInput.value = item.salePrice || 0;
+              }
+            });
+            div.addEventListener('mouseenter', () => {
+              div.style.background = 'var(--hover, rgba(0,0,0,0.05))';
+            });
+            div.addEventListener('mouseleave', () => {
+              div.style.background = '';
+            });
+            return div;
+          }));
+          itemDropdown.style.display = 'block';
+        } catch (err) {
+          console.error('Error al buscar items:', err);
+        }
+      }
+      
+      itemSearch.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          searchItems(e.target.value);
+        }, 300);
+      });
+      
+      itemQrBtn.onclick = async () => {
+        try {
+          // Usar la misma lógica de QR que en sales.js
+          const qrCode = prompt('Escanea el código QR o ingresa el código manualmente:');
+          if (!qrCode) return;
+          
+          // Parsear QR: IT:<companyId>:<itemId>:<sku>
+          if (qrCode.toUpperCase().startsWith('IT:')) {
+            const parts = qrCode.split(':').map(p => p.trim()).filter(Boolean);
+            const itemId = parts.length >= 3 ? parts[2] : null;
+            if (itemId) {
+              const items = await API.itemsList({});
+              const item = items.find(i => String(i._id) === itemId);
+              if (item) {
+                selectedItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+                itemIdInput.value = item._id;
+                itemSearch.value = `${item.sku} - ${item.name}`;
+                itemDropdown.style.display = 'none';
+                itemSelected.innerHTML = `
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                      <strong>${item.name}</strong><br>
+                      <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span>
+                    </div>
+                    <button id="pe-modal-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
+                  </div>
+                `;
+                itemSelected.style.display = 'block';
+                const newRemoveBtn = itemSelected.querySelector('#pe-modal-item-remove');
+                if (newRemoveBtn) {
+                  newRemoveBtn.onclick = () => {
+                    selectedItem = null;
+                    itemIdInput.value = '';
+                    itemSearch.value = '';
+                    itemSelected.style.display = 'none';
+                  };
+                }
+                if (!priceInput.value || priceInput.value === '0') {
+                  priceInput.value = item.salePrice || 0;
+                }
+                return;
+              }
+            }
+          }
+          
+          // Fallback: buscar por SKU
+          const items = await API.itemsList({ sku: qrCode, limit: 1 });
+          if (items && items.length > 0) {
+            const item = items[0];
+            selectedItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+            itemIdInput.value = item._id;
+            itemSearch.value = `${item.sku} - ${item.name}`;
+            itemSelected.innerHTML = `
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <strong>${item.name}</strong><br>
+                  <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span>
+                </div>
+                <button id="pe-modal-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
+              </div>
+            `;
+            itemSelected.style.display = 'block';
+            const newRemoveBtn = itemSelected.querySelector('#pe-modal-item-remove');
+            if (newRemoveBtn) {
+              newRemoveBtn.onclick = () => {
+                selectedItem = null;
+                itemIdInput.value = '';
+                itemSearch.value = '';
+                itemSelected.style.display = 'none';
+              };
+            }
+            if (!priceInput.value || priceInput.value === '0') {
+              priceInput.value = item.salePrice || 0;
+            }
+          } else {
+            alert('Item no encontrado');
+          }
+        } catch (err) {
+          alert('Error al leer QR: ' + (err?.message || 'Error desconocido'));
+        }
+      };
+      
+      if (itemRemoveBtn) {
+        itemRemoveBtn.onclick = () => {
+          selectedItem = null;
+          itemIdInput.value = '';
+          itemSearch.value = '';
+          itemSelected.style.display = 'none';
+        };
+      }
+      
+      // Cerrar dropdown al hacer click fuera
+      document.addEventListener('click', (e) => {
+        if (itemSearch && itemDropdown && !itemSearch.contains(e.target) && !itemDropdown.contains(e.target)) {
+          itemDropdown.style.display = 'none';
+        }
+      });
+    }
+    
+    // Funcionalidad para combos
+    if (isCombo) {
+      const comboProductsContainer = node.querySelector('#pe-modal-combo-products');
+      const addComboProductBtn = node.querySelector('#pe-modal-add-combo-product');
+      
+      function addComboProductRow(productData = {}) {
+        const row = document.createElement('div');
+        row.className = 'combo-product-item';
+        row.style.cssText = 'padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;';
+        row.innerHTML = `
+          <div class="row" style="gap:8px;margin-bottom:8px;">
+            <input type="text" class="combo-product-name" placeholder="Nombre del producto" value="${productData.name || ''}" style="flex:2;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
+            <input type="number" class="combo-product-qty" placeholder="Cant." value="${productData.qty || 1}" min="1" style="width:80px;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
+            <input type="number" class="combo-product-price" placeholder="Precio" step="0.01" value="${productData.unitPrice || 0}" style="width:120px;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
+            <button class="combo-product-remove danger" style="padding:6px 12px;">✕</button>
+          </div>
+          <div class="row" style="gap:8px;">
+            <input type="text" class="combo-product-item-search" placeholder="Buscar item del inventario (opcional)..." style="flex:1;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
+            <button class="combo-product-item-qr secondary" style="padding:6px 12px;">📷 QR</button>
+          </div>
+          <div class="combo-product-item-selected" style="margin-top:8px;padding:6px;background:var(--card);border-radius:4px;font-size:11px;display:none;"></div>
+          <input type="hidden" class="combo-product-item-id" value="${productData.itemId?._id || ''}" />
+        `;
+        
+        const removeBtn = row.querySelector('.combo-product-remove');
+        removeBtn.onclick = () => {
+          row.remove();
+          updateComboTotal();
+        };
+        
+        const itemSearch = row.querySelector('.combo-product-item-search');
+        const itemSelected = row.querySelector('.combo-product-item-selected');
+        const itemIdInput = row.querySelector('.combo-product-item-id');
+        const itemQrBtn = row.querySelector('.combo-product-item-qr');
+        let selectedComboItem = productData.itemId ? { _id: productData.itemId._id, sku: productData.itemId.sku, name: productData.itemId.name, stock: productData.itemId.stock, salePrice: productData.itemId.salePrice } : null;
+        
+        if (productData.itemId) {
+          itemSearch.value = `${productData.itemId.sku || ''} - ${productData.itemId.name || ''}`;
+          itemSelected.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div><strong>${productData.itemId.name || productData.itemId.sku}</strong> <span class="muted">SKU: ${productData.itemId.sku} | Stock: ${productData.itemId.stock || 0}</span></div>
+              <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+            </div>
+          `;
+          itemSelected.style.display = 'block';
+        }
+        
+        let searchTimeout = null;
+        async function searchComboItems(query) {
+          if (!query || query.length < 2) return;
+          try {
+            let items = [];
+            try {
+              items = await API.itemsList({ sku: query });
+              if (items.length === 0) {
+                items = await API.itemsList({ name: query });
+              }
+            } catch (err) {
+              console.error('Error al buscar items:', err);
+            }
+            if (!items || items.length === 0) return;
+            
+            // Crear dropdown temporal
+            const dropdown = document.createElement('div');
+            dropdown.style.cssText = 'position:absolute;z-index:1000;background:var(--card);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:100%;margin-top:4px;';
+            dropdown.replaceChildren(...items.map(item => {
+              const div = document.createElement('div');
+              div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);';
+              div.innerHTML = `
+                <div style="font-weight:600;">${item.name || item.sku}</div>
+                <div style="font-size:12px;color:var(--muted);">SKU: ${item.sku} | Stock: ${item.stock || 0}</div>
+              `;
+              div.addEventListener('click', () => {
+                selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+                itemIdInput.value = item._id;
+                itemSearch.value = `${item.sku} - ${item.name}`;
+                itemSelected.innerHTML = `
+                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
+                    <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+                  </div>
+                `;
+                itemSelected.style.display = 'block';
+                const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
+                if (removeBtn2) {
+                  removeBtn2.onclick = () => {
+                    selectedComboItem = null;
+                    itemIdInput.value = '';
+                    itemSearch.value = '';
+                    itemSelected.style.display = 'none';
+                  };
+                }
+                dropdown.remove();
+                const priceInput = row.querySelector('.combo-product-price');
+                if (!priceInput.value || priceInput.value === '0') {
+                  priceInput.value = item.salePrice || 0;
+                }
+                updateComboTotal();
+              });
+              div.addEventListener('mouseenter', () => { div.style.background = 'var(--hover, rgba(0,0,0,0.05))'; });
+              div.addEventListener('mouseleave', () => { div.style.background = ''; });
+              return div;
+            }));
+            
+            // Posicionar dropdown
+            const searchContainer = itemSearch.parentElement;
+            searchContainer.style.position = 'relative';
+            searchContainer.appendChild(dropdown);
+            
+            // Remover al hacer click fuera
+            setTimeout(() => {
+              document.addEventListener('click', function removeDropdown(e) {
+                if (!searchContainer.contains(e.target)) {
+                  dropdown.remove();
+                  document.removeEventListener('click', removeDropdown);
+                }
+              }, { once: true });
+            }, 100);
+          } catch (err) {
+            console.error('Error al buscar items:', err);
+          }
+        }
+        
+        itemSearch.addEventListener('input', (e) => {
+          clearTimeout(searchTimeout);
+          searchTimeout = setTimeout(() => {
+            searchComboItems(e.target.value);
+          }, 300);
+        });
+        
+        itemQrBtn.onclick = async () => {
+          try {
+            const qrCode = prompt('Escanea el código QR o ingresa el código manualmente:');
+            if (!qrCode) return;
+            
+            if (qrCode.toUpperCase().startsWith('IT:')) {
+              const parts = qrCode.split(':').map(p => p.trim()).filter(Boolean);
+              const itemId = parts.length >= 3 ? parts[2] : null;
+              if (itemId) {
+                const items = await API.itemsList({});
+                const item = items.find(i => String(i._id) === itemId);
+                if (item) {
+                  selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+                  itemIdInput.value = item._id;
+                  itemSearch.value = `${item.sku} - ${item.name}`;
+                  itemSelected.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                      <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
+                      <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+                    </div>
+                  `;
+                  itemSelected.style.display = 'block';
+                  const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
+                  if (removeBtn2) {
+                    removeBtn2.onclick = () => {
+                      selectedComboItem = null;
+                      itemIdInput.value = '';
+                      itemSearch.value = '';
+                      itemSelected.style.display = 'none';
+                    };
+                  }
+                  const priceInput = row.querySelector('.combo-product-price');
+                  if (!priceInput.value || priceInput.value === '0') {
+                    priceInput.value = item.salePrice || 0;
+                  }
+                  updateComboTotal();
+                  return;
+                }
+              }
+            }
+            
+            const items = await API.itemsList({ sku: qrCode, limit: 1 });
+            if (items && items.length > 0) {
+              const item = items[0];
+              selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+              itemIdInput.value = item._id;
+              itemSearch.value = `${item.sku} - ${item.name}`;
+              itemSelected.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
+                  <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+                </div>
+              `;
+              itemSelected.style.display = 'block';
+              const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
+              if (removeBtn2) {
+                removeBtn2.onclick = () => {
+                  selectedComboItem = null;
+                  itemIdInput.value = '';
+                  itemSearch.value = '';
+                  itemSelected.style.display = 'none';
+                };
+              }
+              const priceInput = row.querySelector('.combo-product-price');
+              if (!priceInput.value || priceInput.value === '0') {
+                priceInput.value = item.salePrice || 0;
+              }
+              updateComboTotal();
+            } else {
+              alert('Item no encontrado');
+            }
+          } catch (err) {
+            alert('Error al leer QR: ' + (err?.message || 'Error desconocido'));
+          }
+        };
+        
+        const removeItemBtn = itemSelected.querySelector('.combo-product-item-remove-btn');
+        if (removeItemBtn) {
+          removeItemBtn.onclick = () => {
+            selectedComboItem = null;
+            itemIdInput.value = '';
+            itemSearch.value = '';
+            itemSelected.style.display = 'none';
+          };
+        }
+        
+        // Actualizar total cuando cambien precio o cantidad
+        row.querySelector('.combo-product-price').addEventListener('input', updateComboTotal);
+        row.querySelector('.combo-product-qty').addEventListener('input', updateComboTotal);
+        
+        comboProductsContainer.appendChild(row);
+      }
+      
+      function updateComboTotal() {
+        const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
+        let total = 0;
+        products.forEach(prod => {
+          const qty = normalizeNumber(prod.querySelector('.combo-product-qty')?.value || 1);
+          const price = normalizeNumber(prod.querySelector('.combo-product-price')?.value || 0);
+          total += qty * price;
+        });
+        if (priceInput) {
+          if (!priceInput.value || priceInput.value === '0' || priceInput === document.activeElement) {
+            // Solo auto-completar si está vacío o es 0, o si el usuario no está editando
+            if (priceInput !== document.activeElement) {
+              priceInput.value = total;
+            }
+          }
+        }
+      }
+      
+      addComboProductBtn.onclick = () => {
+        addComboProductRow();
+        updateComboTotal();
+      };
+      
+      // Inicializar productos existentes si es edición
+      if (comboProducts.length === 0) {
+        addComboProductRow();
+      }
+    }
     
     nameInput.focus();
     
@@ -351,25 +895,65 @@ export function initPrices(){
         return;
       }
       
+      // Validar combo
+      if (isCombo) {
+        const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
+        if (products.length === 0) {
+          msgEl.textContent = 'Un combo debe incluir al menos un producto';
+          msgEl.style.color = 'var(--danger, #ef4444)';
+          return;
+        }
+        
+        for (const prod of products) {
+          const prodName = prod.querySelector('.combo-product-name')?.value.trim();
+          if (!prodName) {
+            msgEl.textContent = 'Todos los productos del combo deben tener nombre';
+            msgEl.style.color = 'var(--danger, #ef4444)';
+            return;
+          }
+        }
+      }
+      
       try {
         saveBtn.disabled = true;
-        saveBtn.textContent = 'Guardando...';
+        saveBtn.textContent = isEdit ? 'Actualizando...' : 'Guardando...';
         const payload = {
           vehicleId: selectedVehicle._id,
           name: name,
           type: type,
           total: price
         };
-        await API.priceCreate(payload);
+        
+        if (isProduct && selectedItem) {
+          payload.itemId = selectedItem._id;
+        } else if (isProduct && !selectedItem) {
+          payload.itemId = null;
+        }
+        
+        if (isCombo) {
+          const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
+          payload.comboProducts = products.map(prod => ({
+            name: prod.querySelector('.combo-product-name')?.value.trim() || '',
+            qty: normalizeNumber(prod.querySelector('.combo-product-qty')?.value || 1),
+            unitPrice: normalizeNumber(prod.querySelector('.combo-product-price')?.value || 0),
+            itemId: prod.querySelector('.combo-product-item-id')?.value || null
+          })).filter(p => p.name);
+        }
+        
+        if (isEdit) {
+          await API.priceUpdate(existingPrice._id, payload);
+        } else {
+          await API.priceCreate(payload);
+        }
         closeModal();
-        currentPage = 1; // Resetear a primera página
+        currentPage = 1;
         loadPrices();
       } catch(e) {
         msgEl.textContent = 'Error: ' + (e?.message || 'Error desconocido');
         msgEl.style.color = 'var(--danger, #ef4444)';
       } finally {
         saveBtn.disabled = false;
-        saveBtn.textContent = '💾 Guardar';
+        saveBtn.textContent = isEdit ? '💾 Actualizar' : '💾 Guardar';
       }
     };
     
@@ -394,6 +978,12 @@ export function initPrices(){
   // Crear nuevo producto
   if (btnNewProduct) {
     btnNewProduct.onclick = () => openCreateModal('product');
+  }
+  
+  // Crear nuevo combo
+  const btnNewCombo = $('#pe-new-combo');
+  if (btnNewCombo) {
+    btnNewCombo.onclick = () => openCreateModal('combo');
   }
 
   // Import / Export

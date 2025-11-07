@@ -9,8 +9,20 @@ const PriceEntrySchema = new mongoose.Schema({
   
   // Nombre del servicio/producto (opcional para compatibilidad legacy)
   name: { type: String, trim: true, default: '' },
-  // Tipo: 'service' o 'product'
-  type: { type: String, enum: ['service', 'product'], default: 'service', index: true },
+  // Tipo: 'service', 'product' o 'combo'
+  type: { type: String, enum: ['service', 'product', 'combo'], default: 'service', index: true },
+  
+  // Vincular producto con item del inventario (solo para type: 'product')
+  itemId: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', default: null, index: true },
+  
+  // Productos del combo (solo para type: 'combo')
+  // Array de productos que incluye el combo, cada uno puede estar vinculado a un item del inventario
+  comboProducts: [{
+    name: { type: String, trim: true, required: true },
+    itemId: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', default: null }, // Opcional: vincular con inventario
+    qty: { type: Number, default: 1, min: 1 },
+    unitPrice: { type: Number, default: 0, min: 0 }
+  }],
 
   // Legacy: mantener por compatibilidad (deprecated)
   brand:  { type: String, trim: true, uppercase: true, default: '' },

@@ -89,6 +89,7 @@
           <div id="pe-actions-bar" style="display:none;margin-bottom:16px;gap:8px;" class="row">
             <button id="pe-new-service" style="padding:8px 16px;">➕ Nuevo servicio</button>
             <button id="pe-new-product" style="padding:8px 16px;">➕ Nuevo producto</button>
+            <button id="pe-new-combo" style="padding:8px 16px;background:#9333ea;color:white;border:none;">🎁 Nuevo combo</button>
           </div>
           <div id="pe-filters" style="display:none;margin-bottom:16px;gap:8px;flex-wrap:wrap;" class="row">
             <div style="flex:1;min-width:200px;">
@@ -101,6 +102,7 @@
                 <option value="">Todos</option>
                 <option value="service">Servicios</option>
                 <option value="product">Productos</option>
+                <option value="combo">Combos</option>
               </select>
             </div>
             <div style="display:flex;align-items:end;">
@@ -207,10 +209,12 @@
     <tr>
       <td data-vehicle></td>
       <td data-name></td>
+      <td data-item-info style="font-size:11px;color:var(--muted);"></td>
       <td class="t-right"><input data-price type="number" step="0.01" /></td>
       <td class="t-center">
-        <button class="save">Guardar</button>
-        <button class="danger delete">Borrar</button>
+        <button class="edit" style="margin-right:4px;">✏️ Editar</button>
+        <button class="save" style="margin-right:4px;">💾 Guardar</button>
+        <button class="danger delete">🗑️ Borrar</button>
       </td>
     </tr>
   </template>
