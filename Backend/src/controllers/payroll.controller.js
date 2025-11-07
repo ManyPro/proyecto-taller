@@ -556,6 +556,10 @@ export const previewSettlement = async (req, res) => {
           calcRule: `variable:${fixedAmount}`,
           notes: `Completa monto fijo de ${Math.round(fixedAmount).toLocaleString('es-CO')} (faltaban ${Math.round(variableAmount).toLocaleString('es-CO')})`
         });
+        
+        // NO recalcular porcentajes después de agregar el concepto variable
+        // Los descuentos ya fueron calculados correctamente antes del concepto variable
+        // El concepto variable completa el monto fijo, pero no debe afectar los descuentos ya calculados
       }
     }
     
@@ -609,20 +613,6 @@ export const previewSettlement = async (req, res) => {
         }
       }
     }
-    
-    // Recalcular porcentajes después de agregar concepto variable (si aplicó)
-    const finalGross = items.filter(i => i.type !== 'deduction').reduce((sum, i) => sum + (i.value || 0), 0);
-    items.forEach(item => {
-      if (item.isPercent && item.percentValue && !item.calcRule?.startsWith('variable:')) {
-        if (item.type === 'earning') {
-          item.value = Math.round((commissionRounded * item.percentValue) / 100);
-          item.base = commissionRounded;
-        } else {
-          item.value = Math.round((finalGross * item.percentValue) / 100);
-          item.base = finalGross;
-        }
-      }
-    });
     
     const { grossTotal, deductionsTotal, netTotal } = calculateTotals(items);
     
@@ -913,19 +903,9 @@ export const approveSettlement = async (req, res) => {
       }
     }
     
-    // Recalcular porcentajes después de agregar concepto variable (si aplicó)
-    const finalGross = items.filter(i => i.type !== 'deduction').reduce((sum, i) => sum + (i.value || 0), 0);
-    items.forEach(item => {
-      if (item.isPercent && item.percentValue && !item.calcRule?.startsWith('variable:')) {
-        if (item.type === 'earning') {
-          item.value = Math.round((commissionRounded * item.percentValue) / 100);
-          item.base = commissionRounded;
-        } else {
-          item.value = Math.round((finalGross * item.percentValue) / 100);
-          item.base = finalGross;
-        }
-      }
-    });
+    // NO recalcular porcentajes después de agregar concepto variable
+    // Los descuentos ya fueron calculados correctamente antes del concepto variable
+    // El concepto variable completa el monto fijo, pero no debe afectar los descuentos ya calculados
     
     const { grossTotal, deductionsTotal, netTotal } = calculateTotals(items);
     
