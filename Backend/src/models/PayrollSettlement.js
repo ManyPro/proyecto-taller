@@ -22,9 +22,11 @@ const PayrollSettlementSchema = new mongoose.Schema({
   netTotal: { type: Number, default: 0 },
   approvedBy: { type: mongoose.Schema.Types.ObjectId, default: null },
   approvedAt: { type: Date, default: null },
-  paidCashflowId: { type: mongoose.Schema.Types.ObjectId, default: null, ref: 'CashFlowEntry' },
+  paidCashflowId: { type: mongoose.Schema.Types.ObjectId, default: null, ref: 'CashFlowEntry' }, // Mantener para compatibilidad
+  paidCashflowIds: { type: [mongoose.Schema.Types.ObjectId], default: [] }, // Múltiples pagos parciales
+  paidAmount: { type: Number, default: 0 }, // Monto total pagado hasta ahora
   pdfUrl: { type: String, default: '' },
-  status: { type: String, enum: ['draft','approved','paid'], default: 'draft', index: true }
+  status: { type: String, enum: ['draft','approved','paid','partially_paid'], default: 'draft', index: true }
 }, { timestamps: true });
 
 // Índice único por técnico y período (una liquidación por técnico por período)

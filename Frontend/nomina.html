@@ -118,6 +118,17 @@
               </button>
             </div>
           </div>
+          <div class="row wrap" style="gap:12px;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <input type="checkbox" id="pc-isVariable" style="width:18px;height:18px;cursor:pointer;" />
+              <label for="pc-isVariable" style="font-size:13px;color:var(--text);cursor:pointer;font-weight:500;">Concepto variable (completa monto fijo)</label>
+            </div>
+            <div id="pc-variable-amount-container" style="flex:1;min-width:200px;display:none;">
+              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Monto fijo a completar (COP)</label>
+              <input id="pc-variableFixedAmount" type="number" step="1" min="0" placeholder="Ej: 1000000" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+              <p class="muted" style="margin:4px 0 0 0;font-size:11px;">Si el total de la liquidación (sin préstamos) es menor a este monto, se agregará la diferencia como ingreso</p>
+            </div>
+          </div>
         </div>
         
         <div id="pc-list" style="margin-top:0;"></div>
@@ -353,13 +364,7 @@
                 <option value="">Seleccione liquidación…</option>
               </select>
             </div>
-            <div style="flex:1;min-width:200px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Cuenta de pago</label>
-              <select id="pp-accountSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
-                <option value="">Seleccione cuenta…</option>
-              </select>
-            </div>
-            <div style="min-width:160px;">
+            <div style="min-width:160px;display:none;">
               <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Fecha de pago</label>
               <input id="pp-date" type="datetime-local" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
             </div>
@@ -372,6 +377,22 @@
           </div>
           <div id="pp-settlement-info" style="margin-top:12px;padding:12px;background:rgba(59,130,246,0.05);border-radius:6px;font-size:13px;display:none;">
             <!-- Información de la liquidación seleccionada -->
+          </div>
+          <div id="pp-payments-container" style="margin-top:16px;display:none;">
+            <div style="margin-bottom:12px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <label style="display:block;font-size:13px;color:var(--muted);font-weight:600;">Pagos parciales</label>
+                <button id="pp-add-payment" class="secondary" style="padding:6px 12px;font-size:12px;font-weight:600;">
+                  + Agregar pago
+                </button>
+              </div>
+              <div id="pp-payments-list" style="display:flex;flex-direction:column;gap:8px;">
+                <!-- Los pagos se agregarán aquí dinámicamente -->
+              </div>
+              <div id="pp-payments-summary" style="margin-top:12px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:6px;display:none;">
+                <!-- Resumen de pagos -->
+              </div>
+            </div>
           </div>
         </div>
 

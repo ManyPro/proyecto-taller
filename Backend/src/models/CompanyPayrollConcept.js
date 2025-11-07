@@ -8,7 +8,10 @@ const CompanyPayrollConceptSchema = new mongoose.Schema({
   amountType: { type: String, enum: ['fixed','percent'], required: true },
   defaultValue: { type: Number, default: 0 },
   isActive: { type: Boolean, default: true },
-  ordering: { type: Number, default: 0 }
+  ordering: { type: Number, default: 0 },
+  // Concepto variable: completa un monto fijo si el total es menor
+  isVariable: { type: Boolean, default: false },
+  variableFixedAmount: { type: Number, default: 0 } // Monto fijo a completar
 }, { timestamps: true });
 
 CompanyPayrollConceptSchema.index({ companyId: 1, code: 1 }, { unique: true });
