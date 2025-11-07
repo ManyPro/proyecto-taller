@@ -821,23 +821,14 @@ export const approveSettlement = async (req, res) => {
     
     // Guardar liquidación por técnico
     // Filtrar selectedConceptIds para solo incluir ObjectIds válidos (excluir 'COMMISSION' y 'LOAN_PAYMENT')
-    const validConceptIds = selectedConceptIds.filter(id => {
-      // Solo incluir si es un ObjectId válido (excluir strings especiales)
-      if (typeof id === 'string' && (id === 'COMMISSION' || id === 'LOAN_PAYMENT')) {
+    const validConceptIds = (selectedConceptIds || []).filter(id => {
+      // Excluir strings especiales
+      if (id === 'COMMISSION' || id === 'LOAN_PAYMENT') {
         return false;
       }
-      // Verificar si es un ObjectId válido
-      try {
-        if (typeof id === 'string' && mongoose.Types.ObjectId.isValid(id)) {
-          return true;
-        }
-        if (id instanceof mongoose.Types.ObjectId) {
-          return true;
-        }
-      } catch (e) {
-        return false;
-      }
-      return false;
+      // Verificar si es un ObjectId válido (manejar strings y ObjectIds)
+      if (!id) return false;
+      return mongoose.Types.ObjectId.isValid(String(id));
     });
     
     const updateFilter = { companyId: req.companyId, periodId };
