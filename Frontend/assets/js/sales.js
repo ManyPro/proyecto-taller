@@ -1428,12 +1428,21 @@ function openQR(){
           stop(); 
           closeModal();
         }, 1500);
+        return; // No reanudar cámara en modo single
       }
       
-      // Reanudar cámara más rápido en modo múltiple (500ms) vs modo single (1500ms)
-      const resumeDelay = multiMode ? 500 : 1500;
+      // En modo múltiple, reanudar cámara después de un delay corto (500ms)
+      // NO llamar a stop(), solo deshabilitar temporalmente la detección
+      const resumeDelay = 500;
       setTimeout(() => {
         cameraDisabled = false;
+        // Asegurarse de que el stream siga corriendo
+        if (!running && multiMode) {
+          start().catch(err => {
+            console.warn('Error al reanudar cámara:', err);
+            msg.textContent = 'Error al reanudar cámara. Intenta escanear de nuevo.';
+          });
+        }
       }, resumeDelay);
       
       msg.textContent = '';
@@ -1443,6 +1452,12 @@ function openQR(){
       const resumeDelay = multiMode ? 500 : 1500;
       setTimeout(() => {
         cameraDisabled = false;
+        // Asegurarse de que el stream siga corriendo en modo múltiple
+        if (!running && multiMode) {
+          start().catch(err => {
+            console.warn('Error al reanudar cámara después de error:', err);
+          });
+        }
       }, resumeDelay);
     }
   }
