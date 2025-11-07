@@ -701,19 +701,11 @@ async function loadConceptsForTechnician(){
     // Obtener los conceptos de las asignaciones
     const conceptIds = assignments.map(a => a.conceptId).filter(Boolean);
     let assignedConcepts = [];
-    let variableConcept = null;
     
     if (conceptIds.length > 0) {
       // Obtener detalles de los conceptos
       const allConcepts = await api.get('/api/v1/payroll/concepts');
-      assignedConcepts = allConcepts.filter(c => {
-        const isAssigned = conceptIds.some(id => String(id) === String(c._id));
-        if (isAssigned && c.isVariable) {
-          variableConcept = c;
-          return false; // Excluir variable de conceptos normales
-        }
-        return isAssigned;
-      });
+      assignedConcepts = allConcepts.filter(c => conceptIds.some(id => String(id) === String(c._id)));
     }
     
     // Si no hay conceptos, préstamos ni comisiones
@@ -779,41 +771,66 @@ async function loadConceptsForTechnician(){
         ? '<span style="padding:2px 6px;border-radius:3px;font-size:9px;font-weight:600;background:rgba(59,130,246,0.1);color:#3b82f6;border:1px solid #3b82f6;">Personalizado</span>'
         : '';
       
-      html += `<div class="concept-card" style="padding:12px;border:2px solid var(--border);border-radius:8px;background:var(--card);transition:all 0.2s;cursor:pointer;" onmouseover="this.style.borderColor='var(--accent, #3b82f6)';this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='';this.style.boxShadow=''">
+      const isVariable = c.isVariable || false;
+      const variableBadge = isVariable 
+        ? '<span style="padding:2px 6px;border-radius:3px;font-size:9px;font-weight:600;background:rgba(139,92,246,0.1);color:#8b5cf6;border:1px solid #8b5cf6;">🔧 Variable</span>'
+        : '';
+      
+      // Si es variable, agregar campos de configuración que se muestran al seleccionar
+      const variableConfigHtml = isVariable ? `
+        <div class="variable-config" data-concept-id="${c._id}" style="margin-top:12px;padding:12px;background:rgba(139,92,246,0.05);border:1px solid rgba(139,92,246,0.2);border-radius:6px;display:none;">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:8px;font-weight:600;">Configuración del concepto variable:</div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div>
+              <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Código</label>
+              <input type="text" 
+                     id="var-code-${c._id}" 
+                     value="${htmlEscape(c.code || '')}" 
+                     placeholder="Ej: COM_OCAS"
+                     style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px;text-transform:uppercase;" 
+                     maxlength="10" />
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Nombre</label>
+              <input type="text" 
+                     id="var-name-${c._id}" 
+                     value="${htmlEscape(c.name || 'Comisión ocasional')}" 
+                     placeholder="Ej: Comisión ocasional"
+                     style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px;" />
+            </div>
+            <div>
+              <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Monto fijo a completar (COP)</label>
+              <input type="number" 
+                     id="var-amount-${c._id}" 
+                     value="${c.variableFixedAmount || 0}" 
+                     placeholder="Ej: 1000000"
+                     min="0"
+                     step="1"
+                     style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px;" />
+              <p style="margin:4px 0 0 0;font-size:10px;color:var(--muted);">Si el total (sin préstamos) es menor a este monto, se agregará la diferencia como ingreso</p>
+            </div>
+          </div>
+        </div>
+      ` : '';
+      
+      html += `<div class="concept-card ${isVariable ? 'variable-concept-card' : ''}" style="padding:12px;border:2px solid ${isVariable ? 'rgba(139,92,246,0.3)' : 'var(--border)'};border-radius:8px;background:var(--card);transition:all 0.2s;cursor:pointer;" onmouseover="this.style.borderColor='var(--accent, #3b82f6)';this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.borderColor='${isVariable ? 'rgba(139,92,246,0.3)' : 'var(--border)'}';this.style.transform='';this.style.boxShadow=''">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;">
-          <input type="checkbox" value="${c._id}" data-concept-id="${c._id}" style="cursor:pointer;width:18px;height:18px;margin:0;" />
+          <input type="checkbox" value="${c._id}" data-concept-id="${c._id}" data-is-variable="${isVariable}" style="cursor:pointer;width:18px;height:18px;margin:0;" />
           <div style="flex:1;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
               <span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}20;">
                 ${htmlEscape(typeInfo.label)}
               </span>
               ${overrideBadge}
+              ${variableBadge}
             </div>
             <div style="font-weight:600;color:var(--text);font-size:14px;margin-bottom:2px;">${htmlEscape(c.code)} · ${htmlEscape(c.name)}</div>
-            <div style="font-size:12px;color:var(--muted);">${displayValue}</div>
+            <div style="font-size:12px;color:var(--muted);">${displayValue}${isVariable ? ` · Completa hasta ${formatMoney(c.variableFixedAmount || 0)}` : ''}</div>
           </div>
         </label>
+        ${variableConfigHtml}
       </div>`;
     });
-    
-    // Renderizar concepto variable como concepto especial seleccionable
-    if (variableConcept) {
-      html += `<div class="concept-card variable-card" style="padding:12px;border:2px solid var(--accent, #3b82f6);border-radius:8px;background:var(--card);transition:all 0.2s;">
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;">
-          <input type="checkbox" value="VARIABLE" data-variable-concept="true" style="cursor:pointer;width:18px;height:18px;margin:0;" />
-          <div style="flex:1;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-              <span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(16,185,129,0.1);color:#10b981;border:1px solid #10b981;">
-                Ingreso
-              </span>
-              <span style="padding:2px 6px;border-radius:3px;font-size:9px;font-weight:600;background:rgba(139,92,246,0.1);color:#8b5cf6;border:1px solid #8b5cf6;">🔧 Variable</span>
-            </div>
-            <div style="font-weight:600;color:var(--text);font-size:14px;margin-bottom:2px;">${htmlEscape(variableConcept.name || 'Comisión ocasional')}</div>
-            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">Completa el monto fijo de ${formatMoney(variableConcept.variableFixedAmount || 0)} si el total (sin préstamos) es menor</div>
-          </div>
-        </label>
-      </div>`;
-    }
     
     // Renderizar préstamos pendientes como concepto especial editable
     if (pendingLoans.length > 0) {
@@ -857,7 +874,14 @@ async function loadConceptsForTechnician(){
     // Agregar event listeners a los checkboxes
     container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
       cb.addEventListener('change', () => {
-        // No hacer nada especial, solo mantener el estado
+        const isVariable = cb.dataset.isVariable === 'true';
+        if (isVariable) {
+          const conceptId = cb.dataset.conceptId;
+          const configDiv = container.querySelector(`.variable-config[data-concept-id="${conceptId}"]`);
+          if (configDiv) {
+            configDiv.style.display = cb.checked ? 'block' : 'none';
+          }
+        }
       });
     });
   } catch (err) {
@@ -983,6 +1007,41 @@ async function preview(){
     const periodId = document.getElementById('pl-periodSel')?.value?.trim();
     const technicianName = document.getElementById('pl-technicianSel')?.value?.trim();
     let selectedConceptIds = getSelectedConceptIds();
+    
+    // Si hay conceptos variables seleccionados, actualizar su configuración primero
+    const variableCheckboxes = document.querySelectorAll('input[type="checkbox"][data-is-variable="true"]:checked');
+    for (const checkbox of variableCheckboxes) {
+      const conceptId = checkbox.dataset.conceptId;
+      const codeInput = document.getElementById(`var-code-${conceptId}`);
+      const nameInput = document.getElementById(`var-name-${conceptId}`);
+      const amountInput = document.getElementById(`var-amount-${conceptId}`);
+      
+      if (codeInput && nameInput && amountInput) {
+        const code = (codeInput.value || '').trim().toUpperCase();
+        const name = (nameInput.value || '').trim();
+        const variableFixedAmount = parseFloat(amountInput.value || '0');
+        
+        if (!code || !name || variableFixedAmount <= 0) {
+          alert('⚠️ El concepto variable debe tener código, nombre y monto fijo mayor a 0');
+          checkbox.checked = false;
+          return;
+        }
+        
+        // Actualizar el concepto en el backend
+        try {
+          await api.put(`/api/v1/payroll/concepts/${conceptId}`, {
+            code,
+            name,
+            variableFixedAmount,
+            isVariable: true
+          });
+        } catch (err) {
+          console.error('Error updating variable concept:', err);
+          alert('⚠️ Error al actualizar configuración del concepto variable: ' + (err.message || 'Error desconocido'));
+          return;
+        }
+      }
+    }
     
     // Validaciones
     if (!periodId) {
