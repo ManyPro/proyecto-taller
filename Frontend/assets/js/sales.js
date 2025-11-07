@@ -292,8 +292,17 @@ async function ensureCompanyData(){
   try { companyPrefs = await API.company.getPreferences(); } catch { companyPrefs = { laborPercents: [] }; }
   try { 
     const r = await API.company.getTechConfig();
-    techConfig = r.config || r || { laborKinds: [], technicians: [] };
-  } catch { 
+    // La API devuelve { config: {...} } o directamente el config
+    if (r && r.config) {
+      techConfig = r.config;
+    } else if (r && (r.laborKinds || r.technicians)) {
+      techConfig = r;
+    } else {
+      techConfig = { laborKinds: [], technicians: [] };
+    }
+    console.log('techConfig cargado:', techConfig);
+  } catch (err) { 
+    console.error('Error cargando techConfig:', err);
     techConfig = { laborKinds: [], technicians: [] }; 
   }
 }
@@ -354,6 +363,8 @@ function openCloseModal(){
   const body = document.getElementById('modalBody');
   if(!modal||!body) return;
   ensureCompanyData().then(()=>{
+    // Asegurar que techConfig esté cargado
+    console.log('techConfig después de ensureCompanyData:', techConfig);
     body.innerHTML='';
     const content = buildCloseModalContent();
     body.appendChild(content);
@@ -364,6 +375,9 @@ function openCloseModal(){
       modalContent.classList.add('close-sale-modal');
     }
     modal.classList.remove('hidden');
+  }).catch(err => {
+    console.error('Error al cargar datos de la empresa:', err);
+    alert('Error al cargar configuración. Por favor, recarga la página.');
   });
 }
 
@@ -418,10 +432,16 @@ function fillCloseModal(){
       const tr = document.createElement('tr');
       const techOpts = ['',''].concat(companyTechnicians||[]).map(t=> `<option value="${t}">${t}</option>`).join('');
       // Manejar laborKinds como objetos o strings (compatibilidad)
-      const laborKindsList = (techConfig?.laborKinds||[]).map(k=> {
+      // Asegurar que techConfig esté disponible
+      const currentTechConfig = techConfig || { laborKinds: [], technicians: [] };
+      const laborKindsList = (currentTechConfig.laborKinds||[]).map(k=> {
         const name = typeof k === 'string' ? k : (k?.name || '');
         return name;
       }).filter(k => k && k.trim() !== ''); // Filtrar vacíos
+      
+      console.log('techConfig:', currentTechConfig);
+      console.log('laborKindsList:', laborKindsList);
+      
       const kindOpts = '<option value="">-- Seleccione tipo --</option>' + laborKindsList.map(k=> `<option value="${k}">${k}</option>`).join('');
       tr.innerHTML = `
         <td><select data-role="tech">${techOpts}</select></td>
