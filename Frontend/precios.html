@@ -202,6 +202,19 @@
     </section>
   </main>
 
+  <!-- Templates -->
+  <template id="tpl-price-edit-row">
+    <tr>
+      <td data-vehicle></td>
+      <td data-name></td>
+      <td class="t-right"><input data-price type="number" step="0.01" /></td>
+      <td class="t-center">
+        <button class="save">Guardar</button>
+        <button class="danger delete">Borrar</button>
+      </td>
+    </tr>
+  </template>
+
   <script type="module" src="./assets/js/prices.js" charset="utf-8"></script>
   <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
   <script src="./assets/js/input-fix.js"></script>

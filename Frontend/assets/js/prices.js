@@ -58,6 +58,12 @@ export function initPrices(){
 
   function rowToNode(r){
     const tr=clone(rowTemplateId);
+    if (!tr) {
+      console.error('Template no encontrado:', rowTemplateId);
+      const fallback = document.createElement('tr');
+      fallback.innerHTML = `<td colspan="4">Error: Template no disponible</td>`;
+      return fallback;
+    }
     
     // Mostrar tipo
     const vehicleCell = tr.querySelector('[data-vehicle]');
@@ -356,6 +362,7 @@ export function initPrices(){
         };
         await API.priceCreate(payload);
         closeModal();
+        currentPage = 1; // Resetear a primera página
         loadPrices();
       } catch(e) {
         msgEl.textContent = 'Error: ' + (e?.message || 'Error desconocido');
