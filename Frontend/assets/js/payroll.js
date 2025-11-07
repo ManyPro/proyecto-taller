@@ -4,6 +4,27 @@ const api = API;
 function el(id){ return document.getElementById(id); }
 function htmlEscape(s){ return (s||'').replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
 
+// Cargar conceptos para el selector de base de porcentaje
+async function loadConceptsForPercentBase() {
+  try {
+    const concepts = await api.get('/api/v1/payroll/concepts');
+    const sel = document.getElementById('pc-percentBaseConceptId');
+    if (sel) {
+      const currentValue = sel.value;
+      sel.innerHTML = '<option value="">Seleccione concepto...</option>' + 
+        concepts
+          .filter(c => c.amountType === 'fixed' && c.type === 'earning') // Solo conceptos fijos de tipo ingreso
+          .map(c => `<option value="${c._id}">${htmlEscape(c.code)} · ${htmlEscape(c.name)}</option>`)
+          .join('');
+      if (currentValue) {
+        sel.value = currentValue;
+      }
+    }
+  } catch (err) {
+    console.error('Error loading concepts for percent base:', err);
+  }
+}
+
 async function loadConcepts(){
   try {
     const list = await api.get('/api/v1/payroll/concepts');
@@ -2228,25 +2249,9 @@ function init(){
     }
   }
   
-  // Cargar conceptos para el selector de base de porcentaje
-  async function loadConceptsForPercentBase() {
-    try {
-      const concepts = await api.get('/api/v1/payroll/concepts');
-      const sel = document.getElementById('pc-percentBaseConceptId');
-      if (sel) {
-        const currentValue = sel.value;
-        sel.innerHTML = '<option value="">Seleccione concepto...</option>' + 
-          concepts
-            .filter(c => c.amountType === 'fixed' && c.type === 'earning') // Solo conceptos fijos de tipo ingreso
-            .map(c => `<option value="${c._id}">${htmlEscape(c.code)} · ${htmlEscape(c.name)}</option>`)
-            .join('');
-        if (currentValue) {
-          sel.value = currentValue;
-        }
-      }
-    } catch (err) {
-      console.error('Error loading concepts for percent base:', err);
-    }
+  if (typeSel) {
+    typeSel.addEventListener('change', updateFieldsByType);
+    updateFieldsByType(); // Inicializar
   }
   
   // Event listener para cambiar el tipo de base de porcentaje
@@ -2264,11 +2269,6 @@ function init(){
         percentBaseValueContainer.style.display = baseType === 'fixed_value' ? 'block' : 'none';
       }
     });
-  }
-  
-  if (typeSel) {
-    typeSel.addEventListener('change', updateFieldsByType);
-    updateFieldsByType(); // Inicializar
   }
   
   if (amountTypeSel) {
