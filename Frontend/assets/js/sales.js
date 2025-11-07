@@ -894,53 +894,50 @@ function openQR(){
 
   async function fillCams(){
     try{
-      // En móviles, primero solicitar permisos para que los dispositivos tengan labels
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
+      // En móviles, no intentar enumerar sin permisos - simplemente crear opción por defecto
+      // Los permisos se solicitarán cuando se presione el botón de iniciar
       if (isMobile) {
-        // Solicitar permisos primero para que los dispositivos aparezcan con labels
-        try {
-          const tempStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-          // Detener el stream inmediatamente, solo necesitábamos los permisos
-          tempStream.getTracks().forEach(track => track.stop());
-        } catch (permErr) {
-          console.warn('Error al solicitar permisos de cámara:', permErr);
-          // Continuar de todas formas, puede que los permisos ya estén dados
-        }
-      }
-      
-      // Ahora enumerar dispositivos (después de solicitar permisos en móviles)
-      const devs = await navigator.mediaDevices.enumerateDevices();
-      const cams = devs.filter(d=>d.kind==='videoinput');
-      
-      if (cams.length === 0) {
-        // Si no hay cámaras detectadas, crear una opción por defecto
         const defaultOpt = document.createElement('option');
         defaultOpt.value = '';
-        defaultOpt.textContent = isMobile ? 'Cámara trasera (automática)' : 'Cámara predeterminada';
+        defaultOpt.textContent = 'Cámara trasera (automática)';
         sel.replaceChildren(defaultOpt);
         sel.value = '';
         return;
       }
       
-      sel.replaceChildren(...cams.map((c,i)=>{
-        const o=document.createElement('option'); 
-        o.value=c.deviceId; 
-        o.textContent=c.label||('Cam '+(i+1)); 
-        // Si es móvil y la cámara parece ser trasera (environment), marcarla como seleccionada
-        if (isMobile && (c.label?.toLowerCase().includes('back') || c.label?.toLowerCase().includes('rear') || c.label?.toLowerCase().includes('environment') || c.label?.toLowerCase().includes('trasera'))) {
-          o.selected = true;
+      // En desktop, intentar enumerar dispositivos
+      try {
+        const devs = await navigator.mediaDevices.enumerateDevices();
+        const cams = devs.filter(d=>d.kind==='videoinput');
+        
+        if (cams.length === 0) {
+          const defaultOpt = document.createElement('option');
+          defaultOpt.value = '';
+          defaultOpt.textContent = 'Cámara predeterminada';
+          sel.replaceChildren(defaultOpt);
+          sel.value = '';
+          return;
         }
-        return o;
-      }));
-      
-      // Si es móvil y no hay cámara seleccionada, dejar vacío para que start() use facingMode: 'environment'
-      if (isMobile && !sel.value && cams.length > 0) {
+        
+        sel.replaceChildren(...cams.map((c,i)=>{
+          const o=document.createElement('option'); 
+          o.value=c.deviceId; 
+          o.textContent=c.label||('Cam '+(i+1)); 
+          return o;
+        }));
+      } catch (enumErr) {
+        console.warn('Error al enumerar dispositivos:', enumErr);
+        // Crear opción por defecto
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = 'Cámara predeterminada';
+        sel.replaceChildren(defaultOpt);
         sel.value = '';
       }
     }catch(err){
       console.error('Error al cargar cámaras:', err);
-      // Crear opción por defecto en caso de error
       const defaultOpt = document.createElement('option');
       defaultOpt.value = '';
       defaultOpt.textContent = 'Cámara predeterminada';
@@ -974,24 +971,68 @@ function openQR(){
         // Si hay una cámara seleccionada manualmente, usarla
         videoConstraints = { deviceId: { exact: sel.value } };
       } else if (isMobile) {
-        // En móviles, forzar cámara trasera (environment)
-        videoConstraints = { facingMode: 'environment' };
+        // En móviles, forzar cámara trasera (environment) con configuración más específica
+        videoConstraints = { 
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        };
       } else {
         // En desktop, usar cualquier cámara disponible
         videoConstraints = true;
       }
       
-      const cs = { video: videoConstraints, audio: false };
+      const cs = { 
+        video: videoConstraints, 
+        audio: false 
+      };
+      
+      msg.textContent = 'Solicitando acceso a la cámara...';
+      msg.style.color = 'var(--text)';
       
       // Solicitar acceso a la cámara
       stream = await navigator.mediaDevices.getUserMedia(cs);
+      
+      // Configurar el video para móviles
+      video.setAttribute('playsinline', 'true');
+      video.setAttribute('webkit-playsinline', 'true');
+      video.muted = true;
       video.srcObject = stream; 
-      await video.play();
+      
+      // En móviles, esperar a que el video esté listo
+      await new Promise((resolve, reject) => {
+        video.onloadedmetadata = () => {
+          video.play().then(resolve).catch(reject);
+        };
+        video.onerror = reject;
+        // Timeout de seguridad
+        setTimeout(() => {
+          if (video.readyState >= 2) {
+            video.play().then(resolve).catch(reject);
+          } else {
+            reject(new Error('Timeout esperando video'));
+          }
+        }, 5000);
+      });
+      
       running = true;
       
-      // Actualizar lista de cámaras después de obtener permisos (para que aparezcan los labels)
-      if (isMobile && sel.children.length <= 1) {
-        await fillCams();
+      // Actualizar lista de cámaras después de obtener permisos (solo en desktop)
+      if (!isMobile) {
+        try {
+          const devs = await navigator.mediaDevices.enumerateDevices();
+          const cams = devs.filter(d=>d.kind==='videoinput' && d.label);
+          if (cams.length > 0 && sel.children.length <= 1) {
+            sel.replaceChildren(...cams.map((c,i)=>{
+              const o=document.createElement('option'); 
+              o.value=c.deviceId; 
+              o.textContent=c.label||('Cam '+(i+1)); 
+              return o;
+            }));
+          }
+        } catch (enumErr) {
+          console.warn('No se pudieron actualizar las cámaras:', enumErr);
+        }
       }
       
       if (window.BarcodeDetector) { 
@@ -1003,16 +1044,21 @@ function openQR(){
       msg.textContent='';
     }catch(e){ 
       console.error('Error al iniciar cámara:', e);
-      let errorMsg = 'No se pudo abrir cámara: ';
+      let errorMsg = '';
       if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
-        errorMsg = 'Permisos de cámara denegados. Por favor, permite el acceso a la cámara en la configuración del navegador.';
+        errorMsg = '❌ Permisos de cámara denegados. Por favor, permite el acceso a la cámara en la configuración del navegador.';
       } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
-        errorMsg = 'No se encontró ninguna cámara. Verifica que tu dispositivo tenga una cámara disponible.';
+        errorMsg = '❌ No se encontró ninguna cámara. Verifica que tu dispositivo tenga una cámara disponible.';
+      } else if (e.name === 'NotReadableError' || e.name === 'TrackStartError') {
+        errorMsg = '❌ La cámara está siendo usada por otra aplicación. Cierra otras apps que usen la cámara e intenta de nuevo.';
+      } else if (e.name === 'OverconstrainedError' || e.name === 'ConstraintNotSatisfiedError') {
+        errorMsg = '❌ La cámara no soporta las características requeridas. Intenta con otra cámara.';
       } else {
-        errorMsg += (e?.message||e?.name||'Desconocido');
+        errorMsg = '❌ No se pudo abrir cámara: ' + (e?.message||e?.name||'Error desconocido');
       }
       msg.textContent = errorMsg;
       msg.style.color = 'var(--danger, #ef4444)';
+      running = false;
     }
   }
   function accept(value){
@@ -1166,20 +1212,42 @@ function openQR(){
   function onCode(code){
     handleCode(code);
   }
-  async function tickNative(){ if(!running) return; try{ const codes=await detector.detect(video); if(codes?.[0]?.rawValue) onCode(codes[0].rawValue); }catch{} requestAnimationFrame(tickNative); }
+  async function tickNative(){ 
+    if(!running || cameraDisabled) return; 
+    try{ 
+      const codes=await detector.detect(video); 
+      if(codes?.[0]?.rawValue) onCode(codes[0].rawValue); 
+    }catch(e){
+      // Silenciar errores de detección, pero loguear si es necesario
+      if (e.message && !e.message.includes('No image')) {
+        console.warn('Error en detección nativa:', e);
+      }
+    } 
+    requestAnimationFrame(tickNative); 
+  }
+  
   function tickCanvas(){
-    if(!running) return;
+    if(!running || cameraDisabled) return;
     try{
       const w = video.videoWidth|0, h = video.videoHeight|0;
-      if(!w||!h){ requestAnimationFrame(tickCanvas); return; }
-      canvas.width=w; canvas.height=h;
+      if(!w||!h){ 
+        requestAnimationFrame(tickCanvas); 
+        return; 
+      }
+      canvas.width=w; 
+      canvas.height=h;
       ctx.drawImage(video,0,0,w,h);
       const img = ctx.getImageData(0,0,w,h);
       if (window.jsQR){
         const qr = window.jsQR(img.data, w, h);
         if (qr && qr.data) onCode(qr.data);
       }
-    }catch{}
+    }catch(e){
+      // Silenciar errores menores, pero loguear si es necesario
+      if (e.message && !e.message.includes('videoWidth')) {
+        console.warn('Error en tickCanvas:', e);
+      }
+    }
     requestAnimationFrame(tickCanvas);
   }
 
