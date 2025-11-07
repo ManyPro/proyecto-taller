@@ -180,46 +180,85 @@ export const importItemsFromExcel = async (req, res) => {
         const sku = String(r['SKU']||'').trim().toUpperCase();
         const name = String(r['Nombre']||'').trim().toUpperCase();
         if(!sku || !name){ skipped++; continue; }
-  const internalName = String(r['Nombre interno']||'').trim().toUpperCase();
-  const brand = String(r['Marca']||'').trim().toUpperCase();
-        const location = String(r['Ubicación']||'').trim().toUpperCase();
-        const vehicleTarget = String(r['Procedencia final']||'').trim().toUpperCase() || 'GENERAL';
+        
+        // Leer valores del Excel (sin convertir a mayúsculas todavía)
+        const internalNameRaw = String(r['Nombre interno']||'').trim();
+        const brandRaw = String(r['Marca']||'').trim();
+        const locationRaw = String(r['Ubicación']||'').trim();
+        const vehicleTargetRaw = String(r['Procedencia final']||'').trim();
         const entryPrice = toNumberSafe(r['Precio entrada']);
         const salePrice = toNumberSafe(r['Precio venta']);
-        const original = yesNoToBool(r['Original (SI/NO)']);
-        const stock = Math.max(0, Math.floor(toNumberSafe(r['Stock'])));
-        const minStock = Math.max(0, Math.floor(toNumberSafe(r['Stock mínimo'])));
+        const originalRaw = String(r['Original (SI/NO)']||'').trim();
+        const stockRaw = r['Stock'];
+        const minStockRaw = r['Stock mínimo'];
+        
         try{
-          const existing = await Item.findOne({ companyId: req.company.id, sku });
+          const companyId = req.companyId || req.company?.id;
+          if (!companyId) {
+            errors.push({ sku, error: 'Company ID no disponible' });
+            continue;
+          }
+          
+          const existing = await Item.findOne({ companyId, sku });
           if(existing){
-            // Actualizar todos los campos que vienen en el Excel, incluso si están vacíos
-            existing.name = name || existing.name;
-            existing.internalName = internalName || existing.internalName || '';
-            existing.brand = brand || existing.brand || '';
-            existing.location = location || existing.location || '';
-            existing.vehicleTarget = vehicleTarget || existing.vehicleTarget || 'GENERAL';
-            if(Number.isFinite(entryPrice)) existing.entryPrice = entryPrice;
-            if(Number.isFinite(salePrice)) existing.salePrice = salePrice;
-            // Si original viene en el Excel, actualizarlo (incluso si es false)
-            if (r['Original (SI/NO)'] !== undefined && r['Original (SI/NO)'] !== null && r['Original (SI/NO)'] !== '') {
-              existing.original = !!original;
+            // Actualizar campos: solo si vienen con valor en el Excel
+            existing.name = name; // Nombre siempre se actualiza (es obligatorio)
+            
+            // Campos opcionales: solo actualizar si vienen con valor no vacío
+            if (internalNameRaw) existing.internalName = internalNameRaw.toUpperCase();
+            if (brandRaw) existing.brand = brandRaw.toUpperCase();
+            if (locationRaw) existing.location = locationRaw.toUpperCase();
+            if (vehicleTargetRaw) existing.vehicleTarget = vehicleTargetRaw.toUpperCase();
+            else if (!existing.vehicleTarget) existing.vehicleTarget = 'GENERAL';
+            
+            // Precios: solo actualizar si son números válidos
+            if(Number.isFinite(entryPrice) && entryPrice >= 0) existing.entryPrice = entryPrice;
+            if(Number.isFinite(salePrice) && salePrice >= 0) existing.salePrice = salePrice;
+            
+            // Original: solo actualizar si viene con valor
+            if (originalRaw) {
+              const original = yesNoToBool(originalRaw);
+              if (original !== null) existing.original = original;
             }
-            if(Number.isFinite(minStock)) existing.minStock = minStock;
-            if(Number.isFinite(stock)) existing.stock = stock; // fijar stock
+            
+            // Stock: solo actualizar si viene con valor válido (incluso si es 0)
+            if (stockRaw !== undefined && stockRaw !== null && stockRaw !== '') {
+              const stock = Math.max(0, Math.floor(toNumberSafe(stockRaw)));
+              if(Number.isFinite(stock)) existing.stock = stock;
+            }
+            if (minStockRaw !== undefined && minStockRaw !== null && minStockRaw !== '') {
+              const minStock = Math.max(0, Math.floor(toNumberSafe(minStockRaw)));
+              if(Number.isFinite(minStock)) existing.minStock = minStock;
+            }
+            
             // Auto-despublicar si stock en 0
             if ((existing.stock || 0) <= 0 && existing.published) existing.published = false;
-            await existing.save(); updated++;
+            
+            await existing.save();
+            updated++;
           } else {
+            // Crear nuevo item
+            const original = originalRaw ? yesNoToBool(originalRaw) : false;
+            const stock = stockRaw !== undefined && stockRaw !== null && stockRaw !== '' 
+              ? Math.max(0, Math.floor(toNumberSafe(stockRaw))) 
+              : 0;
+            const minStock = minStockRaw !== undefined && minStockRaw !== null && minStockRaw !== ''
+              ? Math.max(0, Math.floor(toNumberSafe(minStockRaw)))
+              : 0;
+            
             await Item.create({
-              companyId: req.company.id,
-              sku, name,
-              internalName: internalName || '', brand, location,
-              vehicleTarget,
-              entryPrice: Number.isFinite(entryPrice)? entryPrice: 0,
-              salePrice: Number.isFinite(salePrice)? salePrice: 0,
-              original: !!original,
-              stock: Number.isFinite(stock)? stock: 0,
-              minStock: Number.isFinite(minStock)? minStock: 0,
+              companyId,
+              sku, 
+              name,
+              internalName: internalNameRaw ? internalNameRaw.toUpperCase() : '',
+              brand: brandRaw ? brandRaw.toUpperCase() : '',
+              location: locationRaw ? locationRaw.toUpperCase() : '',
+              vehicleTarget: vehicleTargetRaw ? vehicleTargetRaw.toUpperCase() : 'GENERAL',
+              entryPrice: Number.isFinite(entryPrice) && entryPrice >= 0 ? entryPrice : 0,
+              salePrice: Number.isFinite(salePrice) && salePrice >= 0 ? salePrice : 0,
+              original: original !== null ? !!original : false,
+              stock: Number.isFinite(stock) ? stock : 0,
+              minStock: Number.isFinite(minStock) ? minStock : 0,
             });
             created++;
           }
