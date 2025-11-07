@@ -104,6 +104,7 @@ function openQRForItem() {
         
         video.setAttribute('playsinline', 'true');
         video.setAttribute('webkit-playsinline', 'true');
+        video.setAttribute('x5-playsinline', 'true');
         video.muted = true;
         video.srcObject = stream;
         
@@ -118,7 +119,7 @@ function openQRForItem() {
             } else {
               reject(new Error('Timeout esperando video'));
             }
-          }, 5000);
+          }, 10000);
         });
         
         running = true;
