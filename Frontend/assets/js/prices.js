@@ -10,6 +10,241 @@ const clone=(id)=>document.getElementById(id)?.content?.firstElementChild?.clone
 
 function normalizeNumber(v){ if(v==null || v==='') return 0; if(typeof v==='number') return v; const s=String(v).replace(/\s+/g,'').replace(/\$/g,'').replace(/\./g,'').replace(/,/g,'.'); const n=Number(s); return Number.isFinite(n)?n:0; }
 
+// Función para abrir QR simplificado (solo un escaneo)
+function openQRForItem() {
+  return new Promise(async (resolve, reject) => {
+    // Crear modal simplificado
+    const qrModal = document.createElement('div');
+    qrModal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:20000;display:flex;align-items:center;justify-content:center;';
+    
+    const qrContent = document.createElement('div');
+    qrContent.style.cssText = 'background:var(--card);border-radius:12px;padding:24px;max-width:90vw;max-height:90vh;width:600px;position:relative;';
+    qrContent.innerHTML = `
+      <button class="close" style="position:absolute;top:8px;right:8px;font-size:24px;background:none;border:none;color:var(--text);cursor:pointer;padding:4px 12px;">&times;</button>
+      <h3 style="margin-top:0;margin-bottom:16px;">Escanear código QR</h3>
+      <div style="position:relative;width:100%;background:#000;border-radius:8px;overflow:hidden;margin-bottom:12px;">
+        <video id="qr-video-single" playsinline muted style="width:100%;height:auto;display:block;"></video>
+        <canvas id="qr-canvas-single" style="display:none;"></canvas>
+      </div>
+      <div style="margin-bottom:12px;">
+        <input id="qr-manual-single" placeholder="O ingresa el código manualmente" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+      </div>
+      <div id="qr-msg-single" style="font-size:12px;color:var(--muted);margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button id="qr-cancel-single" class="secondary" style="flex:1;padding:10px;">Cancelar</button>
+      </div>
+    `;
+    
+    qrModal.appendChild(qrContent);
+    document.body.appendChild(qrModal);
+    
+    const video = qrContent.querySelector('#qr-video-single');
+    const canvas = qrContent.querySelector('#qr-canvas-single');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const msg = qrContent.querySelector('#qr-msg-single');
+    const manualInput = qrContent.querySelector('#qr-manual-single');
+    const closeBtn = qrContent.querySelector('.close');
+    const cancelBtn = qrContent.querySelector('#qr-cancel-single');
+    
+    let stream = null, running = false, detector = null, lastCode = '', lastTs = 0;
+    
+    function cleanup() {
+      try {
+        video.pause();
+        video.srcObject = null;
+      } catch {}
+      try {
+        (stream?.getTracks() || []).forEach(t => t.stop());
+      } catch {}
+      running = false;
+      stream = null;
+      if (qrModal.parentNode) {
+        qrModal.remove();
+      }
+    }
+    
+    function stop() {
+      try {
+        video.pause();
+        video.srcObject = null;
+      } catch {}
+      try {
+        (stream?.getTracks() || []).forEach(t => t.stop());
+      } catch {}
+      running = false;
+      stream = null;
+    }
+    
+    async function start() {
+      try {
+        stop();
+        
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        let videoConstraints;
+        if (isMobile) {
+          videoConstraints = { 
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          };
+        } else {
+          videoConstraints = true;
+        }
+        
+        const cs = { 
+          video: videoConstraints, 
+          audio: false 
+        };
+        
+        msg.textContent = 'Solicitando acceso a la cámara...';
+        msg.style.color = 'var(--text)';
+        
+        stream = await navigator.mediaDevices.getUserMedia(cs);
+        
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        video.setAttribute('x5-playsinline', 'true');
+        video.muted = true;
+        video.srcObject = stream;
+        
+        await new Promise((resolve, reject) => {
+          video.onloadedmetadata = () => {
+            video.play().then(resolve).catch(reject);
+          };
+          video.onerror = reject;
+          setTimeout(() => {
+            if (video.readyState >= 2) {
+              video.play().then(resolve).catch(reject);
+            } else {
+              reject(new Error('Timeout esperando video'));
+            }
+          }, 10000);
+        });
+        
+        running = true;
+        
+        if (window.BarcodeDetector) {
+          detector = new BarcodeDetector({ formats: ['qr_code'] });
+          tickNative();
+        } else {
+          tickCanvas();
+        }
+        msg.textContent = 'Apunta la cámara al código QR';
+        msg.style.color = 'var(--success, #10b981)';
+      } catch (e) {
+        console.error('Error al iniciar cámara:', e);
+        let errorMsg = '';
+        if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+          errorMsg = '❌ Permisos de cámara denegados.';
+        } else if (e.name === 'NotFoundError') {
+          errorMsg = '❌ No se encontró ninguna cámara.';
+        } else {
+          errorMsg = '❌ Error: ' + (e?.message || 'Error desconocido');
+        }
+        msg.textContent = errorMsg;
+        msg.style.color = 'var(--danger, #ef4444)';
+        running = false;
+      }
+    }
+    
+    function accept(value) {
+      const normalized = String(value || '').trim().toUpperCase();
+      const t = Date.now();
+      if (lastCode === normalized && t - lastTs < 1000) return false;
+      lastCode = normalized;
+      lastTs = t;
+      return true;
+    }
+    
+    function parseInventoryCode(raw) {
+      const text = String(raw || '').trim();
+      if (!text) return { itemId: '', sku: '', raw: text };
+      const upper = text.toUpperCase();
+      if (upper.startsWith('IT:')) {
+        const parts = text.split(':').map(p => p.trim()).filter(Boolean);
+        return {
+          companyId: parts[1] || '',
+          itemId: parts[2] || '',
+          sku: parts[3] || ''
+        };
+      }
+      const match = text.match(/[a-f0-9]{24}/i);
+      return { companyId: '', itemId: match ? match[0] : '', sku: '', raw: text };
+    }
+    
+    async function handleCode(raw, fromManual = false) {
+      const text = String(raw || '').trim();
+      if (!text) return;
+      if (!fromManual && !accept(text)) return;
+      
+      stop();
+      cleanup();
+      resolve(text);
+    }
+    
+    function onCode(code) {
+      handleCode(code);
+    }
+    
+    async function tickNative() {
+      if (!running) return;
+      try {
+        const codes = await detector.detect(video);
+        if (codes?.[0]?.rawValue) onCode(codes[0].rawValue);
+      } catch (e) {
+        // Silenciar errores menores
+      }
+      requestAnimationFrame(tickNative);
+    }
+    
+    function tickCanvas() {
+      if (!running) return;
+      try {
+        const w = video.videoWidth | 0, h = video.videoHeight | 0;
+        if (!w || !h) {
+          requestAnimationFrame(tickCanvas);
+          return;
+        }
+        canvas.width = w;
+        canvas.height = h;
+        ctx.drawImage(video, 0, 0, w, h);
+        const img = ctx.getImageData(0, 0, w, h);
+        if (window.jsQR) {
+          const qr = window.jsQR(img.data, w, h);
+          if (qr && qr.data) onCode(qr.data);
+        }
+      } catch (e) {
+        // Silenciar errores menores
+      }
+      requestAnimationFrame(tickCanvas);
+    }
+    
+    closeBtn.onclick = () => {
+      cleanup();
+      reject(new Error('Cancelado por el usuario'));
+    };
+    
+    cancelBtn.onclick = () => {
+      cleanup();
+      reject(new Error('Cancelado por el usuario'));
+    };
+    
+    manualInput.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        const val = manualInput.value.trim();
+        if (val) {
+          handleCode(val, true);
+        }
+      }
+    });
+    
+    // Iniciar cámara automáticamente
+    start();
+  });
+}
+
 // Función para cambiar entre tabs
 function switchSubTab(name) {
   document.querySelectorAll('.payroll-tabs button[data-subtab]').forEach(b => {
@@ -528,8 +763,7 @@ export function initPrices(){
       
       itemQrBtn.onclick = async () => {
         try {
-          // Usar la misma lógica de QR que en sales.js
-          const qrCode = prompt('Escanea el código QR o ingresa el código manualmente:');
+          const qrCode = await openQRForItem();
           if (!qrCode) return;
           
           // Parsear QR: IT:<companyId>:<itemId>:<sku>
@@ -604,7 +838,10 @@ export function initPrices(){
             alert('Item no encontrado');
           }
         } catch (err) {
-          alert('Error al leer QR: ' + (err?.message || 'Error desconocido'));
+          // Ignorar error si el usuario canceló
+          if (err?.message !== 'Cancelado por el usuario') {
+            alert('Error al leer QR: ' + (err?.message || 'Error desconocido'));
+          }
         }
       };
       
@@ -757,7 +994,7 @@ export function initPrices(){
         
         itemQrBtn.onclick = async () => {
           try {
-            const qrCode = prompt('Escanea el código QR o ingresa el código manualmente:');
+            const qrCode = await openQRForItem();
             if (!qrCode) return;
             
             if (qrCode.toUpperCase().startsWith('IT:')) {
@@ -827,7 +1064,10 @@ export function initPrices(){
               alert('Item no encontrado');
             }
           } catch (err) {
-            alert('Error al leer QR: ' + (err?.message || 'Error desconocido'));
+            // Ignorar error si el usuario canceló
+            if (err?.message !== 'Cancelado por el usuario') {
+              alert('Error al leer QR: ' + (err?.message || 'Error desconocido'));
+            }
           }
         };
         

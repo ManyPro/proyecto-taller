@@ -239,14 +239,14 @@ export const createPeriod = async (req, res) => {
     const type = validTypes.includes(periodType) ? periodType : 'monthly';
     
     try {
-      const doc = await PayrollPeriod.create({ 
-        companyId: req.companyId, 
-        periodType: type, 
-        startDate: start, 
-        endDate: end 
-      });
-      
-      res.status(201).json(doc);
+    const doc = await PayrollPeriod.create({ 
+      companyId: req.companyId, 
+      periodType: type, 
+      startDate: start, 
+      endDate: end 
+    });
+    
+    res.status(201).json(doc);
     } catch (createErr) {
       // Si el error es por índice único (11000), verificar si es un período abierto
       if (createErr.code === 11000) {
@@ -807,12 +807,12 @@ export const approveSettlement = async (req, res) => {
       } else if (finalCommissionAmount > 0) {
         // Fallback: si no hay detalles pero hay comisión, agregar item genérico
         items.push({
-          conceptId: null,
-          name: 'Comisión por ventas',
-          type: 'earning',
-          base: 0,
+        conceptId: null,
+        name: 'Comisión por ventas',
+        type: 'earning',
+        base: 0,
           value: finalCommissionAmount,
-          calcRule: 'sales.laborCommissions',
+        calcRule: 'sales.laborCommissions',
           notes: commissionNotes
         });
       }
@@ -1083,11 +1083,11 @@ export const paySettlement = async (req, res) => {
       const paymentAmount = Math.abs(Number(payAmount) || 0);
       if (paymentAmount <= 0) {
         continue; // Saltar pagos con monto 0
-      }
-      
-      // Verificar que la cuenta existe
+    }
+    
+    // Verificar que la cuenta existe
       const account = await Account.findOne({ _id: payAccountId, companyId: req.companyId });
-      if (!account) {
+    if (!account) {
         return res.status(404).json({ error: `Cuenta no encontrada: ${payAccountId}` });
       }
       
@@ -1123,21 +1123,21 @@ export const paySettlement = async (req, res) => {
       accountBalances.set(payAccountId, newBalance);
       
       // Crear entrada de CashFlow para este pago parcial
-      const entry = await CashFlowEntry.create({
-        companyId: req.companyId,
+    const entry = await CashFlowEntry.create({
+      companyId: req.companyId,
         accountId: payAccountId,
         date: payDate ? new Date(payDate) : paymentDate,
-        kind: 'OUT',
-        source: 'MANUAL',
-        sourceRef: settlementId,
+      kind: 'OUT',
+      source: 'MANUAL',
+      sourceRef: settlementId,
         description: `Pago de nómina: ${st.technicianName || 'Sin nombre'}${paymentsToProcess.length > 1 ? ` (Pago parcial ${createdEntries.length + 1}/${paymentsToProcess.length})` : ''}`,
         amount: paymentAmount,
         balanceAfter: newBalance,
         notes: payNotes || notes || '',
-        meta: { 
-          type: 'PAYROLL', 
-          technicianId: st.technicianId, 
-          technicianName: st.technicianName,
+      meta: { 
+        type: 'PAYROLL', 
+        technicianId: st.technicianId, 
+        technicianName: st.technicianName,
           settlementId,
           paymentIndex: createdEntries.length + 1,
           totalPayments: paymentsToProcess.length
