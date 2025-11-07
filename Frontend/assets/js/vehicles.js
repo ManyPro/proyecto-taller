@@ -127,8 +127,11 @@ export function initVehicles() {
       allMakes = Array.isArray(r?.makes) ? r.makes : [];
       
       if (makeFilter) {
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = 'Todas';
         makeFilter.replaceChildren(
-          document.createElement('option').apply(document.createElement('option'), { value: '', textContent: 'Todas' }),
+          defaultOpt,
           ...allMakes.map(m => {
             const opt = document.createElement('option');
             opt.value = m;
