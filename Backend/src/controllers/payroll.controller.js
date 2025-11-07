@@ -821,11 +821,8 @@ export const approveSettlement = async (req, res) => {
     
     // Guardar liquidación por técnico
     // Filtrar selectedConceptIds para solo incluir ObjectIds válidos (excluir 'COMMISSION' y 'LOAN_PAYMENT')
-    const validConceptIds = (selectedConceptIds || []).filter(id => {
-      // Excluir strings especiales
-      if (id === 'COMMISSION' || id === 'LOAN_PAYMENT') {
-        return false;
-      }
+    // Usar la variable validConceptIds que ya se filtró anteriormente (solo conceptos asignados válidos)
+    const validConceptIdsForSave = (validConceptIds || []).filter(id => {
       // Verificar si es un ObjectId válido (manejar strings y ObjectIds)
       if (!id) return false;
       return mongoose.Types.ObjectId.isValid(String(id));
@@ -841,7 +838,7 @@ export const approveSettlement = async (req, res) => {
     const doc = await PayrollSettlement.findOneAndUpdate(
       updateFilter,
       { 
-        selectedConceptIds: validConceptIds, // Solo ObjectIds válidos
+        selectedConceptIds: validConceptIdsForSave, // Solo ObjectIds válidos
         items,
         grossTotal,
         deductionsTotal,
