@@ -43,7 +43,7 @@ function computeTotal(service, variables = {}) {
 
 // ============ list ============
 export const listPrices = async (req, res) => {
-  const { serviceId, vehicleId, type, brand, line, engine, year } = req.query || {};
+  const { serviceId, vehicleId, type, brand, line, engine, year, name, page = 1, limit = 10 } = req.query || {};
   const q = { companyId: req.companyId };
   
   // Nuevo modelo: vehicleId es prioritario
@@ -60,12 +60,27 @@ export const listPrices = async (req, res) => {
   
   // Filtrar por tipo si se proporciona
   if (type) q.type = type;
+  
+  // Filtrar por nombre (búsqueda parcial)
+  if (name && name.trim()) {
+    q.name = { $regex: cleanStr(name), $options: 'i' };
+  }
 
-  const items = await PriceEntry.find(q)
-    .populate('vehicleId', 'make line displacement modelYear')
-    .sort({ type: 1, name: 1, createdAt: -1 })
-    .lean();
-  res.json({ items });
+  const pg = Math.max(1, parseInt(page, 10));
+  const lim = Math.min(100, Math.max(1, parseInt(limit, 10)));
+  const skip = (pg - 1) * lim;
+
+  const [items, total] = await Promise.all([
+    PriceEntry.find(q)
+      .populate('vehicleId', 'make line displacement modelYear')
+      .sort({ type: 1, name: 1, createdAt: -1 })
+      .skip(skip)
+      .limit(lim)
+      .lean(),
+    PriceEntry.countDocuments(q)
+  ]);
+  
+  res.json({ items, page: pg, limit: lim, total, pages: Math.ceil(total / lim) });
 };
 
 // ============ create ============
@@ -203,14 +218,36 @@ export const deleteAllPrices = async (req, res) => {
   res.json({ deleted: del?.deletedCount || 0 });
 };
 
+// ============ download import template ============
+export const downloadImportTemplate = async (req, res) => {
+  const { vehicleId } = req.query || {};
+  if (!vehicleId) return res.status(400).json({ error: 'vehicleId requerido' });
+  
+  const vehicle = await Vehicle.findById(vehicleId);
+  if (!vehicle) return res.status(404).json({ error: 'Vehículo no encontrado' });
+  
+  const headers = ['Nombre', 'Tipo', 'Precio'];
+  const exampleRow = ['Cambio de aceite', 'SERVICIO', '50000'];
+  
+  const wsData = [headers, exampleRow];
+  const wb = xlsx.utils.book_new();
+  const ws = xlsx.utils.aoa_to_sheet(wsData);
+  xlsx.utils.book_append_sheet(wb, ws, 'PRECIOS');
+  const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  res.setHeader('Content-Disposition', `attachment; filename="plantilla-precios-${vehicle.make}-${vehicle.line}.xlsx"`);
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.send(buf);
+};
+
 // ============ import XLSX ============
 export const importPrices = async (req, res) => {
-  const { serviceId, mapping: mappingRaw, mode = 'upsert' } = req.body || {};
-  if (!serviceId) return res.status(400).json({ error: 'serviceId es requerido' });
+  const { vehicleId, mode = 'upsert' } = req.body || {};
+  if (!vehicleId) return res.status(400).json({ error: 'vehicleId es requerido' });
   if (!req.file?.buffer) return res.status(400).json({ error: 'Archivo .xlsx requerido en campo "file"' });
 
-  const svc = await getService(req.companyId, serviceId);
-  if (!svc) return res.status(404).json({ error: 'Servicio no encontrado' });
+  const vehicle = await Vehicle.findById(vehicleId);
+  if (!vehicle) return res.status(404).json({ error: 'Vehículo no encontrado' });
+  if (!vehicle.active) return res.status(400).json({ error: 'Vehículo inactivo' });
 
   // Leer primera hoja
   let rows = [];
@@ -222,90 +259,95 @@ export const importPrices = async (req, res) => {
     return res.status(400).json({ error: 'XLSX inválido' });
   }
 
-  // Mapping
-  let mapping;
-  try { mapping = mappingRaw ? JSON.parse(mappingRaw) : {}; }
-  catch { return res.status(400).json({ error: 'mapping JSON inválido' }); }
-
-  const mBrand  = String(mapping?.brand  || 'marca').toLowerCase();
-  const mLine   = String(mapping?.line   || 'linea').toLowerCase();
-  const mEngine = String(mapping?.engine || 'motor').toLowerCase();
-  const mYear   = String(mapping?.year   || 'año').toLowerCase();
-  const mValues = mapping?.values || {}; // { VARKEY: "nombre_columna" }
-
   if (mode === 'overwrite') {
-    await PriceEntry.deleteMany({ companyId: req.companyId, serviceId });
+    await PriceEntry.deleteMany({ companyId: req.companyId, vehicleId });
   }
 
-  let inserted = 0, updated = 0;
-  const byKey = (r) => ({
-    companyId: req.companyId,
-    serviceId,
-    brand: cleanStr(r.brand),
-    line: cleanStr(r.line),
-    engine: cleanStr(r.engine),
-    year: r.year ?? null
-  });
-
-  for (const raw of rows) {
-    const row = Object.fromEntries(Object.entries(raw).map(([k,v]) => [String(k).toLowerCase(), v]));
-    const doc = {
-      brand: row[mBrand] ?? '',
-      line: row[mLine] ?? '',
-      engine: row[mEngine] ?? '',
-      year: (row[mYear] !== '' && row[mYear] != null) ? Number(row[mYear]) : null,
-      variables: {}
-    };
-    for (const [K, col] of Object.entries(mValues)) {
-      doc.variables[K] = row[String(col).toLowerCase()];
+  let inserted = 0, updated = 0, errors = [];
+  
+  for (let i = 0; i < rows.length; i++) {
+    const raw = rows[i];
+    const row = Object.fromEntries(Object.entries(raw).map(([k,v]) => [String(k).toLowerCase().trim(), v]));
+    
+    const name = String(row.nombre || row.name || '').trim();
+    const typeRaw = String(row.tipo || row.type || 'service').trim().toUpperCase();
+    const type = typeRaw === 'PRODUCTO' || typeRaw === 'PRODUCT' ? 'product' : 'service';
+    const priceRaw = row.precio || row.price || row.total || 0;
+    const total = num(priceRaw);
+    
+    if (!name) {
+      errors.push({ row: i + 2, error: 'Nombre requerido' });
+      continue;
     }
-    const total = computeTotal(svc, doc.variables);
-    const filter = byKey(doc);
-    const update = { ...filter, variables: doc.variables, total };
-
-    const resUp = await PriceEntry.findOneAndUpdate(filter, update, { new: true, upsert: true, setDefaultsOnInsert: true });
-    if (resUp.createdAt && (resUp.createdAt === resUp.updatedAt)) inserted++; else updated++;
+    
+    if (total <= 0) {
+      errors.push({ row: i + 2, error: 'Precio debe ser mayor a 0' });
+      continue;
+    }
+    
+    try {
+      const filter = {
+        companyId: req.companyId,
+        vehicleId: vehicle._id,
+        name: name,
+        type: type
+      };
+      
+      const doc = {
+        ...filter,
+        brand: vehicle.make,
+        line: vehicle.line,
+        engine: vehicle.displacement,
+        year: null,
+        variables: {},
+        total
+      };
+      
+      const resUp = await PriceEntry.findOneAndUpdate(
+        filter, 
+        doc, 
+        { new: true, upsert: true, setDefaultsOnInsert: true }
+      );
+      if (resUp.createdAt && (resUp.createdAt.getTime() === resUp.updatedAt.getTime())) inserted++; 
+      else updated++;
+    } catch (e) {
+      errors.push({ row: i + 2, error: e.message || 'Error desconocido' });
+    }
   }
 
-  res.json({ inserted, updated, errors: [] });
+  res.json({ inserted, updated, errors });
 };
 
-// ============ export CSV ============
-export const exportCsv = async (req, res) => {
-  const { serviceId, brand, line, engine, year } = req.query || {};
-  const q = { companyId: req.companyId };
-  if (serviceId) q.serviceId = serviceId;
-  if (brand) q.brand = cleanStr(brand);
-  if (line) q.line = cleanStr(line);
-  if (engine) q.engine = cleanStr(engine);
-  if (year) q.year = Number(year);
+// ============ export Excel ============
+export const exportPrices = async (req, res) => {
+  const { vehicleId } = req.query || {};
+  if (!vehicleId) return res.status(400).json({ error: 'vehicleId requerido' });
+  
+  const q = { companyId: req.companyId, vehicleId };
+  const items = await PriceEntry.find(q)
+    .populate('vehicleId', 'make line displacement')
+    .sort({ type: 1, name: 1 })
+    .lean();
 
-  const items = await PriceEntry.find(q).sort({ brand: 1, line: 1, engine: 1, year: 1 }).lean();
-
-  // columnas dinámicas de variables
-  const varsKeys = Array.from(new Set(items.flatMap(it => Object.keys(it.variables || {})))).sort();
-
-  const header = ['brand','line','engine','year', ...varsKeys, 'total'];
-  const lines = [header.join(',')];
-
+  const headers = ['Nombre', 'Tipo', 'Precio'];
+  const wsData = [headers];
+  
   for (const it of items) {
-    const row = [
-      `"${String(it.brand||'').replace(/"/g,'""')}"`,
-      `"${String(it.line||'').replace(/"/g,'""')}"`,
-      `"${String(it.engine||'').replace(/"/g,'""')}"`,
-      it.year ?? ''
-    ];
-    for (const k of varsKeys) {
-      const val = it.variables?.[k];
-      const isNum = Number.isFinite(Number(val));
-      row.push(isNum ? Number(val) : `"${String(val ?? '').replace(/"/g,'""')}"`);
-    }
-    row.push(it.total ?? 0);
-    lines.push(row.join(','));
+    wsData.push([
+      it.name || '',
+      it.type === 'product' ? 'PRODUCTO' : 'SERVICIO',
+      it.total || 0
+    ]);
   }
-
-  const csv = '\uFEFF' + lines.join('\n'); // BOM para Excel
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', 'attachment; filename="prices_export.csv"');
-  res.send(csv);
+  
+  const wb = xlsx.utils.book_new();
+  const ws = xlsx.utils.aoa_to_sheet(wsData);
+  xlsx.utils.book_append_sheet(wb, ws, 'PRECIOS');
+  const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  
+  const vehicle = items[0]?.vehicleId || {};
+  const filename = `precios-${vehicle.make || ''}-${vehicle.line || ''}-${new Date().toISOString().split('T')[0]}.xlsx`.replace(/\s+/g, '-');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.send(buf);
 };

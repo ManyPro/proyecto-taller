@@ -197,11 +197,15 @@ export const addItem = async (req, res) => {
       if (!pe) return res.status(404).json({ error: 'PriceEntry not found' });
       const q = asNum(qty) || 1;
       const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNum(pe.total || pe.price);
+      // Usar pe.name si existe (nuevo modelo), sino fallback a campos legacy
+      const itemName = pe.name && pe.name.trim() 
+        ? pe.name.trim()
+        : `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim() || 'Servicio';
       itemData = {
         source: 'price',
         refId: pe._id,
         sku: `SRV-${String(pe._id).slice(-6)}`,
-        name: `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim(),
+        name: itemName,
         qty: q,
         unitPrice: up,
         total: Math.round(q * up)
@@ -292,11 +296,15 @@ export const addItemsBatch = async (req, res) => {
           const pe = await PriceEntry.findOne({ _id: raw.refId, companyId: req.companyId });
           if (!pe) throw new Error('PriceEntry not found');
           const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : asNum(pe.total || pe.price);
+          // Usar pe.name si existe (nuevo modelo), sino fallback a campos legacy
+          const itemName = pe.name && pe.name.trim() 
+            ? pe.name.trim()
+            : `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim() || 'Servicio';
           added.push({
             source: 'price',
             refId: pe._id,
             sku: `SRV-${String(pe._id).slice(-6)}`,
-            name: `${pe.brand || ''} ${pe.line || ''} ${pe.engine || ''} ${pe.year || ''}`.trim(),
+            name: itemName,
             qty,
             unitPrice: up,
             total: Math.round(qty * up)
@@ -598,28 +606,25 @@ export const closeSale = async (req, res) => {
       if (paymentReceiptUrl) sale.paymentReceiptUrl = paymentReceiptUrl;
       await sale.save({ session });
     });
-    // Fuera de la transacciÃ³n: verificar alertas de stock bajo con stocks ya comprometidos
-    if (affectedItemIds.length) {
-      try { await checkLowStockForMany(req.companyId, affectedItemIds); } catch {}
-    }
-
+    
     const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
     await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+    
+    // Verificar alertas de stock después del cierre de venta (una sola vez)
+    if (affectedItemIds.length > 0) {
+      try {
+        await checkLowStockForMany(req.companyId, affectedItemIds);
+      } catch (e) {
+        console.error('Error checking stock alerts after sale close:', e?.message);
+      }
+    }
+    
     let cashflowEntries = [];
     try {
       const accountId = req.body?.accountId; // opcional desde frontend
       const resEntries = await registerSaleIncome({ companyId: req.companyId, sale, accountId });
       cashflowEntries = Array.isArray(resEntries) ? resEntries : (resEntries ? [resEntries] : []);
     } catch(e) { console.warn('registerSaleIncome failed:', e?.message||e); }
-    
-    // Verificar alertas de stock después del cierre de venta
-    try {
-      if (affectedItemIds.length > 0) {
-        await checkLowStockForMany(req.companyId, affectedItemIds);
-      }
-    } catch (e) {
-      console.error('Error checking stock alerts after sale close:', e?.message);
-    }
     
     try{ publish(req.companyId, 'sale:closed', { id: (sale?._id)||undefined }) }catch{}
     res.json({ ok: true, sale: sale.toObject(), cashflowEntries });

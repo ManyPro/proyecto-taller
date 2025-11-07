@@ -741,12 +741,13 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 
 /* ===== Lista de precios ===== */
 #tab-precios{ overflow-x:auto; }
-#tab-precios table.table{ min-width:1280px; border-collapse:separate; border-spacing:0; }
-#tab-precios th, #tab-precios td{ white-space:nowrap; padding:6px 8px; }
-#tab-precios td input{ height:28px; padding:2px 6px; font-size:.95rem; border-radius:8px; text-transform:none; }
-#tab-precios td input[type="number"]{ width:8ch; min-width:6ch; max-width:12ch; text-align:right; }
+#tab-precios table.table{ width:100%; border-collapse:separate; border-spacing:0; table-layout:auto; }
+#tab-precios th, #tab-precios td{ padding:10px 12px; word-wrap:break-word; }
+#tab-precios td input{ height:32px; padding:4px 8px; font-size:.95rem; border-radius:6px; text-transform:none; }
+#tab-precios td input[type="number"]{ width:120px; min-width:100px; text-align:right; }
 #tab-precios thead th{ position:sticky; top:0; z-index:1; }
-#tab-precios td:first-child, #tab-precios th:first-child{ position:sticky; left:0; z-index:2; background:inherit; }
+#tab-precios .table-wrap{ overflow-x:visible; width:100%; }
+#tab-precios td[data-name]{ max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* ===== Ventas – layout (dos columnas) ===== */
 .ventas-grid{ display:grid; grid-template-columns:420px minmax(420px,1fr); gap:14px; }
