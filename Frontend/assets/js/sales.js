@@ -3842,7 +3842,7 @@ export function initSales(){
       plateConfidenceCount = 0;
       
       // Restaurar botón de iniciar
-      const startBtn = node.querySelector('#qr-start');
+      const startBtn = nodeOCR.querySelector('#qr-start');
       if (startBtn) {
         startBtn.textContent = '📷 Iniciar cámara';
         startBtn.onclick = () => {
@@ -3858,13 +3858,13 @@ export function initSales(){
     }
     
     // Configurar onclick después de definir stop
-    x.onclick = () => {
+    xOCR.onclick = () => {
       stop();
-      modal.classList.add('hidden');
+      modalOCR.classList.add('hidden');
     };
     
     // Mostrar modal
-    modal.classList.remove('hidden');
+    modalOCR.classList.remove('hidden');
 
     // Función para validar formato de placa: 3 letras - 3 números
     function isValidPlate(text) {
@@ -4053,7 +4053,7 @@ export function initSales(){
         }
         
         // Cambiar texto del botón a "Detener cámara"
-        const startBtn = node.querySelector('#qr-start');
+        const startBtn = nodeOCR.querySelector('#qr-start');
         if (startBtn) {
           startBtn.textContent = '⏹️ Detener cámara';
           startBtn.onclick = () => {
@@ -4237,8 +4237,7 @@ export function initSales(){
 
         // Cerrar modal y renderizar venta
         stop();
-        const modal = document.getElementById('modal');
-        if (modal) modal.classList.add('hidden');
+        if (modalOCR) modalOCR.classList.add('hidden');
         
         renderTabs();
         renderSale();
@@ -4758,10 +4757,10 @@ export function initSales(){
     }
 
     // Crear botón de iniciar cámara si no existe
-    let startBtn = node.querySelector('#qr-start');
+    let startBtn = nodeOCR.querySelector('#qr-start');
     if (!startBtn) {
       // Crear botón de iniciar cámara
-      const qrbar = node.querySelector('.qrbar');
+      const qrbar = nodeOCR.querySelector('.qrbar');
       if (qrbar) {
         startBtn = document.createElement('button');
         startBtn.id = 'qr-start';
@@ -4806,12 +4805,11 @@ export function initSales(){
     }
 
     // Botón de cerrar
-    const closeBtn = node.querySelector('#qr-close');
+    const closeBtn = nodeOCR.querySelector('#qr-close');
     if (closeBtn) {
       closeBtn.onclick = () => {
         stop();
-        const modal = document.getElementById('modal');
-        if (modal) modal.classList.add('hidden');
+        if (modalOCR) modalOCR.classList.add('hidden');
       };
     }
 
