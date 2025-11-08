@@ -4284,7 +4284,7 @@ export function initSales(){
     let ocrWorker = null;
     let lastOcrTime = 0;
     const ocrInterval = 1500; // Procesar OCR cada 1.5 segundos (más frecuente)
-    let plateDetectionHistory = []; // Historial de las últimas placas detectadas (para votación)
+    // plateDetectionHistory ya está declarada en openQRForNewSale
     
     // Inicializar worker de OCR
     async function initOCR() {
