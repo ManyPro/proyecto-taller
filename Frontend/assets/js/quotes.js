@@ -536,23 +536,31 @@ export function initQuotes({ getCompanyEmail }) {
     const comboMap = new Map(); // refId del combo -> { main: row, items: [] }
     const regularRows = [];
     
-    // Primera pasada: identificar combos principales y sus items
+    // Primera pasada: identificar items de combos (con comboParent)
     rows.forEach(row => {
       if (row.comboParent) {
-        // Es un item de un combo
-        if (!comboMap.has(row.comboParent)) {
-          comboMap.set(row.comboParent, { main: null, items: [] });
+        // Es un item de un combo - normalizar el refId para comparación
+        const parentId = String(row.comboParent).trim();
+        if (!comboMap.has(parentId)) {
+          comboMap.set(parentId, { main: null, items: [] });
         }
-        comboMap.get(row.comboParent).items.push(row);
-      } else if (row.source === 'price' && row.refId) {
-        // Puede ser un combo principal, verificar si tiene items asociados
-        if (!comboMap.has(row.refId)) {
-          comboMap.set(row.refId, { main: row, items: [] });
+        comboMap.get(parentId).items.push(row);
+      }
+    });
+    
+    // Segunda pasada: identificar combos principales (que tienen items asociados)
+    rows.forEach(row => {
+      if (!row.comboParent && row.source === 'price' && row.refId) {
+        const refId = String(row.refId).trim();
+        if (comboMap.has(refId)) {
+          // Este es el combo principal que tiene items asociados
+          comboMap.get(refId).main = row;
         } else {
-          comboMap.get(row.refId).main = row;
+          // Es un precio normal sin items asociados
+          regularRows.push(row);
         }
-      } else {
-        // Es un item regular
+      } else if (!row.comboParent) {
+        // Es un item regular sin comboParent
         regularRows.push(row);
       }
     });
@@ -579,9 +587,10 @@ export function initQuotes({ getCompanyEmail }) {
             lines.push(`     ${money(itemSt)}`);
           }
         });
-      } else if (combo.main && combo.items.length === 0) {
-        // Es un precio normal, no un combo, agregarlo a regularRows
-        regularRows.push(combo.main);
+      } else if (combo.items.length > 0 && !combo.main) {
+        // Items huérfanos (tienen comboParent pero no se encontró el combo principal)
+        // Agregarlos como items regulares
+        combo.items.forEach(item => regularRows.push(item));
       }
     });
     
@@ -1440,15 +1449,27 @@ export function initQuotes({ getCompanyEmail }) {
       const comboMap = new Map();
       const regularRows = [];
       
+      // Primera pasada: identificar items de combos (con comboParent)
       rows.forEach(row => {
         if (row.comboParent) {
-          if (!comboMap.has(row.comboParent)) {
-            comboMap.set(row.comboParent, { main: null, items: [] });
+          const parentId = String(row.comboParent).trim();
+          if (!comboMap.has(parentId)) {
+            comboMap.set(parentId, { main: null, items: [] });
           }
-          comboMap.get(row.comboParent).items.push(row);
-        } else if (row.source === 'price' && row.refId && comboMap.has(row.refId)) {
-          comboMap.get(row.refId).main = row;
-        } else {
+          comboMap.get(parentId).items.push(row);
+        }
+      });
+      
+      // Segunda pasada: identificar combos principales (que tienen items asociados)
+      rows.forEach(row => {
+        if (!row.comboParent && row.source === 'price' && row.refId) {
+          const refId = String(row.refId).trim();
+          if (comboMap.has(refId)) {
+            comboMap.get(refId).main = row;
+          } else {
+            regularRows.push(row);
+          }
+        } else if (!row.comboParent) {
           regularRows.push(row);
         }
       });
@@ -2002,7 +2023,10 @@ export function initQuotes({ getCompanyEmail }) {
     const prev = (()=>{
       const rows=(d.items||[]).map(it=>({
         type:it.kind==='SERVICIO'?'SERVICIO':'PRODUCTO',
-        desc:it.description, qty:it.qty, price:it.unitPrice
+        desc:it.description, qty:it.qty, price:it.unitPrice,
+        source: it.source || undefined,
+        refId: it.refId || undefined,
+        comboParent: it.comboParent || undefined
       }));
       const bak={ n:iNumber.value, c:iClientName.value, b:iBrand.value, l:iLine.value, y:iYear.value, p:iPlate.value, cc:iCc.value, m:iMileage.value, v:iValidDays.value, sn:specialNotes };
       iNumber.value=d.number||iNumber.value;
