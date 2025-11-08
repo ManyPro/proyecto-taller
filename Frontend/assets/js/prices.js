@@ -1079,7 +1079,10 @@ export function initPrices(){
   
   // Modal para crear/editar servicio/producto
   function openCreateModal(type, existingPrice = null) {
-    if(!selectedVehicle) return alert('Selecciona un vehículo primero');
+    // Verificar que haya al menos un vehículo seleccionado (único o múltiple)
+    if (!selectedVehicle && selectedVehicles.length === 0) {
+      return alert('Selecciona un vehículo primero');
+    }
     const body=$('#modalBody'), closeBtn=$('#modalClose'); 
     body.replaceChildren();
     
