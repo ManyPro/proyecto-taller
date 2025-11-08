@@ -716,7 +716,9 @@ export const updateItem = async (req, res) => {
     if ('stock' in b || 'minStock' in b) {
       await checkLowStockAndNotify(req.companyId, item._id);
     }
-  } catch {}
+  } catch (e) {
+    console.error('[inventory.updateItem] Error verificando alertas de stock:', e?.message);
+  }
 };
 
 export const deleteItem = async (req, res) => {
@@ -797,7 +799,11 @@ export const addItemStock = async (req, res) => {
 
   res.json({ item: updated });
   // Al subir stock, si supera el mínimo limpiar bandera de alerta; si sigue por debajo, no notifica (solo notifica en bajadas o si han pasado 24h)
-  try { await checkLowStockAndNotify(req.companyId, updated._id); } catch {}
+  try { 
+    await checkLowStockAndNotify(req.companyId, updated._id); 
+  } catch (e) {
+    console.error('[inventory.addItemStock] Error verificando alertas de stock:', e?.message);
+  }
 };
 
 // ===== Mantenimiento: despublicar agotados =====
