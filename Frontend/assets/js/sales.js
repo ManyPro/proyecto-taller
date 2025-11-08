@@ -3753,24 +3753,16 @@ export function initSales(){
     finally{ starting=false; if(btn) btn.disabled=false; }
   });
 
-  // ===== Nueva venta con QR (lector de placas) =====
+  // ===== Nueva venta con placa (entrada manual rápida con autocompletado) =====
   async function openQRForNewSale(){
     if (starting) {
       console.log('Ya hay una venta iniciándose');
       return;
     }
     
-    console.log('Abriendo QR para nueva venta...');
+    console.log('Abriendo entrada de placa para nueva venta...');
     
-    const tpl = document.getElementById('tpl-qr-scanner');
-    if (!tpl) {
-      console.error('Template de QR no encontrado');
-      alert('Template de QR no encontrado');
-      return;
-    }
-    
-    const node = tpl.content.firstElementChild.cloneNode(true);
-    
+    // Crear modal simple y rápido para entrada de placa
     const modal = document.getElementById('modal');
     const slot = document.getElementById('modalBody');
     const x = document.getElementById('modalClose');
@@ -3781,39 +3773,344 @@ export function initSales(){
       return;
     }
     
+    // Crear interfaz simple y rápida
+    const node = document.createElement('div');
+    node.innerHTML = `
+      <div style="padding:20px;max-width:500px;margin:0 auto;">
+        <h3 style="margin-top:0;">Ingresar placa del vehículo</h3>
+        <div style="margin-bottom:16px;">
+          <input 
+            id="plate-input-fast" 
+            type="text" 
+            placeholder="Ej: ABC123 o ABC-123" 
+            autocomplete="off"
+            style="width:100%;padding:12px;font-size:18px;text-transform:uppercase;text-align:center;letter-spacing:2px;"
+            maxlength="7"
+          />
+        </div>
+        <div id="plate-suggestions" style="margin-bottom:16px;max-height:200px;overflow-y:auto;"></div>
+        <div class="row" style="gap:8px;justify-content:center;flex-wrap:wrap;">
+          <button id="plate-submit-fast" class="primary" style="min-width:150px;">Crear venta</button>
+          <button id="plate-use-camera" class="secondary" style="min-width:150px;">📷 Usar cámara (OCR)</button>
+        </div>
+        <div id="plate-msg" style="margin-top:12px;text-align:center;min-height:20px;"></div>
+      </div>
+    `;
+    
     console.log('Abriendo modal...');
     slot.replaceChildren(node);
+    modal.classList.remove('hidden');
     
-    const video = node.querySelector('#qr-video');
-    const canvas = node.querySelector('#qr-canvas');
+    const plateInput = node.querySelector('#plate-input-fast');
+    const plateSubmit = node.querySelector('#plate-submit-fast');
+    const plateCamera = node.querySelector('#plate-use-camera');
+    const plateMsg = node.querySelector('#plate-msg');
+    const plateSuggestions = node.querySelector('#plate-suggestions');
+    
+    // Variables para autocompletado
+    let searchTimeout = null;
+    let suggestions = [];
+    let selectedIndex = -1;
+    
+    // Función para validar formato de placa: 3 letras - 3 números (con o sin guion)
+    function isValidPlate(text) {
+      const normalized = String(text || '').trim().toUpperCase().replace(/[-]/g, '');
+      // Patrón: 3 letras seguidas de 3 números (sin guion para validación)
+      const platePattern = /^[A-Z]{3}[0-9]{3}$/;
+      return platePattern.test(normalized);
+    }
+
+    // Función para normalizar placa (asegurar formato ABC123 sin guion)
+    function normalizePlate(text) {
+      const normalized = String(text || '').trim().toUpperCase().replace(/[\s-]/g, '');
+      // Asegurar formato ABC123 (sin guion)
+      const match = normalized.match(/^([A-Z]{3})([0-9]{3})$/);
+      if (match) {
+        return `${match[1]}${match[2]}`;
+      }
+      return normalized;
+    }
+    
+    // Función para buscar placas en la base de datos (autocompletado)
+    async function searchPlates(query) {
+      if (!query || query.length < 2) {
+        plateSuggestions.innerHTML = '';
+        suggestions = [];
+        return;
+      }
+      
+      try {
+        const normalized = normalizePlate(query);
+        // Buscar en perfiles de clientes por placa
+        const profile = await API.sales.profileByPlate(normalized, { fuzzy: true });
+        
+        suggestions = [];
+        if (profile) {
+          suggestions.push({
+            plate: profile.vehicle?.plate || normalized,
+            customer: profile.customer?.name || '',
+            phone: profile.customer?.phone || '',
+            vehicle: profile.vehicle
+          });
+        }
+        
+        // También buscar variaciones (con/sin guion)
+        if (normalized !== query.toUpperCase().replace(/[^A-Z0-9]/g, '')) {
+          const altProfile = await API.sales.profileByPlate(query.toUpperCase().replace(/[^A-Z0-9]/g, ''), { fuzzy: true });
+          if (altProfile && !suggestions.find(s => s.plate === (altProfile.vehicle?.plate || ''))) {
+            suggestions.push({
+              plate: altProfile.vehicle?.plate || query.toUpperCase().replace(/[^A-Z0-9]/g, ''),
+              customer: altProfile.customer?.name || '',
+              phone: altProfile.customer?.phone || '',
+              vehicle: altProfile.vehicle
+            });
+          }
+        }
+        
+        renderSuggestions();
+      } catch (err) {
+        console.warn('Error al buscar placas:', err);
+        suggestions = [];
+        plateSuggestions.innerHTML = '';
+      }
+    }
+    
+    function renderSuggestions() {
+      if (suggestions.length === 0) {
+        plateSuggestions.innerHTML = '';
+        return;
+      }
+      
+      plateSuggestions.innerHTML = suggestions.map((sug, idx) => `
+        <div 
+          class="suggestion-item" 
+          data-index="${idx}"
+          style="padding:10px;margin-bottom:4px;border:1px solid var(--border);border-radius:8px;cursor:pointer;background:${idx === selectedIndex ? 'var(--accent, #2563eb)' : 'var(--bg-card)'};color:${idx === selectedIndex ? 'white' : 'var(--text)'};"
+          onmouseover="this.style.background='var(--accent, #2563eb)';this.style.color='white';"
+          onmouseout="if(${idx} !== ${selectedIndex}){this.style.background='var(--bg-card)';this.style.color='var(--text)';}"
+        >
+          <div style="font-weight:bold;font-size:16px;">${sug.plate}</div>
+          ${sug.customer ? `<div style="font-size:14px;opacity:0.9;">${sug.customer}</div>` : ''}
+          ${sug.phone ? `<div style="font-size:12px;opacity:0.8;">${sug.phone}</div>` : ''}
+        </div>
+      `).join('');
+      
+      // Agregar event listeners a las sugerencias
+      plateSuggestions.querySelectorAll('.suggestion-item').forEach((item, idx) => {
+        item.addEventListener('click', () => {
+          const sug = suggestions[idx];
+          plateInput.value = sug.plate;
+          plateSuggestions.innerHTML = '';
+          suggestions = [];
+          handlePlateFast(sug.plate, sug);
+        });
+      });
+    }
+    
+    // Función para procesar placa rápidamente (sin OCR)
+    async function handlePlateFast(plate, suggestion = null) {
+      if (!plate || !isValidPlate(plate)) {
+        plateMsg.textContent = '❌ Placa inválida. Formato: ABC123';
+        plateMsg.style.color = 'var(--danger, #ef4444)';
+        return;
+      }
+      
+      const normalized = normalizePlate(plate);
+      plateMsg.textContent = '⏳ Creando venta...';
+      plateMsg.style.color = 'var(--text)';
+      plateSubmit.disabled = true;
+      
+      try {
+        // Crear venta
+        const s = await API.sales.start();
+        
+        // Obtener perfil si no lo tenemos
+        let profile = suggestion ? {
+          customer: suggestion.customer ? { name: suggestion.customer, phone: suggestion.phone || '' } : null,
+          vehicle: suggestion.vehicle || { plate: normalized }
+        } : null;
+        
+        if (!profile) {
+          try {
+            profile = await API.sales.profileByPlate(normalized, { fuzzy: true });
+          } catch (err) {
+            console.warn('No se encontró perfil para placa:', err);
+          }
+        }
+        
+        // Establecer cliente y vehículo
+        if (profile) {
+          const customerData = {
+            name: profile.customer?.name || '',
+            phone: profile.customer?.phone || '',
+            email: profile.customer?.email || '',
+            idNumber: profile.customer?.idNumber || '',
+            address: profile.customer?.address || ''
+          };
+          
+          const vehicleData = {
+            plate: normalized,
+            brand: profile.vehicle?.brand || '',
+            line: profile.vehicle?.line || '',
+            engine: profile.vehicle?.engine || '',
+            year: profile.vehicle?.year || null,
+            mileage: profile.vehicle?.mileage || null,
+            vehicleId: profile.vehicle?.vehicleId || null
+          };
+          
+          await API.sales.setCustomerVehicle(s._id, {
+            customer: customerData,
+            vehicle: vehicleData
+          });
+        } else {
+          await API.sales.setCustomerVehicle(s._id, {
+            vehicle: { plate: normalized }
+          });
+        }
+        
+        // Recargar venta
+        current = await API.sales.get(s._id);
+        
+        // Cerrar modal
+        modal.classList.add('hidden');
+        
+        // Renderizar
+        renderTabs();
+        renderSale();
+        renderWO();
+        await renderQuoteForCurrentSale();
+        await refreshOpenSales({ focusId: s._id, preferCurrent: current });
+        
+        // Si hay vehículo conectado, abrir modal de agregar items
+        if (profile?.vehicle?.vehicleId) {
+          setTimeout(() => {
+            const addBtn = document.getElementById('sales-add-unified');
+            if (addBtn) addBtn.click();
+          }, 300);
+        }
+        
+        starting = false;
+      } catch (e) {
+        console.error('Error al crear venta:', e);
+        plateMsg.textContent = '❌ Error: ' + (e?.message || 'No se pudo crear la venta');
+        plateMsg.style.color = 'var(--danger, #ef4444)';
+        plateSubmit.disabled = false;
+        starting = false;
+      }
+    }
+    
+    // Event listeners para entrada rápida
+    plateInput.addEventListener('input', (e) => {
+      const value = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      e.target.value = value;
+      
+      // Auto-formatear: agregar guion después de 3 letras si no existe
+      if (value.length === 3 && !value.includes('-')) {
+        // No agregar automáticamente, dejar que el usuario lo haga
+      }
+      
+      // Buscar sugerencias con debounce
+      clearTimeout(searchTimeout);
+      if (value.length >= 2) {
+        searchTimeout = setTimeout(() => searchPlates(value), 300);
+      } else {
+        plateSuggestions.innerHTML = '';
+        suggestions = [];
+      }
+      
+      selectedIndex = -1;
+    });
+    
+    plateInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const plate = normalizePlate(plateInput.value);
+        if (plate && isValidPlate(plate)) {
+          handlePlateFast(plate);
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIndex = Math.min(selectedIndex + 1, suggestions.length - 1);
+        renderSuggestions();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIndex = Math.max(selectedIndex - 1, -1);
+        renderSuggestions();
+      } else if (e.key === 'Escape') {
+        plateSuggestions.innerHTML = '';
+        suggestions = [];
+        selectedIndex = -1;
+      }
+    });
+    
+    plateSubmit.addEventListener('click', () => {
+      const plate = normalizePlate(plateInput.value);
+      handlePlateFast(plate);
+    });
+    
+    // Opción de usar cámara (OCR) como respaldo
+    plateCamera.addEventListener('click', () => {
+      // Cerrar este modal y abrir el modal de OCR
+      modal.classList.add('hidden');
+      setTimeout(() => {
+        openQRForNewSaleWithOCR();
+      }, 300);
+    });
+    
+    // Enfocar input automáticamente
+    setTimeout(() => {
+      plateInput.focus();
+    }, 100);
+    
+    // Función para abrir modal con OCR (código original)
+    async function openQRForNewSaleWithOCR(){
+    const tpl = document.getElementById('tpl-qr-scanner');
+    if (!tpl) {
+      console.error('Template de QR no encontrado');
+      alert('Template de QR no encontrado');
+      return;
+    }
+    
+    const nodeOCR = tpl.content.firstElementChild.cloneNode(true);
+    
+    const modalOCR = document.getElementById('modal');
+    const slotOCR = document.getElementById('modalBody');
+    const xOCR = document.getElementById('modalClose');
+    
+    if (!modalOCR || !slotOCR || !xOCR) {
+      console.error('Modal no encontrado');
+      return;
+    }
+    
+    slotOCR.replaceChildren(nodeOCR);
+    
+    const video = nodeOCR.querySelector('#qr-video');
+    const canvas = nodeOCR.querySelector('#qr-canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    const sel = node.querySelector('#qr-cam');
-    const msg = node.querySelector('#qr-msg');
-    const list = node.querySelector('#qr-history');
-    const manualInput = node.querySelector('#qr-manual');
-    const manualBtn = node.querySelector('#qr-add-manual');
+    const sel = nodeOCR.querySelector('#qr-cam');
+    const msg = nodeOCR.querySelector('#qr-msg');
+    const manualInput = nodeOCR.querySelector('#qr-manual');
+    const manualBtn = nodeOCR.querySelector('#qr-add-manual');
     
-    // Ocultar controles de modo múltiple ya que solo necesitamos leer una placa
-    const singleModeBtn = node.querySelector('#qr-single-mode');
-    const multiModeBtn = node.querySelector('#qr-multi-mode');
-    const finishMultiBtn = node.querySelector('#qr-finish-multi');
+    // Ocultar controles de modo múltiple
+    const singleModeBtn = nodeOCR.querySelector('#qr-single-mode');
+    const multiModeBtn = nodeOCR.querySelector('#qr-multi-mode');
+    const finishMultiBtn = nodeOCR.querySelector('#qr-finish-multi');
     if (singleModeBtn) singleModeBtn.style.display = 'none';
     if (multiModeBtn) multiModeBtn.style.display = 'none';
     if (finishMultiBtn) finishMultiBtn.style.display = 'none';
     
-    // Cambiar mensaje inicial
     if (msg) {
       msg.textContent = 'Escanea la placa del vehículo (formato: ABC123 o ABC-123)';
       msg.style.color = 'var(--text)';
     }
-
+    
     let stream = null, running = false, detector = null, lastCode = '', lastTs = 0;
     let cameraDisabled = false;
-    let lastValidPlate = null; // Guardar última placa válida para evitar cambios erráticos
-    let plateConfidenceCount = 0; // Contador de detecciones consecutivas de la misma placa
-    let plateDetectionHistory = []; // Historial de las últimas placas detectadas (para votación)
+    let lastValidPlate = null;
+    let plateConfidenceCount = 0;
+    let plateDetectionHistory = [];
     
-    // Definir stop() antes de usarla
     function stop(){ 
       try{ 
         if (video) {
