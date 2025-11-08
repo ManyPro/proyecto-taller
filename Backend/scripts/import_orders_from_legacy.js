@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
 import { connectDB } from '../src/db.js';
 import Sale from '../src/models/Sale.js';
 import Vehicle from '../src/models/Vehicle.js';
+import CustomerProfile from '../src/models/CustomerProfile.js';
 import { upsertProfileFromSource } from '../src/controllers/profile.helper.js';
 
 dotenv.config();
@@ -85,9 +86,41 @@ const detailPaths = {
   products: args.products,
   orderServices: args.orderServices,
   services: args.services,
-  remisions: args.remisions
+  remisions: args.remisions || (args.remisions === undefined && args.orders ? args.orders.replace(/ordenesfinal\.csv$/i, 'remis.csv') : null)
 };
 const detailMode = Object.values(detailPaths).some(Boolean);
+
+// Auto-detectar archivos en la misma carpeta que orders
+if (args.orders) {
+  const baseDir = args.orders.replace(/[^/\\]+$/, '');
+  
+  // Auto-detectar remis.csv
+  if (!detailPaths.remisions) {
+    const remisPath = baseDir + 'remis.csv';
+    if (fs.existsSync(remisPath)) {
+      detailPaths.remisions = remisPath;
+      console.log(`Auto-detected remis.csv: ${remisPath}`);
+    }
+  }
+  
+  // Auto-detectar productos.csv
+  if (!detailPaths.products) {
+    const productsPath = baseDir + 'productos.csv';
+    if (fs.existsSync(productsPath)) {
+      detailPaths.products = productsPath;
+      console.log(`Auto-detected productos.csv: ${productsPath}`);
+    }
+  }
+  
+  // Auto-detectar servicios.csv
+  if (!detailPaths.services) {
+    const servicesPath = baseDir + 'servicios.csv';
+    if (fs.existsSync(servicesPath)) {
+      detailPaths.services = servicesPath;
+      console.log(`Auto-detected servicios.csv: ${servicesPath}`);
+    }
+  }
+}
 
 let companyMap = {};
 if (args.companyMap) {
@@ -376,6 +409,11 @@ async function main() {
   let serviceRows = [];
   let remisionRows = [];
 
+  // Si no se proporcionan archivos de relaciones pero sí remis.csv, usarlo
+  if (!detailPaths.orderProducts && !detailPaths.orderServices && detailPaths.remisions) {
+    console.log('Using remis.csv for order details (products and services)');
+  }
+  
   if (detailPaths.orderProducts) orderProductRows = await parseCSV(detailPaths.orderProducts, { delimiter, encoding });
   if (detailPaths.products) productRows = await parseCSV(detailPaths.products, { delimiter, encoding });
   if (detailPaths.orderServices) orderServiceRows = await parseCSV(detailPaths.orderServices, { delimiter, encoding });
@@ -515,25 +553,68 @@ async function main() {
     const email = clean(cli['cl_mail'] || '');
     const address = clean(cli['cl_direccion'] || '');
 
-    const brand = veh && veh['au_marca'] ? clean(veh['au_marca']).toUpperCase() : '';
-    const line = veh && veh['au_linea'] ? clean(veh['au_linea']).toUpperCase() : '';
+    // Intentar obtener marca y línea desde el vehículo
+    // Nota: au_fk_marca y au_fk_serie son IDs, no nombres directos
+    // Por ahora intentamos buscar por placa en CustomerProfile primero
     const engine = veh && veh['au_cilidraje'] ? String(veh['au_cilidraje']) : '';
     const year = parseNumber(veh && veh['au_modelo']);
     const mileage = parseNumber(row['or_kilometraje']);
     
-    // Buscar vehículo en BD global
+    let brand = '';
+    let line = '';
     let vehicleId = null;
-    if (brand && line && engine && !dryRun) {
+    
+    if (!dryRun) {
+      // Primero intentar buscar por placa en CustomerProfile para obtener marca/línea
       try {
-        const vehicle = await Vehicle.findOne({
-          make: brand,
-          line: line,
-          displacement: engine.toUpperCase(),
-          active: true
-        });
-        if (vehicle) vehicleId = vehicle._id;
+        const profile = await CustomerProfile.findOne({
+          companyId,
+          $or: [{ plate }, { 'vehicle.plate': plate }]
+        }).sort({ updatedAt: -1 });
+        
+        if (profile && profile.vehicle) {
+          brand = clean(profile.vehicle.brand || '').toUpperCase();
+          line = clean(profile.vehicle.line || '').toUpperCase();
+          vehicleId = profile.vehicle.vehicleId || null;
+        }
       } catch (err) {
-        // Ignorar errores de búsqueda
+        // Ignorar errores
+      }
+      
+      // Si no encontramos en profile, intentar buscar en Vehicle por cilindraje y placa
+      // (búsqueda más flexible sin marca/línea)
+      if (!vehicleId && engine) {
+        try {
+          // Buscar vehículos que coincidan con el cilindraje
+          const vehicles = await Vehicle.find({
+            displacement: engine.toUpperCase(),
+            active: true
+          }).limit(10);
+          
+          // Si solo hay uno, usarlo
+          if (vehicles.length === 1) {
+            vehicleId = vehicles[0]._id;
+            if (!brand) brand = vehicles[0].make;
+            if (!line) line = vehicles[0].line;
+          }
+        } catch (err) {
+          // Ignorar errores
+        }
+      }
+      
+      // Si tenemos marca, línea y cilindraje, buscar vehículo exacto
+      if (!vehicleId && brand && line && engine) {
+        try {
+          const vehicle = await Vehicle.findOne({
+            make: brand,
+            line: line,
+            displacement: engine.toUpperCase(),
+            active: true
+          });
+          if (vehicle) vehicleId = vehicle._id;
+        } catch (err) {
+          // Ignorar errores
+        }
       }
     }
     const obs = clean(row['or_observacion'] || '');
@@ -676,11 +757,28 @@ async function main() {
 
     if (doProfile) {
       try {
+        // Usar upsertProfileFromSource para crear/actualizar perfil y conectar vehículo
         await upsertProfileFromSource(
           String(companyId),
           { customer: saleDoc.customer, vehicle: saleDoc.vehicle },
-          { source: 'script-legacy-orders', overwriteMileage: true, overwriteYear: true }
+          { source: 'script-legacy-orders', overwriteMileage: true, overwriteYear: true, overwriteVehicle: false }
         );
+        
+        // Si el perfil ahora tiene vehicleId pero la venta no, actualizar la venta
+        if (saleDoc.vehicle && !saleDoc.vehicle.vehicleId) {
+          const profile = await CustomerProfile.findOne({
+            companyId,
+            $or: [{ plate }, { 'vehicle.plate': plate }]
+          }).sort({ updatedAt: -1 });
+          
+          if (profile && profile.vehicle && profile.vehicle.vehicleId) {
+            await Sale.updateOne(
+              { _id: saleDoc._id },
+              { $set: { 'vehicle.vehicleId': profile.vehicle.vehicleId } }
+            );
+            saleDoc.vehicle.vehicleId = profile.vehicle.vehicleId;
+          }
+        }
       } catch (err) {
         console.warn(`Profile upsert failed for plate ${plate}: ${err.message}`);
       }

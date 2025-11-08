@@ -453,10 +453,22 @@ export function initQuotes({ getCompanyEmail }) {
       const qty =Number(r.querySelectorAll('input')[1].value||0);
       const price=Number(r.querySelectorAll('input')[2].value||0);
       if(!desc && !price && !qty) return;
+      
+      // Asegurar que refId sea un string válido (no "[object Object]")
+      let refId = r.dataset.refId;
+      if (refId) {
+        // Si es un objeto convertido a string, intentar extraer el _id
+        if (typeof refId === 'string' && refId.includes('[object Object]')) {
+          refId = undefined;
+        } else {
+          refId = String(refId).trim() || undefined;
+        }
+      }
+      
       rows.push({
         type,desc,qty,price,
         source: r.dataset.source || undefined,
-        refId: r.dataset.refId || undefined,
+        refId: refId,
         sku: r.dataset.sku || undefined,
         comboParent: r.dataset.comboParent || undefined
       });
@@ -847,7 +859,10 @@ export function initQuotes({ getCompanyEmail }) {
         unitPrice:Number(r.price||0)
       };
       if(r.source){ base.source=r.source; }
-      if(r.refId){ base.refId=r.refId; }
+      // Asegurar que refId sea un string válido (no "[object Object]")
+      if(r.refId && typeof r.refId === 'string' && !r.refId.includes('[object Object]')){
+        base.refId = r.refId.trim();
+      }
       if(r.sku){ base.sku=r.sku; }
       return base;
     });
@@ -2237,10 +2252,21 @@ export function initQuotes({ getCompanyEmail }) {
                 row.querySelectorAll('input')[1].value = cp.qty || 1;
                 row.querySelectorAll('input')[2].value = Math.round(cp.unitPrice || 0);
                 row.dataset.source = cp.itemId ? 'inventory' : 'price';
-                if (cp.itemId) row.dataset.refId = cp.itemId;
-                if (cp.itemId && cp.sku) row.dataset.sku = cp.sku;
+                // Asegurar que refId sea un string (puede venir como objeto con _id)
+                if (cp.itemId) {
+                  const refIdValue = typeof cp.itemId === 'object' && cp.itemId._id 
+                    ? String(cp.itemId._id) 
+                    : String(cp.itemId || '');
+                  if (refIdValue) row.dataset.refId = refIdValue;
+                }
+                if (cp.itemId) {
+                  const skuValue = typeof cp.itemId === 'object' && cp.itemId.sku 
+                    ? cp.itemId.sku 
+                    : (cp.sku || '');
+                  if (skuValue) row.dataset.sku = skuValue;
+                }
                 // Marcar como item del combo
-                if (pe._id) row.dataset.comboParent = pe._id;
+                if (pe._id) row.dataset.comboParent = String(pe._id);
                 updateRowSubtotal(row);
                 rowsBox.appendChild(row);
               });
