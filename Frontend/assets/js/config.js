@@ -50,4 +50,10 @@
 
   window.CLOUDINARY_CLOUD_NAME = window.CLOUDINARY_CLOUD_NAME || "dzj1yqcdf";
   window.CLOUDINARY_UPLOAD_PRESET = window.CLOUDINARY_UPLOAD_PRESET || "inventory_unsigned";
+  
+  // Plate Recognizer API (para reconocimiento de placas)
+  // Obtén tu API key gratuita en: https://platerecognizer.com/
+  // Plan gratuito: 2000 requests/mes
+  window.PLATE_RECOGNIZER_API_KEY = window.PLATE_RECOGNIZER_API_KEY || '';
+  window.USE_PLATE_RECOGNIZER = window.USE_PLATE_RECOGNIZER !== undefined ? window.USE_PLATE_RECOGNIZER : false;
 })();

@@ -4280,8 +4280,52 @@ export function initSales(){
 
     let ocrWorker = null;
     let lastOcrTime = 0;
-    const ocrInterval = 1200; // Procesar OCR cada 1.2 segundos (más lento pero más preciso)
+    const ocrInterval = 2000; // Procesar OCR cada 2 segundos (más lento para reducir carga)
     // plateDetectionHistory ya está declarada en openQRForNewSale
+    
+    // Usar Plate Recognizer API (más confiable que OCR genérico)
+    // Plan gratuito: 2000 requests/mes
+    // Obtén tu API key en: https://platerecognizer.com/
+    const PLATE_RECOGNIZER_API_KEY = (typeof window !== 'undefined' && window.PLATE_RECOGNIZER_API_KEY) || '';
+    const USE_PLATE_RECOGNIZER = (typeof window !== 'undefined' && window.USE_PLATE_RECOGNIZER) || false;
+    
+    async function recognizePlateWithAPI(imageBlob) {
+      if (!USE_PLATE_RECOGNIZER || !PLATE_RECOGNIZER_API_KEY || PLATE_RECOGNIZER_API_KEY === 'YOUR_API_KEY_HERE') {
+        return null;
+      }
+      
+      try {
+        const formData = new FormData();
+        formData.append('upload', imageBlob, 'plate.jpg');
+        formData.append('regions', 'co'); // Colombia
+        
+        const response = await fetch('https://api.platerecognizer.com/v1/plate-reader/', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Token ${PLATE_RECOGNIZER_API_KEY}`
+          },
+          body: formData
+        });
+        
+        if (!response.ok) {
+          console.warn('Plate Recognizer API error:', response.status);
+          return null;
+        }
+        
+        const data = await response.json();
+        if (data.results && data.results.length > 0) {
+          const plate = data.results[0].plate?.toUpperCase().replace(/[^A-Z0-9]/g, '');
+          const confidence = data.results[0].score || 0;
+          if (plate && plate.length >= 5 && confidence > 0.7) {
+            console.log(`✅ Placa detectada por Plate Recognizer API: ${plate} (confianza: ${(confidence * 100).toFixed(1)}%)`);
+            return { plate, confidence: confidence * 100 };
+          }
+        }
+      } catch (err) {
+        console.warn('Error en Plate Recognizer API:', err);
+      }
+      return null;
+    }
     
     // Inicializar worker de OCR
     async function initOCR() {
@@ -4933,8 +4977,12 @@ export function initSales(){
     
     // Actualizar mensaje inicial
     if (msg) {
-      msg.textContent = 'Iniciando cámara...';
-      msg.style.color = 'var(--text)';
+      if (USE_PLATE_RECOGNIZER && PLATE_RECOGNIZER_API_KEY) {
+        msg.textContent = '📷 Usando Plate Recognizer API (más confiable) - Enfoca la placa...';
+      } else {
+        msg.textContent = '⚠️ OCR genérico activo (puede ser impreciso). Para mejor precisión, configura Plate Recognizer API en config.js';
+        msg.style.color = 'var(--warning, #f59e0b)';
+      }
     }
     
     console.log('Modal QR abierto correctamente');
