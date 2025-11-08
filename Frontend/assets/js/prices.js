@@ -103,10 +103,12 @@ export function openQRForItem() {
     }
     
     async function start() {
+      console.log('start() llamado - Iniciando cámara...');
       try {
         stop();
         
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        console.log('Dispositivo móvil:', isMobile);
         
         let videoConstraints;
         if (isMobile) {
@@ -167,6 +169,7 @@ export function openQRForItem() {
         }
         
         running = true;
+        console.log('Video iniciado - readyState:', video.readyState, 'dimensiones:', video.videoWidth, 'x', video.videoHeight);
         
         // Esperar un momento para que el video esté completamente listo y visible
         await new Promise(resolve => setTimeout(resolve, 200));
@@ -177,11 +180,31 @@ export function openQRForItem() {
           await video.play();
         }
         
+        console.log('Video listo para detección - paused:', video.paused, 'ended:', video.ended, 'readyState:', video.readyState);
+        
         if (window.BarcodeDetector) {
-          detector = new BarcodeDetector({ formats: ['qr_code'] });
-          tickNative();
+          try {
+            detector = new BarcodeDetector({ formats: ['qr_code'] });
+            console.log('BarcodeDetector creado correctamente');
+            tickNative();
+          } catch (err) {
+            console.error('Error al crear BarcodeDetector:', err);
+            if (window.jsQR) {
+              console.log('Usando jsQR como fallback');
+              tickCanvas();
+            } else {
+              msg.textContent = '❌ No se pudo inicializar el detector QR. Usa entrada manual.';
+              msg.style.color = 'var(--danger, #ef4444)';
+            }
+          }
         } else {
-          tickCanvas();
+          console.log('BarcodeDetector no disponible, usando jsQR');
+          if (window.jsQR) {
+            tickCanvas();
+          } else {
+            msg.textContent = '❌ jsQR no está disponible. Usa entrada manual.';
+            msg.style.color = 'var(--danger, #ef4444)';
+          }
         }
         msg.textContent = '';
       } catch (e) {
@@ -237,22 +260,34 @@ export function openQRForItem() {
     }
     
     function onCode(code) {
-      handleCode(code);
+      console.log('onCode llamado con:', code);
+      if (code) {
+        handleCode(code);
+      }
     }
     
     async function tickNative() {
       if (!running || !video || !detector) {
-        if (running) requestAnimationFrame(tickNative);
+        if (running) {
+          requestAnimationFrame(tickNative);
+        }
         return;
       }
       try {
+        // Verificar que el video esté listo
+        if (video.readyState < 2) {
+          requestAnimationFrame(tickNative);
+          return;
+        }
         const codes = await detector.detect(video);
-        if (codes?.[0]?.rawValue) {
+        if (codes && codes.length > 0 && codes[0]?.rawValue) {
+          console.log('QR detectado (BarcodeDetector):', codes[0].rawValue);
           onCode(codes[0].rawValue);
+          return; // Detener después de detectar
         }
       } catch (e) {
         // Silenciar errores de detección comunes
-        if (e.message && !e.message.includes('No image')) {
+        if (e.message && !e.message.includes('No image') && !e.message.includes('not readable')) {
           console.warn('Error en detección nativa:', e);
         }
       }
@@ -261,12 +296,14 @@ export function openQRForItem() {
     
     function tickCanvas() {
       if (!running || !video || !canvas || !ctx) {
-        if (running) requestAnimationFrame(tickCanvas);
+        if (running) {
+          requestAnimationFrame(tickCanvas);
+        }
         return;
       }
       try {
         const w = video.videoWidth | 0, h = video.videoHeight | 0;
-        if (!w || !h) {
+        if (!w || !h || video.readyState < 2) {
           requestAnimationFrame(tickCanvas);
           return;
         }
@@ -276,11 +313,15 @@ export function openQRForItem() {
         const img = ctx.getImageData(0, 0, w, h);
         if (window.jsQR) {
           const qr = window.jsQR(img.data, w, h);
-          if (qr && qr.data) onCode(qr.data);
+          if (qr && qr.data) {
+            console.log('QR detectado (jsQR):', qr.data);
+            onCode(qr.data);
+            return; // Detener después de detectar
+          }
         }
       } catch (e) {
         // Silenciar errores menores
-        if (e.message && !e.message.includes('videoWidth')) {
+        if (e.message && !e.message.includes('videoWidth') && !e.message.includes('not readable')) {
           console.warn('Error en tickCanvas:', e);
         }
       }
