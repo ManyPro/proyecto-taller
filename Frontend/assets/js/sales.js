@@ -2086,7 +2086,7 @@ async function renderInventoryView(container) {
         card.innerHTML = `
           <div style="flex:1;">
             <div style="font-weight:600;margin-bottom:4px;">${item.name || 'Sin nombre'}</div>
-            <div style="font-size:12px;color:var(--muted);">SKU: ${item.sku || 'N/A'} | Stock: ${item.stock || 0} | ${money(item.salePrice || 0)}</div>
+            <div style="font-size:13px;color:var(--text);"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${item.sku || 'N/A'}</strong> | Stock: ${item.stock || 0} | ${money(item.salePrice || 0)}</div>
           </div>
           <button class="add-inventory-btn primary" data-item-id="${item._id}" style="padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;margin-left:12px;">Agregar</button>
         `;
@@ -2297,7 +2297,7 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
             <div style="display:flex;justify-content:space-between;align-items:center;">
               <div>
                 <strong>${item.name}</strong><br>
-                <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span>
+                <span style="font-size:12px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${item.sku}</strong> | Stock: ${item.stock || 0}</span>
               </div>
               <button id="price-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
             </div>
@@ -2364,7 +2364,7 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
             <div style="display:flex;justify-content:space-between;align-items:center;">
               <div>
                 <strong>${item.name}</strong><br>
-                <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span>
+                <span style="font-size:12px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${item.sku}</strong> | Stock: ${item.stock || 0}</span>
               </div>
               <button id="price-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
             </div>
@@ -2462,7 +2462,7 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
         itemSearch.value = `${productData.itemId.sku || ''} - ${productData.itemId.name || ''}`;
         itemSelected.innerHTML = `
           <div style="display:flex;justify-content:space-between;align-items:center;">
-            <div><strong>${productData.itemId.name || productData.itemId.sku}</strong> <span class="muted">SKU: ${productData.itemId.sku} | Stock: ${productData.itemId.stock || 0}</span></div>
+            <div><strong>${productData.itemId.name || productData.itemId.sku}</strong> <span style="font-size:12px;margin-left:8px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${productData.itemId.sku}</strong> | Stock: ${productData.itemId.stock || 0}</span></div>
             <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
           </div>
         `;
@@ -2484,6 +2484,10 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
           }
           if (!items || items.length === 0) return;
           
+          // Limpiar dropdown anterior si existe antes de crear uno nuevo
+          const existingDropdown = itemSearch.parentElement.querySelector('div[style*="position:absolute"]');
+          if (existingDropdown) existingDropdown.remove();
+          
           const dropdown = document.createElement('div');
           dropdown.style.cssText = 'position:absolute;z-index:1000;background:var(--card);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:100%;margin-top:4px;';
           dropdown.replaceChildren(...items.map(item => {
@@ -2491,7 +2495,7 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
             div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);';
             div.innerHTML = `
               <div style="font-weight:600;">${item.name || item.sku}</div>
-              <div style="font-size:12px;color:var(--muted);">SKU: ${item.sku} | Stock: ${item.stock || 0}</div>
+              <div style="font-size:13px;color:var(--text);margin-top:4px;"><strong style="font-size:14px;font-weight:700;">SKU:</strong> <strong style="font-size:14px;font-weight:700;">${item.sku}</strong> | Stock: ${item.stock || 0}</div>
             `;
             div.addEventListener('click', () => {
               selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
@@ -2499,7 +2503,7 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
               itemSearch.value = `${item.sku} - ${item.name}`;
               itemSelected.innerHTML = `
                 <div style="display:flex;justify-content:space-between;align-items:center;">
-                  <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
+                  <div><strong>${item.name}</strong> <span style="font-size:12px;margin-left:8px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${item.sku}</strong> | Stock: ${item.stock || 0}</span></div>
                   <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
                 </div>
               `;

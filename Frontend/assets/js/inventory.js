@@ -1068,7 +1068,7 @@ if (__ON_INV_PAGE__) {
           <div class="inv-item-info">
             <div class="inv-item-name">${it.name || ""}</div>
             <div class="inv-item-meta muted">
-              <span>SKU: ${it.sku || ""}</span>
+              <span><strong style="font-weight:700;font-size:13px;">SKU:</strong> <strong style="font-weight:700;font-size:13px;">${it.sku || ""}</strong></span>
               <span>${internalLabel}</span>
               <span>${brandLabel}</span>
               <span>${locationLabel}</span>

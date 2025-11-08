@@ -502,7 +502,7 @@ export function initPrices(){
       } else if (r.type === 'product' && r.itemId) {
         itemInfoCell.innerHTML = `
           <div style="color:var(--success, #10b981);">✓ ${r.itemId.name || r.itemId.sku}</div>
-          <div style="font-size:10px;">SKU: ${r.itemId.sku} | Stock: ${r.itemId.stock || 0}</div>
+          <div style="font-size:11px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${r.itemId.sku}</strong> | Stock: ${r.itemId.stock || 0}</div>
         `;
       } else if (r.type === 'product') {
         itemInfoCell.innerHTML = '<span style="color:var(--muted);font-size:10px;">Sin vincular</span>';
@@ -1180,7 +1180,7 @@ export function initPrices(){
                 </div>
                 <div class="combo-product-item-selected" style="margin-top:8px;padding:6px;background:var(--card);border-radius:4px;font-size:11px;${cp.itemId ? '' : 'display:none;'}">
                   ${cp.itemId ? `<div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div><strong>${cp.itemId.name || cp.itemId.sku}</strong> <span class="muted">SKU: ${cp.itemId.sku} | Stock: ${cp.itemId.stock || 0}</span></div>
+                    <div><strong>${cp.itemId.name || cp.itemId.sku}</strong> <span style="font-size:12px;margin-left:8px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${cp.itemId.sku}</strong> | Stock: ${cp.itemId.stock || 0}</span></div>
                     <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
                   </div>` : ''}
                 </div>
@@ -1204,7 +1204,7 @@ export function initPrices(){
           ${linkedItem ? `<div style="display:flex;justify-content:space-between;align-items:center;">
             <div>
               <strong>${linkedItem.name || linkedItem.sku}</strong><br>
-              <span class="muted">SKU: ${linkedItem.sku} | Stock: ${linkedItem.stock || 0}</span>
+              <span style="font-size:12px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${linkedItem.sku}</strong> | Stock: ${linkedItem.stock || 0}</span>
             </div>
             <button id="pe-modal-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
           </div>` : ''}
@@ -1310,7 +1310,7 @@ export function initPrices(){
               <div style="display:flex;justify-content:space-between;align-items:center;">
                 <div>
                   <strong>${item.name}</strong><br>
-                  <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span>
+                  <span style="font-size:12px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${item.sku}</strong> | Stock: ${item.stock || 0}</span>
                 </div>
                 <button id="pe-modal-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
               </div>
@@ -1332,12 +1332,14 @@ export function initPrices(){
             // NO establecer el precio automáticamente - se deja a discreción del usuario
             return;
           }
+          // Limpiar dropdown antes de agregar nuevos resultados
+          itemDropdown.innerHTML = '';
           itemDropdown.replaceChildren(...items.map(item => {
             const div = document.createElement('div');
             div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);';
             div.innerHTML = `
               <div style="font-weight:600;">${item.name || item.sku}</div>
-              <div style="font-size:12px;color:var(--muted);">SKU: ${item.sku} | Stock: ${item.stock || 0} | Precio: $${(item.salePrice || 0).toLocaleString()}</div>
+              <div style="font-size:13px;color:var(--text);margin-top:4px;"><strong style="font-size:14px;font-weight:700;">SKU:</strong> <strong style="font-size:14px;font-weight:700;">${item.sku}</strong> | Stock: ${item.stock || 0} | Precio: $${(item.salePrice || 0).toLocaleString()}</div>
             `;
             div.addEventListener('click', () => {
               selectedItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
@@ -1522,7 +1524,7 @@ export function initPrices(){
               <div style="display:flex;justify-content:space-between;align-items:center;">
                 <div>
                   <strong>${item.name}</strong><br>
-                  <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span>
+                  <span style="font-size:12px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${item.sku}</strong> | Stock: ${item.stock || 0}</span>
                 </div>
                 <button id="pe-modal-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
               </div>
@@ -1663,46 +1665,50 @@ export function initPrices(){
               console.error('Error al buscar items:', err);
             }
             if (!items || items.length === 0) {
-              // Limpiar dropdown si no hay resultados
-              const existingDropdown = itemSearch.parentElement.querySelector('div[style*="position:absolute"]');
-              if (existingDropdown) existingDropdown.remove();
-              return;
+            // Limpiar dropdown si no hay resultados
+            const existingDropdown1 = itemSearch.parentElement.querySelector('div[style*="position:absolute"]');
+            if (existingDropdown1) existingDropdown1.remove();
+            return;
+          }
+          
+          // Si hay exactamente un resultado y coincide exactamente con el SKU, seleccionarlo automáticamente
+          if (items.length === 1 && items[0].sku && items[0].sku.toUpperCase() === trimmedQuery.toUpperCase()) {
+            const item = items[0];
+            selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+            itemIdInput.value = item._id;
+            itemSearch.value = `${item.sku} - ${item.name}`;
+            itemSelected.innerHTML = `
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div><strong>${item.name}</strong> <span style="font-size:12px;margin-left:8px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${item.sku}</strong> | Stock: ${item.stock || 0}</span></div>
+                <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+              </div>
+            `;
+            itemSelected.style.display = 'block';
+            const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
+            if (removeBtn2) {
+              removeBtn2.onclick = () => {
+                selectedComboItem = null;
+                itemIdInput.value = '';
+                itemSearch.value = '';
+                itemSelected.style.display = 'none';
+              };
             }
+            // Establecer el nombre del combo product con el nombre del item
+            const nameInput = row.querySelector('.combo-product-name');
+            if (nameInput && item.name) {
+              nameInput.value = item.name;
+            }
+            // NO establecer el precio automáticamente - se deja a discreción del usuario
+            updateComboTotal();
+            // Limpiar dropdown
+            const existingDropdown2 = itemSearch.parentElement.querySelector('div[style*="position:absolute"]');
+            if (existingDropdown2) existingDropdown2.remove();
+            return;
+          }
             
-            // Si hay exactamente un resultado y coincide exactamente con el SKU, seleccionarlo automáticamente
-            if (items.length === 1 && items[0].sku && items[0].sku.toUpperCase() === trimmedQuery.toUpperCase()) {
-              const item = items[0];
-              selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
-              itemIdInput.value = item._id;
-              itemSearch.value = `${item.sku} - ${item.name}`;
-              itemSelected.innerHTML = `
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                  <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
-                  <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
-                </div>
-              `;
-              itemSelected.style.display = 'block';
-              const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
-              if (removeBtn2) {
-                removeBtn2.onclick = () => {
-                  selectedComboItem = null;
-                  itemIdInput.value = '';
-                  itemSearch.value = '';
-                  itemSelected.style.display = 'none';
-                };
-              }
-              // Establecer el nombre del combo product con el nombre del item
-              const nameInput = row.querySelector('.combo-product-name');
-              if (nameInput && item.name) {
-                nameInput.value = item.name;
-              }
-              // NO establecer el precio automáticamente - se deja a discreción del usuario
-              updateComboTotal();
-              // Limpiar dropdown
-              const existingDropdown = itemSearch.parentElement.querySelector('div[style*="position:absolute"]');
-              if (existingDropdown) existingDropdown.remove();
-              return;
-            }
+            // Limpiar dropdown anterior si existe antes de crear uno nuevo
+            const existingDropdown = itemSearch.parentElement.querySelector('div[style*="position:absolute"]');
+            if (existingDropdown) existingDropdown.remove();
             
             // Crear dropdown temporal
             const dropdown = document.createElement('div');
@@ -1712,7 +1718,7 @@ export function initPrices(){
               div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);';
               div.innerHTML = `
                 <div style="font-weight:600;">${item.name || item.sku}</div>
-                <div style="font-size:12px;color:var(--muted);">SKU: ${item.sku} | Stock: ${item.stock || 0}</div>
+                <div style="font-size:13px;color:var(--text);margin-top:4px;"><strong style="font-size:14px;font-weight:700;">SKU:</strong> <strong style="font-size:14px;font-weight:700;">${item.sku}</strong> | Stock: ${item.stock || 0}</div>
               `;
               div.addEventListener('click', () => {
                 selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
@@ -1720,7 +1726,7 @@ export function initPrices(){
                 itemSearch.value = `${item.sku} - ${item.name}`;
                 itemSelected.innerHTML = `
                   <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
+                    <div><strong>${item.name}</strong> <span style="font-size:12px;margin-left:8px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${item.sku}</strong> | Stock: ${item.stock || 0}</span></div>
                     <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
                   </div>
                 `;
@@ -1806,7 +1812,7 @@ export function initPrices(){
                 itemSearch.value = `${item.sku} - ${item.name}`;
                 itemSelected.innerHTML = `
                   <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
+                    <div><strong>${item.name}</strong> <span style="font-size:12px;margin-left:8px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${item.sku}</strong> | Stock: ${item.stock || 0}</span></div>
                     <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
                   </div>
                 `;
