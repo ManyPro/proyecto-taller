@@ -807,65 +807,227 @@ function renderSale(){
     });
   }
   
-  (current?.items||[]).forEach(it=>{
+  // Agrupar items por combo para renderizarlos juntos
+  // Los combos se agregan con SKU "COMBO-xxx" y los items siguientes hasta el próximo combo son parte de él
+  const items = current?.items || [];
+  let i = 0;
+  
+  while (i < items.length) {
+    const it = items[i];
+    const sku = String(it.sku || '').toUpperCase();
+    const isCombo = sku.startsWith('COMBO-');
+    
+    if (isCombo) {
+      // Encontramos un combo, agrupar items siguientes hasta el próximo combo o fin
+      const comboItems = [it];
+      i++;
+      
+      // Agregar items consecutivos que son parte del combo
+      // Los items del combo pueden tener source 'inventory', 'price', o venir después del combo principal
+      while (i < items.length) {
+        const nextIt = items[i];
+        const nextSku = String(nextIt.sku || '').toUpperCase();
+        
+        // Si encontramos otro combo, detener
+        if (nextSku.startsWith('COMBO-')) {
+          break;
+        }
+        
+        // Los items del combo generalmente vienen después del combo principal
+        // Agregar items hasta encontrar uno que claramente no pertenece (por ejemplo, un servicio independiente)
+        // Por ahora, agregamos todos los items consecutivos después del combo
+        comboItems.push(nextIt);
+        i++;
+      }
+      
+      renderComboGroup(body, it.refId, comboItems);
+    } else {
+      // Item normal, renderizar individualmente
+      renderSaleItem(body, it);
+      i++;
+    }
+  }
+  
+  function renderComboGroup(container, comboRefId, comboItemsList) {
+    if (comboItemsList.length === 0) return;
+    
+    // El primer item es el combo principal
+    const comboMain = comboItemsList[0];
+    const comboSubItems = comboItemsList.slice(1);
+    
+    // Renderizar combo principal (más grande)
+    const comboTr = clone('tpl-sale-row');
+    comboTr.classList.add('sale-row-combo-main');
+    comboTr.style.cssText = 'background:rgba(147, 51, 234, 0.1);border-left:4px solid #9333ea;font-weight:600;';
+    
+    comboTr.querySelector('[data-sku]').textContent = comboMain.sku || '';
+    const nameCell = comboTr.querySelector('[data-name]');
+    nameCell.innerHTML = '';
+    const badge = document.createElement('span');
+    badge.className = 'combo-badge';
+    badge.textContent = 'COM';
+    badge.style.cssText = 'background:#9333ea;color:white;padding:4px 10px;border-radius:6px;font-size:14px;font-weight:700;margin-right:10px;display:inline-block;';
+    nameCell.appendChild(badge);
+    nameCell.appendChild(document.createTextNode(comboMain.name || ''));
+    
+    const qty = comboTr.querySelector('.qty');
+    qty.value = String(comboMain.qty || 1);
+    qty.style.cssText = 'font-weight:600;font-size:14px;';
+    
+    const unitCell = comboTr.querySelector('[data-unit]');
+    unitCell.textContent = money(comboMain.unitPrice || 0);
+    unitCell.style.cssText = 'font-weight:700;font-size:16px;color:#9333ea;';
+    
+    const totalCell = comboTr.querySelector('[data-total]');
+    totalCell.textContent = money(comboMain.total || 0);
+    totalCell.style.cssText = 'font-weight:700;font-size:16px;color:#9333ea;';
+    
+    setupItemActions(comboTr, comboMain);
+    container.appendChild(comboTr);
+    
+    // Renderizar items del combo (indentados)
+    comboSubItems.forEach(subItem => {
+      const subTr = clone('tpl-sale-row');
+      subTr.classList.add('sale-row-combo-item');
+      subTr.style.cssText = 'background:rgba(147, 51, 234, 0.05);padding-left:32px;border-left:2px solid #9333ea;margin-left:16px;';
+      
+      subTr.querySelector('[data-sku]').textContent = subItem.sku || '';
+      const subNameCell = subTr.querySelector('[data-name]');
+      subNameCell.innerHTML = '';
+      
+      // Determinar badge según el tipo de item del combo
+      let badgeText = 'PRD';
+      let badgeColor = '#86efac'; // Verde claro
+      if (subItem.source === 'inventory') {
+        badgeText = 'INV';
+        badgeColor = '#10b981'; // Verde
+      } else if (String(subItem.sku || '').toUpperCase().startsWith('SRV-')) {
+        badgeText = 'SRV';
+        badgeColor = '#3b82f6'; // Azul
+      }
+      
+      const subBadge = document.createElement('span');
+      subBadge.textContent = badgeText;
+      subBadge.style.cssText = `background:${badgeColor};color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-right:8px;`;
+      subNameCell.appendChild(subBadge);
+      subNameCell.appendChild(document.createTextNode(subItem.name || ''));
+      
+      const subQty = subTr.querySelector('.qty');
+      subQty.value = String(subItem.qty || 1);
+      
+      subTr.querySelector('[data-unit]').textContent = money(subItem.unitPrice || 0);
+      subTr.querySelector('[data-total]').textContent = money(subItem.total || 0);
+      
+      setupItemActions(subTr, subItem);
+      container.appendChild(subTr);
+    });
+  }
+  
+  function renderSaleItem(container, it) {
     const tr = clone('tpl-sale-row');
     tr.querySelector('[data-sku]').textContent = it.sku || '';
     const nameCell = tr.querySelector('[data-name]');
     let label = it.name || '';
     nameCell.textContent = label; // default
+    
+    const sku = String(it.sku || '').toUpperCase();
+    
+    // Determinar tipo y badge
     if (it.source === 'inventory') {
-      const badge = document.createElement('span'); badge.className='inv-badge'; badge.textContent='INV';
-      nameCell.textContent=''; nameCell.appendChild(badge); nameCell.appendChild(document.createTextNode(label));
+      const badge = document.createElement('span');
+      badge.className = 'inv-badge';
+      badge.textContent = 'INV';
+      badge.style.cssText = 'background:#10b981;color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-right:8px;';
+      nameCell.textContent = '';
+      nameCell.appendChild(badge);
+      nameCell.appendChild(document.createTextNode(label));
       tr.classList.add('sale-row-inventory');
-    } else if (it.source === 'price') {
-      const badge = document.createElement('span'); badge.className='price-badge'; badge.textContent='PRC';
-      nameCell.textContent=''; nameCell.appendChild(badge); nameCell.appendChild(document.createTextNode(label));
-      tr.classList.add('sale-row-price');
-    } else if (it.source === 'service') {
-      const badge = document.createElement('span'); badge.className='service-badge'; badge.textContent='SRV';
-      nameCell.textContent=''; nameCell.appendChild(badge); nameCell.appendChild(document.createTextNode(label));
+    } else if (sku.startsWith('COMBO-')) {
+      // Combo (no debería llegar aquí si está agrupado, pero por si acaso)
+      const badge = document.createElement('span');
+      badge.className = 'combo-badge';
+      badge.textContent = 'COM';
+      badge.style.cssText = 'background:#9333ea;color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-right:8px;';
+      nameCell.textContent = '';
+      nameCell.appendChild(badge);
+      nameCell.appendChild(document.createTextNode(label));
+      tr.classList.add('sale-row-combo');
+    } else if (sku.startsWith('SRV-') || it.source === 'service') {
+      const badge = document.createElement('span');
+      badge.className = 'service-badge';
+      badge.textContent = 'SRV';
+      badge.style.cssText = 'background:#3b82f6;color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-right:8px;';
+      nameCell.textContent = '';
+      nameCell.appendChild(badge);
+      nameCell.appendChild(document.createTextNode(label));
       tr.classList.add('sale-row-service');
+    } else if (it.source === 'price' || sku.startsWith('CP-') || sku.startsWith('PRD-')) {
+      // Producto sin item linkeado
+      const badge = document.createElement('span');
+      badge.className = 'product-badge';
+      badge.textContent = 'PRD';
+      badge.style.cssText = 'background:#86efac;color:#065f46;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;margin-right:8px;';
+      nameCell.textContent = '';
+      nameCell.appendChild(badge);
+      nameCell.appendChild(document.createTextNode(label));
+      tr.classList.add('sale-row-product');
     }
-    const qty = tr.querySelector('.qty'); qty.value = String(it.qty||1);
-    tr.querySelector('[data-unit]').textContent  = money(it.unitPrice||0);
-    tr.querySelector('[data-total]').textContent = money(it.total||0);
-
-    qty.addEventListener('change', async ()=>{
-      const v = Math.max(1, Number(qty.value||1) || 1);
+    
+    const qty = tr.querySelector('.qty');
+    qty.value = String(it.qty || 1);
+    tr.querySelector('[data-unit]').textContent = money(it.unitPrice || 0);
+    tr.querySelector('[data-total]').textContent = money(it.total || 0);
+    
+    setupItemActions(tr, it);
+    container.appendChild(tr);
+  }
+  
+  function setupItemActions(tr, it) {
+    const qty = tr.querySelector('.qty');
+    qty.addEventListener('change', async () => {
+      const v = Math.max(1, Number(qty.value || 1) || 1);
       current = await API.sales.updateItem(current._id, it._id, { qty: v });
       syncCurrentIntoOpenList();
-        renderTabs();
-      renderSale(); renderWO();
+      renderTabs();
+      renderSale();
+      renderWO();
     });
 
     const actions = tr.querySelector('td:last-child');
-    const btnEdit = document.createElement('button'); btnEdit.textContent='Editar $'; btnEdit.className='secondary';
-    btnEdit.onclick = async ()=>{
-      const v = prompt('Nuevo precio unitario:', String(it.unitPrice||0)); if (v==null) return;
-      current = await API.sales.updateItem(current._id, it._id, { unitPrice: Number(v)||0 });
+    const btnEdit = document.createElement('button');
+    btnEdit.textContent = 'Editar $';
+    btnEdit.className = 'secondary';
+    btnEdit.onclick = async () => {
+      const v = prompt('Nuevo precio unitario:', String(it.unitPrice || 0));
+      if (v == null) return;
+      current = await API.sales.updateItem(current._id, it._id, { unitPrice: Number(v) || 0 });
       syncCurrentIntoOpenList();
-        renderTabs();
-      renderSale(); renderWO();
+      renderTabs();
+      renderSale();
+      renderWO();
     };
-    const btnZero = document.createElement('button'); btnZero.textContent='Precio 0'; btnZero.className='secondary';
-    btnZero.onclick = async ()=>{
+    const btnZero = document.createElement('button');
+    btnZero.textContent = 'Precio 0';
+    btnZero.className = 'secondary';
+    btnZero.onclick = async () => {
       current = await API.sales.updateItem(current._id, it._id, { unitPrice: 0 });
       syncCurrentIntoOpenList();
-        renderTabs();
-      renderSale(); renderWO();
+      renderTabs();
+      renderSale();
+      renderWO();
     };
     const btnDel = tr.querySelector('button.remove');
-    btnDel.onclick = async ()=>{
+    btnDel.onclick = async () => {
       await API.sales.removeItem(current._id, it._id);
       current = await API.sales.get(current._id);
       syncCurrentIntoOpenList();
-        renderTabs();
-      renderSale(); renderWO();
+      renderTabs();
+      renderSale();
+      renderWO();
     };
-    actions.prepend(btnEdit); actions.prepend(btnZero);
-
-    body.appendChild(tr);
-  });
+    actions.prepend(btnEdit);
+    actions.prepend(btnZero);
+  }
 
   if (total) total.textContent = money(current?.total||0);
   renderMini(); renderCapsules(); setupTechnicianSelect();
@@ -874,13 +1036,18 @@ function renderSale(){
   try {
     const legendId='sales-legend-origin';
     const items = current?.items||[];
-    const kinds = new Set(items.map(i=>i.source).filter(Boolean));
+    const hasInventory = items.some(i=>i.source === 'inventory');
+    const hasCombo = items.some(i=>String(i.sku||'').toUpperCase().startsWith('COMBO-'));
+    const hasService = items.some(i=>i.source === 'service' || String(i.sku||'').toUpperCase().startsWith('SRV-'));
+    const hasProduct = items.some(i=>i.source === 'price' && !String(i.sku||'').toUpperCase().startsWith('COMBO-') && !String(i.sku||'').toUpperCase().startsWith('SRV-'));
+    
     let legend=document.getElementById(legendId);
-    if(kinds.size){
+    if(hasInventory || hasCombo || hasService || hasProduct){
       const parts=[];
-      if(kinds.has('inventory')) parts.push('<span class="inv-badge">INV</span> Descuenta stock');
-      if(kinds.has('price')) parts.push('<span class="price-badge">PRC</span> Desde lista precios');
-      if(kinds.has('service')) parts.push('<span class="service-badge">SRV</span> Servicio / mano de obra');
+      if(hasInventory) parts.push('<span style="background:#10b981;color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">INV</span> Inventario');
+      if(hasCombo) parts.push('<span style="background:#9333ea;color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">COM</span> Combo');
+      if(hasService) parts.push('<span style="background:#3b82f6;color:white;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">SRV</span> Servicio');
+      if(hasProduct) parts.push('<span style="background:#86efac;color:#065f46;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;">PRD</span> Producto');
       const html = parts.join(' &nbsp; ');
       if(!legend){
         legend=document.createElement('div'); legend.id=legendId; legend.style.marginTop='6px'; legend.style.fontSize='11px'; legend.style.opacity='.8';

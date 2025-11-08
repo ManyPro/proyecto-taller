@@ -15,15 +15,16 @@ export function openQRForItem() {
   return new Promise(async (resolve, reject) => {
     // Crear modal simplificado
     const qrModal = document.createElement('div');
-    qrModal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:20000;display:flex;align-items:center;justify-content:center;';
+    qrModal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:99999;display:flex;align-items:center;justify-content:center;';
+    qrModal.id = 'qr-modal-item-scanner';
     
     const qrContent = document.createElement('div');
-    qrContent.style.cssText = 'background:var(--card);border-radius:12px;padding:24px;max-width:90vw;max-height:90vh;width:600px;position:relative;';
+    qrContent.style.cssText = 'background:var(--card);border-radius:12px;padding:24px;max-width:90vw;max-height:90vh;width:600px;position:relative;z-index:100000;';
     qrContent.innerHTML = `
       <button class="close" style="position:absolute;top:8px;right:8px;font-size:24px;background:none;border:none;color:var(--text);cursor:pointer;padding:4px 12px;">&times;</button>
       <h3 style="margin-top:0;margin-bottom:16px;">Escanear código QR</h3>
-      <div style="position:relative;width:100%;background:#000;border-radius:8px;overflow:hidden;margin-bottom:12px;">
-        <video id="qr-video-single" playsinline muted style="width:100%;height:auto;display:block;"></video>
+      <div style="position:relative;width:100%;background:#000;border-radius:8px;overflow:hidden;margin-bottom:12px;min-height:300px;">
+        <video id="qr-video-single" playsinline muted autoplay style="width:100%;height:auto;display:block;object-fit:contain;"></video>
         <canvas id="qr-canvas-single" style="display:none;"></canvas>
       </div>
       <div style="margin-bottom:12px;">
@@ -38,8 +39,18 @@ export function openQRForItem() {
     qrModal.appendChild(qrContent);
     document.body.appendChild(qrModal);
     
+    // Esperar un frame para asegurar que el DOM esté completamente renderizado
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    
     const video = qrContent.querySelector('#qr-video-single');
     const canvas = qrContent.querySelector('#qr-canvas-single');
+    
+    if (!video || !canvas) {
+      cleanup();
+      reject(new Error('No se pudieron encontrar los elementos del video'));
+      return;
+    }
+    
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const msg = qrContent.querySelector('#qr-msg-single');
     const manualInput = qrContent.querySelector('#qr-manual-single');
@@ -49,16 +60,25 @@ export function openQRForItem() {
     let stream = null, running = false, detector = null, lastCode = '', lastTs = 0;
     
     function cleanup() {
-      try {
-        video.pause();
-        video.srcObject = null;
-      } catch {}
-      try {
-        (stream?.getTracks() || []).forEach(t => t.stop());
-      } catch {}
       running = false;
+      try {
+        if (video) {
+          video.pause();
+          video.srcObject = null;
+        }
+      } catch (e) {
+        console.warn('Error al limpiar video:', e);
+      }
+      try {
+        if (stream) {
+          (stream.getTracks() || []).forEach(t => t.stop());
+        }
+      } catch (e) {
+        console.warn('Error al detener stream:', e);
+      }
       stream = null;
-      if (qrModal.parentNode) {
+      detector = null;
+      if (qrModal && qrModal.parentNode) {
         qrModal.remove();
       }
     }
@@ -109,26 +129,69 @@ export function openQRForItem() {
         video.srcObject = stream;
         
         await new Promise((resolve, reject) => {
-          video.onloadedmetadata = () => {
-            video.play().then(resolve).catch(reject);
-          };
-          video.onerror = reject;
-          setTimeout(() => {
+          const timeout = setTimeout(() => {
             if (video.readyState >= 2) {
               video.play().then(resolve).catch(reject);
             } else {
               reject(new Error('Timeout esperando video'));
             }
           }, 10000);
+          
+          video.onloadedmetadata = () => {
+            clearTimeout(timeout);
+            video.play().then(() => {
+              // Verificar que el video realmente esté reproduciéndose
+              if (video.paused) {
+                reject(new Error('El video no se pudo reproducir'));
+              } else {
+                resolve();
+              }
+            }).catch(reject);
+          };
+          video.onerror = (err) => {
+            clearTimeout(timeout);
+            reject(err);
+          };
         });
+        
+        // Verificar que el video tenga dimensiones válidas
+        if (!video.videoWidth || !video.videoHeight) {
+          throw new Error('El video no tiene dimensiones válidas');
+        }
         
         running = true;
         
+        // Esperar un momento para que el video esté completamente listo y visible
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Verificar nuevamente que el video esté reproduciéndose
+        if (video.paused || video.ended) {
+          console.warn('Video pausado o terminado, intentando reproducir nuevamente...');
+          await video.play();
+        }
+        
         if (window.BarcodeDetector) {
-          detector = new BarcodeDetector({ formats: ['qr_code'] });
-          tickNative();
+          try {
+            detector = new BarcodeDetector({ formats: ['qr_code'] });
+            console.log('Usando BarcodeDetector nativo para QR');
+            tickNative();
+          } catch (err) {
+            console.warn('Error al crear BarcodeDetector, usando fallback canvas:', err);
+            if (window.jsQR) {
+              tickCanvas();
+            } else {
+              msg.textContent = '❌ jsQR no está disponible. Por favor, ingresa el código manualmente.';
+              msg.style.color = 'var(--danger, #ef4444)';
+            }
+          }
         } else {
-          tickCanvas();
+          if (window.jsQR) {
+            console.log('Usando jsQR para detección QR');
+            tickCanvas();
+          } else {
+            msg.textContent = '❌ jsQR no está disponible. Por favor, ingresa el código manualmente.';
+            msg.style.color = 'var(--danger, #ef4444)';
+          }
         }
         msg.textContent = 'Apunta la cámara al código QR';
         msg.style.color = 'var(--success, #10b981)';
@@ -189,21 +252,38 @@ export function openQRForItem() {
     }
     
     async function tickNative() {
-      if (!running) return;
-      try {
-        const codes = await detector.detect(video);
-        if (codes?.[0]?.rawValue) onCode(codes[0].rawValue);
-      } catch (e) {
-        // Silenciar errores menores
+      if (!running || !video || !detector) {
+        if (running) requestAnimationFrame(tickNative);
+        return;
       }
-      requestAnimationFrame(tickNative);
+      try {
+        // Verificar que el video esté listo
+        if (video.readyState < 2) {
+          requestAnimationFrame(tickNative);
+          return;
+        }
+        const codes = await detector.detect(video);
+        if (codes && codes.length > 0 && codes[0]?.rawValue) {
+          onCode(codes[0].rawValue);
+          return; // Detener después de detectar
+        }
+      } catch (e) {
+        // Solo loguear errores importantes
+        if (e.message && !e.message.includes('No image') && !e.message.includes('videoWidth')) {
+          console.warn('Error en detección QR nativa:', e);
+        }
+      }
+      if (running) requestAnimationFrame(tickNative);
     }
     
     function tickCanvas() {
-      if (!running) return;
+      if (!running || !video || !canvas || !ctx) {
+        if (running) requestAnimationFrame(tickCanvas);
+        return;
+      }
       try {
         const w = video.videoWidth | 0, h = video.videoHeight | 0;
-        if (!w || !h) {
+        if (!w || !h || video.readyState < 2) {
           requestAnimationFrame(tickCanvas);
           return;
         }
@@ -213,12 +293,18 @@ export function openQRForItem() {
         const img = ctx.getImageData(0, 0, w, h);
         if (window.jsQR) {
           const qr = window.jsQR(img.data, w, h);
-          if (qr && qr.data) onCode(qr.data);
+          if (qr && qr.data) {
+            onCode(qr.data);
+            return; // Detener después de detectar
+          }
         }
       } catch (e) {
-        // Silenciar errores menores
+        // Solo loguear errores importantes
+        if (e.message && !e.message.includes('videoWidth') && !e.message.includes('No image')) {
+          console.warn('Error en detección QR canvas:', e);
+        }
       }
-      requestAnimationFrame(tickCanvas);
+      if (running) requestAnimationFrame(tickCanvas);
     }
     
     closeBtn.onclick = () => {
