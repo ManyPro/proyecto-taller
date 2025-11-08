@@ -241,52 +241,75 @@
                 </p>
 
                 <!-- Indicadores gráficos -->
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8 pt-8 border-t border-slate-700/50">
-                  <div class="flex flex-col items-center">
-                    <div class="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center mb-2">
-                      <span class="text-2xl">📝</span>
-                    </div>
-                    <span class="text-xs sm:text-sm text-slate-400">Notas</span>
-                  </div>
+                <div class="grid grid-cols-3 gap-4 mt-8 pt-8 border-t border-slate-700/50">
                   <div class="flex flex-col items-center">
                     <div class="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center mb-2">
-                      <span class="text-2xl">💰</span>
+                      <svg class="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
                     </div>
                     <span class="text-xs sm:text-sm text-slate-400">Ventas</span>
                   </div>
                   <div class="flex flex-col items-center">
-                    <div class="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center mb-2">
-                      <span class="text-2xl">📦</span>
+                    <div class="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center mb-2">
+                      <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                      </svg>
                     </div>
-                    <span class="text-xs sm:text-sm text-slate-400">Inventario</span>
+                    <span class="text-xs sm:text-sm text-slate-400">Cotizaciones</span>
                   </div>
                   <div class="flex flex-col items-center">
-                    <div class="w-12 h-12 rounded-lg bg-orange-500/20 flex items-center justify-center mb-2">
-                      <span class="text-2xl">📊</span>
+                    <div class="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center mb-2">
+                      <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                      </svg>
                     </div>
-                    <span class="text-xs sm:text-sm text-slate-400">Reportes</span>
+                    <span class="text-xs sm:text-sm text-slate-400">Flujo de Caja</span>
                   </div>
                 </div>
               </div>
             </div>
 
-            <!-- Cards de Acceso Rápido (Opcional - solo en desktop) -->
-            <div class="hidden lg:grid grid-cols-3 gap-6 mt-8">
-              <div class="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50 hover:border-blue-500/50 transition-all duration-200 cursor-pointer group">
-                <div class="text-3xl mb-3 group-hover:scale-110 transition-transform duration-200">📝</div>
-                <h3 class="text-white font-semibold mb-1">Notas</h3>
-                <p class="text-sm text-slate-400">Gestiona tus notas</p>
-              </div>
-              <div class="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50 hover:border-green-500/50 transition-all duration-200 cursor-pointer group">
-                <div class="text-3xl mb-3 group-hover:scale-110 transition-transform duration-200">💰</div>
-                <h3 class="text-white font-semibold mb-1">Ventas</h3>
-                <p class="text-sm text-slate-400">Registra ventas</p>
-              </div>
-              <div class="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50 hover:border-purple-500/50 transition-all duration-200 cursor-pointer group">
-                <div class="text-3xl mb-3 group-hover:scale-110 transition-transform duration-200">📦</div>
-                <h3 class="text-white font-semibold mb-1">Inventario</h3>
-                <p class="text-sm text-slate-400">Control de stock</p>
-              </div>
+            <!-- Cards de Acceso Rápido (Ventas, Cotizaciones, Flujo de Caja) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-8">
+              <!-- Card Ventas -->
+              <a href="ventas.html" data-feature="ventas" class="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50 hover:border-green-500/50 hover:shadow-lg hover:shadow-green-500/10 transition-all duration-200 cursor-pointer group block">
+                <div class="flex items-center justify-center mb-4">
+                  <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-600/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                    <svg class="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                  </div>
+                </div>
+                <h3 class="text-white font-semibold text-lg mb-2 group-hover:text-green-400 transition-colors duration-200">Ventas</h3>
+                <p class="text-sm text-slate-400">Registra y gestiona tus ventas</p>
+              </a>
+
+              <!-- Card Cotizaciones -->
+              <a href="cotizaciones.html" data-feature="cotizaciones" class="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-200 cursor-pointer group block">
+                <div class="flex items-center justify-center mb-4">
+                  <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-600/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                    <svg class="w-8 h-8 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                  </div>
+                </div>
+                <h3 class="text-white font-semibold text-lg mb-2 group-hover:text-blue-400 transition-colors duration-200">Cotizaciones</h3>
+                <p class="text-sm text-slate-400">Crea y envía cotizaciones</p>
+              </a>
+
+              <!-- Card Flujo de Caja -->
+              <a href="cashflow.html" data-feature="cashflow" class="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-200 cursor-pointer group block">
+                <div class="flex items-center justify-center mb-4">
+                  <div class="w-16 h-16 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-600/20 flex items-center justify-center group-hover:scale-110 transition-transform duration-200">
+                    <svg class="w-8 h-8 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                  </div>
+                </div>
+                <h3 class="text-white font-semibold text-lg mb-2 group-hover:text-purple-400 transition-colors duration-200">Flujo de Caja</h3>
+                <p class="text-sm text-slate-400">Controla ingresos y egresos</p>
+              </a>
             </div>
           </div>
         </div>
