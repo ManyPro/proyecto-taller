@@ -3827,13 +3827,19 @@ export function initSales(){
       // Terminar worker de OCR si existe
       if (ocrWorker) {
         try {
-          ocrWorker.terminate();
+          ocrWorker.terminate().catch(() => {}); // Ignorar errores de terminación
           ocrWorker = null;
           console.log('OCR worker terminado');
         } catch (err) {
           console.warn('Error al terminar OCR worker:', err);
+          ocrWorker = null; // Forzar a null incluso si hay error
         }
       }
+      
+      // Limpiar historial de detecciones
+      plateDetectionHistory = [];
+      lastValidPlate = null;
+      plateConfidenceCount = 0;
       
       // Restaurar botón de iniciar
       const startBtn = node.querySelector('#qr-start');
@@ -4274,7 +4280,8 @@ export function initSales(){
 
     let ocrWorker = null;
     let lastOcrTime = 0;
-    const ocrInterval = 2000; // Procesar OCR cada 2 segundos para no sobrecargar
+    const ocrInterval = 1500; // Procesar OCR cada 1.5 segundos (más frecuente)
+    let plateDetectionHistory = []; // Historial de las últimas placas detectadas (para votación)
     
     // Inicializar worker de OCR
     async function initOCR() {
@@ -4295,7 +4302,8 @@ export function initSales(){
           await ocrWorker.setParameters({
             tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ',
             tessedit_pageseg_mode: '8', // Single word (mejor para placas)
-            tessedit_ocr_engine_mode: '1' // Neural nets LSTM engine only
+            // tessedit_ocr_engine_mode solo se puede configurar durante la inicialización
+            // No lo configuramos aquí para evitar el warning
           });
           console.log('OCR worker inicializado');
         }
@@ -4513,51 +4521,65 @@ export function initSales(){
                   if (text && text.trim()) {
                     console.log('Texto detectado por OCR en región:', text);
                     
-                    // Validar confianza: solo procesar si hay palabras con buena confianza
+                    // Procesar texto detectado
+                    let processedText = text;
+                    let avgConfidence = 0;
+                    
+                    // Si hay información de confianza, usarla para filtrar pero ser más flexible
                     if (words && words.length > 0) {
-                      // Filtrar palabras con baja confianza (< 50)
-                      const highConfidenceWords = words.filter(w => w.confidence > 50);
-                      if (highConfidenceWords.length === 0) {
-                        console.log('Rechazado: confianza del OCR muy baja');
+                      // Calcular confianza promedio
+                      const confidences = words.map(w => w.confidence || 0).filter(c => c > 0);
+                      avgConfidence = confidences.length > 0 
+                        ? confidences.reduce((a, b) => a + b, 0) / confidences.length 
+                        : 0;
+                      
+                      // Si la confianza promedio es muy baja (< 30), rechazar
+                      if (avgConfidence > 0 && avgConfidence < 30) {
+                        console.log('Rechazado: confianza promedio muy baja:', avgConfidence.toFixed(1));
                         continue;
                       }
                       
-                      // Reconstruir texto solo con palabras de alta confianza
-                      const highConfText = highConfidenceWords
-                        .map(w => w.text)
-                        .join(' ')
-                        .trim();
-                      
-                        if (highConfText) {
-                          console.log('Texto con alta confianza:', highConfText);
-                          const plate = extractPlateFromText(highConfText);
-                          if (plate && isValidPlate(plate)) {
-                            // Validación adicional: requerir múltiples detecciones de la misma placa
-                            if (lastValidPlate === plate) {
-                              plateConfidenceCount++;
-                              if (plateConfidenceCount >= 2) {
-                                // Solo procesar si se detectó la misma placa al menos 2 veces
-                                console.log('✅ Placa extraída y validada (alta confianza, múltiples detecciones):', plate);
-                                lastValidPlate = null;
-                                plateConfidenceCount = 0;
-                                onCode(plate);
-                                return;
-                              }
-                            } else {
-                              // Nueva placa detectada, reiniciar contador
-                              lastValidPlate = plate;
-                              plateConfidenceCount = 1;
-                              console.log('Placa detectada (requiere confirmación):', plate);
-                            }
-                          }
-                        }
-                    } else {
-                      // Fallback si no hay información de confianza
-                      const plate = extractPlateFromText(text);
+                      // Si hay palabras con confianza > 40, priorizar esas
+                      const highConfWords = words.filter(w => (w.confidence || 0) > 40);
+                      if (highConfWords.length > 0) {
+                        processedText = highConfWords.map(w => w.text).join(' ').trim();
+                        console.log('Texto con buena confianza (>40):', processedText, 'promedio:', avgConfidence.toFixed(1));
+                      } else {
+                        // Si no hay palabras con alta confianza, usar todo el texto pero con umbral más bajo
+                        processedText = text;
+                        console.log('Texto con confianza moderada:', processedText, 'promedio:', avgConfidence.toFixed(1));
+                      }
+                    }
+                    
+                    if (processedText && processedText.trim()) {
+                      const plate = extractPlateFromText(processedText);
                       if (plate && isValidPlate(plate)) {
-                        console.log('✅ Placa extraída y validada:', plate);
-                        onCode(plate);
-                        return;
+                        // Sistema de votación: agregar a historial
+                        plateDetectionHistory.push({
+                          plate,
+                          timestamp: Date.now(),
+                          confidence: avgConfidence
+                        });
+                        
+                        // Mantener solo las últimas 5 detecciones (últimos ~7.5 segundos)
+                        plateDetectionHistory = plateDetectionHistory.filter(
+                          entry => Date.now() - entry.timestamp < 8000
+                        );
+                        
+                        // Contar cuántas veces aparece esta placa en el historial
+                        const plateCount = plateDetectionHistory.filter(e => e.plate === plate).length;
+                        
+                        console.log(`Placa "${plate}" detectada ${plateCount} veces en el historial (requiere 3)`);
+                        
+                        // Si aparece al menos 3 veces en el historial, procesarla
+                        if (plateCount >= 3) {
+                          console.log('✅ Placa validada por votación (3+ detecciones):', plate);
+                          plateDetectionHistory = []; // Limpiar historial
+                          lastValidPlate = null;
+                          plateConfidenceCount = 0;
+                          onCode(plate);
+                          return;
+                        }
                       }
                     }
                   }
@@ -4642,62 +4664,64 @@ export function initSales(){
                       if (text && text.trim()) {
                         console.log('Texto detectado por OCR en región:', text);
                         
-                        // Validar confianza: solo procesar si hay palabras con buena confianza
+                        // Procesar texto detectado
+                        let processedText = text;
+                        let avgConfidence = 0;
+                        
+                        // Si hay información de confianza, usarla para filtrar pero ser más flexible
                         if (words && words.length > 0) {
-                          // Filtrar palabras con baja confianza (< 50)
-                          const highConfidenceWords = words.filter(w => w.confidence > 50);
-                          if (highConfidenceWords.length === 0) {
-                            console.log('Rechazado: confianza del OCR muy baja');
+                          // Calcular confianza promedio
+                          const confidences = words.map(w => w.confidence || 0).filter(c => c > 0);
+                          avgConfidence = confidences.length > 0 
+                            ? confidences.reduce((a, b) => a + b, 0) / confidences.length 
+                            : 0;
+                          
+                          // Si la confianza promedio es muy baja (< 30), rechazar
+                          if (avgConfidence > 0 && avgConfidence < 30) {
+                            console.log('Rechazado: confianza promedio muy baja:', avgConfidence.toFixed(1));
                             continue;
                           }
                           
-                          // Reconstruir texto solo con palabras de alta confianza
-                          const highConfText = highConfidenceWords
-                            .map(w => w.text)
-                            .join(' ')
-                            .trim();
-                          
-                          if (highConfText) {
-                            console.log('Texto con alta confianza:', highConfText);
-                            const plate = extractPlateFromText(highConfText);
-                            if (plate && isValidPlate(plate)) {
-                              // Validación adicional: requerir múltiples detecciones de la misma placa
-                              if (lastValidPlate === plate) {
-                                plateConfidenceCount++;
-                                if (plateConfidenceCount >= 2) {
-                                  // Solo procesar si se detectó la misma placa al menos 2 veces
-                                  console.log('✅ Placa extraída y validada (alta confianza, múltiples detecciones):', plate);
-                                  lastValidPlate = null;
-                                  plateConfidenceCount = 0;
-                                  onCode(plate);
-                                  return;
-                                }
-                              } else {
-                                // Nueva placa detectada, reiniciar contador
-                                lastValidPlate = plate;
-                                plateConfidenceCount = 1;
-                                console.log('Placa detectada (requiere confirmación):', plate);
-                              }
-                            }
+                          // Si hay palabras con confianza > 40, priorizar esas
+                          const highConfWords = words.filter(w => (w.confidence || 0) > 40);
+                          if (highConfWords.length > 0) {
+                            processedText = highConfWords.map(w => w.text).join(' ').trim();
+                            console.log('Texto con buena confianza (>40):', processedText, 'promedio:', avgConfidence.toFixed(1));
+                          } else {
+                            // Si no hay palabras con alta confianza, usar todo el texto pero con umbral más bajo
+                            processedText = text;
+                            console.log('Texto con confianza moderada:', processedText, 'promedio:', avgConfidence.toFixed(1));
                           }
-                        } else {
-                          // Fallback si no hay información de confianza
-                          const plate = extractPlateFromText(text);
+                        }
+                        
+                        if (processedText && processedText.trim()) {
+                          const plate = extractPlateFromText(processedText);
                           if (plate && isValidPlate(plate)) {
-                            // Validación adicional: requerir múltiples detecciones
-                            if (lastValidPlate === plate) {
-                              plateConfidenceCount++;
-                              if (plateConfidenceCount >= 2) {
-                                console.log('✅ Placa extraída y validada (múltiples detecciones):', plate);
-                                lastValidPlate = null;
-                                plateConfidenceCount = 0;
-                                onCode(plate);
-                                return;
-                              }
-                            } else {
-                              lastValidPlate = plate;
-                              plateConfidenceCount = 1;
-                              console.log('Placa detectada (requiere confirmación):', plate);
+                            // Sistema de votación: agregar a historial
+                            plateDetectionHistory.push({
+                              plate,
+                              timestamp: Date.now(),
+                              confidence: avgConfidence
+                            });
+                            
+                            // Mantener solo las últimas 5 detecciones (últimos ~7.5 segundos)
+                            plateDetectionHistory = plateDetectionHistory.filter(
+                              entry => Date.now() - entry.timestamp < 8000
+                            );
+                            
+                            // Contar cuántas veces aparece esta placa en el historial
+                            const plateCount = plateDetectionHistory.filter(e => e.plate === plate).length;
+                            
+                            console.log(`Placa "${plate}" detectada ${plateCount} veces en el historial (requiere 3)`);
+                            
+                            // Si aparece al menos 3 veces en el historial, procesarla
+                            if (plateCount >= 3) {
+                              console.log('✅ Placa validada por votación (3+ detecciones):', plate);
+                              plateDetectionHistory = []; // Limpiar historial
+                              lastValidPlate = null;
+                              plateConfidenceCount = 0;
+                              onCode(plate);
+                              return;
                             }
                           }
                         }
