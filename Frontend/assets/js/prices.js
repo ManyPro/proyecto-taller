@@ -32,6 +32,7 @@ export function openQRForItem() {
       </div>
       <div id="qr-msg-single" style="font-size:12px;color:var(--muted);margin-bottom:8px;"></div>
       <div style="display:flex;gap:8px;">
+        <button id="qr-start-camera-single" class="primary" style="flex:1;padding:10px;display:none;">▶ Iniciar cámara</button>
         <button id="qr-cancel-single" class="secondary" style="flex:1;padding:10px;">Cancelar</button>
       </div>
     `;
@@ -56,11 +57,18 @@ export function openQRForItem() {
     const manualInput = qrContent.querySelector('#qr-manual-single');
     const closeBtn = qrContent.querySelector('.close');
     const cancelBtn = qrContent.querySelector('#qr-cancel-single');
+    const startCameraBtn = qrContent.querySelector('#qr-start-camera-single');
     
     let stream = null, running = false, detector = null, lastCode = '', lastTs = 0;
+    let escapeHandler = null;
+    let checkVideoInterval = null;
     
     function cleanup() {
       running = false;
+      if (checkVideoInterval) {
+        clearInterval(checkVideoInterval);
+        checkVideoInterval = null;
+      }
       try {
         if (video) {
           video.pause();
@@ -78,6 +86,10 @@ export function openQRForItem() {
       }
       stream = null;
       detector = null;
+      if (escapeHandler) {
+        document.removeEventListener('keydown', escapeHandler);
+        escapeHandler = null;
+      }
       if (qrModal && qrModal.parentNode) {
         qrModal.remove();
       }
@@ -195,6 +207,38 @@ export function openQRForItem() {
         }
         msg.textContent = 'Apunta la cámara al código QR';
         msg.style.color = 'var(--success, #10b981)';
+        
+        // Verificar que todo esté funcionando
+        console.log('QR Scanner iniciado:', {
+          running,
+          videoReady: video.readyState,
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight,
+          videoPaused: video.paused,
+          videoEnded: video.ended,
+          hasBarcodeDetector: !!window.BarcodeDetector,
+          hasJsQR: !!window.jsQR,
+          detector: !!detector,
+          streamActive: stream && stream.active,
+          streamTracks: stream ? stream.getTracks().length : 0
+        });
+        
+        // Verificar periódicamente que el video siga reproduciéndose
+        checkVideoInterval = setInterval(() => {
+          if (!running) {
+            if (checkVideoInterval) {
+              clearInterval(checkVideoInterval);
+              checkVideoInterval = null;
+            }
+            return;
+          }
+          if (video.paused || video.ended) {
+            console.warn('Video pausado o terminado, intentando reanudar...');
+            video.play().catch(err => {
+              console.error('Error al reanudar video:', err);
+            });
+          }
+        }, 1000);
       } catch (e) {
         console.error('Error al iniciar cámara:', e);
         let errorMsg = '';
@@ -239,21 +283,33 @@ export function openQRForItem() {
     
     async function handleCode(raw, fromManual = false) {
       const text = String(raw || '').trim();
-      if (!text) return;
-      if (!fromManual && !accept(text)) return;
+      if (!text) {
+        console.log('handleCode: texto vacío');
+        return;
+      }
+      if (!fromManual && !accept(text)) {
+        console.log('handleCode: código rechazado por accept()');
+        return;
+      }
       
+      console.log('handleCode: código aceptado:', text);
       stop();
       cleanup();
       resolve(text);
     }
     
     function onCode(code) {
-      handleCode(code);
+      console.log('onCode llamado con:', code);
+      if (code) {
+        handleCode(code);
+      }
     }
     
     async function tickNative() {
       if (!running || !video || !detector) {
-        if (running) requestAnimationFrame(tickNative);
+        if (running) {
+          requestAnimationFrame(tickNative);
+        }
         return;
       }
       try {
@@ -264,21 +320,26 @@ export function openQRForItem() {
         }
         const codes = await detector.detect(video);
         if (codes && codes.length > 0 && codes[0]?.rawValue) {
+          console.log('tickNative: código detectado:', codes[0].rawValue);
           onCode(codes[0].rawValue);
           return; // Detener después de detectar
         }
       } catch (e) {
         // Solo loguear errores importantes
-        if (e.message && !e.message.includes('No image') && !e.message.includes('videoWidth')) {
+        if (e.message && !e.message.includes('No image') && !e.message.includes('videoWidth') && !e.message.includes('not readable')) {
           console.warn('Error en detección QR nativa:', e);
         }
       }
-      if (running) requestAnimationFrame(tickNative);
+      if (running) {
+        requestAnimationFrame(tickNative);
+      }
     }
     
     function tickCanvas() {
       if (!running || !video || !canvas || !ctx) {
-        if (running) requestAnimationFrame(tickCanvas);
+        if (running) {
+          requestAnimationFrame(tickCanvas);
+        }
         return;
       }
       try {
@@ -294,32 +355,48 @@ export function openQRForItem() {
         if (window.jsQR) {
           const qr = window.jsQR(img.data, w, h);
           if (qr && qr.data) {
+            console.log('tickCanvas: código detectado:', qr.data);
             onCode(qr.data);
             return; // Detener después de detectar
           }
+        } else {
+          console.warn('jsQR no está disponible');
         }
       } catch (e) {
         // Solo loguear errores importantes
-        if (e.message && !e.message.includes('videoWidth') && !e.message.includes('No image')) {
+        if (e.message && !e.message.includes('videoWidth') && !e.message.includes('No image') && !e.message.includes('not readable')) {
           console.warn('Error en detección QR canvas:', e);
         }
       }
-      if (running) requestAnimationFrame(tickCanvas);
+      if (running) {
+        requestAnimationFrame(tickCanvas);
+      }
     }
     
-    closeBtn.onclick = () => {
+    // Manejar cierre del modal
+    const handleClose = () => {
       cleanup();
       reject(new Error('Cancelado por el usuario'));
     };
     
-    cancelBtn.onclick = () => {
-      cleanup();
-      reject(new Error('Cancelado por el usuario'));
-    };
+    closeBtn.onclick = handleClose;
+    cancelBtn.onclick = handleClose;
     
+    // Manejar Escape key - prevenir que cierre el modal padre
+    escapeHandler = (ev) => {
+      if (ev.key === 'Escape') {
+        ev.stopPropagation();
+        ev.preventDefault();
+        handleClose();
+      }
+    };
+    document.addEventListener('keydown', escapeHandler, true); // Usar capture phase para interceptar antes
+    
+    // Manejar entrada manual
     manualInput.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter') {
         ev.preventDefault();
+        ev.stopPropagation();
         const val = manualInput.value.trim();
         if (val) {
           handleCode(val, true);
@@ -327,8 +404,46 @@ export function openQRForItem() {
       }
     });
     
+    // Click fuera del modal para cerrar
+    qrModal.addEventListener('click', (ev) => {
+      if (ev.target === qrModal) {
+        handleClose();
+      }
+    });
+    
+    // Prevenir que clicks dentro del contenido cierren el modal
+    qrContent.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+    });
+    
+    // Botón para iniciar cámara manualmente si falla el inicio automático
+    if (startCameraBtn) {
+      startCameraBtn.onclick = async () => {
+        startCameraBtn.style.display = 'none';
+        msg.textContent = 'Iniciando cámara...';
+        msg.style.color = 'var(--text)';
+        try {
+          await start();
+        } catch (err) {
+          console.error('Error al iniciar cámara manualmente:', err);
+          msg.textContent = 'Error al iniciar cámara: ' + (err?.message || 'Error desconocido');
+          msg.style.color = 'var(--danger, #ef4444)';
+          startCameraBtn.style.display = 'block';
+        }
+      };
+    }
+    
     // Iniciar cámara automáticamente
-    start();
+    start().catch(err => {
+      console.error('Error al iniciar cámara automáticamente en openQRForItem:', err);
+      msg.textContent = 'Error al iniciar cámara automáticamente. ' + (err?.message || 'Error desconocido');
+      msg.style.color = 'var(--danger, #ef4444)';
+      // Mostrar botón para intentar manualmente
+      if (startCameraBtn) {
+        startCameraBtn.style.display = 'block';
+        msg.textContent += ' Haz clic en "Iniciar cámara" para intentar nuevamente.';
+      }
+    });
   });
 }
 
