@@ -3714,6 +3714,446 @@ export function initSales(){
     finally{ starting=false; if(btn) btn.disabled=false; }
   });
 
+  // Nueva venta con QR (lector de placas)
+  document.getElementById('sales-start-qr')?.addEventListener('click', openQRForNewSale);
+
+  // ===== Nueva venta con QR (lector de placas) =====
+  async function openQRForNewSale(){
+    if (starting) return;
+    
+    const tpl = document.getElementById('tpl-qr-scanner');
+    if (!tpl) {
+      alert('Template de QR no encontrado');
+      return;
+    }
+    
+    const node = tpl.content.firstElementChild.cloneNode(true);
+    openModal(node);
+
+    const video = node.querySelector('#qr-video');
+    const canvas = node.querySelector('#qr-canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const sel = node.querySelector('#qr-cam');
+    const msg = node.querySelector('#qr-msg');
+    const list = node.querySelector('#qr-history');
+    const manualInput = node.querySelector('#qr-manual');
+    const manualBtn = node.querySelector('#qr-add-manual');
+    
+    // Ocultar controles de modo múltiple ya que solo necesitamos leer una placa
+    const singleModeBtn = node.querySelector('#qr-single-mode');
+    const multiModeBtn = node.querySelector('#qr-multi-mode');
+    const finishMultiBtn = node.querySelector('#qr-finish-multi');
+    if (singleModeBtn) singleModeBtn.style.display = 'none';
+    if (multiModeBtn) multiModeBtn.style.display = 'none';
+    if (finishMultiBtn) finishMultiBtn.style.display = 'none';
+    
+    // Cambiar mensaje inicial
+    msg.textContent = 'Escanea la placa del vehículo (formato: ABC-123)';
+    msg.style.color = 'var(--text)';
+
+    let stream = null, running = false, detector = null, lastCode = '', lastTs = 0;
+    let cameraDisabled = false;
+
+    // Función para validar formato de placa: 3 letras - 3 números
+    function isValidPlate(text) {
+      const normalized = String(text || '').trim().toUpperCase();
+      // Patrón: 3 letras, guion opcional, 3 números
+      const platePattern = /^[A-Z]{3}[-]?[0-9]{3}$/;
+      return platePattern.test(normalized);
+    }
+
+    // Función para normalizar placa (asegurar formato ABC-123)
+    function normalizePlate(text) {
+      const normalized = String(text || '').trim().toUpperCase().replace(/\s+/g, '');
+      // Si tiene formato ABC123, convertirlo a ABC-123
+      const match = normalized.match(/^([A-Z]{3})([0-9]{3})$/);
+      if (match) {
+        return `${match[1]}-${match[2]}`;
+      }
+      return normalized;
+    }
+
+    async function fillCams(){
+      try{
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+          const defaultOpt = document.createElement('option');
+          defaultOpt.value = '';
+          defaultOpt.textContent = 'Cámara trasera (automática)';
+          sel.replaceChildren(defaultOpt);
+          sel.value = '';
+          return;
+        }
+        try {
+          const devs = await navigator.mediaDevices.enumerateDevices();
+          const cams = devs.filter(d=>d.kind==='videoinput');
+          if (cams.length === 0) {
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = '';
+            defaultOpt.textContent = 'Cámara predeterminada';
+            sel.replaceChildren(defaultOpt);
+            sel.value = '';
+            return;
+          }
+          sel.replaceChildren(...cams.map((c,i)=>{
+            const o=document.createElement('option'); 
+            o.value=c.deviceId; 
+            o.textContent=c.label||('Cam '+(i+1)); 
+            return o;
+          }));
+        } catch (enumErr) {
+          console.warn('Error al enumerar dispositivos:', enumErr);
+          const defaultOpt = document.createElement('option');
+          defaultOpt.value = '';
+          defaultOpt.textContent = 'Cámara predeterminada';
+          sel.replaceChildren(defaultOpt);
+          sel.value = '';
+        }
+      }catch(err){
+        console.error('Error al cargar cámaras:', err);
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = 'Cámara predeterminada';
+        sel.replaceChildren(defaultOpt);
+        sel.value = '';
+      }
+    }
+
+    function stop(){ 
+      try{ 
+        video.pause(); 
+        video.srcObject = null;
+      }catch{}; 
+      try{ 
+        (stream?.getTracks()||[]).forEach(t=>t.stop()); 
+      }catch{}; 
+      running=false; 
+      stream = null;
+    }
+    
+    async function start(){
+      try{
+        stop();
+        
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        
+        let videoConstraints;
+        if (sel.value && sel.value.trim() !== '') {
+          videoConstraints = { deviceId: { exact: sel.value } };
+        } else if (isMobile) {
+          videoConstraints = { 
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          };
+        } else {
+          videoConstraints = true;
+        }
+        
+        const cs = { 
+          video: videoConstraints, 
+          audio: false 
+        };
+        
+        msg.textContent = 'Solicitando acceso a la cámara...';
+        msg.style.color = 'var(--text)';
+        
+        stream = await navigator.mediaDevices.getUserMedia(cs);
+        
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        video.muted = true;
+        video.srcObject = stream; 
+        
+        await new Promise((resolve, reject) => {
+          video.onloadedmetadata = () => {
+            video.play().then(resolve).catch(reject);
+          };
+          video.onerror = reject;
+          setTimeout(() => {
+            if (video.readyState >= 2) {
+              video.play().then(resolve).catch(reject);
+            } else {
+              reject(new Error('Timeout esperando video'));
+            }
+          }, 5000);
+        });
+        
+        running = true;
+        
+        if (!isMobile) {
+          try {
+            const devs = await navigator.mediaDevices.enumerateDevices();
+            const cams = devs.filter(d=>d.kind==='videoinput' && d.label);
+            if (cams.length > 0 && sel.children.length <= 1) {
+              sel.replaceChildren(...cams.map((c,i)=>{
+                const o=document.createElement('option'); 
+                o.value=c.deviceId; 
+                o.textContent=c.label||('Cam '+(i+1)); 
+                return o;
+              }));
+            }
+          } catch (enumErr) {
+            console.warn('No se pudieron actualizar las cámaras:', enumErr);
+          }
+        }
+        
+        if (window.BarcodeDetector) { 
+          detector = new BarcodeDetector({ formats: ['qr_code'] }); 
+          tickNative(); 
+        } else { 
+          tickCanvas(); 
+        }
+        msg.textContent = 'Escanea la placa del vehículo (formato: ABC-123)';
+        msg.style.color = 'var(--text)';
+      }catch(e){ 
+        console.error('Error al iniciar cámara:', e);
+        let errorMsg = '';
+        if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+          errorMsg = '❌ Permisos de cámara denegados. Por favor, permite el acceso a la cámara.';
+        } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
+          errorMsg = '❌ No se encontró ninguna cámara.';
+        } else if (e.name === 'NotReadableError' || e.name === 'TrackStartError') {
+          errorMsg = '❌ La cámara está siendo usada por otra aplicación.';
+        } else {
+          errorMsg = '❌ No se pudo abrir cámara: ' + (e?.message||e?.name||'Error desconocido');
+        }
+        msg.textContent = errorMsg;
+        msg.style.color = 'var(--danger, #ef4444)';
+        running = false;
+      }
+    }
+
+    function accept(value){
+      if (cameraDisabled) return false;
+      
+      // Solo aceptar si es una placa válida
+      if (!isValidPlate(value)) {
+        return false;
+      }
+      
+      const normalized = normalizePlate(value);
+      const t = Date.now();
+      const delay = 1500;
+      
+      if (lastCode === normalized && t - lastTs < delay) {
+        return false;
+      }
+      
+      lastCode = normalized;
+      lastTs = t;
+      return true;
+    }
+
+    async function handlePlate(plateText){
+      const normalized = normalizePlate(plateText);
+      if (!isValidPlate(normalized)) {
+        msg.textContent = '❌ Formato de placa inválido. Debe ser: ABC-123';
+        msg.style.color = 'var(--danger, #ef4444)';
+        setTimeout(() => {
+          msg.textContent = 'Escanea la placa del vehículo (formato: ABC-123)';
+          msg.style.color = 'var(--text)';
+          cameraDisabled = false;
+        }, 2000);
+        return;
+      }
+
+      cameraDisabled = true;
+      const li = document.createElement('li');
+      li.textContent = `Placa detectada: ${normalized}`;
+      list.prepend(li);
+      
+      msg.textContent = 'Procesando placa...';
+      msg.style.color = 'var(--text)';
+
+      try {
+        // Iniciar nueva venta
+        starting = true;
+        const s = await API.sales.start();
+        current = s;
+        syncCurrentIntoOpenList();
+        
+        // Buscar perfil por placa
+        let profile = null;
+        try {
+          profile = await API.sales.profileByPlate(normalized, { fuzzy: true });
+        } catch {}
+        if (!profile) {
+          try {
+            profile = await API.sales.profileByPlate(normalized);
+          } catch {}
+        }
+
+        // Aplicar perfil si existe
+        if (profile) {
+          // Actualizar venta con datos del cliente y vehículo
+          const customerData = {
+            name: profile.customer?.name || '',
+            idNumber: profile.customer?.idNumber || '',
+            phone: profile.customer?.phone || '',
+            email: profile.customer?.email || '',
+            address: profile.customer?.address || ''
+          };
+          
+          const vehicleData = {
+            plate: normalized,
+            brand: profile.vehicle?.brand || '',
+            line: profile.vehicle?.line || '',
+            engine: profile.vehicle?.engine || '',
+            year: profile.vehicle?.year || null,
+            mileage: profile.vehicle?.mileage || null,
+            vehicleId: profile.vehicle?.vehicleId || null
+          };
+
+          await API.sales.setCustomerVehicle(s._id, {
+            customer: customerData,
+            vehicle: vehicleData
+          });
+
+          // Recargar venta actualizada
+          current = await API.sales.get(s._id);
+        } else {
+          // Si no hay perfil, al menos establecer la placa
+          await API.sales.setCustomerVehicle(s._id, {
+            vehicle: { plate: normalized }
+          });
+          current = await API.sales.get(s._id);
+        }
+
+        // Reproducir sonido de confirmación
+        try {
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          oscillator.frequency.value = 800;
+          oscillator.type = 'sine';
+          gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+          oscillator.start(audioContext.currentTime);
+          oscillator.stop(audioContext.currentTime + 0.1);
+        } catch (err) {
+          console.warn('No se pudo reproducir sonido:', err);
+        }
+
+        // Cerrar modal y renderizar venta
+        stop();
+        closeModal();
+        
+        renderTabs();
+        renderSale();
+        renderWO();
+        await renderQuoteForCurrentSale();
+        await refreshOpenSales({ focusId: s._id, preferCurrent: current });
+
+        // Si hay vehículo conectado, abrir automáticamente el modal de agregar items
+        if (profile?.vehicle?.vehicleId) {
+          setTimeout(() => {
+            const addBtn = document.getElementById('sales-add-unified');
+            if (addBtn) {
+              addBtn.click();
+            }
+          }, 500);
+        }
+
+        starting = false;
+      } catch(e) {
+        console.error('Error al procesar placa:', e);
+        msg.textContent = '❌ Error: ' + (e?.message || 'No se pudo crear la venta');
+        msg.style.color = 'var(--danger, #ef4444)';
+        starting = false;
+        setTimeout(() => {
+          cameraDisabled = false;
+          msg.textContent = 'Escanea la placa del vehículo (formato: ABC-123)';
+          msg.style.color = 'var(--text)';
+        }, 3000);
+      }
+    }
+
+    function onCode(code){
+      if (!isValidPlate(code)) {
+        // Ignorar códigos que no sean placas
+        return;
+      }
+      handlePlate(code);
+    }
+
+    async function tickNative(){ 
+      if(!running || cameraDisabled) {
+        if (running && cameraDisabled) {
+          requestAnimationFrame(tickNative);
+        }
+        return;
+      }
+      try{ 
+        const codes=await detector.detect(video); 
+        if(codes && codes.length > 0 && codes[0]?.rawValue) {
+          onCode(codes[0].rawValue);
+        }
+      }catch(e){
+        if (e.message && !e.message.includes('No image') && !e.message.includes('not readable')) {
+          console.warn('Error en detección nativa:', e);
+        }
+      } 
+      requestAnimationFrame(tickNative); 
+    }
+    
+    function tickCanvas(){
+      if(!running || cameraDisabled) {
+        if (running && cameraDisabled) {
+          requestAnimationFrame(tickCanvas);
+        }
+        return;
+      }
+      try{
+        const w = video.videoWidth|0, h = video.videoHeight|0;
+        if(!w||!h){ 
+          requestAnimationFrame(tickCanvas); 
+          return; 
+        }
+        canvas.width=w; 
+        canvas.height=h;
+        ctx.drawImage(video,0,0,w,h);
+        const imgData=ctx.getImageData(0,0,w,h);
+        const code=jsQR(imgData.data, w, h);
+        if(code && code.data) {
+          onCode(code.data);
+        }
+      }catch(e){
+        console.warn('Error en tickCanvas:', e);
+      }
+      requestAnimationFrame(tickCanvas);
+    }
+
+    // Input manual
+    if (manualBtn) {
+      manualBtn.onclick = () => {
+        const text = manualInput?.value?.trim() || '';
+        if (text) {
+          handlePlate(text);
+        }
+      };
+    }
+
+    // Botón de iniciar cámara
+    const startBtn = node.querySelector('#qr-start');
+    if (startBtn) {
+      startBtn.onclick = start;
+    }
+
+    // Botón de cerrar
+    const closeBtn = node.querySelector('#qr-close');
+    if (closeBtn) {
+      closeBtn.onclick = () => {
+        stop();
+        closeModal();
+      };
+    }
+
+    fillCams();
+  }
+
   document.getElementById('sales-add-unified')?.addEventListener('click', openAddUnified);
   document.getElementById('sales-history')?.addEventListener('click', openSalesHistory);
   document.getElementById('sv-edit-cv')?.addEventListener('click', openEditCV);
