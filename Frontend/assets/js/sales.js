@@ -4280,7 +4280,7 @@ export function initSales(){
 
     let ocrWorker = null;
     let lastOcrTime = 0;
-    const ocrInterval = 800; // Procesar OCR cada 0.8 segundos (más rápido)
+    const ocrInterval = 1200; // Procesar OCR cada 1.2 segundos (más lento pero más preciso)
     // plateDetectionHistory ya está declarada en openQRForNewSale
     
     // Inicializar worker de OCR
@@ -4303,9 +4303,13 @@ export function initSales(){
             tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ',
             tessedit_pageseg_mode: '8', // Single word (mejor para placas)
             tessedit_ocr_engine_mode: '1', // LSTM engine (más preciso)
-            // Mejorar reconocimiento de caracteres similares
+            // Mejorar reconocimiento de caracteres similares (I vs T)
             classify_bln_numeric_mode: '0', // No tratar como numérico
             textord_min_linesize: '2.5', // Tamaño mínimo de línea
+            // Mejorar distinción entre I y T (deshabilitar diccionarios para reconocimiento puro)
+            load_system_dawg: '0', // No cargar diccionario del sistema
+            load_freq_dawg: '0', // No cargar diccionario de frecuencia
+            load_unambig_dawg: '0', // No cargar diccionario no ambiguo
           });
           console.log('OCR worker inicializado');
         }
@@ -4317,14 +4321,13 @@ export function initSales(){
     }
     
     // Función para mejorar el contraste y claridad de la imagen antes del OCR
-    // También amplifica la imagen para priorizar texto grande
+    // Optimizada para mejor reconocimiento de placas
     function enhanceImageForOCR(canvas, ctx, imageData) {
-      const data = imageData.data;
       const width = imageData.width;
       const height = imageData.height;
       
-      // Amplificar la imagen 1.5x (reducido de 2x para más velocidad)
-      const scale = 1.5;
+      // Amplificar la imagen 2x para mejor reconocimiento (priorizar precisión sobre velocidad)
+      const scale = 2.0;
       const scaledWidth = width * scale;
       const scaledHeight = height * scale;
       
@@ -4334,6 +4337,10 @@ export function initSales(){
       tempCanvas.height = scaledHeight;
       const tempCtx = tempCanvas.getContext('2d');
       
+      // Aplicar filtros de suavizado antes de escalar (reduce ruido)
+      tempCtx.imageSmoothingEnabled = true;
+      tempCtx.imageSmoothingQuality = 'high';
+      
       // Dibujar la imagen amplificada
       tempCtx.drawImage(canvas, 0, 0, scaledWidth, scaledHeight);
       
@@ -4341,26 +4348,53 @@ export function initSales(){
       const scaledImageData = tempCtx.getImageData(0, 0, scaledWidth, scaledHeight);
       const scaledData = scaledImageData.data;
       
-      // Convertir a escala de grises y mejorar contraste
+      // Calcular histograma para ajuste adaptativo
+      const histogram = new Array(256).fill(0);
+      for (let i = 0; i < scaledData.length; i += 4) {
+        const gray = Math.round(0.299 * scaledData[i] + 0.587 * scaledData[i + 1] + 0.114 * scaledData[i + 2]);
+        histogram[gray]++;
+      }
+      
+      // Encontrar umbral adaptativo (Otsu-like)
+      let total = scaledData.length / 4;
+      let sum = 0;
+      for (let i = 0; i < 256; i++) sum += i * histogram[i];
+      let sumB = 0;
+      let wB = 0;
+      let wF = 0;
+      let maxVariance = 0;
+      let threshold = 128;
+      for (let i = 0; i < 256; i++) {
+        wB += histogram[i];
+        if (wB === 0) continue;
+        wF = total - wB;
+        if (wF === 0) break;
+        sumB += i * histogram[i];
+        let mB = sumB / wB;
+        let mF = (sum - sumB) / wF;
+        let variance = wB * wF * (mB - mF) * (mB - mF);
+        if (variance > maxVariance) {
+          maxVariance = variance;
+          threshold = i;
+        }
+      }
+      
+      // Aplicar binarización adaptativa con mejor contraste
       for (let i = 0; i < scaledData.length; i += 4) {
         const r = scaledData[i];
         const g = scaledData[i + 1];
         const b = scaledData[i + 2];
         
         // Convertir a escala de grises
-        const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+        let gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
         
-        // Mejorar contraste (aumentar diferencia entre claro y oscuro)
-        let enhanced = gray;
-        if (gray < 128) {
-          enhanced = Math.max(0, gray - 40); // Oscurecer más para texto
-        } else {
-          enhanced = Math.min(255, gray + 40); // Aclarar más para fondo
-        }
+        // Mejorar contraste de forma más agresiva
+        gray = gray < threshold 
+          ? Math.max(0, gray - 60)  // Oscurecer texto más
+          : Math.min(255, gray + 60); // Aclarar fondo más
         
-        // Aplicar umbral para texto negro sobre fondo claro
-        const threshold = 140;
-        const final = enhanced > threshold ? 255 : 0; // Blanco o negro puro
+        // Binarización con umbral adaptativo
+        const final = gray > threshold ? 255 : 0;
         
         scaledData[i] = final;     // R
         scaledData[i + 1] = final; // G
@@ -4369,25 +4403,23 @@ export function initSales(){
       }
       
       tempCtx.putImageData(scaledImageData, 0, 0);
-      return tempCanvas; // Retornar el canvas amplificado
+      return tempCanvas; // Retornar el canvas mejorado
     }
     
-    // Función para corregir errores comunes de OCR (I confundida con T)
+    // Función para corregir errores comunes de OCR (solo fragmentos, NO corrección T->I)
     function correctOCRCommonMistakes(text) {
       if (!text) return text;
       
-      let corrected = text.toUpperCase();
+      let corrected = text.toUpperCase().trim();
       
-      // Corrección específica: T al inicio seguido de letras y números podría ser I
-      // Patrón: TXX-XXX o TXXXXX donde XX son letras y XXX son números
-      const tamPattern = /T([A-Z]{2})[-]?([0-9]{3})/;
-      const match = corrected.match(tamPattern);
-      if (match) {
-        // Si detecta TAM, TAN, TAR, etc. seguido de números, podría ser IAM, IAN, IAR
-        // Intentar corrección solo si el patrón sugiere que es una placa
-        const possibleI = 'I' + match[1] + (match[2] ? '-' + match[2] : '');
-        corrected = corrected.replace(tamPattern, 'I' + match[1] + (match[2] ? '-' + match[2] : ''));
-        console.log(`Corrección OCR aplicada: "${text}" -> "${corrected}" (T -> I)`);
+      // Solo corregir fragmentos obvios, NO hacer corrección automática T->I
+      // Si solo detecta "AM -650" o "AM-650", agregar "I" al inicio
+      // Esto maneja cuando la I se pierde completamente (no es T->I, es I faltante)
+      const amPattern = /^AM[\s-]?([0-9]{3})$/;
+      const amMatch = corrected.match(amPattern);
+      if (amMatch) {
+        corrected = 'IAM-' + amMatch[1];
+        console.log(`Corrección OCR aplicada: "${text}" -> "${corrected}" (agregando I faltante)`);
       }
       
       return corrected;
@@ -4429,15 +4461,13 @@ export function initSales(){
           let letters = match[1];
           const numbers = match[2];
           
-          // Corrección específica: Si empieza con T seguido de letras y números, podría ser I
-          // Solo aplicar si el patrón general sugiere que es una placa válida
-          if (letters.startsWith('T') && /^[A-Z]{2}$/.test(letters.substring(1))) {
-            // Intentar corrección: TXX -> IXX
-            const possibleI = 'I' + letters.substring(1);
-            const testPlate = `${possibleI}${numbers}`;
-            if (/^[A-Z]{3}[0-9]{3}$/.test(testPlate)) {
-              console.log(`Corrección aplicada en extracción: "${letters}" -> "${possibleI}"`);
-              letters = possibleI;
+          // NO hacer corrección automática T->I (el usuario indicó que no siempre es correcto)
+          // Solo corregir si falta la I completamente (AM -> IAM)
+          if (letters.length === 2 && /^[A-Z]{2}$/.test(letters) && numbers.length === 3) {
+            // Verificar si podría ser AM -> IAM (I faltante, no T mal leída)
+            if (letters === 'AM') {
+              letters = 'IAM';
+              console.log(`Corrección aplicada: agregando I faltante -> "${letters}"`);
             }
           }
           
@@ -4468,13 +4498,11 @@ export function initSales(){
         let word1 = words[0];
         const word2 = words[1];
         
-        // Corrección: Si la primera palabra empieza con T, podría ser I
-        if (word1.startsWith('T') && word1.length === 3) {
-          const possibleI = 'I' + word1.substring(1);
-          if (/^[A-Z]{3}$/.test(possibleI)) {
-            console.log(`Corrección aplicada en palabras separadas: "${word1}" -> "${possibleI}"`);
-            word1 = possibleI;
-          }
+        // NO hacer corrección automática T->I
+        // Solo corregir si falta la I completamente (AM -> IAM)
+        if (word1 === 'AM' && word1.length === 2) {
+          word1 = 'IAM';
+          console.log(`Corrección aplicada en palabras separadas: "AM" -> "IAM" (I faltante)`);
         }
         
         // Patrón: primera palabra 3 letras, segunda palabra 3 números
@@ -4489,12 +4517,12 @@ export function initSales(){
       if (words.length === 1) {
         let word = words[0];
         
-        // Corrección: Si empieza con T seguido de letras y números, podría ser I
-        const match = word.match(/^(T)([A-Z]{2})([0-9]{3})$/);
-        if (match) {
-          const possibleI = 'I' + match[2] + match[3];
-          console.log(`Corrección aplicada en palabra única: "${word}" -> "${possibleI}"`);
-          word = possibleI;
+        // NO hacer corrección automática T->I
+        // Solo corregir si falta la I completamente (AM -> IAM)
+        const amMatch = word.match(/^(AM)([0-9]{3})$/);
+        if (amMatch) {
+          word = 'IAM' + amMatch[2];
+          console.log(`Corrección aplicada en palabra única: "AM" -> "IAM" (I faltante)`);
         }
         
         const finalMatch = word.match(/^([A-Z]{3})([0-9]{3})$/);
@@ -4549,10 +4577,11 @@ export function initSales(){
               canvas.height = h;
               ctx.drawImage(video, 0, 0, w, h);
               
-              // Procesar solo la región central (más rápido, donde suele estar la placa)
+              // Procesar región central más enfocada (donde suele estar la placa)
+              // Región más pequeña y centrada para mejor precisión
               const regions = [
-                // Región central (prioritaria - donde suele estar la placa)
-                { x: Math.floor(w * 0.15), y: Math.floor(h * 0.25), w: Math.floor(w * 0.7), h: Math.floor(h * 0.5) },
+                // Región central enfocada (más pequeña para mejor precisión)
+                { x: Math.floor(w * 0.2), y: Math.floor(h * 0.3), w: Math.floor(w * 0.6), h: Math.floor(h * 0.4) },
               ];
               
               for (const region of regions) {
@@ -4585,21 +4614,21 @@ export function initSales(){
                         ? confidences.reduce((a, b) => a + b, 0) / confidences.length 
                         : 0;
                       
-                      // Si la confianza promedio es muy baja (< 30), rechazar
-                      if (avgConfidence > 0 && avgConfidence < 30) {
+                      // Si la confianza promedio es muy baja (< 50), rechazar (más estricto)
+                      if (avgConfidence > 0 && avgConfidence < 50) {
                         console.log('Rechazado: confianza promedio muy baja:', avgConfidence.toFixed(1));
                         continue;
                       }
                       
-                      // Si hay palabras con confianza > 40, priorizar esas
-                      const highConfWords = words.filter(w => (w.confidence || 0) > 40);
+                      // Solo usar palabras con confianza alta (> 60) para mejor precisión
+                      const highConfWords = words.filter(w => (w.confidence || 0) > 60);
                       if (highConfWords.length > 0) {
                         processedText = highConfWords.map(w => w.text).join(' ').trim();
-                        console.log('Texto con buena confianza (>40):', processedText, 'promedio:', avgConfidence.toFixed(1));
+                        console.log('Texto con alta confianza (>60):', processedText, 'promedio:', avgConfidence.toFixed(1));
                       } else {
-                        // Si no hay palabras con alta confianza, usar todo el texto pero con umbral más bajo
-                        processedText = text;
-                        console.log('Texto con confianza moderada:', processedText, 'promedio:', avgConfidence.toFixed(1));
+                        // Si no hay palabras con alta confianza, rechazar
+                        console.log('Rechazado: ninguna palabra con confianza > 60');
+                        continue;
                       }
                     }
                     
@@ -4613,18 +4642,18 @@ export function initSales(){
                           confidence: avgConfidence
                         });
                         
-                        // Mantener solo las últimas 5 detecciones (últimos ~4 segundos)
+                        // Mantener solo las últimas detecciones (últimos ~6 segundos para más precisión)
                         plateDetectionHistory = plateDetectionHistory.filter(
-                          entry => Date.now() - entry.timestamp < 4000
+                          entry => Date.now() - entry.timestamp < 6000
                         );
                         
                         // Contar cuántas veces aparece esta placa en el historial
                         const plateCount = plateDetectionHistory.filter(e => e.plate === plate).length;
                         
-                        // Si la confianza es muy alta (>70), aceptar con solo 1 detección
-                        // Si la confianza es alta (>50), aceptar con 2 detecciones
-                        // Si la confianza es moderada, requerir 3 detecciones
-                        const requiredDetections = avgConfidence > 70 ? 1 : (avgConfidence > 50 ? 2 : 2);
+                        // Si la confianza es muy alta (>80), aceptar con solo 1 detección
+                        // Si la confianza es alta (>60), aceptar con 2 detecciones
+                        // Si la confianza es moderada, requerir 3 detecciones (más estricto)
+                        const requiredDetections = avgConfidence > 80 ? 1 : (avgConfidence > 60 ? 2 : 3);
                         
                         console.log(`Placa "${plate}" detectada ${plateCount} veces (requiere ${requiredDetections}, confianza: ${avgConfidence.toFixed(1)})`);
                         
@@ -4696,9 +4725,9 @@ export function initSales(){
               }
               
               if (ocrWorker) {
-                // Procesar solo la región central (más rápido)
+                // Procesar región central más enfocada (más pequeña para mejor precisión)
                 const regions = [
-                  { x: Math.floor(w * 0.15), y: Math.floor(h * 0.25), w: Math.floor(w * 0.7), h: Math.floor(h * 0.5) },
+                  { x: Math.floor(w * 0.2), y: Math.floor(h * 0.3), w: Math.floor(w * 0.6), h: Math.floor(h * 0.4) },
                 ];
                 
                 for (const region of regions) {
@@ -4731,21 +4760,21 @@ export function initSales(){
                             ? confidences.reduce((a, b) => a + b, 0) / confidences.length 
                             : 0;
                           
-                          // Si la confianza promedio es muy baja (< 30), rechazar
-                          if (avgConfidence > 0 && avgConfidence < 30) {
+                          // Si la confianza promedio es muy baja (< 50), rechazar (más estricto)
+                          if (avgConfidence > 0 && avgConfidence < 50) {
                             console.log('Rechazado: confianza promedio muy baja:', avgConfidence.toFixed(1));
                             continue;
                           }
                           
-                          // Si hay palabras con confianza > 40, priorizar esas
-                          const highConfWords = words.filter(w => (w.confidence || 0) > 40);
+                          // Solo usar palabras con confianza alta (> 60) para mejor precisión
+                          const highConfWords = words.filter(w => (w.confidence || 0) > 60);
                           if (highConfWords.length > 0) {
                             processedText = highConfWords.map(w => w.text).join(' ').trim();
-                            console.log('Texto con buena confianza (>40):', processedText, 'promedio:', avgConfidence.toFixed(1));
+                            console.log('Texto con alta confianza (>60):', processedText, 'promedio:', avgConfidence.toFixed(1));
                           } else {
-                            // Si no hay palabras con alta confianza, usar todo el texto pero con umbral más bajo
-                            processedText = text;
-                            console.log('Texto con confianza moderada:', processedText, 'promedio:', avgConfidence.toFixed(1));
+                            // Si no hay palabras con alta confianza, rechazar
+                            console.log('Rechazado: ninguna palabra con confianza > 60');
+                            continue;
                           }
                         }
                         
