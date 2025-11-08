@@ -4867,59 +4867,58 @@ export function initSales(){
                   return;
                 }
                 const { data: { text, words } } = await ocrWorker.recognize(enhancedCanvas);
+                
+                if (text && text.trim()) {
+                  let processedText = text;
+                  let avgConfidence = 0;
                   
-                  if (text && text.trim()) {
-                    let processedText = text;
-                    let avgConfidence = 0;
+                  if (words && words.length > 0) {
+                    const confidences = words.map(w => w.confidence || 0).filter(c => c > 0);
+                    avgConfidence = confidences.length > 0 
+                      ? confidences.reduce((a, b) => a + b, 0) / confidences.length 
+                      : 0;
                     
-                    if (words && words.length > 0) {
-                      const confidences = words.map(w => w.confidence || 0).filter(c => c > 0);
-                      avgConfidence = confidences.length > 0 
-                        ? confidences.reduce((a, b) => a + b, 0) / confidences.length 
-                        : 0;
-                      
-                      if (avgConfidence > 0 && avgConfidence < 45) {
-                        requestAnimationFrame(tickCanvas);
-                        return;
-                      }
-                      
-                      const highConfWords = words.filter(w => (w.confidence || 0) > 55);
-                      if (highConfWords.length > 0) {
-                        processedText = highConfWords.map(w => w.text).join(' ').trim();
-                      } else {
-                        requestAnimationFrame(tickCanvas);
-                        return;
-                      }
+                    if (avgConfidence > 0 && avgConfidence < 45) {
+                      requestAnimationFrame(tickCanvas);
+                      return;
                     }
                     
-                    if (processedText && processedText.trim()) {
-                      const plate = extractPlateFromText(processedText);
-                      if (plate && isValidPlate(plate)) {
-                        plateDetectionHistory.push({
-                          plate,
-                          timestamp: now,
-                          confidence: avgConfidence
-                        });
-                        
-                        plateDetectionHistory = plateDetectionHistory.filter(
-                          entry => now - entry.timestamp < 3000
-                        );
-                        
-                        const plateCount = plateDetectionHistory.filter(e => e.plate === plate).length;
-                        const requiredDetections = avgConfidence > 70 ? 1 : (avgConfidence > 55 ? 2 : 2);
-                        
-                        if (plateCount >= requiredDetections) {
-                          console.log(`✅ Placa detectada por OCR (${plateCount} detecciones):`, plate);
-                          plateDetectionHistory = [];
-                          onCode(plate);
-                          return;
-                        }
+                    const highConfWords = words.filter(w => (w.confidence || 0) > 55);
+                    if (highConfWords.length > 0) {
+                      processedText = highConfWords.map(w => w.text).join(' ').trim();
+                    } else {
+                      requestAnimationFrame(tickCanvas);
+                      return;
+                    }
+                  }
+                  
+                  if (processedText && processedText.trim()) {
+                    const plate = extractPlateFromText(processedText);
+                    if (plate && isValidPlate(plate)) {
+                      plateDetectionHistory.push({
+                        plate,
+                        timestamp: now,
+                        confidence: avgConfidence
+                      });
+                      
+                      plateDetectionHistory = plateDetectionHistory.filter(
+                        entry => now - entry.timestamp < 3000
+                      );
+                      
+                      const plateCount = plateDetectionHistory.filter(e => e.plate === plate).length;
+                      const requiredDetections = avgConfidence > 70 ? 1 : (avgConfidence > 55 ? 2 : 2);
+                      
+                      if (plateCount >= requiredDetections) {
+                        console.log(`✅ Placa detectada por OCR (${plateCount} detecciones):`, plate);
+                        plateDetectionHistory = [];
+                        onCode(plate);
+                        return;
                       }
                     }
                   }
-                } catch (ocrErr) {
-                  // Continuar
                 }
+              } catch (ocrErr) {
+                // Continuar
               }
             } catch (ocrErr) {
               // Silenciar errores frecuentes
