@@ -3787,6 +3787,21 @@ export function initSales(){
       }catch{}; 
       running=false; 
       stream = null;
+      
+      // Restaurar botón de iniciar
+      const startBtn = node.querySelector('#qr-start');
+      if (startBtn) {
+        startBtn.textContent = '📷 Iniciar cámara';
+        startBtn.onclick = () => {
+          start().catch(err => {
+            console.error('Error al iniciar cámara:', err);
+            if (msg) {
+              msg.textContent = '❌ Error: ' + (err?.message || 'No se pudo iniciar la cámara');
+              msg.style.color = 'var(--danger, #ef4444)';
+            }
+          });
+        };
+      }
     }
     
     // Configurar onclick después de definir stop
@@ -3818,6 +3833,7 @@ export function initSales(){
     }
 
     async function fillCams(){
+      if (!sel) return Promise.resolve();
       try{
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if (isMobile) {
@@ -3826,25 +3842,42 @@ export function initSales(){
           defaultOpt.textContent = 'Cámara trasera (automática)';
           sel.replaceChildren(defaultOpt);
           sel.value = '';
-          return;
+          return Promise.resolve();
         }
         try {
+          // Intentar enumerar sin permisos primero (puede que ya los tengamos)
           const devs = await navigator.mediaDevices.enumerateDevices();
           const cams = devs.filter(d=>d.kind==='videoinput');
-          if (cams.length === 0) {
-            const defaultOpt = document.createElement('option');
-            defaultOpt.value = '';
-            defaultOpt.textContent = 'Cámara predeterminada';
-            sel.replaceChildren(defaultOpt);
-            sel.value = '';
-            return;
+          
+          // Agregar opción "Predeterminada" al inicio
+          const options = [document.createElement('option')];
+          options[0].value = '';
+          options[0].textContent = 'Cámara predeterminada';
+          
+          if (cams.length > 0) {
+            // Si hay cámaras con labels, agregarlas
+            const camsWithLabels = cams.filter(c => c.label);
+            if (camsWithLabels.length > 0) {
+              options.push(...camsWithLabels.map((c,i)=>{
+                const o=document.createElement('option'); 
+                o.value=c.deviceId; 
+                o.textContent=c.label; 
+                return o;
+              }));
+            } else {
+              // Si no hay labels, agregar opciones genéricas
+              options.push(...cams.map((c,i)=>{
+                const o=document.createElement('option'); 
+                o.value=c.deviceId; 
+                o.textContent = 'Cámara ' + (i+1); 
+                return o;
+              }));
+            }
           }
-          sel.replaceChildren(...cams.map((c,i)=>{
-            const o=document.createElement('option'); 
-            o.value=c.deviceId; 
-            o.textContent=c.label||('Cam '+(i+1)); 
-            return o;
-          }));
+          
+          sel.replaceChildren(...options);
+          sel.value = ''; // Por defecto, usar cámara predeterminada
+          return Promise.resolve();
         } catch (enumErr) {
           console.warn('Error al enumerar dispositivos:', enumErr);
           const defaultOpt = document.createElement('option');
@@ -3852,6 +3885,7 @@ export function initSales(){
           defaultOpt.textContent = 'Cámara predeterminada';
           sel.replaceChildren(defaultOpt);
           sel.value = '';
+          return Promise.resolve();
         }
       }catch(err){
         console.error('Error al cargar cámaras:', err);
@@ -3860,6 +3894,7 @@ export function initSales(){
         defaultOpt.textContent = 'Cámara predeterminada';
         sel.replaceChildren(defaultOpt);
         sel.value = '';
+        return Promise.resolve();
       }
     }
 
@@ -3913,17 +3948,35 @@ export function initSales(){
         
         running = true;
         
+        // Después de obtener permisos, actualizar lista de cámaras con labels completos
         if (!isMobile) {
           try {
             const devs = await navigator.mediaDevices.enumerateDevices();
-            const cams = devs.filter(d=>d.kind==='videoinput' && d.label);
-            if (cams.length > 0 && sel.children.length <= 1) {
-              sel.replaceChildren(...cams.map((c,i)=>{
+            const cams = devs.filter(d=>d.kind==='videoinput');
+            if (cams.length > 0) {
+              // Agregar opción "Predeterminada" al inicio
+              const options = [document.createElement('option')];
+              options[0].value = '';
+              options[0].textContent = 'Cámara predeterminada';
+              
+              // Agregar todas las cámaras con labels completos
+              options.push(...cams.map((c,i)=>{
                 const o=document.createElement('option'); 
                 o.value=c.deviceId; 
-                o.textContent=c.label||('Cam '+(i+1)); 
+                o.textContent=c.label || ('Cámara '+(i+1)); 
                 return o;
               }));
+              
+              // Mantener la selección actual si existe
+              const currentValue = sel.value;
+              sel.replaceChildren(...options);
+              
+              // Restaurar selección si existe, sino usar predeterminada
+              if (currentValue && Array.from(sel.options).some(opt => opt.value === currentValue)) {
+                sel.value = currentValue;
+              } else {
+                sel.value = '';
+              }
             }
           } catch (enumErr) {
             console.warn('No se pudieron actualizar las cámaras:', enumErr);
@@ -3936,8 +3989,37 @@ export function initSales(){
         } else { 
           tickCanvas(); 
         }
-        msg.textContent = 'Escanea la placa del vehículo (formato: ABC-123)';
-        msg.style.color = 'var(--text)';
+        
+        // Actualizar mensaje y botón
+        if (msg) {
+          msg.textContent = 'Escanea la placa del vehículo (formato: ABC-123)';
+          msg.style.color = 'var(--text)';
+        }
+        
+        // Cambiar texto del botón a "Detener cámara"
+        const startBtn = node.querySelector('#qr-start');
+        if (startBtn) {
+          startBtn.textContent = '⏹️ Detener cámara';
+          startBtn.onclick = () => {
+            stop();
+            if (startBtn) {
+              startBtn.textContent = '📷 Iniciar cámara';
+              startBtn.onclick = () => {
+                start().catch(err => {
+                  console.error('Error al iniciar cámara:', err);
+                  if (msg) {
+                    msg.textContent = '❌ Error: ' + (err?.message || 'No se pudo iniciar la cámara');
+                    msg.style.color = 'var(--danger, #ef4444)';
+                  }
+                });
+              };
+            }
+            if (msg) {
+              msg.textContent = 'Cámara detenida. Haz clic en "Iniciar cámara" para continuar';
+              msg.style.color = 'var(--text)';
+            }
+          };
+        }
       }catch(e){ 
         console.error('Error al iniciar cámara:', e);
         let errorMsg = '';
@@ -4169,10 +4251,52 @@ export function initSales(){
       };
     }
 
+    // Crear botón de iniciar cámara si no existe
+    let startBtn = node.querySelector('#qr-start');
+    if (!startBtn) {
+      // Crear botón de iniciar cámara
+      const qrbar = node.querySelector('.qrbar');
+      if (qrbar) {
+        startBtn = document.createElement('button');
+        startBtn.id = 'qr-start';
+        startBtn.className = 'primary';
+        startBtn.textContent = '📷 Iniciar cámara';
+        startBtn.style.marginLeft = 'auto';
+        startBtn.style.whiteSpace = 'nowrap';
+        qrbar.appendChild(startBtn);
+      }
+    }
+
+    // Función para actualizar selector de cámara cuando cambie
+    if (sel) {
+      sel.addEventListener('change', () => {
+        // Si la cámara está corriendo, reiniciarla con la nueva cámara
+        if (running) {
+          stop();
+          setTimeout(() => {
+            start().catch(err => {
+              console.error('Error al reiniciar cámara:', err);
+              if (msg) {
+                msg.textContent = '❌ Error al cambiar de cámara: ' + (err?.message || 'Error desconocido');
+                msg.style.color = 'var(--danger, #ef4444)';
+              }
+            });
+          }, 300);
+        }
+      });
+    }
+
     // Botón de iniciar cámara
-    const startBtn = node.querySelector('#qr-start');
     if (startBtn) {
-      startBtn.onclick = start;
+      startBtn.onclick = () => {
+        start().catch(err => {
+          console.error('Error al iniciar cámara:', err);
+          if (msg) {
+            msg.textContent = '❌ Error: ' + (err?.message || 'No se pudo iniciar la cámara');
+            msg.style.color = 'var(--danger, #ef4444)';
+          }
+        });
+      };
     }
 
     // Botón de cerrar
@@ -4180,11 +4304,25 @@ export function initSales(){
     if (closeBtn) {
       closeBtn.onclick = () => {
         stop();
-        closeModal();
+        const modal = document.getElementById('modal');
+        if (modal) modal.classList.add('hidden');
       };
     }
 
-    fillCams();
+    // Cargar lista de cámaras pero NO iniciar automáticamente
+    fillCams().then(() => {
+      console.log('Lista de cámaras cargada');
+    }).catch(err => {
+      console.warn('Error al cargar cámaras:', err);
+    });
+    
+    // Actualizar mensaje para indicar que debe iniciar la cámara
+    if (msg) {
+      msg.textContent = 'Selecciona una cámara y haz clic en "Iniciar cámara" para comenzar';
+      msg.style.color = 'var(--text)';
+    }
+    
+    console.log('Modal QR abierto correctamente');
   }
 
   document.getElementById('sales-add-unified')?.addEventListener('click', openAddUnified);
