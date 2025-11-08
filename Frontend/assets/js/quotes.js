@@ -122,12 +122,12 @@ export function initQuotes({ getCompanyEmail }) {
 
   // Búsqueda de vehículos para cotizaciones
   async function searchVehiclesForQuote(query) {
-    if (!query || query.length < 2) {
+    if (!query || query.trim().length < 1) {
       if (iVehicleDropdown) iVehicleDropdown.style.display = 'none';
       return;
     }
     try {
-      const r = await API.vehicles.search({ q: query, limit: 10 });
+      const r = await API.vehicles.search({ q: query.trim(), limit: 30 });
       const vehicles = Array.isArray(r?.items) ? r.items : [];
       if (!iVehicleDropdown) return;
       if (vehicles.length === 0) {
@@ -225,13 +225,18 @@ export function initQuotes({ getCompanyEmail }) {
     if (iVehicleSearch) {
       iVehicleSearch.addEventListener('input', (e) => {
         clearTimeout(quoteVehicleSearchTimeout);
-        quoteVehicleSearchTimeout = setTimeout(() => {
-          searchVehiclesForQuote(e.target.value);
-        }, 300);
+        const query = e.target.value.trim();
+        if (query.length >= 1) {
+          quoteVehicleSearchTimeout = setTimeout(() => {
+            searchVehiclesForQuote(query);
+          }, 150);
+        } else {
+          if (iVehicleDropdown) iVehicleDropdown.style.display = 'none';
+        }
       });
       iVehicleSearch.addEventListener('focus', () => {
-        if (iVehicleSearch.value.length >= 2) {
-          searchVehiclesForQuote(iVehicleSearch.value);
+        if (iVehicleSearch.value.trim().length >= 1) {
+          searchVehiclesForQuote(iVehicleSearch.value.trim());
         }
       });
     }
@@ -452,7 +457,8 @@ export function initQuotes({ getCompanyEmail }) {
         type,desc,qty,price,
         source: r.dataset.source || undefined,
         refId: r.dataset.refId || undefined,
-        sku: r.dataset.sku || undefined
+        sku: r.dataset.sku || undefined,
+        comboParent: r.dataset.comboParent || undefined
       });
     }); return rows;
   }
@@ -513,13 +519,72 @@ export function initQuotes({ getCompanyEmail }) {
     lines.push(`Cliente: ${cliente}`);
   lines.push(`Vehículo: ${veh} — Placa: ${placa} — Cilindraje: ${cc} — Kilometraje: ${mileage}`);
     lines.push('');
-    rows.forEach(({type,desc,qty,price})=>{
+    
+    // Agrupar items por combos
+    const comboMap = new Map(); // refId del combo -> { main: row, items: [] }
+    const regularRows = [];
+    
+    // Primera pasada: identificar combos principales y sus items
+    rows.forEach(row => {
+      if (row.comboParent) {
+        // Es un item de un combo
+        if (!comboMap.has(row.comboParent)) {
+          comboMap.set(row.comboParent, { main: null, items: [] });
+        }
+        comboMap.get(row.comboParent).items.push(row);
+      } else if (row.source === 'price' && row.refId) {
+        // Puede ser un combo principal, verificar si tiene items asociados
+        if (!comboMap.has(row.refId)) {
+          comboMap.set(row.refId, { main: row, items: [] });
+        } else {
+          comboMap.get(row.refId).main = row;
+        }
+      } else {
+        // Es un item regular
+        regularRows.push(row);
+      }
+    });
+    
+    // Procesar combos primero (solo los que tienen items asociados)
+    comboMap.forEach((combo, refId) => {
+      if (combo.main && combo.items.length > 0) {
+        const {type,desc,qty,price} = combo.main;
+        const q=qty>0?qty:1; const st=q*(price||0);
+        const cantSuffix=(qty&&Number(qty)>0)?` x${q}`:'';
+        lines.push(`*${desc||'Combo'}${cantSuffix}*`);
+        if (st > 0) {
+          lines.push(`${money(st)}`);
+        }
+        
+        // Agregar items del combo anidados
+        combo.items.forEach(item => {
+          const itemQ = item.qty>0?item.qty:1;
+          const itemSt = itemQ*(item.price||0);
+          const itemCantSuffix = (item.qty&&Number(item.qty)>0)?` x${item.qty}`:'';
+          lines.push(`     *${item.desc||'Item'}${itemCantSuffix}*`);
+          // Solo mostrar precio si es mayor a 0
+          if (itemSt > 0) {
+            lines.push(`     ${money(itemSt)}`);
+          }
+        });
+      } else if (combo.main && combo.items.length === 0) {
+        // Es un precio normal, no un combo, agregarlo a regularRows
+        regularRows.push(combo.main);
+      }
+    });
+    
+    // Procesar items regulares
+    regularRows.forEach(({type,desc,qty,price})=>{
       const q=qty>0?qty:1; const st=q*(price||0);
       const tipo=(type==='SERVICIO')?'Servicio':'Producto';
       const cantSuffix=(qty&&Number(qty)>0)?` x${q}`:'';
-  lines.push(`• ${desc||tipo}${cantSuffix}`);
-      lines.push(`${money(st)}`);
+      lines.push(`• ${desc||tipo}${cantSuffix}`);
+      // Solo mostrar precio si es mayor a 0
+      if (st > 0) {
+        lines.push(`${money(st)}`);
+      }
     });
+    
     lines.push('');
     lines.push(`Subtotal Productos: ${money(subP)}`);
     lines.push(`Subtotal Servicios: ${money(subS)}`);
@@ -1366,12 +1431,12 @@ export function initQuotes({ getCompanyEmail }) {
     
     // Búsqueda de vehículos para modal
     async function searchVehiclesForModal(query) {
-      if (!query || query.length < 2) {
+      if (!query || query.trim().length < 1) {
         if (mVehicleDropdown) mVehicleDropdown.style.display = 'none';
         return;
       }
       try {
-        const r = await API.vehicles.search({ q: query, limit: 10 });
+        const r = await API.vehicles.search({ q: query.trim(), limit: 30 });
         const vehicles = Array.isArray(r?.items) ? r.items : [];
         if (!mVehicleDropdown) return;
         if (vehicles.length === 0) {
@@ -1449,13 +1514,18 @@ export function initQuotes({ getCompanyEmail }) {
     if (mVehicleSearch) {
       mVehicleSearch.addEventListener('input', (e) => {
         clearTimeout(modalVehicleSearchTimeout);
-        modalVehicleSearchTimeout = setTimeout(() => {
-          searchVehiclesForModal(e.target.value);
-        }, 300);
+        const query = e.target.value.trim();
+        if (query.length >= 1) {
+          modalVehicleSearchTimeout = setTimeout(() => {
+            searchVehiclesForModal(query);
+          }, 150);
+        } else {
+          if (mVehicleDropdown) mVehicleDropdown.style.display = 'none';
+        }
       });
       mVehicleSearch.addEventListener('focus', () => {
-        if (mVehicleSearch.value.length >= 2) {
-          searchVehiclesForModal(mVehicleSearch.value);
+        if (mVehicleSearch.value.trim().length >= 1) {
+          searchVehiclesForModal(mVehicleSearch.value.trim());
         }
       });
     }
@@ -2169,6 +2239,8 @@ export function initQuotes({ getCompanyEmail }) {
                 row.dataset.source = cp.itemId ? 'inventory' : 'price';
                 if (cp.itemId) row.dataset.refId = cp.itemId;
                 if (cp.itemId && cp.sku) row.dataset.sku = cp.sku;
+                // Marcar como item del combo
+                if (pe._id) row.dataset.comboParent = pe._id;
                 updateRowSubtotal(row);
                 rowsBox.appendChild(row);
               });

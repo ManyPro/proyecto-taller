@@ -3205,12 +3205,12 @@ function openEditCV(){
   
   // Búsqueda de vehículos
   async function searchVehicles(query) {
-    if (!query || query.length < 2) {
+    if (!query || query.trim().length < 1) {
       vehicleDropdown.style.display = 'none';
       return;
     }
     try {
-      const r = await API.vehicles.search({ q: query, limit: 10 });
+      const r = await API.vehicles.search({ q: query.trim(), limit: 30 });
       const vehicles = Array.isArray(r?.items) ? r.items : [];
       if (vehicles.length === 0) {
         vehicleDropdown.innerHTML = '<div style="padding:12px;text-align:center;color:var(--muted);font-size:12px;">No se encontraron vehículos</div>';
@@ -3282,13 +3282,18 @@ function openEditCV(){
   if (vehicleSearch) {
     vehicleSearch.addEventListener('input', (e) => {
       clearTimeout(vehicleSearchTimeout);
-      vehicleSearchTimeout = setTimeout(() => {
-        searchVehicles(e.target.value);
-      }, 300);
+      const query = e.target.value.trim();
+      if (query.length >= 1) {
+        vehicleSearchTimeout = setTimeout(() => {
+          searchVehicles(query);
+        }, 150);
+      } else {
+        if (vehicleDropdown) vehicleDropdown.style.display = 'none';
+      }
     });
     vehicleSearch.addEventListener('focus', () => {
-      if (vehicleSearch.value.length >= 2) {
-        searchVehicles(vehicleSearch.value);
+      if (vehicleSearch.value.trim().length >= 1) {
+        searchVehicles(vehicleSearch.value.trim());
       }
     });
   }

@@ -172,17 +172,78 @@ export const searchVehicles = async (req, res) => {
     
     if (q) {
       const searchClean = cleanStr(q);
-      query.$or = [
-        { make: { $regex: searchClean, $options: 'i' } },
-        { line: { $regex: searchClean, $options: 'i' } },
-        { displacement: { $regex: searchClean, $options: 'i' } }
-      ];
+      // Dividir la búsqueda en palabras individuales
+      const searchWords = searchClean.split(/\s+/).filter(w => w.length > 0);
+      
+      if (searchWords.length > 0) {
+        // Construir condiciones más flexibles
+        const orConditions = [];
+        
+        // Para cada palabra, buscar en cualquier campo
+        searchWords.forEach(word => {
+          orConditions.push(
+            { make: { $regex: word, $options: 'i' } },
+            { line: { $regex: word, $options: 'i' } },
+            { displacement: { $regex: word, $options: 'i' } }
+          );
+        });
+        
+        // Si hay múltiples palabras, también buscar la combinación completa
+        if (searchWords.length > 1) {
+          const fullSearch = searchWords.join('.*');
+          orConditions.push(
+            { make: { $regex: fullSearch, $options: 'i' } },
+            { line: { $regex: fullSearch, $options: 'i' } },
+            { displacement: { $regex: fullSearch, $options: 'i' } }
+          );
+        }
+        
+        // Buscar en la combinación de campos (make + line + displacement)
+        // Usar $expr para concatenar campos y buscar en el resultado
+        const combinedSearch = searchWords.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*');
+        orConditions.push({
+          $expr: {
+            $regexMatch: {
+              input: { $concat: ['$make', ' ', '$line', ' ', '$displacement'] },
+              regex: combinedSearch,
+              options: 'i'
+            }
+          }
+        });
+        
+        query.$or = orConditions;
+      }
     }
     
     const items = await Vehicle.find(query)
       .sort({ make: 1, line: 1, displacement: 1 })
       .limit(Number(limit))
       .lean();
+    
+    // Si hay búsqueda, ordenar por relevancia (coincidencias exactas primero)
+    if (q && items.length > 0) {
+      const searchClean = cleanStr(q);
+      const searchWords = searchClean.split(/\s+/).filter(w => w.length > 0);
+      
+      items.sort((a, b) => {
+        const aFull = `${a.make} ${a.line} ${a.displacement}`.toUpperCase();
+        const bFull = `${b.make} ${b.line} ${b.displacement}`.toUpperCase();
+        
+        // Priorizar coincidencias exactas o que empiezan con la búsqueda
+        const aStarts = aFull.startsWith(searchClean);
+        const bStarts = bFull.startsWith(searchClean);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        
+        // Priorizar coincidencias en make
+        const aMakeMatch = a.make.includes(searchWords[0] || '');
+        const bMakeMatch = b.make.includes(searchWords[0] || '');
+        if (aMakeMatch && !bMakeMatch) return -1;
+        if (!aMakeMatch && bMakeMatch) return 1;
+        
+        return 0;
+      });
+    }
     
     res.json({ items });
   } catch (err) {
