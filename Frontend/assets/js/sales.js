@@ -5129,7 +5129,8 @@ export function initSales(){
     }
     
     console.log('Modal QR abierto correctamente');
-  }
+    } // Cerrar openQRForNewSaleWithOCR
+  } // Cerrar openQRForNewSale
 
   // Registrar event listeners DESPUÉS de definir las funciones
   // Función auxiliar para manejar eventos táctiles y de clic
