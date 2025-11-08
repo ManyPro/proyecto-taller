@@ -158,8 +158,9 @@ const defaultAllow = [
 ];
 
 const allowList = envAllow.length ? envAllow : defaultAllow;
-const allowAll = allowList.includes('*');
-logger.info('[CORS] allowList', { allowList, allowAll });
+// Permitir todos los orígenes si ALLOWED_ORIGINS contiene '*' o si está en desarrollo
+const allowAll = allowList.includes('*') || process.env.ALLOWED_ORIGINS === '*' || process.env.NODE_ENV === 'development';
+logger.info('[CORS] allowList', { allowList, allowAll, nodeEnv: process.env.NODE_ENV, allowedOrigins: process.env.ALLOWED_ORIGINS });
 
 const corsOptions = {
   origin(origin, cb) {
