@@ -4155,11 +4155,12 @@ export function initSales(){
       console.log('Placa normalizada (sin guion):', normalized);
 
       cameraDisabled = true;
-      const li = document.createElement('li');
-      // Mostrar placa con guion para mejor legibilidad, pero guardar sin guion
+      // Mostrar placa detectada en el mensaje
       const displayPlate = normalized.length === 6 ? `${normalized.substring(0,3)}-${normalized.substring(3)}` : normalized;
-      li.textContent = `Placa detectada: ${displayPlate}`;
-      if (list) list.prepend(li);
+      if (msg) {
+        msg.textContent = `Placa detectada: ${displayPlate}`;
+        msg.style.color = 'var(--accent, #2563eb)';
+      }
       
       msg.textContent = 'Procesando placa...';
       msg.style.color = 'var(--text)';
@@ -4301,8 +4302,10 @@ export function initSales(){
           await ocrWorker.setParameters({
             tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ',
             tessedit_pageseg_mode: '8', // Single word (mejor para placas)
-            // tessedit_ocr_engine_mode solo se puede configurar durante la inicialización
-            // No lo configuramos aquí para evitar el warning
+            tessedit_ocr_engine_mode: '1', // LSTM engine (más preciso)
+            // Mejorar reconocimiento de caracteres similares
+            classify_bln_numeric_mode: '0', // No tratar como numérico
+            textord_min_linesize: '2.5', // Tamaño mínimo de línea
           });
           console.log('OCR worker inicializado');
         }
@@ -4369,6 +4372,27 @@ export function initSales(){
       return tempCanvas; // Retornar el canvas amplificado
     }
     
+    // Función para corregir errores comunes de OCR (I confundida con T)
+    function correctOCRCommonMistakes(text) {
+      if (!text) return text;
+      
+      let corrected = text.toUpperCase();
+      
+      // Corrección específica: T al inicio seguido de letras y números podría ser I
+      // Patrón: TXX-XXX o TXXXXX donde XX son letras y XXX son números
+      const tamPattern = /T([A-Z]{2})[-]?([0-9]{3})/;
+      const match = corrected.match(tamPattern);
+      if (match) {
+        // Si detecta TAM, TAN, TAR, etc. seguido de números, podría ser IAM, IAN, IAR
+        // Intentar corrección solo si el patrón sugiere que es una placa
+        const possibleI = 'I' + match[1] + (match[2] ? '-' + match[2] : '');
+        corrected = corrected.replace(tamPattern, 'I' + match[1] + (match[2] ? '-' + match[2] : ''));
+        console.log(`Corrección OCR aplicada: "${text}" -> "${corrected}" (T -> I)`);
+      }
+      
+      return corrected;
+    }
+    
     // Función para extraer placa del texto OCR
     // Acepta formato: 3 letras seguidas de 3 números (con o sin guion: ABC123 o ABC-123)
     // Retorna SIN guion: ABC123 (formato usado en la base de datos)
@@ -4378,8 +4402,11 @@ export function initSales(){
       
       console.log('Extrayendo placa del texto OCR completo:', text);
       
+      // Corregir errores comunes de OCR antes de procesar
+      const corrected = correctOCRCommonMistakes(text);
+      
       // Limpiar el texto y convertir a mayúsculas
-      const clean = text.toUpperCase().replace(/[^A-Z0-9\s-]/g, ' ').trim();
+      const clean = corrected.replace(/[^A-Z0-9\s-]/g, ' ').trim();
       
       // Validación estricta: el texto debe ser principalmente la placa
       // Rechazar si hay demasiado texto adicional
@@ -4399,8 +4426,20 @@ export function initSales(){
       for (const pattern of strictPatterns) {
         const matches = [...clean.matchAll(pattern)];
         for (const match of matches) {
-          const letters = match[1];
+          let letters = match[1];
           const numbers = match[2];
+          
+          // Corrección específica: Si empieza con T seguido de letras y números, podría ser I
+          // Solo aplicar si el patrón general sugiere que es una placa válida
+          if (letters.startsWith('T') && /^[A-Z]{2}$/.test(letters.substring(1))) {
+            // Intentar corrección: TXX -> IXX
+            const possibleI = 'I' + letters.substring(1);
+            const testPlate = `${possibleI}${numbers}`;
+            if (/^[A-Z]{3}[0-9]{3}$/.test(testPlate)) {
+              console.log(`Corrección aplicada en extracción: "${letters}" -> "${possibleI}"`);
+              letters = possibleI;
+            }
+          }
           
           // Validación estricta adicional
           if (letters && letters.length === 3 && numbers && numbers.length === 3) {
@@ -4426,8 +4465,17 @@ export function initSales(){
       // Si no encontró con patrones estrictos, buscar en palabras separadas
       // PERO solo si hay exactamente 2 palabras (3 letras + 3 números)
       if (words.length === 2) {
-        const word1 = words[0];
+        let word1 = words[0];
         const word2 = words[1];
+        
+        // Corrección: Si la primera palabra empieza con T, podría ser I
+        if (word1.startsWith('T') && word1.length === 3) {
+          const possibleI = 'I' + word1.substring(1);
+          if (/^[A-Z]{3}$/.test(possibleI)) {
+            console.log(`Corrección aplicada en palabras separadas: "${word1}" -> "${possibleI}"`);
+            word1 = possibleI;
+          }
+        }
         
         // Patrón: primera palabra 3 letras, segunda palabra 3 números
         if (/^[A-Z]{3}$/.test(word1) && /^[0-9]{3}$/.test(word2)) {
@@ -4439,10 +4487,19 @@ export function initSales(){
       
       // Si hay una sola palabra, verificar que sea exactamente ABC123
       if (words.length === 1) {
-        const word = words[0];
-        const match = word.match(/^([A-Z]{3})([0-9]{3})$/);
-        if (match && match[1] && match[1].length === 3 && match[2] && match[2].length === 3) {
-          const plate = `${match[1]}${match[2]}`;
+        let word = words[0];
+        
+        // Corrección: Si empieza con T seguido de letras y números, podría ser I
+        const match = word.match(/^(T)([A-Z]{2})([0-9]{3})$/);
+        if (match) {
+          const possibleI = 'I' + match[2] + match[3];
+          console.log(`Corrección aplicada en palabra única: "${word}" -> "${possibleI}"`);
+          word = possibleI;
+        }
+        
+        const finalMatch = word.match(/^([A-Z]{3})([0-9]{3})$/);
+        if (finalMatch && finalMatch[1] && finalMatch[1].length === 3 && finalMatch[2] && finalMatch[2].length === 3) {
+          const plate = `${finalMatch[1]}${finalMatch[2]}`;
           console.log('✅ Placa extraída (palabra única, validada):', plate);
           return plate;
         }
