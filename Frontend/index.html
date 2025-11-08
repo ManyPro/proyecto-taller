@@ -101,6 +101,42 @@
     body.theme-light [class*="group-hover:text-purple-400"]:hover {
       color: #9333ea !important;
     }
+    /* Mejorar contrastes en inputs y botones en modo claro */
+    body.theme-light input[type="email"],
+    body.theme-light input[type="password"],
+    body.theme-light input[type="text"] {
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+      border-color: #cbd5e1 !important;
+    }
+    body.theme-light input[type="email"]::placeholder,
+    body.theme-light input[type="password"]::placeholder,
+    body.theme-light input[type="text"]::placeholder {
+      color: #64748b !important;
+    }
+    body.theme-light #registerBtn {
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+      border: 2px solid #cbd5e1 !important;
+    }
+    body.theme-light #registerBtn:hover {
+      background-color: #f8fafc !important;
+      border-color: #94a3b8 !important;
+    }
+    body.theme-light #s-request {
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+      border: 2px solid #cbd5e1 !important;
+    }
+    body.theme-light #s-request:hover {
+      background-color: #f8fafc !important;
+      border-color: #94a3b8 !important;
+    }
+    /* Desactivar scroll en páginas de login */
+    body:has(#portalSection:not(.hidden)),
+    body:has(#loginSection:not(.hidden)) {
+      overflow: hidden !important;
+    }
   </style>
   <link rel="stylesheet" href="assets/styles.css?v=20251010" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
@@ -162,7 +198,7 @@
 </head>
 <body data-page="home">
   <!-- ========== PORTAL (selección de tipo de acceso) ========== -->
-  <section id="portalSection" class="hidden min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 theme-light:from-slate-50 theme-light:via-slate-100 theme-light:to-slate-50 relative">
+  <section id="portalSection" class="hidden h-screen flex items-center justify-center px-4 overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 theme-light:from-slate-50 theme-light:via-slate-100 theme-light:to-slate-50 relative">
     <!-- Botón de cambio de tema -->
     <button id="themeTogglePortal" class="absolute top-4 right-4 p-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700 hover:text-white dark:hover:text-white theme-light:hover:text-slate-900 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-200/50 rounded-lg transition-colors duration-200 z-20" title="Cambiar tema">🌗</button>
     <div class="w-full max-w-6xl">
@@ -218,7 +254,7 @@
   </section>
 
   <!-- ========== LOGIN ========== -->
-  <section id="loginSection" class="hidden min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 theme-light:from-slate-50 theme-light:via-slate-100 theme-light:to-slate-50 relative">
+  <section id="loginSection" class="hidden h-screen flex items-center justify-center px-4 overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 theme-light:from-slate-50 theme-light:via-slate-100 theme-light:to-slate-50 relative">
     <!-- Botón de cambio de tema -->
     <button id="themeToggleLogin" class="absolute top-4 right-4 p-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700 hover:text-white dark:hover:text-white theme-light:hover:text-slate-900 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-200/50 rounded-lg transition-colors duration-200 z-20" title="Cambiar tema">🌗</button>
     <div class="w-full max-w-md">
@@ -248,15 +284,15 @@
           <form class="space-y-6" onsubmit="event.preventDefault(); document.getElementById('loginBtn')?.click();">
             <div>
               <label for="email" class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Correo de empresa</label>
-              <input type="email" id="email" placeholder="empresa@correo.com" class="w-full px-4 py-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-xl text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              <input type="email" id="email" placeholder="empresa@correo.com" class="w-full px-4 py-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white theme-light:!bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 theme-light:!border-slate-300 rounded-xl text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
             </div>
             <div>
               <label for="password" class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Contraseña</label>
-              <input type="password" id="password" placeholder="********" class="w-full px-4 py-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-xl text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              <input type="password" id="password" placeholder="********" class="w-full px-4 py-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white theme-light:!bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 theme-light:!border-slate-300 rounded-xl text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
             </div>
             <div class="flex flex-col sm:flex-row gap-3">
               <button id="loginBtn" type="button" class="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200">Entrar</button>
-              <button id="registerBtn" type="button" class="flex-1 px-6 py-3 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-xl transition-all duration-200">Registrar empresa</button>
+              <button id="registerBtn" type="button" class="flex-1 px-6 py-3 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white theme-light:!bg-white theme-light:border-2 theme-light:!border-2 theme-light:border-slate-300 theme-light:!border-slate-300 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-50 theme-light:!hover:bg-slate-50 text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 font-semibold rounded-xl transition-all duration-200">Registrar empresa</button>
             </div>
             <div class="text-center">
               <a href="forgot.html" class="text-sm text-blue-400 dark:text-blue-400 theme-light:text-blue-600 hover:text-blue-300 dark:hover:text-blue-300 theme-light:hover:text-blue-700 transition-colors duration-200">¿Olvidaste tu contraseña?</a>
