@@ -607,7 +607,7 @@ export function initQuotes({ getCompanyEmail }) {
       });
     }
     
-    lines.push(`Valores SIN IVA`);
+    lines.push(`Valores con iva excluido`);
     lines.push(val.trim());
     return lines.join('\n').replace(/\n{3,}/g,'\n\n');
   }
@@ -809,7 +809,7 @@ export function initQuotes({ getCompanyEmail }) {
     }
     
     d.setFont('helvetica','italic'); d.setFontSize(10);
-    d.text('Valores SIN IVA', left, y); y += 14;
+    d.text('Valores con iva excluido', left, y); y += 14;
   if(doc.validity) d.text(`Validez: ${doc.validity} días`, left, y);
 
     // Mostrar descuento si existe
@@ -1337,7 +1337,7 @@ export function initQuotes({ getCompanyEmail }) {
         lines.push(`Descuento: ${money(discountValue)}`);
       }
       lines.push(`*TOTAL: ${money(total)}*`);
-      lines.push(`Valores SIN IVA`);
+      lines.push(`Valores con iva excluido`);
       lines.push(val.trim());
       return lines.join('\n').replace(/\n{3,}/g,'\n\n');
     }

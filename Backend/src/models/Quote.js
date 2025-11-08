@@ -35,6 +35,7 @@ const QuoteSchema = new mongoose.Schema({
 
   validity:   { type: String, default: '' },
   currency:   { type: String, default: 'COP' },
+  specialNotes: { type: [String], default: [] }, // Notas especiales para la cotización
 
   items:      { type: [ItemSchema], default: [] },
   total:      { type: Number, required: true, min: 0 },

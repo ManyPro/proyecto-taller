@@ -59,7 +59,7 @@ export async function createQuote(req, res) {
   const seq = counter.quoteSeq;
   const number = String(seq).padStart(5, '0');
 
-  const { customer = {}, vehicle = {}, validity = '', items: itemsInput = [] } = req.body || {};
+  const { customer = {}, vehicle = {}, validity = '', specialNotes = [], items: itemsInput = [] } = req.body || {};
   const { items, total } = computeItems(itemsInput);
 
   // Si se proporciona vehicleId, obtener datos del vehículo
@@ -107,6 +107,7 @@ export async function createQuote(req, res) {
     },
     vehicle: vehicleData,
     validity,
+    specialNotes: Array.isArray(specialNotes) ? specialNotes : [],
     items,
     total
   });
@@ -289,6 +290,7 @@ export async function updateQuote(req, res) {
 
   exists.vehicle = vehicleData;
   exists.validity = validity ?? exists.validity;
+  exists.specialNotes = Array.isArray(specialNotes) ? specialNotes : (exists.specialNotes || []);
   exists.items = items;
   exists.total = total;
 
