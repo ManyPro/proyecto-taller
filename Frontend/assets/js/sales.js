@@ -812,6 +812,9 @@ function renderSale(){
   const items = current?.items || [];
   let i = 0;
   
+  // Cache para almacenar el número de productos de cada combo
+  const comboProductsCountCache = new Map();
+  
   while (i < items.length) {
     const it = items[i];
     const sku = String(it.sku || '').toUpperCase();
@@ -822,8 +825,26 @@ function renderSale(){
       const comboItems = [it];
       i++;
       
+      // Obtener el número de productos del combo desde el PriceEntry (con cache)
+      let comboProductsCount = 0;
+      if (it.refId) {
+        if (comboProductsCountCache.has(it.refId)) {
+          comboProductsCount = comboProductsCountCache.get(it.refId);
+        } else {
+          // Intentar obtener el PriceEntry del combo para saber cuántos productos tiene
+          // Por ahora, usamos una heurística mejorada
+          comboProductsCount = null; // null significa que no sabemos
+        }
+      }
+      
       // Agregar items consecutivos que son parte del combo
-      // Los items del combo pueden tener source 'inventory', 'price', o venir después del combo principal
+      // Los items del combo pueden tener:
+      // - SKU que empieza con "CP-" (producto del combo sin vincular)
+      // - source 'inventory' o 'price' y venir inmediatamente después del combo
+      // Detener si encontramos:
+      // - Otro combo
+      // - Más items de los que tiene el combo (si sabemos el número)
+      // - Un item que claramente no pertenece al combo
       while (i < items.length) {
         const nextIt = items[i];
         const nextSku = String(nextIt.sku || '').toUpperCase();
@@ -833,11 +854,40 @@ function renderSale(){
           break;
         }
         
-        // Los items del combo generalmente vienen después del combo principal
-        // Agregar items hasta encontrar uno que claramente no pertenece (por ejemplo, un servicio independiente)
-        // Por ahora, agregamos todos los items consecutivos después del combo
-        comboItems.push(nextIt);
-        i++;
+        // Si sabemos cuántos productos tiene el combo y ya agregamos todos, detener
+        if (comboProductsCount !== null && comboItems.length - 1 >= comboProductsCount) {
+          break;
+        }
+        
+        // Si el SKU empieza con "CP-", es definitivamente parte del combo
+        if (nextSku.startsWith('CP-')) {
+          comboItems.push(nextIt);
+          i++;
+          continue;
+        }
+        
+        // Heurística conservadora: solo agregar items que claramente son parte del combo
+        // Los items del combo pueden tener:
+        // - SKU que empieza con "CP-" (definitivamente parte del combo) - ya manejado arriba
+        // - Precio 0 (parte del combo sin precio)
+        // NOTA: Los items del combo con item vinculado pueden tener precio > 0, pero sin una forma
+        // confiable de identificarlos, preferimos ser conservadores y solo agregar items con precio 0 o CP-
+        // para evitar agregar items independientes al combo
+        
+        const nextUnitPrice = Number(nextIt.unitPrice || 0);
+        const nextTotal = Number(nextIt.total || 0);
+        
+        if (nextUnitPrice === 0 && nextTotal === 0) {
+          // Item con precio 0, probablemente parte del combo
+          comboItems.push(nextIt);
+          i++;
+        } else {
+          // Item con precio > 0 y no es CP-
+          // Para evitar agregar items independientes (como el amortiguador), no lo agregamos al combo
+          // Si el combo tiene items vinculados con precio, estos se mostrarán como items independientes
+          // pero es preferible a mostrar items independientes como parte del combo
+          break;
+        }
       }
       
       renderComboGroup(body, it.refId, comboItems);
