@@ -897,7 +897,12 @@ export function initPrices(){
                 itemSelected.style.display = 'none';
               };
             }
-            if (!priceInput.value || priceInput.value === '0') {
+            // Establecer el nombre del producto con el nombre del item del inventario
+            if (nameInput && item.name) {
+              nameInput.value = item.name;
+            }
+            // Establecer el precio con el precio de venta del item
+            if (priceInput) {
               priceInput.value = item.salePrice || 0;
             }
             return;
@@ -933,8 +938,12 @@ export function initPrices(){
                   itemSelected.style.display = 'none';
                 };
               }
-              // Auto-completar precio si no está definido
-              if (!priceInput.value || priceInput.value === '0') {
+              // Establecer el nombre del producto con el nombre del item del inventario
+              if (nameInput && item.name) {
+                nameInput.value = item.name;
+              }
+              // Establecer el precio con el precio de venta del item
+              if (priceInput) {
                 priceInput.value = item.salePrice || 0;
               }
             });
@@ -1009,7 +1018,12 @@ export function initPrices(){
                   itemSelected.style.display = 'none';
                 };
               }
-              if (!priceInput.value || priceInput.value === '0') {
+              // Establecer el nombre del producto con el nombre del item del inventario
+              if (nameInput && item.name) {
+                nameInput.value = item.name;
+              }
+              // Establecer el precio con el precio de venta del item
+              if (priceInput) {
                 priceInput.value = item.salePrice || 0;
               }
               // Limpiar dropdown si existe
@@ -1104,7 +1118,12 @@ export function initPrices(){
                 itemSelected.style.display = 'none';
               };
             }
-            if (!priceInput.value || priceInput.value === '0') {
+            // Establecer el nombre del producto con el nombre del item del inventario
+            if (nameInput && item.name) {
+              nameInput.value = item.name;
+            }
+            // Establecer el precio con el precio de venta del item (siempre, no solo si está vacío)
+            if (priceInput) {
               priceInput.value = item.salePrice || 0;
             }
           } else {
@@ -1603,10 +1622,24 @@ export function initPrices(){
           total: price
         };
         
-        if (isProduct && selectedItem) {
-          payload.itemId = selectedItem._id;
-        } else if (isProduct && !selectedItem) {
-          payload.itemId = null;
+        if (isProduct) {
+          // Leer itemId del input hidden como fuente de verdad (más confiable que selectedItem)
+          // Acceder directamente desde el DOM para evitar problemas de scope
+          const itemIdInputEl = node.querySelector('#pe-modal-item-id');
+          const itemIdFromInput = itemIdInputEl?.value?.trim() || null;
+          
+          // Debug: verificar valores
+          console.log('Guardando producto - itemIdFromInput:', itemIdFromInput, 'selectedItem:', selectedItem);
+          
+          if (itemIdFromInput) {
+            payload.itemId = itemIdFromInput;
+          } else if (selectedItem && selectedItem._id) {
+            payload.itemId = selectedItem._id;
+          } else {
+            payload.itemId = null;
+          }
+          
+          console.log('Payload itemId final:', payload.itemId);
         }
         
         if (isCombo) {
