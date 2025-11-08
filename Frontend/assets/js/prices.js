@@ -1126,27 +1126,31 @@ export function initPrices(){
     const linkedItem = existingPrice?.itemId;
     const comboProducts = existingPrice?.comboProducts || [];
     
+    // Determinar qué vehículos usar para la creación
+    const vehiclesForCreation = selectedVehicles.length > 0 ? selectedVehicles : (selectedVehicle ? [selectedVehicle] : []);
+    const isBulkCreation = vehiclesForCreation.length > 1;
+    
     const node = document.createElement('div');
     node.className = 'card';
     node.innerHTML = `
       <h3>${isEdit ? 'Editar' : 'Nuevo'} ${type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto')}</h3>
-      <p class="muted" style="margin-bottom:16px;font-size:13px;">
-        ${selectedVehicles.length === 1 ? 
-          `Vehículo: <strong>${selectedVehicle.make} ${selectedVehicle.line}</strong>` :
-          `Vehículos seleccionados: <strong>${selectedVehicles.length}</strong><br>
-          <span style="font-size:11px;color:var(--muted);">Se creará el precio para todos los vehículos seleccionados</span>`
-        }
-      </p>
-      ${selectedVehicles.length > 1 ? `
-      <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;border:1px solid var(--border);max-height:150px;overflow-y:auto;">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500;">Vehículos seleccionados:</div>
-        <div style="display:flex;flex-direction:column;gap:4px;">
-          ${selectedVehicles.map(v => `
-            <div style="font-size:11px;color:var(--text);">• ${v.make} ${v.line} ${v.displacement}${v.modelYear ? ` (${v.modelYear})` : ''}</div>
-          `).join('')}
+      ${isBulkCreation ? `
+      <div style="margin-bottom:16px;padding:12px;background:rgba(59, 130, 246, 0.1);border-radius:8px;border:2px solid var(--primary, #3b82f6);">
+        <div style="font-size:13px;font-weight:600;color:var(--primary, #3b82f6);margin-bottom:8px;">📋 Creación en bulk para ${vehiclesForCreation.length} vehículos</div>
+        <div style="font-size:12px;color:var(--text);margin-bottom:8px;">Se creará este ${type === 'combo' ? 'combo' : (type === 'service' ? 'servicio' : 'producto')} para todos los vehículos seleccionados:</div>
+        <div style="max-height:120px;overflow-y:auto;padding:8px;background:var(--bg);border-radius:4px;border:1px solid var(--border);">
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            ${vehiclesForCreation.map((v, idx) => `
+              <div style="font-size:11px;color:var(--text);padding:4px;">${idx + 1}. ${v.make} ${v.line} ${v.displacement}${v.modelYear ? ` (Modelo ${v.modelYear})` : ''}</div>
+            `).join('')}
+          </div>
         </div>
       </div>
-      ` : ''}
+      ` : `
+      <p class="muted" style="margin-bottom:16px;font-size:13px;">
+        Vehículo: <strong>${vehiclesForCreation[0] ? `${vehiclesForCreation[0].make} ${vehiclesForCreation[0].line}` : 'No seleccionado'}</strong>
+      </p>
+      `}
       <div style="margin-bottom:16px;">
         <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre</label>
         <input id="pe-modal-name" placeholder="${type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire')}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" value="${existingPrice?.name || ''}" />
@@ -1236,7 +1240,7 @@ export function initPrices(){
       </div>
       <div id="pe-modal-msg" style="margin-bottom:16px;font-size:13px;"></div>
       <div class="row" style="gap:8px;">
-        <button id="pe-modal-save" style="flex:1;padding:10px;">💾 ${isEdit ? 'Actualizar' : 'Guardar'}</button>
+        <button id="pe-modal-save" style="flex:1;padding:10px;font-weight:600;">💾 ${isEdit ? 'Actualizar' : (isBulkCreation ? `Guardar para ${vehiclesForCreation.length} vehículos` : 'Guardar')}</button>
         <button id="pe-modal-cancel" class="secondary" style="flex:1;padding:10px;">Cancelar</button>
       </div>
     `;
@@ -2046,7 +2050,8 @@ export function initPrices(){
       
       try {
         saveBtn.disabled = true;
-        saveBtn.textContent = isEdit ? 'Actualizando...' : (selectedVehicles.length > 1 ? `Guardando para ${selectedVehicles.length} vehículos...` : 'Guardando...');
+        const vehiclesToShow = selectedVehicles.length > 0 ? selectedVehicles : (selectedVehicle ? [selectedVehicle] : []);
+        saveBtn.textContent = isEdit ? 'Actualizando...' : (vehiclesToShow.length > 1 ? `Guardando para ${vehiclesToShow.length} vehículos...` : 'Guardando...');
         
         // Preparar datos comunes del payload
         const yearFromInput = node.querySelector('#pe-modal-year-from');
