@@ -3719,17 +3719,35 @@ export function initSales(){
 
   // ===== Nueva venta con QR (lector de placas) =====
   async function openQRForNewSale(){
-    if (starting) return;
+    if (starting) {
+      console.log('Ya hay una venta iniciándose');
+      return;
+    }
+    
+    console.log('Abriendo QR para nueva venta...');
     
     const tpl = document.getElementById('tpl-qr-scanner');
     if (!tpl) {
+      console.error('Template de QR no encontrado');
       alert('Template de QR no encontrado');
       return;
     }
     
     const node = tpl.content.firstElementChild.cloneNode(true);
-    openModal(node);
-
+    
+    const modal = document.getElementById('modal');
+    const slot = document.getElementById('modalBody');
+    const x = document.getElementById('modalClose');
+    
+    if (!modal || !slot || !x) {
+      console.error('Modal no encontrado:', { modal: !!modal, slot: !!slot, x: !!x });
+      alert('Error: No se pudo abrir el modal. Por favor, recarga la página.');
+      return;
+    }
+    
+    console.log('Abriendo modal...');
+    slot.replaceChildren(node);
+    
     const video = node.querySelector('#qr-video');
     const canvas = node.querySelector('#qr-canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -3748,11 +3766,37 @@ export function initSales(){
     if (finishMultiBtn) finishMultiBtn.style.display = 'none';
     
     // Cambiar mensaje inicial
-    msg.textContent = 'Escanea la placa del vehículo (formato: ABC-123)';
-    msg.style.color = 'var(--text)';
+    if (msg) {
+      msg.textContent = 'Escanea la placa del vehículo (formato: ABC-123)';
+      msg.style.color = 'var(--text)';
+    }
 
     let stream = null, running = false, detector = null, lastCode = '', lastTs = 0;
     let cameraDisabled = false;
+    
+    // Definir stop() antes de usarla
+    function stop(){ 
+      try{ 
+        if (video) {
+          video.pause(); 
+          video.srcObject = null;
+        }
+      }catch{}; 
+      try{ 
+        (stream?.getTracks()||[]).forEach(t=>t.stop()); 
+      }catch{}; 
+      running=false; 
+      stream = null;
+    }
+    
+    // Configurar onclick después de definir stop
+    x.onclick = () => {
+      stop();
+      modal.classList.add('hidden');
+    };
+    
+    // Mostrar modal
+    modal.classList.remove('hidden');
 
     // Función para validar formato de placa: 3 letras - 3 números
     function isValidPlate(text) {
@@ -3819,18 +3863,6 @@ export function initSales(){
       }
     }
 
-    function stop(){ 
-      try{ 
-        video.pause(); 
-        video.srcObject = null;
-      }catch{}; 
-      try{ 
-        (stream?.getTracks()||[]).forEach(t=>t.stop()); 
-      }catch{}; 
-      running=false; 
-      stream = null;
-    }
-    
     async function start(){
       try{
         stop();
@@ -4039,7 +4071,8 @@ export function initSales(){
 
         // Cerrar modal y renderizar venta
         stop();
-        closeModal();
+        const modal = document.getElementById('modal');
+        if (modal) modal.classList.add('hidden');
         
         renderTabs();
         renderSale();
