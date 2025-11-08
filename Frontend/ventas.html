@@ -89,6 +89,27 @@
       font-size: 0.75rem;
       font-weight: 600;
     }
+    /* Estilos para el modal global */
+    #modal.hidden {
+      display: none !important;
+    }
+    #modal:not(.hidden) {
+      display: flex !important;
+    }
+    /* Estilos para elementos del historial QR */
+    .qr-history {
+      list-style: none;
+      padding: 0;
+    }
+    .qr-history li {
+      padding: 0.5rem;
+      background: rgba(51, 65, 85, 0.3);
+      border-radius: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    body.theme-light .qr-history li {
+      background: rgba(203, 213, 225, 0.3);
+    }
   </style>
   <link rel="stylesheet" href="assets/styles.css?v=20251010" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
@@ -175,16 +196,16 @@
     <section id="appSection" class="hidden">
 
       <!-- MODAL GLOBAL -->
-      <div id="modal" class="modal hidden">
-        <div class="modal-content image-modal">
-          <button id="modalClose" class="close">&times;</button>
-          <div id="modalBody">
-            <div id="modal-img-wrap">
-              <img id="modal-img" src="" alt="Vista previa" />
-              <div class="zoom-controls">
-                <button id="zoom-in">+</button>
-                <button id="zoom-out">-</button>
-                <button id="zoom-reset">Reset</button>
+      <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
+        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] overflow-hidden">
+          <button id="modalClose" class="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-600 dark:hover:bg-slate-600 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 rounded-lg transition-colors duration-200 text-xl font-bold">&times;</button>
+          <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh]">
+            <div id="modal-img-wrap" class="hidden">
+              <img id="modal-img" src="" alt="Vista previa" class="w-full h-auto rounded-lg" />
+              <div class="flex gap-2 mt-4 justify-center">
+                <button id="zoom-in" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200">+</button>
+                <button id="zoom-out" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200">-</button>
+                <button id="zoom-reset" class="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors duration-200">Reset</button>
               </div>
             </div>
           </div>
@@ -272,7 +293,6 @@
           <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4" id="sv-customer-mini">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg"></div>
                 <div>
                   <div id="sv-mini-plate" class="px-2 py-1 bg-blue-500/20 dark:bg-blue-500/20 theme-light:bg-blue-100 text-blue-400 dark:text-blue-400 theme-light:text-blue-700 rounded-md text-sm font-semibold mb-1 inline-block">—</div>
                   <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600" id="sv-mini-name">Cliente: —</div>
@@ -317,35 +337,35 @@
 
             <!-- plantilla modal cliente/vehículo -->
             <template id="sales-cv-template">
-              <div class="card">
-                <h3>Cliente y vehículo</h3>
-                <div class="cols-2" style="gap:8px;">
-                  <div class="col">
-                    <input id="c-name" placeholder="Nombre/Empresa">
-                    <input id="c-id" placeholder="Identificación">
-                    <input id="c-phone" placeholder="Teléfono">
-                    <input id="c-email" placeholder="Email">
-                    <input id="c-address" placeholder="Dirección">
+              <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+                <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6">Cliente y vehículo</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="space-y-3">
+                    <input id="c-name" placeholder="Nombre/Empresa" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                    <input id="c-id" placeholder="Identificación" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                    <input id="c-phone" placeholder="Teléfono" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                    <input id="c-email" placeholder="Email" type="email" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                    <input id="c-address" placeholder="Dirección" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
                   </div>
-                  <div class="col">
-                    <input id="v-plate" placeholder="Placa (ABC123)">
-                    <div style="position:relative;">
-                      <label style="display:block;font-size:12px;color:var(--muted);margin:8px 0 4px 0;font-weight:500;">Vehículo (opcional)</label>
-                      <input id="v-vehicle-search" placeholder="Buscar vehículo (marca, línea, cilindraje)..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-                      <div id="v-vehicle-dropdown" style="display:none;position:absolute;z-index:1000;background:var(--card);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;margin-top:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:100%;"></div>
+                  <div class="space-y-3">
+                    <input id="v-plate" placeholder="Placa (ABC123)" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                    <div class="relative">
+                      <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Vehículo (opcional)</label>
+                      <input id="v-vehicle-search" placeholder="Buscar vehículo (marca, línea, cilindraje)..." class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+                      <div id="v-vehicle-dropdown" class="hidden absolute z-50 w-full mt-1 bg-slate-800 dark:bg-slate-800 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg max-h-48 overflow-y-auto shadow-xl"></div>
                       <input type="hidden" id="v-vehicle-id" />
-                      <div id="v-vehicle-selected" style="margin-top:4px;font-size:12px;color:var(--muted);"></div>
+                      <div id="v-vehicle-selected" class="mt-1 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
                     </div>
-                    <input id="v-brand" placeholder="Marca" readonly style="background:var(--bg-secondary);">
-                    <input id="v-line" placeholder="Línea" readonly style="background:var(--bg-secondary);">
-                    <input id="v-engine" placeholder="Motor" readonly style="background:var(--bg-secondary);">
-                    <input id="v-year" placeholder="Año" type="number">
-                    <div id="v-year-warning" style="display:none;font-size:11px;color:var(--danger,#ef4444);margin-top:4px;"></div>
-                    <input id="v-mile" placeholder="Kilometraje" type="number">
+                    <input id="v-brand" placeholder="Marca" readonly class="w-full px-4 py-2.5 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-700 cursor-not-allowed">
+                    <input id="v-line" placeholder="Línea" readonly class="w-full px-4 py-2.5 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-700 cursor-not-allowed">
+                    <input id="v-engine" placeholder="Motor" readonly class="w-full px-4 py-2.5 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-700 cursor-not-allowed">
+                    <input id="v-year" placeholder="Año" type="number" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                    <div id="v-year-warning" class="hidden text-xs text-red-500 dark:text-red-400 theme-light:text-red-600 mt-1"></div>
+                    <input id="v-mile" placeholder="Kilometraje" type="number" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
                   </div>
                 </div>
-                <div class="row right" style="margin-top:8px;">
-                  <button id="sales-save-cv">Guardar</button>
+                <div class="flex justify-end mt-6">
+                  <button id="sales-save-cv" class="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
                 </div>
               </div>
             </template>
@@ -358,75 +378,127 @@
       
       <!-- Historial ventas -->
       <template id="tpl-sales-history">
-        <div class="card">
-          <h3>Historial de ventas</h3>
-          <div class="row" style="gap:8px; align-items:end;">
-            <div class="col">
-              <label>Desde</label><input type="date" id="sh-from" />
+        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+          <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Historial de ventas</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Desde</label>
+              <input type="date" id="sh-from" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
             </div>
-            <div class="col">
-              <label>Hasta</label><input type="date" id="sh-to" />
+            <div>
+              <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Hasta</label>
+              <input type="date" id="sh-to" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
             </div>
-            <div class="col">
-              <label>Placa</label><input id="sh-plate" placeholder="ABC123" />
+            <div>
+              <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Placa</label>
+              <input id="sh-plate" placeholder="ABC123" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
             </div>
-            <button id="sh-search" class="secondary">Buscar</button>
+            <div class="flex items-end">
+              <button id="sh-search" class="w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Buscar</button>
+            </div>
           </div>
-          <div class="table-wrap mobile-as-cards" style="margin-top:8px;">
-            <table class="table">
-              <thead><tr><th>#</th><th>Placa</th><th>FecHa</th><th class="t-right">Total</th><th></th></tr></thead>
-              <tbody id="sh-body"></tbody>
-              <tfoot><tr><td colspan="4" class="t-right"><b>Total</b></td><td class="t-right" id="sh-total">$0</td></tr></tfoot>
+          <div class="overflow-x-auto mb-4">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+                  <th class="text-left py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">#</th>
+                  <th class="text-left py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Placa</th>
+                  <th class="text-left py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Fecha</th>
+                  <th class="text-right py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Total</th>
+                  <th class="w-20"></th>
+                </tr>
+              </thead>
+              <tbody id="sh-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
+              <tfoot>
+                <tr class="border-t-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+                  <td colspan="4" class="text-right py-2 px-3 font-semibold text-white dark:text-white theme-light:text-slate-900">Total</td>
+                  <td class="text-right py-2 px-3 font-bold text-white dark:text-white theme-light:text-slate-900" id="sh-total">$0</td>
+                </tr>
+              </tfoot>
             </table>
           </div>
-          <div class="row between" style="margin-top:8px; font-size:12px;">
-            <div id="sh-pag" class="muted">Página 1</div>
-            <div class="row" style="gap:6px;">
-              <button id="sh-prev" class="secondary" disabled>◄</button>
-              <button id="sh-next" class="secondary" disabled>►</button>
+          <div class="flex items-center justify-between text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+            <div id="sh-pag">Página 1</div>
+            <div class="flex gap-2">
+              <button id="sh-prev" class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed" disabled>◄</button>
+              <button id="sh-next" class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed" disabled>►</button>
             </div>
           </div>
         </div>
       </template>
 
             <template id="tpl-sale-history-detail">
-        <div class="card">
-          <h3>Detalle de venta</h3>
-          <div class="row" style="justify-content:space-between;align-items:center;">
-            <div>
-              <div><strong>#</strong> <span data-number></span></div>
-              <div><strong>FecHa</strong> <span data-date></span></div>
-              <div><strong>Estado</strong> <span data-status></span></div>
-            </div>
-            <button class="secondary" data-print>Imprimir factura</button>
+        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Detalle de venta</h3>
+            <button class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200" data-print>Imprimir factura</button>
           </div>
-          <div class="cols-2" style="gap:12px;margin-top:12px;">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 p-4 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 rounded-lg">
             <div>
-              <h4>Cliente</h4>
-              <div data-customer></div>
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Número</div>
+              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900" data-number></div>
             </div>
             <div>
-              <h4>Vehículo</h4>
-              <div data-vehicle></div>
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Fecha</div>
+              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900" data-date></div>
+            </div>
+            <div>
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Estado</div>
+              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900" data-status></div>
             </div>
           </div>
-          <div id="sale-payments" style="margin-top:12px;">
-            <h4>Pagos</h4>
-            <div class="table-wrap small">
-              <table class="table small" style="min-width:420px;">
-                <thead><tr><th>Método</th><th>Cuenta</th><th class="t-right">Monto</th></tr></thead>
-                <tbody data-payments></tbody>
-                <tfoot><tr><td colspan="2" class="t-right"><strong>Total pagos</strong></td><td class="t-right" data-payments-total>$0</td></tr></tfoot>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="p-4 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 rounded-lg">
+              <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">Cliente</h4>
+              <div class="text-white dark:text-white theme-light:text-slate-900" data-customer></div>
+            </div>
+            <div class="p-4 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 rounded-lg">
+              <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">Vehículo</h4>
+              <div class="text-white dark:text-white theme-light:text-slate-900" data-vehicle></div>
+            </div>
+          </div>
+          <div id="sale-payments" class="mb-6">
+            <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">Pagos</h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+                    <th class="text-left py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Método</th>
+                    <th class="text-left py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cuenta</th>
+                    <th class="text-right py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Monto</th>
+                  </tr>
+                </thead>
+                <tbody data-payments class="text-white dark:text-white theme-light:text-slate-900"></tbody>
+                <tfoot>
+                  <tr class="border-t-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+                    <td colspan="2" class="text-right py-2 px-3 font-semibold text-white dark:text-white theme-light:text-slate-900">Total pagos</td>
+                    <td class="text-right py-2 px-3 font-bold text-white dark:text-white theme-light:text-slate-900" data-payments-total>$0</td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>
-          <div class="table-wrap mobile-as-cards" style="margin-top:12px;">
-            <table class="table">
-              <thead><tr><th>SKU</th><th>Descripción</th><th class="t-center">Cant.</th><th class="t-right">Unit</th><th class="t-right">Total</th></tr></thead>
-              <tbody data-items></tbody>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+                  <th class="text-left py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">SKU</th>
+                  <th class="text-left py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Descripción</th>
+                  <th class="text-center py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cant.</th>
+                  <th class="text-right py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Unit</th>
+                  <th class="text-right py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Total</th>
+                </tr>
+              </thead>
+              <tbody data-items class="text-white dark:text-white theme-light:text-slate-900"></tbody>
               <tfoot>
-                <tr><td colspan="4" class="t-right">Subtotal</td><td class="t-right" data-subtotal>$0</td></tr>
-                <tr><td colspan="4" class="t-right"><strong>Total</strong></td><td class="t-right" data-total>$0</td></tr>
+                <tr class="border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+                  <td colspan="4" class="text-right py-2 px-3 font-semibold text-white dark:text-white theme-light:text-slate-900">Subtotal</td>
+                  <td class="text-right py-2 px-3 font-semibold text-white dark:text-white theme-light:text-slate-900" data-subtotal>$0</td>
+                </tr>
+                <tr class="border-t-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+                  <td colspan="4" class="text-right py-2 px-3 font-bold text-white dark:text-white theme-light:text-slate-900">Total</td>
+                  <td class="text-right py-2 px-3 font-bold text-lg text-white dark:text-white theme-light:text-slate-900" data-total>$0</td>
+                </tr>
               </tfoot>
             </table>
           </div>
@@ -602,47 +674,49 @@
 
       <!-- Lector QR (Ventas) -->
       <template id="tpl-qr-scanner">
-        <div>
-          <h3>Lector de QR</h3>
-          <div class="qrbar row">
-            <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;">
-              <label>Camara</label>
-              <select id="qr-cam"></select>
+        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+          <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Lector de QR</h3>
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+            <div class="flex items-center gap-3">
+              <label class="text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cámara</label>
+              <select id="qr-cam" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"></select>
             </div>
-            <div class="row" style="gap:8px;flex-wrap:wrap;">
-              <button id="qr-single-mode" class="secondary" style="white-space:nowrap;">📦 Agregar solo un item</button>
-              <button id="qr-multi-mode" class="secondary" style="white-space:nowrap;">➕ Agregar múltiples items</button>
-              <button id="qr-finish-multi" class="secondary" style="white-space:nowrap;display:none;">✓ Terminar de agregar</button>
+            <div class="flex flex-wrap gap-2">
+              <button id="qr-single-mode" class="px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 whitespace-nowrap text-sm">📦 Agregar solo un item</button>
+              <button id="qr-multi-mode" class="px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 whitespace-nowrap text-sm">➕ Agregar múltiples items</button>
+              <button id="qr-finish-multi" class="hidden px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 whitespace-nowrap text-sm">✓ Terminar de agregar</button>
             </div>
           </div>
-          <div class="qrwrap" style="position:relative;">
-            <video id="qr-video" playsinline muted></video>
-            <canvas id="qr-canvas" style="display:none;"></canvas>
-            <div class="qr-hud"></div>
+          <div class="relative w-full max-w-md mx-auto bg-slate-900 rounded-lg overflow-hidden shadow-xl">
+            <video id="qr-video" playsinline muted class="w-full h-auto"></video>
+            <canvas id="qr-canvas" class="hidden"></canvas>
+            <div class="absolute inset-0 flex items-center justify-center">
+              <div class="qr-hud border-4 border-blue-500 w-3/4 h-3/4 rounded-lg"></div>
+            </div>
             <!-- Botón de captura manual para placas -->
-            <button id="qr-capture-plate" style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:#2563eb;color:white;border:none;padding:12px 24px;border-radius:12px;font-weight:600;font-size:16px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.3);display:none;z-index:10;transition:all 0.2s;" title="Capturar placa cuando esté bien enmarcada">📸 Capturar Placa</button>
+            <button id="qr-capture-plate" class="absolute bottom-4 left-1/2 -translate-x-1/2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg transition-all duration-200 z-10 hidden" title="Capturar placa cuando esté bien enmarcada">📸 Capturar Placa</button>
           </div>
           <!-- Panel de confirmación de placa -->
-          <div id="qr-plate-confirm" style="display:none;margin-top:12px;padding:16px;background:var(--card-alt);border-radius:12px;border:2px solid var(--accent);">
-            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
-              <div style="font-size:24px;">🔍</div>
-              <div style="flex:1;">
-                <div style="font-weight:600;margin-bottom:4px;">Placa detectada:</div>
-                <div id="qr-detected-plate" style="font-size:20px;font-weight:bold;color:var(--accent);letter-spacing:2px;"></div>
-                <div id="qr-plate-confidence" style="font-size:12px;color:var(--muted);margin-top:4px;"></div>
+          <div id="qr-plate-confirm" class="hidden mt-4 p-4 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl border-2 border-blue-500">
+            <div class="flex items-center gap-3 mb-3">
+              <div class="text-2xl">🔍</div>
+              <div class="flex-1">
+                <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-1">Placa detectada:</div>
+                <div id="qr-detected-plate" class="text-xl font-bold text-blue-400 dark:text-blue-400 theme-light:text-blue-600 tracking-wider"></div>
+                <div id="qr-plate-confidence" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1"></div>
               </div>
             </div>
-            <div style="display:flex;gap:8px;">
-              <button id="qr-confirm-plate" style="flex:1;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;">✓ Confirmar</button>
-              <button id="qr-cancel-plate" style="flex:1;padding:10px;background:var(--border);color:var(--text);border:none;border-radius:8px;font-weight:600;cursor:pointer;">✗ Cancelar</button>
+            <div class="flex gap-2">
+              <button id="qr-confirm-plate" class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-200">✓ Confirmar</button>
+              <button id="qr-cancel-plate" class="flex-1 px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200">✗ Cancelar</button>
             </div>
           </div>
-          <div class="row" style="gap:8px;margin-top:8px;">
-            <input id="qr-manual" placeholder="Ingresar código manualmente (fallback)">
-            <button id="qr-add-manual">Agregar</button>
+          <div class="flex gap-2 mt-4">
+            <input id="qr-manual" placeholder="Ingresar código manualmente (fallback)" class="flex-1 px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+            <button id="qr-add-manual" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg transition-all duration-200">Agregar</button>
           </div>
-          <div class="muted" id="qr-msg" style="margin-top:6px;">Permite la cámara para escanear. Si no hay soporte nativo, usa jsQR.</div>
-          <ul id="qr-history" class="qr-history"></ul>
+          <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-3 text-center" id="qr-msg">Permite la cámara para escanear. Si no hay soporte nativo, usa jsQR.</div>
+          <ul id="qr-history" class="qr-history mt-4 space-y-2"></ul>
         </div>
       </template>
 
@@ -661,22 +735,22 @@
 
       <!-- Modal: Agregar manual -->
       <template id="tpl-add-manual">
-        <div class="card">
-          <h3>Agregar manual</h3>
-          <div class="cols-2" style="gap:8px;">
-            <div class="col">
-              <input id="am-type" placeholder="Tipo (SERVICIO/PRODUCTO)" />
-              <input id="am-sku" placeholder="SKU (opcional)" />
-              <input id="am-name" placeholder="Descripción" />
+        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+          <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Agregar manual</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-3">
+              <input id="am-type" placeholder="Tipo (SERVICIO/PRODUCTO)" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+              <input id="am-sku" placeholder="SKU (opcional)" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+              <input id="am-name" placeholder="Descripción" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
             </div>
-            <div class="col">
-              <input id="am-qty" type="number" min="1" step="1" placeholder="Cant." />
-              <input id="am-price" type="number" min="0" step="0.01" placeholder="Precio unitario" />
+            <div class="space-y-3">
+              <input id="am-qty" type="number" min="1" step="1" placeholder="Cant." class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+              <input id="am-price" type="number" min="0" step="0.01" placeholder="Precio unitario" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
             </div>
           </div>
-          <div class="row right" style="gap:8px; margin-top:8px;">
-            <button id="am-cancel" class="secondary">Cancelar</button>
-            <button id="am-add">Agregar</button>
+          <div class="flex justify-end gap-3 mt-6">
+            <button id="am-cancel" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200">Cancelar</button>
+            <button id="am-add" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Agregar</button>
           </div>
         </div>
       </template>
@@ -896,5 +970,6 @@
   </script>
 </body>
 </html>
+
 
 

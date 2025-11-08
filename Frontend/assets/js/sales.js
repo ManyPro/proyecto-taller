@@ -1849,22 +1849,22 @@ function openAddUnified(){
   console.log('Creando modal de agregar...');
   // Modal inicial: elegir entre QR y Manual
   const node = document.createElement('div');
-  node.className = 'card';
+  node.className = 'bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6';
   node.style.cssText = 'max-width:600px;margin:0 auto;';
   node.innerHTML = `
-    <h3 style="margin-top:0;margin-bottom:24px;text-align:center;">Agregar items</h3>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-      <button id="add-qr-btn" class="primary" style="padding:24px;border-radius:12px;font-size:16px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:8px;border:none;cursor:pointer;transition:all 0.2s;">
-        <span style="font-size:48px;">📷</span>
-        <span>Agregar QR</span>
+    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6 text-center">Agregar items</h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      <button id="add-qr-btn" class="px-6 py-8 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center gap-3 border-none cursor-pointer">
+        <span class="text-5xl">📷</span>
+        <span class="text-base">Agregar QR</span>
       </button>
-      <button id="add-manual-btn" class="secondary" style="padding:24px;border-radius:12px;font-size:16px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:8px;border:none;cursor:pointer;transition:all 0.2s;">
-        <span style="font-size:48px;">✏️</span>
-        <span>Agregar manual</span>
+      <button id="add-manual-btn" class="px-6 py-8 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center gap-3 border-none cursor-pointer">
+        <span class="text-5xl">✏️</span>
+        <span class="text-base">Agregar manual</span>
       </button>
     </div>
-    <div style="text-align:center;">
-      <button id="add-cancel-btn" class="secondary" style="padding:8px 24px;">Cancelar</button>
+    <div class="text-center">
+      <button id="add-cancel-btn" class="px-6 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200">Cancelar</button>
     </div>
   `;
   
