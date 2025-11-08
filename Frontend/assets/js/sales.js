@@ -3809,6 +3809,9 @@ export function initSales(){
 
     let stream = null, running = false, detector = null, lastCode = '', lastTs = 0;
     let cameraDisabled = false;
+    let lastValidPlate = null; // Guardar última placa válida para evitar cambios erráticos
+    let plateConfidenceCount = 0; // Contador de detecciones consecutivas de la misma placa
+    let plateDetectionHistory = []; // Historial de las últimas placas detectadas (para votación)
     
     // Definir stop() antes de usarla
     function stop(){ 

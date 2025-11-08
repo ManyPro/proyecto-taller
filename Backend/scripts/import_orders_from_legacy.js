@@ -79,7 +79,8 @@ const encoding = args.encoding || 'utf8';
 const limit = args.limit ? parseInt(args.limit, 10) : null;
 const dryRun = !!args.dry;
 const doProfile = !args.noProfile;
-const progressEvery = args.progressInterval ? parseInt(args.progressInterval, 10) : 2000;
+const progressEvery = args.progressInterval ? parseInt(args.progressInterval, 10) : 100; // Mostrar progreso cada 100 registros
+const progressTimeInterval = 30000; // Mostrar progreso cada 30 segundos aunque no haya llegado al umbral
 
 const detailPaths = {
   orderProducts: args.orderProducts,
@@ -483,8 +484,24 @@ async function main() {
 
   const started = Date.now();
   const totalRows = ordersRows.length;
-  function logProgress() {
-    if (!progressEvery) return;
+  let lastProgressTime = Date.now();
+  
+  console.log(`\n📊 Total de órdenes a procesar: ${totalRows}`);
+  console.log(`⏱️  Mostrando progreso cada ${progressEvery} registros o cada ${progressTimeInterval/1000} segundos\n`);
+  
+  function logProgress(force = false) {
+    if (!progressEvery && !force) return;
+    
+    const now = Date.now();
+    const timeSinceLastProgress = now - lastProgressTime;
+    
+    // Solo mostrar si es el umbral de registros O si han pasado 30 segundos
+    if (!force && counters.total % progressEvery !== 0 && timeSinceLastProgress < progressTimeInterval) {
+      return;
+    }
+    
+    lastProgressTime = now;
+    
     const percent = counters.total > 0 ? ((counters.total / totalRows) * 100).toFixed(1) : '0.0';
     const elapsed = (Date.now() - started) / 1000;
     const rate = counters.total > 0 ? elapsed / counters.total : 0;
@@ -508,6 +525,13 @@ async function main() {
     process.stdout.write(`[${bar}] ${percent}% | ${counters.total}/${totalRows} | ✅ ${counters.imported} | 🔄 ${counters.updated} | ⏭️  ${counters.duplicates} | ⏱️  ETA: ${fmt(etaSec)}`);
     process.stdout.write(' '.repeat(30)); // Limpiar caracteres residuales
   }
+  
+  // Timer para forzar progreso cada 30 segundos
+  const progressTimer = setInterval(() => {
+    if (counters.total > 0) {
+      logProgress(true);
+    }
+  }, progressTimeInterval);
   
   // Función para mostrar resumen final
   function showFinalSummary() {
@@ -542,7 +566,7 @@ async function main() {
     const legacyCompanyId = String(row['or_fk_empresa']).trim();
     if (!companyMap[legacyCompanyId]) {
       counters.skippedCompany++;
-      if (progressEvery && counters.total % progressEvery === 0) logProgress();
+      logProgress(); // Mostrar progreso (la función decide si realmente muestra)
       continue;
     }
 
@@ -559,14 +583,14 @@ async function main() {
     const veh = vehicleIndex.get(legacyAutoId);
     if (!veh) {
       counters.skippedNoPlate++;
-      if (progressEvery && counters.total % progressEvery === 0) logProgress();
+      logProgress(); // Mostrar progreso (la función decide si realmente muestra)
       continue;
     }
 
     const plate = normalizePlate(veh['au_placa']);
     if (!plate || plate === 'VENTA') {
       counters.skippedNoPlate++;
-      if (progressEvery && counters.total % progressEvery === 0) logProgress();
+      logProgress(); // Mostrar progreso (la función decide si realmente muestra)
       continue;
     }
 
@@ -664,7 +688,7 @@ async function main() {
 
     if (!items.length && total === 0) {
       counters.skippedNoData++;
-      if (progressEvery && counters.total % progressEvery === 0) logProgress();
+      logProgress(); // Mostrar progreso (la función decide si realmente muestra)
       continue;
     }
 
@@ -704,7 +728,7 @@ async function main() {
       if (counters.imported <= 5) {
         console.log(`[DRY] or_id=${legacyOrId} plate=${plate} items=${items.length} total=${total}`);
       }
-      if (progressEvery && counters.total % progressEvery === 0) logProgress();
+      logProgress(); // Mostrar progreso (la función decide si realmente muestra)
       continue;
     }
 
@@ -750,7 +774,7 @@ async function main() {
         counters.updated++;
       }
 
-      if (progressEvery && counters.total % progressEvery === 0) logProgress();
+      logProgress(); // Mostrar progreso (la función decide si realmente muestra)
       continue;
     }
 
@@ -811,10 +835,13 @@ async function main() {
     }
 
     counters.imported++;
-    if (progressEvery && counters.total % progressEvery === 0) logProgress();
+    logProgress(); // Mostrar progreso (la función decide si realmente muestra)
   }
 
-  logProgress();
+  // Limpiar timer de progreso
+  clearInterval(progressTimer);
+  
+  logProgress(true);
   console.log(''); // Nueva línea después del progreso
   showFinalSummary();
 }
