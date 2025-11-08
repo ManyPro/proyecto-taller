@@ -671,6 +671,10 @@ export function initPrices(){
       linesMap.forEach((lineData, key) => {
         const card = document.createElement('div');
         const isSelected = lineData.vehicles.length === 1 && selectedVehicles.some(sv => sv._id === lineData.vehicles[0]._id);
+        card.dataset.lineKey = key; // Agregar identificador para poder actualizar después
+        if (lineData.vehicles.length === 1) {
+          card.dataset.vehicleId = lineData.vehicles[0]._id;
+        }
         card.style.cssText = `padding:16px;background:${isSelected ? 'rgba(59, 130, 246, 0.1)' : 'var(--card-alt)'};border:2px solid ${isSelected ? 'var(--primary, #3b82f6)' : 'var(--border)'};border-radius:12px;cursor:pointer;transition:all 0.2s;text-align:center;min-height:120px;display:flex;flex-direction:column;justify-content:center;align-items:center;position:relative;`;
         
         card.innerHTML = `
@@ -688,11 +692,7 @@ export function initPrices(){
           
           const handleCheckboxChange = () => {
             toggleVehicleSelection(lineData.vehicles[0]);
-            // Actualizar visual del card
-            const newIsSelected = selectedVehicles.some(sv => sv._id === lineData.vehicles[0]._id);
-            card.style.borderColor = newIsSelected ? 'var(--primary, #3b82f6)' : 'var(--border)';
-            card.style.background = newIsSelected ? 'rgba(59, 130, 246, 0.1)' : 'var(--card-alt)';
-            checkbox.checked = newIsSelected;
+            // La función updateSelectedVehiclesDisplay() ya actualiza el visual mediante updateLinesVisualSelection()
           };
           
           checkbox.addEventListener('change', (e) => {
@@ -734,14 +734,7 @@ export function initPrices(){
           // Toggle selección del vehículo si hay una sola variante
           if (lineData.vehicles.length === 1) {
             toggleVehicleSelection(lineData.vehicles[0]);
-            // Actualizar visual del card
-            const newIsSelected = selectedVehicles.some(sv => sv._id === lineData.vehicles[0]._id);
-            card.style.borderColor = newIsSelected ? 'var(--primary, #3b82f6)' : 'var(--border)';
-            card.style.background = newIsSelected ? 'rgba(59, 130, 246, 0.1)' : 'var(--card-alt)';
-            const checkbox = card.querySelector('input[type="checkbox"]');
-            if (checkbox) {
-              checkbox.checked = newIsSelected;
-            }
+            // La función updateSelectedVehiclesDisplay() ya actualiza el visual mediante updateLinesVisualSelection()
           } else {
             // Si hay múltiples variantes, mostrar un selector con checkboxes
             showVehicleSelector(lineData.vehicles, lineData.line, lineData.displacement);
@@ -750,6 +743,9 @@ export function initPrices(){
         
         fLinesGrid.appendChild(card);
       });
+      
+      // Actualizar visual de selección después de crear todas las tarjetas
+      updateLinesVisualSelection();
       
       // Agregar tarjeta "+" para agregar vehículo
       const addCard = document.createElement('div');
@@ -970,33 +966,71 @@ export function initPrices(){
       renderTableHeader();
       const paginationEl = $('#pe-pagination');
       if (paginationEl) paginationEl.innerHTML = '';
-    } else if (selectedVehicles.length === 1) {
-      selectedVehicle = selectedVehicles[0];
-      fVehicleId.value = selectedVehicle._id;
-      fVehicleName.textContent = `${selectedVehicle.make} ${selectedVehicle.line} - Cilindraje: ${selectedVehicle.displacement}${selectedVehicle.modelYear ? ` | Modelo: ${selectedVehicle.modelYear}` : ''}`;
-      fVehicleSelected.style.display = 'block';
-      fLinesContainer.style.display = 'none';
-      actionsBar.style.display = 'flex';
-      $('#pe-filters').style.display = 'flex';
-      currentPage = 1;
-      currentFilters = { name: '', type: '' };
-      $('#pe-filter-name').value = '';
-      $('#pe-filter-type').value = '';
-      loadPrices();
     } else {
-      // Múltiples vehículos seleccionados
-      selectedVehicle = null; // No hay un vehículo único seleccionado
-      fVehicleId.value = '';
-      fVehicleName.textContent = `✓ ${selectedVehicles.length} vehículos seleccionados`;
+      // Hay vehículos seleccionados (1 o más)
+      if (selectedVehicles.length === 1) {
+        selectedVehicle = selectedVehicles[0];
+        fVehicleId.value = selectedVehicle._id;
+        fVehicleName.textContent = `✓ Vehículo seleccionado: ${selectedVehicle.make} ${selectedVehicle.line} - Cilindraje: ${selectedVehicle.displacement}${selectedVehicle.modelYear ? ` | Modelo: ${selectedVehicle.modelYear}` : ''}`;
+        // Cargar precios solo si hay un solo vehículo
+        currentPage = 1;
+        currentFilters = { name: '', type: '' };
+        $('#pe-filter-name').value = '';
+        $('#pe-filter-type').value = '';
+        loadPrices();
+      } else {
+        // Múltiples vehículos seleccionados
+        selectedVehicle = null; // No hay un vehículo único seleccionado
+        fVehicleId.value = '';
+        fVehicleName.textContent = `✓ ${selectedVehicles.length} vehículos seleccionados`;
+        // No cargar precios cuando hay múltiples
+        body.replaceChildren();
+        renderTableHeader();
+        const paginationEl = $('#pe-pagination');
+        if (paginationEl) paginationEl.innerHTML = '';
+      }
+      
+      // Siempre mostrar la barra de acciones y mantener visible el contenedor de líneas para seguir seleccionando
       fVehicleSelected.style.display = 'block';
-      fLinesContainer.style.display = 'none';
+      fLinesContainer.style.display = 'block'; // Mantener visible para seguir seleccionando
       actionsBar.style.display = 'flex';
-      $('#pe-filters').style.display = 'none'; // Ocultar filtros cuando hay múltiples
-      body.replaceChildren();
-      renderTableHeader();
-      const paginationEl = $('#pe-pagination');
-      if (paginationEl) paginationEl.innerHTML = '';
+      
+      // Mostrar filtros solo si hay un solo vehículo
+      if (selectedVehicles.length === 1) {
+        $('#pe-filters').style.display = 'flex';
+      } else {
+        $('#pe-filters').style.display = 'none'; // Ocultar filtros cuando hay múltiples
+      }
+      
+      // Actualizar visual de las tarjetas seleccionadas
+      updateLinesVisualSelection();
     }
+  }
+  
+  function updateLinesVisualSelection() {
+    // Actualizar el estado visual de todas las tarjetas según selectedVehicles
+    if (!fLinesGrid) return;
+    
+    fLinesGrid.querySelectorAll('[data-line-key]').forEach(card => {
+      const vehicleId = card.dataset.vehicleId;
+      if (!vehicleId) return; // Solo actualizar tarjetas con un vehículo único
+      
+      const isSelected = selectedVehicles.some(sv => sv._id === vehicleId);
+      
+      if (isSelected) {
+        card.style.borderColor = 'var(--primary, #3b82f6)';
+        card.style.background = 'rgba(59, 130, 246, 0.1)';
+      } else {
+        card.style.borderColor = 'var(--border)';
+        card.style.background = 'var(--card-alt)';
+      }
+      
+      // Actualizar checkbox si existe
+      const checkbox = card.querySelector('input[type="checkbox"]');
+      if (checkbox) {
+        checkbox.checked = isSelected;
+      }
+    });
   }
   
   function selectVehicle(vehicle) {
@@ -1534,8 +1568,9 @@ export function initPrices(){
     }
     
     // Funcionalidad para combos
+    let comboProductsContainer = null;
     if (isCombo) {
-      const comboProductsContainer = node.querySelector('#pe-modal-combo-products');
+      comboProductsContainer = node.querySelector('#pe-modal-combo-products');
       const addComboProductBtn = node.querySelector('#pe-modal-add-combo-product');
       
       function addComboProductRow(productData = {}) {
@@ -1980,7 +2015,7 @@ export function initPrices(){
       }
       
       // Validar combo
-      if (isCombo) {
+      if (isCombo && comboProductsContainer) {
         const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
         if (products.length === 0) {
           msgEl.textContent = 'Un combo debe incluir al menos un producto';
@@ -2030,7 +2065,7 @@ export function initPrices(){
           }
         }
         
-        if (isCombo) {
+        if (isCombo && comboProductsContainer) {
           const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
           basePayload.comboProducts = products.map(prod => {
             const isOpenSlot = prod.querySelector('.combo-product-open-slot')?.checked || false;
