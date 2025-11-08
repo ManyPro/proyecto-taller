@@ -4293,10 +4293,12 @@ export function initSales(){
     
     async function recognizePlateWithAPI(canvas) {
       if (!USE_PLATE_RECOGNIZER || !PLATE_RECOGNIZER_API_KEY || PLATE_RECOGNIZER_API_KEY === 'YOUR_API_KEY_HERE') {
+        console.log('Plate Recognizer API no configurada o deshabilitada');
         return null;
       }
       
       try {
+        console.log('🔍 Enviando imagen a Plate Recognizer API...');
         // Convertir canvas a blob optimizado (JPEG con calidad media para velocidad)
         const blob = await new Promise(resolve => {
           canvas.toBlob(resolve, 'image/jpeg', 0.7);
@@ -4306,6 +4308,7 @@ export function initSales(){
         formData.append('upload', blob, 'plate.jpg');
         formData.append('regions', 'co'); // Colombia
         
+        console.log('📤 Request a Plate Recognizer API iniciada');
         const response = await fetch('https://api.platerecognizer.com/v1/plate-reader/', {
           method: 'POST',
           headers: {
@@ -4314,29 +4317,44 @@ export function initSales(){
           body: formData
         });
         
+        console.log('📥 Response recibida:', response.status, response.statusText);
+        
         if (!response.ok) {
           if (response.status === 429) {
             console.warn('Plate Recognizer API: Rate limit alcanzado');
+          } else {
+            const errorText = await response.text();
+            console.warn('Plate Recognizer API error:', response.status, errorText);
           }
           return null;
         }
         
         const data = await response.json();
+        console.log('📊 Datos recibidos de API:', data);
+        
         if (data.results && data.results.length > 0) {
           const plate = data.results[0].plate?.toUpperCase().replace(/[^A-Z0-9]/g, '');
           const confidence = data.results[0].score || 0;
+          console.log(`🔍 Placa detectada por API: "${plate}", confianza: ${(confidence * 100).toFixed(1)}%`);
+          
           // Aceptar con confianza más baja (0.6) para ser más permisivo
           if (plate && plate.length >= 5 && confidence > 0.6) {
             // Validar formato de placa colombiana
             const normalized = plate.replace(/[^A-Z0-9]/g, '');
             if (/^[A-Z]{3}[0-9]{3}$/.test(normalized)) {
-              console.log(`✅ Placa detectada por Plate Recognizer API: ${normalized} (confianza: ${(confidence * 100).toFixed(1)}%)`);
+              console.log(`✅ Placa válida detectada por Plate Recognizer API: ${normalized} (confianza: ${(confidence * 100).toFixed(1)}%)`);
               return { plate: normalized, confidence: confidence * 100 };
+            } else {
+              console.log(`⚠️ Placa detectada pero formato inválido: "${normalized}"`);
             }
+          } else {
+            console.log(`⚠️ Placa detectada pero confianza muy baja: ${(confidence * 100).toFixed(1)}%`);
           }
+        } else {
+          console.log('⚠️ No se detectaron placas en la imagen');
         }
       } catch (err) {
-        console.warn('Error en Plate Recognizer API:', err);
+        console.error('❌ Error en Plate Recognizer API:', err);
       }
       return null;
     }
@@ -4351,26 +4369,29 @@ export function initSales(){
         if (!ocrWorker) {
           console.log('Inicializando OCR worker optimizado...');
           // Usar solo inglés para mejor velocidad (las placas son alfanuméricas)
+          // Los parámetros que solo se pueden establecer durante la inicialización
+          // deben pasarse en createWorker, no después
           ocrWorker = await Tesseract.createWorker('eng', 1, {
-            logger: () => {} // Silenciar todos los logs para mejor rendimiento
-          });
-          await ocrWorker.setParameters({
-            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
-            tessedit_pageseg_mode: '8', // Single word (más rápido para placas)
-            tessedit_ocr_engine_mode: '1', // LSTM engine
-            // Optimizaciones para velocidad
-            classify_bln_numeric_mode: '0',
+            logger: () => {}, // Silenciar todos los logs para mejor rendimiento
+            // Parámetros que solo se pueden establecer durante la inicialización
             load_system_dawg: '0',
             load_freq_dawg: '0',
             load_unambig_dawg: '0',
             load_punc_dawg: '0',
             load_number_dawg: '0',
           });
+          // Solo establecer parámetros que se pueden cambiar después de la inicialización
+          await ocrWorker.setParameters({
+            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+            tessedit_pageseg_mode: '8', // Single word (más rápido para placas)
+            classify_bln_numeric_mode: '0',
+          });
           console.log('OCR worker inicializado (optimizado para velocidad)');
         }
         return ocrWorker;
       } catch (err) {
         console.error('Error al inicializar OCR:', err);
+        ocrWorker = null; // Resetear en caso de error
         return null;
       }
     }
@@ -4572,7 +4593,7 @@ export function initSales(){
       const now = Date.now();
       
       // PRIORIDAD 1: Intentar con Plate Recognizer API (más rápido y preciso)
-      if (USE_PLATE_RECOGNIZER && now - lastApiTime >= apiInterval && video.readyState >= 2) {
+      if (USE_PLATE_RECOGNIZER && PLATE_RECOGNIZER_API_KEY && now - lastApiTime >= apiInterval && video.readyState >= 2) {
         lastApiTime = now;
         try {
           const w = video.videoWidth|0, h = video.videoHeight|0;
@@ -4633,7 +4654,13 @@ export function initSales(){
             await initOCR();
           }
           
-          if (ocrWorker && video.readyState >= 2) {
+          // Verificar que el worker no haya sido terminado
+          if (!ocrWorker) {
+            requestAnimationFrame(tickNative);
+            return;
+          }
+          
+          if (video.readyState >= 2) {
             const w = video.videoWidth|0, h = video.videoHeight|0;
             if (w && h) {
               canvas.width = w;
@@ -4657,6 +4684,11 @@ export function initSales(){
               const enhancedCanvas = enhanceImageForOCR(tempCanvas, tempCtx, imageData);
               
               try {
+                // Verificar nuevamente que el worker existe antes de usar
+                if (!ocrWorker) {
+                  requestAnimationFrame(tickNative);
+                  return;
+                }
                 const { data: { text, words } } = await ocrWorker.recognize(enhancedCanvas);
                 
                 if (text && text.trim()) {
@@ -4753,7 +4785,7 @@ export function initSales(){
         const now = Date.now();
         
         // PRIORIDAD 1: Plate Recognizer API
-        if (USE_PLATE_RECOGNIZER && now - lastApiTime >= apiInterval && video.readyState >= 2) {
+        if (USE_PLATE_RECOGNIZER && PLATE_RECOGNIZER_API_KEY && now - lastApiTime >= apiInterval && video.readyState >= 2) {
           lastApiTime = now;
           (async () => {
             try {
@@ -4793,7 +4825,7 @@ export function initSales(){
                 }
               }
             } catch (apiErr) {
-              // Continuar
+              console.warn('Error en Plate Recognizer API (tickCanvas):', apiErr);
             }
           })();
         }
@@ -4807,25 +4839,34 @@ export function initSales(){
                 await initOCR();
               }
               
-              if (ocrWorker) {
-                const region = {
-                  x: Math.floor(w * 0.2),
-                  y: Math.floor(h * 0.3),
-                  w: Math.floor(w * 0.6),
-                  h: Math.floor(h * 0.4)
-                };
-                
-                const imageData = ctx.getImageData(region.x, region.y, region.w, region.h);
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = region.w;
-                tempCanvas.height = region.h;
-                const tempCtx = tempCanvas.getContext('2d');
-                tempCtx.putImageData(imageData, 0, 0);
-                
-                const enhancedCanvas = enhanceImageForOCR(tempCanvas, tempCtx, imageData);
-                
-                try {
-                  const { data: { text, words } } = await ocrWorker.recognize(enhancedCanvas);
+              if (!ocrWorker) {
+                requestAnimationFrame(tickCanvas);
+                return;
+              }
+              
+              const region = {
+                x: Math.floor(w * 0.2),
+                y: Math.floor(h * 0.3),
+                w: Math.floor(w * 0.6),
+                h: Math.floor(h * 0.4)
+              };
+              
+              const imageData = ctx.getImageData(region.x, region.y, region.w, region.h);
+              const tempCanvas = document.createElement('canvas');
+              tempCanvas.width = region.w;
+              tempCanvas.height = region.h;
+              const tempCtx = tempCanvas.getContext('2d');
+              tempCtx.putImageData(imageData, 0, 0);
+              
+              const enhancedCanvas = enhanceImageForOCR(tempCanvas, tempCtx, imageData);
+              
+              try {
+                // Verificar nuevamente que el worker existe antes de usar
+                if (!ocrWorker) {
+                  requestAnimationFrame(tickCanvas);
+                  return;
+                }
+                const { data: { text, words } } = await ocrWorker.recognize(enhancedCanvas);
                   
                   if (text && text.trim()) {
                     let processedText = text;
