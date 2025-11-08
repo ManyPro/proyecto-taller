@@ -303,7 +303,12 @@ export function openQRForItem() {
       }
       try {
         const w = video.videoWidth | 0, h = video.videoHeight | 0;
-        if (!w || !h || video.readyState < 2) {
+        if (!w || !h) {
+          requestAnimationFrame(tickCanvas);
+          return;
+        }
+        // Verificar que el video tenga datos suficientes
+        if (video.readyState < 2) {
           requestAnimationFrame(tickCanvas);
           return;
         }
@@ -318,10 +323,12 @@ export function openQRForItem() {
             onCode(qr.data);
             return; // Detener después de detectar
           }
+        } else {
+          console.warn('jsQR no está disponible en tickCanvas');
         }
       } catch (e) {
         // Silenciar errores menores
-        if (e.message && !e.message.includes('videoWidth') && !e.message.includes('not readable')) {
+        if (e.message && !e.message.includes('videoWidth') && !e.message.includes('not readable') && !e.message.includes('IndexSizeError')) {
           console.warn('Error en tickCanvas:', e);
         }
       }

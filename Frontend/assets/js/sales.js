@@ -1468,10 +1468,19 @@ function openQR(){
     if (cameraDisabled) return false;
     
     const normalized = String(value || '').trim().toUpperCase();
+    if (!normalized) return false;
+    
     const t = Date.now();
     // Delay más corto en modo múltiple (500ms) vs modo single (1500ms) para evitar escaneos duplicados pero permitir escaneos rápidos
     const delay = multiMode ? 500 : 1500;
-    if (lastCode === normalized && t - lastTs < delay) return false;
+    
+    // Si es el mismo código y está dentro del delay, rechazar
+    if (lastCode === normalized && t - lastTs < delay) {
+      return false;
+    }
+    
+    // Si es un código diferente, aceptarlo inmediatamente
+    // Si es el mismo código pero pasó el delay, también aceptarlo
     lastCode = normalized;
     lastTs = t;
     return true;
@@ -1567,8 +1576,9 @@ function openQR(){
     if (!text) return;
     if (!fromManual && !accept(text)) return;
     
-    // Deshabilitar cámara inmediatamente al detectar un código
+    // Deshabilitar cámara inmediatamente al detectar un código para evitar procesar el mismo código múltiples veces
     cameraDisabled = true;
+    console.log('Código detectado, deshabilitando cámara temporalmente:', text);
     
     const li=document.createElement('li'); li.textContent=text; list.prepend(li);
     const parsed = parseInventoryCode(text);
@@ -1603,12 +1613,38 @@ function openQR(){
       const resumeDelay = 500;
       setTimeout(() => {
         cameraDisabled = false;
-        // Asegurarse de que el stream siga corriendo
-        if (!running && multiMode) {
+        // Limpiar el último código escaneado para permitir escanear el mismo código nuevamente después del delay
+        // Esto permite escanear múltiples veces el mismo item si es necesario
+        lastCode = '';
+        lastTs = 0;
+        console.log('Reanudando detección QR en modo múltiple. Stream activo:', stream?.active, 'Running:', running);
+        
+        // Verificar que el stream siga activo
+        if (stream && stream.active) {
+          const tracks = stream.getTracks();
+          const videoTrack = tracks.find(t => t.kind === 'video');
+          if (videoTrack && videoTrack.readyState === 'ended') {
+            console.warn('El track de video terminó, reiniciando cámara...');
+            if (multiMode) {
+              start().catch(err => {
+                console.warn('Error al reiniciar cámara:', err);
+                msg.textContent = 'Error al reiniciar cámara. Intenta escanear de nuevo.';
+              });
+            }
+          } else if (video && (video.paused || video.ended)) {
+            console.warn('Video pausado o terminado, intentando reproducir...');
+            video.play().catch(err => {
+              console.warn('Error al reproducir video:', err);
+            });
+          }
+        } else if (!running && multiMode) {
+          console.log('Stream no está corriendo, reiniciando cámara...');
           start().catch(err => {
-            console.warn('Error al reanudar cámara:', err);
-            msg.textContent = 'Error al reanudar cámara. Intenta escanear de nuevo.';
+            console.warn('Error al reiniciar cámara:', err);
+            msg.textContent = 'Error al reiniciar cámara. Intenta escanear de nuevo.';
           });
+        } else if (running && multiMode) {
+          console.log('Cámara ya está corriendo, solo reanudando detección');
         }
       }, resumeDelay);
       
@@ -1619,6 +1655,10 @@ function openQR(){
       const resumeDelay = multiMode ? 500 : 1500;
       setTimeout(() => {
         cameraDisabled = false;
+        // Limpiar el último código escaneado para permitir reintentos
+        lastCode = '';
+        lastTs = 0;
+        
         // Asegurarse de que el stream siga corriendo en modo múltiple
         if (!running && multiMode) {
           start().catch(err => {
@@ -1633,13 +1673,22 @@ function openQR(){
     handleCode(code);
   }
   async function tickNative(){ 
-    if(!running || cameraDisabled) return; 
+    if(!running || cameraDisabled) {
+      if (running && cameraDisabled) {
+        // La cámara está corriendo pero deshabilitada temporalmente (normal durante delay)
+        requestAnimationFrame(tickNative);
+      }
+      return;
+    }
     try{ 
       const codes=await detector.detect(video); 
-      if(codes?.[0]?.rawValue) onCode(codes[0].rawValue); 
+      if(codes && codes.length > 0 && codes[0]?.rawValue) {
+        console.log('QR detectado en modo múltiple:', codes[0].rawValue);
+        onCode(codes[0].rawValue);
+      }
     }catch(e){
       // Silenciar errores de detección, pero loguear si es necesario
-      if (e.message && !e.message.includes('No image')) {
+      if (e.message && !e.message.includes('No image') && !e.message.includes('not readable')) {
         console.warn('Error en detección nativa:', e);
       }
     } 
@@ -1647,7 +1696,13 @@ function openQR(){
   }
   
   function tickCanvas(){
-    if(!running || cameraDisabled) return;
+    if(!running || cameraDisabled) {
+      if (running && cameraDisabled) {
+        // La cámara está corriendo pero deshabilitada temporalmente (normal durante delay)
+        requestAnimationFrame(tickCanvas);
+      }
+      return;
+    }
     try{
       const w = video.videoWidth|0, h = video.videoHeight|0;
       if(!w||!h){ 
@@ -1660,11 +1715,14 @@ function openQR(){
       const img = ctx.getImageData(0,0,w,h);
       if (window.jsQR){
         const qr = window.jsQR(img.data, w, h);
-        if (qr && qr.data) onCode(qr.data);
+        if (qr && qr.data) {
+          console.log('QR detectado (jsQR) en modo múltiple:', qr.data);
+          onCode(qr.data);
+        }
       }
     }catch(e){
       // Silenciar errores menores, pero loguear si es necesario
-      if (e.message && !e.message.includes('videoWidth')) {
+      if (e.message && !e.message.includes('videoWidth') && !e.message.includes('not readable')) {
         console.warn('Error en tickCanvas:', e);
       }
     }
