@@ -428,9 +428,11 @@ export function initPrices(){
   const btnNewService=$('#pe-new-service'), btnNewProduct=$('#pe-new-product');
   const actionsBar=$('#pe-actions-bar');
   const head=$('#pe-head'), body=$('#pe-body');
+  const vehicleTabsContainer=$('#pe-vehicle-tabs');
 
   let selectedVehicle = null; // Mantener para compatibilidad con código existente
   let selectedVehicles = []; // Array para selección múltiple
+  let activeTabVehicleId = null; // ID del vehículo activo en las pestañas (cuando hay múltiples seleccionados)
   let selectedMake = null;
   let currentPage = 1;
   let currentFilters = { name: '', type: '' };
@@ -444,7 +446,12 @@ export function initPrices(){
 
   function renderTableHeader(){
     head.replaceChildren();
-    if(!selectedVehicle) {
+    // Determinar qué vehículo usar: si hay múltiples seleccionados, usar el activo en las pestañas
+    const vehicleToUse = selectedVehicles.length > 1 
+      ? (activeTabVehicleId ? selectedVehicles.find(v => v._id === activeTabVehicleId) : selectedVehicles[0])
+      : selectedVehicle;
+    
+    if(!vehicleToUse) {
       head.innerHTML = '<tr><th colspan="5" style="text-align:center;padding:24px;color:var(--muted);">Selecciona un vehículo para ver sus servicios y productos</th></tr>';
       return;
     }
@@ -583,14 +590,19 @@ export function initPrices(){
   }
 
   async function loadPrices(params={}){
-    if (!selectedVehicle) {
+    // Determinar qué vehículo usar: si hay múltiples seleccionados, usar el activo en las pestañas
+    const vehicleToUse = selectedVehicles.length > 1 
+      ? (activeTabVehicleId ? selectedVehicles.find(v => v._id === activeTabVehicleId) : selectedVehicles[0])
+      : selectedVehicle;
+    
+    if (!vehicleToUse) {
       body.replaceChildren();
       renderTableHeader();
       return;
     }
     params = { 
       ...(params||{}), 
-      vehicleId: selectedVehicle._id,
+      vehicleId: vehicleToUse._id,
       page: currentPage,
       limit: 10,
       name: currentFilters.name,
@@ -607,6 +619,59 @@ export function initPrices(){
     body.replaceChildren(...rows.map(rowToNode));
     renderTableHeader();
     renderPagination();
+  }
+  
+  function renderVehicleTabs() {
+    if (!vehicleTabsContainer) return;
+    
+    if (selectedVehicles.length <= 1) {
+      // Ocultar pestañas si hay 1 o menos vehículos
+      vehicleTabsContainer.style.display = 'none';
+      vehicleTabsContainer.innerHTML = '';
+      return;
+    }
+    
+    // Mostrar pestañas cuando hay múltiples vehículos
+    vehicleTabsContainer.style.cssText = 'display:flex;gap:8px;margin-bottom:16px;border-bottom:2px solid var(--border);padding-bottom:8px;flex-wrap:wrap;';
+    
+    vehicleTabsContainer.innerHTML = selectedVehicles.map((v, idx) => {
+      const isActive = activeTabVehicleId === v._id || (!activeTabVehicleId && idx === 0);
+      return `
+        <button 
+          class="vehicle-tab" 
+          data-vehicle-id="${v._id}"
+          style="padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;background:${isActive ? 'var(--primary, #3b82f6)' : 'var(--card-alt)'};color:${isActive ? 'white' : 'var(--text)'};border-bottom:${isActive ? '3px solid var(--primary, #3b82f6)' : '3px solid transparent'};transition:all 0.2s;"
+        >
+          ${v.make} ${v.line} ${v.displacement}${v.modelYear ? ` (${v.modelYear})` : ''}
+        </button>
+      `;
+    }).join('');
+    
+    // Agregar event listeners a las pestañas
+    vehicleTabsContainer.querySelectorAll('.vehicle-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const vehicleId = tab.dataset.vehicleId;
+        switchToVehicleTab(vehicleId);
+      });
+    });
+    
+    // Si no hay vehículo activo, activar el primero
+    if (!activeTabVehicleId && selectedVehicles.length > 0) {
+      activeTabVehicleId = selectedVehicles[0]._id;
+      renderVehicleTabs(); // Re-renderizar para actualizar el estado activo
+    }
+  }
+  
+  function switchToVehicleTab(vehicleId) {
+    activeTabVehicleId = vehicleId;
+    renderVehicleTabs();
+    currentPage = 1;
+    currentFilters = { name: '', type: '' };
+    const filterName = $('#pe-filter-name');
+    const filterType = $('#pe-filter-type');
+    if (filterName) filterName.value = '';
+    if (filterType) filterType.value = '';
+    loadPrices();
   }
 
   // Cargar marcas al iniciar
@@ -956,12 +1021,17 @@ export function initPrices(){
   function updateSelectedVehiclesDisplay() {
     if (selectedVehicles.length === 0) {
       selectedVehicle = null;
+      activeTabVehicleId = null;
       fVehicleId.value = '';
       fVehicleName.textContent = '';
       fVehicleSelected.style.display = 'none';
       fLinesContainer.style.display = 'block';
       actionsBar.style.display = 'none';
       $('#pe-filters').style.display = 'none';
+      if (vehicleTabsContainer) {
+        vehicleTabsContainer.style.display = 'none';
+        vehicleTabsContainer.innerHTML = '';
+      }
       body.replaceChildren();
       renderTableHeader();
       const paginationEl = $('#pe-pagination');
@@ -970,8 +1040,11 @@ export function initPrices(){
       // Hay vehículos seleccionados (1 o más)
       if (selectedVehicles.length === 1) {
         selectedVehicle = selectedVehicles[0];
+        activeTabVehicleId = null; // Limpiar pestaña activa cuando hay un solo vehículo
         fVehicleId.value = selectedVehicle._id;
         fVehicleName.textContent = `✓ Vehículo seleccionado: ${selectedVehicle.make} ${selectedVehicle.line} - Cilindraje: ${selectedVehicle.displacement}${selectedVehicle.modelYear ? ` | Modelo: ${selectedVehicle.modelYear}` : ''}`;
+        // Ocultar pestañas cuando hay un solo vehículo
+        renderVehicleTabs();
         // Cargar precios solo si hay un solo vehículo
         currentPage = 1;
         currentFilters = { name: '', type: '' };
@@ -983,11 +1056,21 @@ export function initPrices(){
         selectedVehicle = null; // No hay un vehículo único seleccionado
         fVehicleId.value = '';
         fVehicleName.textContent = `✓ ${selectedVehicles.length} vehículos seleccionados`;
-        // No cargar precios cuando hay múltiples
-        body.replaceChildren();
-        renderTableHeader();
-        const paginationEl = $('#pe-pagination');
-        if (paginationEl) paginationEl.innerHTML = '';
+        
+        // Activar el primer vehículo por defecto si no hay uno activo
+        if (!activeTabVehicleId && selectedVehicles.length > 0) {
+          activeTabVehicleId = selectedVehicles[0]._id;
+        }
+        
+        // Renderizar pestañas y cargar precios del vehículo activo
+        renderVehicleTabs();
+        currentPage = 1;
+        currentFilters = { name: '', type: '' };
+        const filterName = $('#pe-filter-name');
+        const filterType = $('#pe-filter-type');
+        if (filterName) filterName.value = '';
+        if (filterType) filterType.value = '';
+        loadPrices();
       }
       
       // Siempre mostrar la barra de acciones y mantener visible el contenedor de líneas para seguir seleccionando
@@ -995,11 +1078,11 @@ export function initPrices(){
       fLinesContainer.style.display = 'block'; // Mantener visible para seguir seleccionando
       actionsBar.style.display = 'flex';
       
-      // Mostrar filtros solo si hay un solo vehículo
-      if (selectedVehicles.length === 1) {
+      // Mostrar filtros si hay vehículos seleccionados (1 o más)
+      if (selectedVehicles.length >= 1) {
         $('#pe-filters').style.display = 'flex';
       } else {
-        $('#pe-filters').style.display = 'none'; // Ocultar filtros cuando hay múltiples
+        $('#pe-filters').style.display = 'none';
       }
       
       // Actualizar visual de las tarjetas seleccionadas
@@ -1043,12 +1126,17 @@ export function initPrices(){
   function clearFilters(){ 
     selectedVehicle = null;
     selectedVehicles = [];
+    activeTabVehicleId = null;
     selectedMake = null;
     fVehicleId.value = '';
     fMakeSelect.value = '';
     fVehicleSelected.style.display = 'none';
     fLinesContainer.style.display = 'none';
     actionsBar.style.display = 'none';
+    if (vehicleTabsContainer) {
+      vehicleTabsContainer.style.display = 'none';
+      vehicleTabsContainer.innerHTML = '';
+    }
     body.replaceChildren();
     renderTableHeader();
     const paginationEl = $('#pe-pagination');
@@ -1127,6 +1215,8 @@ export function initPrices(){
     const comboProducts = existingPrice?.comboProducts || [];
     
     // Determinar qué vehículos usar para la creación
+    // Si hay múltiples vehículos seleccionados, usar todos para creación en bulk
+    // Si hay un solo vehículo, usar ese
     const vehiclesForCreation = selectedVehicles.length > 0 ? selectedVehicles : (selectedVehicle ? [selectedVehicle] : []);
     const isBulkCreation = vehiclesForCreation.length > 1;
     
