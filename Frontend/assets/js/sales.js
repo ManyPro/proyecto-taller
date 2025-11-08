@@ -4155,10 +4155,22 @@ export function initSales(){
         return;
       }
       
-      // Evitar procesar la misma placa múltiples veces
+      // Evitar crear múltiples ventas para la misma placa
+      // (pero permitir múltiples detecciones para verificación)
       const now = Date.now();
       if (lastProcessedPlate === normalized && (now - lastProcessedPlateTime) < PLATE_COOLDOWN) {
-        console.log(`⚠️ Placa ${normalized} ya fue procesada recientemente, ignorando...`);
+        console.log(`⚠️ Placa ${normalized} ya tiene una venta creada recientemente (cooldown activo), no se creará otra venta`);
+        if (msg) {
+          msg.textContent = `Placa ${normalized} ya tiene una venta activa`;
+          msg.style.color = 'var(--warning, #f59e0b)';
+          setTimeout(() => {
+            if (msg) {
+              msg.textContent = 'Escanea la placa del vehículo (formato: ABC123 o ABC-123)';
+              msg.style.color = 'var(--text)';
+            }
+            cameraDisabled = false;
+          }, 2000);
+        }
         return;
       }
       
@@ -4315,12 +4327,6 @@ export function initSales(){
       
       // Evitar requests simultáneas
       if (apiRequestInProgress) {
-        return null;
-      }
-      
-      // Evitar requests si acabamos de procesar una placa
-      const now = Date.now();
-      if (lastProcessedPlate && (now - lastProcessedPlateTime) < PLATE_COOLDOWN) {
         return null;
       }
       
@@ -4636,13 +4642,8 @@ export function initSales(){
             
               const result = await recognizePlateWithAPI(tempCanvas);
               if (result && result.plate && isValidPlate(result.plate)) {
-                // Verificar que no sea la misma placa que acabamos de procesar
-                if (lastProcessedPlate === result.plate && (now - lastProcessedPlateTime) < PLATE_COOLDOWN) {
-                  return; // Ignorar si ya fue procesada
-                }
-                
-                // Con Plate Recognizer API, aceptar inmediatamente si confianza > 80
-                // O con 2 detecciones si confianza > 70
+                // Permitir múltiples detecciones para verificación (se mostrarán en consola)
+                // El cooldown en handlePlate evitará crear múltiples ventas
                 plateDetectionHistory.push({
                   plate: result.plate,
                   timestamp: now,
@@ -4659,9 +4660,7 @@ export function initSales(){
                 if (plateCount >= requiredDetections) {
                   console.log(`✅ Placa detectada por API (${plateCount} detecciones, confianza: ${result.confidence.toFixed(1)}):`, result.plate);
                   plateDetectionHistory = [];
-                  // Marcar como procesada antes de llamar onCode
-                  lastProcessedPlate = result.plate;
-                  lastProcessedPlateTime = now;
+                  // No marcar como procesada aquí - solo handlePlate lo hará al crear la venta
                   onCode(result.plate);
                   return;
                 }
@@ -4673,15 +4672,15 @@ export function initSales(){
       }
       
       // PRIORIDAD 2: Fallback a OCR Tesseract (más lento pero funciona sin API)
-      if (now - lastOcrTime >= ocrInterval) {
+      if (now - lastOcrTime >= ocrInterval && running && !cameraDisabled) {
         lastOcrTime = now;
         try {
           if (!ocrWorker) {
             await initOCR();
           }
           
-          // Verificar que el worker no haya sido terminado
-          if (!ocrWorker) {
+          // Verificar que el worker no haya sido terminado y que la cámara siga corriendo
+          if (!ocrWorker || !running) {
             requestAnimationFrame(tickNative);
             return;
           }
@@ -4710,19 +4709,24 @@ export function initSales(){
               const enhancedCanvas = enhanceImageForOCR(tempCanvas, tempCtx, imageData);
               
               try {
-                // Verificar nuevamente que el worker existe y no está terminado antes de usar
-                if (!ocrWorker || !running) {
+                // Verificar nuevamente que el worker existe y que la cámara sigue corriendo
+                if (!ocrWorker || !running || cameraDisabled) {
                   requestAnimationFrame(tickNative);
                   return;
                 }
                 let text, words;
                 try {
                   const result = await ocrWorker.recognize(enhancedCanvas);
+                  // Verificar nuevamente después de await (puede haber cambiado)
+                  if (!running || cameraDisabled) {
+                    requestAnimationFrame(tickNative);
+                    return;
+                  }
                   text = result.data.text;
                   words = result.data.words;
                 } catch (ocrErr) {
                   // Si el worker fue terminado, resetearlo
-                  if (ocrErr.message?.includes('postMessage') || ocrErr.message?.includes('terminated')) {
+                  if (ocrErr.message?.includes('postMessage') || ocrErr.message?.includes('terminated') || ocrErr.message?.includes('null')) {
                     console.warn('OCR worker terminado, reseteando...');
                     ocrWorker = null;
                   }
@@ -4843,11 +4847,8 @@ export function initSales(){
               
               const result = await recognizePlateWithAPI(tempCanvas);
               if (result && result.plate && isValidPlate(result.plate)) {
-                // Verificar que no sea la misma placa que acabamos de procesar
-                if (lastProcessedPlate === result.plate && (now - lastProcessedPlateTime) < PLATE_COOLDOWN) {
-                  return; // Ignorar si ya fue procesada
-                }
-                
+                // Permitir múltiples detecciones para verificación (se mostrarán en consola)
+                // El cooldown en handlePlate evitará crear múltiples ventas
                 plateDetectionHistory.push({
                   plate: result.plate,
                   timestamp: now,
@@ -4864,9 +4865,7 @@ export function initSales(){
                 if (plateCount >= requiredDetections) {
                   console.log(`✅ Placa detectada por API (${plateCount} detecciones):`, result.plate);
                   plateDetectionHistory = [];
-                  // Marcar como procesada antes de llamar onCode
-                  lastProcessedPlate = result.plate;
-                  lastProcessedPlateTime = now;
+                  // No marcar como procesada aquí - solo handlePlate lo hará al crear la venta
                   onCode(result.plate);
                   return;
                 }
@@ -4878,7 +4877,7 @@ export function initSales(){
         }
         
         // PRIORIDAD 2: OCR Tesseract
-        if (now - lastOcrTime >= ocrInterval) {
+        if (now - lastOcrTime >= ocrInterval && running && !cameraDisabled) {
           lastOcrTime = now;
           (async () => {
             try {
@@ -4886,7 +4885,8 @@ export function initSales(){
                 await initOCR();
               }
               
-              if (!ocrWorker) {
+              // Verificar que el worker existe y que la cámara sigue corriendo
+              if (!ocrWorker || !running) {
                 requestAnimationFrame(tickCanvas);
                 return;
               }
@@ -4908,19 +4908,24 @@ export function initSales(){
               const enhancedCanvas = enhanceImageForOCR(tempCanvas, tempCtx, imageData);
               
               try {
-                // Verificar nuevamente que el worker existe y no está terminado antes de usar
-                if (!ocrWorker || !running) {
+                // Verificar nuevamente que el worker existe y que la cámara sigue corriendo
+                if (!ocrWorker || !running || cameraDisabled) {
                   requestAnimationFrame(tickCanvas);
                   return;
                 }
                 let text, words;
                 try {
                   const result = await ocrWorker.recognize(enhancedCanvas);
+                  // Verificar nuevamente después de await (puede haber cambiado)
+                  if (!running || cameraDisabled) {
+                    requestAnimationFrame(tickCanvas);
+                    return;
+                  }
                   text = result.data.text;
                   words = result.data.words;
                 } catch (ocrErr) {
                   // Si el worker fue terminado, resetearlo
-                  if (ocrErr.message?.includes('postMessage') || ocrErr.message?.includes('terminated')) {
+                  if (ocrErr.message?.includes('postMessage') || ocrErr.message?.includes('terminated') || ocrErr.message?.includes('null')) {
                     console.warn('OCR worker terminado, reseteando...');
                     ocrWorker = null;
                   }
