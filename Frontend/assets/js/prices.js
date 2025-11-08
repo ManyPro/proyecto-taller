@@ -684,20 +684,32 @@ export function initPrices(){
           const checkbox = document.createElement('input');
           checkbox.type = 'checkbox';
           checkbox.checked = isSelected;
-          checkbox.style.cssText = 'position:absolute;top:8px;right:8px;width:20px;height:20px;cursor:pointer;z-index:10;';
-          checkbox.addEventListener('click', (e) => {
-            e.stopPropagation();
+          checkbox.style.cssText = 'position:absolute;top:8px;right:8px;width:20px;height:20px;cursor:pointer;z-index:10;pointer-events:auto;';
+          
+          const handleCheckboxChange = () => {
             toggleVehicleSelection(lineData.vehicles[0]);
             // Actualizar visual del card
             const newIsSelected = selectedVehicles.some(sv => sv._id === lineData.vehicles[0]._id);
             card.style.borderColor = newIsSelected ? 'var(--primary, #3b82f6)' : 'var(--border)';
             card.style.background = newIsSelected ? 'rgba(59, 130, 246, 0.1)' : 'var(--card-alt)';
+            checkbox.checked = newIsSelected;
+          };
+          
+          checkbox.addEventListener('change', (e) => {
+            e.stopPropagation();
+            handleCheckboxChange();
           });
+          
+          checkbox.addEventListener('click', (e) => {
+            e.stopPropagation();
+          });
+          
           card.appendChild(checkbox);
         }
         
         card.addEventListener('mouseenter', () => {
-          if (!isSelected) {
+          const currentIsSelected = lineData.vehicles.length === 1 && selectedVehicles.some(sv => sv._id === lineData.vehicles[0]._id);
+          if (!currentIsSelected) {
             card.style.borderColor = 'var(--primary, #3b82f6)';
             card.style.transform = 'translateY(-2px)';
             card.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.2)';
@@ -705,7 +717,8 @@ export function initPrices(){
         });
         
         card.addEventListener('mouseleave', () => {
-          if (!isSelected) {
+          const currentIsSelected = lineData.vehicles.length === 1 && selectedVehicles.some(sv => sv._id === lineData.vehicles[0]._id);
+          if (!currentIsSelected) {
             card.style.borderColor = 'var(--border)';
             card.style.transform = 'translateY(0)';
             card.style.boxShadow = '';
@@ -713,8 +726,8 @@ export function initPrices(){
         });
         
         card.addEventListener('click', (e) => {
-          // Si se hace clic en el checkbox, no hacer nada más
-          if (e.target.type === 'checkbox') {
+          // Si se hace clic en el checkbox o en cualquier elemento dentro del checkbox, no hacer nada más
+          if (e.target.type === 'checkbox' || e.target.closest('input[type="checkbox"]')) {
             return;
           }
           
@@ -725,8 +738,9 @@ export function initPrices(){
             const newIsSelected = selectedVehicles.some(sv => sv._id === lineData.vehicles[0]._id);
             card.style.borderColor = newIsSelected ? 'var(--primary, #3b82f6)' : 'var(--border)';
             card.style.background = newIsSelected ? 'rgba(59, 130, 246, 0.1)' : 'var(--card-alt)';
-            if (card.querySelector('input[type="checkbox"]')) {
-              card.querySelector('input[type="checkbox"]').checked = newIsSelected;
+            const checkbox = card.querySelector('input[type="checkbox"]');
+            if (checkbox) {
+              checkbox.checked = newIsSelected;
             }
           } else {
             // Si hay múltiples variantes, mostrar un selector con checkboxes
@@ -1274,10 +1288,7 @@ export function initPrices(){
             if (nameInput && item.name) {
               nameInput.value = item.name;
             }
-            // Establecer el precio con el precio de venta del item
-            if (priceInput) {
-              priceInput.value = item.salePrice || 0;
-            }
+            // NO establecer el precio automáticamente - se deja a discreción del usuario
             return;
           }
           itemDropdown.replaceChildren(...items.map(item => {
@@ -1315,10 +1326,7 @@ export function initPrices(){
               if (nameInput && item.name) {
                 nameInput.value = item.name;
               }
-              // Establecer el precio con el precio de venta del item
-              if (priceInput) {
-                priceInput.value = item.salePrice || 0;
-              }
+              // NO establecer el precio automáticamente - se deja a discreción del usuario
             });
             div.addEventListener('mouseenter', () => {
               div.style.background = 'var(--hover, rgba(0,0,0,0.05))';
@@ -1395,10 +1403,7 @@ export function initPrices(){
               if (nameInput && item.name) {
                 nameInput.value = item.name;
               }
-              // Establecer el precio con el precio de venta del item
-              if (priceInput) {
-                priceInput.value = item.salePrice || 0;
-              }
+              // NO establecer el precio automáticamente - se deja a discreción del usuario
               // Limpiar dropdown si existe
               itemDropdown.style.display = 'none';
             }
@@ -1495,10 +1500,7 @@ export function initPrices(){
             if (nameInput && item.name) {
               nameInput.value = item.name;
             }
-            // Establecer el precio con el precio de venta del item (siempre, no solo si está vacío)
-            if (priceInput) {
-              priceInput.value = item.salePrice || 0;
-            }
+            // NO establecer el precio automáticamente - se deja a discreción del usuario
           } else {
             alert(`Item no encontrado para el código: ${qrCode}`);
           }
@@ -1643,10 +1645,12 @@ export function initPrices(){
                   itemSelected.style.display = 'none';
                 };
               }
-              const priceInput = row.querySelector('.combo-product-price');
-              if (!priceInput.value || priceInput.value === '0') {
-                priceInput.value = item.salePrice || 0;
+              // Establecer el nombre del combo product con el nombre del item
+              const nameInput = row.querySelector('.combo-product-name');
+              if (nameInput && item.name) {
+                nameInput.value = item.name;
               }
+              // NO establecer el precio automáticamente - se deja a discreción del usuario
               updateComboTotal();
               // Limpiar dropdown
               const existingDropdown = itemSearch.parentElement.querySelector('div[style*="position:absolute"]');
@@ -1685,10 +1689,12 @@ export function initPrices(){
                   };
                 }
                 dropdown.remove();
-                const priceInput = row.querySelector('.combo-product-price');
-                if (!priceInput.value || priceInput.value === '0') {
-                  priceInput.value = item.salePrice || 0;
+                // Establecer el nombre del combo product con el nombre del item
+                const nameInput = row.querySelector('.combo-product-name');
+                if (nameInput && item.name) {
+                  nameInput.value = item.name;
                 }
+                // NO establecer el precio automáticamente - se deja a discreción del usuario
                 updateComboTotal();
               });
               div.addEventListener('mouseenter', () => { div.style.background = 'var(--hover, rgba(0,0,0,0.05))'; });
@@ -1768,10 +1774,12 @@ export function initPrices(){
                     itemSelected.style.display = 'none';
                   };
                 }
-                const priceInput = row.querySelector('.combo-product-price');
-                if (!priceInput.value || priceInput.value === '0') {
-                  priceInput.value = item.salePrice || 0;
+                // Establecer el nombre del combo product con el nombre del item
+                const nameInput = row.querySelector('.combo-product-name');
+                if (nameInput && item.name) {
+                  nameInput.value = item.name;
                 }
+                // NO establecer el precio automáticamente - se deja a discreción del usuario
                 updateComboTotal();
                 // Limpiar dropdown si existe
                 const existingDropdown = itemSearch.parentElement.querySelector('div[style*="position:absolute"]');
@@ -1862,10 +1870,12 @@ export function initPrices(){
                   itemSelected.style.display = 'none';
                 };
               }
-              const priceInput = row.querySelector('.combo-product-price');
-              if (!priceInput.value || priceInput.value === '0') {
-                priceInput.value = item.salePrice || 0;
+              // Establecer el nombre del combo product con el nombre del item
+              const nameInput = row.querySelector('.combo-product-name');
+              if (nameInput && item.name) {
+                nameInput.value = item.name;
               }
+              // NO establecer el precio automáticamente - se deja a discreción del usuario
               updateComboTotal();
             } else {
               alert(`Item no encontrado para el código: ${qrCode}`);
@@ -2032,7 +2042,22 @@ export function initPrices(){
         }
         
         // Si hay múltiples vehículos, crear un precio para cada uno
-        const vehiclesToProcess = isEdit ? [selectedVehicle] : selectedVehicles;
+        let vehiclesToProcess = [];
+        if (isEdit) {
+          vehiclesToProcess = [selectedVehicle];
+        } else {
+          // Usar selectedVehicles si tiene elementos, sino usar selectedVehicle
+          vehiclesToProcess = selectedVehicles.length > 0 ? selectedVehicles : (selectedVehicle ? [selectedVehicle] : []);
+        }
+        
+        if (vehiclesToProcess.length === 0) {
+          msgEl.textContent = 'Debes seleccionar al menos un vehículo';
+          msgEl.style.color = 'var(--danger, #ef4444)';
+          saveBtn.disabled = false;
+          saveBtn.textContent = isEdit ? '💾 Actualizar' : '💾 Guardar';
+          return;
+        }
+        
         const promises = [];
         
         for (const vehicle of vehiclesToProcess) {
@@ -2053,11 +2078,11 @@ export function initPrices(){
         
         closeModal();
         currentPage = 1;
-        if (selectedVehicles.length === 1) {
+        if (vehiclesToProcess.length === 1) {
           loadPrices();
         } else {
           // Si hay múltiples vehículos, mostrar mensaje de éxito
-          alert(`✓ Precio creado exitosamente para ${selectedVehicles.length} vehículos`);
+          alert(`✓ Precio creado exitosamente para ${vehiclesToProcess.length} vehículos`);
           // Limpiar selección múltiple después de crear
           selectedVehicles = [];
           updateSelectedVehiclesDisplay();
