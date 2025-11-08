@@ -4365,6 +4365,7 @@ export function initSales(){
     // Función para extraer placa del texto OCR
     // Acepta formato: 3 letras seguidas de 3 números (con o sin guion: ABC123 o ABC-123)
     // Retorna SIN guion: ABC123 (formato usado en la base de datos)
+    // MÁS ESTRICTA: Solo acepta placas que tengan formato perfecto
     function extractPlateFromText(text) {
       if (!text) return null;
       
@@ -4373,56 +4374,74 @@ export function initSales(){
       // Limpiar el texto y convertir a mayúsculas
       const clean = text.toUpperCase().replace(/[^A-Z0-9\s-]/g, ' ').trim();
       
-      // Buscar todas las posibles combinaciones de 3 letras seguidas de 3 números
-      // Acepta con guion (ABC-123) o sin guion (ABC123)
-      const patterns = [
-        /([A-Z]{3})[-]?([0-9]{3})/g,  // ABC-123 o ABC123 (prioritario)
-        /\b([A-Z]{3})\s+([0-9]{3})\b/g,  // ABC 123 (con espacio)
+      // Validación estricta: el texto debe ser principalmente la placa
+      // Rechazar si hay demasiado texto adicional
+      const words = clean.split(/\s+/).filter(w => w.length > 0);
+      if (words.length > 4) {
+        console.log('Rechazado: demasiado texto detectado (posible ruido)');
+        return null;
+      }
+      
+      // Buscar patrón EXACTO: 3 letras seguidas de 3 números (con o sin separador)
+      // Priorizar patrones más estrictos primero
+      const strictPatterns = [
+        /^([A-Z]{3})[-]?([0-9]{3})$/g,  // Exactamente ABC123 o ABC-123 (sin nada más)
+        /\b([A-Z]{3})[-]?([0-9]{3})\b/g,  // ABC123 o ABC-123 como palabra completa
       ];
       
-      for (const pattern of patterns) {
+      for (const pattern of strictPatterns) {
         const matches = [...clean.matchAll(pattern)];
         for (const match of matches) {
           const letters = match[1];
           const numbers = match[2];
           
-          // Validar que sean exactamente 3 letras y 3 números
+          // Validación estricta adicional
           if (letters && letters.length === 3 && numbers && numbers.length === 3) {
+            // Validar que las letras sean realmente letras (no números mal interpretados)
+            if (!/^[A-Z]{3}$/.test(letters)) {
+              console.log('Rechazado: letras inválidas:', letters);
+              continue;
+            }
+            // Validar que los números sean realmente números
+            if (!/^[0-9]{3}$/.test(numbers)) {
+              console.log('Rechazado: números inválidos:', numbers);
+              continue;
+            }
+            
             // Retornar SIN guion (formato de base de datos: ABC123)
             const plate = `${letters}${numbers}`;
-            console.log('Placa extraída encontrada:', plate);
+            console.log('✅ Placa extraída encontrada (validada estrictamente):', plate);
             return plate;
           }
         }
       }
       
-      // Si no encontró con regex, buscar manualmente en el texto
-      // Buscar secuencias de 3 letras seguidas de 3 números
-      const words = clean.split(/\s+/);
-      for (let i = 0; i < words.length; i++) {
-        const word = words[i];
-        // Buscar patrón ABC123 o ABC-123 en una palabra
-        const match = word.match(/([A-Z]{3})[-]?([0-9]{3})/);
-        if (match && match[1] && match[1].length === 3 && match[2] && match[2].length === 3) {
-          // Retornar SIN guion
-          const plate = `${match[1]}${match[2]}`;
-          console.log('Placa extraída (búsqueda manual):', plate);
+      // Si no encontró con patrones estrictos, buscar en palabras separadas
+      // PERO solo si hay exactamente 2 palabras (3 letras + 3 números)
+      if (words.length === 2) {
+        const word1 = words[0];
+        const word2 = words[1];
+        
+        // Patrón: primera palabra 3 letras, segunda palabra 3 números
+        if (/^[A-Z]{3}$/.test(word1) && /^[0-9]{3}$/.test(word2)) {
+          const plate = `${word1}${word2}`;
+          console.log('✅ Placa extraída (palabras separadas, validada):', plate);
           return plate;
         }
-        
-        // Si la palabra tiene 3 letras, buscar el siguiente número de 3 dígitos
-        if (word.length === 3 && /^[A-Z]{3}$/.test(word) && i + 1 < words.length) {
-          const nextWord = words[i + 1];
-          if (/^[0-9]{3}$/.test(nextWord)) {
-            // Retornar SIN guion
-            const plate = `${word}${nextWord}`;
-            console.log('Placa extraída (palabras separadas):', plate);
-            return plate;
-          }
+      }
+      
+      // Si hay una sola palabra, verificar que sea exactamente ABC123
+      if (words.length === 1) {
+        const word = words[0];
+        const match = word.match(/^([A-Z]{3})([0-9]{3})$/);
+        if (match && match[1] && match[1].length === 3 && match[2] && match[2].length === 3) {
+          const plate = `${match[1]}${match[2]}`;
+          console.log('✅ Placa extraída (palabra única, validada):', plate);
+          return plate;
         }
       }
       
-      console.log('No se encontró placa válida en el texto');
+      console.log('❌ No se encontró placa válida en el texto (validación estricta)');
       return null;
     }
     
@@ -4488,19 +4507,63 @@ export function initSales(){
                 const enhancedCanvas = enhanceImageForOCR(tempCanvas, tempCtx, imageData);
                 
                 try {
-                  const { data: { text } } = await ocrWorker.recognize(enhancedCanvas);
+                  // Usar reconocimiento con nivel de confianza
+                  const { data: { text, words } } = await ocrWorker.recognize(enhancedCanvas);
                   
                   if (text && text.trim()) {
                     console.log('Texto detectado por OCR en región:', text);
-                    const plate = extractPlateFromText(text);
-                    if (plate && isValidPlate(plate)) {
-                      console.log('✅ Placa extraída y validada:', plate);
-                      onCode(plate);
-                      return;
+                    
+                    // Validar confianza: solo procesar si hay palabras con buena confianza
+                    if (words && words.length > 0) {
+                      // Filtrar palabras con baja confianza (< 50)
+                      const highConfidenceWords = words.filter(w => w.confidence > 50);
+                      if (highConfidenceWords.length === 0) {
+                        console.log('Rechazado: confianza del OCR muy baja');
+                        continue;
+                      }
+                      
+                      // Reconstruir texto solo con palabras de alta confianza
+                      const highConfText = highConfidenceWords
+                        .map(w => w.text)
+                        .join(' ')
+                        .trim();
+                      
+                        if (highConfText) {
+                          console.log('Texto con alta confianza:', highConfText);
+                          const plate = extractPlateFromText(highConfText);
+                          if (plate && isValidPlate(plate)) {
+                            // Validación adicional: requerir múltiples detecciones de la misma placa
+                            if (lastValidPlate === plate) {
+                              plateConfidenceCount++;
+                              if (plateConfidenceCount >= 2) {
+                                // Solo procesar si se detectó la misma placa al menos 2 veces
+                                console.log('✅ Placa extraída y validada (alta confianza, múltiples detecciones):', plate);
+                                lastValidPlate = null;
+                                plateConfidenceCount = 0;
+                                onCode(plate);
+                                return;
+                              }
+                            } else {
+                              // Nueva placa detectada, reiniciar contador
+                              lastValidPlate = plate;
+                              plateConfidenceCount = 1;
+                              console.log('Placa detectada (requiere confirmación):', plate);
+                            }
+                          }
+                        }
+                    } else {
+                      // Fallback si no hay información de confianza
+                      const plate = extractPlateFromText(text);
+                      if (plate && isValidPlate(plate)) {
+                        console.log('✅ Placa extraída y validada:', plate);
+                        onCode(plate);
+                        return;
+                      }
                     }
                   }
                 } catch (ocrErr) {
                   // Continuar con la siguiente región si hay error
+                  console.warn('Error en OCR para región:', ocrErr);
                 }
               }
             }
@@ -4572,21 +4635,77 @@ export function initSales(){
                   // Mejorar la imagen antes del OCR
                   const enhancedCanvas = enhanceImageForOCR(tempCanvas, tempCtx, imageData);
                   
-                  try {
-                    const { data: { text } } = await ocrWorker.recognize(enhancedCanvas);
-                    
-                    if (text && text.trim()) {
-                      console.log('Texto detectado por OCR en región:', text);
-                      const plate = extractPlateFromText(text);
-                      if (plate && isValidPlate(plate)) {
-                        console.log('✅ Placa extraída y validada:', plate);
-                        onCode(plate);
-                        return;
+                    try {
+                      // Usar reconocimiento con nivel de confianza
+                      const { data: { text, words } } = await ocrWorker.recognize(enhancedCanvas);
+                      
+                      if (text && text.trim()) {
+                        console.log('Texto detectado por OCR en región:', text);
+                        
+                        // Validar confianza: solo procesar si hay palabras con buena confianza
+                        if (words && words.length > 0) {
+                          // Filtrar palabras con baja confianza (< 50)
+                          const highConfidenceWords = words.filter(w => w.confidence > 50);
+                          if (highConfidenceWords.length === 0) {
+                            console.log('Rechazado: confianza del OCR muy baja');
+                            continue;
+                          }
+                          
+                          // Reconstruir texto solo con palabras de alta confianza
+                          const highConfText = highConfidenceWords
+                            .map(w => w.text)
+                            .join(' ')
+                            .trim();
+                          
+                          if (highConfText) {
+                            console.log('Texto con alta confianza:', highConfText);
+                            const plate = extractPlateFromText(highConfText);
+                            if (plate && isValidPlate(plate)) {
+                              // Validación adicional: requerir múltiples detecciones de la misma placa
+                              if (lastValidPlate === plate) {
+                                plateConfidenceCount++;
+                                if (plateConfidenceCount >= 2) {
+                                  // Solo procesar si se detectó la misma placa al menos 2 veces
+                                  console.log('✅ Placa extraída y validada (alta confianza, múltiples detecciones):', plate);
+                                  lastValidPlate = null;
+                                  plateConfidenceCount = 0;
+                                  onCode(plate);
+                                  return;
+                                }
+                              } else {
+                                // Nueva placa detectada, reiniciar contador
+                                lastValidPlate = plate;
+                                plateConfidenceCount = 1;
+                                console.log('Placa detectada (requiere confirmación):', plate);
+                              }
+                            }
+                          }
+                        } else {
+                          // Fallback si no hay información de confianza
+                          const plate = extractPlateFromText(text);
+                          if (plate && isValidPlate(plate)) {
+                            // Validación adicional: requerir múltiples detecciones
+                            if (lastValidPlate === plate) {
+                              plateConfidenceCount++;
+                              if (plateConfidenceCount >= 2) {
+                                console.log('✅ Placa extraída y validada (múltiples detecciones):', plate);
+                                lastValidPlate = null;
+                                plateConfidenceCount = 0;
+                                onCode(plate);
+                                return;
+                              }
+                            } else {
+                              lastValidPlate = plate;
+                              plateConfidenceCount = 1;
+                              console.log('Placa detectada (requiere confirmación):', plate);
+                            }
+                          }
+                        }
                       }
+                    } catch (ocrErr) {
+                      // Continuar con la siguiente región
+                      console.warn('Error en OCR para región:', ocrErr);
                     }
-                  } catch (ocrErr) {
-                    // Continuar con la siguiente región
-                  }
                 }
               }
             } catch (ocrErr) {
