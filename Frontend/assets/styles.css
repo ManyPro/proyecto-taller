@@ -267,6 +267,14 @@ button{
   background:var(--accent); color:var(--text-invert); border:0;
   padding:10px 14px; border-radius:10px; cursor:pointer; margin-top:10px; line-height:1.1;
   transition:background .2s ease, color .2s ease, border-color .2s ease, box-shadow .2s ease;
+  /* Asegurar que los botones sean clickeables en móvil */
+  touch-action:manipulation;
+  -webkit-tap-highlight-color:rgba(37,99,235,0.2);
+  user-select:none;
+  -webkit-user-select:none;
+  pointer-events:auto;
+  position:relative;
+  z-index:1;
 }
 button:hover{ background:var(--accent-hover); }
 button.secondary{ background:transparent; color:var(--text); border:1px solid var(--border); }
@@ -943,7 +951,19 @@ html{ font-size:16px; }
 @media (max-width:640px){
   .row{ gap:6px; }
   input,select,textarea{ padding:9px; }
-  button{ padding:9px 12px; }
+  button{ 
+    padding:12px 16px; /* Aumentar padding en móvil para mejor área táctil */
+    min-height:44px; /* Tamaño mínimo recomendado para área táctil */
+    font-size:15px; /* Texto ligeramente más grande en móvil */
+    touch-action:manipulation;
+    -webkit-tap-highlight-color:rgba(37,99,235,0.2);
+  }
+  /* Asegurar que los botones en la barra de acciones sean accesibles */
+  #sales-capsules-bar button,
+  #sales-actions-bar button {
+    flex:1 1 auto;
+    min-width:120px;
+  }
 }
 
 /* Responsive utility classes */

@@ -4266,7 +4266,8 @@ export function initSales(){
           });
           await ocrWorker.setParameters({
             tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ',
-            tessedit_pageseg_mode: '6' // Uniform block of text
+            tessedit_pageseg_mode: '8', // Single word (mejor para placas)
+            tessedit_ocr_engine_mode: '1' // Neural nets LSTM engine only
           });
           console.log('OCR worker inicializado');
         }
@@ -4277,46 +4278,101 @@ export function initSales(){
       }
     }
     
+    // Función para mejorar el contraste y claridad de la imagen antes del OCR
+    function enhanceImageForOCR(canvas, ctx, imageData) {
+      const data = imageData.data;
+      const width = imageData.width;
+      const height = imageData.height;
+      
+      // Convertir a escala de grises y mejorar contraste
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        
+        // Convertir a escala de grises
+        const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+        
+        // Mejorar contraste (aumentar diferencia entre claro y oscuro)
+        let enhanced = gray;
+        if (gray < 128) {
+          enhanced = Math.max(0, gray - 30); // Oscurecer más
+        } else {
+          enhanced = Math.min(255, gray + 30); // Aclarar más
+        }
+        
+        // Aplicar umbral para texto negro sobre fondo claro
+        const threshold = 140;
+        const final = enhanced > threshold ? 255 : 0; // Blanco o negro puro
+        
+        data[i] = final;     // R
+        data[i + 1] = final; // G
+        data[i + 2] = final; // B
+        // data[i + 3] permanece igual (alpha)
+      }
+      
+      ctx.putImageData(imageData, 0, 0);
+      return canvas;
+    }
+    
     // Función para extraer placa del texto OCR
     // SOLO acepta formato: 3 letras seguidas de guion y 3 números (ABC-123)
     function extractPlateFromText(text) {
       if (!text) return null;
       
+      console.log('Extrayendo placa del texto OCR completo:', text);
+      
       // Limpiar el texto y convertir a mayúsculas
-      const clean = text.toUpperCase().replace(/[^A-Z0-9\s-]/g, '').trim();
+      const clean = text.toUpperCase().replace(/[^A-Z0-9\s-]/g, ' ').trim();
       
-      // Buscar SOLO el patrón exacto: 3 letras, guion (opcional), 3 números
-      // Priorizar formato con guion: ABC-123
-      const withDash = clean.match(/\b([A-Z]{3})[-]?([0-9]{3})\b/);
-      if (withDash) {
-        const letters = withDash[1];
-        const numbers = withDash[2];
-        // Validar que sean exactamente 3 letras y 3 números
-        if (letters && letters.length === 3 && numbers && numbers.length === 3) {
-          return `${letters}-${numbers}`;
+      // Buscar todas las posibles combinaciones de 3 letras seguidas de 3 números
+      // Primero intentar con guion: ABC-123
+      const patterns = [
+        /\b([A-Z]{3})[-]?([0-9]{3})\b/g,  // ABC-123 o ABC123
+        /\b([A-Z]{3})\s+([0-9]{3})\b/g,  // ABC 123
+        /([A-Z]{3})([0-9]{3})/g,          // ABC123 (sin límites de palabra)
+      ];
+      
+      for (const pattern of patterns) {
+        const matches = [...clean.matchAll(pattern)];
+        for (const match of matches) {
+          const letters = match[1];
+          const numbers = match[2];
+          
+          // Validar que sean exactamente 3 letras y 3 números
+          if (letters && letters.length === 3 && numbers && numbers.length === 3) {
+            const plate = `${letters}-${numbers}`;
+            console.log('Placa extraída encontrada:', plate);
+            return plate;
+          }
         }
       }
       
-      // Si no encontró con guion, buscar sin guion pero con espacio: ABC 123
-      const withSpace = clean.match(/\b([A-Z]{3})\s+([0-9]{3})\b/);
-      if (withSpace) {
-        const letters = withSpace[1];
-        const numbers = withSpace[2];
-        if (letters && letters.length === 3 && numbers && numbers.length === 3) {
-          return `${letters}-${numbers}`;
+      // Si no encontró con regex, buscar manualmente en el texto
+      // Buscar secuencias de 3 letras seguidas de 3 números
+      const words = clean.split(/\s+/);
+      for (let i = 0; i < words.length; i++) {
+        const word = words[i];
+        // Buscar patrón ABC123 o ABC-123 en una palabra
+        const match = word.match(/([A-Z]{3})[-]?([0-9]{3})/);
+        if (match && match[1] && match[1].length === 3 && match[2] && match[2].length === 3) {
+          const plate = `${match[1]}-${match[2]}`;
+          console.log('Placa extraída (búsqueda manual):', plate);
+          return plate;
+        }
+        
+        // Si la palabra tiene 3 letras, buscar el siguiente número de 3 dígitos
+        if (word.length === 3 && /^[A-Z]{3}$/.test(word) && i + 1 < words.length) {
+          const nextWord = words[i + 1];
+          if (/^[0-9]{3}$/.test(nextWord)) {
+            const plate = `${word}-${nextWord}`;
+            console.log('Placa extraída (palabras separadas):', plate);
+            return plate;
+          }
         }
       }
       
-      // Último intento: sin separador pero juntos: ABC123
-      const noSeparator = clean.match(/\b([A-Z]{3})([0-9]{3})\b/);
-      if (noSeparator) {
-        const letters = noSeparator[1];
-        const numbers = noSeparator[2];
-        if (letters && letters.length === 3 && numbers && numbers.length === 3) {
-          return `${letters}-${numbers}`;
-        }
-      }
-      
+      console.log('No se encontró placa válida en el texto');
       return null;
     }
     
@@ -4360,28 +4416,41 @@ export function initSales(){
               canvas.height = h;
               ctx.drawImage(video, 0, 0, w, h);
               
-              // Procesar solo una región central de la imagen (donde suele estar la placa)
-              const cropX = Math.floor(w * 0.1);
-              const cropY = Math.floor(h * 0.3);
-              const cropW = Math.floor(w * 0.8);
-              const cropH = Math.floor(h * 0.4);
+              // Procesar múltiples regiones de la imagen para encontrar la placa
+              const regions = [
+                // Región central (donde suele estar la placa)
+                { x: Math.floor(w * 0.1), y: Math.floor(h * 0.2), w: Math.floor(w * 0.8), h: Math.floor(h * 0.5) },
+                // Región superior central
+                { x: Math.floor(w * 0.15), y: Math.floor(h * 0.1), w: Math.floor(w * 0.7), h: Math.floor(h * 0.4) },
+                // Región central completa
+                { x: Math.floor(w * 0.05), y: Math.floor(h * 0.25), w: Math.floor(w * 0.9), h: Math.floor(h * 0.5) },
+              ];
               
-              const imageData = ctx.getImageData(cropX, cropY, cropW, cropH);
-              const tempCanvas = document.createElement('canvas');
-              tempCanvas.width = cropW;
-              tempCanvas.height = cropH;
-              const tempCtx = tempCanvas.getContext('2d');
-              tempCtx.putImageData(imageData, 0, 0);
-              
-              const { data: { text } } = await ocrWorker.recognize(tempCanvas);
-              
-              if (text) {
-                console.log('Texto detectado por OCR:', text);
-                const plate = extractPlateFromText(text);
-                if (plate && isValidPlate(plate)) {
-                  console.log('Placa extraída:', plate);
-                  onCode(plate);
-                  return;
+              for (const region of regions) {
+                const imageData = ctx.getImageData(region.x, region.y, region.w, region.h);
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = region.w;
+                tempCanvas.height = region.h;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.putImageData(imageData, 0, 0);
+                
+                // Mejorar la imagen antes del OCR
+                const enhancedCanvas = enhanceImageForOCR(tempCanvas, tempCtx, imageData);
+                
+                try {
+                  const { data: { text } } = await ocrWorker.recognize(enhancedCanvas);
+                  
+                  if (text && text.trim()) {
+                    console.log('Texto detectado por OCR en región:', text);
+                    const plate = extractPlateFromText(text);
+                    if (plate && isValidPlate(plate)) {
+                      console.log('✅ Placa extraída y validada:', plate);
+                      onCode(plate);
+                      return;
+                    }
+                  }
+                } catch (ocrErr) {
+                  // Continuar con la siguiente región si hay error
                 }
               }
             }
@@ -4435,28 +4504,38 @@ export function initSales(){
               }
               
               if (ocrWorker) {
-                // Procesar región central
-                const cropX = Math.floor(w * 0.1);
-                const cropY = Math.floor(h * 0.3);
-                const cropW = Math.floor(w * 0.8);
-                const cropH = Math.floor(h * 0.4);
+                // Procesar múltiples regiones
+                const regions = [
+                  { x: Math.floor(w * 0.1), y: Math.floor(h * 0.2), w: Math.floor(w * 0.8), h: Math.floor(h * 0.5) },
+                  { x: Math.floor(w * 0.15), y: Math.floor(h * 0.1), w: Math.floor(w * 0.7), h: Math.floor(h * 0.4) },
+                  { x: Math.floor(w * 0.05), y: Math.floor(h * 0.25), w: Math.floor(w * 0.9), h: Math.floor(h * 0.5) },
+                ];
                 
-                const imageData = ctx.getImageData(cropX, cropY, cropW, cropH);
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = cropW;
-                tempCanvas.height = cropH;
-                const tempCtx = tempCanvas.getContext('2d');
-                tempCtx.putImageData(imageData, 0, 0);
-                
-                const { data: { text } } = await ocrWorker.recognize(tempCanvas);
-                
-                if (text) {
-                  console.log('Texto detectado por OCR:', text);
-                  const plate = extractPlateFromText(text);
-                  if (plate && isValidPlate(plate)) {
-                    console.log('Placa extraída:', plate);
-                    onCode(plate);
-                    return;
+                for (const region of regions) {
+                  const imageData = ctx.getImageData(region.x, region.y, region.w, region.h);
+                  const tempCanvas = document.createElement('canvas');
+                  tempCanvas.width = region.w;
+                  tempCanvas.height = region.h;
+                  const tempCtx = tempCanvas.getContext('2d');
+                  tempCtx.putImageData(imageData, 0, 0);
+                  
+                  // Mejorar la imagen antes del OCR
+                  const enhancedCanvas = enhanceImageForOCR(tempCanvas, tempCtx, imageData);
+                  
+                  try {
+                    const { data: { text } } = await ocrWorker.recognize(enhancedCanvas);
+                    
+                    if (text && text.trim()) {
+                      console.log('Texto detectado por OCR en región:', text);
+                      const plate = extractPlateFromText(text);
+                      if (plate && isValidPlate(plate)) {
+                        console.log('✅ Placa extraída y validada:', plate);
+                        onCode(plate);
+                        return;
+                      }
+                    }
+                  } catch (ocrErr) {
+                    // Continuar con la siguiente región
                   }
                 }
               }
@@ -4556,49 +4635,94 @@ export function initSales(){
   }
 
   // Registrar event listeners DESPUÉS de definir las funciones
-  // Usar setTimeout para asegurar que el DOM esté completamente cargado
-  setTimeout(() => {
-    const salesStartQrBtn = document.getElementById('sales-start-qr');
-    if (salesStartQrBtn) {
-      console.log('Registrando event listener para sales-start-qr');
-      // Agregar tanto click como touchstart para móvil
-      const handleStartQr = (e) => {
-        console.log('Evento detectado en sales-start-qr:', e.type);
+  // Función auxiliar para manejar eventos táctiles y de clic
+  function setupMobileButton(buttonId, handler, buttonName) {
+    const btn = document.getElementById(buttonId);
+    if (!btn) {
+      console.warn(`Botón ${buttonId} (${buttonName}) no encontrado en el DOM`);
+      return;
+    }
+    
+    console.log(`Registrando event listeners para ${buttonId} (${buttonName})`);
+    
+    // Función unificada para manejar tanto click como touch
+    let touchStarted = false;
+    const handleEvent = (e) => {
+      console.log(`Evento ${e.type} detectado en ${buttonId}`);
+      
+      // Prevenir comportamiento por defecto solo en touchstart
+      if (e.type === 'touchstart') {
+        e.preventDefault();
+        touchStarted = true;
+      }
+      
+      // En touchend, solo procesar si hubo touchstart
+      if (e.type === 'touchend') {
+        if (!touchStarted) return;
         e.preventDefault();
         e.stopPropagation();
+        touchStarted = false;
+        handler();
+        return;
+      }
+      
+      // En click, solo procesar si no hubo touch (para evitar doble ejecución)
+      if (e.type === 'click') {
+        if (touchStarted) {
+          touchStarted = false;
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        handler();
+        return;
+      }
+    };
+    
+    // Registrar todos los eventos necesarios
+    btn.addEventListener('touchstart', handleEvent, { passive: false });
+    btn.addEventListener('touchend', handleEvent, { passive: false });
+    btn.addEventListener('click', handleEvent);
+    
+    // Asegurar que el botón sea clickeable y visible
+    btn.style.cursor = 'pointer';
+    btn.style.pointerEvents = 'auto';
+    btn.style.touchAction = 'manipulation';
+    btn.style.userSelect = 'none';
+    btn.style.webkitUserSelect = 'none';
+    btn.style.webkitTapHighlightColor = 'transparent';
+    
+    // Verificar que el botón esté visible
+    const rect = btn.getBoundingClientRect();
+    console.log(`Botón ${buttonId} posición:`, { 
+      visible: rect.width > 0 && rect.height > 0,
+      top: rect.top,
+      left: rect.left,
+      width: rect.width,
+      height: rect.height,
+      zIndex: window.getComputedStyle(btn).zIndex
+    });
+  }
+  
+  // Usar requestAnimationFrame para asegurar que el DOM esté renderizado
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      // Nueva venta con placa
+      setupMobileButton('sales-start-qr', () => {
+        console.log('Ejecutando openQRForNewSale...');
         openQRForNewSale().catch(err => {
           console.error('Error al abrir QR para nueva venta:', err);
-          alert('Error: ' + (err?.message || 'No se pudo abrir el lector de QR'));
+          alert('Error: ' + (err?.message || 'No se pudo abrir el lector de placa'));
         });
-      };
-      salesStartQrBtn.addEventListener('click', handleStartQr);
-      salesStartQrBtn.addEventListener('touchend', handleStartQr);
-      // Asegurar que el botón sea clickeable
-      salesStartQrBtn.style.cursor = 'pointer';
-      salesStartQrBtn.style.pointerEvents = 'auto';
-    } else {
-      console.warn('Botón sales-start-qr no encontrado en el DOM');
-    }
-
-    const salesAddUnifiedBtn = document.getElementById('sales-add-unified');
-    if (salesAddUnifiedBtn) {
-      console.log('Registrando event listener para sales-add-unified');
-      // Agregar tanto click como touchstart para móvil
-      const handleAddUnified = (e) => {
-        console.log('Evento detectado en sales-add-unified:', e.type);
-        e.preventDefault();
-        e.stopPropagation();
+      }, 'Nueva venta con placa');
+      
+      // Agregar items
+      setupMobileButton('sales-add-unified', () => {
+        console.log('Ejecutando openAddUnified...');
         openAddUnified();
-      };
-      salesAddUnifiedBtn.addEventListener('click', handleAddUnified);
-      salesAddUnifiedBtn.addEventListener('touchend', handleAddUnified);
-      // Asegurar que el botón sea clickeable
-      salesAddUnifiedBtn.style.cursor = 'pointer';
-      salesAddUnifiedBtn.style.pointerEvents = 'auto';
-    } else {
-      console.warn('Botón sales-add-unified no encontrado en el DOM');
-    }
-  }, 100);
+      }, 'Agregar items');
+    });
+  });
   document.getElementById('sales-history')?.addEventListener('click', openSalesHistory);
   document.getElementById('sv-edit-cv')?.addEventListener('click', openEditCV);
   document.getElementById('sv-loadQuote')?.addEventListener('click', loadQuote);
