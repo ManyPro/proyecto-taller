@@ -44,7 +44,7 @@ function computeTotal(service, variables = {}) {
 
 // ============ list ============
 export const listPrices = async (req, res) => {
-  const { serviceId, vehicleId, type, brand, line, engine, year, name, page = 1, limit = 10 } = req.query || {};
+  const { serviceId, vehicleId, type, brand, line, engine, year, name, page = 1, limit = 10, vehicleYear } = req.query || {};
   const q = { companyId: req.companyId };
   
   // Nuevo modelo: vehicleId es prioritario
@@ -71,24 +71,43 @@ export const listPrices = async (req, res) => {
   const lim = Math.min(100, Math.max(1, parseInt(limit, 10)));
   const skip = (pg - 1) * lim;
 
-  const [items, total] = await Promise.all([
-    PriceEntry.find(q)
-      .populate('vehicleId', 'make line displacement modelYear')
-      .populate('itemId', 'sku name stock salePrice')
-      .populate('comboProducts.itemId', 'sku name stock salePrice')
-      .sort({ type: 1, name: 1, createdAt: -1 })
-      .skip(skip)
-      .limit(lim)
-      .lean(),
-    PriceEntry.countDocuments(q)
-  ]);
+  // Obtener todos los precios primero
+  let query = PriceEntry.find(q)
+    .populate('vehicleId', 'make line displacement modelYear')
+    .populate('itemId', 'sku name stock salePrice')
+    .populate('comboProducts.itemId', 'sku name stock salePrice')
+    .sort({ type: 1, name: 1, createdAt: -1 });
+
+  const allItems = await query.lean();
+  
+  // Filtrar por año del vehículo si se proporciona vehicleYear
+  let filteredItems = allItems;
+  if (vehicleYear !== undefined && vehicleYear !== null && vehicleYear !== '') {
+    const vehicleYearNum = Number(vehicleYear);
+    if (!isNaN(vehicleYearNum)) {
+      filteredItems = allItems.filter(item => {
+        // Si el precio no tiene restricción de año, incluirlo siempre
+        if (!item.yearFrom && !item.yearTo) {
+          return true;
+        }
+        // Si tiene restricción de año, verificar que el año del vehículo esté en el rango
+        const from = item.yearFrom || 1900;
+        const to = item.yearTo || 2100;
+        return vehicleYearNum >= from && vehicleYearNum <= to;
+      });
+    }
+  }
+  
+  // Aplicar paginación después del filtro por año
+  const total = filteredItems.length;
+  const items = filteredItems.slice(skip, skip + lim);
   
   res.json({ items, page: pg, limit: lim, total, pages: Math.ceil(total / lim) });
 };
 
 // ============ create ============
 export const createPrice = async (req, res) => {
-  const { vehicleId, name, type = 'service', serviceId, variables = {}, total: totalRaw, itemId, comboProducts = [] } = req.body || {};
+  const { vehicleId, name, type = 'service', serviceId, variables = {}, total: totalRaw, itemId, comboProducts = [], yearFrom, yearTo } = req.body || {};
   
   // Nuevo modelo: vehicleId y name son requeridos
   if (!vehicleId) return res.status(400).json({ error: 'vehicleId requerido' });
@@ -167,6 +186,25 @@ export const createPrice = async (req, res) => {
     total = processedComboProducts.reduce((sum, cp) => sum + (cp.unitPrice * cp.qty), 0);
   }
 
+  // Validar rango de años si se proporciona
+  let yearFromNum = null;
+  let yearToNum = null;
+  if (yearFrom !== undefined && yearFrom !== null && yearFrom !== '') {
+    yearFromNum = Number(yearFrom);
+    if (isNaN(yearFromNum) || yearFromNum < 1900 || yearFromNum > 2100) {
+      return res.status(400).json({ error: 'yearFrom debe ser un año válido entre 1900 y 2100' });
+    }
+  }
+  if (yearTo !== undefined && yearTo !== null && yearTo !== '') {
+    yearToNum = Number(yearTo);
+    if (isNaN(yearToNum) || yearToNum < 1900 || yearToNum > 2100) {
+      return res.status(400).json({ error: 'yearTo debe ser un año válido entre 1900 y 2100' });
+    }
+  }
+  if (yearFromNum !== null && yearToNum !== null && yearFromNum > yearToNum) {
+    return res.status(400).json({ error: 'yearFrom no puede ser mayor que yearTo' });
+  }
+
   const doc = {
     companyId: req.companyId,
     vehicleId: vehicle._id,
@@ -175,6 +213,8 @@ export const createPrice = async (req, res) => {
     serviceId: svc?._id || null,
     itemId: (type === 'product' && item) ? item._id : null,
     comboProducts: type === 'combo' ? processedComboProducts : [],
+    yearFrom: yearFromNum,
+    yearTo: yearToNum,
     brand: vehicle.make,
     line: vehicle.line,
     engine: vehicle.displacement,
@@ -310,6 +350,34 @@ export const updatePrice = async (req, res) => {
     total = num(totalRaw);
   } else {
     total = row.total || 0;
+  }
+
+  // Actualizar rango de años si se proporciona
+  if (yearFrom !== undefined) {
+    if (yearFrom === null || yearFrom === '') {
+      row.yearFrom = null;
+    } else {
+      const yearFromNum = Number(yearFrom);
+      if (isNaN(yearFromNum) || yearFromNum < 1900 || yearFromNum > 2100) {
+        return res.status(400).json({ error: 'yearFrom debe ser un año válido entre 1900 y 2100' });
+      }
+      row.yearFrom = yearFromNum;
+    }
+  }
+  if (yearTo !== undefined) {
+    if (yearTo === null || yearTo === '') {
+      row.yearTo = null;
+    } else {
+      const yearToNum = Number(yearTo);
+      if (isNaN(yearToNum) || yearToNum < 1900 || yearToNum > 2100) {
+        return res.status(400).json({ error: 'yearTo debe ser un año válido entre 1900 y 2100' });
+      }
+      row.yearTo = yearToNum;
+    }
+  }
+  // Validar que yearFrom no sea mayor que yearTo
+  if (row.yearFrom !== null && row.yearTo !== null && row.yearFrom > row.yearTo) {
+    return res.status(400).json({ error: 'yearFrom no puede ser mayor que yearTo' });
   }
 
   row.variables = variables || row.variables;

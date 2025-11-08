@@ -1932,8 +1932,13 @@ async function renderPricesView(container, vehicleId) {
     // Obtener información del vehículo
     const vehicle = await API.vehicles.get(vehicleId);
     
-    // Obtener precios del vehículo
-    const pricesData = await API.pricesList({ vehicleId, page: 1, limit: 10 });
+    // Obtener precios del vehículo (filtrar por año si está disponible)
+    const vehicleYear = current?.vehicle?.year || null;
+    const pricesParams = { vehicleId, page: 1, limit: 10 };
+    if (vehicleYear) {
+      pricesParams.vehicleYear = vehicleYear;
+    }
+    const pricesData = await API.pricesList(pricesParams);
     const prices = Array.isArray(pricesData?.items) ? pricesData.items : (Array.isArray(pricesData) ? pricesData : []);
     
     container.innerHTML = `
@@ -2231,6 +2236,20 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
       <p class="muted" style="margin-top:4px;font-size:11px;">El precio se calcula automáticamente desde los productos, o puedes establecerlo manualmente.</p>
     </div>
     `}
+    <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;border:1px solid var(--border);">
+      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500;">Rango de años (opcional)</label>
+      <p class="muted" style="margin-bottom:8px;font-size:11px;">Solo aplicar este precio si el año del vehículo está en el rango especificado. Déjalo vacío para aplicar a todos los años.</p>
+      <div class="row" style="gap:8px;">
+        <div style="flex:1;">
+          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Desde</label>
+          <input id="price-year-from" type="number" min="1900" max="2100" placeholder="Ej: 2018" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+        </div>
+        <div style="flex:1;">
+          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Hasta</label>
+          <input id="price-year-to" type="number" min="1900" max="2100" placeholder="Ej: 2022" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+        </div>
+      </div>
+    </div>
     <div id="price-msg" style="margin-bottom:16px;font-size:13px;"></div>
     <div class="row" style="gap:8px;">
       <button id="price-save" style="flex:1;padding:10px;">💾 Guardar</button>
@@ -2679,11 +2698,18 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
       saveBtn.disabled = true;
       saveBtn.textContent = 'Guardando...';
       
+      const yearFromInput = node.querySelector('#price-year-from');
+      const yearToInput = node.querySelector('#price-year-to');
+      const yearFrom = yearFromInput?.value?.trim() || null;
+      const yearTo = yearToInput?.value?.trim() || null;
+      
       const payload = {
         vehicleId: vehicleId,
         name: name,
         type: type,
-        total: total
+        total: total,
+        yearFrom: yearFrom || null,
+        yearTo: yearTo || null
       };
       
       if (isProduct && selectedItem) {
@@ -2821,6 +2847,11 @@ async function openPickerPrices(){
     // Filtrar por vehículo de la venta si existe
     if (currentVehicleId) {
       params.vehicleId = currentVehicleId;
+      // Filtrar por año del vehículo si está disponible
+      const vehicleYear = current?.vehicle?.year || null;
+      if (vehicleYear) {
+        params.vehicleYear = vehicleYear;
+      }
     }
     const rows = await API.pricesList(params);
     cnt.textContent = rows.length;

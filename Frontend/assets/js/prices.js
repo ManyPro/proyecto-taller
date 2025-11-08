@@ -429,7 +429,8 @@ export function initPrices(){
   const actionsBar=$('#pe-actions-bar');
   const head=$('#pe-head'), body=$('#pe-body');
 
-  let selectedVehicle = null;
+  let selectedVehicle = null; // Mantener para compatibilidad con código existente
+  let selectedVehicles = []; // Array para selección múltiple
   let selectedMake = null;
   let currentPage = 1;
   let currentFilters = { name: '', type: '' };
@@ -669,7 +670,8 @@ export function initPrices(){
       // Crear tarjeta para cada combinación línea/cilindraje
       linesMap.forEach((lineData, key) => {
         const card = document.createElement('div');
-        card.style.cssText = 'padding:16px;background:var(--card-alt);border:2px solid var(--border);border-radius:12px;cursor:pointer;transition:all 0.2s;text-align:center;min-height:120px;display:flex;flex-direction:column;justify-content:center;align-items:center;';
+        const isSelected = lineData.vehicles.length === 1 && selectedVehicles.some(sv => sv._id === lineData.vehicles[0]._id);
+        card.style.cssText = `padding:16px;background:${isSelected ? 'rgba(59, 130, 246, 0.1)' : 'var(--card-alt)'};border:2px solid ${isSelected ? 'var(--primary, #3b82f6)' : 'var(--border)'};border-radius:12px;cursor:pointer;transition:all 0.2s;text-align:center;min-height:120px;display:flex;flex-direction:column;justify-content:center;align-items:center;position:relative;`;
         
         card.innerHTML = `
           <div style="font-weight:600;font-size:16px;margin-bottom:4px;color:var(--text);">${lineData.line}</div>
@@ -677,24 +679,57 @@ export function initPrices(){
           <div style="font-size:11px;color:var(--muted);">${lineData.vehicles.length} variante(s)</div>
         `;
         
+        // Agregar checkbox solo si hay una sola variante
+        if (lineData.vehicles.length === 1) {
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.checked = isSelected;
+          checkbox.style.cssText = 'position:absolute;top:8px;right:8px;width:20px;height:20px;cursor:pointer;z-index:10;';
+          checkbox.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleVehicleSelection(lineData.vehicles[0]);
+            // Actualizar visual del card
+            const newIsSelected = selectedVehicles.some(sv => sv._id === lineData.vehicles[0]._id);
+            card.style.borderColor = newIsSelected ? 'var(--primary, #3b82f6)' : 'var(--border)';
+            card.style.background = newIsSelected ? 'rgba(59, 130, 246, 0.1)' : 'var(--card-alt)';
+          });
+          card.appendChild(checkbox);
+        }
+        
         card.addEventListener('mouseenter', () => {
-          card.style.borderColor = 'var(--primary, #3b82f6)';
-          card.style.transform = 'translateY(-2px)';
-          card.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.2)';
+          if (!isSelected) {
+            card.style.borderColor = 'var(--primary, #3b82f6)';
+            card.style.transform = 'translateY(-2px)';
+            card.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.2)';
+          }
         });
         
         card.addEventListener('mouseleave', () => {
-          card.style.borderColor = 'var(--border)';
-          card.style.transform = 'translateY(0)';
-          card.style.boxShadow = '';
+          if (!isSelected) {
+            card.style.borderColor = 'var(--border)';
+            card.style.transform = 'translateY(0)';
+            card.style.boxShadow = '';
+          }
         });
         
-        card.addEventListener('click', () => {
-          // Seleccionar el primer vehículo de esta línea (o permitir selección más específica)
+        card.addEventListener('click', (e) => {
+          // Si se hace clic en el checkbox, no hacer nada más
+          if (e.target.type === 'checkbox') {
+            return;
+          }
+          
+          // Toggle selección del vehículo si hay una sola variante
           if (lineData.vehicles.length === 1) {
-            selectVehicle(lineData.vehicles[0]);
+            toggleVehicleSelection(lineData.vehicles[0]);
+            // Actualizar visual del card
+            const newIsSelected = selectedVehicles.some(sv => sv._id === lineData.vehicles[0]._id);
+            card.style.borderColor = newIsSelected ? 'var(--primary, #3b82f6)' : 'var(--border)';
+            card.style.background = newIsSelected ? 'rgba(59, 130, 246, 0.1)' : 'var(--card-alt)';
+            if (card.querySelector('input[type="checkbox"]')) {
+              card.querySelector('input[type="checkbox"]').checked = newIsSelected;
+            }
           } else {
-            // Si hay múltiples variantes, mostrar un selector
+            // Si hay múltiples variantes, mostrar un selector con checkboxes
             showVehicleSelector(lineData.vehicles, lineData.line, lineData.displacement);
           }
         });
@@ -749,70 +784,217 @@ export function initPrices(){
     }
   }
 
-  // Mostrar selector de vehículo cuando hay múltiples variantes
+  // Mostrar selector de vehículo cuando hay múltiples variantes (con selección múltiple)
   function showVehicleSelector(vehicles, line, displacement) {
     const node = document.createElement('div');
     node.className = 'card';
-    node.style.cssText = 'max-width:500px;margin:0 auto;';
+    node.style.cssText = 'max-width:600px;margin:0 auto;';
     node.innerHTML = `
-      <h3 style="margin-top:0;margin-bottom:16px;">Seleccionar variante</h3>
+      <h3 style="margin-top:0;margin-bottom:16px;">Seleccionar variantes</h3>
       <p class="muted" style="margin-bottom:16px;">${line} - ${displacement}</p>
+      <p class="muted" style="margin-bottom:16px;font-size:12px;">Puedes seleccionar múltiples vehículos para crear precios en bulk</p>
       <div style="display:grid;gap:8px;margin-bottom:16px;">
-        ${vehicles.map(v => `
-          <div class="vehicle-variant-card" data-vehicle-id="${v._id}" style="padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:8px;cursor:pointer;transition:all 0.2s;">
-            <div style="font-weight:600;">${v.line} ${v.displacement}</div>
-            ${v.modelYear ? `<div style="font-size:12px;color:var(--muted);margin-top:4px;">Modelo: ${v.modelYear}</div>` : ''}
+        ${vehicles.map(v => {
+          const isSelected = selectedVehicles.some(sv => sv._id === v._id);
+          return `
+          <div class="vehicle-variant-card" data-vehicle-id="${v._id}" style="padding:12px;background:var(--card-alt);border:2px solid ${isSelected ? 'var(--primary, #3b82f6)' : 'var(--border)'};border-radius:8px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;gap:12px;">
+            <input type="checkbox" class="vehicle-checkbox" data-vehicle-id="${v._id}" ${isSelected ? 'checked' : ''} style="width:20px;height:20px;cursor:pointer;flex-shrink:0;" />
+            <div style="flex:1;">
+              <div style="font-weight:600;">${v.line} ${v.displacement}</div>
+              ${v.modelYear ? `<div style="font-size:12px;color:var(--muted);margin-top:4px;">Modelo: ${v.modelYear}</div>` : ''}
+            </div>
           </div>
-        `).join('')}
+        `;
+        }).join('')}
       </div>
-      <div style="text-align:center;">
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button id="variant-select-all" class="secondary" style="padding:8px 16px;">Seleccionar todos</button>
+        <button id="variant-deselect-all" class="secondary" style="padding:8px 16px;">Deseleccionar todos</button>
+        <button id="variant-confirm" class="primary" style="padding:8px 24px;">Confirmar (${selectedVehicles.length})</button>
         <button id="variant-cancel" class="secondary" style="padding:8px 24px;">Cancelar</button>
       </div>
     `;
     
     openModal(node);
     
+    const updateConfirmButton = () => {
+      const confirmBtn = node.querySelector('#variant-confirm');
+      const selectedCount = node.querySelectorAll('.vehicle-checkbox:checked').length;
+      confirmBtn.textContent = `Confirmar (${selectedCount})`;
+      confirmBtn.disabled = selectedCount === 0;
+    };
+    
     node.querySelectorAll('.vehicle-variant-card').forEach(card => {
+      const checkbox = card.querySelector('.vehicle-checkbox');
+      const vehicleId = card.dataset.vehicleId;
+      const vehicle = vehicles.find(v => v._id === vehicleId);
+      
       card.addEventListener('mouseenter', () => {
-        card.style.borderColor = 'var(--primary, #3b82f6)';
-        card.style.background = 'var(--card)';
+        if (!checkbox.checked) {
+          card.style.borderColor = 'var(--primary, #3b82f6)';
+          card.style.background = 'var(--card)';
+        }
       });
       card.addEventListener('mouseleave', () => {
-        card.style.borderColor = 'var(--border)';
-        card.style.background = 'var(--card-alt)';
+        if (!checkbox.checked) {
+          card.style.borderColor = 'var(--border)';
+          card.style.background = 'var(--card-alt)';
+        }
       });
-      card.addEventListener('click', () => {
-        const vehicleId = card.dataset.vehicleId;
-        const vehicle = vehicles.find(v => v._id === vehicleId);
-        if (vehicle) {
-          closeModal();
-          selectVehicle(vehicle);
+      
+      const handleToggle = () => {
+        if (checkbox.checked) {
+          if (!selectedVehicles.some(sv => sv._id === vehicleId)) {
+            selectedVehicles.push(vehicle);
+            card.style.borderColor = 'var(--primary, #3b82f6)';
+            card.style.background = 'rgba(59, 130, 246, 0.1)';
+          }
+        } else {
+          selectedVehicles = selectedVehicles.filter(sv => sv._id !== vehicleId);
+          card.style.borderColor = 'var(--border)';
+          card.style.background = 'var(--card-alt)';
+        }
+        updateConfirmButton();
+        updateSelectedVehiclesDisplay();
+      };
+      
+      checkbox.addEventListener('change', handleToggle);
+      card.addEventListener('click', (e) => {
+        if (e.target !== checkbox) {
+          checkbox.checked = !checkbox.checked;
+          handleToggle();
         }
       });
     });
     
+    node.querySelector('#variant-select-all').onclick = () => {
+      node.querySelectorAll('.vehicle-checkbox').forEach(cb => {
+        if (!cb.checked) {
+          cb.checked = true;
+          const vehicleId = cb.dataset.vehicleId;
+          const vehicle = vehicles.find(v => v._id === vehicleId);
+          if (vehicle && !selectedVehicles.some(sv => sv._id === vehicleId)) {
+            selectedVehicles.push(vehicle);
+          }
+        }
+      });
+      node.querySelectorAll('.vehicle-variant-card').forEach(card => {
+        card.style.borderColor = 'var(--primary, #3b82f6)';
+        card.style.background = 'rgba(59, 130, 246, 0.1)';
+      });
+      updateConfirmButton();
+      updateSelectedVehiclesDisplay();
+    };
+    
+    node.querySelector('#variant-deselect-all').onclick = () => {
+      node.querySelectorAll('.vehicle-checkbox').forEach(cb => {
+        cb.checked = false;
+        const vehicleId = cb.dataset.vehicleId;
+        selectedVehicles = selectedVehicles.filter(sv => sv._id !== vehicleId);
+      });
+      node.querySelectorAll('.vehicle-variant-card').forEach(card => {
+        card.style.borderColor = 'var(--border)';
+        card.style.background = 'var(--card-alt)';
+      });
+      updateConfirmButton();
+      updateSelectedVehiclesDisplay();
+    };
+    
+    node.querySelector('#variant-confirm').onclick = () => {
+      if (selectedVehicles.length === 0) {
+        alert('Selecciona al menos un vehículo');
+        return;
+      }
+      closeModal();
+      updateSelectedVehiclesDisplay();
+      // Si solo hay uno seleccionado, mantener compatibilidad con código existente
+      if (selectedVehicles.length === 1) {
+        selectedVehicle = selectedVehicles[0];
+        selectVehicle(selectedVehicle);
+      } else {
+        // Múltiples vehículos seleccionados
+        fVehicleSelected.style.display = 'block';
+        fVehicleName.textContent = `${selectedVehicles.length} vehículos seleccionados`;
+        fLinesContainer.style.display = 'none';
+        actionsBar.style.display = 'flex';
+        $('#pe-filters').style.display = 'flex';
+        // No cargar precios cuando hay múltiples seleccionados
+        body.replaceChildren();
+        renderTableHeader();
+      }
+    };
+    
     node.querySelector('#variant-cancel').onclick = () => {
       closeModal();
     };
+    
+    updateConfirmButton();
   }
 
+  function toggleVehicleSelection(vehicle) {
+    const index = selectedVehicles.findIndex(sv => sv._id === vehicle._id);
+    if (index >= 0) {
+      // Deseleccionar
+      selectedVehicles.splice(index, 1);
+    } else {
+      // Seleccionar
+      selectedVehicles.push(vehicle);
+    }
+    updateSelectedVehiclesDisplay();
+  }
+  
+  function updateSelectedVehiclesDisplay() {
+    if (selectedVehicles.length === 0) {
+      selectedVehicle = null;
+      fVehicleId.value = '';
+      fVehicleName.textContent = '';
+      fVehicleSelected.style.display = 'none';
+      fLinesContainer.style.display = 'block';
+      actionsBar.style.display = 'none';
+      $('#pe-filters').style.display = 'none';
+      body.replaceChildren();
+      renderTableHeader();
+      const paginationEl = $('#pe-pagination');
+      if (paginationEl) paginationEl.innerHTML = '';
+    } else if (selectedVehicles.length === 1) {
+      selectedVehicle = selectedVehicles[0];
+      fVehicleId.value = selectedVehicle._id;
+      fVehicleName.textContent = `${selectedVehicle.make} ${selectedVehicle.line} - Cilindraje: ${selectedVehicle.displacement}${selectedVehicle.modelYear ? ` | Modelo: ${selectedVehicle.modelYear}` : ''}`;
+      fVehicleSelected.style.display = 'block';
+      fLinesContainer.style.display = 'none';
+      actionsBar.style.display = 'flex';
+      $('#pe-filters').style.display = 'flex';
+      currentPage = 1;
+      currentFilters = { name: '', type: '' };
+      $('#pe-filter-name').value = '';
+      $('#pe-filter-type').value = '';
+      loadPrices();
+    } else {
+      // Múltiples vehículos seleccionados
+      selectedVehicle = null; // No hay un vehículo único seleccionado
+      fVehicleId.value = '';
+      fVehicleName.textContent = `✓ ${selectedVehicles.length} vehículos seleccionados`;
+      fVehicleSelected.style.display = 'block';
+      fLinesContainer.style.display = 'none';
+      actionsBar.style.display = 'flex';
+      $('#pe-filters').style.display = 'none'; // Ocultar filtros cuando hay múltiples
+      body.replaceChildren();
+      renderTableHeader();
+      const paginationEl = $('#pe-pagination');
+      if (paginationEl) paginationEl.innerHTML = '';
+    }
+  }
+  
   function selectVehicle(vehicle) {
+    // Mantener compatibilidad con código existente
+    selectedVehicles = [vehicle];
     selectedVehicle = vehicle;
-    fVehicleId.value = vehicle._id;
-    fVehicleName.textContent = `${vehicle.make} ${vehicle.line} - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}`;
-    fVehicleSelected.style.display = 'block';
-    fLinesContainer.style.display = 'none';
-    actionsBar.style.display = 'flex';
-    $('#pe-filters').style.display = 'flex';
-    currentPage = 1;
-    currentFilters = { name: '', type: '' };
-    $('#pe-filter-name').value = '';
-    $('#pe-filter-type').value = '';
-    loadPrices();
+    updateSelectedVehiclesDisplay();
   }
 
   function clearFilters(){ 
     selectedVehicle = null;
+    selectedVehicles = [];
     selectedMake = null;
     fVehicleId.value = '';
     fMakeSelect.value = '';
@@ -898,8 +1080,22 @@ export function initPrices(){
     node.innerHTML = `
       <h3>${isEdit ? 'Editar' : 'Nuevo'} ${type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto')}</h3>
       <p class="muted" style="margin-bottom:16px;font-size:13px;">
-        Vehículo: <strong>${selectedVehicle.make} ${selectedVehicle.line}</strong>
+        ${selectedVehicles.length === 1 ? 
+          `Vehículo: <strong>${selectedVehicle.make} ${selectedVehicle.line}</strong>` :
+          `Vehículos seleccionados: <strong>${selectedVehicles.length}</strong><br>
+          <span style="font-size:11px;color:var(--muted);">Se creará el precio para todos los vehículos seleccionados</span>`
+        }
       </p>
+      ${selectedVehicles.length > 1 ? `
+      <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;border:1px solid var(--border);max-height:150px;overflow-y:auto;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500;">Vehículos seleccionados:</div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          ${selectedVehicles.map(v => `
+            <div style="font-size:11px;color:var(--text);">• ${v.make} ${v.line} ${v.displacement}${v.modelYear ? ` (${v.modelYear})` : ''}</div>
+          `).join('')}
+        </div>
+      </div>
+      ` : ''}
       <div style="margin-bottom:16px;">
         <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre</label>
         <input id="pe-modal-name" placeholder="${type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire')}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" value="${existingPrice?.name || ''}" />
@@ -973,6 +1169,20 @@ export function initPrices(){
         <p class="muted" style="margin-top:4px;font-size:11px;">El precio se calcula automáticamente desde los productos, o puedes establecerlo manualmente.</p>
       </div>
       `}
+      <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;border:1px solid var(--border);">
+        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500;">Rango de años (opcional)</label>
+        <p class="muted" style="margin-bottom:8px;font-size:11px;">Solo aplicar este precio si el año del vehículo está en el rango especificado. Déjalo vacío para aplicar a todos los años.</p>
+        <div class="row" style="gap:8px;">
+          <div style="flex:1;">
+            <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Desde</label>
+            <input id="pe-modal-year-from" type="number" min="1900" max="2100" placeholder="Ej: 2018" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" value="${existingPrice?.yearFrom || ''}" />
+          </div>
+          <div style="flex:1;">
+            <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Hasta</label>
+            <input id="pe-modal-year-to" type="number" min="1900" max="2100" placeholder="Ej: 2022" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" value="${existingPrice?.yearTo || ''}" />
+          </div>
+        </div>
+      </div>
       <div id="pe-modal-msg" style="margin-bottom:16px;font-size:13px;"></div>
       <div class="row" style="gap:8px;">
         <button id="pe-modal-save" style="flex:1;padding:10px;">💾 ${isEdit ? 'Actualizar' : 'Guardar'}</button>
@@ -1777,37 +1987,39 @@ export function initPrices(){
       
       try {
         saveBtn.disabled = true;
-        saveBtn.textContent = isEdit ? 'Actualizando...' : 'Guardando...';
-        const payload = {
-          vehicleId: selectedVehicle._id,
+        saveBtn.textContent = isEdit ? 'Actualizando...' : (selectedVehicles.length > 1 ? `Guardando para ${selectedVehicles.length} vehículos...` : 'Guardando...');
+        
+        // Preparar datos comunes del payload
+        const yearFromInput = node.querySelector('#pe-modal-year-from');
+        const yearToInput = node.querySelector('#pe-modal-year-to');
+        const yearFrom = yearFromInput?.value?.trim() || null;
+        const yearTo = yearToInput?.value?.trim() || null;
+        
+        const basePayload = {
           name: name,
           type: type,
-          total: price
+          total: price,
+          yearFrom: yearFrom || null,
+          yearTo: yearTo || null
         };
         
         if (isProduct) {
           // Leer itemId del input hidden como fuente de verdad (más confiable que selectedItem)
-          // Acceder directamente desde el DOM para evitar problemas de scope
           const itemIdInputEl = node.querySelector('#pe-modal-item-id');
           const itemIdFromInput = itemIdInputEl?.value?.trim() || null;
           
-          // Debug: verificar valores
-          console.log('Guardando producto - itemIdFromInput:', itemIdFromInput, 'selectedItem:', selectedItem);
-          
           if (itemIdFromInput) {
-            payload.itemId = itemIdFromInput;
+            basePayload.itemId = itemIdFromInput;
           } else if (selectedItem && selectedItem._id) {
-            payload.itemId = selectedItem._id;
+            basePayload.itemId = selectedItem._id;
           } else {
-            payload.itemId = null;
+            basePayload.itemId = null;
           }
-          
-          console.log('Payload itemId final:', payload.itemId);
         }
         
         if (isCombo) {
           const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
-          payload.comboProducts = products.map(prod => {
+          basePayload.comboProducts = products.map(prod => {
             const isOpenSlot = prod.querySelector('.combo-product-open-slot')?.checked || false;
             return {
               name: prod.querySelector('.combo-product-name')?.value.trim() || '',
@@ -1819,14 +2031,37 @@ export function initPrices(){
           }).filter(p => p.name);
         }
         
-        if (isEdit) {
-          await API.priceUpdate(existingPrice._id, payload);
-        } else {
-          await API.priceCreate(payload);
+        // Si hay múltiples vehículos, crear un precio para cada uno
+        const vehiclesToProcess = isEdit ? [selectedVehicle] : selectedVehicles;
+        const promises = [];
+        
+        for (const vehicle of vehiclesToProcess) {
+          const payload = {
+            ...basePayload,
+            vehicleId: vehicle._id
+          };
+          
+          if (isEdit) {
+            promises.push(API.priceUpdate(existingPrice._id, payload));
+          } else {
+            promises.push(API.priceCreate(payload));
+          }
         }
+        
+        // Ejecutar todas las promesas en paralelo
+        await Promise.all(promises);
+        
         closeModal();
         currentPage = 1;
-        loadPrices();
+        if (selectedVehicles.length === 1) {
+          loadPrices();
+        } else {
+          // Si hay múltiples vehículos, mostrar mensaje de éxito
+          alert(`✓ Precio creado exitosamente para ${selectedVehicles.length} vehículos`);
+          // Limpiar selección múltiple después de crear
+          selectedVehicles = [];
+          updateSelectedVehiclesDisplay();
+        }
       } catch(e) {
         msgEl.textContent = 'Error: ' + (e?.message || 'Error desconocido');
         msgEl.style.color = 'var(--danger, #ef4444)';

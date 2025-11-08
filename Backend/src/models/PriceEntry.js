@@ -26,6 +26,10 @@ const PriceEntrySchema = new mongoose.Schema({
     isOpenSlot: { type: Boolean, default: false } // true = slot abierto que requiere QR al crear venta
   }],
 
+  // Rango de años opcional: solo aplicar precio si el año del vehículo está en este rango
+  yearFrom: { type: Number, min: 1900, max: 2100, default: null },
+  yearTo: { type: Number, min: 1900, max: 2100, default: null },
+
   // Legacy: mantener por compatibilidad (deprecated)
   brand:  { type: String, trim: true, uppercase: true, default: '' },
   line:   { type: String, trim: true, uppercase: true, default: '' },
