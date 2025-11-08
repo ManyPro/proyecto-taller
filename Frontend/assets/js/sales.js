@@ -4283,7 +4283,7 @@ export function initSales(){
 
     let ocrWorker = null;
     let lastOcrTime = 0;
-    const ocrInterval = 1500; // Procesar OCR cada 1.5 segundos (más frecuente)
+    const ocrInterval = 800; // Procesar OCR cada 0.8 segundos (más rápido)
     // plateDetectionHistory ya está declarada en openQRForNewSale
     
     // Inicializar worker de OCR
@@ -4324,8 +4324,8 @@ export function initSales(){
       const width = imageData.width;
       const height = imageData.height;
       
-      // Amplificar la imagen 2x para que el OCR detecte mejor texto grande
-      const scale = 2;
+      // Amplificar la imagen 1.5x (reducido de 2x para más velocidad)
+      const scale = 1.5;
       const scaledWidth = width * scale;
       const scaledHeight = height * scale;
       
@@ -4496,14 +4496,10 @@ export function initSales(){
               canvas.height = h;
               ctx.drawImage(video, 0, 0, w, h);
               
-              // Procesar múltiples regiones de la imagen para encontrar la placa
+              // Procesar solo la región central (más rápido, donde suele estar la placa)
               const regions = [
-                // Región central (donde suele estar la placa)
-                { x: Math.floor(w * 0.1), y: Math.floor(h * 0.2), w: Math.floor(w * 0.8), h: Math.floor(h * 0.5) },
-                // Región superior central
-                { x: Math.floor(w * 0.15), y: Math.floor(h * 0.1), w: Math.floor(w * 0.7), h: Math.floor(h * 0.4) },
-                // Región central completa
-                { x: Math.floor(w * 0.05), y: Math.floor(h * 0.25), w: Math.floor(w * 0.9), h: Math.floor(h * 0.5) },
+                // Región central (prioritaria - donde suele estar la placa)
+                { x: Math.floor(w * 0.15), y: Math.floor(h * 0.25), w: Math.floor(w * 0.7), h: Math.floor(h * 0.5) },
               ];
               
               for (const region of regions) {
@@ -4564,19 +4560,24 @@ export function initSales(){
                           confidence: avgConfidence
                         });
                         
-                        // Mantener solo las últimas 5 detecciones (últimos ~7.5 segundos)
+                        // Mantener solo las últimas 5 detecciones (últimos ~4 segundos)
                         plateDetectionHistory = plateDetectionHistory.filter(
-                          entry => Date.now() - entry.timestamp < 8000
+                          entry => Date.now() - entry.timestamp < 4000
                         );
                         
                         // Contar cuántas veces aparece esta placa en el historial
                         const plateCount = plateDetectionHistory.filter(e => e.plate === plate).length;
                         
-                        console.log(`Placa "${plate}" detectada ${plateCount} veces en el historial (requiere 3)`);
+                        // Si la confianza es muy alta (>70), aceptar con solo 1 detección
+                        // Si la confianza es alta (>50), aceptar con 2 detecciones
+                        // Si la confianza es moderada, requerir 3 detecciones
+                        const requiredDetections = avgConfidence > 70 ? 1 : (avgConfidence > 50 ? 2 : 2);
                         
-                        // Si aparece al menos 3 veces en el historial, procesarla
-                        if (plateCount >= 3) {
-                          console.log('✅ Placa validada por votación (3+ detecciones):', plate);
+                        console.log(`Placa "${plate}" detectada ${plateCount} veces (requiere ${requiredDetections}, confianza: ${avgConfidence.toFixed(1)})`);
+                        
+                        // Si cumple con el requisito de detecciones, procesarla
+                        if (plateCount >= requiredDetections) {
+                          console.log(`✅ Placa validada por votación (${plateCount} detecciones, confianza: ${avgConfidence.toFixed(1)}):`, plate);
                           plateDetectionHistory = []; // Limpiar historial
                           lastValidPlate = null;
                           plateConfidenceCount = 0;
@@ -4642,11 +4643,9 @@ export function initSales(){
               }
               
               if (ocrWorker) {
-                // Procesar múltiples regiones
+                // Procesar solo la región central (más rápido)
                 const regions = [
-                  { x: Math.floor(w * 0.1), y: Math.floor(h * 0.2), w: Math.floor(w * 0.8), h: Math.floor(h * 0.5) },
-                  { x: Math.floor(w * 0.15), y: Math.floor(h * 0.1), w: Math.floor(w * 0.7), h: Math.floor(h * 0.4) },
-                  { x: Math.floor(w * 0.05), y: Math.floor(h * 0.25), w: Math.floor(w * 0.9), h: Math.floor(h * 0.5) },
+                  { x: Math.floor(w * 0.15), y: Math.floor(h * 0.25), w: Math.floor(w * 0.7), h: Math.floor(h * 0.5) },
                 ];
                 
                 for (const region of regions) {
@@ -4707,19 +4706,24 @@ export function initSales(){
                               confidence: avgConfidence
                             });
                             
-                            // Mantener solo las últimas 5 detecciones (últimos ~7.5 segundos)
+                            // Mantener solo las últimas 5 detecciones (últimos ~4 segundos)
                             plateDetectionHistory = plateDetectionHistory.filter(
-                              entry => Date.now() - entry.timestamp < 8000
+                              entry => Date.now() - entry.timestamp < 4000
                             );
                             
                             // Contar cuántas veces aparece esta placa en el historial
                             const plateCount = plateDetectionHistory.filter(e => e.plate === plate).length;
                             
-                            console.log(`Placa "${plate}" detectada ${plateCount} veces en el historial (requiere 3)`);
+                            // Si la confianza es muy alta (>70), aceptar con solo 1 detección
+                            // Si la confianza es alta (>50), aceptar con 2 detecciones
+                            // Si la confianza es moderada, requerir 2 detecciones
+                            const requiredDetections = avgConfidence > 70 ? 1 : (avgConfidence > 50 ? 2 : 2);
                             
-                            // Si aparece al menos 3 veces en el historial, procesarla
-                            if (plateCount >= 3) {
-                              console.log('✅ Placa validada por votación (3+ detecciones):', plate);
+                            console.log(`Placa "${plate}" detectada ${plateCount} veces (requiere ${requiredDetections}, confianza: ${avgConfidence.toFixed(1)})`);
+                            
+                            // Si cumple con el requisito de detecciones, procesarla
+                            if (plateCount >= requiredDetections) {
+                              console.log(`✅ Placa validada por votación (${plateCount} detecciones, confianza: ${avgConfidence.toFixed(1)}):`, plate);
                               plateDetectionHistory = []; // Limpiar historial
                               lastValidPlate = null;
                               plateConfidenceCount = 0;
