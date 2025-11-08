@@ -965,17 +965,17 @@ export function initPrices(){
           let items = [];
           try {
             // Buscar primero por SKU exacto (case insensitive)
-            items = await API.itemsList({ sku: trimmedQuery.toUpperCase() });
+            items = await API.inventory.itemsList({ sku: trimmedQuery.toUpperCase() });
             // Si no encuentra por SKU exacto, buscar por SKU parcial
             if (items.length === 0) {
-              const allItems = await API.itemsList({});
+              const allItems = await API.inventory.itemsList({});
               items = allItems.filter(item => 
                 item.sku && item.sku.toUpperCase().includes(trimmedQuery.toUpperCase())
               );
             }
             // Si aún no encuentra, buscar por nombre
             if (items.length === 0) {
-              items = await API.itemsList({ name: trimmedQuery });
+              items = await API.inventory.itemsList({ name: trimmedQuery });
             }
           } catch (err) {
             console.error('Error al buscar items:', err);
@@ -1096,15 +1096,15 @@ export function initPrices(){
           // Buscar items
           try {
             let items = [];
-            items = await API.itemsList({ sku: query.toUpperCase() });
+            items = await API.inventory.itemsList({ sku: query.toUpperCase() });
             if (items.length === 0) {
-              const allItems = await API.itemsList({});
+              const allItems = await API.inventory.itemsList({});
               items = allItems.filter(item => 
                 item.sku && item.sku.toUpperCase().includes(query.toUpperCase())
               );
             }
             if (items.length === 0) {
-              items = await API.itemsList({ name: query });
+              items = await API.inventory.itemsList({ name: query });
             }
             
             if (items && items.length > 0) {
@@ -1164,7 +1164,7 @@ export function initPrices(){
             const itemId = parts.length >= 3 ? parts[2] : null;
             if (itemId) {
               try {
-                const allItems = await API.itemsList({});
+                const allItems = await API.inventory.itemsList({});
                 item = allItems.find(i => String(i._id) === itemId);
               } catch (err) {
                 console.error('Error al buscar por itemId:', err);
@@ -1175,7 +1175,7 @@ export function initPrices(){
           // Si no se encontró por itemId, buscar por SKU exacto
           if (!item) {
             try {
-              const items = await API.itemsList({ sku: normalizedCode });
+              const items = await API.inventory.itemsList({ sku: normalizedCode });
               if (items && items.length > 0) {
                 item = items[0];
               }
@@ -1187,7 +1187,7 @@ export function initPrices(){
           // Si aún no se encontró, buscar por SKU parcial (case insensitive)
           if (!item) {
             try {
-              const allItems = await API.itemsList({});
+              const allItems = await API.inventory.itemsList({});
               item = allItems.find(i => 
                 i.sku && i.sku.toUpperCase() === normalizedCode
               );
@@ -1201,7 +1201,7 @@ export function initPrices(){
             const objectIdMatch = normalizedCode.match(/^[A-F0-9]{24}$/);
             if (objectIdMatch) {
               try {
-                const allItems = await API.itemsList({});
+                const allItems = await API.inventory.itemsList({});
                 item = allItems.find(i => String(i._id).toUpperCase() === normalizedCode);
               } catch (err) {
                 console.error('Error al buscar por ObjectId:', err);
@@ -1341,17 +1341,17 @@ export function initPrices(){
             let items = [];
             try {
               // Buscar primero por SKU exacto (case insensitive)
-              items = await API.itemsList({ sku: trimmedQuery.toUpperCase() });
+              items = await API.inventory.itemsList({ sku: trimmedQuery.toUpperCase() });
               // Si no encuentra por SKU exacto, buscar por SKU parcial
               if (items.length === 0) {
-                const allItems = await API.itemsList({});
+                const allItems = await API.inventory.itemsList({});
                 items = allItems.filter(item => 
                   item.sku && item.sku.toUpperCase().includes(trimmedQuery.toUpperCase())
                 );
               }
               // Si aún no encuentra, buscar por nombre
               if (items.length === 0) {
-                items = await API.itemsList({ name: trimmedQuery });
+                items = await API.inventory.itemsList({ name: trimmedQuery });
               }
             } catch (err) {
               console.error('Error al buscar items:', err);
@@ -1477,15 +1477,15 @@ export function initPrices(){
             // Buscar items
             try {
               let items = [];
-              items = await API.itemsList({ sku: query.toUpperCase() });
+              items = await API.inventory.itemsList({ sku: query.toUpperCase() });
               if (items.length === 0) {
-                const allItems = await API.itemsList({});
+                const allItems = await API.inventory.itemsList({});
                 items = allItems.filter(item => 
                   item.sku && item.sku.toUpperCase().includes(query.toUpperCase())
                 );
               }
               if (items.length === 0) {
-                items = await API.itemsList({ name: query });
+                items = await API.inventory.itemsList({ name: query });
               }
               
               if (items && items.length > 0) {
@@ -1539,7 +1539,7 @@ export function initPrices(){
               const itemId = parts.length >= 3 ? parts[2] : null;
               if (itemId) {
                 try {
-                  const allItems = await API.itemsList({});
+                  const allItems = await API.inventory.itemsList({});
                   item = allItems.find(i => String(i._id) === itemId);
                 } catch (err) {
                   console.error('Error al buscar por itemId:', err);
@@ -1550,7 +1550,7 @@ export function initPrices(){
             // Si no se encontró por itemId, buscar por SKU exacto
             if (!item) {
               try {
-                const items = await API.itemsList({ sku: normalizedCode });
+                const items = await API.inventory.itemsList({ sku: normalizedCode });
                 if (items && items.length > 0) {
                   item = items[0];
                 }
@@ -1562,7 +1562,7 @@ export function initPrices(){
             // Si aún no se encontró, buscar por SKU parcial (case insensitive)
             if (!item) {
               try {
-                const allItems = await API.itemsList({});
+                const allItems = await API.inventory.itemsList({});
                 item = allItems.find(i => 
                   i.sku && i.sku.toUpperCase() === normalizedCode
                 );
@@ -1576,7 +1576,7 @@ export function initPrices(){
               const objectIdMatch = normalizedCode.match(/^[A-F0-9]{24}$/);
               if (objectIdMatch) {
                 try {
-                  const allItems = await API.itemsList({});
+                  const allItems = await API.inventory.itemsList({});
                   item = allItems.find(i => String(i._id).toUpperCase() === normalizedCode);
                 } catch (err) {
                   console.error('Error al buscar por ObjectId:', err);
