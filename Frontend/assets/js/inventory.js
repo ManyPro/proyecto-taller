@@ -1067,11 +1067,11 @@ if (__ON_INV_PAGE__) {
           </label>
           <div class="inv-item-info">
             <div class="inv-item-name">${it.name || ""}</div>
-            <div class="inv-item-meta muted">
+            <div class="inv-item-meta" style="color:var(--text);opacity:0.85;font-size:12px;">
               <span><strong style="font-weight:700;font-size:13px;">SKU:</strong> <strong style="font-weight:700;font-size:13px;">${it.sku || ""}</strong></span>
-              <span>${internalLabel}</span>
-              <span>${brandLabel}</span>
-              <span>${locationLabel}</span>
+              <span> • ${internalLabel}</span>
+              <span> • ${brandLabel}</span>
+              <span> • ${locationLabel}</span>
             </div>
           </div>
         </div>
