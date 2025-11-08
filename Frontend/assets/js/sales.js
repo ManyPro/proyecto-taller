@@ -3791,6 +3791,12 @@ export function initSales(){
     const msg = nodeOCR.querySelector('#qr-msg');
     const manualInput = nodeOCR.querySelector('#qr-manual');
     const manualBtn = nodeOCR.querySelector('#qr-add-manual');
+    const captureBtn = nodeOCR.querySelector('#qr-capture-plate');
+    const confirmPanel = nodeOCR.querySelector('#qr-plate-confirm');
+    const detectedPlateEl = nodeOCR.querySelector('#qr-detected-plate');
+    const plateConfidenceEl = nodeOCR.querySelector('#qr-plate-confidence');
+    const confirmPlateBtn = nodeOCR.querySelector('#qr-confirm-plate');
+    const cancelPlateBtn = nodeOCR.querySelector('#qr-cancel-plate');
     
     // Ocultar controles de modo múltiple
     const singleModeBtn = nodeOCR.querySelector('#qr-single-mode');
@@ -3799,6 +3805,9 @@ export function initSales(){
     if (singleModeBtn) singleModeBtn.style.display = 'none';
     if (multiModeBtn) multiModeBtn.style.display = 'none';
     if (finishMultiBtn) finishMultiBtn.style.display = 'none';
+    
+    // Variable para almacenar la placa detectada pendiente de confirmación
+    let pendingPlateDetection = null;
     
     if (msg) {
       msg.textContent = 'Escanea la placa del vehículo (formato: ABC123 o ABC-123)';
@@ -3810,6 +3819,7 @@ export function initSales(){
     let lastValidPlate = null;
     let plateConfidenceCount = 0;
     let plateDetectionHistory = [];
+    let manualCaptureMode = false; // Modo de captura manual activo
     
     function stop(){ 
       try{ 
@@ -3836,13 +3846,19 @@ export function initSales(){
         }
       }
       
-      // Limpiar historial de detecciones
+        // Limpiar historial de detecciones
       plateDetectionHistory = [];
       lastValidPlate = null;
       plateConfidenceCount = 0;
       lastProcessedPlate = null;
       lastProcessedPlateTime = 0;
       apiRequestInProgress = false;
+      pendingPlateDetection = null;
+      
+      // Ocultar botón de captura y panel de confirmación
+      if (captureBtn) captureBtn.style.display = 'none';
+      if (confirmPanel) confirmPanel.style.display = 'none';
+      manualCaptureMode = false;
       
       // Restaurar botón de iniciar
       const startBtn = nodeOCR.querySelector('#qr-start');
@@ -4004,6 +4020,18 @@ export function initSales(){
         
         running = true;
         
+        // Mostrar botón de captura manual cuando la cámara esté activa
+        if (captureBtn) {
+          captureBtn.style.display = 'block';
+        }
+        
+        // Ocultar panel de confirmación si estaba visible
+        if (confirmPanel) {
+          confirmPanel.style.display = 'none';
+        }
+        pendingPlateDetection = null;
+        manualCaptureMode = false;
+        
         // Después de obtener permisos, actualizar lista de cámaras con labels completos
         if (!isMobile) {
           try {
@@ -4051,7 +4079,7 @@ export function initSales(){
         
         // Actualizar mensaje y botón
         if (msg) {
-          msg.textContent = 'Escanea la placa del vehículo (formato: ABC123 o ABC-123)';
+          msg.textContent = 'Apunta la cámara a la placa y presiona "Capturar Placa" cuando esté bien enmarcada';
           msg.style.color = 'var(--text)';
         }
         
@@ -4075,6 +4103,237 @@ export function initSales(){
             }
             if (msg) {
               msg.textContent = 'Cámara detenida. Haz clic en "Iniciar cámara" para continuar';
+              msg.style.color = 'var(--text)';
+            }
+          };
+        }
+        
+        // Event listener para botón de captura manual
+        if (captureBtn) {
+          captureBtn.onclick = async () => {
+            if (!running || !video || video.readyState < 2) {
+              if (msg) {
+                msg.textContent = '❌ La cámara no está lista. Espera un momento.';
+                msg.style.color = 'var(--danger, #ef4444)';
+              }
+              return;
+            }
+            
+            try {
+              // Activar modo captura manual para deshabilitar detección automática
+              manualCaptureMode = true;
+              
+              // Deshabilitar botón temporalmente
+              captureBtn.disabled = true;
+              captureBtn.textContent = '⏳ Procesando...';
+              
+              if (msg) {
+                msg.textContent = '📸 Capturando imagen de alta calidad...';
+                msg.style.color = 'var(--accent, #2563eb)';
+              }
+              
+              // Capturar frame completo de alta calidad
+              const w = video.videoWidth || 0;
+              const h = video.videoHeight || 0;
+              if (!w || !h) {
+                throw new Error('Dimensiones de video inválidas');
+              }
+              
+              // Crear canvas de alta calidad para captura
+              const captureCanvas = document.createElement('canvas');
+              captureCanvas.width = w;
+              captureCanvas.height = h;
+              const captureCtx = captureCanvas.getContext('2d', { willReadFrequently: false });
+              
+              // Dibujar frame completo
+              captureCtx.drawImage(video, 0, 0, w, h);
+              
+              // Procesar región central (donde suele estar la placa)
+              const region = {
+                x: Math.floor(w * 0.15),  // Más amplio para capturar mejor
+                y: Math.floor(h * 0.25),
+                w: Math.floor(w * 0.7),
+                h: Math.floor(h * 0.5)
+              };
+              
+              const regionCanvas = document.createElement('canvas');
+              regionCanvas.width = region.w;
+              regionCanvas.height = region.h;
+              const regionCtx = regionCanvas.getContext('2d');
+              regionCtx.drawImage(captureCanvas, region.x, region.y, region.w, region.h, 0, 0, region.w, region.h);
+              
+              // Intentar reconocer con API usando alta calidad
+              if (USE_PLATE_RECOGNIZER && PLATE_RECOGNIZER_API_KEY) {
+                const result = await recognizePlateWithAPI(regionCanvas, true); // highQuality = true
+                
+                if (result && result.plate && isValidPlate(result.plate)) {
+                  // Mostrar panel de confirmación
+                  pendingPlateDetection = result;
+                  
+                  if (detectedPlateEl) {
+                    const displayPlate = result.plate.length === 6 
+                      ? `${result.plate.substring(0,3)}-${result.plate.substring(3)}` 
+                      : result.plate;
+                    detectedPlateEl.textContent = displayPlate;
+                  }
+                  
+                  if (plateConfidenceEl) {
+                    const confidenceColor = result.confidence > 85 ? 'var(--accent)' : result.confidence > 70 ? '#f59e0b' : '#ef4444';
+                    plateConfidenceEl.innerHTML = `Confianza: <span style="color:${confidenceColor};font-weight:600;">${result.confidence.toFixed(1)}%</span>`;
+                  }
+                  
+                  if (confirmPanel) {
+                    confirmPanel.style.display = 'block';
+                  }
+                  
+                  // Ocultar botón de captura temporalmente
+                  if (captureBtn) captureBtn.style.display = 'none';
+                  
+                  if (msg) {
+                    msg.textContent = 'Revisa la placa detectada y confirma si es correcta';
+                    msg.style.color = 'var(--accent, #2563eb)';
+                  }
+                } else {
+                  // No se detectó placa válida
+                  if (msg) {
+                    msg.textContent = '❌ No se detectó una placa válida. Asegúrate de que la placa esté bien visible y enmarcada.';
+                    msg.style.color = 'var(--danger, #ef4444)';
+                  }
+                  
+                  // Mostrar mensaje temporal
+                  setTimeout(() => {
+                    if (msg) {
+                      msg.textContent = 'Apunta la cámara a la placa y presiona "Capturar Placa" cuando esté bien enmarcada';
+                      msg.style.color = 'var(--text)';
+                    }
+                  }, 3000);
+                }
+              } else {
+                // Fallback a OCR si no hay API
+                if (msg) {
+                  msg.textContent = '⚠️ Plate Recognizer API no configurada. Usando OCR...';
+                  msg.style.color = 'var(--warning, #f59e0b)';
+                }
+                
+                // Intentar con OCR
+                if (!ocrWorker) {
+                  await initOCR();
+                }
+                
+                if (ocrWorker) {
+                  const imageData = regionCtx.getImageData(0, 0, region.w, region.h);
+                  const enhancedCanvas = enhanceImageForOCR(regionCanvas, regionCtx, imageData);
+                  
+                  try {
+                    const ocrResult = await ocrWorker.recognize(enhancedCanvas);
+                    const text = ocrResult.data.text;
+                    const plate = extractPlateFromText(text);
+                    
+                    if (plate && isValidPlate(plate)) {
+                      const words = ocrResult.data.words || [];
+                      const confidences = words.map(w => w.confidence || 0).filter(c => c > 0);
+                      const avgConfidence = confidences.length > 0 
+                        ? confidences.reduce((a, b) => a + b, 0) / confidences.length 
+                        : 0;
+                      
+                      pendingPlateDetection = { plate, confidence: avgConfidence };
+                      
+                      if (detectedPlateEl) {
+                        const displayPlate = plate.length === 6 
+                          ? `${plate.substring(0,3)}-${plate.substring(3)}` 
+                          : plate;
+                        detectedPlateEl.textContent = displayPlate;
+                      }
+                      
+                      if (plateConfidenceEl) {
+                        const confidenceColor = avgConfidence > 70 ? 'var(--accent)' : avgConfidence > 55 ? '#f59e0b' : '#ef4444';
+                        plateConfidenceEl.innerHTML = `Confianza OCR: <span style="color:${confidenceColor};font-weight:600;">${avgConfidence.toFixed(1)}%</span>`;
+                      }
+                      
+                      if (confirmPanel) {
+                        confirmPanel.style.display = 'block';
+                      }
+                      
+                      if (captureBtn) captureBtn.style.display = 'none';
+                      
+                      if (msg) {
+                        msg.textContent = 'Revisa la placa detectada y confirma si es correcta';
+                        msg.style.color = 'var(--accent, #2563eb)';
+                      }
+                    } else {
+                      if (msg) {
+                        msg.textContent = '❌ No se detectó una placa válida. Intenta de nuevo.';
+                        msg.style.color = 'var(--danger, #ef4444)';
+                      }
+                      setTimeout(() => {
+                        if (msg) {
+                          msg.textContent = 'Apunta la cámara a la placa y presiona "Capturar Placa" cuando esté bien enmarcada';
+                          msg.style.color = 'var(--text)';
+                        }
+                      }, 3000);
+                    }
+                  } catch (ocrErr) {
+                    console.error('Error en OCR:', ocrErr);
+                    if (msg) {
+                      msg.textContent = '❌ Error al procesar imagen. Intenta de nuevo.';
+                      msg.style.color = 'var(--danger, #ef4444)';
+                    }
+                  }
+                } else {
+                  if (msg) {
+                    msg.textContent = '❌ OCR no disponible. Configura Plate Recognizer API para mejor precisión.';
+                    msg.style.color = 'var(--danger, #ef4444)';
+                  }
+                }
+              }
+              
+              // Restaurar botón solo si no hay placa pendiente de confirmación
+              if (!pendingPlateDetection) {
+                captureBtn.disabled = false;
+                captureBtn.textContent = '📸 Capturar Placa';
+                manualCaptureMode = false;
+              }
+              
+            } catch (err) {
+              console.error('Error al capturar placa:', err);
+              if (msg) {
+                msg.textContent = '❌ Error: ' + (err?.message || 'No se pudo capturar la imagen');
+                msg.style.color = 'var(--danger, #ef4444)';
+              }
+              if (captureBtn) {
+                captureBtn.disabled = false;
+                captureBtn.textContent = '📸 Capturar Placa';
+              }
+              manualCaptureMode = false;
+            }
+          };
+        }
+        
+        // Event listeners para confirmar/cancelar placa
+        if (confirmPlateBtn) {
+          confirmPlateBtn.onclick = () => {
+            if (pendingPlateDetection && pendingPlateDetection.plate) {
+              // Procesar la placa confirmada
+              handlePlate(pendingPlateDetection.plate);
+              // Ocultar panel y limpiar
+              if (confirmPanel) confirmPanel.style.display = 'none';
+              pendingPlateDetection = null;
+            }
+          };
+        }
+        
+        if (cancelPlateBtn) {
+          cancelPlateBtn.onclick = () => {
+            // Cancelar y volver a mostrar botón de captura
+            if (confirmPanel) confirmPanel.style.display = 'none';
+            if (captureBtn) {
+              captureBtn.style.display = 'block';
+              captureBtn.disabled = false;
+            }
+            pendingPlateDetection = null;
+            manualCaptureMode = false;
+            if (msg) {
+              msg.textContent = 'Apunta la cámara a la placa y presiona "Capturar Placa" cuando esté bien enmarcada';
               msg.style.color = 'var(--text)';
             }
           };
@@ -4320,7 +4579,7 @@ export function initSales(){
     const PLATE_RECOGNIZER_API_KEY = (typeof window !== 'undefined' && window.PLATE_RECOGNIZER_API_KEY) || '';
     const USE_PLATE_RECOGNIZER = (typeof window !== 'undefined' && window.USE_PLATE_RECOGNIZER) || false;
     
-    async function recognizePlateWithAPI(canvas) {
+    async function recognizePlateWithAPI(canvas, highQuality = false) {
       if (!USE_PLATE_RECOGNIZER || !PLATE_RECOGNIZER_API_KEY || PLATE_RECOGNIZER_API_KEY === 'YOUR_API_KEY_HERE') {
         return null;
       }
@@ -4333,9 +4592,10 @@ export function initSales(){
       apiRequestInProgress = true;
       
       try {
-        // Convertir canvas a blob optimizado (JPEG con calidad media para velocidad)
+        // Usar calidad alta (0.95) para captura manual, calidad media (0.7) para detección automática
+        const quality = highQuality ? 0.95 : 0.7;
         const blob = await new Promise(resolve => {
-          canvas.toBlob(resolve, 'image/jpeg', 0.7);
+          canvas.toBlob(resolve, 'image/jpeg', quality);
         });
         
         const formData = new FormData();
@@ -4365,12 +4625,14 @@ export function initSales(){
           const plate = data.results[0].plate?.toUpperCase().replace(/[^A-Z0-9]/g, '');
           const confidence = data.results[0].score || 0;
           
-          // Aceptar con confianza más baja (0.6) para ser más permisivo
-          if (plate && plate.length >= 5 && confidence > 0.6) {
+          // Para captura manual, aceptar con confianza más baja (0.5) ya que el usuario confirmará
+          // Para detección automática, mantener 0.6
+          const minConfidence = highQuality ? 0.5 : 0.6;
+          if (plate && plate.length >= 5 && confidence > minConfidence) {
             // Validar formato de placa colombiana
             const normalized = plate.replace(/[^A-Z0-9]/g, '');
             if (/^[A-Z]{3}[0-9]{3}$/.test(normalized)) {
-              console.log(`✅ Placa detectada por API: ${normalized} (confianza: ${(confidence * 100).toFixed(1)}%)`);
+              console.log(`✅ Placa detectada por API: ${normalized} (confianza: ${(confidence * 100).toFixed(1)}%, calidad: ${highQuality ? 'alta' : 'media'})`);
               return { plate: normalized, confidence: confidence * 100 };
             }
           }
@@ -4616,6 +4878,12 @@ export function initSales(){
       
       const now = Date.now();
       
+      // Si está en modo captura manual, no hacer detección automática
+      if (manualCaptureMode || pendingPlateDetection) {
+        requestAnimationFrame(tickNative);
+        return;
+      }
+      
       // PRIORIDAD 1: Intentar con Plate Recognizer API (más rápido y preciso)
       if (USE_PLATE_RECOGNIZER && PLATE_RECOGNIZER_API_KEY && now - lastApiTime >= apiInterval && video.readyState >= 2) {
         lastApiTime = now;
@@ -4826,6 +5094,12 @@ export function initSales(){
         }
         
         const now = Date.now();
+        
+        // Si está en modo captura manual, no hacer detección automática
+        if (manualCaptureMode || pendingPlateDetection) {
+          requestAnimationFrame(tickCanvas);
+          return;
+        }
         
         // PRIORIDAD 1: Plate Recognizer API
         if (USE_PLATE_RECOGNIZER && PLATE_RECOGNIZER_API_KEY && now - lastApiTime >= apiInterval && video.readyState >= 2) {

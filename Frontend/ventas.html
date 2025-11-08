@@ -483,10 +483,27 @@
               <button id="qr-finish-multi" class="secondary" style="white-space:nowrap;display:none;">✓ Terminar de agregar</button>
             </div>
           </div>
-          <div class="qrwrap">
+          <div class="qrwrap" style="position:relative;">
             <video id="qr-video" playsinline muted></video>
             <canvas id="qr-canvas" style="display:none;"></canvas>
             <div class="qr-hud"></div>
+            <!-- Botón de captura manual para placas -->
+            <button id="qr-capture-plate" style="position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:#2563eb;color:white;border:none;padding:12px 24px;border-radius:12px;font-weight:600;font-size:16px;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.3);display:none;z-index:10;transition:all 0.2s;" title="Capturar placa cuando esté bien enmarcada">📸 Capturar Placa</button>
+          </div>
+          <!-- Panel de confirmación de placa -->
+          <div id="qr-plate-confirm" style="display:none;margin-top:12px;padding:16px;background:var(--card-alt);border-radius:12px;border:2px solid var(--accent);">
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+              <div style="font-size:24px;">🔍</div>
+              <div style="flex:1;">
+                <div style="font-weight:600;margin-bottom:4px;">Placa detectada:</div>
+                <div id="qr-detected-plate" style="font-size:20px;font-weight:bold;color:var(--accent);letter-spacing:2px;"></div>
+                <div id="qr-plate-confidence" style="font-size:12px;color:var(--muted);margin-top:4px;"></div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button id="qr-confirm-plate" style="flex:1;padding:10px;background:var(--accent);color:white;border:none;border-radius:8px;font-weight:600;cursor:pointer;">✓ Confirmar</button>
+              <button id="qr-cancel-plate" style="flex:1;padding:10px;background:var(--border);color:var(--text);border:none;border-radius:8px;font-weight:600;cursor:pointer;">✗ Cancelar</button>
+            </div>
           </div>
           <div class="row" style="gap:8px;margin-top:8px;">
             <input id="qr-manual" placeholder="Ingresar código manualmente (fallback)">
