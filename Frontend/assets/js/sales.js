@@ -4280,7 +4280,9 @@ export function initSales(){
 
     let ocrWorker = null;
     let lastOcrTime = 0;
-    const ocrInterval = 2000; // Procesar OCR cada 2 segundos (más lento para reducir carga)
+    let lastApiTime = 0;
+    const ocrInterval = 500; // Procesar OCR cada 500ms (más rápido)
+    const apiInterval = 800; // Plate Recognizer API cada 800ms (evitar rate limits)
     // plateDetectionHistory ya está declarada en openQRForNewSale
     
     // Usar Plate Recognizer API (más confiable que OCR genérico)
@@ -4289,14 +4291,19 @@ export function initSales(){
     const PLATE_RECOGNIZER_API_KEY = (typeof window !== 'undefined' && window.PLATE_RECOGNIZER_API_KEY) || '';
     const USE_PLATE_RECOGNIZER = (typeof window !== 'undefined' && window.USE_PLATE_RECOGNIZER) || false;
     
-    async function recognizePlateWithAPI(imageBlob) {
+    async function recognizePlateWithAPI(canvas) {
       if (!USE_PLATE_RECOGNIZER || !PLATE_RECOGNIZER_API_KEY || PLATE_RECOGNIZER_API_KEY === 'YOUR_API_KEY_HERE') {
         return null;
       }
       
       try {
+        // Convertir canvas a blob optimizado (JPEG con calidad media para velocidad)
+        const blob = await new Promise(resolve => {
+          canvas.toBlob(resolve, 'image/jpeg', 0.7);
+        });
+        
         const formData = new FormData();
-        formData.append('upload', imageBlob, 'plate.jpg');
+        formData.append('upload', blob, 'plate.jpg');
         formData.append('regions', 'co'); // Colombia
         
         const response = await fetch('https://api.platerecognizer.com/v1/plate-reader/', {
@@ -4308,7 +4315,9 @@ export function initSales(){
         });
         
         if (!response.ok) {
-          console.warn('Plate Recognizer API error:', response.status);
+          if (response.status === 429) {
+            console.warn('Plate Recognizer API: Rate limit alcanzado');
+          }
           return null;
         }
         
@@ -4316,9 +4325,14 @@ export function initSales(){
         if (data.results && data.results.length > 0) {
           const plate = data.results[0].plate?.toUpperCase().replace(/[^A-Z0-9]/g, '');
           const confidence = data.results[0].score || 0;
-          if (plate && plate.length >= 5 && confidence > 0.7) {
-            console.log(`✅ Placa detectada por Plate Recognizer API: ${plate} (confianza: ${(confidence * 100).toFixed(1)}%)`);
-            return { plate, confidence: confidence * 100 };
+          // Aceptar con confianza más baja (0.6) para ser más permisivo
+          if (plate && plate.length >= 5 && confidence > 0.6) {
+            // Validar formato de placa colombiana
+            const normalized = plate.replace(/[^A-Z0-9]/g, '');
+            if (/^[A-Z]{3}[0-9]{3}$/.test(normalized)) {
+              console.log(`✅ Placa detectada por Plate Recognizer API: ${normalized} (confianza: ${(confidence * 100).toFixed(1)}%)`);
+              return { plate: normalized, confidence: confidence * 100 };
+            }
           }
         }
       } catch (err) {
@@ -4327,7 +4341,7 @@ export function initSales(){
       return null;
     }
     
-    // Inicializar worker de OCR
+    // Inicializar worker de OCR optimizado para velocidad
     async function initOCR() {
       if (typeof Tesseract === 'undefined') {
         console.warn('Tesseract.js no está disponible');
@@ -4335,27 +4349,24 @@ export function initSales(){
       }
       try {
         if (!ocrWorker) {
-          console.log('Inicializando OCR worker...');
-          ocrWorker = await Tesseract.createWorker('spa+eng', 1, {
-            logger: m => {
-              if (m.status === 'recognizing text') {
-                // Silenciar logs de reconocimiento
-              }
-            }
+          console.log('Inicializando OCR worker optimizado...');
+          // Usar solo inglés para mejor velocidad (las placas son alfanuméricas)
+          ocrWorker = await Tesseract.createWorker('eng', 1, {
+            logger: () => {} // Silenciar todos los logs para mejor rendimiento
           });
           await ocrWorker.setParameters({
-            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ',
-            tessedit_pageseg_mode: '8', // Single word (mejor para placas)
-            tessedit_ocr_engine_mode: '1', // LSTM engine (más preciso)
-            // Mejorar reconocimiento de caracteres similares (I vs T)
-            classify_bln_numeric_mode: '0', // No tratar como numérico
-            textord_min_linesize: '2.5', // Tamaño mínimo de línea
-            // Mejorar distinción entre I y T (deshabilitar diccionarios para reconocimiento puro)
-            load_system_dawg: '0', // No cargar diccionario del sistema
-            load_freq_dawg: '0', // No cargar diccionario de frecuencia
-            load_unambig_dawg: '0', // No cargar diccionario no ambiguo
+            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+            tessedit_pageseg_mode: '8', // Single word (más rápido para placas)
+            tessedit_ocr_engine_mode: '1', // LSTM engine
+            // Optimizaciones para velocidad
+            classify_bln_numeric_mode: '0',
+            load_system_dawg: '0',
+            load_freq_dawg: '0',
+            load_unambig_dawg: '0',
+            load_punc_dawg: '0',
+            load_number_dawg: '0',
           });
-          console.log('OCR worker inicializado');
+          console.log('OCR worker inicializado (optimizado para velocidad)');
         }
         return ocrWorker;
       } catch (err) {
@@ -4364,90 +4375,43 @@ export function initSales(){
       }
     }
     
-    // Función para mejorar el contraste y claridad de la imagen antes del OCR
-    // Optimizada para mejor reconocimiento de placas
+    // Función optimizada para mejorar imagen antes del OCR (más rápida)
     function enhanceImageForOCR(canvas, ctx, imageData) {
       const width = imageData.width;
       const height = imageData.height;
       
-      // Amplificar la imagen 2x para mejor reconocimiento (priorizar precisión sobre velocidad)
-      const scale = 2.0;
-      const scaledWidth = width * scale;
-      const scaledHeight = height * scale;
+      // Escalar solo 1.5x para mejor balance velocidad/precisión (antes era 2x)
+      const scale = 1.5;
+      const scaledWidth = Math.floor(width * scale);
+      const scaledHeight = Math.floor(height * scale);
       
-      // Crear un canvas temporal más grande
       const tempCanvas = document.createElement('canvas');
       tempCanvas.width = scaledWidth;
       tempCanvas.height = scaledHeight;
       const tempCtx = tempCanvas.getContext('2d');
-      
-      // Aplicar filtros de suavizado antes de escalar (reduce ruido)
       tempCtx.imageSmoothingEnabled = true;
-      tempCtx.imageSmoothingQuality = 'high';
+      tempCtx.imageSmoothingQuality = 'medium'; // 'medium' en lugar de 'high' para velocidad
       
-      // Dibujar la imagen amplificada
       tempCtx.drawImage(canvas, 0, 0, scaledWidth, scaledHeight);
       
-      // Obtener los datos de la imagen amplificada
       const scaledImageData = tempCtx.getImageData(0, 0, scaledWidth, scaledHeight);
       const scaledData = scaledImageData.data;
       
-      // Calcular histograma para ajuste adaptativo
-      const histogram = new Array(256).fill(0);
-      for (let i = 0; i < scaledData.length; i += 4) {
-        const gray = Math.round(0.299 * scaledData[i] + 0.587 * scaledData[i + 1] + 0.114 * scaledData[i + 2]);
-        histogram[gray]++;
-      }
-      
-      // Encontrar umbral adaptativo (Otsu-like)
-      let total = scaledData.length / 4;
-      let sum = 0;
-      for (let i = 0; i < 256; i++) sum += i * histogram[i];
-      let sumB = 0;
-      let wB = 0;
-      let wF = 0;
-      let maxVariance = 0;
-      let threshold = 128;
-      for (let i = 0; i < 256; i++) {
-        wB += histogram[i];
-        if (wB === 0) continue;
-        wF = total - wB;
-        if (wF === 0) break;
-        sumB += i * histogram[i];
-        let mB = sumB / wB;
-        let mF = (sum - sumB) / wF;
-        let variance = wB * wF * (mB - mF) * (mB - mF);
-        if (variance > maxVariance) {
-          maxVariance = variance;
-          threshold = i;
-        }
-      }
-      
-      // Aplicar binarización adaptativa con mejor contraste
+      // Binarización rápida con umbral fijo (más rápido que adaptativo)
+      const threshold = 128;
       for (let i = 0; i < scaledData.length; i += 4) {
         const r = scaledData[i];
         const g = scaledData[i + 1];
         const b = scaledData[i + 2];
-        
-        // Convertir a escala de grises
-        let gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
-        
-        // Mejorar contraste de forma más agresiva
-        gray = gray < threshold 
-          ? Math.max(0, gray - 60)  // Oscurecer texto más
-          : Math.min(255, gray + 60); // Aclarar fondo más
-        
-        // Binarización con umbral adaptativo
+        const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
         const final = gray > threshold ? 255 : 0;
-        
-        scaledData[i] = final;     // R
-        scaledData[i + 1] = final; // G
-        scaledData[i + 2] = final; // B
-        // scaledData[i + 3] permanece igual (alpha)
+        scaledData[i] = final;
+        scaledData[i + 1] = final;
+        scaledData[i + 2] = final;
       }
       
       tempCtx.putImageData(scaledImageData, 0, 0);
-      return tempCanvas; // Retornar el canvas mejorado
+      return tempCanvas;
     }
     
     // Función para corregir errores comunes de OCR (solo fragmentos, NO corrección T->I)
@@ -4605,8 +4569,63 @@ export function initSales(){
         // Ignorar errores de QR
       }
       
-      // Luego intentar con OCR para leer texto de placas
       const now = Date.now();
+      
+      // PRIORIDAD 1: Intentar con Plate Recognizer API (más rápido y preciso)
+      if (USE_PLATE_RECOGNIZER && now - lastApiTime >= apiInterval && video.readyState >= 2) {
+        lastApiTime = now;
+        try {
+          const w = video.videoWidth|0, h = video.videoHeight|0;
+          if (w && h) {
+            canvas.width = w;
+            canvas.height = h;
+            ctx.drawImage(video, 0, 0, w, h);
+            
+            // Procesar región central (donde suele estar la placa)
+            const region = {
+              x: Math.floor(w * 0.2),
+              y: Math.floor(h * 0.3),
+              w: Math.floor(w * 0.6),
+              h: Math.floor(h * 0.4)
+            };
+            
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = region.w;
+            tempCanvas.height = region.h;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(canvas, region.x, region.y, region.w, region.h, 0, 0, region.w, region.h);
+            
+            const result = await recognizePlateWithAPI(tempCanvas);
+            if (result && result.plate && isValidPlate(result.plate)) {
+              // Con Plate Recognizer API, aceptar inmediatamente si confianza > 70
+              // O con 2 detecciones si confianza > 60
+              plateDetectionHistory.push({
+                plate: result.plate,
+                timestamp: now,
+                confidence: result.confidence
+              });
+              
+              plateDetectionHistory = plateDetectionHistory.filter(
+                entry => now - entry.timestamp < 3000
+              );
+              
+              const plateCount = plateDetectionHistory.filter(e => e.plate === result.plate).length;
+              const requiredDetections = result.confidence > 70 ? 1 : 2;
+              
+              if (plateCount >= requiredDetections) {
+                console.log(`✅ Placa detectada por API (${plateCount} detecciones, confianza: ${result.confidence.toFixed(1)}):`, result.plate);
+                plateDetectionHistory = [];
+                onCode(result.plate);
+                return;
+              }
+            }
+          }
+        } catch (apiErr) {
+          console.warn('Error en Plate Recognizer API:', apiErr);
+        }
+      }
+      
+      // PRIORIDAD 2: Fallback a OCR Tesseract (más lento pero funciona sin API)
       if (now - lastOcrTime >= ocrInterval) {
         lastOcrTime = now;
         try {
@@ -4621,110 +4640,83 @@ export function initSales(){
               canvas.height = h;
               ctx.drawImage(video, 0, 0, w, h);
               
-              // Procesar región central más enfocada (donde suele estar la placa)
-              // Región más pequeña y centrada para mejor precisión
-              const regions = [
-                // Región central enfocada (más pequeña para mejor precisión)
-                { x: Math.floor(w * 0.2), y: Math.floor(h * 0.3), w: Math.floor(w * 0.6), h: Math.floor(h * 0.4) },
-              ];
+              const region = {
+                x: Math.floor(w * 0.2),
+                y: Math.floor(h * 0.3),
+                w: Math.floor(w * 0.6),
+                h: Math.floor(h * 0.4)
+              };
               
-              for (const region of regions) {
-                const imageData = ctx.getImageData(region.x, region.y, region.w, region.h);
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = region.w;
-                tempCanvas.height = region.h;
-                const tempCtx = tempCanvas.getContext('2d');
-                tempCtx.putImageData(imageData, 0, 0);
+              const imageData = ctx.getImageData(region.x, region.y, region.w, region.h);
+              const tempCanvas = document.createElement('canvas');
+              tempCanvas.width = region.w;
+              tempCanvas.height = region.h;
+              const tempCtx = tempCanvas.getContext('2d');
+              tempCtx.putImageData(imageData, 0, 0);
+              
+              const enhancedCanvas = enhanceImageForOCR(tempCanvas, tempCtx, imageData);
+              
+              try {
+                const { data: { text, words } } = await ocrWorker.recognize(enhancedCanvas);
                 
-                // Mejorar la imagen antes del OCR
-                const enhancedCanvas = enhanceImageForOCR(tempCanvas, tempCtx, imageData);
-                
-                try {
-                  // Usar reconocimiento con nivel de confianza
-                  const { data: { text, words } } = await ocrWorker.recognize(enhancedCanvas);
+                if (text && text.trim()) {
+                  let processedText = text;
+                  let avgConfidence = 0;
                   
-                  if (text && text.trim()) {
-                    console.log('Texto detectado por OCR en región:', text);
+                  if (words && words.length > 0) {
+                    const confidences = words.map(w => w.confidence || 0).filter(c => c > 0);
+                    avgConfidence = confidences.length > 0 
+                      ? confidences.reduce((a, b) => a + b, 0) / confidences.length 
+                      : 0;
                     
-                    // Procesar texto detectado
-                    let processedText = text;
-                    let avgConfidence = 0;
-                    
-                    // Si hay información de confianza, usarla para filtrar pero ser más flexible
-                    if (words && words.length > 0) {
-                      // Calcular confianza promedio
-                      const confidences = words.map(w => w.confidence || 0).filter(c => c > 0);
-                      avgConfidence = confidences.length > 0 
-                        ? confidences.reduce((a, b) => a + b, 0) / confidences.length 
-                        : 0;
-                      
-                      // Si la confianza promedio es muy baja (< 50), rechazar (más estricto)
-                      if (avgConfidence > 0 && avgConfidence < 50) {
-                        console.log('Rechazado: confianza promedio muy baja:', avgConfidence.toFixed(1));
-                        continue;
-                      }
-                      
-                      // Solo usar palabras con confianza alta (> 60) para mejor precisión
-                      const highConfWords = words.filter(w => (w.confidence || 0) > 60);
-                      if (highConfWords.length > 0) {
-                        processedText = highConfWords.map(w => w.text).join(' ').trim();
-                        console.log('Texto con alta confianza (>60):', processedText, 'promedio:', avgConfidence.toFixed(1));
-                      } else {
-                        // Si no hay palabras con alta confianza, rechazar
-                        console.log('Rechazado: ninguna palabra con confianza > 60');
-                        continue;
-                      }
+                    if (avgConfidence > 0 && avgConfidence < 45) {
+                      // Rechazar si confianza muy baja
+                      requestAnimationFrame(tickNative);
+                      return;
                     }
                     
-                    if (processedText && processedText.trim()) {
-                      const plate = extractPlateFromText(processedText);
-                      if (plate && isValidPlate(plate)) {
-                        // Sistema de votación: agregar a historial
-                        plateDetectionHistory.push({
-                          plate,
-                          timestamp: Date.now(),
-                          confidence: avgConfidence
-                        });
-                        
-                        // Mantener solo las últimas detecciones (últimos ~6 segundos para más precisión)
-                        plateDetectionHistory = plateDetectionHistory.filter(
-                          entry => Date.now() - entry.timestamp < 6000
-                        );
-                        
-                        // Contar cuántas veces aparece esta placa en el historial
-                        const plateCount = plateDetectionHistory.filter(e => e.plate === plate).length;
-                        
-                        // Si la confianza es muy alta (>80), aceptar con solo 1 detección
-                        // Si la confianza es alta (>60), aceptar con 2 detecciones
-                        // Si la confianza es moderada, requerir 3 detecciones (más estricto)
-                        const requiredDetections = avgConfidence > 80 ? 1 : (avgConfidence > 60 ? 2 : 3);
-                        
-                        console.log(`Placa "${plate}" detectada ${plateCount} veces (requiere ${requiredDetections}, confianza: ${avgConfidence.toFixed(1)})`);
-                        
-                        // Si cumple con el requisito de detecciones, procesarla
-                        if (plateCount >= requiredDetections) {
-                          console.log(`✅ Placa validada por votación (${plateCount} detecciones, confianza: ${avgConfidence.toFixed(1)}):`, plate);
-                          plateDetectionHistory = []; // Limpiar historial
-                          lastValidPlate = null;
-                          plateConfidenceCount = 0;
-                          onCode(plate);
-                          return;
-                        }
+                    const highConfWords = words.filter(w => (w.confidence || 0) > 55);
+                    if (highConfWords.length > 0) {
+                      processedText = highConfWords.map(w => w.text).join(' ').trim();
+                    } else {
+                      requestAnimationFrame(tickNative);
+                      return;
+                    }
+                  }
+                  
+                  if (processedText && processedText.trim()) {
+                    const plate = extractPlateFromText(processedText);
+                    if (plate && isValidPlate(plate)) {
+                      plateDetectionHistory.push({
+                        plate,
+                        timestamp: now,
+                        confidence: avgConfidence
+                      });
+                      
+                      plateDetectionHistory = plateDetectionHistory.filter(
+                        entry => now - entry.timestamp < 3000
+                      );
+                      
+                      const plateCount = plateDetectionHistory.filter(e => e.plate === plate).length;
+                      // Aceptar más rápido: 1 detección si confianza > 70, 2 si > 55
+                      const requiredDetections = avgConfidence > 70 ? 1 : (avgConfidence > 55 ? 2 : 2);
+                      
+                      if (plateCount >= requiredDetections) {
+                        console.log(`✅ Placa detectada por OCR (${plateCount} detecciones, confianza: ${avgConfidence.toFixed(1)}):`, plate);
+                        plateDetectionHistory = [];
+                        onCode(plate);
+                        return;
                       }
                     }
                   }
-                } catch (ocrErr) {
-                  // Continuar con la siguiente región si hay error
-                  console.warn('Error en OCR para región:', ocrErr);
                 }
+              } catch (ocrErr) {
+                // Continuar
               }
             }
           }
         } catch (ocrErr) {
-          // Silenciar errores de OCR frecuentes
-          if (!ocrErr.message?.includes('No image') && !ocrErr.message?.includes('not readable')) {
-            console.warn('Error en OCR:', ocrErr);
-          }
+          // Silenciar errores frecuentes
         }
       }
       
@@ -4758,8 +4750,55 @@ export function initSales(){
           }
         }
         
-        // Luego intentar con OCR
         const now = Date.now();
+        
+        // PRIORIDAD 1: Plate Recognizer API
+        if (USE_PLATE_RECOGNIZER && now - lastApiTime >= apiInterval && video.readyState >= 2) {
+          lastApiTime = now;
+          (async () => {
+            try {
+              const region = {
+                x: Math.floor(w * 0.2),
+                y: Math.floor(h * 0.3),
+                w: Math.floor(w * 0.6),
+                h: Math.floor(h * 0.4)
+              };
+              
+              const tempCanvas = document.createElement('canvas');
+              tempCanvas.width = region.w;
+              tempCanvas.height = region.h;
+              const tempCtx = tempCanvas.getContext('2d');
+              tempCtx.drawImage(canvas, region.x, region.y, region.w, region.h, 0, 0, region.w, region.h);
+              
+              const result = await recognizePlateWithAPI(tempCanvas);
+              if (result && result.plate && isValidPlate(result.plate)) {
+                plateDetectionHistory.push({
+                  plate: result.plate,
+                  timestamp: now,
+                  confidence: result.confidence
+                });
+                
+                plateDetectionHistory = plateDetectionHistory.filter(
+                  entry => now - entry.timestamp < 3000
+                );
+                
+                const plateCount = plateDetectionHistory.filter(e => e.plate === result.plate).length;
+                const requiredDetections = result.confidence > 70 ? 1 : 2;
+                
+                if (plateCount >= requiredDetections) {
+                  console.log(`✅ Placa detectada por API (${plateCount} detecciones):`, result.plate);
+                  plateDetectionHistory = [];
+                  onCode(result.plate);
+                  return;
+                }
+              }
+            } catch (apiErr) {
+              // Continuar
+            }
+          })();
+        }
+        
+        // PRIORIDAD 2: OCR Tesseract
         if (now - lastOcrTime >= ocrInterval) {
           lastOcrTime = now;
           (async () => {
@@ -4769,100 +4808,76 @@ export function initSales(){
               }
               
               if (ocrWorker) {
-                // Procesar región central más enfocada (más pequeña para mejor precisión)
-                const regions = [
-                  { x: Math.floor(w * 0.2), y: Math.floor(h * 0.3), w: Math.floor(w * 0.6), h: Math.floor(h * 0.4) },
-                ];
+                const region = {
+                  x: Math.floor(w * 0.2),
+                  y: Math.floor(h * 0.3),
+                  w: Math.floor(w * 0.6),
+                  h: Math.floor(h * 0.4)
+                };
                 
-                for (const region of regions) {
-                  const imageData = ctx.getImageData(region.x, region.y, region.w, region.h);
-                  const tempCanvas = document.createElement('canvas');
-                  tempCanvas.width = region.w;
-                  tempCanvas.height = region.h;
-                  const tempCtx = tempCanvas.getContext('2d');
-                  tempCtx.putImageData(imageData, 0, 0);
+                const imageData = ctx.getImageData(region.x, region.y, region.w, region.h);
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = region.w;
+                tempCanvas.height = region.h;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.putImageData(imageData, 0, 0);
+                
+                const enhancedCanvas = enhanceImageForOCR(tempCanvas, tempCtx, imageData);
+                
+                try {
+                  const { data: { text, words } } = await ocrWorker.recognize(enhancedCanvas);
                   
-                  // Mejorar la imagen antes del OCR
-                  const enhancedCanvas = enhanceImageForOCR(tempCanvas, tempCtx, imageData);
-                  
-                    try {
-                      // Usar reconocimiento con nivel de confianza
-                      const { data: { text, words } } = await ocrWorker.recognize(enhancedCanvas);
+                  if (text && text.trim()) {
+                    let processedText = text;
+                    let avgConfidence = 0;
+                    
+                    if (words && words.length > 0) {
+                      const confidences = words.map(w => w.confidence || 0).filter(c => c > 0);
+                      avgConfidence = confidences.length > 0 
+                        ? confidences.reduce((a, b) => a + b, 0) / confidences.length 
+                        : 0;
                       
-                      if (text && text.trim()) {
-                        console.log('Texto detectado por OCR en región:', text);
+                      if (avgConfidence > 0 && avgConfidence < 45) {
+                        requestAnimationFrame(tickCanvas);
+                        return;
+                      }
+                      
+                      const highConfWords = words.filter(w => (w.confidence || 0) > 55);
+                      if (highConfWords.length > 0) {
+                        processedText = highConfWords.map(w => w.text).join(' ').trim();
+                      } else {
+                        requestAnimationFrame(tickCanvas);
+                        return;
+                      }
+                    }
+                    
+                    if (processedText && processedText.trim()) {
+                      const plate = extractPlateFromText(processedText);
+                      if (plate && isValidPlate(plate)) {
+                        plateDetectionHistory.push({
+                          plate,
+                          timestamp: now,
+                          confidence: avgConfidence
+                        });
                         
-                        // Procesar texto detectado
-                        let processedText = text;
-                        let avgConfidence = 0;
+                        plateDetectionHistory = plateDetectionHistory.filter(
+                          entry => now - entry.timestamp < 3000
+                        );
                         
-                        // Si hay información de confianza, usarla para filtrar pero ser más flexible
-                        if (words && words.length > 0) {
-                          // Calcular confianza promedio
-                          const confidences = words.map(w => w.confidence || 0).filter(c => c > 0);
-                          avgConfidence = confidences.length > 0 
-                            ? confidences.reduce((a, b) => a + b, 0) / confidences.length 
-                            : 0;
-                          
-                          // Si la confianza promedio es muy baja (< 50), rechazar (más estricto)
-                          if (avgConfidence > 0 && avgConfidence < 50) {
-                            console.log('Rechazado: confianza promedio muy baja:', avgConfidence.toFixed(1));
-                            continue;
-                          }
-                          
-                          // Solo usar palabras con confianza alta (> 60) para mejor precisión
-                          const highConfWords = words.filter(w => (w.confidence || 0) > 60);
-                          if (highConfWords.length > 0) {
-                            processedText = highConfWords.map(w => w.text).join(' ').trim();
-                            console.log('Texto con alta confianza (>60):', processedText, 'promedio:', avgConfidence.toFixed(1));
-                          } else {
-                            // Si no hay palabras con alta confianza, rechazar
-                            console.log('Rechazado: ninguna palabra con confianza > 60');
-                            continue;
-                          }
-                        }
+                        const plateCount = plateDetectionHistory.filter(e => e.plate === plate).length;
+                        const requiredDetections = avgConfidence > 70 ? 1 : (avgConfidence > 55 ? 2 : 2);
                         
-                        if (processedText && processedText.trim()) {
-                          const plate = extractPlateFromText(processedText);
-                          if (plate && isValidPlate(plate)) {
-                            // Sistema de votación: agregar a historial
-                            plateDetectionHistory.push({
-                              plate,
-                              timestamp: Date.now(),
-                              confidence: avgConfidence
-                            });
-                            
-                            // Mantener solo las últimas 5 detecciones (últimos ~4 segundos)
-                            plateDetectionHistory = plateDetectionHistory.filter(
-                              entry => Date.now() - entry.timestamp < 4000
-                            );
-                            
-                            // Contar cuántas veces aparece esta placa en el historial
-                            const plateCount = plateDetectionHistory.filter(e => e.plate === plate).length;
-                            
-                            // Si la confianza es muy alta (>70), aceptar con solo 1 detección
-                            // Si la confianza es alta (>50), aceptar con 2 detecciones
-                            // Si la confianza es moderada, requerir 2 detecciones
-                            const requiredDetections = avgConfidence > 70 ? 1 : (avgConfidence > 50 ? 2 : 2);
-                            
-                            console.log(`Placa "${plate}" detectada ${plateCount} veces (requiere ${requiredDetections}, confianza: ${avgConfidence.toFixed(1)})`);
-                            
-                            // Si cumple con el requisito de detecciones, procesarla
-                            if (plateCount >= requiredDetections) {
-                              console.log(`✅ Placa validada por votación (${plateCount} detecciones, confianza: ${avgConfidence.toFixed(1)}):`, plate);
-                              plateDetectionHistory = []; // Limpiar historial
-                              lastValidPlate = null;
-                              plateConfidenceCount = 0;
-                              onCode(plate);
-                              return;
-                            }
-                          }
+                        if (plateCount >= requiredDetections) {
+                          console.log(`✅ Placa detectada por OCR (${plateCount} detecciones):`, plate);
+                          plateDetectionHistory = [];
+                          onCode(plate);
+                          return;
                         }
                       }
-                    } catch (ocrErr) {
-                      // Continuar con la siguiente región
-                      console.warn('Error en OCR para región:', ocrErr);
                     }
+                  }
+                } catch (ocrErr) {
+                  // Continuar
                 }
               }
             } catch (ocrErr) {
@@ -4978,10 +4993,11 @@ export function initSales(){
     // Actualizar mensaje inicial
     if (msg) {
       if (USE_PLATE_RECOGNIZER && PLATE_RECOGNIZER_API_KEY) {
-        msg.textContent = '📷 Usando Plate Recognizer API (más confiable) - Enfoca la placa...';
+        msg.textContent = '📷 Usando Plate Recognizer API (rápido y preciso) - Enfoca la placa...';
+        msg.style.color = 'var(--text)';
       } else {
-        msg.textContent = '⚠️ OCR genérico activo (puede ser impreciso). Para mejor precisión, configura Plate Recognizer API en config.js';
-        msg.style.color = 'var(--warning, #f59e0b)';
+        msg.textContent = '📷 OCR optimizado activo - Enfoca la placa claramente. Para mejor precisión, configura Plate Recognizer API en config.js';
+        msg.style.color = 'var(--text)';
       }
     }
     
