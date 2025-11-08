@@ -1318,7 +1318,35 @@ function openModal(node){
   if (!modal||!slot||!x) return;
   slot.replaceChildren(node);
   modal.classList.remove('hidden');
-  x.onclick = ()=> modal.classList.add('hidden');
+  
+  // Función para cerrar el modal
+  const closeModalHandler = () => {
+    modal.classList.add('hidden');
+    // Limpiar listeners
+    document.removeEventListener('keydown', escHandler);
+    modal.removeEventListener('click', backdropHandler);
+  };
+  
+  // Listener para ESC
+  const escHandler = (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+      closeModalHandler();
+    }
+  };
+  
+  // Listener para clic fuera del modal (en el backdrop)
+  const backdropHandler = (e) => {
+    if (e.target === modal) {
+      closeModalHandler();
+    }
+  };
+  
+  // Agregar listeners
+  document.addEventListener('keydown', escHandler);
+  modal.addEventListener('click', backdropHandler);
+  
+  // Botón X
+  x.onclick = closeModalHandler;
 }
 function closeModal(){ const m = document.getElementById('modal'); if (m) m.classList.add('hidden'); }
 
@@ -1881,9 +1909,34 @@ function openAddUnified(){
   
   slot.replaceChildren(node);
   modal.classList.remove('hidden');
-  x.onclick = () => {
+  
+  // Función para cerrar el modal
+  const closeModalHandler = () => {
     modal.classList.add('hidden');
+    // Limpiar listeners
+    document.removeEventListener('keydown', escHandler);
+    modal.removeEventListener('click', backdropHandler);
   };
+  
+  // Listener para ESC
+  const escHandler = (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+      closeModalHandler();
+    }
+  };
+  
+  // Listener para clic fuera del modal (en el backdrop)
+  const backdropHandler = (e) => {
+    if (e.target === modal) {
+      closeModalHandler();
+    }
+  };
+  
+  // Agregar listeners
+  document.addEventListener('keydown', escHandler);
+  modal.addEventListener('click', backdropHandler);
+  
+  x.onclick = closeModalHandler;
   
   console.log('Modal de agregar abierto');
   
@@ -3783,6 +3836,55 @@ export function initSales(){
     }
     
     slotOCR.replaceChildren(nodeOCR);
+    
+    // Agregar botón de cerrar visible dentro del contenido del modal
+    const closeBtnContainer = document.createElement('div');
+    closeBtnContainer.className = 'flex justify-between items-center mb-4';
+    const title = nodeOCR.querySelector('h3');
+    if (title) {
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition-all duration-200 text-sm';
+      closeBtn.textContent = '✕ Cerrar';
+      closeBtn.onclick = () => {
+        const modal = document.getElementById('modal');
+        if (modal) modal.classList.add('hidden');
+        // Limpiar listeners
+        document.removeEventListener('keydown', escHandler);
+        modalOCR.removeEventListener('click', backdropHandler);
+      };
+      title.parentNode.insertBefore(closeBtnContainer, title);
+      closeBtnContainer.appendChild(title);
+      closeBtnContainer.appendChild(closeBtn);
+    }
+    
+    // Función para cerrar el modal
+    const closeModalHandler = () => {
+      modalOCR.classList.add('hidden');
+      // Limpiar listeners
+      document.removeEventListener('keydown', escHandler);
+      modalOCR.removeEventListener('click', backdropHandler);
+    };
+    
+    // Listener para ESC
+    const escHandler = (e) => {
+      if (e.key === 'Escape' && !modalOCR.classList.contains('hidden')) {
+        closeModalHandler();
+      }
+    };
+    
+    // Listener para clic fuera del modal (en el backdrop)
+    const backdropHandler = (e) => {
+      if (e.target === modalOCR) {
+        closeModalHandler();
+      }
+    };
+    
+    // Agregar listeners
+    document.addEventListener('keydown', escHandler);
+    modalOCR.addEventListener('click', backdropHandler);
+    
+    // Configurar botón X del modal
+    xOCR.onclick = closeModalHandler;
     
     const video = nodeOCR.querySelector('#qr-video');
     const canvas = nodeOCR.querySelector('#qr-canvas');

@@ -96,6 +96,18 @@
     #modal:not(.hidden) {
       display: flex !important;
     }
+    /* Asegurar que el modal esté centrado verticalmente */
+    #modal {
+      align-items: center;
+      justify-content: center;
+    }
+    /* Prevenir que el contenido del modal cierre el modal al hacer clic */
+    #modal > div {
+      pointer-events: auto;
+    }
+    #modal {
+      pointer-events: auto;
+    }
     /* Estilos para elementos del historial QR */
     .qr-history {
       list-style: none;
@@ -109,6 +121,84 @@
     }
     body.theme-light .qr-history li {
       background: rgba(203, 213, 225, 0.3);
+    }
+    /* Estilos personalizados para barras de scroll */
+    .custom-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.5);
+      border-radius: 4px;
+      transition: background 0.2s ease;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.7);
+    }
+    body.theme-light .custom-scrollbar {
+      scrollbar-color: rgba(100, 116, 139, 0.4) transparent;
+    }
+    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.4);
+    }
+    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.6);
+    }
+    /* Aplicar scrollbar personalizado a todos los elementos con overflow */
+    #modalBody,
+    .picker-table-wrapper,
+    #p-inv-body,
+    #p-pr-body {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+    #modalBody::-webkit-scrollbar,
+    .picker-table-wrapper::-webkit-scrollbar,
+    #p-inv-body::-webkit-scrollbar,
+    #p-pr-body::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    #modalBody::-webkit-scrollbar-track,
+    .picker-table-wrapper::-webkit-scrollbar-track,
+    #p-inv-body::-webkit-scrollbar-track,
+    #p-pr-body::-webkit-scrollbar-track {
+      background: transparent;
+      border-radius: 4px;
+    }
+    #modalBody::-webkit-scrollbar-thumb,
+    .picker-table-wrapper::-webkit-scrollbar-thumb,
+    #p-inv-body::-webkit-scrollbar-thumb,
+    #p-pr-body::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.5);
+      border-radius: 4px;
+      transition: background 0.2s ease;
+    }
+    #modalBody::-webkit-scrollbar-thumb:hover,
+    .picker-table-wrapper::-webkit-scrollbar-thumb:hover,
+    #p-inv-body::-webkit-scrollbar-thumb:hover,
+    #p-pr-body::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.7);
+    }
+    body.theme-light #modalBody::-webkit-scrollbar-thumb,
+    body.theme-light .picker-table-wrapper::-webkit-scrollbar-thumb,
+    body.theme-light #p-inv-body::-webkit-scrollbar-thumb,
+    body.theme-light #p-pr-body::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.4);
+    }
+    body.theme-light #modalBody::-webkit-scrollbar-thumb:hover,
+    body.theme-light .picker-table-wrapper::-webkit-scrollbar-thumb:hover,
+    body.theme-light #p-inv-body::-webkit-scrollbar-thumb:hover,
+    body.theme-light #p-pr-body::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.6);
     }
   </style>
   <link rel="stylesheet" href="assets/styles.css?v=20251010" />
@@ -197,8 +287,8 @@
 
       <!-- MODAL GLOBAL -->
       <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
-        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] overflow-hidden">
-          <button id="modalClose" class="absolute top-4 right-4 z-10 w-8 h-8 flex items-center justify-center bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-600 dark:hover:bg-slate-600 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 rounded-lg transition-colors duration-200 text-xl font-bold">&times;</button>
+        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] my-auto overflow-hidden">
+          <button id="modalClose" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
           <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh]">
             <div id="modal-img-wrap" class="hidden">
               <img id="modal-img" src="" alt="Vista previa" class="w-full h-auto rounded-lg" />
@@ -554,77 +644,96 @@
 
       <!-- Picker Inventario (Ventas) -->
       <template id="tpl-inv-picker">
-        <div>
-          <h3>Agregar desde inventario</h3>
-          <div class="picker-head">
-            <div class="row" style="gap:6px;">
-              <input id="p-inv-name" placeholder="Nombre…" />
-              <input id="p-inv-sku" placeholder="SKU…" />
-              <select id="p-inv-intake"></select>
-            </div>
-            <div class="row" style="gap:6px;">
-              <button id="p-inv-search" class="secondary">Buscar</button>
-              <button id="p-inv-more" class="secondary">Cargar más</button>
+        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 max-w-5xl w-full">
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Agregar desde inventario</h3>
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Mostrando <span id="p-inv-count" class="font-semibold text-white dark:text-white theme-light:text-slate-900">0</span> ítems</span>
             </div>
           </div>
-          <div class="picker-table table-wrap">
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>Foto</th><th>SKU</th><th>Nombre</th><th>Stock</th><th class="t-right">Precio</th><th></th>
-                </tr>
-              </thead>
-              <tbody id="p-inv-body"></tbody>
-            </table>
-          </div>
-          <div class="picker-actions">
-            <div class="muted">Mostrando <span id="p-inv-count">0</span> ítems</div>
-            <div class="row" style="gap:6px;">
-              <button class="secondary" id="p-inv-cancel">Cerrar</button>
+          
+          <div class="mb-4 space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <input id="p-inv-name" placeholder="Nombre…" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+              <input id="p-inv-sku" placeholder="SKU…" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+              <select id="p-inv-intake" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"></select>
             </div>
+            <div class="flex gap-2">
+              <button id="p-inv-search" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">🔍 Buscar</button>
+              <button id="p-inv-more" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200">Cargar más</button>
+            </div>
+          </div>
+          
+          <div class="picker-table-wrapper overflow-hidden rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+            <div class="overflow-y-auto max-h-[60vh] custom-scrollbar">
+              <table class="w-full text-sm">
+                <thead class="sticky top-0 bg-slate-900/95 dark:bg-slate-900/95 theme-light:bg-slate-100/95 backdrop-blur-sm z-10">
+                  <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+                    <th class="text-left py-3 px-4 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Foto</th>
+                    <th class="text-left py-3 px-4 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">SKU</th>
+                    <th class="text-left py-3 px-4 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Nombre</th>
+                    <th class="text-left py-3 px-4 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Stock</th>
+                    <th class="text-right py-3 px-4 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Precio</th>
+                    <th class="w-24"></th>
+                  </tr>
+                </thead>
+                <tbody id="p-inv-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
+              </table>
+            </div>
+          </div>
+          
+          <div class="flex justify-end mt-4">
+            <button class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200" id="p-inv-cancel">Cerrar</button>
           </div>
         </div>
       </template>
 
       <!-- Fila del picker de inventario -->
       <template id="tpl-inv-row">
-        <tr>
-          <td><img class="thumb" /></td>
-          <td class="w-fit" data-sku></td>
-          <td data-name></td>
-          <td class="t-center" data-stock></td>
-          <td class="t-right" data-price></td>
-          <td class="t-center"><button class="add">Agregar</button></td>
+        <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-100 transition-colors duration-150">
+          <td class="py-3 px-4"><img class="thumb w-12 h-12 object-cover rounded-lg" /></td>
+          <td class="py-3 px-4 font-medium w-fit" data-sku></td>
+          <td class="py-3 px-4" data-name></td>
+          <td class="py-3 px-4 text-center" data-stock></td>
+          <td class="py-3 px-4 text-right font-semibold" data-price></td>
+          <td class="py-3 px-4 text-center"><button class="add px-3 py-1.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white text-xs font-semibold rounded-lg transition-all duration-200">Agregar</button></td>
         </tr>
       </template>
 
       <!-- Picker Lista de Precios (Ventas) -->
       <template id="tpl-price-picker">
-        <div>
-          <h3>Agregar desde lista de precios</h3>
-          <div class="picker-head">
-            <div class="row" style="gap:6px;">
-              <select id="p-pr-svc"></select>
+        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 max-w-5xl w-full">
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Agregar desde lista de precios</h3>
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Mostrando <span id="p-pr-count" class="font-semibold text-white dark:text-white theme-light:text-slate-900">0</span> filas</span>
             </div>
-            <div class="row" style="gap:6px;">
-              <button id="p-pr-search" class="secondary">Buscar</button>
-              <button id="p-pr-more" class="secondary">Cargar más</button>
+          </div>
+          
+          <div class="mb-4 space-y-3">
+            <select id="p-pr-svc" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"></select>
+            <div class="flex gap-2">
+              <button id="p-pr-search" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">🔍 Buscar</button>
+              <button id="p-pr-more" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200">Cargar más</button>
             </div>
-            <div class="muted" style="margin-top:8px;font-size:12px;">
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
               Se mostrarán solo los precios del vehículo seleccionado en la venta (si aplica).
             </div>
           </div>
-          <div class="picker-table table-wrap">
-            <table class="table">
-              <thead><tr id="p-pr-head"></tr></thead>
-              <tbody id="p-pr-body"></tbody>
-            </table>
-          </div>
-          <div class="picker-actions">
-            <div class="muted">Mostrando <span id="p-pr-count">0</span> filas</div>
-            <div class="row" style="gap:6px;">
-              <button class="secondary" id="p-pr-cancel">Cerrar</button>
+          
+          <div class="picker-table-wrapper overflow-hidden rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+            <div class="overflow-y-auto max-h-[60vh] custom-scrollbar">
+              <table class="w-full text-sm">
+                <thead class="sticky top-0 bg-slate-900/95 dark:bg-slate-900/95 theme-light:bg-slate-100/95 backdrop-blur-sm z-10">
+                  <tr id="p-pr-head" class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50"></tr>
+                </thead>
+                <tbody id="p-pr-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
+              </table>
             </div>
+          </div>
+          
+          <div class="flex justify-end mt-4">
+            <button class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200" id="p-pr-cancel">Cerrar</button>
           </div>
         </div>
       </template>
