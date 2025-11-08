@@ -3803,7 +3803,7 @@ export function initSales(){
     
     // Cambiar mensaje inicial
     if (msg) {
-      msg.textContent = 'Escanea la placa del vehículo (formato: ABC-123)';
+      msg.textContent = 'Escanea la placa del vehículo (formato: ABC123 o ABC-123)';
       msg.style.color = 'var(--text)';
     }
 
@@ -4042,7 +4042,7 @@ export function initSales(){
         
         // Actualizar mensaje y botón
         if (msg) {
-          msg.textContent = 'Escanea la placa del vehículo (formato: ABC-123)';
+          msg.textContent = 'Escanea la placa del vehículo (formato: ABC123 o ABC-123)';
           msg.style.color = 'var(--text)';
         }
         
@@ -4088,6 +4088,25 @@ export function initSales(){
       }
     }
 
+    // Función para validar formato de placa: 3 letras - 3 números (con o sin guion)
+    function isValidPlate(text) {
+      const normalized = String(text || '').trim().toUpperCase().replace(/[-]/g, '');
+      // Patrón: 3 letras seguidas de 3 números (sin guion para validación)
+      const platePattern = /^[A-Z]{3}[0-9]{3}$/;
+      return platePattern.test(normalized);
+    }
+
+    // Función para normalizar placa (asegurar formato ABC123 sin guion)
+    function normalizePlate(text) {
+      const normalized = String(text || '').trim().toUpperCase().replace(/[\s-]/g, '');
+      // Asegurar formato ABC123 (sin guion)
+      const match = normalized.match(/^([A-Z]{3})([0-9]{3})$/);
+      if (match) {
+        return `${match[1]}${match[2]}`;
+      }
+      return normalized;
+    }
+
     function accept(value){
       if (cameraDisabled) return false;
       
@@ -4110,22 +4129,31 @@ export function initSales(){
     }
 
     async function handlePlate(plateText){
+      // Normalizar placa (sin guion: ABC123)
       const normalized = normalizePlate(plateText);
       if (!isValidPlate(normalized)) {
-        msg.textContent = '❌ Formato de placa inválido. Debe ser: ABC-123';
-        msg.style.color = 'var(--danger, #ef4444)';
+        if (msg) {
+          msg.textContent = '❌ Formato de placa inválido. Debe ser: ABC123 o ABC-123';
+          msg.style.color = 'var(--danger, #ef4444)';
+        }
         setTimeout(() => {
-          msg.textContent = 'Escanea la placa del vehículo (formato: ABC-123)';
-          msg.style.color = 'var(--text)';
+          if (msg) {
+            msg.textContent = 'Escanea la placa del vehículo (formato: ABC123 o ABC-123)';
+            msg.style.color = 'var(--text)';
+          }
           cameraDisabled = false;
         }, 2000);
         return;
       }
+      
+      console.log('Placa normalizada (sin guion):', normalized);
 
       cameraDisabled = true;
       const li = document.createElement('li');
-      li.textContent = `Placa detectada: ${normalized}`;
-      list.prepend(li);
+      // Mostrar placa con guion para mejor legibilidad, pero guardar sin guion
+      const displayPlate = normalized.length === 6 ? `${normalized.substring(0,3)}-${normalized.substring(3)}` : normalized;
+      li.textContent = `Placa detectada: ${displayPlate}`;
+      if (list) list.prepend(li);
       
       msg.textContent = 'Procesando placa...';
       msg.style.color = 'var(--text)';
@@ -4230,7 +4258,7 @@ export function initSales(){
         starting = false;
         setTimeout(() => {
           cameraDisabled = false;
-          msg.textContent = 'Escanea la placa del vehículo (formato: ABC-123)';
+          msg.textContent = 'Escanea la placa del vehículo (formato: ABC123 o ABC-123)';
           msg.style.color = 'var(--text)';
         }, 3000);
       }
@@ -4279,16 +4307,35 @@ export function initSales(){
     }
     
     // Función para mejorar el contraste y claridad de la imagen antes del OCR
+    // También amplifica la imagen para priorizar texto grande
     function enhanceImageForOCR(canvas, ctx, imageData) {
       const data = imageData.data;
       const width = imageData.width;
       const height = imageData.height;
       
+      // Amplificar la imagen 2x para que el OCR detecte mejor texto grande
+      const scale = 2;
+      const scaledWidth = width * scale;
+      const scaledHeight = height * scale;
+      
+      // Crear un canvas temporal más grande
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = scaledWidth;
+      tempCanvas.height = scaledHeight;
+      const tempCtx = tempCanvas.getContext('2d');
+      
+      // Dibujar la imagen amplificada
+      tempCtx.drawImage(canvas, 0, 0, scaledWidth, scaledHeight);
+      
+      // Obtener los datos de la imagen amplificada
+      const scaledImageData = tempCtx.getImageData(0, 0, scaledWidth, scaledHeight);
+      const scaledData = scaledImageData.data;
+      
       // Convertir a escala de grises y mejorar contraste
-      for (let i = 0; i < data.length; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
+      for (let i = 0; i < scaledData.length; i += 4) {
+        const r = scaledData[i];
+        const g = scaledData[i + 1];
+        const b = scaledData[i + 2];
         
         // Convertir a escala de grises
         const gray = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
@@ -4296,27 +4343,28 @@ export function initSales(){
         // Mejorar contraste (aumentar diferencia entre claro y oscuro)
         let enhanced = gray;
         if (gray < 128) {
-          enhanced = Math.max(0, gray - 30); // Oscurecer más
+          enhanced = Math.max(0, gray - 40); // Oscurecer más para texto
         } else {
-          enhanced = Math.min(255, gray + 30); // Aclarar más
+          enhanced = Math.min(255, gray + 40); // Aclarar más para fondo
         }
         
         // Aplicar umbral para texto negro sobre fondo claro
         const threshold = 140;
         const final = enhanced > threshold ? 255 : 0; // Blanco o negro puro
         
-        data[i] = final;     // R
-        data[i + 1] = final; // G
-        data[i + 2] = final; // B
-        // data[i + 3] permanece igual (alpha)
+        scaledData[i] = final;     // R
+        scaledData[i + 1] = final; // G
+        scaledData[i + 2] = final; // B
+        // scaledData[i + 3] permanece igual (alpha)
       }
       
-      ctx.putImageData(imageData, 0, 0);
-      return canvas;
+      tempCtx.putImageData(scaledImageData, 0, 0);
+      return tempCanvas; // Retornar el canvas amplificado
     }
     
     // Función para extraer placa del texto OCR
-    // SOLO acepta formato: 3 letras seguidas de guion y 3 números (ABC-123)
+    // Acepta formato: 3 letras seguidas de 3 números (con o sin guion: ABC123 o ABC-123)
+    // Retorna SIN guion: ABC123 (formato usado en la base de datos)
     function extractPlateFromText(text) {
       if (!text) return null;
       
@@ -4326,11 +4374,10 @@ export function initSales(){
       const clean = text.toUpperCase().replace(/[^A-Z0-9\s-]/g, ' ').trim();
       
       // Buscar todas las posibles combinaciones de 3 letras seguidas de 3 números
-      // Primero intentar con guion: ABC-123
+      // Acepta con guion (ABC-123) o sin guion (ABC123)
       const patterns = [
-        /\b([A-Z]{3})[-]?([0-9]{3})\b/g,  // ABC-123 o ABC123
-        /\b([A-Z]{3})\s+([0-9]{3})\b/g,  // ABC 123
-        /([A-Z]{3})([0-9]{3})/g,          // ABC123 (sin límites de palabra)
+        /([A-Z]{3})[-]?([0-9]{3})/g,  // ABC-123 o ABC123 (prioritario)
+        /\b([A-Z]{3})\s+([0-9]{3})\b/g,  // ABC 123 (con espacio)
       ];
       
       for (const pattern of patterns) {
@@ -4341,7 +4388,8 @@ export function initSales(){
           
           // Validar que sean exactamente 3 letras y 3 números
           if (letters && letters.length === 3 && numbers && numbers.length === 3) {
-            const plate = `${letters}-${numbers}`;
+            // Retornar SIN guion (formato de base de datos: ABC123)
+            const plate = `${letters}${numbers}`;
             console.log('Placa extraída encontrada:', plate);
             return plate;
           }
@@ -4356,7 +4404,8 @@ export function initSales(){
         // Buscar patrón ABC123 o ABC-123 en una palabra
         const match = word.match(/([A-Z]{3})[-]?([0-9]{3})/);
         if (match && match[1] && match[1].length === 3 && match[2] && match[2].length === 3) {
-          const plate = `${match[1]}-${match[2]}`;
+          // Retornar SIN guion
+          const plate = `${match[1]}${match[2]}`;
           console.log('Placa extraída (búsqueda manual):', plate);
           return plate;
         }
@@ -4365,7 +4414,8 @@ export function initSales(){
         if (word.length === 3 && /^[A-Z]{3}$/.test(word) && i + 1 < words.length) {
           const nextWord = words[i + 1];
           if (/^[0-9]{3}$/.test(nextWord)) {
-            const plate = `${word}-${nextWord}`;
+            // Retornar SIN guion
+            const plate = `${word}${nextWord}`;
             console.log('Placa extraída (palabras separadas):', plate);
             return plate;
           }
