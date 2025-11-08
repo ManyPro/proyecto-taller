@@ -92,7 +92,30 @@ async function main(){
     const remaining = Math.max(0, totalToProcess - counters.processed);
     const eta = rate * remaining;
     const fmt = (s)=>{ if(!Number.isFinite(s)) return '---'; if(s<60) return `${s.toFixed(0)}s`; const m=Math.floor(s/60); const sec=Math.floor(s%60); return `${m}m ${sec}s`; };
-    console.log(`[${p.toFixed(1)}%] ${counters.processed}/${totalToProcess} · creados=${counters.created} · actualizados=${counters.updated} · ETA ${fmt(eta)}`);
+    
+    // Barra de progreso visual
+    const barWidth = 40;
+    const filled = Math.round((p / 100) * barWidth);
+    const bar = '█'.repeat(filled) + '░'.repeat(barWidth - filled);
+    
+    // Limpiar línea anterior (si es posible)
+    process.stdout.write('\r');
+    process.stdout.write(`[${bar}] ${p.toFixed(1)}% | ${counters.processed}/${totalToProcess} | ✅ ${counters.created} | 🔄 ${counters.updated} | ⏱️  ETA: ${fmt(eta)}`);
+    process.stdout.write(' '.repeat(20)); // Limpiar caracteres residuales
+  }
+  
+  // Función para mostrar resumen final
+  function showFinalSummary() {
+    const dur = ((Date.now()-started)/1000).toFixed(1);
+    console.log('\n' + '='.repeat(60));
+    console.log('✅ IMPORTACIÓN DE CLIENTES COMPLETADA');
+    console.log('='.repeat(60));
+    console.log(`📊 Total procesado: ${counters.processed}/${totalToProcess}`);
+    console.log(`✅ Creados: ${counters.created}`);
+    console.log(`🔄 Actualizados: ${counters.updated}`);
+    console.log(`➖ Sin cambios: ${counters.unchanged}`);
+    console.log(`⏱️  Tiempo total: ${dur}s`);
+    console.log('='.repeat(60));
   }
 
   for(const [legacyCompany, setIds] of perCompany.entries()){
@@ -142,9 +165,8 @@ async function main(){
   }
 
   logProgress();
-  const dur = ((Date.now()-started)/1000).toFixed(1);
-  console.log(`Tiempo total: ${dur}s`);
-  console.log('Clientes import (resumen):', JSON.stringify(counters, null, 2));
+  console.log(''); // Nueva línea después del progreso
+  showFinalSummary();
 }
 
 main().then(()=>{ if(!dryRun) mongoose.connection.close().catch(()=>{}); }).catch(e=>{ console.error(e); process.exit(1); });

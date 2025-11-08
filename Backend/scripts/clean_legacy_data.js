@@ -48,6 +48,7 @@ async function main() {
   console.log(dryRun ? '🔍 Modo DRY RUN - No se eliminarán datos' : '⚠️  MODO REAL - Se eliminarán datos');
   console.log('Conectando a MongoDB...');
   
+  const started = Date.now();
   await connectDB(uri);
   console.log('✅ Conectado a MongoDB\n');
 
@@ -61,11 +62,14 @@ async function main() {
   };
   
   const salesCount = await Sale.countDocuments(salesQuery);
-  console.log(`  Encontradas ${salesCount} ventas legacy`);
+  console.log(`  📊 Encontradas ${salesCount} ventas legacy`);
   
   if (!dryRun && salesCount > 0) {
+    console.log('  ⏳ Eliminando ventas...');
     const result = await Sale.deleteMany(salesQuery);
     console.log(`  ✅ Eliminadas ${result.deletedCount} ventas legacy`);
+  } else if (dryRun) {
+    console.log(`  🔍 (DRY RUN) Se eliminarían ${salesCount} ventas legacy`);
   }
 
   // 2. Limpiar perfiles de clientes legacy (con placas sintéticas)
@@ -80,14 +84,24 @@ async function main() {
   };
   
   const profilesCount = await CustomerProfile.countDocuments(profilesQuery);
-  console.log(`  Encontrados ${profilesCount} perfiles legacy`);
+  console.log(`  📊 Encontrados ${profilesCount} perfiles legacy`);
   
   if (!dryRun && profilesCount > 0) {
+    console.log('  ⏳ Eliminando perfiles...');
     const result = await CustomerProfile.deleteMany(profilesQuery);
     console.log(`  ✅ Eliminados ${result.deletedCount} perfiles legacy`);
+  } else if (dryRun) {
+    console.log(`  🔍 (DRY RUN) Se eliminarían ${profilesCount} perfiles legacy`);
   }
 
-  console.log('\n✅ Limpieza completada');
+  const dur = ((Date.now() - started) / 1000).toFixed(1);
+  console.log('\n' + '='.repeat(60));
+  console.log('✅ LIMPIEZA COMPLETADA');
+  console.log('='.repeat(60));
+  console.log(`📊 Ventas encontradas: ${salesCount}`);
+  console.log(`📊 Perfiles encontrados: ${profilesCount}`);
+  console.log(`⏱️  Tiempo total: ${dur}s`);
+  console.log('='.repeat(60));
   
   if (dryRun) {
     console.log('\n💡 Para ejecutar la limpieza real, usa: --force');

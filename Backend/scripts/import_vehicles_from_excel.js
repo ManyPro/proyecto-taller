@@ -212,9 +212,39 @@ async function main() {
     let skipped = 0;
     let errors = 0;
     const errorsList = [];
-
+    const started = Date.now();
+    
     // Determinar fila inicial (saltar header si existe)
     const startRow = isCSV ? 0 : (headers.some(h => cleanStr(h).includes('MARCA') || cleanStr(h).includes('MAKE')) ? 1 : 0);
+    const totalRows = isCSV ? rows.length : (rows.length - startRow);
+    let processed = 0;
+
+    // Función para mostrar progreso
+    function logProgress() {
+      processed = isCSV ? (i + 1) : (i - startRow + 1);
+      const percent = totalRows > 0 ? ((processed / totalRows) * 100).toFixed(1) : '0.0';
+      const elapsed = (Date.now() - started) / 1000;
+      const rate = processed > 0 ? elapsed / processed : 0;
+      const remaining = Math.max(0, totalRows - processed);
+      const etaSec = rate * remaining;
+      const fmt = (s) => {
+        if (!Number.isFinite(s)) return '---';
+        if (s < 60) return `${s.toFixed(0)}s`;
+        const m = Math.floor(s / 60);
+        const sec = Math.floor(s % 60);
+        return `${m}m ${sec}s`;
+      };
+      
+      // Barra de progreso visual
+      const barWidth = 40;
+      const filled = Math.round((Number(percent) / 100) * barWidth);
+      const bar = '█'.repeat(filled) + '░'.repeat(barWidth - filled);
+      
+      // Limpiar línea anterior
+      process.stdout.write('\r');
+      process.stdout.write(`[${bar}] ${percent}% | ${processed}/${totalRows} | ✅ ${imported} | ⏭️  ${skipped} | ❌ ${errors} | ⏱️  ETA: ${fmt(etaSec)}`);
+      process.stdout.write(' '.repeat(30)); // Limpiar caracteres residuales
+    }
 
     // Procesar filas
     for (let i = startRow; i < rows.length; i++) {
@@ -260,8 +290,8 @@ async function main() {
       };
 
       if (dryRun) {
-        console.log(`  [DRY] ${make} ${line} ${displacement} ${modelYear || '(sin modelo)'}`);
         imported++;
+        if ((i - startRow + 1) % 100 === 0) logProgress();
         continue;
       }
 
@@ -288,9 +318,6 @@ async function main() {
 
         await Vehicle.create(vehicleData);
         imported++;
-        if (imported % 100 === 0) {
-          console.log(`  ✅ Importados: ${imported}...`);
-        }
       } catch (err) {
         if (err.code === 11000) {
           if (skipDuplicates) {
@@ -304,12 +331,27 @@ async function main() {
           errorsList.push(`Fila ${i + 1}: Error: ${err.message}`);
         }
       }
+      
+      // Mostrar progreso cada 50 filas
+      if ((i - startRow + 1) % 50 === 0) {
+        logProgress();
+      }
     }
 
-    console.log('\n📊 Resumen:');
-    console.log(`  ✅ Importados: ${imported}`);
-    console.log(`  ⏭️  Omitidos: ${skipped}`);
-    console.log(`  ❌ Errores: ${errors}`);
+    // Mostrar progreso final
+    logProgress();
+    console.log(''); // Nueva línea después del progreso
+    
+    const dur = ((Date.now() - started) / 1000).toFixed(1);
+    console.log('\n' + '='.repeat(60));
+    console.log('✅ IMPORTACIÓN DE VEHÍCULOS COMPLETADA');
+    console.log('='.repeat(60));
+    console.log(`📊 Total procesado: ${processed}/${totalRows}`);
+    console.log(`✅ Importados: ${imported}`);
+    console.log(`⏭️  Omitidos: ${skipped}`);
+    console.log(`❌ Errores: ${errors}`);
+    console.log(`⏱️  Tiempo total: ${dur}s`);
+    console.log('='.repeat(60));
 
     if (errorsList.length > 0 && errorsList.length <= 20) {
       console.log('\n❌ Errores detallados:');

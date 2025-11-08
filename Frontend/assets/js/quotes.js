@@ -1001,6 +1001,7 @@ export function initQuotes({ getCompanyEmail }) {
           <input id="m-client-phone" placeholder="Teléfono (opcional)" />
           <input id="m-client-email" placeholder="Correo (opcional)" />
         </div>
+        <input id="m-client-id" placeholder="Identificación (opcional)" />
         <label>Placa</label>
         <input id="m-plate" placeholder="ABC123" />
         <div style="position:relative;margin-top:8px;">
@@ -1059,7 +1060,8 @@ export function initQuotes({ getCompanyEmail }) {
           </div>
         </div>
         <div class="row">
-          <button id="m-addRow">+ Agregar línea</button>
+          <button id="m-add-unified" class="primary">➕ Agregar</button>
+          <button id="m-addRow" class="secondary">+ Agregar línea manual</button>
         </div>
         <div class="totals">
           <div>Subtotal Productos: <strong id="m-subP">$0</strong></div>
@@ -1084,6 +1086,13 @@ export function initQuotes({ getCompanyEmail }) {
         </div>
         <label>Vista previa WhatsApp</label>
         <pre id="m-wa-prev" style="min-height:160px;white-space:pre-wrap;"></pre>
+        
+        <!-- Sección de notas especiales -->
+        <div id="m-special-notes-section" style="margin-top: 16px;">
+          <label>Notas especiales</label>
+          <div id="m-special-notes-list"></div>
+          <button id="m-add-special-note" class="secondary" style="margin-top: 8px;">+ Agregar nota especial</button>
+        </div>
       </div>
     `;
 
@@ -1094,6 +1103,7 @@ export function initQuotes({ getCompanyEmail }) {
     const iName  = q('#m-client-name');
     const iPhone = q('#m-client-phone');
     const iEmail = q('#m-client-email');
+    const iClientId = q('#m-client-id');
     const iPlate = q('#m-plate');
     const iBrand = q('#m-brand');
     const iLine  = q('#m-line');
@@ -1107,6 +1117,92 @@ export function initQuotes({ getCompanyEmail }) {
     const lblS    = q('#m-subS');
     const lblT    = q('#m-total');
     const prevWA  = q('#m-wa-prev');
+    
+    // Notas especiales en modal
+    const mSpecialNotesList = q('#m-special-notes-list');
+    const mAddSpecialNote = q('#m-add-special-note');
+    let modalSpecialNotes = [];
+    
+    // Función para agregar nota especial en modal
+    function addModalSpecialNote() {
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.style.cssText = 'position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 10001;';
+      modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+          <div class="card">
+            <h3>Agregar Nota Especial</h3>
+            <textarea id="modal-special-note-input" placeholder="Escribe tu nota especial aquí..." style="width: 100%; height: 100px; margin: 16px 0; padding: 12px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
+            <div class="row" style="justify-content: flex-end; gap: 8px;">
+              <button id="modal-note-cancel" class="secondary">Cancelar</button>
+              <button id="modal-note-add" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">Agregar</button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(modal);
+      modal.classList.remove('hidden');
+      
+      const input = modal.querySelector('#modal-special-note-input');
+      const addBtn = modal.querySelector('#modal-note-add');
+      const cancelBtn = modal.querySelector('#modal-note-cancel');
+      
+      input.focus();
+      
+      const closeModal = () => {
+        modal.remove();
+      };
+      
+      addBtn.onclick = () => {
+        const note = input.value.trim();
+        if (note) {
+          modalSpecialNotes.push(note);
+          renderModalSpecialNotes();
+          recalc();
+          closeModal();
+        }
+      };
+      
+      cancelBtn.onclick = closeModal;
+      
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          addBtn.click();
+        } else if (e.key === 'Escape') {
+          closeModal();
+        }
+      });
+    }
+    
+    // Función para eliminar nota especial en modal
+    function removeModalSpecialNote(index) {
+      if (confirm('¿Eliminar esta nota especial?')) {
+        modalSpecialNotes.splice(index, 1);
+        renderModalSpecialNotes();
+        recalc();
+      }
+    }
+    
+    // Función para renderizar notas especiales en modal
+    function renderModalSpecialNotes() {
+      if (!mSpecialNotesList) return;
+      mSpecialNotesList.innerHTML = '';
+      modalSpecialNotes.forEach((note, index) => {
+        const noteDiv = document.createElement('div');
+        noteDiv.className = 'special-note-item';
+        noteDiv.style.cssText = 'padding: 12px; margin: 8px 0; background: var(--card-alt, #f5f5f5); border-radius: 6px; display: flex; justify-content: space-between; align-items: center; gap: 12px;';
+        noteDiv.innerHTML = `
+          <div style="flex: 1; word-break: break-word; color: var(--text);">${note}</div>
+          <button type="button" class="secondary" onclick="window.removeModalSpecialNote(${index})" style="font-size: 12px; padding: 6px 12px; border-radius: 4px; background: #dc3545; color: white; border: none; cursor: pointer; transition: background 0.2s ease; white-space: nowrap;" onmouseover="this.style.background='#c82333'" onmouseout="this.style.background='#dc3545'">Eliminar</button>
+        `;
+        mSpecialNotesList.appendChild(noteDiv);
+      });
+    }
+    
+    // Exponer función globalmente para los botones onclick
+    window.removeModalSpecialNote = removeModalSpecialNote;
     
     // Selector de vehículo en modal
     const mVehicleSearch = q('#m-vehicle-search');
@@ -1304,7 +1400,8 @@ export function initQuotes({ getCompanyEmail }) {
           type,desc,qty,price,
           source:r.dataset.source||undefined,
           refId:r.dataset.refId||undefined,
-          sku:r.dataset.sku||undefined
+          sku:r.dataset.sku||undefined,
+          comboParent:r.dataset.comboParent||undefined
         });
       }); return rows;
     }
@@ -1336,15 +1433,70 @@ export function initQuotes({ getCompanyEmail }) {
   const val = iValid.value ? `\nValidez: ${iValid.value} días` : '';
   lines.push(`*Cotización ${iNumber.value || '—'}*`);
   lines.push(`Cliente: ${iName.value||'—'}`);
-  lines.push(`Vehículo: ${veh} — Placa: ${iPlate.value||'—'} — Cilindraje: ${iCc.value||'—'} — Kilometraje: ${iMileage.value||'—'}`);
+      lines.push(`Vehículo: ${veh} — Placa: ${iPlate.value||'—'} — Cilindraje: ${iCc.value||'—'} — Kilometraje: ${iMileage.value||'—'}`);
       lines.push('');
-      rows.forEach(({type,desc,qty,price})=>{
+      
+      // Agrupar items por combos (igual que en la función principal)
+      const comboMap = new Map();
+      const regularRows = [];
+      
+      rows.forEach(row => {
+        if (row.comboParent) {
+          if (!comboMap.has(row.comboParent)) {
+            comboMap.set(row.comboParent, { main: null, items: [] });
+          }
+          comboMap.get(row.comboParent).items.push(row);
+        } else if (row.source === 'price' && row.refId && comboMap.has(row.refId)) {
+          comboMap.get(row.refId).main = row;
+        } else {
+          regularRows.push(row);
+        }
+      });
+      
+      // Procesar combos primero
+      comboMap.forEach((combo, refId) => {
+        if (combo.main && combo.items.length > 0) {
+          const {type,desc,qty,price} = combo.main;
+          const q=qty>0?qty:1; const st=q*(price||0);
+          const cantSuffix=(qty&&Number(qty)>0)?` x${q}`:'';
+          lines.push(`*${desc||'Combo'}${cantSuffix}*`);
+          if (st > 0) {
+            lines.push(`${money(st)}`);
+          }
+          
+          // Agregar items del combo anidados
+          combo.items.forEach(item => {
+            const itemQ = item.qty>0?item.qty:1;
+            const itemSt = itemQ*(item.price||0);
+            const itemCantSuffix = (item.qty&&Number(item.qty)>0)?` x${item.qty}`:'';
+            lines.push(`     *${item.desc||'Item'}${itemCantSuffix}*`);
+            if (itemSt > 0) {
+              lines.push(`     ${money(itemSt)}`);
+            }
+          });
+        } else {
+          if (combo.main) regularRows.push(combo.main);
+          if (combo.items.length > 0) regularRows.push(...combo.items);
+        }
+      });
+      
+      // Procesar items regulares
+      regularRows.forEach(({type,desc,qty,price})=>{
         const q=qty>0?qty:1; const st=q*(price||0);
         const tipo=(type==='SERVICIO')?'Servicio':'Producto';
         const cantSuffix=(qty&&Number(qty)>0)?` x${q}`:'';
   lines.push(`• ${desc||tipo}${cantSuffix}`);
         lines.push(`${money(st)}`);
       });
+      
+      // Agregar notas especiales si existen
+      if (modalSpecialNotes.length > 0) {
+        lines.push('');
+        modalSpecialNotes.forEach(note => {
+          lines.push(`📌 ${note}`);
+        });
+      }
+      
       lines.push('');
       lines.push(`Subtotal Productos: ${money(subP)}`);
       lines.push(`Subtotal Servicios: ${money(subS)}`);
@@ -1397,6 +1549,7 @@ export function initQuotes({ getCompanyEmail }) {
     iName.value  = doc?.customer?.name  || '';
     iPhone.value = doc?.customer?.phone || '';
     iEmail.value = doc?.customer?.email || '';
+    if (iClientId) iClientId.value = doc?.customer?.idNumber || '';
     iPlate.value = doc?.vehicle?.plate || '';
     iBrand.value = doc?.vehicle?.make || '';
     iLine.value  = doc?.vehicle?.line || '';
@@ -1576,6 +1729,10 @@ export function initQuotes({ getCompanyEmail }) {
       currentDiscount = { type: null, value: 0 };
     }
     
+    // Cargar notas especiales
+    modalSpecialNotes = doc?.specialNotes ? [...doc.specialNotes] : [];
+    renderModalSpecialNotes();
+    
     rowsBox.innerHTML='';
     (doc?.items||[]).forEach(it=>{
       addRowFromData({ type:(String(it.kind||'PRODUCTO').toUpperCase()==='SERVICIO'?'SERVICIO':'PRODUCTO'), desc:it.description||'', qty:it.qty??'', price:it.unitPrice||0, source:it.source, refId:it.refId, sku:it.sku });
@@ -1585,7 +1742,78 @@ export function initQuotes({ getCompanyEmail }) {
 
     // ---- acciones ----
     btnAdd?.addEventListener('click',()=>{ addRow(); recalc(); });
-    q('#m-close')?.addEventListener('click',()=> closeModal());
+    
+    // Botón agregar unificado (QR/Manual)
+    const btnAddUnified = q('#m-add-unified');
+    if (btnAddUnified) {
+      btnAddUnified.addEventListener('click', () => {
+        // Cerrar modal actual temporalmente
+        const currentModal = document.getElementById('modal');
+        const wasVisible = !currentModal.classList.contains('hidden');
+        if (wasVisible) currentModal.classList.add('hidden');
+        
+        // Abrir modal de agregar unificado (usar función existente)
+        // Guardar referencias del modal actual para usar en la función
+        window._modalQuoteContext = {
+          rowsBox,
+          cloneRow,
+          updateRowSubtotal,
+          recalc,
+          vehicleId: mVehicleId?.value || null
+        };
+        openAddUnifiedForQuote();
+        
+        // Si el modal de agregar se cierra, volver a mostrar el modal de edición
+        const checkModal = () => {
+          const addModal = document.getElementById('modal');
+          if (!addModal || addModal.classList.contains('hidden')) {
+            if (wasVisible && currentModal) {
+              currentModal.classList.remove('hidden');
+            }
+            // Limpiar contexto después de un breve delay
+            setTimeout(() => {
+              if (window._modalQuoteContext) {
+                delete window._modalQuoteContext;
+              }
+            }, 100);
+            return true;
+          }
+          return false;
+        };
+        const intervalId = setInterval(() => {
+          if (checkModal()) {
+            clearInterval(intervalId);
+          }
+        }, 100);
+        
+        // También limpiar cuando se cierra manualmente
+        const originalClose = window.closeModal;
+        window.closeModal = function() {
+          if (originalClose) originalClose();
+          if (wasVisible && currentModal) {
+            currentModal.classList.remove('hidden');
+          }
+          setTimeout(() => {
+            if (window._modalQuoteContext) {
+              delete window._modalQuoteContext;
+            }
+          }, 100);
+        };
+      });
+    }
+    
+    // Notas especiales
+    if (mAddSpecialNote) {
+      mAddSpecialNote.addEventListener('click', addModalSpecialNote);
+    }
+    
+    q('#m-close')?.addEventListener('click',()=> {
+      // Limpiar contexto del modal
+      if (window._modalQuoteContext) {
+        delete window._modalQuoteContext;
+      }
+      closeModal();
+    });
     
     // Event listeners para descuentos
     btnDiscountPercent?.addEventListener('click', () => {
@@ -1616,10 +1844,10 @@ export function initQuotes({ getCompanyEmail }) {
         discountValue = currentDiscount.value;
       }
       
-      exportPDFFromData({
+        exportPDFFromData({
         number: iNumber.value,
         datetime: iDatetime.value,
-        customer: { name:iName.value, clientPhone:iPhone.value, email:iEmail.value },
+        customer: { name:iName.value, clientPhone:iPhone.value, email:iEmail.value, idNumber: iClientId?.value || '' },
         vehicle: { 
           vehicleId: mVehicleId?.value || null,
           make:iBrand.value, 
@@ -1627,10 +1855,10 @@ export function initQuotes({ getCompanyEmail }) {
           modelYear:iYear.value, 
           plate:iPlate.value, 
           displacement:iCc.value, 
-          mileage:iMileage.value 
         },
+        mileage: iMileage.value,
         validity: iValid.value,
-        specialNotes: [],
+        specialNotes: modalSpecialNotes,
         items,
         discount: discountValue > 0 ? { value: discountValue, type: currentDiscount.type } : null
       }).catch(e=>alert(e?.message||'Error generando PDF'));
@@ -1649,18 +1877,23 @@ export function initQuotes({ getCompanyEmail }) {
         }
         
         const payload = {
-          customer:{ name:iName.value||'', phone:iPhone.value||'', email:iEmail.value||'' },
+          customer:{ 
+            name:iName.value||'', 
+            phone:iPhone.value||'', 
+            email:iEmail.value||'',
+            idNumber: iClientId?.value || ''
+          },
           vehicle:{ 
         vehicleId: mVehicleId?.value || null,
         plate:iPlate.value||'', 
         make:iBrand.value||'', 
-        line:iLine.value||'', 
+        line:iLine.value||'',
         modelYear:iYear.value||'', 
         displacement:iCc.value||'', 
         mileage:iMileage.value||'' 
       },
           validity:iValid.value||'',
-          specialNotes:[],
+          specialNotes: modalSpecialNotes,
           discount: discountValue > 0 ? { 
             type: currentDiscount.type, 
             value: currentDiscount.value, 
@@ -1669,7 +1902,10 @@ export function initQuotes({ getCompanyEmail }) {
           items: rows.map(r=>{
             const base={ kind:r.type, description:r.desc, qty:r.qty?Number(r.qty):null, unitPrice:Number(r.price||0) };
             if(r.source) base.source=r.source;
-            if(r.refId) base.refId=r.refId;
+            // Asegurar que refId sea un string válido (no "[object Object]")
+            if(r.refId && typeof r.refId === 'string' && !r.refId.includes('[object Object]')){
+              base.refId = r.refId.trim();
+            }
             if(r.sku) base.sku=r.sku;
             return base;
           })
@@ -2109,7 +2345,11 @@ export function initQuotes({ getCompanyEmail }) {
 
   // Vista de agregar manual para cotizaciones
   function showManualViewForQuote(parentNode) {
-    const currentVehicleId = iVehicleId?.value || null;
+    // Detectar si estamos en el modal de edición
+    const isModal = !!window._modalQuoteContext;
+    const currentVehicleId = isModal 
+      ? (window._modalQuoteContext.vehicleId || null)
+      : (iVehicleId?.value || null);
     let currentView = currentVehicleId ? 'prices' : 'inventory';
     
     function renderView() {
@@ -2152,9 +2392,9 @@ export function initQuotes({ getCompanyEmail }) {
       
       // Renderizar contenido según la vista actual
       if (currentView === 'prices') {
-        renderPricesViewForQuote(content, currentVehicleId);
+        renderPricesViewForQuote(content, currentVehicleId, isModal);
       } else {
-        renderInventoryViewForQuote(content);
+        renderInventoryViewForQuote(content, isModal);
       }
     }
     
@@ -2162,7 +2402,15 @@ export function initQuotes({ getCompanyEmail }) {
   }
 
   // Vista de Lista de precios para cotizaciones
-  async function renderPricesViewForQuote(container, vehicleId) {
+  async function renderPricesViewForQuote(container, vehicleId, isModal = false) {
+    // Obtener contexto correcto (modal o principal)
+    const ctx = isModal && window._modalQuoteContext ? window._modalQuoteContext : {
+      rowsBox,
+      cloneRow,
+      updateRowSubtotal,
+      recalc: recalcAll,
+      vehicleId: iVehicleId?.value || null
+    };
     container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">Cargando...</div>';
     
     if (!vehicleId) {
@@ -2233,19 +2481,19 @@ export function initQuotes({ getCompanyEmail }) {
           card.querySelector('.add-price-btn').onclick = () => {
             if (pe.type === 'combo' && pe.comboProducts && pe.comboProducts.length > 0) {
               // Agregar el combo principal
-              const comboRow = cloneRow();
+              const comboRow = ctx.cloneRow();
               comboRow.querySelector('select').value = 'PRODUCTO';
               comboRow.querySelectorAll('input')[0].value = pe.name || '';
               comboRow.querySelectorAll('input')[1].value = 1;
               comboRow.querySelectorAll('input')[2].value = Math.round(pe.total || pe.price || 0);
               comboRow.dataset.source = 'price';
-              if (pe._id) comboRow.dataset.refId = pe._id;
-              updateRowSubtotal(comboRow);
-              rowsBox.appendChild(comboRow);
+              if (pe._id) comboRow.dataset.refId = String(pe._id);
+              ctx.updateRowSubtotal(comboRow);
+              ctx.rowsBox.appendChild(comboRow);
               
               // Agregar cada producto del combo
               pe.comboProducts.forEach(cp => {
-                const row = cloneRow();
+                const row = ctx.cloneRow();
                 row.querySelector('select').value = 'PRODUCTO';
                 // Para slots abiertos, solo mostrar el nombre (sin indicadores)
                 row.querySelectorAll('input')[0].value = cp.name || '';
@@ -2267,23 +2515,25 @@ export function initQuotes({ getCompanyEmail }) {
                 }
                 // Marcar como item del combo
                 if (pe._id) row.dataset.comboParent = String(pe._id);
-                updateRowSubtotal(row);
-                rowsBox.appendChild(row);
+                ctx.updateRowSubtotal(row);
+                ctx.rowsBox.appendChild(row);
               });
             } else {
               // Item normal (servicio o producto)
-              const row = cloneRow();
+              const row = ctx.cloneRow();
               row.querySelector('select').value = pe.type === 'product' ? 'PRODUCTO' : 'SERVICIO';
               row.querySelectorAll('input')[0].value = pe.name || '';
               row.querySelectorAll('input')[1].value = 1;
               row.querySelectorAll('input')[2].value = Math.round(pe.total || pe.price || 0);
               row.dataset.source = 'price';
-              if (pe._id) row.dataset.refId = pe._id;
-              updateRowSubtotal(row);
-              rowsBox.appendChild(row);
+              if (pe._id) row.dataset.refId = String(pe._id);
+              ctx.updateRowSubtotal(row);
+              ctx.rowsBox.appendChild(row);
             }
-            recalcAll();
-            saveDraft();
+            ctx.recalc();
+            if (!isModal) {
+              saveDraft();
+            }
             closeModal();
           };
           
@@ -2319,7 +2569,16 @@ export function initQuotes({ getCompanyEmail }) {
   }
 
   // Vista de Inventario para cotizaciones
-  async function renderInventoryViewForQuote(container) {
+  async function renderInventoryViewForQuote(container, isModal = false) {
+    // Obtener contexto correcto (modal o principal)
+    const ctx = isModal && window._modalQuoteContext ? window._modalQuoteContext : {
+      rowsBox,
+      cloneRow,
+      updateRowSubtotal,
+      recalc: recalcAll,
+      vehicleId: iVehicleId?.value || null
+    };
+    
     container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">Cargando...</div>';
     
     let page = 1;
@@ -2366,18 +2625,20 @@ export function initQuotes({ getCompanyEmail }) {
           `;
           
           card.querySelector('.add-inventory-btn').onclick = () => {
-            const row = cloneRow();
+            const row = ctx.cloneRow();
             row.querySelector('select').value = 'PRODUCTO';
             row.querySelectorAll('input')[0].value = item.name || item.sku || '';
             row.querySelectorAll('input')[1].value = 1;
             row.querySelectorAll('input')[2].value = Math.round(item.salePrice || 0);
             row.dataset.source = 'inventory';
-            if (item._id) row.dataset.refId = item._id;
+            if (item._id) row.dataset.refId = String(item._id);
             if (item.sku) row.dataset.sku = item.sku;
-            updateRowSubtotal(row);
-            rowsBox.appendChild(row);
-            recalcAll();
-            saveDraft();
+            ctx.updateRowSubtotal(row);
+            ctx.rowsBox.appendChild(row);
+            ctx.recalc();
+            if (!isModal) {
+              saveDraft();
+            }
             closeModal();
           };
           
@@ -2453,6 +2714,16 @@ export function initQuotes({ getCompanyEmail }) {
 
   // Crear precio desde cotización (similar a createPriceFromSale)
   async function createPriceFromQuote(type, vehicleId, vehicle) {
+    // Detectar si estamos en el modal de edición
+    const isModal = !!window._modalQuoteContext;
+    const quoteCtx = isModal && window._modalQuoteContext ? window._modalQuoteContext : {
+      rowsBox,
+      cloneRow,
+      updateRowSubtotal,
+      recalc: recalcAll,
+      vehicleId: iVehicleId?.value || null
+    };
+    
     const node = document.createElement('div');
     node.className = 'card';
     node.style.cssText = 'max-width:600px;margin:0 auto;';
@@ -3003,17 +3274,19 @@ export function initQuotes({ getCompanyEmail }) {
         const prices = await API.pricesList({ vehicleId, name, limit: 1 });
         if (prices && prices.length > 0) {
           const newPrice = prices[0];
-          const row = cloneRow();
+          const row = quoteCtx.cloneRow();
           row.querySelector('select').value = newPrice.type === 'product' ? 'PRODUCTO' : 'SERVICIO';
           row.querySelectorAll('input')[0].value = newPrice.name || '';
           row.querySelectorAll('input')[1].value = 1;
           row.querySelectorAll('input')[2].value = Math.round(newPrice.total || newPrice.price || 0);
           row.dataset.source = 'price';
-          if (newPrice._id) row.dataset.refId = newPrice._id;
-          updateRowSubtotal(row);
-          rowsBox.appendChild(row);
-          recalcAll();
-          saveDraft();
+          if (newPrice._id) row.dataset.refId = String(newPrice._id);
+          quoteCtx.updateRowSubtotal(row);
+          quoteCtx.rowsBox.appendChild(row);
+          quoteCtx.recalc();
+          if (!isModal) {
+            saveDraft();
+          }
         }
         
         closeModal();
@@ -3033,6 +3306,16 @@ export function initQuotes({ getCompanyEmail }) {
 
   // ===== Agregar por QR (con cámara, igual que ventas) =====
   function openQRModalForQuote(){
+    // Detectar si estamos en el modal de edición
+    const isModal = !!window._modalQuoteContext;
+    const quoteCtx = isModal && window._modalQuoteContext ? window._modalQuoteContext : {
+      rowsBox,
+      cloneRow,
+      updateRowSubtotal,
+      recalc: recalcAll,
+      vehicleId: iVehicleId?.value || null
+    };
+    
     const tpl = document.getElementById('tpl-qr-scanner-quote');
     if (!tpl) {
       // Fallback si no existe el template
@@ -3302,18 +3585,20 @@ export function initQuotes({ getCompanyEmail }) {
           }, 2000);
           return;
         }
-        const row=cloneRow();
+        const row=quoteCtx.cloneRow();
         row.querySelector('select').value='PRODUCTO';
         row.querySelectorAll('input')[0].value=it.name||it.sku||text;
         row.querySelectorAll('input')[1].value=1;
         row.querySelectorAll('input')[2].value=Math.round(it.salePrice||0);
         row.dataset.source='inventory'; 
-        if(it._id) row.dataset.refId=it._id; 
+        if(it._id) row.dataset.refId=String(it._id); 
         if(it.sku) row.dataset.sku=it.sku;
-        updateRowSubtotal(row); 
-        rowsBox.appendChild(row); 
-        recalcAll(); 
-        saveDraft();
+        quoteCtx.updateRowSubtotal(row); 
+        quoteCtx.rowsBox.appendChild(row); 
+        quoteCtx.recalc(); 
+        if (!isModal) {
+          saveDraft();
+        }
         playConfirmSound();
         showItemAddedPopup();
         if (!multiMode && !fromManual){ 

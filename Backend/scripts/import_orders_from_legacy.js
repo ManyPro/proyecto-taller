@@ -497,7 +497,33 @@ async function main() {
       const s = Math.floor(seconds % 60);
       return `${m}m ${s}s`;
     };
-    console.log(`[${percent}%] processed=${counters.total} imported=${counters.imported} updated=${counters.updated} duplicates=${counters.duplicates} skippedCompany=${counters.skippedCompany} skippedPlate=${counters.skippedNoPlate} skippedNoData=${counters.skippedNoData} ETA=${fmt(etaSec)}`);
+    
+    // Barra de progreso visual
+    const barWidth = 40;
+    const filled = Math.round((Number(percent) / 100) * barWidth);
+    const bar = '█'.repeat(filled) + '░'.repeat(barWidth - filled);
+    
+    // Limpiar línea anterior
+    process.stdout.write('\r');
+    process.stdout.write(`[${bar}] ${percent}% | ${counters.total}/${totalRows} | ✅ ${counters.imported} | 🔄 ${counters.updated} | ⏭️  ${counters.duplicates} | ⏱️  ETA: ${fmt(etaSec)}`);
+    process.stdout.write(' '.repeat(30)); // Limpiar caracteres residuales
+  }
+  
+  // Función para mostrar resumen final
+  function showFinalSummary() {
+    const dur = ((Date.now()-started)/1000).toFixed(1);
+    console.log('\n' + '='.repeat(60));
+    console.log('✅ IMPORTACIÓN DE ÓRDENES COMPLETADA');
+    console.log('='.repeat(60));
+    console.log(`📊 Total procesado: ${counters.total}/${totalRows}`);
+    console.log(`✅ Importadas: ${counters.imported}`);
+    console.log(`🔄 Actualizadas: ${counters.updated}`);
+    console.log(`⏭️  Duplicadas (saltadas): ${counters.duplicates}`);
+    console.log(`⏩ Saltadas (sin empresa): ${counters.skippedCompany}`);
+    console.log(`🚫 Saltadas (sin placa): ${counters.skippedNoPlate}`);
+    console.log(`📭 Saltadas (sin datos): ${counters.skippedNoData}`);
+    console.log(`⏱️  Tiempo total: ${dur}s`);
+    console.log('='.repeat(60));
   }
 
   if (!dryRun) {
@@ -788,7 +814,9 @@ async function main() {
     if (progressEvery && counters.total % progressEvery === 0) logProgress();
   }
 
-  console.log('Import summary:', JSON.stringify(counters, null, 2));
+  logProgress();
+  console.log(''); // Nueva línea después del progreso
+  showFinalSummary();
 }
 
 main()
