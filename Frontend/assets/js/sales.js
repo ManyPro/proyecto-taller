@@ -1839,8 +1839,14 @@ function openQR(){
 
 // ---------- agregar unificado (QR + Manual) ----------
 function openAddUnified(){
-  if (!current) return alert('Crea primero una venta');
+  console.log('openAddUnified llamada, current:', current);
+  if (!current) {
+    console.warn('No hay venta actual');
+    alert('Crea primero una venta');
+    return;
+  }
   
+  console.log('Creando modal de agregar...');
   // Modal inicial: elegir entre QR y Manual
   const node = document.createElement('div');
   node.className = 'card';
@@ -1862,12 +1868,34 @@ function openAddUnified(){
     </div>
   `;
   
-  openModal(node);
+  console.log('Abriendo modal de agregar...');
+  const modal = document.getElementById('modal');
+  const slot = document.getElementById('modalBody');
+  const x = document.getElementById('modalClose');
+  
+  if (!modal || !slot || !x) {
+    console.error('Modal no encontrado:', { modal: !!modal, slot: !!slot, x: !!x });
+    alert('Error: No se pudo abrir el modal. Por favor, recarga la página.');
+    return;
+  }
+  
+  slot.replaceChildren(node);
+  modal.classList.remove('hidden');
+  x.onclick = () => {
+    modal.classList.add('hidden');
+  };
+  
+  console.log('Modal de agregar abierto');
   
   // Estilos hover para los botones
   const qrBtn = node.querySelector('#add-qr-btn');
   const manualBtn = node.querySelector('#add-manual-btn');
   const cancelBtn = node.querySelector('#add-cancel-btn');
+  
+  if (!qrBtn || !manualBtn || !cancelBtn) {
+    console.error('Botones no encontrados en el modal:', { qrBtn: !!qrBtn, manualBtn: !!manualBtn, cancelBtn: !!cancelBtn });
+    return;
+  }
   
   qrBtn.addEventListener('mouseenter', () => {
     qrBtn.style.transform = 'scale(1.05)';
@@ -1888,19 +1916,30 @@ function openAddUnified(){
   });
   
   // Si selecciona QR, abrir el modal de QR
-  qrBtn.onclick = () => {
-    closeModal();
+  qrBtn.addEventListener('click', (e) => {
+    console.log('Click en botón QR detectado');
+    e.preventDefault();
+    e.stopPropagation();
+    const modal = document.getElementById('modal');
+    if (modal) modal.classList.add('hidden');
     openQR();
-  };
+  });
   
   // Si selecciona Manual, mostrar navegación entre Lista de precios e Inventario
-  manualBtn.onclick = () => {
+  manualBtn.addEventListener('click', (e) => {
+    console.log('Click en botón Manual detectado');
+    e.preventDefault();
+    e.stopPropagation();
     showManualView(node);
-  };
+  });
   
-  cancelBtn.onclick = () => {
-    closeModal();
-  };
+  cancelBtn.addEventListener('click', (e) => {
+    console.log('Click en botón Cancelar detectado');
+    e.preventDefault();
+    e.stopPropagation();
+    const modal = document.getElementById('modal');
+    if (modal) modal.classList.add('hidden');
+  });
 }
 
 // Vista de agregar manual (navegación entre Lista de precios e Inventario)
@@ -3714,9 +3753,6 @@ export function initSales(){
     finally{ starting=false; if(btn) btn.disabled=false; }
   });
 
-  // Nueva venta con QR (lector de placas)
-  document.getElementById('sales-start-qr')?.addEventListener('click', openQRForNewSale);
-
   // ===== Nueva venta con QR (lector de placas) =====
   async function openQRForNewSale(){
     if (starting) {
@@ -3787,6 +3823,17 @@ export function initSales(){
       }catch{}; 
       running=false; 
       stream = null;
+      
+      // Terminar worker de OCR si existe
+      if (ocrWorker) {
+        try {
+          ocrWorker.terminate();
+          ocrWorker = null;
+          console.log('OCR worker terminado');
+        } catch (err) {
+          console.warn('Error al terminar OCR worker:', err);
+        }
+      }
       
       // Restaurar botón de iniciar
       const startBtn = node.querySelector('#qr-start');
@@ -3982,6 +4029,9 @@ export function initSales(){
             console.warn('No se pudieron actualizar las cámaras:', enumErr);
           }
         }
+        
+        // Inicializar OCR
+        await initOCR();
         
         if (window.BarcodeDetector) { 
           detector = new BarcodeDetector({ formats: ['qr_code'] }); 
@@ -4194,6 +4244,82 @@ export function initSales(){
       handlePlate(code);
     }
 
+    let ocrWorker = null;
+    let lastOcrTime = 0;
+    const ocrInterval = 2000; // Procesar OCR cada 2 segundos para no sobrecargar
+    
+    // Inicializar worker de OCR
+    async function initOCR() {
+      if (typeof Tesseract === 'undefined') {
+        console.warn('Tesseract.js no está disponible');
+        return null;
+      }
+      try {
+        if (!ocrWorker) {
+          console.log('Inicializando OCR worker...');
+          ocrWorker = await Tesseract.createWorker('spa+eng', 1, {
+            logger: m => {
+              if (m.status === 'recognizing text') {
+                // Silenciar logs de reconocimiento
+              }
+            }
+          });
+          await ocrWorker.setParameters({
+            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789- ',
+            tessedit_pageseg_mode: '6' // Uniform block of text
+          });
+          console.log('OCR worker inicializado');
+        }
+        return ocrWorker;
+      } catch (err) {
+        console.error('Error al inicializar OCR:', err);
+        return null;
+      }
+    }
+    
+    // Función para extraer placa del texto OCR
+    // SOLO acepta formato: 3 letras seguidas de guion y 3 números (ABC-123)
+    function extractPlateFromText(text) {
+      if (!text) return null;
+      
+      // Limpiar el texto y convertir a mayúsculas
+      const clean = text.toUpperCase().replace(/[^A-Z0-9\s-]/g, '').trim();
+      
+      // Buscar SOLO el patrón exacto: 3 letras, guion (opcional), 3 números
+      // Priorizar formato con guion: ABC-123
+      const withDash = clean.match(/\b([A-Z]{3})[-]?([0-9]{3})\b/);
+      if (withDash) {
+        const letters = withDash[1];
+        const numbers = withDash[2];
+        // Validar que sean exactamente 3 letras y 3 números
+        if (letters && letters.length === 3 && numbers && numbers.length === 3) {
+          return `${letters}-${numbers}`;
+        }
+      }
+      
+      // Si no encontró con guion, buscar sin guion pero con espacio: ABC 123
+      const withSpace = clean.match(/\b([A-Z]{3})\s+([0-9]{3})\b/);
+      if (withSpace) {
+        const letters = withSpace[1];
+        const numbers = withSpace[2];
+        if (letters && letters.length === 3 && numbers && numbers.length === 3) {
+          return `${letters}-${numbers}`;
+        }
+      }
+      
+      // Último intento: sin separador pero juntos: ABC123
+      const noSeparator = clean.match(/\b([A-Z]{3})([0-9]{3})\b/);
+      if (noSeparator) {
+        const letters = noSeparator[1];
+        const numbers = noSeparator[2];
+        if (letters && letters.length === 3 && numbers && numbers.length === 3) {
+          return `${letters}-${numbers}`;
+        }
+      }
+      
+      return null;
+    }
+    
     async function tickNative(){ 
       if(!running || cameraDisabled) {
         if (running && cameraDisabled) {
@@ -4201,16 +4327,73 @@ export function initSales(){
         }
         return;
       }
+      
+      // Intentar primero con QR (por si acaso hay un código QR)
       try{ 
-        const codes=await detector.detect(video); 
-        if(codes && codes.length > 0 && codes[0]?.rawValue) {
-          onCode(codes[0].rawValue);
+        if (detector) {
+          const codes=await detector.detect(video); 
+          if(codes && codes.length > 0 && codes[0]?.rawValue) {
+            const code = codes[0].rawValue;
+            if (isValidPlate(code)) {
+              onCode(code);
+              return;
+            }
+          }
         }
       }catch(e){
-        if (e.message && !e.message.includes('No image') && !e.message.includes('not readable')) {
-          console.warn('Error en detección nativa:', e);
+        // Ignorar errores de QR
+      }
+      
+      // Luego intentar con OCR para leer texto de placas
+      const now = Date.now();
+      if (now - lastOcrTime >= ocrInterval) {
+        lastOcrTime = now;
+        try {
+          if (!ocrWorker) {
+            await initOCR();
+          }
+          
+          if (ocrWorker && video.readyState >= 2) {
+            const w = video.videoWidth|0, h = video.videoHeight|0;
+            if (w && h) {
+              canvas.width = w;
+              canvas.height = h;
+              ctx.drawImage(video, 0, 0, w, h);
+              
+              // Procesar solo una región central de la imagen (donde suele estar la placa)
+              const cropX = Math.floor(w * 0.1);
+              const cropY = Math.floor(h * 0.3);
+              const cropW = Math.floor(w * 0.8);
+              const cropH = Math.floor(h * 0.4);
+              
+              const imageData = ctx.getImageData(cropX, cropY, cropW, cropH);
+              const tempCanvas = document.createElement('canvas');
+              tempCanvas.width = cropW;
+              tempCanvas.height = cropH;
+              const tempCtx = tempCanvas.getContext('2d');
+              tempCtx.putImageData(imageData, 0, 0);
+              
+              const { data: { text } } = await ocrWorker.recognize(tempCanvas);
+              
+              if (text) {
+                console.log('Texto detectado por OCR:', text);
+                const plate = extractPlateFromText(text);
+                if (plate && isValidPlate(plate)) {
+                  console.log('Placa extraída:', plate);
+                  onCode(plate);
+                  return;
+                }
+              }
+            }
+          }
+        } catch (ocrErr) {
+          // Silenciar errores de OCR frecuentes
+          if (!ocrErr.message?.includes('No image') && !ocrErr.message?.includes('not readable')) {
+            console.warn('Error en OCR:', ocrErr);
+          }
         }
-      } 
+      }
+      
       requestAnimationFrame(tickNative); 
     }
     
@@ -4230,10 +4413,57 @@ export function initSales(){
         canvas.width=w; 
         canvas.height=h;
         ctx.drawImage(video,0,0,w,h);
+        
+        // Intentar primero con QR
         const imgData=ctx.getImageData(0,0,w,h);
-        const code=jsQR(imgData.data, w, h);
-        if(code && code.data) {
-          onCode(code.data);
+        if (typeof jsQR !== 'undefined') {
+          const code=jsQR(imgData.data, w, h);
+          if(code && code.data && isValidPlate(code.data)) {
+            onCode(code.data);
+            return;
+          }
+        }
+        
+        // Luego intentar con OCR
+        const now = Date.now();
+        if (now - lastOcrTime >= ocrInterval) {
+          lastOcrTime = now;
+          (async () => {
+            try {
+              if (!ocrWorker) {
+                await initOCR();
+              }
+              
+              if (ocrWorker) {
+                // Procesar región central
+                const cropX = Math.floor(w * 0.1);
+                const cropY = Math.floor(h * 0.3);
+                const cropW = Math.floor(w * 0.8);
+                const cropH = Math.floor(h * 0.4);
+                
+                const imageData = ctx.getImageData(cropX, cropY, cropW, cropH);
+                const tempCanvas = document.createElement('canvas');
+                tempCanvas.width = cropW;
+                tempCanvas.height = cropH;
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCtx.putImageData(imageData, 0, 0);
+                
+                const { data: { text } } = await ocrWorker.recognize(tempCanvas);
+                
+                if (text) {
+                  console.log('Texto detectado por OCR:', text);
+                  const plate = extractPlateFromText(text);
+                  if (plate && isValidPlate(plate)) {
+                    console.log('Placa extraída:', plate);
+                    onCode(plate);
+                    return;
+                  }
+                }
+              }
+            } catch (ocrErr) {
+              // Silenciar errores frecuentes
+            }
+          })();
         }
       }catch(e){
         console.warn('Error en tickCanvas:', e);
@@ -4325,7 +4555,50 @@ export function initSales(){
     console.log('Modal QR abierto correctamente');
   }
 
-  document.getElementById('sales-add-unified')?.addEventListener('click', openAddUnified);
+  // Registrar event listeners DESPUÉS de definir las funciones
+  // Usar setTimeout para asegurar que el DOM esté completamente cargado
+  setTimeout(() => {
+    const salesStartQrBtn = document.getElementById('sales-start-qr');
+    if (salesStartQrBtn) {
+      console.log('Registrando event listener para sales-start-qr');
+      // Agregar tanto click como touchstart para móvil
+      const handleStartQr = (e) => {
+        console.log('Evento detectado en sales-start-qr:', e.type);
+        e.preventDefault();
+        e.stopPropagation();
+        openQRForNewSale().catch(err => {
+          console.error('Error al abrir QR para nueva venta:', err);
+          alert('Error: ' + (err?.message || 'No se pudo abrir el lector de QR'));
+        });
+      };
+      salesStartQrBtn.addEventListener('click', handleStartQr);
+      salesStartQrBtn.addEventListener('touchend', handleStartQr);
+      // Asegurar que el botón sea clickeable
+      salesStartQrBtn.style.cursor = 'pointer';
+      salesStartQrBtn.style.pointerEvents = 'auto';
+    } else {
+      console.warn('Botón sales-start-qr no encontrado en el DOM');
+    }
+
+    const salesAddUnifiedBtn = document.getElementById('sales-add-unified');
+    if (salesAddUnifiedBtn) {
+      console.log('Registrando event listener para sales-add-unified');
+      // Agregar tanto click como touchstart para móvil
+      const handleAddUnified = (e) => {
+        console.log('Evento detectado en sales-add-unified:', e.type);
+        e.preventDefault();
+        e.stopPropagation();
+        openAddUnified();
+      };
+      salesAddUnifiedBtn.addEventListener('click', handleAddUnified);
+      salesAddUnifiedBtn.addEventListener('touchend', handleAddUnified);
+      // Asegurar que el botón sea clickeable
+      salesAddUnifiedBtn.style.cursor = 'pointer';
+      salesAddUnifiedBtn.style.pointerEvents = 'auto';
+    } else {
+      console.warn('Botón sales-add-unified no encontrado en el DOM');
+    }
+  }, 100);
   document.getElementById('sales-history')?.addEventListener('click', openSalesHistory);
   document.getElementById('sv-edit-cv')?.addEventListener('click', openEditCV);
   document.getElementById('sv-loadQuote')?.addEventListener('click', loadQuote);
