@@ -1571,6 +1571,10 @@ export function initPrices(){
     let comboProductsContainer = null;
     if (isCombo) {
       comboProductsContainer = node.querySelector('#pe-modal-combo-products');
+      if (!comboProductsContainer) {
+        console.error('Error: No se encontró el elemento #pe-modal-combo-products en el DOM');
+        console.error('isCombo:', isCombo, 'node:', node);
+      }
       const addComboProductBtn = node.querySelector('#pe-modal-add-combo-product');
       
       function addComboProductRow(productData = {}) {
@@ -1941,10 +1945,15 @@ export function initPrices(){
         row.querySelector('.combo-product-price').addEventListener('input', updateComboTotal);
         row.querySelector('.combo-product-qty').addEventListener('input', updateComboTotal);
         
-        comboProductsContainer.appendChild(row);
+        if (comboProductsContainer) {
+          comboProductsContainer.appendChild(row);
+        } else {
+          console.error('comboProductsContainer no está disponible');
+        }
       }
       
       function updateComboTotal() {
+        if (!comboProductsContainer) return;
         const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
         let total = 0;
         products.forEach(prod => {
@@ -1972,7 +1981,8 @@ export function initPrices(){
         addComboProductRow();
       } else {
         // Agregar event listeners a los checkboxes existentes
-        comboProductsContainer.querySelectorAll('.combo-product-open-slot').forEach(checkbox => {
+        if (comboProductsContainer) {
+          comboProductsContainer.querySelectorAll('.combo-product-open-slot').forEach(checkbox => {
           const row = checkbox.closest('.combo-product-item');
           const itemSection = row.querySelector('.combo-product-item-section');
           checkbox.addEventListener('change', (e) => {
@@ -1993,6 +2003,7 @@ export function initPrices(){
             updateComboTotal();
           });
         });
+        }
       }
     }
     
