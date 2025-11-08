@@ -5,6 +5,25 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>M&M - Inicio</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            'dark-bg': '#0f172a',
+            'dark-card': '#111827',
+            'dark-card-alt': '#0b1220',
+            'dark-text': '#e5e7eb',
+            'dark-muted': '#9ca3af',
+            'dark-border': '#1f2937',
+          }
+        }
+      }
+    }
+  </script>
   <link rel="stylesheet" href="assets/styles.css?v=20251010" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <script src="./assets/js/config.js"></script>
@@ -112,33 +131,75 @@
 
   <!-- ========== APP ========== -->
   <div class="topbar hidden" id="appHeader">
-    <div class="topbar-inner">
-      <div class="topbar-card">
-        <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
-          <div class="brand">
-            <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" />
-            <div class="company">Empresa: <span id="companyName">-</span></div>
+    <!-- Top Bar - Header Principal -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16 md:h-20">
+          <!-- Logo y Nombre de Empresa -->
+          <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
+            <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
+            <div class="hidden sm:flex flex-col">
+              <span class="text-xs text-slate-400 font-medium">Empresa</span>
+              <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
+            </div>
+            <div class="sm:hidden text-white font-semibold text-sm">
+              <span id="companyNameMobile">-</span>
+            </div>
           </div>
-          <div class="row" style="gap:6px;align-items:center;">
-            <button id="logoutBtn" class="secondary hidden">Salir</button>
-            <button id="denseToggle" class="secondary" title="Modo compacto">📏</button>
-            <button id="themeToggle" class="secondary" title="Cambiar tema">🌗</button>
+
+          <!-- Botones de Acción (Desktop) -->
+          <div class="hidden md:flex items-center gap-2">
+            <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
+            <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
+            <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+          </div>
+
+          <!-- Menú Hamburguesa (Mobile) -->
+          <div class="md:hidden flex items-center gap-2">
+            <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
+            <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+            <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+              </svg>
+            </button>
           </div>
         </div>
-        <div class="top-tabs">
-          <nav class="tabs">
-            <button data-tab="home" data-href="index.html" class="active">Inicio</button>
-            <button data-tab="notas" data-feature="notas" data-href="notas.html">Notas</button>
-            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html">Ventas</button>
-            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html">Cotizaciones</button>
-            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html">Inventario</button>
-            <button data-tab="precios" data-feature="precios" data-href="precios.html">Lista de precios</button>
-            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html">Flujo de Caja</button>
-            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html">Nómina</button>
-            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html">Formatos</button>
-            <button data-tab="skus" data-feature="skus" data-href="skus.html">SKUs</button>
+      </div>
+
+      <!-- Navegación Principal (Desktop) -->
+      <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
+            <button data-tab="home" data-href="index.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-t-lg transition-all duration-200 hover:bg-blue-700 whitespace-nowrap">Inicio</button>
+            <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
+            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
+            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
+            <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
+            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
+            <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
           </nav>
         </div>
+      </div>
+    </div>
+
+    <!-- Menú Móvil (Mobile Menu) -->
+    <div id="mobileMenu" class="md:hidden hidden bg-slate-800 border-t border-slate-700/50 shadow-xl">
+      <div class="px-4 py-3 space-y-1">
+        <button data-tab="home" data-href="index.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">Inicio</button>
+        <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Notas</button>
+        <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Ventas</button>
+        <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cotizaciones</button>
+        <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inventario</button>
+        <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Lista de precios</button>
+        <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Flujo de Caja</button>
+        <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
+        <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
+        <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
+        <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
       </div>
     </div>
   </div>
@@ -149,10 +210,85 @@
 
       <!-- Bienvenida -->
       <section id="tab-home" class="tab active">
-        <div class="card" style="max-width:520px;margin:40px auto;text-align:center;padding:48px 32px;">
-          <h2 style="font-size:24px;margin:0;color:var(--muted);">Bienvenido a</h2>
-          <h1 style="font-size:40px;margin:16px 0 8px 0;"> <span id="welcomeCompany">Tu empresa</span></h1>
-          <p class="muted" style="font-size:16px;">Usa la barra de navegación para acceder a cada herramienta de tu taller.</p>
+        <div class="min-h-screen flex items-center justify-center px-4 py-12 sm:py-16 lg:py-20">
+          <div class="w-full max-w-2xl">
+            <!-- Card Principal de Bienvenida -->
+            <div class="bg-gradient-to-br from-slate-800 via-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700/50 p-8 sm:p-12 lg:p-16 text-center relative overflow-hidden">
+              <!-- Decoración de fondo -->
+              <div class="absolute inset-0 opacity-10">
+                <div class="absolute top-0 left-0 w-72 h-72 bg-blue-500 rounded-full blur-3xl"></div>
+                <div class="absolute bottom-0 right-0 w-72 h-72 bg-purple-500 rounded-full blur-3xl"></div>
+              </div>
+              
+              <!-- Contenido -->
+              <div class="relative z-10">
+                <!-- Icono de bienvenida -->
+                <div class="mb-6 flex justify-center">
+                  <div class="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                    <svg class="w-10 h-10 sm:w-12 sm:h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                  </div>
+                </div>
+
+                <!-- Texto de bienvenida -->
+                <h2 class="text-lg sm:text-xl text-slate-400 font-medium mb-2">Bienvenido a</h2>
+                <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  <span id="welcomeCompany">Tu empresa</span>
+                </h1>
+                <p class="text-base sm:text-lg text-slate-300 mb-8 max-w-md mx-auto">
+                  Usa la barra de navegación para acceder a cada herramienta de tu taller.
+                </p>
+
+                <!-- Indicadores gráficos -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8 pt-8 border-t border-slate-700/50">
+                  <div class="flex flex-col items-center">
+                    <div class="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center mb-2">
+                      <span class="text-2xl">📝</span>
+                    </div>
+                    <span class="text-xs sm:text-sm text-slate-400">Notas</span>
+                  </div>
+                  <div class="flex flex-col items-center">
+                    <div class="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center mb-2">
+                      <span class="text-2xl">💰</span>
+                    </div>
+                    <span class="text-xs sm:text-sm text-slate-400">Ventas</span>
+                  </div>
+                  <div class="flex flex-col items-center">
+                    <div class="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center mb-2">
+                      <span class="text-2xl">📦</span>
+                    </div>
+                    <span class="text-xs sm:text-sm text-slate-400">Inventario</span>
+                  </div>
+                  <div class="flex flex-col items-center">
+                    <div class="w-12 h-12 rounded-lg bg-orange-500/20 flex items-center justify-center mb-2">
+                      <span class="text-2xl">📊</span>
+                    </div>
+                    <span class="text-xs sm:text-sm text-slate-400">Reportes</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Cards de Acceso Rápido (Opcional - solo en desktop) -->
+            <div class="hidden lg:grid grid-cols-3 gap-6 mt-8">
+              <div class="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50 hover:border-blue-500/50 transition-all duration-200 cursor-pointer group">
+                <div class="text-3xl mb-3 group-hover:scale-110 transition-transform duration-200">📝</div>
+                <h3 class="text-white font-semibold mb-1">Notas</h3>
+                <p class="text-sm text-slate-400">Gestiona tus notas</p>
+              </div>
+              <div class="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50 hover:border-green-500/50 transition-all duration-200 cursor-pointer group">
+                <div class="text-3xl mb-3 group-hover:scale-110 transition-transform duration-200">💰</div>
+                <h3 class="text-white font-semibold mb-1">Ventas</h3>
+                <p class="text-sm text-slate-400">Registra ventas</p>
+              </div>
+              <div class="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50 hover:border-purple-500/50 transition-all duration-200 cursor-pointer group">
+                <div class="text-3xl mb-3 group-hover:scale-110 transition-transform duration-200">📦</div>
+                <h3 class="text-white font-semibold mb-1">Inventario</h3>
+                <p class="text-sm text-slate-400">Control de stock</p>
+              </div>
+            </div>
+          </div>
         </div>
 
 
@@ -185,6 +321,112 @@
   <script type="module" src="./assets/js/prices.js" charset="utf-8"></script>
   <script src="./assets/js/templates.js" charset="utf-8"></script>
   <script src="./assets/js/input-fix.js"></script>
+  
+  <!-- Script para manejar el menú móvil y navegación -->
+  <script>
+    // Toggle del menú móvil
+    document.addEventListener('DOMContentLoaded', () => {
+      const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+      const mobileMenu = document.getElementById('mobileMenu');
+      const logoutBtn = document.getElementById('logoutBtn');
+      const logoutBtnMobile = document.getElementById('logoutBtnMobile');
+      const companyName = document.getElementById('companyName');
+      const companyNameMobile = document.getElementById('companyNameMobile');
+
+      // Sincronizar nombre de empresa en móvil
+      if (companyName && companyNameMobile) {
+        const observer = new MutationObserver(() => {
+          companyNameMobile.textContent = companyName.textContent;
+        });
+        observer.observe(companyName, { childList: true, characterData: true, subtree: true });
+        companyNameMobile.textContent = companyName.textContent;
+      }
+
+      // Sincronizar botón de logout
+      if (logoutBtn && logoutBtnMobile) {
+        logoutBtnMobile.addEventListener('click', () => {
+          if (logoutBtn.onclick) logoutBtn.onclick();
+          else logoutBtn.click();
+        });
+        
+        const logoutObserver = new MutationObserver(() => {
+          logoutBtnMobile.classList.toggle('hidden', logoutBtn.classList.contains('hidden'));
+        });
+        logoutObserver.observe(logoutBtn, { attributes: true, attributeFilter: ['class'] });
+        logoutBtnMobile.classList.toggle('hidden', logoutBtn.classList.contains('hidden'));
+      }
+
+      // Toggle menú móvil
+      if (mobileMenuToggle && mobileMenu) {
+        mobileMenuToggle.addEventListener('click', () => {
+          mobileMenu.classList.toggle('hidden');
+          const icon = mobileMenuToggle.querySelector('svg');
+          if (icon) {
+            if (mobileMenu.classList.contains('hidden')) {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>';
+            } else {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>';
+            }
+          }
+        });
+
+        // Cerrar menú al hacer clic en un enlace
+        const mobileNavTabs = mobileMenu.querySelectorAll('.mobile-nav-tab');
+        mobileNavTabs.forEach(tab => {
+          tab.addEventListener('click', () => {
+            mobileMenu.classList.add('hidden');
+            const icon = mobileMenuToggle.querySelector('svg');
+            if (icon) {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>';
+            }
+          });
+        });
+      }
+
+      // Manejar clases activas en navegación
+      const updateActiveTab = () => {
+        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+        const allTabs = document.querySelectorAll('.nav-tab, .mobile-nav-tab');
+        allTabs.forEach(tab => {
+          const href = tab.getAttribute('data-href');
+          if (href === currentPage || (currentPage === '' && href === 'index.html')) {
+            tab.classList.add('active');
+            if (tab.classList.contains('nav-tab')) {
+              tab.classList.add('bg-blue-600', 'text-white');
+              tab.classList.remove('text-slate-300', 'hover:bg-slate-700/50');
+            }
+            if (tab.classList.contains('mobile-nav-tab')) {
+              tab.classList.add('bg-blue-600', 'text-white');
+              tab.classList.remove('text-slate-300', 'hover:bg-slate-700/50');
+            }
+          } else {
+            tab.classList.remove('active');
+            if (tab.classList.contains('nav-tab')) {
+              tab.classList.remove('bg-blue-600', 'text-white');
+              tab.classList.add('text-slate-300', 'hover:bg-slate-700/50');
+            }
+            if (tab.classList.contains('mobile-nav-tab')) {
+              tab.classList.remove('bg-blue-600', 'text-white');
+              tab.classList.add('text-slate-300', 'hover:bg-slate-700/50');
+            }
+          }
+        });
+      };
+
+      updateActiveTab();
+      
+      // Actualizar cuando cambie la página
+      const navTabs = document.querySelectorAll('.nav-tab, .mobile-nav-tab');
+      navTabs.forEach(tab => {
+        tab.addEventListener('click', (e) => {
+          const href = tab.getAttribute('data-href');
+          if (href && href !== window.location.pathname.split('/').pop()) {
+            window.location.href = href;
+          }
+        });
+      });
+    });
+  </script>
 </body>
 </html>
 

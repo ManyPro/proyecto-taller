@@ -528,17 +528,38 @@ function initializeLogoutListener() {
   function getHeaderActionsRow(){
     const appHeaderEl = document.getElementById('appHeader');
     if(!appHeaderEl) return null;
-    const rows = appHeaderEl.querySelectorAll('.row');
-    if(rows && rows.length){ return rows[rows.length - 1]; }
-    return null;
+    // Buscar el contenedor de botones de acción (desktop o mobile)
+    // Buscar por ID o por clase específica
+    const desktopActions = appHeaderEl.querySelector('[class*="hidden md:flex"]');
+    const mobileActions = appHeaderEl.querySelector('[class*="md:hidden flex"]');
+    // Si no encontramos por clase, buscar por posición (último div con botones)
+    if(!desktopActions && !mobileActions) {
+      const allDivs = appHeaderEl.querySelectorAll('div');
+      for(let div of allDivs) {
+        if(div.querySelector('#themeToggle') || div.querySelector('#denseToggle')) {
+          return div;
+        }
+      }
+    }
+    // Preferir desktop, pero usar mobile si no existe desktop
+    return desktopActions || mobileActions || null;
   }
   function ensureBell(){
     const header = getHeaderActionsRow();
     if(!header) return;
     if(document.getElementById('notifBell')) return;
     bell = document.createElement('button');
-    bell.id='notifBell'; bell.className='secondary'; bell.style.position='relative'; bell.innerHTML='\uD83D\uDD14 <span id="notifCount" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;padding:2px 6px;border-radius:14px;font-size:10px;line-height:1;display:none;">0</span>';
-  header.appendChild(bell);
+    bell.id='notifBell';
+    // Usar clases de Tailwind para el botón de notificaciones
+    bell.className='p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200 relative';
+    bell.innerHTML='\uD83D\uDD14 <span id="notifCount" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;padding:2px 6px;border-radius:14px;font-size:10px;line-height:1;display:none;">0</span>';
+    // Insertar antes del último botón (themeToggle o mobileMenuToggle)
+    const lastButton = header.querySelector('#themeToggle') || header.querySelector('#mobileMenuToggle');
+    if(lastButton && lastButton.parentNode) {
+      lastButton.parentNode.insertBefore(bell, lastButton);
+    } else {
+      header.appendChild(bell);
+    }
     bell.addEventListener('click', togglePanel);
   }
   function ensurePanel(){
