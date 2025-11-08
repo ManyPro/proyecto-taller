@@ -21,9 +21,12 @@ function applyTheme(theme){
   if(!body) return;
   if(theme === 'light') body.classList.add('theme-light'); else body.classList.remove('theme-light');
   try{ localStorage.setItem(THEME_KEY, theme); }catch{}
-  const btn = document.getElementById('themeToggle');
-  if(btn) btn.textContent = theme === 'light' ? '🌙' : '🌞';
-  if(btn) btn.title = theme === 'light' ? 'Cambiar a oscuro' : 'Cambiar a claro';
+  // Actualizar todos los botones de tema (desktop, mobile, portal, login, admin)
+  const themeButtons = document.querySelectorAll('#themeToggle, #themeTogglePortal, #themeToggleLogin, #themeToggleAdmin');
+  themeButtons.forEach(btn => {
+    btn.textContent = theme === 'light' ? '🌙' : '🌞';
+    btn.title = theme === 'light' ? 'Cambiar a oscuro' : 'Cambiar a claro';
+  });
   // Swap logo by theme
   const logo = document.getElementById('brandLogo');
   if(logo){
@@ -31,6 +34,10 @@ function applyTheme(theme){
     const src = theme === 'light' ? 'assets/darklogo.png' : 'assets/lightlogo.png';
     if(logo.getAttribute('src') !== src) logo.setAttribute('src', src);
   }
+}
+// Hacer applyTheme disponible globalmente para las páginas de login
+if (typeof window !== 'undefined') {
+  window.applyTheme = applyTheme;
 }
 function detectInitialTheme(){
   try{
@@ -50,9 +57,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
   initializeLogoutListener();
   initializeAuth();
   applyTheme(detectInitialTheme());
-  document.getElementById('themeToggle')?.addEventListener('click', ()=>{
-    const isLight = document.body.classList.contains('theme-light');
-    applyTheme(isLight ? 'dark' : 'light');
+  
+  // Usar event delegation para manejar clicks en todos los botones de tema (desktop y mobile)
+  document.addEventListener('click', (e) => {
+    // Verificar si el click fue en un botón con id themeToggle
+    if (e.target && e.target.id === 'themeToggle') {
+      const isLight = document.body.classList.contains('theme-light');
+      applyTheme(isLight ? 'dark' : 'light');
+    }
   });
   initFAB();
   initCollapsibles();

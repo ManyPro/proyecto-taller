@@ -4,10 +4,63 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Panel Admin</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: ['class', '.theme-light'],
+      theme: {
+        extend: {
+          colors: {
+            'dark-bg': '#0f172a',
+            'dark-card': '#111827',
+            'dark-card-alt': '#0b1220',
+            'dark-text': '#e5e7eb',
+            'dark-muted': '#9ca3af',
+            'dark-border': '#1f2937',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Estilos para modo claro - Sobrescribir colores de Tailwind */
+    body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
+    body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
+      background: linear-gradient(to right, #f8fafc, #f1f5f9, #f8fafc) !important;
+    }
+    body.theme-light [class*="bg-slate-800/50"],
+    body.theme-light [class*="bg-slate-800"][class*="/50"] {
+      background-color: rgba(241, 245, 249, 0.8) !important;
+    }
+    body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
+      background-color: #f1f5f9 !important;
+    }
+    body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700) {
+      color: #0f172a !important;
+    }
+    body.theme-light .text-slate-300 {
+      color: #475569 !important;
+    }
+    body.theme-light .text-slate-400 {
+      color: #64748b !important;
+    }
+    body.theme-light [class*="border-slate-700/50"],
+    body.theme-light [class*="border-slate-700"][class*="/50"] {
+      border-color: rgba(203, 213, 225, 0.5) !important;
+    }
+    body.theme-light [class*="bg-slate-900/50"] {
+      background-color: rgba(255, 255, 255, 0.9) !important;
+    }
+    body.theme-light [class*="bg-slate-700/50"] {
+      background-color: rgba(203, 213, 225, 0.5) !important;
+    }
+  </style>
   <link rel="stylesheet" href="assets/styles.css?v=20251010" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <script src="./assets/js/config.js"></script>
   <script src="./assets/js/api.js"></script>
+  <script src="./assets/js/app.js"></script>
 </head>
 <body data-page="admin">
   <div class="topbar hidden" id="appHeader">
@@ -27,43 +80,90 @@
   </div>
 
   <main>
-    <section id="loginSection">
-      <div class="card" style="max-width:460px;margin:40px auto;">
-        <h2>Ingreso Admin/Developer</h2>
-        <label>Correo</label>
-        <input id="a-email" type="email" />
-        <label>Contraseña</label>
-        <input id="a-password" type="password" />
-        <div class="row" style="gap:8px;margin-top:8px;">
-          <button id="a-login">Entrar</button>
+    <section id="loginSection" class="min-h-screen flex items-center justify-center px-4 py-12 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 theme-light:from-slate-50 theme-light:via-slate-100 theme-light:to-slate-50 relative">
+      <!-- Botón de cambio de tema -->
+      <button id="themeToggleAdmin" class="absolute top-4 right-4 p-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700 hover:text-white dark:hover:text-white theme-light:hover:text-slate-900 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-200/50 rounded-lg transition-colors duration-200 z-20" title="Cambiar tema">🌗</button>
+      <div class="w-full max-w-2xl space-y-6">
+        <!-- Card de Login Admin -->
+        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-8 sm:p-10 relative overflow-hidden">
+          <!-- Decoración de fondo -->
+          <div class="absolute inset-0 opacity-5">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-purple-500 rounded-full blur-3xl"></div>
+            <div class="absolute bottom-0 left-0 w-64 h-64 bg-pink-500 rounded-full blur-3xl"></div>
+          </div>
+          
+          <div class="relative z-10">
+            <!-- Header -->
+            <div class="text-center mb-8">
+              <div class="flex justify-center mb-4">
+                <div class="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg">
+                  <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  </svg>
+                </div>
+              </div>
+              <h2 class="text-2xl sm:text-3xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">Ingreso Admin/Developer</h2>
+              <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Accede al panel de administración</p>
+            </div>
+
+            <!-- Formulario -->
+            <form class="space-y-6" onsubmit="event.preventDefault(); document.getElementById('a-login')?.click();">
+              <div>
+                <label for="a-email" class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Correo</label>
+                <input id="a-email" type="email" placeholder="admin@correo.com" class="w-full px-4 py-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-xl text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <div>
+                <label for="a-password" class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Contraseña</label>
+                <input id="a-password" type="password" placeholder="********" class="w-full px-4 py-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-xl text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <button id="a-login" type="button" class="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200">Entrar</button>
+            </form>
+          </div>
         </div>
-      </div>
-      <div class="card" style="max-width:460px;margin:20px auto;">
-        <h3 style="margin-top:0">Crear cuenta de Admin (con código de aprobación)</h3>
-        <div class="row wrap" style="gap:10px;align-items:flex-end;">
-          <div style="flex:1;min-width:220px;">
-            <label>Correo</label>
-            <input id="s-email" type="email" placeholder="tu-correo@dominio.com" />
+
+        <!-- Card de Registro Admin -->
+        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-8 sm:p-10 relative overflow-hidden">
+          <!-- Decoración de fondo -->
+          <div class="absolute inset-0 opacity-5">
+            <div class="absolute top-0 left-0 w-64 h-64 bg-blue-500 rounded-full blur-3xl"></div>
+            <div class="absolute bottom-0 right-0 w-64 h-64 bg-purple-500 rounded-full blur-3xl"></div>
           </div>
-          <div>
-            <button id="s-request" class="secondary">Solicitar código</button>
+          
+          <div class="relative z-10">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6">Crear cuenta de Admin</h3>
+            <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-6">Solicita un código de aprobación para crear tu cuenta de administrador.</p>
+            
+            <!-- Solicitar código -->
+            <div class="space-y-4 mb-6">
+              <div>
+                <label for="s-email" class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Correo</label>
+                <div class="flex gap-3">
+                  <input id="s-email" type="email" placeholder="tu-correo@dominio.com" class="flex-1 px-4 py-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-xl text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
+                  <button id="s-request" type="button" class="px-6 py-3 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-xl transition-all duration-200 whitespace-nowrap">Solicitar código</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="h-px bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-300/50 my-6"></div>
+
+            <!-- Confirmar registro -->
+            <div class="space-y-4">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label for="s-code" class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Código</label>
+                  <input id="s-code" type="text" placeholder="000000" class="w-full px-4 py-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-xl text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
+                </div>
+                <div>
+                  <label for="s-pass" class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Contraseña</label>
+                  <input id="s-pass" type="password" placeholder="********" class="w-full px-4 py-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-xl text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
+                </div>
+              </div>
+              <button id="s-confirm" type="button" class="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200">Confirmar registro</button>
+              <div id="s-msg" class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-4 text-center"></div>
+            </div>
           </div>
         </div>
-        <div class="sep" style="height:1px;background:var(--border);margin:12px 0;"></div>
-        <div class="row wrap" style="gap:10px;align-items:flex-end;">
-          <div style="flex:1;min-width:200px;">
-            <label>Código</label>
-            <input id="s-code" type="text" placeholder="000000" />
-          </div>
-          <div style="flex:1;min-width:220px;">
-            <label>Contraseña</label>
-            <input id="s-pass" type="password" placeholder="********" />
-          </div>
-          <div>
-            <button id="s-confirm">Confirmar registro</button>
-          </div>
-        </div>
-        <div id="s-msg" class="muted" style="margin-top:8px;font-size:12px;"></div>
       </div>
     </section>
 
@@ -232,6 +332,56 @@
       setToken('');
     }
   })();
+
+  // Event listener para botón de cambio de tema en admin
+  document.addEventListener('DOMContentLoaded', () => {
+    const themeBtn = document.getElementById('themeToggleAdmin');
+    if (themeBtn) {
+      themeBtn.addEventListener('click', () => {
+        const isLight = document.body.classList.contains('theme-light');
+        const newTheme = isLight ? 'dark' : 'light';
+        
+        // Intentar usar applyTheme si está disponible
+        if (typeof window.applyTheme === 'function') {
+          window.applyTheme(newTheme);
+        } else {
+          // Fallback manual
+          document.body.classList.toggle('theme-light');
+          try {
+            localStorage.setItem('app:theme', newTheme);
+          } catch {}
+          // Actualizar icono del botón
+          themeBtn.textContent = newTheme === 'light' ? '🌙' : '🌞';
+          themeBtn.title = newTheme === 'light' ? 'Cambiar a oscuro' : 'Cambiar a claro';
+        }
+      });
+      
+      // Inicializar icono del botón según el tema actual
+      const currentTheme = document.body.classList.contains('theme-light') ? 'light' : 'dark';
+      themeBtn.textContent = currentTheme === 'light' ? '🌙' : '🌞';
+      themeBtn.title = currentTheme === 'light' ? 'Cambiar a oscuro' : 'Cambiar a claro';
+    }
+    
+    // Aplicar tema inicial si está guardado
+    try {
+      const stored = localStorage.getItem('app:theme');
+      if (stored === 'light' || stored === 'dark') {
+        if (typeof window.applyTheme === 'function') {
+          window.applyTheme(stored);
+        } else {
+          if (stored === 'light') {
+            document.body.classList.add('theme-light');
+          } else {
+            document.body.classList.remove('theme-light');
+          }
+          if (themeBtn) {
+            themeBtn.textContent = stored === 'light' ? '🌙' : '🌞';
+            themeBtn.title = stored === 'light' ? 'Cambiar a oscuro' : 'Cambiar a claro';
+          }
+        }
+      }
+    } catch {}
+  });
   </script>
 </body>
 </html>
