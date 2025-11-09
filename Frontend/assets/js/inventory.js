@@ -207,9 +207,9 @@ function invCloseModal() {
 function invOpenOverlay(innerHTML) {
   const overlay = document.createElement('div');
   overlay.id = 'inv-stacked-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(2,6,23,.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;';
-  overlay.innerHTML = `<div id="inv-stacked-box" style="position:relative;background:var(--card,#0b1220);color:var(--text,#e5e7eb);padding:10px;border-radius:10px;max-width:95vw;max-height:90vh;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.35)">
-    <button id="inv-overlay-close" aria-label="Cerrar" style="position:absolute;top:6px;right:8px;line-height:1;border:0;background:transparent;font-size:24px;color:#94a3b8;cursor:pointer">&times;</button>
+  overlay.className = 'fixed inset-0 z-[10000] flex items-center justify-center p-5 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm';
+  overlay.innerHTML = `<div id="inv-stacked-box" class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 max-w-[95vw] max-h-[90vh] overflow-auto custom-scrollbar">
+    <button id="inv-overlay-close" aria-label="Cerrar" class="absolute top-3 right-3 w-8 h-8 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold">&times;</button>
     ${innerHTML}
   </div>`;
   document.body.appendChild(overlay);
@@ -222,21 +222,23 @@ function invOpenOverlay(innerHTML) {
 function openLightbox(media) {
   const isVideo = (media.mimetype || "").startsWith("video/");
   invOpenModal(
-    `<h3>Vista previa</h3>
-     <div class="viewer">
+    `<div class="image-lightbox">
+       <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Vista previa</h3>
        ${isVideo ? 
-         `<video controls src="${media.url}" style="max-width: 90vw; max-height: 80vh; object-fit: contain;"></video>` : 
-         `<img src="${media.url}" alt="media" id="modal-img" style="max-width: 90vw; max-height: 80vh; object-fit: contain;" />`
+         `<video controls src="${media.url}" class="max-w-[90vw] max-h-[75vh] object-contain rounded-lg"></video>` : 
+         `<img src="${media.url}" alt="media" id="modal-img" class="max-w-[90vw] max-h-[75vh] object-contain rounded-lg cursor-zoom-in" />`
        }
        ${!isVideo ? `
          <div class="zoom-controls">
-           <button class="zoom-btn" id="zoom-in" title="Acercar">+</button>
-           <button class="zoom-btn" id="zoom-out" title="Alejar">-</button>
-           <button class="zoom-btn" id="zoom-reset" title="Resetear">⌂</button>
+           <button class="zoom-btn px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" id="zoom-in" title="Acercar">+</button>
+           <button class="zoom-btn px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" id="zoom-out" title="Alejar">-</button>
+           <button class="zoom-btn px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" id="zoom-reset" title="Resetear">⌂</button>
          </div>
        ` : ''}
-     </div>
-     <div class="row"><button class="secondary" id="lb-close">Cerrar</button></div>`
+       <div class="mt-4 flex justify-end">
+         <button class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" id="lb-close">Cerrar</button>
+       </div>
+     </div>`
   );
   document.getElementById("lb-close").onclick = invCloseModal;
   
@@ -1797,11 +1799,11 @@ if (__ON_INV_PAGE__) {
         previewBtn.onclick = (ev) => {
           const isVideo = m.mimetype?.startsWith('video/');
           invOpenOverlay(
-            `<div class='viewer-modal'>`+
-            (isVideo
-              ? `<video controls src='${m.url}' style='max-width:90vw;max-height:80vh;object-fit:contain;'></video>`
-              : `<img src='${m.url}' alt='media' style='max-width:90vw;max-height:80vh;object-fit:contain;'/>`)
-            + `</div>`
+            `<div class='flex flex-col items-center justify-center'>
+              ${isVideo
+                ? `<video controls src='${m.url}' class='max-w-[90vw] max-h-[80vh] object-contain rounded-lg'></video>`
+                : `<img src='${m.url}' alt='media' class='max-w-[90vw] max-h-[80vh] object-contain rounded-lg'/>`}
+            </div>`
           );
         };
 

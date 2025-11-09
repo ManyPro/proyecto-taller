@@ -4,6 +4,330 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>M&M - Inventario</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: ['class', '.theme-light'],
+      theme: {
+        extend: {
+          colors: {
+            'dark-bg': '#0f172a',
+            'dark-card': '#111827',
+            'dark-card-alt': '#0b1220',
+            'dark-text': '#e5e7eb',
+            'dark-muted': '#9ca3af',
+            'dark-border': '#1f2937',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Estilos para modo claro - Sobrescribir colores de Tailwind */
+    body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
+    body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
+      background: linear-gradient(to right, #f8fafc, #f1f5f9, #f8fafc) !important;
+    }
+    body.theme-light [class*="bg-slate-800/50"],
+    body.theme-light [class*="bg-slate-800"][class*="/50"] {
+      background-color: rgba(241, 245, 249, 0.8) !important;
+    }
+    body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
+      background-color: #f1f5f9 !important;
+    }
+    body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700) {
+      color: #0f172a !important;
+    }
+    body.theme-light .text-slate-300 {
+      color: #475569 !important;
+    }
+    body.theme-light .text-slate-400 {
+      color: #64748b !important;
+    }
+    body.theme-light [class*="border-slate-700/50"],
+    body.theme-light [class*="border-slate-700"][class*="/50"] {
+      border-color: rgba(203, 213, 225, 0.5) !important;
+    }
+    body.theme-light [class*="hover:bg-slate-700/50"]:hover,
+    body.theme-light button:hover[class*="hover:bg-slate-700"] {
+      background-color: rgba(203, 213, 225, 0.5) !important;
+    }
+    body.theme-light [class*="hover:text-white"]:hover:not(.bg-blue-600):not(.bg-blue-700) {
+      color: #0f172a !important;
+    }
+    /* Mejorar contraste de botones grises en modo claro */
+    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]),
+    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]) {
+      background-color: #e2e8f0 !important;
+      color: #475569 !important;
+      border-color: #cbd5e1 !important;
+    }
+    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]):hover,
+    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]):hover {
+      background-color: #cbd5e1 !important;
+      color: #334155 !important;
+      border-color: #94a3b8 !important;
+    }
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"],
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"] {
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+      border-color: #94a3b8 !important;
+    }
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"]:hover,
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"]:focus,
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"]:hover,
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"]:focus {
+      border-color: #64748b !important;
+      background-color: #ffffff !important;
+    }
+    /* Estilos para el fondo de la página */
+    body {
+      background-color: #0f172a;
+      min-height: 100vh;
+    }
+    body.theme-light {
+      background-color: #f8fafc;
+    }
+    /* Estilos para el modal global */
+    #modal.hidden {
+      display: none !important;
+    }
+    #modal:not(.hidden) {
+      display: flex !important;
+    }
+    #modal {
+      align-items: center;
+      justify-content: center;
+    }
+    #modal > div {
+      pointer-events: auto;
+    }
+    #modal {
+      pointer-events: auto;
+    }
+    /* Estilos personalizados para barras de scroll */
+    .custom-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.5);
+      border-radius: 4px;
+      transition: background 0.2s ease;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.7);
+    }
+    body.theme-light .custom-scrollbar {
+      scrollbar-color: rgba(100, 116, 139, 0.4) transparent;
+    }
+    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.4);
+    }
+    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.6);
+    }
+    /* Estilos para lightbox de imágenes */
+    .image-lightbox {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      max-width: 95vw;
+      max-height: 90vh;
+    }
+    .image-lightbox img,
+    .image-lightbox video {
+      max-width: 90vw;
+      max-height: 75vh;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+    .zoom-controls {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+      justify-content: center;
+    }
+    .zoom-btn {
+      padding: 8px 16px;
+      background: rgba(51, 65, 85, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 6px;
+      color: white;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .zoom-btn:hover {
+      background: rgba(51, 65, 85, 0.7);
+    }
+    body.theme-light .zoom-btn {
+      background: #e2e8f0;
+      color: #475569;
+      border-color: #cbd5e1;
+    }
+    body.theme-light .zoom-btn:hover {
+      background: #cbd5e1;
+      color: #334155;
+    }
+    /* Estilos para overlay apilado */
+    #inv-stacked-overlay {
+      z-index: 10000;
+    }
+    #inv-stacked-box {
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow: auto;
+    }
+    #inv-stacked-box img,
+    #inv-stacked-box video {
+      max-width: 90vw;
+      max-height: 80vh;
+      object-fit: contain;
+    }
+    /* Estilos para items del inventario */
+    .item-thumb {
+      cursor: pointer;
+      transition: transform 0.2s, opacity 0.2s;
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    .item-thumb:hover {
+      transform: scale(1.05);
+      opacity: 0.9;
+    }
+    body.theme-light .item-thumb {
+      border-color: rgba(203, 213, 225, 0.5);
+    }
+    /* Estilos para cards de items del inventario */
+    .note {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 12px;
+      padding: 16px;
+      transition: all 0.2s;
+    }
+    body.theme-light .note {
+      background: rgba(255, 255, 255, 0.9);
+      border-color: rgba(203, 213, 225, 0.5);
+    }
+    .note:hover {
+      border-color: rgba(148, 163, 184, 0.5);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    body.theme-light .note:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    .inv-item-header {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .inv-item-info {
+      flex: 1;
+    }
+    .inv-item-name {
+      font-weight: 700;
+      font-size: 1rem;
+      color: white;
+      margin-bottom: 4px;
+    }
+    body.theme-light .inv-item-name {
+      color: #0f172a;
+    }
+    .inv-item-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 12px;
+      color: rgba(148, 163, 184, 0.9);
+    }
+    body.theme-light .inv-item-meta {
+      color: #64748b;
+    }
+    .item-media {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .item-media img,
+    .item-media video {
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    body.theme-light .item-media img,
+    body.theme-light .item-media video {
+      border-color: rgba(203, 213, 225, 0.5);
+    }
+    .note .content {
+      margin: 12px 0;
+      font-size: 13px;
+      color: rgba(148, 163, 184, 0.9);
+    }
+    body.theme-light .note .content {
+      color: #64748b;
+    }
+    .note .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .note .actions button {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .note .actions button.secondary {
+      background: rgba(51, 65, 85, 0.5);
+      color: white;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+    body.theme-light .note .actions button.secondary {
+      background: #e2e8f0;
+      color: #475569;
+      border-color: #cbd5e1;
+    }
+    .note .actions button.secondary:hover {
+      background: rgba(51, 65, 85, 0.7);
+    }
+    body.theme-light .note .actions button.secondary:hover {
+      background: #cbd5e1;
+      color: #334155;
+    }
+    .note .actions button.danger {
+      background: rgba(239, 68, 68, 0.8);
+      color: white;
+      border: 1px solid rgba(239, 68, 68, 0.5);
+    }
+    .note .actions button.danger:hover {
+      background: rgba(239, 68, 68, 1);
+    }
+    .inv-checkbox {
+      margin-top: 4px;
+    }
+    .inv-checkbox input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+  </style>
   <link rel="stylesheet" href="assets/styles.css?v=20250923-2" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <script src="./assets/js/config.js"></script>
@@ -19,175 +343,272 @@
 </head>
 <body data-page="inventario">
   <main>
+    <!-- ========== APP HEADER ========== -->
     <div class="topbar hidden" id="appHeader">
-        <div class="topbar-inner">
-          <div class="topbar-card">
-            <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
-              <div class="brand">
-                <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" />
-                <div class="company">Empresa: <span id="companyName">-</span></div>
+      <!-- Top Bar - Header Principal -->
+      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex items-center justify-between h-16 md:h-20">
+            <!-- Logo y Nombre de Empresa -->
+            <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
+              <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
+              <div class="hidden sm:flex flex-col">
+                <span class="text-xs text-slate-400 font-medium">Empresa</span>
+                <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
               </div>
-              <div class="row" style="gap:6px;align-items:center;">
-                <button id="logoutBtn" class="secondary hidden">Salir</button>
-                <button id="denseToggle" class="secondary" title="Modo compacto">📏</button>
-                <button id="themeToggle" class="secondary" title="Cambiar tema">🌗</button>
+              <div class="sm:hidden text-white font-semibold text-sm">
+                <span id="companyNameMobile">-</span>
               </div>
             </div>
-            <div class="top-tabs">
-              <nav class="tabs">
-                <button data-tab="home" data-href="index.html">Inicio</button>
-                <button data-tab="notas" data-feature="notas" data-href="notas.html">Notas</button>
-                <button data-tab="ventas" data-feature="ventas" data-href="ventas.html">Ventas</button>
-                <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html">Cotizaciones</button>
-                <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="active">Inventario</button>
-                <button data-tab="precios" data-feature="precios" data-href="precios.html">Lista de precios</button>
-            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html">Flujo de Caja</button>
-            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html">Nómina</button>
-                <button data-tab="formatos" data-feature="templates" data-href="template-selector.html">Formatos</button>
-                <button data-tab="skus" data-feature="skus" data-href="skus.html">SKUs</button>
-              </nav>
+
+            <!-- Botones de Acción (Desktop) -->
+            <div class="hidden md:flex items-center gap-2">
+              <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
+              <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
+              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
             </div>
+
+            <!-- Menú Hamburguesa (Mobile) -->
+            <div class="md:hidden flex items-center gap-2">
+              <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
+              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+              <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Navegación Principal (Desktop) -->
+        <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
+              <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inicio</button>
+              <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
+              <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
+              <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+              <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
+              <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+              <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+              <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
+              <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
+              <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
+            </nav>
           </div>
         </div>
       </div>
       
-
-      <!-- MODAL GLOBAL -->
-      <div id="modal" class="modal hidden">
-        <div class="modal-content image-modal">
-          <button id="modalClose" class="close">&times;</button>
-          <div id="modalBody">
-            <div id="modal-img-wrap">
-              <img id="modal-img" src="" alt="Vista previa" />
-              <div class="zoom-controls">
-                <button id="zoom-in">+</button>
-                <button id="zoom-out">-</button>
-                <button id="zoom-reset">Reset</button>
+      <!-- Menú Móvil (Mobile Menu) -->
+      <div id="mobileMenu" class="md:hidden hidden bg-slate-800 border-t border-slate-700/50 shadow-xl">
+        <div class="px-4 py-3 space-y-1">
+          <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inicio</button>
+          <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Notas</button>
+          <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Ventas</button>
+          <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cotizaciones</button>
+          <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">Inventario</button>
+          <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Lista de precios</button>
+          <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Flujo de Caja</button>
+          <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
+          <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
+          <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
+          <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
+        </div>
               </div>
             </div>
+
+    <section id="appSection" class="hidden">
+      <!-- Modal global reutilizable -->
+      <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
+        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] my-auto overflow-hidden">
+          <button id="modalClose" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
+          <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
+            <!-- Content will be injected here -->
           </div>
         </div>
       </div>
 
       <!-- ========== INVENTARIO ========== -->
   <section id="tab-inventario" class="tab active">
-        <div id="inventory-top">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <!-- INGRESO: ahora con dos tipos -->
-          <div class="card" id="vi-card-form">
-            <h3>Ingreso</h3>
-            <div class="row" id="vi-kind-row">
-              <label class="row" style="gap:6px;margin-top:0;">
-                <input type="radio" name="vi-kind" id="vi-kind-vehicle" value="vehicle" checked>
-                Ingreso de vehículo
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6" id="vi-card-form">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Ingreso</h3>
+            <div class="flex flex-wrap gap-4 mb-4" id="vi-kind-row">
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="vi-kind" id="vi-kind-vehicle" value="vehicle" checked class="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500">
+                <span class="text-sm text-white dark:text-white theme-light:text-slate-900">Ingreso de vehículo</span>
               </label>
-              <label class="row" style="gap:6px;margin-top:0;">
-                <input type="radio" name="vi-kind" id="vi-kind-purchase" value="purchase">
-                Ingreso de compra
+              <label class="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="vi-kind" id="vi-kind-purchase" value="purchase" class="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500">
+                <span class="text-sm text-white dark:text-white theme-light:text-slate-900">Ingreso de compra</span>
               </label>
             </div>
 
             <!-- Sub-form: Vehículo -->
-            <div id="vi-form-vehicle">
-              <label>Marca</label><input id="vi-brand" />
-              <label>Modelo</label><input id="vi-model" />
-              <label>Cilindraje</label><input id="vi-engine" />
-              <label>FecHa ingreso</label><input id="vi-date" type="date" />
-              <label>Precio de entrada</label><input id="vi-price" type="number" min="0" step="0.01" />
+            <div id="vi-form-vehicle" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Marca</label>
+                <input id="vi-brand" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Modelo</label>
+                <input id="vi-model" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Cilindraje</label>
+                <input id="vi-engine" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Fecha ingreso</label>
+                <input id="vi-date" type="date" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Precio de entrada</label>
+                <input id="vi-price" type="number" min="0" step="0.01" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
             </div>
 
             <!-- Sub-form: Compra -->
-            <div id="vi-form-purchase" class="hidden">
-              <label>Lugar de compra</label><input id="vi-p-place" />
-              <label>FecHa</label><input id="vi-p-date" type="date" />
-              <label>Precio de entrada</label><input id="vi-p-price" type="number" min="0" step="0.01" />
+            <div id="vi-form-purchase" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Lugar de compra</label>
+                <input id="vi-p-place" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Fecha</label>
+                <input id="vi-p-date" type="date" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Precio de entrada</label>
+                <input id="vi-p-price" type="number" min="0" step="0.01" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
             </div>
 
-            <button id="vi-save">Guardar Ingreso</button>
+            <button id="vi-save" class="mt-4 px-6 py-2.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar Ingreso</button>
           </div>
 
-          <div class="card" id="vi-card-lista">
-            <h3>Ingresos</h3>
-            <div id="vi-list"></div>
-          </div>
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6" id="vi-card-lista">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Ingresos</h3>
+            <div id="vi-list" class="space-y-2"></div>
         </div>
 
-        <div class="card span-2" id="item-form">
-          <h3>Nuevo ítem</h3>
-          <label>SKU</label><input id="it-sku" />
-          <div id="it-sku-helper" style="display:none"></div>
-          <label>Nombre</label><input id="it-name" />
-          <label>Nombre interno (opcional)</label><input id="it-internal" />
-          <label>Marca (opcional)</label><input id="it-brand" />
-          <label>Ubicación (opcional)</label><input id="it-location" />
-          <label>Procedencia final</label><input id="it-vehicleTarget" placeholder="GENERAL" />
-          <label>Procedencia</label>
-          <select id="it-vehicleIntakeId"></select>
-          <label>Precio entrada (opcional)</label><input id="it-entryPrice" type="number" min="0" step="0.01" />
-          <label>Precio venta</label><input id="it-salePrice" type="number" min="0" step="0.01" />
-          <label>Original</label>
-          <select id="it-original">
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6" id="item-form">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Nuevo ítem</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">SKU</label>
+                <input id="it-sku" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+                <div id="it-sku-helper" class="hidden mt-1 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Nombre</label>
+                <input id="it-name" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Nombre interno (opcional)</label>
+                <input id="it-internal" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Marca (opcional)</label>
+                <input id="it-brand" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Ubicación (opcional)</label>
+                <input id="it-location" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Procedencia final</label>
+                <input id="it-vehicleTarget" placeholder="GENERAL" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Procedencia</label>
+                <select id="it-vehicleIntakeId" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"></select>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Precio entrada (opcional)</label>
+                <input id="it-entryPrice" type="number" min="0" step="0.01" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Precio venta</label>
+                <input id="it-salePrice" type="number" min="0" step="0.01" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Original</label>
+                <select id="it-original" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
             <option value="false">No</option>
             <option value="true">Sí</option>
           </select>
-          <label>Stock inicial</label><input id="it-stock" type="number" min="0" step="1" />
-          <label>Stock mínimo (opcional)</label><input id="it-minStock" type="number" min="0" step="1" placeholder="0 = sin alerta" />
-          <div class="muted" style="font-size:12px;margin:4px 0 8px;">0 = sin alerta. Te avisamos cuando el stock sea menor o igual a este número.</div>
-          <label>Imágenes/Videos del ítem</label>
-          <input id="it-files" type="file" multiple />
-          <button id="it-save">Guardar ítem</button>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Stock inicial</label>
+                <input id="it-stock" type="number" min="0" step="1" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Stock mínimo (opcional)</label>
+                <input id="it-minStock" type="number" min="0" step="1" placeholder="0 = sin alerta" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+                <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">0 = sin alerta. Te avisamos cuando el stock sea menor o igual a este número.</div>
+              </div>
+            </div>
+            <div class="mt-4">
+              <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Imágenes/Videos del ítem</label>
+              <input id="it-files" type="file" multiple class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+            </div>
+            <button id="it-save" class="mt-4 px-6 py-2.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar ítem</button>
         </div>
 
-        <div class="card span-2" id="inventory-list">
-          <h3>Inventario</h3>
-          <div class="row" id="items-filters">
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6" id="inventory-list">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Inventario</h3>
+            <div class="flex flex-wrap gap-3 mb-4" id="items-filters">
             <!-- Barra de selección/acción de stickers -->
-            <div id="stickerBar" class="row sticker-toolbar"></div>
+              <div id="stickerBar" class="flex flex-wrap gap-2"></div>
             <!-- Botón invisible para compatibilidad con bindStickersButton('--btn-stickers') -->
-            <button id="btn-stickers" class="secondary" style="display:none;">Imprimir stickers</button>
-            <input id="q-name" placeholder="Filtrar por nombre..." />
-            <input id="q-sku" placeholder="SKU..." />
-            <input id="q-brand" placeholder="Marca..." />
-            <select id="q-intakeId">
+              <button id="btn-stickers" class="hidden px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Imprimir stickers</button>
+              <input id="q-name" placeholder="Filtrar por nombre..." class="flex-1 min-w-[150px] px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              <input id="q-sku" placeholder="SKU..." class="flex-1 min-w-[150px] px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              <input id="q-brand" placeholder="Marca..." class="flex-1 min-w-[150px] px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              <select id="q-intakeId" class="px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
               <option value="">Todas las entradas</option>
             </select>
-            <button id="q-apply" class="secondary">Buscar</button>
-            <button id="q-clear" class="secondary">Limpiar</button>
-            <button id="pub-bulk-global" class="secondary" title="Publicar o despublicar por procedencia o SKU">Publicación catálogo</button>
-            <button id="btn-unpublish-zero" class="secondary" title="Despublicar todos los artículos con stock 0">Despublicar agotados</button>
+              <button id="q-apply" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Buscar</button>
+              <button id="q-clear" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Limpiar</button>
+              <button id="pub-bulk-global" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" title="Publicar o despublicar por procedencia o SKU">Publicación catálogo</button>
+              <button id="btn-unpublish-zero" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" title="Despublicar todos los artículos con stock 0">Despublicar agotados</button>
           </div>
           <!-- Controles de paginación (debajo de filtros y barra de selección) -->
-          <div id="itemsPaginationTop" class="row" style="justify-content:space-between;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap;"></div>
-          <div id="itemsList" class="list"></div>
+            <div id="itemsPaginationTop" class="flex flex-wrap justify-between items-center gap-4 mb-4"></div>
+            <div id="itemsList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
           <!-- Controles de paginación (abajo de la lista) -->
-          <div id="itemsPaginationBottom" class="row" style="justify-content:space-between;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap;"></div>
+            <div id="itemsPaginationBottom" class="flex flex-wrap justify-between items-center gap-4 mt-4"></div>
         </div>
 
-        <div class="card span-2" id="import-excel-card">
-          <h3>Importar desde Excel</h3>
-          <p class="muted" style="margin-top:0;">Ideal para cargar o actualizar muchos productos a la vez. Si no manejas muy bien Excel, no te preocupes: sigue los pasos.</p>
-          <ol style="margin:6px 0 10px;">
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6" id="import-excel-card">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Importar desde Excel</h3>
+            <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">Ideal para cargar o actualizar muchos productos a la vez. Si no manejas muy bien Excel, no te preocupes: sigue los pasos.</p>
+            <ol class="list-decimal list-inside space-y-2 mb-4 text-sm text-white dark:text-white theme-light:text-slate-900">
             <li>Descarga la <b>plantilla base</b>.</li>
             <li>Abre el archivo y llena las columnas. Las obligatorias son <b>SKU</b> y <b>Nombre</b>.</li>
             <li>Guarda los cambios y vuelve aquí para subir el archivo.</li>
           </ol>
-          <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;">
-            <button id="btn-download-template" class="secondary">Descargar plantilla</button>
-            <button id="btn-export-inventory" class="secondary">📥 Exportar inventario</button>
-            <input type="file" id="excel-file" accept=".xlsx" />
-            <button id="btn-import-excel">Importar</button>
+            <div class="flex flex-wrap gap-3 items-center mb-4">
+              <button id="btn-download-template" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Descargar plantilla</button>
+              <button id="btn-export-inventory" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">📥 Exportar inventario</button>
+              <input type="file" id="excel-file" accept=".xlsx" class="px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              <button id="btn-import-excel" class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Importar</button>
           </div>
-          <div id="import-status" class="muted" style="white-space:pre-wrap;margin-top:10px;"></div>
-          <div class="muted" style="font-size:12px;margin-top:10px;">
+            <div id="import-status" class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-pre-wrap mb-4"></div>
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
             Consejos:
-            <ul>
+              <ul class="list-disc list-inside mt-2 space-y-1">
               <li>En <b>Original (SI/NO)</b> puedes escribir SI o NO.</li>
               <li>Para decimales, puedes usar coma o punto. Ej: 85.000 o 85,000.</li>
               <li>Si un SKU ya existe, se <b>actualiza</b> (precio, stock, etc.). Si no existe, se <b>crea</b>.</li>
             </ul>
+            </div>
           </div>
         </div>
       </section>
-
     </section>
   </main>
 
@@ -195,6 +616,25 @@
   <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
   <script src="./assets/js/input-fix.js"></script>
   <script>
+    // Menú móvil
+    document.addEventListener('DOMContentLoaded', () => {
+      const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+      const mobileMenu = document.getElementById('mobileMenu');
+      if (mobileMenuToggle && mobileMenu) {
+        mobileMenuToggle.addEventListener('click', () => {
+          mobileMenu.classList.toggle('hidden');
+        });
+      }
+      
+      // Manejar navegación activa
+      const currentPage = document.body.getAttribute('data-page');
+      document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach(tab => {
+        if (tab.getAttribute('data-tab') === currentPage) {
+          tab.classList.add('active');
+        }
+      });
+    });
+    
     document.addEventListener('DOMContentLoaded', () => {
       const btn = document.getElementById('openPublicCatalog');
       if(!btn) return;
@@ -230,5 +670,3 @@
   </script>
 </body>
 </html>
-
-
