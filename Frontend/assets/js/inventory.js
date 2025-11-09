@@ -1542,7 +1542,8 @@ if (__ON_INV_PAGE__) {
   }
 
   // ---- Crear entrada ----
-  viSave.onclick = async () => {
+  if (viSave) {
+    viSave.onclick = async () => {
     const isPurchase = viKindPurchase?.checked;
     const body = { intakeKind: isPurchase ? "purchase" : "vehicle" };
 
@@ -1575,29 +1576,37 @@ if (__ON_INV_PAGE__) {
 
     await refreshIntakes();
     alert("Ingreso creado");
-  };
+    };
+  }
 
   // ---- Autorelleno de destino al cambiar procedencia ----
-  itVehicleIntakeId.addEventListener("change", () => {
+  if (itVehicleIntakeId) {
+    itVehicleIntakeId.addEventListener("change", () => {
     const id = itVehicleIntakeId.value;
     if (!id) {
-      itVehicleTarget.value = "GENERAL";
-      itVehicleTarget.readOnly = false;
+      if (itVehicleTarget) {
+        itVehicleTarget.value = "GENERAL";
+        itVehicleTarget.readOnly = false;
+      }
       return;
     }
     const vi = state.intakes.find((v) => v._id === id);
     if (vi) {
-      itVehicleTarget.value = makeIntakeLabel(vi);
-      itVehicleTarget.readOnly = true;
+      if (itVehicleTarget) {
+        itVehicleTarget.value = makeIntakeLabel(vi);
+        itVehicleTarget.readOnly = true;
+      }
     } else {
-      itVehicleTarget.readOnly = false;
+      if (itVehicleTarget) itVehicleTarget.readOnly = false;
     }
-  });
+    });
+  }
 
   // ---- Guardar ítem ----
-  itSave.onclick = async () => {
-    let vehicleTargetValue = (itVehicleTarget.value || "").trim();
-    const selectedIntakeId = itVehicleIntakeId.value || undefined;
+  if (itSave) {
+    itSave.onclick = async () => {
+    let vehicleTargetValue = (itVehicleTarget?.value || "").trim();
+    const selectedIntakeId = itVehicleIntakeId?.value || undefined;
 
     if (selectedIntakeId && (!vehicleTargetValue || vehicleTargetValue === "GENERAL")) {
       const vi = state.intakes.find((v) => v._id === selectedIntakeId);
@@ -1643,41 +1652,44 @@ if (__ON_INV_PAGE__) {
     if (itInternal) itInternal.value = "";
   if (itBrand) itBrand.value = "";
     if (itLocation) itLocation.value = "";
-    itVehicleTarget.value = "GENERAL";
-    itVehicleIntakeId.value = "";
-    itEntryPrice.value = "";
-    itSalePrice.value = "";
-    itOriginal.value = "false";
-  itStock.value = "";
-  if (itMinStock) itMinStock.value = "";
+    if (itVehicleTarget) itVehicleTarget.value = "GENERAL";
+    if (itVehicleIntakeId) itVehicleIntakeId.value = "";
+    if (itEntryPrice) itEntryPrice.value = "";
+    if (itSalePrice) itSalePrice.value = "";
+    if (itOriginal) itOriginal.value = "false";
+    if (itStock) itStock.value = "";
+    if (itMinStock) itMinStock.value = "";
     if (itFiles) itFiles.value = "";
-    itVehicleTarget.readOnly = false;
+    if (itVehicleTarget) itVehicleTarget.readOnly = false;
 
     await refreshItems({});
-  };
+    };
+  }
 
   // ---- Filtros ----
   function doSearch() {
     const params = {
-      name: qName.value.trim(),
-      sku: qSku.value.trim(),
+      name: qName?.value.trim() || "",
+      sku: qSku?.value.trim() || "",
       brand: qBrand ? qBrand.value.trim() : undefined,
-      vehicleIntakeId: qIntake.value || undefined,
+      vehicleIntakeId: qIntake?.value || undefined,
     };
     // When searching, start from first page and keep current limit
     refreshItems({ ...params, page: 1, limit: state.paging?.limit || 10 });
   }
 
-  qApply.onclick = doSearch;
-  qClear.onclick = () => {
-    qName.value = "";
-    qSku.value = "";
-    if (qBrand) qBrand.value = "";
-    qIntake.value = "";
-    refreshItems({ page: 1, limit: state.paging?.limit || 10 });
-  };
+  if (qApply) qApply.onclick = doSearch;
+  if (qClear) {
+    qClear.onclick = () => {
+      if (qName) qName.value = "";
+      if (qSku) qSku.value = "";
+      if (qBrand) qBrand.value = "";
+      if (qIntake) qIntake.value = "";
+      refreshItems({ page: 1, limit: state.paging?.limit || 10 });
+    };
+  }
   [qName, qSku, qBrand].forEach((el) => el && el.addEventListener("keydown", (e) => e.key === "Enter" && doSearch()));
-  qIntake && qIntake.addEventListener("change", doSearch);
+  if (qIntake) qIntake.addEventListener("change", doSearch);
 
   // ---- Editar Ingreso ----
   function openEditVehicleIntake(vi) {
