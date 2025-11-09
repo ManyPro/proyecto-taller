@@ -227,25 +227,25 @@ function openLightbox(media) {
   // En móvil: mantener tamaño actual
   const maxSize = isDesktop ? '30vw' : '50vw';
   const maxHeight = isDesktop ? '30vh' : '50vh';
-  const containerHeight = isDesktop ? '70vh' : '50vh'; // Modal grande en PC
+  const containerHeight = isDesktop ? '60vh' : '50vh'; // Contenedor para imagen + espacio
   
   invOpenModal(
-    `<div class="image-lightbox flex flex-col items-center justify-center p-4">
-       <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Vista previa</h3>
-       <div class="relative flex items-center justify-center w-full" style="height: ${containerHeight}; max-height: ${containerHeight}; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+    `<div class="image-lightbox flex flex-col items-center justify-start p-6" style="min-height: 80vh;">
+       <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex-shrink-0">Vista previa</h3>
+       <div class="relative flex items-center justify-center w-full flex-shrink-0" style="min-height: ${containerHeight}; max-height: ${containerHeight}; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 20px;">
          ${isVideo ? 
            `<video controls src="${media.url}" class="object-contain rounded-lg" style="max-width: ${maxSize}; max-height: ${maxHeight}; width: auto; height: auto;"></video>` : 
-           `<img src="${media.url}" alt="media" id="modal-img" class="object-contain rounded-lg cursor-zoom-in" style="max-width: ${maxSize}; max-height: ${maxHeight}; width: auto; height: auto; image-rendering: auto; transform: scale(1) translate(0px, 0px);" />`
+           `<img src="${media.url}" alt="media" id="modal-img" class="object-contain rounded-lg cursor-zoom-in border-2 border-slate-600/30" style="max-width: ${maxSize}; max-height: ${maxHeight}; width: auto; height: auto; image-rendering: auto; transform: scale(1) translate(0px, 0px); display: block; margin: 0 auto;" />`
          }
        </div>
        ${!isVideo ? `
-         <div class="zoom-controls mt-4">
+         <div class="zoom-controls mt-4 flex-shrink-0 flex justify-center gap-2">
            <button class="zoom-btn px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" id="zoom-in" title="Acercar">+</button>
            <button class="zoom-btn px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" id="zoom-out" title="Alejar">-</button>
            <button class="zoom-btn px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" id="zoom-reset" title="Resetear">⌂</button>
          </div>
        ` : ''}
-       <div class="mt-4 flex justify-end">
+       <div class="mt-4 flex justify-end flex-shrink-0">
          <button class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" id="lb-close">Cerrar</button>
        </div>
      </div>`
@@ -259,44 +259,50 @@ function openLightbox(media) {
     if (img) {
       // Forzar tamaño máximo de la imagen al cargar
       const forceImageSize = () => {
-        if (img.naturalWidth && img.naturalHeight) {
-          const container = img.parentElement;
-          if (container) {
-            // Detectar si es pantalla grande (PC)
-            const isDesktop = window.innerWidth >= 768;
-            // En PC: imagen pequeña (30% del viewport) para que quepa completa
-            // En móvil: mantener 50%
-            const maxWidthPercent = isDesktop ? 0.3 : 0.5;
-            const maxHeightPercent = isDesktop ? 0.3 : 0.5;
-            
-            const maxWidth = Math.min(container.clientWidth * maxWidthPercent, window.innerWidth * maxWidthPercent);
-            const maxHeight = Math.min(container.clientHeight * maxHeightPercent, window.innerHeight * maxHeightPercent);
-            
-            // Calcular el tamaño manteniendo la proporción
-            const imgAspect = img.naturalWidth / img.naturalHeight;
-            const containerAspect = maxWidth / maxHeight;
-            
-            let finalWidth, finalHeight;
-            if (imgAspect > containerAspect) {
-              // La imagen es más ancha
-              finalWidth = maxWidth;
-              finalHeight = maxWidth / imgAspect;
-            } else {
-              // La imagen es más alta
-              finalHeight = maxHeight;
-              finalWidth = maxHeight * imgAspect;
-            }
-            
-            // Asegurar que la imagen no exceda los límites del contenedor
-            img.style.width = finalWidth + 'px';
-            img.style.height = finalHeight + 'px';
-            img.style.maxWidth = isDesktop ? '30vw' : '50vw';
-            img.style.maxHeight = isDesktop ? '30vh' : '50vh';
-            img.style.objectFit = 'contain';
-            img.style.display = 'block';
-            img.style.margin = '0 auto';
+        const isDesktop = window.innerWidth >= 768;
+        const container = img.parentElement;
+        
+        if (container && img.naturalWidth && img.naturalHeight) {
+          // Tamaños máximos fijos basados en viewport para consistencia
+          const maxWidthPx = isDesktop ? window.innerWidth * 0.3 : window.innerWidth * 0.5;
+          const maxHeightPx = isDesktop ? window.innerHeight * 0.3 : window.innerHeight * 0.5;
+          
+          // Calcular el tamaño manteniendo la proporción de la imagen
+          const imgAspect = img.naturalWidth / img.naturalHeight;
+          const containerAspect = maxWidthPx / maxHeightPx;
+          
+          let finalWidth, finalHeight;
+          if (imgAspect > containerAspect) {
+            // La imagen es más ancha - limitar por ancho
+            finalWidth = maxWidthPx;
+            finalHeight = maxWidthPx / imgAspect;
+          } else {
+            // La imagen es más alta - limitar por alto
+            finalHeight = maxHeightPx;
+            finalWidth = maxHeightPx * imgAspect;
           }
+          
+          // Aplicar tamaño de forma consistente
+          img.style.width = finalWidth + 'px';
+          img.style.height = finalHeight + 'px';
+          img.style.maxWidth = isDesktop ? '30vw' : '50vw';
+          img.style.maxHeight = isDesktop ? '30vh' : '50vh';
+          img.style.objectFit = 'contain';
+          img.style.display = 'block';
+          img.style.margin = '0 auto';
+          img.style.border = '2px solid rgba(148, 163, 184, 0.3)';
+          img.style.borderRadius = '0.5rem';
+        } else if (container) {
+          // Si la imagen aún no tiene dimensiones naturales, usar valores por defecto
+          img.style.maxWidth = isDesktop ? '30vw' : '50vw';
+          img.style.maxHeight = isDesktop ? '30vh' : '50vh';
+          img.style.objectFit = 'contain';
+          img.style.display = 'block';
+          img.style.margin = '0 auto';
+          img.style.border = '2px solid rgba(148, 163, 184, 0.3)';
+          img.style.borderRadius = '0.5rem';
         }
+        
         setupImageZoom();
       };
       
