@@ -222,12 +222,12 @@ function invOpenOverlay(innerHTML) {
 function openLightbox(media) {
   const isVideo = (media.mimetype || "").startsWith("video/");
   invOpenModal(
-    `<div class="image-lightbox flex flex-col items-center justify-center">
+    `<div class="image-lightbox flex flex-col items-center justify-center p-4">
        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Vista previa</h3>
-       <div class="relative flex items-center justify-center w-full" style="max-height: calc(70vh - 150px); overflow: auto;">
+       <div class="relative flex items-center justify-center w-full" style="height: 60vh; overflow: hidden; display: flex; align-items: center; justify-content: center;">
          ${isVideo ? 
-           `<video controls src="${media.url}" class="max-w-full max-h-full object-contain rounded-lg" style="max-width: 60vw; max-height: calc(70vh - 150px);"></video>` : 
-           `<img src="${media.url}" alt="media" id="modal-img" class="max-w-full max-h-full object-contain rounded-lg cursor-zoom-in" style="max-width: 60vw; max-height: calc(70vh - 150px); transform: scale(1) translate(0px, 0px);" />`
+           `<video controls src="${media.url}" class="max-w-full max-h-full object-contain rounded-lg" style="max-width: 60vw; max-height: 60vh; width: auto; height: auto;"></video>` : 
+           `<img src="${media.url}" alt="media" id="modal-img" class="object-contain rounded-lg cursor-zoom-in" style="max-width: 60vw; max-height: 60vh; width: auto; height: auto; transform: scale(1) translate(0px, 0px);" />`
          }
        </div>
        ${!isVideo ? `
@@ -296,13 +296,22 @@ function setupImageZoom() {
     translateX = 0;
     translateY = 0;
     applyTransform();
-    // Asegurar que la imagen vuelva a estar visible completamente
+    // Asegurar que el contenedor no tenga scroll
     const container = img.parentElement;
     if (container) {
       container.scrollTop = 0;
       container.scrollLeft = 0;
+      container.style.overflow = 'hidden';
     }
   };
+  
+  // Asegurar que el contenedor nunca tenga scroll
+  const container = img.parentElement;
+  if (container) {
+    container.style.overflow = 'hidden';
+    container.style.overflowX = 'hidden';
+    container.style.overflowY = 'hidden';
+  }
   
   // Click para zoom in/out
   img.onclick = (e) => {
