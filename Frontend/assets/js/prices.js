@@ -4,8 +4,36 @@ import { initVehicles } from './vehicles.js';
 
 const $ = (s)=>document.querySelector(s);
 const money = (n)=> new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n||0));
-function openModal(){ const m=$('#modal'); if(!m) return; m.classList.remove('hidden'); document.body.style.overflow='hidden'; const onKey=(e)=>{ if(e.key==='Escape') closeModal(); }; document.addEventListener('keydown', onKey); return ()=>document.removeEventListener('keydown', onKey); }
-function closeModal(){ const m=$('#modal'); if(!m) return; m.classList.add('hidden'); document.body.style.overflow=''; }
+function openModal(node){
+  const modal = document.getElementById('modal'), slot = document.getElementById('modalBody'), x = document.getElementById('modalClose');
+  if (!modal||!slot||!x) return;
+  if (node) slot.replaceChildren(node);
+  modal.classList.remove('hidden');
+  
+  const closeModalHandler = () => {
+    modal.classList.add('hidden');
+    document.removeEventListener('keydown', escHandler);
+    modal.removeEventListener('click', backdropHandler);
+  };
+  
+  const escHandler = (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+      closeModalHandler();
+    }
+  };
+  
+  const backdropHandler = (e) => {
+    if (e.target === modal) {
+      closeModalHandler();
+    }
+  };
+  
+  document.addEventListener('keydown', escHandler);
+  modal.addEventListener('click', backdropHandler);
+  
+  x.onclick = closeModalHandler;
+}
+function closeModal(){ const m=$('#modal'); if(!m) return; m.classList.add('hidden'); }
 const clone=(id)=>document.getElementById(id)?.content?.firstElementChild?.cloneNode(true);
 
 function normalizeNumber(v){ if(v==null || v==='') return 0; if(typeof v==='number') return v; const s=String(v).replace(/\s+/g,'').replace(/\$/g,'').replace(/\./g,'').replace(/,/g,'.'); const n=Number(s); return Number.isFinite(n)?n:0; }
@@ -478,11 +506,11 @@ export function initPrices(){
     if (vehicleCell) {
       let typeBadge = '';
       if (r.type === 'combo') {
-        typeBadge = '<span style="background:#9333ea;color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">COMBO</span>';
+        typeBadge = '<span class="inline-block px-2 py-0.5 bg-purple-600 dark:bg-purple-600 theme-light:bg-purple-500 text-white text-xs font-semibold rounded">COMBO</span>';
       } else if (r.type === 'product') {
-        typeBadge = '<span style="background:var(--primary,#3b82f6);color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">PRODUCTO</span>';
+        typeBadge = '<span class="inline-block px-2 py-0.5 bg-blue-600 dark:bg-blue-600 theme-light:bg-blue-500 text-white text-xs font-semibold rounded">PRODUCTO</span>';
       } else {
-        typeBadge = '<span style="background:var(--success,#10b981);color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">SERVICIO</span>';
+        typeBadge = '<span class="inline-block px-2 py-0.5 bg-green-600 dark:bg-green-600 theme-light:bg-green-500 text-white text-xs font-semibold rounded">SERVICIO</span>';
       }
       vehicleCell.innerHTML = typeBadge;
     }
@@ -509,7 +537,7 @@ export function initPrices(){
       } else if (r.type === 'product' && r.itemId) {
         itemInfoCell.innerHTML = `
           <div style="color:var(--success, #10b981);">✓ ${r.itemId.name || r.itemId.sku}</div>
-          <div style="font-size:11px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${r.itemId.sku}</strong> | Stock: ${r.itemId.stock || 0}</div>
+,          <div style="font-size:11px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${r.itemId.sku}</strong> | Stock: ${r.itemId.stock || 0}</div>
         `;
       } else if (r.type === 'product') {
         itemInfoCell.innerHTML = '<span style="color:var(--muted);font-size:10px;">Sin vincular</span>';
@@ -1205,8 +1233,7 @@ export function initPrices(){
     if (!selectedVehicle && selectedVehicles.length === 0) {
       return alert('Selecciona un vehículo primero');
     }
-    const body=$('#modalBody'), closeBtn=$('#modalClose'); 
-    body.replaceChildren();
+    const body=$('#modalBody'), closeBtn=$('#modalClose');
     
     const isEdit = !!existingPrice;
     const isProduct = type === 'product';
@@ -1221,29 +1248,29 @@ export function initPrices(){
     const isBulkCreation = vehiclesForCreation.length > 1;
     
     const node = document.createElement('div');
-    node.className = 'card';
+    node.className = 'bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6';
     node.innerHTML = `
-      <h3>${isEdit ? 'Editar' : 'Nuevo'} ${type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto')}</h3>
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6">${isEdit ? 'Editar' : 'Nuevo'} ${type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto')}</h3>
       ${isBulkCreation ? `
-      <div style="margin-bottom:16px;padding:12px;background:rgba(59, 130, 246, 0.1);border-radius:8px;border:2px solid var(--primary, #3b82f6);">
-        <div style="font-size:13px;font-weight:600;color:var(--primary, #3b82f6);margin-bottom:8px;">📋 Creación en bulk para ${vehiclesForCreation.length} vehículos</div>
-        <div style="font-size:12px;color:var(--text);margin-bottom:8px;">Se creará este ${type === 'combo' ? 'combo' : (type === 'service' ? 'servicio' : 'producto')} para todos los vehículos seleccionados:</div>
-        <div style="max-height:120px;overflow-y:auto;padding:8px;background:var(--bg);border-radius:4px;border:1px solid var(--border);">
-          <div style="display:flex;flex-direction:column;gap:4px;">
+      <div class="mb-4 p-3 bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 rounded-lg border-2 border-blue-500 dark:border-blue-500 theme-light:border-blue-400">
+        <div class="text-sm font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-700 mb-2">📋 Creación en bulk para ${vehiclesForCreation.length} vehículos</div>
+        <div class="text-xs text-white dark:text-white theme-light:text-slate-900 mb-2">Se creará este ${type === 'combo' ? 'combo' : (type === 'service' ? 'servicio' : 'producto')} para todos los vehículos seleccionados:</div>
+        <div class="max-h-30 overflow-y-auto p-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white rounded border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 custom-scrollbar">
+          <div class="flex flex-col gap-1">
             ${vehiclesForCreation.map((v, idx) => `
-              <div style="font-size:11px;color:var(--text);padding:4px;">${idx + 1}. ${v.make} ${v.line} ${v.displacement}${v.modelYear ? ` (Modelo ${v.modelYear})` : ''}</div>
+              <div class="text-xs text-white dark:text-white theme-light:text-slate-900 p-1">${idx + 1}. ${v.make} ${v.line} ${v.displacement}${v.modelYear ? ` (Modelo ${v.modelYear})` : ''}</div>
             `).join('')}
           </div>
         </div>
       </div>
       ` : `
-      <p class="muted" style="margin-bottom:16px;font-size:13px;">
-        Vehículo: <strong>${vehiclesForCreation[0] ? `${vehiclesForCreation[0].make} ${vehiclesForCreation[0].line}` : 'No seleccionado'}</strong>
+      <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">
+        Vehículo: <strong class="text-white dark:text-white theme-light:text-slate-900">${vehiclesForCreation[0] ? `${vehiclesForCreation[0].make} ${vehiclesForCreation[0].line}` : 'No seleccionado'}</strong>
       </p>
       `}
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre</label>
-        <input id="pe-modal-name" placeholder="${type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire')}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" value="${existingPrice?.name || ''}" />
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Nombre</label>
+        <input id="pe-modal-name" placeholder="${type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire')}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" value="${existingPrice?.name || ''}" />
       </div>
       ${isCombo ? `
       <div style="margin-bottom:16px;">
@@ -1283,58 +1310,58 @@ export function initPrices(){
       </div>
       ` : ''}
       ${isProduct ? `
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Vincular con item del inventario (opcional)</label>
-        <div class="row" style="gap:8px;margin-bottom:8px;">
-          <input id="pe-modal-item-search" placeholder="Buscar por SKU o nombre..." style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-          <button id="pe-modal-item-qr" class="secondary" style="padding:8px 16px;">📷 QR</button>
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Vincular con item del inventario (opcional)</label>
+        <div class="flex gap-2 mb-2">
+          <input id="pe-modal-item-search" placeholder="Buscar por SKU o nombre..." class="flex-1 px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+          <button id="pe-modal-item-qr" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">📷 QR</button>
         </div>
-        <div id="pe-modal-item-dropdown" style="display:none;position:relative;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;background:var(--card);margin-top:4px;"></div>
-        <div id="pe-modal-item-selected" style="margin-top:8px;padding:8px;background:var(--card-alt);border-radius:6px;font-size:12px;${linkedItem ? '' : 'display:none;'}">
-          ${linkedItem ? `<div style="display:flex;justify-content:space-between;align-items:center;">
+        <div id="pe-modal-item-dropdown" class="hidden relative max-h-48 overflow-y-auto border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white mt-1 custom-scrollbar"></div>
+        <div id="pe-modal-item-selected" class="mt-2 p-2 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 rounded-lg text-xs text-white dark:text-white theme-light:text-slate-900 ${linkedItem ? '' : 'hidden'}">
+          ${linkedItem ? `<div class="flex justify-between items-center">
             <div>
               <strong>${linkedItem.name || linkedItem.sku}</strong><br>
-              <span style="font-size:12px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${linkedItem.sku}</strong> | Stock: ${linkedItem.stock || 0}</span>
+              <span class="text-xs"><strong class="font-bold">SKU:</strong> <strong class="font-bold">${linkedItem.sku}</strong> | Stock: ${linkedItem.stock || 0}</span>
             </div>
-            <button id="pe-modal-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
+            <button id="pe-modal-item-remove" class="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors duration-200">✕</button>
           </div>` : ''}
         </div>
         <input type="hidden" id="pe-modal-item-id" value="${linkedItem?._id || ''}" />
       </div>
       ` : ''}
       ${!isCombo ? `
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Precio</label>
-        <input id="pe-modal-price" type="number" step="0.01" placeholder="0" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" value="${existingPrice?.total || ''}" />
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Precio</label>
+        <input id="pe-modal-price" type="number" step="0.01" placeholder="0" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" value="${existingPrice?.total || ''}" />
       </div>
       ` : `
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Precio total del combo</label>
-        <input id="pe-modal-price" type="number" step="0.01" placeholder="0 (se calcula automáticamente)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" value="${existingPrice?.total || ''}" />
-        <p class="muted" style="margin-top:4px;font-size:11px;">El precio se calcula automáticamente desde los productos, o puedes establecerlo manualmente.</p>
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Precio total del combo</label>
+        <input id="pe-modal-price" type="number" step="0.01" placeholder="0 (se calcula automáticamente)" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" value="${existingPrice?.total || ''}" />
+        <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">El precio se calcula automáticamente desde los productos, o puedes establecerlo manualmente.</p>
       </div>
       `}
-      <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;border:1px solid var(--border);">
-        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500;">Rango de años (opcional)</label>
-        <p class="muted" style="margin-bottom:8px;font-size:11px;">Solo aplicar este precio si el año del vehículo está en el rango especificado. Déjalo vacío para aplicar a todos los años.</p>
-        <div class="row" style="gap:8px;">
-          <div style="flex:1;">
-            <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Desde</label>
-            <input id="pe-modal-year-from" type="number" min="1900" max="2100" placeholder="Ej: 2018" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" value="${existingPrice?.yearFrom || ''}" />
+      <div class="mb-4 p-3 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+        <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">Rango de años (opcional)</label>
+        <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">Solo aplicar este precio si el año del vehículo está en el rango especificado. Déjalo vacío para aplicar a todos los años.</p>
+        <div class="flex gap-2">
+          <div class="flex-1">
+            <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Desde</label>
+            <input id="pe-modal-year-from" type="number" min="1900" max="2100" placeholder="Ej: 2018" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" value="${existingPrice?.yearFrom || ''}" />
           </div>
-          <div style="flex:1;">
-            <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Hasta</label>
-            <input id="pe-modal-year-to" type="number" min="1900" max="2100" placeholder="Ej: 2022" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" value="${existingPrice?.yearTo || ''}" />
+          <div class="flex-1">
+            <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Hasta</label>
+            <input id="pe-modal-year-to" type="number" min="1900" max="2100" placeholder="Ej: 2022" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" value="${existingPrice?.yearTo || ''}" />
           </div>
         </div>
       </div>
-      <div id="pe-modal-msg" style="margin-bottom:16px;font-size:13px;"></div>
-      <div class="row" style="gap:8px;">
-        <button id="pe-modal-save" style="flex:1;padding:10px;font-weight:600;">💾 ${isEdit ? 'Actualizar' : (isBulkCreation ? `Guardar para ${vehiclesForCreation.length} vehículos` : 'Guardar')}</button>
-        <button id="pe-modal-cancel" class="secondary" style="flex:1;padding:10px;">Cancelar</button>
+      <div id="pe-modal-msg" class="mb-4 text-sm text-white dark:text-white theme-light:text-slate-900"></div>
+      <div class="flex gap-2">
+        <button id="pe-modal-save" class="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💾 ${isEdit ? 'Actualizar' : (isBulkCreation ? `Guardar para ${vehiclesForCreation.length} vehículos` : 'Guardar')}</button>
+        <button id="pe-modal-cancel" class="flex-1 px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
       </div>
     `;
-    body.appendChild(node);
+    openModal(node);
     
     const nameInput = node.querySelector('#pe-modal-name');
     const priceInput = node.querySelector('#pe-modal-price');
@@ -2330,7 +2357,7 @@ export function initPrices(){
           <button id="pe-import-cancel" class="secondary" style="flex:1;padding:10px;">Cancelar</button>
         </div>
       `;
-      body.appendChild(node);
+      openModal(node);
       
       const fileInput = node.querySelector('#pe-import-file');
       const msgEl = node.querySelector('#pe-import-msg');

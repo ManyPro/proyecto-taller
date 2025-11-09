@@ -4,6 +4,230 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>M&M - Lista de Precios</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: ['class', '.theme-light'],
+      theme: {
+        extend: {
+          colors: {
+            'dark-bg': '#0f172a',
+            'dark-card': '#111827',
+            'dark-card-alt': '#0b1220',
+            'dark-text': '#e5e7eb',
+            'dark-muted': '#9ca3af',
+            'dark-border': '#1f2937',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Estilos para modo claro - Sobrescribir colores de Tailwind */
+    body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
+    body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
+      background: linear-gradient(to right, #f8fafc, #f1f5f9, #f8fafc) !important;
+    }
+    body.theme-light [class*="bg-slate-800/50"],
+    body.theme-light [class*="bg-slate-800"][class*="/50"] {
+      background-color: rgba(241, 245, 249, 0.8) !important;
+    }
+    body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
+      background-color: #f1f5f9 !important;
+    }
+    body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700) {
+      color: #0f172a !important;
+    }
+    body.theme-light .text-slate-300 {
+      color: #475569 !important;
+    }
+    body.theme-light .text-slate-400 {
+      color: #64748b !important;
+    }
+    body.theme-light [class*="border-slate-700/50"],
+    body.theme-light [class*="border-slate-700"][class*="/50"] {
+      border-color: rgba(203, 213, 225, 0.5) !important;
+    }
+    body.theme-light [class*="hover:bg-slate-700/50"]:hover,
+    body.theme-light button:hover[class*="hover:bg-slate-700"] {
+      background-color: rgba(203, 213, 225, 0.5) !important;
+    }
+    body.theme-light [class*="hover:text-white"]:hover:not(.bg-blue-600):not(.bg-blue-700) {
+      color: #0f172a !important;
+    }
+    /* Mejorar contraste de botones grises en modo claro */
+    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]),
+    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]) {
+      background-color: #e2e8f0 !important;
+      color: #475569 !important;
+      border-color: #cbd5e1 !important;
+    }
+    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]):hover,
+    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]):hover {
+      background-color: #cbd5e1 !important;
+      color: #334155 !important;
+      border-color: #94a3b8 !important;
+    }
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"],
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"] {
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+      border-color: #94a3b8 !important;
+    }
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"]:hover,
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"]:focus,
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"]:hover,
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"]:focus {
+      border-color: #64748b !important;
+      background-color: #ffffff !important;
+    }
+    /* Estilos para el fondo de la página */
+    body {
+      background-color: #0f172a;
+      min-height: 100vh;
+    }
+    body.theme-light {
+      background-color: #f8fafc;
+    }
+    /* Estilos para el modal global */
+    #modal.hidden {
+      display: none !important;
+    }
+    #modal:not(.hidden) {
+      display: flex !important;
+    }
+    #modal {
+      align-items: center;
+      justify-content: center;
+    }
+    #modal > div {
+      pointer-events: auto;
+    }
+    #modal {
+      pointer-events: auto;
+    }
+    /* Estilos personalizados para barras de scroll */
+    .custom-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.5);
+      border-radius: 4px;
+      transition: background 0.2s ease;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.7);
+    }
+    body.theme-light .custom-scrollbar {
+      scrollbar-color: rgba(100, 116, 139, 0.4) transparent;
+    }
+    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.4);
+    }
+    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.6);
+    }
+    #modalBody {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+    #modalBody::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    #modalBody::-webkit-scrollbar-track {
+      background: transparent;
+      border-radius: 4px;
+    }
+    #modalBody::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.5);
+      border-radius: 4px;
+      transition: background 0.2s ease;
+    }
+    #modalBody::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.7);
+    }
+    body.theme-light #modalBody::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.4);
+    }
+    body.theme-light #modalBody::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.6);
+    }
+    /* Estilos para tabs internas */
+    .payroll-tabs button[data-subtab].active {
+      background: linear-gradient(to right, #2563eb, #1d4ed8) !important;
+      color: #ffffff !important;
+    }
+    body.theme-light .payroll-tabs button[data-subtab].active {
+      background: linear-gradient(to right, #3b82f6, #2563eb) !important;
+      color: #ffffff !important;
+    }
+    .payroll-tabs button[data-subtab]:not(.active) {
+      background-color: rgba(51, 65, 85, 0.5) !important;
+      color: rgba(255, 255, 255, 0.9) !important;
+    }
+    body.theme-light .payroll-tabs button[data-subtab]:not(.active) {
+      background-color: #e2e8f0 !important;
+      color: #475569 !important;
+      border-color: #cbd5e1 !important;
+    }
+    body.theme-light .payroll-tabs button[data-subtab]:not(.active):hover {
+      background-color: #cbd5e1 !important;
+      color: #334155 !important;
+    }
+    /* Estilos para botones secundarios */
+    button.secondary,
+    .secondary {
+      background-color: rgba(51, 65, 85, 0.5) !important;
+      color: rgba(255, 255, 255, 0.9) !important;
+      border: 1px solid rgba(71, 85, 105, 0.5) !important;
+    }
+    body.theme-light button.secondary,
+    body.theme-light .secondary {
+      background-color: #e2e8f0 !important;
+      color: #475569 !important;
+      border-color: #cbd5e1 !important;
+    }
+    button.secondary:hover,
+    .secondary:hover {
+      background-color: rgba(51, 65, 85, 0.7) !important;
+    }
+    body.theme-light button.secondary:hover,
+    body.theme-light .secondary:hover {
+      background-color: #cbd5e1 !important;
+      color: #334155 !important;
+      border-color: #94a3b8 !important;
+    }
+    /* Estilos para botones danger */
+    button.danger,
+    .danger {
+      background-color: rgba(220, 38, 38, 0.8) !important;
+      color: #ffffff !important;
+    }
+    button.danger:hover,
+    .danger:hover {
+      background-color: rgba(220, 38, 38, 1) !important;
+    }
+    body.theme-light button.danger,
+    body.theme-light .danger {
+      background-color: #ef4444 !important;
+      color: #ffffff !important;
+    }
+    body.theme-light button.danger:hover,
+    body.theme-light .danger:hover {
+      background-color: #dc2626 !important;
+    }
+  </style>
   <link rel="stylesheet" href="assets/styles.css?v=20251010" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <script src="./assets/js/config.js"></script>
@@ -11,34 +235,77 @@
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 </head>
 <body data-page="precios">
+  <!-- ========== APP HEADER ========== -->
   <div class="topbar hidden" id="appHeader">
-    <div class="topbar-inner">
-      <div class="topbar-card">
-        <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
-          <div class="brand">
-            <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" />
-            <div class="company">Empresa: <span id="companyName">-</span></div>
+    <!-- Top Bar - Header Principal -->
+    <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16 md:h-20">
+          <!-- Logo y Nombre de Empresa -->
+          <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
+            <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
+            <div class="hidden sm:flex flex-col">
+              <span class="text-xs text-slate-400 font-medium">Empresa</span>
+              <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
+            </div>
+            <div class="sm:hidden text-white font-semibold text-sm">
+              <span id="companyNameMobile">-</span>
+            </div>
           </div>
-          <div class="row" style="gap:6px;align-items:center;">
-            <button id="logoutBtn" class="secondary hidden">Salir</button>
-            <button id="denseToggle" class="secondary" title="Modo compacto">📏</button>
-            <button id="themeToggle" class="secondary" title="Cambiar tema">🌗</button>
+
+          <!-- Botones de Acción (Desktop) -->
+          <div class="hidden md:flex items-center gap-2">
+            <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
+            <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
+            <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+          </div>
+
+          <!-- Menú Hamburguesa (Mobile) -->
+          <div class="md:hidden flex items-center gap-2">
+            <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
+            <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+            <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+              </svg>
+            </button>
           </div>
         </div>
-        <div class="top-tabs">
-          <nav class="tabs">
-            <button data-tab="home" data-href="index.html">Inicio</button>
-            <button data-tab="notas" data-feature="notas" data-href="notas.html">Notas</button>
-            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html">Ventas</button>
-            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html">Cotizaciones</button>
-            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html">Inventario</button>
-            <button data-tab="precios" data-feature="precios" data-href="precios.html" class="active">Lista de precios</button>
-            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html">Flujo de Caja</button>
-            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html">Nómina</button>
-            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html">Formatos</button>
-            <button data-tab="skus" data-feature="skus" data-href="skus.html">SKUs</button>
+      </div>
+
+      <!-- Navegación Principal (Desktop) -->
+      <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
+            <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inicio</button>
+            <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
+            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
+            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
+            <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
+            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
+            <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
           </nav>
         </div>
+      </div>
+    </div>
+
+    <!-- Menú Móvil (Mobile Menu) -->
+    <div id="mobileMenu" class="md:hidden hidden bg-slate-800 border-t border-slate-700/50 shadow-xl">
+      <div class="px-4 py-3 space-y-1">
+        <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inicio</button>
+        <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Notas</button>
+        <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Ventas</button>
+        <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cotizaciones</button>
+        <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inventario</button>
+        <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">Lista de precios</button>
+        <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Flujo de Caja</button>
+        <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
+        <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
+        <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
+        <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
       </div>
     </div>
   </div>
@@ -47,167 +314,159 @@
     <section id="appSection" class="hidden">
 
       <!-- MODAL GLOBAL -->
-      <div id="modal" class="modal hidden">
-        <div class="modal-content image-modal">
-          <button id="modalClose" class="close">&times;</button>
-          <div id="modalBody">
-            <div id="modal-img-wrap">
-              <img id="modal-img" src="" alt="Vista previa" />
-              <div class="zoom-controls">
-                <button id="zoom-in">+</button>
-                <button id="zoom-out">-</button>
-                <button id="zoom-reset">Reset</button>
-              </div>
-            </div>
+      <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
+        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] my-auto overflow-hidden">
+          <button id="modalClose" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
+          <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
+            <!-- Content will be injected here -->
           </div>
         </div>
       </div>
 
       <!-- ========== PRECIOS Y VEHÍCULOS ========== -->
       <section id="tab-precios" class="tab active">
-        <!-- Tabs internas: Lista de precios y Vehículos -->
-        <div class="card">
-          <div class="payroll-tabs row wrap" style="gap:6px;align-items:center;margin-bottom:16px;">
-            <button class="secondary active" data-subtab="prices">💰 Lista de precios</button>
-            <button class="secondary" data-subtab="vehicles">🚗 Vehículos</button>
-          </div>
-        </div>
-
-        <!-- Tab: Lista de precios -->
-        <div class="card" data-subsection="prices">
-          <h3>Lista de precios</h3>
-          <div id="filters-bar" style="margin-bottom:24px;">
-            <div style="margin-bottom:16px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500;">Seleccionar marca</label>
-              <select id="pf-make-select" style="width:100%;max-width:400px;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:14px;">
-                <option value="">-- Selecciona una marca --</option>
-              </select>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <!-- Tabs internas: Lista de precios y Vehículos -->
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mb-6">
+            <div class="flex flex-wrap gap-2 payroll-tabs">
+              <button class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 data-subtab-prices bg-blue-600 text-white" data-subtab="prices">💰 Lista de precios</button>
+              <button class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 data-subtab-vehicles bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" data-subtab="vehicles">🚗 Vehículos</button>
             </div>
-            <div id="pf-lines-container" style="display:none;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500;">Selecciona una línea</label>
-              <div id="pf-lines-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;"></div>
-            </div>
-            <input type="hidden" id="pf-vehicle-id" />
-            <div id="pf-vehicle-selected" style="margin-top:12px;padding:12px;background:var(--card-alt);border-radius:8px;display:none;">
-              <div style="display:flex;justify-content:space-between;align-items:center;">
-                <div>
-                  <span style="color:var(--success, #10b981);font-weight:600;">✓ Vehículo seleccionado:</span>
-                  <span id="pf-vehicle-name" style="margin-left:8px;font-weight:600;"></span>
-                </div>
-                <button id="pf-clear" class="secondary" style="padding:6px 12px;font-size:12px;">🗑️ Limpiar</button>
-              </div>
-            </div>
-          </div>
-          <div id="pe-actions-bar" style="display:none;margin-bottom:16px;gap:8px;" class="row">
-            <button id="pe-new-service" style="padding:8px 16px;">➕ Nuevo servicio</button>
-            <button id="pe-new-product" style="padding:8px 16px;">➕ Nuevo producto</button>
-            <button id="pe-new-combo" style="padding:8px 16px;background:#9333ea;color:white;border:none;">🎁 Nuevo combo</button>
-          </div>
-          <div id="pe-vehicle-tabs" style="display:none;margin-bottom:16px;border-bottom:2px solid var(--border);"></div>
-          <div id="pe-filters" style="display:none;margin-bottom:16px;gap:8px;flex-wrap:wrap;" class="row">
-            <div style="flex:1;min-width:200px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Buscar por nombre</label>
-              <input id="pe-filter-name" placeholder="Nombre del servicio/producto..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-            </div>
-            <div style="min-width:150px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Tipo</label>
-              <select id="pe-filter-type" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
-                <option value="">Todos</option>
-                <option value="service">Servicios</option>
-                <option value="product">Productos</option>
-                <option value="combo">Combos</option>
-              </select>
-            </div>
-            <div style="display:flex;align-items:end;">
-              <button id="pf-search" class="secondary" style="padding:8px 16px;height:fit-content;">🔍 Buscar</button>
-            </div>
-          </div>
-          <div class="card" style="margin-top:12px;">
-            <div class="table-wrap" style="overflow-x:auto;width:100%;">
-              <table class="table" id="pe-table" style="width:100%;table-layout:auto;">
-                <thead id="pe-head"></thead>
-                <tbody id="pe-body"></tbody>
-              </table>
-            </div>
-            <div id="pe-pagination"></div>
-          </div>
-        </div>
-
-        <!-- Tab: Vehículos -->
-        <div class="card hidden" data-subsection="vehicles">
-          <h3>Base de datos de vehículos</h3>
-          <p class="muted" style="margin:0 0 16px 0;font-size:13px;">Gestiona la base de datos global de vehículos. Esta base es compartida por todas las empresas.</p>
-          
-          <!-- Formulario crear/editar vehículo -->
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
-            <div style="margin-bottom:12px;">
-              <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Crear/Editar vehículo</h4>
-            </div>
-            <div class="row wrap" style="gap:12px;align-items:end;">
-              <div style="flex:1;min-width:160px;">
-                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Marca</label>
-                <input id="v-make" placeholder="Ej: RENAULT" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);text-transform:uppercase;" />
-              </div>
-              <div style="flex:1;min-width:160px;">
-                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Línea</label>
-                <input id="v-line" placeholder="Ej: DUSTER" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);text-transform:uppercase;" />
-              </div>
-              <div style="min-width:120px;">
-                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Cilindraje</label>
-                <input id="v-displacement" placeholder="Ej: 1.6" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);text-transform:uppercase;" />
-              </div>
-              <div style="min-width:160px;">
-                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Modelo (año o rango)</label>
-                <input id="v-modelyear" placeholder="Ej: 2020 o 2018-2022" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-                <p class="muted" style="margin:4px 0 0 0;font-size:11px;">Año fijo (2020) o rango (2018-2022). Dejar vacío si no aplica.</p>
-              </div>
-              <div style="min-width:120px;">
-                <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
-                <button id="v-save" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
-                  💾 Guardar
-                </button>
-              </div>
-            </div>
-            <div id="v-msg" style="margin-top:12px;font-size:13px;"></div>
           </div>
 
-          <!-- Filtros y búsqueda -->
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
-            <div class="row wrap" style="gap:12px;align-items:end;">
-              <div style="flex:2;min-width:200px;">
-                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Buscar</label>
-                <input id="v-search" placeholder="Buscar por marca, línea o cilindraje..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-              </div>
-              <div style="min-width:140px;">
-                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Marca</label>
-                <select id="v-filter-make" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
-                  <option value="">Todas</option>
+          <!-- Tab: Lista de precios -->
+          <div data-subsection="prices" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6">Lista de precios</h3>
+            
+            <!-- Filtros -->
+            <div id="filters-bar" class="mb-6">
+              <div class="mb-4">
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">Seleccionar marca</label>
+                <select id="pf-make-select" class="w-full max-w-md px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                  <option value="">-- Selecciona una marca --</option>
                 </select>
               </div>
-              <div style="min-width:120px;">
-                <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
-                <button id="v-filter-btn" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
-                  🔍 Buscar
-                </button>
+              <div id="pf-lines-container" class="hidden">
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">Selecciona una línea</label>
+                <div id="pf-lines-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"></div>
               </div>
-              <div style="min-width:120px;">
-                <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
-                <button id="v-clear-btn" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
-                  🗑️ Limpiar
-                </button>
+              <input type="hidden" id="pf-vehicle-id" />
+              <div id="pf-vehicle-selected" class="hidden mt-4 p-4 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                <div class="flex justify-between items-center">
+                  <div>
+                    <span class="text-green-400 dark:text-green-400 theme-light:text-green-600 font-semibold">✓ Vehículo seleccionado:</span>
+                    <span id="pf-vehicle-name" class="ml-2 font-semibold text-white dark:text-white theme-light:text-slate-900"></span>
+                  </div>
+                  <button id="pf-clear" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">🗑️ Limpiar</button>
+                </div>
               </div>
+            </div>
+
+            <!-- Barra de acciones -->
+            <div id="pe-actions-bar" class="hidden mb-6 flex flex-wrap gap-2">
+              <button id="pe-new-service" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">➕ Nuevo servicio</button>
+              <button id="pe-new-product" class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">➕ Nuevo producto</button>
+              <button id="pe-new-combo" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">🎁 Nuevo combo</button>
+            </div>
+
+            <!-- Tabs de vehículos -->
+            <div id="pe-vehicle-tabs" class="hidden mb-6 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50"></div>
+
+            <!-- Filtros de búsqueda -->
+            <div id="pe-filters" class="hidden mb-6 flex flex-wrap gap-3">
+              <div class="flex-1 min-w-[200px]">
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Buscar por nombre</label>
+                <input id="pe-filter-name" placeholder="Nombre del servicio/producto..." class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <div class="min-w-[150px]">
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Tipo</label>
+                <select id="pe-filter-type" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                  <option value="">Todos</option>
+                  <option value="service">Servicios</option>
+                  <option value="product">Productos</option>
+                  <option value="combo">Combos</option>
+                </select>
+              </div>
+              <div class="flex items-end">
+                <button id="pf-search" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">🔍 Buscar</button>
+              </div>
+            </div>
+
+            <!-- Tabla de precios -->
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mt-4">
+              <div class="overflow-x-auto custom-scrollbar">
+                <table class="w-full text-sm" id="pe-table">
+                  <thead id="pe-head" class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100"></thead>
+                  <tbody id="pe-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
+                </table>
+              </div>
+              <div id="pe-pagination" class="mt-4"></div>
             </div>
           </div>
 
-          <!-- Lista de vehículos -->
-          <div>
-            <div style="margin-bottom:12px;">
-              <h4 style="margin:0;font-size:14px;font-weight:600;">Vehículos registrados</h4>
-              <p class="muted" style="margin:4px 0 0 0;font-size:12px;">Total: <span id="v-count">0</span></p>
+          <!-- Tab: Vehículos -->
+          <div data-subsection="vehicles" class="hidden bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">Base de datos de vehículos</h3>
+            <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-6">Gestiona la base de datos global de vehículos. Esta base es compartida por todas las empresas.</p>
+            
+            <!-- Formulario crear/editar vehículo -->
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mb-6">
+              <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">Crear/Editar vehículo</h4>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Marca</label>
+                  <input id="v-make" placeholder="Ej: RENAULT" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 uppercase" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Línea</label>
+                  <input id="v-line" placeholder="Ej: DUSTER" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 uppercase" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Cilindraje</label>
+                  <input id="v-displacement" placeholder="Ej: 1.6" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 uppercase" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Modelo (año o rango)</label>
+                  <input id="v-modelyear" placeholder="Ej: 2020 o 2018-2022" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+                  <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Año fijo (2020) o rango (2018-2022). Dejar vacío si no aplica.</p>
+                </div>
+                <div>
+                  <button id="v-save" class="w-full px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">💾 Guardar</button>
+                </div>
+              </div>
+              <div id="v-msg" class="mt-4 text-sm text-white dark:text-white theme-light:text-slate-900"></div>
             </div>
-            <div id="v-list" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(300px, 1fr));gap:12px;">
-              <div class="muted" style="grid-column:1/-1;text-align:center;font-size:12px;padding:16px;border:1px dashed var(--border);border-radius:8px;">
-                Cargando vehículos...
+
+            <!-- Filtros y búsqueda -->
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mb-6">
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
+                <div class="sm:col-span-2">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Buscar</label>
+                  <input id="v-search" placeholder="Buscar por marca, línea o cilindraje..." class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Marca</label>
+                  <select id="v-filter-make" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                    <option value="">Todas</option>
+                  </select>
+                </div>
+                <div class="flex gap-2">
+                  <button id="v-filter-btn" class="flex-1 px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">🔍 Buscar</button>
+                  <button id="v-clear-btn" class="flex-1 px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">🗑️ Limpiar</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Lista de vehículos -->
+            <div>
+              <div class="mb-4">
+                <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Vehículos registrados</h4>
+                <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Total: <span id="v-count" class="font-semibold">0</span></p>
+              </div>
+              <div id="v-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div class="col-span-full text-center text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 p-4 border border-dashed border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg">
+                  Cargando vehículos...
+                </div>
               </div>
             </div>
           </div>
@@ -219,15 +478,17 @@
 
   <!-- Templates -->
   <template id="tpl-price-edit-row">
-    <tr>
-      <td data-vehicle></td>
-      <td data-name></td>
-      <td data-item-info style="font-size:11px;color:var(--muted);"></td>
-      <td class="t-right"><input data-price type="number" step="0.01" /></td>
-      <td class="t-center">
-        <button class="edit" style="margin-right:4px;">✏️ Editar</button>
-        <button class="save" style="margin-right:4px;">💾 Guardar</button>
-        <button class="danger delete">🗑️ Borrar</button>
+    <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30">
+      <td class="py-3 px-4" data-vehicle></td>
+      <td class="py-3 px-4" data-name></td>
+      <td class="py-3 px-4 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600" data-item-info></td>
+      <td class="py-3 px-4 text-right"><input data-price type="number" step="0.01" class="w-24 px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" /></td>
+      <td class="py-3 px-4 text-center">
+        <div class="flex gap-2 justify-center">
+          <button class="edit px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200">✏️ Editar</button>
+          <button class="save px-3 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors duration-200">💾 Guardar</button>
+          <button class="danger delete px-3 py-1 text-xs bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200">🗑️ Borrar</button>
+        </div>
       </td>
     </tr>
   </template>
@@ -235,5 +496,104 @@
   <script type="module" src="./assets/js/prices.js" charset="utf-8"></script>
   <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
   <script src="./assets/js/input-fix.js"></script>
+  
+  <!-- Script para manejar el menú móvil y navegación -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+      const mobileMenu = document.getElementById('mobileMenu');
+      const logoutBtn = document.getElementById('logoutBtn');
+      const logoutBtnMobile = document.getElementById('logoutBtnMobile');
+      const companyName = document.getElementById('companyName');
+      const companyNameMobile = document.getElementById('companyNameMobile');
+
+      if (companyName && companyNameMobile) {
+        const observer = new MutationObserver(() => {
+          companyNameMobile.textContent = companyName.textContent;
+        });
+        observer.observe(companyName, { childList: true, characterData: true, subtree: true });
+        companyNameMobile.textContent = companyName.textContent;
+      }
+
+      if (logoutBtn && logoutBtnMobile) {
+        logoutBtnMobile.addEventListener('click', () => {
+          if (logoutBtn.onclick) logoutBtn.onclick();
+          else logoutBtn.click();
+        });
+        
+        const logoutObserver = new MutationObserver(() => {
+          logoutBtnMobile.classList.toggle('hidden', logoutBtn.classList.contains('hidden'));
+        });
+        logoutObserver.observe(logoutBtn, { attributes: true, attributeFilter: ['class'] });
+        logoutBtnMobile.classList.toggle('hidden', logoutBtn.classList.contains('hidden'));
+      }
+
+      if (mobileMenuToggle && mobileMenu) {
+        mobileMenuToggle.addEventListener('click', () => {
+          mobileMenu.classList.toggle('hidden');
+          const icon = mobileMenuToggle.querySelector('svg');
+          if (icon) {
+            if (mobileMenu.classList.contains('hidden')) {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>';
+            } else {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>';
+            }
+          }
+        });
+
+        const mobileNavTabs = mobileMenu.querySelectorAll('.mobile-nav-tab');
+        mobileNavTabs.forEach(tab => {
+          tab.addEventListener('click', () => {
+            mobileMenu.classList.add('hidden');
+            const icon = mobileMenuToggle.querySelector('svg');
+            if (icon) {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>';
+            }
+          });
+        });
+      }
+
+      const updateActiveTab = () => {
+        const currentPage = window.location.pathname.split('/').pop() || 'precios.html';
+        const allTabs = document.querySelectorAll('.nav-tab, .mobile-nav-tab');
+        allTabs.forEach(tab => {
+          const href = tab.getAttribute('data-href');
+          if (href === currentPage || (currentPage === '' && href === 'precios.html')) {
+            tab.classList.add('active');
+            if (tab.classList.contains('nav-tab')) {
+              tab.classList.add('bg-blue-600', 'text-white');
+              tab.classList.remove('text-slate-300', 'hover:bg-slate-700/50');
+            }
+            if (tab.classList.contains('mobile-nav-tab')) {
+              tab.classList.add('bg-blue-600', 'text-white');
+              tab.classList.remove('text-slate-300', 'hover:bg-slate-700/50');
+            }
+          } else {
+            tab.classList.remove('active');
+            if (tab.classList.contains('nav-tab')) {
+              tab.classList.remove('bg-blue-600', 'text-white');
+              tab.classList.add('text-slate-300', 'hover:bg-slate-700/50');
+            }
+            if (tab.classList.contains('mobile-nav-tab')) {
+              tab.classList.remove('bg-blue-600', 'text-white');
+              tab.classList.add('text-slate-300', 'hover:bg-slate-700/50');
+            }
+          }
+        });
+      };
+
+      updateActiveTab();
+      
+      const navTabs = document.querySelectorAll('.nav-tab, .mobile-nav-tab');
+      navTabs.forEach(tab => {
+        tab.addEventListener('click', (e) => {
+          const href = tab.getAttribute('data-href');
+          if (href && href !== window.location.pathname.split('/').pop()) {
+            window.location.href = href;
+          }
+        });
+      });
+    });
+  </script>
 </body>
 </html>
