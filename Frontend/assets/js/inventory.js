@@ -221,13 +221,19 @@ function invOpenOverlay(innerHTML) {
 
 function openLightbox(media) {
   const isVideo = (media.mimetype || "").startsWith("video/");
+  // Detectar si es pantalla grande (PC)
+  const isDesktop = window.innerWidth >= 768;
+  const maxSize = isDesktop ? '40vw' : '50vw';
+  const maxHeight = isDesktop ? '40vh' : '50vh';
+  const containerHeight = isDesktop ? '40vh' : '50vh';
+  
   invOpenModal(
     `<div class="image-lightbox flex flex-col items-center justify-center p-4">
        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Vista previa</h3>
-       <div class="relative flex items-center justify-center w-full" style="height: 50vh; max-height: 50vh; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+       <div class="relative flex items-center justify-center w-full" style="height: ${containerHeight}; max-height: ${containerHeight}; overflow: hidden; display: flex; align-items: center; justify-content: center;">
          ${isVideo ? 
-           `<video controls src="${media.url}" class="object-contain rounded-lg" style="max-width: 50vw; max-height: 50vh; width: auto; height: auto;"></video>` : 
-           `<img src="${media.url}" alt="media" id="modal-img" class="object-contain rounded-lg cursor-zoom-in" style="max-width: 50vw; max-height: 50vh; width: auto; height: auto; image-rendering: auto; transform: scale(1) translate(0px, 0px);" />`
+           `<video controls src="${media.url}" class="object-contain rounded-lg" style="max-width: ${maxSize}; max-height: ${maxHeight}; width: auto; height: auto;"></video>` : 
+           `<img src="${media.url}" alt="media" id="modal-img" class="object-contain rounded-lg cursor-zoom-in" style="max-width: ${maxSize}; max-height: ${maxHeight}; width: auto; height: auto; image-rendering: auto; transform: scale(1) translate(0px, 0px);" />`
          }
        </div>
        ${!isVideo ? `
@@ -254,8 +260,13 @@ function openLightbox(media) {
         if (img.naturalWidth && img.naturalHeight) {
           const container = img.parentElement;
           if (container) {
-            const maxWidth = Math.min(container.clientWidth * 0.5, window.innerWidth * 0.5);
-            const maxHeight = Math.min(container.clientHeight, window.innerHeight * 0.5);
+            // Detectar si es pantalla grande (PC)
+            const isDesktop = window.innerWidth >= 768;
+            const maxWidthPercent = isDesktop ? 0.4 : 0.5; // 40% en PC, 50% en móvil
+            const maxHeightPercent = isDesktop ? 0.4 : 0.5;
+            
+            const maxWidth = Math.min(container.clientWidth * maxWidthPercent, window.innerWidth * maxWidthPercent);
+            const maxHeight = Math.min(container.clientHeight, window.innerHeight * maxHeightPercent);
             
             // Calcular el tamaño manteniendo la proporción
             const imgAspect = img.naturalWidth / img.naturalHeight;
@@ -274,8 +285,8 @@ function openLightbox(media) {
             
             img.style.width = finalWidth + 'px';
             img.style.height = finalHeight + 'px';
-            img.style.maxWidth = '50vw';
-            img.style.maxHeight = '50vh';
+            img.style.maxWidth = isDesktop ? '40vw' : '50vw';
+            img.style.maxHeight = isDesktop ? '40vh' : '50vh';
             img.style.objectFit = 'contain';
           }
         }

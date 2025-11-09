@@ -643,17 +643,66 @@
     </section>
   </main>
 
-  <script type="module" src="./assets/js/inventory.js" charset="utf-8"></script>
+  <script src="./assets/js/api.js"></script>
   <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
+  <script type="module" src="./assets/js/inventory.js" charset="utf-8"></script>
   <script src="./assets/js/input-fix.js"></script>
   <script>
-    // Menú móvil
+    // Menú móvil y navegación
     document.addEventListener('DOMContentLoaded', () => {
       const mobileMenuToggle = document.getElementById('mobileMenuToggle');
       const mobileMenu = document.getElementById('mobileMenu');
+      const logoutBtn = document.getElementById('logoutBtn');
+      const logoutBtnMobile = document.getElementById('logoutBtnMobile');
+      const companyName = document.getElementById('companyName');
+      const companyNameMobile = document.getElementById('companyNameMobile');
+
+      // Sincronizar nombre de empresa en móvil
+      if (companyName && companyNameMobile) {
+        const observer = new MutationObserver(() => {
+          companyNameMobile.textContent = companyName.textContent;
+        });
+        observer.observe(companyName, { childList: true, characterData: true, subtree: true });
+        companyNameMobile.textContent = companyName.textContent;
+      }
+
+      // Sincronizar botón de logout
+      if (logoutBtn && logoutBtnMobile) {
+        logoutBtnMobile.addEventListener('click', () => {
+          if (logoutBtn.onclick) logoutBtn.onclick();
+          else logoutBtn.click();
+        });
+        
+        const logoutObserver = new MutationObserver(() => {
+          logoutBtnMobile.classList.toggle('hidden', logoutBtn.classList.contains('hidden'));
+        });
+        logoutObserver.observe(logoutBtn, { attributes: true, attributeFilter: ['class'] });
+        logoutBtnMobile.classList.toggle('hidden', logoutBtn.classList.contains('hidden'));
+      }
+
+      // Toggle menú móvil
       if (mobileMenuToggle && mobileMenu) {
         mobileMenuToggle.addEventListener('click', () => {
           mobileMenu.classList.toggle('hidden');
+          const icon = mobileMenuToggle.querySelector('svg');
+          if (icon) {
+            if (mobileMenu.classList.contains('hidden')) {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>';
+            } else {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>';
+            }
+          }
+        });
+
+        // Cerrar menú al hacer clic en un enlace
+        mobileMenu.querySelectorAll('.mobile-nav-tab').forEach(link => {
+          link.addEventListener('click', () => {
+            mobileMenu.classList.add('hidden');
+            const icon = mobileMenuToggle.querySelector('svg');
+            if (icon) {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>';
+            }
+          });
         });
       }
       
@@ -663,6 +712,16 @@
         if (tab.getAttribute('data-tab') === currentPage) {
           tab.classList.add('active');
         }
+      });
+
+      // Manejar clicks en botones de navegación
+      document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const href = btn.getAttribute('data-href');
+          if (href && href !== window.location.pathname.split('/').pop()) {
+            window.location.href = href;
+          }
+        });
       });
     });
     
