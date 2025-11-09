@@ -224,10 +224,10 @@ function openLightbox(media) {
   invOpenModal(
     `<div class="image-lightbox flex flex-col items-center justify-center p-4">
        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Vista previa</h3>
-       <div class="relative flex items-center justify-center w-full" style="height: 60vh; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+       <div class="relative flex items-center justify-center w-full" style="height: 50vh; max-height: 50vh; overflow: hidden; display: flex; align-items: center; justify-content: center;">
          ${isVideo ? 
-           `<video controls src="${media.url}" class="max-w-full max-h-full object-contain rounded-lg" style="max-width: 60vw; max-height: 60vh; width: auto; height: auto;"></video>` : 
-           `<img src="${media.url}" alt="media" id="modal-img" class="object-contain rounded-lg cursor-zoom-in" style="max-width: 60vw; max-height: 60vh; width: auto; height: auto; transform: scale(1) translate(0px, 0px);" />`
+           `<video controls src="${media.url}" class="object-contain rounded-lg" style="max-width: 50vw; max-height: 50vh; width: auto; height: auto;"></video>` : 
+           `<img src="${media.url}" alt="media" id="modal-img" class="object-contain rounded-lg cursor-zoom-in" style="max-width: 50vw; max-height: 50vh; width: auto; height: auto; image-rendering: auto; transform: scale(1) translate(0px, 0px);" />`
          }
        </div>
        ${!isVideo ? `
@@ -249,12 +249,43 @@ function openLightbox(media) {
     // Esperar a que la imagen se cargue antes de configurar el zoom
     const img = document.getElementById("modal-img");
     if (img) {
-      if (img.complete) {
+      // Forzar tamaño máximo de la imagen al cargar
+      const forceImageSize = () => {
+        if (img.naturalWidth && img.naturalHeight) {
+          const container = img.parentElement;
+          if (container) {
+            const maxWidth = Math.min(container.clientWidth * 0.5, window.innerWidth * 0.5);
+            const maxHeight = Math.min(container.clientHeight, window.innerHeight * 0.5);
+            
+            // Calcular el tamaño manteniendo la proporción
+            const imgAspect = img.naturalWidth / img.naturalHeight;
+            const containerAspect = maxWidth / maxHeight;
+            
+            let finalWidth, finalHeight;
+            if (imgAspect > containerAspect) {
+              // La imagen es más ancha
+              finalWidth = maxWidth;
+              finalHeight = maxWidth / imgAspect;
+            } else {
+              // La imagen es más alta
+              finalHeight = maxHeight;
+              finalWidth = maxHeight * imgAspect;
+            }
+            
+            img.style.width = finalWidth + 'px';
+            img.style.height = finalHeight + 'px';
+            img.style.maxWidth = '50vw';
+            img.style.maxHeight = '50vh';
+            img.style.objectFit = 'contain';
+          }
+        }
         setupImageZoom();
+      };
+      
+      if (img.complete) {
+        forceImageSize();
       } else {
-        img.onload = () => {
-          setupImageZoom();
-        };
+        img.onload = forceImageSize;
       }
     }
   }
