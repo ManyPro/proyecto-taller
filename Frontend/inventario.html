@@ -142,16 +142,32 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       max-width: 95vw;
       max-height: 90vh;
+      overflow: hidden;
+    }
+    .image-lightbox > div {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      overflow: auto;
+      flex: 1;
     }
     .image-lightbox img,
     .image-lightbox video {
       max-width: 90vw;
-      max-height: 75vh;
+      max-height: calc(90vh - 150px);
       object-fit: contain;
       border-radius: 8px;
+      display: block;
+    }
+    .image-lightbox img.zoomed {
+      cursor: grab;
+    }
+    .image-lightbox img.zoomed:active {
+      cursor: grabbing;
     }
     .zoom-controls {
       display: flex;
@@ -430,70 +446,35 @@
       </div>
 
       <!-- ========== INVENTARIO ========== -->
-  <section id="tab-inventario" class="tab active">
+      <section id="tab-inventario" class="tab active">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <!-- INGRESO: ahora con dos tipos -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6" id="vi-card-form">
-            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Ingreso</h3>
-            <div class="flex flex-wrap gap-4 mb-4" id="vi-kind-row">
-              <label class="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="vi-kind" id="vi-kind-vehicle" value="vehicle" checked class="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500">
-                <span class="text-sm text-white dark:text-white theme-light:text-slate-900">Ingreso de vehículo</span>
-              </label>
-              <label class="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="vi-kind" id="vi-kind-purchase" value="purchase" class="w-4 h-4 text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500">
-                <span class="text-sm text-white dark:text-white theme-light:text-slate-900">Ingreso de compra</span>
-              </label>
+          <!-- PRIMERO: Lista de inventario con filtros -->
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6" id="inventory-list">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Inventario</h3>
+            <div class="flex flex-wrap gap-3 mb-4" id="items-filters">
+              <!-- Barra de selección/acción de stickers -->
+              <div id="stickerBar" class="flex flex-wrap gap-2"></div>
+              <!-- Botón invisible para compatibilidad con bindStickersButton('--btn-stickers') -->
+              <button id="btn-stickers" class="hidden px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Imprimir stickers</button>
+              <input id="q-name" placeholder="Filtrar por nombre..." class="flex-1 min-w-[150px] px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              <input id="q-sku" placeholder="SKU..." class="flex-1 min-w-[150px] px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              <input id="q-brand" placeholder="Marca..." class="flex-1 min-w-[150px] px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              <select id="q-intakeId" class="px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                <option value="">Todas las entradas</option>
+              </select>
+              <button id="q-apply" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Buscar</button>
+              <button id="q-clear" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Limpiar</button>
+              <button id="pub-bulk-global" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" title="Publicar o despublicar por procedencia o SKU">Publicación catálogo</button>
+              <button id="btn-unpublish-zero" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" title="Despublicar todos los artículos con stock 0">Despublicar agotados</button>
             </div>
-
-            <!-- Sub-form: Vehículo -->
-            <div id="vi-form-vehicle" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Marca</label>
-                <input id="vi-brand" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Modelo</label>
-                <input id="vi-model" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Cilindraje</label>
-                <input id="vi-engine" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Fecha ingreso</label>
-                <input id="vi-date" type="date" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Precio de entrada</label>
-                <input id="vi-price" type="number" min="0" step="0.01" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-              </div>
-            </div>
-
-            <!-- Sub-form: Compra -->
-            <div id="vi-form-purchase" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div>
-                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Lugar de compra</label>
-                <input id="vi-p-place" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Fecha</label>
-                <input id="vi-p-date" type="date" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Precio de entrada</label>
-                <input id="vi-p-price" type="number" min="0" step="0.01" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-              </div>
-            </div>
-
-            <button id="vi-save" class="mt-4 px-6 py-2.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar Ingreso</button>
+            <!-- Controles de paginación (debajo de filtros y barra de selección) -->
+            <div id="itemsPaginationTop" class="flex flex-wrap justify-between items-center gap-4 mb-4"></div>
+            <div id="itemsList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            <!-- Controles de paginación (abajo de la lista) -->
+            <div id="itemsPaginationBottom" class="flex flex-wrap justify-between items-center gap-4 mt-4"></div>
           </div>
 
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6" id="vi-card-lista">
-            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Ingresos</h3>
-            <div id="vi-list" class="space-y-2"></div>
-        </div>
-
+          <!-- SEGUNDO: Formulario para agregar item -->
           <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6" id="item-form">
             <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Nuevo ítem</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -558,30 +539,6 @@
             <button id="it-save" class="mt-4 px-6 py-2.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar ítem</button>
         </div>
 
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6" id="inventory-list">
-            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Inventario</h3>
-            <div class="flex flex-wrap gap-3 mb-4" id="items-filters">
-            <!-- Barra de selección/acción de stickers -->
-              <div id="stickerBar" class="flex flex-wrap gap-2"></div>
-            <!-- Botón invisible para compatibilidad con bindStickersButton('--btn-stickers') -->
-              <button id="btn-stickers" class="hidden px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Imprimir stickers</button>
-              <input id="q-name" placeholder="Filtrar por nombre..." class="flex-1 min-w-[150px] px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-              <input id="q-sku" placeholder="SKU..." class="flex-1 min-w-[150px] px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-              <input id="q-brand" placeholder="Marca..." class="flex-1 min-w-[150px] px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
-              <select id="q-intakeId" class="px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
-              <option value="">Todas las entradas</option>
-            </select>
-              <button id="q-apply" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Buscar</button>
-              <button id="q-clear" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Limpiar</button>
-              <button id="pub-bulk-global" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" title="Publicar o despublicar por procedencia o SKU">Publicación catálogo</button>
-              <button id="btn-unpublish-zero" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" title="Despublicar todos los artículos con stock 0">Despublicar agotados</button>
-          </div>
-          <!-- Controles de paginación (debajo de filtros y barra de selección) -->
-            <div id="itemsPaginationTop" class="flex flex-wrap justify-between items-center gap-4 mb-4"></div>
-            <div id="itemsList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
-          <!-- Controles de paginación (abajo de la lista) -->
-            <div id="itemsPaginationBottom" class="flex flex-wrap justify-between items-center gap-4 mt-4"></div>
-        </div>
 
           <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6" id="import-excel-card">
             <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Importar desde Excel</h3>
@@ -634,6 +591,22 @@
         }
       });
     });
+    
+    // Función para toggle de sección de ingresos
+    function toggleIntakeSection() {
+      const content = document.getElementById('vi-section-content');
+      const icon = document.getElementById('vi-toggle-icon');
+      if (content && icon) {
+        const isHidden = content.classList.contains('hidden');
+        if (isHidden) {
+          content.classList.remove('hidden');
+          icon.style.transform = 'rotate(180deg)';
+        } else {
+          content.classList.add('hidden');
+          icon.style.transform = 'rotate(0deg)';
+        }
+      }
+    }
     
     document.addEventListener('DOMContentLoaded', () => {
       const btn = document.getElementById('openPublicCatalog');

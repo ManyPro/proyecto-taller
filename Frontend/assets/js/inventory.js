@@ -222,14 +222,16 @@ function invOpenOverlay(innerHTML) {
 function openLightbox(media) {
   const isVideo = (media.mimetype || "").startsWith("video/");
   invOpenModal(
-    `<div class="image-lightbox">
+    `<div class="image-lightbox flex flex-col items-center justify-center">
        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Vista previa</h3>
-       ${isVideo ? 
-         `<video controls src="${media.url}" class="max-w-[90vw] max-h-[75vh] object-contain rounded-lg"></video>` : 
-         `<img src="${media.url}" alt="media" id="modal-img" class="max-w-[90vw] max-h-[75vh] object-contain rounded-lg cursor-zoom-in" />`
-       }
+       <div class="relative flex items-center justify-center w-full" style="max-height: calc(90vh - 150px); overflow: auto;">
+         ${isVideo ? 
+           `<video controls src="${media.url}" class="max-w-full max-h-full object-contain rounded-lg" style="max-width: 90vw; max-height: calc(90vh - 150px);"></video>` : 
+           `<img src="${media.url}" alt="media" id="modal-img" class="max-w-full max-h-full object-contain rounded-lg cursor-zoom-in" style="max-width: 90vw; max-height: calc(90vh - 150px); transform: scale(1) translate(0px, 0px);" />`
+         }
+       </div>
        ${!isVideo ? `
-         <div class="zoom-controls">
+         <div class="zoom-controls mt-4">
            <button class="zoom-btn px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" id="zoom-in" title="Acercar">+</button>
            <button class="zoom-btn px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" id="zoom-out" title="Alejar">-</button>
            <button class="zoom-btn px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" id="zoom-reset" title="Resetear">⌂</button>
@@ -244,7 +246,17 @@ function openLightbox(media) {
   
   // Configurar zoom solo para imágenes
   if (!isVideo) {
-    setupImageZoom();
+    // Esperar a que la imagen se cargue antes de configurar el zoom
+    const img = document.getElementById("modal-img");
+    if (img) {
+      if (img.complete) {
+        setupImageZoom();
+      } else {
+        img.onload = () => {
+          setupImageZoom();
+        };
+      }
+    }
   }
 }
 
@@ -257,6 +269,7 @@ function setupImageZoom() {
   
   if (!img) return;
   
+  // Asegurar que la imagen empiece sin zoom y centrada
   let scale = 1;
   let isDragging = false;
   let startX = 0;
@@ -264,9 +277,16 @@ function setupImageZoom() {
   let translateX = 0;
   let translateY = 0;
   
+  // Resetear transformaciones iniciales
+  img.style.transform = 'scale(1) translate(0px, 0px)';
+  img.style.transformOrigin = 'center center';
+  translateX = 0;
+  translateY = 0;
+  
   // Función para aplicar transformaciones
   const applyTransform = () => {
     img.style.transform = `scale(${scale}) translate(${translateX}px, ${translateY}px)`;
+    img.style.transformOrigin = 'center center';
     img.classList.toggle('zoomed', scale > 1);
   };
   
@@ -276,6 +296,12 @@ function setupImageZoom() {
     translateX = 0;
     translateY = 0;
     applyTransform();
+    // Asegurar que la imagen vuelva a estar visible completamente
+    const container = img.parentElement;
+    if (container) {
+      container.scrollTop = 0;
+      container.scrollLeft = 0;
+    }
   };
   
   // Click para zoom in/out
@@ -701,26 +727,28 @@ if (__ON_INV_PAGE__) {
   // Mini-toolbar selección stickers
   const selectionBar = document.createElement("div");
   selectionBar.id = "stickersBar";
-  selectionBar.style.cssText = "display:none;gap:8px;align-items:center;margin:10px 0;flex-wrap:wrap";
+  selectionBar.className = "hidden flex items-center gap-3 flex-wrap p-4 mb-4 rounded-lg bg-slate-800/50 border border-slate-700/50 theme-light:bg-slate-100 theme-light:border-slate-300";
   itemsList.parentNode.insertBefore(selectionBar, itemsList);
 
   function updateSelectionBar() {
     const n = state.selected.size;
     if (!n) {
-      selectionBar.style.display = "none";
+      selectionBar.classList.add("hidden");
       selectionBar.innerHTML = "";
       return;
     }
-    selectionBar.style.display = "flex";
+    selectionBar.classList.remove("hidden");
     selectionBar.innerHTML = `
-      <div class="muted" style="font-weight:600;">Seleccionados: ${n}</div>
-      <button class="secondary" id="sel-clear">Limpiar selección</button>
-      <button class="chip-button" id="sel-page"><span class="chip-icon">☑</span> Seleccionar todos (página)</button>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;">
-        <button id="sel-stickers-qr" class="secondary" title="Generar PDF - Solo QR">Solo QR</button>
-        <button id="sel-stickers-brand" class="secondary" title="Generar PDF - Marca + QR">Marca + QR</button>
-        <button id="sel-stock-in-bulk" class="secondary" title="Agregar stock a todos los seleccionados">Agregar stock (masivo)</button>
-        <button id="sel-publish-bulk" class="secondary" title="Publicar/Despublicar ítems seleccionados, por entrada o SKUs">Publicación (masiva)</button>
+      <div class="text-slate-300 theme-light:text-slate-600 font-semibold text-sm">Seleccionados: ${n}</div>
+      <button id="sel-clear" class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Limpiar selección</button>
+      <button id="sel-page" class="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white border border-blue-500 transition-colors font-medium flex items-center gap-2">
+        <span>☑</span> Seleccionar todos (página)
+      </button>
+      <div class="flex gap-2 flex-wrap">
+        <button id="sel-stickers-qr" class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" title="Generar PDF - Solo QR">Solo QR</button>
+        <button id="sel-stickers-brand" class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" title="Generar PDF - Marca + QR">Marca + QR</button>
+        <button id="sel-stock-in-bulk" class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" title="Agregar stock a todos los seleccionados">Agregar stock (masivo)</button>
+        <button id="sel-publish-bulk" class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" title="Publicar/Despublicar ítems seleccionados, por entrada o SKUs">Publicación (masiva)</button>
       </div>
     `;
     selectionBar.querySelector("#sel-clear").onclick = () => {
@@ -1203,14 +1231,27 @@ if (__ON_INV_PAGE__) {
       ...state.intakes.map(v=>`<option value="${v._id}">${makeIntakeLabel(v)} • ${new Date(v.intakeDate).toLocaleDateString()}</option>`)
     ].join('');
     invOpenModal(`
-      <h3>Agregar stock a ${it.name || it.sku || it._id}</h3>
-      <label>Cantidad</label><input id="stk-qty" type="number" min="1" step="1" value="1"/>
-      <label>Anclar a procedencia (opcional)</label><select id="stk-intake">${optionsIntakes}</select>
-      <label>Nota (opcional)</label><input id="stk-note" placeholder="ej: reposición, compra, etc."/>
-      <div style="margin-top:10px;display:flex;gap:8px;">
-        <button id="stk-save">Agregar</button>
-        <button id="stk-generate-stickers" class="secondary" style="background: #3b82f6; color: white;">Generar Stickers</button>
-        <button id="stk-cancel" class="secondary">Cancelar</button>
+      <div class="p-6">
+        <h3 class="text-xl font-semibold text-white theme-light:text-slate-900 mb-4">Agregar stock a ${it.name || it.sku || it._id}</h3>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Cantidad</label>
+            <input id="stk-qty" type="number" min="1" step="1" value="1" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Anclar a procedencia (opcional)</label>
+            <select id="stk-intake" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">${optionsIntakes}</select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Nota (opcional)</label>
+            <input id="stk-note" placeholder="ej: reposición, compra, etc." class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white placeholder-slate-400 theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+          </div>
+        </div>
+        <div class="flex gap-3 mt-6">
+          <button id="stk-save" class="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors">Agregar</button>
+          <button id="stk-generate-stickers" class="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors">Generar Stickers</button>
+          <button id="stk-cancel" class="px-6 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+        </div>
       </div>
     `);
     document.getElementById('stk-cancel').onclick = invCloseModal;
@@ -1432,35 +1473,43 @@ if (__ON_INV_PAGE__) {
       ...state.intakes.map(v=>`<option value="${v._id}">${makeIntakeLabel(v)} • ${new Date(v.intakeDate).toLocaleDateString()}</option>`)
     ].join('');
     const rows = items.map(it => `
-      <div class="row" style="align-items:center;gap:10px;">
-        <div style="flex:1;min-width:240px;">
-          <div style="font-weight:600;">${(it?.sku||'')}</div>
-          <div class="muted" style="font-size:12px;">${(it?.name||'')}</div>
+      <div class="flex items-center gap-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/30 theme-light:bg-slate-50 theme-light:border-slate-200">
+        <div class="flex-1 min-w-[240px]">
+          <div class="font-semibold text-white theme-light:text-slate-900 text-sm">${(it?.sku||'')}</div>
+          <div class="text-slate-400 theme-light:text-slate-600 text-xs mt-1">${(it?.name||'')}</div>
         </div>
         <div>
-          <input type="number" class="bstk-qty" data-id="${it?._id}" min="0" step="1" value="1" style="width:96px;"/>
+          <input type="number" class="bstk-qty w-24 px-3 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" data-id="${it?._id}" min="0" step="1" value="1"/>
         </div>
       </div>
     `).join('');
 
     invOpenModal(`
-      <h3>Agregar stock (masivo)</h3>
-      <div class="muted" style="font-size:12px;">Ítems seleccionados: ${items.length}. Coloca una cantidad por ítem (0 para omitir).</div>
-      <div class="card" style="margin:8px 0;padding:8px;">
-        <div class="row" style="align-items:center;gap:8px;">
-          <span class="muted" style="font-size:12px;">Cantidad para todos</span>
-          <input id="bstk-all" type="number" min="0" step="1" value="1" style="width:96px;"/>
-          <button id="bstk-apply-all" class="secondary">Aplicar a todos</button>
+      <div class="p-6">
+        <h3 class="text-xl font-semibold text-white theme-light:text-slate-900 mb-2">Agregar stock (masivo)</h3>
+        <div class="text-sm text-slate-400 theme-light:text-slate-600 mb-4">Ítems seleccionados: ${items.length}. Coloca una cantidad por ítem (0 para omitir).</div>
+        <div class="p-4 mb-4 rounded-lg bg-slate-800/30 border border-slate-700/30 theme-light:bg-slate-50 theme-light:border-slate-200">
+          <div class="flex items-center gap-3 flex-wrap">
+            <span class="text-sm text-slate-300 theme-light:text-slate-700 font-medium">Cantidad para todos</span>
+            <input id="bstk-all" type="number" min="0" step="1" value="1" class="w-24 px-3 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+            <button id="bstk-apply-all" class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Aplicar a todos</button>
+          </div>
         </div>
-      </div>
-      <div style="max-height:240px;overflow:auto;margin:6px 0 10px 0;display:flex;flex-direction:column;gap:8px;">${rows}</div>
-      <label>Anclar a procedencia (opcional)</label>
-      <select id="bstk-intake">${optionsIntakes}</select>
-      <label>Nota (opcional)</label>
-      <input id="bstk-note" placeholder="ej: reposición, compra, etc."/>
-      <div style="margin-top:10px;display:flex;gap:8px;">
-        <button id="bstk-save">Agregar</button>
-        <button id="bstk-cancel" class="secondary">Cancelar</button>
+        <div class="max-h-60 overflow-y-auto custom-scrollbar mb-4 space-y-2">${rows}</div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Anclar a procedencia (opcional)</label>
+            <select id="bstk-intake" class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">${optionsIntakes}</select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 theme-light:text-slate-700 mb-2">Nota (opcional)</label>
+            <input id="bstk-note" placeholder="ej: reposición, compra, etc." class="w-full px-4 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white placeholder-slate-400 theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
+          </div>
+        </div>
+        <div class="flex gap-3 mt-6">
+          <button id="bstk-save" class="px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors">Agregar</button>
+          <button id="bstk-cancel" class="px-6 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+        </div>
       </div>
     `);
     document.getElementById('bstk-cancel').onclick = invCloseModal;
@@ -1723,32 +1772,75 @@ if (__ON_INV_PAGE__) {
     const images = Array.isArray(it.images) ? [...it.images] : [];
 
     invOpenModal(`
-      <h3>Editar ítem</h3>
-      <label>SKU</label><input id="e-it-sku" value="${it.sku || ""}"/>
-      <label>Nombre</label><input id="e-it-name" value="${it.name || ""}"/>
-      <label>Nombre interno</label><input id="e-it-internal" value="${it.internalName || ''}"/>
-  <label>Marca</label><input id="e-it-brand" value="${it.brand || ''}"/>
-      <label>Ubicación</label><input id="e-it-location" value="${it.location || ''}"/>
-      <label>Entrada</label><select id="e-it-intake">${optionsIntakes}</select>
-      <label>Destino</label><input id="e-it-target" value="${it.vehicleTarget || "GENERAL"}"/>
-      <label>Precio entrada (opcional)</label><input id="e-it-entry" type="number" step="0.01" placeholder="vacío = AUTO si hay entrada" value="${it.entryPrice ?? ""}"/>
-      <label>Precio venta</label><input id="e-it-sale" type="number" step="0.01" min="0" value="${Number(it.salePrice || 0)}"/>
-      <label>Original</label>
-      <select id="e-it-original">
-        <option value="false" ${!it.original ? "selected" : ""}>No</option>
-        <option value="true" ${it.original ? "selected" : ""}>Sí</option>
-      </select>
-      <label>Stock</label><input id="e-it-stock" type="number" step="1" min="0" value="${parseInt(it.stock || 0, 10)}"/>
-  <label>Stock mínimo (opcional)</label><input id="e-it-min" type="number" step="1" min="0" placeholder="0 = sin alerta" value="${Number.isFinite(parseInt(it.minStock||0,10))? parseInt(it.minStock||0,10): ''}"/>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6">Editar ítem</h3>
+        
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+          <div>
+            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">SKU</label>
+            <input id="e-it-sku" value="${it.sku || ""}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Nombre</label>
+            <input id="e-it-name" value="${it.name || ""}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Nombre interno</label>
+            <input id="e-it-internal" value="${it.internalName || ''}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Marca</label>
+            <input id="e-it-brand" value="${it.brand || ''}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Ubicación</label>
+            <input id="e-it-location" value="${it.location || ''}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Entrada</label>
+            <select id="e-it-intake" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">${optionsIntakes}</select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Destino</label>
+            <input id="e-it-target" value="${it.vehicleTarget || "GENERAL"}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Precio entrada (opcional)</label>
+            <input id="e-it-entry" type="number" step="0.01" placeholder="vacío = AUTO si hay entrada" value="${it.entryPrice ?? ""}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Precio venta</label>
+            <input id="e-it-sale" type="number" step="0.01" min="0" value="${Number(it.salePrice || 0)}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Original</label>
+            <select id="e-it-original" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+              <option value="false" ${!it.original ? "selected" : ""}>No</option>
+              <option value="true" ${it.original ? "selected" : ""}>Sí</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Stock</label>
+            <input id="e-it-stock" type="number" step="1" min="0" value="${parseInt(it.stock || 0, 10)}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Stock mínimo (opcional)</label>
+            <input id="e-it-min" type="number" step="1" min="0" placeholder="0 = sin alerta" value="${Number.isFinite(parseInt(it.minStock||0,10))? parseInt(it.minStock||0,10): ''}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">0 = sin alerta. Te avisamos cuando el stock sea menor o igual a este número.</div>
+          </div>
+        </div>
 
-      <label>Imágenes/Videos</label>
-      <div id="e-it-thumbs" class="thumbs"></div>
-      <input id="e-it-files" type="file" multiple/>
-      <div class="viewer" id="e-it-viewer" style="display:none"></div>
+        <div class="mb-6">
+          <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Imágenes/Videos</label>
+          <div id="e-it-thumbs" class="mb-3 space-y-2"></div>
+          <input id="e-it-files" type="file" multiple class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+          <div class="viewer hidden" id="e-it-viewer"></div>
+        </div>
 
-      <div style="margin-top:10px;display:flex;gap:8px;">
-        <button id="e-it-save">Guardar cambios</button>
-        <button id="e-it-cancel" class="secondary">Cancelar</button>
+        <div class="flex gap-3 justify-end mt-6 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+          <button id="e-it-cancel" class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
+          <button id="e-it-save" class="px-6 py-2.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar cambios</button>
+        </div>
       </div>
     `);
 
@@ -1786,17 +1878,24 @@ if (__ON_INV_PAGE__) {
 
     function renderThumbs() {
       thumbs.innerHTML = "";
+      if (images.length === 0) {
+        thumbs.innerHTML = '<p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 italic">No hay imágenes/videos</p>';
+        return;
+      }
       images.forEach((m, idx) => {
+        const itemDiv = document.createElement("div");
+        itemDiv.className = "flex items-center gap-3 p-3 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300";
+        
         const label = document.createElement("span");
-        label.className = "thumb-label";
+        label.className = "text-sm font-medium text-white dark:text-white theme-light:text-slate-900 flex-1";
         label.textContent = `Imagen ${idx + 1}`;
-        label.style.marginRight = "8px";
 
         const previewBtn = document.createElement("button");
-  previewBtn.className = "preview-btn thumb-icon-btn";
-  previewBtn.title = "Vista previa";
-  previewBtn.innerHTML = `<svg width='18' height='18' viewBox='0 0 20 20' fill='none'><path d='M1 10C3.5 5.5 8 3 12 5.5C16 8 18.5 13 17 15C15.5 17 10.5 17 7 15C3.5 13 1 10 1 10Z' stroke='#2563eb' stroke-width='2' fill='none'/><circle cx='10' cy='10' r='3' fill='#2563eb'/></svg>`;
+        previewBtn.className = "px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 text-xs font-semibold flex items-center gap-1";
+        previewBtn.title = "Vista previa";
+        previewBtn.innerHTML = `<svg width='14' height='14' viewBox='0 0 20 20' fill='none' stroke='currentColor'><path d='M1 10C3.5 5.5 8 3 12 5.5C16 8 18.5 13 17 15C15.5 17 10.5 17 7 15C3.5 13 1 10 1 10Z' stroke-width='2' fill='none'/><circle cx='10' cy='10' r='3' fill='currentColor'/></svg> Ver`;
         previewBtn.onclick = (ev) => {
+          ev.preventDefault();
           const isVideo = m.mimetype?.startsWith('video/');
           invOpenOverlay(
             `<div class='flex flex-col items-center justify-center'>
@@ -1808,9 +1907,9 @@ if (__ON_INV_PAGE__) {
         };
 
         const delBtn = document.createElement("button");
-        delBtn.className = "del thumb-icon-btn";
+        delBtn.className = "px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 text-xs font-semibold flex items-center gap-1";
         delBtn.title = "Quitar";
-        delBtn.innerHTML = `<svg width='18' height='18' viewBox='0 0 20 20' fill='none'><circle cx='10' cy='10' r='9' stroke='#ef4444' stroke-width='2'/><line x1='6' y1='6' x2='14' y2='14' stroke='#ef4444' stroke-width='2'/><line x1='14' y1='6' x2='6' y2='14' stroke='#ef4444' stroke-width='2'/></svg>`;
+        delBtn.innerHTML = `<svg width='14' height='14' viewBox='0 0 20 20' fill='none' stroke='currentColor'><circle cx='10' cy='10' r='9' stroke-width='2'/><line x1='6' y1='6' x2='14' y2='14' stroke-width='2'/><line x1='14' y1='6' x2='6' y2='14' stroke-width='2'/></svg> Quitar`;
         delBtn.setAttribute("data-del", idx);
         delBtn.onclick = () => {
           images.splice(idx, 1);
@@ -1818,16 +1917,10 @@ if (__ON_INV_PAGE__) {
           if (viewer.style.display !== "none") viewer.innerHTML = "";
         };
 
-        const btnWrap = document.createElement("div");
-        btnWrap.className = "thumb-btn-wrap";
-        btnWrap.style.display = "flex";
-  btnWrap.style.alignItems = "baseline";
-        btnWrap.style.gap = "6px";
-        btnWrap.style.margin = "10px 0";
-        btnWrap.appendChild(label);
-        btnWrap.appendChild(previewBtn);
-        btnWrap.appendChild(delBtn);
-        thumbs.appendChild(btnWrap);
+        itemDiv.appendChild(label);
+        itemDiv.appendChild(previewBtn);
+        itemDiv.appendChild(delBtn);
+        thumbs.appendChild(itemDiv);
       });
     }
     renderThumbs();
