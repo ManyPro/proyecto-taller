@@ -59,28 +59,14 @@
 
   function showQuickNotification(message, type = 'info') {
     const notification = document.createElement('div');
-    const colors = {
-      'success': '#28a745',
-      'error': '#dc3545', 
-      'info': '#17a2b8',
-      'warning': '#ffc107'
+    const colorClasses = {
+      'success': 'bg-green-600',
+      'error': 'bg-red-600', 
+      'info': 'bg-blue-600',
+      'warning': 'bg-yellow-600'
     };
     
-    notification.style.cssText = `
-      position: fixed;
-      top: 20px;
-      right: 20px;
-      background: ${colors[type] || colors.info};
-      color: white;
-      padding: 12px 20px;
-      border-radius: 6px;
-      font-size: 14px;
-      font-weight: 600;
-      z-index: 3000;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      animation: slideInFromRight 0.3s ease-out;
-      max-width: 350px;
-    `;
+    notification.className = `fixed top-5 right-5 ${colorClasses[type] || colorClasses.info} text-white px-5 py-3 rounded-lg text-sm font-semibold z-[3000] shadow-lg max-w-[350px] animate-[slideInFromRight_0.3s_ease-out]`;
     notification.textContent = message;
     
     document.body.appendChild(notification);

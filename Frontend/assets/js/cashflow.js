@@ -134,15 +134,26 @@ function openNewEntryModal(defaultKind='IN'){
   const body = document.getElementById('modalBody');
   if(!modal||!body) return;
   const div = document.createElement('div');
-  div.innerHTML = `<h3>${defaultKind==='OUT'?'Nueva salida de caja':'Nueva entrada manual'}</h3>
-    <label>Cuenta</label><select id='ncf-account'></select>
-    <label>Monto</label><input id='ncf-amount' type='number' min='1' step='1'/>
-    <label>Descripción</label><input id='ncf-desc' placeholder='Descripción'/>
-    <div style='margin-top:8px;display:flex;gap:8px;'>
-      <button id='ncf-save'>Guardar</button>
-      <button id='ncf-cancel' class='secondary'>Cancelar</button>
+  div.innerHTML = `<div class="space-y-4">
+    <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">${defaultKind==='OUT'?'Nueva salida de caja':'Nueva entrada manual'}</h3>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Cuenta</label>
+      <select id='ncf-account' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
     </div>
-    <div id='ncf-msg' class='muted' style='margin-top:6px;font-size:12px;'></div>`;
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Monto</label>
+      <input id='ncf-amount' type='number' min='1' step='1' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Descripción</label>
+      <input id='ncf-desc' placeholder='Descripción' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button id='ncf-save' class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
+      <button id='ncf-cancel' class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+    </div>
+    <div id='ncf-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
+  </div>`;
   body.innerHTML=''; body.appendChild(div); modal.classList.remove('hidden');
   const sel = div.querySelector('#ncf-account');
   API.accounts.list().then(list=>{ sel.innerHTML=list.map(a=>`<option value='${a._id}'>${a.name}</option>`).join(''); });
@@ -167,26 +178,38 @@ function openNewLoanModal(){
   const body = document.getElementById('modalBody');
   if(!modal||!body) return;
   const div = document.createElement('div');
-  div.innerHTML = `<h3>Nuevo Préstamo a Empleado</h3>
-    <label>Técnico/Empleado</label>
-    <select id='nloan-tech'>
-      <option value=''>Cargando técnicos...</option>
-    </select>
-    <label>Cuenta</label>
-    <select id='nloan-account'></select>
-    <label>Monto</label>
-    <input id='nloan-amount' type='number' min='1' step='1'/>
-    <label style='display:none;'>Fecha del Préstamo</label>
-    <input id='nloan-date' type='datetime-local' style='display:none;'/>
-    <label>Descripción (opcional)</label>
-    <input id='nloan-desc' placeholder='Descripción del préstamo'/>
-    <label>Notas (opcional)</label>
-    <textarea id='nloan-notes' placeholder='Notas adicionales' style='min-height:60px;'></textarea>
-    <div style='margin-top:8px;display:flex;gap:8px;'>
-      <button id='nloan-save'>Guardar</button>
-      <button id='nloan-cancel' class='secondary'>Cancelar</button>
+  div.innerHTML = `<div class="space-y-4">
+    <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">Nuevo Préstamo a Empleado</h3>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Técnico/Empleado</label>
+      <select id='nloan-tech' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <option value=''>Cargando técnicos...</option>
+      </select>
     </div>
-    <div id='nloan-msg' class='muted' style='margin-top:6px;font-size:12px;'></div>`;
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Cuenta</label>
+      <select id='nloan-account' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Monto</label>
+      <input id='nloan-amount' type='number' min='1' step='1' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+    </div>
+    <label class="hidden">Fecha del Préstamo</label>
+    <input id='nloan-date' type='datetime-local' class="hidden"/>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Descripción (opcional)</label>
+      <input id='nloan-desc' placeholder='Descripción del préstamo' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Notas (opcional)</label>
+      <textarea id='nloan-notes' placeholder='Notas adicionales' class="w-full min-h-[60px] p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"></textarea>
+    </div>
+    <div class="flex gap-2 mt-4">
+      <button id='nloan-save' class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
+      <button id='nloan-cancel' class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+    </div>
+    <div id='nloan-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
+  </div>`;
   body.innerHTML=''; body.appendChild(div); modal.classList.remove('hidden');
   const sel = div.querySelector('#nloan-account');
   const techSel = div.querySelector('#nloan-tech');

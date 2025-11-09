@@ -4,413 +4,671 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>M&M - Nómina</title>
-  <link rel="stylesheet" href="assets/styles.css?v=20251020" />
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: ['class', '.theme-light'],
+      theme: {
+        extend: {
+          colors: {
+            'dark-bg': '#0f172a',
+            'dark-card': '#111827',
+            'dark-card-alt': '#0b1220',
+            'dark-text': '#e5e7eb',
+            'dark-muted': '#9ca3af',
+            'dark-border': '#1f2937',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Estilos para modo claro - Sobrescribir colores de Tailwind */
+    body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
+    body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
+      background: linear-gradient(to right, #f8fafc, #f1f5f9, #f8fafc) !important;
+    }
+    body.theme-light [class*="bg-slate-800/50"],
+    body.theme-light [class*="bg-slate-800"][class*="/50"] {
+      background-color: rgba(241, 245, 249, 0.8) !important;
+    }
+    body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
+      background-color: #f1f5f9 !important;
+    }
+    body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700) {
+      color: #0f172a !important;
+    }
+    body.theme-light .text-slate-300 {
+      color: #475569 !important;
+    }
+    body.theme-light .text-slate-400 {
+      color: #64748b !important;
+    }
+    body.theme-light [class*="border-slate-700/50"],
+    body.theme-light [class*="border-slate-700"][class*="/50"] {
+      border-color: rgba(203, 213, 225, 0.5) !important;
+    }
+    body.theme-light [class*="hover:bg-slate-700/50"]:hover,
+    body.theme-light button:hover[class*="hover:bg-slate-700"] {
+      background-color: rgba(203, 213, 225, 0.5) !important;
+    }
+    body.theme-light [class*="hover:text-white"]:hover:not(.bg-blue-600):not(.bg-blue-700) {
+      color: #0f172a !important;
+    }
+    /* Mejorar contraste de botones grises en modo claro */
+    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]),
+    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]) {
+      background-color: #e2e8f0 !important;
+      color: #475569 !important;
+      border-color: #cbd5e1 !important;
+    }
+    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]):hover,
+    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]):hover {
+      background-color: #cbd5e1 !important;
+      color: #334155 !important;
+      border-color: #94a3b8 !important;
+    }
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"],
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"] {
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+      border-color: #94a3b8 !important;
+    }
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"]:hover,
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"]:focus,
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"]:hover,
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"]:focus {
+      border-color: #64748b !important;
+      background-color: #ffffff !important;
+    }
+    /* Estilos para el fondo de la página */
+    body {
+      background-color: #0f172a;
+      min-height: 100vh;
+    }
+    body.theme-light {
+      background-color: #f8fafc;
+    }
+    /* Estilos para el modal global */
+    #modal.hidden {
+      display: none !important;
+    }
+    #modal:not(.hidden) {
+      display: flex !important;
+    }
+    #modal {
+      align-items: center;
+      justify-content: center;
+    }
+    #modal > div {
+      pointer-events: auto;
+    }
+    #modal {
+      pointer-events: auto;
+    }
+    /* Estilos personalizados para barras de scroll */
+    .custom-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.5);
+      border-radius: 4px;
+      transition: background 0.2s ease;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.7);
+    }
+    body.theme-light .custom-scrollbar {
+      scrollbar-color: rgba(100, 116, 139, 0.4) transparent;
+    }
+    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.4);
+    }
+    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.6);
+    }
+    /* Tabs internas de Nómina */
+    .payroll-tabs {
+      background: rgb(30 41 59 / 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      padding: 8px;
+      border-radius: 12px;
+    }
+    body.theme-light .payroll-tabs {
+      background: rgba(255, 255, 255, 0.9);
+      border-color: rgba(203, 213, 225, 0.5);
+    }
+    .payroll-tabs button {
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: rgba(30, 64, 175, 0.15);
+      color: rgb(226 232 240);
+      padding: 8px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin: 0 2px;
+    }
+    body.theme-light .payroll-tabs button {
+      color: rgb(51 65 85);
+    }
+    .payroll-tabs button:hover {
+      background: rgba(30, 64, 175, 0.25);
+      box-shadow: 0 8px 22px rgba(30, 64, 175, 0.25);
+    }
+    .payroll-tabs button.active {
+      background: rgb(37 99 235);
+      color: white;
+      border-color: rgba(59, 130, 246, 0.55);
+    }
+    /* Chips técnicos */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(148, 163, 184, 0.12);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      color: rgb(226 232 240);
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+    }
+    body.theme-light .chip {
+      color: rgb(51 65 85);
+      border-color: rgba(203, 213, 225, 0.5);
+    }
+    .chip .danger {
+      margin-left: 4px;
+    }
+    /* Conceptos */
+    .concept-row:hover {
+      background: rgba(148, 163, 184, 0.05);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+    .concept-badge {
+      font-family: inherit;
+      letter-spacing: 0.3px;
+    }
+    /* Períodos */
+    .period-row:hover {
+      background: rgba(148, 163, 184, 0.05);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+    /* Liquidaciones */
+    .settlement-row:hover {
+      background: rgba(148, 163, 184, 0.05);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+    /* Pagos */
+    .pending-settlement-row:hover {
+      background: rgba(148, 163, 184, 0.05);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+      border-color: rgba(59, 130, 246, 0.3) !important;
+    }
+  </style>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <script src="./assets/js/config.js"></script>
-  <link rel="stylesheet" href="assets/css/components/cards.css" />
-  <link rel="stylesheet" href="assets/css/components/buttons.css" />
-  <link rel="stylesheet" href="assets/css/components/modals.css" />
-  <style>
-    /* Tabs internas de Nómina */
-    .payroll-tabs{background:var(--card);border:1px solid var(--border);padding:8px;border-radius:12px;}
-    .payroll-tabs button{border:1px solid rgba(148,163,184,.25);background:rgba(30,64,175,.15);color:var(--text);padding:8px 14px;border-radius:10px;cursor:pointer;transition:all .15s;margin:0 2px;}
-    .payroll-tabs button:hover{background:rgba(30,64,175,.25);box-shadow:0 8px 22px rgba(30,64,175,.25)}
-    .payroll-tabs button.active{background:var(--tab-bg-active);color:var(--tab-text-active);border-color:rgba(59,130,246,.55)}
-    /* Chips técnicos */
-    .chip{display:inline-flex;align-items:center;gap:6px;background:rgba(148,163,184,.12);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:999px;font-size:12px}
-    .chip .danger{margin-left:4px}
-    /* Conceptos */
-    .concept-row:hover{background:var(--hover-bg, rgba(148,163,184,.05));transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.05)}
-    .concept-badge{font-family:inherit;letter-spacing:0.3px}
-    /* Períodos */
-    .period-row:hover{background:var(--hover-bg, rgba(148,163,184,.05));transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.05)}
-    /* Liquidaciones */
-    .settlement-row:hover{background:var(--hover-bg, rgba(148,163,184,.05));transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.05)}
-    /* Pagos */
-    .pending-settlement-row:hover{background:var(--hover-bg, rgba(148,163,184,.05));transform:translateY(-1px);box-shadow:0 2px 8px rgba(0,0,0,.05);border-color:rgba(59,130,246,0.3)!important}
-  </style>
 </head>
 <body data-page="nomina">
-  <div class="topbar hidden" id="appHeader">
-    <div class="topbar-inner">
-      <div class="topbar-card">
-        <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
-          <div class="brand">
-            <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" />
-            <div class="company">Empresa: <span id="companyName">-</span></div>
-          </div>
-          <div class="row" style="gap:6px;align-items:center;">
-            <button id="logoutBtn" class="secondary hidden">Salir</button>
-            <button id="denseToggle" class="secondary" title="Modo compacto">??</button>
-            <button id="themeToggle" class="secondary" title="Cambiar tema">??</button>
+  <main>
+    <!-- ========== APP HEADER ========== -->
+    <div class="topbar hidden" id="appHeader">
+      <!-- Top Bar - Header Principal -->
+      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex items-center justify-between h-16 md:h-20">
+            <!-- Logo y Nombre de Empresa -->
+            <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
+              <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
+              <div class="hidden sm:flex flex-col">
+                <span class="text-xs text-slate-400 font-medium">Empresa</span>
+                <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
+              </div>
+              <div class="sm:hidden text-white font-semibold text-sm">
+                <span id="companyNameMobile">-</span>
+              </div>
+            </div>
+
+            <!-- Botones de Acción (Desktop) -->
+            <div class="hidden md:flex items-center gap-2">
+              <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
+              <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
+              <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
+              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+            </div>
+
+            <!-- Menú Hamburguesa (Mobile) -->
+            <div class="md:hidden flex items-center gap-2">
+              <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
+              <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
+              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+              <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
-        <div class="top-tabs">
-          <nav class="tabs">
-            <button data-tab="home" data-href="index.html">Inicio</button>
-            <button data-tab="notas" data-feature="notas" data-href="notas.html">Notas</button>
-            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html">Ventas</button>
-            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html">Cotizaciones</button>
-            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html">Inventario</button>
-            <button data-tab="precios" data-feature="precios" data-href="precios.html">Lista de precios</button>
-            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html">Flujo de Caja</button>
-            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="active">Nómina</button>
-            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html">Formatos</button>
-            <button data-tab="skus" data-feature="skus" data-href="skus.html">SKUs</button>
-          </nav>
+
+        <!-- Navegación Principal (Desktop) -->
+        <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
+              <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inicio</button>
+              <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
+              <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
+              <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+              <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
+              <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+              <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+              <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
+              <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
+              <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
+            </nav>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Menú Móvil (Mobile Menu) -->
+      <div id="mobileMenu" class="md:hidden hidden bg-slate-800 border-t border-slate-700/50 shadow-xl">
+        <div class="px-4 py-3 space-y-1">
+          <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inicio</button>
+          <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Notas</button>
+          <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Ventas</button>
+          <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cotizaciones</button>
+          <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inventario</button>
+          <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Lista de precios</button>
+          <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Flujo de Caja</button>
+          <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">Nómina</button>
+          <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
+          <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
+          <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
         </div>
       </div>
     </div>
-  </div>
 
-  <main>
-    <section class="tab active">
-      <div class="card">
-        <div class="payroll-tabs row wrap" style="gap:6px;align-items:center;">
-          <button class="secondary active" data-subtab="settlements">Liquidaciones</button>
-          <button class="secondary" data-subtab="pay">Pagar</button>
-          <button class="secondary" data-subtab="periods">Períodos</button>
-          <button class="secondary" data-subtab="concepts">Conceptos</button>
-          <button class="secondary" data-subtab="assign">Asignaciones</button>
-        </div>
-      </div>
-
-      <div class="card hidden" data-subsection="concepts">
-        <div style="margin-bottom:16px;">
-          <h3 style="margin:0 0 4px 0;">Conceptos por empresa</h3>
-          <p class="muted" style="margin:0;font-size:13px;">Configura los conceptos de nómina (ingresos, descuentos, recargos) que se aplicarán a todos los técnicos de tu empresa.</p>
-        </div>
-        
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
-          <div class="row wrap" style="gap:12px;align-items:end;">
-            <div style="flex:1;min-width:140px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Tipo</label>
-              <select id="pc-type" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
-                <option value="earning">💰 Ingreso</option>
-                <option value="deduction">➖ Descuento</option>
-                <option value="surcharge">➕ Recargo</option>
-                <option value="variable">🔧 Variable (completa monto fijo)</option>
-              </select>
-            </div>
-            <div style="flex:1;min-width:140px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Tipo de monto</label>
-              <select id="pc-amountType" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
-                <option value="fixed">Fijo (COP)</option>
-                <option value="percent">Porcentaje (%)</option>
-              </select>
-            </div>
-            <div style="min-width:100px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Código</label>
-              <input id="pc-code" placeholder="Ej: SAL" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);text-transform:uppercase;" maxlength="10" />
-            </div>
-            <div style="flex:2;min-width:200px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre</label>
-              <input id="pc-name" placeholder="Ej: Salario base" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-            </div>
-            <div id="pc-value-container" style="min-width:140px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;" id="pc-value-label">Valor</label>
-              <input id="pc-value" type="number" step="0.01" min="0" placeholder="0.00" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-              <p class="muted" style="margin:4px 0 0 0;font-size:11px;" id="pc-value-hint">Para porcentajes, ingresa el % (ej: 10 para 10%)</p>
-            </div>
-            <div id="pc-percent-base-container" style="display:none;flex:1;min-width:200px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Base del porcentaje</label>
-              <select id="pc-percentBaseType" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
-                <option value="total_gross">Total bruto (todos los ingresos)</option>
-                <option value="specific_concept">Concepto específico</option>
-                <option value="fixed_value">Valor fijo</option>
-              </select>
-            </div>
-            <div id="pc-percent-base-concept-container" style="display:none;flex:1;min-width:200px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Concepto base</label>
-              <select id="pc-percentBaseConceptId" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
-                <option value="">Seleccione concepto...</option>
-              </select>
-            </div>
-            <div id="pc-percent-base-value-container" style="display:none;min-width:140px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Valor fijo base (COP)</label>
-              <input id="pc-percentBaseFixedValue" type="number" step="1" min="0" placeholder="Ej: 1000000" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-            </div>
-            <div id="pc-variable-amount-container" style="flex:1;min-width:200px;display:none;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Monto fijo a completar (COP)</label>
-              <input id="pc-variableFixedAmount" type="number" step="1" min="0" placeholder="Ej: 1000000" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-            </div>
-            <div style="min-width:120px;">
-              <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
-              <button id="pc-add" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
-                ➕ Agregar concepto
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <div id="pc-list" style="margin-top:0;"></div>
-        
-        <!-- Gestión de tipos de mano de obra -->
-        <div style="margin-top:24px;padding-top:24px;border-top:2px solid var(--border);">
-          <div style="margin-bottom:16px;">
-            <h3 style="margin:0 0 4px 0;">Tipos de mano de obra</h3>
-            <p class="muted" style="margin:0;font-size:13px;">Configura los tipos de participación técnica (ej: MOTOR, SUSPENSIÓN) con su porcentaje predeterminado. Al cerrar una venta, al seleccionar técnico y tipo, el porcentaje se completará automáticamente.</p>
-          </div>
-          
-          <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
-            <div class="row wrap" style="gap:12px;align-items:end;">
-              <div style="flex:2;min-width:200px;">
-                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre del tipo</label>
-                <input id="lk-name" placeholder="Ej: MOTOR" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);text-transform:uppercase;" maxlength="50" />
-              </div>
-              <div style="min-width:140px;">
-                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">% Predeterminado</label>
-                <input id="lk-percent" type="number" step="1" min="0" max="100" placeholder="0" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-              </div>
-              <div style="min-width:120px;">
-                <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
-                <button id="lk-add" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
-                  ➕ Agregar tipo
-                </button>
-              </div>
-            </div>
-          </div>
-          
-          <div id="lk-list" style="margin-top:0;"></div>
-        </div>
-      </div>
-
-      <div class="card hidden" style="margin-top:12px;" data-subsection="assign">
-        <div style="margin-bottom:16px;">
-          <h3 style="margin:0 0 4px 0;">Asignaciones por técnico</h3>
-          <p class="muted" style="margin:0;font-size:13px;">Personaliza valores de conceptos para técnicos específicos. Los técnicos creados aquí son los únicos disponibles para usar en Ventas.</p>
-        </div>
-
-        <!-- Gestión de técnicos -->
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
-          <div style="margin-bottom:12px;">
-            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Técnicos de la empresa</h4>
-            <p class="muted" style="margin:0;font-size:12px;">Crea y gestiona los técnicos que aparecerán en Ventas y estarán disponibles para liquidaciones.</p>
-          </div>
-          <div class="row wrap" style="gap:12px;align-items:end;margin-bottom:12px;">
-            <div style="flex:1;min-width:200px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre del técnico</label>
-              <input id="tk-add-name" placeholder="Ej: Juan Pérez" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" maxlength="100" />
-            </div>
-            <div style="min-width:140px;">
-              <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
-              <button id="tk-add-btn" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
-                ➕ Agregar técnico
-              </button>
-            </div>
-          </div>
-          <div id="tk-list" class="row wrap" style="gap:8px;margin-top:8px;"></div>
-        </div>
-
-        <!-- Asignaciones personalizadas -->
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
-          <div style="margin-bottom:12px;">
-            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Asignar valor personalizado</h4>
-            <p class="muted" style="margin:0;font-size:12px;">Sobrescribe el valor por defecto de un concepto para un técnico específico.</p>
-          </div>
-          <div class="row wrap" style="gap:12px;align-items:end;">
-            <div style="flex:1;min-width:200px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Técnico</label>
-              <select id="pa-technicianSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
-                <option value="">Seleccione técnico…</option>
-              </select>
-            </div>
-            <div style="flex:1;min-width:200px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Concepto</label>
-              <select id="pa-conceptSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
-                <option value="">Seleccione concepto…</option>
-              </select>
-            </div>
-            <div style="min-width:140px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Valor personalizado</label>
-              <input id="pa-value" type="number" step="0.01" min="0" placeholder="0.00" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-              <p class="muted" style="margin:4px 0 0 0;font-size:11px;">Deja vacío para usar valor por defecto</p>
-            </div>
-            <div style="min-width:120px;">
-              <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
-              <button id="pa-save" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
-                💾 Guardar
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Listado de asignaciones -->
-        <div id="pa-list-container" style="margin-top:0;">
-          <div id="pa-list" class="muted" style="padding:16px;text-align:center;border:1px dashed var(--border);border-radius:8px;font-size:13px;">
-            Selecciona un técnico para ver sus asignaciones personalizadas.
+    <section id="appSection" class="hidden">
+      <!-- Modal global reutilizable -->
+      <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
+        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] my-auto overflow-hidden">
+          <button id="modalClose" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
+          <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
+            <!-- Content will be injected here -->
           </div>
         </div>
       </div>
 
-      <div class="card" style="margin-top:12px;" data-subsection="settlements">
-        <div style="margin-bottom:16px;">
-          <h3 style="margin:0 0 4px 0;">Liquidación de nómina</h3>
-          <p class="muted" style="margin:0;font-size:13px;">Calcula y aprueba liquidaciones de técnicos. Las comisiones se calculan automáticamente desde ventas cerradas del período.</p>
-        </div>
-
-        <!-- Formulario de liquidación -->
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
-          <div style="margin-bottom:12px;">
-            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Crear nueva liquidación</h4>
-            <p class="muted" style="margin:0;font-size:12px;">Selecciona período, técnico y los conceptos asignados a ese técnico que deseas aplicar. Las comisiones se calcularán automáticamente.</p>
+      <section class="tab active">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <!-- Tabs internas -->
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mb-6">
+            <div class="payroll-tabs flex flex-wrap gap-2 items-center">
+              <button class="secondary active" data-subtab="settlements">Liquidaciones</button>
+              <button class="secondary" data-subtab="pay">Pagar</button>
+              <button class="secondary" data-subtab="periods">Períodos</button>
+              <button class="secondary" data-subtab="concepts">Conceptos</button>
+              <button class="secondary" data-subtab="assign">Asignaciones</button>
+            </div>
           </div>
-          <div class="row wrap" style="gap:16px;">
-            <!-- Selección de período y técnico -->
-            <div class="row wrap" style="gap:12px;flex:1;min-width:300px;">
-              <div style="flex:1;min-width:200px;">
-                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Período</label>
-                <select id="pl-periodSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
-                  <option value="">Seleccione período…</option>
-                </select>
-              </div>
-              <div style="flex:1;min-width:200px;">
-                <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Técnico</label>
-                <select id="pl-technicianSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
-                  <option value="">Seleccione técnico…</option>
-                </select>
+
+          <!-- Sección Conceptos -->
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6 hidden" data-subsection="concepts">
+            <div class="mb-4">
+              <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Conceptos por empresa</h3>
+              <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Configura los conceptos de nómina (ingresos, descuentos, recargos) que se aplicarán a todos los técnicos de tu empresa.</p>
+            </div>
+            
+            <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
+              <div class="flex flex-wrap gap-3 items-end">
+                <div class="flex-1 min-w-[140px]">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Tipo</label>
+                  <select id="pc-type" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="earning">💰 Ingreso</option>
+                    <option value="deduction">➖ Descuento</option>
+                    <option value="surcharge">➕ Recargo</option>
+                    <option value="variable">🔧 Variable (completa monto fijo)</option>
+                  </select>
+                </div>
+                <div class="flex-1 min-w-[140px]">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Tipo de monto</label>
+                  <select id="pc-amountType" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="fixed">Fijo (COP)</option>
+                    <option value="percent">Porcentaje (%)</option>
+                  </select>
+                </div>
+                <div class="min-w-[100px]">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Código</label>
+                  <input id="pc-code" placeholder="Ej: SAL" maxlength="10" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                </div>
+                <div class="flex-[2] min-w-[200px]">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Nombre</label>
+                  <input id="pc-name" placeholder="Ej: Salario base" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                </div>
+                <div id="pc-value-container" class="min-w-[140px]">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5" id="pc-value-label">Valor</label>
+                  <input id="pc-value" type="number" step="0.01" min="0" placeholder="0.00" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  <p class="mt-1 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600" id="pc-value-hint">Para porcentajes, ingresa el % (ej: 10 para 10%)</p>
+                </div>
+                <div id="pc-percent-base-container" class="hidden flex-1 min-w-[200px]">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Base del porcentaje</label>
+                  <select id="pc-percentBaseType" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="total_gross">Total bruto (todos los ingresos)</option>
+                    <option value="specific_concept">Concepto específico</option>
+                    <option value="fixed_value">Valor fijo</option>
+                  </select>
+                </div>
+                <div id="pc-percent-base-concept-container" class="hidden flex-1 min-w-[200px]">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Concepto base</label>
+                  <select id="pc-percentBaseConceptId" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">Seleccione concepto...</option>
+                  </select>
+                </div>
+                <div id="pc-percent-base-value-container" class="hidden min-w-[140px]">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Valor fijo base (COP)</label>
+                  <input id="pc-percentBaseFixedValue" type="number" step="1" min="0" placeholder="Ej: 1000000" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                </div>
+                <div id="pc-variable-amount-container" class="hidden flex-1 min-w-[200px]">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Monto fijo a completar (COP)</label>
+                  <input id="pc-variableFixedAmount" type="number" step="1" min="0" placeholder="Ej: 1000000" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                </div>
+                <div class="min-w-[120px]">
+                  <label class="block text-xs font-medium text-transparent mb-1.5">&nbsp;</label>
+                  <button id="pc-add" class="w-full px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">
+                    ➕ Agregar concepto
+                  </button>
+                </div>
               </div>
             </div>
             
-            <!-- Botones de acción -->
-            <div class="row" style="gap:8px;align-items:end;">
-              <button id="pl-preview" class="secondary" style="padding:8px 16px;font-weight:600;">
-                👁️ Previsualizar
-              </button>
-              <button id="pl-approve" style="padding:8px 16px;font-weight:600;">
-                ✓ Aprobar
-              </button>
-            </div>
-          </div>
-          
-          <!-- Conceptos asignados con tarjetas bonitas -->
-          <div style="margin-top:16px;">
-            <label style="display:block;font-size:13px;color:var(--muted);margin-bottom:8px;font-weight:600;">Conceptos asignados (selecciona cuáles aplicar)</label>
-            <div id="pl-concepts-container" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:12px;min-height:60px;">
-              <div class="muted" style="grid-column:1/-1;text-align:center;font-size:12px;padding:16px;border:1px dashed var(--border);border-radius:8px;">Selecciona período y técnico primero</div>
-            </div>
-          </div>
-          <div class="muted" style="margin-top:8px;font-size:12px;padding:8px;background:rgba(59,130,246,0.05);border-radius:6px;">
-            💡 <strong>Nota:</strong> Solo se mostrarán los conceptos que están asignados al técnico seleccionado. Las comisiones se calculan automáticamente desde las ventas cerradas del período. Puedes configurar el formato del comprobante en <a href="template-selector.html" style="color:var(--primary);text-decoration:underline;">Formatos</a> (tipo: Nómina).
-          </div>
-        </div>
-
-        <!-- Resultado preview/lista -->
-        <div id="pl-result" style="margin-top:0;"></div>
-      </div>
-
-      <div class="card hidden" style="margin-top:12px;" data-subsection="periods">
-        <div style="margin-bottom:16px;">
-          <h3 style="margin:0 0 4px 0;">Períodos de liquidación</h3>
-          <p class="muted" style="margin:0;font-size:13px;">Define períodos de tiempo (mensual, quincenal, semanal) para calcular comisiones por ventas y generar liquidaciones.</p>
-        </div>
-
-        <!-- Crear nuevo período -->
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
-          <div style="margin-bottom:12px;">
-            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Crear nuevo período</h4>
-            <p class="muted" style="margin:0;font-size:12px;">Puedes crear períodos que se solapen para manejar diferentes frecuencias de pago (quincenal, semanal, etc.).</p>
-          </div>
-          <div class="row wrap" style="gap:12px;align-items:end;">
-            <div style="flex:1;min-width:160px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Fecha inicio</label>
-              <input id="ppd-start" type="date" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-            </div>
-            <div style="flex:1;min-width:160px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Fecha fin</label>
-              <input id="ppd-end" type="date" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-            </div>
-            <div style="min-width:160px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Tipo</label>
-              <select id="ppd-type" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
-                <option value="monthly">📅 Mensual</option>
-                <option value="biweekly">📆 Quincenal</option>
-                <option value="weekly">🗓️ Semanal</option>
-              </select>
-            </div>
-            <div style="min-width:140px;">
-              <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
-              <button id="ppd-create" class="secondary" style="width:100%;padding:8px 16px;font-weight:600;">
-                ➕ Crear período
-              </button>
-            </div>
-          </div>
-          <div id="ppd-msg" style="margin-top:12px;font-size:13px;"></div>
-        </div>
-
-        <!-- Listado de períodos -->
-        <div>
-          <div style="margin-bottom:12px;">
-            <h4 style="margin:0;font-size:14px;font-weight:600;">Períodos creados</h4>
-            <p class="muted" style="margin:4px 0 0 0;font-size:12px;">Gestiona períodos abiertos y cerrados.</p>
-          </div>
-          <div id="ppd-list" style="margin-top:0;"></div>
-        </div>
-      </div>
-
-      <div class="card hidden" style="margin-top:12px;" data-subsection="pay">
-        <div style="margin-bottom:16px;">
-          <h3 style="margin:0 0 4px 0;">Pagar liquidaciones</h3>
-          <p class="muted" style="margin:0;font-size:13px;">Registra el pago de liquidaciones aprobadas en el Flujo de Caja. El pago se reflejará como salida de la cuenta seleccionada.</p>
-        </div>
-
-        <!-- Listado de liquidaciones pendientes -->
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
-          <div style="margin-bottom:12px;">
-            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Liquidaciones pendientes de pago</h4>
-            <p class="muted" style="margin:0;font-size:12px;">Selecciona una liquidación aprobada para procesar el pago.</p>
-          </div>
-          <div id="pp-pending-list" style="margin-top:0;"></div>
-        </div>
-
-        <!-- Formulario de pago -->
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;">
-          <div style="margin-bottom:12px;">
-            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:600;">Registrar pago</h4>
-            <p class="muted" style="margin:0;font-size:12px;">Selecciona la liquidación y la cuenta de donde saldrá el dinero.</p>
-          </div>
-          <div class="row wrap" style="gap:12px;align-items:end;">
-            <div style="flex:1;min-width:200px;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Liquidación</label>
-              <select id="pp-settlementSel" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
-                <option value="">Seleccione liquidación…</option>
-              </select>
-            </div>
-            <div style="min-width:160px;display:none;">
-              <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Fecha de pago</label>
-              <input id="pp-date" type="datetime-local" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-            </div>
-            <div style="min-width:120px;">
-              <label style="display:block;font-size:12px;color:transparent;margin-bottom:4px;">&nbsp;</label>
-              <button id="pp-pay" style="width:100%;padding:8px 16px;font-weight:600;">
-                💰 Pagar
-              </button>
-            </div>
-          </div>
-          <div id="pp-settlement-info" style="margin-top:12px;padding:12px;background:rgba(59,130,246,0.05);border-radius:6px;font-size:13px;display:none;">
-            <!-- Información de la liquidación seleccionada -->
-          </div>
-          <div id="pp-payments-container" style="margin-top:16px;display:none;">
-            <div style="margin-bottom:12px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <label style="display:block;font-size:13px;color:var(--muted);font-weight:600;">Pagos parciales</label>
-                <button id="pp-add-payment" class="secondary" style="padding:6px 12px;font-size:12px;font-weight:600;">
-                  + Agregar pago
-                </button>
+            <div id="pc-list"></div>
+            
+            <!-- Gestión de tipos de mano de obra -->
+            <div class="mt-6 pt-6 border-t-2 border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
+              <div class="mb-4">
+                <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Tipos de mano de obra</h3>
+                <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Configura los tipos de participación técnica (ej: MOTOR, SUSPENSIÓN) con su porcentaje predeterminado. Al cerrar una venta, al seleccionar técnico y tipo, el porcentaje se completará automáticamente.</p>
               </div>
-              <div id="pp-payments-list" style="display:flex;flex-direction:column;gap:8px;">
-                <!-- Los pagos se agregarán aquí dinámicamente -->
+              
+              <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
+                <div class="flex flex-wrap gap-3 items-end">
+                  <div class="flex-[2] min-w-[200px]">
+                    <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Nombre del tipo</label>
+                    <input id="lk-name" placeholder="Ej: MOTOR" maxlength="50" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  </div>
+                  <div class="min-w-[140px]">
+                    <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">% Predeterminado</label>
+                    <input id="lk-percent" type="number" step="1" min="0" max="100" placeholder="0" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  </div>
+                  <div class="min-w-[120px]">
+                    <label class="block text-xs font-medium text-transparent mb-1.5">&nbsp;</label>
+                    <button id="lk-add" class="w-full px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">
+                      ➕ Agregar tipo
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div id="pp-payments-summary" style="margin-top:12px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:6px;display:none;">
-                <!-- Resumen de pagos -->
+              
+              <div id="lk-list"></div>
+            </div>
+          </div>
+
+          <!-- Sección Asignaciones -->
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6 hidden" data-subsection="assign">
+            <div class="mb-4">
+              <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Asignaciones por técnico</h3>
+              <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Personaliza valores de conceptos para técnicos específicos. Los técnicos creados aquí son los únicos disponibles para usar en Ventas.</p>
+            </div>
+
+            <!-- Gestión de técnicos -->
+            <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
+              <div class="mb-3">
+                <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Técnicos de la empresa</h4>
+                <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Crea y gestiona los técnicos que aparecerán en Ventas y estarán disponibles para liquidaciones.</p>
+              </div>
+              <div class="flex flex-wrap gap-3 items-end mb-3">
+                <div class="flex-1 min-w-[200px]">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Nombre del técnico</label>
+                  <input id="tk-add-name" placeholder="Ej: Juan Pérez" maxlength="100" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                </div>
+                <div class="min-w-[140px]">
+                  <label class="block text-xs font-medium text-transparent mb-1.5">&nbsp;</label>
+                  <button id="tk-add-btn" class="w-full px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">
+                    ➕ Agregar técnico
+                  </button>
+                </div>
+              </div>
+              <div id="tk-list" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <!-- Asignaciones personalizadas -->
+            <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
+              <div class="mb-3">
+                <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Asignar valor personalizado</h4>
+                <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sobrescribe el valor por defecto de un concepto para un técnico específico.</p>
+              </div>
+              <div class="flex flex-wrap gap-3 items-end">
+                <div class="flex-1 min-w-[200px]">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Técnico</label>
+                  <select id="pa-technicianSel" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">Seleccione técnico…</option>
+                  </select>
+                </div>
+                <div class="flex-1 min-w-[200px]">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Concepto</label>
+                  <select id="pa-conceptSel" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">Seleccione concepto…</option>
+                  </select>
+                </div>
+                <div class="min-w-[140px]">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Valor personalizado</label>
+                  <input id="pa-value" type="number" step="0.01" min="0" placeholder="0.00" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                  <p class="mt-1 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Deja vacío para usar valor por defecto</p>
+                </div>
+                <div class="min-w-[120px]">
+                  <label class="block text-xs font-medium text-transparent mb-1.5">&nbsp;</label>
+                  <button id="pa-save" class="w-full px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">
+                    💾 Guardar
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Listado de asignaciones -->
+            <div id="pa-list-container">
+              <div id="pa-list" class="p-4 text-center border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+                Selecciona un técnico para ver sus asignaciones personalizadas.
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Resultado -->
-        <div id="pp-result" style="margin-top:0;"></div>
-      </div>
+          <!-- Sección Liquidaciones -->
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6" data-subsection="settlements">
+            <div class="mb-4">
+              <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Liquidación de nómina</h3>
+              <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Calcula y aprueba liquidaciones de técnicos. Las comisiones se calculan automáticamente desde ventas cerradas del período.</p>
+            </div>
+
+            <!-- Formulario de liquidación -->
+            <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
+              <div class="mb-3">
+                <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Crear nueva liquidación</h4>
+                <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Selecciona período, técnico y los conceptos asignados a ese técnico que deseas aplicar. Las comisiones se calcularán automáticamente.</p>
+              </div>
+              <div class="flex flex-wrap gap-4 items-end">
+                <div class="flex flex-wrap gap-3 flex-1 min-w-[300px]">
+                  <div class="flex-1 min-w-[200px]">
+                    <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Período</label>
+                    <select id="pl-periodSel" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                      <option value="">Seleccione período…</option>
+                    </select>
+                  </div>
+                  <div class="flex-1 min-w-[200px]">
+                    <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Técnico</label>
+                    <select id="pl-technicianSel" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                      <option value="">Seleccione técnico…</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <!-- Botones de acción -->
+                <div class="flex gap-2">
+                  <button id="pl-preview" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">
+                    👁️ Previsualizar
+                  </button>
+                  <button id="pl-approve" class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">
+                    ✓ Aprobar
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Conceptos asignados con tarjetas bonitas -->
+              <div class="mt-4">
+                <label class="block text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">Conceptos asignados (selecciona cuáles aplicar)</label>
+                <div id="pl-concepts-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 min-h-[60px]">
+                  <div class="col-span-full text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 p-4 border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg">
+                    Selecciona período y técnico primero
+                  </div>
+                </div>
+              </div>
+              <div class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 p-2 bg-blue-500/5 dark:bg-blue-500/5 theme-light:bg-blue-50 rounded">
+                💡 <strong>Nota:</strong> Solo se mostrarán los conceptos que están asignados al técnico seleccionado. Las comisiones se calculan automáticamente desde las ventas cerradas del período. Puedes configurar el formato del comprobante en <a href="template-selector.html" class="text-blue-400 dark:text-blue-400 theme-light:text-blue-600 underline">Formatos</a> (tipo: Nómina).
+              </div>
+            </div>
+
+            <!-- Resultado preview/lista -->
+            <div id="pl-result"></div>
+          </div>
+
+          <!-- Sección Períodos -->
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6 hidden" data-subsection="periods">
+            <div class="mb-4">
+              <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Períodos de liquidación</h3>
+              <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Define períodos de tiempo (mensual, quincenal, semanal) para calcular comisiones por ventas y generar liquidaciones.</p>
+            </div>
+
+            <!-- Crear nuevo período -->
+            <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
+              <div class="mb-3">
+                <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Crear nuevo período</h4>
+                <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Puedes crear períodos que se solapen para manejar diferentes frecuencias de pago (quincenal, semanal, etc.).</p>
+              </div>
+              <div class="flex flex-wrap gap-3 items-end">
+                <div class="flex-1 min-w-[160px]">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Fecha inicio</label>
+                  <input id="ppd-start" type="date" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                </div>
+                <div class="flex-1 min-w-[160px]">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Fecha fin</label>
+                  <input id="ppd-end" type="date" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                </div>
+                <div class="min-w-[160px]">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Tipo</label>
+                  <select id="ppd-type" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="monthly">📅 Mensual</option>
+                    <option value="biweekly">📆 Quincenal</option>
+                    <option value="weekly">🗓️ Semanal</option>
+                  </select>
+                </div>
+                <div class="min-w-[140px]">
+                  <label class="block text-xs font-medium text-transparent mb-1.5">&nbsp;</label>
+                  <button id="ppd-create" class="w-full px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">
+                    ➕ Crear período
+                  </button>
+                </div>
+              </div>
+              <div id="ppd-msg" class="mt-3 text-sm"></div>
+            </div>
+
+            <!-- Listado de períodos -->
+            <div>
+              <div class="mb-3">
+                <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Períodos creados</h4>
+                <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Gestiona períodos abiertos y cerrados.</p>
+              </div>
+              <div id="ppd-list"></div>
+            </div>
+          </div>
+
+          <!-- Sección Pagar -->
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6 hidden" data-subsection="pay">
+            <div class="mb-4">
+              <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Pagar liquidaciones</h3>
+              <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Registra el pago de liquidaciones aprobadas en el Flujo de Caja. El pago se reflejará como salida de la cuenta seleccionada.</p>
+            </div>
+
+            <!-- Listado de liquidaciones pendientes -->
+            <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
+              <div class="mb-3">
+                <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Liquidaciones pendientes de pago</h4>
+                <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Selecciona una liquidación aprobada para procesar el pago.</p>
+              </div>
+              <div id="pp-pending-list"></div>
+            </div>
+
+            <!-- Formulario de pago -->
+            <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
+              <div class="mb-3">
+                <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Registrar pago</h4>
+                <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Selecciona la liquidación y la cuenta de donde saldrá el dinero.</p>
+              </div>
+              <div class="flex flex-wrap gap-3 items-end">
+                <div class="flex-1 min-w-[200px]">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Liquidación</label>
+                  <select id="pp-settlementSel" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">Seleccione liquidación…</option>
+                  </select>
+                </div>
+                <div class="min-w-[160px] hidden">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Fecha de pago</label>
+                  <input id="pp-date" type="datetime-local" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+                </div>
+                <div class="min-w-[120px]">
+                  <label class="block text-xs font-medium text-transparent mb-1.5">&nbsp;</label>
+                  <button id="pp-pay" class="w-full px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">
+                    💰 Pagar
+                  </button>
+                </div>
+              </div>
+              <div id="pp-settlement-info" class="hidden mt-3 p-3 bg-blue-500/5 dark:bg-blue-500/5 theme-light:bg-blue-50 rounded text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+                <!-- Información de la liquidación seleccionada -->
+              </div>
+              <div id="pp-payments-container" class="hidden mt-4">
+                <div class="mb-3">
+                  <div class="flex justify-between items-center mb-2">
+                    <label class="block text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Pagos parciales</label>
+                    <button id="pp-add-payment" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">
+                      + Agregar pago
+                    </button>
+                  </div>
+                  <div id="pp-payments-list" class="flex flex-col gap-2">
+                    <!-- Los pagos se agregarán aquí dinámicamente -->
+                  </div>
+                  <div id="pp-payments-summary" class="hidden mt-3 p-3 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded">
+                    <!-- Resumen de pagos -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Resultado -->
+            <div id="pp-result"></div>
+          </div>
+        </div>
+      </section>
     </section>
   </main>
 
@@ -418,8 +676,117 @@
   <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
   <script type="module" src="./assets/js/payroll.js"></script>
   <script src="./assets/js/input-fix.js"></script>
+  <script>
+    // Menú móvil y navegación
+    document.addEventListener('DOMContentLoaded', () => {
+      const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+      const mobileMenu = document.getElementById('mobileMenu');
+      const logoutBtn = document.getElementById('logoutBtn');
+      const logoutBtnMobile = document.getElementById('logoutBtnMobile');
+      const companyName = document.getElementById('companyName');
+      const companyNameMobile = document.getElementById('companyNameMobile');
+
+      // Sincronizar nombre de empresa en móvil
+      if (companyName && companyNameMobile) {
+        const observer = new MutationObserver(() => {
+          companyNameMobile.textContent = companyName.textContent;
+        });
+        observer.observe(companyName, { childList: true, characterData: true, subtree: true });
+        companyNameMobile.textContent = companyName.textContent;
+      }
+
+      // Sincronizar botón de logout
+      if (logoutBtn && logoutBtnMobile) {
+        logoutBtnMobile.addEventListener('click', () => {
+          if (logoutBtn.onclick) logoutBtn.onclick();
+          else logoutBtn.click();
+        });
+        
+        const logoutObserver = new MutationObserver(() => {
+          logoutBtnMobile.classList.toggle('hidden', logoutBtn.classList.contains('hidden'));
+        });
+        logoutObserver.observe(logoutBtn, { attributes: true, attributeFilter: ['class'] });
+        logoutBtnMobile.classList.toggle('hidden', logoutBtn.classList.contains('hidden'));
+      }
+
+      // Toggle menú móvil
+      if (mobileMenuToggle && mobileMenu) {
+        mobileMenuToggle.addEventListener('click', () => {
+          mobileMenu.classList.toggle('hidden');
+          const icon = mobileMenuToggle.querySelector('svg');
+          if (icon) {
+            if (mobileMenu.classList.contains('hidden')) {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>';
+            } else {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>';
+            }
+          }
+        });
+
+        // Cerrar menú al hacer clic en un enlace
+        mobileMenu.querySelectorAll('.mobile-nav-tab').forEach(link => {
+          link.addEventListener('click', () => {
+            mobileMenu.classList.add('hidden');
+            const icon = mobileMenuToggle.querySelector('svg');
+            if (icon) {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>';
+            }
+          });
+        });
+      }
+      
+      // Manejar navegación activa
+      const currentPage = document.body.getAttribute('data-page');
+      document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach(tab => {
+        if (tab.getAttribute('data-tab') === currentPage) {
+          tab.classList.add('active');
+        }
+      });
+
+      // Manejar clicks en botones de navegación
+      document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const href = btn.getAttribute('data-href');
+          if (href && href !== window.location.pathname.split('/').pop()) {
+            window.location.href = href;
+          }
+        });
+      });
+    });
+    
+    // Botón del catálogo
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('openPublicCatalog');
+      if(!btn) return;
+      const API = window.API || {};
+      const token = API?.token?.get?.() || '';
+      if(!token){ btn.disabled=true; btn.title='Inicia sesión para usar el catálogo'; return; }
+      // Intento principal: usar API.companyMe() (actualiza companyId store)
+      (API.companyMe ? API.companyMe() : Promise.reject(new Error('API no disponible')))
+        .then(body => {
+          const company = body?.company || body || {};
+          const storedId = API?.companyId?.get?.() || '';
+          const companyId = company.id || company._id || storedId || '';
+          const enabled = (typeof company.publicCatalogEnabled === 'boolean') ? company.publicCatalogEnabled : true;
+          if(!companyId){ btn.disabled=true; btn.title='No se pudo obtener companyId'; return; }
+          if(!enabled){ btn.disabled=true; btn.title='Catálogo público deshabilitado'; btn.dataset.state='disabled'; return; }
+          btn.dataset.state='ready';
+          btn.onclick = () => {
+            const url = 'catalogo.html?companyId=' + encodeURIComponent(companyId);
+            window.open(url, '_blank');
+          };
+        })
+        .catch(()=>{
+          // Fallback: abrir con companyId guardado si existe
+          const storedId = API?.companyId?.get?.() || '';
+          if(storedId){
+            btn.dataset.state='ready'; btn.title=''; btn.disabled=false;
+            btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+          } else {
+            btn.disabled=true; btn.title='Error consultando empresa'; btn.dataset.state='error';
+          }
+        });
+    });
+  </script>
 </body>
-<!-- Nota: en una iteración siguiente reemplazaremos IDs manuales por selectores bonitos. -->
 </html>
-
-

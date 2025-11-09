@@ -4,7 +4,140 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Taller App - Flujo de Caja</title>
-  <link rel="stylesheet" href="assets/styles.css?v=20251010" />
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: ['class', '.theme-light'],
+      theme: {
+        extend: {
+          colors: {
+            'dark-bg': '#0f172a',
+            'dark-card': '#111827',
+            'dark-card-alt': '#0b1220',
+            'dark-text': '#e5e7eb',
+            'dark-muted': '#9ca3af',
+            'dark-border': '#1f2937',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Estilos para modo claro - Sobrescribir colores de Tailwind */
+    body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
+    body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
+      background: linear-gradient(to right, #f8fafc, #f1f5f9, #f8fafc) !important;
+    }
+    body.theme-light [class*="bg-slate-800/50"],
+    body.theme-light [class*="bg-slate-800"][class*="/50"] {
+      background-color: rgba(241, 245, 249, 0.8) !important;
+    }
+    body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
+      background-color: #f1f5f9 !important;
+    }
+    body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700) {
+      color: #0f172a !important;
+    }
+    body.theme-light .text-slate-300 {
+      color: #475569 !important;
+    }
+    body.theme-light .text-slate-400 {
+      color: #64748b !important;
+    }
+    body.theme-light [class*="border-slate-700/50"],
+    body.theme-light [class*="border-slate-700"][class*="/50"] {
+      border-color: rgba(203, 213, 225, 0.5) !important;
+    }
+    body.theme-light [class*="hover:bg-slate-700/50"]:hover,
+    body.theme-light button:hover[class*="hover:bg-slate-700"] {
+      background-color: rgba(203, 213, 225, 0.5) !important;
+    }
+    body.theme-light [class*="hover:text-white"]:hover:not(.bg-blue-600):not(.bg-blue-700) {
+      color: #0f172a !important;
+    }
+    /* Mejorar contraste de botones grises en modo claro */
+    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]),
+    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]) {
+      background-color: #e2e8f0 !important;
+      color: #475569 !important;
+      border-color: #cbd5e1 !important;
+    }
+    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]):hover,
+    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]):hover {
+      background-color: #cbd5e1 !important;
+      color: #334155 !important;
+      border-color: #94a3b8 !important;
+    }
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"],
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"] {
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+      border-color: #94a3b8 !important;
+    }
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"]:hover,
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"]:focus,
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"]:hover,
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"]:focus {
+      border-color: #64748b !important;
+      background-color: #ffffff !important;
+    }
+    /* Estilos para el fondo de la página */
+    body {
+      background-color: #0f172a;
+      min-height: 100vh;
+    }
+    body.theme-light {
+      background-color: #f8fafc;
+    }
+    /* Estilos para el modal global */
+    #modal.hidden {
+      display: none !important;
+    }
+    #modal:not(.hidden) {
+      display: flex !important;
+    }
+    #modal {
+      align-items: center;
+      justify-content: center;
+    }
+    #modal > div {
+      pointer-events: auto;
+    }
+    #modal {
+      pointer-events: auto;
+    }
+    /* Estilos personalizados para barras de scroll */
+    .custom-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.5);
+      border-radius: 4px;
+      transition: background 0.2s ease;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.7);
+    }
+    body.theme-light .custom-scrollbar {
+      scrollbar-color: rgba(100, 116, 139, 0.4) transparent;
+    }
+    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.4);
+    }
+    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.6);
+    }
+  </style>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <script src="./assets/js/config.js"></script>
   <script src="./assets/js/api.js"></script>
@@ -17,134 +150,209 @@
   </script>
 </head>
 <body data-page="cashflow">
-  <div class="topbar hidden" id="appHeader">
-    <div class="topbar-inner">
-      <div class="topbar-card">
-        <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
-          <div class="brand">
-            <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" />
-            <div class="company">Empresa: <span id="companyName">-</span></div>
-          </div>
-          <div class="row" style="gap:6px;align-items:center;">
-            <button id="logoutBtn" class="secondary hidden">Salir</button>
-            <button id="denseToggle" class="secondary" title="Modo compacto">📏</button>
-            <button id="themeToggle" class="secondary" title="Cambiar tema">🌗</button>
+  <main>
+    <!-- ========== APP HEADER ========== -->
+    <div class="topbar hidden" id="appHeader">
+      <!-- Top Bar - Header Principal -->
+      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex items-center justify-between h-16 md:h-20">
+            <!-- Logo y Nombre de Empresa -->
+            <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
+              <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
+              <div class="hidden sm:flex flex-col">
+                <span class="text-xs text-slate-400 font-medium">Empresa</span>
+                <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
+              </div>
+              <div class="sm:hidden text-white font-semibold text-sm">
+                <span id="companyNameMobile">-</span>
+              </div>
+            </div>
+
+            <!-- Botones de Acción (Desktop) -->
+            <div class="hidden md:flex items-center gap-2">
+              <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
+              <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
+              <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
+              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+            </div>
+
+            <!-- Menú Hamburguesa (Mobile) -->
+            <div class="md:hidden flex items-center gap-2">
+              <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
+              <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
+              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+              <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
-        <div class="top-tabs">
-          <nav class="tabs">
-            <button data-tab="home" data-href="index.html">Inicio</button>
-            <button data-tab="notas" data-feature="notas" data-href="notas.html">Notas</button>
-            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html">Ventas</button>
-            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html">Cotizaciones</button>
-            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html">Inventario</button>
-            <button data-tab="precios" data-feature="precios" data-href="precios.html">Lista de precios</button>
-            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="active">Flujo de Caja</button>
-            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html">Nómina</button>
-            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html">Formatos</button>
-            <button data-tab="skus" data-feature="skus" data-href="skus.html">SKUs</button>
-          </nav>
+
+        <!-- Navegación Principal (Desktop) -->
+        <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
+              <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inicio</button>
+              <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
+              <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
+              <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+              <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
+              <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+              <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+              <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
+              <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
+              <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
+            </nav>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Menú Móvil (Mobile Menu) -->
+      <div id="mobileMenu" class="md:hidden hidden bg-slate-800 border-t border-slate-700/50 shadow-xl">
+        <div class="px-4 py-3 space-y-1">
+          <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inicio</button>
+          <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Notas</button>
+          <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Ventas</button>
+          <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cotizaciones</button>
+          <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inventario</button>
+          <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Lista de precios</button>
+          <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">Flujo de Caja</button>
+          <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
+          <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
+          <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
+          <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
         </div>
       </div>
     </div>
-  </div>
 
-  <main>
     <section id="appSection" class="hidden">
-      
-
-      <!-- MODAL GLOBAL -->
-      <div id="modal" class="modal hidden">
-        <div class="modal-content image-modal">
-          <button id="modalClose" class="close">&times;</button>
-          <div id="modalBody">
-            <div id="modal-img-wrap">
-              <img id="modal-img" src="" alt="Vista previa" />
-              <div class="zoom-controls">
-                <button id="zoom-in">+</button>
-                <button id="zoom-out">-</button>
-                <button id="zoom-reset">Reset</button>
-              </div>
-            </div>
+      <!-- Modal global reutilizable -->
+      <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
+        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] my-auto overflow-hidden">
+          <button id="modalClose" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
+          <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
+            <!-- Content will be injected here -->
           </div>
         </div>
       </div>
 
       <!-- ========== FLUJO DE CAJA ========== -->
-  <section id="tab-cashflow" class="tab active">
-        <div class="card">
-          <h3>Cuentas</h3>
-          <div class="row wrap" style="gap:8px; align-items:flex-end;">
-            <div>
-              <button id="cf-refresh" class="secondary">Actualizar</button>
-              <button id="cf-add-account">+ Cuenta</button>
+      <section id="tab-cashflow" class="tab active">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <!-- Cuentas -->
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Cuentas</h3>
+            <div class="flex flex-wrap gap-2 items-end mb-4">
+              <button id="cf-refresh" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Actualizar</button>
+              <button id="cf-add-account" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">+ Cuenta</button>
+            </div>
+            <div id="cf-accounts" class="max-h-[200px] overflow-auto custom-scrollbar mb-2">
+              <table class="w-full text-sm">
+                <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100">
+                  <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Nombre</th>
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Tipo</th>
+                    <th class="px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Saldo</th>
+                    <th class="px-4 py-2 text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700"></th>
+                  </tr>
+                </thead>
+                <tbody id="cf-acc-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
+              </table>
+            </div>
+            <div id="cf-acc-total" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Total: —</div>
+          </div>
+
+          <!-- Movimientos -->
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Movimientos</h3>
+            <div class="flex flex-wrap gap-2 items-end mb-4">
+              <select id="cf-filter-account" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <option value="">-- Cuenta --</option>
+              </select>
+              <input type="date" id="cf-from" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+              <input type="date" id="cf-to" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+              <select id="cf-kind" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <option value="">IN/OUT</option>
+                <option value="IN">Entradas</option>
+                <option value="OUT">Salidas</option>
+              </select>
+              <select id="cf-source" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <option value="">Fuente</option>
+                <option value="SALE">Venta</option>
+                <option value="MANUAL">Manual</option>
+              </select>
+              <button id="cf-apply" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Aplicar</button>
+              <button id="cf-new-entry" class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">+ Entrada manual</button>
+              <button id="cf-new-expense" class="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 dark:from-red-600 dark:to-red-700 theme-light:from-red-500 theme-light:to-red-600 hover:from-red-700 hover:to-red-800 dark:hover:from-red-700 dark:hover:to-red-800 theme-light:hover:from-red-600 theme-light:hover:to-red-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">- Salida</button>
+              <button id="cf-new-loan" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💰 Préstamo</button>
+            </div>
+            <div id="cf-mov-summary" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">—</div>
+            <div class="max-h-[360px] overflow-auto custom-scrollbar mb-4">
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm min-w-[920px]">
+                  <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100">
+                    <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Fecha</th>
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Cuenta</th>
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Descripción</th>
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Fuente</th>
+                      <th class="px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">IN</th>
+                      <th class="px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">OUT</th>
+                      <th class="px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Saldo</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cf-rows" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="flex justify-between items-center text-xs">
+              <div id="cf-pag" class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Página 1</div>
+              <div class="flex gap-2">
+                <button id="cf-prev" disabled class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">←</button>
+                <button id="cf-next" disabled class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">→</button>
+              </div>
             </div>
           </div>
-          <div id="cf-accounts" class="table-wrap" style="max-height:200px;overflow:auto;margin-top:8px;">
-            <table class="table small"><thead><tr><th>Nombre</th><th>Tipo</th><th class="t-right">Saldo</th><th></th></tr></thead><tbody id="cf-acc-body"></tbody></table>
-          </div>
-          <div id="cf-acc-total" class="muted" style="margin-top:6px;font-size:12px;">Total: —</div>
-        </div>
-        <div class="card" style="margin-top:16px;">
-          <h3>Movimientos</h3>
-          <div class="row wrap" style="gap:8px; align-items:flex-end;">
-            <select id="cf-filter-account"><option value="">-- Cuenta --</option></select>
-            <input type="date" id="cf-from" />
-            <input type="date" id="cf-to" />
-            <select id="cf-kind"><option value="">IN/OUT</option><option value="IN">Entradas</option><option value="OUT">Salidas</option></select>
-            <select id="cf-source"><option value="">Fuente</option><option value="SALE">Venta</option><option value="MANUAL">Manual</option></select>
-            <button id="cf-apply" class="secondary">Aplicar</button>
-            <button id="cf-new-entry">+ Entrada manual</button>
-            <button id="cf-new-expense" class="danger">- Salida</button>
-            <button id="cf-new-loan" class="danger" style="background:var(--accent);">💰 Préstamo</button>
-          </div>
-          <div id="cf-mov-summary" class="muted" style="margin-top:8px;font-size:12px;">—</div>
-          <div class="table-wrap" style="max-height:360px;overflow:auto;margin-top:8px;">
-            <table class="table small" style="min-width:920px;">
-              <thead><tr><th>Fecha</th><th>Cuenta</th><th>Descripción</th><th>Fuente</th><th class="t-right">IN</th><th class="t-right">OUT</th><th class="t-right">Saldo</th></tr></thead>
-              <tbody id="cf-rows"></tbody>
-            </table>
-          </div>
-          <div class="row between" style="margin-top:8px;font-size:12px;">
-            <div id="cf-pag" class="muted">Página 1</div>
-            <div class="row" style="gap:6px;">
-              <button id="cf-prev" class="secondary" disabled>←</button>
-              <button id="cf-next" class="secondary" disabled>→</button>
+          
+          <!-- Sección de Préstamos a Empleados -->
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Préstamos a Empleados</h3>
+            <div class="flex flex-wrap gap-2 items-end mb-4">
+              <select id="cf-loan-filter-tech" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <option value="">-- Todos los empleados --</option>
+              </select>
+              <select id="cf-loan-filter-status" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <option value="">Todos</option>
+                <option value="pending">Pendientes</option>
+                <option value="partially_paid">Parcialmente pagados</option>
+                <option value="paid">Pagados</option>
+              </select>
+              <button id="cf-refresh-loans" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Actualizar</button>
             </div>
+            <div class="max-h-[300px] overflow-auto custom-scrollbar mb-2">
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100">
+                    <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Fecha</th>
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Empleado</th>
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Monto</th>
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Pagado</th>
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Pendiente</th>
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Estado</th>
+                      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Descripción</th>
+                      <th class="px-4 py-2 text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="cf-loans-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
+                </table>
+              </div>
+            </div>
+            <div id="cf-loans-summary" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">—</div>
           </div>
-        </div>
-        
-        <!-- Sección de Préstamos a Empleados -->
-        <div class="card" style="margin-top:16px;">
-          <h3>Préstamos a Empleados</h3>
-          <div class="row wrap" style="gap:8px; align-items:flex-end;">
-            <select id="cf-loan-filter-tech"><option value="">-- Todos los empleados --</option></select>
-            <select id="cf-loan-filter-status">
-              <option value="">Todos</option>
-              <option value="pending">Pendientes</option>
-              <option value="partially_paid">Parcialmente pagados</option>
-              <option value="paid">Pagados</option>
-            </select>
-            <button id="cf-refresh-loans" class="secondary">Actualizar</button>
-          </div>
-          <div class="table-wrap" style="max-height:300px;overflow:auto;margin-top:8px;">
-            <table class="table small">
-              <thead>
-                <tr>
-                  <th>Fecha</th>
-                  <th>Empleado</th>
-                  <th>Monto</th>
-                  <th>Pagado</th>
-                  <th>Pendiente</th>
-                  <th>Estado</th>
-                  <th>Descripción</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="cf-loans-body"></tbody>
-            </table>
-          </div>
-          <div id="cf-loans-summary" class="muted" style="margin-top:6px;font-size:12px;">—</div>
         </div>
       </section>
     </section>
@@ -153,7 +361,115 @@
   <script type="module" src="./assets/js/cashflow.js" charset="utf-8"></script>
   <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
   <script src="./assets/js/input-fix.js"></script>
+  <script>
+    // Menú móvil y navegación
+    document.addEventListener('DOMContentLoaded', () => {
+      const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+      const mobileMenu = document.getElementById('mobileMenu');
+      const logoutBtn = document.getElementById('logoutBtn');
+      const logoutBtnMobile = document.getElementById('logoutBtnMobile');
+      const companyName = document.getElementById('companyName');
+      const companyNameMobile = document.getElementById('companyNameMobile');
+
+      // Sincronizar nombre de empresa en móvil
+      if (companyName && companyNameMobile) {
+        const observer = new MutationObserver(() => {
+          companyNameMobile.textContent = companyName.textContent;
+        });
+        observer.observe(companyName, { childList: true, characterData: true, subtree: true });
+        companyNameMobile.textContent = companyName.textContent;
+      }
+
+      // Sincronizar botón de logout
+      if (logoutBtn && logoutBtnMobile) {
+        logoutBtnMobile.addEventListener('click', () => {
+          if (logoutBtn.onclick) logoutBtn.onclick();
+          else logoutBtn.click();
+        });
+        
+        const logoutObserver = new MutationObserver(() => {
+          logoutBtnMobile.classList.toggle('hidden', logoutBtn.classList.contains('hidden'));
+        });
+        logoutObserver.observe(logoutBtn, { attributes: true, attributeFilter: ['class'] });
+        logoutBtnMobile.classList.toggle('hidden', logoutBtn.classList.contains('hidden'));
+      }
+
+      // Toggle menú móvil
+      if (mobileMenuToggle && mobileMenu) {
+        mobileMenuToggle.addEventListener('click', () => {
+          mobileMenu.classList.toggle('hidden');
+          const icon = mobileMenuToggle.querySelector('svg');
+          if (icon) {
+            if (mobileMenu.classList.contains('hidden')) {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>';
+            } else {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>';
+            }
+          }
+        });
+
+        // Cerrar menú al hacer clic en un enlace
+        mobileMenu.querySelectorAll('.mobile-nav-tab').forEach(link => {
+          link.addEventListener('click', () => {
+            mobileMenu.classList.add('hidden');
+            const icon = mobileMenuToggle.querySelector('svg');
+            if (icon) {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>';
+            }
+          });
+        });
+      }
+      
+      // Manejar navegación activa
+      const currentPage = document.body.getAttribute('data-page');
+      document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach(tab => {
+        if (tab.getAttribute('data-tab') === currentPage) {
+          tab.classList.add('active');
+        }
+      });
+
+      // Manejar clicks en botones de navegación
+      document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const href = btn.getAttribute('data-href');
+          if (href && href !== window.location.pathname.split('/').pop()) {
+            window.location.href = href;
+          }
+        });
+      });
+    });
+    
+    // Botón del catálogo
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('openPublicCatalog');
+      if(!btn) return;
+      const API = window.API || {};
+      const token = API?.token?.get?.() || '';
+      if(!token){ btn.disabled=true; btn.title='Inicia sesión para usar el catálogo'; return; }
+      (API.companyMe ? API.companyMe() : Promise.reject(new Error('API no disponible')))
+        .then(body => {
+          const company = body?.company || body || {};
+          const storedId = API?.companyId?.get?.() || '';
+          const companyId = company.id || company._id || storedId || '';
+          const enabled = (typeof company.publicCatalogEnabled === 'boolean') ? company.publicCatalogEnabled : true;
+          if(!companyId){ btn.disabled=true; btn.title='No se pudo obtener companyId'; return; }
+          if(!enabled){ btn.disabled=true; btn.title='Catálogo público deshabilitado'; btn.dataset.state='disabled'; return; }
+          btn.dataset.state='ready';
+          btn.onclick = () => {
+            const url = 'catalogo.html?companyId=' + encodeURIComponent(companyId);
+            window.open(url, '_blank');
+          };
+        })
+        .catch(()=>{
+          const storedId = API?.companyId?.get?.() || '';
+          if(storedId){
+            btn.dataset.state='ready'; btn.title=''; btn.disabled=false;
+            btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+          } else {
+            btn.disabled=true; btn.title='Error consultando empresa'; btn.dataset.state='error';
+          }
+        });
+    });
+  </script>
 </body>
 </html>
-
-

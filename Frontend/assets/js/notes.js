@@ -152,7 +152,7 @@ export function initNotes() {
             img.style.objectFit = "cover";
             img.style.cursor = "pointer";
             img.title = m.filename || "";
-            img.onclick = () => openModal(`<img src="${url}" style="max-width:100%;height:auto" />`);
+            img.onclick = () => openModal(`<div class="flex items-center justify-center p-4"><img src="${url}" class="max-w-full h-auto rounded-lg border-2 border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300" /></div>`);
             wrap.appendChild(img);
           } else if ((m.mimetype || "").startsWith("video/")) {
             const vid = document.createElement("video");
@@ -212,36 +212,48 @@ export function initNotes() {
     if (!methodOptions.includes(currentMethod)) currentMethod = "EFECTIVO";
 
     openModal(`
-      <h3>Editar nota</h3>
+      <div class="space-y-4">
+        <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">Editar nota</h3>
 
-      <label>Tipo</label>
-      <select id="e-type">
-        <option value="GENERICA" ${!isPago ? "selected" : ""}>GENERICA</option>
-        <option value="PAGO" ${isPago ? "selected" : ""}>PAGO</option>
-      </select>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Tipo</label>
+          <select id="e-type" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="GENERICA" ${!isPago ? "selected" : ""}>GENERICA</option>
+            <option value="PAGO" ${isPago ? "selected" : ""}>PAGO</option>
+          </select>
+        </div>
 
-      <label>Persona encargada</label>
-      <select id="e-resp">
-        <option value="">Selecciona...</option>
-        ${respOptions.map(n => `<option value="${n}" ${String(row.responsible || "").toUpperCase() === n ? "selected" : ""}>${n.charAt(0)}${n.slice(1).toLowerCase()}</option>`).join("")}
-      </select>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Persona encargada</label>
+          <select id="e-resp" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Selecciona...</option>
+            ${respOptions.map(n => `<option value="${n}" ${String(row.responsible || "").toUpperCase() === n ? "selected" : ""}>${n.charAt(0)}${n.slice(1).toLowerCase()}</option>`).join("")}
+          </select>
+        </div>
 
-      <label>Contenido</label>
-      <textarea id="e-text" rows="4">${row.text || ""}</textarea>
+        <div>
+          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Contenido</label>
+          <textarea id="e-text" rows="4" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y">${row.text || ""}</textarea>
+        </div>
 
-      <div id="e-paybox" ${isPago ? "" : 'class="hidden"'}>
-        <label>Monto del pago</label>
-        <input id="e-amount" type="number" min="0" step="0.01" value="${Number(row.amount || 0)}" />
+        <div id="e-paybox" ${isPago ? "" : 'class="hidden"'} class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Monto del pago</label>
+            <input id="e-amount" type="number" min="0" step="0.01" value="${Number(row.amount || 0)}" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
 
-        <label>Método de pago</label>
-        <select id="e-method">
-          ${methodOptions.map(m => `<option value="${m}" ${currentMethod === m ? "selected" : ""}>${m.charAt(0)}${m.slice(1).toLowerCase()}</option>`).join("")}
-        </select>
-      </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Método de pago</label>
+            <select id="e-method" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              ${methodOptions.map(m => `<option value="${m}" ${currentMethod === m ? "selected" : ""}>${m.charAt(0)}${m.slice(1).toLowerCase()}</option>`).join("")}
+            </select>
+          </div>
+        </div>
 
-      <div style="margin-top:10px; display:flex; gap:8px;">
-        <button id="e-save">Guardar cambios</button>
-        <button id="e-cancel" class="secondary">Cancelar</button>
+        <div class="flex gap-2 mt-4">
+          <button id="e-save" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar cambios</button>
+          <button id="e-cancel" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+        </div>
       </div>
     `);
 

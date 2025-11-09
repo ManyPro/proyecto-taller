@@ -265,7 +265,28 @@ export function initQuotes({ getCompanyEmail }) {
     if(!modal||!slot||!x) return;
     slot.replaceChildren(node);
     modal.classList.remove('hidden');
-    x.onclick = ()=> modal.classList.add('hidden');
+    
+    const closeModalHandler = () => {
+      modal.classList.add('hidden');
+      document.removeEventListener('keydown', escHandler);
+      modal.removeEventListener('click', backdropHandler);
+    };
+    
+    const escHandler = (e) => {
+      if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+        closeModalHandler();
+      }
+    };
+    
+    const backdropHandler = (e) => {
+      if (e.target === modal) {
+        closeModalHandler();
+      }
+    };
+    
+    document.addEventListener('keydown', escHandler);
+    modal.addEventListener('click', backdropHandler);
+    x.onclick = closeModalHandler;
   }
   function closeModal(){ const m=document.getElementById('modal'); if(m) m.classList.add('hidden'); }
 
@@ -320,22 +341,21 @@ export function initQuotes({ getCompanyEmail }) {
   function addSpecialNote() {
     // Crear modal bonito para agregar nota
     const modal = document.createElement('div');
-    modal.className = 'modal';
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm';
     modal.innerHTML = `
-      <div class="modal-content" style="max-width: 500px;">
-        <div class="card">
-          <h3>Agregar Nota Especial</h3>
-          <textarea id="special-note-input" placeholder="Escribe tu nota especial aquí..." style="width: 100%; height: 100px; margin: 16px 0; padding: 12px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
-          <div class="row" style="justify-content: flex-end; gap: 8px;">
-            <button id="cancel-note" class="secondary">Cancelar</button>
-            <button id="save-note" class="primary">Agregar Nota</button>
+      <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-lg w-full overflow-hidden">
+        <div class="p-6">
+          <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">Agregar Nota Especial</h3>
+          <textarea id="special-note-input" placeholder="Escribe tu nota especial aquí..." class="w-full h-24 p-3 mb-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"></textarea>
+          <div class="flex justify-end gap-2">
+            <button id="cancel-note" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+            <button id="save-note" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Agregar Nota</button>
           </div>
         </div>
       </div>
     `;
     
     document.body.appendChild(modal);
-    modal.classList.remove('hidden');
     
     const input = modal.querySelector('#special-note-input');
     const saveBtn = modal.querySelector('#save-note');
@@ -345,6 +365,18 @@ export function initQuotes({ getCompanyEmail }) {
     
     const closeModal = () => {
       modal.remove();
+    };
+    
+    const handleBackdropClick = (e) => {
+      if (e.target === modal) closeModal();
+    };
+    
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', handleEsc);
+        modal.removeEventListener('click', handleBackdropClick);
+      }
     };
     
     saveBtn.onclick = () => {
@@ -359,14 +391,9 @@ export function initQuotes({ getCompanyEmail }) {
     
     cancelBtn.onclick = closeModal;
     
-    // Cerrar con ESC
-    const handleKeydown = (e) => {
-      if (e.key === 'Escape') {
-        closeModal();
-        document.removeEventListener('keydown', handleKeydown);
-      }
-    };
-    document.addEventListener('keydown', handleKeydown);
+    // Cerrar con ESC y click fuera
+    document.addEventListener('keydown', handleEsc);
+    modal.addEventListener('click', handleBackdropClick);
   }
   
   function removeSpecialNote(index) {
@@ -385,25 +412,13 @@ export function initQuotes({ getCompanyEmail }) {
     iSpecialNotesList.innerHTML = '';
     specialNotes.forEach((note, index) => {
       const noteDiv = document.createElement('div');
-      noteDiv.className = 'special-note-item';
-      noteDiv.style.cssText = `
-        display: flex; 
-        align-items: center; 
-        gap: 12px; 
-        margin-bottom: 12px; 
-        padding: 12px; 
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); 
-        border-radius: 8px; 
-        border-left: 4px solid #007bff;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        transition: all 0.2s ease;
-      `;
+      noteDiv.className = 'flex items-center gap-3 mb-3 p-3 bg-gradient-to-r from-slate-800/50 to-slate-700/50 dark:from-slate-800/50 dark:to-slate-700/50 theme-light:from-slate-100 theme-light:to-slate-50 rounded-lg border-l-4 border-blue-500 shadow-sm transition-all duration-200';
       noteDiv.innerHTML = `
-        <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
-          <span style="font-size: 16px;">📝</span>
-          <span style="flex: 1; line-height: 1.4;">${note}</span>
+        <div class="flex-1 flex items-center gap-2">
+          <span class="text-base">📝</span>
+          <span class="flex-1 leading-relaxed text-white dark:text-white theme-light:text-slate-900">${note}</span>
         </div>
-        <button type="button" class="secondary" onclick="removeSpecialNote(${index})" style="font-size: 12px; padding: 6px 12px; border-radius: 4px; background: #dc3545; color: white; border: none; cursor: pointer; transition: background 0.2s ease;" onmouseover="this.style.background='#c82333'" onmouseout="this.style.background='#dc3545'">Eliminar</button>
+        <button type="button" onclick="removeSpecialNote(${index})" class="text-xs px-3 py-1.5 rounded bg-red-600 hover:bg-red-700 text-white border-0 cursor-pointer transition-colors duration-200 whitespace-nowrap">Eliminar</button>
       `;
       iSpecialNotesList.appendChild(noteDiv);
     });
@@ -1135,23 +1150,21 @@ export function initQuotes({ getCompanyEmail }) {
     // Función para agregar nota especial en modal
     function addModalSpecialNote() {
       const modal = document.createElement('div');
-      modal.className = 'modal';
-      modal.style.cssText = 'position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 10001;';
+      modal.className = 'fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm';
       modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
-          <div class="card">
-            <h3>Agregar Nota Especial</h3>
-            <textarea id="modal-special-note-input" placeholder="Escribe tu nota especial aquí..." style="width: 100%; height: 100px; margin: 16px 0; padding: 12px; border: 1px solid #ddd; border-radius: 4px; resize: vertical;"></textarea>
-            <div class="row" style="justify-content: flex-end; gap: 8px;">
-              <button id="modal-note-cancel" class="secondary">Cancelar</button>
-              <button id="modal-note-add" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 600;">Agregar</button>
+        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-lg w-full overflow-hidden">
+          <div class="p-6">
+            <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">Agregar Nota Especial</h3>
+            <textarea id="modal-special-note-input" placeholder="Escribe tu nota especial aquí..." class="w-full h-24 p-3 mb-4 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"></textarea>
+            <div class="flex justify-end gap-2">
+              <button id="modal-note-cancel" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+              <button id="modal-note-add" class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Agregar</button>
             </div>
           </div>
         </div>
       `;
       
       document.body.appendChild(modal);
-      modal.classList.remove('hidden');
       
       const input = modal.querySelector('#modal-special-note-input');
       const addBtn = modal.querySelector('#modal-note-add');
@@ -1161,6 +1174,10 @@ export function initQuotes({ getCompanyEmail }) {
       
       const closeModal = () => {
         modal.remove();
+      };
+      
+      const handleBackdropClick = (e) => {
+        if (e.target === modal) closeModal();
       };
       
       addBtn.onclick = () => {
@@ -1183,6 +1200,8 @@ export function initQuotes({ getCompanyEmail }) {
           closeModal();
         }
       });
+      
+      modal.addEventListener('click', handleBackdropClick);
     }
     
     // Función para eliminar nota especial en modal
@@ -1200,11 +1219,10 @@ export function initQuotes({ getCompanyEmail }) {
       mSpecialNotesList.innerHTML = '';
       modalSpecialNotes.forEach((note, index) => {
         const noteDiv = document.createElement('div');
-        noteDiv.className = 'special-note-item';
-        noteDiv.style.cssText = 'padding: 12px; margin: 8px 0; background: var(--card-alt, #f5f5f5); border-radius: 6px; display: flex; justify-content: space-between; align-items: center; gap: 12px;';
+        noteDiv.className = 'p-3 my-2 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 rounded-lg flex justify-between items-center gap-3';
         noteDiv.innerHTML = `
-          <div style="flex: 1; word-break: break-word; color: var(--text);">${note}</div>
-          <button type="button" class="secondary" onclick="window.removeModalSpecialNote(${index})" style="font-size: 12px; padding: 6px 12px; border-radius: 4px; background: #dc3545; color: white; border: none; cursor: pointer; transition: background 0.2s ease; white-space: nowrap;" onmouseover="this.style.background='#c82333'" onmouseout="this.style.background='#dc3545'">Eliminar</button>
+          <div class="flex-1 break-words text-white dark:text-white theme-light:text-slate-900">${note}</div>
+          <button type="button" onclick="window.removeModalSpecialNote(${index})" class="text-xs px-3 py-1.5 rounded bg-red-600 hover:bg-red-700 text-white border-0 cursor-pointer transition-colors duration-200 whitespace-nowrap">Eliminar</button>
         `;
         mSpecialNotesList.appendChild(noteDiv);
       });
@@ -1295,13 +1313,12 @@ export function initQuotes({ getCompanyEmail }) {
       const currentValue = currentDiscount.type === type ? currentDiscount.value : '';
       
       const modal = document.createElement('div');
-      modal.className = 'modal discount-modal';
-      modal.style.cssText = 'position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 10001;';
+      modal.className = 'fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm';
       modal.innerHTML = `
-        <div class="modal-content" style="max-width: 400px; text-align: center;">
-          <div class="card">
-            <h3 style="margin: 0 0 16px 0; color: var(--text);">${title}</h3>
-            <p style="margin: 0 0 16px 0; color: var(--muted); font-size: 14px;">
+        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-md w-full overflow-hidden text-center">
+          <div class="p-6">
+            <h3 class="m-0 mb-4 text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">${title}</h3>
+            <p class="m-0 mb-4 text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600">
               ${isPercent ? 'Ingrese el porcentaje de descuento' : 'Ingrese el monto de descuento'}
             </p>
             <input 
@@ -1309,16 +1326,16 @@ export function initQuotes({ getCompanyEmail }) {
               type="number" 
               placeholder="${placeholder}"
               value="${currentValue}"
-              style="width: 100%; margin-bottom: 16px; text-align: center; font-size: 16px;"
+              class="w-full mb-4 text-center text-base p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
               min="0"
               ${isPercent ? 'max="100"' : ''}
               step="${isPercent ? '0.01' : '1'}"
             />
-            <div class="row" style="justify-content: center; gap: 12px;">
-              <button id="discount-cancel" class="secondary" style="background: #6b7280; color: white; border: none;">
+            <div class="flex justify-center gap-3">
+              <button id="discount-cancel" class="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white border-0 rounded-lg transition-colors duration-200 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">
                 Cancelar
               </button>
-              <button id="discount-apply" style="background: ${isPercent ? '#10b981' : '#3b82f6'}; color: white; border: none;">
+              <button id="discount-apply" class="px-4 py-2 ${isPercent ? 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800' : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800'} text-white border-0 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 font-semibold theme-light:from-blue-500 theme-light:to-blue-600 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700">
                 Aplicar Descuento
               </button>
             </div>
@@ -1327,7 +1344,6 @@ export function initQuotes({ getCompanyEmail }) {
       `;
       
       document.body.appendChild(modal);
-      modal.classList.remove('hidden');
       
       const input = modal.querySelector('#discount-input');
       const applyBtn = modal.querySelector('#discount-apply');
@@ -1338,6 +1354,10 @@ export function initQuotes({ getCompanyEmail }) {
       
       const closeModal = () => {
         modal.remove();
+      };
+      
+      const handleBackdropClick = (e) => {
+        if (e.target === modal) closeModal();
       };
       
       const applyDiscount = () => {
@@ -1366,6 +1386,8 @@ export function initQuotes({ getCompanyEmail }) {
           closeModal();
         }
       });
+      
+      modal.addEventListener('click', handleBackdropClick);
     }
 
     function cloneRow(){
@@ -2118,13 +2140,12 @@ export function initQuotes({ getCompanyEmail }) {
     const currentValue = currentDiscount.type === type ? currentDiscount.value : '';
     
     const modal = document.createElement('div');
-    modal.className = 'modal discount-modal';
-    modal.style.cssText = 'position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px); z-index: 10001;';
+    modal.className = 'fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm';
     modal.innerHTML = `
-      <div class="modal-content" style="max-width: 400px; text-align: center;">
-        <div class="card">
-          <h3 style="margin: 0 0 16px 0; color: var(--text);">${title}</h3>
-          <p style="margin: 0 0 16px 0; color: var(--muted); font-size: 14px;">
+      <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-md w-full overflow-hidden text-center">
+        <div class="p-6">
+          <h3 class="m-0 mb-4 text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">${title}</h3>
+          <p class="m-0 mb-4 text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600">
             ${isPercent ? 'Ingrese el porcentaje de descuento' : 'Ingrese el monto de descuento'}
           </p>
           <input 
@@ -2132,16 +2153,16 @@ export function initQuotes({ getCompanyEmail }) {
             type="number" 
             placeholder="${placeholder}"
             value="${currentValue}"
-            style="width: 100%; margin-bottom: 16px; text-align: center; font-size: 16px;"
+            class="w-full mb-4 text-center text-base p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
             min="0"
             ${isPercent ? 'max="100"' : ''}
             step="${isPercent ? '0.01' : '1'}"
           />
-          <div class="row" style="justify-content: center; gap: 12px;">
-            <button id="discount-cancel" class="secondary" style="background: #6b7280; color: white; border: none;">
+          <div class="flex justify-center gap-3">
+            <button id="discount-cancel" class="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white border-0 rounded-lg transition-colors duration-200 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">
               Cancelar
             </button>
-            <button id="discount-apply" style="background: ${isPercent ? '#10b981' : '#3b82f6'}; color: white; border: none;">
+            <button id="discount-apply" class="px-4 py-2 ${isPercent ? 'bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800' : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800'} text-white border-0 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 font-semibold theme-light:from-blue-500 theme-light:to-blue-600 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700">
               Aplicar Descuento
             </button>
           </div>
@@ -2150,7 +2171,6 @@ export function initQuotes({ getCompanyEmail }) {
     `;
     
     document.body.appendChild(modal);
-    modal.classList.remove('hidden');
     
     const input = modal.querySelector('#discount-input');
     const applyBtn = modal.querySelector('#discount-apply');
@@ -2161,6 +2181,10 @@ export function initQuotes({ getCompanyEmail }) {
     
     const closeModal = () => {
       modal.remove();
+    };
+    
+    const handleBackdropClick = (e) => {
+      if (e.target === modal) closeModal();
     };
     
     const applyDiscount = () => {
@@ -2189,6 +2213,8 @@ export function initQuotes({ getCompanyEmail }) {
         closeModal();
       }
     });
+    
+    modal.addEventListener('click', handleBackdropClick);
   }
 
   // ====== Pickers para agregar ítems con metadata ======
