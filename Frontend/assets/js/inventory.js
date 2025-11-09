@@ -224,10 +224,10 @@ function openLightbox(media) {
   invOpenModal(
     `<div class="image-lightbox flex flex-col items-center justify-center">
        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Vista previa</h3>
-       <div class="relative flex items-center justify-center w-full" style="max-height: calc(90vh - 150px); overflow: auto;">
+       <div class="relative flex items-center justify-center w-full" style="max-height: calc(70vh - 150px); overflow: auto;">
          ${isVideo ? 
-           `<video controls src="${media.url}" class="max-w-full max-h-full object-contain rounded-lg" style="max-width: 90vw; max-height: calc(90vh - 150px);"></video>` : 
-           `<img src="${media.url}" alt="media" id="modal-img" class="max-w-full max-h-full object-contain rounded-lg cursor-zoom-in" style="max-width: 90vw; max-height: calc(90vh - 150px); transform: scale(1) translate(0px, 0px);" />`
+           `<video controls src="${media.url}" class="max-w-full max-h-full object-contain rounded-lg" style="max-width: 60vw; max-height: calc(70vh - 150px);"></video>` : 
+           `<img src="${media.url}" alt="media" id="modal-img" class="max-w-full max-h-full object-contain rounded-lg cursor-zoom-in" style="max-width: 60vw; max-height: calc(70vh - 150px); transform: scale(1) translate(0px, 0px);" />`
          }
        </div>
        ${!isVideo ? `
@@ -894,27 +894,29 @@ if (__ON_INV_PAGE__) {
   function renderIntakesList() {
     if (!viList) return;
     if (!state.intakes.length) {
-      viList.innerHTML = `<div class="muted">No hay ingresos aún.</div>`;
+      viList.innerHTML = `<div class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm py-4">No hay ingresos aún.</div>`;
       return;
     }
     viList.innerHTML = "";
     state.intakes.forEach((vi) => {
       const row = document.createElement("div");
-      row.className = "note";
+      row.className = "p-4 rounded-lg bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200";
       row.innerHTML = `
-        <div>
-          ${vi.intakeKind === 'purchase' 
-            ? `<div><b>COMPRA: ${(vi.purchasePlace||'').toUpperCase()}</b></div>`
-            : `<div><b>${(vi.brand || "") + (vi.model ? " " + vi.model : "")}</b></div><div>${vi.engine || ""}</div>`}
-        </div>
-        <div class="content">
-          <div>Fecha: ${new Date(vi.intakeDate).toLocaleDateString()}</div>
-          <div>Precio entrada: <b>${fmtMoney(vi.entryPrice)}</b></div>
-        </div>
-        <div class="actions">
-          <button class="secondary" data-edit="${vi._id}">Editar</button>
-          <button class="secondary" data-recalc="${vi._id}">Recalcular</button>
-          <button class="danger" data-del="${vi._id}">Eliminar</button>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div class="flex-1">
+            ${vi.intakeKind === 'purchase' 
+              ? `<div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-1">COMPRA: ${(vi.purchasePlace||'').toUpperCase()}</div>`
+              : `<div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-1">${(vi.brand || "") + (vi.model ? " " + vi.model : "")}</div><div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${vi.engine || ""}</div>`}
+            <div class="mt-2 text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-700">
+              <div>Fecha: ${new Date(vi.intakeDate).toLocaleDateString()}</div>
+              <div>Precio entrada: <b class="text-white dark:text-white theme-light:text-slate-900">${fmtMoney(vi.entryPrice)}</b></div>
+            </div>
+          </div>
+          <div class="flex gap-2 flex-wrap">
+            <button class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm" data-edit="${vi._id}">Editar</button>
+            <button class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm" data-recalc="${vi._id}">Recalcular</button>
+            <button class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white border border-red-500 transition-colors text-sm" data-del="${vi._id}">Eliminar</button>
+          </div>
         </div>`;
 
       row.querySelector("[data-edit]").onclick = () => openEditVehicleIntake(vi);
