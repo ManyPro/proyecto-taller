@@ -1273,32 +1273,64 @@ export function initPrices(){
         <input id="pe-modal-name" placeholder="${type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire')}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" value="${existingPrice?.name || ''}" />
       </div>
       ${isCombo ? `
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Productos del combo</label>
-        <div id="pe-modal-combo-products" style="margin-bottom:8px;">
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">Productos del combo</label>
+        <div id="pe-modal-combo-products" class="space-y-3 mb-3">
           ${comboProducts.map((cp, idx) => `
-            <div class="combo-product-item" data-index="${idx}" style="padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;${cp.isOpenSlot ? 'border-left:4px solid var(--warning, #f59e0b);' : ''}">
-              <div class="row" style="gap:8px;margin-bottom:8px;">
-                <input type="text" class="combo-product-name" placeholder="Nombre del producto" value="${cp.name || ''}" style="flex:2;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
-                <input type="number" class="combo-product-qty" placeholder="Cant." value="${cp.qty || 1}" min="1" style="width:80px;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
-                <input type="number" class="combo-product-price" placeholder="Precio" step="0.01" value="${cp.unitPrice || 0}" style="width:120px;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
-                <button class="combo-product-remove danger" style="padding:6px 12px;">✕</button>
+            <div class="combo-product-item relative p-4 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 rounded-lg border ${cp.isOpenSlot ? 'border-l-4 border-l-orange-500 dark:border-l-orange-500 theme-light:border-l-orange-400 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300' : 'border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300'} transition-all duration-200" data-index="${idx}">
+              <!-- Header: Nombre del producto y botón eliminar -->
+              <div class="flex items-start justify-between gap-3 mb-3">
+                <div class="flex-1">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Nombre del producto</label>
+                  <input type="text" class="combo-product-name w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm" placeholder="Ej: Filtro de aceite" value="${cp.name || ''}" />
+                </div>
+                <button class="combo-product-remove mt-6 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 text-sm font-semibold flex-shrink-0" title="Eliminar producto">🗑️</button>
               </div>
-              <div class="row" style="gap:8px;margin-bottom:8px;align-items:center;">
-                <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-                  <input type="checkbox" class="combo-product-open-slot" ${cp.isOpenSlot ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;" />
-                  <span style="color:var(--text);">Slot abierto (se completa con QR al crear venta)</span>
+              
+              <!-- Información básica: Cantidad y Precio -->
+              <div class="grid grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Cantidad</label>
+                  <input type="number" class="combo-product-qty w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm" placeholder="1" value="${cp.qty || 1}" min="1" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Precio unitario</label>
+                  <input type="number" class="combo-product-price w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm" placeholder="0" step="0.01" value="${cp.unitPrice || 0}" />
+                </div>
+              </div>
+              
+              <!-- Toggle Slot Abierto -->
+              <div class="mb-3 p-3 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-200 rounded-lg border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
+                <label class="flex items-center gap-3 cursor-pointer group">
+                  <div class="relative">
+                    <input type="checkbox" class="combo-product-open-slot sr-only peer" ${cp.isOpenSlot ? 'checked' : ''} />
+                    <div class="w-11 h-6 bg-slate-600 dark:bg-slate-600 theme-light:bg-slate-400 peer-checked:bg-orange-500 dark:peer-checked:bg-orange-500 theme-light:peer-checked:bg-orange-400 rounded-full transition-colors duration-200"></div>
+                    <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 peer-checked:translate-x-5 shadow-md"></div>
+                  </div>
+                  <div class="flex-1">
+                    <div class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Slot abierto</div>
+                    <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Se completa con QR al crear la venta</div>
+                  </div>
+                  ${cp.isOpenSlot ? '<span class="px-2 py-1 bg-orange-500/20 dark:bg-orange-500/20 theme-light:bg-orange-100 text-orange-400 dark:text-orange-400 theme-light:text-orange-700 text-xs font-semibold rounded">Activo</span>' : ''}
                 </label>
               </div>
-              <div class="combo-product-item-section" style="${cp.isOpenSlot ? 'display:none;' : ''}">
-                <div class="row" style="gap:8px;">
-                  <input type="text" class="combo-product-item-search" placeholder="Buscar item del inventario (opcional)..." style="flex:1;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" value="${cp.itemId ? (cp.itemId.name || cp.itemId.sku || '') : ''}" />
-                  <button class="combo-product-item-qr secondary" style="padding:6px 12px;">📷 QR</button>
+              
+              <!-- Búsqueda de inventario (solo si NO es slot abierto) -->
+              <div class="combo-product-item-section ${cp.isOpenSlot ? 'hidden' : ''}">
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Vincular con inventario (opcional)</label>
+                <div class="flex gap-2 mb-2">
+                  <input type="text" class="combo-product-item-search flex-1 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm" placeholder="Buscar por SKU o nombre..." value="${cp.itemId ? (cp.itemId.name || cp.itemId.sku || '') : ''}" />
+                  <button class="combo-product-item-qr px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-sm">📷 QR</button>
                 </div>
-                <div class="combo-product-item-selected" style="margin-top:8px;padding:6px;background:var(--card);border-radius:4px;font-size:11px;${cp.itemId ? '' : 'display:none;'}">
-                  ${cp.itemId ? `<div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div><strong>${cp.itemId.name || cp.itemId.sku}</strong> <span style="font-size:12px;margin-left:8px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${cp.itemId.sku}</strong> | Stock: ${cp.itemId.stock || 0}</span></div>
-                    <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+                <div class="combo-product-item-selected mt-2 p-2 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 text-xs ${cp.itemId ? '' : 'hidden'}">
+                  ${cp.itemId ? `<div class="flex justify-between items-center">
+                    <div>
+                      <strong class="text-white dark:text-white theme-light:text-slate-900">${cp.itemId.name || cp.itemId.sku}</strong>
+                      <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-0.5">
+                        <span class="font-semibold">SKU:</span> ${cp.itemId.sku} | <span class="font-semibold">Stock:</span> ${cp.itemId.stock || 0}
+                      </div>
+                    </div>
+                    <button class="combo-product-item-remove-btn px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors duration-200">✕</button>
                   </div>` : ''}
                 </div>
               </div>
@@ -1306,7 +1338,7 @@ export function initPrices(){
             </div>
           `).join('')}
         </div>
-        <button id="pe-modal-add-combo-product" class="secondary" style="width:100%;padding:8px;margin-bottom:8px;">➕ Agregar producto</button>
+        <button id="pe-modal-add-combo-product" class="w-full px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">➕ Agregar producto</button>
       </div>
       ` : ''}
       ${isProduct ? `
@@ -1439,7 +1471,7 @@ export function initPrices(){
                 selectedItem = null;
                 itemIdInput.value = '';
                 itemSearch.value = '';
-                itemSelected.style.display = 'none';
+                itemSelected.classList.add('hidden');
               };
             }
             // Establecer el nombre del producto con el nombre del item del inventario
@@ -1479,7 +1511,7 @@ export function initPrices(){
                   selectedItem = null;
                   itemIdInput.value = '';
                   itemSearch.value = '';
-                  itemSelected.style.display = 'none';
+                  itemSelected.classList.add('hidden');
                 };
               }
               // Establecer el nombre del producto con el nombre del item del inventario
@@ -1556,7 +1588,7 @@ export function initPrices(){
                   selectedItem = null;
                   itemIdInput.value = '';
                   itemSearch.value = '';
-                  itemSelected.style.display = 'none';
+                  itemSelected.classList.add('hidden');
                 };
               }
               // Establecer el nombre del producto con el nombre del item del inventario
@@ -1653,7 +1685,7 @@ export function initPrices(){
                 selectedItem = null;
                 itemIdInput.value = '';
                 itemSearch.value = '';
-                itemSelected.style.display = 'none';
+                itemSelected.classList.add('hidden');
               };
             }
             // Establecer el nombre del producto con el nombre del item del inventario
@@ -1703,27 +1735,54 @@ export function initPrices(){
       function addComboProductRow(productData = {}) {
         const isOpenSlot = Boolean(productData.isOpenSlot);
         const row = document.createElement('div');
-        row.className = 'combo-product-item';
-        row.style.cssText = `padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;${isOpenSlot ? 'border-left:4px solid var(--warning, #f59e0b);' : ''}`;
+        row.className = `combo-product-item relative p-4 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 rounded-lg border ${isOpenSlot ? 'border-l-4 border-l-orange-500 dark:border-l-orange-500 theme-light:border-l-orange-400 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300' : 'border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300'} transition-all duration-200`;
+        row.setAttribute('data-index', comboProductsContainer.children.length.toString());
         row.innerHTML = `
-          <div class="row" style="gap:8px;margin-bottom:8px;">
-            <input type="text" class="combo-product-name" placeholder="Nombre del producto" value="${productData.name || ''}" style="flex:2;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
-            <input type="number" class="combo-product-qty" placeholder="Cant." value="${productData.qty || 1}" min="1" style="width:80px;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
-            <input type="number" class="combo-product-price" placeholder="Precio" step="0.01" value="${productData.unitPrice || 0}" style="width:120px;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
-            <button class="combo-product-remove danger" style="padding:6px 12px;">✕</button>
+          <!-- Header: Nombre del producto y botón eliminar -->
+          <div class="flex items-start justify-between gap-3 mb-3">
+            <div class="flex-1">
+              <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Nombre del producto</label>
+              <input type="text" class="combo-product-name w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm" placeholder="Ej: Filtro de aceite" value="${productData.name || ''}" />
+            </div>
+            <button class="combo-product-remove mt-6 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 text-sm font-semibold flex-shrink-0" title="Eliminar producto">🗑️</button>
           </div>
-          <div class="row" style="gap:8px;margin-bottom:8px;align-items:center;">
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-              <input type="checkbox" class="combo-product-open-slot" ${isOpenSlot ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;" />
-              <span style="color:var(--text);">Slot abierto (se completa con QR al crear venta)</span>
+          
+          <!-- Información básica: Cantidad y Precio -->
+          <div class="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Cantidad</label>
+              <input type="number" class="combo-product-qty w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm" placeholder="1" value="${productData.qty || 1}" min="1" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Precio unitario</label>
+              <input type="number" class="combo-product-price w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm" placeholder="0" step="0.01" value="${productData.unitPrice || 0}" />
+            </div>
+          </div>
+          
+          <!-- Toggle Slot Abierto -->
+          <div class="mb-3 p-3 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-200 rounded-lg border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
+            <label class="flex items-center gap-3 cursor-pointer group">
+              <div class="relative">
+                <input type="checkbox" class="combo-product-open-slot sr-only peer" ${isOpenSlot ? 'checked' : ''} />
+                <div class="w-11 h-6 bg-slate-600 dark:bg-slate-600 theme-light:bg-slate-400 peer-checked:bg-orange-500 dark:peer-checked:bg-orange-500 theme-light:peer-checked:bg-orange-400 rounded-full transition-colors duration-200"></div>
+                <div class="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 peer-checked:translate-x-5 shadow-md"></div>
+              </div>
+              <div class="flex-1">
+                <div class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Slot abierto</div>
+                <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Se completa con QR al crear la venta</div>
+              </div>
+              ${isOpenSlot ? '<span class="px-2 py-1 bg-orange-500/20 dark:bg-orange-500/20 theme-light:bg-orange-100 text-orange-400 dark:text-orange-400 theme-light:text-orange-700 text-xs font-semibold rounded">Activo</span>' : ''}
             </label>
           </div>
-          <div class="combo-product-item-section" style="${isOpenSlot ? 'display:none;' : ''}">
-            <div class="row" style="gap:8px;">
-              <input type="text" class="combo-product-item-search" placeholder="Buscar item del inventario (opcional)..." style="flex:1;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" value="${productData.itemId ? (productData.itemId.sku || '') + ' - ' + (productData.itemId.name || '') : ''}" />
-              <button class="combo-product-item-qr secondary" style="padding:6px 12px;">📷 QR</button>
+          
+          <!-- Búsqueda de inventario (solo si NO es slot abierto) -->
+          <div class="combo-product-item-section ${isOpenSlot ? 'hidden' : ''}">
+            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Vincular con inventario (opcional)</label>
+            <div class="flex gap-2 mb-2">
+              <input type="text" class="combo-product-item-search flex-1 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm" placeholder="Buscar por SKU o nombre..." value="${productData.itemId ? (productData.itemId.sku || '') + ' - ' + (productData.itemId.name || '') : ''}" />
+              <button class="combo-product-item-qr px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-sm">📷 QR</button>
             </div>
-            <div class="combo-product-item-selected" style="margin-top:8px;padding:6px;background:var(--card);border-radius:4px;font-size:11px;display:none;"></div>
+            <div class="combo-product-item-selected mt-2 p-2 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 text-xs hidden"></div>
           </div>
           <input type="hidden" class="combo-product-item-id" value="${productData.itemId?._id || ''}" />
         `;
@@ -1734,6 +1793,53 @@ export function initPrices(){
           updateComboTotal();
         };
         
+        // Manejar el toggle de slot abierto
+        const openSlotCheckbox = row.querySelector('.combo-product-open-slot');
+        const itemSection = row.querySelector('.combo-product-item-section');
+        const slotBadge = row.querySelector('label .flex-1 + span');
+        
+        if (openSlotCheckbox) {
+          openSlotCheckbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            if (isChecked) {
+              itemSection.classList.add('hidden');
+              // Actualizar borde izquierdo
+              row.className = row.className.replace(/border-slate-700\/50|border-slate-300/g, '').trim();
+              row.className += ' border-l-4 border-l-orange-500 dark:border-l-orange-500 theme-light:border-l-orange-400 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300';
+              // Agregar badge "Activo"
+              if (!slotBadge || !slotBadge.textContent.includes('Activo')) {
+                const badge = document.createElement('span');
+                badge.className = 'px-2 py-1 bg-orange-500/20 dark:bg-orange-500/20 theme-light:bg-orange-100 text-orange-400 dark:text-orange-400 theme-light:text-orange-700 text-xs font-semibold rounded';
+                badge.textContent = 'Activo';
+                const label = row.querySelector('label');
+                if (label && !label.querySelector('span:last-child')?.textContent.includes('Activo')) {
+                  label.appendChild(badge);
+                }
+              }
+              // Limpiar item seleccionado
+              const itemIdInput = row.querySelector('.combo-product-item-id');
+              const itemSearch = row.querySelector('.combo-product-item-search');
+              const itemSelected = row.querySelector('.combo-product-item-selected');
+              if (itemIdInput) itemIdInput.value = '';
+              if (itemSearch) itemSearch.value = '';
+              if (itemSelected) itemSelected.classList.add('hidden');
+            } else {
+              itemSection.classList.remove('hidden');
+              // Remover borde izquierdo naranja
+              row.className = row.className.replace(/border-l-4 border-l-orange-[^ ]+/g, '').trim();
+              if (!row.className.includes('border-slate-700/50') && !row.className.includes('border-slate-300')) {
+                row.className += ' border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300';
+              }
+              // Remover badge "Activo"
+              const activeBadge = row.querySelector('label span:last-child');
+              if (activeBadge && activeBadge.textContent.includes('Activo')) {
+                activeBadge.remove();
+              }
+            }
+            updateComboTotal();
+          });
+        }
+        
         const itemSearch = row.querySelector('.combo-product-item-search');
         const itemSelected = row.querySelector('.combo-product-item-selected');
         const itemIdInput = row.querySelector('.combo-product-item-id');
@@ -1743,12 +1849,17 @@ export function initPrices(){
         if (productData.itemId) {
           itemSearch.value = `${productData.itemId.sku || ''} - ${productData.itemId.name || ''}`;
           itemSelected.innerHTML = `
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <div><strong>${productData.itemId.name || productData.itemId.sku}</strong> <span class="muted">SKU: ${productData.itemId.sku} | Stock: ${productData.itemId.stock || 0}</span></div>
-              <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+            <div class="flex justify-between items-center">
+              <div>
+                <strong class="text-white dark:text-white theme-light:text-slate-900">${productData.itemId.name || productData.itemId.sku}</strong>
+                <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-0.5">
+                  <span class="font-semibold">SKU:</span> ${productData.itemId.sku} | <span class="font-semibold">Stock:</span> ${productData.itemId.stock || 0}
+                </div>
+              </div>
+              <button class="combo-product-item-remove-btn px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors duration-200">✕</button>
             </div>
           `;
-          itemSelected.style.display = 'block';
+          itemSelected.classList.remove('hidden');
         }
         
         let searchTimeout = null;
@@ -1807,7 +1918,7 @@ export function initPrices(){
                 selectedComboItem = null;
                 itemIdInput.value = '';
                 itemSearch.value = '';
-                itemSelected.style.display = 'none';
+                itemSelected.classList.add('hidden');
               };
             }
             // Establecer el nombre del combo product con el nombre del item
@@ -1854,7 +1965,7 @@ export function initPrices(){
                     selectedComboItem = null;
                     itemIdInput.value = '';
                     itemSearch.value = '';
-                    itemSelected.style.display = 'none';
+                    itemSelected.classList.add('hidden');
                   };
                 }
                 dropdown.remove();
@@ -1940,7 +2051,7 @@ export function initPrices(){
                     selectedComboItem = null;
                     itemIdInput.value = '';
                     itemSearch.value = '';
-                    itemSelected.style.display = 'none';
+                    itemSelected.classList.add('hidden');
                   };
                 }
                 // Establecer el nombre del combo product con el nombre del item
@@ -2023,20 +2134,25 @@ export function initPrices(){
               selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
               itemIdInput.value = item._id;
               itemSearch.value = `${item.sku} - ${item.name}`;
-              itemSelected.innerHTML = `
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                  <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
-                  <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+            itemSelected.innerHTML = `
+              <div class="flex justify-between items-center">
+                <div>
+                  <strong class="text-white dark:text-white theme-light:text-slate-900">${item.name}</strong>
+                  <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-0.5">
+                    <span class="font-semibold">SKU:</span> ${item.sku} | <span class="font-semibold">Stock:</span> ${item.stock || 0}
+                  </div>
                 </div>
-              `;
-              itemSelected.style.display = 'block';
+                <button class="combo-product-item-remove-btn px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors duration-200">✕</button>
+              </div>
+            `;
+            itemSelected.classList.remove('hidden');
               const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
               if (removeBtn2) {
                 removeBtn2.onclick = () => {
                   selectedComboItem = null;
                   itemIdInput.value = '';
                   itemSearch.value = '';
-                  itemSelected.style.display = 'none';
+                  itemSelected.classList.add('hidden');
                 };
               }
               // Establecer el nombre del combo product con el nombre del item
@@ -2064,7 +2180,7 @@ export function initPrices(){
             selectedComboItem = null;
             itemIdInput.value = '';
             itemSearch.value = '';
-            itemSelected.style.display = 'none';
+            itemSelected.classList.add('hidden');
           };
         }
         
@@ -2115,17 +2231,38 @@ export function initPrices(){
           checkbox.addEventListener('change', (e) => {
             const isChecked = e.target.checked;
             if (isChecked) {
-              itemSection.style.display = 'none';
+              itemSection.classList.add('hidden');
+              // Actualizar borde izquierdo
+              row.className = row.className.replace(/border-slate-700\/50|border-slate-300/g, '').trim();
+              row.className += ' border-l-4 border-l-orange-500 dark:border-l-orange-500 theme-light:border-l-orange-400 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300';
+              // Agregar badge "Activo" si no existe
+              const label = row.querySelector('label');
+              const existingBadge = label?.querySelector('span:last-child');
+              if (label && (!existingBadge || !existingBadge.textContent.includes('Activo'))) {
+                const badge = document.createElement('span');
+                badge.className = 'px-2 py-1 bg-orange-500/20 dark:bg-orange-500/20 theme-light:bg-orange-100 text-orange-400 dark:text-orange-400 theme-light:text-orange-700 text-xs font-semibold rounded';
+                badge.textContent = 'Activo';
+                label.appendChild(badge);
+              }
+              // Limpiar item seleccionado
               const itemIdInput = row.querySelector('.combo-product-item-id');
               const itemSearch = row.querySelector('.combo-product-item-search');
               const itemSelected = row.querySelector('.combo-product-item-selected');
-              itemIdInput.value = '';
-              itemSearch.value = '';
-              itemSelected.style.display = 'none';
-              row.style.borderLeft = '4px solid var(--warning, #f59e0b)';
+              if (itemIdInput) itemIdInput.value = '';
+              if (itemSearch) itemSearch.value = '';
+              if (itemSelected) itemSelected.classList.add('hidden');
             } else {
-              itemSection.style.display = 'block';
-              row.style.borderLeft = '';
+              itemSection.classList.remove('hidden');
+              // Remover borde izquierdo naranja
+              row.className = row.className.replace(/border-l-4 border-l-orange-[^ ]+/g, '').trim();
+              if (!row.className.includes('border-slate-700/50') && !row.className.includes('border-slate-300')) {
+                row.className += ' border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300';
+              }
+              // Remover badge "Activo"
+              const activeBadge = row.querySelector('label span:last-child');
+              if (activeBadge && activeBadge.textContent.includes('Activo')) {
+                activeBadge.remove();
+              }
             }
             updateComboTotal();
           });

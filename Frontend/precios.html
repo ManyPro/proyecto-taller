@@ -137,6 +137,23 @@
     body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: rgba(100, 116, 139, 0.6);
     }
+    /* Estilos para toggle switch personalizado */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
+    /* Asegurar que peer-checked funcione correctamente */
+    .peer:checked ~ .peer-checked\:bg-orange-500,
+    .peer:checked ~ .peer-checked\:translate-x-5 {
+      /* Tailwind maneja esto automáticamente, pero asegurémonos de que funcione */
+    }
     #modalBody {
       scrollbar-width: thin;
       scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
