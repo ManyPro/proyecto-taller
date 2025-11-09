@@ -223,9 +223,11 @@ function openLightbox(media) {
   const isVideo = (media.mimetype || "").startsWith("video/");
   // Detectar si es pantalla grande (PC)
   const isDesktop = window.innerWidth >= 768;
-  const maxSize = isDesktop ? '40vw' : '50vw';
-  const maxHeight = isDesktop ? '40vh' : '50vh';
-  const containerHeight = isDesktop ? '40vh' : '50vh';
+  // En PC: modal grande pero imagen pequeña (30% del viewport)
+  // En móvil: mantener tamaño actual
+  const maxSize = isDesktop ? '30vw' : '50vw';
+  const maxHeight = isDesktop ? '30vh' : '50vh';
+  const containerHeight = isDesktop ? '70vh' : '50vh'; // Modal grande en PC
   
   invOpenModal(
     `<div class="image-lightbox flex flex-col items-center justify-center p-4">
@@ -262,11 +264,13 @@ function openLightbox(media) {
           if (container) {
             // Detectar si es pantalla grande (PC)
             const isDesktop = window.innerWidth >= 768;
-            const maxWidthPercent = isDesktop ? 0.4 : 0.5; // 40% en PC, 50% en móvil
-            const maxHeightPercent = isDesktop ? 0.4 : 0.5;
+            // En PC: imagen pequeña (30% del viewport) para que quepa completa
+            // En móvil: mantener 50%
+            const maxWidthPercent = isDesktop ? 0.3 : 0.5;
+            const maxHeightPercent = isDesktop ? 0.3 : 0.5;
             
             const maxWidth = Math.min(container.clientWidth * maxWidthPercent, window.innerWidth * maxWidthPercent);
-            const maxHeight = Math.min(container.clientHeight, window.innerHeight * maxHeightPercent);
+            const maxHeight = Math.min(container.clientHeight * maxHeightPercent, window.innerHeight * maxHeightPercent);
             
             // Calcular el tamaño manteniendo la proporción
             const imgAspect = img.naturalWidth / img.naturalHeight;
@@ -283,11 +287,14 @@ function openLightbox(media) {
               finalWidth = maxHeight * imgAspect;
             }
             
+            // Asegurar que la imagen no exceda los límites del contenedor
             img.style.width = finalWidth + 'px';
             img.style.height = finalHeight + 'px';
-            img.style.maxWidth = isDesktop ? '40vw' : '50vw';
-            img.style.maxHeight = isDesktop ? '40vh' : '50vh';
+            img.style.maxWidth = isDesktop ? '30vw' : '50vw';
+            img.style.maxHeight = isDesktop ? '30vh' : '50vh';
             img.style.objectFit = 'contain';
+            img.style.display = 'block';
+            img.style.margin = '0 auto';
           }
         }
         setupImageZoom();
@@ -338,13 +345,17 @@ function setupImageZoom() {
     translateX = 0;
     translateY = 0;
     applyTransform();
-    // Asegurar que el contenedor no tenga scroll
+    // Asegurar que el contenedor no tenga scroll y restaurar tamaño inicial
     const container = img.parentElement;
     if (container) {
       container.scrollTop = 0;
       container.scrollLeft = 0;
       container.style.overflow = 'hidden';
     }
+    // Restaurar tamaño máximo de la imagen
+    const isDesktop = window.innerWidth >= 768;
+    img.style.maxWidth = isDesktop ? '30vw' : '50vw';
+    img.style.maxHeight = isDesktop ? '30vh' : '50vh';
   };
   
   // Asegurar que el contenedor nunca tenga scroll
@@ -354,6 +365,10 @@ function setupImageZoom() {
     container.style.overflowX = 'hidden';
     container.style.overflowY = 'hidden';
   }
+  
+  // Limitar el zoom mínimo para que la imagen siempre quepa completa
+  const isDesktop = window.innerWidth >= 768;
+  const minScale = 0.5; // Permitir zoom out hasta 50%
   
   // Click para zoom in/out
   img.onclick = (e) => {
@@ -373,8 +388,15 @@ function setupImageZoom() {
   };
   
   if (zoomOut) zoomOut.onclick = () => {
-    scale = Math.max(scale - 0.3, 0.5);
+    const minScale = 0.3; // Permitir zoom out hasta 30% para que siempre quepa
+    scale = Math.max(scale - 0.3, minScale);
     applyTransform();
+    // Si llegamos al mínimo, asegurar que la imagen quepa completa
+    if (scale <= minScale + 0.1) {
+      translateX = 0;
+      translateY = 0;
+      applyTransform();
+    }
   };
   
   if (zoomReset) zoomReset.onclick = resetZoom;
@@ -382,9 +404,16 @@ function setupImageZoom() {
   // Zoom con rueda del mouse
   img.onwheel = (e) => {
     e.preventDefault();
+    const minScale = 0.3; // Permitir zoom out hasta 30% para que siempre quepa
     const delta = e.deltaY > 0 ? -0.2 : 0.2;
-    scale = Math.max(0.5, Math.min(5, scale + delta));
+    scale = Math.max(minScale, Math.min(5, scale + delta));
     applyTransform();
+    // Si llegamos al mínimo, asegurar que la imagen quepa completa
+    if (scale <= minScale + 0.1) {
+      translateX = 0;
+      translateY = 0;
+      applyTransform();
+    }
   };
   
   // Arrastrar cuando está con zoom
