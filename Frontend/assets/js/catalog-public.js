@@ -65,13 +65,23 @@ async function openDetail(id){
     const stockBadge = (it.stock||0)===0? '<span style="color:#ef4444;font-weight:700;">Agotado</span>' : (it.stock||0)<=1? '<span style="color:#f59e0b;">Bajo stock</span>':'';
     const content=`
       <div class="space-y-4">
-        <h3 class='m-0 mb-2 text-lg font-semibold text-white dark:text-white theme-light:text-slate-900'>${it.name}</h3>
-        ${it.brand? `<div class='text-xs opacity-80 text-slate-300 dark:text-slate-300 theme-light:text-slate-600'>Marca: ${it.brand}</div>`:''}
-        <div class='flex gap-2 flex-wrap mt-2'>
-          ${imgs.map(im=>`<img src='${im.url}' alt='${im.alt||''}' class='w-32 h-32 object-cover rounded-lg border-2 border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300' style='width:128px;height:128px;object-fit:cover;object-position:center;' loading='lazy' referrerpolicy='no-referrer'/>`).join('')}
+        <h3 class='m-0 mb-2 text-xl font-bold text-white dark:text-white theme-light:text-slate-900'>${it.name}</h3>
+        ${it.brand? `<div class='text-sm opacity-80 text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mb-3'>Marca: ${it.brand}</div>`:''}
+        <div class='flex justify-center items-center my-4'>
+          ${imgs.length > 0 ? `
+            <div class='flex gap-3 flex-wrap justify-center'>
+              ${imgs.map(im=>`<img src='${im.url}' alt='${im.alt||''}' class='object-cover rounded-lg border-2 border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 shadow-lg' style='max-width:400px;max-height:400px;width:auto;height:auto;object-fit:contain;object-position:center;display:block;margin:0 auto;' loading='lazy' referrerpolicy='no-referrer'/>`).join('')}
+            </div>
+          ` : `
+            <div class='w-full h-64 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-400 theme-light:text-slate-500'>
+              Sin imagen disponible
+            </div>
+          `}
         </div>
         <p class='text-sm leading-relaxed mt-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-600'>${(it.description||'').replace(/</g,'&lt;')}</p>
-        <div class='mt-3 font-bold text-white dark:text-white theme-light:text-slate-900'>Precio: ${money(it.price||0)} ${stockBadge? '• '+stockBadge:''}</div>
+        <div class='mt-4 p-3 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 rounded-lg'>
+          <div class='text-lg font-bold text-white dark:text-white theme-light:text-slate-900'>Precio: ${money(it.price||0)} ${stockBadge? '• '+stockBadge:''}</div>
+        </div>
         <div class='flex gap-2 mt-4 justify-end'>
           ${contactBtn}
           <button id='d-add' ${it.stock===0? 'disabled':''} class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">Agregar al carrito</button>
@@ -90,7 +100,7 @@ function ensureModal(){
   m=document.createElement('div'); 
   m.id='public-modal'; 
   m.className='fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm'; 
-  m.innerHTML='<div id="public-modal-box" class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-2xl w-full max-h-[80vh] overflow-auto p-5 custom-scrollbar"><button id="public-modal-close" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button></div>'; 
+  m.innerHTML='<div id="public-modal-box" class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-3xl w-full max-h-[90vh] overflow-auto p-6 custom-scrollbar"><button id="public-modal-close" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button></div>'; 
   document.body.appendChild(m); 
   return m; 
 }

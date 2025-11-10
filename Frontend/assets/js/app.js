@@ -15,7 +15,6 @@ export { loadFeatureOptionsAndRestrictions, getFeatureOptions, getRestrictions, 
 
 // ========== THEME (oscuro / claro) ==========
 const THEME_KEY = 'app:theme';
-const DENSE_KEY = 'app:dense';
 function applyTheme(theme){
   const body = document.body;
   if(!body) return;
@@ -68,7 +67,6 @@ document.addEventListener('DOMContentLoaded', ()=>{
   });
   initFAB();
   initCollapsibles();
-  initDenseToggle();
   const main = document.querySelector('main');
   if (main) initPullToRefresh(main);
   // Prefill email if stored
@@ -391,33 +389,7 @@ function initCollapsibles(){
   });
 }
 
-// ================= Modo densidad =================
-export function toggleDense(on){
-  document.body.classList.toggle('dense', !!on);
-  try{ localStorage.setItem(DENSE_KEY, on ? '1':'0'); }catch{}
-}
-
-function initDenseToggle(){
-  let btn = document.getElementById('denseToggle');
-  if(!btn){
-    // Insert next to themeToggle if exists
-    const themeBtn = document.getElementById('themeToggle');
-    if(themeBtn && themeBtn.parentElement){
-      btn = document.createElement('button');
-      btn.id='denseToggle';
-      btn.className='secondary';
-      btn.title='Modo compacto';
-      btn.textContent='↕';
-      themeBtn.parentElement.insertBefore(btn, themeBtn);
-    }
-  }
-  const stored = (()=>{ try{return localStorage.getItem(DENSE_KEY);}catch{return null;} })();
-  if(stored==='1') toggleDense(true);
-  btn?.addEventListener('click',()=>{
-    const active = document.body.classList.contains('dense');
-    toggleDense(!active);
-  });
-}
+// ================= Modo densidad ================= (removido - ya no se usa)
 
 // Login simple (usa tu API)
 let loginBtn, registerBtn;
@@ -548,7 +520,7 @@ function initializeLogoutListener() {
     if(!desktopActions && !mobileActions) {
       const allDivs = appHeaderEl.querySelectorAll('div');
       for(let div of allDivs) {
-        if(div.querySelector('#themeToggle') || div.querySelector('#denseToggle')) {
+        if(div.querySelector('#themeToggle')) {
           return div;
         }
       }

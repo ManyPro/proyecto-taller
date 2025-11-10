@@ -136,11 +136,19 @@
     }
     /* Estilos del selector de plantillas - mantener compatibilidad */
     body[data-page="formatos"]{
-      background: var(--bg) !important;
+      background: #0f172a !important;
       padding: 0 !important;
     }
     body.theme-light[data-page="formatos"] {
       background: #f8fafc !important;
+    }
+    body[data-page="formatos"] main {
+      background: #0f172a;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    body.theme-light[data-page="formatos"] main {
+      background: #f8fafc;
     }
   </style>
   <link rel="stylesheet" href="assets/css/pages/template-selector.css?v=20251010-2">
@@ -169,14 +177,12 @@
           <div class="hidden md:flex items-center gap-2">
             <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
             <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
-            <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
             <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
           </div>
 
           <!-- Menú Hamburguesa (Mobile) -->
           <div class="md:hidden flex items-center gap-2">
             <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
-            <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
             <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
             <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -631,13 +637,13 @@
         grid.innerHTML = availableFormats.map(format => `
           <div class="format-card ${format.isActive ? 'active-format' : ''}" data-format-id="${format.id || format._id}">
             <div class="format-card-header">
-              <h4>
+              <h4 class="text-white dark:text-white theme-light:text-slate-900">
                 ${format.isActive ? '⭐ ' : ''}${format.name}
-                ${format.isActive ? '<span class="active-badge">ACTIVO</span>' : ''}
+                ${format.isActive ? '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-green-500/20 dark:bg-green-500/20 theme-light:bg-green-50 text-green-400 dark:text-green-400 theme-light:text-green-700 border border-green-500/30 dark:border-green-500/30 theme-light:border-green-200 ml-2">ACTIVO</span>' : ''}
               </h4>
-              <div class="actions">
+              <div class="actions flex gap-1">
                 <button class="action-btn px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors duration-200" title="Editar" onclick="editFormat('${format.id || format._id}', '${format.type || selectedDocumentType}', '${(format.name||'').replace(/'/g, "\'")}')">✏️</button>
-                <button class="action-btn px-2 py-1 bg-slate-700/50 hover:bg-slate-700 text-white rounded transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" title="Duplicar" onclick="duplicateFormat('${format.id || format._id}')">📋</button>
+                <button class="action-btn px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white theme-light:text-slate-700 rounded transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:hover:bg-slate-300" title="Duplicar" onclick="duplicateFormat('${format.id || format._id}')">📋</button>
                 ${!format.isActive ? `<button class="action-btn px-2 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded transition-colors duration-200" title="Activar" onclick="activateFormat('${format.id || format._id}')">⭐</button>` : ''}
                 <button class="action-btn px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors duration-200" title="Eliminar" onclick="deleteFormat('${format.id || format._id}')">🗑️</button>
               </div>
@@ -645,7 +651,7 @@
             <div class="meta">
               Creado: ${new Date(format.createdAt).toLocaleDateString('es-ES')} | 
               Modificado: ${new Date(format.updatedAt).toLocaleDateString('es-ES')}
-              ${format.isActive ? ' | <strong>🖨️ Usado para imprimir</strong>' : ''}
+              ${format.isActive ? ' | <strong class="text-white dark:text-white theme-light:text-slate-900">🖨️ Usado para imprimir</strong>' : ''}
             </div>
             <div class="preview">
               ${format.description || 'Sin descripción disponible'}
@@ -664,10 +670,14 @@
             }
             
             // Remove previous selection
-            document.querySelectorAll('.format-card').forEach(c => c.style.borderColor = '#e0e0e0');
+            document.querySelectorAll('.format-card').forEach(c => {
+              c.style.borderColor = '';
+              c.classList.remove('selected');
+            });
             
             // Select current
-            this.style.borderColor = '#2196f3';
+            this.style.borderColor = 'rgb(37 99 235)';
+            this.classList.add('selected');
             selectedFormat = availableFormats.find(f => (f.id || f._id) === this.dataset.formatId);
             updateContinueButton();
           });
