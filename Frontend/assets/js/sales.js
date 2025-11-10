@@ -1015,9 +1015,15 @@ function renderSale(){
     });
 
     const actions = tr.querySelector('td:last-child');
+    actions.style.display = 'flex';
+    actions.style.flexDirection = 'column';
+    actions.style.gap = '4px';
+    actions.style.alignItems = 'stretch';
+    
     const btnEdit = document.createElement('button');
     btnEdit.textContent = 'Editar $';
     btnEdit.className = 'secondary';
+    btnEdit.style.cssText = 'padding: 6px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; font-weight: 500; background: rgba(100, 116, 139, 0.3); color: white;';
     btnEdit.onclick = async () => {
       const v = prompt('Nuevo precio unitario:', String(it.unitPrice || 0));
       if (v == null) return;
@@ -1027,9 +1033,11 @@ function renderSale(){
       renderSale();
       renderWO();
     };
+    
     const btnZero = document.createElement('button');
     btnZero.textContent = 'Precio 0';
     btnZero.className = 'secondary';
+    btnZero.style.cssText = 'padding: 6px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; font-weight: 500; background: rgba(100, 116, 139, 0.3); color: white;';
     btnZero.onclick = async () => {
       current = await API.sales.updateItem(current._id, it._id, { unitPrice: 0 });
       syncCurrentIntoOpenList();
@@ -1037,17 +1045,24 @@ function renderSale(){
       renderSale();
       renderWO();
     };
+    
     const btnDel = tr.querySelector('button.remove');
-    btnDel.onclick = async () => {
-      await API.sales.removeItem(current._id, it._id);
-      current = await API.sales.get(current._id);
-      syncCurrentIntoOpenList();
-      renderTabs();
-      renderSale();
-      renderWO();
-    };
-    actions.prepend(btnEdit);
-    actions.prepend(btnZero);
+    if (btnDel) {
+      btnDel.style.cssText = 'padding: 6px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; font-weight: 500; background: rgba(239, 68, 68, 0.2); color: #fca5a5;';
+      btnDel.onclick = async () => {
+        await API.sales.removeItem(current._id, it._id);
+        current = await API.sales.get(current._id);
+        syncCurrentIntoOpenList();
+        renderTabs();
+        renderSale();
+        renderWO();
+      };
+    }
+    
+    actions.innerHTML = '';
+    actions.appendChild(btnEdit);
+    actions.appendChild(btnZero);
+    if (btnDel) actions.appendChild(btnDel);
   }
 
   if (total) total.textContent = money(current?.total||0);

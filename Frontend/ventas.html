@@ -148,6 +148,83 @@
       color: #ffffff !important;
       background-color: #2563eb !important;
     }
+    /* Estilos para la tabla de items de venta */
+    #sales-body tr {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    body.theme-light #sales-body tr {
+      border-bottom-color: rgba(203, 213, 225, 0.3);
+    }
+    #sales-body td {
+      padding: 12px 8px;
+      vertical-align: middle;
+    }
+    #sales-body .qty {
+      width: 60px !important;
+      max-width: 60px;
+      padding: 6px 8px;
+      text-align: center;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 6px;
+      background: rgba(30, 41, 59, 0.5);
+      color: white;
+      font-size: 14px;
+    }
+    body.theme-light #sales-body .qty {
+      background: #ffffff;
+      color: #0f172a;
+      border-color: #cbd5e1;
+    }
+    #sales-body .qty:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+    #sales-body td:last-child {
+      padding: 8px;
+      white-space: nowrap;
+    }
+    #sales-body td:last-child button {
+      margin: 2px;
+      padding: 6px 10px;
+      font-size: 11px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+    #sales-body td:last-child button.secondary {
+      background: rgba(100, 116, 139, 0.3);
+      color: white;
+    }
+    #sales-body td:last-child button.secondary:hover {
+      background: rgba(100, 116, 139, 0.5);
+    }
+    body.theme-light #sales-body td:last-child button.secondary {
+      background: #e2e8f0;
+      color: #475569;
+    }
+    body.theme-light #sales-body td:last-child button.secondary:hover {
+      background: #cbd5e1;
+      color: #334155;
+    }
+    #sales-body td:last-child button.remove {
+      background: rgba(239, 68, 68, 0.2);
+      color: #fca5a5;
+    }
+    #sales-body td:last-child button.remove:hover {
+      background: rgba(239, 68, 68, 0.4);
+      color: #ffffff;
+    }
+    body.theme-light #sales-body td:last-child button.remove {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    body.theme-light #sales-body td:last-child button.remove:hover {
+      background: #fecaca;
+      color: #b91c1c;
+    }
   </style>
   <link rel="stylesheet" href="assets/styles.css?v=20251010" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
@@ -698,14 +775,14 @@
       <!-- Fila de la venta -->
       <template id="tpl-sale-row">
         <tr>
-          <td data-sku></td>
-          <td data-name></td>
-          <td class="t-center">
+          <td data-sku class="py-3 px-3"></td>
+          <td data-name class="py-3 px-3"></td>
+          <td class="t-center py-3 px-3">
             <input type="number" class="qty" min="1" step="1" />
           </td>
-          <td class="t-right" data-unit></td>
-          <td class="t-right" data-total></td>
-          <td class="t-center"><button class="remove">Quitar</button></td>
+          <td class="t-right py-3 px-3" data-unit></td>
+          <td class="t-right py-3 px-3" data-total></td>
+          <td class="t-center py-3 px-3"><button class="remove">Quitar</button></td>
         </tr>
       </template>
 
