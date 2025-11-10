@@ -164,9 +164,6 @@
       setupVariables();
       setupKeyboardShortcuts();
       
-      // Add environment indicator
-      addEnvironmentIndicator();
-      
       // Add session header
       const session = window.currentTemplateSession;
       addSessionHeader(session.type, session.action, session.formatId);
@@ -195,6 +192,22 @@
         }
       }, 800); // Aumentar delay para asegurar que el DOM esté listo
       
+      // Listener para actualizar bordes cuando cambie el tema
+      const observer = new MutationObserver(() => {
+        const canvas = qs('#ce-canvas');
+        if (canvas && canvas.style.width) {
+          // Si el canvas ya tiene un tamaño aplicado, actualizar solo el borde
+          const isLightMode = document.body.classList.contains('theme-light');
+          const borderColor = isLightMode ? '#cbd5e1' : '#475569';
+          canvas.style.border = `2px dashed ${borderColor}`;
+        }
+      });
+      
+      observer.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class']
+      });
+      
     } catch (error) {
       console.error('❌ Error inicializando editor:', error);
       showQuickNotification('❌ Error al inicializar el editor', 'error');
@@ -216,17 +229,19 @@
     }
 
     // Make canvas suitable for visual editing - FONDO BLANCO OBLIGATORIO
+    // El tamaño se ajustará según el formato seleccionado
+    // Los bordes respetan el tema, pero el fondo siempre es blanco para impresión
+    const isLightMode = document.body.classList.contains('theme-light');
+    const borderColor = isLightMode ? '#cbd5e1' : '#475569';
     canvas.style.cssText = `
-      border: 2px dashed #ccc;
+      border: 2px dashed ${borderColor};
       padding: 20px;
       position: relative;
       background: #ffffff !important;
       color: #333;
       overflow: visible;
       border-radius: 8px;
-      margin: 10px 0;
-      min-height: 600px;
-      width: 100%;
+      margin: 10px auto;
       box-sizing: border-box;
     `;
 
@@ -1690,35 +1705,79 @@
     });
   }
 
-  function addEnvironmentIndicator() {
-    const isProduction = window.IS_PRODUCTION || false;
-    const environment = isProduction ? 'PRODUCCIÓN' : 'DESARROLLO';
-    const envColor = isProduction ? '#28a745' : '#ffc107';
-    const envIcon = isProduction ? '🌐' : '🔧';
-    
-    const envIndicator = document.createElement('div');
-    envIndicator.id = 'environment-indicator';
-    envIndicator.style.cssText = `
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      background: ${envColor};
-      color: ${isProduction ? 'white' : 'black'};
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
-      z-index: 2000;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-    `;
-    
-    envIndicator.innerHTML = `<span>${envIcon}</span> <span>${environment}</span>`;
-    document.body.appendChild(envIndicator);
-  }
 
-  function addSessionHeader(documentType, action, formatId) {
-    // Placeholder - se implementará después
-    console.log('Session header:', { documentType, action, formatId });
+  function applyCanvasSizeFromFormat(template) {
+    const canvas = qs('#ce-canvas');
+    if (!canvas) return;
+    
+    // Tamaños predefinidos en cm (convertidos a px a 96 DPI)
+    const formatSizes = {
+      'carta': { width: 21.6, height: 27.9 },
+      'media carta': { width: 14, height: 21.6 },
+      'half-letter': { width: 14, height: 21.6 },
+      'letter': { width: 21.6, height: 27.9 },
+      'sticker': { width: 5, height: 3 },
+      'sticker-qr': { width: 5, height: 3 },
+      'sticker-brand': { width: 5, height: 3 }
+    };
+    
+    // Función para convertir cm a px (96 DPI)
+    function cmToPx(cm) {
+      return Math.round(cm * 37.795275591);
+    }
+    
+    // Determinar tamaño del formato
+    let size = null;
+    const formatName = (template?.name || '').toLowerCase();
+    const formatType = (template?.type || '').toLowerCase();
+    
+    // Buscar en el nombre del formato
+    for (const [key, value] of Object.entries(formatSizes)) {
+      if (formatName.includes(key) || formatType.includes(key)) {
+        size = value;
+        break;
+      }
+    }
+    
+    // Si hay información en meta, usarla
+    if (!size && template?.meta?.pageSize) {
+      const pageSize = template.meta.pageSize.toLowerCase();
+      if (formatSizes[pageSize]) {
+        size = formatSizes[pageSize];
+      }
+    }
+    
+    // Si hay dimensiones personalizadas en meta
+    if (!size && template?.meta?.width && template?.meta?.height) {
+      size = {
+        width: parseFloat(template.meta.width),
+        height: parseFloat(template.meta.height)
+      };
+    }
+    
+    // Por defecto, usar carta si no se encuentra nada
+    if (!size) {
+      size = formatSizes['carta'];
+    }
+    
+    // Aplicar tamaño al canvas
+    const widthPx = cmToPx(size.width);
+    const heightPx = cmToPx(size.height);
+    
+    const isLightMode = document.body.classList.contains('theme-light');
+    const borderColor = isLightMode ? '#cbd5e1' : '#475569';
+    
+    canvas.style.width = widthPx + 'px';
+    canvas.style.height = heightPx + 'px';
+    canvas.style.maxWidth = widthPx + 'px';
+    canvas.style.maxHeight = heightPx + 'px';
+    canvas.style.minWidth = widthPx + 'px';
+    canvas.style.minHeight = heightPx + 'px';
+    canvas.style.margin = '0 auto';
+    canvas.style.border = `2px dashed ${borderColor}`;
+    canvas.style.background = '#ffffff';
+    
+    console.log(`📐 Canvas ajustado a: ${size.width} x ${size.height} cm (${widthPx} x ${heightPx} px)`);
   }
 
   async function loadExistingFormat(formatId) {
@@ -1754,6 +1813,9 @@
       canvas.style.visibility = 'visible';
       canvas.style.background = '#ffffff';
       canvas.offsetHeight; // Force reflow
+      
+      // Ajustar tamaño del canvas según el formato
+      applyCanvasSizeFromFormat(template);
       
       if (template.contentHtml && template.contentHtml.trim() !== '') {
         // Load existing content
@@ -1798,9 +1860,12 @@
     canvas.style.display = 'block';
     canvas.style.visibility = 'visible';
     canvas.style.background = '#ffffff';
-    canvas.style.minHeight = '600px';
-    canvas.style.width = '100%';
     canvas.offsetHeight; // Force reflow
+    
+    // Ajustar tamaño del canvas según el tipo de documento
+    // Para tipos de sticker, usar tamaño pequeño; para otros, usar carta por defecto
+    const mockTemplate = { type: documentType };
+    applyCanvasSizeFromFormat(mockTemplate);
     
     console.log('✅ Canvas visible, limpiando contenido anterior...');
 
