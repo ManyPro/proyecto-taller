@@ -1706,6 +1706,11 @@
   }
 
 
+  function addSessionHeader(documentType, action, formatId) {
+    // Placeholder - se implementará después si es necesario
+    console.log('Session header:', { documentType, action, formatId });
+  }
+
   function applyCanvasSizeFromFormat(template) {
     const canvas = qs('#ce-canvas');
     if (!canvas) return;
