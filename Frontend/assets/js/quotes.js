@@ -883,8 +883,7 @@ export function initQuotes({ getCompanyEmail }) {
 
   async function loadHistory(){
     try{
-      qhList.innerHTML='<small class="meta">Cargando...</small>';
-      // Llamada "raw" para poder inspeccionar metadata si existe
+      qhList.innerHTML='<div class="p-4 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cargando...</div>';
       const q = buildQuery();
       let attempt = 0; let lastErr;
       let res;
@@ -904,41 +903,70 @@ export function initQuotes({ getCompanyEmail }) {
       if(res?.metadata){ console.debug('[quotes] metadata:', res.metadata); }
       if(!rows.length){
         if(res?.metadata && res.metadata.total>0){
-          qhList.innerHTML=`<small class="meta">Sin items en esta página (total ${res.metadata.total}).</small>`;
+          qhList.innerHTML=`<div class="p-6 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-50 rounded-lg border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">Sin items en esta página (total ${res.metadata.total}).</div>`;
         } else {
-          qhList.innerHTML='<small class="meta">No hay cotizaciones aún.</small>';
+          qhList.innerHTML='<div class="p-6 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-50 rounded-lg border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">No hay cotizaciones aún.</div>';
         }
         return;
       }
       renderHistory(rows);
     }catch(e){
-      qhList.innerHTML=`<small class="meta">Error: ${e?.message || 'No se pudo cargar'}</small>`;
+      qhList.innerHTML=`<div class="p-4 text-red-400 bg-red-900/20 rounded-lg border border-red-800/50">Error: ${e?.message || 'No se pudo cargar'}</div>`;
       try { console.error('[quotes] loadHistory error', e); } catch {}
     }
   }
 
   function renderHistory(rows){
-    if(!rows.length){ qhList.innerHTML=`<small class="meta">Sin resultados.</small>`; return; }
+    if(!rows.length){ 
+      qhList.innerHTML=`<div class="p-6 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-50 rounded-lg border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">Sin resultados.</div>`; 
+      return; 
+    }
     qhList.innerHTML='';
+    qhList.className = 'space-y-3 custom-scrollbar';
+    qhList.style.maxHeight = '600px';
+    qhList.style.overflowY = 'auto';
+    qhList.style.paddingRight = '8px';
+    
     rows.forEach(d=>{
-      const el=document.createElement('div'); el.className='qh-item';
+      const el=document.createElement('div');
+      el.className='p-4 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-200 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 rounded-lg transition-all duration-200';
       const date=d.createdAt?new Date(d.createdAt).toLocaleString():'';
+      const vehicleInfo = [d.vehicle?.make,d.vehicle?.line,d.vehicle?.modelYear].filter(Boolean).join(' ')||'—';
       el.innerHTML=`
-        <div><strong>#${(d.number||'').toString().padStart(5,'0')}</strong><div class="meta">${date}</div></div>
-  <div><div><strong>${d.customer?.name||'—'}</strong></div><div class="meta">${[d.vehicle?.make,d.vehicle?.line,d.vehicle?.modelYear].filter(Boolean).join(' ')||'—'}</div></div>
-  <div><div>Placa</div><div class="meta">${d.vehicle?.plate||'—'}</div></div>
-        <div><div>Total</div><div class="meta">${money(d.total||0)}</div></div>
-        <div class="actions">
-          <button data-act="edit">Ver/Editar</button>
-          <button class="secondary" data-act="wa">WhatsApp</button>
-          <button class="secondary" data-act="pdf">PDF</button>
-          <button class="danger" data-act="del">Eliminar</button>
-        </div>`;
+        <div class="flex flex-col md:flex-row md:items-center gap-4">
+          <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Número</div>
+              <div class="text-lg font-bold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">#${(d.number||'').toString().padStart(5,'0')}</div>
+              <div class="text-xs text-slate-500 dark:text-slate-500 theme-light:text-slate-600 mt-1">${date}</div>
+            </div>
+            <div>
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Cliente</div>
+              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${d.customer?.name||'—'}</div>
+              <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">${vehicleInfo}</div>
+            </div>
+            <div>
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Placa</div>
+              <div class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">${d.vehicle?.plate||'—'}</div>
+            </div>
+            <div>
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total</div>
+              <div class="text-lg font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${money(d.total||0)}</div>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2 items-center">
+            <button data-act="edit" class="px-3 py-1.5 text-xs bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-medium rounded-lg shadow-sm hover:shadow-md transition-all duration-200">Ver/Editar</button>
+            <button data-act="wa" class="px-3 py-1.5 text-xs bg-green-600/80 dark:bg-green-600/80 theme-light:bg-green-500 hover:bg-green-600 dark:hover:bg-green-600 theme-light:hover:bg-green-600 text-white font-medium rounded-lg transition-all duration-200">WhatsApp</button>
+            <button data-act="pdf" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">PDF</button>
+            <button data-act="del" class="px-3 py-1.5 text-xs bg-red-600/80 dark:bg-red-600/80 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white font-medium rounded-lg transition-all duration-200">Eliminar</button>
+          </div>
+        </div>
+      `;
       el.querySelector('[data-act="edit"]')?.addEventListener('click',()=>openQuoteModal(d));
       el.querySelector('[data-act="wa"]')?.addEventListener('click',()=>openWAFromDoc(d));
       el.querySelector('[data-act="pdf"]')?.addEventListener('click',()=>exportPDFFromDoc(d));
       el.querySelector('[data-act="del"]')?.addEventListener('click',async ()=>{
-  if(!confirm('¿Eliminar cotización?')) return;
+        if(!confirm('¿Eliminar cotización?')) return;
         try{ await API.quoteDelete(d._id); loadHistory(); }catch(e){ alert(e?.message||'Error al eliminar'); }
       });
       qhList.appendChild(el);

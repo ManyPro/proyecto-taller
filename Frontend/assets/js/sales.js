@@ -1290,10 +1290,80 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
 function renderWO(){
   const b = document.getElementById('sv-wo-body'); if (!b) return;
   b.innerHTML = '';
-  for(const it of (current?.items||[])){
-    const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${it.name||''}</td><td class="t-center">${String(it.qty||1)}</td>`;
-    b.appendChild(tr);
+  
+  if (!current?.items || current.items.length === 0) {
+    const emptyRow = document.createElement('tr');
+    emptyRow.innerHTML = `<td colspan="2" class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay items en la orden de trabajo</td>`;
+    b.appendChild(emptyRow);
+    return;
+  }
+  
+  const items = current.items || [];
+  const services = items.filter(it => {
+    const sku = String(it.sku || '').toUpperCase();
+    return it.source === 'service' || sku.startsWith('SRV-');
+  });
+  const products = items.filter(it => {
+    const sku = String(it.sku || '').toUpperCase();
+    return !(it.source === 'service' || sku.startsWith('SRV-'));
+  });
+  
+  // Sección de Servicios
+  if (services.length > 0) {
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'wo-section-header';
+    headerRow.innerHTML = `
+      <td colspan="2" class="py-3 px-3 bg-blue-600/20 dark:bg-blue-600/20 theme-light:bg-blue-50 border-b border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-200">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">🔧</span>
+          <span class="font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-700">Servicios</span>
+          <span class="text-xs text-blue-300 dark:text-blue-300 theme-light:text-blue-600">(${services.length})</span>
+        </div>
+      </td>
+    `;
+    b.appendChild(headerRow);
+    
+    services.forEach(it => {
+      const tr = document.createElement('tr');
+      tr.className = 'wo-item wo-service';
+      tr.innerHTML = `
+        <td class="py-2.5 px-3 text-white dark:text-white theme-light:text-slate-900">${it.name||''}</td>
+        <td class="t-center py-2.5 px-3 text-white dark:text-white theme-light:text-slate-900 font-medium">${String(it.qty||1)}</td>
+      `;
+      b.appendChild(tr);
+    });
+  }
+  
+  // Sección de Productos
+  if (products.length > 0) {
+    if (services.length > 0) {
+      const spacerRow = document.createElement('tr');
+      spacerRow.innerHTML = `<td colspan="2" class="py-2"></td>`;
+      b.appendChild(spacerRow);
+    }
+    
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'wo-section-header';
+    headerRow.innerHTML = `
+      <td colspan="2" class="py-3 px-3 bg-green-600/20 dark:bg-green-600/20 theme-light:bg-green-50 border-b border-green-600/30 dark:border-green-600/30 theme-light:border-green-200">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">📦</span>
+          <span class="font-semibold text-green-400 dark:text-green-400 theme-light:text-green-700">Productos</span>
+          <span class="text-xs text-green-300 dark:text-green-300 theme-light:text-green-600">(${products.length})</span>
+        </div>
+      </td>
+    `;
+    b.appendChild(headerRow);
+    
+    products.forEach(it => {
+      const tr = document.createElement('tr');
+      tr.className = 'wo-item wo-product';
+      tr.innerHTML = `
+        <td class="py-2.5 px-3 text-white dark:text-white theme-light:text-slate-900">${it.name||''}</td>
+        <td class="t-center py-2.5 px-3 text-white dark:text-white theme-light:text-slate-900 font-medium">${String(it.qty||1)}</td>
+      `;
+      b.appendChild(tr);
+    });
   }
 }
 

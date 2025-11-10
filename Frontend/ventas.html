@@ -225,6 +225,29 @@
       background: #fecaca;
       color: #b91c1c;
     }
+    /* Estilos para la orden de trabajo */
+    #sv-wo-body tr.wo-section-header td {
+      font-weight: 600;
+    }
+    #sv-wo-body tr.wo-item {
+      border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+      transition: background-color 0.2s;
+    }
+    #sv-wo-body tr.wo-item:hover {
+      background-color: rgba(148, 163, 184, 0.1);
+    }
+    body.theme-light #sv-wo-body tr.wo-item {
+      border-bottom-color: rgba(203, 213, 225, 0.3);
+    }
+    body.theme-light #sv-wo-body tr.wo-item:hover {
+      background-color: rgba(203, 213, 225, 0.2);
+    }
+    #sv-wo-body tr.wo-service td:first-child {
+      padding-left: 2rem;
+    }
+    #sv-wo-body tr.wo-product td:first-child {
+      padding-left: 2rem;
+    }
   </style>
   <link rel="stylesheet" href="assets/styles.css?v=20251010" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
@@ -253,13 +276,13 @@
           <!-- Botones de Acción (Desktop) -->
           <div class="hidden md:flex items-center gap-2">
             <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
-            <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
+            <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
             <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
           </div>
 
           <!-- Menú Hamburguesa (Mobile) -->
           <div class="md:hidden flex items-center gap-2">
-            <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
+            <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
             <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
             <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1100,6 +1123,38 @@
           }
         });
       });
+    });
+    
+    // Botón del catálogo
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('openPublicCatalog');
+      if(!btn) return;
+      const API = window.API || {};
+      const token = API?.token?.get?.() || '';
+      if(!token){ btn.disabled=true; btn.title='Inicia sesión para usar el catálogo'; return; }
+      (API.companyMe ? API.companyMe() : Promise.reject(new Error('API no disponible')))
+        .then(body => {
+          const company = body?.company || body || {};
+          const storedId = API?.companyId?.get?.() || '';
+          const companyId = company.id || company._id || storedId || '';
+          const enabled = (typeof company.publicCatalogEnabled === 'boolean') ? company.publicCatalogEnabled : true;
+          if(!companyId){ btn.disabled=true; btn.title='No se pudo obtener companyId'; return; }
+          if(!enabled){ btn.disabled=true; btn.title='Catálogo público deshabilitado'; btn.dataset.state='disabled'; return; }
+          btn.dataset.state='ready';
+          btn.onclick = () => {
+            const url = 'catalogo.html?companyId=' + encodeURIComponent(companyId);
+            window.open(url, '_blank');
+          };
+        })
+        .catch(()=>{
+          const storedId = API?.companyId?.get?.() || '';
+          if(storedId){
+            btn.dataset.state='ready'; btn.title=''; btn.disabled=false;
+            btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+          } else {
+            btn.disabled=true; btn.title='Error consultando empresa'; btn.dataset.state='error';
+          }
+        });
     });
   </script>
 </body>
