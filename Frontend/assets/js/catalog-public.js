@@ -32,7 +32,7 @@ function buildItemCard(it){
   card.className='item-card';
   card.innerHTML=`
     <div class='media'>
-      <img src="${img}" alt="${it.name}" loading="lazy" referrerpolicy="no-referrer" />
+      <img src="${img}" alt="${it.name}" loading="lazy" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;object-position:center;display:block;" />
       ${out? `<span class='badge low'>AGOTADO</span>`: low? `<span class='badge'>BAJO STOCK</span>`:''}
     </div>
     <div class='item-name'>${it.name}</div>
@@ -68,7 +68,7 @@ async function openDetail(id){
         <h3 class='m-0 mb-2 text-lg font-semibold text-white dark:text-white theme-light:text-slate-900'>${it.name}</h3>
         ${it.brand? `<div class='text-xs opacity-80 text-slate-300 dark:text-slate-300 theme-light:text-slate-600'>Marca: ${it.brand}</div>`:''}
         <div class='flex gap-2 flex-wrap mt-2'>
-          ${imgs.map(im=>`<img src='${im.url}' alt='${im.alt||''}' class='w-30 h-24 object-cover rounded-lg border-2 border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300' loading='lazy' referrerpolicy='no-referrer'/>`).join('')}
+          ${imgs.map(im=>`<img src='${im.url}' alt='${im.alt||''}' class='w-32 h-32 object-cover rounded-lg border-2 border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300' style='width:128px;height:128px;object-fit:cover;object-position:center;' loading='lazy' referrerpolicy='no-referrer'/>`).join('')}
         </div>
         <p class='text-sm leading-relaxed mt-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-600'>${(it.description||'').replace(/</g,'&lt;')}</p>
         <div class='mt-3 font-bold text-white dark:text-white theme-light:text-slate-900'>Precio: ${money(it.price||0)} ${stockBadge? '• '+stockBadge:''}</div>

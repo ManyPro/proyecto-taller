@@ -1879,32 +1879,32 @@ async function loadSettlements(){
       const printUrl = `${apiBase}/api/v1/payroll/settlements/${s._id}/print`;
       const settlementId = s._id;
       
-      return `<div class="settlement-row" style="padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--card);transition:all 0.2s;">
-        <div class="row between" style="align-items:center;flex-wrap:wrap;gap:8px;">
-          <div class="row" style="gap:12px;align-items:center;flex:1;min-width:200px;">
-            <span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;text-transform:uppercase;background:${statusInfo.bg};color:${statusInfo.color};border:1px solid ${statusInfo.color}20;">
+      return `<div class="p-3 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg mb-2 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white hover:bg-slate-800/50 dark:hover:bg-slate-800/50 theme-light:hover:bg-slate-50 transition-all duration-200">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <div class="flex items-center gap-3 flex-1 min-w-[200px]">
+            <span class="px-2.5 py-1 rounded-md text-xs font-semibold uppercase ${s.status === 'approved' ? 'bg-green-500/10 dark:bg-green-500/10 theme-light:bg-green-50 text-green-500 dark:text-green-400 theme-light:text-green-700 border border-green-500/20 dark:border-green-500/20 theme-light:border-green-200' : s.status === 'paid' ? 'bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 text-blue-500 dark:text-blue-400 theme-light:text-blue-700 border border-blue-500/20 dark:border-blue-500/20 theme-light:border-blue-200' : 'bg-slate-500/10 dark:bg-slate-500/10 theme-light:bg-slate-100 text-slate-500 dark:text-slate-400 theme-light:text-slate-600 border border-slate-500/20 dark:border-slate-500/20 theme-light:border-slate-300'}">
               ${htmlEscape(statusInfo.label)}
             </span>
-            <div style="flex:1;">
-              <div style="font-weight:600;color:var(--text);margin-bottom:2px;">
+            <div class="flex-1">
+              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-0.5">
                 👤 ${htmlEscape(s.technicianName||'Sin nombre')}
               </div>
-              <div style="font-size:12px;color:var(--muted);">
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
                 ${createdAt}
               </div>
             </div>
           </div>
-          <div class="row" style="gap:16px;align-items:center;flex-wrap:wrap;">
-            <div style="text-align:right;font-size:12px;color:var(--muted);">
-              <div>Bruto: <strong style="color:var(--text);">${formatMoney(s.grossTotal)}</strong></div>
-              <div>Desc: <strong style="color:#ef4444;">-${formatMoney(s.deductionsTotal)}</strong></div>
-              <div style="margin-top:4px;font-size:14px;font-weight:600;color:#10b981;">Neto: ${formatMoney(s.netTotal)}</div>
+          <div class="flex items-center gap-4 flex-wrap">
+            <div class="text-right text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+              <div>Bruto: <strong class="text-white dark:text-white theme-light:text-slate-900">${formatMoney(s.grossTotal)}</strong></div>
+              <div>Desc: <strong class="text-red-400 dark:text-red-400 theme-light:text-red-600">-${formatMoney(s.deductionsTotal)}</strong></div>
+              <div class="mt-1 text-sm font-semibold text-green-400 dark:text-green-400 theme-light:text-green-600">Neto: ${formatMoney(s.netTotal)}</div>
             </div>
-            <div class="row" style="gap:8px;">
-              <a href="${printUrl}" target="_blank" style="padding:6px 12px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);text-decoration:none;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(59,130,246,0.1)'" onmouseout="this.style.background='var(--bg)'" title="Imprimir con template configurado">
+            <div class="flex items-center gap-2">
+              <a href="${printUrl}" target="_blank" class="px-3 py-1.5 text-xs border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 rounded-md bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 text-white dark:text-white theme-light:text-slate-700 hover:bg-blue-500/20 dark:hover:bg-blue-500/20 theme-light:hover:bg-blue-50 no-underline transition-all duration-200" title="Imprimir con template configurado">
                 🖨️ Imprimir
               </a>
-              <button data-settlement-id="${settlementId}" class="pdf-download-btn" style="padding:6px 12px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.background='var(--bg)'" title="Descargar PDF">
+              <button data-settlement-id="${settlementId}" class="pdf-download-btn px-3 py-1.5 text-xs border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 rounded-md bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 text-white dark:text-white theme-light:text-slate-700 hover:bg-red-500/20 dark:hover:bg-red-500/20 theme-light:hover:bg-red-50 transition-all duration-200" title="Descargar PDF">
                 📄 PDF
               </button>
             </div>
@@ -1922,25 +1922,25 @@ async function loadSettlements(){
     const previewHtml = existingPreview ? existingPreview.outerHTML : '';
     
     if (items.length === 0 && !previewHtml) {
-      container.innerHTML = '<div class="muted" style="text-align:center;padding:24px;border:1px dashed var(--border);border-radius:8px;">No hay liquidaciones aprobadas para este período.</div>';
+      container.innerHTML = '<div class="text-center py-6 px-4 border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay liquidaciones aprobadas para este período.</div>';
       return;
     }
     
     const summaryHtml = items.length > 0 ? `
-      <div style="margin-top:16px;padding-top:16px;border-top:2px solid var(--border);">
-        <h4 style="margin:0 0 12px 0;font-size:14px;font-weight:600;">Resumen del período</h4>
-        <div class="row" style="gap:24px;flex-wrap:wrap;justify-content:flex-end;">
-          <div style="text-align:right;">
-            <div style="font-size:12px;color:var(--muted);margin-bottom:2px;">Total Bruto</div>
-            <div style="font-size:16px;font-weight:600;color:var(--text);">${formatMoney(summary.grossTotal)}</div>
+      <div class="mt-4 pt-4 border-t-2 border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
+        <h4 class="m-0 mb-3 text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Resumen del período</h4>
+        <div class="flex gap-6 flex-wrap justify-end">
+          <div class="text-right">
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total Bruto</div>
+            <div class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">${formatMoney(summary.grossTotal)}</div>
           </div>
-          <div style="text-align:right;">
-            <div style="font-size:12px;color:var(--muted);margin-bottom:2px;">Total Descuentos</div>
-            <div style="font-size:16px;font-weight:600;color:#ef4444;">-${formatMoney(summary.deductionsTotal)}</div>
+          <div class="text-right">
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total Descuentos</div>
+            <div class="text-base font-semibold text-red-400 dark:text-red-400 theme-light:text-red-600">-${formatMoney(summary.deductionsTotal)}</div>
           </div>
-          <div style="text-align:right;">
-            <div style="font-size:12px;color:var(--muted);margin-bottom:2px;">Total Neto</div>
-            <div style="font-size:18px;font-weight:700;color:#10b981;">${formatMoney(summary.netTotal)}</div>
+          <div class="text-right">
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total Neto</div>
+            <div class="text-lg font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${formatMoney(summary.netTotal)}</div>
           </div>
         </div>
       </div>
@@ -1949,8 +1949,8 @@ async function loadSettlements(){
     container.innerHTML = `
       ${previewHtml}
       ${items.length > 0 ? `
-        <div style="margin-top:${previewHtml ? '16px' : '0'};">
-          <h4 style="margin:0 0 12px 0;font-size:14px;font-weight:600;">Liquidaciones aprobadas</h4>
+        <div class="${previewHtml ? 'mt-4' : ''}">
+          <h4 class="m-0 mb-3 text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Liquidaciones aprobadas</h4>
           <div>${rows}</div>
           ${summaryHtml}
         </div>

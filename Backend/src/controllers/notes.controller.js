@@ -26,7 +26,7 @@ export const listNotes = async (req, res) => {
 };
 
 export const createNote = async (req, res) => {
-  const { plate, text, type, amount, technician, media } = req.body || {};
+  const { plate, text, type, amount, technician, media, reminderAt } = req.body || {};
   const responsible = normResp(req.body?.responsible);
   if (!plate) return res.status(400).json({ error: "plate requerido" });
   if (!ALLOWED_RESP.includes(responsible)) {
@@ -41,6 +41,7 @@ export const createNote = async (req, res) => {
     amount: type === "PAGO" ? Number(amount || 0) : 0,
     technician: technician ? String(technician).toUpperCase().trim() : undefined,
     media: Array.isArray(media) ? media : [],
+    reminderAt: reminderAt ? new Date(reminderAt) : undefined,
     companyId: new mongoose.Types.ObjectId(req.companyId),
     userId: req.userId ? new mongoose.Types.ObjectId(req.userId) : undefined
   });
@@ -63,6 +64,10 @@ export const updateNote = async (req, res) => {
 
   if (body.type === "PAGO" && body.amount !== undefined) body.amount = Number(body.amount);
   if (body.type === "GENERICA") body.amount = 0;
+
+  if (body.reminderAt !== undefined) {
+    body.reminderAt = body.reminderAt ? new Date(body.reminderAt) : null;
+  }
 
   const note = await Note.findOneAndUpdate(
     { _id: id, companyId: new mongoose.Types.ObjectId(req.companyId) },

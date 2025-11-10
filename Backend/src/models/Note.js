@@ -30,6 +30,9 @@ const NoteSchema = new mongoose.Schema(
 
     media: [MediaSchema],
 
+    // Recordatorio/Alarma
+    reminderAt: { type: Date },
+
     // Multi-tenant
     companyId: { type: mongoose.Types.ObjectId, required: true, index: true },
     userId: { type: mongoose.Types.ObjectId }
@@ -40,5 +43,6 @@ const NoteSchema = new mongoose.Schema(
 // índices útiles por empresa
 NoteSchema.index({ companyId: 1, createdAt: -1 });
 NoteSchema.index({ companyId: 1, plate: 1, createdAt: -1 });
+NoteSchema.index({ companyId: 1, reminderAt: 1 });
 
 export default mongoose.model('Note', NoteSchema);

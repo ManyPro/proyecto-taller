@@ -125,6 +125,144 @@
     body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: rgba(100, 116, 139, 0.6);
     }
+    /* Estilos para tarjetas de items del catálogo */
+    .item-card {
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 12px;
+      padding: 12px;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    body.theme-light .item-card {
+      background: #ffffff;
+      border-color: rgba(203, 213, 225, 0.5);
+    }
+    .item-card:hover {
+      border-color: rgba(148, 163, 184, 0.4);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    body.theme-light .item-card:hover {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    .item-card .media {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4/3;
+      overflow: hidden;
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.5);
+      margin-bottom: 10px;
+    }
+    body.theme-light .item-card .media {
+      background: #f1f5f9;
+    }
+    .item-card .media img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
+      display: block;
+    }
+    .item-card .item-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: white;
+      margin-bottom: 6px;
+      line-height: 1.4;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    body.theme-light .item-card .item-name {
+      color: #0f172a;
+    }
+    .item-card .item-brand {
+      font-size: 12px;
+      color: rgba(148, 163, 184, 0.8);
+      margin-bottom: 6px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    body.theme-light .item-card .item-brand {
+      color: #64748b;
+    }
+    .item-card .item-price {
+      font-size: 16px;
+      font-weight: 700;
+      color: #10b981;
+      margin-bottom: 8px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    body.theme-light .item-card .item-price {
+      color: #059669;
+    }
+    .item-card .item-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 10px;
+      font-size: 11px;
+    }
+    .item-card .item-tags span {
+      padding: 2px 6px;
+      background: rgba(59, 130, 246, 0.2);
+      color: rgba(147, 197, 253, 0.9);
+      border-radius: 4px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    body.theme-light .item-card .item-tags span {
+      background: rgba(59, 130, 246, 0.1);
+      color: #2563eb;
+    }
+    .item-card .card-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: auto;
+    }
+    .item-card .card-actions button {
+      flex: 1;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    .item-card .card-actions button.secondary {
+      background: rgba(100, 116, 139, 0.3);
+      color: white;
+    }
+    .item-card .card-actions button.secondary:hover {
+      background: rgba(100, 116, 139, 0.5);
+    }
+    body.theme-light .item-card .card-actions button.secondary {
+      background: #e2e8f0;
+      color: #475569;
+    }
+    body.theme-light .item-card .card-actions button.secondary:hover {
+      background: #cbd5e1;
+      color: #334155;
+    }
+    .item-card .card-actions button:not(.secondary) {
+      background: rgba(59, 130, 246, 0.8);
+      color: white;
+    }
+    .item-card .card-actions button:not(.secondary):hover {
+      background: rgba(59, 130, 246, 1);
+    }
+    body.theme-light .item-card .card-actions button:not(.secondary) {
+      background: #2563eb;
+      color: white;
+    }
+    body.theme-light .item-card .card-actions button:not(.secondary):hover {
+      background: #1d4ed8;
+    }
+    .item-card .card-actions button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
   </style>
   <!-- Backend config must load before API to set API_BASE/BACKEND_URL -->
   <script src="./assets/js/config.js"></script>

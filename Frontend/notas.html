@@ -142,6 +142,26 @@
       color: #0f172a !important;
       background-color: rgba(203, 213, 225, 0.5) !important;
     }
+    @keyframes slideInFromRight {
+      from {
+        opacity: 0;
+        transform: translateX(100%);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    @keyframes slideOutToRight {
+      from {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateX(100%);
+      }
+    }
     body.theme-light .nav-tab.active,
     body.theme-light .mobile-nav-tab.active {
       color: #ffffff !important;
@@ -304,6 +324,12 @@
               <div class="mb-4">
                 <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Fecha y hora (auto)</label>
                 <input id="n-when" disabled class="w-full px-4 py-2 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none transition-all duration-200" />
+              </div>
+              
+              <div class="mb-4">
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">⏰ Recordatorio (opcional)</label>
+                <input id="n-reminder" type="datetime-local" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+                <p class="text-xs text-slate-500 dark:text-slate-500 theme-light:text-slate-400 mt-1">Se te notificará cuando llegue la fecha y hora del recordatorio</p>
               </div>
               
               <div id="pay-box" class="hidden mb-4">

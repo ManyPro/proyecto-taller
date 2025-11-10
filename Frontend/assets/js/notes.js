@@ -76,6 +76,7 @@ export function initNotes() {
   const nFiles = document.getElementById("n-files");
   const nSave = document.getElementById("n-save");
   const nWhen = document.getElementById("n-when");
+  const nReminder = document.getElementById("n-reminder");
   const tick = () => { if (nWhen) nWhen.value = new Date().toLocaleString(); };
   tick(); setInterval(tick, 1000);
   const payBox = document.getElementById("pay-box");
@@ -109,45 +110,56 @@ export function initNotes() {
     return m ? m.charAt(0).toUpperCase() + m.slice(1) : '';
   };
 
+  function htmlEscape(text) {
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
   async function refresh(params = {}) {
     notesState.lastFilters = params;
     const res = await API.notesList(toQuery(params));
     const rows = Array.isArray(res) ? res : (res?.items || res?.data || []);
     list.innerHTML = "";
 
+    if (rows.length === 0) {
+      list.innerHTML = `<div class="text-center py-6 px-4 border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay notas en el historial.</div>`;
+      return;
+    }
+
     rows.forEach(row => {
-      const div = document.createElement("div");
-      div.className = "note";
+      const el = document.createElement("div");
+      el.className = "p-4 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white hover:bg-slate-800/50 dark:hover:bg-slate-800/50 theme-light:hover:bg-slate-50 transition-all duration-200 mb-3";
 
-      const plate = document.createElement("div");
-      plate.className = "plate";
-      plate.textContent = row.plate;
+      const date = fmt(row.createdAt);
       const color = plateColor(row.plate);
-      plate.style.setProperty('--plate-color', color);
-      plate.style.cursor = "pointer";
-      plate.onclick = () => {
-        fPlate.value = row.plate;
-        fApply.click();
-      };
+      const hasReminder = row.reminderAt && new Date(row.reminderAt) > new Date();
 
-      const content = document.createElement("div");
-      content.className = "content";
-      let header = `<b>${row.type}</b> — ${fmt(row.createdAt)}`;
+      let headerHtml = `<div class="flex items-center justify-between flex-wrap gap-2 mb-2">`;
+      headerHtml += `<div class="flex items-center gap-2 flex-wrap">`;
+      headerHtml += `<span class="px-2.5 py-1 rounded-md text-xs font-semibold uppercase cursor-pointer hover:opacity-80 transition-opacity" style="background-color: ${color}; color: white;" onclick="document.getElementById('f-plate').value='${htmlEscape(row.plate)}'; document.getElementById('f-apply').click();">${htmlEscape(row.plate)}</span>`;
+      headerHtml += `<span class="px-2 py-0.5 rounded text-xs font-medium ${row.type === 'PAGO' ? 'bg-green-500/20 dark:bg-green-500/20 theme-light:bg-green-50 text-green-400 dark:text-green-400 theme-light:text-green-700 border border-green-500/30 dark:border-green-500/30 theme-light:border-green-200' : 'bg-blue-500/20 dark:bg-blue-500/20 theme-light:bg-blue-50 text-blue-400 dark:text-blue-400 theme-light:text-blue-700 border border-blue-500/30 dark:border-blue-500/30 theme-light:border-blue-200'}">${htmlEscape(row.type)}</span>`;
+      if (hasReminder) {
+        const reminderDate = new Date(row.reminderAt).toLocaleString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        headerHtml += `<span class="px-2 py-0.5 rounded text-xs font-medium bg-yellow-500/20 dark:bg-yellow-500/20 theme-light:bg-yellow-50 text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-700 border border-yellow-500/30 dark:border-yellow-500/30 theme-light:border-yellow-200" title="Recordatorio: ${reminderDate}">⏰ ${reminderDate}</span>`;
+      }
+      headerHtml += `</div>`;
+      headerHtml += `<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${htmlEscape(date)}</div>`;
+      headerHtml += `</div>`;
+
+      let contentHtml = `<div class="mb-2">`;
       if (row.responsible) {
-        header += ` — Encargado: ${niceName(row.responsible)}`;
+        contentHtml += `<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Encargado: <strong class="text-white dark:text-white theme-light:text-slate-900">${htmlEscape(niceName(row.responsible))}</strong></div>`;
       }
       if (row.type === "PAGO" && typeof row.amount === "number" && row.amount > 0) {
-        header += ` — Pago: $${row.amount.toLocaleString()}`;
+        contentHtml += `<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Pago: <strong class="text-green-400 dark:text-green-400 theme-light:text-green-600">$${row.amount.toLocaleString()}</strong></div>`;
       }
-      const text = row.text || "";
-      content.innerHTML = `<div>${header}</div><div>${text}</div>`;
+      contentHtml += `<div class="text-sm text-white dark:text-white theme-light:text-slate-900 mt-2">${htmlEscape(row.text || "")}</div>`;
+      contentHtml += `</div>`;
 
       if (row.media?.length) {
         const wrap = document.createElement("div");
-        wrap.style.display = "flex";
-        wrap.style.gap = "8px";
-        wrap.style.flexWrap = "wrap";
-        wrap.style.marginTop = "6px";
+        wrap.className = "flex gap-2 flex-wrap mt-3";
 
         row.media.forEach((m) => {
           const url = m.url;
@@ -156,38 +168,34 @@ export function initNotes() {
           if ((m.mimetype || "").startsWith("image/")) {
             const img = document.createElement("img");
             img.src = url;
-            img.style.width = "80px";
-            img.style.height = "80px";
-            img.style.objectFit = "cover";
-            img.style.cursor = "pointer";
+            img.className = "w-20 h-20 object-cover rounded-lg cursor-pointer border-2 border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 hover:opacity-80 transition-opacity";
             img.title = m.filename || "";
             img.onclick = () => openModal(`<div class="flex items-center justify-center p-4"><img src="${url}" class="max-w-full h-auto rounded-lg border-2 border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300" /></div>`);
             wrap.appendChild(img);
           } else if ((m.mimetype || "").startsWith("video/")) {
             const vid = document.createElement("video");
             vid.src = url;
-            vid.style.width = "120px";
+            vid.className = "w-32 h-auto rounded-lg border-2 border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300";
             vid.controls = true;
             vid.title = m.filename || "";
             wrap.appendChild(vid);
           }
         });
 
-        content.appendChild(wrap);
+        contentHtml += wrap.outerHTML;
       }
 
-      const actions = document.createElement("div");
-      actions.className = "actions";
+      const actionsDiv = document.createElement("div");
+      actionsDiv.className = "flex items-center gap-2 mt-3 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200";
 
       const editBtn = document.createElement("button");
-      editBtn.className = "secondary";
+      editBtn.className = "px-3 py-1.5 text-xs bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-medium rounded-lg transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30 theme-light:bg-blue-50 theme-light:text-blue-600 theme-light:hover:bg-blue-100 theme-light:border-blue-300";
       editBtn.textContent = "Editar";
       editBtn.onclick = () => openEditNote(row);
 
       const delBtn = document.createElement("button");
-      delBtn.className = "danger";
+      delBtn.className = "px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300";
       delBtn.textContent = "Eliminar";
-      delBtn.style.marginLeft = "6px";
       delBtn.onclick = async () => {
         if (!confirm("¿Eliminar esta nota?")) return;
         try {
@@ -198,13 +206,12 @@ export function initNotes() {
         }
       };
 
-      actions.appendChild(editBtn);
-      actions.appendChild(delBtn);
+      actionsDiv.appendChild(editBtn);
+      actionsDiv.appendChild(delBtn);
 
-      div.appendChild(plate);
-      div.appendChild(content);
-      div.appendChild(actions);
-      list.appendChild(div);
+      el.innerHTML = headerHtml + contentHtml;
+      el.appendChild(actionsDiv);
+      list.appendChild(el);
     });
   }
 
@@ -255,6 +262,12 @@ export function initNotes() {
           </div>
         </div>
 
+        <div>
+          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">⏰ Recordatorio (opcional)</label>
+          <input id="e-reminder" type="datetime-local" value="${row.reminderAt ? new Date(row.reminderAt).toISOString().slice(0, 16) : ""}" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <p class="text-xs text-slate-500 dark:text-slate-500 theme-light:text-slate-400 mt-1">Se te notificará cuando llegue la fecha y hora del recordatorio</p>
+        </div>
+
         <div class="flex gap-2 mt-4">
           <button id="e-save" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar cambios</button>
           <button id="e-cancel" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
@@ -268,6 +281,7 @@ export function initNotes() {
     const ePay = document.getElementById("e-paybox");
     const eAmount = document.getElementById("e-amount");
     const eMethod = document.getElementById("e-method");
+    const eReminder = document.getElementById("e-reminder");
     const eSave = document.getElementById("e-save");
     const eCancel = document.getElementById("e-cancel");
 
@@ -295,6 +309,12 @@ export function initNotes() {
           body.amount = 0;
         }
         if (!body.responsible) return alert("Selecciona la persona encargada");
+
+        if (eReminder?.value) {
+          body.reminderAt = eReminder.value;
+        } else {
+          body.reminderAt = null;
+        }
 
         await http.updateNote(row._id, body);
         hardHideModal();
@@ -332,10 +352,14 @@ export function initNotes() {
         payload.amount = amt;
         if (nPayMethod?.value) payload.text += ` [PAGO: ${nPayMethod.value}]`;
       }
+      if (nReminder?.value) {
+        payload.reminderAt = nReminder.value;
+      }
 
       await API.notesCreate(payload);
       if (nPayAmount) nPayAmount.value = "";
       if (nPayMethod) nPayMethod.value = "EFECTIVO";
+      if (nReminder) nReminder.value = "";
       nContent.value = ""; nFiles.value = "";
       refresh(notesState.lastFilters);
     } catch (e) {
@@ -369,6 +393,67 @@ export function initNotes() {
     modalBody.innerHTML = html;
     modal.classList.remove("hidden");
   };
+
+  function showReminderNotification(note) {
+    const notification = document.createElement("div");
+    notification.className = "fixed top-5 right-5 z-[3000] bg-yellow-500 dark:bg-yellow-500 theme-light:bg-yellow-400 text-white dark:text-white theme-light:text-yellow-900 px-5 py-3 rounded-lg text-sm font-semibold shadow-lg max-w-[400px] animate-[slideInFromRight_0.3s_ease-out]";
+    notification.innerHTML = `
+      <div class="flex items-start gap-3">
+        <div class="text-xl flex-shrink-0">⏰</div>
+        <div class="flex-1">
+          <div class="font-bold mb-1">Recordatorio</div>
+          <div class="text-xs opacity-90 mb-1">Placa: <strong>${htmlEscape(note.plate)}</strong></div>
+          <div class="text-xs opacity-90">${htmlEscape(note.text || "").substring(0, 100)}${note.text && note.text.length > 100 ? "..." : ""}</div>
+        </div>
+        <button onclick="this.parentElement.parentElement.remove()" class="text-white hover:text-gray-200 text-lg font-bold flex-shrink-0">×</button>
+      </div>
+    `;
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+      notification.style.animation = "slideOutToRight 0.3s ease-in";
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.remove();
+        }
+      }, 300);
+    }, 10000);
+  }
+
+  async function checkReminders() {
+    try {
+      const res = await API.notesList("?limit=200");
+      const rows = Array.isArray(res) ? res : (res?.items || res?.data || []);
+      const now = new Date();
+      const notifiedIds = JSON.parse(localStorage.getItem("notesRemindersNotified") || "[]");
+
+      rows.forEach(note => {
+        if (!note.reminderAt) return;
+        const reminderDate = new Date(note.reminderAt);
+        const timeDiff = reminderDate.getTime() - now.getTime();
+        const noteId = String(note._id);
+
+        if (timeDiff <= 60000 && timeDiff >= -300000 && !notifiedIds.includes(noteId)) {
+          showReminderNotification(note);
+          notifiedIds.push(noteId);
+          localStorage.setItem("notesRemindersNotified", JSON.stringify(notifiedIds));
+        }
+      });
+
+      const oneDayAgo = now.getTime() - 24 * 60 * 60 * 1000;
+      const filteredIds = notifiedIds.filter(id => {
+        const note = rows.find(n => String(n._id) === id);
+        if (!note || !note.reminderAt) return false;
+        return new Date(note.reminderAt).getTime() > oneDayAgo;
+      });
+      localStorage.setItem("notesRemindersNotified", JSON.stringify(filteredIds));
+    } catch (e) {
+      console.error("Error checking reminders:", e);
+    }
+  }
+
+  setInterval(checkReminders, 60000);
+  checkReminders();
 
   refresh({});
 }
