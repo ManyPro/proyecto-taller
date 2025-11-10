@@ -3002,18 +3002,19 @@ async function openPickerPrices(){
 
 // ---------- cotización → venta (mini) ----------
 async function loadQuote(){
-  const node=document.createElement('div'); node.className='card';
-  node.innerHTML=`<h3>Selecciona una cotización</h3>
-    <div class="row" style="gap:6px;">
-      <input id="qh-text" placeholder="Buscar por cliente/placa..." />
-      <button id="qh-apply" class="secondary">Buscar</button>
+  const node=document.createElement('div');
+  node.className='bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6';
+  node.innerHTML=`<h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6 text-center">Selecciona una cotización</h3>
+    <div class="flex flex-col sm:flex-row gap-3 mb-4">
+      <input id="qh-text" placeholder="Buscar por cliente/placa..." class="flex-1 px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+      <button id="qh-apply" class="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 whitespace-nowrap">Buscar</button>
     </div>
-    <div id="qh-list" class="list" style="max-height:300px; overflow:auto; margin-top:8px;"></div>
-    <div class="row" style="margin-top:8px; justify-content:space-between; align-items:center;">
-      <div id="qh-meta" style="font-size:12px; opacity:.8;">Página 1</div>
-      <div style="display:flex; gap:6px;">
-        <button id="qh-prev" class="secondary" disabled>◀</button>
-        <button id="qh-next" class="secondary" disabled>▶</button>
+    <div id="qh-list" class="custom-scrollbar space-y-2" style="max-height:400px; overflow-y:auto; margin-top:8px; padding-right:4px;"></div>
+    <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+      <div id="qh-meta" class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
+      <div class="flex gap-2">
+        <button id="qh-prev" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:hover:bg-slate-300" disabled>◀</button>
+        <button id="qh-next" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:hover:bg-slate-300" disabled>▶</button>
       </div>
     </div>`;
   openModal(node);
@@ -3036,18 +3037,33 @@ async function loadQuote(){
       if (Array.isArray(raw)) { items = raw; metadata = null; }
       else { items = raw.items||[]; metadata = raw.metadata||null; }
     }catch(e){
-      list.innerHTML = `<div style="padding:8px;color:#c00;">Error: ${e?.message||'No se pudo cargar'}</div>`; return;
+      list.innerHTML = `<div class="p-4 text-red-400 bg-red-900/20 rounded-lg border border-red-800/50">Error: ${e?.message||'No se pudo cargar'}</div>`; return;
     }
     list.innerHTML='';
     items.forEach(qq=>{
-      const btn=document.createElement('button'); btn.className='secondary';
-      btn.textContent = `${(qq.number||'').toString().padStart(5,'0')} - ${qq?.client?.name||qq?.customer?.name||''} (${qq?.vehicle?.plate||''})`;
-      btn.style.cssText='display:block;width:100%;text-align:left;margin-top:6px;';
-      btn.onclick = ()=>{ closeModal(); renderQuoteMini(qq); };
-      list.appendChild(btn);
+      const card=document.createElement('button');
+      card.className='w-full text-left p-4 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-200 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 rounded-lg transition-all duration-200 group';
+      card.innerHTML=`
+        <div class="flex items-center justify-between">
+          <div class="flex-1">
+            <div class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 group-hover:text-blue-400 dark:group-hover:text-blue-400 theme-light:group-hover:text-blue-600 transition-colors">
+              ${(qq.number||'').toString().padStart(5,'0')} - ${qq?.client?.name||qq?.customer?.name||'Sin nombre'}
+            </div>
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">
+              ${qq?.vehicle?.plate||'Sin placa'}
+            </div>
+          </div>
+          <div class="ml-4 text-slate-500 dark:text-slate-500 theme-light:text-slate-400 group-hover:text-blue-400 dark:group-hover:text-blue-400 theme-light:group-hover:text-blue-600 transition-colors">
+            →
+          </div>
+        </div>
+      `;
+      card.onclick = ()=>{ closeModal(); renderQuoteMini(qq); };
+      list.appendChild(card);
     });
     if(items.length===0){
-      const empty=document.createElement('div'); empty.style.cssText='padding:8px;opacity:.7;';
+      const empty=document.createElement('div');
+      empty.className='p-6 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-50 rounded-lg border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300';
       empty.textContent = 'No hay cotizaciones en esta página';
       list.appendChild(empty);
     }
@@ -3062,6 +3078,11 @@ async function loadQuote(){
     }
   }
   node.querySelector('#qh-apply').onclick = ()=> fetchList(true);
+  q.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      fetchList(true);
+    }
+  });
   btnPrev.onclick = ()=>{ if(page>1){ page--; fetchList(); } };
   btnNext.onclick = ()=>{ page++; fetchList(); };
   fetchList();
