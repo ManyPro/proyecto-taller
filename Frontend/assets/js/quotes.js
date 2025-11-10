@@ -1,26 +1,14 @@
-﻿/* assets/js/quotes.js
-  Cotizaciones:
-  - Numeración local por empresa (para UI)
-  - Borrador local
-  - Ítems dinámicos (2 columnas)
-  - Vista previa WhatsApp
-  - WhatsApp / PDF
-  - Historial (listar/buscar/ver/editar/eliminar; re-enviar WA; re-generar PDF)
-*/
-import { API } from "./api.esm.js";
+﻿import { API } from "./api.esm.js";
 import { normalizeText, matchesSearch } from "./search-utils.js";
 
 export function initQuotes({ getCompanyEmail }) {
-  // ====== Helpers DOM ======
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => Array.from(document.querySelectorAll(s));
 
-  // ====== Estado ======
   let inited = false;
-  let emailScope = '';       // para scoping del localStorage
-  let currentQuoteId = null; // si estamos editando una del historial
-  let currentDiscount = { type: null, value: 0 }; // descuento actual
-  // Dirty flags para evitar sobre-escritura al autocompletar por placa
+  let emailScope = '';
+  let currentQuoteId = null;
+  let currentDiscount = { type: null, value: 0 };
   const dirty = {
     clientName:false, clientPhone:false, clientEmail:false,
     brand:false, line:false, year:false, cc:false
@@ -33,27 +21,21 @@ export function initQuotes({ getCompanyEmail }) {
     draft: 'quotes:current',
   });
 
-  // ====== Nodos ======
   const tab = $('#tab-cotizaciones');
   if(!tab) return;
 
-  // Cabecera
   const iNumber = $('#q-number');
   const iNumberBig = $('#q-number-big');
   const iDatetime = $('#q-datetime');
-
   const iClientName  = $('#q-client-name');
   const iClientPhone = $('#q-client-phone');
   const iClientEmail = $('#q-client-email');
-
   const iPlate = $('#q-plate');
   const iBrand = $('#q-brand');
   const iLine  = $('#q-line');
   const iYear  = $('#q-year');
   const iCc    = $('#q-cc');
   const iMileage = $('#q-mileage');
-  
-  // Selector de vehículo
   const iVehicleSearch = $('#q-vehicle-search');
   const iVehicleId = $('#q-vehicle-id');
   const iVehicleDropdown = $('#q-vehicle-dropdown');
@@ -61,41 +43,28 @@ export function initQuotes({ getCompanyEmail }) {
   const iYearWarning = $('#q-year-warning');
   let selectedQuoteVehicle = null;
   let quoteVehicleSearchTimeout = null;
-
   const iValidDays = $('#q-valid-days');
-
-  // Notas especiales
   const iSpecialNotesList = $('#q-special-notes-list');
   const iAddSpecialNote = $('#q-add-special-note');
-
-  // Botones cabecera/acciones
   const iSaveDraft = $('#q-saveDraft');
   const btnClear   = $('#q-clearAll');
   const btnWA      = $('#q-sendWhatsApp');
   const btnPDF     = $('#q-exportPdf');
   const btnSaveBackend = $('#q-saveBackend');
-
-  // Ítems
   const rowsBox = $('#q-rows');
   const rowTemplate = $('#q-row-template');
   const btnAddUnified = $('#q-add-unified');
   const lblSubtotalProducts = $('#q-subtotal-products');
   const lblSubtotalServices = $('#q-subtotal-services');
   const lblTotal = $('#q-total');
-  
-  // Elementos de descuento
   const discountSection = $('#q-discount-section');
   const discountAmount = $('#q-discount-amount');
   const btnDiscountPercent = $('#q-discount-percent');
   const btnDiscountFixed = $('#q-discount-fixed');
   const btnDiscountClear = $('#q-discount-clear');
-
-  // Resumen
   const previewWA = $('#q-whatsappPreview');
   const qData = $('#q-data');
   const qSummary = $('#q-summary');
-
-  // Historial
   const qhText = $('#qh-text');
   const qhFrom = $('#qh-from');
   const qhTo   = $('#qh-to');
@@ -103,7 +72,6 @@ export function initQuotes({ getCompanyEmail }) {
   const qhClear= $('#qh-clear');
   const qhList = $('#q-history-list');
 
-  // ====== Utils ======
   const pad5 = (n) => String(n).padStart(5,'0');
   const money = (n)=>'$'+Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
   const parseMoney = (s)=>Number((s||'').replace(/\D+/g,'')||0);
@@ -115,12 +83,9 @@ export function initQuotes({ getCompanyEmail }) {
     } catch { return new Date().toLocaleString(); }
   };
   const toast = (m)=>console.log(m);
-
-  // keys por empresa
   const kLast  = ()=>`${KEYS.lastNumber}:${emailScope}`;
   const kDraft = ()=>`${KEYS.draft}:${emailScope}`;
 
-  // Búsqueda de vehículos para cotizaciones
   async function searchVehiclesForQuote(query) {
     if (!query || query.trim().length < 1) {
       if (iVehicleDropdown) iVehicleDropdown.style.display = 'none';
@@ -156,7 +121,6 @@ export function initQuotes({ getCompanyEmail }) {
           if (iBrand) iBrand.value = v.make || '';
           if (iLine) iLine.value = v.line || '';
           if (iCc) iCc.value = v.displacement || '';
-          // Validar año si ya está ingresado
           if (iYear && iYear.value) {
             validateQuoteYear();
           }
@@ -175,7 +139,6 @@ export function initQuotes({ getCompanyEmail }) {
     }
   }
   
-  // Validar año contra rango del vehículo en cotizaciones
   async function validateQuoteYear() {
     if (!selectedQuoteVehicle || !iYear || !iYear.value) {
       if (iYearWarning) iYearWarning.style.display = 'none';
@@ -201,7 +164,6 @@ export function initQuotes({ getCompanyEmail }) {
     }
   }
 
-  // ====== Init ======
   function ensureInit(){
     if(inited) return; inited = true;
 
@@ -221,7 +183,6 @@ export function initQuotes({ getCompanyEmail }) {
 
     loadHistory();
     
-    // Event listeners para selector de vehículo
     if (iVehicleSearch) {
       iVehicleSearch.addEventListener('input', (e) => {
         clearTimeout(quoteVehicleSearchTimeout);
@@ -249,7 +210,6 @@ export function initQuotes({ getCompanyEmail }) {
       });
     }
     
-    // Cerrar dropdown al hacer click fuera
     document.addEventListener('click', (e) => {
       if (iVehicleSearch && !iVehicleSearch.contains(e.target) && iVehicleDropdown && !iVehicleDropdown.contains(e.target)) {
         if (iVehicleDropdown) iVehicleDropdown.style.display = 'none';
@@ -257,7 +217,6 @@ export function initQuotes({ getCompanyEmail }) {
     });
   }
 
-  // ===== Modal helpers (local a cotizaciones) =====
   function openModal(node){
     const modal = document.getElementById('modal');
     const slot  = document.getElementById('modalBody');
@@ -290,7 +249,6 @@ export function initQuotes({ getCompanyEmail }) {
   }
   function closeModal(){ const m=document.getElementById('modal'); if(m) m.classList.add('hidden'); }
 
-  // ====== Numeración local ======
   function nextNumber(){
     const raw = localStorage.getItem(kLast());
     let n = Number(raw||0); n = isNaN(n)?0:n;
@@ -301,7 +259,6 @@ export function initQuotes({ getCompanyEmail }) {
     localStorage.setItem(kLast(), String(shown));
   }
 
-  // ====== Borrador local ======
   function getDraftData(){
     return {
       number:iNumber.value, datetime:iDatetime.value,
@@ -335,11 +292,9 @@ export function initQuotes({ getCompanyEmail }) {
   }
   function clearDraft(){ localStorage.removeItem(kDraft()); }
 
-  // ====== Notas Especiales ======
   let specialNotes = [];
   
   function addSpecialNote() {
-    // Crear modal bonito para agregar nota
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm';
     modal.innerHTML = `
@@ -391,7 +346,6 @@ export function initQuotes({ getCompanyEmail }) {
     
     cancelBtn.onclick = closeModal;
     
-    // Cerrar con ESC y click fuera
     document.addEventListener('keydown', handleEsc);
     modal.addEventListener('click', handleBackdropClick);
   }
@@ -404,7 +358,6 @@ export function initQuotes({ getCompanyEmail }) {
     }
   }
   
-  // Hacer la función global para que funcione desde el HTML
   window.removeSpecialNote = removeSpecialNote;
   
   function renderSpecialNotes() {
@@ -424,7 +377,6 @@ export function initQuotes({ getCompanyEmail }) {
     });
   }
 
-  // ====== Filas ======
   function clearRows(){ rowsBox.innerHTML=''; }
   function addRowFromData(r){
     const row = cloneRow();
@@ -447,7 +399,6 @@ export function initQuotes({ getCompanyEmail }) {
     n.querySelectorAll('input,select').forEach(el=>{
       el.addEventListener('input',()=>{ updateRowSubtotal(n); recalcAll(); });
     });
-    // Botón de quitar - más específico
     const removeBtn = n.querySelector('button');
     if (removeBtn) {
       removeBtn.addEventListener('click', (e) => {
@@ -457,8 +408,6 @@ export function initQuotes({ getCompanyEmail }) {
         recalcAll();
       });
     }
-    
-    
     return n;
   }
   function readRows(){
@@ -469,15 +418,11 @@ export function initQuotes({ getCompanyEmail }) {
       const price=Number(r.querySelectorAll('input')[2].value||0);
       if(!desc && !price && !qty) return;
       
-      // Asegurar que refId sea un string válido (no "[object Object]")
       let refId = r.dataset.refId;
-      if (refId) {
-        // Si es un objeto convertido a string, intentar extraer el _id
-        if (typeof refId === 'string' && refId.includes('[object Object]')) {
-          refId = undefined;
-        } else {
-          refId = String(refId).trim() || undefined;
-        }
+      if (refId && typeof refId === 'string' && refId.includes('[object Object]')) {
+        refId = undefined;
+      } else if (refId) {
+        refId = String(refId).trim() || undefined;
       }
       
       rows.push({
@@ -489,6 +434,7 @@ export function initQuotes({ getCompanyEmail }) {
       });
     }); return rows;
   }
+  
   function updateRowSubtotal(r){
     const qty=Number(r.querySelectorAll('input')[1].value||0);
     const price=Number(r.querySelectorAll('input')[2].value||0);
@@ -496,7 +442,6 @@ export function initQuotes({ getCompanyEmail }) {
     r.querySelectorAll('input')[3].value = money(subtotal);
   }
 
-  // ====== Totales & Preview ======
   function recalcAll(){
     const rows=readRows(); let subP=0, subS=0;
     rows.forEach(({type,qty,price})=>{
@@ -504,8 +449,6 @@ export function initQuotes({ getCompanyEmail }) {
       if((type||'PRODUCTO')==='PRODUCTO') subP+=st; else subS+=st;
     });
     const subtotal=subP+subS;
-    
-    // Calcular descuento
     let discountValue = 0;
     if (currentDiscount.type && currentDiscount.value > 0) {
       if (currentDiscount.type === 'percent') {
@@ -520,7 +463,6 @@ export function initQuotes({ getCompanyEmail }) {
     lblSubtotalProducts.textContent=money(subP);
     lblSubtotalServices.textContent=money(subS);
     
-    // Mostrar/ocultar sección de descuento
     if (discountValue > 0) {
       discountSection.style.display = 'block';
       discountAmount.textContent = money(discountValue);

@@ -101,13 +101,6 @@
       align-items: center;
       justify-content: center;
     }
-    #modal > div {
-      pointer-events: auto;
-    }
-    #modal {
-      pointer-events: auto;
-    }
-    /* Estilos personalizados para barras de scroll */
     .custom-scrollbar {
       scrollbar-width: thin;
       scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
@@ -137,112 +130,21 @@
     body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: rgba(100, 116, 139, 0.6);
     }
-    /* Estilos para toggle switch personalizado */
-    .sr-only {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      padding: 0;
-      margin: -1px;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
-      white-space: nowrap;
-      border-width: 0;
-    }
-    /* Asegurar que peer-checked funcione correctamente */
-    .peer:checked ~ .peer-checked\:bg-orange-500,
-    .peer:checked ~ .peer-checked\:translate-x-5 {
-      /* Tailwind maneja esto automáticamente, pero asegurémonos de que funcione */
-    }
-    #modalBody {
-      scrollbar-width: thin;
-      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
-    }
-    #modalBody::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
-    }
-    #modalBody::-webkit-scrollbar-track {
-      background: transparent;
-      border-radius: 4px;
-    }
-    #modalBody::-webkit-scrollbar-thumb {
-      background: rgba(148, 163, 184, 0.5);
-      border-radius: 4px;
-      transition: background 0.2s ease;
-    }
-    #modalBody::-webkit-scrollbar-thumb:hover {
-      background: rgba(148, 163, 184, 0.7);
-    }
-    body.theme-light #modalBody::-webkit-scrollbar-thumb {
-      background: rgba(100, 116, 139, 0.4);
-    }
-    body.theme-light #modalBody::-webkit-scrollbar-thumb:hover {
-      background: rgba(100, 116, 139, 0.6);
-    }
-    /* Estilos para tabs internas */
-    .payroll-tabs button[data-subtab].active {
-      background: linear-gradient(to right, #2563eb, #1d4ed8) !important;
-      color: #ffffff !important;
-    }
-    body.theme-light .payroll-tabs button[data-subtab].active {
-      background: linear-gradient(to right, #3b82f6, #2563eb) !important;
-      color: #ffffff !important;
-    }
-    .payroll-tabs button[data-subtab]:not(.active) {
-      background-color: rgba(51, 65, 85, 0.5) !important;
-      color: rgba(255, 255, 255, 0.9) !important;
-    }
-    body.theme-light .payroll-tabs button[data-subtab]:not(.active) {
-      background-color: #e2e8f0 !important;
+    /* Mejorar contrastes de barras de navegación en modo claro */
+    body.theme-light .nav-tab:not(.active),
+    body.theme-light .mobile-nav-tab:not(.active) {
       color: #475569 !important;
-      border-color: #cbd5e1 !important;
+      background-color: transparent !important;
     }
-    body.theme-light .payroll-tabs button[data-subtab]:not(.active):hover {
-      background-color: #cbd5e1 !important;
-      color: #334155 !important;
+    body.theme-light .nav-tab:not(.active):hover,
+    body.theme-light .mobile-nav-tab:not(.active):hover {
+      color: #0f172a !important;
+      background-color: rgba(203, 213, 225, 0.5) !important;
     }
-    /* Estilos para botones secundarios */
-    button.secondary,
-    .secondary {
-      background-color: rgba(51, 65, 85, 0.5) !important;
-      color: rgba(255, 255, 255, 0.9) !important;
-      border: 1px solid rgba(71, 85, 105, 0.5) !important;
-    }
-    body.theme-light button.secondary,
-    body.theme-light .secondary {
-      background-color: #e2e8f0 !important;
-      color: #475569 !important;
-      border-color: #cbd5e1 !important;
-    }
-    button.secondary:hover,
-    .secondary:hover {
-      background-color: rgba(51, 65, 85, 0.7) !important;
-    }
-    body.theme-light button.secondary:hover,
-    body.theme-light .secondary:hover {
-      background-color: #cbd5e1 !important;
-      color: #334155 !important;
-      border-color: #94a3b8 !important;
-    }
-    /* Estilos para botones danger */
-    button.danger,
-    .danger {
-      background-color: rgba(220, 38, 38, 0.8) !important;
+    body.theme-light .nav-tab.active,
+    body.theme-light .mobile-nav-tab.active {
       color: #ffffff !important;
-    }
-    button.danger:hover,
-    .danger:hover {
-      background-color: rgba(220, 38, 38, 1) !important;
-    }
-    body.theme-light button.danger,
-    body.theme-light .danger {
-      background-color: #ef4444 !important;
-      color: #ffffff !important;
-    }
-    body.theme-light button.danger:hover,
-    body.theme-light .danger:hover {
-      background-color: #dc2626 !important;
+      background-color: #2563eb !important;
     }
   </style>
   <link rel="stylesheet" href="assets/styles.css?v=20251010" />

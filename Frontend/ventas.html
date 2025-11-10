@@ -90,65 +90,19 @@
     body.theme-light {
       background-color: #f8fafc;
     }
-    /* Estilos para elementos dinámicos de ventas */
-    #sales-body tr,
-    #sv-q-body tr,
-    #sv-wo-body tr {
-      border-bottom: 1px solid rgba(51, 65, 85, 0.3);
-    }
-    body.theme-light #sales-body tr,
-    body.theme-light #sv-q-body tr,
-    body.theme-light #sv-wo-body tr {
-      border-bottom-color: rgba(203, 213, 225, 0.3);
-    }
-    #sales-body td,
-    #sv-q-body td,
-    #sv-wo-body td {
-      padding: 0.75rem;
-      color: inherit;
-    }
-    /* Estilos para chips/cápsulas */
-    .chip {
-      display: inline-block;
-      padding: 0.25rem 0.5rem;
-      border-radius: 0.375rem;
-      font-size: 0.75rem;
-      font-weight: 600;
-    }
-    /* Estilos para el modal global */
     #modal.hidden {
       display: none !important;
     }
     #modal:not(.hidden) {
       display: flex !important;
     }
-    /* Asegurar que el modal esté centrado verticalmente */
     #modal {
       align-items: center;
       justify-content: center;
     }
-    /* Prevenir que el contenido del modal cierre el modal al hacer clic */
     #modal > div {
       pointer-events: auto;
     }
-    #modal {
-      pointer-events: auto;
-    }
-    /* Estilos para elementos del historial QR */
-    .qr-history {
-      list-style: none;
-      padding: 0;
-    }
-    .qr-history li {
-      padding: 0.5rem;
-      background: rgba(51, 65, 85, 0.3);
-      border-radius: 0.5rem;
-      margin-bottom: 0.5rem;
-    }
-    body.theme-light .qr-history li {
-      background: rgba(203, 213, 225, 0.3);
-    }
-    /* Estilos personalizados para barras de scroll */
     .custom-scrollbar {
       scrollbar-width: thin;
       scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
@@ -178,53 +132,21 @@
     body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: rgba(100, 116, 139, 0.6);
     }
-    /* Aplicar scrollbar personalizado a todos los elementos con overflow */
-    #modalBody,
-    .picker-table-wrapper,
-    #p-inv-body,
-    #p-pr-body {
-      scrollbar-width: thin;
-      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    /* Mejorar contrastes de barras de navegación en modo claro */
+    body.theme-light .nav-tab:not(.active),
+    body.theme-light .mobile-nav-tab:not(.active) {
+      color: #475569 !important;
+      background-color: transparent !important;
     }
-    #modalBody::-webkit-scrollbar,
-    .picker-table-wrapper::-webkit-scrollbar,
-    #p-inv-body::-webkit-scrollbar,
-    #p-pr-body::-webkit-scrollbar {
-      width: 8px;
-      height: 8px;
+    body.theme-light .nav-tab:not(.active):hover,
+    body.theme-light .mobile-nav-tab:not(.active):hover {
+      color: #0f172a !important;
+      background-color: rgba(203, 213, 225, 0.5) !important;
     }
-    #modalBody::-webkit-scrollbar-track,
-    .picker-table-wrapper::-webkit-scrollbar-track,
-    #p-inv-body::-webkit-scrollbar-track,
-    #p-pr-body::-webkit-scrollbar-track {
-      background: transparent;
-      border-radius: 4px;
-    }
-    #modalBody::-webkit-scrollbar-thumb,
-    .picker-table-wrapper::-webkit-scrollbar-thumb,
-    #p-inv-body::-webkit-scrollbar-thumb,
-    #p-pr-body::-webkit-scrollbar-thumb {
-      background: rgba(148, 163, 184, 0.5);
-      border-radius: 4px;
-      transition: background 0.2s ease;
-    }
-    #modalBody::-webkit-scrollbar-thumb:hover,
-    .picker-table-wrapper::-webkit-scrollbar-thumb:hover,
-    #p-inv-body::-webkit-scrollbar-thumb:hover,
-    #p-pr-body::-webkit-scrollbar-thumb:hover {
-      background: rgba(148, 163, 184, 0.7);
-    }
-    body.theme-light #modalBody::-webkit-scrollbar-thumb,
-    body.theme-light .picker-table-wrapper::-webkit-scrollbar-thumb,
-    body.theme-light #p-inv-body::-webkit-scrollbar-thumb,
-    body.theme-light #p-pr-body::-webkit-scrollbar-thumb {
-      background: rgba(100, 116, 139, 0.4);
-    }
-    body.theme-light #modalBody::-webkit-scrollbar-thumb:hover,
-    body.theme-light .picker-table-wrapper::-webkit-scrollbar-thumb:hover,
-    body.theme-light #p-inv-body::-webkit-scrollbar-thumb:hover,
-    body.theme-light #p-pr-body::-webkit-scrollbar-thumb:hover {
-      background: rgba(100, 116, 139, 0.6);
+    body.theme-light .nav-tab.active,
+    body.theme-light .mobile-nav-tab.active {
+      color: #ffffff !important;
+      background-color: #2563eb !important;
     }
   </style>
   <link rel="stylesheet" href="assets/styles.css?v=20251010" />

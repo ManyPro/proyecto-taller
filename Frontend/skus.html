@@ -101,12 +101,6 @@
             align-items: center;
             justify-content: center;
         }
-        #modal > div {
-            pointer-events: auto;
-        }
-        #modal {
-            pointer-events: auto;
-        }
         /* Estilos personalizados para barras de scroll */
         .custom-scrollbar {
             scrollbar-width: thin;
@@ -136,6 +130,22 @@
         }
         body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: rgba(100, 116, 139, 0.6);
+        }
+        /* Mejorar contrastes de barras de navegación en modo claro */
+        body.theme-light .nav-tab:not(.active),
+        body.theme-light .mobile-nav-tab:not(.active) {
+            color: #475569 !important;
+            background-color: transparent !important;
+        }
+        body.theme-light .nav-tab:not(.active):hover,
+        body.theme-light .mobile-nav-tab:not(.active):hover {
+            color: #0f172a !important;
+            background-color: rgba(203, 213, 225, 0.5) !important;
+        }
+        body.theme-light .nav-tab.active,
+        body.theme-light .mobile-nav-tab.active {
+            color: #ffffff !important;
+            background-color: #2563eb !important;
         }
         /* Estilos específicos para SKUs */
         .sku-select {

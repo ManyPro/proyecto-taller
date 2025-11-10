@@ -1,5 +1,4 @@
-﻿/* assets/js/cashflow.js - UI Flujo de Caja */
-import { API } from './api.esm.js';
+﻿import { API } from './api.esm.js';
 
 const money = (n)=>'$'+Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 let cfState = { page:1, pages:1, limit:50 };
@@ -32,8 +31,6 @@ function bind(){
   document.getElementById('cf-refresh-loans')?.addEventListener('click', ()=> loadLoans(true));
   document.getElementById('cf-loan-filter-tech')?.addEventListener('change', ()=> loadLoans());
   document.getElementById('cf-loan-filter-status')?.addEventListener('change', ()=> loadLoans());
-  
-  // Cargar préstamos al inicializar
   loadLoans();
 }
 
@@ -97,7 +94,6 @@ async function loadMovements(reset=false){
           <td style='white-space:nowrap;'>${canEdit?`<button class='mini' data-act='edit' title='Editar'>Editar</button><button class='mini danger' data-act='del' title='Eliminar'>Eliminar</button>`:''}</td>
         </tr>`;
       }).join('');
-      // Bind acciones
       rowsBody.querySelectorAll('tr[data-id]').forEach(tr=>{
         const id = tr.getAttribute('data-id');
         tr.querySelectorAll('button[data-act]').forEach(btn=>{
@@ -214,21 +210,18 @@ function openNewLoanModal(){
   const sel = div.querySelector('#nloan-account');
   const techSel = div.querySelector('#nloan-tech');
   const dateInput = div.querySelector('#nloan-date');
-  // Autocompletar fecha y hora actual
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   const hours = String(now.getHours()).padStart(2, '0');
   const minutes = String(now.getMinutes()).padStart(2, '0');
-  dateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`; // Fecha y hora actual
+  dateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
   
-  // Cargar cuentas
   API.accounts.list().then(list=>{ 
     sel.innerHTML=list.map(a=>`<option value='${a._id}'>${a.name}</option>`).join(''); 
   });
   
-  // Cargar técnicos
   API.company.getTechnicians().then(technicians=>{
     if(technicians && technicians.length > 0){
       techSel.innerHTML = '<option value="">-- Seleccione técnico --</option>' + 
@@ -264,7 +257,6 @@ function openNewLoanModal(){
       }
       const description = div.querySelector('#nloan-desc').value||'';
       const loanDateInput = div.querySelector('#nloan-date').value;
-      // Usar fecha autocompletada o fecha actual si no está definida
       let loanDate = null;
       if (loanDateInput) {
         const dateObj = new Date(loanDateInput);
@@ -272,7 +264,6 @@ function openNewLoanModal(){
           loanDate = dateObj.toISOString();
         }
       }
-      // Si no hay fecha válida, usar la fecha actual
       if (!loanDate) {
         loanDate = new Date().toISOString();
       }
@@ -359,7 +350,6 @@ async function loadLoans(reset=false){
       if(!loans.length) body.innerHTML='<tr><td colspan="8" class="muted">Sin préstamos</td></tr>';
     }
     
-    // Actualizar resumen
     const totalPending = loans
       .filter(l => l.status === 'pending' || l.status === 'partially_paid')
       .reduce((sum, l) => sum + (l.amount - (l.paidAmount||0)), 0);
@@ -368,7 +358,6 @@ async function loadLoans(reset=false){
     
     if(summary) summary.textContent = `Total préstamos: ${money(totalAmount)} | Pagado: ${money(totalPaid)} | Pendiente: ${money(totalPending)}`;
     
-    // Cargar lista de técnicos para el filtro
     const techSel = document.getElementById('cf-loan-filter-tech');
     if(techSel && loans.length > 0){
       const techs = [...new Set(loans.map(l => l.technicianName))].sort();
@@ -383,7 +372,6 @@ async function loadLoans(reset=false){
   }
 }
 
-// Auto init when the page contains the cashflow tab
 if(typeof document!=='undefined'){
   document.addEventListener('DOMContentLoaded', ()=>{
     if(document.getElementById('tab-cashflow')){

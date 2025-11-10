@@ -1,5 +1,3 @@
-// Frontend/assets/js/catalog-public.js
-// Version segmentada por empresa: requiere ?companyId=<id> si no se incrusta directamente.
 import { API } from './api.esm.js';
 
 const apiBase = API.base || '';
@@ -16,15 +14,11 @@ function toggleTheme(){ state.theme = state.theme==='light'? 'dark':'light'; try
 function initTheme(){ try{ const t= localStorage.getItem('catalog:theme'); if(t==='light'||t==='dark') state.theme=t; }catch{} applyTheme(); }
 
 function resolveCompanyId(){
-  // 1. Por query param
   const url = new URL(window.location.href);
   const cid = url.searchParams.get('companyId');
   if(cid){ state.companyId = cid; return cid; }
-  // 2. Por data attribute (si se incrusta en iframe o SSR)
   const el = document.querySelector('[data-company-id]');
   if(el){ state.companyId = el.getAttribute('data-company-id'); return state.companyId; }
-  // 3. fallback: intento de API.me()
-  try { /* podría usarse para vista interna */ } catch {}
   return null;
 }
 
@@ -90,9 +84,52 @@ async function openDetail(id){
   }catch(e){ alert('Error detalle: '+ e.message); }
 }
 
-function ensureModal(){ let m=document.getElementById('public-modal'); if(m) return m; m=document.createElement('div'); m.id='public-modal'; m.className='fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm'; m.innerHTML='<div id="public-modal-box" class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-2xl w-full max-h-[80vh] overflow-auto p-5 custom-scrollbar"></div>'; document.body.appendChild(m); return m; }
-function openModal(html){ const m=ensureModal(); const box=m.querySelector('#public-modal-box'); box.innerHTML= html; m.classList.remove('hidden'); }
-function closeModal(){ const m=ensureModal(); m.classList.add('hidden'); }
+function ensureModal(){ 
+  let m=document.getElementById('public-modal'); 
+  if(m) return m; 
+  m=document.createElement('div'); 
+  m.id='public-modal'; 
+  m.className='fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm'; 
+  m.innerHTML='<div id="public-modal-box" class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-2xl w-full max-h-[80vh] overflow-auto p-5 custom-scrollbar"><button id="public-modal-close" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button></div>'; 
+  document.body.appendChild(m); 
+  return m; 
+}
+function openModal(html){ 
+  const m=ensureModal(); 
+  const box=m.querySelector('#public-modal-box'); 
+  const closeBtn=m.querySelector('#public-modal-close');
+  box.innerHTML= html + '<button id="public-modal-close" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>'; 
+  m.classList.remove('hidden'); 
+  
+  const closeModalHandler = () => {
+    m.classList.add('hidden');
+    document.removeEventListener('keydown', escHandler);
+    m.removeEventListener('click', backdropHandler);
+  };
+  
+  const escHandler = (e) => {
+    if (e.key === 'Escape' && !m.classList.contains('hidden')) {
+      closeModalHandler();
+    }
+  };
+  
+  const backdropHandler = (e) => {
+    if (e.target === m) {
+      closeModalHandler();
+    }
+  };
+  
+  document.addEventListener('keydown', escHandler);
+  m.addEventListener('click', backdropHandler);
+  const closeBtnUpdated = m.querySelector('#public-modal-close');
+  if (closeBtnUpdated) {
+    closeBtnUpdated.onclick = closeModalHandler;
+  }
+}
+function closeModal(){ 
+  const m=ensureModal(); 
+  m.classList.add('hidden'); 
+}
 
 function readFilters(){
   const fq=document.getElementById('f-q');

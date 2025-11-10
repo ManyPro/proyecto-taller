@@ -191,6 +191,22 @@
     body:has(#loginSection:not(.hidden)) {
       overflow: hidden !important;
     }
+    /* Mejorar contrastes de barras de navegación en modo claro */
+    body.theme-light .nav-tab:not(.active),
+    body.theme-light .mobile-nav-tab:not(.active) {
+      color: #475569 !important;
+      background-color: transparent !important;
+    }
+    body.theme-light .nav-tab:not(.active):hover,
+    body.theme-light .mobile-nav-tab:not(.active):hover {
+      color: #0f172a !important;
+      background-color: rgba(203, 213, 225, 0.5) !important;
+    }
+    body.theme-light .nav-tab.active,
+    body.theme-light .mobile-nav-tab.active {
+      color: #ffffff !important;
+      background-color: #2563eb !important;
+    }
   </style>
   <link rel="stylesheet" href="assets/styles.css?v=20251010" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
@@ -565,16 +581,16 @@
 
 
       <!-- Modal global reutilizable -->
-      <div id="modal" class="modal hidden">
-        <div class="modal-content image-modal">
-          <button id="modalClose" class="close">&times;</button>
-          <div id="modalBody">
-            <div id="modal-img-wrap">
-              <img id="modal-img" src="" alt="Vista previa" />
-              <div class="zoom-controls">
-                <button id="zoom-in">+</button>
-                <button id="zoom-out">-</button>
-                <button id="zoom-reset">Reset</button>
+      <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
+        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] my-auto overflow-hidden">
+          <button id="modalClose" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
+          <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
+            <div id="modal-img-wrap" class="hidden">
+              <img id="modal-img" src="" alt="Vista previa" class="w-full h-auto rounded-lg" />
+              <div class="flex gap-2 mt-4 justify-center">
+                <button id="zoom-in" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200">+</button>
+                <button id="zoom-out" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200">-</button>
+                <button id="zoom-reset" class="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors duration-200">Reset</button>
               </div>
             </div>
           </div>

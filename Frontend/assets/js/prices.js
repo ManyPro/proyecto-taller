@@ -1,4 +1,3 @@
-/* Lista de precios - Nuevo modelo: Vehículo primero, luego servicios/productos */
 import { API } from './api.esm.js';
 import { initVehicles } from './vehicles.js';
 
@@ -38,10 +37,8 @@ const clone=(id)=>document.getElementById(id)?.content?.firstElementChild?.clone
 
 function normalizeNumber(v){ if(v==null || v==='') return 0; if(typeof v==='number') return v; const s=String(v).replace(/\s+/g,'').replace(/\$/g,'').replace(/\./g,'').replace(/,/g,'.'); const n=Number(s); return Number.isFinite(n)?n:0; }
 
-// Función para abrir QR simplificado (solo un escaneo)
 export function openQRForItem() {
   return new Promise(async (resolve, reject) => {
-    // Crear modal simplificado
     const qrModal = document.createElement('div');
     qrModal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:99999;display:flex;align-items:center;justify-content:center;';
     qrModal.id = 'qr-modal-item-scanner';

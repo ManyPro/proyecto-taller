@@ -3,7 +3,6 @@ import { plateColor, fmt, upper } from "./utils.js";
 
 const notesState = { page: 1, limit: 50, lastFilters: {} };
 
-// -------- helpers HTTP locales (no dependen de API.updateNote) --------
 const apiBase = API.base || "";
 const authHeader = () => {
   const t = API.token?.get?.();
@@ -12,13 +11,11 @@ const authHeader = () => {
 async function request(path, { method = "GET", json } = {}) {
   const headers = { ...authHeader() };
   if (json !== undefined) headers["Content-Type"] = "application/json";
-
   const res = await fetch(`${apiBase}${path}`, {
     method,
     headers,
     body: json !== undefined ? JSON.stringify(json) : undefined,
   });
-
   const raw = await res.text();
   let body;
   try { body = JSON.parse(raw); } catch { body = raw; }
@@ -32,14 +29,36 @@ const http = {
   deleteNote: (id) => request(`/api/v1/notes/${id}`, { method: "DELETE" }),
 };
 
-// -------- modal util --------
 function openModal(innerHTML) {
   const modal = document.getElementById("modal");
   const body = document.getElementById("modalBody");
   const close = document.getElementById("modalClose");
+  if (!modal || !body || !close) return;
+  
   body.innerHTML = innerHTML;
   modal.classList.remove("hidden");
-  close.onclick = () => modal.classList.add("hidden");
+  
+  const closeModalHandler = () => {
+    modal.classList.add("hidden");
+    document.removeEventListener("keydown", escHandler);
+    modal.removeEventListener("click", backdropHandler);
+  };
+  
+  const escHandler = (e) => {
+    if (e.key === "Escape" && !modal.classList.contains("hidden")) {
+      closeModalHandler();
+    }
+  };
+  
+  const backdropHandler = (e) => {
+    if (e.target === modal) {
+      closeModalHandler();
+    }
+  };
+  
+  document.addEventListener("keydown", escHandler);
+  modal.addEventListener("click", backdropHandler);
+  close.onclick = closeModalHandler;
 }
 function invCloseModal() {
     const modal = document.getElementById("modal");
@@ -50,31 +69,24 @@ function invCloseModal() {
 
 
 export function initNotes() {
-  // Inputs
   const nPlate = document.getElementById("n-plate"); upper(nPlate);
   const nType = document.getElementById("n-type");
   const nResponsible = document.getElementById("n-responsible");
   const nContent = document.getElementById("n-content");
   const nFiles = document.getElementById("n-files");
   const nSave = document.getElementById("n-save");
-
-  // Fecha/hora auto (solo visual)
   const nWhen = document.getElementById("n-when");
   const tick = () => { if (nWhen) nWhen.value = new Date().toLocaleString(); };
   tick(); setInterval(tick, 1000);
-
-  // Pago (UI)
   const payBox = document.getElementById("pay-box");
   const nPayAmount = document.getElementById("n-pay-amount");
-  const nPayMethod = document.getElementById("n-pay-method"); // se conserva en texto
+  const nPayMethod = document.getElementById("n-pay-method");
   const togglePay = () => {
     if (!payBox) return;
     payBox.classList.toggle("hidden", nType.value !== "PAGO");
   };
   nType.addEventListener("change", togglePay);
   togglePay();
-
-  // Filtros
   const fPlate = document.getElementById("f-plate"); upper(fPlate);
   const fFrom = document.getElementById("f-from");
   const fTo = document.getElementById("f-to");
@@ -110,8 +122,6 @@ export function initNotes() {
       const plate = document.createElement("div");
       plate.className = "plate";
       plate.textContent = row.plate;
-      // === antes poníamos background → causaba barra completa
-      // ahora pasamos el color como variable y usamos borde
       const color = plateColor(row.plate);
       plate.style.setProperty('--plate-color', color);
       plate.style.cursor = "pointer";
@@ -132,7 +142,6 @@ export function initNotes() {
       const text = row.text || "";
       content.innerHTML = `<div>${header}</div><div>${text}</div>`;
 
-      // media thumbnails
       if (row.media?.length) {
         const wrap = document.createElement("div");
         wrap.style.display = "flex";
@@ -167,7 +176,6 @@ export function initNotes() {
         content.appendChild(wrap);
       }
 
-      // Acciones: Editar / Eliminar
       const actions = document.createElement("div");
       actions.className = "actions";
 
@@ -200,12 +208,9 @@ export function initNotes() {
     });
   }
 
-  // ------- Modal de edición -------
   function openEditNote(row) {
     const isPago = row.type === "PAGO";
     const respOptions = ["DAVID", "VALENTIN", "SEBASTIAN", "GIOVANNY", "SANDRA", "CEDIEL"];
-
-    // Detectar método de pago actual desde el texto: [PAGO: XXX]
     const methodOptions = ["EFECTIVO", "TRANSFERENCIA", "TARJETA", "DEPOSITO", "CHEQUE", "OTRO"];
     const match = /\[PAGO:\s*([^\]]+)\]/i.exec(row.text || "");
     let currentMethod = (match && match[1] && match[1].toUpperCase().trim()) || "EFECTIVO";
@@ -274,7 +279,6 @@ export function initNotes() {
 
     eSave.onclick = async () => {
       try {
-        // limpiar tag [PAGO: ...] previo y reescribir con el método seleccionado
         let newText = eText.value.trim();
         newText = newText.replace(/\s*\[PAGO:[^\]]+\]/ig, "").trim();
 
@@ -301,7 +305,6 @@ export function initNotes() {
     };
   }
 
-  // ------- Crear nota -------
   nSave.onclick = async () => {
     try {
       let media = [];
@@ -340,7 +343,6 @@ export function initNotes() {
     }
   };
 
-  // ------- Filtros -------
   fApply.onclick = () => {
     const p = {};
     if (fPlate.value.trim()) p.plate = fPlate.value.trim();
@@ -349,7 +351,6 @@ export function initNotes() {
     refresh(p);
   };
 
-  // ------- Modal base (close, esc, click afuera) -------
   const modal = document.getElementById("modal");
   const modalBody = document.getElementById("modalBody");
   const modalClose = document.getElementById("modalClose");
@@ -364,12 +365,10 @@ export function initNotes() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") hardHideModal(); });
   hardHideModal();
 
-  // (para ver imágenes en grande reutilizamos openModal)
   window.openModal = (html) => {
     modalBody.innerHTML = html;
     modal.classList.remove("hidden");
   };
 
-  // init
   refresh({});
 }

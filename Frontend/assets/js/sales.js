@@ -1,15 +1,6 @@
-﻿/* assets/js/sales.js — FRONTEND PURO
-   Hace funcionar la pestaña de Ventas: botones, render de tabla, QR (fallback jsQR) y SSE.
-   Requiere que api.js exponga API con:
-     API.sales.{start,get,addItem,updateItem,removeItem,setCustomerVehicle,close,list,cancel}
-     API.inventory.itemsList (picker)
-     API.servicesList, API.pricesList  (picker de precios)
-     API.live.connect()                 (SSE; opcional)
-*/
-import { API } from './api.esm.js';
+﻿import { API } from './api.esm.js';
 import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from './feature-gating.js';
 
-// ---------- helpers ----------
 const $  = (s, r=document)=>r.querySelector(s);
 const clone = (id)=>document.getElementById(id)?.content?.firstElementChild?.cloneNode(true);
 const money = (n)=> new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n||0));
@@ -118,16 +109,14 @@ function printWorkOrder(){
 }
 
 
-// ---------- estado ----------
-let es = null;         // EventSource (SSE)
-let current = null;    // venta actual
-let openSales = [];    // ventas abiertas (draft) compartidas
-// Lista dinámica de técnicos por empresa, cargada desde backend
+let es = null;
+let current = null;
+let openSales = [];
 let companyTechnicians = [];
 let technicianSelectInitialized = false;
-let starting = false;  // evita doble clic en "Nueva venta"
+let starting = false;
 let salesRefreshTimer = null;
-let lastQuoteLoaded = null; // referencia a la cotización mostrada en el mini panel
+let lastQuoteLoaded = null;
 const QUOTE_LINK_KEY = 'sales:quoteBySale';
 let saleQuoteLinks = loadSaleQuoteLinks();
 const saleQuoteCache = new Map();
@@ -204,14 +193,11 @@ async function renderQuoteForCurrentSale(){
   }
 }
 
-// ---- helper: mapear item de cotización -> payload addItem/addItemsBatch ----
 function mapQuoteItemToSale(it){
   const unit = Number(it.unitPrice ?? it.unit ?? 0) || 0;
   const qty  = Number(it.qty || 1) || 1;
   let source = it.source || it.kindSource || '';
-  // Normalizar refId (posibles variantes legacy)
   const refId = it.refId || it.refID || it.ref_id || null;
-  // Heurística: si es PRODUCTO y no tiene source pero hay sku/refId -> tratar como inventario
   const kindUpper = String(it.kind || it.type || '').toUpperCase();
   if(!source && kindUpper === 'PRODUCTO' && (refId || it.sku)) source = 'inventory';
   if(source === 'inventory'){
@@ -220,7 +206,6 @@ function mapQuoteItemToSale(it){
   if(source === 'price'){
     return { source:'price', refId: refId || undefined, qty, unitPrice:unit };
   }
-  // Legacy/manual: no afecta stock. Usamos 'service' genérico con nombre.
   return {
     source:'service',
     name: it.description || it.name || 'Item',
@@ -278,31 +263,24 @@ function startSalesAutoRefresh() {
   }, 10000);
 }
 
-// Registrar listener botón Imprimir OT cuando exista en DOM
 document.addEventListener('DOMContentLoaded', ()=>{
   const btnWO = document.getElementById('sv-print-wo');
   if(btnWO) btnWO.addEventListener('click', ()=> printWorkOrder());
 });
 
-// ===== Modal Cerrar Venta =====
 let companyPrefs = { laborPercents: [] };
 let techConfig = { laborKinds: [], technicians: [] };
 async function ensureCompanyData(){
   try { companyTechnicians = await API.company.getTechnicians(); } catch { companyTechnicians = []; }
   try { companyPrefs = await API.company.getPreferences(); } catch { companyPrefs = { laborPercents: [] }; }
   try { 
-    // Usar API.get directamente como alternativa más robusta
     const response = await API.get('/api/v1/company/tech-config');
     techConfig = response?.config || response || { laborKinds: [], technicians: [] };
-    console.log('techConfig cargado:', techConfig);
-    console.log('laborKinds:', techConfig?.laborKinds);
   } catch (err) { 
-    console.error('Error cargando techConfig:', err);
     techConfig = { laborKinds: [], technicians: [] }; 
   }
 }
 
-// === Multi-payment close sale modal construction ===
 function buildCloseModalContent(){
   const total = current?.total || 0;
   const wrap = document.createElement('div');
@@ -750,7 +728,6 @@ async function setupTechnicianSelect(){
   }
 }
 
-// ---------- mini resumen cliente/vehículo ----------
 function renderMini(){
   const lp = document.getElementById('sv-mini-plate'), ln = document.getElementById('sv-mini-name'), lr = document.getElementById('sv-mini-phone');
   const c = current?.customer || {}, v = current?.vehicle || {};
@@ -759,13 +736,11 @@ function renderMini(){
   if (lr) lr.textContent = `Cel: ${c.phone || '—'}`;
 }
 
-// ---------- tabla de venta ----------
 function renderSale(){
   const body = document.getElementById('sales-body'), total = document.getElementById('sales-total');
   if (!body) return;
   body.innerHTML = '';
 
-  // Mostrar slots abiertos pendientes primero
   if (current?.openSlots && current.openSlots.length > 0) {
     const incompleteSlots = current.openSlots.filter(slot => !slot.completed);
     incompleteSlots.forEach((slot, slotIdx) => {
@@ -783,7 +758,7 @@ function renderSale(){
       
       const qty = tr.querySelector('.qty');
       qty.value = String(slot.qty || 1);
-      qty.disabled = true; // No se puede editar cantidad de slots abiertos
+      qty.disabled = true;
       
       tr.querySelector('[data-unit]').textContent = money(slot.estimatedPrice || 0);
       tr.querySelector('[data-total]').textContent = money((slot.qty || 1) * (slot.estimatedPrice || 0));
@@ -807,12 +782,8 @@ function renderSale(){
     });
   }
   
-  // Agrupar items por combo para renderizarlos juntos
-  // Los combos se agregan con SKU "COMBO-xxx" y los items siguientes hasta el próximo combo son parte de él
   const items = current?.items || [];
   let i = 0;
-  
-  // Cache para almacenar el número de productos de cada combo
   const comboProductsCountCache = new Map();
   
   while (i < items.length) {
@@ -1301,7 +1272,6 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
   });
 }
 
-// ---------- orden de trabajo (preview simple) ----------
 function renderWO(){
   const b = document.getElementById('sv-wo-body'); if (!b) return;
   b.innerHTML = '';
@@ -1312,45 +1282,36 @@ function renderWO(){
   }
 }
 
-// ---------- modal genérico ----------
 function openModal(node){
   const modal = document.getElementById('modal'), slot = document.getElementById('modalBody'), x = document.getElementById('modalClose');
   if (!modal||!slot||!x) return;
   slot.replaceChildren(node);
   modal.classList.remove('hidden');
   
-  // Función para cerrar el modal
   const closeModalHandler = () => {
     modal.classList.add('hidden');
-    // Limpiar listeners
     document.removeEventListener('keydown', escHandler);
     modal.removeEventListener('click', backdropHandler);
   };
   
-  // Listener para ESC
   const escHandler = (e) => {
     if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
       closeModalHandler();
     }
   };
   
-  // Listener para clic fuera del modal (en el backdrop)
   const backdropHandler = (e) => {
     if (e.target === modal) {
       closeModalHandler();
     }
   };
   
-  // Agregar listeners
   document.addEventListener('keydown', escHandler);
   modal.addEventListener('click', backdropHandler);
-  
-  // Botón X
   x.onclick = closeModalHandler;
 }
 function closeModal(){ const m = document.getElementById('modal'); if (m) m.classList.add('hidden'); }
 
-// ---------- QR ----------
 function openQR(){
   if (!current) return alert('Crea primero una venta');
   const tpl = document.getElementById('tpl-qr-scanner'); const node = tpl.content.firstElementChild.cloneNode(true);
@@ -1369,15 +1330,13 @@ function openQR(){
   const manualBtn = node.querySelector('#qr-add-manual');
 
   let stream=null, running=false, detector=null, lastCode='', lastTs=0;
-  let multiMode = false; // Modo múltiples items activo
-  let cameraDisabled = false; // Control para deshabilitar cámara durante delay
+  let multiMode = false;
+  let cameraDisabled = false;
 
   async function fillCams(){
     try{
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
-      // En móviles, no intentar enumerar sin permisos - simplemente crear opción por defecto
-      // Los permisos se solicitarán cuando se presione el botón de iniciar
       if (isMobile) {
         const defaultOpt = document.createElement('option');
         defaultOpt.value = '';
@@ -1387,7 +1346,6 @@ function openQR(){
         return;
       }
       
-      // En desktop, intentar enumerar dispositivos
       try {
         const devs = await navigator.mediaDevices.enumerateDevices();
         const cams = devs.filter(d=>d.kind==='videoinput');
@@ -1896,7 +1854,6 @@ function openAddUnified(){
     </div>
   `;
   
-  console.log('Abriendo modal de agregar...');
   const modal = document.getElementById('modal');
   const slot = document.getElementById('modalBody');
   const x = document.getElementById('modalClose');
@@ -2905,7 +2862,6 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
   };
 }
 
-// ---------- agregar manual ----------
 function openAddManual(){
   if (!current) return alert('Crea primero una venta');
   const tpl = document.getElementById('tpl-add-manual'); const node = tpl.content.firstElementChild.cloneNode(true);
@@ -2924,7 +2880,6 @@ function openAddManual(){
   };
 }
 
-// ---------- agregar general (picker) ----------
 function openAddPicker(){
   if (!current) return alert('Crea primero una venta');
   const node = document.createElement('div'); node.className='card';
@@ -2938,7 +2893,6 @@ function openAddPicker(){
   node.querySelector('#go-pr').onclick  = ()=>{ closeModal(); openPickerPrices(); };
 }
 
-// ---------- pickers ----------
 async function openPickerInventory(){
   const tpl = document.getElementById('tpl-inv-picker'); const node = tpl.content.firstElementChild.cloneNode(true);
   openModal(node);
@@ -2983,17 +2937,13 @@ async function openPickerPrices(){
     svc.replaceChildren(...(svcs||[]).map(s=>{ const o=document.createElement('option'); o.value=s._id; o.textContent=s.name||('Servicio '+s._id.slice(-6)); return o; }));
   }catch{}
   let page=1, limit=20;
-  
-  // Obtener vehicleId de la venta actual si existe
   const currentVehicleId = current?.vehicle?.vehicleId || null;
   
   async function load(reset=false){
     if(reset){ body.innerHTML=''; page=1; }
     const params = { serviceId: svc.value||'', page, limit };
-    // Filtrar por vehículo de la venta si existe
     if (currentVehicleId) {
       params.vehicleId = currentVehicleId;
-      // Filtrar por año del vehículo si está disponible
       const vehicleYear = current?.vehicle?.year || null;
       if (vehicleYear) {
         params.vehicleYear = vehicleYear;
@@ -3277,7 +3227,6 @@ function openEditCV(){
   let selectedVehicle = null;
   let vehicleSearchTimeout = null;
   
-  // Si ya hay vehicleId, cargar datos del vehículo
   if (v.vehicleId) {
     vehicleIdInput.value = v.vehicleId;
     API.vehicles.get(v.vehicleId).then(vehicle => {
@@ -3295,7 +3244,6 @@ function openEditCV(){
     }).catch(() => {});
   }
   
-  // Búsqueda de vehículos
   async function searchVehicles(query) {
     if (!query || query.trim().length < 1) {
       vehicleDropdown.style.display = 'none';
@@ -3667,7 +3615,6 @@ function openSalesHistory(){
       body.appendChild(tr); acc += Number(s.total||0);
     });
     total.textContent = money(acc);
-    // pagination state
     try{
       const cur = Number(res?.page||page||1);
       const lim = Number(res?.limit||params.limit||50);
@@ -3768,22 +3715,18 @@ function connectLive(){
   }catch(e){ console.warn('SSE no disponible:', e?.message||e); }
 }
 
-// ---------- init ----------
 export function initSales(){
   const ventas = document.getElementById('tab-ventas'); if (!ventas) return;
 
-  // Sub-feature gating: ventas.importarCotizacion y ventas.ordenesTrabajo
   (async ()=>{
     await loadFeatureOptionsAndRestrictions();
     const fo = getFeatureOptions();
     const v = (fo.ventas||{});
-    // Importar cotización (botones relacionados)
-    const canImport = v.importarCotizacion !== false; // default true
+    const canImport = v.importarCotizacion !== false;
     gateElement(canImport, '#sv-loadQuote');
     gateElement(canImport, '#sv-applyQuoteCV');
     gateElement(canImport, '#sv-q-to-sale');
-    // Orden de trabajo (imprimir)
-    const canWO = v.ordenesTrabajo !== false; // default true
+    const canWO = v.ordenesTrabajo !== false;
     gateElement(canWO, '#sv-wo-card');
     gateElement(canWO, '#sv-print-wo');
   })();
@@ -3806,16 +3749,11 @@ export function initSales(){
     finally{ starting=false; if(btn) btn.disabled=false; }
   });
 
-  // ===== Nueva venta con placa (solo cámara OCR) =====
   async function openQRForNewSale(){
     if (starting) {
-      console.log('Ya hay una venta iniciándose');
       return;
     }
     
-    console.log('Abriendo lector de placa con cámara...');
-    
-    // Abrir directamente el modal de OCR
     async function openQRForNewSaleWithOCR(){
     const tpl = document.getElementById('tpl-qr-scanner');
     if (!tpl) {
@@ -3837,7 +3775,6 @@ export function initSales(){
     
     slotOCR.replaceChildren(nodeOCR);
     
-    // Agregar botón de cerrar visible dentro del contenido del modal
     const closeBtnContainer = document.createElement('div');
     closeBtnContainer.className = 'flex justify-between items-center mb-4';
     const title = nodeOCR.querySelector('h3');
@@ -3848,7 +3785,6 @@ export function initSales(){
       closeBtn.onclick = () => {
         const modal = document.getElementById('modal');
         if (modal) modal.classList.add('hidden');
-        // Limpiar listeners
         document.removeEventListener('keydown', escHandler);
         modalOCR.removeEventListener('click', backdropHandler);
       };
@@ -3857,10 +3793,8 @@ export function initSales(){
       closeBtnContainer.appendChild(closeBtn);
     }
     
-    // Función para cerrar el modal
     const closeModalHandler = () => {
       modalOCR.classList.add('hidden');
-      // Limpiar listeners
       document.removeEventListener('keydown', escHandler);
       modalOCR.removeEventListener('click', backdropHandler);
     };

@@ -101,12 +101,6 @@
       align-items: center;
       justify-content: center;
     }
-    #modal > div {
-      pointer-events: auto;
-    }
-    #modal {
-      pointer-events: auto;
-    }
     /* Estilos personalizados para barras de scroll */
     .custom-scrollbar {
       scrollbar-width: thin;
@@ -137,86 +131,21 @@
     body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: rgba(100, 116, 139, 0.6);
     }
-    /* Tabs internas de Nómina */
-    .payroll-tabs {
-      background: rgb(30 41 59 / 0.5);
-      border: 1px solid rgba(148, 163, 184, 0.3);
-      padding: 8px;
-      border-radius: 12px;
+    /* Mejorar contrastes de barras de navegación en modo claro */
+    body.theme-light .nav-tab:not(.active),
+    body.theme-light .mobile-nav-tab:not(.active) {
+      color: #475569 !important;
+      background-color: transparent !important;
     }
-    body.theme-light .payroll-tabs {
-      background: rgba(255, 255, 255, 0.9);
-      border-color: rgba(203, 213, 225, 0.5);
+    body.theme-light .nav-tab:not(.active):hover,
+    body.theme-light .mobile-nav-tab:not(.active):hover {
+      color: #0f172a !important;
+      background-color: rgba(203, 213, 225, 0.5) !important;
     }
-    .payroll-tabs button {
-      border: 1px solid rgba(148, 163, 184, 0.25);
-      background: rgba(30, 64, 175, 0.15);
-      color: rgb(226 232 240);
-      padding: 8px 14px;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: all 0.15s;
-      margin: 0 2px;
-    }
-    body.theme-light .payroll-tabs button {
-      color: rgb(51 65 85);
-    }
-    .payroll-tabs button:hover {
-      background: rgba(30, 64, 175, 0.25);
-      box-shadow: 0 8px 22px rgba(30, 64, 175, 0.25);
-    }
-    .payroll-tabs button.active {
-      background: rgb(37 99 235);
-      color: white;
-      border-color: rgba(59, 130, 246, 0.55);
-    }
-    /* Chips técnicos */
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(148, 163, 184, 0.12);
-      border: 1px solid rgba(148, 163, 184, 0.3);
-      color: rgb(226 232 240);
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-    }
-    body.theme-light .chip {
-      color: rgb(51 65 85);
-      border-color: rgba(203, 213, 225, 0.5);
-    }
-    .chip .danger {
-      margin-left: 4px;
-    }
-    /* Conceptos */
-    .concept-row:hover {
-      background: rgba(148, 163, 184, 0.05);
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    }
-    .concept-badge {
-      font-family: inherit;
-      letter-spacing: 0.3px;
-    }
-    /* Períodos */
-    .period-row:hover {
-      background: rgba(148, 163, 184, 0.05);
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    }
-    /* Liquidaciones */
-    .settlement-row:hover {
-      background: rgba(148, 163, 184, 0.05);
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    }
-    /* Pagos */
-    .pending-settlement-row:hover {
-      background: rgba(148, 163, 184, 0.05);
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-      border-color: rgba(59, 130, 246, 0.3) !important;
+    body.theme-light .nav-tab.active,
+    body.theme-light .mobile-nav-tab.active {
+      color: #ffffff !important;
+      background-color: #2563eb !important;
     }
   </style>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">

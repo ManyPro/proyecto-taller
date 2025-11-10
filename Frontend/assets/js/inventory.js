@@ -1,10 +1,8 @@
-﻿// Frontend/assets/inventory.js
-import { API } from "./api.esm.js";
+﻿import { API } from "./api.esm.js";
 import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from './feature-gating.js';
 import { upper } from "./utils.js";
 import { bindStickersButton, downloadStickersPdf } from './pdf.js';
 
-// ---- State ----
 const state = {
   intakes: [],
   lastItemsParams: {},
@@ -15,7 +13,6 @@ const state = {
   permissions: {}
 };
 
-// ---- Helpers ----
 function makeIntakeLabel(v) {
   if (!v) return "GENERAL";
   const kind = (v.intakeKind || "vehicle").toLowerCase();
@@ -78,7 +75,6 @@ function toQuery(params = {}) {
   return s ? `?${s}` : "";
 }
 
-// --- Utils ---
 function debounce(fn, wait = 200) {
   let t;
   return function(...args) {
@@ -87,9 +83,7 @@ function debounce(fn, wait = 200) {
   };
 }
 
-// ---- API Facade ----
 const invAPI = {
-  // Vehicle Intakes
   listVehicleIntakes: async () => {
     const r = await request("/api/v1/inventory/vehicle-intakes");
     const data = Array.isArray(r) ? r : (r.items || r.data || []);
@@ -153,7 +147,6 @@ const invAPI = {
   }
 };
 
-// ---- Modal helpers ----
 function invOpenModal(innerHTML) {
   const modal = document.getElementById("modal");
   const body = document.getElementById("modalBody");
@@ -315,7 +308,6 @@ function openLightbox(media) {
   }
 }
 
-// ===== FUNCIONALIDAD DE ZOOM PARA IMÁGENES =====
 function setupImageZoom() {
   const img = document.getElementById("modal-img");
   const zoomIn = document.getElementById("zoom-in");
@@ -493,7 +485,6 @@ function setupImageZoom() {
   };
 }
 
-// ---- QR helpers ----
 function buildQrPath(itemId, size = 256) {
   return `/api/v1/inventory/items/${itemId}/qr.png?size=${size}`;
 }
@@ -622,7 +613,6 @@ function getSelectedItems() {
 // Solo ejecutar la lógica de Inventario cuando estamos en esa página
 const __ON_INV_PAGE__ = (document.body?.dataset?.page === 'inventario');
 if (__ON_INV_PAGE__) {
-  // --- Busy Overlay (para operaciones largas) ---
   function getBusyOverlay(){
     let el = document.getElementById('busy-overlay');
     if (el) return el;
@@ -884,7 +874,6 @@ if (__ON_INV_PAGE__) {
     updateSelectionBar();
   }
 
-  // ---- Publicación MASIVA ----
   function openBulkPublishModal(){
     const optionsIntakes = [
       `<option value="">(por selección actual o SKUs)</option>`,
@@ -954,7 +943,6 @@ if (__ON_INV_PAGE__) {
     };
   };
 
-  // ---- Intakes ----
   async function refreshIntakes() {
     const { data } = await invAPI.listVehicleIntakes();
     state.intakes = data || [];
@@ -1026,14 +1014,12 @@ if (__ON_INV_PAGE__) {
     });
   }
 
-  // --- Sub-feature gating for Inventario ---
   (async ()=>{
     await loadFeatureOptionsAndRestrictions({ force: true });
     const fo = getFeatureOptions();
     const inv = (fo.inventario||{});
-    // Ingresos: vehículo y compra
-    const allowVeh = inv.ingresoVehiculo !== false; // default true
-    const allowPurch = inv.ingresoCompra !== false; // default true
+    const allowVeh = inv.ingresoVehiculo !== false;
+    const allowPurch = inv.ingresoCompra !== false;
     const wrapRadio = (id, enabled) => {
       const input = document.getElementById(id);
       if (!input) return;
@@ -1116,7 +1102,6 @@ if (__ON_INV_PAGE__) {
     });
   }
 
-  // ---- Items list ----
   function buildThumbGrid(it) {
     const media = Array.isArray(it.images) ? it.images : [];
     const cells = media
@@ -1312,7 +1297,6 @@ if (__ON_INV_PAGE__) {
     refreshItems(params);
   }
 
-  // ---- Agregar Stock ----
   function openStockInModal(it){
     const optionsIntakes = [
       `<option value="">(sin entrada)</option>`,
