@@ -2397,7 +2397,15 @@ function init(){
 }
 
 function switchTab(name){
-  document.querySelectorAll('.payroll-tabs button[data-subtab]').forEach(b=> b.classList.toggle('active', b.dataset.subtab===name));
+  document.querySelectorAll('.payroll-tabs button[data-subtab]').forEach(b=> {
+    if(b.dataset.subtab===name){
+      b.classList.remove('bg-slate-700/50', 'dark:bg-slate-700/50', 'hover:bg-slate-700', 'dark:hover:bg-slate-700', 'text-white', 'dark:text-white', 'border', 'border-slate-600/50', 'dark:border-slate-600/50', 'theme-light:border-slate-300', 'theme-light:bg-slate-200', 'theme-light:text-slate-700', 'theme-light:hover:bg-slate-300', 'theme-light:hover:text-slate-900');
+      b.classList.add('bg-blue-600', 'text-white');
+    } else {
+      b.classList.remove('bg-blue-600', 'text-white');
+      b.classList.add('bg-slate-700/50', 'dark:bg-slate-700/50', 'hover:bg-slate-700', 'dark:hover:bg-slate-700', 'text-white', 'dark:text-white', 'border', 'border-slate-600/50', 'dark:border-slate-600/50', 'theme-light:border-slate-300', 'theme-light:bg-slate-200', 'theme-light:text-slate-700', 'theme-light:hover:bg-slate-300', 'theme-light:hover:text-slate-900');
+    }
+  });
   document.querySelectorAll('[data-subsection]').forEach(sec=> sec.classList.toggle('hidden', sec.dataset.subsection!==name));
   
   // Recargar datos cuando se abre la pestaña

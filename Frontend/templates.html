@@ -171,7 +171,7 @@
 <body data-page="formatos">
   <main>
     <!-- ========== APP HEADER ========== -->
-    <div class="topbar hidden" id="appHeader">
+  <div class="topbar hidden" id="appHeader">
       <!-- Top Bar - Header Principal -->
       <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -182,31 +182,33 @@
               <div class="hidden sm:flex flex-col">
                 <span class="text-xs text-slate-400 font-medium">Empresa</span>
                 <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
-              </div>
+          </div>
               <div class="sm:hidden text-white font-semibold text-sm">
                 <span id="companyNameMobile">-</span>
-              </div>
-            </div>
+          </div>
+        </div>
 
             <!-- Botones de Acción (Desktop) -->
             <div class="hidden md:flex items-center gap-2">
               <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
               <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
+              <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
               <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
-            </div>
+        </div>
 
             <!-- Menú Hamburguesa (Mobile) -->
             <div class="md:hidden flex items-center gap-2">
               <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
+              <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
               <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
               <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                 </svg>
               </button>
-            </div>
-          </div>
-        </div>
+      </div>
+    </div>
+  </div>
 
         <!-- Navegación Principal (Desktop) -->
         <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
@@ -241,8 +243,8 @@
           <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">Formatos</button>
           <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
           <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
-        </div>
-      </div>
+              </div>
+            </div>
     </div>
 
     <section id="appSection" class="hidden">
@@ -257,49 +259,49 @@
       </div>
 
       <div class="template-editor-container">
-        <div class="editor-main">
+    <div class="editor-main">
           <h1 class="text-2xl md:text-3xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-8">🎨 Editor de Plantillas Visual</h1>
-          
-          <div id="custom-editor">
-            <div id="ce-toolbar" class="ce-toolbar"></div>
-            <div id="ce-canvas" class="ce-canvas" contenteditable="false"></div>
-          </div>
-          
-          <div class="template-actions">
+      
+      <div id="custom-editor">
+        <div id="ce-toolbar" class="ce-toolbar"></div>
+        <div id="ce-canvas" class="ce-canvas" contenteditable="false"></div>
+      </div>
+      
+      <div class="template-actions">
             <button id="save-template" class="px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2">
-              💾 Guardar Plantilla
-            </button>
+          💾 Guardar Plantilla
+        </button>
             <button id="preview-template" class="px-4 py-3 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 flex items-center gap-2">
-              👀 Vista Previa
-            </button>
+          👀 Vista Previa
+        </button>
             <button onclick="window.location.href='template-selector.html'" class="px-4 py-3 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 flex items-center gap-2">
-              ⬅️ Volver al Menú
-            </button>
-          </div>
-        </div>
-        
-        <aside class="editor-sidebar">
+          ⬅️ Volver al Menú
+        </button>
+      </div>
+    </div>
+    
+    <aside class="editor-sidebar">
           <h3 class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4 pb-2 border-b-2 border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">Variables disponibles</h3>
           <div id="var-list" class="mb-8"></div>
           <h3 class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4 pb-2 border-b-2 border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">Presets</h3>
           <div id="preset-list" class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 italic">
-            (Próximamente)
-          </div>
-        </aside>
+        (Próximamente)
       </div>
-      
-      <script src="assets/js/api.js"></script>
-      <script src="assets/js/templates-visual.js"></script>
-      <!-- Overlay de vista previa no utilizado; mantenido por compatibilidad -->
+    </aside>
+  </div>
+  
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/templates-visual.js"></script>
+    <!-- Overlay de vista previa no utilizado; mantenido por compatibilidad -->
       <div id="preview-overlay" class="hidden fixed inset-0 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 z-[9999] flex items-center justify-center p-10">
         <div class="bg-slate-800 dark:bg-slate-800 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 w-[80%] h-[80%] rounded-xl flex flex-col shadow-2xl">
           <div class="px-4 py-3 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 flex items-center justify-between">
             <strong class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Vista previa</strong>
             <button id="preview-close" class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">Cerrar</button>
-          </div>
-          <iframe id="preview-frame" class="flex-1 w-full border-0 bg-slate-800 dark:bg-slate-800 theme-light:bg-white"></iframe>
         </div>
+          <iframe id="preview-frame" class="flex-1 w-full border-0 bg-slate-800 dark:bg-slate-800 theme-light:bg-white"></iframe>
       </div>
+    </div>
     </section>
   </main>
 

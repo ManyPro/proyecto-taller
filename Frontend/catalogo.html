@@ -132,7 +132,6 @@
   <script type="module" src="./assets/js/api.esm.js"></script>
   <!-- Migrado a versión segmentada por empresa -->
   <script type="module" src="./assets/js/catalog-public.js"></script>
-  <script type="module" src="./assets/js/promo-slider.js"></script>
   <script>
     // Lazy image upgrade (IntersectionObserver) para browsers sin soporte nativo avanzado
     document.addEventListener('DOMContentLoaded', () => {
@@ -173,38 +172,6 @@
     </div>
   </header>
   <div class="max-w-7xl mx-auto px-4 py-4" id="catalogContainer">
-    <section class="bg-gradient-to-br from-blue-900 via-teal-800 to-blue-900 text-white rounded-2xl p-8 mb-6 relative overflow-hidden shadow-xl" aria-label="Promociones destacadas">
-      <h1 class="m-0 mb-3 text-2xl md:text-3xl font-bold">Encuentra tus repuestos</h1>
-      <div id="heroSlider" class="hero-slider" data-autoplay="true" data-interval="6000" role="region" aria-roledescription="carousel" aria-label="Promociones" tabindex="0">
-        <div class="hero-slides">
-          <div class="hero-slide active" data-index="0" aria-label="Chequeo de frenos" aria-hidden="false">
-            <h2>Chequeo de Frenos Gratis</h2>
-            <p>Al comprar tus pastillas delanteras obtienes diagnóstico sin costo adicional.</p>
-            <button class="slider-cta" data-action="detail" data-tag="frenos">Ver detalle</button>
-          </div>
-          <div class="hero-slide" data-index="1" aria-label="Cambio de aceite" aria-hidden="true">
-            <h2>Servicio de Aceite Express</h2>
-            <p>Agenda y listo en 45 minutos. Filtro + mano de obra incluida.</p>
-            <button class="slider-cta" data-action="detail" data-tag="aceite">Ver detalle</button>
-          </div>
-          <div class="hero-slide" data-index="2" aria-label="Baterías" aria-hidden="true">
-            <h2>Baterías con Instalación</h2>
-            <p>Instalación en taller sin costo en referencias seleccionadas.</p>
-            <button class="slider-cta" data-action="detail" data-tag="baterias">Ver detalle</button>
-          </div>
-        </div>
-        <div class="hero-nav" role="tablist" aria-label="Selector de promoción">
-          <button class="hero-dot active" data-go="0" role="tab" aria-selected="true" aria-controls="hero-slide-0"><span class="visually-hidden">1</span></button>
-          <button class="hero-dot" data-go="1" role="tab" aria-selected="false" aria-controls="hero-slide-1"><span class="visually-hidden">2</span></button>
-          <button class="hero-dot" data-go="2" role="tab" aria-selected="false" aria-controls="hero-slide-2"><span class="visually-hidden">3</span></button>
-        </div>
-        <div class="hero-arrows">
-          <button class="hero-prev" aria-label="Anterior">◀</button>
-          <button class="hero-next" aria-label="Siguiente">▶</button>
-        </div>
-      </div>
-    </section>
-
     <section class="mb-4" id="filters">
       <div class="flex gap-3 flex-wrap items-end">
         <label class="flex flex-col gap-1">

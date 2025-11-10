@@ -147,6 +147,60 @@
       color: #ffffff !important;
       background-color: #2563eb !important;
     }
+    /* Estilos para tablas responsivas en móvil */
+    @media (max-width: 768px) {
+      .overflow-x-auto table {
+        display: block;
+        width: 100%;
+      }
+      .overflow-x-auto thead {
+        display: none;
+      }
+      .overflow-x-auto tbody {
+        display: block;
+        width: 100%;
+      }
+      .overflow-x-auto tr {
+        display: block;
+        margin-bottom: 1rem;
+        background: rgba(30, 41, 59, 0.5);
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+      }
+      body.theme-light .overflow-x-auto tr {
+        background: #ffffff;
+        border-color: rgba(203, 213, 225, 0.5);
+      }
+      .overflow-x-auto td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border: none;
+        text-align: right;
+      }
+      .overflow-x-auto td:before {
+        content: attr(data-label);
+        font-weight: 600;
+        text-align: left;
+        margin-right: 1rem;
+        color: rgba(148, 163, 184, 0.8);
+      }
+      body.theme-light .overflow-x-auto td:before {
+        color: rgba(100, 116, 139, 0.8);
+      }
+      .overflow-x-auto td:last-child {
+        border-top: 1px solid rgba(148, 163, 184, 0.2);
+        padding-top: 0.75rem;
+        margin-top: 0.5rem;
+        justify-content: flex-end;
+        gap: 0.5rem;
+      }
+      body.theme-light .overflow-x-auto td:last-child {
+        border-top-color: rgba(203, 213, 225, 0.5);
+      }
+    }
   </style>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
   <script src="./assets/js/config.js"></script>
@@ -162,7 +216,7 @@
 <body data-page="cashflow">
   <main>
     <!-- ========== APP HEADER ========== -->
-    <div class="topbar hidden" id="appHeader">
+  <div class="topbar hidden" id="appHeader">
       <!-- Top Bar - Header Principal -->
       <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -173,24 +227,22 @@
               <div class="hidden sm:flex flex-col">
                 <span class="text-xs text-slate-400 font-medium">Empresa</span>
                 <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
-              </div>
+          </div>
               <div class="sm:hidden text-white font-semibold text-sm">
                 <span id="companyNameMobile">-</span>
-              </div>
-            </div>
+          </div>
+        </div>
 
             <!-- Botones de Acción (Desktop) -->
             <div class="hidden md:flex items-center gap-2">
-              <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
               <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
-              <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
+              <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
               <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
             </div>
 
             <!-- Menú Hamburguesa (Mobile) -->
             <div class="md:hidden flex items-center gap-2">
               <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
-              <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
               <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
               <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -198,8 +250,8 @@
                 </svg>
               </button>
             </div>
-          </div>
-        </div>
+    </div>
+  </div>
 
         <!-- Navegación Principal (Desktop) -->
         <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
@@ -234,8 +286,8 @@
           <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
           <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
           <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
-        </div>
-      </div>
+              </div>
+            </div>
     </div>
 
     <section id="appSection" class="hidden">
@@ -250,7 +302,7 @@
       </div>
 
       <!-- ========== FLUJO DE CAJA ========== -->
-      <section id="tab-cashflow" class="tab active">
+  <section id="tab-cashflow" class="tab active">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <!-- Cuentas -->
           <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
@@ -271,7 +323,7 @@
                 </thead>
                 <tbody id="cf-acc-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
               </table>
-            </div>
+          </div>
             <div id="cf-acc-total" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Total: —</div>
           </div>
 
@@ -298,7 +350,7 @@
               <button id="cf-new-entry" class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">+ Entrada manual</button>
               <button id="cf-new-expense" class="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 dark:from-red-600 dark:to-red-700 theme-light:from-red-500 theme-light:to-red-600 hover:from-red-700 hover:to-red-800 dark:hover:from-red-700 dark:hover:to-red-800 theme-light:hover:from-red-600 theme-light:hover:to-red-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">- Salida</button>
               <button id="cf-new-loan" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💰 Préstamo</button>
-            </div>
+        </div>
             <div id="cf-mov-summary" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">—</div>
             <div class="max-h-[360px] overflow-auto custom-scrollbar mb-4">
               <div class="overflow-x-auto">
@@ -312,22 +364,23 @@
                       <th class="px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">IN</th>
                       <th class="px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">OUT</th>
                       <th class="px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Saldo</th>
+                      <th class="px-4 py-2 text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Acciones</th>
                     </tr>
                   </thead>
                   <tbody id="cf-rows" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
-                </table>
-              </div>
+            </table>
+          </div>
             </div>
             <div class="flex justify-between items-center text-xs">
               <div id="cf-pag" class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Página 1</div>
               <div class="flex gap-2">
                 <button id="cf-prev" disabled class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">←</button>
                 <button id="cf-next" disabled class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">→</button>
-              </div>
             </div>
           </div>
-          
-          <!-- Sección de Préstamos a Empleados -->
+        </div>
+        
+        <!-- Sección de Préstamos a Empleados -->
           <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
             <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Préstamos a Empleados</h3>
             <div class="flex flex-wrap gap-2 items-end mb-4">
@@ -335,13 +388,13 @@
                 <option value="">-- Todos los empleados --</option>
               </select>
               <select id="cf-loan-filter-status" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                <option value="">Todos</option>
-                <option value="pending">Pendientes</option>
-                <option value="partially_paid">Parcialmente pagados</option>
-                <option value="paid">Pagados</option>
-              </select>
+              <option value="">Todos</option>
+              <option value="pending">Pendientes</option>
+              <option value="partially_paid">Parcialmente pagados</option>
+              <option value="paid">Pagados</option>
+            </select>
               <button id="cf-refresh-loans" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Actualizar</button>
-            </div>
+          </div>
             <div class="max-h-[300px] overflow-auto custom-scrollbar mb-2">
               <div class="overflow-x-auto">
                 <table class="w-full text-sm">
@@ -355,11 +408,11 @@
                       <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Estado</th>
                       <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Descripción</th>
                       <th class="px-4 py-2 text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700"></th>
-                    </tr>
-                  </thead>
+                </tr>
+              </thead>
                   <tbody id="cf-loans-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
-                </table>
-              </div>
+            </table>
+          </div>
             </div>
             <div id="cf-loans-summary" class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">—</div>
           </div>

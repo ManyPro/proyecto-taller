@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="utf-8" />
+        <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M&M - SKUs</title>
     <!-- Tailwind CSS -->
@@ -243,7 +243,7 @@
 <body data-page="skus">
     <main>
         <!-- ========== APP HEADER ========== -->
-        <div class="topbar hidden" id="appHeader">
+    <div class="topbar hidden" id="appHeader">
             <!-- Top Bar - Header Principal -->
             <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
                 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -254,11 +254,11 @@
                             <div class="hidden sm:flex flex-col">
                                 <span class="text-xs text-slate-400 font-medium">Empresa</span>
                                 <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
-                            </div>
+                                    </div>
                             <div class="sm:hidden text-white font-semibold text-sm">
                                 <span id="companyNameMobile">-</span>
-                            </div>
                         </div>
+                    </div>
 
                         <!-- Botones de Acción (Desktop) -->
                         <div class="hidden md:flex items-center gap-2">
@@ -266,7 +266,7 @@
                             <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
                             <button id="denseToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Modo compacto">📏</button>
                             <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
-                        </div>
+                    </div>
 
                         <!-- Menú Hamburguesa (Mobile) -->
                         <div class="md:hidden flex items-center gap-2">
@@ -278,9 +278,9 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                                 </svg>
                             </button>
-                        </div>
-                    </div>
                 </div>
+            </div>
+        </div>
 
                 <!-- Navegación Principal (Desktop) -->
                 <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
@@ -315,8 +315,8 @@
                     <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
                     <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">SKUs</button>
                     <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
-                </div>
-            </div>
+                            </div>
+                        </div>
         </div>
 
         <section id="appSection" class="hidden">
@@ -331,41 +331,41 @@
             </div>
 
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-                <!-- Header -->
+        <!-- Header -->
                 <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <div>
+            <div>
                             <h1 class="text-2xl md:text-3xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">📦 Gestión de SKUs</h1>
                             <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 opacity-90">Control y seguimiento de códigos de repuestos</p>
-                        </div>
+            </div>
                         <div class="flex gap-3">
                             <button id="btn-refresh" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 flex items-center gap-2">
-                                <span>🔄</span>
-                                <span>Actualizar</span>
-                            </button>
+                    <span>🔄</span>
+                    <span>Actualizar</span>
+                </button>
                         </div>
-                    </div>
-                </div>
+            </div>
+        </div>
 
-                <!-- Stats -->
+        <!-- Stats -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5 mb-6" id="stats-grid">
                     <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 border-l-4 border-l-blue-600">
                         <div class="text-3xl md:text-4xl font-bold text-white dark:text-white theme-light:text-slate-900" id="total-skus">0</div>
                         <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Total SKUs</div>
-                    </div>
+            </div>
                     <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 border-l-4 border-l-amber-500">
                         <div class="text-3xl md:text-4xl font-bold text-white dark:text-white theme-light:text-slate-900" id="pending-skus">0</div>
                         <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Pendientes</div>
-                    </div>
+            </div>
                     <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 border-l-4 border-l-blue-600">
                         <div class="text-3xl md:text-4xl font-bold text-white dark:text-white theme-light:text-slate-900" id="printed-skus">0</div>
                         <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Impresos</div>
-                    </div>
+            </div>
                     <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 border-l-4 border-l-green-600">
                         <div class="text-3xl md:text-4xl font-bold text-white dark:text-white theme-light:text-slate-900" id="applied-skus">0</div>
                         <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Aplicados</div>
-                    </div>
-                </div>
+            </div>
+        </div>
 
                 <!-- Filters + Pagination -->
                 <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
@@ -419,7 +419,7 @@
 
                 <!-- Loading -->
                 <div id="loading" class="hidden text-center py-10">
-                    <div class="spinner"></div>
+                        <div class="spinner"></div>
                     <p class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-4">Cargando SKUs...</p>
                 </div>
 
@@ -430,202 +430,202 @@
                     <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 min-w-[120px] text-center" id="pg-info">Página 1/1</div>
                     <button id="pg-next" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">Siguiente ▶</button>
                 </div>
-            </div>
+    </div>
         </section>
     </main>
 
     <script>
-        // --- State ---
-        const ui = {};
-        const state = { page: 1, limit: 25, search: '', category: 'all', status: 'all', totalPages: 1 };
-        const selected = new Set(); // ids seleccionados en la página
+                // --- State ---
+                const ui = {};
+                const state = { page: 1, limit: 25, search: '', category: 'all', status: 'all', totalPages: 1 };
+                const selected = new Set(); // ids seleccionados en la página
 
-        document.addEventListener('DOMContentLoaded', function() {
-            ui.loading = document.getElementById('loading');
-            ui.list = document.getElementById('sku-list');
-            ui.pager = document.getElementById('sku-pager');
-            ui.pgPrev = document.getElementById('pg-prev');
-            ui.pgNext = document.getElementById('pg-next');
-            ui.pgInfo = document.getElementById('pg-info');
+                document.addEventListener('DOMContentLoaded', function() {
+                    ui.loading = document.getElementById('loading');
+                    ui.list = document.getElementById('sku-list');
+                    ui.pager = document.getElementById('sku-pager');
+                    ui.pgPrev = document.getElementById('pg-prev');
+                    ui.pgNext = document.getElementById('pg-next');
+                    ui.pgInfo = document.getElementById('pg-info');
             ui.btnRefresh = document.getElementById('btn-refresh');
 
-            ui.qSearch = document.getElementById('sku-search');
-            ui.qCategory = document.getElementById('sku-category');
-            ui.qStatus = document.getElementById('sku-status');
-            ui.btnApply = document.getElementById('sku-apply');
-            ui.btnClear = document.getElementById('sku-clear');
+                    ui.qSearch = document.getElementById('sku-search');
+                    ui.qCategory = document.getElementById('sku-category');
+                    ui.qStatus = document.getElementById('sku-status');
+                    ui.btnApply = document.getElementById('sku-apply');
+                    ui.btnClear = document.getElementById('sku-clear');
 
-            ui.btnSelPage = document.getElementById('sku-sel-page');
-            ui.btnSelClear = document.getElementById('sku-sel-clear');
-            ui.btnBulkPrinted = document.getElementById('sku-bulk-printed');
-            ui.btnBulkApplied = document.getElementById('sku-bulk-applied');
-            ui.selCount = document.getElementById('sku-sel-count');
+                    ui.btnSelPage = document.getElementById('sku-sel-page');
+                    ui.btnSelClear = document.getElementById('sku-sel-clear');
+                    ui.btnBulkPrinted = document.getElementById('sku-bulk-printed');
+                    ui.btnBulkApplied = document.getElementById('sku-bulk-applied');
+                    ui.selCount = document.getElementById('sku-sel-count');
 
-            ui.btnApply.onclick = () => { state.page = 1; applyFilters(); };
-            ui.btnClear.onclick = () => { ui.qSearch.value=''; ui.qCategory.value='all'; ui.qStatus.value='all'; state.page=1; applyFilters(); };
-            ui.pgPrev.onclick = () => { if (state.page>1){ state.page--; loadPage(); } };
-            ui.pgNext.onclick = () => { if (state.page<state.totalPages){ state.page++; loadPage(); } };
+                    ui.btnApply.onclick = () => { state.page = 1; applyFilters(); };
+                    ui.btnClear.onclick = () => { ui.qSearch.value=''; ui.qCategory.value='all'; ui.qStatus.value='all'; state.page=1; applyFilters(); };
+                    ui.pgPrev.onclick = () => { if (state.page>1){ state.page--; loadPage(); } };
+                    ui.pgNext.onclick = () => { if (state.page<state.totalPages){ state.page++; loadPage(); } };
 
-            // Refresh stats & list
-            if (ui.btnRefresh) ui.btnRefresh.onclick = () => { loadStats(); loadPage(); };
+                    // Refresh stats & list
+                    if (ui.btnRefresh) ui.btnRefresh.onclick = () => { loadStats(); loadPage(); };
 
-            // Selection actions
-            if (ui.btnSelPage) ui.btnSelPage.onclick = () => selectCurrentPage();
-            if (ui.btnSelClear) ui.btnSelClear.onclick = () => clearSelection();
-            if (ui.btnBulkPrinted) ui.btnBulkPrinted.onclick = () => bulkMarkPrinted();
-            if (ui.btnBulkApplied) ui.btnBulkApplied.onclick = () => bulkMarkApplied();
+                    // Selection actions
+                    if (ui.btnSelPage) ui.btnSelPage.onclick = () => selectCurrentPage();
+                    if (ui.btnSelClear) ui.btnSelClear.onclick = () => clearSelection();
+                    if (ui.btnBulkPrinted) ui.btnBulkPrinted.onclick = () => bulkMarkPrinted();
+                    if (ui.btnBulkApplied) ui.btnBulkApplied.onclick = () => bulkMarkApplied();
 
-            loadStats();
-            loadPage();
-        });
+                    loadStats();
+                    loadPage();
+                });
 
-        async function loadStats(){
-            try{
-                const r = await API.skus.stats();
-                updateStats(r.total||{});
-            }catch(e){ console.warn('stats error', e.message); }
-        }
+                async function loadStats(){
+                    try{
+                        const r = await API.skus.stats();
+                        updateStats(r.total||{});
+                    }catch(e){ console.warn('stats error', e.message); }
+                }
 
-        function paramsToQuery(){
-            // Mostrar primero pendientes: sort por printStatus asc (pending<printed<applied) y luego por createdAt desc
-            const q = { page: state.page, limit: state.limit, sortBy: 'printStatus,createdAt', sortOrder: 'asc,desc' };
-            if (state.search && state.search.trim()) q.search = state.search.trim();
-            if (state.category && state.category!=='all') q.category = state.category;
-            if (state.status && state.status!=='all') q.printStatus = state.status;
-            return q;
-        }
+                function paramsToQuery(){
+                    // Mostrar primero pendientes: sort por printStatus asc (pending<printed<applied) y luego por createdAt desc
+                    const q = { page: state.page, limit: state.limit, sortBy: 'printStatus,createdAt', sortOrder: 'asc,desc' };
+                    if (state.search && state.search.trim()) q.search = state.search.trim();
+                    if (state.category && state.category!=='all') q.category = state.category;
+                    if (state.status && state.status!=='all') q.printStatus = state.status;
+                    return q;
+                }
 
-        function applyFilters(){
-            state.search = (ui.qSearch.value||'').trim();
-            state.category = ui.qCategory.value;
-            state.status = ui.qStatus.value;
-            loadPage();
-        }
+                function applyFilters(){
+                    state.search = (ui.qSearch.value||'').trim();
+                    state.category = ui.qCategory.value;
+                    state.status = ui.qStatus.value;
+                    loadPage();
+                }
 
-        function skuStatusPill(status, pendingStickers){
-            const map = { pending: ['status-pending','⏳ Pendiente'], printed: ['status-printed','🖨️ Impreso'], applied: ['status-applied','✅ Aplicado'] };
-            const m = map[status] || ['status-pending','Pendiente'];
-            const pending = Number(pendingStickers||0);
+                function skuStatusPill(status, pendingStickers){
+                    const map = { pending: ['status-pending','⏳ Pendiente'], printed: ['status-printed','🖨️ Impreso'], applied: ['status-applied','✅ Aplicado'] };
+                    const m = map[status] || ['status-pending','Pendiente'];
+                    const pending = Number(pendingStickers||0);
             const badge = (status==='pending' && pending>0) ? `<span class="ml-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-full px-2 py-0.5 text-xs">🖨 ${pending} pendientes</span>` : '';
             return `<span class="sku-status ${m[0]} px-2 py-1 rounded-full text-xs font-semibold" title="${m[1]}">${m[1]}</span>${badge}`;
-        }
+                }
 
-        function rowActions(sku){
-            const btns = [];
+                function rowActions(sku){
+                    const btns = [];
             if (sku.printStatus === 'pending') btns.push(`<button class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all duration-200 text-sm font-semibold" data-print="${sku._id}" title="Marcar como impreso">🖨️</button>`);
             if (sku.printStatus === 'printed') btns.push(`<button class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all duration-200 text-sm font-semibold" data-apply="${sku._id}" title="Marcar como aplicado">✅</button>`);
             btns.push(`<button class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white rounded-lg transition-all duration-200 text-sm font-semibold border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" data-notes="${sku._id}" title="Editar notas">✏️</button>`);
-            return btns.join(' ');
-        }
+                    return btns.join(' ');
+                }
 
-        async function loadPage(){
+                async function loadPage(){
             ui.loading.classList.remove('hidden');
-            ui.list.innerHTML = '';
+                    ui.list.innerHTML = '';
             ui.pager.classList.add('hidden');
-            try{
-                const q = paramsToQuery();
-                const data = await API.skus.list(q);
-                const skus = Array.isArray(data?.skus) ? data.skus : (Array.isArray(data?.skus?.skus) ? data.skus.skus : (data?.skus || []));
-                const pg = data?.pagination || data?.pg || { current: 1, pages: 1, total: skus.length, limit: state.limit };
-                state.totalPages = Math.max(1, parseInt(pg.pages||1));
-                state.page = Math.max(1, Math.min(state.totalPages, parseInt(pg.current||1)));
+                    try{
+                        const q = paramsToQuery();
+                        const data = await API.skus.list(q);
+                        const skus = Array.isArray(data?.skus) ? data.skus : (Array.isArray(data?.skus?.skus) ? data.skus.skus : (data?.skus || []));
+                        const pg = data?.pagination || data?.pg || { current: 1, pages: 1, total: skus.length, limit: state.limit };
+                        state.totalPages = Math.max(1, parseInt(pg.pages||1));
+                        state.page = Math.max(1, Math.min(state.totalPages, parseInt(pg.current||1)));
 
-                ui.list.innerHTML = skus.map(sku => `
+                        ui.list.innerHTML = skus.map(sku => `
                     <div class="px-5 py-4 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 flex flex-col md:flex-row gap-3 md:gap-4 items-start md:items-center hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-100 transition-colors duration-200">
-                        <input type="checkbox" class="sku-select" data-id="${sku._id}" ${selected.has(String(sku._id)) ? 'checked' : ''} />
+                                <input type="checkbox" class="sku-select" data-id="${sku._id}" ${selected.has(String(sku._id)) ? 'checked' : ''} />
                         <div class="flex-1 min-w-0">
                             <div class="font-bold text-white dark:text-white theme-light:text-slate-900 text-lg mb-1">${sku.code}</div>
                             <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">${sku.description || ''}</div>
                             <div class="flex flex-wrap gap-3 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
-                                <span>📅 ${sku.createdAt ? new Date(sku.createdAt).toLocaleDateString('es-ES') : ''}</span>
-                                ${sku.brand ? `<span>🏷️ ${sku.brand}</span>` : ''}
-                                ${sku.location ? `<span>📍 ${sku.location}</span>` : ''}
-                            </div>
+                                        <span>📅 ${sku.createdAt ? new Date(sku.createdAt).toLocaleDateString('es-ES') : ''}</span>
+                                        ${sku.brand ? `<span>🏷️ ${sku.brand}</span>` : ''}
+                                        ${sku.location ? `<span>📍 ${sku.location}</span>` : ''}
+                                    </div>
                             <div class="mt-2 p-2 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">📝 <span id="n-${sku._id}">${sku.notes || ''}</span></div>
-                        </div>
+                                </div>
                         <div class="flex items-center gap-2">
-                            ${skuStatusPill(sku.printStatus, sku.pendingStickers)}
+                                ${skuStatusPill(sku.printStatus, sku.pendingStickers)}
                             <div class="flex gap-2">${rowActions(sku)}</div>
                         </div>
-                    </div>
-                `).join('');
+                            </div>
+                        `).join('');
 
-                // Wire actions
-                // Selection toggle
-                ui.list.querySelectorAll('.sku-select').forEach(cb => cb.addEventListener('change', (e) => {
-                    const id = e.currentTarget.getAttribute('data-id');
-                    if (e.currentTarget.checked) selected.add(String(id)); else selected.delete(String(id));
-                    updateSelectionCount();
-                }));
-                ui.list.querySelectorAll('[data-print]').forEach(b => b.addEventListener('click', async (e) => {
-                    const id = e.currentTarget.getAttribute('data-print');
-                    await API.skus.markAsPrinted(id); loadStats(); loadPage();
-                }));
-                ui.list.querySelectorAll('[data-apply]').forEach(b => b.addEventListener('click', async (e) => {
-                    const id = e.currentTarget.getAttribute('data-apply');
-                    await API.skus.markAsApplied(id); loadStats(); loadPage();
-                }));
-                ui.list.querySelectorAll('[data-notes]').forEach(b => b.addEventListener('click', (e) => {
-                    const id = e.currentTarget.getAttribute('data-notes');
-                    openNotesModal(id);
-                }));
+                        // Wire actions
+                        // Selection toggle
+                        ui.list.querySelectorAll('.sku-select').forEach(cb => cb.addEventListener('change', (e) => {
+                            const id = e.currentTarget.getAttribute('data-id');
+                            if (e.currentTarget.checked) selected.add(String(id)); else selected.delete(String(id));
+                            updateSelectionCount();
+                        }));
+                        ui.list.querySelectorAll('[data-print]').forEach(b => b.addEventListener('click', async (e) => {
+                            const id = e.currentTarget.getAttribute('data-print');
+                            await API.skus.markAsPrinted(id); loadStats(); loadPage();
+                        }));
+                        ui.list.querySelectorAll('[data-apply]').forEach(b => b.addEventListener('click', async (e) => {
+                            const id = e.currentTarget.getAttribute('data-apply');
+                            await API.skus.markAsApplied(id); loadStats(); loadPage();
+                        }));
+                        ui.list.querySelectorAll('[data-notes]').forEach(b => b.addEventListener('click', (e) => {
+                            const id = e.currentTarget.getAttribute('data-notes');
+                            openNotesModal(id);
+                        }));
 
-                // Pager
-                ui.pgInfo.textContent = `Página ${state.page} / ${state.totalPages}`;
-                ui.pgPrev.disabled = state.page <= 1;
-                ui.pgNext.disabled = state.page >= state.totalPages;
+                        // Pager
+                        ui.pgInfo.textContent = `Página ${state.page} / ${state.totalPages}`;
+                        ui.pgPrev.disabled = state.page <= 1;
+                        ui.pgNext.disabled = state.page >= state.totalPages;
                 ui.pager.classList.toggle('hidden', state.totalPages <= 1);
-            }catch(err){
-                showNotification('Error cargando SKUs: '+err.message, 'error');
-            }finally{
+                    }catch(err){
+                        showNotification('Error cargando SKUs: '+err.message, 'error');
+                    }finally{
                 ui.loading.classList.add('hidden');
-            }
-        }
+                    }
+                }
 
-        function updateSelectionCount(){ if (ui.selCount) ui.selCount.textContent = String(selected.size); }
-        function clearSelection(){ selected.clear(); updateSelectionCount(); if (ui.list){ ui.list.querySelectorAll('.sku-select').forEach(cb => { cb.checked = false; }); } }
-        function selectCurrentPage(){ if(!ui.list) return; ui.list.querySelectorAll('.sku-select').forEach(cb => { cb.checked = true; const id = cb.getAttribute('data-id'); selected.add(String(id)); }); updateSelectionCount(); }
+                function updateSelectionCount(){ if (ui.selCount) ui.selCount.textContent = String(selected.size); }
+                function clearSelection(){ selected.clear(); updateSelectionCount(); if (ui.list){ ui.list.querySelectorAll('.sku-select').forEach(cb => { cb.checked = false; }); } }
+                function selectCurrentPage(){ if(!ui.list) return; ui.list.querySelectorAll('.sku-select').forEach(cb => { cb.checked = true; const id = cb.getAttribute('data-id'); selected.add(String(id)); }); updateSelectionCount(); }
 
-        async function bulkMarkPrinted(){
-            if (selected.size === 0) { showNotification('No hay SKUs seleccionados', 'warning'); return; }
-            const ids = Array.from(selected);
-            ui.btnBulkPrinted && (ui.btnBulkPrinted.disabled = true);
-            try{
-                // Nuevo endpoint bulk (optimizado)
-                const base = window.API?.base || '';
-                const token = window.API?.token?.get?.();
-                const res = await fetch(`${base}/api/v1/skus/bulk/print`, { method:'POST', headers: { 'Content-Type': 'application/json', ...(token?{ Authorization: `Bearer ${token}` }:{}) }, body: JSON.stringify({ ids }) });
-                const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
-                if(!res.ok) throw new Error(data?.error || res.statusText);
-                const { matched=0, modified=0 } = data || {};
-                showNotification(`Marcados como impresos: ${modified}/${matched}.`, 'success');
-                clearSelection();
-                await loadStats();
-                await loadPage();
-            }finally{
-                ui.btnBulkPrinted && (ui.btnBulkPrinted.disabled = false);
-            }
-        }
+                async function bulkMarkPrinted(){
+                    if (selected.size === 0) { showNotification('No hay SKUs seleccionados', 'warning'); return; }
+                    const ids = Array.from(selected);
+                    ui.btnBulkPrinted && (ui.btnBulkPrinted.disabled = true);
+                    try{
+                        // Nuevo endpoint bulk (optimizado)
+                        const base = window.API?.base || '';
+                        const token = window.API?.token?.get?.();
+                        const res = await fetch(`${base}/api/v1/skus/bulk/print`, { method:'POST', headers: { 'Content-Type': 'application/json', ...(token?{ Authorization: `Bearer ${token}` }:{}) }, body: JSON.stringify({ ids }) });
+                        const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
+                        if(!res.ok) throw new Error(data?.error || res.statusText);
+                        const { matched=0, modified=0 } = data || {};
+                        showNotification(`Marcados como impresos: ${modified}/${matched}.`, 'success');
+                        clearSelection();
+                        await loadStats();
+                        await loadPage();
+                    }finally{
+                        ui.btnBulkPrinted && (ui.btnBulkPrinted.disabled = false);
+                    }
+                }
 
-        async function bulkMarkApplied(){
-            if (selected.size === 0) { showNotification('No hay SKUs seleccionados', 'warning'); return; }
-            const ids = Array.from(selected);
-            ui.btnBulkApplied && (ui.btnBulkApplied.disabled = true);
-            try{
-                const base = window.API?.base || '';
-                const token = window.API?.token?.get?.();
-                const res = await fetch(`${base}/api/v1/skus/bulk/apply`, { method:'POST', headers: { 'Content-Type': 'application/json', ...(token?{ Authorization: `Bearer ${token}` }:{}) }, body: JSON.stringify({ ids }) });
-                const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
-                if(!res.ok) throw new Error(data?.error || res.statusText);
-                const { matched=0, modified=0 } = data || {};
-                showNotification(`Marcados como aplicados: ${modified}/${matched}.`, 'success');
-                clearSelection();
-                await loadStats();
-                await loadPage();
-            }finally{
-                ui.btnBulkApplied && (ui.btnBulkApplied.disabled = false);
-            }
-        }
+                async function bulkMarkApplied(){
+                    if (selected.size === 0) { showNotification('No hay SKUs seleccionados', 'warning'); return; }
+                    const ids = Array.from(selected);
+                    ui.btnBulkApplied && (ui.btnBulkApplied.disabled = true);
+                    try{
+                        const base = window.API?.base || '';
+                        const token = window.API?.token?.get?.();
+                        const res = await fetch(`${base}/api/v1/skus/bulk/apply`, { method:'POST', headers: { 'Content-Type': 'application/json', ...(token?{ Authorization: `Bearer ${token}` }:{}) }, body: JSON.stringify({ ids }) });
+                        const txt = await res.text(); let data; try{ data=JSON.parse(txt);}catch{ data=txt; }
+                        if(!res.ok) throw new Error(data?.error || res.statusText);
+                        const { matched=0, modified=0 } = data || {};
+                        showNotification(`Marcados como aplicados: ${modified}/${matched}.`, 'success');
+                        clearSelection();
+                        await loadStats();
+                        await loadPage();
+                    }finally{
+                        ui.btnBulkApplied && (ui.btnBulkApplied.disabled = false);
+                    }
+                }
 
         // Actualizar estadísticas
         function updateStats(stats) {
@@ -634,36 +634,36 @@
             document.getElementById('printed-skus').textContent = stats.printed || 0;
             document.getElementById('applied-skus').textContent = stats.applied || 0;
         }
-        // Modal Notas
-        function openNotesModal(id){
-            const span = document.getElementById('n-'+id);
-            const current = span ? span.textContent : '';
-            const modal = document.getElementById('modal');
-            const body = document.getElementById('modalBody');
-            const close = document.getElementById('modalClose');
-            if(!modal||!body||!close){ return alert('Modal no disponible'); }
-            body.innerHTML = `
+                // Modal Notas
+                function openNotesModal(id){
+                    const span = document.getElementById('n-'+id);
+                    const current = span ? span.textContent : '';
+                    const modal = document.getElementById('modal');
+                    const body = document.getElementById('modalBody');
+                    const close = document.getElementById('modalClose');
+                    if(!modal||!body||!close){ return alert('Modal no disponible'); }
+                    body.innerHTML = `
                 <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Notas del SKU</h3>
                 <textarea id="sku-notes-text" rows="6" class="w-full px-4 py-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y">${current.replace(/</g,'&lt;')}</textarea>
                 <div class="flex justify-end gap-2 mt-4">
                     <button id="notes-cancel" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
                     <button id="notes-save" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
-                </div>`;
-            modal.classList.remove('hidden');
-            document.body.classList.add('modal-open');
-            const closeAll = () => { modal.classList.add('hidden'); body.innerHTML=''; document.body.classList.remove('modal-open'); };
-            close.onclick = closeAll;
-            document.getElementById('notes-cancel').onclick = closeAll;
-            document.getElementById('notes-save').onclick = async () => {
-                try{
-                    const value = document.getElementById('sku-notes-text').value || '';
-                    await API.skus.updateNotes(id, value);
-                    if (span) span.textContent = value;
-                    showNotification('Notas actualizadas', 'success');
-                    closeAll();
-                }catch(e){ showNotification('No se pudieron actualizar las notas: '+e.message, 'error'); }
-            };
-        }
+                        </div>`;
+                    modal.classList.remove('hidden');
+                    document.body.classList.add('modal-open');
+                    const closeAll = () => { modal.classList.add('hidden'); body.innerHTML=''; document.body.classList.remove('modal-open'); };
+                    close.onclick = closeAll;
+                    document.getElementById('notes-cancel').onclick = closeAll;
+                    document.getElementById('notes-save').onclick = async () => {
+                        try{
+                            const value = document.getElementById('sku-notes-text').value || '';
+                            await API.skus.updateNotes(id, value);
+                            if (span) span.textContent = value;
+                            showNotification('Notas actualizadas', 'success');
+                            closeAll();
+                        }catch(e){ showNotification('No se pudieron actualizar las notas: '+e.message, 'error'); }
+                    };
+                }
 
         // Mostrar notificación
         function showNotification(message, type = 'info') {

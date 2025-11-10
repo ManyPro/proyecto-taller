@@ -226,10 +226,10 @@ function openLightbox(media) {
     `<div class="image-lightbox flex flex-col items-center justify-start p-6" style="min-height: 80vh;">
        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex-shrink-0">Vista previa</h3>
        <div class="relative flex items-center justify-center w-full flex-shrink-0" style="min-height: ${containerHeight}; max-height: ${containerHeight}; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 20px;">
-         ${isVideo ? 
+       ${isVideo ? 
            `<video controls src="${media.url}" class="object-contain rounded-lg" style="max-width: ${maxSize}; max-height: ${maxHeight}; width: auto; height: auto;"></video>` : 
            `<img src="${media.url}" alt="media" id="modal-img" class="object-contain rounded-lg cursor-zoom-in border-2 border-slate-600/30" style="max-width: ${maxSize}; max-height: ${maxHeight}; width: auto; height: auto; image-rendering: auto; transform: scale(1) translate(0px, 0px); display: block; margin: 0 auto;" />`
-         }
+       }
        </div>
        ${!isVideo ? `
          <div class="zoom-controls mt-4 flex-shrink-0 flex justify-center gap-2">
@@ -240,7 +240,7 @@ function openLightbox(media) {
        ` : ''}
        <div class="mt-4 flex justify-end flex-shrink-0">
          <button class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" id="lb-close">Cerrar</button>
-       </div>
+     </div>
      </div>`
   );
   document.getElementById("lb-close").onclick = invCloseModal;
@@ -296,7 +296,7 @@ function openLightbox(media) {
           img.style.borderRadius = '0.5rem';
         }
         
-        setupImageZoom();
+    setupImageZoom();
       };
       
       if (img.complete) {
@@ -978,13 +978,13 @@ if (__ON_INV_PAGE__) {
       row.innerHTML = `
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div class="flex-1">
-            ${vi.intakeKind === 'purchase' 
+          ${vi.intakeKind === 'purchase' 
               ? `<div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-1">COMPRA: ${(vi.purchasePlace||'').toUpperCase()}</div>`
               : `<div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-1">${(vi.brand || "") + (vi.model ? " " + vi.model : "")}</div><div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${vi.engine || ""}</div>`}
             <div class="mt-2 text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-700">
-              <div>Fecha: ${new Date(vi.intakeDate).toLocaleDateString()}</div>
+          <div>Fecha: ${new Date(vi.intakeDate).toLocaleDateString()}</div>
               <div>Precio entrada: <b class="text-white dark:text-white theme-light:text-slate-900">${fmtMoney(vi.entryPrice)}</b></div>
-            </div>
+        </div>
           </div>
           <div class="flex gap-2 flex-wrap">
             <button class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm" data-edit="${vi._id}">Editar</button>
@@ -1565,8 +1565,8 @@ if (__ON_INV_PAGE__) {
             <span class="text-sm text-slate-300 theme-light:text-slate-700 font-medium">Cantidad para todos</span>
             <input id="bstk-all" type="number" min="0" step="1" value="1" class="w-24 px-3 py-2 rounded-lg bg-slate-700/50 border border-slate-600/50 text-white theme-light:bg-white theme-light:text-slate-900 theme-light:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"/>
             <button id="bstk-apply-all" class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Aplicar a todos</button>
-          </div>
         </div>
+      </div>
         <div class="max-h-60 overflow-y-auto custom-scrollbar mb-4 space-y-2">${rows}</div>
         <div class="space-y-4">
           <div>
@@ -1615,7 +1615,7 @@ if (__ON_INV_PAGE__) {
 
   // ---- Crear entrada ----
   if (viSave) {
-    viSave.onclick = async () => {
+  viSave.onclick = async () => {
     const isPurchase = viKindPurchase?.checked;
     const body = { intakeKind: isPurchase ? "purchase" : "vehicle" };
 
@@ -1648,35 +1648,35 @@ if (__ON_INV_PAGE__) {
 
     await refreshIntakes();
     alert("Ingreso creado");
-    };
+  };
   }
 
   // ---- Autorelleno de destino al cambiar procedencia ----
   if (itVehicleIntakeId) {
-    itVehicleIntakeId.addEventListener("change", () => {
+  itVehicleIntakeId.addEventListener("change", () => {
     const id = itVehicleIntakeId.value;
     if (!id) {
       if (itVehicleTarget) {
-        itVehicleTarget.value = "GENERAL";
-        itVehicleTarget.readOnly = false;
+      itVehicleTarget.value = "GENERAL";
+      itVehicleTarget.readOnly = false;
       }
       return;
     }
     const vi = state.intakes.find((v) => v._id === id);
     if (vi) {
       if (itVehicleTarget) {
-        itVehicleTarget.value = makeIntakeLabel(vi);
-        itVehicleTarget.readOnly = true;
+      itVehicleTarget.value = makeIntakeLabel(vi);
+      itVehicleTarget.readOnly = true;
       }
     } else {
       if (itVehicleTarget) itVehicleTarget.readOnly = false;
     }
-    });
+  });
   }
 
   // ---- Guardar ítem ----
   if (itSave) {
-    itSave.onclick = async () => {
+  itSave.onclick = async () => {
     let vehicleTargetValue = (itVehicleTarget?.value || "").trim();
     const selectedIntakeId = itVehicleIntakeId?.value || undefined;
 
@@ -1730,12 +1730,12 @@ if (__ON_INV_PAGE__) {
     if (itSalePrice) itSalePrice.value = "";
     if (itOriginal) itOriginal.value = "false";
     if (itStock) itStock.value = "";
-    if (itMinStock) itMinStock.value = "";
+  if (itMinStock) itMinStock.value = "";
     if (itFiles) itFiles.value = "";
     if (itVehicleTarget) itVehicleTarget.readOnly = false;
 
     await refreshItems({});
-    };
+  };
   }
 
   // ---- Filtros ----
@@ -1752,13 +1752,13 @@ if (__ON_INV_PAGE__) {
 
   if (qApply) qApply.onclick = doSearch;
   if (qClear) {
-    qClear.onclick = () => {
+  qClear.onclick = () => {
       if (qName) qName.value = "";
       if (qSku) qSku.value = "";
-      if (qBrand) qBrand.value = "";
+    if (qBrand) qBrand.value = "";
       if (qIntake) qIntake.value = "";
-      refreshItems({ page: 1, limit: state.paging?.limit || 10 });
-    };
+    refreshItems({ page: 1, limit: state.paging?.limit || 10 });
+  };
   }
   [qName, qSku, qBrand].forEach((el) => el && el.addEventListener("keydown", (e) => e.key === "Enter" && doSearch()));
   if (qIntake) qIntake.addEventListener("change", doSearch);
@@ -1899,9 +1899,9 @@ if (__ON_INV_PAGE__) {
           <div>
             <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Original</label>
             <select id="e-it-original" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
-              <option value="false" ${!it.original ? "selected" : ""}>No</option>
-              <option value="true" ${it.original ? "selected" : ""}>Sí</option>
-            </select>
+        <option value="false" ${!it.original ? "selected" : ""}>No</option>
+        <option value="true" ${it.original ? "selected" : ""}>Sí</option>
+      </select>
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Stock</label>
@@ -1976,7 +1976,7 @@ if (__ON_INV_PAGE__) {
 
         const previewBtn = document.createElement("button");
         previewBtn.className = "px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 text-xs font-semibold flex items-center gap-1";
-        previewBtn.title = "Vista previa";
+  previewBtn.title = "Vista previa";
         previewBtn.innerHTML = `<svg width='14' height='14' viewBox='0 0 20 20' fill='none' stroke='currentColor'><path d='M1 10C3.5 5.5 8 3 12 5.5C16 8 18.5 13 17 15C15.5 17 10.5 17 7 15C3.5 13 1 10 1 10Z' stroke-width='2' fill='none'/><circle cx='10' cy='10' r='3' fill='currentColor'/></svg> Ver`;
         previewBtn.onclick = (ev) => {
           ev.preventDefault();

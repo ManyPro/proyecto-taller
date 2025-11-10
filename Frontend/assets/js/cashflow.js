@@ -41,8 +41,8 @@ async function loadAccounts(){
     const totalLbl = document.getElementById('cf-acc-total');
     const filterSel = document.getElementById('cf-filter-account');
     if(body){
-      body.innerHTML = (list.balances||[]).map(a=>`<tr><td>${a.name}</td><td>${a.type}</td><td class="t-right">${money(a.balance)}</td><td></td></tr>`).join('');
-      if(!(list.balances||[]).length) body.innerHTML='<tr><td colspan="4" class="muted">Sin cuentas</td></tr>';
+      body.innerHTML = (list.balances||[]).map(a=>`<tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors"><td class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${a.name}</td><td class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${a.type}</td><td class="px-4 py-3 text-right text-xs font-semibold text-white dark:text-white theme-light:text-slate-900">${money(a.balance)}</td><td class="px-4 py-3"></td></tr>`).join('');
+      if(!(list.balances||[]).length) body.innerHTML='<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin cuentas</td></tr>';
     }
     if(totalLbl) totalLbl.textContent = 'Total: '+money(list.total||0);
     if(filterSel){
@@ -65,7 +65,7 @@ async function loadMovements(reset=false){
   const summary = document.getElementById('cf-mov-summary');
   const pag = document.getElementById('cf-pag');
   try {
-    if(rowsBody) rowsBody.innerHTML='<tr><td colspan="7">Cargando...</td></tr>';
+    if(rowsBody) rowsBody.innerHTML='<tr><td colspan="8" class="px-4 py-6 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cargando...</td></tr>';
     const data = await API.cashflow.list(params);
     const items = data.items || [];
     if(rowsBody){
@@ -83,15 +83,15 @@ async function loadMovements(reset=false){
         const accName = x.accountId?.name||x.accountName||'';
         const desc = x.description||'';
         const canEdit = true; // se podría restringir según x.source
-        return `<tr data-id='${x._id}'>
-          <td data-label="Fecha">${date}</td>
-          <td data-label="Cuenta">${accName}</td>
-          <td data-label="Descripción">${desc}</td>
-          <td data-label="Fuente">${x.source||''}</td>
-          <td data-label="IN" class='t-right ${x.kind==='IN'?'pos':''}'>${inAmt}</td>
-          <td data-label="OUT" class='t-right ${x.kind==='OUT'?'neg':''}'>${outAmt}</td>
-          <td data-label="Saldo" class='t-right'>${money(x.balanceAfter||0)}</td>
-          <td style='white-space:nowrap;'>${canEdit?`<button class='mini' data-act='edit' title='Editar'>Editar</button><button class='mini danger' data-act='del' title='Eliminar'>Eliminar</button>`:''}</td>
+        return `<tr data-id='${x._id}' class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors">
+          <td data-label="Fecha" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${date}</td>
+          <td data-label="Cuenta" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${accName}</td>
+          <td data-label="Descripción" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${desc}</td>
+          <td data-label="Fuente" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${x.source||''}</td>
+          <td data-label="IN" class='px-4 py-3 text-right text-xs font-semibold text-green-400 dark:text-green-400 theme-light:text-green-600 ${x.kind==='IN'?'':'text-slate-500 dark:text-slate-500 theme-light:text-slate-400'}'>${inAmt}</td>
+          <td data-label="OUT" class='px-4 py-3 text-right text-xs font-semibold text-red-400 dark:text-red-400 theme-light:text-red-600 ${x.kind==='OUT'?'':'text-slate-500 dark:text-slate-500 theme-light:text-slate-400'}'>${outAmt}</td>
+          <td data-label="Saldo" class='px-4 py-3 text-right text-xs font-medium text-white dark:text-white theme-light:text-slate-900'>${money(x.balanceAfter||0)}</td>
+          <td class="px-4 py-3" style='white-space:nowrap;'>${canEdit?`<button class='px-3 py-1.5 text-xs bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-medium rounded-lg transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30 theme-light:bg-blue-50 theme-light:text-blue-600 theme-light:hover:bg-blue-100 theme-light:border-blue-300 mr-1' data-act='edit' title='Editar'>Editar</button><button class='px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300' data-act='del' title='Eliminar'>Eliminar</button>`:''}</td>
         </tr>`;
       }).join('');
       rowsBody.querySelectorAll('tr[data-id]').forEach(tr=>{
@@ -114,7 +114,7 @@ async function loadMovements(reset=false){
           });
         });
       });
-      if(!items.length) rowsBody.innerHTML='<tr><td colspan="7" class="muted">Sin movimientos</td></tr>';
+      if(!items.length) rowsBody.innerHTML='<tr><td colspan="8" class="px-4 py-6 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin movimientos</td></tr>';
     }
     const IN = data.totals?.in||0; const OUT = data.totals?.out||0;
     if(summary) summary.textContent = `Entradas: ${money(IN)} | Salidas: ${money(OUT)} | Neto: ${money(IN-OUT)}`;
