@@ -51,7 +51,7 @@ const baseCss = `
   .hr { border-top: 1px solid #e5e7eb; margin: 10px 0; }
 `;
 
-const invoiceHtml = `
+const remissionHtml = `
   <div class="doc">
     <div class="header">
       <div style="display:flex; gap:10px; align-items:flex-start;">
@@ -61,7 +61,7 @@ const invoiceHtml = `
         <div class="small">Tel: {{company.phone}} · {{company.email}}</div>
       </div>
       <div class="right">
-        <h1>FACTURA</h1>
+        <h1>REMISIÓN</h1>
         <div># {{pad sale.number 5}}</div>
         <div class="muted">Fecha: {{date sale.closedAt}}</div>
       </div>
@@ -358,7 +358,7 @@ async function run(){
   if(!uri){ console.error('MONGODB_URI no configurado'); process.exit(1); }
   await mongoose.connect(uri, { dbName: process.env.MONGODB_DB || 'taller' });
   const opts = { activate };
-  const inv = await upsertTemplate(companyId, 'invoice', `Factura ${nameSuffix}`, invoiceHtml, baseCss, opts.activate);
+  const inv = await upsertTemplate(companyId, 'invoice', `Remisión ${nameSuffix}`, remissionHtml, baseCss, opts.activate);
   const wo  = await upsertTemplate(companyId, 'workOrder', `Orden de Trabajo ${nameSuffix}`, workOrderHtml, baseCss, opts.activate);
   const qt  = await upsertTemplate(companyId, 'quote', `Cotización ${nameSuffix}`, quoteHtml, baseCss, opts.activate);
   const py  = await upsertTemplate(companyId, 'payroll', `Nómina ${nameSuffix}`, payrollHtml, baseCss, opts.activate);

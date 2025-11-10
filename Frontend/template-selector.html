@@ -277,7 +277,7 @@
       <div class="document-types">
         <div class="document-type-card" data-type="invoice">
           <div class="icon">🧾</div>
-          <h3>Factura</h3>
+          <h3>Remisión</h3>
           <p>Documento de cobro oficial con datos fiscales completos</p>
         </div>
 
@@ -315,7 +315,7 @@
       <!-- Formats Section -->
       <div class="formats-section" id="formats-section">
         <div class="formats-header">
-          <h2 id="formats-title" class="text-xl font-semibold text-white dark:text-white theme-light:text-slate-900">Formatos de Factura</h2>
+          <h2 id="formats-title" class="text-xl font-semibold text-white dark:text-white theme-light:text-slate-900">Formatos de Remisión</h2>
           <button class="new-format-btn px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 flex items-center gap-2" id="new-format-btn">
             <span>➕</span>
             <span>Crear Nuevo Formato</span>
@@ -353,12 +353,12 @@
           <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="invoice">
             <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
               <span>🧾</span>
-              <span>Formato de Factura Activo</span>
+              <span>Formato de Remisión Activo</span>
             </h4>
             <select id="active-invoice-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900">
               <option value="">Cargando formatos...</option>
             </select>
-            <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará al imprimir facturas desde ventas</p>
+            <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará al imprimir remisiones desde ventas</p>
           </div>
 
           <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="quote">
@@ -449,7 +449,7 @@
         <div class="format-preview flex gap-3 items-center mt-4">
           <div class="preview-icon w-10 h-10 flex items-center justify-center bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-2xl" id="modal-icon">📄</div>
           <div class="preview-text">
-            <strong id="preview-type" class="block text-white dark:text-white theme-light:text-slate-900">Factura</strong>
+            <strong id="preview-type" class="block text-white dark:text-white theme-light:text-slate-900">Remisión</strong>
             <p class="m-0 text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Se creará con la plantilla correspondiente</p>
           </div>
         </div>
@@ -577,7 +577,7 @@
       
       // Update title
       const titles = {
-        'invoice': 'Formatos de Factura',
+        'invoice': 'Formatos de Remisión',
         'quote': 'Formatos de Cotización', 
         'workOrder': 'Formatos de Orden de Trabajo',
         'sticker': 'Formatos de Stickers',
@@ -880,7 +880,7 @@
 
     function getDocumentTypeName(type) {
       const names = {
-        'invoice': 'Factura',
+        'invoice': 'Remisión',
         'quote': 'Cotización', 
         'workOrder': 'Orden de Trabajo',
         'sticker-qr': 'Sticker Solo QR',
@@ -892,7 +892,7 @@
 
     function getDocumentTypeNamePlural(type) {
       const names = {
-        'invoice': 'Facturas',
+        'invoice': 'Remisiones',
         'quote': 'Cotizaciones', 
         'workOrder': 'Órdenes de Trabajo',
         'sticker-qr': 'Stickers (Solo QR)',

@@ -12,11 +12,11 @@ export async function buildWorkOrderPdf(sale){
   doc.save(`OT_${p || (sale._id||'').slice(-6)}.pdf`);
 }
 
-export async function buildInvoicePdf(sale){
+export async function buildRemissionPdf(sale){
   const { jsPDF } = window.jspdf||{}; if(!jsPDF) throw new Error('jsPDF no cargado');
   const doc=new jsPDF();
   const nro=sale?.number?String(sale.number).padStart(5,'0'):(sale?._id||'').slice(-6).toUpperCase();
-  doc.setFontSize(14); doc.text('Factura de Venta',14,16);
+  doc.setFontSize(14); doc.text('Remisión de Venta',14,16);
   doc.setFontSize(10);
   const p=sale?.vehicle?.plate||''; const c=sale?.customer?.name||'';
   if(p) doc.text(`Placa: ${p}`,14,24);

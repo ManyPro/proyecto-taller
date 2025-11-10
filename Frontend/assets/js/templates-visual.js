@@ -1164,18 +1164,46 @@
           
           const imgContainer = document.createElement('div');
           imgContainer.className = 'image-container';
-          imgContainer.style.cssText = 'position: relative; display: inline-block; padding:0; margin:0; line-height:0;';
+          
+          // Detectar si el placeholder está dentro de un logo box (100x100px)
+          const parentBox = placeholder.closest('.tpl-element');
+          const isLogoBox = parentBox && (parentBox.style.width === '100px' || parentBox.style.width.includes('100px'));
+          
+          // Ocultar editor de texto si existe
+          const textEditor = parentBox?.querySelector('.logo-text-editable');
+          if (textEditor) {
+            textEditor.style.display = 'none';
+          }
+          
+          if (isLogoBox) {
+            // Para logo: ajustar al contenedor manteniendo proporciones
+            imgContainer.style.cssText = 'position: relative; display: block; padding:0; margin:0; line-height:0; width: 100%; height: 100%;';
+          } else {
+            // Para otras imágenes: tamaño automático
+            imgContainer.style.cssText = 'position: relative; display: inline-block; padding:0; margin:0; line-height:0;';
+          }
           
           const img = document.createElement('img');
           img.src = optimizedSrc;
-          img.style.cssText = 'width:150px; height:auto; display:block; user-select:none; margin:0; padding:0;';
           img.draggable = false;
-          img.onload = () => {
-            try {
-              imgContainer.style.width = img.naturalWidth + 'px';
-              imgContainer.style.height = img.naturalHeight + 'px';
-            } catch (_) {}
-          };
+          img.alt = 'Logo';
+          
+          if (isLogoBox) {
+            // Logo: ajustar al contenedor con object-fit
+            img.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block; user-select: none; margin: 0; padding: 0;';
+            // Remover borde del placeholder al reemplazarlo
+            placeholder.style.border = 'none';
+            placeholder.style.background = 'transparent';
+          } else {
+            // Otras imágenes: tamaño automático
+            img.style.cssText = 'width:150px; height:auto; display:block; user-select:none; margin:0; padding:0;';
+            img.onload = () => {
+              try {
+                imgContainer.style.width = img.naturalWidth + 'px';
+                imgContainer.style.height = img.naturalHeight + 'px';
+              } catch (_) {}
+            };
+          }
           
           imgContainer.appendChild(img);
           addResizeHandles(imgContainer, img);
@@ -1623,9 +1651,9 @@
     } else {
       html += `
       <div style="margin-bottom: 20px;">
-        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">💰 Datos de Venta/Factura</h4>
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">💰 Datos de Venta/Remisión</h4>
         ${createFriendlyButtons([
-          { label: 'Número de factura', icon: '#️⃣', value: '{{sale.number}}' },
+          { label: 'Número de remisión', icon: '#️⃣', value: '{{sale.number}}' },
           { label: 'Fecha de venta', icon: '📅', value: '{{date sale.date}}' },
           { label: 'Total a cobrar', icon: '💵', value: '{{money sale.total}}' },
           { label: 'Subtotal (sin IVA)', icon: '💴', value: '{{money sale.subtotal}}' },
@@ -1884,8 +1912,8 @@
     // Cargar plantilla según el tipo
     try {
       if (documentType === 'invoice') {
-        createInvoiceTemplate(canvas);
-        showQuickNotification('📄 Plantilla de Factura cargada', 'success');
+        createRemissionTemplate(canvas);
+        showQuickNotification('📄 Plantilla de Remisión cargada', 'success');
       } else if (documentType === 'quote') {
         createQuoteTemplate(canvas);
         showQuickNotification('💰 Plantilla de Cotización cargada', 'success');
@@ -1898,9 +1926,9 @@
       } else {
         console.warn('⚠️ Tipo de documento no reconocido:', documentType);
         showQuickNotification('⚠️ Tipo de documento no reconocido: ' + documentType, 'warning');
-        // Cargar factura por defecto si no se reconoce el tipo
-        createInvoiceTemplate(canvas);
-        showQuickNotification('📄 Cargada plantilla de Factura por defecto', 'info');
+        // Cargar remisión por defecto si no se reconoce el tipo
+        createRemissionTemplate(canvas);
+        showQuickNotification('📄 Cargada plantilla de Remisión por defecto', 'info');
       }
       
       console.log('✅ Plantilla creada, elementos en canvas:', visualEditor.elements.length);
@@ -1920,42 +1948,310 @@
     }
   }
 
-  function createInvoiceTemplate(canvas) {
-    console.log('🎨 Creando plantilla de factura simple...');
+  function createRemissionTemplate(canvas) {
+    console.log('🎨 Creando plantilla de remisión completa...');
     
-    // Título
-    const title = createEditableElement('title', 'FACTURA', {
+    // Título REMISIÓN (arriba izquierda)
+    const title = createEditableElement('title', 'REMISIÓN', {
       position: { left: 40, top: 30 },
-      styles: { fontSize: '32px', fontWeight: 'bold', color: '#333' }
+      styles: { fontSize: '48px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', letterSpacing: '2px' }
     });
     canvas.appendChild(title);
 
-    // Número de factura
-    const invoiceNumber = createEditableElement('text', 'Nº: {{sale.number}}', {
-      position: { left: 40, top: 80 },
-      styles: { fontSize: '16px', fontWeight: 'bold' }
-    });
-    canvas.appendChild(invoiceNumber);
+    // Número de remisión en caja negra
+    const numberBox = document.createElement('div');
+    numberBox.className = 'tpl-element';
+    numberBox.id = `element_${visualEditor.nextId++}`;
+    numberBox.style.cssText = 'position: absolute; left: 40px; top: 100px; border: 2px solid #000; padding: 8px 16px; display: inline-block;';
+    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 18px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{sale.number}}</span>';
+    makeDraggable(numberBox);
+    makeSelectable(numberBox);
+    canvas.appendChild(numberBox);
+    visualEditor.elements.push({ id: numberBox.id, type: 'text', element: numberBox });
 
-    // Datos del cliente
-    const clientSection = createEditableElement('text', 'CLIENTE:\n{{sale.customerName}}\n{{sale.customerPhone}}', {
-      position: { left: 40, top: 130 },
-      styles: { fontSize: '14px', whiteSpace: 'pre-line' }
-    });
-    canvas.appendChild(clientSection);
+    // Logo/empresa (arriba derecha) - editable con imagen o variable
+    const logoBox = document.createElement('div');
+    logoBox.className = 'tpl-element';
+    logoBox.id = `element_${visualEditor.nextId++}`;
+    logoBox.style.cssText = 'position: absolute; right: 40px; top: 30px; width: 100px; height: 100px; border: 2px solid #000; padding: 5px; display: flex; align-items: center; justify-content: center; cursor: move; background: white; box-sizing: border-box;';
+    logoBox.innerHTML = `
+      <div class="image-placeholder" style="width: 100%; height: 100%; background: #f5f5f5; border: 2px dashed #999; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; color: #666; text-align: center; padding: 5px; box-sizing: border-box; position: relative;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none;">
+          <div style="font-size: 24px;">🖼️</div>
+          <div>Haz clic para<br>agregar logo</div>
+        </div>
+        <div style="position: absolute; bottom: 2px; left: 2px; right: 2px; font-size: 9px; color: #999; pointer-events: none; text-align: center;">o edita para usar:<br>{{company.logoUrl}}</div>
+      </div>
+      <div class="logo-text-editable" contenteditable="true" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: 0; cursor: text; z-index: 10; font-size: 10px; padding: 5px; word-break: break-all;" title="Haz doble clic para editar y usar variable {{company.logoUrl}}"></div>
+    `;
+    
+    // Permitir edición de texto para usar variables
+    const textEditor = logoBox.querySelector('.logo-text-editable');
+    if (textEditor) {
+      textEditor.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        textEditor.style.opacity = '1';
+        textEditor.style.background = 'rgba(255,255,255,0.95)';
+        textEditor.focus();
+        textEditor.textContent = '{{company.logoUrl}}';
+      });
+      textEditor.addEventListener('blur', () => {
+        const content = textEditor.textContent.trim();
+        if (content && content.includes('{{')) {
+          // Si tiene variable, crear imagen con esa variable
+          const placeholder = logoBox.querySelector('.image-placeholder');
+          if (placeholder) {
+            placeholder.innerHTML = `<img src="${content}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'padding: 10px; text-align: center; font-size: 10px; color: #999;\\'>Variable: ${content}</div>';" />`;
+            placeholder.style.border = 'none';
+            placeholder.style.background = 'transparent';
+          }
+        }
+        textEditor.style.opacity = '0';
+        textEditor.style.background = 'transparent';
+      });
+    }
+    
+    makeDraggable(logoBox);
+    makeSelectable(logoBox);
+    setupImageUpload(logoBox);
+    canvas.appendChild(logoBox);
+    visualEditor.elements.push({ id: logoBox.id, type: 'image', element: logoBox });
 
-    // Tabla de items
-    const itemsTable = createItemsTableElement({ left: 40, top: 220 });
+    // Sección DATOS DEL CLIENTE (izquierda)
+    const clientTitle = createEditableElement('text', 'DATOS DEL CLIENTE', {
+      position: { left: 40, top: 180 },
+      styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
+    });
+    canvas.appendChild(clientTitle);
+
+    const clientData = createEditableElement('text', '{{sale.customer.name}}\n{{sale.customer.email}}\n{{sale.customer.phone}}\n{{sale.customer.address}}', {
+      position: { left: 40, top: 210 },
+      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
+    });
+    canvas.appendChild(clientData);
+
+    // Línea divisoria vertical
+    const divider = document.createElement('div');
+    divider.style.cssText = 'position: absolute; left: 50%; top: 180px; width: 1px; height: 120px; background: #000;';
+    canvas.appendChild(divider);
+
+    // Sección DATOS DE LA EMPRESA (derecha)
+    const companyTitle = createEditableElement('text', 'DATOS DE LA EMPRESA', {
+      position: { left: 320, top: 180 },
+      styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
+    });
+    canvas.appendChild(companyTitle);
+
+    const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n{{company.phone}}\n{{company.address}}', {
+      position: { left: 320, top: 210 },
+      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
+    });
+    canvas.appendChild(companyData);
+
+    // Línea horizontal separadora
+    const horizontalLine = document.createElement('div');
+    horizontalLine.style.cssText = 'position: absolute; left: 40px; right: 40px; top: 320px; height: 1px; background: #000;';
+    canvas.appendChild(horizontalLine);
+
+    // Tabla de items mejorada con diseño similar a la imagen
+    const itemsTable = createRemissionItemsTable({ left: 40, top: 340 });
     canvas.appendChild(itemsTable);
 
-    // Total
-    const total = createEditableElement('text', 'TOTAL: {{money sale.total}}', {
-      position: { left: 500, top: 400 },
-      styles: { fontSize: '18px', fontWeight: 'bold', color: '#2563eb' }
-    });
-    canvas.appendChild(total);
+    // Línea horizontal antes de totales
+    const totalLine = document.createElement('div');
+    totalLine.style.cssText = 'position: absolute; left: 40px; right: 40px; top: 580px; height: 1px; background: #000;';
+    canvas.appendChild(totalLine);
 
-    console.log('✅ Plantilla de factura creada');
+    // Sección IVA
+    const ivaLabel = createEditableElement('text', 'IVA', {
+      position: { left: 40, top: 600 },
+      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif' }
+    });
+    canvas.appendChild(ivaLabel);
+
+    const ivaPercent = createEditableElement('text', '21%', {
+      position: { left: 300, top: 600 },
+      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'center' }
+    });
+    canvas.appendChild(ivaPercent);
+
+    const ivaAmount = createEditableElement('text', '{{money sale.tax}}', {
+      position: { left: 500, top: 600 },
+      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'right' }
+    });
+    canvas.appendChild(ivaAmount);
+
+    // TOTAL en caja negra
+    const totalBox = document.createElement('div');
+    totalBox.className = 'tpl-element';
+    totalBox.id = `element_${visualEditor.nextId++}`;
+    totalBox.style.cssText = 'position: absolute; left: 40px; top: 630px; border: 2px solid #000; padding: 12px 20px; display: inline-flex; align-items: center; gap: 200px;';
+    totalBox.innerHTML = '<span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">TOTAL</span><span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">{{money sale.total}}</span>';
+    makeDraggable(totalBox);
+    makeSelectable(totalBox);
+    canvas.appendChild(totalBox);
+    visualEditor.elements.push({ id: totalBox.id, type: 'text', element: totalBox });
+
+    // Sección INFORMACIÓN DE PAGO (abajo izquierda)
+    const paymentBox = document.createElement('div');
+    paymentBox.className = 'tpl-element';
+    paymentBox.id = `element_${visualEditor.nextId++}`;
+    paymentBox.style.cssText = 'position: absolute; left: 40px; top: 700px; border: 2px solid #000; padding: 15px; width: 300px;';
+    paymentBox.innerHTML = '<div contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 10px;">INFORMACIÓN DE PAGO</div><div contenteditable="true" style="font-size: 12px; color: #000; font-family: Arial, sans-serif; white-space: pre-line; line-height: 1.6;">Transferencia bancaria\nBanco: {{company.bankName}}\nNombre: {{company.name}}\nNúmero de cuenta: {{company.accountNumber}}</div>';
+    makeDraggable(paymentBox);
+    makeSelectable(paymentBox);
+    canvas.appendChild(paymentBox);
+    visualEditor.elements.push({ id: paymentBox.id, type: 'text', element: paymentBox });
+
+    // Footer con URL (centro abajo)
+    const footer = createEditableElement('text', '{{company.website}}', {
+      position: { left: 40, top: 850 },
+      styles: { fontSize: '12px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'center', width: '100%' }
+    });
+    canvas.appendChild(footer);
+
+    console.log('✅ Plantilla de remisión creada con todos los elementos');
+  }
+
+  function createRemissionItemsTable(position) {
+    const tableContainer = document.createElement('div');
+    tableContainer.className = 'tpl-element items-table';
+    tableContainer.id = `element_${visualEditor.nextId++}`;
+    tableContainer.style.cssText = `
+      position: absolute;
+      left: ${position.left}px;
+      top: ${position.top}px;
+      border: 2px solid transparent;
+      cursor: move;
+      width: 700px;
+      background: white;
+      max-width: 100%;
+    `;
+
+    tableContainer.innerHTML = `
+      <style>
+        .remission-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-family: Arial, sans-serif;
+          table-layout: fixed;
+          margin: 0;
+        }
+        .remission-table thead {
+          display: table-header-group;
+        }
+        .remission-table tbody {
+          display: table-row-group;
+        }
+        .remission-table th {
+          border: 2px solid #000 !important;
+          padding: 12px 8px;
+          font-weight: bold;
+          color: #000;
+          font-size: 12px;
+          background: white;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+        }
+        .remission-table td {
+          border: 1px solid #000 !important;
+          padding: 10px 8px;
+          color: #000;
+          font-size: 12px;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          vertical-align: top;
+        }
+        .remission-table th:nth-child(1),
+        .remission-table td:nth-child(1) {
+          width: 45%;
+          text-align: left;
+        }
+        .remission-table th:nth-child(2),
+        .remission-table td:nth-child(2) {
+          width: 15%;
+          text-align: center;
+        }
+        .remission-table th:nth-child(3),
+        .remission-table td:nth-child(3) {
+          width: 20%;
+          text-align: center;
+        }
+        .remission-table th:nth-child(4),
+        .remission-table td:nth-child(4) {
+          width: 20%;
+          text-align: right;
+        }
+        /* Estilos para impresión/PDF */
+        @media print {
+          .remission-table {
+            page-break-inside: auto;
+            border-collapse: collapse !important;
+            width: 100% !important;
+          }
+          .remission-table thead {
+            display: table-header-group !important;
+          }
+          .remission-table tbody {
+            display: table-row-group !important;
+          }
+          .remission-table tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+          .remission-table th,
+          .remission-table td {
+            border: 1px solid #000 !important;
+            padding: 8px !important;
+            font-size: 11px !important;
+          }
+          .remission-table th {
+            border-width: 2px !important;
+            background: white !important;
+          }
+        }
+        /* Estilos para vista previa */
+        .remission-table {
+          border: 2px solid #000;
+        }
+      </style>
+      <table class="remission-table">
+        <thead>
+          <tr>
+            <th>Detalle</th>
+            <th>Cantidad</th>
+            <th>Precio</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each sale.items}}
+          <tr>
+            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td>{{qty}}</td>
+            <td>{{money unitPrice}}</td>
+            <td>{{money total}}</td>
+          </tr>
+          {{/each}}
+          {{#unless sale.items}}
+          <tr>
+            <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
+          </tr>
+          {{/unless}}
+        </tbody>
+      </table>
+    `;
+
+    makeDraggable(tableContainer);
+    makeSelectable(tableContainer);
+
+    visualEditor.elements.push({
+      id: tableContainer.id,
+      type: 'items-table',
+      element: tableContainer
+    });
+
+    return tableContainer;
   }
 
   function createQuoteTemplate(canvas) {
@@ -2211,7 +2507,7 @@
 
   function getDocumentTypeName(type) {
     const names = {
-      'invoice': 'Factura',
+      'invoice': 'Remisión',
       'quote': 'Cotización', 
       'workOrder': 'Orden de Trabajo',
       'sticker-qr': 'Sticker (Solo QR)',
@@ -2336,7 +2632,7 @@
         templateType = 'quote';
       } else if (content.toLowerCase().includes('orden de trabajo')) {
         templateType = 'workOrder';
-      } else if (content.toLowerCase().includes('factura')) {
+      } else if (content.toLowerCase().includes('remisión') || content.toLowerCase().includes('remision')) {
         templateType = 'invoice';
       }
     }

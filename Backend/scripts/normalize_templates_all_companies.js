@@ -33,7 +33,7 @@ const baseCss = `
   .hr { border-top: 1px solid #e5e7eb; margin: 10px 0; }
 `;
 
-const invoiceHtml = `
+const remissionHtml = `
   <div class="doc">
     <div class="header">
       <div style="display:flex; gap:10px; align-items:flex-start;">
@@ -43,7 +43,7 @@ const invoiceHtml = `
         <div class="small">Tel: {{company.phone}} · {{company.email}}</div>
       </div>
       <div class="right">
-        <h1>FACTURA</h1>
+        <h1>REMISIÓN</h1>
         <div># {{pad sale.number 5}}</div>
         <div class="muted">Fecha: {{date sale.closedAt}}</div>
       </div>
@@ -285,12 +285,12 @@ async function run(){
     // Política: NO tocar formatos custom existentes; crear por defecto si faltan y activar solo si no hay activo para el tipo.
     // Invoice
     if (inv.length === 0){
-      if (APPLY){ const d = await upsert(cid,'invoice','Factura Producción', invoiceHtml, baseCss, true); actions.created.push({type:'invoice', id: d._id}); }
+      if (APPLY){ const d = await upsert(cid,'invoice','Remisión Producción', remissionHtml, baseCss, true); actions.created.push({type:'invoice', id: d._id}); }
       else actions.created.push({type:'invoice', preview:true});
     } else {
       const act = inv.find(t=>t.active) || null;
       if (act && UPGRADE && /producci[óo]n/i.test(String(act.name||''))){
-        if (APPLY){ const d = await upsert(cid,'invoice','Factura Producción', invoiceHtml, baseCss, true); actions.activatedNow.push({ type:'invoice', id:String(d._id), upgradedFrom:String(act._id) }); }
+        if (APPLY){ const d = await upsert(cid,'invoice','Remisión Producción', remissionHtml, baseCss, true); actions.activatedNow.push({ type:'invoice', id:String(d._id), upgradedFrom:String(act._id) }); }
         else actions.activatedNow.push({ type:'invoice', preview:true, upgradedFrom:String(act._id) });
       } else if (act) actions.preservedActive.push({ type:'invoice', id: String(act._id) });
       else {
@@ -298,7 +298,7 @@ async function run(){
         const prod = inv.find(t=> /producci[óo]n/i.test(t.name||'')) || inv.find(isInvoiceValid);
         if (APPLY){
           if (prod) { await setActiveTemplate(cid,'invoice', prod._id); actions.activatedNow.push({ type:'invoice', id:String(prod._id) }); }
-          else { const d = await upsert(cid,'invoice','Factura Producción', invoiceHtml, baseCss, true); actions.created.push({type:'invoice', id:d._id}); actions.activatedNow.push({ type:'invoice', id:String(d._id) }); }
+          else { const d = await upsert(cid,'invoice','Remisión Producción', remissionHtml, baseCss, true); actions.created.push({type:'invoice', id:d._id}); actions.activatedNow.push({ type:'invoice', id:String(d._id) }); }
         } else actions.activatedNow.push({ type:'invoice', preview:true });
       }
     }

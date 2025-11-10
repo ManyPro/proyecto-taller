@@ -41,7 +41,7 @@ function printSaleTicket(sale){
   function fallback(){
     const number = padSaleNumber(sale.number || sale._id || '');
     const linesOut = [
-      'Factura simple',
+      'Remisión simple',
       '',
       '# ' + number + '  Total: ' + money(sale.total || 0),
       '',
