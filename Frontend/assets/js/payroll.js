@@ -52,24 +52,24 @@ async function loadConcepts(){
         ? `${c.defaultValue}%` 
         : new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(c.defaultValue || 0);
       
-      return `<div class="concept-row" style="padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--card);transition:all 0.2s;">
-        <div class="row between" style="align-items:center;flex-wrap:wrap;gap:8px;">
-          <div class="row" style="gap:12px;align-items:center;flex:1;min-width:200px;">
-            <span class="concept-badge" style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;text-transform:uppercase;background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}20;">
+      return `<div class="concept-row p-3 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg mb-2 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200 hover:bg-slate-800/50 dark:hover:bg-slate-800/50 theme-light:hover:bg-slate-50">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex gap-3 items-center flex-1 min-w-[200px]">
+            <span class="concept-badge px-2.5 py-1 rounded-md text-xs font-semibold uppercase" style="background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}40;">
               ${htmlEscape(typeInfo.label)}
             </span>
-            <div style="flex:1;">
-              <div style="font-weight:600;color:var(--text);margin-bottom:2px;">
-                <span style="color:var(--muted);font-size:12px;margin-right:6px;">${htmlEscape(c.code)}</span>
+            <div class="flex-1">
+              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-0.5">
+                <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-xs mr-1.5">${htmlEscape(c.code)}</span>
                 ${htmlEscape(c.name)}
               </div>
-              <div style="font-size:12px;color:var(--muted);">
-                ${amountLabel}: <strong style="color:var(--text);">${valueDisplay}</strong>
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+                ${amountLabel}: <strong class="text-white dark:text-white theme-light:text-slate-900">${valueDisplay}</strong>
               </div>
             </div>
           </div>
-          <div class="row" style="gap:6px;align-items:center;">
-            <button data-id="${c._id}" class="secondary x-del" style="padding:6px 12px;font-size:12px;border-color:var(--danger, #ef4444);color:var(--danger, #ef4444);" title="Eliminar concepto">
+          <div class="flex gap-1.5 items-center">
+            <button data-id="${c._id}" class="x-del px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300" title="Eliminar concepto">
               🗑️ Eliminar
             </button>
           </div>
@@ -81,7 +81,7 @@ async function loadConcepts(){
     if (!container) return;
     
     if (list.length === 0) {
-      container.innerHTML = '<div class="muted" style="text-align:center;padding:24px;border:1px dashed var(--border);border-radius:8px;">No hay conceptos configurados. Crea el primero arriba.</div>';
+      container.innerHTML = '<div class="text-center py-6 px-4 border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay conceptos configurados. Crea el primero arriba.</div>';
     } else {
       container.innerHTML = rows.join('');
       // Agregar event listeners para eliminar
@@ -109,7 +109,7 @@ async function loadConcepts(){
     console.error('Error loading concepts:', err);
     const container = el('pc-list');
     if (container) {
-      container.innerHTML = `<div style="padding:12px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:8px;color:#ef4444;">
+      container.innerHTML = `<div class="p-3 bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 rounded-lg text-red-400 dark:text-red-400 theme-light:text-red-600">
         ❌ Error al cargar conceptos: ${htmlEscape(err.message || 'Error desconocido')}
       </div>`;
     }
@@ -299,12 +299,12 @@ async function loadTechnicians(){
     const listEl = document.getElementById('tk-list');
     if (listEl) {
       if (names.length === 0) {
-        listEl.innerHTML = '<div class="muted" style="text-align:center;padding:12px;font-size:13px;">No hay técnicos registrados. Crea el primero arriba.</div>';
+        listEl.innerHTML = '<div class="text-center py-3 px-3 text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay técnicos registrados. Crea el primero arriba.</div>';
       } else {
         listEl.innerHTML = names.map(n => {
-          return `<div class="technician-chip" style="display:inline-flex;align-items:center;gap:8px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);color:var(--text);padding:8px 12px;border-radius:8px;font-size:13px;font-weight:500;">
+          return `<div class="technician-chip inline-flex items-center gap-2 bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 border border-blue-500/30 dark:border-blue-500/30 theme-light:border-blue-300 text-white dark:text-white theme-light:text-slate-900 px-3 py-2 rounded-lg text-sm font-medium">
             <span>👤 ${htmlEscape(n)}</span>
-            <button class="x-del" data-name="${htmlEscape(n)}" style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);color:#ef4444;padding:2px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;transition:all 0.2s;" title="Eliminar técnico" onmouseover="this.style.background='rgba(239,68,68,0.2)'" onmouseout="this.style.background='rgba(239,68,68,0.1)'">
+            <button class="x-del bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/30 dark:hover:bg-red-600/30 theme-light:bg-red-50 theme-light:hover:bg-red-100 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 text-red-400 dark:text-red-400 theme-light:text-red-600 px-2 py-0.5 rounded text-xs font-semibold transition-all duration-200 cursor-pointer" data-name="${htmlEscape(n)}" title="Eliminar técnico">
               🗑️ Eliminar
             </button>
           </div>`;
@@ -330,7 +330,7 @@ async function loadTechnicians(){
               const techSel2 = document.getElementById('pa-technicianSel');
               if (techSel2 && techSel2.value === name) {
                 techSel2.value = '';
-                el('pa-list').innerHTML = '<div class="muted" style="padding:16px;text-align:center;border:1px dashed var(--border);border-radius:8px;font-size:13px;">Selecciona un técnico para ver sus asignaciones personalizadas.</div>';
+                el('pa-list').innerHTML = '<div class="p-4 text-center border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Selecciona un técnico para ver sus asignaciones personalizadas.</div>';
               }
               
               // Limpiar también el selector de liquidaciones si está seleccionado
@@ -339,7 +339,7 @@ async function loadTechnicians(){
                 techSel3.value = '';
                 const conceptsContainer = document.getElementById('pl-concepts-container');
                 if (conceptsContainer) {
-                  conceptsContainer.innerHTML = '<div class="muted" style="width:100%;text-align:center;font-size:12px;padding:8px;">Selecciona período y técnico primero</div>';
+                  conceptsContainer.innerHTML = '<div class="w-full text-center text-xs py-2 px-2 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Selecciona período y técnico primero</div>';
                 }
               }
               
@@ -357,7 +357,7 @@ async function loadTechnicians(){
     console.error('Error loading technicians:', err);
     const listEl = document.getElementById('tk-list');
     if (listEl) {
-      listEl.innerHTML = `<div style="padding:12px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:13px;">
+      listEl.innerHTML = `<div class="p-3 bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 rounded-lg text-red-400 dark:text-red-400 theme-light:text-red-600 text-sm">
         ❌ Error al cargar técnicos: ${htmlEscape(err.message || 'Error desconocido')}
       </div>`;
     }
@@ -387,7 +387,7 @@ async function loadAllPeriods(){
     if (!container) return;
     
     if (!list || list.length === 0) {
-      container.innerHTML = '<div class="muted" style="text-align:center;padding:24px;border:1px dashed var(--border);border-radius:8px;">No hay períodos creados. Crea el primero arriba.</div>';
+      container.innerHTML = '<div class="text-center py-6 px-4 border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay períodos creados. Crea el primero arriba.</div>';
       return;
     }
     
@@ -410,24 +410,24 @@ async function loadAllPeriods(){
         ? '<span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;text-transform:uppercase;background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.3);">Abierto</span>'
         : '<span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;text-transform:uppercase;background:rgba(107,114,128,0.1);color:#6b7280;border:1px solid rgba(107,114,128,0.3);">Cerrado</span>';
       
-      return `<div class="period-row" style="padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--card);transition:all 0.2s;">
-        <div class="row between" style="align-items:center;flex-wrap:wrap;gap:8px;">
-          <div class="row" style="gap:12px;align-items:center;flex:1;min-width:200px;">
+      return `<div class="period-row p-3 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg mb-2 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200 hover:bg-slate-800/50 dark:hover:bg-slate-800/50 theme-light:hover:bg-slate-50">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex gap-3 items-center flex-1 min-w-[200px]">
             ${statusBadge}
-            <div style="flex:1;">
-              <div style="font-weight:600;color:var(--text);margin-bottom:2px;">
+            <div class="flex-1">
+              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-0.5">
                 ${typeInfo.icon} ${htmlEscape(typeInfo.label)} · ${days} días
               </div>
-              <div style="font-size:12px;color:var(--muted);">
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
                 ${startStr} → ${endStr}
               </div>
             </div>
           </div>
-          <div class="row" style="gap:8px;align-items:center;">
-            <div style="font-size:12px;color:var(--muted);">
-              ID: <code style="font-size:11px;background:var(--bg);padding:2px 6px;border-radius:4px;">${String(p._id).slice(-8)}</code>
+          <div class="flex gap-2 items-center">
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+              ID: <code class="text-xs bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100 px-1.5 py-0.5 rounded text-white dark:text-white theme-light:text-slate-900">${String(p._id).slice(-8)}</code>
             </div>
-            ${p.status === 'open' ? `<button class="x-close-period" data-id="${p._id}" style="padding:6px 12px;font-size:12px;border-color:var(--danger, #ef4444);color:var(--danger, #ef4444);background:rgba(239,68,68,0.1);border-radius:6px;cursor:pointer;" title="Cerrar período">🔒 Cerrar</button>` : ''}
+            ${p.status === 'open' ? `<button class="x-close-period px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300 cursor-pointer" data-id="${p._id}" title="Cerrar período">🔒 Cerrar</button>` : ''}
           </div>
         </div>
       </div>`;
@@ -470,7 +470,7 @@ async function loadAllPeriods(){
     console.error('Error loading periods:', err);
     const container = document.getElementById('ppd-list');
     if (container) {
-      container.innerHTML = `<div style="padding:12px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:13px;">
+      container.innerHTML = `<div class="p-3 bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 rounded-lg text-red-400 dark:text-red-400 theme-light:text-red-600 text-sm">
         ❌ Error al cargar períodos: ${htmlEscape(err.message || 'Error desconocido')}
       </div>`;
     }
@@ -481,7 +481,7 @@ async function loadAssignments(){
   try {
     const techName = document.getElementById('pa-technicianSel')?.value;
     if (!techName) {
-      el('pa-list').innerHTML = '<div class="muted" style="padding:16px;text-align:center;border:1px dashed var(--border);border-radius:8px;font-size:13px;">Selecciona un técnico para ver sus asignaciones personalizadas.</div>';
+      el('pa-list').innerHTML = '<div class="p-4 text-center border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Selecciona un técnico para ver sus asignaciones personalizadas.</div>';
       return;
     }
     
@@ -498,9 +498,9 @@ async function loadAssignments(){
     if (!container) return;
     
     if (!assignments || assignments.length === 0) {
-      container.innerHTML = `<div class="muted" style="padding:16px;text-align:center;border:1px dashed var(--border);border-radius:8px;font-size:13px;">
-        <strong>${htmlEscape(techName)}</strong> no tiene asignaciones personalizadas.<br/>
-        <span style="font-size:12px;">Usará los valores por defecto de los conceptos.</span>
+      container.innerHTML = `<div class="p-4 text-center border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+        <strong class="text-white dark:text-white theme-light:text-slate-900">${htmlEscape(techName)}</strong> no tiene asignaciones personalizadas.<br/>
+        <span class="text-xs">Usará los valores por defecto de los conceptos.</span>
       </div>`;
       return;
     }
@@ -543,28 +543,28 @@ async function loadAssignments(){
         }
       }
       
-      return `<div class="assignment-row" style="padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--card);transition:all 0.2s;">
-        <div class="row between" style="align-items:center;flex-wrap:wrap;gap:8px;">
-          <div class="row" style="gap:12px;align-items:center;flex:1;min-width:200px;">
-            <span class="concept-badge" style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;text-transform:uppercase;background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}20;">
+      return `<div class="assignment-row p-3 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg mb-2 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200 hover:bg-slate-800/50 dark:hover:bg-slate-800/50 theme-light:hover:bg-slate-50">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex gap-3 items-center flex-1 min-w-[200px]">
+            <span class="concept-badge px-2.5 py-1 rounded-md text-xs font-semibold uppercase" style="background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}40;">
               ${htmlEscape(typeInfo.label)}
             </span>
-            <div style="flex:1;">
-              <div style="font-weight:600;color:var(--text);margin-bottom:2px;">
-                <span style="color:var(--muted);font-size:12px;margin-right:6px;">${htmlEscape(conceptCode)}</span>
+            <div class="flex-1">
+              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-0.5">
+                <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-xs mr-1.5">${htmlEscape(conceptCode)}</span>
                 ${htmlEscape(conceptName)}
               </div>
-              <div style="font-size:12px;color:var(--muted);">
-                Valor por defecto: <strong style="color:var(--text);">${defaultDisplay}</strong>
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+                Valor por defecto: <strong class="text-white dark:text-white theme-light:text-slate-900">${defaultDisplay}</strong>
               </div>
             </div>
           </div>
-          <div class="row" style="gap:16px;align-items:center;">
-            <div style="text-align:right;">
-              <div style="font-size:12px;color:var(--muted);margin-bottom:2px;">Valor personalizado:</div>
-              <div style="font-size:16px;font-weight:600;color:var(--text);">${valueDisplay}</div>
+          <div class="flex gap-4 items-center">
+            <div class="text-right">
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-0.5">Valor personalizado:</div>
+              <div class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">${valueDisplay}</div>
             </div>
-            <button class="x-del-assignment" data-id="${a._id}" data-concept-id="${a.conceptId}" style="padding:6px 12px;font-size:12px;border-color:var(--danger, #ef4444);color:var(--danger, #ef4444);background:rgba(239,68,68,0.1);border-radius:6px;cursor:pointer;" title="Eliminar asignación">
+            <button class="x-del-assignment px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300 cursor-pointer" data-id="${a._id}" data-concept-id="${a.conceptId}" title="Eliminar asignación">
               🗑️
             </button>
           </div>
@@ -573,9 +573,9 @@ async function loadAssignments(){
     }).join('');
     
     container.innerHTML = `
-      <div style="margin-bottom:8px;">
-        <h4 style="margin:0;font-size:14px;font-weight:600;">Asignaciones de <strong>${htmlEscape(techName)}</strong></h4>
-        <p class="muted" style="margin:4px 0 0 0;font-size:12px;">${assignments.length} asignación(es) personalizada(s)</p>
+      <div class="mb-2">
+        <h4 class="m-0 text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Asignaciones de <strong>${htmlEscape(techName)}</strong></h4>
+        <p class="m-1 mt-0 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${assignments.length} asignación(es) personalizada(s)</p>
       </div>
       ${rows}
     `;
@@ -617,7 +617,7 @@ async function loadAssignments(){
     console.error('Error loading assignments:', err);
     const container = el('pa-list');
     if (container) {
-      container.innerHTML = `<div style="padding:12px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:13px;">
+      container.innerHTML = `<div class="p-3 bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 rounded-lg text-red-400 dark:text-red-400 theme-light:text-red-600 text-sm">
         ❌ Error al cargar asignaciones: ${htmlEscape(err.message || 'Error desconocido')}
       </div>`;
     }
@@ -717,7 +717,7 @@ async function loadConceptsForTechnician(){
     if (!container) return;
     
     if (!technicianName || !periodId) {
-      container.innerHTML = '<div class="muted" style="grid-column:1/-1;text-align:center;font-size:12px;padding:16px;border:1px dashed var(--border);border-radius:8px;">Selecciona período y técnico primero</div>';
+      container.innerHTML = '<div class="grid-column-[1/-1] text-center text-xs py-4 px-4 border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Selecciona período y técnico primero</div>';
       return;
     }
     
@@ -774,7 +774,7 @@ async function loadConceptsForTechnician(){
     
     // Si no hay conceptos, préstamos ni comisiones
     if (assignedConcepts.length === 0 && pendingLoans.length === 0 && commissionTotal === 0) {
-      container.innerHTML = '<div class="muted" style="grid-column:1/-1;text-align:center;font-size:12px;padding:16px;border:1px dashed var(--border);border-radius:8px;">Este técnico no tiene conceptos asignados, préstamos pendientes ni comisiones en el período.</div>';
+      container.innerHTML = '<div class="grid-column-[1/-1] text-center text-xs py-4 px-4 border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Este técnico no tiene conceptos asignados, préstamos pendientes ni comisiones en el período.</div>';
       return;
     }
     
@@ -790,22 +790,22 @@ async function loadConceptsForTechnician(){
     // Renderizar comisiones como concepto seleccionable
     if (commissionTotal > 0) {
       const storedCommission = editedLoanPayments[`${technicianName}_commission`] || commissionTotal;
-      html += `<div class="concept-card commission-card" style="padding:12px;border:2px solid var(--accent, #3b82f6);border-radius:8px;background:var(--card);transition:all 0.2s;">
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0 0 10px 0;">
-          <input type="checkbox" value="COMMISSION" data-commission-concept="true" style="cursor:pointer;width:18px;height:18px;margin:0;" />
-          <div style="flex:1;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-              <span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(16,185,129,0.1);color:#10b981;border:1px solid #10b981;">
+      html += `<div class="concept-card commission-card p-3 border-2 border-blue-500 dark:border-blue-500 theme-light:border-blue-400 rounded-lg bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200">
+        <label class="flex items-center gap-2.5 cursor-pointer mb-2.5">
+          <input type="checkbox" value="COMMISSION" data-commission-concept="true" class="cursor-pointer w-[18px] h-[18px] m-0" />
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="px-2.5 py-1 rounded-md text-xs font-semibold bg-green-500/10 dark:bg-green-500/10 theme-light:bg-green-50 text-green-500 dark:text-green-400 theme-light:text-green-700 border border-green-500 dark:border-green-500 theme-light:border-green-300">
                 Ingreso
               </span>
-              <span style="padding:2px 6px;border-radius:3px;font-size:9px;font-weight:600;background:rgba(59,130,246,0.1);color:#3b82f6;border:1px solid #3b82f6;">💰 Comisiones</span>
+              <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 text-blue-500 dark:text-blue-400 theme-light:text-blue-700 border border-blue-500 dark:border-blue-500 theme-light:border-blue-300">💰 Comisiones</span>
             </div>
-            <div style="font-weight:600;color:var(--text);font-size:14px;margin-bottom:2px;">Participación por ventas</div>
-            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">${commissionDetails.length} participación(es) · Total calculado: ${formatMoney(commissionTotal)}</div>
+            <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm mb-0.5">Participación por ventas</div>
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">${commissionDetails.length} participación(es) · Total calculado: ${formatMoney(commissionTotal)}</div>
           </div>
         </label>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <label style="font-size:11px;color:var(--muted);white-space:nowrap;">Monto a liquidar:</label>
+        <div class="flex gap-2 items-center flex-wrap">
+          <label class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-nowrap">Monto a liquidar:</label>
           <input type="number" 
                  id="commission-amount" 
                  data-technician="${technicianName}"
@@ -814,9 +814,9 @@ async function loadConceptsForTechnician(){
                  max="${commissionTotal}" 
                  step="1" 
                  value="${storedCommission}"
-                 style="width:140px;padding:6px 10px;border:2px solid var(--accent, #3b82f6);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;font-weight:500;"
+                 class="w-[140px] px-2.5 py-1.5 border-2 border-blue-500 dark:border-blue-500 theme-light:border-blue-400 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                  onchange="saveCommissionAmount('${technicianName}')" />
-          <span class="muted" style="font-size:11px;white-space:nowrap;">Máx: ${formatMoney(commissionTotal)}</span>
+          <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-nowrap">Máx: ${formatMoney(commissionTotal)}</span>
         </div>
       </div>`;
     }
@@ -842,19 +842,19 @@ async function loadConceptsForTechnician(){
       
       // Los conceptos variables no se pueden editar desde la liquidación, solo se muestran
       
-      html += `<div class="concept-card ${isVariable ? 'variable-concept-card' : ''}" style="padding:12px;border:2px solid ${isVariable ? 'rgba(139,92,246,0.3)' : 'var(--border)'};border-radius:8px;background:var(--card);transition:all 0.2s;cursor:pointer;" onmouseover="this.style.borderColor='var(--accent, #3b82f6)';this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 12px rgba(0,0,0,0.1)'" onmouseout="this.style.borderColor='${isVariable ? 'rgba(139,92,246,0.3)' : 'var(--border)'}';this.style.transform='';this.style.boxShadow=''">
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0;">
-          <input type="checkbox" value="${c._id}" data-concept-id="${c._id}" data-is-variable="${isVariable}" style="cursor:pointer;width:18px;height:18px;margin:0;" />
-          <div style="flex:1;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-              <span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}20;">
+      html += `<div class="concept-card ${isVariable ? 'variable-concept-card' : ''} p-3 border-2 ${isVariable ? 'border-purple-500/30 dark:border-purple-500/30 theme-light:border-purple-300' : 'border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300'} rounded-lg bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200 cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 theme-light:hover:border-blue-400 hover:-translate-y-0.5 hover:shadow-lg">
+        <label class="flex items-center gap-2.5 cursor-pointer m-0">
+          <input type="checkbox" value="${c._id}" data-concept-id="${c._id}" data-is-variable="${isVariable}" class="cursor-pointer w-[18px] h-[18px] m-0" />
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="px-2.5 py-1 rounded-md text-xs font-semibold" style="background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}40;">
           ${htmlEscape(typeInfo.label)}
         </span>
         ${overrideBadge}
               ${variableBadge}
             </div>
-            <div style="font-weight:600;color:var(--text);font-size:14px;margin-bottom:2px;">${htmlEscape(c.code)} · ${htmlEscape(c.name)}</div>
-            <div style="font-size:12px;color:var(--muted);">${displayValue}${isVariable ? ` · Completa hasta ${formatMoney(c.variableFixedAmount || 0)}` : ''}</div>
+            <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm mb-0.5">${htmlEscape(c.code)} · ${htmlEscape(c.name)}</div>
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${displayValue}${isVariable ? ` · Completa hasta ${formatMoney(c.variableFixedAmount || 0)}` : ''}</div>
           </div>
         </label>
       </div>`;
@@ -866,22 +866,22 @@ async function loadConceptsForTechnician(){
       const loanCardId = 'loan-payment-card';
       const storedValue = editedLoanPayments[technicianName] || totalPending;
       
-      html += `<div class="concept-card loan-card" style="padding:12px;border:2px solid var(--accent, #3b82f6);border-radius:8px;background:var(--card);transition:all 0.2s;" id="${loanCardId}">
-        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;margin:0 0 10px 0;">
-          <input type="checkbox" value="LOAN_PAYMENT" data-loan-concept="true" style="cursor:pointer;width:18px;height:18px;margin:0;" />
-          <div style="flex:1;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-              <span style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid #ef4444;">
+      html += `<div class="concept-card loan-card p-3 border-2 border-blue-500 dark:border-blue-500 theme-light:border-blue-400 rounded-lg bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200" id="${loanCardId}">
+        <label class="flex items-center gap-2.5 cursor-pointer mb-2.5 m-0">
+          <input type="checkbox" value="LOAN_PAYMENT" data-loan-concept="true" class="cursor-pointer w-[18px] h-[18px] m-0" />
+          <div class="flex-1">
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="px-2.5 py-1 rounded-md text-xs font-semibold bg-red-500/10 dark:bg-red-500/10 theme-light:bg-red-50 text-red-500 dark:text-red-400 theme-light:text-red-700 border border-red-500 dark:border-red-500 theme-light:border-red-300">
                 Descuento
               </span>
-              <span style="padding:2px 6px;border-radius:3px;font-size:9px;font-weight:600;background:rgba(59,130,246,0.1);color:#3b82f6;border:1px solid #3b82f6;">💰 Préstamos</span>
+              <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 text-blue-500 dark:text-blue-400 theme-light:text-blue-700 border border-blue-500 dark:border-blue-500 theme-light:border-blue-300">💰 Préstamos</span>
             </div>
-            <div style="font-weight:600;color:var(--text);font-size:14px;margin-bottom:2px;">Pago préstamos</div>
-            <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">${pendingLoans.length} préstamo(s) pendiente(s) · Total pendiente: ${formatMoney(totalPending)}</div>
+            <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm mb-0.5">Pago préstamos</div>
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">${pendingLoans.length} préstamo(s) pendiente(s) · Total pendiente: ${formatMoney(totalPending)}</div>
           </div>
         </label>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <label style="font-size:11px;color:var(--muted);white-space:nowrap;">Monto a pagar:</label>
+        <div class="flex gap-2 items-center flex-wrap">
+          <label class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-nowrap">Monto a pagar:</label>
           <input type="number" 
                  id="loan-payment-amount" 
                  data-technician="${technicianName}"
@@ -890,9 +890,9 @@ async function loadConceptsForTechnician(){
                  max="${totalPending}" 
                  step="1" 
                  value="${storedValue}"
-                 style="width:140px;padding:6px 10px;border:2px solid var(--accent, #3b82f6);border-radius:6px;background:var(--bg);color:var(--text);font-size:13px;font-weight:500;"
+                 class="w-[140px] px-2.5 py-1.5 border-2 border-blue-500 dark:border-blue-500 theme-light:border-blue-400 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                  onchange="saveLoanPaymentAmount('${technicianName}')" />
-          <span class="muted" style="font-size:11px;white-space:nowrap;">Máx: ${formatMoney(totalPending)}</span>
+          <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-nowrap">Máx: ${formatMoney(totalPending)}</span>
         </div>
       </div>`;
     }
@@ -909,7 +909,7 @@ async function loadConceptsForTechnician(){
     console.error('Error loading assigned concepts:', err);
     const container = document.getElementById('pl-concepts-container');
     if (container) {
-      container.innerHTML = '<div style="color:#ef4444;font-size:12px;padding:8px;grid-column:1/-1;">Error al cargar conceptos asignados</div>';
+      container.innerHTML = '<div class="text-red-500 dark:text-red-400 theme-light:text-red-600 text-xs py-2 px-2 grid-column-[1/-1]">Error al cargar conceptos asignados</div>';
     }
   }
 }
@@ -928,7 +928,7 @@ window.saveLoanPaymentAmount = function(technicianName) {
   if (card) {
     card.style.borderColor = '#10b981';
     setTimeout(() => {
-      card.style.borderColor = 'var(--accent, #3b82f6)';
+    card.style.borderColor = '#3b82f6';
     }, 1000);
   }
 };
@@ -947,7 +947,7 @@ window.saveCommissionAmount = function(technicianName) {
   if (card) {
     card.style.borderColor = '#10b981';
     setTimeout(() => {
-      card.style.borderColor = 'var(--accent, #3b82f6)';
+    card.style.borderColor = '#3b82f6';
     }, 1000);
   }
 };
@@ -969,7 +969,7 @@ window.saveLoanPaymentFromPreview = function(loanId, inputId) {
   // Mostrar feedback visual
   const card = input.closest('[data-loan-id]');
   if (card) {
-    const originalBorder = card.style.borderColor || 'var(--border)';
+    const originalBorder = card.style.borderColor || 'rgba(148, 163, 184, 0.5)';
     card.style.borderColor = '#10b981';
     setTimeout(() => {
       card.style.borderColor = originalBorder;
@@ -1122,28 +1122,24 @@ async function preview(){
       const renderItems = (items, title) => {
         if (!items || items.length === 0) return '';
         return `
-          <div style="margin-bottom:16px;">
-            <h4 style="margin:0 0 8px 0;font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;">${title}</h4>
+          <div class="mb-4">
+            <h4 class="m-0 mb-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 uppercase">${title}</h4>
             ${items.map((i, idx) => {
               const typeInfo = typeLabels[i.type] || { label: i.type, color: '#6b7280', bg: 'rgba(107,114,128,0.1)' };
               const itemId = `item-${idx}-${i.loanId || i.conceptId || 'other'}`;
               
-              // Los préstamos y comisiones se muestran como items normales (sin edición en preview)
-              // La edición solo se hace en el menú de conceptos
-              
-              // Item normal (no préstamo)
-              return `<div class="row between" style="padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;background:var(--card);">
-                <div style="flex:1;">
-                  <div class="row" style="gap:10px;align-items:center;margin-bottom:${i.notes ? '4px' : '0'};">
-                  <span style="padding:4px 8px;border-radius:4px;font-size:11px;font-weight:600;background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}20;">
+              return `<div class="flex items-center justify-between p-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md mb-1.5 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white">
+                <div class="flex-1">
+                  <div class="flex gap-2.5 items-center mb-${i.notes ? '1' : '0'}">
+                  <span class="px-2 py-0.5 rounded text-xs font-semibold" style="background:${typeInfo.bg};color:${typeInfo.color};border:1px solid ${typeInfo.color}40;">
                     ${htmlEscape(typeInfo.label)}
                   </span>
-                  <span style="font-weight:500;color:var(--text);">${htmlEscape(i.name)}</span>
-                  ${i.calcRule ? `<span class="muted" style="font-size:11px;">(${htmlEscape(i.calcRule)})</span>` : ''}
+                  <span class="font-medium text-white dark:text-white theme-light:text-slate-900">${htmlEscape(i.name)}</span>
+                  ${i.calcRule ? `<span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">(${htmlEscape(i.calcRule)})</span>` : ''}
                   </div>
-                  ${i.notes ? `<div class="muted" style="font-size:11px;margin-top:4px;color:var(--muted);">${htmlEscape(i.notes)}</div>` : ''}
+                  ${i.notes ? `<div class="text-xs mt-1 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${htmlEscape(i.notes)}</div>` : ''}
                 </div>
-                <div style="font-weight:600;color:var(--text);font-size:14px;">
+                <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm">
                   ${formatMoney(i.value)}
                 </div>
               </div>`;
@@ -1185,14 +1181,14 @@ async function preview(){
       };
       
       el('pl-result').innerHTML = `
-        <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px;">
-          <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border);">
-            <h4 style="margin:0 0 8px 0;font-size:16px;font-weight:600;">Vista previa de liquidación</h4>
-            <div class="row" style="gap:16px;flex-wrap:wrap;">
-              <div style="font-size:13px;color:var(--muted);">
+        <div class="bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4">
+          <div class="mb-4 pb-4 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+            <h4 class="m-0 mb-2 text-base font-semibold text-white dark:text-white theme-light:text-slate-900">Vista previa de liquidación</h4>
+            <div class="flex gap-4 flex-wrap">
+              <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
                 <strong>Técnico:</strong> ${htmlEscape(r.technicianName || technicianName)}
               </div>
-              <div style="font-size:13px;color:var(--muted);">
+              <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
                 <strong>Período:</strong> ${document.getElementById('pl-periodSel').options[document.getElementById('pl-periodSel').selectedIndex]?.textContent || 'N/A'}
               </div>
             </div>
@@ -1202,18 +1198,18 @@ async function preview(){
           ${renderItems(surcharges, 'Recargos')}
           ${renderItems(deductions, 'Descuentos')}
           
-          <div style="margin-top:16px;padding-top:16px;border-top:2px solid var(--border);">
-            <div class="row between" style="margin-bottom:8px;">
-              <span style="font-weight:600;color:var(--text);">Total bruto:</span>
-              <span style="font-weight:600;color:var(--text);font-size:16px;" data-total="gross">${formatMoney(r.grossTotal)}</span>
+          <div class="mt-4 pt-4 border-t-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-semibold text-white dark:text-white theme-light:text-slate-900">Total bruto:</span>
+              <span class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-base" data-total="gross">${formatMoney(r.grossTotal)}</span>
             </div>
-            <div class="row between" style="margin-bottom:8px;">
-              <span style="font-weight:600;color:var(--text);">Total descuentos:</span>
-              <span style="font-weight:600;color:#ef4444;font-size:16px;" data-total="deductions">-${formatMoney(r.deductionsTotal)}</span>
+            <div class="flex items-center justify-between mb-2">
+              <span class="font-semibold text-white dark:text-white theme-light:text-slate-900">Total descuentos:</span>
+              <span class="font-semibold text-red-500 dark:text-red-400 theme-light:text-red-600 text-base" data-total="deductions">-${formatMoney(r.deductionsTotal)}</span>
             </div>
-            <div class="row between" style="padding:12px;background:rgba(59,130,246,0.1);border-radius:6px;margin-top:8px;">
-              <span style="font-weight:700;color:var(--text);font-size:16px;">Neto a pagar:</span>
-              <span style="font-weight:700;color:#10b981;font-size:20px;" data-total="net">${formatMoney(r.netTotal)}</span>
+            <div class="flex items-center justify-between p-3 bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 rounded-md mt-2">
+              <span class="font-bold text-white dark:text-white theme-light:text-slate-900 text-base">Neto a pagar:</span>
+              <span class="font-bold text-green-500 dark:text-green-400 theme-light:text-green-600 text-xl" data-total="net">${formatMoney(r.netTotal)}</span>
             </div>
           </div>
         </div>
@@ -1320,22 +1316,22 @@ async function approve(){
       const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
       
       el('pl-result').innerHTML = `
-        <div style="padding:16px;background:rgba(16,185,129,0.1);border:1px solid #10b981;border-radius:8px;margin-bottom:16px;">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-            <span style="font-size:24px;">✓</span>
-            <h4 style="margin:0;font-size:16px;font-weight:600;color:#10b981;">Liquidación aprobada</h4>
+        <div class="p-4 bg-green-500/10 dark:bg-green-500/10 theme-light:bg-green-50 border border-green-500 dark:border-green-500 theme-light:border-green-300 rounded-lg mb-4">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-2xl">✓</span>
+            <h4 class="m-0 text-base font-semibold text-green-500 dark:text-green-400 theme-light:text-green-600">Liquidación aprobada</h4>
           </div>
-          <div style="font-size:13px;color:var(--text);margin-bottom:4px;">
+          <div class="text-sm text-white dark:text-white theme-light:text-slate-900 mb-1">
             <strong>Técnico:</strong> ${htmlEscape(r.technicianName || technicianName)}
           </div>
-          <div style="font-size:13px;color:var(--text);margin-bottom:4px;">
+          <div class="text-sm text-white dark:text-white theme-light:text-slate-900 mb-1">
             <strong>Período:</strong> ${periodText}
           </div>
-          <div style="font-size:13px;color:var(--text);margin-bottom:4px;">
+          <div class="text-sm text-white dark:text-white theme-light:text-slate-900 mb-1">
             <strong>Neto a pagar:</strong> ${formatMoney(r.netTotal || 0)}
           </div>
-          <div style="font-size:12px;color:var(--muted);margin-top:8px;">
-            ID: <code style="background:var(--bg);padding:2px 6px;border-radius:4px;font-size:11px;">${String(r._id).slice(-8)}</code>
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-2">
+            ID: <code class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100 px-1.5 py-0.5 rounded text-xs text-white dark:text-white theme-light:text-slate-900">${String(r._id).slice(-8)}</code>
           </div>
         </div>
       `;
@@ -1375,7 +1371,7 @@ async function loadPendingSettlements(){
     if (!container || !select) return;
     
     if (items.length === 0) {
-      container.innerHTML = '<div class="muted" style="text-align:center;padding:16px;border:1px dashed var(--border);border-radius:8px;font-size:13px;">No hay liquidaciones pendientes de pago.</div>';
+      container.innerHTML = '<div class="text-center py-4 px-4 border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay liquidaciones pendientes de pago.</div>';
       select.innerHTML = '<option value="">No hay liquidaciones pendientes</option>';
       return;
     }
@@ -1385,22 +1381,22 @@ async function loadPendingSettlements(){
     // Renderizar listado
     const rows = items.map(s => {
       const createdAt = new Date(s.createdAt).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      return `<div class="pending-settlement-row" data-id="${s._id}" style="padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--card);cursor:pointer;transition:all 0.2s;" onclick="selectSettlementForPayment('${s._id}')">
-        <div class="row between" style="align-items:center;flex-wrap:wrap;gap:8px;">
-          <div class="row" style="gap:12px;align-items:center;flex:1;min-width:200px;">
-            <div style="flex:1;">
-              <div style="font-weight:600;color:var(--text);margin-bottom:2px;">
+      return `<div class="pending-settlement-row p-3 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg mb-2 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white cursor-pointer transition-all duration-200 hover:bg-slate-800/50 dark:hover:bg-slate-800/50 theme-light:hover:bg-slate-50" data-id="${s._id}" onclick="selectSettlementForPayment('${s._id}')">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex gap-3 items-center flex-1 min-w-[200px]">
+            <div class="flex-1">
+              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-0.5">
                 👤 ${htmlEscape(s.technicianName||'Sin nombre')}
               </div>
-              <div style="font-size:12px;color:var(--muted);">
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
                 Aprobada: ${createdAt}
               </div>
             </div>
           </div>
-          <div style="text-align:right;font-size:12px;color:var(--muted);">
-            <div>Bruto: <strong style="color:var(--text);">${formatMoney(s.grossTotal)}</strong></div>
-            <div>Desc: <strong style="color:#ef4444;">-${formatMoney(s.deductionsTotal)}</strong></div>
-            <div style="margin-top:4px;font-size:16px;font-weight:700;color:#10b981;">Neto: ${formatMoney(s.netTotal)}</div>
+          <div class="text-right text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+            <div>Bruto: <strong class="text-white dark:text-white theme-light:text-slate-900">${formatMoney(s.grossTotal)}</strong></div>
+            <div>Desc: <strong class="text-red-500 dark:text-red-400 theme-light:text-red-600">-${formatMoney(s.deductionsTotal)}</strong></div>
+            <div class="mt-1 text-base font-bold text-green-500 dark:text-green-400 theme-light:text-green-600">Neto: ${formatMoney(s.netTotal)}</div>
           </div>
         </div>
       </div>`;
@@ -1515,14 +1511,14 @@ function updateSettlementInfo(){
   partialPayments = [];
   
   infoEl.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span style="font-size:20px;">💰</span>
-      <div style="flex:1;">
-        <div style="font-weight:600;color:var(--text);margin-bottom:2px;">Liquidación seleccionada</div>
-        <div style="font-size:12px;color:var(--muted);">
-          Monto total: <strong style="color:#10b981;font-size:14px;">${formatMoney(netTotal)}</strong>
+    <div class="flex items-center gap-2">
+      <span class="text-xl">💰</span>
+      <div class="flex-1">
+        <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-0.5">Liquidación seleccionada</div>
+        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+          Monto total: <strong class="text-green-500 dark:text-green-400 theme-light:text-green-600 text-sm">${formatMoney(netTotal)}</strong>
           ${paidAmount > 0 ? ` · Pagado: ${formatMoney(paidAmount)}` : ''}
-          ${remainingAmount > 0 ? ` · Restante: <strong style="color:#f59e0b;">${formatMoney(remainingAmount)}</strong>` : ''}
+          ${remainingAmount > 0 ? ` · Restante: <strong class="text-yellow-500 dark:text-yellow-400 theme-light:text-yellow-600">${formatMoney(remainingAmount)}</strong>` : ''}
         </div>
       </div>
     </div>
@@ -1578,7 +1574,7 @@ async function updatePaymentsList() {
   const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
   
   if (partialPayments.length === 0) {
-    listContainer.innerHTML = '<div class="muted" style="text-align:center;padding:12px;font-size:12px;border:1px dashed var(--border);border-radius:6px;">No hay pagos agregados. Haz clic en "Agregar pago" para comenzar.</div>';
+    listContainer.innerHTML = '<div class="text-center py-3 px-3 text-xs border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-md text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay pagos agregados. Haz clic en "Agregar pago" para comenzar.</div>';
     return;
   }
   
@@ -1598,38 +1594,35 @@ async function updatePaymentsList() {
     }).join('');
     
     return `
-      <div class="payment-row" data-payment-id="${payment.id}" style="padding:12px;border:2px solid var(--border);border-radius:8px;background:var(--card);">
-        <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap;">
-          <div style="flex:1;min-width:200px;">
-            <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:500;">Cuenta ${index + 1}</label>
+      <div class="payment-row p-3 border-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white" data-payment-id="${payment.id}">
+        <div class="flex gap-3 items-end flex-wrap">
+          <div class="flex-1 min-w-[200px]">
+            <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1 font-medium">Cuenta ${index + 1}</label>
             <select 
-              class="payment-account" 
+              class="payment-account w-full px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" 
               data-payment-id="${payment.id}"
-              style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);"
               onchange="updatePayment('${payment.id}', 'accountId', this.value)">
               <option value="">Seleccione cuenta…</option>
               ${accountsOptions}
             </select>
           </div>
-          <div style="flex:1;min-width:150px;">
-            <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:500;">Monto</label>
+          <div class="flex-1 min-w-[150px]">
+            <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1 font-medium">Monto</label>
             <input 
               type="number" 
-              class="payment-amount" 
+              class="payment-amount w-full px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" 
               data-payment-id="${payment.id}"
               min="0" 
               step="1"
               value="${payment.amount}"
               placeholder="0"
-              style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);"
               onchange="updatePayment('${payment.id}', 'amount', this.value)"
               oninput="updatePayment('${payment.id}', 'amount', this.value)" />
           </div>
-          <div style="min-width:80px;">
-            <label style="display:block;font-size:11px;color:transparent;margin-bottom:4px;">&nbsp;</label>
+          <div class="min-w-[80px]">
+            <label class="block text-xs text-transparent mb-1">&nbsp;</label>
             <button 
-              class="secondary" 
-              style="width:100%;padding:8px;font-size:12px;font-weight:600;"
+              class="w-full px-2 py-2 text-xs font-semibold bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 rounded-md transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300"
               onclick="removePayment('${payment.id}')">
               ✕ Eliminar
             </button>
@@ -1658,37 +1651,37 @@ function updatePaymentsSummary() {
   
   summaryContainer.style.display = 'block';
   summaryContainer.innerHTML = `
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
-      <div style="flex:1;min-width:200px;">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Total de pagos configurados</div>
-        <div style="font-size:18px;font-weight:700;color:${totalPayments > remainingAmount ? '#ef4444' : '#10b981'};">${formatMoney(totalPayments)}</div>
+    <div class="flex justify-between items-center flex-wrap gap-3">
+      <div class="flex-1 min-w-[200px]">
+        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total de pagos configurados</div>
+        <div class="text-lg font-bold ${totalPayments > remainingAmount ? 'text-red-500 dark:text-red-400 theme-light:text-red-600' : 'text-green-500 dark:text-green-400 theme-light:text-green-600'}">${formatMoney(totalPayments)}</div>
       </div>
-      <div style="flex:1;min-width:200px;">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Monto restante a pagar</div>
-        <div style="font-size:18px;font-weight:700;color:#f59e0b;">${formatMoney(remainingAmount)}</div>
+      <div class="flex-1 min-w-[200px]">
+        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Monto restante a pagar</div>
+        <div class="text-lg font-bold text-yellow-500 dark:text-yellow-400 theme-light:text-yellow-600">${formatMoney(remainingAmount)}</div>
       </div>
-      <div style="flex:1;min-width:200px;">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:4px;">Después de estos pagos</div>
-        <div style="font-size:18px;font-weight:700;color:${remainingAfterPayments < 0 ? '#ef4444' : remainingAfterPayments === 0 ? '#10b981' : '#f59e0b'};">
+      <div class="flex-1 min-w-[200px]">
+        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Después de estos pagos</div>
+        <div class="text-lg font-bold ${remainingAfterPayments < 0 ? 'text-red-500 dark:text-red-400 theme-light:text-red-600' : remainingAfterPayments === 0 ? 'text-green-500 dark:text-green-400 theme-light:text-green-600' : 'text-yellow-500 dark:text-yellow-400 theme-light:text-yellow-600'}">
           ${formatMoney(Math.max(0, remainingAfterPayments))}
         </div>
       </div>
     </div>
     ${totalPayments > remainingAmount ? `
-      <div style="margin-top:12px;padding:8px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:6px;color:#ef4444;font-size:12px;">
+      <div class="mt-3 p-2 bg-red-500/10 dark:bg-red-500/10 theme-light:bg-red-50 border border-red-500 dark:border-red-500 theme-light:border-red-300 rounded-md text-red-500 dark:text-red-400 theme-light:text-red-600 text-xs">
         ⚠️ El total de los pagos excede el monto restante por ${formatMoney(totalPayments - remainingAmount)}
       </div>
     ` : ''}
     ${remainingAfterPayments < 0 ? `
-      <div style="margin-top:8px;padding:8px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:6px;color:#ef4444;font-size:12px;">
+      <div class="mt-2 p-2 bg-red-500/10 dark:bg-red-500/10 theme-light:bg-red-50 border border-red-500 dark:border-red-500 theme-light:border-red-300 rounded-md text-red-500 dark:text-red-400 theme-light:text-red-600 text-xs">
         ⚠️ El total de los pagos excede el monto a pagar. Ajusta los montos.
       </div>
     ` : remainingAfterPayments === 0 ? `
-      <div style="margin-top:8px;padding:8px;background:rgba(16,185,129,0.1);border:1px solid #10b981;border-radius:6px;color:#10b981;font-size:12px;">
+      <div class="mt-2 p-2 bg-green-500/10 dark:bg-green-500/10 theme-light:bg-green-50 border border-green-500 dark:border-green-500 theme-light:border-green-300 rounded-md text-green-500 dark:text-green-400 theme-light:text-green-600 text-xs">
         ✓ El pago está completo. Puedes proceder a registrar los pagos.
       </div>
     ` : `
-      <div style="margin-top:8px;padding:8px;background:rgba(245,158,11,0.1);border:1px solid #f59e0b;border-radius:6px;color:#f59e0b;font-size:12px;">
+      <div class="mt-2 p-2 bg-yellow-500/10 dark:bg-yellow-500/10 theme-light:bg-yellow-50 border border-yellow-500 dark:border-yellow-500 theme-light:border-yellow-300 rounded-md text-yellow-500 dark:text-yellow-400 theme-light:text-yellow-600 text-xs">
         ℹ️ Quedarán ${formatMoney(remainingAfterPayments)} pendientes después de estos pagos.
       </div>
     `}
@@ -1794,23 +1787,23 @@ async function pay(){
         : `Pago: ${formatMoney(r.cashflow.amount)}`;
       
       el('pp-result').innerHTML = `
-        <div style="padding:16px;background:rgba(16,185,129,0.1);border:1px solid #10b981;border-radius:8px;margin-bottom:16px;">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-            <span style="font-size:24px;">✓</span>
-            <h4 style="margin:0;font-size:16px;font-weight:600;color:#10b981;">${r.isFullyPaid ? 'Pago completo registrado exitosamente' : 'Pago(s) parcial(es) registrado(s) exitosamente'}</h4>
+        <div class="p-4 bg-green-500/10 dark:bg-green-500/10 theme-light:bg-green-50 border border-green-500 dark:border-green-500 theme-light:border-green-300 rounded-lg mb-4">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-2xl">✓</span>
+            <h4 class="m-0 text-base font-semibold text-green-500 dark:text-green-400 theme-light:text-green-600">${r.isFullyPaid ? 'Pago completo registrado exitosamente' : 'Pago(s) parcial(es) registrado(s) exitosamente'}</h4>
           </div>
-          <div style="font-size:13px;color:var(--text);margin-bottom:4px;">
+          <div class="text-sm text-white dark:text-white theme-light:text-slate-900 mb-1">
             <strong>Técnico:</strong> ${htmlEscape(technicianName)}
           </div>
-          <div style="font-size:13px;color:var(--text);margin-bottom:4px;">
+          <div class="text-sm text-white dark:text-white theme-light:text-slate-900 mb-1">
             <strong>Total pagado:</strong> ${formatMoney(r.totalPaid || totalPayments)}
           </div>
           ${r.remaining > 0 ? `
-            <div style="font-size:13px;color:#f59e0b;margin-bottom:4px;">
+            <div class="text-sm text-yellow-500 dark:text-yellow-400 theme-light:text-yellow-600 mb-1">
               <strong>Restante:</strong> ${formatMoney(r.remaining)}
             </div>
           ` : ''}
-          <div style="font-size:12px;color:var(--muted);margin-top:8px;">
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-2">
             ${paymentsInfo}
           </div>
         </div>
@@ -1838,7 +1831,7 @@ async function pay(){
       }
       
       el('pp-result').innerHTML = `
-        <div style="padding:12px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:13px;">
+        <div class="p-3 bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 rounded-lg text-red-400 dark:text-red-400 theme-light:text-red-600 text-sm">
           ${userMsg}
         </div>`;
       
@@ -1918,7 +1911,7 @@ async function loadSettlements(){
     if (!container) return;
     
     // Preservar el preview si existe
-    const existingPreview = container.querySelector('.row.between')?.closest('div[style*="background:var(--card)"]');
+    const existingPreview = container.querySelector('.bg-slate-800\\/30');
     const previewHtml = existingPreview ? existingPreview.outerHTML : '';
     
     if (items.length === 0 && !previewHtml) {
@@ -2498,7 +2491,7 @@ async function loadLaborKinds(){
     if (!container) return;
     
     if (laborKinds.length === 0) {
-      container.innerHTML = '<div class="muted" style="text-align:center;padding:24px;border:1px dashed var(--border);border-radius:8px;">No hay tipos de mano de obra configurados. Crea el primero arriba.</div>';
+      container.innerHTML = '<div class="text-center py-6 px-4 border border-dashed border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay tipos de mano de obra configurados. Crea el primero arriba.</div>';
       return;
     }
     
@@ -2506,20 +2499,20 @@ async function loadLaborKinds(){
       const name = typeof k === 'string' ? k : (k?.name || '');
       const defaultPercent = typeof k === 'object' && k?.defaultPercent !== undefined ? k.defaultPercent : 0;
       
-      return `<div class="concept-row" style="padding:12px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--card);transition:all 0.2s;">
-        <div class="row between" style="align-items:center;flex-wrap:wrap;gap:8px;">
-          <div class="row" style="gap:12px;align-items:center;flex:1;min-width:200px;">
-            <div style="flex:1;">
-              <div style="font-weight:600;color:var(--text);margin-bottom:2px;">
+      return `<div class="concept-row p-3 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg mb-2 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white transition-all duration-200 hover:bg-slate-800/50 dark:hover:bg-slate-800/50 theme-light:hover:bg-slate-50">
+        <div class="flex items-center justify-between flex-wrap gap-2">
+          <div class="flex gap-3 items-center flex-1 min-w-[200px]">
+            <div class="flex-1">
+              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-0.5">
                 ${htmlEscape(name)}
               </div>
-              <div style="font-size:12px;color:var(--muted);">
-                % Predeterminado: <strong style="color:var(--text);">${defaultPercent}%</strong>
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+                % Predeterminado: <strong class="text-white dark:text-white theme-light:text-slate-900">${defaultPercent}%</strong>
               </div>
             </div>
           </div>
-          <div class="row" style="gap:6px;align-items:center;">
-            <button data-name="${htmlEscape(name)}" class="secondary x-del-lk" style="padding:6px 12px;font-size:12px;border-color:var(--danger, #ef4444);color:var(--danger, #ef4444);" title="Eliminar tipo">
+          <div class="flex gap-1.5 items-center">
+            <button data-name="${htmlEscape(name)}" class="x-del-lk px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300" title="Eliminar tipo">
               🗑️ Eliminar
             </button>
           </div>
@@ -2561,7 +2554,7 @@ async function loadLaborKinds(){
     console.error('Error loading labor kinds:', err);
     const container = el('lk-list');
     if (container) {
-      container.innerHTML = `<div style="padding:12px;background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:8px;color:#ef4444;font-size:13px;">
+      container.innerHTML = `<div class="p-3 bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 rounded-lg text-red-400 dark:text-red-400 theme-light:text-red-600 text-sm">
         ❌ Error al cargar tipos: ${htmlEscape(err.message || 'Error desconocido')}
       </div>`;
     }

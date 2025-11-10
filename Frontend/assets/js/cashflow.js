@@ -41,7 +41,7 @@ async function loadAccounts(){
     const totalLbl = document.getElementById('cf-acc-total');
     const filterSel = document.getElementById('cf-filter-account');
     if(body){
-      body.innerHTML = (list.balances||[]).map(a=>`<tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors"><td class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${a.name}</td><td class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${a.type}</td><td class="px-4 py-3 text-right text-xs font-semibold text-white dark:text-white theme-light:text-slate-900">${money(a.balance)}</td><td class="px-4 py-3"></td></tr>`).join('');
+      body.innerHTML = (list.balances||[]).map(a=>`<tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors"><td data-label="Nombre" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${a.name}</td><td data-label="Tipo" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${a.type}</td><td data-label="Saldo" class="px-4 py-3 text-right text-xs font-semibold text-white dark:text-white theme-light:text-slate-900">${money(a.balance)}</td><td class="px-4 py-3"></td></tr>`).join('');
       if(!(list.balances||[]).length) body.innerHTML='<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin cuentas</td></tr>';
     }
     if(totalLbl) totalLbl.textContent = 'Total: '+money(list.total||0);
@@ -295,7 +295,7 @@ async function loadLoans(reset=false){
   const summary = document.getElementById('cf-loans-summary');
   
   try{
-    if(body) body.innerHTML='<tr><td colspan="8">Cargando...</td></tr>';
+    if(body) body.innerHTML='<tr><td colspan="8" class="px-4 py-6 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cargando...</td></tr>';
     const params = {};
     if(techFilter) params.technicianName = techFilter;
     if(statusFilter) params.status = statusFilter;
@@ -314,16 +314,16 @@ async function loadLoans(reset=false){
           cancelled: '<span style="color:#6b7280;">Cancelado</span>'
         };
         const canDelete = loan.status === 'pending' && (!loan.settlementIds || loan.settlementIds.length === 0);
-        return `<tr data-id='${loan._id}'>
-          <td>${date}</td>
-          <td>${loan.technicianName}</td>
-          <td class='t-right'>${money(loan.amount)}</td>
-          <td class='t-right'>${money(loan.paidAmount||0)}</td>
-          <td class='t-right' style='font-weight:600;'>${money(pending)}</td>
-          <td>${statusLabels[loan.status]||loan.status}</td>
-          <td>${loan.description||'-'}</td>
-          <td style='white-space:nowrap;'>
-            ${canDelete?`<button class='mini danger' data-act='del' title='Eliminar'>Eliminar</button>`:''}
+        return `<tr data-id='${loan._id}' class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors">
+          <td data-label="Fecha" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${date}</td>
+          <td data-label="Técnico" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${loan.technicianName}</td>
+          <td data-label="Monto" class="px-4 py-3 text-right text-xs text-white dark:text-white theme-light:text-slate-900">${money(loan.amount)}</td>
+          <td data-label="Pagado" class="px-4 py-3 text-right text-xs text-white dark:text-white theme-light:text-slate-900">${money(loan.paidAmount||0)}</td>
+          <td data-label="Pendiente" class="px-4 py-3 text-right text-xs font-semibold text-white dark:text-white theme-light:text-slate-900">${money(pending)}</td>
+          <td data-label="Estado" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${statusLabels[loan.status]||loan.status}</td>
+          <td data-label="Descripción" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${loan.description||'-'}</td>
+          <td class="px-4 py-3" style='white-space:nowrap;'>
+            ${canDelete?`<button class='px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300' data-act='del' title='Eliminar'>Eliminar</button>`:''}
           </td>
         </tr>`;
       }).join('');
@@ -347,7 +347,7 @@ async function loadLoans(reset=false){
         });
       });
       
-      if(!loans.length) body.innerHTML='<tr><td colspan="8" class="muted">Sin préstamos</td></tr>';
+      if(!loans.length) body.innerHTML='<tr><td colspan="8" class="px-4 py-6 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin préstamos</td></tr>';
     }
     
     const totalPending = loans
@@ -367,7 +367,7 @@ async function loadLoans(reset=false){
       if(currentVal) techSel.value = currentVal;
     }
   }catch(e){ 
-    if(body) body.innerHTML='<tr><td colspan="8" class="muted">Error al cargar préstamos</td></tr>';
+    if(body) body.innerHTML='<tr><td colspan="8" class="px-4 py-6 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Error al cargar préstamos</td></tr>';
     if(summary) summary.textContent = e?.message||'Error';
   }
 }

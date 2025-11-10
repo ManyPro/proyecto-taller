@@ -96,16 +96,16 @@ export function initQuotes({ getCompanyEmail }) {
       const vehicles = Array.isArray(r?.items) ? r.items : [];
       if (!iVehicleDropdown) return;
       if (vehicles.length === 0) {
-        iVehicleDropdown.innerHTML = '<div style="padding:12px;text-align:center;color:var(--muted);font-size:12px;">No se encontraron vehículos</div>';
+        iVehicleDropdown.innerHTML = '<div class="p-3 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No se encontraron vehículos</div>';
         iVehicleDropdown.style.display = 'block';
         return;
       }
       iVehicleDropdown.replaceChildren(...vehicles.map(v => {
         const div = document.createElement('div');
-        div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);';
+        div.className = 'p-2 px-3 cursor-pointer border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors';
         div.innerHTML = `
-          <div style="font-weight:600;">${v.make} ${v.line}</div>
-          <div style="font-size:12px;color:var(--muted);">Cilindraje: ${v.displacement}${v.modelYear ? ` | Modelo: ${v.modelYear}` : ''}</div>
+          <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${v.make} ${v.line}</div>
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cilindraje: ${v.displacement}${v.modelYear ? ` | Modelo: ${v.modelYear}` : ''}</div>
         `;
         div.addEventListener('click', () => {
           selectedQuoteVehicle = v;
@@ -113,8 +113,8 @@ export function initQuotes({ getCompanyEmail }) {
           if (iVehicleSearch) iVehicleSearch.value = `${v.make} ${v.line} ${v.displacement}`;
           if (iVehicleSelected) {
             iVehicleSelected.innerHTML = `
-              <span style="color:var(--success, #10b981);">✓</span> 
-              <strong>${v.make} ${v.line}</strong> - Cilindraje: ${v.displacement}${v.modelYear ? ` | Modelo: ${v.modelYear}` : ''}
+              <span class="text-green-500 dark:text-green-400 theme-light:text-green-600">✓</span> 
+              <strong class="text-white dark:text-white theme-light:text-slate-900">${v.make} ${v.line}</strong> - Cilindraje: ${v.displacement}${v.modelYear ? ` | Modelo: ${v.modelYear}` : ''}
             `;
           }
           if (iVehicleDropdown) iVehicleDropdown.style.display = 'none';
@@ -126,10 +126,10 @@ export function initQuotes({ getCompanyEmail }) {
           }
         });
         div.addEventListener('mouseenter', () => {
-          div.style.background = 'var(--hover, rgba(0,0,0,0.05))';
+          div.classList.add('bg-slate-700/20', 'dark:bg-slate-700/20', 'theme-light:bg-slate-50');
         });
         div.addEventListener('mouseleave', () => {
-          div.style.background = '';
+          div.classList.remove('bg-slate-700/20', 'dark:bg-slate-700/20', 'theme-light:bg-slate-50');
         });
         return div;
       }));
@@ -994,21 +994,21 @@ export function initQuotes({ getCompanyEmail }) {
         <label>Placa</label>
         <input id="m-plate" placeholder="ABC123" />
         <div style="position:relative;margin-top:8px;">
-          <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Vehículo (opcional)</label>
-          <input id="m-vehicle-search" placeholder="Buscar vehículo (marca, línea, cilindraje)..." style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-          <div id="m-vehicle-dropdown" style="display:none;position:absolute;z-index:1000;background:var(--card);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;margin-top:4px;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:100%;"></div>
+          <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1 font-medium">Vehículo (opcional)</label>
+          <input id="m-vehicle-search" placeholder="Buscar vehículo (marca, línea, cilindraje)..." class="w-full px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <div id="m-vehicle-dropdown" class="hidden absolute z-[1000] bg-slate-800 dark:bg-slate-800 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md max-h-[200px] overflow-y-auto mt-1 shadow-lg w-full"></div>
           <input type="hidden" id="m-vehicle-id" />
-          <div id="m-vehicle-selected" style="margin-top:4px;font-size:12px;color:var(--muted);"></div>
+          <div id="m-vehicle-selected" class="mt-1 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
         </div>
         <div class="row">
-          <input id="m-brand" placeholder="Marca" readonly style="background:var(--bg-secondary);" />
-          <input id="m-line" placeholder="Línea/Modelo" readonly style="background:var(--bg-secondary);" />
+          <input id="m-brand" placeholder="Marca" readonly class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100" />
+          <input id="m-line" placeholder="Línea/Modelo" readonly class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100" />
         </div>
         <div class="row">
           <input id="m-year" placeholder="Año" />
-          <input id="m-cc" placeholder="Cilindraje" readonly style="background:var(--bg-secondary);" />
+          <input id="m-cc" placeholder="Cilindraje" readonly class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100" />
         </div>
-        <div id="m-year-warning" style="display:none;font-size:11px;color:var(--danger,#ef4444);margin-top:4px;"></div>
+        <div id="m-year-warning" class="hidden text-xs text-red-500 dark:text-red-400 theme-light:text-red-600 mt-1"></div>
         <div class="row">
           <input id="m-mileage" placeholder="Kilometraje" type="number" min="0" step="1" />
         </div>
@@ -1044,7 +1044,7 @@ export function initQuotes({ getCompanyEmail }) {
               <input disabled placeholder="$0" />
             </div>
             <div class="small">
-              <button class="secondary" style="background: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; transition: background 0.2s ease; width: 100%;">Quitar</button>
+              <button class="w-full px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300">Quitar</button>
             </div>
           </div>
         </div>
@@ -1055,17 +1055,17 @@ export function initQuotes({ getCompanyEmail }) {
         <div class="totals">
           <div>Subtotal Productos: <strong id="m-subP">$0</strong></div>
           <div>Subtotal Servicios: <strong id="m-subS">$0</strong></div>
-          <div id="m-discount-section" style="display: none;">
+          <div id="m-discount-section" class="hidden">
             <div>Descuento: <strong id="m-discount-amount">$0</strong></div>
           </div>
           <div>Total: <strong id="m-total">$0</strong></div>
         </div>
         
         <!-- Botones de descuento -->
-        <div class="row" style="margin-top: 12px; gap: 8px;">
-          <button id="m-discount-percent" class="secondary" style="background: #10b981; color: white; border: none;">Descuento %</button>
-          <button id="m-discount-fixed" class="secondary" style="background: #3b82f6; color: white; border: none;">Descuento $</button>
-          <button id="m-discount-clear" class="secondary" style="background: #ef4444; color: white; border: none; display: none;">Quitar descuento</button>
+        <div class="row mt-3 gap-2">
+          <button id="m-discount-percent" class="px-3 py-1.5 text-xs bg-green-600 dark:bg-green-600 theme-light:bg-green-500 hover:bg-green-700 dark:hover:bg-green-700 theme-light:hover:bg-green-600 text-white font-semibold rounded transition-all duration-200 border-none">Descuento %</button>
+          <button id="m-discount-fixed" class="px-3 py-1.5 text-xs bg-blue-600 dark:bg-blue-600 theme-light:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-700 theme-light:hover:bg-blue-600 text-white font-semibold rounded transition-all duration-200 border-none">Descuento $</button>
+          <button id="m-discount-clear" class="hidden px-3 py-1.5 text-xs bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white font-semibold rounded transition-all duration-200 border-none">Quitar descuento</button>
         </div>
         <div class="row">
           <button id="m-save">Guardar cambios</button>
@@ -1074,13 +1074,13 @@ export function initQuotes({ getCompanyEmail }) {
           <button id="m-close" class="secondary">Cerrar</button>
         </div>
         <label>Vista previa WhatsApp</label>
-        <pre id="m-wa-prev" style="min-height:160px;white-space:pre-wrap;"></pre>
+        <pre id="m-wa-prev" class="min-h-[160px] whitespace-pre-wrap"></pre>
         
         <!-- Sección de notas especiales -->
-        <div id="m-special-notes-section" style="margin-top: 16px;">
+        <div id="m-special-notes-section" class="mt-4">
           <label>Notas especiales</label>
           <div id="m-special-notes-list"></div>
-          <button id="m-add-special-note" class="secondary" style="margin-top: 8px;">+ Agregar nota especial</button>
+          <button id="m-add-special-note" class="mt-2 px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">+ Agregar nota especial</button>
         </div>
       </div>
     `;
@@ -1218,27 +1218,9 @@ export function initQuotes({ getCompanyEmail }) {
     // Función para mostrar mensaje de éxito elegante
     function showSuccessMessage(message) {
       const notification = document.createElement('div');
-      notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: linear-gradient(135deg, #10b981, #059669);
-        color: white;
-        padding: 16px 24px;
-        border-radius: 12px;
-        box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);
-        z-index: 10001;
-        font-weight: 600;
-        font-size: 14px;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        animation: slideInRight 0.3s ease-out;
-        max-width: 300px;
-      `;
-      
+      notification.className = 'fixed top-5 right-5 bg-gradient-to-br from-green-500 to-green-600 text-white px-6 py-4 rounded-xl shadow-lg z-[10001] font-semibold text-sm flex items-center gap-3 animate-[slideInRight_0.3s_ease-out] max-w-[300px]';
       notification.innerHTML = `
-        <div style="font-size: 20px;">✅</div>
+        <div class="text-xl">✅</div>
         <div>${message}</div>
       `;
       
@@ -1575,8 +1557,8 @@ export function initQuotes({ getCompanyEmail }) {
           if (mVehicleSearch) mVehicleSearch.value = `${vehicle.make} ${vehicle.line} ${vehicle.displacement}`;
           if (mVehicleSelected) {
             mVehicleSelected.innerHTML = `
-              <span style="color:var(--success, #10b981);">✓</span> 
-              <strong>${vehicle.make} ${vehicle.line}</strong> - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
+              <span class="text-green-500 dark:text-green-400 theme-light:text-green-600">✓</span> 
+              <strong class="text-white dark:text-white theme-light:text-slate-900">${vehicle.make} ${vehicle.line}</strong> - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
             `;
           }
           if (iBrand) iBrand.value = vehicle.make || '';
@@ -1597,8 +1579,8 @@ export function initQuotes({ getCompanyEmail }) {
           if (mVehicleSearch) mVehicleSearch.value = `${vehicle.make} ${vehicle.line} ${vehicle.displacement}`;
           if (mVehicleSelected) {
             mVehicleSelected.innerHTML = `
-              <span style="color:var(--success, #10b981);">✓</span> 
-              <strong>${vehicle.make} ${vehicle.line}</strong> - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
+              <span class="text-green-500 dark:text-green-400 theme-light:text-green-600">✓</span> 
+              <strong class="text-white dark:text-white theme-light:text-slate-900">${vehicle.make} ${vehicle.line}</strong> - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
             `;
           }
         }
@@ -1616,16 +1598,16 @@ export function initQuotes({ getCompanyEmail }) {
         const vehicles = Array.isArray(r?.items) ? r.items : [];
         if (!mVehicleDropdown) return;
         if (vehicles.length === 0) {
-          mVehicleDropdown.innerHTML = '<div style="padding:12px;text-align:center;color:var(--muted);font-size:12px;">No se encontraron vehículos</div>';
+          mVehicleDropdown.innerHTML = '<div class="p-3 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No se encontraron vehículos</div>';
           mVehicleDropdown.style.display = 'block';
           return;
         }
         mVehicleDropdown.replaceChildren(...vehicles.map(v => {
           const div = document.createElement('div');
-          div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);';
+          div.className = 'p-2 px-3 cursor-pointer border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors';
           div.innerHTML = `
-            <div style="font-weight:600;">${v.make} ${v.line}</div>
-            <div style="font-size:12px;color:var(--muted);">Cilindraje: ${v.displacement}${v.modelYear ? ` | Modelo: ${v.modelYear}` : ''}</div>
+            <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${v.make} ${v.line}</div>
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cilindraje: ${v.displacement}${v.modelYear ? ` | Modelo: ${v.modelYear}` : ''}</div>
           `;
           div.addEventListener('click', () => {
             selectedModalVehicle = v;
@@ -1633,8 +1615,8 @@ export function initQuotes({ getCompanyEmail }) {
             if (mVehicleSearch) mVehicleSearch.value = `${v.make} ${v.line} ${v.displacement}`;
             if (mVehicleSelected) {
               mVehicleSelected.innerHTML = `
-                <span style="color:var(--success, #10b981);">✓</span> 
-                <strong>${v.make} ${v.line}</strong> - Cilindraje: ${v.displacement}${v.modelYear ? ` | Modelo: ${v.modelYear}` : ''}
+                <span class="text-green-500 dark:text-green-400 theme-light:text-green-600">✓</span> 
+                <strong class="text-white dark:text-white theme-light:text-slate-900">${v.make} ${v.line}</strong> - Cilindraje: ${v.displacement}${v.modelYear ? ` | Modelo: ${v.modelYear}` : ''}
               `;
             }
             if (mVehicleDropdown) mVehicleDropdown.style.display = 'none';
@@ -1647,10 +1629,10 @@ export function initQuotes({ getCompanyEmail }) {
             }
           });
           div.addEventListener('mouseenter', () => {
-            div.style.background = 'var(--hover, rgba(0,0,0,0.05))';
+            div.classList.add('bg-slate-700/20', 'dark:bg-slate-700/20', 'theme-light:bg-slate-50');
           });
           div.addEventListener('mouseleave', () => {
-            div.style.background = '';
+            div.classList.remove('bg-slate-700/20', 'dark:bg-slate-700/20', 'theme-light:bg-slate-50');
           });
           return div;
         }));
@@ -2253,13 +2235,13 @@ export function initQuotes({ getCompanyEmail }) {
           const vehicleCell = document.createElement('td');
           if (pe.vehicleId && pe.vehicleId.make) {
             vehicleCell.innerHTML = `
-              <div style="font-weight:600;">${pe.vehicleId.make} ${pe.vehicleId.line}</div>
-              <div style="font-size:12px;color:var(--muted);">Cilindraje: ${pe.vehicleId.displacement}${pe.vehicleId.modelYear ? ` | Modelo: ${pe.vehicleId.modelYear}` : ''}</div>
+              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${pe.vehicleId.make} ${pe.vehicleId.line}</div>
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cilindraje: ${pe.vehicleId.displacement}${pe.vehicleId.modelYear ? ` | Modelo: ${pe.vehicleId.modelYear}` : ''}</div>
             `;
           } else {
             vehicleCell.innerHTML = `
               <div>${pe.brand || ''} ${pe.line || ''}</div>
-              <div style="font-size:12px;color:var(--muted);">${pe.engine || ''} ${pe.year || ''}</div>
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${pe.engine || ''} ${pe.year || ''}</div>
             `;
           }
           tr.appendChild(vehicleCell);
@@ -2298,22 +2280,21 @@ export function initQuotes({ getCompanyEmail }) {
   function openAddUnifiedForQuote(){
     // Modal inicial: elegir entre QR y Manual
     const node = document.createElement('div');
-    node.className = 'card';
-    node.style.cssText = 'max-width:600px;margin:0 auto;';
+    node.className = 'max-w-[600px] mx-auto';
     node.innerHTML = `
-      <h3 style="margin-top:0;margin-bottom:24px;text-align:center;">Agregar items</h3>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-        <button id="add-qr-btn" class="primary" style="padding:24px;border-radius:12px;font-size:16px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:8px;border:none;cursor:pointer;transition:all 0.2s;">
-          <span style="font-size:48px;">📷</span>
+      <h3 class="mt-0 mb-6 text-xl font-semibold text-white dark:text-white theme-light:text-slate-900 text-center">Agregar items</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <button id="add-qr-btn" class="px-6 py-6 rounded-xl text-base font-semibold flex flex-col items-center gap-2 border-none cursor-pointer transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-105">
+          <span class="text-5xl">📷</span>
           <span>Agregar QR</span>
         </button>
-        <button id="add-manual-btn" class="secondary" style="padding:24px;border-radius:12px;font-size:16px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:8px;border:none;cursor:pointer;transition:all 0.2s;">
-          <span style="font-size:48px;">✏️</span>
+        <button id="add-manual-btn" class="px-6 py-6 rounded-xl text-base font-semibold flex flex-col items-center gap-2 border-none cursor-pointer transition-all duration-200 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white shadow-lg hover:shadow-xl hover:scale-105 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">
+          <span class="text-5xl">✏️</span>
           <span>Agregar manual</span>
         </button>
       </div>
-      <div style="text-align:center;">
-        <button id="add-cancel-btn" class="secondary" style="padding:8px 24px;">Cancelar</button>
+      <div class="text-center">
+        <button id="add-cancel-btn" class="px-6 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
       </div>
     `;
     
@@ -2325,21 +2306,21 @@ export function initQuotes({ getCompanyEmail }) {
     const cancelBtn = node.querySelector('#add-cancel-btn');
     
     qrBtn.addEventListener('mouseenter', () => {
-      qrBtn.style.transform = 'scale(1.05)';
-      qrBtn.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.3)';
+      qrBtn.classList.add('scale-105');
+      qrBtn.classList.add('shadow-xl');
     });
     qrBtn.addEventListener('mouseleave', () => {
-      qrBtn.style.transform = 'scale(1)';
-      qrBtn.style.boxShadow = '';
+      qrBtn.classList.remove('scale-105');
+      qrBtn.classList.remove('shadow-xl');
     });
     
     manualBtn.addEventListener('mouseenter', () => {
-      manualBtn.style.transform = 'scale(1.05)';
-      manualBtn.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.1)';
+      manualBtn.classList.add('scale-105');
+      manualBtn.classList.add('shadow-xl');
     });
     manualBtn.addEventListener('mouseleave', () => {
-      manualBtn.style.transform = 'scale(1)';
-      manualBtn.style.boxShadow = '';
+      manualBtn.classList.remove('scale-105');
+      manualBtn.classList.remove('shadow-xl');
     });
     
     // Si selecciona QR, abrir el modal de QR (usar la función existente pero mejorada)
@@ -2369,20 +2350,20 @@ export function initQuotes({ getCompanyEmail }) {
     
     function renderView() {
       parentNode.innerHTML = `
-        <div style="margin-bottom:16px;">
-          <h3 style="margin-top:0;margin-bottom:16px;">Agregar manual</h3>
-          <div style="display:flex;gap:8px;border-bottom:2px solid var(--border);padding-bottom:8px;">
-            <button id="nav-prices" class="${currentView === 'prices' ? 'primary' : 'secondary'}" style="flex:1;padding:12px;border-radius:8px 8px 0 0;border:none;font-weight:600;cursor:pointer;transition:all 0.2s;">
+        <div class="mb-4">
+          <h3 class="mt-0 mb-4 text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">Agregar manual</h3>
+          <div class="flex gap-2 border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 pb-2">
+            <button id="nav-prices" class="flex-1 px-3 py-3 rounded-t-lg border-none font-semibold cursor-pointer transition-all duration-200 ${currentView === 'prices' ? 'bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 text-white' : 'bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900'}">
               💰 Lista de precios
             </button>
-            <button id="nav-inventory" class="${currentView === 'inventory' ? 'primary' : 'secondary'}" style="flex:1;padding:12px;border-radius:8px 8px 0 0;border:none;font-weight:600;cursor:pointer;transition:all 0.2s;">
+            <button id="nav-inventory" class="flex-1 px-3 py-3 rounded-t-lg border-none font-semibold cursor-pointer transition-all duration-200 ${currentView === 'inventory' ? 'bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 text-white' : 'bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900'}">
               📦 Inventario
             </button>
           </div>
         </div>
-        <div id="manual-content" style="min-height:400px;max-height:70vh;overflow-y:auto;"></div>
-        <div style="margin-top:16px;text-align:center;">
-          <button id="manual-back-btn" class="secondary" style="padding:8px 24px;">← Volver</button>
+        <div id="manual-content" class="min-h-[400px] max-h-[70vh] overflow-y-auto custom-scrollbar"></div>
+        <div class="mt-4 text-center">
+          <button id="manual-back-btn" class="px-6 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">← Volver</button>
         </div>
       `;
       
@@ -2426,14 +2407,14 @@ export function initQuotes({ getCompanyEmail }) {
       recalc: recalcAll,
       vehicleId: iVehicleId?.value || null
     };
-    container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">Cargando...</div>';
+    container.innerHTML = '<div class="text-center py-6 px-6 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cargando...</div>';
     
     if (!vehicleId) {
       container.innerHTML = `
-        <div style="text-align:center;padding:48px;">
-          <div style="font-size:48px;margin-bottom:16px;">🚗</div>
-          <h4 style="margin-bottom:8px;">No hay vehículo vinculado</h4>
-          <p style="color:var(--muted);margin-bottom:16px;">Vincula un vehículo a la cotización para ver los precios disponibles.</p>
+        <div class="text-center py-12 px-12">
+          <div class="text-5xl mb-4">🚗</div>
+          <h4 class="mb-2 text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">No hay vehículo vinculado</h4>
+          <p class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">Vincula un vehículo a la cotización para ver los precios disponibles.</p>
         </div>
       `;
       return;
@@ -2445,52 +2426,52 @@ export function initQuotes({ getCompanyEmail }) {
       const prices = Array.isArray(pricesData?.items) ? pricesData.items : (Array.isArray(pricesData) ? pricesData : []);
       
       container.innerHTML = `
-        <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;">
-          <div style="font-weight:600;margin-bottom:4px;">${vehicle?.make || ''} ${vehicle?.line || ''}</div>
-          <div style="font-size:12px;color:var(--muted);">Cilindraje: ${vehicle?.displacement || ''}${vehicle?.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}</div>
+        <div class="mb-4 p-3 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-100 rounded-lg">
+          <div class="font-semibold mb-1 text-white dark:text-white theme-light:text-slate-900">${vehicle?.make || ''} ${vehicle?.line || ''}</div>
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cilindraje: ${vehicle?.displacement || ''}${vehicle?.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}</div>
         </div>
-        <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
-          <button id="create-service-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;">
+        <div class="mb-3 flex gap-2 flex-wrap">
+          <button id="create-service-btn" class="flex-1 min-w-[120px] px-2.5 py-2.5 rounded-lg font-semibold bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">
             ➕ Crear servicio
           </button>
-          <button id="create-product-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;">
+          <button id="create-product-btn" class="flex-1 min-w-[120px] px-2.5 py-2.5 rounded-lg font-semibold bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">
             ➕ Crear producto
           </button>
-          <button id="create-combo-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;background:#9333ea;color:white;border:none;">
+          <button id="create-combo-btn" class="flex-1 min-w-[120px] px-2.5 py-2.5 rounded-lg font-semibold bg-purple-600 dark:bg-purple-600 theme-light:bg-purple-500 hover:bg-purple-700 dark:hover:bg-purple-700 theme-light:hover:bg-purple-600 text-white transition-all duration-200 border-none">
             🎁 Crear combo
           </button>
         </div>
-        <div style="margin-bottom:12px;">
-          <h4 style="margin-bottom:8px;">Precios disponibles (${prices.length})</h4>
-          <div id="prices-list" style="display:grid;gap:8px;"></div>
+        <div class="mb-3">
+          <h4 class="mb-2 text-base font-semibold text-white dark:text-white theme-light:text-slate-900">Precios disponibles (${prices.length})</h4>
+          <div id="prices-list" class="grid gap-2"></div>
         </div>
       `;
       
       const pricesList = container.querySelector('#prices-list');
       
       if (prices.length === 0) {
-        pricesList.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">No hay precios registrados para este vehículo.</div>';
+        pricesList.innerHTML = '<div class="text-center py-6 px-6 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay precios registrados para este vehículo.</div>';
       } else {
         prices.forEach(pe => {
           const card = document.createElement('div');
-          card.style.cssText = 'padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:8px;display:flex;justify-content:space-between;align-items:center;';
+          card.className = 'p-3 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg flex justify-between items-center';
           
           let typeBadge = '';
           if (pe.type === 'combo') {
-            typeBadge = '<span style="background:#9333ea;color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">COMBO</span>';
+            typeBadge = '<span class="bg-purple-600 text-white px-2 py-0.5 rounded text-xs font-semibold mr-2">COMBO</span>';
           } else if (pe.type === 'product') {
-            typeBadge = '<span style="background:var(--primary,#3b82f6);color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">PRODUCTO</span>';
+            typeBadge = '<span class="bg-blue-600 text-white px-2 py-0.5 rounded text-xs font-semibold mr-2">PRODUCTO</span>';
           } else {
-            typeBadge = '<span style="background:var(--success,#10b981);color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">SERVICIO</span>';
+            typeBadge = '<span class="bg-green-600 text-white px-2 py-0.5 rounded text-xs font-semibold mr-2">SERVICIO</span>';
           }
           
           card.innerHTML = `
-            <div style="flex:1;">
+            <div class="flex-1">
               ${typeBadge}
-              <span style="font-weight:600;">${pe.name || 'Sin nombre'}</span>
+              <span class="font-semibold text-white dark:text-white theme-light:text-slate-900">${pe.name || 'Sin nombre'}</span>
             </div>
-            <div style="margin:0 16px;font-weight:600;color:var(--primary);">${money(pe.total || pe.price || 0)}</div>
-            <button class="add-price-btn primary" data-price-id="${pe._id}" style="padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;">Agregar</button>
+            <div class="mx-4 font-semibold text-blue-500 dark:text-blue-400 theme-light:text-blue-600">${money(pe.total || pe.price || 0)}</div>
+            <button class="add-price-btn px-4 py-1.5 rounded-md border-none cursor-pointer font-semibold bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white transition-all duration-200" data-price-id="${pe._id}">Agregar</button>
           `;
           
           card.querySelector('.add-price-btn').onclick = () => {
@@ -2575,9 +2556,9 @@ export function initQuotes({ getCompanyEmail }) {
     } catch (err) {
       console.error('Error al cargar precios:', err);
       container.innerHTML = `
-        <div style="text-align:center;padding:24px;color:var(--danger);">
-          <div style="font-size:48px;margin-bottom:16px;">❌</div>
-          <p>Error al cargar precios: ${err?.message || 'Error desconocido'}</p>
+        <div class="text-center py-6 px-6 text-red-500 dark:text-red-400 theme-light:text-red-600">
+          <div class="text-5xl mb-4">❌</div>
+          <p class="text-white dark:text-white theme-light:text-slate-900">Error al cargar precios: ${err?.message || 'Error desconocido'}</p>
         </div>
       `;
     }
@@ -2594,7 +2575,7 @@ export function initQuotes({ getCompanyEmail }) {
       vehicleId: iVehicleId?.value || null
     };
     
-    container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">Cargando...</div>';
+    container.innerHTML = '<div class="text-center py-6 px-6 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cargando...</div>';
     
     let page = 1;
     const limit = 10;
@@ -2623,20 +2604,20 @@ export function initQuotes({ getCompanyEmail }) {
         }
         
         if (items.length === 0 && page === 1) {
-          listContainer.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">No se encontraron items.</div>';
+          listContainer.innerHTML = '<div class="text-center py-6 px-6 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No se encontraron items.</div>';
           return;
         }
         
         items.forEach(item => {
           const card = document.createElement('div');
-          card.style.cssText = 'padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:8px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;';
+          card.className = 'p-3 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg flex justify-between items-center mb-2';
           
           card.innerHTML = `
-            <div style="flex:1;">
-              <div style="font-weight:600;margin-bottom:4px;">${item.name || 'Sin nombre'}</div>
-              <div style="font-size:13px;color:var(--text);"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${item.sku || 'N/A'}</strong> | Stock: ${item.stock || 0} | ${money(item.salePrice || 0)}</div>
+            <div class="flex-1">
+              <div class="font-semibold mb-1 text-white dark:text-white theme-light:text-slate-900">${item.name || 'Sin nombre'}</div>
+              <div class="text-sm text-white dark:text-white theme-light:text-slate-900"><strong class="font-bold">SKU:</strong> <strong class="font-bold">${item.sku || 'N/A'}</strong> | Stock: ${item.stock || 0} | ${money(item.salePrice || 0)}</div>
             </div>
-            <button class="add-inventory-btn primary" data-item-id="${item._id}" style="padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;margin-left:12px;">Agregar</button>
+            <button class="add-inventory-btn ml-3 px-4 py-1.5 rounded-md border-none cursor-pointer font-semibold bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white transition-all duration-200" data-item-id="${item._id}">Agregar</button>
           `;
           
           card.querySelector('.add-inventory-btn').onclick = () => {
@@ -2668,25 +2649,25 @@ export function initQuotes({ getCompanyEmail }) {
       } catch (err) {
         console.error('Error al cargar inventario:', err);
         container.querySelector('#inventory-list').innerHTML = `
-          <div style="text-align:center;padding:24px;color:var(--danger);">
-            <p>Error al cargar inventario: ${err?.message || 'Error desconocido'}</p>
+          <div class="text-center py-6 px-6 text-red-500 dark:text-red-400 theme-light:text-red-600">
+            <p class="text-white dark:text-white theme-light:text-slate-900">Error al cargar inventario: ${err?.message || 'Error desconocido'}</p>
           </div>
         `;
       }
     }
     
     container.innerHTML = `
-      <div style="margin-bottom:16px;">
-        <h4 style="margin-bottom:12px;">Filtrar inventario</h4>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;">
-          <input id="inventory-filter-sku" type="text" placeholder="Buscar por SKU..." style="padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-          <input id="inventory-filter-name" type="text" placeholder="Buscar por nombre..." style="padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+      <div class="mb-4">
+        <h4 class="mb-3 text-base font-semibold text-white dark:text-white theme-light:text-slate-900">Filtrar inventario</h4>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+          <input id="inventory-filter-sku" type="text" placeholder="Buscar por SKU..." class="px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input id="inventory-filter-name" type="text" placeholder="Buscar por nombre..." class="px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
-        <button id="inventory-search-btn" class="primary" style="width:100%;padding:10px;border-radius:6px;border:none;font-weight:600;cursor:pointer;">🔍 Buscar</button>
+        <button id="inventory-search-btn" class="w-full px-2.5 py-2.5 rounded-md border-none font-semibold cursor-pointer bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white transition-all duration-200">🔍 Buscar</button>
       </div>
-      <div id="inventory-list" style="max-height:50vh;overflow-y:auto;"></div>
-      <div style="text-align:center;margin-top:12px;">
-        <button id="load-more-inventory" class="secondary" style="padding:8px 16px;display:none;">Cargar más</button>
+      <div id="inventory-list" class="max-h-[50vh] overflow-y-auto custom-scrollbar"></div>
+      <div class="text-center mt-3">
+        <button id="load-more-inventory" class="hidden px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cargar más</button>
       </div>
     `;
     
@@ -2740,69 +2721,68 @@ export function initQuotes({ getCompanyEmail }) {
     };
     
     const node = document.createElement('div');
-    node.className = 'card';
-    node.style.cssText = 'max-width:600px;margin:0 auto;';
+    node.className = 'card max-w-[600px] mx-auto';
     
     const isCombo = type === 'combo';
     const isProduct = type === 'product';
     
     node.innerHTML = `
-      <h3 style="margin-top:0;margin-bottom:16px;">Crear ${type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto')}</h3>
-      <p class="muted" style="margin-bottom:16px;font-size:13px;">
-        Vehículo: <strong>${vehicle?.make || ''} ${vehicle?.line || ''}</strong>
+      <h3 class="mt-0 mb-4 text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Crear ${type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto')}</h3>
+      <p class="mb-4 text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+        Vehículo: <strong class="text-white dark:text-white theme-light:text-slate-900">${vehicle?.make || ''} ${vehicle?.line || ''}</strong>
       </p>
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Nombre</label>
-        <input id="price-name" placeholder="${type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire')}" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+      <div class="mb-4">
+        <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1 font-medium">Nombre</label>
+        <input id="price-name" placeholder="${type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire')}" class="w-full px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
       </div>
       ${isProduct ? `
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Vincular con item del inventario (opcional)</label>
-        <div class="row" style="gap:8px;margin-bottom:8px;">
-          <input id="price-item-search" placeholder="Buscar por SKU o nombre..." style="flex:1;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-          <button id="price-item-qr" class="secondary" style="padding:8px 16px;">📷 QR</button>
+      <div class="mb-4">
+        <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1 font-medium">Vincular con item del inventario (opcional)</label>
+        <div class="flex gap-2 mb-2">
+          <input id="price-item-search" placeholder="Buscar por SKU o nombre..." class="flex-1 px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <button id="price-item-qr" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">📷 QR</button>
         </div>
-        <div id="price-item-selected" style="margin-top:8px;padding:8px;background:var(--card-alt);border-radius:6px;font-size:12px;display:none;"></div>
+        <div id="price-item-selected" class="mt-2 p-2 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-100 rounded-md text-xs hidden"></div>
         <input type="hidden" id="price-item-id" />
       </div>
       ` : ''}
       ${isCombo ? `
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Productos del combo</label>
-        <div id="price-combo-products" style="margin-bottom:8px;"></div>
-        <button id="price-add-combo-product" class="secondary" style="width:100%;padding:8px;margin-bottom:8px;">➕ Agregar producto</button>
+      <div class="mb-4">
+        <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1 font-medium">Productos del combo</label>
+        <div id="price-combo-products" class="mb-2"></div>
+        <button id="price-add-combo-product" class="w-full px-2 py-2 mb-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">➕ Agregar producto</button>
       </div>
       ` : ''}
       ${!isCombo ? `
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Precio</label>
-        <input id="price-total" type="number" step="0.01" placeholder="0" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+      <div class="mb-4">
+        <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1 font-medium">Precio</label>
+        <input id="price-total" type="number" step="0.01" placeholder="0" class="w-full px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
       </div>
       ` : `
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:4px;font-weight:500;">Precio total del combo</label>
-        <input id="price-total" type="number" step="0.01" placeholder="0 (se calcula automáticamente)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
-        <p class="muted" style="margin-top:4px;font-size:11px;">El precio se calcula automáticamente desde los productos, o puedes establecerlo manualmente.</p>
+      <div class="mb-4">
+        <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1 font-medium">Precio total del combo</label>
+        <input id="price-total" type="number" step="0.01" placeholder="0 (se calcula automáticamente)" class="w-full px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <p class="mt-1 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">El precio se calcula automáticamente desde los productos, o puedes establecerlo manualmente.</p>
       </div>
       `}
-      <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;border:1px solid var(--border);">
-        <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500;">Rango de años (opcional)</label>
-        <p class="muted" style="margin-bottom:8px;font-size:11px;">Solo aplicar este precio si el año del vehículo está en el rango especificado. Déjalo vacío para aplicar a todos los años.</p>
-        <div class="row" style="gap:8px;">
-          <div style="flex:1;">
-            <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Desde</label>
-            <input id="price-year-from" type="number" min="1900" max="2100" placeholder="Ej: 2018" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+      <div class="mb-4 p-3 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+        <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2 font-medium">Rango de años (opcional)</label>
+        <p class="mb-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Solo aplicar este precio si el año del vehículo está en el rango especificado. Déjalo vacío para aplicar a todos los años.</p>
+        <div class="flex gap-2">
+          <div class="flex-1">
+            <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Desde</label>
+            <input id="price-year-from" type="number" min="1900" max="2100" placeholder="Ej: 2018" class="w-full px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
-          <div style="flex:1;">
-            <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Hasta</label>
-            <input id="price-year-to" type="number" min="1900" max="2100" placeholder="Ej: 2022" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+          <div class="flex-1">
+            <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Hasta</label>
+            <input id="price-year-to" type="number" min="1900" max="2100" placeholder="Ej: 2022" class="w-full px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
         </div>
       </div>
-      <div id="price-msg" style="margin-bottom:16px;font-size:13px;"></div>
-      <div class="row" style="gap:8px;">
-        <button id="price-save" style="flex:1;padding:10px;">💾 Guardar</button>
-        <button id="price-cancel" class="secondary" style="flex:1;padding:10px;">Cancelar</button>
+      <div id="price-msg" class="mb-4 text-sm"></div>
+      <div class="flex gap-2">
+        <button id="price-save" class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💾 Guardar</button>
+        <button id="price-cancel" class="flex-1 px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
       </div>
     `;
     
@@ -2842,15 +2822,16 @@ export function initQuotes({ getCompanyEmail }) {
             itemIdInput.value = item._id;
             itemSearch.value = `${item.sku} - ${item.name}`;
             itemSelected.innerHTML = `
-              <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="flex justify-between items-center">
                 <div>
-                <strong>${item.name}</strong><br>
-                <span style="font-size:12px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${item.sku}</strong> | Stock: ${item.stock || 0}</span>
+                <strong class="text-white dark:text-white theme-light:text-slate-900">${item.name}</strong><br>
+                <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"><strong class="font-bold">SKU:</strong> <strong class="font-bold">${item.sku}</strong> | Stock: ${item.stock || 0}</span>
                 </div>
-                <button id="price-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
+                <button id="price-item-remove" class="px-2 py-1 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300">✕</button>
               </div>
             `;
-            itemSelected.style.display = 'block';
+            itemSelected.classList.remove('hidden');
+            itemSelected.classList.add('block');
             if (!totalInput.value || totalInput.value === '0') {
               totalInput.value = item.salePrice || 0;
             }
@@ -2885,15 +2866,16 @@ export function initQuotes({ getCompanyEmail }) {
                 itemIdInput.value = item._id;
                 itemSearch.value = `${item.sku} - ${item.name}`;
                 itemSelected.innerHTML = `
-                  <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div class="flex justify-between items-center">
                     <div>
-                <strong>${item.name}</strong><br>
-                <span style="font-size:12px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${item.sku}</strong> | Stock: ${item.stock || 0}</span>
+                <strong class="text-white dark:text-white theme-light:text-slate-900">${item.name}</strong><br>
+                <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"><strong class="font-bold">SKU:</strong> <strong class="font-bold">${item.sku}</strong> | Stock: ${item.stock || 0}</span>
                     </div>
-                    <button id="price-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
+                    <button id="price-item-remove" class="px-2 py-1 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300">✕</button>
                   </div>
                 `;
-                itemSelected.style.display = 'block';
+                itemSelected.classList.remove('hidden');
+                itemSelected.classList.add('block');
                 if (!totalInput.value || totalInput.value === '0') {
                   totalInput.value = item.salePrice || 0;
                 }
@@ -2909,15 +2891,16 @@ export function initQuotes({ getCompanyEmail }) {
             itemIdInput.value = item._id;
             itemSearch.value = `${item.sku} - ${item.name}`;
             itemSelected.innerHTML = `
-              <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="flex justify-between items-center">
                 <div>
-                <strong>${item.name}</strong><br>
-                <span style="font-size:12px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${item.sku}</strong> | Stock: ${item.stock || 0}</span>
+                <strong class="text-white dark:text-white theme-light:text-slate-900">${item.name}</strong><br>
+                <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"><strong class="font-bold">SKU:</strong> <strong class="font-bold">${item.sku}</strong> | Stock: ${item.stock || 0}</span>
                 </div>
-                <button id="price-item-remove" class="danger" style="padding:4px 8px;font-size:11px;">✕</button>
+                <button id="price-item-remove" class="px-2 py-1 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300">✕</button>
               </div>
             `;
-            itemSelected.style.display = 'block';
+            itemSelected.classList.remove('hidden');
+            itemSelected.classList.add('block');
             if (!totalInput.value || totalInput.value === '0') {
               totalInput.value = item.salePrice || 0;
             }
@@ -2935,7 +2918,8 @@ export function initQuotes({ getCompanyEmail }) {
           selectedItem = null;
           itemIdInput.value = '';
           itemSearch.value = '';
-          itemSelected.style.display = 'none';
+          itemSelected.classList.add('hidden');
+          itemSelected.classList.remove('block');
       };
     }
   }
@@ -2948,27 +2932,26 @@ export function initQuotes({ getCompanyEmail }) {
     function addComboProductRow(productData = {}) {
       const isOpenSlot = Boolean(productData.isOpenSlot);
       const row = document.createElement('div');
-      row.className = 'combo-product-item';
-      row.style.cssText = `padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:6px;margin-bottom:8px;${isOpenSlot ? 'border-left:4px solid var(--warning, #f59e0b);' : ''}`;
+      row.className = `combo-product-item p-3 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-100 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md mb-2 ${isOpenSlot ? 'border-l-4 border-yellow-500 dark:border-yellow-500 theme-light:border-yellow-400' : ''}`;
       row.innerHTML = `
-        <div class="row" style="gap:8px;margin-bottom:8px;">
-          <input type="text" class="combo-product-name" placeholder="Nombre del producto" value="${productData.name || ''}" style="flex:2;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
-          <input type="number" class="combo-product-qty" placeholder="Cant." value="${productData.qty || 1}" min="1" style="width:80px;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
-          <input type="number" class="combo-product-price" placeholder="Precio" step="0.01" value="${productData.unitPrice || 0}" style="width:120px;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
-          <button class="combo-product-remove danger" style="padding:6px 12px;">✕</button>
+        <div class="flex gap-2 mb-2">
+          <input type="text" class="combo-product-name flex-[2] px-1.5 py-1.5 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Nombre del producto" value="${productData.name || ''}" />
+          <input type="number" class="combo-product-qty w-20 px-1.5 py-1.5 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Cant." value="${productData.qty || 1}" min="1" />
+          <input type="number" class="combo-product-price w-30 px-1.5 py-1.5 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Precio" step="0.01" value="${productData.unitPrice || 0}" />
+          <button class="combo-product-remove px-3 py-1.5 bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300">✕</button>
         </div>
-        <div class="row" style="gap:8px;margin-bottom:8px;align-items:center;">
-          <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-            <input type="checkbox" class="combo-product-open-slot" ${isOpenSlot ? 'checked' : ''} style="width:16px;height:16px;cursor:pointer;" />
-            <span style="color:var(--text);">Slot abierto (se completa con QR al crear venta)</span>
+        <div class="flex gap-2 mb-2 items-center">
+          <label class="flex items-center gap-1.5 text-xs cursor-pointer">
+            <input type="checkbox" class="combo-product-open-slot w-4 h-4 cursor-pointer" ${isOpenSlot ? 'checked' : ''} />
+            <span class="text-white dark:text-white theme-light:text-slate-900">Slot abierto (se completa con QR al crear venta)</span>
           </label>
         </div>
-        <div class="combo-product-item-section" style="${isOpenSlot ? 'display:none;' : ''}">
-          <div class="row" style="gap:8px;">
-            <input type="text" class="combo-product-item-search" placeholder="Buscar item del inventario (opcional)..." style="flex:1;padding:6px;border:1px solid var(--border);border-radius:4px;background:var(--bg);color:var(--text);" />
-            <button class="combo-product-item-qr secondary" style="padding:6px 12px;">📷 QR</button>
+        <div class="combo-product-item-section ${isOpenSlot ? 'hidden' : ''}">
+          <div class="flex gap-2">
+            <input type="text" class="combo-product-item-search flex-1 px-1.5 py-1.5 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Buscar item del inventario (opcional)..." />
+            <button class="combo-product-item-qr px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">📷 QR</button>
           </div>
-          <div class="combo-product-item-selected" style="margin-top:8px;padding:6px;background:var(--card);border-radius:4px;font-size:11px;display:none;"></div>
+          <div class="combo-product-item-selected mt-2 p-1.5 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-100 rounded text-xs hidden"></div>
         </div>
         <input type="hidden" class="combo-product-item-id" value="${productData.itemId?._id || ''}" />
       `;
@@ -2985,17 +2968,20 @@ export function initQuotes({ getCompanyEmail }) {
       openSlotCheckbox.addEventListener('change', (e) => {
         const isChecked = e.target.checked;
         if (isChecked) {
-          itemSection.style.display = 'none';
+          itemSection.classList.add('hidden');
+          itemSection.classList.remove('block');
           const itemIdInput = row.querySelector('.combo-product-item-id');
           const itemSearch = row.querySelector('.combo-product-item-search');
           const itemSelected = row.querySelector('.combo-product-item-selected');
           itemIdInput.value = '';
           itemSearch.value = '';
-          itemSelected.style.display = 'none';
-          row.style.borderLeft = '4px solid var(--warning, #f59e0b)';
+          itemSelected.classList.add('hidden');
+          itemSelected.classList.remove('block');
+          row.classList.add('border-l-4', 'border-yellow-500', 'dark:border-yellow-500', 'theme-light:border-yellow-400');
         } else {
-          itemSection.style.display = 'block';
-          row.style.borderLeft = '';
+          itemSection.classList.remove('hidden');
+          itemSection.classList.add('block');
+          row.classList.remove('border-l-4', 'border-yellow-500', 'dark:border-yellow-500', 'theme-light:border-yellow-400');
         }
         updateComboTotal();
       });
@@ -3009,12 +2995,13 @@ export function initQuotes({ getCompanyEmail }) {
       if (productData.itemId) {
         itemSearch.value = `${productData.itemId.sku || ''} - ${productData.itemId.name || ''}`;
         itemSelected.innerHTML = `
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <div><strong>${productData.itemId.name || productData.itemId.sku}</strong> <span style="font-size:12px;margin-left:8px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${productData.itemId.sku}</strong> | Stock: ${productData.itemId.stock || 0}</span></div>
-            <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+          <div class="flex justify-between items-center">
+            <div><strong class="text-white dark:text-white theme-light:text-slate-900">${productData.itemId.name || productData.itemId.sku}</strong> <span class="text-xs ml-2 text-slate-400 dark:text-slate-400 theme-light:text-slate-600"><strong class="font-bold">SKU:</strong> <strong class="font-bold">${productData.itemId.sku}</strong> | Stock: ${productData.itemId.stock || 0}</span></div>
+            <button class="combo-product-item-remove-btn px-1.5 py-0.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300">✕</button>
           </div>
         `;
-        itemSelected.style.display = 'block';
+        itemSelected.classList.remove('hidden');
+        itemSelected.classList.add('block');
       }
       
       let searchTimeout = null;
@@ -3037,32 +3024,34 @@ export function initQuotes({ getCompanyEmail }) {
           if (existingDropdown) existingDropdown.remove();
           
           const dropdown = document.createElement('div');
-          dropdown.style.cssText = 'position:absolute;z-index:1000;background:var(--card);border:1px solid var(--border);border-radius:6px;max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.15);width:100%;margin-top:4px;';
+          dropdown.className = 'absolute z-[1000] bg-slate-800/90 dark:bg-slate-800/90 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md max-h-[200px] overflow-y-auto shadow-lg w-full mt-1';
           dropdown.replaceChildren(...items.map(item => {
             const div = document.createElement('div');
-            div.style.cssText = 'padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border);';
+            div.className = 'p-2 cursor-pointer border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/30 dark:hover:bg-slate-700/30 theme-light:hover:bg-slate-100 transition-colors';
             div.innerHTML = `
-              <div style="font-weight:600;">${item.name || item.sku}</div>
-              <div style="font-size:13px;color:var(--text);margin-top:4px;"><strong style="font-size:14px;font-weight:700;">SKU:</strong> <strong style="font-size:14px;font-weight:700;">${item.sku}</strong> | Stock: ${item.stock || 0}</div>
+              <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${item.name || item.sku}</div>
+              <div class="text-xs mt-1 text-slate-400 dark:text-slate-400 theme-light:text-slate-600"><strong class="text-sm font-bold">SKU:</strong> <strong class="text-sm font-bold">${item.sku}</strong> | Stock: ${item.stock || 0}</div>
             `;
             div.addEventListener('click', () => {
               selectedComboItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
               itemIdInput.value = item._id;
               itemSearch.value = `${item.sku} - ${item.name}`;
               itemSelected.innerHTML = `
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                  <div><strong>${item.name}</strong> <span style="font-size:12px;margin-left:8px;"><strong style="font-weight:700;">SKU:</strong> <strong style="font-weight:700;">${item.sku}</strong> | Stock: ${item.stock || 0}</span></div>
-                  <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+                <div class="flex justify-between items-center">
+                  <div><strong class="text-white dark:text-white theme-light:text-slate-900">${item.name}</strong> <span class="text-xs ml-2 text-slate-400 dark:text-slate-400 theme-light:text-slate-600"><strong class="font-bold">SKU:</strong> <strong class="font-bold">${item.sku}</strong> | Stock: ${item.stock || 0}</span></div>
+                  <button class="combo-product-item-remove-btn px-1.5 py-0.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300">✕</button>
                 </div>
               `;
-              itemSelected.style.display = 'block';
+              itemSelected.classList.remove('hidden');
+              itemSelected.classList.add('block');
               const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
               if (removeBtn2) {
                 removeBtn2.onclick = () => {
                   selectedComboItem = null;
                   itemIdInput.value = '';
                   itemSearch.value = '';
-                  itemSelected.style.display = 'none';
+                  itemSelected.classList.add('hidden');
+                  itemSelected.classList.remove('block');
                 };
               }
               dropdown.remove();
@@ -3072,13 +3061,11 @@ export function initQuotes({ getCompanyEmail }) {
               }
               updateComboTotal();
             });
-            div.addEventListener('mouseenter', () => { div.style.background = 'var(--hover, rgba(0,0,0,0.05))'; });
-            div.addEventListener('mouseleave', () => { div.style.background = ''; });
             return div;
           }));
           
           const searchContainer = itemSearch.parentElement;
-          searchContainer.style.position = 'relative';
+          searchContainer.classList.add('relative');
           searchContainer.appendChild(dropdown);
           
           setTimeout(() => {
@@ -3118,19 +3105,21 @@ export function initQuotes({ getCompanyEmail }) {
                 itemIdInput.value = item._id;
                 itemSearch.value = `${item.sku} - ${item.name}`;
                 itemSelected.innerHTML = `
-                  <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div><strong>${item.name}</strong> <span class="muted">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
-                    <button class="combo-product-item-remove-btn danger" style="padding:2px 6px;font-size:10px;">✕</button>
+                  <div class="flex justify-between items-center">
+                    <div><strong class="text-white dark:text-white theme-light:text-slate-900">${item.name}</strong> <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">SKU: ${item.sku} | Stock: ${item.stock || 0}</span></div>
+                    <button class="combo-product-item-remove-btn px-1.5 py-0.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300">✕</button>
                   </div>
                 `;
-                itemSelected.style.display = 'block';
+                itemSelected.classList.remove('hidden');
+                itemSelected.classList.add('block');
                 const removeBtn2 = itemSelected.querySelector('.combo-product-item-remove-btn');
                 if (removeBtn2) {
                   removeBtn2.onclick = () => {
                     selectedComboItem = null;
                     itemIdInput.value = '';
                     itemSearch.value = '';
-                    itemSelected.style.display = 'none';
+                    itemSelected.classList.add('hidden');
+                    itemSelected.classList.remove('block');
                   };
                 }
                 const priceInput = row.querySelector('.combo-product-price');
@@ -3216,13 +3205,13 @@ export function initQuotes({ getCompanyEmail }) {
       
       if (!name) {
         msgEl.textContent = 'El nombre es requerido';
-        msgEl.style.color = 'var(--danger, #ef4444)';
+        msgEl.className = 'mb-4 text-sm text-red-500 dark:text-red-400 theme-light:text-red-600';
         return;
       }
       
       if (total < 0) {
         msgEl.textContent = 'El precio debe ser mayor o igual a 0';
-        msgEl.style.color = 'var(--danger, #ef4444)';
+        msgEl.className = 'mb-4 text-sm text-red-500 dark:text-red-400 theme-light:text-red-600';
         return;
       }
       
@@ -3232,7 +3221,7 @@ export function initQuotes({ getCompanyEmail }) {
         const products = Array.from(comboProductsContainer.querySelectorAll('.combo-product-item'));
         if (products.length === 0) {
           msgEl.textContent = 'Un combo debe incluir al menos un producto';
-          msgEl.style.color = 'var(--danger, #ef4444)';
+          msgEl.className = 'mb-4 text-sm text-red-500 dark:text-red-400 theme-light:text-red-600';
           return;
         }
         
@@ -3240,7 +3229,7 @@ export function initQuotes({ getCompanyEmail }) {
           const prodName = prod.querySelector('.combo-product-name')?.value.trim();
           if (!prodName) {
             msgEl.textContent = 'Todos los productos del combo deben tener nombre';
-            msgEl.style.color = 'var(--danger, #ef4444)';
+            msgEl.className = 'mb-4 text-sm text-red-500 dark:text-red-400 theme-light:text-red-600';
             return;
           }
         }
@@ -3307,7 +3296,7 @@ export function initQuotes({ getCompanyEmail }) {
         closeModal();
       } catch(e) {
         msgEl.textContent = 'Error: ' + (e?.message || 'Error desconocido');
-        msgEl.style.color = 'var(--danger, #ef4444)';
+        msgEl.className = 'mb-4 text-sm text-red-500 dark:text-red-400 theme-light:text-red-600';
       } finally {
         saveBtn.disabled = false;
         saveBtn.textContent = '💾 Guardar';
@@ -3432,7 +3421,7 @@ export function initQuotes({ getCompanyEmail }) {
         }
         const cs = { video: videoConstraints, audio: false };
         msg.textContent = 'Solicitando acceso a la cámara...';
-        msg.style.color = 'var(--text)';
+        msg.className = 'text-sm text-white dark:text-white theme-light:text-slate-900';
         stream = await navigator.mediaDevices.getUserMedia(cs);
         video.setAttribute('playsinline', 'true');
         video.setAttribute('webkit-playsinline', 'true');
@@ -3489,7 +3478,7 @@ export function initQuotes({ getCompanyEmail }) {
           errorMsg = '❌ Error: ' + (e?.message||'Error desconocido');
         }
         msg.textContent = errorMsg;
-        msg.style.color = 'var(--danger, #ef4444)';
+        msg.className = 'text-sm text-red-500 dark:text-red-400 theme-light:text-red-600';
         running = false;
       }
     }
@@ -3541,22 +3530,7 @@ export function initQuotes({ getCompanyEmail }) {
     function showItemAddedPopup(){
       const popup = document.createElement('div');
       popup.textContent = '✓ Item agregado!';
-      popup.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(16, 185, 129, 0.95);
-        color: white;
-        padding: 20px 40px;
-        border-radius: 12px;
-        font-size: 18px;
-        font-weight: 600;
-        z-index: 10000;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-        pointer-events: none;
-        animation: fadeInOut 1.5s ease-in-out;
-      `;
+      popup.className = 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-green-500/95 text-white px-10 py-5 rounded-xl text-lg font-semibold z-[10000] shadow-lg pointer-events-none animate-[fadeInOut_1.5s_ease-in-out]';
       if (!document.getElementById('qr-popup-style')) {
         const style = document.createElement('style');
         style.id = 'qr-popup-style';
@@ -3594,7 +3568,7 @@ export function initQuotes({ getCompanyEmail }) {
         }
         if (!it) {
           msg.textContent = 'Item no encontrado en inventario.';
-          msg.style.color = 'var(--danger, #ef4444)';
+          msg.className = 'text-sm text-red-500 dark:text-red-400 theme-light:text-red-600';
           setTimeout(() => {
             cameraDisabled = false;
           }, 2000);
@@ -3628,7 +3602,7 @@ export function initQuotes({ getCompanyEmail }) {
         msg.textContent = '';
       }catch(e){ 
         msg.textContent = e?.message || 'No se pudo agregar';
-        msg.style.color = 'var(--danger, #ef4444)';
+        msg.className = 'text-sm text-red-500 dark:text-red-400 theme-light:text-red-600';
         setTimeout(() => {
           cameraDisabled = false;
         }, 2000);
@@ -3780,7 +3754,7 @@ export function initQuotes({ getCompanyEmail }) {
                 if (iVehicleSearch) iVehicleSearch.value = `${vehicle.make} ${vehicle.line} ${vehicle.displacement}`;
                 if (iVehicleSelected) {
                   iVehicleSelected.innerHTML = `
-                    <span style="color:var(--success, #10b981);">✓</span> 
+                    <span class="text-green-500 dark:text-green-400 theme-light:text-green-600">✓</span> 
                     <strong>${vehicle.make} ${vehicle.line}</strong> - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
                   `;
                 }
@@ -3805,7 +3779,7 @@ export function initQuotes({ getCompanyEmail }) {
                 if (iVehicleSearch) iVehicleSearch.value = `${vehicle.make} ${vehicle.line} ${vehicle.displacement}`;
                 if (iVehicleSelected) {
                   iVehicleSelected.innerHTML = `
-                    <span style="color:var(--success, #10b981);">✓</span> 
+                    <span class="text-green-500 dark:text-green-400 theme-light:text-green-600">✓</span> 
                     <strong>${vehicle.make} ${vehicle.line}</strong> - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
                   `;
                 }

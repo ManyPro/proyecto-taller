@@ -149,9 +149,13 @@
     }
     /* Estilos para tablas responsivas en móvil */
     @media (max-width: 768px) {
+      .overflow-x-auto {
+        overflow-x: visible !important;
+      }
       .overflow-x-auto table {
         display: block;
         width: 100%;
+        min-width: 100% !important;
       }
       .overflow-x-auto thead {
         display: none;
@@ -179,6 +183,7 @@
         padding: 0.5rem 0;
         border: none;
         text-align: right;
+        width: 100%;
       }
       .overflow-x-auto td:before {
         content: attr(data-label);
@@ -186,6 +191,7 @@
         text-align: left;
         margin-right: 1rem;
         color: rgba(148, 163, 184, 0.8);
+        flex-shrink: 0;
       }
       body.theme-light .overflow-x-auto td:before {
         color: rgba(100, 116, 139, 0.8);
@@ -196,9 +202,13 @@
         margin-top: 0.5rem;
         justify-content: flex-end;
         gap: 0.5rem;
+        flex-wrap: wrap;
       }
       body.theme-light .overflow-x-auto td:last-child {
         border-top-color: rgba(203, 213, 225, 0.5);
+      }
+      .overflow-x-auto td:last-child:before {
+        display: none;
       }
     }
   </style>

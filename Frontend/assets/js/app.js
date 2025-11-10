@@ -290,7 +290,7 @@ function initPullToRefresh(container){
     if(indicator) return indicator;
     indicator=document.createElement('div');
     indicator.id='ptr-indicator';
-    indicator.style.cssText='position:fixed;top:8px;left:50%;transform:translateX(-50%) translateY(-60px);background:var(--card);color:var(--text);padding:6px 12px;border-radius:20px;font-size:12px;box-shadow:0 4px 10px rgba(0,0,0,.3);transition:transform .25s ease, opacity .25s ease;z-index:12000;opacity:0;';
+    indicator.className = 'fixed top-2 left-1/2 -translate-x-1/2 -translate-y-[60px] bg-slate-800/90 dark:bg-slate-800/90 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 px-3 py-1.5 rounded-full text-xs shadow-lg transition-all duration-250 z-[12000] opacity-0';
     indicator.textContent='Suelta para refrescar';
     document.body.appendChild(indicator);
     return indicator;
@@ -550,8 +550,8 @@ function initializeLogoutListener() {
     if(panel) return panel;
     panel = document.createElement('div');
     panel.id='notifPanel';
-    panel.style.cssText='position:fixed;top:60px;right:14px;width:320px;max-height:70vh;overflow:auto;background:var(--card);color:var(--text);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.35);padding:12px;display:none;z-index:2000;';
-    panel.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><strong>Notificaciones</strong><div style="display:flex;gap:6px;"><button id="notifMarkAll" class="secondary" style="font-size:11px;">Marcar todo</button><button id="notifClose" class="secondary" style="font-size:11px;">Cerrar</button></div></div><div id="notifList" style="display:flex;flex-direction:column;gap:8px;font-size:12px;"></div>';
+    panel.className = 'fixed top-[60px] right-[14px] w-80 max-h-[70vh] overflow-auto bg-slate-800/90 dark:bg-slate-800/90 theme-light:bg-white rounded-lg shadow-2xl p-3 hidden z-[2000]';
+    panel.innerHTML='<div class="flex justify-between items-center mb-1.5"><strong class="text-white dark:text-white theme-light:text-slate-900">Notificaciones</strong><div class="flex gap-1.5"><button id="notifMarkAll" class="px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Marcar todo</button><button id="notifClose" class="px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cerrar</button></div></div><div id="notifList" class="flex flex-col gap-2 text-xs"></div>';
     document.body.appendChild(panel);
     panel.querySelector('#notifClose').onclick = togglePanel;
     panel.querySelector('#notifMarkAll').onclick = markAll;
@@ -621,7 +621,7 @@ function initializeLogoutListener() {
       const isUrgent = info.urgent === true;
       const urgentStyles = isUrgent ? 
         'background:linear-gradient(135deg, #dc2626, #b91c1c);border:2px solid #fca5a5;box-shadow:0 4px 12px rgba(220,38,38,0.3);' : 
-        'background:var(--card-alt,#1e293b);border:1px solid var(--border);';
+        'background:rgba(30,41,59,0.9);border:1px solid rgba(148,163,184,0.3);';
       
       div.style.cssText=`${urgentStyles}padding:10px;border-radius:10px;display:flex;gap:10px;align-items:flex-start;`;
       
@@ -640,7 +640,7 @@ function initializeLogoutListener() {
           <div style='${bodyStyle}'>${info.body}</div>
           <div style='display:flex;justify-content:space-between;align-items:center;margin-top:6px;'>
             <span style='font-size:11px;opacity:.6;'>${info.meta}</span>
-            <button data-read='${n._id}' style='font-size:11px;' class='secondary'>Marcar leído</button>
+            <button data-read='${n._id}' class='px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900'>Marcar leído</button>
           </div>
         </div>`;
       div.querySelector('[data-read]').onclick = () => markRead(n._id, div);
