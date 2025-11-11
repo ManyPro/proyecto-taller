@@ -288,7 +288,11 @@ export function initQuotes({ getCompanyEmail }) {
       renderSpecialNotes();
       clearRows(); (d.rows||[]).forEach(addRowFromData);
       clearDirtyFlags();
-    }catch{}
+      // Llamar recalcAll después de cargar los datos para actualizar el preview
+      recalcAll();
+    }catch(e){
+      console.error('[loadDraft] Error cargando borrador:', e);
+    }
   }
   function clearDraft(){ localStorage.removeItem(kDraft()); }
 
@@ -448,6 +452,23 @@ export function initQuotes({ getCompanyEmail }) {
   function recalcAll(){
     const rows=readRows(); 
     console.log('[recalcAll] Rows leídos:', rows.length, rows);
+    
+    // Leer datos del cliente y vehículo directamente de los inputs
+    const cliente = iClientName?.value || '';
+    const placa = iPlate?.value || '';
+    const brand = iBrand?.value || '';
+    const line = iLine?.value || '';
+    const year = iYear?.value || '';
+    
+    console.log('[recalcAll] Datos del formulario:', {
+      cliente,
+      placa,
+      brand,
+      line,
+      year,
+      rowsCount: rows.length
+    });
+    
     let subP=0, subS=0;
     rows.forEach(({type,qty,price})=>{
       const q=qty>0?qty:1; const st=q*(price||0);
@@ -480,7 +501,16 @@ export function initQuotes({ getCompanyEmail }) {
     }
     
     if (lblTotal) lblTotal.textContent=money(total);
-    if (previewWA) previewWA.textContent=buildWhatsAppText(rows,subP,subS,total);
+    
+    // Actualizar preview de WhatsApp
+    if (previewWA) {
+      const previewText = buildWhatsAppText(rows,subP,subS,total);
+      console.log('[recalcAll] Preview WhatsApp generado:', previewText);
+      previewWA.textContent = previewText;
+    } else {
+      console.warn('[recalcAll] previewWA no encontrado!');
+    }
+    
     syncSummaryHeight();
   }
 
@@ -898,8 +928,19 @@ export function initQuotes({ getCompanyEmail }) {
         itemsCount: payload.items?.length || 0,
         items: payload.items,
         customer: payload.customer,
-        vehicle: payload.vehicle
+        vehicle: payload.vehicle,
+        validity: payload.validity,
+        specialNotes: payload.specialNotes,
+        discount: payload.discount
       });
+      
+      // Validar que haya al menos un item o datos del cliente
+      if (!payload.items || payload.items.length === 0) {
+        if (!payload.customer?.name && !payload.vehicle?.plate) {
+          alert('⚠️ La cotización está vacía. Agrega al menos un item o datos del cliente/vehículo.');
+          return;
+        }
+      }
       
       let doc;
       if(creating){ doc = await API.quoteCreate(payload); }
@@ -909,7 +950,9 @@ export function initQuotes({ getCompanyEmail }) {
       console.log('[saveToBackend] Respuesta del backend:', {
         docId: doc?._id,
         itemsCount: doc?.items?.length || 0,
-        items: doc?.items
+        items: doc?.items,
+        customer: doc?.customer,
+        vehicle: doc?.vehicle
       });
 
       if(doc?.number){
@@ -918,13 +961,13 @@ export function initQuotes({ getCompanyEmail }) {
         if(typeof doc.seq==='number'){ localStorage.setItem(kLast(), String(doc.seq)); }
       }
       currentQuoteId = doc?._id || currentQuoteId;
-  toast('Cotización guardada en historial.');
+      toast('Cotización guardada en historial.');
       loadHistory();
 
       if(creating) resetQuoteForm();
     }catch(e){
       console.error('[saveToBackend] Error:', e);
-  alert(e?.message || 'Error guardando la cotización');
+      alert(e?.message || 'Error guardando la cotización');
     }
   }
 
@@ -2154,7 +2197,11 @@ export function initQuotes({ getCompanyEmail }) {
     iSaveDraft?.addEventListener('click',saveDraft);
     btnWA?.addEventListener('click',openWhatsApp);
     btnPDF?.addEventListener('click',()=>{ exportPDF().catch(err=>alert(err?.message||err)); });
-    btnSaveBackend?.addEventListener('click',saveToBackend);
+    btnSaveBackend?.addEventListener('click', async () => {
+      // Asegurar que recalcAll se ejecute antes de guardar para tener los datos más actualizados
+      recalcAll();
+      await saveToBackend();
+    });
     
     // Notas especiales
     iAddSpecialNote?.addEventListener('click', addSpecialNote);

@@ -1139,83 +1139,301 @@
     }
   }
 
+  // Función para acortar variables de Handlebars para mejor visualización en el canvas
+  function shortenHandlebarsVars(html) {
+    if (!html) return html;
+    
+    // Mapeo de variables completas a versiones cortas más legibles
+    const replacements = [
+      // Variables de cliente
+      { from: /\{\{sale\.customer\.name\}\}/g, to: '{{C.nombre}}' },
+      { from: /\{\{sale\.customer\.email\}\}/g, to: '{{C.email}}' },
+      { from: /\{\{sale\.customer\.phone\}\}/g, to: '{{C.tel}}' },
+      { from: /\{\{sale\.customer\.address\}\}/g, to: '{{C.dir}}' },
+      
+      // Variables de venta
+      { from: /\{\{sale\.formattedNumber\}\}/g, to: '{{S.nº}}' },
+      { from: /\{\{sale\.number\}\}/g, to: '{{S.nº}}' },
+      { from: /\{\{sale\.total\}\}/g, to: '{{S.total}}' },
+      { from: /\{\{money sale\.total\}\}/g, to: '{{$ S.total}}' },
+      
+      // Variables de empresa
+      { from: /\{\{company\.name\}\}/g, to: '{{E.nombre}}' },
+      { from: /\{\{company\.email\}\}/g, to: '{{E.email}}' },
+      { from: /\{\{company\.logoUrl\}\}/g, to: '{{E.logo}}' },
+      { from: /\{\{company\.logo\}\}/g, to: '{{E.logo}}' },
+      
+      // Variables de items agrupados
+      { from: /\{\{#if sale\.itemsGrouped\.hasProducts\}\}/g, to: '{{#if S.P}}' },
+      { from: /\{\{#if sale\.itemsGrouped\.hasServices\}\}/g, to: '{{#if S.S}}' },
+      { from: /\{\{#if sale\.itemsGrouped\.hasCombos\}\}/g, to: '{{#if S.C}}' },
+      { from: /\{\{#each sale\.itemsGrouped\.products\}\}/g, to: '{{#each S.P}}' },
+      { from: /\{\{#each sale\.itemsGrouped\.services\}\}/g, to: '{{#each S.S}}' },
+      { from: /\{\{#each sale\.itemsGrouped\.combos\}\}/g, to: '{{#each S.C}}' },
+      
+      // Variables dentro de items
+      { from: /\{\{name\}\}/g, to: '{{nom}}' },
+      { from: /\{\{qty\}\}/g, to: '{{cant}}' },
+      { from: /\{\{unitPrice\}\}/g, to: '{{precio}}' },
+      { from: /\{\{money unitPrice\}\}/g, to: '{{$ precio}}' },
+      { from: /\{\{total\}\}/g, to: '{{tot}}' },
+      { from: /\{\{money total\}\}/g, to: '{{$ tot}}' },
+      
+      // Helpers comunes
+      { from: /\{\{pad sale\.number\}\}/g, to: '{{pad S.nº}}' },
+      
+      // Variables de items anidados (combos)
+      { from: /\{\{#each items\}\}/g, to: '{{#each items}}' },
+      
+      // Condicionales
+      { from: /\{\{#unless sale\.itemsGrouped\.hasProducts\}\}/g, to: '{{#unless S.P}}' },
+      { from: /\{\{#unless sale\.itemsGrouped\.hasServices\}\}/g, to: '{{#unless S.S}}' },
+      { from: /\{\{#unless sale\.itemsGrouped\.hasCombos\}\}/g, to: '{{#unless S.C}}' },
+    ];
+    
+    let result = html;
+    replacements.forEach(({ from, to }) => {
+      result = result.replace(from, to);
+    });
+    
+    return result;
+  }
+  
+  // Función para restaurar variables completas antes de guardar
+  function restoreHandlebarsVars(shortHtml, originalHtml) {
+    if (!shortHtml || !originalHtml) return shortHtml;
+    
+    // Mapeo inverso más específico
+    const reverseReplacements = [
+      { from: /\{\{C\.nombre\}\}/g, to: '{{sale.customer.name}}' },
+      { from: /\{\{C\.email\}\}/g, to: '{{sale.customer.email}}' },
+      { from: /\{\{C\.tel\}\}/g, to: '{{sale.customer.phone}}' },
+      { from: /\{\{C\.dir\}\}/g, to: '{{sale.customer.address}}' },
+      { from: /\{\{S\.nº\}\}/g, to: '{{sale.number}}' },
+      { from: /\{\{S\.total\}\}/g, to: '{{sale.total}}' },
+      { from: /\{\{\$ S\.total\}\}/g, to: '{{money sale.total}}' },
+      { from: /\{\{E\.nombre\}\}/g, to: '{{company.name}}' },
+      { from: /\{\{E\.email\}\}/g, to: '{{company.email}}' },
+      { from: /\{\{E\.logo\}\}/g, to: '{{company.logoUrl}}' },
+      { from: /\{\{#if S\.P\}\}/g, to: '{{#if sale.itemsGrouped.hasProducts}}' },
+      { from: /\{\{#if S\.S\}\}/g, to: '{{#if sale.itemsGrouped.hasServices}}' },
+      { from: /\{\{#if S\.C\}\}/g, to: '{{#if sale.itemsGrouped.hasCombos}}' },
+      { from: /\{\{#each S\.P\}\}/g, to: '{{#each sale.itemsGrouped.products}}' },
+      { from: /\{\{#each S\.S\}\}/g, to: '{{#each sale.itemsGrouped.services}}' },
+      { from: /\{\{#each S\.C\}\}/g, to: '{{#each sale.itemsGrouped.combos}}' },
+      { from: /\{\{nom\}\}/g, to: '{{name}}' },
+      { from: /\{\{cant\}\}/g, to: '{{qty}}' },
+      { from: /\{\{precio\}\}/g, to: '{{unitPrice}}' },
+      { from: /\{\{\$ precio\}\}/g, to: '{{money unitPrice}}' },
+      { from: /\{\{tot\}\}/g, to: '{{total}}' },
+      { from: /\{\{\$ tot\}\}/g, to: '{{money total}}' },
+      { from: /\{\{pad S\.nº\}\}/g, to: '{{pad sale.number}}' },
+      { from: /\{\{#unless S\.P\}\}/g, to: '{{#unless sale.itemsGrouped.hasProducts}}' },
+      { from: /\{\{#unless S\.S\}\}/g, to: '{{#unless sale.itemsGrouped.hasServices}}' },
+      { from: /\{\{#unless S\.C\}\}/g, to: '{{#unless sale.itemsGrouped.hasCombos}}' },
+    ];
+    
+    let result = shortHtml;
+    reverseReplacements.forEach(({ from, to }) => {
+      result = result.replace(from, to);
+    });
+    
+    // Si el resultado no tiene las variables esperadas, usar el original
+    if (!result.includes('sale.') && !result.includes('company.')) {
+      console.warn('[restoreHandlebarsVars] No se pudieron restaurar variables, usando HTML original');
+      return originalHtml;
+    }
+    
+    return result;
+  }
+  
+  // Función para agregar leyenda de variables al canvas
+  function addVariableLegend(canvas) {
+    // Remover leyenda existente si hay
+    const existingLegend = canvas.querySelector('.variable-legend');
+    if (existingLegend) {
+      existingLegend.remove();
+    }
+    
+    const legend = document.createElement('div');
+    legend.className = 'variable-legend';
+    legend.style.cssText = `
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 2px solid #2563eb;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 11px;
+      font-family: 'Courier New', monospace;
+      z-index: 10000;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      max-width: 300px;
+      line-height: 1.6;
+    `;
+    
+    legend.innerHTML = `
+      <div style="font-weight: bold; margin-bottom: 8px; color: #2563eb; font-size: 12px;">
+        📋 Leyenda de Variables
+      </div>
+      <div style="margin-bottom: 4px;"><strong>C.</strong> = Cliente</div>
+      <div style="margin-bottom: 4px;"><strong>S.</strong> = Venta</div>
+      <div style="margin-bottom: 4px;"><strong>E.</strong> = Empresa</div>
+      <div style="margin-bottom: 4px;"><strong>S.P</strong> = Productos</div>
+      <div style="margin-bottom: 4px;"><strong>S.S</strong> = Servicios</div>
+      <div style="margin-bottom: 4px;"><strong>S.C</strong> = Combos</div>
+      <div style="margin-bottom: 4px;"><strong>$</strong> = Formato dinero</div>
+      <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd; font-size: 10px; color: #666;">
+        Las variables se restauran automáticamente al guardar
+      </div>
+    `;
+    
+    canvas.appendChild(legend);
+    
+    // Hacer la leyenda arrastrable
+    let isDragging = false;
+    let startX, startY, startLeft, startTop;
+    
+    legend.addEventListener('mousedown', (e) => {
+      if (e.target === legend || legend.contains(e.target)) {
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        startLeft = parseInt(legend.style.left) || 10;
+        startTop = parseInt(legend.style.top) || 10;
+        legend.style.cursor = 'move';
+      }
+    });
+    
+    document.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+        legend.style.left = (startLeft + deltaX) + 'px';
+        legend.style.top = (startTop + deltaY) + 'px';
+      }
+    });
+    
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+      legend.style.cursor = 'default';
+    });
+  }
+
   function setupImageUpload(element) {
     const placeholder = element.querySelector('.image-placeholder');
     if (!placeholder) return;
 
-    placeholder.onclick = () => {
+    // Mejorar el evento de clic para que funcione mejor
+    placeholder.style.cursor = 'pointer';
+    placeholder.title = 'Haz clic para seleccionar una imagen';
+    
+    // Remover listeners anteriores si existen clonando el elemento
+    const newPlaceholder = placeholder.cloneNode(true);
+    placeholder.parentNode.replaceChild(newPlaceholder, placeholder);
+    
+    newPlaceholder.onclick = (e) => {
+      e.stopPropagation(); // Evitar que se active el drag del elemento padre
+      e.preventDefault();
+      
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
+      input.style.display = 'none';
       
       input.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
+
+        // Mostrar indicador de carga
+        const loadingText = newPlaceholder.querySelector('div');
+        const originalContent = newPlaceholder.innerHTML;
+        if (loadingText) {
+          newPlaceholder.innerHTML = '<div style="padding: 10px; text-align: center; font-size: 11px; color: #666;">Cargando...</div>';
+        }
 
         const reader = new FileReader();
         reader.onload = async (event) => {
           const rawDataUrl = event?.target?.result;
           if (typeof rawDataUrl !== 'string') {
             alert('El archivo seleccionado no se pudo leer correctamente.');
+            newPlaceholder.innerHTML = originalContent;
             return;
           }
 
-          const optimizedSrc = await optimizeImageDataUrl(rawDataUrl);
-          
-          const imgContainer = document.createElement('div');
-          imgContainer.className = 'image-container';
-          
-          // Detectar si el placeholder está dentro de un logo box (100x100px)
-          const parentBox = placeholder.closest('.tpl-element');
-          const isLogoBox = parentBox && (parentBox.style.width === '100px' || parentBox.style.width.includes('100px'));
-          
-          // Ocultar editor de texto si existe
-          const textEditor = parentBox?.querySelector('.logo-text-editable');
-          if (textEditor) {
-            textEditor.style.display = 'none';
+          try {
+            const optimizedSrc = await optimizeImageDataUrl(rawDataUrl);
+            
+            const imgContainer = document.createElement('div');
+            imgContainer.className = 'image-container';
+            
+            // Detectar si el placeholder está dentro de un logo box
+            const parentBox = newPlaceholder.closest('.tpl-element');
+            const isLogoBox = parentBox && (
+              parentBox.style.width === '100px' || 
+              parentBox.style.width === '80px' ||
+              parentBox.style.width.includes('100px') ||
+              parentBox.style.width.includes('80px')
+            );
+            
+            // Ocultar editor de texto si existe
+            const textEditor = parentBox?.querySelector('.logo-text-editable');
+            if (textEditor) {
+              textEditor.style.display = 'none';
+            }
+            
+            if (isLogoBox) {
+              // Para logo: ajustar al contenedor manteniendo proporciones
+              imgContainer.style.cssText = 'position: relative; display: block; padding:0; margin:0; line-height:0; width: 100%; height: 100%;';
+            } else {
+              // Para otras imágenes: tamaño automático
+              imgContainer.style.cssText = 'position: relative; display: inline-block; padding:0; margin:0; line-height:0;';
+            }
+            
+            const img = document.createElement('img');
+            img.src = optimizedSrc;
+            img.draggable = false;
+            img.alt = 'Logo';
+            
+            if (isLogoBox) {
+              img.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;';
+            } else {
+              img.style.cssText = 'max-width: 100%; height: auto; display: block;';
+            }
+            
+            imgContainer.appendChild(img);
+            
+            // Reemplazar el placeholder con la imagen
+            newPlaceholder.replaceWith(imgContainer);
+            
+            // Asegurar que el contenedor padre mantenga las propiedades correctas
+            if (parentBox) {
+              parentBox.style.padding = '0';
+              parentBox.style.display = 'flex';
+              parentBox.style.alignItems = 'center';
+              parentBox.style.justifyContent = 'center';
+            }
+            
+            showQuickNotification('✅ Imagen cargada correctamente', 'success');
+          } catch (error) {
+            console.error('Error procesando imagen:', error);
+            alert('Error al procesar la imagen: ' + error.message);
+            newPlaceholder.innerHTML = originalContent;
           }
-          
-          if (isLogoBox) {
-            // Para logo: ajustar al contenedor manteniendo proporciones
-            imgContainer.style.cssText = 'position: relative; display: block; padding:0; margin:0; line-height:0; width: 100%; height: 100%;';
-          } else {
-            // Para otras imágenes: tamaño automático
-          imgContainer.style.cssText = 'position: relative; display: inline-block; padding:0; margin:0; line-height:0;';
-          }
-          
-          const img = document.createElement('img');
-          img.src = optimizedSrc;
-          img.draggable = false;
-          img.alt = 'Logo';
-          
-          if (isLogoBox) {
-            // Logo: ajustar al contenedor con object-fit
-            img.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block; user-select: none; margin: 0; padding: 0;';
-            // Remover borde del placeholder al reemplazarlo
-            placeholder.style.border = 'none';
-            placeholder.style.background = 'transparent';
-          } else {
-            // Otras imágenes: tamaño automático
-            img.style.cssText = 'width:150px; height:auto; display:block; user-select:none; margin:0; padding:0;';
-          img.onload = () => {
-            try {
-              imgContainer.style.width = img.naturalWidth + 'px';
-              imgContainer.style.height = img.naturalHeight + 'px';
-            } catch (_) {}
-          };
-          }
-          
-          imgContainer.appendChild(img);
-          addResizeHandles(imgContainer, img);
-          placeholder.replaceWith(imgContainer);
-          
-          console.log('Imagen agregada. Usa los handles para redimensionar.');
+        };
+        
+        reader.onerror = () => {
+          alert('Error al leer el archivo.');
+          newPlaceholder.innerHTML = originalContent;
         };
         
         reader.readAsDataURL(file);
       };
       
+      document.body.appendChild(input);
       input.click();
+      setTimeout(() => document.body.removeChild(input), 100);
     };
   }
 
