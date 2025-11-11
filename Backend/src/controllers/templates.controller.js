@@ -273,34 +273,74 @@ function renderHB(tpl, context) {
       }
       return '';
     }
+    
+    // Log detallado ANTES de compilar
+    console.log('[renderHB] ===== INICIO RENDERIZADO =====');
+    console.log('[renderHB] Template length:', tpl.length);
+    console.log('[renderHB] Context keys:', Object.keys(context || {}));
+    console.log('[renderHB] Has sale:', !!context?.sale);
+    console.log('[renderHB] Has quote:', !!context?.quote);
+    
+    if (context?.sale) {
+      console.log('[renderHB] Sale items count:', context.sale.items?.length || 0);
+      console.log('[renderHB] Sale items:', JSON.stringify(context.sale.items || [], null, 2));
+      console.log('[renderHB] Sale number:', context.sale.number);
+    }
+    
+    if (context?.quote) {
+      console.log('[renderHB] Quote items count:', context.quote.items?.length || 0);
+      console.log('[renderHB] Quote items:', JSON.stringify(context.quote.items || [], null, 2));
+      console.log('[renderHB] Quote number:', context.quote.number);
+    }
+    
+    // Verificar si el template tiene las variables correctas
+    const hasSaleEach = tpl.includes('{{#each sale.items}}');
+    const hasQuoteEach = tpl.includes('{{#each quote.items}}');
+    const hasSaleUnless = tpl.includes('{{#unless sale.items}}');
+    const hasQuoteUnless = tpl.includes('{{#unless quote.items}}');
+    
+    console.log('[renderHB] Template tiene {{#each sale.items}}:', hasSaleEach);
+    console.log('[renderHB] Template tiene {{#each quote.items}}:', hasQuoteEach);
+    console.log('[renderHB] Template tiene {{#unless sale.items}}:', hasSaleUnless);
+    console.log('[renderHB] Template tiene {{#unless quote.items}}:', hasQuoteUnless);
+    
+    // Extraer fragmento del template que contiene las tablas
+    const tableMatch = tpl.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+    if (tableMatch) {
+      console.log('[renderHB] Tablas encontradas en template:', tableMatch.length);
+      tableMatch.forEach((match, idx) => {
+        console.log(`[renderHB] Tabla ${idx + 1} (primeros 200 chars):`, match.substring(0, 200));
+      });
+    }
+    
     const compiled = Handlebars.compile(tpl || '');
     const rendered = compiled(context || {});
     
-    if (process.env.NODE_ENV !== 'production') {
-      // Verificar si hasItems está funcionando
-      const testHasItems = context?.sale?.items ? 
-        (Array.isArray(context.sale.items) && context.sale.items.length > 0) : false;
-      const hasItemsHelperTest = Handlebars.helpers.hasItems ? 
-        Handlebars.helpers.hasItems(context?.sale?.items) : 'helper not found';
-      
-      console.log('[renderHB] Renderizado completado:', {
-        templateLength: tpl.length,
-        renderedLength: rendered.length,
-        contextKeys: Object.keys(context || {}),
-        hasSale: !!context?.sale,
-        saleItemsCount: context?.sale?.items?.length || 0,
-        testHasItems,
-        hasItemsHelperTest,
-        firstItemName: context?.sale?.items?.[0]?.name || 'N/A',
-        templateHasHasItems: tpl.includes('hasItems'),
-        templateHasEach: tpl.includes('#each sale.items')
+    // Log DESPUÉS de renderizar
+    console.log('[renderHB] Rendered length:', rendered.length);
+    
+    // Verificar si el HTML renderizado tiene filas de tabla
+    const renderedRows = (rendered.match(/<tr>/g) || []).length;
+    console.log('[renderHB] Filas <tr> en HTML renderizado:', renderedRows);
+    
+    // Extraer fragmento renderizado de las tablas
+    const renderedTableMatch = rendered.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+    if (renderedTableMatch) {
+      console.log('[renderHB] Tablas renderizadas encontradas:', renderedTableMatch.length);
+      renderedTableMatch.forEach((match, idx) => {
+        console.log(`[renderHB] Tabla renderizada ${idx + 1} (primeros 300 chars):`, match.substring(0, 300));
       });
+    } else {
+      console.warn('[renderHB] ⚠️ NO se encontraron tablas renderizadas en el HTML resultante!');
     }
+    
+    console.log('[renderHB] ===== FIN RENDERIZADO =====');
     
     return rendered;
   } catch (e) {
     console.error('[renderHB] Error renderizando:', e);
     console.error('[renderHB] Stack:', e.stack);
+    console.error('[renderHB] Template que causó error (primeros 500 chars):', tpl?.substring(0, 500));
     return `<!-- render error: ${e.message} -->`;
   }
 }
@@ -373,18 +413,25 @@ export async function previewTemplate(req, res) {
   let { contentHtml = '', contentCss = '' } = req.body || {};
   if (!type) return res.status(400).json({ error: 'type required' });
   
-  // Log para ver qué HTML se está recibiendo
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('[previewTemplate] Recibido ANTES de sanitize:', {
-      type,
-      sampleId,
-      sampleType,
-      contentHtmlLength: contentHtml?.length || 0,
-      contentCssLength: contentCss?.length || 0,
-      contentHtmlPreview: contentHtml?.substring(0, 500) || '',
-      hasQuoteData: !!quoteData,
-      hasSaleItemsVar: contentHtml?.includes('{{#each sale.items}}') || contentHtml?.includes('{{#if (hasItems sale.items)}}'),
-      hasSaleNumberVar: contentHtml?.includes('{{sale.number}}') || contentHtml?.includes('{{pad sale.number}}') || contentHtml?.includes('{{sale.formattedNumber}}')
+  console.log('[previewTemplate] ===== INICIO PREVIEW =====');
+  console.log('[previewTemplate] Type:', type);
+  console.log('[previewTemplate] SampleId:', sampleId);
+  console.log('[previewTemplate] SampleType:', sampleType);
+  console.log('[previewTemplate] Has quoteData:', !!quoteData);
+  console.log('[previewTemplate] ContentHtml length:', contentHtml?.length || 0);
+  
+  // Verificar variables en el HTML ANTES de sanitize
+  const hasSaleEachBefore = contentHtml?.includes('{{#each sale.items}}');
+  const hasQuoteEachBefore = contentHtml?.includes('{{#each quote.items}}');
+  console.log('[previewTemplate] HTML tiene {{#each sale.items}} ANTES sanitize:', hasSaleEachBefore);
+  console.log('[previewTemplate] HTML tiene {{#each quote.items}} ANTES sanitize:', hasQuoteEachBefore);
+  
+  // Extraer fragmento de tabla del HTML ANTES de sanitize
+  const tableMatchBefore = contentHtml.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+  if (tableMatchBefore) {
+    console.log('[previewTemplate] Tablas encontradas ANTES sanitize:', tableMatchBefore.length);
+    tableMatchBefore.forEach((match, idx) => {
+      console.log(`[previewTemplate] Tabla ${idx + 1} ANTES (primeros 200 chars):`, match.substring(0, 200));
     });
   }
   
@@ -392,14 +439,46 @@ export async function previewTemplate(req, res) {
   contentHtml = normalizeTemplateHtml(sanitize(contentHtml));
   const sanitizedHtmlLength = contentHtml?.length || 0;
   
-  if (process.env.NODE_ENV !== 'production' && originalHtmlLength !== sanitizedHtmlLength) {
-    console.warn('[previewTemplate] Sanitize cambió la longitud del HTML:', {
+  // Verificar variables DESPUÉS de sanitize
+  const hasSaleEachAfter = contentHtml?.includes('{{#each sale.items}}');
+  const hasQuoteEachAfter = contentHtml?.includes('{{#each quote.items}}');
+  console.log('[previewTemplate] HTML tiene {{#each sale.items}} DESPUÉS sanitize:', hasSaleEachAfter);
+  console.log('[previewTemplate] HTML tiene {{#each quote.items}} DESPUÉS sanitize:', hasQuoteEachAfter);
+  
+  if (originalHtmlLength !== sanitizedHtmlLength) {
+    console.warn('[previewTemplate] ⚠️ Sanitize cambió la longitud del HTML:', {
       original: originalHtmlLength,
       sanitized: sanitizedHtmlLength,
       difference: originalHtmlLength - sanitizedHtmlLength
     });
   }
+  
+  // Extraer fragmento de tabla del HTML DESPUÉS de sanitize
+  const tableMatchAfter = contentHtml.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+  if (tableMatchAfter) {
+    console.log('[previewTemplate] Tablas encontradas DESPUÉS sanitize:', tableMatchAfter.length);
+    tableMatchAfter.forEach((match, idx) => {
+      console.log(`[previewTemplate] Tabla ${idx + 1} DESPUÉS (primeros 200 chars):`, match.substring(0, 200));
+    });
+  } else {
+    console.warn('[previewTemplate] ⚠️ NO se encontraron tablas <tbody> en el HTML DESPUÉS de sanitize!');
+  }
+  
   const ctx = await buildContext({ companyId: req.companyId, type, sampleId, sampleType });
+  
+  console.log('[previewTemplate] Context después de buildContext:');
+  console.log('[previewTemplate] - Has sale:', !!ctx.sale);
+  console.log('[previewTemplate] - Has quote:', !!ctx.quote);
+  if (ctx.sale) {
+    console.log('[previewTemplate] - Sale items count:', ctx.sale.items?.length || 0);
+    console.log('[previewTemplate] - Sale items:', JSON.stringify(ctx.sale.items || [], null, 2));
+    console.log('[previewTemplate] - Sale number:', ctx.sale.number);
+  }
+  if (ctx.quote) {
+    console.log('[previewTemplate] - Quote items count:', ctx.quote.items?.length || 0);
+    console.log('[previewTemplate] - Quote items:', JSON.stringify(ctx.quote.items || [], null, 2));
+    console.log('[previewTemplate] - Quote number:', ctx.quote.number);
+  }
   
   // Si se proporcionan datos de cotización directamente (desde UI sin guardar), sobrescribir el contexto
   // O si hay quoteData y los items del contexto están vacíos, usar quoteData
@@ -407,8 +486,15 @@ export async function previewTemplate(req, res) {
     const hasItemsInData = (quoteData.items || []).length > 0;
     const hasItemsInContext = (ctx.quote?.items || []).length > 0;
     
+    console.log('[previewTemplate] QuoteData check:', {
+      hasItemsInData,
+      hasItemsInContext,
+      quoteDataItemsCount: (quoteData.items || []).length
+    });
+    
     // Usar quoteData si no hay sampleId o si los items del contexto están vacíos pero quoteData tiene items
     if (!sampleId || (!hasItemsInContext && hasItemsInData)) {
+      console.log('[previewTemplate] Usando quoteData para sobrescribir contexto');
       ctx.quote = {
         number: quoteData.number || '',
         createdAt: quoteData.date || new Date(),
@@ -434,53 +520,13 @@ export async function previewTemplate(req, res) {
         })),
         total: quoteData.totals?.total || 0
       };
+      console.log('[previewTemplate] Quote context actualizado con items:', ctx.quote.items?.length || 0);
     }
-  }
-  
-  // Log para depuración (solo en desarrollo)
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('[Template Preview]', {
-      type,
-      sampleId,
-      sampleType,
-      hasQuoteData: !!quoteData,
-      saleItemsCount: ctx.sale?.items?.length || 0,
-      quoteItemsCount: ctx.quote?.items?.length || 0,
-      saleNumber: ctx.sale?.number,
-      saleFormattedNumber: ctx.sale?.formattedNumber,
-      saleItems: ctx.sale?.items || [],
-      quoteItems: ctx.quote?.items || [],
-      saleCustomer: ctx.sale?.customer,
-      saleVehicle: ctx.sale?.vehicle
-    });
   }
   
   const html = renderHB(contentHtml, ctx);
   
-  // Log para ver qué se está devolviendo
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('[previewTemplate] Renderizado:', {
-      renderedLength: html?.length || 0,
-      renderedPreview: html?.substring(0, 500) || '',
-      cssLength: contentCss?.length || 0,
-      contextHasSale: !!ctx.sale,
-      contextSaleItemsCount: ctx.sale?.items?.length || 0,
-      contextSaleNumber: ctx.sale?.number,
-      contextSaleFormattedNumber: ctx.sale?.formattedNumber,
-      hasItemsResult: ctx.sale?.items ? (Array.isArray(ctx.sale.items) && ctx.sale.items.length > 0) : false,
-      firstItem: ctx.sale?.items?.[0] || null,
-      hasItemsHelperTest: Handlebars.helpers.hasItems ? Handlebars.helpers.hasItems(ctx.sale?.items) : 'n/a'
-    });
-    
-    // Verificar si el HTML renderizado contiene los items
-    const hasItemsInRendered = html?.includes('CAMBIO DE ACEITE') || html?.includes('FILTRO') || html?.includes('Sin ítems');
-    console.log('[previewTemplate] Verificación de renderizado:', {
-      hasItemsInRendered,
-      containsSinItems: html?.includes('Sin ítems'),
-      containsTableRows: (html?.match(/<tr>/g) || []).length,
-      firstItemInHtml: html?.includes(ctx.sale?.items?.[0]?.name || '')
-    });
-  }
+  console.log('[previewTemplate] ===== FIN PREVIEW =====');
   
   res.json({ rendered: html, css: contentCss, context: ctx });
 }

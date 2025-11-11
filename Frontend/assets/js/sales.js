@@ -86,23 +86,49 @@ function printSaleTicket(sale){
         });
         return API.templates.preview({ type:'invoice', contentHtml: tpl.contentHtml, contentCss: tpl.contentCss || '', sampleId: sale._id })
           .then(r=>{
-            console.log('[printSaleTicket] Preview recibido:', {
-              hasRendered: !!r.rendered,
-              renderedLength: r.rendered?.length || 0,
-              hasCss: !!r.css,
-              contextSaleItemsCount: r.context?.sale?.items?.length || 0,
-              contextSaleItems: r.context?.sale?.items || [],
-              contextSaleNumber: r.context?.sale?.number,
-              contextSaleFormattedNumber: r.context?.sale?.formattedNumber,
-              contextSaleCustomer: r.context?.sale?.customer,
-              contextSaleVehicle: r.context?.sale?.vehicle,
-              renderedPreview: r.rendered?.substring(0, 500) || ''
-            });
+            console.log('[printSaleTicket] ===== PREVIEW RECIBIDO =====');
+            console.log('[printSaleTicket] Has rendered:', !!r.rendered);
+            console.log('[printSaleTicket] Rendered length:', r.rendered?.length || 0);
+            console.log('[printSaleTicket] Has CSS:', !!r.css);
+            console.log('[printSaleTicket] Context sale items count:', r.context?.sale?.items?.length || 0);
+            console.log('[printSaleTicket] Context sale items:', JSON.stringify(r.context?.sale?.items || [], null, 2));
+            console.log('[printSaleTicket] Context sale number:', r.context?.sale?.number);
+            console.log('[printSaleTicket] Context sale formattedNumber:', r.context?.sale?.formattedNumber);
+            console.log('[printSaleTicket] Rendered preview (primeros 1000 chars):', r.rendered?.substring(0, 1000));
+            
+            // Verificar si el HTML renderizado tiene filas de tabla
+            const renderedRows = (r.rendered?.match(/<tr>/g) || []).length;
+            console.log('[printSaleTicket] Filas <tr> en HTML renderizado:', renderedRows);
+            
+            // Extraer fragmento renderizado de las tablas
+            const renderedTableMatch = r.rendered?.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+            if (renderedTableMatch) {
+              console.log('[printSaleTicket] Tablas renderizadas encontradas:', renderedTableMatch.length);
+              renderedTableMatch.forEach((match, idx) => {
+                console.log(`[printSaleTicket] Tabla renderizada ${idx + 1} (primeros 500 chars):`, match.substring(0, 500));
+              });
+            } else {
+              console.warn('[printSaleTicket] ⚠️ NO se encontraron tablas renderizadas en el HTML!');
+            }
+            
+            console.log('[printSaleTicket] ===== FIN PREVIEW =====');
+            
             const win = window.open('', '_blank');
             if(!win){ fallback(); return; }
             const css = r.css ? `<style>${r.css}</style>`:'';
             win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}</head><body>${r.rendered}</body></html>`);
-            win.document.close(); win.focus(); win.print(); try{ win.close(); }catch{}
+            win.document.close(); 
+            
+            // NO cerrar inmediatamente - dejar que el usuario vea los logs y cierre manualmente
+            // win.focus(); win.print(); try{ win.close(); }catch{}
+            
+            // En su lugar, mostrar un mensaje y permitir imprimir manualmente
+            win.focus();
+            setTimeout(() => {
+              if (confirm('¿Deseas imprimir ahora?\n\nSí - Imprimir\nNo - Solo ver')) {
+                win.print();
+              }
+            }, 500);
           })
           .catch((err)=>{
             console.error('[printSaleTicket] Error en preview:', err);
@@ -139,11 +165,31 @@ function printWorkOrder(){
         if(!tpl || !tpl.contentHtml){ fallback(); return; }
         return API.templates.preview({ type:'workOrder', contentHtml: tpl.contentHtml, contentCss: tpl.contentCss, sampleId: sale._id })
           .then(r=>{
+            console.log('[printWorkOrder] ===== PREVIEW RECIBIDO =====');
+            console.log('[printWorkOrder] Has rendered:', !!r.rendered);
+            console.log('[printWorkOrder] Rendered length:', r.rendered?.length || 0);
+            console.log('[printWorkOrder] Context sale items count:', r.context?.sale?.items?.length || 0);
+            console.log('[printWorkOrder] Context sale items:', JSON.stringify(r.context?.sale?.items || [], null, 2));
+            
+            // Verificar si el HTML renderizado tiene filas de tabla
+            const renderedRows = (r.rendered?.match(/<tr>/g) || []).length;
+            console.log('[printWorkOrder] Filas <tr> en HTML renderizado:', renderedRows);
+            
+            console.log('[printWorkOrder] ===== FIN PREVIEW =====');
+            
             const win = window.open('', '_blank');
             if(!win){ fallback(); return; }
             const css = r.css? `<style>${r.css}</style>`:'';
             win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}</head><body>${r.rendered}</body></html>`);
-            win.document.close(); win.focus(); win.print(); try{ win.close(); }catch{}
+            win.document.close();
+            
+            // NO cerrar inmediatamente
+            win.focus();
+            setTimeout(() => {
+              if (confirm('¿Deseas imprimir ahora?\n\nSí - Imprimir\nNo - Solo ver')) {
+                win.print();
+              }
+            }, 500);
           })
           .catch(()=> fallback());
       })
