@@ -425,6 +425,7 @@ function renderHB(tpl, context) {
       console.log('[renderHB] Sale items count:', context.sale.items?.length || 0);
       console.log('[renderHB] Sale items:', JSON.stringify(context.sale.items || [], null, 2));
       console.log('[renderHB] Sale number:', context.sale.number);
+      console.log('[renderHB] Sale formattedNumber:', context.sale.formattedNumber);
       console.log('[renderHB] Sale tiene itemsGrouped:', !!context.sale.itemsGrouped);
       if (context.sale.itemsGrouped) {
         console.log('[renderHB] Sale itemsGrouped:', {

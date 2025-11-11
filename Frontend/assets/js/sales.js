@@ -22,7 +22,10 @@ function restoreHandlebarsVarsForPreview(html) {
     { from: /\{\{C\.tel\}\}/g, to: '{{sale.customer.phone}}' },
     { from: /\{\{C\.dir\}\}/g, to: '{{sale.customer.address}}' },
     // Variables de venta
-    { from: /\{\{S\.nº\}\}/g, to: '{{sale.number}}' },
+    // IMPORTANTE: Restaurar expresión completa ANTES que variables individuales
+    { from: /\{\{#if S\.nº\}\}\{\{S\.nº\}\}\{\{else\}\}\[Sin nº\]\{\{\/if\}\}/g, to: '{{#if sale.formattedNumber}}{{sale.formattedNumber}}{{else}}{{#if sale.number}}{{pad sale.number}}{{else}}[Sin número]{{/if}}{{/if}}' },
+    { from: /\{\{pad S\.nº\}\}/g, to: '{{pad sale.number}}' },
+    { from: /\{\{S\.nº\}\}/g, to: '{{sale.formattedNumber}}' }, // Restaurar S.nº a formattedNumber, no a number
     { from: /\{\{S\.total\}\}/g, to: '{{sale.total}}' },
     { from: /\{\{\$ S\.total\}\}/g, to: '{{money sale.total}}' },
     { from: /\{\{S\.fecha\}\}/g, to: '{{sale.date}}' },
@@ -45,9 +48,6 @@ function restoreHandlebarsVarsForPreview(html) {
     { from: /\{\{\$ precio\}\}/g, to: '{{money unitPrice}}' },
     { from: /\{\{tot\}\}/g, to: '{{total}}' },
     { from: /\{\{\$ tot\}\}/g, to: '{{money total}}' },
-    // Expresión completa del número de remisión
-    { from: /\{\{#if S\.nº\}\}\{\{S\.nº\}\}\{\{else\}\}\[Sin nº\]\{\{\/if\}\}/g, to: '{{#if sale.formattedNumber}}{{sale.formattedNumber}}{{else}}{{#if sale.number}}{{pad sale.number}}{{else}}[Sin número]{{/if}}{{/if}}' },
-    { from: /\{\{pad S\.nº\}\}/g, to: '{{pad sale.number}}' },
     // Variables de vehículo
     { from: /\{\{V\.placa\}\}/g, to: '{{sale.vehicle.plate}}' },
     { from: /\{\{V\.marca\}\}/g, to: '{{sale.vehicle.brand}}' },
