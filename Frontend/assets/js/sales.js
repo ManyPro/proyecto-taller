@@ -176,12 +176,17 @@ function printSaleTicket(sale){
             
             win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}${debugScript}
               <style>
+                /* Detectar tamaño de página automáticamente */
+                @page {
+                  size: auto;
+                  margin: 10mm;
+                }
+                
                 /* Estilos específicos para impresión del total y asegurar que quepa en una página */
                 @media print {
                   body {
                     margin: 0 !important;
                     padding: 10mm !important;
-                    max-height: 297mm !important;
                     overflow: hidden !important;
                   }
                   .tpl-total-line,
@@ -192,7 +197,6 @@ function printSaleTicket(sale){
                     opacity: 1 !important;
                     page-break-inside: avoid !important;
                     page-break-after: avoid !important;
-                    max-height: 1100px !important;
                   }
                   .tpl-total-box {
                     border: 2px solid #000 !important;
@@ -212,6 +216,71 @@ function printSaleTicket(sale){
             </head><body>${r.rendered}</body></html>`);
             win.document.close(); 
             
+            // Función para detectar si el contenido cabe en media carta y ajustar tamaño de página
+            const detectAndSetPageSize = () => {
+              const body = win.document.body;
+              const html = win.document.documentElement;
+              
+              // Obtener altura total del contenido
+              const contentHeight = Math.max(
+                body.scrollHeight,
+                body.offsetHeight,
+                html.clientHeight,
+                html.scrollHeight,
+                html.offsetHeight
+              );
+              
+              // Media carta: ~816px (21.6cm a 96 DPI) menos márgenes (~20mm = ~76px) = ~740px disponible
+              // Carta completa: ~1054px (27.9cm a 96 DPI) menos márgenes = ~978px disponible
+              const mediaCartaMaxHeight = 740; // px
+              const cartaMaxHeight = 978; // px
+              
+              console.log('[printSaleTicket] Detectando tamaño de página:', {
+                contentHeight,
+                mediaCartaMaxHeight,
+                cartaMaxHeight,
+                fitsMediaCarta: contentHeight <= mediaCartaMaxHeight
+              });
+              
+              // Crear o actualizar estilo para tamaño de página
+              let pageSizeStyle = win.document.getElementById('dynamic-page-size');
+              if (!pageSizeStyle) {
+                pageSizeStyle = win.document.createElement('style');
+                pageSizeStyle.id = 'dynamic-page-size';
+                win.document.head.appendChild(pageSizeStyle);
+              }
+              
+              if (contentHeight <= mediaCartaMaxHeight) {
+                // Usar media carta (half-letter)
+                pageSizeStyle.textContent = `
+                  @page {
+                    size: 5.5in 8.5in;
+                    margin: 10mm;
+                  }
+                  @media print {
+                    body {
+                      max-height: 216mm !important;
+                    }
+                  }
+                `;
+                console.log('[printSaleTicket] ✅ Configurado para MEDIA CARTA (5.5" x 8.5")');
+              } else {
+                // Usar carta completa
+                pageSizeStyle.textContent = `
+                  @page {
+                    size: letter;
+                    margin: 10mm;
+                  }
+                  @media print {
+                    body {
+                      max-height: 279mm !important;
+                    }
+                  }
+                `;
+                console.log('[printSaleTicket] ✅ Configurado para CARTA COMPLETA (8.5" x 11")');
+              }
+            };
+            
             // Función robusta para ajustar posición del total
             const adjustTotalPosition = () => {
               const table = win.document.querySelector('table.remission-table');
@@ -227,6 +296,9 @@ function printSaleTicket(sale){
                 console.log('[printSaleTicket] Total no encontrado aún, reintentando...');
                 return false;
               }
+              
+              // Detectar tamaño de página primero
+              detectAndSetPageSize();
               
               // Método más confiable: obtener posición y altura de la tabla
               // Usar múltiples métodos para asegurar precisión
@@ -247,9 +319,20 @@ function printSaleTicket(sale){
               // Calcular nueva posición: inicio de tabla + altura + espacio adicional
               const newTop = tableTop + tableHeight + 10; // 10px de espacio adicional para evitar solapamiento
               
-              // Asegurar que el total quepa en una página A4 (altura máxima ~1123px con márgenes)
-              // Dejar espacio para márgenes inferiores (al menos 20px)
-              const maxTop = 1100;
+              // Obtener altura total del contenido para determinar límite máximo
+              const body = win.document.body;
+              const html = win.document.documentElement;
+              const contentHeight = Math.max(
+                body.scrollHeight,
+                body.offsetHeight,
+                html.clientHeight,
+                html.scrollHeight,
+                html.offsetHeight
+              );
+              
+              // Ajustar límite máximo según tamaño de página detectado
+              const mediaCartaMaxHeight = 740; // px
+              const maxTop = contentHeight <= mediaCartaMaxHeight ? 700 : 1100; // Límite más bajo para media carta
               const finalTop = Math.min(newTop, maxTop);
               
               console.log('[printSaleTicket] Ajustando total:', {
@@ -260,6 +343,8 @@ function printSaleTicket(sale){
                 newTop,
                 finalTop,
                 maxTop,
+                contentHeight,
+                pageSize: contentHeight <= mediaCartaMaxHeight ? 'MEDIA CARTA' : 'CARTA COMPLETA',
                 offsetHeight: table.offsetHeight,
                 scrollHeight: table.scrollHeight,
                 clientHeight: table.clientHeight,
@@ -391,12 +476,17 @@ function printWorkOrder(){
             const css = r.css? `<style>${r.css}</style>`:'';
             win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}
               <style>
+                /* Detectar tamaño de página automáticamente */
+                @page {
+                  size: auto;
+                  margin: 10mm;
+                }
+                
                 /* Estilos específicos para impresión del total y asegurar que quepa en una página */
                 @media print {
                   body {
                     margin: 0 !important;
                     padding: 10mm !important;
-                    max-height: 297mm !important;
                     overflow: hidden !important;
                   }
                   .tpl-total-line,
@@ -407,7 +497,6 @@ function printWorkOrder(){
                     opacity: 1 !important;
                     page-break-inside: avoid !important;
                     page-break-after: avoid !important;
-                    max-height: 1100px !important;
                   }
                   .tpl-total-box {
                     border: 2px solid #000 !important;
@@ -427,6 +516,71 @@ function printWorkOrder(){
             </head><body>${r.rendered}</body></html>`);
             win.document.close();
             
+            // Función para detectar si el contenido cabe en media carta y ajustar tamaño de página
+            const detectAndSetPageSize = () => {
+              const body = win.document.body;
+              const html = win.document.documentElement;
+              
+              // Obtener altura total del contenido
+              const contentHeight = Math.max(
+                body.scrollHeight,
+                body.offsetHeight,
+                html.clientHeight,
+                html.scrollHeight,
+                html.offsetHeight
+              );
+              
+              // Media carta: ~816px (21.6cm a 96 DPI) menos márgenes (~20mm = ~76px) = ~740px disponible
+              // Carta completa: ~1054px (27.9cm a 96 DPI) menos márgenes = ~978px disponible
+              const mediaCartaMaxHeight = 740; // px
+              const cartaMaxHeight = 978; // px
+              
+              console.log('[printWorkOrder] Detectando tamaño de página:', {
+                contentHeight,
+                mediaCartaMaxHeight,
+                cartaMaxHeight,
+                fitsMediaCarta: contentHeight <= mediaCartaMaxHeight
+              });
+              
+              // Crear o actualizar estilo para tamaño de página
+              let pageSizeStyle = win.document.getElementById('dynamic-page-size');
+              if (!pageSizeStyle) {
+                pageSizeStyle = win.document.createElement('style');
+                pageSizeStyle.id = 'dynamic-page-size';
+                win.document.head.appendChild(pageSizeStyle);
+              }
+              
+              if (contentHeight <= mediaCartaMaxHeight) {
+                // Usar media carta (half-letter)
+                pageSizeStyle.textContent = `
+                  @page {
+                    size: 5.5in 8.5in;
+                    margin: 10mm;
+                  }
+                  @media print {
+                    body {
+                      max-height: 216mm !important;
+                    }
+                  }
+                `;
+                console.log('[printWorkOrder] ✅ Configurado para MEDIA CARTA (5.5" x 8.5")');
+              } else {
+                // Usar carta completa
+                pageSizeStyle.textContent = `
+                  @page {
+                    size: letter;
+                    margin: 10mm;
+                  }
+                  @media print {
+                    body {
+                      max-height: 279mm !important;
+                    }
+                  }
+                `;
+                console.log('[printWorkOrder] ✅ Configurado para CARTA COMPLETA (8.5" x 11")');
+              }
+            };
+            
             // Función robusta para ajustar posición del total
             const adjustTotalPosition = () => {
               const table = win.document.querySelector('table.remission-table');
@@ -442,6 +596,9 @@ function printWorkOrder(){
                 console.log('[printWorkOrder] Total no encontrado aún, reintentando...');
                 return false;
               }
+              
+              // Detectar tamaño de página primero
+              detectAndSetPageSize();
               
               // Método más confiable: obtener posición y altura de la tabla
               // Usar múltiples métodos para asegurar precisión
@@ -462,8 +619,20 @@ function printWorkOrder(){
               // Calcular nueva posición: inicio de tabla + altura + espacio adicional
               const newTop = tableTop + tableHeight + 10; // 10px de espacio adicional para evitar solapamiento
               
-              // Asegurar que el total quepa en una página A4 (altura máxima ~1123px con márgenes)
-              const maxTop = 1100;
+              // Obtener altura total del contenido para determinar límite máximo
+              const body = win.document.body;
+              const html = win.document.documentElement;
+              const contentHeight = Math.max(
+                body.scrollHeight,
+                body.offsetHeight,
+                html.clientHeight,
+                html.scrollHeight,
+                html.offsetHeight
+              );
+              
+              // Ajustar límite máximo según tamaño de página detectado
+              const mediaCartaMaxHeight = 740; // px
+              const maxTop = contentHeight <= mediaCartaMaxHeight ? 700 : 1100; // Límite más bajo para media carta
               const finalTop = Math.min(newTop, maxTop);
               
               console.log('[printWorkOrder] Ajustando total:', {
@@ -474,6 +643,8 @@ function printWorkOrder(){
                 newTop,
                 finalTop,
                 maxTop,
+                contentHeight,
+                pageSize: contentHeight <= mediaCartaMaxHeight ? 'MEDIA CARTA' : 'CARTA COMPLETA',
                 offsetHeight: table.offsetHeight,
                 scrollHeight: table.scrollHeight,
                 clientHeight: table.clientHeight,
