@@ -2286,6 +2286,12 @@
           width: 20%;
           text-align: right;
         }
+        .remission-table .t-center {
+          text-align: center !important;
+        }
+        .remission-table .t-right {
+          text-align: right !important;
+        }
         /* Estilos para impresión/PDF */
         @media print {
           .remission-table {
@@ -2332,15 +2338,16 @@
           {{#each sale.items}}
           <tr>
             <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
-            <td>{{qty}}</td>
-            <td>{{money unitPrice}}</td>
-            <td>{{money total}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
           </tr>
-          {{else}}
+          {{/each}}
+          {{#unless sale.items}}
           <tr>
             <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
           </tr>
-          {{/each}}
+          {{/unless}}
         </tbody>
       </table>
     `;
@@ -2426,6 +2433,12 @@
           width: 20%;
           text-align: right;
         }
+        .quote-table .t-center {
+          text-align: center !important;
+        }
+        .quote-table .t-right {
+          text-align: right !important;
+        }
         /* Estilos para impresión/PDF */
         @media print {
           .quote-table {
@@ -2472,15 +2485,16 @@
           {{#each quote.items}}
           <tr>
             <td>{{#if sku}}[{{sku}}] {{/if}}{{description}}</td>
-            <td>{{qty}}</td>
-            <td>{{money unitPrice}}</td>
-            <td>{{money subtotal}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money subtotal}}</td>
           </tr>
-          {{else}}
+          {{/each}}
+          {{#unless quote.items}}
           <tr>
             <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
           </tr>
-          {{/each}}
+          {{/unless}}
         </tbody>
       </table>
     `;
@@ -2831,6 +2845,9 @@
           width: 30%;
           text-align: center;
         }
+        .workorder-table .t-center {
+          text-align: center !important;
+        }
         /* Estilos para impresión/PDF */
         @media print {
           .workorder-table {
@@ -2875,13 +2892,14 @@
           {{#each sale.items}}
           <tr>
             <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
-            <td>{{qty}}</td>
+            <td class="t-center">{{qty}}</td>
           </tr>
-          {{else}}
+          {{/each}}
+          {{#unless sale.items}}
           <tr>
             <td colspan="2" style="text-align: center; color: #666;">Sin ítems</td>
           </tr>
-          {{/each}}
+          {{/unless}}
         </tbody>
       </table>
     `;
@@ -3465,7 +3483,26 @@
     const hasElements = !!canvas.querySelector('.tpl-element');
     await optimizeCanvasImages(canvas);
     content = canvas.innerHTML;
+    
+    // Asegurar que las variables de Handlebars en las tablas se preserven correctamente
+    // Reemplazar cualquier escape HTML de las llaves de Handlebars
+    content = content.replace(/&#123;&#123;/g, '{{');
+    content = content.replace(/&#125;&#125;/g, '}}');
+    
     console.log('📄 Contenido del canvas:', content.substring(0, 100) + '...');
+    
+    // Verificar que las tablas tengan las variables correctas
+    if (content.includes('items-table') || content.includes('remission-table') || content.includes('quote-table') || content.includes('workorder-table')) {
+      const hasSaleItems = content.includes('{{#each sale.items}}');
+      const hasQuoteItems = content.includes('{{#each quote.items}}');
+      console.log('📊 Verificación de tablas:', {
+        hasSaleItems,
+        hasQuoteItems,
+        hasRemissionTable: content.includes('remission-table'),
+        hasQuoteTable: content.includes('quote-table'),
+        hasWorkOrderTable: content.includes('workorder-table')
+      });
+    }
     
     if ((!content || content.includes('Haz clic en los botones') || content.includes('Tu plantilla está vacía')) && !hasElements) {
       alert('❌ No se puede guardar una plantilla vacía.\n\nPor favor agrega contenido antes de guardar.');

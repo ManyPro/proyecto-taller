@@ -308,6 +308,23 @@ function renderHB(tpl, context) {
 // Sanitizador simple (server-side) para evitar <script> y atributos on*
 function sanitize(html=''){ if(!html) return ''; let out = String(html); out = out.replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi,''); out = out.replace(/ on[a-z]+="[^"]*"/gi,''); out = out.replace(/ on[a-z]+='[^']*'/gi,''); return out; }
 
+function normalizeTemplateHtml(html='') {
+  if (!html) return '';
+  let output = String(html);
+
+  const salePattern = /{{#if\s*\(hasItems\s+sale\.items\)}}\s*{{#each\s+sale\.items}}([\s\S]*?){{\/each}}\s*{{else}}([\s\S]*?){{\/if}}/g;
+  output = output.replace(salePattern, (match, itemsBlock, elseBlock) => {
+    return `{{#each sale.items}}${itemsBlock}{{else}}${elseBlock}{{/each}}`;
+  });
+
+  const quotePattern = /{{#if\s*\(hasItems\s+quote\.items\)}}\s*{{#each\s+quote\.items}}([\s\S]*?){{\/each}}\s*{{else}}([\s\S]*?){{\/if}}/g;
+  output = output.replace(quotePattern, (match, itemsBlock, elseBlock) => {
+    return `{{#each quote.items}}${itemsBlock}{{else}}${elseBlock}{{/each}}`;
+  });
+
+  return output;
+}
+
 export async function listTemplates(req, res) {
   const { type } = req.query || {};
   const q = { companyId: req.companyId };
@@ -325,7 +342,7 @@ export async function getTemplate(req, res) {
 export async function createTemplate(req, res) {
   let { type, contentHtml = '', contentCss = '', name = '', activate = false } = req.body || {};
   if (!type) return res.status(400).json({ error: 'type required' });
-  contentHtml = sanitize(contentHtml);
+  contentHtml = normalizeTemplateHtml(sanitize(contentHtml));
   const last = await Template.findOne({ companyId: req.companyId, type }).sort({ version: -1 });
   const version = last ? (last.version + 1) : 1;
   if (activate) {
@@ -340,7 +357,7 @@ export async function updateTemplate(req, res) {
   const { contentHtml, contentCss, name, activate } = req.body || {};
   const doc = await Template.findOne({ _id: id, companyId: req.companyId });
   if (!doc) return res.status(404).json({ error: 'not found' });
-  if (contentHtml !== undefined) doc.contentHtml = sanitize(contentHtml);
+  if (contentHtml !== undefined) doc.contentHtml = normalizeTemplateHtml(sanitize(contentHtml));
   if (contentCss !== undefined) doc.contentCss = contentCss;
   if (name !== undefined) doc.name = name;
   if (activate !== undefined && activate) {
@@ -372,7 +389,7 @@ export async function previewTemplate(req, res) {
   }
   
   const originalHtmlLength = contentHtml?.length || 0;
-  contentHtml = sanitize(contentHtml);
+  contentHtml = normalizeTemplateHtml(sanitize(contentHtml));
   const sanitizedHtmlLength = contentHtml?.length || 0;
   
   if (process.env.NODE_ENV !== 'production' && originalHtmlLength !== sanitizedHtmlLength) {
@@ -438,28 +455,7 @@ export async function previewTemplate(req, res) {
     });
   }
   
-  // Corregir sintaxis antigua de Handlebars automáticamente
-  let correctedHtml = contentHtml;
-  
-  // Corregir sintaxis para sale.items
-  const saleItemsPattern = /{{#if\s*\(hasItems\s+sale\.items\)}}\s*{{#each\s+sale\.items}}([\s\S]*?){{\/each}}\s*{{else}}([\s\S]*?){{\/if}}/g;
-  correctedHtml = correctedHtml.replace(saleItemsPattern, (match, itemsContent, elseContent) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[previewTemplate] Corrigiendo sintaxis antigua para sale.items');
-    }
-    return `{{#each sale.items}}${itemsContent}{{else}}${elseContent}{{/each}}`;
-  });
-  
-  // Corregir sintaxis para quote.items
-  const quoteItemsPattern = /{{#if\s*\(hasItems\s+quote\.items\)}}\s*{{#each\s+quote\.items}}([\s\S]*?){{\/each}}\s*{{else}}([\s\S]*?){{\/if}}/g;
-  correctedHtml = correctedHtml.replace(quoteItemsPattern, (match, itemsContent, elseContent) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[previewTemplate] Corrigiendo sintaxis antigua para quote.items');
-    }
-    return `{{#each quote.items}}${itemsContent}{{else}}${elseContent}{{/each}}`;
-  });
-  
-  const html = renderHB(correctedHtml, ctx);
+  const html = renderHB(contentHtml, ctx);
   
   // Log para ver qué se está devolviendo
   if (process.env.NODE_ENV !== 'production') {
@@ -473,7 +469,7 @@ export async function previewTemplate(req, res) {
       contextSaleFormattedNumber: ctx.sale?.formattedNumber,
       hasItemsResult: ctx.sale?.items ? (Array.isArray(ctx.sale.items) && ctx.sale.items.length > 0) : false,
       firstItem: ctx.sale?.items?.[0] || null,
-      syntaxWasCorrected: correctedHtml !== contentHtml
+      hasItemsHelperTest: Handlebars.helpers.hasItems ? Handlebars.helpers.hasItems(ctx.sale?.items) : 'n/a'
     });
     
     // Verificar si el HTML renderizado contiene los items
