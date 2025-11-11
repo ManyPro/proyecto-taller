@@ -417,8 +417,9 @@ export function initQuotes({ getCompanyEmail }) {
       const qtyRaw = r.querySelectorAll('input')[1].value;
       const qty = qtyRaw === '' || qtyRaw === null || qtyRaw === undefined ? null : Number(qtyRaw);
       const price=Number(r.querySelectorAll('input')[2].value||0);
-      // Solo filtrar si realmente está vacío (sin descripción Y sin precio)
-      if(!desc && !price) return;
+      // Solo filtrar si realmente está vacío (sin descripción Y sin precio Y sin cantidad)
+      // Si tiene descripción O precio O cantidad, incluir el item
+      if(!desc && !price && (!qty || qty === 0)) return;
       
       let refId = r.dataset.refId;
       if (refId && typeof refId === 'string' && refId.includes('[object Object]')) {
@@ -850,6 +851,10 @@ export function initQuotes({ getCompanyEmail }) {
         qty:r.qty === null || r.qty === undefined || r.qty === '' ? null : Number(r.qty),
         unitPrice:Number(r.price||0)
       };
+      // Asegurar que description no sea vacío si hay precio o cantidad
+      if(!base.description && (base.unitPrice > 0 || (base.qty && base.qty > 0))) {
+        base.description = 'Item sin descripción';
+      }
       if(r.source){ base.source=r.source; }
       // Asegurar que refId sea un string válido (no "[object Object]")
       if(r.refId && typeof r.refId === 'string' && !r.refId.includes('[object Object]')){
@@ -857,6 +862,9 @@ export function initQuotes({ getCompanyEmail }) {
       }
       if(r.sku){ base.sku=r.sku; }
       return base;
+    }).filter(item => {
+      // Filtrar solo items completamente vacíos (sin descripción, sin precio, sin cantidad)
+      return item.description || item.unitPrice > 0 || (item.qty && item.qty > 0);
     });
     return {
       customer:{ name:iClientName.value||'', phone:iClientPhone.value||'', email:iClientEmail.value||'' },
@@ -879,9 +887,26 @@ export function initQuotes({ getCompanyEmail }) {
   async function saveToBackend(){
     try{
       const creating = !currentQuoteId;
+      const payload = payloadFromUI();
+      
+      // Log para debugging
+      console.log('[saveToBackend] Payload a guardar:', {
+        itemsCount: payload.items?.length || 0,
+        items: payload.items,
+        customer: payload.customer,
+        vehicle: payload.vehicle
+      });
+      
       let doc;
-      if(creating){ doc = await API.quoteCreate(payloadFromUI()); }
-      else        { doc = await API.quotePatch(currentQuoteId, payloadFromUI()); }
+      if(creating){ doc = await API.quoteCreate(payload); }
+      else        { doc = await API.quotePatch(currentQuoteId, payload); }
+
+      // Log para verificar qué se guardó
+      console.log('[saveToBackend] Respuesta del backend:', {
+        docId: doc?._id,
+        itemsCount: doc?.items?.length || 0,
+        items: doc?.items
+      });
 
       if(doc?.number){
         iNumber.value = doc.number;
@@ -894,6 +919,7 @@ export function initQuotes({ getCompanyEmail }) {
 
       if(creating) resetQuoteForm();
     }catch(e){
+      console.error('[saveToBackend] Error:', e);
   alert(e?.message || 'Error guardando la cotización');
     }
   }
@@ -2016,6 +2042,13 @@ export function initQuotes({ getCompanyEmail }) {
   }
 
   function exportPDFFromDoc(d){
+    // Log para debugging
+    console.log('[exportPDFFromDoc] Documento recibido:', {
+      docId: d._id,
+      itemsCount: d.items?.length || 0,
+      items: d.items
+    });
+    
     exportPDFFromData({
       number:d.number,
       datetime:d.createdAt?new Date(d.createdAt).toLocaleString():todayIso(),
@@ -2023,26 +2056,38 @@ export function initQuotes({ getCompanyEmail }) {
       vehicle:d.vehicle||{},
       validity:d.validity||'',
       specialNotes:d.specialNotes||[],
+      discount: d.discount || null,
       items:(d.items||[]).map(it=>({
         ...it,
+        kind: it.kind || 'PRODUCTO',
+        description: it.description || '',
+        qty: it.qty || null,
+        unitPrice: it.unitPrice || 0,
         subtotal:(it.qty && it.qty>0 ? it.qty : 1) * (it.unitPrice || 0)
-      }))
+      })).filter(it => it.description || it.unitPrice > 0 || (it.qty && it.qty > 0))
     });
   }
 
   function openWAFromDoc(d){
-    const subP=(d.items||[]).filter(i=>i.kind!=='SERVICIO').reduce((a,i)=>a+((i.qty||1)*(i.unitPrice||0)),0);
-    const subS=(d.items||[]).filter(i=>i.kind==='SERVICIO').reduce((a,i)=>a+((i.qty||1)*(i.unitPrice||0)),0);
+    // Log para debugging
+    console.log('[openWAFromDoc] Documento recibido:', {
+      docId: d._id,
+      itemsCount: d.items?.length || 0,
+      items: d.items
+    });
+    
+    const subP=(d.items||[]).filter(i=>i.kind!=='SERVICIO' && i.kind!=='Servicio').reduce((a,i)=>a+((i.qty||1)*(i.unitPrice||0)),0);
+    const subS=(d.items||[]).filter(i=>i.kind==='SERVICIO' || i.kind==='Servicio').reduce((a,i)=>a+((i.qty||1)*(i.unitPrice||0)),0);
     const total=subP+subS;
 
     const prev = (()=>{
       const rows=(d.items||[]).map(it=>({
-        type:it.kind==='SERVICIO'?'SERVICIO':'PRODUCTO',
-        desc:it.description, qty:it.qty, price:it.unitPrice,
+        type:(it.kind==='SERVICIO' || it.kind==='Servicio')?'SERVICIO':'PRODUCTO',
+        desc:it.description || '', qty:it.qty, price:it.unitPrice || 0,
         source: it.source || undefined,
         refId: it.refId || undefined,
         comboParent: it.comboParent || undefined
-      }));
+      })).filter(row => row.desc || row.price > 0 || (row.qty && row.qty > 0));
       const bak={ n:iNumber.value, c:iClientName.value, b:iBrand.value, l:iLine.value, y:iYear.value, p:iPlate.value, cc:iCc.value, m:iMileage.value, v:iValidDays.value, sn:specialNotes };
       iNumber.value=d.number||iNumber.value;
       iClientName.value=d.customer?.name||'';
