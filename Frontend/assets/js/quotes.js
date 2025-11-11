@@ -997,115 +997,135 @@ export function initQuotes({ getCompanyEmail }) {
   function openQuoteModal(doc){
     const root = document.createElement('div');
     root.innerHTML = `
-      <div class="card">
-  <h3>Ver/Editar cotización</h3>
-        <div class="row">
-          <div class="field">
-            <label>N.º cotización</label>
-            <input id="m-number" disabled />
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-6 mb-6">
+        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Ver/Editar cotización</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">N.º cotización</label>
+            <input id="m-number" disabled class="w-full px-3 py-2 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm cursor-not-allowed" />
           </div>
-          <div class="field">
-            <label>Fecha y hora</label>
-            <input id="m-datetime" disabled />
+          <div>
+            <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Fecha y hora</label>
+            <input id="m-datetime" disabled class="w-full px-3 py-2 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm cursor-not-allowed" />
           </div>
         </div>
-        <label>Cliente</label>
-        <input id="m-client-name" placeholder="Nombre del cliente" />
-        <div class="row">
-          <input id="m-client-phone" placeholder="Teléfono (opcional)" />
-          <input id="m-client-email" placeholder="Correo (opcional)" />
+        <div class="mb-4">
+          <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Cliente</label>
+          <input id="m-client-name" placeholder="Nombre del cliente" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
-        <input id="m-client-id" placeholder="Identificación (opcional)" />
-        <label>Placa</label>
-        <input id="m-plate" placeholder="ABC123" />
-        <div style="position:relative;margin-top:8px;">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <input id="m-client-phone" placeholder="Teléfono (opcional)" class="px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input id="m-client-email" placeholder="Correo (opcional)" class="px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div class="mb-4">
+          <input id="m-client-id" placeholder="Identificación (opcional)" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div class="mb-4">
+          <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Placa</label>
+          <input id="m-plate" placeholder="ABC123" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
+        <div class="relative mb-4">
           <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1 font-medium">Vehículo (opcional)</label>
-          <input id="m-vehicle-search" placeholder="Buscar vehículo (marca, línea, cilindraje)..." class="w-full px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <div id="m-vehicle-dropdown" class="hidden absolute z-[1000] bg-slate-800 dark:bg-slate-800 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md max-h-[200px] overflow-y-auto mt-1 shadow-lg w-full"></div>
+          <input id="m-vehicle-search" placeholder="Buscar vehículo (marca, línea, cilindraje)..." class="w-full px-3 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <div id="m-vehicle-dropdown" class="hidden absolute z-[1000] bg-slate-800 dark:bg-slate-800 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg max-h-[200px] overflow-y-auto mt-1 shadow-lg w-full"></div>
           <input type="hidden" id="m-vehicle-id" />
           <div id="m-vehicle-selected" class="mt-1 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
         </div>
-        <div class="row">
-          <input id="m-brand" placeholder="Marca" readonly class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100" />
-          <input id="m-line" placeholder="Línea/Modelo" readonly class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100" />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <input id="m-brand" placeholder="Marca" readonly class="px-3 py-2 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm cursor-not-allowed" />
+          <input id="m-line" placeholder="Línea/Modelo" readonly class="px-3 py-2 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm cursor-not-allowed" />
         </div>
-        <div class="row">
-          <input id="m-year" placeholder="Año" />
-          <input id="m-cc" placeholder="Cilindraje" readonly class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100" />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <input id="m-year" placeholder="Año" class="px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input id="m-cc" placeholder="Cilindraje" readonly class="px-3 py-2 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm cursor-not-allowed" />
         </div>
-        <div id="m-year-warning" class="hidden text-xs text-red-500 dark:text-red-400 theme-light:text-red-600 mt-1"></div>
-        <div class="row">
-          <input id="m-mileage" placeholder="Kilometraje" type="number" min="0" step="1" />
+        <div id="m-year-warning" class="hidden text-xs text-red-500 dark:text-red-400 theme-light:text-red-600 mt-1 mb-4"></div>
+        <div class="mb-4">
+          <input id="m-mileage" placeholder="Kilometraje" type="number" min="0" step="1" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
-  <label>Validez (días, opcional)</label>
-        <input id="m-valid-days" type="number" min="0" step="1" placeholder="p. ej. 8" />
+        <div class="mb-4">
+          <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Validez (días, opcional)</label>
+          <input id="m-valid-days" type="number" min="0" step="1" placeholder="p. ej. 8" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        </div>
       </div>
 
-      <div class="card">
-  <h3>Ítems</h3>
-        <div id="m-rows" class="q-grid-2cols">
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-6">
+        <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Ítems</h3>
+        <div id="m-rows" class="q-grid-2cols mb-4">
           <div class="tr q-row-card hidden" id="m-row-template" data-template>
             <div>
               <label class="sr-only">Tipo</label>
-              <select>
+              <select class="w-full px-2 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">
                 <option value="PRODUCTO">Producto</option>
                 <option value="SERVICIO">Servicio</option>
               </select>
             </div>
             <div>
               <label class="sr-only">Descripción</label>
-              <input placeholder="Descripción" />
+              <input placeholder="Descripción" class="w-full px-2 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
             <div class="small">
               <label class="sr-only">Cant.</label>
-              <input type="number" min="0" step="1" placeholder="Cant." />
+              <input type="number" min="0" step="1" placeholder="Cant." class="w-full px-2 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
             <div class="small">
               <label class="sr-only">Precio</label>
-              <input type="number" min="0" step="0.01" placeholder="Precio" />
+              <input type="number" min="0" step="0.01" placeholder="Precio" class="w-full px-2 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500" />
             </div>
             <div class="small">
               <label class="sr-only">Subtotal</label>
-              <input disabled placeholder="$0" />
+              <input disabled placeholder="$0" class="w-full px-2 py-1.5 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs cursor-not-allowed" />
             </div>
             <div class="small">
               <button class="w-full px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300">Quitar</button>
             </div>
           </div>
         </div>
-        <div class="row">
-          <button id="m-add-unified" class="primary">➕ Agregar</button>
-          <button id="m-addRow" class="secondary">+ Agregar línea manual</button>
+        <div class="flex flex-wrap gap-3 mb-4">
+          <button id="m-add-unified" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">➕ Agregar</button>
+          <button id="m-addRow" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">+ Agregar línea manual</button>
         </div>
-        <div class="totals">
-          <div>Subtotal Productos: <strong id="m-subP">$0</strong></div>
-          <div>Subtotal Servicios: <strong id="m-subS">$0</strong></div>
-          <div id="m-discount-section" class="hidden">
-            <div>Descuento: <strong id="m-discount-amount">$0</strong></div>
+        <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-50 rounded-lg p-4 mb-4 space-y-2">
+          <div class="flex justify-between text-sm text-white dark:text-white theme-light:text-slate-900">
+            <span>Subtotal Productos:</span>
+            <strong id="m-subP">$0</strong>
           </div>
-          <div>Total: <strong id="m-total">$0</strong></div>
+          <div class="flex justify-between text-sm text-white dark:text-white theme-light:text-slate-900">
+            <span>Subtotal Servicios:</span>
+            <strong id="m-subS">$0</strong>
+          </div>
+          <div id="m-discount-section" class="hidden flex justify-between text-sm text-red-400 dark:text-red-400 theme-light:text-red-600">
+            <span>Descuento:</span>
+            <strong id="m-discount-amount">$0</strong>
+          </div>
+          <div class="flex justify-between text-base font-bold text-white dark:text-white theme-light:text-slate-900 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 pt-2 mt-2">
+            <span>Total:</span>
+            <strong id="m-total">$0</strong>
+          </div>
         </div>
         
         <!-- Botones de descuento -->
-        <div class="row mt-3 gap-2">
-          <button id="m-discount-percent" class="px-3 py-1.5 text-xs bg-green-600 dark:bg-green-600 theme-light:bg-green-500 hover:bg-green-700 dark:hover:bg-green-700 theme-light:hover:bg-green-600 text-white font-semibold rounded transition-all duration-200 border-none">Descuento %</button>
-          <button id="m-discount-fixed" class="px-3 py-1.5 text-xs bg-blue-600 dark:bg-blue-600 theme-light:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-700 theme-light:hover:bg-blue-600 text-white font-semibold rounded transition-all duration-200 border-none">Descuento $</button>
-          <button id="m-discount-clear" class="hidden px-3 py-1.5 text-xs bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white font-semibold rounded transition-all duration-200 border-none">Quitar descuento</button>
+        <div class="flex flex-wrap gap-2 mb-4">
+          <button id="m-discount-percent" class="px-3 py-1.5 text-xs bg-green-600 dark:bg-green-600 theme-light:bg-green-500 hover:bg-green-700 dark:hover:bg-green-700 theme-light:hover:bg-green-600 text-white font-semibold rounded-lg transition-all duration-200">Descuento %</button>
+          <button id="m-discount-fixed" class="px-3 py-1.5 text-xs bg-blue-600 dark:bg-blue-600 theme-light:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-700 theme-light:hover:bg-blue-600 text-white font-semibold rounded-lg transition-all duration-200">Descuento $</button>
+          <button id="m-discount-clear" class="hidden px-3 py-1.5 text-xs bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white font-semibold rounded-lg transition-all duration-200">Quitar descuento</button>
         </div>
-        <div class="row">
-          <button id="m-save">Guardar cambios</button>
-          <button id="m-wa" class="secondary">WhatsApp</button>
-          <button id="m-pdf" class="secondary">PDF</button>
-          <button id="m-close" class="secondary">Cerrar</button>
+        <div class="flex flex-wrap gap-3 mb-4">
+          <button id="m-save" class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar cambios</button>
+          <button id="m-wa" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">WhatsApp</button>
+          <button id="m-pdf" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">PDF</button>
+          <button id="m-close" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cerrar</button>
         </div>
-        <label>Vista previa WhatsApp</label>
-        <pre id="m-wa-prev" class="min-h-[160px] whitespace-pre-wrap"></pre>
+        <div class="mb-4">
+          <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Vista previa WhatsApp</label>
+          <pre id="m-wa-prev" class="w-full min-h-[160px] p-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs whitespace-pre-wrap font-mono overflow-auto"></pre>
+        </div>
         
         <!-- Sección de notas especiales -->
         <div id="m-special-notes-section" class="mt-4">
-          <label>Notas especiales</label>
-          <div id="m-special-notes-list"></div>
-          <button id="m-add-special-note" class="mt-2 px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">+ Agregar nota especial</button>
+          <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Notas especiales</label>
+          <div id="m-special-notes-list" class="mb-2"></div>
+          <button id="m-add-special-note" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">+ Agregar nota especial</button>
         </div>
       </div>
     `;

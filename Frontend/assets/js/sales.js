@@ -387,20 +387,27 @@ function fillCloseModal(){
 
   // ---- Desglose por maniobra (dinámico, sin tocar el HTML base) ----
   try {
-    const grid = document.querySelector('.grid-2');
+    const grid = document.querySelector('.grid');
     const wrap = document.createElement('div');
-    wrap.style.gridColumn = '1/3';
+    wrap.className = 'md:col-span-2';
     wrap.innerHTML = `
-      <label>Desglose de mano de obra</label>
-      <div class="card" style="padding:8px;">
-        <div class="row between" style="align-items:center;">
-          <strong>Participación técnica</strong>
-          <div class="row" style="gap:6px;align-items:center;">
-            <button id="cv-add-commission" type="button" class="small secondary">+ Línea</button>
-          </div>
+      <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Desglose de mano de obra</label>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4">
+        <div class="flex justify-between items-center mb-4">
+          <strong class="text-white dark:text-white theme-light:text-slate-900 text-base">Participación técnica</strong>
+          <button id="cv-add-commission" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">+ Línea</button>
         </div>
-        <table class="table small" style="width:100%;">
-          <thead><tr><th>Técnico</th><th>Tipo</th><th class="t-right">Valor MO</th><th class="t-right">% Tec</th><th class="t-right">Participación</th><th></th></tr></thead>
+        <table class="w-full text-xs border-collapse">
+          <thead>
+            <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
+              <th class="py-2 px-2 text-left text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">Técnico</th>
+              <th class="py-2 px-2 text-left text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">Tipo</th>
+              <th class="py-2 px-2 text-right text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">Valor MO</th>
+              <th class="py-2 px-2 text-right text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">% Tec</th>
+              <th class="py-2 px-2 text-right text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">Participación</th>
+              <th class="py-2 px-2 w-8"></th>
+            </tr>
+          </thead>
           <tbody id="cv-comm-body"></tbody>
         </table>
       </div>`;
@@ -437,13 +444,14 @@ function fillCloseModal(){
       console.log('laborKindsList procesado:', laborKindsList);
       
       const kindOpts = '<option value="">-- Seleccione tipo --</option>' + laborKindsList.map(k=> `<option value="${k}">${k}</option>`).join('');
+      tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 hover:bg-slate-800/30 dark:hover:bg-slate-800/30 theme-light:hover:bg-slate-50';
       tr.innerHTML = `
-        <td><select data-role="tech">${techOpts}</select></td>
-        <td><select data-role="kind">${kindOpts}</select></td>
-        <td class="t-right"><input data-role="lv" type="number" min="0" step="1" value="${Number(pref.laborValue||0)||0}" style="width:100px;"></td>
-        <td class="t-right"><input data-role="pc" type="number" min="0" max="100" step="1" value="${Number(pref.percent||0)||0}" style="width:80px;"></td>
-        <td class="t-right" data-role="share">$0</td>
-        <td class="t-center"><button type="button" class="small danger" data-role="del">×</button></td>`;
+        <td class="py-2 px-2"><select data-role="tech" class="w-full px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">${techOpts}</select></td>
+        <td class="py-2 px-2"><select data-role="kind" class="w-full px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">${kindOpts}</select></td>
+        <td class="py-2 px-2 text-right"><input data-role="lv" type="number" min="0" step="1" value="${Number(pref.laborValue||0)||0}" class="w-24 px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500"></td>
+        <td class="py-2 px-2 text-right"><input data-role="pc" type="number" min="0" max="100" step="1" value="${Number(pref.percent||0)||0}" class="w-20 px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500"></td>
+        <td class="py-2 px-2 text-right text-white dark:text-white theme-light:text-slate-900 font-medium" data-role="share">$0</td>
+        <td class="py-2 px-2 text-center"><button type="button" class="px-2 py-1 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 theme-light:bg-red-50 theme-light:hover:bg-red-100 text-red-400 dark:text-red-400 theme-light:text-red-600 rounded transition-colors duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300" data-role="del">×</button></td>`;
       tbody.appendChild(tr);
       const techSel2 = tr.querySelector('select[data-role=tech]');
       const kindSel2 = tr.querySelector('select[data-role=kind]');
@@ -524,14 +532,24 @@ function fillCloseModal(){
     const sum = payments.reduce((a,p)=> a + (Number(p.amount)||0), 0);
     const total = Number(current?.total||0);
     const diff = total - sum;
-    let html = `Suma: <strong>${money(sum)}</strong> / Total: ${money(total)}.`;
+    let html = `Suma: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(sum)}</strong> / Total: <span class="text-white dark:text-white theme-light:text-slate-900">${money(total)}</span>.`;
     if(Math.abs(diff) > 0.01){
-      html += diff>0 ? ` Falta ${money(diff)}.` : ` Excede por ${money(-diff)}.`;
-      summary.style.color = '#b03030';
-    }else{ summary.style.color=''; html += ' OK'; }
+      html += diff>0 ? ` <span class="text-red-400 dark:text-red-400 theme-light:text-red-600">Falta ${money(diff)}.</span>` : ` <span class="text-red-400 dark:text-red-400 theme-light:text-red-600">Excede por ${money(-diff)}.</span>`;
+      summary.className = 'mt-3 text-xs text-red-400 dark:text-red-400 theme-light:text-red-600';
+    }else{ 
+      summary.className = 'mt-3 text-xs text-green-400 dark:text-green-400 theme-light:text-green-600';
+      html += ' <span class="text-green-400 dark:text-green-400 theme-light:text-green-600">✓ OK</span>'; 
+    }
     summary.innerHTML = html;
     const confirmBtn = document.getElementById('cv-confirm');
-    if(confirmBtn){ confirmBtn.disabled = Math.abs(diff) > 0.01 || payments.length===0; }
+    if(confirmBtn){ 
+      confirmBtn.disabled = Math.abs(diff) > 0.01 || payments.length===0;
+      if(confirmBtn.disabled){
+        confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
+      } else {
+        confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    }
   }
   function bindRowEvents(tr, pay){
     const mSel = tr.querySelector('select[data-role=method]');
@@ -550,11 +568,12 @@ function fillCloseModal(){
     const pay = { method:'', amount:0, accountId:'', ...(p||{}) };
     payments.push(pay);
     const tr = document.createElement('tr');
+    tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 hover:bg-slate-800/30 dark:hover:bg-slate-800/30 theme-light:hover:bg-slate-50';
     tr.innerHTML = `
-      <td style="padding:2px 2px;"><select data-role="method" style="width:110px;">${methodOptionsHTML(pay.method)}</select></td>
-      <td style="padding:2px 2px;"><select data-role="account" style="width:140px;">${accountOptionsHTML(pay.accountId)}</select></td>
-      <td style="padding:2px 2px;"><input data-role="amount" type="number" min="0" step="1" value="${pay.amount||''}" style="width:90px;" /></td>
-      <td style="padding:2px 2px; text-align:center;"><button data-role="del" type="button" class="small danger">×</button></td>`;
+      <td class="py-2 px-2"><select data-role="method" class="w-full px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">${methodOptionsHTML(pay.method)}</select></td>
+      <td class="py-2 px-2"><select data-role="account" class="w-full px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">${accountOptionsHTML(pay.accountId)}</select></td>
+      <td class="py-2 px-2"><input data-role="amount" type="number" min="0" step="1" value="${pay.amount||''}" class="w-full px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500" /></td>
+      <td class="py-2 px-2 text-center"><button data-role="del" type="button" class="px-2 py-1 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 theme-light:bg-red-50 theme-light:hover:bg-red-100 text-red-400 dark:text-red-400 theme-light:text-red-600 rounded transition-colors duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300">×</button></td>`;
     pmBody.appendChild(tr);
     bindRowEvents(tr, pay);
   }
