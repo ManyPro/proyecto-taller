@@ -446,7 +446,9 @@ export function initQuotes({ getCompanyEmail }) {
   }
 
   function recalcAll(){
-    const rows=readRows(); let subP=0, subS=0;
+    const rows=readRows(); 
+    console.log('[recalcAll] Rows leídos:', rows.length, rows);
+    let subP=0, subS=0;
     rows.forEach(({type,qty,price})=>{
       const q=qty>0?qty:1; const st=q*(price||0);
       if((type||'PRODUCTO')==='PRODUCTO') subP+=st; else subS+=st;
@@ -463,20 +465,22 @@ export function initQuotes({ getCompanyEmail }) {
     
     const total = subtotal - discountValue;
     
-    lblSubtotalProducts.textContent=money(subP);
-    lblSubtotalServices.textContent=money(subS);
+    if (lblSubtotalProducts) lblSubtotalProducts.textContent=money(subP);
+    if (lblSubtotalServices) lblSubtotalServices.textContent=money(subS);
     
-    if (discountValue > 0) {
-      discountSection.style.display = 'block';
-      discountAmount.textContent = money(discountValue);
-      btnDiscountClear.style.display = 'inline-block';
-    } else {
-      discountSection.style.display = 'none';
-      btnDiscountClear.style.display = 'none';
+    if (discountSection) {
+      if (discountValue > 0) {
+        discountSection.style.display = 'block';
+        if (discountAmount) discountAmount.textContent = money(discountValue);
+        if (btnDiscountClear) btnDiscountClear.style.display = 'inline-block';
+      } else {
+        discountSection.style.display = 'none';
+        if (btnDiscountClear) btnDiscountClear.style.display = 'none';
+      }
     }
     
-    lblTotal.textContent=money(total);
-    previewWA.textContent=buildWhatsAppText(rows,subP,subS,total);
+    if (lblTotal) lblTotal.textContent=money(total);
+    if (previewWA) previewWA.textContent=buildWhatsAppText(rows,subP,subS,total);
     syncSummaryHeight();
   }
 
@@ -1440,12 +1444,22 @@ export function initQuotes({ getCompanyEmail }) {
       updateRowSubtotal(row); rowsBox.appendChild(row);
     }
     function readRows(){
-      const rows=[]; rowsBox.querySelectorAll('.tr:not([data-template])').forEach(r=>{
-        const type=r.querySelector('select').value;
-        const desc=r.querySelectorAll('input')[0].value;
-        const qty =Number(r.querySelectorAll('input')[1].value||0);
-        const price=Number(r.querySelectorAll('input')[2].value||0);
-        if(!desc && !price && !qty) return;
+      const rows=[]; 
+      if (!rowsBox) {
+        console.warn('[readRows modal] rowsBox no encontrado');
+        return rows;
+      }
+      rowsBox.querySelectorAll('.tr:not([data-template])').forEach(r=>{
+        const type=r.querySelector('select')?.value || 'PRODUCTO';
+        const descInput = r.querySelectorAll('input')[0];
+        const qtyInput = r.querySelectorAll('input')[1];
+        const priceInput = r.querySelectorAll('input')[2];
+        const desc = descInput ? descInput.value.trim() : '';
+        const qtyRaw = qtyInput ? qtyInput.value : '';
+        const qty = qtyRaw === '' || qtyRaw === null || qtyRaw === undefined ? null : Number(qtyRaw);
+        const price = priceInput ? Number(priceInput.value||0) : 0;
+        // Solo filtrar si realmente está vacío (sin descripción Y sin precio Y sin cantidad)
+        if(!desc && !price && (!qty || qty === 0)) return;
         rows.push({
           type,desc,qty,price,
           source:r.dataset.source||undefined,
@@ -1453,7 +1467,8 @@ export function initQuotes({ getCompanyEmail }) {
           sku:r.dataset.sku||undefined,
           comboParent:r.dataset.comboParent||undefined
         });
-      }); return rows;
+      }); 
+      return rows;
     }
     function updateRowSubtotal(r){
       const qty=Number(r.querySelectorAll('input')[1].value||0);
@@ -1571,7 +1586,9 @@ export function initQuotes({ getCompanyEmail }) {
       return lines.join('\n').replace(/\n{3,}/g,'\n\n');
     }
     function recalc(){
-      const rows=readRows(); let subP=0, subS=0;
+      const rows=readRows(); 
+      console.log('[recalc modal] Rows leídos:', rows.length, rows);
+      let subP=0, subS=0;
       rows.forEach(({type,qty,price})=>{
         const q=qty>0?qty:1; const st=q*(price||0);
         if((type||'PRODUCTO')==='PRODUCTO') subP+=st; else subS+=st;
@@ -1588,21 +1605,23 @@ export function initQuotes({ getCompanyEmail }) {
       
       const total = subtotal - discountValue;
       
-      lblP.textContent=money(subP);
-      lblS.textContent=money(subS);
+      if (lblP) lblP.textContent=money(subP);
+      if (lblS) lblS.textContent=money(subS);
       
       // Mostrar/ocultar sección de descuento
-      if (discountValue > 0) {
-        discountSection.style.display = 'block';
-        discountAmount.textContent = money(discountValue);
-        btnDiscountClear.style.display = 'inline-block';
-      } else {
-        discountSection.style.display = 'none';
-        btnDiscountClear.style.display = 'none';
+      if (discountSection) {
+        if (discountValue > 0) {
+          discountSection.style.display = 'block';
+          if (discountAmount) discountAmount.textContent = money(discountValue);
+          if (btnDiscountClear) btnDiscountClear.style.display = 'inline-block';
+        } else {
+          discountSection.style.display = 'none';
+          if (btnDiscountClear) btnDiscountClear.style.display = 'none';
+        }
       }
       
-      lblT.textContent=money(total);
-      prevWA.textContent = buildWAText();
+      if (lblT) lblT.textContent=money(total);
+      if (prevWA) prevWA.textContent = buildWAText();
     }
 
     // ---- cargar datos ----
@@ -1962,7 +1981,16 @@ export function initQuotes({ getCompanyEmail }) {
             amount: discountValue 
           } : null,
           items: rows.map(r=>{
-            const base={ kind:r.type, description:r.desc, qty:r.qty?Number(r.qty):null, unitPrice:Number(r.price||0) };
+            const base={ 
+              kind:r.type || 'PRODUCTO', 
+              description:r.desc || '', 
+              qty:r.qty === null || r.qty === undefined || r.qty === '' ? null : Number(r.qty),
+              unitPrice:Number(r.price||0) 
+            };
+            // Asegurar que description no sea vacío si hay precio o cantidad
+            if(!base.description && (base.unitPrice > 0 || (base.qty && base.qty > 0))) {
+              base.description = 'Item sin descripción';
+            }
             if(r.source) base.source=r.source;
             // Asegurar que refId sea un string válido (no "[object Object]")
             if(r.refId && typeof r.refId === 'string' && !r.refId.includes('[object Object]')){
@@ -1970,6 +1998,9 @@ export function initQuotes({ getCompanyEmail }) {
             }
             if(r.sku) base.sku=r.sku;
             return base;
+          }).filter(item => {
+            // Filtrar solo items completamente vacíos
+            return item.description || item.unitPrice > 0 || (item.qty && item.qty > 0);
           })
         };
         await API.quotePatch(doc._id, payload);
