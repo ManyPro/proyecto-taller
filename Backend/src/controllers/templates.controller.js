@@ -4,6 +4,7 @@ import Quote from '../models/Quote.js';
 import Company from '../models/Company.js';
 import Order from '../models/Order.js';
 import Item from '../models/Item.js';
+import PriceEntry from '../models/PriceEntry.js';
 import PayrollSettlement from '../models/PayrollSettlement.js';
 import PayrollPeriod from '../models/PayrollPeriod.js';
 import Handlebars from 'handlebars';
@@ -63,21 +64,152 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
         });
       }
       
-      // Asegurar que cada item tenga las propiedades necesarias
-      // NO filtrar items vacíos aquí, dejarlos pasar para que el template decida
+      // Procesar items y agrupar por tipo (productos, servicios, combos)
+      // Primero, identificar qué items son combos consultando PriceEntry
+      const priceEntryIds = saleObj.items
+        .filter(item => item.source === 'price' && item.refId)
+        .map(item => item.refId);
+      
+      const priceEntries = priceEntryIds.length > 0 
+        ? await PriceEntry.find({ _id: { $in: priceEntryIds }, companyId }).lean()
+        : [];
+      
+      const priceEntryMap = {};
+      priceEntries.forEach(pe => {
+        priceEntryMap[pe._id.toString()] = pe;
+      });
+      
+      // Procesar items y crear estructura jerárquica
+      const processedItems = [];
+      const products = [];
+      const services = [];
+      const combos = [];
+      
+      // Primero, identificar combos y sus productos anidados
+      let i = 0;
+      while (i < saleObj.items.length) {
+        const item = saleObj.items[i];
+        const itemObj = {
+          sku: item.sku || '',
+          name: item.name || '',
+          qty: Number(item.qty) || 0,
+          unitPrice: Number(item.unitPrice) || 0,
+          total: Number(item.total) || (Number(item.qty) || 0) * (Number(item.unitPrice) || 0),
+          source: item.source || '',
+          refId: item.refId || null,
+          isNested: false // Para items anidados de combos
+        };
+        
+        // Verificar si es un combo
+        if (item.source === 'price' && item.refId) {
+          const pe = priceEntryMap[item.refId.toString()];
+          if (pe && pe.type === 'combo') {
+            // Es un combo - buscar productos siguientes que pertenecen a este combo
+            // Los productos del combo generalmente vienen después y tienen precio 0
+            const comboItems = [];
+            let j = i + 1;
+            
+            // Buscar items siguientes hasta encontrar otro item con precio > 0 que sea price (otro combo o servicio)
+            while (j < saleObj.items.length) {
+              const nextItem = saleObj.items[j];
+              const nextPrice = Number(nextItem.unitPrice) || 0;
+              
+              // Si el siguiente item tiene precio 0, probablemente es del combo
+              if (nextPrice === 0) {
+                comboItems.push({
+                  sku: nextItem.sku || '',
+                  name: nextItem.name || '',
+                  qty: Number(nextItem.qty) || 0,
+                  unitPrice: Number(nextItem.unitPrice) || 0,
+                  total: Number(nextItem.total) || 0,
+                  source: nextItem.source || '',
+                  refId: nextItem.refId || null,
+                  isNested: true
+                });
+                j++;
+              } else if (nextItem.source === 'price' && nextPrice > 0) {
+                // Si tiene precio > 0 y es price, podría ser otro combo o servicio
+                const nextPe = nextItem.refId ? priceEntryMap[nextItem.refId.toString()] : null;
+                if (nextPe && nextPe.type === 'combo') {
+                  // Es otro combo, parar aquí
+                  break;
+                } else {
+                  // Es un servicio, parar aquí
+                  break;
+                }
+              } else if (nextItem.source === 'inventory' && nextPrice > 0) {
+                // Es un producto del inventario con precio > 0, no es del combo
+                break;
+              } else {
+                // Otro caso, parar por seguridad
+                break;
+              }
+            }
+            
+            combos.push({
+              name: itemObj.name,
+              qty: itemObj.qty,
+              unitPrice: itemObj.unitPrice,
+              total: itemObj.total,
+              sku: itemObj.sku,
+              items: comboItems // Productos anidados del combo
+            });
+            
+            i = j; // Saltar los items que ya procesamos
+            continue;
+          } else {
+            // Es un servicio (price pero no combo)
+            services.push(itemObj);
+          }
+        } else if (item.source === 'inventory') {
+          // Es un producto del inventario
+          // Verificar si no es parte de un combo (si tiene precio > 0, es producto independiente)
+          const itemPrice = Number(item.unitPrice) || 0;
+          if (itemPrice > 0) {
+            products.push(itemObj);
+          } else {
+            // Producto con precio 0 podría ser parte de un combo, pero si llegamos aquí
+            // significa que no había un combo antes, así que lo tratamos como producto
+            products.push(itemObj);
+          }
+        } else {
+          // Fallback: tratar como servicio
+          services.push(itemObj);
+        }
+        
+        i++;
+      }
+      
+      // Crear estructura agrupada para el template
+      saleObj.itemsGrouped = {
+        products: products,
+        services: services,
+        combos: combos,
+        hasProducts: products.length > 0,
+        hasServices: services.length > 0,
+        hasCombos: combos.length > 0
+      };
+      
+      // Mantener items originales para compatibilidad
       saleObj.items = saleObj.items.map(item => ({
         sku: item.sku || '',
         name: item.name || '',
         qty: Number(item.qty) || 0,
         unitPrice: Number(item.unitPrice) || 0,
-        total: Number(item.total) || (Number(item.qty) || 0) * (Number(item.unitPrice) || 0)
+        total: Number(item.total) || (Number(item.qty) || 0) * (Number(item.unitPrice) || 0),
+        source: item.source || '',
+        refId: item.refId || null
       }));
       
       // Log después de procesar items
       if (process.env.NODE_ENV !== 'production') {
-        console.log('[buildContext Sale] Items después de procesar:', {
-          itemsCount: saleObj.items.length,
-          items: saleObj.items.map(i => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice, total: i.total }))
+        console.log('[buildContext Sale] Items agrupados:', {
+          productsCount: products.length,
+          servicesCount: services.length,
+          combosCount: combos.length,
+          products: products.map(i => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice })),
+          services: services.map(i => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice })),
+          combos: combos.map(c => ({ name: c.name, itemsCount: c.items.length }))
         });
       }
       

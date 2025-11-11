@@ -177,6 +177,37 @@ function printSaleTicket(sale){
             win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}${debugScript}</head><body>${r.rendered}</body></html>`);
             win.document.close(); 
             
+            // Ajustar posición del total dinámicamente después de que se renderice la tabla
+            win.addEventListener('DOMContentLoaded', () => {
+              setTimeout(() => {
+                const table = win.document.querySelector('table.remission-table');
+                const totalLine = win.document.querySelector('.tpl-total-line');
+                const totalBox = win.document.querySelector('.tpl-total-box');
+                
+                if (table && (totalLine || totalBox)) {
+                  // Obtener posición absoluta de la tabla en el documento
+                  let tableTop = table.offsetTop;
+                  let parent = table.offsetParent;
+                  while (parent) {
+                    tableTop += parent.offsetTop;
+                    parent = parent.offsetParent;
+                  }
+                  
+                  const tableHeight = table.offsetHeight;
+                  const newTop = tableTop + tableHeight;
+                  
+                  if (totalLine) {
+                    totalLine.style.top = `${newTop}px`;
+                  }
+                  if (totalBox) {
+                    totalBox.style.top = `${newTop + 1}px`;
+                  }
+                  
+                  console.log('[printSaleTicket] Total ajustado a posición:', newTop, 'Altura de tabla:', tableHeight);
+                }
+              }, 200);
+            });
+            
             // NO cerrar automáticamente - dejar abierta para ver logs
             win.focus();
             
@@ -240,6 +271,40 @@ function printWorkOrder(){
             const css = r.css? `<style>${r.css}</style>`:'';
             win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}</head><body>${r.rendered}</body></html>`);
             win.document.close();
+            
+            // Ajustar posición del total dinámicamente después de que se renderice la tabla
+            win.addEventListener('DOMContentLoaded', () => {
+              setTimeout(() => {
+                const table = win.document.querySelector('table.remission-table');
+                const totalLine = win.document.querySelector('.tpl-total-line');
+                const totalBox = win.document.querySelector('.tpl-total-box');
+                
+                if (table && (totalLine || totalBox)) {
+                  const tableRect = table.getBoundingClientRect();
+                  const tableBottom = tableRect.bottom;
+                  
+                  // Obtener posición absoluta de la tabla en el documento
+                  let tableTop = table.offsetTop;
+                  let parent = table.offsetParent;
+                  while (parent) {
+                    tableTop += parent.offsetTop;
+                    parent = parent.offsetParent;
+                  }
+                  
+                  const tableHeight = table.offsetHeight || tableRect.height;
+                  const newTop = tableTop + tableHeight;
+                  
+                  if (totalLine) {
+                    totalLine.style.top = `${newTop}px`;
+                  }
+                  if (totalBox) {
+                    totalBox.style.top = `${newTop + 1}px`;
+                  }
+                  
+                  console.log('[printSaleTicket] Total ajustado a posición:', newTop, 'Altura de tabla:', tableHeight);
+                }
+              }, 100);
+            });
             
             // NO cerrar inmediatamente
             win.focus();
