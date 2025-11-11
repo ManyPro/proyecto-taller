@@ -309,7 +309,13 @@ function renderHB(tpl, context) {
     if (tableMatch) {
       console.log('[renderHB] Tablas encontradas en template:', tableMatch.length);
       tableMatch.forEach((match, idx) => {
-        console.log(`[renderHB] Tabla ${idx + 1} (primeros 200 chars):`, match.substring(0, 200));
+        console.log(`[renderHB] Tabla ${idx + 1} (COMPLETA):`, match);
+        console.log(`[renderHB] Tabla ${idx + 1} tiene {{#each sale.items}}:`, match.includes('{{#each sale.items}}'));
+        console.log(`[renderHB] Tabla ${idx + 1} tiene {{#each quote.items}}:`, match.includes('{{#each quote.items}}'));
+        console.log(`[renderHB] Tabla ${idx + 1} tiene {{#unless sale.items}}:`, match.includes('{{#unless sale.items}}'));
+        console.log(`[renderHB] Tabla ${idx + 1} tiene {{#unless quote.items}}:`, match.includes('{{#unless quote.items}}'));
+        // Verificar si tiene variables escapadas
+        console.log(`[renderHB] Tabla ${idx + 1} tiene variables escapadas (&#123;):`, match.includes('&#123;'));
       });
     }
     
@@ -328,7 +334,9 @@ function renderHB(tpl, context) {
     if (renderedTableMatch) {
       console.log('[renderHB] Tablas renderizadas encontradas:', renderedTableMatch.length);
       renderedTableMatch.forEach((match, idx) => {
-        console.log(`[renderHB] Tabla renderizada ${idx + 1} (primeros 300 chars):`, match.substring(0, 300));
+        console.log(`[renderHB] Tabla renderizada ${idx + 1} (COMPLETA):`, match);
+        const rowCount = (match.match(/<tr>/g) || []).length;
+        console.log(`[renderHB] Tabla renderizada ${idx + 1} tiene ${rowCount} filas <tr>`);
       });
     } else {
       console.warn('[renderHB] ⚠️ NO se encontraron tablas renderizadas en el HTML resultante!');
@@ -352,6 +360,13 @@ function normalizeTemplateHtml(html='') {
   if (!html) return '';
   let output = String(html);
 
+  // Primero, reemplazar cualquier escape HTML de las llaves de Handlebars
+  output = output.replace(/&#123;&#123;/g, '{{');
+  output = output.replace(/&#125;&#125;/g, '}}');
+  output = output.replace(/&amp;#123;&amp;#123;/g, '{{');
+  output = output.replace(/&amp;#125;&amp;#125;/g, '}}');
+  
+  // Luego, normalizar patrones antiguos
   const salePattern = /{{#if\s*\(hasItems\s+sale\.items\)}}\s*{{#each\s+sale\.items}}([\s\S]*?){{\/each}}\s*{{else}}([\s\S]*?){{\/if}}/g;
   output = output.replace(salePattern, (match, itemsBlock, elseBlock) => {
     return `{{#each sale.items}}${itemsBlock}{{else}}${elseBlock}{{/each}}`;
