@@ -256,6 +256,38 @@ function printSaleTicket(sale){
             
             win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}${debugScript}
               <style>
+                /* Estilos base para mejor uso del espacio */
+                body {
+                  margin: 0;
+                  padding: 10mm;
+                  font-family: Arial, sans-serif;
+                  font-size: 12px;
+                  line-height: 1.4;
+                  color: #000;
+                }
+                
+                /* Aumentar tamaño de fuente para mejor legibilidad en carta */
+                h1, h2, h3 {
+                  font-size: 1.5em !important;
+                  margin: 0.5em 0 !important;
+                }
+                
+                table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  font-size: 11px;
+                }
+                
+                table th, table td {
+                  padding: 8px 6px;
+                  border: 1px solid #000;
+                }
+                
+                table th {
+                  font-weight: bold;
+                  background: #f0f0f0;
+                }
+                
                 /* Detectar tamaño de página automáticamente */
                 @page {
                   size: auto;
@@ -268,7 +300,22 @@ function printSaleTicket(sale){
                     margin: 0 !important;
                     padding: 10mm !important;
                     overflow: hidden !important;
+                    font-size: 12px !important;
                   }
+                  
+                  /* Aumentar tamaño de fuente en impresión */
+                  h1, h2 {
+                    font-size: 2em !important;
+                  }
+                  
+                  table {
+                    font-size: 11px !important;
+                  }
+                  
+                  table th, table td {
+                    padding: 10px 8px !important;
+                  }
+                  
                   .tpl-total-line,
                   .tpl-total-box {
                     position: absolute !important;
@@ -283,6 +330,8 @@ function printSaleTicket(sale){
                     background: white !important;
                     -webkit-print-color-adjust: exact !important;
                     print-color-adjust: exact !important;
+                    font-size: 14px !important;
+                    font-weight: bold !important;
                   }
                   /* Asegurar que la tabla no se corte */
                   table.remission-table {
@@ -312,8 +361,9 @@ function printSaleTicket(sale){
               
               // Media carta: ~816px (21.6cm a 96 DPI) menos márgenes (~20mm = ~76px) = ~740px disponible
               // Carta completa: ~1054px (27.9cm a 96 DPI) menos márgenes = ~978px disponible
-              const mediaCartaMaxHeight = 740; // px
-              const cartaMaxHeight = 978; // px
+              // Ajustar umbrales para mejor detección
+              const mediaCartaMaxHeight = 800; // px (más tolerante)
+              const cartaMaxHeight = 1000; // px
               
               console.log('[printSaleTicket] Detectando tamaño de página:', {
                 contentHeight,
@@ -411,7 +461,7 @@ function printSaleTicket(sale){
               );
               
               // Ajustar límite máximo según tamaño de página detectado
-              const mediaCartaMaxHeight = 740; // px
+              const mediaCartaMaxHeight = 800; // px (más tolerante)
               const maxTop = contentHeight <= mediaCartaMaxHeight ? 700 : 1100; // Límite más bajo para media carta
               const finalTop = Math.min(newTop, maxTop);
               
@@ -482,26 +532,32 @@ function printSaleTicket(sale){
               adjustTotalPosition();
             });
             
-            // NO cerrar automáticamente - dejar abierta para ver logs
+            // Abrir diálogo de impresión automáticamente después de detectar tamaño y ajustar posición
             win.focus();
             
-            // Esperar un momento y luego preguntar si quiere imprimir
+            // Esperar a que se cargue y ajuste todo, luego abrir diálogo de impresión automáticamente
             setTimeout(() => {
-              // Ajustar una vez más antes de preguntar
+              // Ajustar posición del total
               adjustTotalPosition();
               
-              const shouldPrint = confirm('Ventana de impresión abierta.\n\n¿Deseas imprimir ahora?\n\n✅ Sí - Imprimir\n❌ No - Solo ver (puedes cerrar manualmente)');
-              if (shouldPrint) {
-                // Ajustar una última vez antes de imprimir
+              // Esperar un poco más para asegurar que todo esté renderizado
+              setTimeout(() => {
+                adjustTotalPosition();
+                detectAndSetPageSize();
+                
+                // Abrir diálogo de impresión automáticamente con el tamaño correcto
+                // La ventana permanecerá abierta para ver logs si el usuario cancela la impresión
                 setTimeout(() => {
                   adjustTotalPosition();
-                  // Usar requestAnimationFrame para asegurar que el ajuste se aplique antes de imprimir
                   requestAnimationFrame(() => {
                     adjustTotalPosition();
-                    setTimeout(() => win.print(), 50);
+                    // Abrir diálogo de impresión automáticamente
+                    win.print();
+                    // NO cerrar automáticamente - dejar abierta para ver logs
+                    // Cuando esté al 100%, cambiar a: setTimeout(() => { try { win.close(); } catch {} }, 100);
                   });
-                }, 200);
-              }
+                }, 300);
+              }, 500);
             }, 1000);
           })
           .catch((err)=>{
@@ -558,6 +614,38 @@ function printWorkOrder(){
             const css = r.css? `<style>${r.css}</style>`:'';
             win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}
               <style>
+                /* Estilos base para mejor uso del espacio */
+                body {
+                  margin: 0;
+                  padding: 10mm;
+                  font-family: Arial, sans-serif;
+                  font-size: 12px;
+                  line-height: 1.4;
+                  color: #000;
+                }
+                
+                /* Aumentar tamaño de fuente para mejor legibilidad en carta */
+                h1, h2, h3 {
+                  font-size: 1.5em !important;
+                  margin: 0.5em 0 !important;
+                }
+                
+                table {
+                  width: 100%;
+                  border-collapse: collapse;
+                  font-size: 11px;
+                }
+                
+                table th, table td {
+                  padding: 8px 6px;
+                  border: 1px solid #000;
+                }
+                
+                table th {
+                  font-weight: bold;
+                  background: #f0f0f0;
+                }
+                
                 /* Detectar tamaño de página automáticamente */
                 @page {
                   size: auto;
@@ -570,7 +658,22 @@ function printWorkOrder(){
                     margin: 0 !important;
                     padding: 10mm !important;
                     overflow: hidden !important;
+                    font-size: 12px !important;
                   }
+                  
+                  /* Aumentar tamaño de fuente en impresión */
+                  h1, h2 {
+                    font-size: 2em !important;
+                  }
+                  
+                  table {
+                    font-size: 11px !important;
+                  }
+                  
+                  table th, table td {
+                    padding: 10px 8px !important;
+                  }
+                  
                   .tpl-total-line,
                   .tpl-total-box {
                     position: absolute !important;
@@ -585,6 +688,8 @@ function printWorkOrder(){
                     background: white !important;
                     -webkit-print-color-adjust: exact !important;
                     print-color-adjust: exact !important;
+                    font-size: 14px !important;
+                    font-weight: bold !important;
                   }
                   /* Asegurar que la tabla no se corte */
                   table.remission-table {
@@ -614,8 +719,9 @@ function printWorkOrder(){
               
               // Media carta: ~816px (21.6cm a 96 DPI) menos márgenes (~20mm = ~76px) = ~740px disponible
               // Carta completa: ~1054px (27.9cm a 96 DPI) menos márgenes = ~978px disponible
-              const mediaCartaMaxHeight = 740; // px
-              const cartaMaxHeight = 978; // px
+              // Ajustar umbrales para mejor detección
+              const mediaCartaMaxHeight = 800; // px (más tolerante)
+              const cartaMaxHeight = 1000; // px
               
               console.log('[printWorkOrder] Detectando tamaño de página:', {
                 contentHeight,
@@ -713,7 +819,7 @@ function printWorkOrder(){
               );
               
               // Ajustar límite máximo según tamaño de página detectado
-              const mediaCartaMaxHeight = 740; // px
+              const mediaCartaMaxHeight = 800; // px (más tolerante)
               const maxTop = contentHeight <= mediaCartaMaxHeight ? 700 : 1100; // Límite más bajo para media carta
               const finalTop = Math.min(newTop, maxTop);
               
@@ -779,20 +885,33 @@ function printWorkOrder(){
               adjustTotalPosition();
             });
             
-            // NO cerrar inmediatamente
+            // Abrir diálogo de impresión automáticamente después de detectar tamaño y ajustar posición
             win.focus();
+            
+            // Esperar a que se cargue y ajuste todo, luego abrir diálogo de impresión automáticamente
             setTimeout(() => {
+              // Ajustar posición del total
               adjustTotalPosition();
-              if (confirm('¿Deseas imprimir ahora?\n\nSí - Imprimir\nNo - Solo ver')) {
+              
+              // Esperar un poco más para asegurar que todo esté renderizado
+              setTimeout(() => {
+                adjustTotalPosition();
+                detectAndSetPageSize();
+                
+                // Abrir diálogo de impresión automáticamente con el tamaño correcto
+                // La ventana permanecerá abierta para ver logs si el usuario cancela la impresión
                 setTimeout(() => {
                   adjustTotalPosition();
                   requestAnimationFrame(() => {
                     adjustTotalPosition();
-                    setTimeout(() => win.print(), 50);
+                    // Abrir diálogo de impresión automáticamente
+                    win.print();
+                    // NO cerrar automáticamente - dejar abierta para ver logs
+                    // Cuando esté al 100%, cambiar a: setTimeout(() => { try { win.close(); } catch {} }, 100);
                   });
-                }, 200);
-              }
-            }, 500);
+                }, 300);
+              }, 500);
+            }, 1000);
           })
           .catch(()=> fallback());
       })
