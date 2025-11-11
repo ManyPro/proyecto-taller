@@ -314,7 +314,7 @@
             <!-- Tabla de precios -->
             <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mt-4">
               <div class="overflow-x-auto custom-scrollbar">
-                <table class="w-full text-sm" id="pe-table">
+                <table class="w-full text-sm mobile-as-cards" id="pe-table">
                   <thead id="pe-head" class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100"></thead>
                   <tbody id="pe-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
                 </table>
@@ -398,11 +398,11 @@
   <!-- Templates -->
   <template id="tpl-price-edit-row">
     <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30">
-      <td class="py-3 px-4" data-vehicle></td>
-      <td class="py-3 px-4" data-name></td>
-      <td class="py-3 px-4 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600" data-item-info></td>
-      <td class="py-3 px-4 text-right"><input data-price type="number" step="0.01" class="w-24 px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" /></td>
-      <td class="py-3 px-4 text-center">
+      <td class="py-3 px-4" data-vehicle data-label="Tipo"></td>
+      <td class="py-3 px-4" data-name data-label="Nombre"></td>
+      <td class="py-3 px-4 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600" data-item-info data-label="Item vinculado / Productos"></td>
+      <td class="py-3 px-4 text-right" data-label="Precio"><input data-price type="number" step="0.01" class="w-24 px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" /></td>
+      <td class="py-3 px-4 text-center" data-label="Acciones">
         <div class="flex gap-2 justify-center">
           <button class="edit px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200">✏️ Editar</button>
           <button class="save px-3 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors duration-200">💾 Guardar</button>

@@ -447,7 +447,7 @@
           <!-- tabla venta -->
           <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
             <div class="overflow-x-auto">
-              <table class="w-full text-sm">
+              <table class="w-full text-sm mobile-as-cards">
                 <thead>
                   <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
                     <th class="text-left py-3 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">SKU</th>
@@ -798,14 +798,14 @@
       <!-- Fila de la venta -->
       <template id="tpl-sale-row">
         <tr>
-          <td data-sku class="py-3 px-3"></td>
-          <td data-name class="py-3 px-3"></td>
-          <td class="t-center py-3 px-3">
+          <td data-sku data-label="SKU" class="py-3 px-3"></td>
+          <td data-name data-label="Descripción" class="py-3 px-3"></td>
+          <td data-label="Cantidad" class="t-center py-3 px-3">
             <input type="number" class="qty" min="1" step="1" />
           </td>
-          <td class="t-right py-3 px-3" data-unit></td>
-          <td class="t-right py-3 px-3" data-total></td>
-          <td class="t-center py-3 px-3"><button class="remove">Quitar</button></td>
+          <td class="t-right py-3 px-3" data-unit data-label="Precio Unit."></td>
+          <td class="t-right py-3 px-3" data-total data-label="Total"></td>
+          <td class="t-center py-3 px-3" data-label="Acciones"><button class="remove">Quitar</button></td>
         </tr>
       </template>
 

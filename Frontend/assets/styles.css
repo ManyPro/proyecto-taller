@@ -1002,12 +1002,68 @@ h3.collapsed::after, h4.collapsed::after{ content:''; }
 img[loading="lazy"]{ filter:blur(0px); transition:filter .4s ease; }
 
 /* ===== Tabla -> Cards (mobile) ===== */
-@media (max-width:560px){
-  .mobile-as-cards .table{ border:0; }
-  .mobile-as-cards .table thead{ display:none; }
-  .mobile-as-cards .table tr{ display:block; background:var(--card-alt); border:1px solid var(--border); border-radius:12px; padding:10px 12px; margin-bottom:10px; }
-  .mobile-as-cards .table td{ display:flex; justify-content:space-between; border:0; padding:4px 0; font-size:13px; }
-  .mobile-as-cards .table td::before{ content:attr(data-label); font-weight:600; color:var(--muted); margin-right:12px; }
+@media (max-width:640px){
+  .mobile-as-cards{ border:0 !important; }
+  .mobile-as-cards thead{ display:none !important; }
+  .mobile-as-cards tr{ 
+    display:block !important; 
+    background:rgb(30 41 59 / 0.5) !important; 
+    border:1px solid rgb(51 65 85 / 0.5) !important; 
+    border-radius:12px !important; 
+    padding:12px !important; 
+    margin-bottom:12px !important; 
+  }
+  body.theme-light .mobile-as-cards tr{
+    background:rgb(248 250 252) !important;
+    border-color:rgb(203 213 225) !important;
+  }
+  .mobile-as-cards td{ 
+    display:flex !important; 
+    justify-content:space-between !important; 
+    align-items:center !important;
+    border:0 !important; 
+    padding:8px 0 !important; 
+    font-size:13px !important; 
+  }
+  .mobile-as-cards td::before{ 
+    content:attr(data-label) !important; 
+    font-weight:600 !important; 
+    color:rgb(148 163 184) !important; 
+    margin-right:12px !important; 
+    flex-shrink:0 !important;
+  }
+  body.theme-light .mobile-as-cards td::before{
+    color:rgb(100 116 139) !important;
+  }
+  /* Ocultar última columna de acciones si no tiene data-label */
+  .mobile-as-cards td:last-child:not([data-label]){ display:none !important; }
+  /* Para botones de acción, mostrarlos en una fila separada */
+  .mobile-as-cards td[data-label="Acciones"]{ 
+    flex-direction:column !important;
+    align-items:stretch !important;
+    gap:8px !important;
+    padding-top:12px !important;
+    border-top:1px solid rgb(51 65 85 / 0.3) !important;
+    margin-top:8px !important;
+  }
+  body.theme-light .mobile-as-cards td[data-label="Acciones"]{
+    border-top-color:rgb(203 213 225) !important;
+  }
+  .mobile-as-cards td[data-label="Acciones"]::before{ 
+    margin-bottom:4px !important;
+  }
+  .mobile-as-cards td[data-label="Acciones"] .flex{ 
+    flex-direction:column !important;
+    gap:6px !important;
+  }
+  .mobile-as-cards td[data-label="Acciones"] button{ 
+    width:100% !important;
+  }
+  /* Inputs dentro de celdas */
+  .mobile-as-cards td input{ 
+    flex:1 !important;
+    max-width:100% !important;
+  }
 }
 
 /* ===== Dense mode ===== */
