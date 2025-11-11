@@ -1,6 +1,80 @@
 ﻿import { API } from "./api.esm.js";
 import { normalizeText, matchesSearch } from "./search-utils.js";
 
+// Función para restaurar variables Handlebars acortadas antes de enviar al backend
+function restoreHandlebarsVarsForPreview(html) {
+  if (!html) return html;
+  
+  // Restaurar variables acortadas a su forma completa
+  const replacements = [
+    // Variables de cliente
+    { from: /\{\{C\.nombre\}\}/g, to: '{{sale.customer.name}}' },
+    { from: /\{\{C\.email\}\}/g, to: '{{sale.customer.email}}' },
+    { from: /\{\{C\.tel\}\}/g, to: '{{sale.customer.phone}}' },
+    { from: /\{\{C\.dir\}\}/g, to: '{{sale.customer.address}}' },
+    // Variables de venta
+    { from: /\{\{S\.nº\}\}/g, to: '{{sale.number}}' },
+    { from: /\{\{S\.total\}\}/g, to: '{{sale.total}}' },
+    { from: /\{\{\$ S\.total\}\}/g, to: '{{money sale.total}}' },
+    { from: /\{\{S\.fecha\}\}/g, to: '{{sale.date}}' },
+    { from: /\{\{date S\.fecha\}\}/g, to: '{{date sale.date}}' },
+    // Variables de empresa
+    { from: /\{\{E\.nombre\}\}/g, to: '{{company.name}}' },
+    { from: /\{\{E\.email\}\}/g, to: '{{company.email}}' },
+    { from: /\{\{E\.logo\}\}/g, to: '{{company.logoUrl}}' },
+    // Variables de agrupación
+    { from: /\{\{#if S\.P\}\}/g, to: '{{#if sale.itemsGrouped.hasProducts}}' },
+    { from: /\{\{#if S\.S\}\}/g, to: '{{#if sale.itemsGrouped.hasServices}}' },
+    { from: /\{\{#if S\.C\}\}/g, to: '{{#if sale.itemsGrouped.hasCombos}}' },
+    { from: /\{\{#each S\.P\}\}/g, to: '{{#each sale.itemsGrouped.products}}' },
+    { from: /\{\{#each S\.S\}\}/g, to: '{{#each sale.itemsGrouped.services}}' },
+    { from: /\{\{#each S\.C\}\}/g, to: '{{#each sale.itemsGrouped.combos}}' },
+    // Variables de items
+    { from: /\{\{nom\}\}/g, to: '{{name}}' },
+    { from: /\{\{cant\}\}/g, to: '{{qty}}' },
+    { from: /\{\{precio\}\}/g, to: '{{unitPrice}}' },
+    { from: /\{\{\$ precio\}\}/g, to: '{{money unitPrice}}' },
+    { from: /\{\{tot\}\}/g, to: '{{total}}' },
+    { from: /\{\{\$ tot\}\}/g, to: '{{money total}}' },
+    // Expresión completa del número de remisión
+    { from: /\{\{#if S\.nº\}\}\{\{S\.nº\}\}\{\{else\}\}\[Sin nº\]\{\{\/if\}\}/g, to: '{{#if sale.formattedNumber}}{{sale.formattedNumber}}{{else}}{{#if sale.number}}{{pad sale.number}}{{else}}[Sin número]{{/if}}{{/if}}' },
+    { from: /\{\{pad S\.nº\}\}/g, to: '{{pad sale.number}}' },
+    // Variables de vehículo
+    { from: /\{\{V\.placa\}\}/g, to: '{{sale.vehicle.plate}}' },
+    { from: /\{\{V\.marca\}\}/g, to: '{{sale.vehicle.brand}}' },
+    { from: /\{\{V\.modelo\}\}/g, to: '{{sale.vehicle.model}}' },
+    { from: /\{\{V\.año\}\}/g, to: '{{sale.vehicle.year}}' },
+    // Variables de cotización
+    { from: /\{\{\$ Q\.total\}\}/g, to: '{{money quote.total}}' },
+    { from: /\{\{Q\.total\}\}/g, to: '{{quote.total}}' },
+    { from: /\{\{Q\.nº\}\}/g, to: '{{quote.number}}' },
+    { from: /\{\{date Q\.fecha\}\}/g, to: '{{date quote.date}}' },
+    { from: /\{\{date Q\.válida\}\}/g, to: '{{date quote.validUntil}}' },
+    { from: /\{\{Q\.fecha\}\}/g, to: '{{quote.date}}' },
+    { from: /\{\{Q\.válida\}\}/g, to: '{{quote.validUntil}}' },
+    { from: /\{\{Q\.C\.nombre\}\}/g, to: '{{quote.customer.name}}' },
+    { from: /\{\{Q\.C\.email\}\}/g, to: '{{quote.customer.email}}' },
+    { from: /\{\{Q\.C\.tel\}\}/g, to: '{{quote.customer.phone}}' },
+    { from: /\{\{Q\.V\.placa\}\}/g, to: '{{quote.vehicle.plate}}' },
+    { from: /\{\{Q\.V\.marca\}\}/g, to: '{{quote.vehicle.brand}}' },
+    { from: /\{\{Q\.V\.modelo\}\}/g, to: '{{quote.vehicle.model}}' },
+    { from: /\{\{Q\.V\.año\}\}/g, to: '{{quote.vehicle.year}}' },
+    // Restaurar detalles de tabla
+    { from: /\{\{#if sku\}\}\[\{\{sku\}\}\] \{\{\/if\}\}\{\{nom\}\}/g, to: '{{#if sku}}[{{sku}}] {{/if}}{{name}}' },
+    // Variables de agrupación negativas
+    { from: /\{\{#unless S\.P\}\}/g, to: '{{#unless sale.itemsGrouped.hasProducts}}' },
+    { from: /\{\{#unless S\.S\}\}/g, to: '{{#unless sale.itemsGrouped.hasServices}}' },
+    { from: /\{\{#unless S\.C\}\}/g, to: '{{#unless sale.itemsGrouped.hasCombos}}' },
+  ];
+  
+  let result = html;
+  replacements.forEach(({ from, to }) => {
+    result = result.replace(from, to);
+  });
+  
+  return result;
+}
+
 export function initQuotes({ getCompanyEmail }) {
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -718,11 +792,15 @@ export function initQuotes({ getCompanyEmail }) {
         // Si hay una cotización guardada, usar su ID para obtener datos reales
         // Pero también pasar quoteData para que se use si los items de la BD están vacíos
         const sampleId = currentQuoteId || undefined;
+        
+        // Restaurar variables acortadas antes de enviar al preview
+        const restoredContentHtml = restoreHandlebarsVarsForPreview(contentHtml);
+        
         // Enviar a endpoint preview con datos de la UI
         // El backend decidirá si usar quoteData basándose en si los items del contexto están vacíos
         const pv = await API.templates.preview({ 
           type:'quote', 
-          contentHtml, 
+          contentHtml: restoredContentHtml, 
           contentCss, 
           sampleId,
           quoteData: quoteData // Siempre pasar quoteData para que se use si los items de la BD están vacíos

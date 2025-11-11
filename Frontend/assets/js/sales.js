@@ -10,6 +10,80 @@ const htmlEscape = (str) => {
   return div.innerHTML;
 };
 
+// Función para restaurar variables Handlebars acortadas antes de enviar al backend
+function restoreHandlebarsVarsForPreview(html) {
+  if (!html) return html;
+  
+  // Restaurar variables acortadas a su forma completa
+  const replacements = [
+    // Variables de cliente
+    { from: /\{\{C\.nombre\}\}/g, to: '{{sale.customer.name}}' },
+    { from: /\{\{C\.email\}\}/g, to: '{{sale.customer.email}}' },
+    { from: /\{\{C\.tel\}\}/g, to: '{{sale.customer.phone}}' },
+    { from: /\{\{C\.dir\}\}/g, to: '{{sale.customer.address}}' },
+    // Variables de venta
+    { from: /\{\{S\.nº\}\}/g, to: '{{sale.number}}' },
+    { from: /\{\{S\.total\}\}/g, to: '{{sale.total}}' },
+    { from: /\{\{\$ S\.total\}\}/g, to: '{{money sale.total}}' },
+    { from: /\{\{S\.fecha\}\}/g, to: '{{sale.date}}' },
+    { from: /\{\{date S\.fecha\}\}/g, to: '{{date sale.date}}' },
+    // Variables de empresa
+    { from: /\{\{E\.nombre\}\}/g, to: '{{company.name}}' },
+    { from: /\{\{E\.email\}\}/g, to: '{{company.email}}' },
+    { from: /\{\{E\.logo\}\}/g, to: '{{company.logoUrl}}' },
+    // Variables de agrupación
+    { from: /\{\{#if S\.P\}\}/g, to: '{{#if sale.itemsGrouped.hasProducts}}' },
+    { from: /\{\{#if S\.S\}\}/g, to: '{{#if sale.itemsGrouped.hasServices}}' },
+    { from: /\{\{#if S\.C\}\}/g, to: '{{#if sale.itemsGrouped.hasCombos}}' },
+    { from: /\{\{#each S\.P\}\}/g, to: '{{#each sale.itemsGrouped.products}}' },
+    { from: /\{\{#each S\.S\}\}/g, to: '{{#each sale.itemsGrouped.services}}' },
+    { from: /\{\{#each S\.C\}\}/g, to: '{{#each sale.itemsGrouped.combos}}' },
+    // Variables de items
+    { from: /\{\{nom\}\}/g, to: '{{name}}' },
+    { from: /\{\{cant\}\}/g, to: '{{qty}}' },
+    { from: /\{\{precio\}\}/g, to: '{{unitPrice}}' },
+    { from: /\{\{\$ precio\}\}/g, to: '{{money unitPrice}}' },
+    { from: /\{\{tot\}\}/g, to: '{{total}}' },
+    { from: /\{\{\$ tot\}\}/g, to: '{{money total}}' },
+    // Expresión completa del número de remisión
+    { from: /\{\{#if S\.nº\}\}\{\{S\.nº\}\}\{\{else\}\}\[Sin nº\]\{\{\/if\}\}/g, to: '{{#if sale.formattedNumber}}{{sale.formattedNumber}}{{else}}{{#if sale.number}}{{pad sale.number}}{{else}}[Sin número]{{/if}}{{/if}}' },
+    { from: /\{\{pad S\.nº\}\}/g, to: '{{pad sale.number}}' },
+    // Variables de vehículo
+    { from: /\{\{V\.placa\}\}/g, to: '{{sale.vehicle.plate}}' },
+    { from: /\{\{V\.marca\}\}/g, to: '{{sale.vehicle.brand}}' },
+    { from: /\{\{V\.modelo\}\}/g, to: '{{sale.vehicle.model}}' },
+    { from: /\{\{V\.año\}\}/g, to: '{{sale.vehicle.year}}' },
+    // Variables de cotización
+    { from: /\{\{\$ Q\.total\}\}/g, to: '{{money quote.total}}' },
+    { from: /\{\{Q\.total\}\}/g, to: '{{quote.total}}' },
+    { from: /\{\{Q\.nº\}\}/g, to: '{{quote.number}}' },
+    { from: /\{\{date Q\.fecha\}\}/g, to: '{{date quote.date}}' },
+    { from: /\{\{date Q\.válida\}\}/g, to: '{{date quote.validUntil}}' },
+    { from: /\{\{Q\.fecha\}\}/g, to: '{{quote.date}}' },
+    { from: /\{\{Q\.válida\}\}/g, to: '{{quote.validUntil}}' },
+    { from: /\{\{Q\.C\.nombre\}\}/g, to: '{{quote.customer.name}}' },
+    { from: /\{\{Q\.C\.email\}\}/g, to: '{{quote.customer.email}}' },
+    { from: /\{\{Q\.C\.tel\}\}/g, to: '{{quote.customer.phone}}' },
+    { from: /\{\{Q\.V\.placa\}\}/g, to: '{{quote.vehicle.plate}}' },
+    { from: /\{\{Q\.V\.marca\}\}/g, to: '{{quote.vehicle.brand}}' },
+    { from: /\{\{Q\.V\.modelo\}\}/g, to: '{{quote.vehicle.model}}' },
+    { from: /\{\{Q\.V\.año\}\}/g, to: '{{quote.vehicle.year}}' },
+    // Restaurar detalles de tabla
+    { from: /\{\{#if sku\}\}\[\{\{sku\}\}\] \{\{\/if\}\}\{\{nom\}\}/g, to: '{{#if sku}}[{{sku}}] {{/if}}{{name}}' },
+    // Variables de agrupación negativas
+    { from: /\{\{#unless S\.P\}\}/g, to: '{{#unless sale.itemsGrouped.hasProducts}}' },
+    { from: /\{\{#unless S\.S\}\}/g, to: '{{#unless sale.itemsGrouped.hasServices}}' },
+    { from: /\{\{#unless S\.C\}\}/g, to: '{{#unless sale.itemsGrouped.hasCombos}}' },
+  ];
+  
+  let result = html;
+  replacements.forEach(({ from, to }) => {
+    result = result.replace(from, to);
+  });
+  
+  return result;
+}
+
 function padSaleNumber(n){
   return String(n ?? '').toString().padStart(5,'0');
 }
@@ -78,15 +152,21 @@ function printSaleTicket(sale){
         }
         console.log('[printSaleTicket] Usando template guardado:', tpl.name || tpl._id);
         console.log('[printSaleTicket] HTML del template (primeros 500 chars):', tpl.contentHtml?.substring(0, 500));
+        
+        // Restaurar variables acortadas antes de enviar al preview
+        const restoredHtml = restoreHandlebarsVarsForPreview(tpl.contentHtml);
+        console.log('[printSaleTicket] Variables restauradas, HTML length:', restoredHtml?.length);
+        
         console.log('[printSaleTicket] Verificando variables en HTML:', {
-          hasSaleItems: tpl.contentHtml?.includes('{{#each sale.items}}') || tpl.contentHtml?.includes('{{#if (hasItems sale.items)}}'),
-          hasSaleNumber: tpl.contentHtml?.includes('{{sale.number}}') || tpl.contentHtml?.includes('{{pad sale.number}}') || tpl.contentHtml?.includes('{{sale.formattedNumber}}'),
-          hasSaleCustomer: tpl.contentHtml?.includes('{{sale.customer'),
-          hasSaleTotal: tpl.contentHtml?.includes('{{sale.total}}') || tpl.contentHtml?.includes('{{money sale.total}}')
+          hasSaleItems: restoredHtml?.includes('{{#each sale.items}}') || restoredHtml?.includes('{{#if sale.itemsGrouped.hasProducts}}'),
+          hasSaleNumber: restoredHtml?.includes('{{sale.number}}') || restoredHtml?.includes('{{pad sale.number}}') || restoredHtml?.includes('{{sale.formattedNumber}}'),
+          hasSaleCustomer: restoredHtml?.includes('{{sale.customer'),
+          hasSaleTotal: restoredHtml?.includes('{{sale.total}}') || restoredHtml?.includes('{{money sale.total}}'),
+          hasMoneyHelper: restoredHtml?.includes('{{money')
         });
         
         // Extraer y mostrar el contenido del tbody del template
-        const templateTbodyMatch = tpl.contentHtml?.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+        const templateTbodyMatch = restoredHtml?.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
         if (templateTbodyMatch) {
           console.log('[printSaleTicket] Tablas encontradas en template:', templateTbodyMatch.length);
           templateTbodyMatch.forEach((match, idx) => {
@@ -97,7 +177,7 @@ function printSaleTicket(sale){
         } else {
           console.warn('[printSaleTicket] ⚠️ NO se encontraron tablas <tbody> en el template guardado!');
         }
-        return API.templates.preview({ type:'invoice', contentHtml: tpl.contentHtml, contentCss: tpl.contentCss || '', sampleId: sale._id })
+        return API.templates.preview({ type:'invoice', contentHtml: restoredHtml, contentCss: tpl.contentCss || '', sampleId: sale._id })
           .then(r=>{
             console.log('[printSaleTicket] ===== PREVIEW RECIBIDO =====');
             console.log('[printSaleTicket] Has rendered:', !!r.rendered);
@@ -457,7 +537,9 @@ function printWorkOrder(){
     API.templates.active('workOrder')
       .then(tpl=>{
         if(!tpl || !tpl.contentHtml){ fallback(); return; }
-        return API.templates.preview({ type:'workOrder', contentHtml: tpl.contentHtml, contentCss: tpl.contentCss, sampleId: sale._id })
+        // Restaurar variables acortadas antes de enviar al preview
+        const restoredHtml = restoreHandlebarsVarsForPreview(tpl.contentHtml);
+        return API.templates.preview({ type:'workOrder', contentHtml: restoredHtml, contentCss: tpl.contentCss, sampleId: sale._id })
           .then(r=>{
             console.log('[printWorkOrder] ===== PREVIEW RECIBIDO =====');
             console.log('[printWorkOrder] Has rendered:', !!r.rendered);
