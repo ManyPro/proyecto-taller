@@ -257,7 +257,18 @@ function ensureHB() {
   Handlebars.registerHelper('lowercase', (v) => String(v || '').toLowerCase());
   // Helper para verificar si un array tiene elementos
   Handlebars.registerHelper('hasItems', (items) => {
-    return Array.isArray(items) && items.length > 0;
+    if (!items) return false;
+    if (!Array.isArray(items)) return false;
+    if (items.length === 0) return false;
+    // Verificar que al menos un item tenga datos válidos
+    const hasValidItems = items.some(item => {
+      return (item && (
+        (item.name || item.description || '') ||
+        (item.unitPrice && Number(item.unitPrice) > 0) ||
+        (item.qty && Number(item.qty) > 0)
+      ));
+    });
+    return hasValidItems;
   });
   hbInitialized = true;
 }
@@ -275,18 +286,30 @@ function renderHB(tpl, context) {
     const rendered = compiled(context || {});
     
     if (process.env.NODE_ENV !== 'production') {
+      // Verificar si hasItems está funcionando
+      const testHasItems = context?.sale?.items ? 
+        (Array.isArray(context.sale.items) && context.sale.items.length > 0) : false;
+      const hasItemsHelperTest = Handlebars.helpers.hasItems ? 
+        Handlebars.helpers.hasItems(context?.sale?.items) : 'helper not found';
+      
       console.log('[renderHB] Renderizado completado:', {
         templateLength: tpl.length,
         renderedLength: rendered.length,
         contextKeys: Object.keys(context || {}),
         hasSale: !!context?.sale,
-        saleItemsCount: context?.sale?.items?.length || 0
+        saleItemsCount: context?.sale?.items?.length || 0,
+        testHasItems,
+        hasItemsHelperTest,
+        firstItemName: context?.sale?.items?.[0]?.name || 'N/A',
+        templateHasHasItems: tpl.includes('hasItems'),
+        templateHasEach: tpl.includes('#each sale.items')
       });
     }
     
     return rendered;
   } catch (e) {
     console.error('[renderHB] Error renderizando:', e);
+    console.error('[renderHB] Stack:', e.stack);
     return `<!-- render error: ${e.message} -->`;
   }
 }
@@ -430,11 +453,22 @@ export async function previewTemplate(req, res) {
   if (process.env.NODE_ENV !== 'production') {
     console.log('[previewTemplate] Renderizado:', {
       renderedLength: html?.length || 0,
-      renderedPreview: html?.substring(0, 300) || '',
+      renderedPreview: html?.substring(0, 500) || '',
       cssLength: contentCss?.length || 0,
       contextHasSale: !!ctx.sale,
       contextSaleItemsCount: ctx.sale?.items?.length || 0,
-      contextSaleNumber: ctx.sale?.number
+      contextSaleNumber: ctx.sale?.number,
+      contextSaleFormattedNumber: ctx.sale?.formattedNumber,
+      hasItemsResult: ctx.sale?.items ? (Array.isArray(ctx.sale.items) && ctx.sale.items.length > 0) : false,
+      firstItem: ctx.sale?.items?.[0] || null
+    });
+    
+    // Verificar si el HTML renderizado contiene los items
+    const hasItemsInRendered = html?.includes('CAMBIO DE ACEITE') || html?.includes('FILTRO') || html?.includes('Sin ítems');
+    console.log('[previewTemplate] Verificación de renderizado:', {
+      hasItemsInRendered,
+      containsSinItems: html?.includes('Sin ítems'),
+      containsTableRows: (html?.match(/<tr>/g) || []).length
     });
   }
   
