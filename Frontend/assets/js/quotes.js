@@ -413,10 +413,12 @@ export function initQuotes({ getCompanyEmail }) {
   function readRows(){
     const rows=[]; rowsBox.querySelectorAll('.tr:not([data-template])').forEach(r=>{
       const type=r.querySelector('select').value;
-      const desc=r.querySelectorAll('input')[0].value;
-      const qty =Number(r.querySelectorAll('input')[1].value||0);
+      const desc=r.querySelectorAll('input')[0].value.trim();
+      const qtyRaw = r.querySelectorAll('input')[1].value;
+      const qty = qtyRaw === '' || qtyRaw === null || qtyRaw === undefined ? null : Number(qtyRaw);
       const price=Number(r.querySelectorAll('input')[2].value||0);
-      if(!desc && !price && !qty) return;
+      // Solo filtrar si realmente está vacío (sin descripción Y sin precio)
+      if(!desc && !price) return;
       
       let refId = r.dataset.refId;
       if (refId && typeof refId === 'string' && refId.includes('[object Object]')) {
@@ -624,25 +626,11 @@ export function initQuotes({ getCompanyEmail }) {
       if (tpl && tpl.contentHtml) {
         const contentHtml = tpl.contentHtml;
         const contentCss = tpl.contentCss || '';
-  // Construir doc de contexto básico desde UI para previsualizar (similar a buildContext server pero local)
-        const docContext = {
-          quote: {
-            number: iNumber.value,
-            date: iDatetime.value||todayIso(),
-            customerName: iClientName.value,
-            customerPhone: iClientPhone.value,
-            customerEmail: iClientEmail.value,
-            plate: iPlate.value,
-            items: readRows().map(r=>({ description:r.desc, qty:r.qty, unitPrice:r.price, total:(r.qty>0?r.qty:1)*(r.price||0), type:r.type })),
-            totals: {
-              subP: parseMoney(lblSubtotalProducts.textContent),
-              subS: parseMoney(lblSubtotalServices.textContent),
-              total: parseMoney(lblTotal.textContent)
-            }
-          }
-        };
+        // Si hay una cotización guardada, usar su ID para obtener datos reales
+        // Si no, el backend usará datos de ejemplo (última cotización)
+        const sampleId = currentQuoteId || undefined;
         // Enviar a endpoint preview para tener helpers (money/date) y sample context real (servidor complementa)
-        const pv = await API.templates.preview({ type:'quote', contentHtml, contentCss });
+        const pv = await API.templates.preview({ type:'quote', contentHtml, contentCss, sampleId });
         const w = window.open('', 'quoteTpl');
         if (w) {
           w.document.write(`<html><head><title>Cotización</title><style>${pv.css||contentCss}</style></head><body>${pv.rendered || contentHtml}</body></html>`);
@@ -820,8 +808,9 @@ export function initQuotes({ getCompanyEmail }) {
   function payloadFromUI(){
     const items=readRows().map(r=>{
       const base={
-        kind:r.type, description:r.desc,
-        qty:r.qty?Number(r.qty):null,
+        kind:r.type || 'PRODUCTO', 
+        description:r.desc || '',
+        qty:r.qty === null || r.qty === undefined || r.qty === '' ? null : Number(r.qty),
         unitPrice:Number(r.price||0)
       };
       if(r.source){ base.source=r.source; }

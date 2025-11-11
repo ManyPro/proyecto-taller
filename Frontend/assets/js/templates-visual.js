@@ -1703,8 +1703,8 @@
       <div style="margin-bottom: 20px;">
         <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">🔧 Lista de Trabajos/Servicios</h4>
         ${createFriendlyButtons([
-          { label: 'Lista de servicios (ventas)', icon: '📝', value: '{{#each sale.items}}• {{qty}}x {{description}} - {{money total}}\\n{{/each}}', multiline: true },
-          { label: 'Lista de servicios (cotizaciones)', icon: '💰', value: '{{#each quote.items}}• {{qty}}x {{description}} - {{money price}} c/u = {{money total}}\\n{{/each}}', multiline: true }
+          { label: 'Lista de servicios (ventas)', icon: '📝', value: '{{#each sale.items}}• {{qty}}x {{name}} - {{money total}}\\n{{/each}}', multiline: true },
+          { label: 'Lista de servicios (cotizaciones)', icon: '💰', value: '{{#each quote.items}}• {{qty}}x {{description}} - {{money unitPrice}} c/u = {{money subtotal}}\\n{{/each}}', multiline: true }
         ])}
         <button onclick="insertItemsTable()" style="width: 100%; padding: 8px; background: #6f42c1; color: white; border: none; border-radius: 4px; cursor: pointer; margin-top: 5px;">
           📊 Crear Tabla Completa de Trabajos
@@ -2087,15 +2087,15 @@
     divider.style.cssText = 'position: absolute; left: 50%; top: 180px; width: 1px; height: 120px; background: #000;';
     canvas.appendChild(divider);
 
-    // Sección DATOS DE LA EMPRESA (derecha)
+    // Sección DATOS DE LA EMPRESA (derecha) - más a la derecha
     const companyTitle = createEditableElement('text', 'DATOS DE LA EMPRESA', {
-      position: { left: 320, top: 180 },
+      position: { left: 450, top: 180 },
       styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
     });
     canvas.appendChild(companyTitle);
 
     const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n{{company.phone}}\n{{company.address}}', {
-      position: { left: 320, top: 210 },
+      position: { left: 450, top: 210 },
       styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
     });
     canvas.appendChild(companyData);
@@ -2149,14 +2149,14 @@
     paymentBox.className = 'tpl-element';
     paymentBox.id = `element_${visualEditor.nextId++}`;
     paymentBox.style.cssText = 'position: absolute; left: 40px; top: 700px; border: 2px solid #000; padding: 15px; width: 300px;';
-    paymentBox.innerHTML = '<div contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 10px;">INFORMACIÓN DE PAGO</div><div contenteditable="true" style="font-size: 12px; color: #000; font-family: Arial, sans-serif; white-space: pre-line; line-height: 1.6;">Transferencia bancaria\nBanco: {{company.bankName}}\nNombre: {{company.name}}\nNúmero de cuenta: {{company.accountNumber}}</div>';
+    paymentBox.innerHTML = '<div contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 10px;">INFORMACIÓN DE PAGO</div><div contenteditable="true" style="font-size: 12px; color: #000; font-family: Arial, sans-serif; white-space: pre-line; line-height: 1.6;">Transferencia bancaria\nBanco: [Editar banco]\nNombre: {{company.name}}\nNúmero de cuenta: [Editar número de cuenta]</div>';
     makeDraggable(paymentBox);
     makeSelectable(paymentBox);
     canvas.appendChild(paymentBox);
     visualEditor.elements.push({ id: paymentBox.id, type: 'text', element: paymentBox });
 
     // Footer con URL (centro abajo)
-    const footer = createEditableElement('text', '{{company.website}}', {
+    const footer = createEditableElement('text', '[Editar sitio web]', {
       position: { left: 40, top: 850 },
       styles: { fontSize: '12px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'center', width: '100%' }
     });
@@ -2306,6 +2306,147 @@
     return tableContainer;
   }
 
+  function createQuoteItemsTable(position) {
+    const tableContainer = document.createElement('div');
+    tableContainer.className = 'tpl-element items-table';
+    tableContainer.id = `element_${visualEditor.nextId++}`;
+    tableContainer.style.cssText = `
+      position: absolute;
+      left: ${position.left}px;
+      top: ${position.top}px;
+      border: 2px solid transparent;
+      cursor: move;
+      width: 700px;
+      background: white;
+      max-width: 100%;
+    `;
+
+    tableContainer.innerHTML = `
+      <style>
+        .quote-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-family: Arial, sans-serif;
+          table-layout: fixed;
+          margin: 0;
+        }
+        .quote-table thead {
+          display: table-header-group;
+        }
+        .quote-table tbody {
+          display: table-row-group;
+        }
+        .quote-table th {
+          border: 2px solid #000 !important;
+          padding: 12px 8px;
+          font-weight: bold;
+          color: #000;
+          font-size: 12px;
+          background: white;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+        }
+        .quote-table td {
+          border: 1px solid #000 !important;
+          padding: 10px 8px;
+          color: #000;
+          font-size: 12px;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          vertical-align: top;
+        }
+        .quote-table th:nth-child(1),
+        .quote-table td:nth-child(1) {
+          width: 45%;
+          text-align: left;
+        }
+        .quote-table th:nth-child(2),
+        .quote-table td:nth-child(2) {
+          width: 15%;
+          text-align: center;
+        }
+        .quote-table th:nth-child(3),
+        .quote-table td:nth-child(3) {
+          width: 20%;
+          text-align: center;
+        }
+        .quote-table th:nth-child(4),
+        .quote-table td:nth-child(4) {
+          width: 20%;
+          text-align: right;
+        }
+        /* Estilos para impresión/PDF */
+        @media print {
+          .quote-table {
+            page-break-inside: auto;
+            border-collapse: collapse !important;
+            width: 100% !important;
+          }
+          .quote-table thead {
+            display: table-header-group !important;
+          }
+          .quote-table tbody {
+            display: table-row-group !important;
+          }
+          .quote-table tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+          .quote-table th,
+          .quote-table td {
+            border: 1px solid #000 !important;
+            padding: 8px !important;
+            font-size: 11px !important;
+          }
+          .quote-table th {
+            border-width: 2px !important;
+            background: white !important;
+          }
+        }
+        /* Estilos para vista previa */
+        .quote-table {
+          border: 2px solid #000;
+        }
+      </style>
+      <table class="quote-table">
+        <thead>
+          <tr>
+            <th>Detalle</th>
+            <th>Cantidad</th>
+            <th>Precio</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each quote.items}}
+          <tr>
+            <td>{{#if sku}}[{{sku}}] {{/if}}{{description}}</td>
+            <td>{{qty}}</td>
+            <td>{{money unitPrice}}</td>
+            <td>{{money subtotal}}</td>
+          </tr>
+          {{/each}}
+          {{#unless quote.items}}
+          <tr>
+            <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
+          </tr>
+          {{/unless}}
+        </tbody>
+      </table>
+    `;
+
+    makeDraggable(tableContainer);
+    makeSelectable(tableContainer);
+
+    visualEditor.elements.push({
+      id: tableContainer.id,
+      type: 'items-table',
+      element: tableContainer
+    });
+
+    return tableContainer;
+  }
+
   function createQuoteTemplate(canvas) {
     console.log('🎨 Creando plantilla de cotización completa...');
     
@@ -2382,7 +2523,7 @@
     });
     canvas.appendChild(clientTitle);
 
-    const clientData = createEditableElement('text', '{{quote.customer.name}}\n{{quote.customer.email}}\n{{quote.customer.phone}}\n{{quote.customer.address}}', {
+    const clientData = createEditableElement('text', '{{quote.customer.name}}\n{{quote.customer.email}}\n{{quote.customer.phone}}', {
       position: { left: 40, top: 210 },
       styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
     });
@@ -2393,15 +2534,15 @@
     divider.style.cssText = 'position: absolute; left: 50%; top: 180px; width: 1px; height: 120px; background: #000;';
     canvas.appendChild(divider);
 
-    // Sección DATOS DE LA EMPRESA (derecha)
+    // Sección DATOS DE LA EMPRESA (derecha) - más a la derecha
     const companyTitle = createEditableElement('text', 'DATOS DE LA EMPRESA', {
-      position: { left: 320, top: 180 },
+      position: { left: 450, top: 180 },
       styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
     });
     canvas.appendChild(companyTitle);
 
     const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n{{company.phone}}\n{{company.address}}', {
-      position: { left: 320, top: 210 },
+      position: { left: 450, top: 210 },
       styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
     });
     canvas.appendChild(companyData);
@@ -2411,8 +2552,8 @@
     horizontalLine.style.cssText = 'position: absolute; left: 40px; right: 40px; top: 320px; height: 1px; background: #000;';
     canvas.appendChild(horizontalLine);
 
-    // Tabla de items mejorada con diseño similar a la imagen
-    const itemsTable = createRemissionItemsTable({ left: 40, top: 340 });
+    // Tabla de items mejorada con diseño similar a la imagen (usando variables de quote)
+    const itemsTable = createQuoteItemsTable({ left: 40, top: 340 });
     canvas.appendChild(itemsTable);
 
     // Línea horizontal antes de totales
@@ -2433,7 +2574,7 @@
     });
     canvas.appendChild(ivaPercent);
 
-    const ivaAmount = createEditableElement('text', '{{money quote.tax}}', {
+    const ivaAmount = createEditableElement('text', '$0', {
       position: { left: 500, top: 600 },
       styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'right' }
     });
@@ -2451,7 +2592,7 @@
     visualEditor.elements.push({ id: totalBox.id, type: 'text', element: totalBox });
 
     // Footer con URL (centro abajo) - SIN información de pago
-    const footer = createEditableElement('text', '{{company.website}}', {
+    const footer = createEditableElement('text', '[Editar sitio web]', {
       position: { left: 40, top: 700 },
       styles: { fontSize: '12px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'center', width: '100%' }
     });
@@ -2547,15 +2688,15 @@
     divider.style.cssText = 'position: absolute; left: 50%; top: 180px; width: 1px; height: 120px; background: #000;';
     canvas.appendChild(divider);
 
-    // Sección DATOS DE LA EMPRESA (derecha)
+    // Sección DATOS DE LA EMPRESA (derecha) - más a la derecha
     const companyTitle = createEditableElement('text', 'DATOS DE LA EMPRESA', {
-      position: { left: 320, top: 180 },
+      position: { left: 450, top: 180 },
       styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
     });
     canvas.appendChild(companyTitle);
 
     const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n{{company.phone}}\n{{company.address}}', {
-      position: { left: 320, top: 210 },
+      position: { left: 450, top: 210 },
       styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
     });
     canvas.appendChild(companyData);
@@ -2570,7 +2711,7 @@
     canvas.appendChild(itemsTable);
 
     // Footer con URL (centro abajo) - SIN IVA, SIN TOTAL, SIN información de pago
-    const footer = createEditableElement('text', '{{company.website}}', {
+    const footer = createEditableElement('text', '[Editar sitio web]', {
       position: { left: 40, top: 500 },
       styles: { fontSize: '12px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'center', width: '100%' }
     });
@@ -2769,7 +2910,7 @@
         </tr>
         <tr>
           <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">CÉDULA:</td>
-          <td style="border: 1px solid #000; padding: 6px;">{{settlement.technicianIdNumber}}</td>
+          <td style="border: 1px solid #000; padding: 6px;">[Editar cédula]</td>
         </tr>
         <tr>
           <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">PERIODO:</td>
@@ -2777,19 +2918,19 @@
         </tr>
         <tr>
           <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">SALARIO BÁSICO ($/MES):</td>
-          <td style="border: 1px solid #000; padding: 6px;">{{settlement.baseSalary}}</td>
+          <td style="border: 1px solid #000; padding: 6px;">[Editar salario básico]</td>
         </tr>
         <tr>
           <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">HORAS TRABAJO MES:</td>
-          <td style="border: 1px solid #000; padding: 6px;">{{settlement.workHoursPerMonth}}</td>
+          <td style="border: 1px solid #000; padding: 6px;">[Editar horas]</td>
         </tr>
         <tr>
           <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">SALARIO BÁSICO (DÍA):</td>
-          <td style="border: 1px solid #000; padding: 6px;">{{settlement.dailySalary}}</td>
+          <td style="border: 1px solid #000; padding: 6px;">[Editar salario diario]</td>
         </tr>
         <tr>
           <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">TIPO CONTRATO:</td>
-          <td style="border: 1px solid #000; padding: 6px;">{{settlement.contractType}}</td>
+          <td style="border: 1px solid #000; padding: 6px;">[Editar tipo de contrato]</td>
         </tr>
       </table>
     `;
@@ -2803,7 +2944,7 @@
     daysWorkedBox.className = 'tpl-element';
     daysWorkedBox.id = `element_${visualEditor.nextId++}`;
     daysWorkedBox.style.cssText = 'position: absolute; right: 40px; top: 120px; width: 200px; border: 2px solid #000; padding: 15px; background: white; text-align: center;';
-    daysWorkedBox.innerHTML = '<div style="font-weight: bold; font-size: 12px; margin-bottom: 8px;">DÍAS TRABAJADOS</div><div contenteditable="true" style="font-size: 24px; font-weight: bold;">{{settlement.workDays}}</div>';
+    daysWorkedBox.innerHTML = '<div style="font-weight: bold; font-size: 12px; margin-bottom: 8px;">DÍAS TRABAJADOS</div><div contenteditable="true" style="font-size: 24px; font-weight: bold;">[Editar días]</div>';
     makeDraggable(daysWorkedBox);
     makeSelectable(daysWorkedBox);
     canvas.appendChild(daysWorkedBox);
@@ -2876,7 +3017,7 @@
           <td style="padding: 4px 0; border-top: 1px solid #000; margin-top: 20px;">&nbsp;</td>
         </tr>
         <tr>
-          <td style="padding: 4px 0;"><strong>IDENTIFICACION:</strong> {{settlement.technicianIdNumber}}</td>
+          <td style="padding: 4px 0;"><strong>IDENTIFICACION:</strong> [Editar identificación]</td>
         </tr>
         <tr>
           <td style="padding: 4px 0;"><strong>FECHA:</strong> {{date now}}</td>
@@ -2962,9 +3103,9 @@
         <tbody>
           {{#each settlement.itemsByType.earnings}}
           <tr>
-            <td>{{code}} - {{name}}</td>
-            <td>{{days}}</td>
-            <td>{{money transport}}</td>
+            <td>{{name}}</td>
+            <td>-</td>
+            <td>-</td>
             <td>{{money value}}</td>
           </tr>
           {{/each}}
@@ -3059,8 +3200,8 @@
         <tbody>
           {{#each settlement.itemsByType.deductions}}
           <tr>
-            <td>{{code}} - {{name}}</td>
-            <td>{{percent}}%</td>
+            <td>{{name}}</td>
+            <td>-</td>
             <td>{{money value}}</td>
           </tr>
           {{/each}}
