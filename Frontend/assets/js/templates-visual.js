@@ -1373,7 +1373,9 @@
           }
 
           try {
+            console.log('[setupImageUpload] Iniciando carga de imagen...');
             const optimizedSrc = await optimizeImageDataUrl(rawDataUrl);
+            console.log('[setupImageUpload] Imagen optimizada, longitud data URL:', optimizedSrc.length);
             
             const imgContainer = document.createElement('div');
             imgContainer.className = 'image-container';
@@ -1386,6 +1388,8 @@
               parentBox.style.width.includes('100px') ||
               parentBox.style.width.includes('80px')
             );
+            
+            console.log('[setupImageUpload] Tipo de contenedor:', isLogoBox ? 'logoBox' : 'imagen independiente');
             
             // Ocultar editor de texto si existe
             const textEditor = parentBox?.querySelector('.logo-text-editable');
@@ -1404,11 +1408,25 @@
               img.alt = 'Logo';
               img.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;';
               
+              // Agregar evento para verificar carga
+              img.onload = () => {
+                console.log('[setupImageUpload] ✅ Imagen cargada correctamente en logo box');
+              };
+              img.onerror = (e) => {
+                console.error('[setupImageUpload] ❌ Error cargando imagen:', e);
+                alert('Error al cargar la imagen. Verifica que el archivo sea una imagen válida.');
+              };
+              
               // Agregar la imagen al contenedor ANTES de insertarlo en el DOM
               imgContainer.appendChild(img);
               
               // Reemplazar el placeholder con la imagen dentro del logo box
               newPlaceholder.replaceWith(imgContainer);
+              
+              console.log('[setupImageUpload] Logo box actualizado, imagen agregada:', {
+                hasImage: !!imgContainer.querySelector('img'),
+                imgSrc: img.src.substring(0, 50) + '...'
+              });
             } else {
               // Para otras imágenes: crear un elemento arrastrable independiente
               imgContainer.style.cssText = 'position: absolute; display: inline-block; padding:0; margin:0; line-height:0; cursor: move; border: 2px solid transparent;';
@@ -1438,6 +1456,15 @@
               img.draggable = false;
               img.alt = 'Imagen';
               img.style.cssText = 'max-width: 100%; height: auto; display: block;';
+              
+              // Agregar evento para verificar carga
+              img.onload = () => {
+                console.log('[setupImageUpload] ✅ Imagen cargada correctamente (independiente)');
+              };
+              img.onerror = (e) => {
+                console.error('[setupImageUpload] ❌ Error cargando imagen:', e);
+                alert('Error al cargar la imagen. Verifica que el archivo sea una imagen válida.');
+              };
               
               // Agregar la imagen al contenedor ANTES de insertarlo en el DOM
               imgContainer.appendChild(img);
@@ -1473,13 +1500,16 @@
               // Seleccionar el elemento recién creado
               selectElement(imgContainer);
               
-              console.log('[setupImageUpload] Imagen agregada:', {
+              console.log('[setupImageUpload] Imagen independiente agregada:', {
                 id: imgContainer.id,
                 className: imgContainer.className,
                 position: imgContainer.style.position,
                 left: imgContainer.style.left,
                 top: imgContainer.style.top,
-                hasImage: !!imgContainer.querySelector('img')
+                hasImage: !!imgContainer.querySelector('img'),
+                imgSrc: img.src.substring(0, 50) + '...',
+                parentElement: imgContainer.parentElement?.tagName,
+                isInCanvas: canvasElement?.contains(imgContainer)
               });
             }
             
@@ -2390,6 +2420,56 @@
         console.error('❌ ERROR: No se agregaron elementos al canvas!');
         showQuickNotification('❌ Error: No se pudieron crear los elementos', 'error');
       }
+      
+      // Aplicar acortamiento de variables al HTML del canvas después de crear la plantilla
+      console.log('[loadDefaultTemplate] Aplicando acortamiento de variables...');
+      const currentHtml = canvas.innerHTML;
+      const shortenedHtml = shortenHandlebarsVars(currentHtml);
+      
+      // Solo actualizar si hubo cambios
+      if (shortenedHtml !== currentHtml) {
+        console.log('[loadDefaultTemplate] Variables acortadas, actualizando canvas...');
+        canvas.innerHTML = shortenedHtml;
+        
+        // Re-inicializar elementos después de actualizar el HTML
+        const updatedElements = canvas.querySelectorAll('.tpl-element');
+        updatedElements.forEach((el) => {
+          if (!el.id) {
+            el.id = `element_${visualEditor.nextId++}`;
+          }
+          makeDraggable(el);
+          makeSelectable(el);
+        });
+        
+        // Restaurar contenedores de imagen
+        const imageContainers = canvas.querySelectorAll('.image-container');
+        imageContainers.forEach(imgContainer => {
+          if (!imgContainer.closest('.tpl-element')) {
+            imgContainer.classList.add('tpl-element');
+            if (!imgContainer.id) {
+              imgContainer.id = `element_${visualEditor.nextId++}`;
+            }
+            if (!imgContainer.style.position || imgContainer.style.position === 'relative') {
+              imgContainer.style.position = 'absolute';
+            }
+            makeDraggable(imgContainer);
+            makeSelectable(imgContainer);
+          }
+        });
+        
+        // Re-aplicar setupImageUpload a los logo boxes
+        const logoBoxes = canvas.querySelectorAll('.tpl-element');
+        logoBoxes.forEach(box => {
+          if (box.querySelector('.image-placeholder')) {
+            setupImageUpload(box);
+          }
+        });
+        
+        console.log('[loadDefaultTemplate] ✅ Variables acortadas y elementos re-inicializados');
+      }
+      
+      // Agregar leyenda de variables
+      addVariableLegend(canvas);
       
       // Ajustar altura del canvas según el contenido después de crear los elementos
       // Esto hace que el canvas solo ocupe el espacio necesario
