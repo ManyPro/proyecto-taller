@@ -77,6 +77,13 @@ function printSaleTicket(sale){
           return; 
         }
         console.log('[printSaleTicket] Usando template guardado:', tpl.name || tpl._id);
+        console.log('[printSaleTicket] HTML del template (primeros 500 chars):', tpl.contentHtml?.substring(0, 500));
+        console.log('[printSaleTicket] Verificando variables en HTML:', {
+          hasSaleItems: tpl.contentHtml?.includes('{{#each sale.items}}') || tpl.contentHtml?.includes('{{#if (hasItems sale.items)}}'),
+          hasSaleNumber: tpl.contentHtml?.includes('{{sale.number}}') || tpl.contentHtml?.includes('{{pad sale.number}}') || tpl.contentHtml?.includes('{{sale.formattedNumber}}'),
+          hasSaleCustomer: tpl.contentHtml?.includes('{{sale.customer'),
+          hasSaleTotal: tpl.contentHtml?.includes('{{sale.total}}') || tpl.contentHtml?.includes('{{money sale.total}}')
+        });
         return API.templates.preview({ type:'invoice', contentHtml: tpl.contentHtml, contentCss: tpl.contentCss || '', sampleId: sale._id })
           .then(r=>{
             console.log('[printSaleTicket] Preview recibido:', {

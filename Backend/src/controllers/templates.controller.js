@@ -234,9 +234,28 @@ function ensureHB() {
 function renderHB(tpl, context) {
   ensureHB();
   try {
+    if (!tpl || !tpl.trim()) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn('[renderHB] Template vacío o solo espacios');
+      }
+      return '';
+    }
     const compiled = Handlebars.compile(tpl || '');
-    return compiled(context || {});
+    const rendered = compiled(context || {});
+    
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[renderHB] Renderizado completado:', {
+        templateLength: tpl.length,
+        renderedLength: rendered.length,
+        contextKeys: Object.keys(context || {}),
+        hasSale: !!context?.sale,
+        saleItemsCount: context?.sale?.items?.length || 0
+      });
+    }
+    
+    return rendered;
   } catch (e) {
+    console.error('[renderHB] Error renderizando:', e);
     return `<!-- render error: ${e.message} -->`;
   }
 }
@@ -291,7 +310,33 @@ export async function previewTemplate(req, res) {
   const { type, sampleId, sampleType, quoteData } = req.body || {};
   let { contentHtml = '', contentCss = '' } = req.body || {};
   if (!type) return res.status(400).json({ error: 'type required' });
+  
+  // Log para ver qué HTML se está recibiendo
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[previewTemplate] Recibido ANTES de sanitize:', {
+      type,
+      sampleId,
+      sampleType,
+      contentHtmlLength: contentHtml?.length || 0,
+      contentCssLength: contentCss?.length || 0,
+      contentHtmlPreview: contentHtml?.substring(0, 500) || '',
+      hasQuoteData: !!quoteData,
+      hasSaleItemsVar: contentHtml?.includes('{{#each sale.items}}') || contentHtml?.includes('{{#if (hasItems sale.items)}}'),
+      hasSaleNumberVar: contentHtml?.includes('{{sale.number}}') || contentHtml?.includes('{{pad sale.number}}') || contentHtml?.includes('{{sale.formattedNumber}}')
+    });
+  }
+  
+  const originalHtmlLength = contentHtml?.length || 0;
   contentHtml = sanitize(contentHtml);
+  const sanitizedHtmlLength = contentHtml?.length || 0;
+  
+  if (process.env.NODE_ENV !== 'production' && originalHtmlLength !== sanitizedHtmlLength) {
+    console.warn('[previewTemplate] Sanitize cambió la longitud del HTML:', {
+      original: originalHtmlLength,
+      sanitized: sanitizedHtmlLength,
+      difference: originalHtmlLength - sanitizedHtmlLength
+    });
+  }
   const ctx = await buildContext({ companyId: req.companyId, type, sampleId, sampleType });
   
   // Si se proporcionan datos de cotización directamente (desde UI sin guardar), sobrescribir el contexto
@@ -349,6 +394,19 @@ export async function previewTemplate(req, res) {
   }
   
   const html = renderHB(contentHtml, ctx);
+  
+  // Log para ver qué se está devolviendo
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[previewTemplate] Renderizado:', {
+      renderedLength: html?.length || 0,
+      renderedPreview: html?.substring(0, 300) || '',
+      cssLength: contentCss?.length || 0,
+      contextHasSale: !!ctx.sale,
+      contextSaleItemsCount: ctx.sale?.items?.length || 0,
+      contextSaleNumber: ctx.sale?.number
+    });
+  }
+  
   res.json({ rendered: html, css: contentCss, context: ctx });
 }
 
