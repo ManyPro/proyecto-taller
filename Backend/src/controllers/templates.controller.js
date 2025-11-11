@@ -356,7 +356,24 @@ export async function previewTemplate(req, res) {
 export async function activeTemplate(req, res) {
   const { type } = req.params;
   const doc = await Template.findOne({ companyId: req.companyId, type, active: true }).sort({ updatedAt: -1 });
-  if (!doc) return res.json(null);
+  if (!doc) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[activeTemplate] No se encontró template activo:', { type, companyId: req.companyId });
+    }
+    return res.json(null);
+  }
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[activeTemplate] Template encontrado:', {
+      id: doc._id,
+      name: doc.name,
+      type: doc.type,
+      active: doc.active,
+      contentHtmlLength: doc.contentHtml?.length || 0,
+      contentCssLength: doc.contentCss?.length || 0,
+      hasContentHtml: !!(doc.contentHtml && doc.contentHtml.trim()),
+      hasContentCss: !!(doc.contentCss && doc.contentCss.trim())
+    });
+  }
   res.json(doc);
 }
 

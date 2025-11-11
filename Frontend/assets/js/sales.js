@@ -63,18 +63,43 @@ function printSaleTicket(sale){
   if(API?.templates?.active){
     API.templates.active('invoice')
       .then(tpl=>{
-        if(!tpl || !tpl.contentHtml){ fallback(); return; }
-        return API.templates.preview({ type:'invoice', contentHtml: tpl.contentHtml, contentCss: tpl.contentCss, sampleId: sale._id })
+        console.log('[printSaleTicket] Template activo recibido:', {
+          hasTemplate: !!tpl,
+          hasContentHtml: !!(tpl?.contentHtml),
+          contentHtmlLength: tpl?.contentHtml?.length || 0,
+          hasContentCss: !!(tpl?.contentCss),
+          templateId: tpl?._id,
+          templateName: tpl?.name
+        });
+        if(!tpl || !tpl.contentHtml){ 
+          console.warn('[printSaleTicket] No hay template activo o contentHtml está vacío, usando fallback');
+          fallback(); 
+          return; 
+        }
+        console.log('[printSaleTicket] Usando template guardado:', tpl.name || tpl._id);
+        return API.templates.preview({ type:'invoice', contentHtml: tpl.contentHtml, contentCss: tpl.contentCss || '', sampleId: sale._id })
           .then(r=>{
+            console.log('[printSaleTicket] Preview recibido:', {
+              hasRendered: !!r.rendered,
+              renderedLength: r.rendered?.length || 0,
+              hasCss: !!r.css,
+              context: r.context
+            });
             const win = window.open('', '_blank');
             if(!win){ fallback(); return; }
             const css = r.css ? `<style>${r.css}</style>`:'';
             win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}</head><body>${r.rendered}</body></html>`);
             win.document.close(); win.focus(); win.print(); try{ win.close(); }catch{}
           })
-          .catch(()=> fallback());
+          .catch((err)=>{
+            console.error('[printSaleTicket] Error en preview:', err);
+            fallback();
+          });
       })
-      .catch(()=> fallback());
+      .catch((err)=>{
+        console.error('[printSaleTicket] Error obteniendo template activo:', err);
+        fallback();
+      });
   } else fallback();
 }
 
