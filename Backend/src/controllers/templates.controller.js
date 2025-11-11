@@ -197,6 +197,10 @@ function ensureHB() {
   Handlebars.registerHelper('pad', (v, len = 5) => String(v ?? '').toString().padStart(len, '0'));
   Handlebars.registerHelper('uppercase', (v) => String(v || '').toUpperCase());
   Handlebars.registerHelper('lowercase', (v) => String(v || '').toLowerCase());
+  // Helper para verificar si un array tiene elementos
+  Handlebars.registerHelper('hasItems', (items) => {
+    return Array.isArray(items) && items.length > 0;
+  });
   hbInitialized = true;
 }
 

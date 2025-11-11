@@ -2058,12 +2058,12 @@
     });
     canvas.appendChild(title);
 
-    // Número de remisión en caja negra
+    // Número de remisión en caja negra - usando helper pad para formatear con ceros a la izquierda
     const numberBox = document.createElement('div');
     numberBox.className = 'tpl-element';
     numberBox.id = `element_${visualEditor.nextId++}`;
     numberBox.style.cssText = 'position: absolute; left: 40px; top: 100px; border: 2px solid #000; padding: 8px 16px; display: inline-block;';
-    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 18px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{sale.number}}</span>';
+    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 18px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{pad sale.number}}</span>';
     makeDraggable(numberBox);
     makeSelectable(numberBox);
     canvas.appendChild(numberBox);
@@ -2158,21 +2158,53 @@
     const itemsTable = createRemissionItemsTable({ left: 40, top: 340 });
     canvas.appendChild(itemsTable);
 
-    // Línea horizontal antes de totales
+    // Línea horizontal antes de totales - pegada directamente a la tabla
+    // La tabla empieza en top: 340px, header ~40px, cada fila ~35px
+    // Para que quede pegado, usamos una posición inicial que se ajustará dinámicamente
+    // Posición inicial: 340 (tabla) + 40 (header) + 35 (1 fila mínima) = 415px
     const totalLine = document.createElement('div');
-    totalLine.style.cssText = 'position: absolute; left: 40px; right: 40px; top: 580px; height: 1px; background: #000;';
+    totalLine.className = 'tpl-total-line';
+    totalLine.style.cssText = 'position: absolute; left: 40px; right: 40px; top: 415px; height: 1px; background: #000;';
+    totalLine.setAttribute('data-table-container-id', itemsTable.id);
     canvas.appendChild(totalLine);
 
-    // TOTAL en caja negra
+    // TOTAL en caja negra - pegado justo después de la línea (1px después)
     const totalBox = document.createElement('div');
-    totalBox.className = 'tpl-element';
+    totalBox.className = 'tpl-element tpl-total-box';
     totalBox.id = `element_${visualEditor.nextId++}`;
-    totalBox.style.cssText = 'position: absolute; left: 40px; top: 600px; border: 2px solid #000; padding: 12px 20px; display: inline-flex; align-items: center; gap: 200px;';
+    totalBox.style.cssText = 'position: absolute; left: 40px; top: 416px; border: 2px solid #000; padding: 12px 20px; display: inline-flex; align-items: center; gap: 200px;';
     totalBox.innerHTML = '<span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">TOTAL</span><span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">{{money sale.total}}</span>';
+    totalBox.setAttribute('data-table-container-id', itemsTable.id);
     makeDraggable(totalBox);
     makeSelectable(totalBox);
     canvas.appendChild(totalBox);
     visualEditor.elements.push({ id: totalBox.id, type: 'text', element: totalBox });
+    
+    // Función para ajustar posición del total después de que la tabla se renderice con datos reales
+    // Esto se ejecutará cuando se renderice el template con datos reales
+    const adjustTotalPosition = () => {
+      const table = itemsTable.querySelector('table.remission-table');
+      if (table) {
+        const tableTop = 340; // Posición inicial de la tabla
+        // Obtener altura real de la tabla
+        const tableHeight = table.offsetHeight || table.getBoundingClientRect().height || 75;
+        const newTop = tableTop + tableHeight;
+        totalLine.style.top = `${newTop}px`;
+        totalBox.style.top = `${newTop + 1}px`;
+      }
+    };
+    
+    // Ajustar posición cuando se cargue el template con datos
+    // Usar MutationObserver para detectar cambios en la tabla
+    const observer = new MutationObserver(() => {
+      adjustTotalPosition();
+    });
+    if (itemsTable) {
+      observer.observe(itemsTable, { childList: true, subtree: true });
+    }
+    // También ajustar después de un delay para asegurar que se ejecute
+    setTimeout(adjustTotalPosition, 500);
+    setTimeout(adjustTotalPosition, 1000);
 
     // Footer con URL (centro abajo)
     const footer = createEditableElement('text', '[Editar sitio web]', {
@@ -2296,19 +2328,20 @@
           </tr>
         </thead>
         <tbody>
-          {{#each sale.items}}
-          <tr>
-            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
-            <td>{{qty}}</td>
-            <td>{{money unitPrice}}</td>
-            <td>{{money total}}</td>
-          </tr>
-          {{/each}}
-          {{#unless sale.items}}
-          <tr>
-            <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
-          </tr>
-          {{/unless}}
+          {{#if (hasItems sale.items)}}
+            {{#each sale.items}}
+            <tr>
+              <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+              <td>{{qty}}</td>
+              <td>{{money unitPrice}}</td>
+              <td>{{money total}}</td>
+            </tr>
+            {{/each}}
+          {{else}}
+            <tr>
+              <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
+            </tr>
+          {{/if}}
         </tbody>
       </table>
     `;
@@ -2437,19 +2470,20 @@
           </tr>
         </thead>
         <tbody>
-          {{#each quote.items}}
-          <tr>
-            <td>{{#if sku}}[{{sku}}] {{/if}}{{description}}</td>
-            <td>{{qty}}</td>
-            <td>{{money unitPrice}}</td>
-            <td>{{money subtotal}}</td>
-          </tr>
-          {{/each}}
-          {{#unless quote.items}}
-          <tr>
-            <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
-          </tr>
-          {{/unless}}
+          {{#if (hasItems quote.items)}}
+            {{#each quote.items}}
+            <tr>
+              <td>{{#if sku}}[{{sku}}] {{/if}}{{description}}</td>
+              <td>{{qty}}</td>
+              <td>{{money unitPrice}}</td>
+              <td>{{money subtotal}}</td>
+            </tr>
+            {{/each}}
+          {{else}}
+            <tr>
+              <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
+            </tr>
+          {{/if}}
         </tbody>
       </table>
     `;
@@ -2841,17 +2875,18 @@
           </tr>
         </thead>
         <tbody>
-          {{#each sale.items}}
-          <tr>
-            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
-            <td>{{qty}}</td>
-          </tr>
-          {{/each}}
-          {{#unless sale.items}}
-          <tr>
-            <td colspan="2" style="text-align: center; color: #666;">Sin ítems</td>
-          </tr>
-          {{/unless}}
+          {{#if (hasItems sale.items)}}
+            {{#each sale.items}}
+            <tr>
+              <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+              <td>{{qty}}</td>
+            </tr>
+            {{/each}}
+          {{else}}
+            <tr>
+              <td colspan="2" style="text-align: center; color: #666;">Sin ítems</td>
+            </tr>
+          {{/if}}
         </tbody>
       </table>
     `;

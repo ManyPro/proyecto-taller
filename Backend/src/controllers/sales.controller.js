@@ -149,7 +149,9 @@ async function getNextSaleNumber(companyId) {
 // ===== CRUD base =====
 export const startSale = async (req, res) => {
   // Usa 'draft' para respetar el enum del modelo
-  const sale = await Sale.create({ companyId: req.companyId, status: 'draft', items: [] });
+  // Asignar número de remisión al crear la venta (no al cerrarla)
+  const saleNumber = await getNextSaleNumber(req.companyId);
+  const sale = await Sale.create({ companyId: req.companyId, status: 'draft', items: [], number: saleNumber });
   try{ publish(req.companyId, 'sale:started', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
@@ -747,7 +749,12 @@ export const closeSale = async (req, res) => {
       computeTotals(sale);
       sale.status = 'closed';
       sale.closedAt = new Date();
-      if (!Number.isFinite(Number(sale.number))) sale.number = await getNextSaleNumber(req.companyId);
+      // El número de remisión ya se asignó al crear la venta, no se asigna aquí
+      // Solo verificamos que tenga número (debería tenerlo desde la creación)
+      if (!Number.isFinite(Number(sale.number))) {
+        // Si por alguna razón no tiene número (venta antigua), asignarlo ahora
+        sale.number = await getNextSaleNumber(req.companyId);
+      }
 
       // SÃ³lo asignar paymentMethod legacy si no se estableciÃ³ vÃ­a array
       if (!sale.paymentMethods?.length && pm) sale.paymentMethod = pm.toUpperCase();
