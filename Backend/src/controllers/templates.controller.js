@@ -183,11 +183,41 @@ export async function updateTemplate(req, res) {
 }
 
 export async function previewTemplate(req, res) {
-  const { type, sampleId, sampleType } = req.body || {};
+  const { type, sampleId, sampleType, quoteData } = req.body || {};
   let { contentHtml = '', contentCss = '' } = req.body || {};
   if (!type) return res.status(400).json({ error: 'type required' });
   contentHtml = sanitize(contentHtml);
   const ctx = await buildContext({ companyId: req.companyId, type, sampleId, sampleType });
+  
+  // Si se proporcionan datos de cotización directamente (desde UI sin guardar), sobrescribir el contexto
+  if (quoteData && type === 'quote') {
+    ctx.quote = {
+      number: quoteData.number || '',
+      createdAt: quoteData.date || new Date(),
+      customer: {
+        name: quoteData.customer?.name || '',
+        phone: quoteData.customer?.phone || '',
+        email: quoteData.customer?.email || ''
+      },
+      vehicle: {
+        plate: quoteData.vehicle?.plate || '',
+        make: quoteData.vehicle?.make || '',
+        line: quoteData.vehicle?.line || '',
+        modelYear: quoteData.vehicle?.modelYear || '',
+        displacement: quoteData.vehicle?.displacement || ''
+      },
+      validity: quoteData.validity || '',
+      items: (quoteData.items || []).map(item => ({
+        description: item.description || '',
+        qty: item.qty || null,
+        unitPrice: item.unitPrice || 0,
+        subtotal: item.subtotal || (item.qty > 0 ? item.qty : 1) * (item.unitPrice || 0),
+        sku: item.sku || ''
+      })),
+      total: quoteData.totals?.total || 0
+    };
+  }
+  
   const html = renderHB(contentHtml, ctx);
   res.json({ rendered: html, css: contentCss, context: ctx });
 }

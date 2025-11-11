@@ -626,11 +626,47 @@ export function initQuotes({ getCompanyEmail }) {
       if (tpl && tpl.contentHtml) {
         const contentHtml = tpl.contentHtml;
         const contentCss = tpl.contentCss || '';
+        
+        // Preparar datos de la cotización desde la UI
+        const quoteData = {
+          number: iNumber.value || '',
+          date: iDatetime.value || todayIso(),
+          customer: {
+            name: iClientName.value || '',
+            phone: iClientPhone.value || '',
+            email: iClientEmail.value || ''
+          },
+          vehicle: {
+            plate: iPlate.value || '',
+            make: iBrand.value || '',
+            line: iLine.value || '',
+            modelYear: iYear.value || '',
+            displacement: iCc.value || ''
+          },
+          validity: iValidDays.value || '',
+          items: readRows().map(r => ({
+            description: r.desc || '',
+            qty: r.qty === null || r.qty === undefined || r.qty === '' ? null : Number(r.qty),
+            unitPrice: Number(r.price || 0),
+            subtotal: (r.qty > 0 ? r.qty : 1) * (r.price || 0),
+            sku: r.sku || ''
+          })),
+          totals: {
+            total: parseMoney(lblTotal.textContent) || 0
+          }
+        };
+        
         // Si hay una cotización guardada, usar su ID para obtener datos reales
-        // Si no, el backend usará datos de ejemplo (última cotización)
+        // Si no, pasar los datos de la UI directamente
         const sampleId = currentQuoteId || undefined;
-        // Enviar a endpoint preview para tener helpers (money/date) y sample context real (servidor complementa)
-        const pv = await API.templates.preview({ type:'quote', contentHtml, contentCss, sampleId });
+        // Enviar a endpoint preview con datos de la UI para que use los datos actuales
+        const pv = await API.templates.preview({ 
+          type:'quote', 
+          contentHtml, 
+          contentCss, 
+          sampleId,
+          quoteData: sampleId ? undefined : quoteData // Solo pasar quoteData si no hay sampleId
+        });
         const w = window.open('', 'quoteTpl');
         if (w) {
           w.document.write(`<html><head><title>Cotización</title><style>${pv.css||contentCss}</style></head><body>${pv.rendered || contentHtml}</body></html>`);
