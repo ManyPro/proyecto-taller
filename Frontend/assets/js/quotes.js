@@ -415,15 +415,33 @@ export function initQuotes({ getCompanyEmail }) {
     return n;
   }
   function readRows(){
-    const rows=[]; rowsBox.querySelectorAll('.tr:not([data-template])').forEach(r=>{
-      const type=r.querySelector('select').value;
-      const desc=r.querySelectorAll('input')[0].value.trim();
-      const qtyRaw = r.querySelectorAll('input')[1].value;
+    const rows=[]; 
+    // Buscar filas con clase .tr o .q-row-card que no sean el template
+    const allRows = rowsBox.querySelectorAll('.tr:not([data-template]), .q-row-card:not([data-template])');
+    console.log('[readRows] Filas encontradas en DOM:', allRows.length);
+    
+    allRows.forEach((r, idx) => {
+      console.log(`[readRows] Procesando fila ${idx + 1}:`, {
+        className: r.className,
+        hasSelect: !!r.querySelector('select'),
+        hasInputs: r.querySelectorAll('input').length,
+        descValue: r.querySelectorAll('input')[0]?.value,
+        qtyValue: r.querySelectorAll('input')[1]?.value,
+        priceValue: r.querySelectorAll('input')[2]?.value
+      });
+      
+      const type=r.querySelector('select')?.value || 'PRODUCTO';
+      const desc=r.querySelectorAll('input')[0]?.value?.trim() || '';
+      const qtyRaw = r.querySelectorAll('input')[1]?.value;
       const qty = qtyRaw === '' || qtyRaw === null || qtyRaw === undefined ? null : Number(qtyRaw);
-      const price=Number(r.querySelectorAll('input')[2].value||0);
+      const price=Number(r.querySelectorAll('input')[2]?.value||0);
+      
       // Solo filtrar si realmente está vacío (sin descripción Y sin precio Y sin cantidad)
       // Si tiene descripción O precio O cantidad, incluir el item
-      if(!desc && !price && (!qty || qty === 0)) return;
+      if(!desc && !price && (!qty || qty === 0)) {
+        console.log(`[readRows] Filtrando fila ${idx + 1} (vacía)`);
+        return;
+      }
       
       let refId = r.dataset.refId;
       if (refId && typeof refId === 'string' && refId.includes('[object Object]')) {
@@ -432,14 +450,20 @@ export function initQuotes({ getCompanyEmail }) {
         refId = String(refId).trim() || undefined;
       }
       
-      rows.push({
+      const rowData = {
         type,desc,qty,price,
         source: r.dataset.source || undefined,
         refId: refId,
         sku: r.dataset.sku || undefined,
         comboParent: r.dataset.comboParent || undefined
-      });
-    }); return rows;
+      };
+      
+      console.log(`[readRows] Agregando fila ${idx + 1}:`, rowData);
+      rows.push(rowData);
+    }); 
+    
+    console.log('[readRows] Total de filas válidas:', rows.length);
+    return rows;
   }
   
   function updateRowSubtotal(r){
@@ -1492,7 +1516,7 @@ export function initQuotes({ getCompanyEmail }) {
         console.warn('[readRows modal] rowsBox no encontrado');
         return rows;
       }
-      rowsBox.querySelectorAll('.tr:not([data-template])').forEach(r=>{
+      rowsBox.querySelectorAll('.tr:not([data-template]), .q-row-card:not([data-template])').forEach(r=>{
         const type=r.querySelector('select')?.value || 'PRODUCTO';
         const descInput = r.querySelectorAll('input')[0];
         const qtyInput = r.querySelectorAll('input')[1];
@@ -2693,7 +2717,19 @@ export function initQuotes({ getCompanyEmail }) {
               row.dataset.source = 'price';
               if (pe._id) row.dataset.refId = String(pe._id);
               ctx.updateRowSubtotal(row);
+              
+              console.log('[renderPricesViewForQuote] Agregando fila desde lista de precios:', {
+                name: pe.name,
+                type: pe.type === 'product' ? 'PRODUCTO' : 'SERVICIO',
+                price: Math.round(pe.total || pe.price || 0),
+                refId: pe._id,
+                className: row.className,
+                hasDataTemplate: row.hasAttribute('data-template')
+              });
+              
               ctx.rowsBox.appendChild(row);
+              
+              console.log('[renderPricesViewForQuote] Fila agregada. Total de filas en rowsBox:', ctx.rowsBox.querySelectorAll('.q-row-card:not([data-template])').length);
             }
             ctx.recalc();
             if (!isModal) {
