@@ -2135,15 +2135,16 @@
     divider.style.cssText = 'position: absolute; left: 50%; top: 180px; width: 1px; height: 120px; background: #000;';
     canvas.appendChild(divider);
 
-    // Sección DATOS DE LA EMPRESA (derecha) - más a la derecha
+    // Sección DATOS DE LA EMPRESA (derecha) - alineada correctamente
     const companyTitle = createEditableElement('text', 'DATOS DE LA EMPRESA', {
-      position: { left: 650, top: 180 },
+      position: { left: 500, top: 180 },
       styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
     });
     canvas.appendChild(companyTitle);
 
-    const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n{{company.phone}}\n{{company.address}}', {
-      position: { left: 650, top: 210 },
+    // Solo nombre y correo como variables, teléfono y dirección como texto editable
+    const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n[Editar teléfono]\n[Editar dirección]', {
+      position: { left: 500, top: 210 },
       styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
     });
     canvas.appendChild(companyData);
@@ -2552,15 +2553,16 @@
     divider.style.cssText = 'position: absolute; left: 50%; top: 180px; width: 1px; height: 120px; background: #000;';
     canvas.appendChild(divider);
 
-    // Sección DATOS DE LA EMPRESA (derecha) - más a la derecha
+    // Sección DATOS DE LA EMPRESA (derecha) - alineada correctamente
     const companyTitle = createEditableElement('text', 'DATOS DE LA EMPRESA', {
-      position: { left: 650, top: 180 },
+      position: { left: 500, top: 180 },
       styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
     });
     canvas.appendChild(companyTitle);
 
-    const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n{{company.phone}}\n{{company.address}}', {
-      position: { left: 650, top: 210 },
+    // Solo nombre y correo como variables, teléfono y dirección como texto editable
+    const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n[Editar teléfono]\n[Editar dirección]', {
+      position: { left: 500, top: 210 },
       styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
     });
     canvas.appendChild(companyData);
@@ -2706,15 +2708,16 @@
     divider.style.cssText = 'position: absolute; left: 50%; top: 180px; width: 1px; height: 120px; background: #000;';
     canvas.appendChild(divider);
 
-    // Sección DATOS DE LA EMPRESA (derecha) - más a la derecha
+    // Sección DATOS DE LA EMPRESA (derecha) - alineada correctamente
     const companyTitle = createEditableElement('text', 'DATOS DE LA EMPRESA', {
-      position: { left: 650, top: 180 },
+      position: { left: 500, top: 180 },
       styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
     });
     canvas.appendChild(companyTitle);
 
-    const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n{{company.phone}}\n{{company.address}}', {
-      position: { left: 650, top: 210 },
+    // Solo nombre y correo como variables, teléfono y dirección como texto editable
+    const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n[Editar teléfono]\n[Editar dirección]', {
+      position: { left: 500, top: 210 },
       styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
     });
     canvas.appendChild(companyData);
