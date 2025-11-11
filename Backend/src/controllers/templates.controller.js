@@ -209,7 +209,15 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
           combosCount: combos.length,
           products: products.map(i => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice })),
           services: services.map(i => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice })),
-          combos: combos.map(c => ({ name: c.name, itemsCount: c.items.length }))
+          combos: combos.map(c => ({ name: c.name, itemsCount: c.items.length, items: c.items.map(i => ({ name: i.name, unitPrice: i.unitPrice })) }))
+        });
+        console.log('[buildContext Sale] sale.itemsGrouped creado:', {
+          hasProducts: saleObj.itemsGrouped.hasProducts,
+          hasServices: saleObj.itemsGrouped.hasServices,
+          hasCombos: saleObj.itemsGrouped.hasCombos,
+          productsLength: saleObj.itemsGrouped.products.length,
+          servicesLength: saleObj.itemsGrouped.services.length,
+          combosLength: saleObj.itemsGrouped.combos.length
         });
       }
       
@@ -417,6 +425,17 @@ function renderHB(tpl, context) {
       console.log('[renderHB] Sale items count:', context.sale.items?.length || 0);
       console.log('[renderHB] Sale items:', JSON.stringify(context.sale.items || [], null, 2));
       console.log('[renderHB] Sale number:', context.sale.number);
+      console.log('[renderHB] Sale tiene itemsGrouped:', !!context.sale.itemsGrouped);
+      if (context.sale.itemsGrouped) {
+        console.log('[renderHB] Sale itemsGrouped:', {
+          hasProducts: context.sale.itemsGrouped.hasProducts,
+          hasServices: context.sale.itemsGrouped.hasServices,
+          hasCombos: context.sale.itemsGrouped.hasCombos,
+          productsCount: context.sale.itemsGrouped.products?.length || 0,
+          servicesCount: context.sale.itemsGrouped.services?.length || 0,
+          combosCount: context.sale.itemsGrouped.combos?.length || 0
+        });
+      }
     }
     
     if (context?.quote) {
@@ -498,18 +517,20 @@ function normalizeTemplateHtml(html='') {
   output = output.replace(/&amp;#123;&amp;#123;/g, '{{');
   output = output.replace(/&amp;#125;&amp;#125;/g, '}}');
   
-  // CORREGIR: Si las tablas tienen contenido pero NO tienen {{#each, agregarlas
-  // Esto corrige templates que se guardaron sin las variables correctas
-  
+  // CORREGIR: Convertir templates antiguos que usan {{#each sale.items}} a la nueva estructura con sale.itemsGrouped
   // Para remisiones/invoices
   if (output.includes('remission-table') || output.includes('items-table')) {
     const tbodyMatches = output.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
     if (tbodyMatches) {
       tbodyMatches.forEach((match) => {
-        // Si tiene {{name}} pero NO tiene {{#each sale.items}}
-        if (match.includes('{{name}}') && !match.includes('{{#each sale.items}}')) {
+        // Si tiene {{#each sale.items}} pero NO tiene sale.itemsGrouped, convertir a nueva estructura
+        if (match.includes('{{#each sale.items}}') && !match.includes('sale.itemsGrouped')) {
           const newTbody = `<tbody>
-          {{#each sale.items}}
+          {{#if sale.itemsGrouped.hasProducts}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px;">PRODUCTOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.products}}
           <tr>
             <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
             <td class="t-center">{{qty}}</td>
@@ -517,14 +538,114 @@ function normalizeTemplateHtml(html='') {
             <td class="t-right">{{money total}}</td>
           </tr>
           {{/each}}
-          {{#unless sale.items}}
+          {{/if}}
+          
+          {{#if sale.itemsGrouped.hasServices}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px;">SERVICIOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.services}}
+          <tr>
+            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{/each}}
+          {{/if}}
+          
+          {{#if sale.itemsGrouped.hasCombos}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px;">COMBOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.combos}}
+          <tr>
+            <td><strong>{{name}}</strong></td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{#each items}}
+          <tr>
+            <td style="padding-left: 30px;">• {{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{#if unitPrice}}{{money unitPrice}}{{/if}}</td>
+            <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>
+          </tr>
+          {{/each}}
+          {{/each}}
+          {{/if}}
+          
+          {{#unless sale.itemsGrouped.hasProducts}}{{#unless sale.itemsGrouped.hasServices}}{{#unless sale.itemsGrouped.hasCombos}}
           <tr>
             <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
           </tr>
-          {{/unless}}
+          {{/unless}}{{/unless}}{{/unless}}
         </tbody>`;
           output = output.replace(match, newTbody);
-          console.log('[normalizeTemplateHtml] ✅ Corregido tbody de remisión sin {{#each}}');
+          console.log('[normalizeTemplateHtml] ✅ Convertido tbody de remisión de estructura vieja a nueva (sale.itemsGrouped)');
+        }
+        // Si tiene {{name}} pero NO tiene {{#each sale.items}} ni sale.itemsGrouped, agregar estructura básica
+        else if (match.includes('{{name}}') && !match.includes('{{#each sale.items}}') && !match.includes('sale.itemsGrouped')) {
+          const newTbody = `<tbody>
+          {{#if sale.itemsGrouped.hasProducts}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px;">PRODUCTOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.products}}
+          <tr>
+            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{/each}}
+          {{/if}}
+          
+          {{#if sale.itemsGrouped.hasServices}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px;">SERVICIOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.services}}
+          <tr>
+            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{/each}}
+          {{/if}}
+          
+          {{#if sale.itemsGrouped.hasCombos}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px;">COMBOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.combos}}
+          <tr>
+            <td><strong>{{name}}</strong></td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{#each items}}
+          <tr>
+            <td style="padding-left: 30px;">• {{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{#if unitPrice}}{{money unitPrice}}{{/if}}</td>
+            <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>
+          </tr>
+          {{/each}}
+          {{/each}}
+          {{/if}}
+          
+          {{#unless sale.itemsGrouped.hasProducts}}{{#unless sale.itemsGrouped.hasServices}}{{#unless sale.itemsGrouped.hasCombos}}
+          <tr>
+            <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
+          </tr>
+          {{/unless}}{{/unless}}{{/unless}}
+        </tbody>`;
+          output = output.replace(match, newTbody);
+          console.log('[normalizeTemplateHtml] ✅ Agregado tbody de remisión con estructura nueva (sale.itemsGrouped)');
         }
       });
     }
