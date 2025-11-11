@@ -366,6 +366,92 @@ function normalizeTemplateHtml(html='') {
   output = output.replace(/&amp;#123;&amp;#123;/g, '{{');
   output = output.replace(/&amp;#125;&amp;#125;/g, '}}');
   
+  // CORREGIR: Si las tablas tienen contenido pero NO tienen {{#each, agregarlas
+  // Esto corrige templates que se guardaron sin las variables correctas
+  
+  // Para remisiones/invoices
+  if (output.includes('remission-table') || output.includes('items-table')) {
+    const tbodyMatches = output.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+    if (tbodyMatches) {
+      tbodyMatches.forEach((match) => {
+        // Si tiene {{name}} pero NO tiene {{#each sale.items}}
+        if (match.includes('{{name}}') && !match.includes('{{#each sale.items}}')) {
+          const newTbody = `<tbody>
+          {{#each sale.items}}
+          <tr>
+            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{/each}}
+          {{#unless sale.items}}
+          <tr>
+            <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
+          </tr>
+          {{/unless}}
+        </tbody>`;
+          output = output.replace(match, newTbody);
+          console.log('[normalizeTemplateHtml] ✅ Corregido tbody de remisión sin {{#each}}');
+        }
+      });
+    }
+  }
+  
+  // Para cotizaciones
+  if (output.includes('quote-table')) {
+    const tbodyMatches = output.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+    if (tbodyMatches) {
+      tbodyMatches.forEach((match) => {
+        if (match.includes('{{description}}') && !match.includes('{{#each quote.items}}')) {
+          const newTbody = `<tbody>
+          {{#each quote.items}}
+          <tr>
+            <td>{{#if sku}}[{{sku}}] {{/if}}{{description}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money subtotal}}</td>
+          </tr>
+          {{/each}}
+          {{#unless quote.items}}
+          <tr>
+            <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
+          </tr>
+          {{/unless}}
+        </tbody>`;
+          output = output.replace(match, newTbody);
+          console.log('[normalizeTemplateHtml] ✅ Corregido tbody de cotización sin {{#each}}');
+        }
+      });
+    }
+  }
+  
+  // Para orden de trabajo
+  if (output.includes('workorder-table')) {
+    const tbodyMatches = output.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+    if (tbodyMatches) {
+      tbodyMatches.forEach((match) => {
+        if (match.includes('{{name}}') && !match.includes('{{#each sale.items}}')) {
+          const newTbody = `<tbody>
+          {{#each sale.items}}
+          <tr>
+            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+          </tr>
+          {{/each}}
+          {{#unless sale.items}}
+          <tr>
+            <td colspan="2" style="text-align: center; color: #666;">Sin ítems</td>
+          </tr>
+          {{/unless}}
+        </tbody>`;
+          output = output.replace(match, newTbody);
+          console.log('[normalizeTemplateHtml] ✅ Corregido tbody de orden de trabajo sin {{#each}}');
+        }
+      });
+    }
+  }
+  
   // Luego, normalizar patrones antiguos
   const salePattern = /{{#if\s*\(hasItems\s+sale\.items\)}}\s*{{#each\s+sale\.items}}([\s\S]*?){{\/each}}\s*{{else}}([\s\S]*?){{\/if}}/g;
   output = output.replace(salePattern, (match, itemsBlock, elseBlock) => {
@@ -391,6 +477,19 @@ export async function listTemplates(req, res) {
 export async function getTemplate(req, res) {
   const doc = await Template.findOne({ _id: req.params.id, companyId: req.companyId });
   if (!doc) return res.status(404).json({ error: 'not found' });
+  
+  // Corregir automáticamente el HTML si tiene tablas sin {{#each}}
+  if (doc.contentHtml) {
+    const originalHtml = doc.contentHtml;
+    doc.contentHtml = normalizeTemplateHtml(doc.contentHtml);
+    
+    // Si se corrigió, guardar el template corregido
+    if (originalHtml !== doc.contentHtml) {
+      await doc.save();
+      console.log(`[getTemplate] ✅ Template "${doc.name}" corregido automáticamente`);
+    }
+  }
+  
   res.json(doc);
 }
 
@@ -556,6 +655,19 @@ export async function activeTemplate(req, res) {
     }
     return res.json(null);
   }
+  
+  // Corregir automáticamente el HTML si tiene tablas sin {{#each}}
+  if (doc.contentHtml) {
+    const originalHtml = doc.contentHtml;
+    doc.contentHtml = normalizeTemplateHtml(doc.contentHtml);
+    
+    // Si se corrigió, guardar el template corregido
+    if (originalHtml !== doc.contentHtml) {
+      await doc.save();
+      console.log(`[activeTemplate] ✅ Template activo "${doc.name}" corregido automáticamente`);
+    }
+  }
+  
   if (process.env.NODE_ENV !== 'production') {
     console.log('[activeTemplate] Template encontrado:', {
       id: doc._id,
