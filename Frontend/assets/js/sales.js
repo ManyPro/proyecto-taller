@@ -94,7 +94,6 @@ function printSaleTicket(sale){
             console.log('[printSaleTicket] Context sale items:', JSON.stringify(r.context?.sale?.items || [], null, 2));
             console.log('[printSaleTicket] Context sale number:', r.context?.sale?.number);
             console.log('[printSaleTicket] Context sale formattedNumber:', r.context?.sale?.formattedNumber);
-            console.log('[printSaleTicket] Rendered preview (primeros 1000 chars):', r.rendered?.substring(0, 1000));
             
             // Verificar si el HTML renderizado tiene filas de tabla
             const renderedRows = (r.rendered?.match(/<tr>/g) || []).length;
@@ -105,30 +104,67 @@ function printSaleTicket(sale){
             if (renderedTableMatch) {
               console.log('[printSaleTicket] Tablas renderizadas encontradas:', renderedTableMatch.length);
               renderedTableMatch.forEach((match, idx) => {
-                console.log(`[printSaleTicket] Tabla renderizada ${idx + 1} (primeros 500 chars):`, match.substring(0, 500));
+                console.log(`[printSaleTicket] Tabla renderizada ${idx + 1} (COMPLETA):`, match);
+                console.log(`[printSaleTicket] Tabla ${idx + 1} tiene filas <tr>:`, (match.match(/<tr>/g) || []).length);
               });
             } else {
               console.warn('[printSaleTicket] ⚠️ NO se encontraron tablas renderizadas en el HTML!');
+              // Buscar cualquier referencia a tablas
+              console.log('[printSaleTicket] Buscando referencias a tablas en HTML...');
+              console.log('[printSaleTicket] Tiene <table>:', r.rendered?.includes('<table'));
+              console.log('[printSaleTicket] Tiene remission-table:', r.rendered?.includes('remission-table'));
+              console.log('[printSaleTicket] Tiene items-table:', r.rendered?.includes('items-table'));
             }
             
+            // Buscar si hay contenido de items en el HTML
+            const firstItemName = r.context?.sale?.items?.[0]?.name;
+            if (firstItemName) {
+              console.log('[printSaleTicket] Buscando primer item en HTML:', firstItemName);
+              console.log('[printSaleTicket] HTML contiene primer item:', r.rendered?.includes(firstItemName));
+            }
+            
+            console.log('[printSaleTicket] Rendered preview (primeros 2000 chars):', r.rendered?.substring(0, 2000));
             console.log('[printSaleTicket] ===== FIN PREVIEW =====');
             
             const win = window.open('', '_blank');
             if(!win){ fallback(); return; }
             const css = r.css ? `<style>${r.css}</style>`:'';
-            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}</head><body>${r.rendered}</body></html>`);
+            
+            // Agregar script para logs en la ventana de impresión
+            const debugScript = `
+              <script>
+                console.log('[VENTANA IMPRESION] Ventana abierta');
+                console.log('[VENTANA IMPRESION] HTML length:', document.body.innerHTML.length);
+                const tables = document.querySelectorAll('table');
+                console.log('[VENTANA IMPRESION] Tablas encontradas:', tables.length);
+                tables.forEach((table, idx) => {
+                  const rows = table.querySelectorAll('tr');
+                  console.log(\`[VENTANA IMPRESION] Tabla \${idx + 1} tiene \${rows.length} filas\`);
+                  rows.forEach((row, rowIdx) => {
+                    console.log(\`[VENTANA IMPRESION] Tabla \${idx + 1}, Fila \${rowIdx}:\`, row.innerHTML.substring(0, 200));
+                  });
+                });
+                const tbodyElements = document.querySelectorAll('tbody');
+                console.log('[VENTANA IMPRESION] Elementos tbody encontrados:', tbodyElements.length);
+                tbodyElements.forEach((tbody, idx) => {
+                  console.log(\`[VENTANA IMPRESION] tbody \${idx + 1} contenido:\`, tbody.innerHTML.substring(0, 500));
+                });
+              </script>
+            `;
+            
+            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}${debugScript}</head><body>${r.rendered}</body></html>`);
             win.document.close(); 
             
-            // NO cerrar inmediatamente - dejar que el usuario vea los logs y cierre manualmente
-            // win.focus(); win.print(); try{ win.close(); }catch{}
-            
-            // En su lugar, mostrar un mensaje y permitir imprimir manualmente
+            // NO cerrar automáticamente - dejar abierta para ver logs
             win.focus();
+            
+            // Esperar un momento y luego preguntar si quiere imprimir
             setTimeout(() => {
-              if (confirm('¿Deseas imprimir ahora?\n\nSí - Imprimir\nNo - Solo ver')) {
+              const shouldPrint = confirm('Ventana de impresión abierta.\n\n¿Deseas imprimir ahora?\n\n✅ Sí - Imprimir\n❌ No - Solo ver (puedes cerrar manualmente)');
+              if (shouldPrint) {
                 win.print();
               }
-            }, 500);
+            }, 1000);
           })
           .catch((err)=>{
             console.error('[printSaleTicket] Error en preview:', err);
