@@ -256,19 +256,10 @@ function ensureHB() {
   Handlebars.registerHelper('uppercase', (v) => String(v || '').toUpperCase());
   Handlebars.registerHelper('lowercase', (v) => String(v || '').toLowerCase());
   // Helper para verificar si un array tiene elementos
-  Handlebars.registerHelper('hasItems', (items) => {
+  Handlebars.registerHelper('hasItems', function(items) {
     if (!items) return false;
     if (!Array.isArray(items)) return false;
-    if (items.length === 0) return false;
-    // Verificar que al menos un item tenga datos válidos
-    const hasValidItems = items.some(item => {
-      return (item && (
-        (item.name || item.description || '') ||
-        (item.unitPrice && Number(item.unitPrice) > 0) ||
-        (item.qty && Number(item.qty) > 0)
-      ));
-    });
-    return hasValidItems;
+    return items.length > 0;
   });
   hbInitialized = true;
 }
@@ -447,7 +438,28 @@ export async function previewTemplate(req, res) {
     });
   }
   
-  const html = renderHB(contentHtml, ctx);
+  // Corregir sintaxis antigua de Handlebars automáticamente
+  let correctedHtml = contentHtml;
+  
+  // Corregir sintaxis para sale.items
+  const saleItemsPattern = /{{#if\s*\(hasItems\s+sale\.items\)}}\s*{{#each\s+sale\.items}}([\s\S]*?){{\/each}}\s*{{else}}([\s\S]*?){{\/if}}/g;
+  correctedHtml = correctedHtml.replace(saleItemsPattern, (match, itemsContent, elseContent) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[previewTemplate] Corrigiendo sintaxis antigua para sale.items');
+    }
+    return `{{#each sale.items}}${itemsContent}{{else}}${elseContent}{{/each}}`;
+  });
+  
+  // Corregir sintaxis para quote.items
+  const quoteItemsPattern = /{{#if\s*\(hasItems\s+quote\.items\)}}\s*{{#each\s+quote\.items}}([\s\S]*?){{\/each}}\s*{{else}}([\s\S]*?){{\/if}}/g;
+  correctedHtml = correctedHtml.replace(quoteItemsPattern, (match, itemsContent, elseContent) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[previewTemplate] Corrigiendo sintaxis antigua para quote.items');
+    }
+    return `{{#each quote.items}}${itemsContent}{{else}}${elseContent}{{/each}}`;
+  });
+  
+  const html = renderHB(correctedHtml, ctx);
   
   // Log para ver qué se está devolviendo
   if (process.env.NODE_ENV !== 'production') {
@@ -460,7 +472,8 @@ export async function previewTemplate(req, res) {
       contextSaleNumber: ctx.sale?.number,
       contextSaleFormattedNumber: ctx.sale?.formattedNumber,
       hasItemsResult: ctx.sale?.items ? (Array.isArray(ctx.sale.items) && ctx.sale.items.length > 0) : false,
-      firstItem: ctx.sale?.items?.[0] || null
+      firstItem: ctx.sale?.items?.[0] || null,
+      syntaxWasCorrected: correctedHtml !== contentHtml
     });
     
     // Verificar si el HTML renderizado contiene los items
@@ -468,7 +481,8 @@ export async function previewTemplate(req, res) {
     console.log('[previewTemplate] Verificación de renderizado:', {
       hasItemsInRendered,
       containsSinItems: html?.includes('Sin ítems'),
-      containsTableRows: (html?.match(/<tr>/g) || []).length
+      containsTableRows: (html?.match(/<tr>/g) || []).length,
+      firstItemInHtml: html?.includes(ctx.sale?.items?.[0]?.name || '')
     });
   }
   

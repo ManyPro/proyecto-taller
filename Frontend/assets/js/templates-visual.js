@@ -2329,20 +2329,18 @@
           </tr>
         </thead>
         <tbody>
-          {{#if (hasItems sale.items)}}
-            {{#each sale.items}}
-            <tr>
-              <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
-              <td>{{qty}}</td>
-              <td>{{money unitPrice}}</td>
-              <td>{{money total}}</td>
-            </tr>
-            {{/each}}
+          {{#each sale.items}}
+          <tr>
+            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td>{{qty}}</td>
+            <td>{{money unitPrice}}</td>
+            <td>{{money total}}</td>
+          </tr>
           {{else}}
-            <tr>
-              <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
-            </tr>
-          {{/if}}
+          <tr>
+            <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
+          </tr>
+          {{/each}}
         </tbody>
       </table>
     `;
@@ -2471,20 +2469,18 @@
           </tr>
         </thead>
         <tbody>
-          {{#if (hasItems quote.items)}}
-            {{#each quote.items}}
-            <tr>
-              <td>{{#if sku}}[{{sku}}] {{/if}}{{description}}</td>
-              <td>{{qty}}</td>
-              <td>{{money unitPrice}}</td>
-              <td>{{money subtotal}}</td>
-            </tr>
-            {{/each}}
+          {{#each quote.items}}
+          <tr>
+            <td>{{#if sku}}[{{sku}}] {{/if}}{{description}}</td>
+            <td>{{qty}}</td>
+            <td>{{money unitPrice}}</td>
+            <td>{{money subtotal}}</td>
+          </tr>
           {{else}}
-            <tr>
-              <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
-            </tr>
-          {{/if}}
+          <tr>
+            <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
+          </tr>
+          {{/each}}
         </tbody>
       </table>
     `;
@@ -2876,18 +2872,16 @@
           </tr>
         </thead>
         <tbody>
-          {{#if (hasItems sale.items)}}
-            {{#each sale.items}}
-            <tr>
-              <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
-              <td>{{qty}}</td>
-            </tr>
-            {{/each}}
+          {{#each sale.items}}
+          <tr>
+            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td>{{qty}}</td>
+          </tr>
           {{else}}
-            <tr>
-              <td colspan="2" style="text-align: center; color: #666;">Sin ítems</td>
-            </tr>
-          {{/if}}
+          <tr>
+            <td colspan="2" style="text-align: center; color: #666;">Sin ítems</td>
+          </tr>
+          {{/each}}
         </tbody>
       </table>
     `;
