@@ -1894,13 +1894,25 @@
       // Ajustar tamaño del canvas según el formato
       applyCanvasSizeFromFormat(template);
       
-      // SIEMPRE cargar el HTML guardado si existe (formato existente)
-      // La plantilla base solo se usa cuando se crea un formato nuevo por primera vez
-      if (template.contentHtml && template.contentHtml.trim() && 
-          !template.contentHtml.includes('Haz clic en los botones') && 
-          !template.contentHtml.includes('Tu plantilla está vacía')) {
-        console.log('📄 Formato existente detectado - Cargando HTML guardado...');
-        canvas.innerHTML = template.contentHtml;
+        // SIEMPRE cargar el HTML guardado si existe (formato existente)
+        // La plantilla base solo se usa cuando se crea un formato nuevo por primera vez
+        if (template.contentHtml && template.contentHtml.trim() && 
+            !template.contentHtml.includes('Haz clic en los botones') && 
+            !template.contentHtml.includes('Tu plantilla está vacía')) {
+          console.log('📄 Formato existente detectado - Cargando HTML guardado...');
+          
+          // Guardar HTML original para restaurar variables al guardar
+          if (!window.templateOriginalHtml) {
+            window.templateOriginalHtml = {};
+          }
+          window.templateOriginalHtml[formatId] = template.contentHtml;
+          
+          // Convertir variables largas a formato corto para el canvas
+          const shortHtml = shortenHandlebarsVars(template.contentHtml);
+          canvas.innerHTML = shortHtml;
+          
+          // Agregar leyenda de variables
+          addVariableLegend(canvas);
         
         // Restaurar elementos del visual editor desde el HTML
         const elements = canvas.querySelectorAll('.tpl-element');
@@ -3525,6 +3537,12 @@
     const hasElements = !!canvas.querySelector('.tpl-element');
     await optimizeCanvasImages(canvas);
     content = canvas.innerHTML;
+    
+    // Restaurar variables completas antes de guardar si hay HTML original guardado
+    const formatId = window.currentTemplateSession?.formatId;
+    if (formatId && window.templateOriginalHtml && window.templateOriginalHtml[formatId]) {
+      content = restoreHandlebarsVars(content, window.templateOriginalHtml[formatId]);
+    }
     
     // Asegurar que las variables de Handlebars en las tablas se preserven correctamente
     // Reemplazar cualquier escape HTML de las llaves de Handlebars

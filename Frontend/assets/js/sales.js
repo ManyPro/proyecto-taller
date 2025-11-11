@@ -174,7 +174,28 @@ function printSaleTicket(sale){
               </script>
             `;
             
-            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}${debugScript}</head><body>${r.rendered}</body></html>`);
+            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}${debugScript}
+              <style>
+                /* Estilos específicos para impresión del total */
+                @media print {
+                  .tpl-total-line,
+                  .tpl-total-box {
+                    position: absolute !important;
+                    display: block !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                    page-break-inside: avoid !important;
+                    page-break-after: avoid !important;
+                  }
+                  .tpl-total-box {
+                    border: 2px solid #000 !important;
+                    background: white !important;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                  }
+                }
+              </style>
+            </head><body>${r.rendered}</body></html>`);
             win.document.close(); 
             
             // Función robusta para ajustar posición del total
@@ -228,11 +249,15 @@ function printSaleTicket(sale){
                 totalLine.style.top = `${newTop}px`;
                 totalLine.style.position = 'absolute';
                 totalLine.style.zIndex = '1000';
+                totalLine.style.display = 'block';
+                totalLine.style.visibility = 'visible';
               }
               if (totalBox) {
                 totalBox.style.top = `${newTop + 1}px`;
                 totalBox.style.position = 'absolute';
                 totalBox.style.zIndex = '1000';
+                totalBox.style.display = 'block';
+                totalBox.style.visibility = 'visible';
               }
               
               return true;
@@ -265,6 +290,12 @@ function printSaleTicket(sale){
               setTimeout(adjustTotalPosition, 500);
             });
             
+            // CRÍTICO: Ajustar justo antes de imprimir
+            win.addEventListener('beforeprint', () => {
+              console.log('[printSaleTicket] Evento beforeprint - ajustando total...');
+              adjustTotalPosition();
+            });
+            
             // NO cerrar automáticamente - dejar abierta para ver logs
             win.focus();
             
@@ -278,7 +309,11 @@ function printSaleTicket(sale){
                 // Ajustar una última vez antes de imprimir
                 setTimeout(() => {
                   adjustTotalPosition();
-                  setTimeout(() => win.print(), 100);
+                  // Usar requestAnimationFrame para asegurar que el ajuste se aplique antes de imprimir
+                  requestAnimationFrame(() => {
+                    adjustTotalPosition();
+                    setTimeout(() => win.print(), 50);
+                  });
                 }, 200);
               }
             }, 1000);
@@ -333,7 +368,28 @@ function printWorkOrder(){
             const win = window.open('', '_blank');
             if(!win){ fallback(); return; }
             const css = r.css? `<style>${r.css}</style>`:'';
-            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}</head><body>${r.rendered}</body></html>`);
+            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}
+              <style>
+                /* Estilos específicos para impresión del total */
+                @media print {
+                  .tpl-total-line,
+                  .tpl-total-box {
+                    position: absolute !important;
+                    display: block !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                    page-break-inside: avoid !important;
+                    page-break-after: avoid !important;
+                  }
+                  .tpl-total-box {
+                    border: 2px solid #000 !important;
+                    background: white !important;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                  }
+                }
+              </style>
+            </head><body>${r.rendered}</body></html>`);
             win.document.close();
             
             // Función robusta para ajustar posición del total
@@ -387,11 +443,15 @@ function printWorkOrder(){
                 totalLine.style.top = `${newTop}px`;
                 totalLine.style.position = 'absolute';
                 totalLine.style.zIndex = '1000';
+                totalLine.style.display = 'block';
+                totalLine.style.visibility = 'visible';
               }
               if (totalBox) {
                 totalBox.style.top = `${newTop + 1}px`;
                 totalBox.style.position = 'absolute';
                 totalBox.style.zIndex = '1000';
+                totalBox.style.display = 'block';
+                totalBox.style.visibility = 'visible';
               }
               
               return true;
@@ -419,6 +479,12 @@ function printWorkOrder(){
               setTimeout(adjustTotalPosition, 500);
             });
             
+            // CRÍTICO: Ajustar justo antes de imprimir
+            win.addEventListener('beforeprint', () => {
+              console.log('[printWorkOrder] Evento beforeprint - ajustando total...');
+              adjustTotalPosition();
+            });
+            
             // NO cerrar inmediatamente
             win.focus();
             setTimeout(() => {
@@ -426,7 +492,10 @@ function printWorkOrder(){
               if (confirm('¿Deseas imprimir ahora?\n\nSí - Imprimir\nNo - Solo ver')) {
                 setTimeout(() => {
                   adjustTotalPosition();
-                  setTimeout(() => win.print(), 100);
+                  requestAnimationFrame(() => {
+                    adjustTotalPosition();
+                    setTimeout(() => win.print(), 50);
+                  });
                 }, 200);
               }
             }, 500);
