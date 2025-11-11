@@ -1894,9 +1894,12 @@
       // Ajustar tamaño del canvas según el formato
       applyCanvasSizeFromFormat(template);
       
-      // Cargar el HTML guardado si existe y tiene contenido válido
-      if (template.contentHtml && template.contentHtml.trim() && !template.contentHtml.includes('Haz clic en los botones')) {
-        console.log('📄 Cargando HTML guardado del formato...');
+      // SIEMPRE cargar el HTML guardado si existe (formato existente)
+      // La plantilla base solo se usa cuando se crea un formato nuevo por primera vez
+      if (template.contentHtml && template.contentHtml.trim() && 
+          !template.contentHtml.includes('Haz clic en los botones') && 
+          !template.contentHtml.includes('Tu plantilla está vacía')) {
+        console.log('📄 Formato existente detectado - Cargando HTML guardado...');
         canvas.innerHTML = template.contentHtml;
         
         // Restaurar elementos del visual editor desde el HTML
@@ -1918,16 +1921,32 @@
           }
         });
         
+        // Restaurar también elementos que no tienen clase tpl-element pero son editables
+        const editableElements = canvas.querySelectorAll('[contenteditable="true"]');
+        editableElements.forEach(el => {
+          if (!el.closest('.tpl-element')) {
+            const parent = el.closest('[style*="position: absolute"]');
+            if (parent && !parent.classList.contains('tpl-element')) {
+              parent.classList.add('tpl-element');
+              if (!parent.id) {
+                parent.id = `element_${visualEditor.nextId++}`;
+              }
+              makeDraggable(parent);
+              makeSelectable(parent);
+            }
+          }
+        });
+        
         // Ajustar altura del canvas al contenido
         adjustCanvasHeightToContent(canvas);
         
         showQuickNotification(`✅ Formato "${template.name}" cargado correctamente`, 'success');
       } else {
-        // Si no hay HTML guardado o está vacío, cargar plantilla por defecto
-        console.log('🔄 No hay HTML guardado, cargando nueva plantilla por defecto...');
+        // Solo cargar plantilla base si NO hay HTML guardado (formato nuevo)
+        console.log('🆕 Formato nuevo detectado - Cargando plantilla base por defecto...');
         const templateType = template.type || window.currentTemplateSession?.type || 'invoice';
         loadDefaultTemplate(templateType);
-        showQuickNotification(`🆕 Nueva plantilla cargada para "${template.name}"`, 'success');
+        showQuickNotification(`🆕 Nueva plantilla base cargada para "${template.name}"`, 'success');
       }
       
     } catch (error) {
@@ -2143,50 +2162,20 @@
     totalLine.style.cssText = 'position: absolute; left: 40px; right: 40px; top: 580px; height: 1px; background: #000;';
     canvas.appendChild(totalLine);
 
-    // Sección IVA
-    const ivaLabel = createEditableElement('text', 'IVA', {
-      position: { left: 40, top: 600 },
-      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif' }
-    });
-    canvas.appendChild(ivaLabel);
-
-    const ivaPercent = createEditableElement('text', '21%', {
-      position: { left: 300, top: 600 },
-      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'center' }
-    });
-    canvas.appendChild(ivaPercent);
-
-    const ivaAmount = createEditableElement('text', '{{money sale.tax}}', {
-      position: { left: 500, top: 600 },
-      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'right' }
-    });
-    canvas.appendChild(ivaAmount);
-
     // TOTAL en caja negra
     const totalBox = document.createElement('div');
     totalBox.className = 'tpl-element';
     totalBox.id = `element_${visualEditor.nextId++}`;
-    totalBox.style.cssText = 'position: absolute; left: 40px; top: 630px; border: 2px solid #000; padding: 12px 20px; display: inline-flex; align-items: center; gap: 200px;';
+    totalBox.style.cssText = 'position: absolute; left: 40px; top: 600px; border: 2px solid #000; padding: 12px 20px; display: inline-flex; align-items: center; gap: 200px;';
     totalBox.innerHTML = '<span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">TOTAL</span><span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">{{money sale.total}}</span>';
     makeDraggable(totalBox);
     makeSelectable(totalBox);
     canvas.appendChild(totalBox);
     visualEditor.elements.push({ id: totalBox.id, type: 'text', element: totalBox });
 
-    // Sección INFORMACIÓN DE PAGO (abajo izquierda)
-    const paymentBox = document.createElement('div');
-    paymentBox.className = 'tpl-element';
-    paymentBox.id = `element_${visualEditor.nextId++}`;
-    paymentBox.style.cssText = 'position: absolute; left: 40px; top: 700px; border: 2px solid #000; padding: 15px; width: 300px;';
-    paymentBox.innerHTML = '<div contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 10px;">INFORMACIÓN DE PAGO</div><div contenteditable="true" style="font-size: 12px; color: #000; font-family: Arial, sans-serif; white-space: pre-line; line-height: 1.6;">Transferencia bancaria\nBanco: [Editar banco]\nNombre: {{company.name}}\nNúmero de cuenta: [Editar número de cuenta]</div>';
-    makeDraggable(paymentBox);
-    makeSelectable(paymentBox);
-    canvas.appendChild(paymentBox);
-    visualEditor.elements.push({ id: paymentBox.id, type: 'text', element: paymentBox });
-
     // Footer con URL (centro abajo)
     const footer = createEditableElement('text', '[Editar sitio web]', {
-      position: { left: 40, top: 850 },
+      position: { left: 40, top: 700 },
       styles: { fontSize: '12px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'center', width: '100%' }
     });
     canvas.appendChild(footer);
