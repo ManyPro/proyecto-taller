@@ -1173,6 +1173,8 @@
       { from: /\{\{sale\.formattedNumber\}\}/g, to: '{{S.nº}}' },
       { from: /\{\{sale\.number\}\}/g, to: '{{S.nº}}' },
       { from: /\{\{sale\.total\}\}/g, to: '{{S.total}}' },
+      // Acortar la expresión completa del número de remisión
+      { from: /\{\{#if sale\.formattedNumber\}\}\{\{sale\.formattedNumber\}\}\{\{else\}\}\{\{#if sale\.number\}\}\{\{pad sale\.number\}\}\{\{else\}\}\[Sin número\]\{\{\/if\}\}\{\{\/if\}\}/g, to: '{{#if S.nº}}{{S.nº}}{{else}}[Sin nº]{{/if}}' },
       
       // Variables de empresa
       { from: /\{\{company\.name\}\}/g, to: '{{E.nombre}}' },
@@ -1183,6 +1185,7 @@
       // Variables dentro de items (con helpers primero)
       { from: /\{\{money unitPrice\}\}/g, to: '{{$ precio}}' },
       { from: /\{\{money total\}\}/g, to: '{{$ tot}}' },
+      { from: /\{\{#if sku\}\}\[\{\{sku\}\}\] \{\{\/if\}\}\{\{name\}\}/g, to: '{{#if sku}}[{{sku}}] {{/if}}{{nom}}' },
       { from: /\{\{name\}\}/g, to: '{{nom}}' },
       { from: /\{\{qty\}\}/g, to: '{{cant}}' },
       { from: /\{\{unitPrice\}\}/g, to: '{{precio}}' },
@@ -1238,9 +1241,12 @@
       { from: /\{\{tot\}\}/g, to: '{{total}}' },
       { from: /\{\{\$ tot\}\}/g, to: '{{money total}}' },
       { from: /\{\{pad S\.nº\}\}/g, to: '{{pad sale.number}}' },
+      { from: /\{\{#if S\.nº\}\}\{\{S\.nº\}\}\{\{else\}\}\[Sin nº\]\{\{\/if\}\}/g, to: '{{#if sale.formattedNumber}}{{sale.formattedNumber}}{{else}}{{#if sale.number}}{{pad sale.number}}{{else}}[Sin número]{{/if}}{{/if}}' },
       { from: /\{\{#unless S\.P\}\}/g, to: '{{#unless sale.itemsGrouped.hasProducts}}' },
       { from: /\{\{#unless S\.S\}\}/g, to: '{{#unless sale.itemsGrouped.hasServices}}' },
       { from: /\{\{#unless S\.C\}\}/g, to: '{{#unless sale.itemsGrouped.hasCombos}}' },
+      // Restaurar detalles de tabla
+      { from: /\{\{#if sku\}\}\[\{\{sku\}\}\] \{\{\/if\}\}\{\{nom\}\}/g, to: '{{#if sku}}[{{sku}}] {{/if}}{{name}}' },
     ];
     
     let result = shortHtml;
@@ -1257,21 +1263,28 @@
     return result;
   }
   
-  // Función para agregar leyenda de variables al canvas
+  // Función para agregar leyenda de variables FUERA del canvas
   function addVariableLegend(canvas) {
-    // Remover leyenda existente si hay
-    const existingLegend = canvas.querySelector('.variable-legend');
+    // Remover leyenda existente si hay (buscar tanto dentro como fuera del canvas)
+    const existingLegend = document.querySelector('.variable-legend');
     if (existingLegend) {
       existingLegend.remove();
+    }
+    
+    // Buscar el contenedor padre del canvas
+    const canvasParent = canvas.parentElement;
+    if (!canvasParent) {
+      console.warn('[addVariableLegend] No se encontró el contenedor padre del canvas');
+      return;
     }
     
     const legend = document.createElement('div');
     legend.className = 'variable-legend';
     legend.style.cssText = `
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(255, 255, 255, 0.95);
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      background: white;
       border: 2px solid #2563eb;
       border-radius: 8px;
       padding: 12px;
@@ -1279,8 +1292,9 @@
       font-family: 'Courier New', monospace;
       z-index: 10000;
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      max-width: 300px;
+      max-width: 280px;
       line-height: 1.6;
+      pointer-events: auto;
     `;
     
     legend.innerHTML = `
@@ -1299,36 +1313,10 @@
       </div>
     `;
     
-    canvas.appendChild(legend);
+    // Agregar al body o al contenedor padre del canvas, NO al canvas mismo
+    document.body.appendChild(legend);
     
-    // Hacer la leyenda arrastrable
-    let isDragging = false;
-    let startX, startY, startLeft, startTop;
-    
-    legend.addEventListener('mousedown', (e) => {
-      if (e.target === legend || legend.contains(e.target)) {
-        isDragging = true;
-        startX = e.clientX;
-        startY = e.clientY;
-        startLeft = parseInt(legend.style.left) || 10;
-        startTop = parseInt(legend.style.top) || 10;
-        legend.style.cursor = 'move';
-      }
-    });
-    
-    document.addEventListener('mousemove', (e) => {
-      if (isDragging) {
-        const deltaX = e.clientX - startX;
-        const deltaY = e.clientY - startY;
-        legend.style.left = (startLeft + deltaX) + 'px';
-        legend.style.top = (startTop + deltaY) + 'px';
-      }
-    });
-    
-    document.addEventListener('mouseup', () => {
-      isDragging = false;
-      legend.style.cursor = 'default';
-    });
+    console.log('[addVariableLegend] Leyenda agregada fuera del canvas');
   }
 
   function setupImageUpload(element) {
@@ -1429,7 +1417,7 @@
               });
             } else {
               // Para otras imágenes: crear un elemento arrastrable independiente
-              imgContainer.style.cssText = 'position: absolute; display: inline-block; padding:0; margin:0; line-height:0; cursor: move; border: 2px solid transparent;';
+              imgContainer.style.cssText = 'position: absolute; display: block; padding:0; margin:0; line-height:0; cursor: move; border: 2px solid transparent; min-width: 50px; min-height: 50px;';
               
               // Obtener posición del placeholder antes de reemplazarlo
               const placeholderRect = newPlaceholder.getBoundingClientRect();
@@ -1455,11 +1443,17 @@
               img.src = optimizedSrc;
               img.draggable = false;
               img.alt = 'Imagen';
-              img.style.cssText = 'max-width: 100%; height: auto; display: block;';
+              img.style.cssText = 'max-width: 100%; max-height: 100%; width: auto; height: auto; display: block;';
               
               // Agregar evento para verificar carga
               img.onload = () => {
                 console.log('[setupImageUpload] ✅ Imagen cargada correctamente (independiente)');
+                // Asegurar que el contenedor tenga dimensiones después de cargar la imagen
+                const imgWidth = img.naturalWidth || img.offsetWidth || 200;
+                const imgHeight = img.naturalHeight || img.offsetHeight || 200;
+                imgContainer.style.width = imgWidth + 'px';
+                imgContainer.style.height = imgHeight + 'px';
+                console.log('[setupImageUpload] Dimensiones de imagen aplicadas:', { width: imgWidth, height: imgHeight });
               };
               img.onerror = (e) => {
                 console.error('[setupImageUpload] ❌ Error cargando imagen:', e);
