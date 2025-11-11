@@ -1145,19 +1145,34 @@
   function shortenHandlebarsVars(html) {
     if (!html) return html;
     
+    console.log('[shortenHandlebarsVars] Iniciando acortamiento, longitud HTML:', html.length);
+    
     // Mapeo de variables completas a versiones cortas más legibles
+    // IMPORTANTE: Ordenar de más específico a menos específico para evitar conflictos
     const replacements = [
+      // Variables de items agrupados - HACER PRIMERO (más específicas)
+      { from: /\{\{#if sale\.itemsGrouped\.hasProducts\}\}/g, to: '{{#if S.P}}' },
+      { from: /\{\{#if sale\.itemsGrouped\.hasServices\}\}/g, to: '{{#if S.S}}' },
+      { from: /\{\{#if sale\.itemsGrouped\.hasCombos\}\}/g, to: '{{#if S.C}}' },
+      { from: /\{\{#each sale\.itemsGrouped\.products\}\}/g, to: '{{#each S.P}}' },
+      { from: /\{\{#each sale\.itemsGrouped\.services\}\}/g, to: '{{#each S.S}}' },
+      { from: /\{\{#each sale\.itemsGrouped\.combos\}\}/g, to: '{{#each S.C}}' },
+      { from: /\{\{#unless sale\.itemsGrouped\.hasProducts\}\}/g, to: '{{#unless S.P}}' },
+      { from: /\{\{#unless sale\.itemsGrouped\.hasServices\}\}/g, to: '{{#unless S.S}}' },
+      { from: /\{\{#unless sale\.itemsGrouped\.hasCombos\}\}/g, to: '{{#unless S.C}}' },
+      
       // Variables de cliente
       { from: /\{\{sale\.customer\.name\}\}/g, to: '{{C.nombre}}' },
       { from: /\{\{sale\.customer\.email\}\}/g, to: '{{C.email}}' },
       { from: /\{\{sale\.customer\.phone\}\}/g, to: '{{C.tel}}' },
       { from: /\{\{sale\.customer\.address\}\}/g, to: '{{C.dir}}' },
       
-      // Variables de venta
+      // Variables de venta (con helpers primero)
+      { from: /\{\{money sale\.total\}\}/g, to: '{{$ S.total}}' },
+      { from: /\{\{pad sale\.number\}\}/g, to: '{{pad S.nº}}' },
       { from: /\{\{sale\.formattedNumber\}\}/g, to: '{{S.nº}}' },
       { from: /\{\{sale\.number\}\}/g, to: '{{S.nº}}' },
       { from: /\{\{sale\.total\}\}/g, to: '{{S.total}}' },
-      { from: /\{\{money sale\.total\}\}/g, to: '{{$ S.total}}' },
       
       // Variables de empresa
       { from: /\{\{company\.name\}\}/g, to: '{{E.nombre}}' },
@@ -1165,38 +1180,31 @@
       { from: /\{\{company\.logoUrl\}\}/g, to: '{{E.logo}}' },
       { from: /\{\{company\.logo\}\}/g, to: '{{E.logo}}' },
       
-      // Variables de items agrupados
-      { from: /\{\{#if sale\.itemsGrouped\.hasProducts\}\}/g, to: '{{#if S.P}}' },
-      { from: /\{\{#if sale\.itemsGrouped\.hasServices\}\}/g, to: '{{#if S.S}}' },
-      { from: /\{\{#if sale\.itemsGrouped\.hasCombos\}\}/g, to: '{{#if S.C}}' },
-      { from: /\{\{#each sale\.itemsGrouped\.products\}\}/g, to: '{{#each S.P}}' },
-      { from: /\{\{#each sale\.itemsGrouped\.services\}\}/g, to: '{{#each S.S}}' },
-      { from: /\{\{#each sale\.itemsGrouped\.combos\}\}/g, to: '{{#each S.C}}' },
-      
-      // Variables dentro de items
+      // Variables dentro de items (con helpers primero)
+      { from: /\{\{money unitPrice\}\}/g, to: '{{$ precio}}' },
+      { from: /\{\{money total\}\}/g, to: '{{$ tot}}' },
       { from: /\{\{name\}\}/g, to: '{{nom}}' },
       { from: /\{\{qty\}\}/g, to: '{{cant}}' },
       { from: /\{\{unitPrice\}\}/g, to: '{{precio}}' },
-      { from: /\{\{money unitPrice\}\}/g, to: '{{$ precio}}' },
       { from: /\{\{total\}\}/g, to: '{{tot}}' },
-      { from: /\{\{money total\}\}/g, to: '{{$ tot}}' },
-      
-      // Helpers comunes
-      { from: /\{\{pad sale\.number\}\}/g, to: '{{pad S.nº}}' },
       
       // Variables de items anidados (combos)
       { from: /\{\{#each items\}\}/g, to: '{{#each items}}' },
-      
-      // Condicionales
-      { from: /\{\{#unless sale\.itemsGrouped\.hasProducts\}\}/g, to: '{{#unless S.P}}' },
-      { from: /\{\{#unless sale\.itemsGrouped\.hasServices\}\}/g, to: '{{#unless S.S}}' },
-      { from: /\{\{#unless sale\.itemsGrouped\.hasCombos\}\}/g, to: '{{#unless S.C}}' },
     ];
     
     let result = html;
-    replacements.forEach(({ from, to }) => {
-      result = result.replace(from, to);
+    let totalReplacements = 0;
+    replacements.forEach(({ from, to }, idx) => {
+      const matches = result.match(from);
+      if (matches) {
+        totalReplacements += matches.length;
+        result = result.replace(from, to);
+        console.log(`[shortenHandlebarsVars] Reemplazo ${idx + 1}: ${matches.length} coincidencias`);
+      }
     });
+    
+    console.log('[shortenHandlebarsVars] Total de reemplazos realizados:', totalReplacements);
+    console.log('[shortenHandlebarsVars] Longitud HTML resultante:', result.length);
     
     return result;
   }
@@ -1388,11 +1396,22 @@
             if (isLogoBox) {
               // Para logo: ajustar al contenedor manteniendo proporciones
               imgContainer.style.cssText = 'position: relative; display: block; padding:0; margin:0; line-height:0; width: 100%; height: 100%;';
+              
+              // Crear la imagen ANTES de reemplazar el placeholder
+              const img = document.createElement('img');
+              img.src = optimizedSrc;
+              img.draggable = false;
+              img.alt = 'Logo';
+              img.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;';
+              
+              // Agregar la imagen al contenedor ANTES de insertarlo en el DOM
+              imgContainer.appendChild(img);
+              
               // Reemplazar el placeholder con la imagen dentro del logo box
               newPlaceholder.replaceWith(imgContainer);
             } else {
               // Para otras imágenes: crear un elemento arrastrable independiente
-              imgContainer.style.cssText = 'position: absolute; display: inline-block; padding:0; margin:0; line-height:0; cursor: move;';
+              imgContainer.style.cssText = 'position: absolute; display: inline-block; padding:0; margin:0; line-height:0; cursor: move; border: 2px solid transparent;';
               
               // Obtener posición del placeholder antes de reemplazarlo
               const placeholderRect = newPlaceholder.getBoundingClientRect();
@@ -1413,10 +1432,20 @@
               imgContainer.classList.add('tpl-element');
               imgContainer.id = `element_${visualEditor.nextId++}`;
               
+              // Crear la imagen ANTES de reemplazar el placeholder
+              const img = document.createElement('img');
+              img.src = optimizedSrc;
+              img.draggable = false;
+              img.alt = 'Imagen';
+              img.style.cssText = 'max-width: 100%; height: auto; display: block;';
+              
+              // Agregar la imagen al contenedor ANTES de insertarlo en el DOM
+              imgContainer.appendChild(img);
+              
               // Obtener el canvas antes de reemplazar el placeholder
               const canvasElement = newPlaceholder.closest('#ce-canvas');
               
-              // Reemplazar el placeholder con la imagen
+              // Reemplazar el placeholder con el contenedor completo (con imagen)
               newPlaceholder.replaceWith(imgContainer);
               
               // Si el canvas existe y el elemento no está dentro de él, agregarlo
@@ -1427,7 +1456,10 @@
               // Asegurar que el elemento tenga position absolute
               imgContainer.style.position = 'absolute';
               
-              // Hacer el contenedor arrastrable
+              // Agregar handles de redimensionamiento para imágenes independientes
+              addResizeHandles(imgContainer, img);
+              
+              // Hacer el contenedor arrastrable DESPUÉS de agregarlo al DOM
               makeDraggable(imgContainer);
               makeSelectable(imgContainer);
               
@@ -1440,22 +1472,32 @@
               
               // Seleccionar el elemento recién creado
               selectElement(imgContainer);
+              
+              console.log('[setupImageUpload] Imagen agregada:', {
+                id: imgContainer.id,
+                className: imgContainer.className,
+                position: imgContainer.style.position,
+                left: imgContainer.style.left,
+                top: imgContainer.style.top,
+                hasImage: !!imgContainer.querySelector('img')
+              });
             }
             
-            const img = document.createElement('img');
-            img.src = optimizedSrc;
-            img.draggable = false;
-            img.alt = 'Logo';
+            // Ya no necesitamos crear la imagen aquí porque se creó arriba
+            // const img = document.createElement('img');
+            // img.src = optimizedSrc;
+            // img.draggable = false;
+            // img.alt = 'Logo';
             
-            if (isLogoBox) {
-              img.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;';
-            } else {
-              img.style.cssText = 'max-width: 100%; height: auto; display: block;';
-              // Agregar handles de redimensionamiento para imágenes independientes
-              addResizeHandles(imgContainer, img);
-            }
+            // if (isLogoBox) {
+            //   img.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;';
+            // } else {
+            //   img.style.cssText = 'max-width: 100%; height: auto; display: block;';
+            //   // Agregar handles de redimensionamiento para imágenes independientes
+            //   addResizeHandles(imgContainer, img);
+            // }
             
-            imgContainer.appendChild(img);
+            // imgContainer.appendChild(img);
             
             // Asegurar que el contenedor padre mantenga las propiedades correctas (solo para logo box)
             if (parentBox && isLogoBox) {
@@ -2175,8 +2217,16 @@
           }
           window.templateOriginalHtml[formatId] = template.contentHtml;
           
+          console.log('[loadExistingFormat] HTML original guardado, longitud:', template.contentHtml.length);
+          
           // Convertir variables largas a formato corto para el canvas
           const shortHtml = shortenHandlebarsVars(template.contentHtml);
+          console.log('[loadExistingFormat] HTML acortado generado, longitud:', shortHtml.length);
+          console.log('[loadExistingFormat] Ejemplo de acortamiento:', {
+            original: template.contentHtml.substring(0, 200),
+            shortened: shortHtml.substring(0, 200)
+          });
+          
           canvas.innerHTML = shortHtml;
           
           // Agregar leyenda de variables
