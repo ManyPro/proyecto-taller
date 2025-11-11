@@ -176,8 +176,14 @@ function printSaleTicket(sale){
             
             win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}${debugScript}
               <style>
-                /* Estilos específicos para impresión del total */
+                /* Estilos específicos para impresión del total y asegurar que quepa en una página */
                 @media print {
+                  body {
+                    margin: 0 !important;
+                    padding: 10mm !important;
+                    max-height: 297mm !important;
+                    overflow: hidden !important;
+                  }
                   .tpl-total-line,
                   .tpl-total-box {
                     position: absolute !important;
@@ -186,12 +192,20 @@ function printSaleTicket(sale){
                     opacity: 1 !important;
                     page-break-inside: avoid !important;
                     page-break-after: avoid !important;
+                    max-height: 1100px !important;
                   }
                   .tpl-total-box {
                     border: 2px solid #000 !important;
                     background: white !important;
                     -webkit-print-color-adjust: exact !important;
                     print-color-adjust: exact !important;
+                  }
+                  /* Asegurar que la tabla no se corte */
+                  table.remission-table {
+                    page-break-inside: auto !important;
+                  }
+                  table.remission-table tr {
+                    page-break-inside: avoid !important;
                   }
                 }
               </style>
@@ -231,7 +245,12 @@ function printSaleTicket(sale){
               );
               
               // Calcular nueva posición: inicio de tabla + altura + espacio adicional
-              const newTop = tableTop + tableHeight + 15; // 15px de espacio adicional para evitar solapamiento
+              const newTop = tableTop + tableHeight + 10; // 10px de espacio adicional para evitar solapamiento
+              
+              // Asegurar que el total quepa en una página A4 (altura máxima ~1123px con márgenes)
+              // Dejar espacio para márgenes inferiores (al menos 20px)
+              const maxTop = 1100;
+              const finalTop = Math.min(newTop, maxTop);
               
               console.log('[printSaleTicket] Ajustando total:', {
                 tableRectTop: tableRect.top,
@@ -239,6 +258,8 @@ function printSaleTicket(sale){
                 tableTop,
                 tableHeight,
                 newTop,
+                finalTop,
+                maxTop,
                 offsetHeight: table.offsetHeight,
                 scrollHeight: table.scrollHeight,
                 clientHeight: table.clientHeight,
@@ -246,14 +267,14 @@ function printSaleTicket(sale){
               });
               
               if (totalLine) {
-                totalLine.style.top = `${newTop}px`;
+                totalLine.style.top = `${finalTop}px`;
                 totalLine.style.position = 'absolute';
                 totalLine.style.zIndex = '1000';
                 totalLine.style.display = 'block';
                 totalLine.style.visibility = 'visible';
               }
               if (totalBox) {
-                totalBox.style.top = `${newTop + 1}px`;
+                totalBox.style.top = `${finalTop + 1}px`;
                 totalBox.style.position = 'absolute';
                 totalBox.style.zIndex = '1000';
                 totalBox.style.display = 'block';
@@ -370,8 +391,14 @@ function printWorkOrder(){
             const css = r.css? `<style>${r.css}</style>`:'';
             win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}
               <style>
-                /* Estilos específicos para impresión del total */
+                /* Estilos específicos para impresión del total y asegurar que quepa en una página */
                 @media print {
+                  body {
+                    margin: 0 !important;
+                    padding: 10mm !important;
+                    max-height: 297mm !important;
+                    overflow: hidden !important;
+                  }
                   .tpl-total-line,
                   .tpl-total-box {
                     position: absolute !important;
@@ -380,12 +407,20 @@ function printWorkOrder(){
                     opacity: 1 !important;
                     page-break-inside: avoid !important;
                     page-break-after: avoid !important;
+                    max-height: 1100px !important;
                   }
                   .tpl-total-box {
                     border: 2px solid #000 !important;
                     background: white !important;
                     -webkit-print-color-adjust: exact !important;
                     print-color-adjust: exact !important;
+                  }
+                  /* Asegurar que la tabla no se corte */
+                  table.remission-table {
+                    page-break-inside: auto !important;
+                  }
+                  table.remission-table tr {
+                    page-break-inside: avoid !important;
                   }
                 }
               </style>
@@ -425,7 +460,11 @@ function printWorkOrder(){
               );
               
               // Calcular nueva posición: inicio de tabla + altura + espacio adicional
-              const newTop = tableTop + tableHeight + 15; // 15px de espacio adicional para evitar solapamiento
+              const newTop = tableTop + tableHeight + 10; // 10px de espacio adicional para evitar solapamiento
+              
+              // Asegurar que el total quepa en una página A4 (altura máxima ~1123px con márgenes)
+              const maxTop = 1100;
+              const finalTop = Math.min(newTop, maxTop);
               
               console.log('[printWorkOrder] Ajustando total:', {
                 tableRectTop: tableRect.top,
@@ -433,6 +472,8 @@ function printWorkOrder(){
                 tableTop,
                 tableHeight,
                 newTop,
+                finalTop,
+                maxTop,
                 offsetHeight: table.offsetHeight,
                 scrollHeight: table.scrollHeight,
                 clientHeight: table.clientHeight,
@@ -440,14 +481,14 @@ function printWorkOrder(){
               });
               
               if (totalLine) {
-                totalLine.style.top = `${newTop}px`;
+                totalLine.style.top = `${finalTop}px`;
                 totalLine.style.position = 'absolute';
                 totalLine.style.zIndex = '1000';
                 totalLine.style.display = 'block';
                 totalLine.style.visibility = 'visible';
               }
               if (totalBox) {
-                totalBox.style.top = `${newTop + 1}px`;
+                totalBox.style.top = `${finalTop + 1}px`;
                 totalBox.style.position = 'absolute';
                 totalBox.style.zIndex = '1000';
                 totalBox.style.display = 'block';
