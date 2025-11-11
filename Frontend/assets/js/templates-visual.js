@@ -1714,9 +1714,9 @@
       const shouldShow = !!(visualEditor.selectedElement && visualEditor.selectedElement.contains(container));
       Object.values(handleElements).forEach(h => h.style.display = shouldShow ? 'block' : 'none');
       try {
-        // Solo actualizar dimensiones si la imagen tiene dimensiones válidas y no se está reduciendo
-        const imgWidth = img.naturalWidth || img.offsetWidth;
-        const imgHeight = img.naturalHeight || img.offsetHeight;
+        // Asegurar que el contenedor siempre tenga el mismo tamaño que la imagen
+        const imgWidth = img.offsetWidth || img.naturalWidth || 0;
+        const imgHeight = img.offsetHeight || img.naturalHeight || 0;
         
         // Solo actualizar si las dimensiones son válidas y mayores que un mínimo
         if (imgWidth > 10 && imgHeight > 10) {
@@ -1809,13 +1809,16 @@
 
       img.style.width = newWidth + 'px';
       img.style.height = newHeight + 'px';
+      
+      // Asegurar que el contenedor siempre tenga el mismo tamaño que la imagen
+      container.style.width = newWidth + 'px';
+      container.style.height = newHeight + 'px';
+      
       try {
-        container.style.width = img.offsetWidth + 'px';
-        container.style.height = img.offsetHeight + 'px';
         const parentTpl = container.closest('.tpl-element');
-        if (parentTpl) {
-          parentTpl.style.width = container.style.width;
-          parentTpl.style.height = container.style.height;
+        if (parentTpl && parentTpl !== container) {
+          parentTpl.style.width = newWidth + 'px';
+          parentTpl.style.height = newHeight + 'px';
           parentTpl.style.padding = '0';
           parentTpl.style.minWidth = '0';
           parentTpl.style.minHeight = '0';
@@ -2694,28 +2697,46 @@
     // Esto se ejecutará cuando se renderice el template con datos reales
     const adjustTotalPosition = () => {
       const table = itemsTable.querySelector('table.remission-table');
-      if (table) {
-        // Obtener posición real de la tabla usando getBoundingClientRect
-        const tableRect = table.getBoundingClientRect();
-        const canvasRect = canvas.getBoundingClientRect();
-        const tableTop = tableRect.top - canvasRect.top + canvas.scrollTop;
-        const tableHeight = table.offsetHeight || tableRect.height || 75;
-        const newTop = tableTop + tableHeight;
-        
-        // Asegurar que el total no se salga de la página A4 (altura máxima ~1123px)
-        const maxTop = 1100; // Dejar espacio para márgenes inferiores
-        const finalTop = Math.min(newTop, maxTop);
-        
-        totalLine.style.top = `${finalTop}px`;
-        totalBox.style.top = `${finalTop + 1}px`;
-        
-        console.log('[adjustTotalPosition] Total ajustado:', {
-          tableTop,
-          tableHeight,
-          newTop,
-          finalTop
-        });
+      if (!table) {
+        console.log('[adjustTotalPosition] Tabla no encontrada aún');
+        return;
       }
+      
+      // Usar múltiples métodos para obtener la altura real de la tabla (igual que en impresión)
+      const tableRect = table.getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect();
+      
+      // Obtener posición relativa al canvas
+      const tableTop = tableRect.top - canvasRect.top + canvas.scrollTop;
+      
+      // Obtener altura real de la tabla usando el mayor valor disponible
+      const tableHeight = Math.max(
+        table.offsetHeight || 0,
+        table.scrollHeight || 0,
+        tableRect.height || 0,
+        table.clientHeight || 0
+      );
+      
+      // Calcular nueva posición: inicio de tabla + altura + espacio adicional
+      const newTop = tableTop + tableHeight + 10; // 10px de espacio adicional para evitar solapamiento
+      
+      // Asegurar que el total no se salga de la página A4 (altura máxima ~1123px)
+      const maxTop = 1100; // Dejar espacio para márgenes inferiores
+      const finalTop = Math.min(newTop, maxTop);
+      
+      totalLine.style.top = `${finalTop}px`;
+      totalBox.style.top = `${finalTop + 1}px`;
+      
+      console.log('[adjustTotalPosition] Total ajustado:', {
+        tableTop,
+        tableHeight,
+        tableOffsetHeight: table.offsetHeight,
+        tableScrollHeight: table.scrollHeight,
+        tableRectHeight: tableRect.height,
+        tableClientHeight: table.clientHeight,
+        newTop,
+        finalTop
+      });
     };
     
     // Ajustar posición cuando se cargue el template con datos
@@ -2724,11 +2745,18 @@
       adjustTotalPosition();
     });
     if (itemsTable) {
-      observer.observe(itemsTable, { childList: true, subtree: true });
+      observer.observe(itemsTable, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
     }
-    // También ajustar después de un delay para asegurar que se ejecute
+    
+    // También ajustar después de múltiples delays para asegurar que se ejecute cuando la tabla tenga su altura real
+    setTimeout(adjustTotalPosition, 100);
+    setTimeout(adjustTotalPosition, 300);
     setTimeout(adjustTotalPosition, 500);
     setTimeout(adjustTotalPosition, 1000);
+    setTimeout(adjustTotalPosition, 2000);
+    
+    // Ajustar también cuando se redimensiona la ventana
+    window.addEventListener('resize', adjustTotalPosition);
 
     // Footer con URL (centro abajo) - Removido para que quepa en una página
     // const footer = createEditableElement('text', '[Editar sitio web]', {
