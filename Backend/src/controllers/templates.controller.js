@@ -34,14 +34,66 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
     let sale = null;
     if (sampleId) sale = await Sale.findOne({ _id: sampleId, companyId });
     else sale = await Sale.findOne({ companyId, status: 'closed' }).sort({ createdAt: -1 });
-    if (sale) ctx.sale = sale.toObject();
+    if (sale) {
+      const saleObj = sale.toObject();
+      // Asegurar que items esté presente y sea un array
+      if (!saleObj.items || !Array.isArray(saleObj.items)) {
+        saleObj.items = [];
+      }
+      // Asegurar que cada item tenga las propiedades necesarias
+      saleObj.items = saleObj.items.map(item => ({
+        sku: item.sku || '',
+        name: item.name || '',
+        qty: Number(item.qty) || 0,
+        unitPrice: Number(item.unitPrice) || 0,
+        total: Number(item.total) || (Number(item.qty) || 0) * (Number(item.unitPrice) || 0)
+      }));
+      // Asegurar que customer esté presente
+      if (!saleObj.customer) {
+        saleObj.customer = { name: '', email: '', phone: '', address: '' };
+      }
+      // Asegurar que vehicle esté presente
+      if (!saleObj.vehicle) {
+        saleObj.vehicle = { plate: '', brand: '', line: '', engine: '', year: null, mileage: null };
+      }
+      // Formatear número de remisión si existe
+      if (saleObj.number) {
+        saleObj.formattedNumber = String(saleObj.number).padStart(5, '0');
+      } else {
+        saleObj.formattedNumber = '';
+      }
+      ctx.sale = saleObj;
+    }
   }
   // CotizaciÃ³n
   if (effective === 'quote') {
     let quote = null;
     if (sampleId) quote = await Quote.findOne({ _id: sampleId, companyId });
     else quote = await Quote.findOne({ companyId }).sort({ createdAt: -1 });
-    if (quote) ctx.quote = quote.toObject();
+    if (quote) {
+      const quoteObj = quote.toObject();
+      // Asegurar que items esté presente y sea un array
+      if (!quoteObj.items || !Array.isArray(quoteObj.items)) {
+        quoteObj.items = [];
+      }
+      // Asegurar que cada item tenga las propiedades necesarias
+      quoteObj.items = quoteObj.items.map(item => ({
+        sku: item.sku || '',
+        description: item.description || '',
+        qty: item.qty || null,
+        unitPrice: Number(item.unitPrice) || 0,
+        subtotal: Number(item.subtotal) || (item.qty ? Number(item.qty) : 1) * (Number(item.unitPrice) || 0)
+      }));
+      // Asegurar que customer esté presente
+      if (!quoteObj.customer) {
+        quoteObj.customer = { name: '', phone: '', email: '' };
+      }
+      // Asegurar que vehicle esté presente
+      if (!quoteObj.vehicle) {
+        quoteObj.vehicle = { plate: '', make: '', line: '', modelYear: '', displacement: '' };
+      }
+      ctx.quote = quoteObj;
+    }
   }
   // Pedido (order)
   if (effective === 'order') {
