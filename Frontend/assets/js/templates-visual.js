@@ -569,6 +569,8 @@
     const startDrag = (e) => {
       if (e.target.contentEditable === 'true' || e.target.tagName === 'INPUT') return;
       if (e.target === rotateHandle || rotateHandle?.contains(e.target)) return;
+      // Evitar drag si se hace clic en un resize handle
+      if (e.target.classList.contains('resize-handle') || e.target.closest('.resize-handle')) return;
       
       isDragging = true;
       startX = e.clientX;
@@ -1386,9 +1388,58 @@
             if (isLogoBox) {
               // Para logo: ajustar al contenedor manteniendo proporciones
               imgContainer.style.cssText = 'position: relative; display: block; padding:0; margin:0; line-height:0; width: 100%; height: 100%;';
+              // Reemplazar el placeholder con la imagen dentro del logo box
+              newPlaceholder.replaceWith(imgContainer);
             } else {
-              // Para otras imágenes: tamaño automático
-              imgContainer.style.cssText = 'position: relative; display: inline-block; padding:0; margin:0; line-height:0;';
+              // Para otras imágenes: crear un elemento arrastrable independiente
+              imgContainer.style.cssText = 'position: absolute; display: inline-block; padding:0; margin:0; line-height:0; cursor: move;';
+              
+              // Obtener posición del placeholder antes de reemplazarlo
+              const placeholderRect = newPlaceholder.getBoundingClientRect();
+              const canvas = newPlaceholder.closest('#ce-canvas');
+              if (canvas) {
+                const canvasRect = canvas.getBoundingClientRect();
+                const left = placeholderRect.left - canvasRect.left;
+                const top = placeholderRect.top - canvasRect.top;
+                imgContainer.style.left = left + 'px';
+                imgContainer.style.top = top + 'px';
+              } else {
+                // Si no hay canvas, usar posición por defecto
+                imgContainer.style.left = '20px';
+                imgContainer.style.top = '20px';
+              }
+              
+              // Agregar clase tpl-element para que sea arrastrable
+              imgContainer.classList.add('tpl-element');
+              imgContainer.id = `element_${visualEditor.nextId++}`;
+              
+              // Obtener el canvas antes de reemplazar el placeholder
+              const canvasElement = newPlaceholder.closest('#ce-canvas');
+              
+              // Reemplazar el placeholder con la imagen
+              newPlaceholder.replaceWith(imgContainer);
+              
+              // Si el canvas existe y el elemento no está dentro de él, agregarlo
+              if (canvasElement && !canvasElement.contains(imgContainer)) {
+                canvasElement.appendChild(imgContainer);
+              }
+              
+              // Asegurar que el elemento tenga position absolute
+              imgContainer.style.position = 'absolute';
+              
+              // Hacer el contenedor arrastrable
+              makeDraggable(imgContainer);
+              makeSelectable(imgContainer);
+              
+              // Agregar a la lista de elementos
+              visualEditor.elements.push({
+                id: imgContainer.id,
+                type: 'image',
+                element: imgContainer
+              });
+              
+              // Seleccionar el elemento recién creado
+              selectElement(imgContainer);
             }
             
             const img = document.createElement('img');
@@ -1400,15 +1451,14 @@
               img.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;';
             } else {
               img.style.cssText = 'max-width: 100%; height: auto; display: block;';
+              // Agregar handles de redimensionamiento para imágenes independientes
+              addResizeHandles(imgContainer, img);
             }
             
             imgContainer.appendChild(img);
             
-            // Reemplazar el placeholder con la imagen
-            newPlaceholder.replaceWith(imgContainer);
-            
-            // Asegurar que el contenedor padre mantenga las propiedades correctas
-            if (parentBox) {
+            // Asegurar que el contenedor padre mantenga las propiedades correctas (solo para logo box)
+            if (parentBox && isLogoBox) {
               parentBox.style.padding = '0';
               parentBox.style.display = 'flex';
               parentBox.style.alignItems = 'center';
@@ -2148,6 +2198,31 @@
             if (numId >= visualEditor.nextId) {
               visualEditor.nextId = numId + 1;
             }
+          }
+        });
+        
+        // Restaurar también contenedores de imagen que no tienen clase tpl-element
+        const imageContainers = canvas.querySelectorAll('.image-container');
+        imageContainers.forEach(imgContainer => {
+          // Si el contenedor de imagen no está dentro de un tpl-element, hacerlo arrastrable
+          if (!imgContainer.closest('.tpl-element')) {
+            imgContainer.classList.add('tpl-element');
+            if (!imgContainer.id) {
+              imgContainer.id = `element_${visualEditor.nextId++}`;
+            }
+            // Asegurar que tenga position absolute
+            if (!imgContainer.style.position || imgContainer.style.position === 'relative') {
+              imgContainer.style.position = 'absolute';
+            }
+            makeDraggable(imgContainer);
+            makeSelectable(imgContainer);
+            
+            // Agregar a la lista de elementos
+            visualEditor.elements.push({
+              id: imgContainer.id,
+              type: 'image',
+              element: imgContainer
+            });
           }
         });
         
