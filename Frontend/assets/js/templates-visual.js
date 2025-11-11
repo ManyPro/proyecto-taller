@@ -1880,6 +1880,11 @@
         throw new Error('Canvas del editor no encontrado');
       }
       
+      // LIMPIAR COMPLETAMENTE el canvas antes de cargar
+      canvas.innerHTML = '';
+      visualEditor.elements = [];
+      visualEditor.nextId = 1;
+      
       // Ensure canvas is visible and properly sized
       canvas.style.display = 'block';
       canvas.style.visibility = 'visible';
@@ -1889,10 +1894,11 @@
       // Ajustar tamaño del canvas según el formato
       applyCanvasSizeFromFormat(template);
       
-      // SIEMPRE usar la nueva plantilla - no cargar contenido viejo
-      // Si el usuario quiere editar una plantilla existente, debe recrearla con el nuevo formato
-      console.log('🔄 Ignorando contenido viejo, cargando nueva plantilla...');
-      loadDefaultTemplate(template.type || window.currentTemplateSession?.type || 'invoice');
+      // SIEMPRE usar la nueva plantilla - NUNCA cargar contenido viejo
+      // Ignorar completamente cualquier HTML viejo que pueda tener la plantilla
+      console.log('🔄 Ignorando contenido viejo completamente, cargando nueva plantilla...');
+      const templateType = template.type || window.currentTemplateSession?.type || 'invoice';
+      loadDefaultTemplate(templateType);
       showQuickNotification(`🆕 Nueva plantilla cargada para "${template.name}"`, 'success');
       
     } catch (error) {
@@ -1903,6 +1909,12 @@
       const session = window.currentTemplateSession;
       if (session && session.type) {
         console.log('🔄 Cargando plantilla por defecto como fallback...');
+        const canvas = qs('#ce-canvas');
+        if (canvas) {
+          canvas.innerHTML = '';
+          visualEditor.elements = [];
+          visualEditor.nextId = 1;
+        }
         loadDefaultTemplate(session.type);
       }
     }
@@ -1917,7 +1929,12 @@
       return;
     }
 
-    console.log('✅ Canvas encontrado, verificando visibilidad...');
+    console.log('✅ Canvas encontrado, limpiando completamente...');
+
+    // LIMPIAR COMPLETAMENTE el canvas ANTES de cualquier otra operación
+    canvas.innerHTML = '';
+    visualEditor.elements = [];
+    visualEditor.nextId = 1;
 
     // Asegurar que el canvas sea visible y tenga fondo blanco
     canvas.style.display = 'block';
@@ -1931,12 +1948,7 @@
     const mockTemplate = { type: documentType };
     applyCanvasSizeFromFormat(mockTemplate);
     
-    console.log('✅ Canvas visible, limpiando contenido anterior...');
-
-    // Limpiar canvas primero
-    canvas.innerHTML = '';
-    visualEditor.elements = [];
-    visualEditor.nextId = 1;
+    console.log('✅ Canvas limpio y visible, creando nueva plantilla...');
 
     console.log('📋 Creando plantilla para tipo:', documentType);
 
