@@ -32,14 +32,37 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
   // Venta (invoice/workOrder comparten sale)
   if (['invoice','workOrder','sale'].includes(effective)) {
     let sale = null;
-    if (sampleId) sale = await Sale.findOne({ _id: sampleId, companyId });
-    else sale = await Sale.findOne({ companyId, status: 'closed' }).sort({ createdAt: -1 });
+    if (sampleId) {
+      sale = await Sale.findOne({ _id: sampleId, companyId });
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[buildContext Sale] Buscando venta:', {
+          sampleId,
+          companyId,
+          found: !!sale,
+          saleId: sale?._id?.toString(),
+          saleStatus: sale?.status,
+          saleItemsCount: sale?.items?.length || 0,
+          saleItems: sale?.items || []
+        });
+      }
+    } else {
+      sale = await Sale.findOne({ companyId, status: 'closed' }).sort({ createdAt: -1 });
+    }
     if (sale) {
       const saleObj = sale.toObject();
       // Asegurar que items esté presente y sea un array
       if (!saleObj.items || !Array.isArray(saleObj.items)) {
         saleObj.items = [];
       }
+      
+      // Log antes de procesar items
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[buildContext Sale] Items antes de procesar:', {
+          itemsCount: saleObj.items.length,
+          items: saleObj.items
+        });
+      }
+      
       // Asegurar que cada item tenga las propiedades necesarias
       // NO filtrar items vacíos aquí, dejarlos pasar para que el template decida
       saleObj.items = saleObj.items.map(item => ({
@@ -49,6 +72,14 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
         unitPrice: Number(item.unitPrice) || 0,
         total: Number(item.total) || (Number(item.qty) || 0) * (Number(item.unitPrice) || 0)
       }));
+      
+      // Log después de procesar items
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[buildContext Sale] Items después de procesar:', {
+          itemsCount: saleObj.items.length,
+          items: saleObj.items.map(i => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice, total: i.total }))
+        });
+      }
       
       // Asegurar que customer esté presente
       if (!saleObj.customer) {

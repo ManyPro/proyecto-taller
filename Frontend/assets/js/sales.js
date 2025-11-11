@@ -90,7 +90,13 @@ function printSaleTicket(sale){
               hasRendered: !!r.rendered,
               renderedLength: r.rendered?.length || 0,
               hasCss: !!r.css,
-              context: r.context
+              contextSaleItemsCount: r.context?.sale?.items?.length || 0,
+              contextSaleItems: r.context?.sale?.items || [],
+              contextSaleNumber: r.context?.sale?.number,
+              contextSaleFormattedNumber: r.context?.sale?.formattedNumber,
+              contextSaleCustomer: r.context?.sale?.customer,
+              contextSaleVehicle: r.context?.sale?.vehicle,
+              renderedPreview: r.rendered?.substring(0, 500) || ''
             });
             const win = window.open('', '_blank');
             if(!win){ fallback(); return; }
