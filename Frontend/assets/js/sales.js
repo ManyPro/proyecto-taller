@@ -177,35 +177,92 @@ function printSaleTicket(sale){
             win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}${debugScript}</head><body>${r.rendered}</body></html>`);
             win.document.close(); 
             
+            // Función robusta para ajustar posición del total
+            const adjustTotalPosition = () => {
+              const table = win.document.querySelector('table.remission-table');
+              const totalLine = win.document.querySelector('.tpl-total-line');
+              const totalBox = win.document.querySelector('.tpl-total-box');
+              
+              if (!table) {
+                console.log('[printSaleTicket] Tabla no encontrada aún, reintentando...');
+                return false;
+              }
+              
+              if (!totalLine && !totalBox) {
+                console.log('[printSaleTicket] Total no encontrado aún, reintentando...');
+                return false;
+              }
+              
+              // Método más confiable: obtener posición y altura de la tabla
+              // Usar múltiples métodos para asegurar precisión
+              const tableRect = table.getBoundingClientRect();
+              const scrollTop = win.pageYOffset || win.document.documentElement.scrollTop || win.document.body.scrollTop || 0;
+              
+              // Obtener posición absoluta: posición relativa al viewport + scroll
+              const tableTop = tableRect.top + scrollTop;
+              
+              // Obtener altura real de la tabla (usar el mayor valor para asegurar que incluya todo)
+              const tableHeight = Math.max(
+                table.offsetHeight || 0,
+                table.scrollHeight || 0,
+                tableRect.height || 0,
+                table.clientHeight || 0
+              );
+              
+              // Calcular nueva posición: inicio de tabla + altura + espacio adicional
+              const newTop = tableTop + tableHeight + 15; // 15px de espacio adicional para evitar solapamiento
+              
+              console.log('[printSaleTicket] Ajustando total:', {
+                tableRectTop: tableRect.top,
+                scrollTop,
+                tableTop,
+                tableHeight,
+                newTop,
+                offsetHeight: table.offsetHeight,
+                scrollHeight: table.scrollHeight,
+                clientHeight: table.clientHeight,
+                rectHeight: tableRect.height
+              });
+              
+              if (totalLine) {
+                totalLine.style.top = `${newTop}px`;
+                totalLine.style.position = 'absolute';
+                totalLine.style.zIndex = '1000';
+              }
+              if (totalBox) {
+                totalBox.style.top = `${newTop + 1}px`;
+                totalBox.style.position = 'absolute';
+                totalBox.style.zIndex = '1000';
+              }
+              
+              return true;
+            };
+            
             // Ajustar posición del total dinámicamente después de que se renderice la tabla
+            // Múltiples intentos para asegurar que funcione
             win.addEventListener('DOMContentLoaded', () => {
+              // Intentar inmediatamente
               setTimeout(() => {
-                const table = win.document.querySelector('table.remission-table');
-                const totalLine = win.document.querySelector('.tpl-total-line');
-                const totalBox = win.document.querySelector('.tpl-total-box');
-                
-                if (table && (totalLine || totalBox)) {
-                  // Obtener posición absoluta de la tabla en el documento
-                  let tableTop = table.offsetTop;
-                  let parent = table.offsetParent;
-                  while (parent) {
-                    tableTop += parent.offsetTop;
-                    parent = parent.offsetParent;
-                  }
-                  
-                  const tableHeight = table.offsetHeight;
-                  const newTop = tableTop + tableHeight;
-                  
-                  if (totalLine) {
-                    totalLine.style.top = `${newTop}px`;
-                  }
-                  if (totalBox) {
-                    totalBox.style.top = `${newTop + 1}px`;
-                  }
-                  
-                  console.log('[printSaleTicket] Total ajustado a posición:', newTop, 'Altura de tabla:', tableHeight);
+                if (!adjustTotalPosition()) {
+                  // Si falla, intentar de nuevo con más delay
+                  setTimeout(() => {
+                    if (!adjustTotalPosition()) {
+                      setTimeout(adjustTotalPosition, 500);
+                    }
+                  }, 300);
                 }
-              }, 200);
+              }, 100);
+              
+              // También intentar después de que las imágenes se carguen
+              setTimeout(adjustTotalPosition, 500);
+              setTimeout(adjustTotalPosition, 1000);
+              setTimeout(adjustTotalPosition, 2000);
+            });
+            
+            // También ajustar cuando la ventana se carga completamente
+            win.addEventListener('load', () => {
+              setTimeout(adjustTotalPosition, 100);
+              setTimeout(adjustTotalPosition, 500);
             });
             
             // NO cerrar automáticamente - dejar abierta para ver logs
@@ -213,9 +270,16 @@ function printSaleTicket(sale){
             
             // Esperar un momento y luego preguntar si quiere imprimir
             setTimeout(() => {
+              // Ajustar una vez más antes de preguntar
+              adjustTotalPosition();
+              
               const shouldPrint = confirm('Ventana de impresión abierta.\n\n¿Deseas imprimir ahora?\n\n✅ Sí - Imprimir\n❌ No - Solo ver (puedes cerrar manualmente)');
               if (shouldPrint) {
-                win.print();
+                // Ajustar una última vez antes de imprimir
+                setTimeout(() => {
+                  adjustTotalPosition();
+                  setTimeout(() => win.print(), 100);
+                }, 200);
               }
             }, 1000);
           })
@@ -272,45 +336,98 @@ function printWorkOrder(){
             win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}</head><body>${r.rendered}</body></html>`);
             win.document.close();
             
+            // Función robusta para ajustar posición del total
+            const adjustTotalPosition = () => {
+              const table = win.document.querySelector('table.remission-table');
+              const totalLine = win.document.querySelector('.tpl-total-line');
+              const totalBox = win.document.querySelector('.tpl-total-box');
+              
+              if (!table) {
+                console.log('[printWorkOrder] Tabla no encontrada aún, reintentando...');
+                return false;
+              }
+              
+              if (!totalLine && !totalBox) {
+                console.log('[printWorkOrder] Total no encontrado aún, reintentando...');
+                return false;
+              }
+              
+              // Método más confiable: obtener posición y altura de la tabla
+              // Usar múltiples métodos para asegurar precisión
+              const tableRect = table.getBoundingClientRect();
+              const scrollTop = win.pageYOffset || win.document.documentElement.scrollTop || win.document.body.scrollTop || 0;
+              
+              // Obtener posición absoluta: posición relativa al viewport + scroll
+              const tableTop = tableRect.top + scrollTop;
+              
+              // Obtener altura real de la tabla (usar el mayor valor para asegurar que incluya todo)
+              const tableHeight = Math.max(
+                table.offsetHeight || 0,
+                table.scrollHeight || 0,
+                tableRect.height || 0,
+                table.clientHeight || 0
+              );
+              
+              // Calcular nueva posición: inicio de tabla + altura + espacio adicional
+              const newTop = tableTop + tableHeight + 15; // 15px de espacio adicional para evitar solapamiento
+              
+              console.log('[printWorkOrder] Ajustando total:', {
+                tableRectTop: tableRect.top,
+                scrollTop,
+                tableTop,
+                tableHeight,
+                newTop,
+                offsetHeight: table.offsetHeight,
+                scrollHeight: table.scrollHeight,
+                clientHeight: table.clientHeight,
+                rectHeight: tableRect.height
+              });
+              
+              if (totalLine) {
+                totalLine.style.top = `${newTop}px`;
+                totalLine.style.position = 'absolute';
+                totalLine.style.zIndex = '1000';
+              }
+              if (totalBox) {
+                totalBox.style.top = `${newTop + 1}px`;
+                totalBox.style.position = 'absolute';
+                totalBox.style.zIndex = '1000';
+              }
+              
+              return true;
+            };
+            
             // Ajustar posición del total dinámicamente después de que se renderice la tabla
             win.addEventListener('DOMContentLoaded', () => {
               setTimeout(() => {
-                const table = win.document.querySelector('table.remission-table');
-                const totalLine = win.document.querySelector('.tpl-total-line');
-                const totalBox = win.document.querySelector('.tpl-total-box');
-                
-                if (table && (totalLine || totalBox)) {
-                  const tableRect = table.getBoundingClientRect();
-                  const tableBottom = tableRect.bottom;
-                  
-                  // Obtener posición absoluta de la tabla en el documento
-                  let tableTop = table.offsetTop;
-                  let parent = table.offsetParent;
-                  while (parent) {
-                    tableTop += parent.offsetTop;
-                    parent = parent.offsetParent;
-                  }
-                  
-                  const tableHeight = table.offsetHeight || tableRect.height;
-                  const newTop = tableTop + tableHeight;
-                  
-                  if (totalLine) {
-                    totalLine.style.top = `${newTop}px`;
-                  }
-                  if (totalBox) {
-                    totalBox.style.top = `${newTop + 1}px`;
-                  }
-                  
-                  console.log('[printSaleTicket] Total ajustado a posición:', newTop, 'Altura de tabla:', tableHeight);
+                if (!adjustTotalPosition()) {
+                  setTimeout(() => {
+                    if (!adjustTotalPosition()) {
+                      setTimeout(adjustTotalPosition, 500);
+                    }
+                  }, 300);
                 }
               }, 100);
+              
+              setTimeout(adjustTotalPosition, 500);
+              setTimeout(adjustTotalPosition, 1000);
+              setTimeout(adjustTotalPosition, 2000);
+            });
+            
+            win.addEventListener('load', () => {
+              setTimeout(adjustTotalPosition, 100);
+              setTimeout(adjustTotalPosition, 500);
             });
             
             // NO cerrar inmediatamente
             win.focus();
             setTimeout(() => {
+              adjustTotalPosition();
               if (confirm('¿Deseas imprimir ahora?\n\nSí - Imprimir\nNo - Solo ver')) {
-                win.print();
+                setTimeout(() => {
+                  adjustTotalPosition();
+                  setTimeout(() => win.print(), 100);
+                }, 200);
               }
             }, 500);
           })
