@@ -1739,6 +1739,46 @@
     console.log('Session header:', { documentType, action, formatId });
   }
 
+  function adjustCanvasHeightToContent(canvas) {
+    if (!canvas) return;
+    
+    // Calcular la altura máxima de todos los elementos
+    let maxBottom = 0;
+    
+    // Verificar todos los elementos editables (.tpl-element)
+    const elements = canvas.querySelectorAll('.tpl-element');
+    elements.forEach(el => {
+      const rect = el.getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect();
+      const bottom = rect.bottom - canvasRect.top;
+      if (bottom > maxBottom) maxBottom = bottom;
+    });
+    
+    // También verificar todos los hijos directos (líneas, divs, etc.)
+    const allChildren = Array.from(canvas.children);
+    allChildren.forEach(child => {
+      // Ignorar elementos que no tienen posición absoluta o que son muy pequeños
+      const style = window.getComputedStyle(child);
+      const rect = child.getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect();
+      const bottom = rect.bottom - canvasRect.top;
+      
+      // Solo considerar elementos que están realmente posicionados
+      if (bottom > maxBottom && (rect.height > 5 || style.position === 'absolute')) {
+        maxBottom = bottom;
+      }
+    });
+    
+    // Ajustar altura mínima del canvas con padding
+    if (maxBottom > 0) {
+      const padding = 40; // Padding inferior
+      const newMinHeight = maxBottom + padding;
+      canvas.style.minHeight = newMinHeight + 'px';
+      canvas.style.height = 'auto'; // Asegurar altura automática
+      console.log(`📏 Canvas ajustado a altura mínima: ${newMinHeight}px (contenido: ${maxBottom}px + padding: ${padding}px)`);
+    }
+  }
+
   function applyCanvasSizeFromFormat(template) {
     const canvas = qs('#ce-canvas');
     if (!canvas) return;
@@ -1793,24 +1833,23 @@
       size = formatSizes['carta'];
     }
     
-    // Aplicar tamaño al canvas
+    // Aplicar tamaño al canvas - usar min-height para que se ajuste al contenido
     const widthPx = cmToPx(size.width);
-    const heightPx = cmToPx(size.height);
+    const minHeightPx = cmToPx(size.height);
     
     const isLightMode = document.body.classList.contains('theme-light');
     const borderColor = isLightMode ? '#cbd5e1' : '#475569';
     
     canvas.style.width = widthPx + 'px';
-    canvas.style.height = heightPx + 'px';
+    canvas.style.minHeight = minHeightPx + 'px'; // Usar min-height en lugar de height fijo
     canvas.style.maxWidth = widthPx + 'px';
-    canvas.style.maxHeight = heightPx + 'px';
+    canvas.style.height = 'auto'; // Altura automática para que se ajuste al contenido
     canvas.style.minWidth = widthPx + 'px';
-    canvas.style.minHeight = heightPx + 'px';
     canvas.style.margin = '0 auto';
     canvas.style.border = `2px dashed ${borderColor}`;
     canvas.style.background = '#ffffff';
     
-    console.log(`📐 Canvas ajustado a: ${size.width} x ${size.height} cm (${widthPx} x ${heightPx} px)`);
+    console.log(`📐 Canvas ajustado a: ${size.width} cm de ancho, altura mínima ${size.height} cm (${widthPx} x ${minHeightPx} px)`);
   }
 
   async function loadExistingFormat(formatId) {
@@ -1850,20 +1889,11 @@
       // Ajustar tamaño del canvas según el formato
       applyCanvasSizeFromFormat(template);
       
-      if (template.contentHtml && template.contentHtml.trim() !== '') {
-        // Load existing content
-        canvas.innerHTML = template.contentHtml;
-        // Reinitialize elements to make them interactive
-        setTimeout(() => {
-          reinitializeElements();
-          showQuickNotification(`✅ Formato "${template.name}" cargado para editar`, 'success');
-        }, 100);
-      } else {
-        // Si el formato está vacío, cargar plantilla por defecto
-        console.log('ℹ️ Formato sin contenido. Inyectando plantilla base...');
-        loadDefaultTemplate(template.type || window.currentTemplateSession?.type || 'invoice');
-        showQuickNotification(`🧩 "${template.name}": plantilla base cargada`, 'success');
-      }
+      // SIEMPRE usar la nueva plantilla - no cargar contenido viejo
+      // Si el usuario quiere editar una plantilla existente, debe recrearla con el nuevo formato
+      console.log('🔄 Ignorando contenido viejo, cargando nueva plantilla...');
+      loadDefaultTemplate(template.type || window.currentTemplateSession?.type || 'invoice');
+      showQuickNotification(`🆕 Nueva plantilla cargada para "${template.name}"`, 'success');
       
     } catch (error) {
       console.error('❌ Error cargando formato:', error);
@@ -1897,6 +1927,7 @@
     
     // Ajustar tamaño del canvas según el tipo de documento
     // Para tipos de sticker, usar tamaño pequeño; para otros, usar carta por defecto
+    // El canvas se ajustará automáticamente al contenido (min-height)
     const mockTemplate = { type: documentType };
     applyCanvasSizeFromFormat(mockTemplate);
     
@@ -1923,6 +1954,9 @@
       } else if (documentType === 'sticker-qr' || documentType === 'sticker-brand') {
         createStickerTemplate(canvas, documentType);
         showQuickNotification('🏷️ Plantilla de Sticker cargada', 'success');
+      } else if (documentType === 'payroll') {
+        createPayrollTemplate(canvas);
+        showQuickNotification('💰 Plantilla de Nómina cargada', 'success');
       } else {
         console.warn('⚠️ Tipo de documento no reconocido:', documentType);
         showQuickNotification('⚠️ Tipo de documento no reconocido: ' + documentType, 'warning');
@@ -1941,6 +1975,12 @@
         console.error('❌ ERROR: No se agregaron elementos al canvas!');
         showQuickNotification('❌ Error: No se pudieron crear los elementos', 'error');
       }
+      
+      // Ajustar altura del canvas según el contenido después de crear los elementos
+      // Esto hace que el canvas solo ocupe el espacio necesario
+      setTimeout(() => {
+        adjustCanvasHeightToContent(canvas);
+      }, 500); // Aumentar delay para asegurar que todos los elementos estén renderizados
       
     } catch (error) {
       console.error('❌ Error creando plantilla:', error);
@@ -2255,93 +2295,782 @@
   }
 
   function createQuoteTemplate(canvas) {
-    console.log('🎨 Creando plantilla de cotización simple...');
+    console.log('🎨 Creando plantilla de cotización completa...');
     
-    // Título
+    // Título COTIZACIÓN (arriba izquierda)
     const title = createEditableElement('title', 'COTIZACIÓN', {
       position: { left: 40, top: 30 },
-      styles: { fontSize: '32px', fontWeight: 'bold', color: '#28a745' }
+      styles: { fontSize: '48px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', letterSpacing: '2px' }
     });
     canvas.appendChild(title);
 
-    // Número de cotización
-    const quoteNumber = createEditableElement('text', 'Nº: COT-{{sale.number}}', {
-      position: { left: 40, top: 80 },
-      styles: { fontSize: '16px', fontWeight: 'bold' }
-    });
-    canvas.appendChild(quoteNumber);
+    // Número de cotización en caja negra
+    const numberBox = document.createElement('div');
+    numberBox.className = 'tpl-element';
+    numberBox.id = `element_${visualEditor.nextId++}`;
+    numberBox.style.cssText = 'position: absolute; left: 40px; top: 100px; border: 2px solid #000; padding: 8px 16px; display: inline-block;';
+    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 18px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{quote.number}}</span>';
+    makeDraggable(numberBox);
+    makeSelectable(numberBox);
+    canvas.appendChild(numberBox);
+    visualEditor.elements.push({ id: numberBox.id, type: 'text', element: numberBox });
 
-    // Datos del cliente
-    const clientSection = createEditableElement('text', 'CLIENTE:\n{{sale.customerName}}\n{{sale.customerPhone}}', {
-      position: { left: 40, top: 130 },
-      styles: { fontSize: '14px', whiteSpace: 'pre-line' }
-    });
-    canvas.appendChild(clientSection);
+    // Logo/empresa (arriba derecha) - editable con imagen o variable
+    const logoBox = document.createElement('div');
+    logoBox.className = 'tpl-element';
+    logoBox.id = `element_${visualEditor.nextId++}`;
+    logoBox.style.cssText = 'position: absolute; right: 40px; top: 30px; width: 100px; height: 100px; border: 2px solid #000; padding: 5px; display: flex; align-items: center; justify-content: center; cursor: move; background: white; box-sizing: border-box;';
+    logoBox.innerHTML = `
+      <div class="image-placeholder" style="width: 100%; height: 100%; background: #f5f5f5; border: 2px dashed #999; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; color: #666; text-align: center; padding: 5px; box-sizing: border-box; position: relative;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none;">
+          <div style="font-size: 24px;">🖼️</div>
+          <div>Haz clic para<br>agregar logo</div>
+        </div>
+        <div style="position: absolute; bottom: 2px; left: 2px; right: 2px; font-size: 9px; color: #999; pointer-events: none; text-align: center;">o edita para usar:<br>{{company.logoUrl}}</div>
+      </div>
+      <div class="logo-text-editable" contenteditable="true" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: 0; cursor: text; z-index: 10; font-size: 10px; padding: 5px; word-break: break-all;" title="Haz doble clic para editar y usar variable {{company.logoUrl}}"></div>
+    `;
+    
+    // Permitir edición de texto para usar variables
+    const textEditor = logoBox.querySelector('.logo-text-editable');
+    if (textEditor) {
+      textEditor.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        textEditor.style.opacity = '1';
+        textEditor.style.background = 'rgba(255,255,255,0.95)';
+        textEditor.focus();
+        textEditor.textContent = '{{company.logoUrl}}';
+      });
+      textEditor.addEventListener('blur', () => {
+        const content = textEditor.textContent.trim();
+        if (content && content.includes('{{')) {
+          // Si tiene variable, crear imagen con esa variable
+          const placeholder = logoBox.querySelector('.image-placeholder');
+          if (placeholder) {
+            placeholder.innerHTML = `<img src="${content}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'padding: 10px; text-align: center; font-size: 10px; color: #999;\\'>Variable: ${content}</div>';" />`;
+            placeholder.style.border = 'none';
+            placeholder.style.background = 'transparent';
+          }
+        }
+        textEditor.style.opacity = '0';
+        textEditor.style.background = 'transparent';
+      });
+    }
+    
+    makeDraggable(logoBox);
+    makeSelectable(logoBox);
+    setupImageUpload(logoBox);
+    canvas.appendChild(logoBox);
+    visualEditor.elements.push({ id: logoBox.id, type: 'image', element: logoBox });
 
-    // Tabla de items
-    const itemsTable = createItemsTableElement({ left: 40, top: 220 });
+    // Sección DATOS DEL CLIENTE (izquierda)
+    const clientTitle = createEditableElement('text', 'DATOS DEL CLIENTE', {
+      position: { left: 40, top: 180 },
+      styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
+    });
+    canvas.appendChild(clientTitle);
+
+    const clientData = createEditableElement('text', '{{quote.customer.name}}\n{{quote.customer.email}}\n{{quote.customer.phone}}\n{{quote.customer.address}}', {
+      position: { left: 40, top: 210 },
+      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
+    });
+    canvas.appendChild(clientData);
+
+    // Línea divisoria vertical
+    const divider = document.createElement('div');
+    divider.style.cssText = 'position: absolute; left: 50%; top: 180px; width: 1px; height: 120px; background: #000;';
+    canvas.appendChild(divider);
+
+    // Sección DATOS DE LA EMPRESA (derecha)
+    const companyTitle = createEditableElement('text', 'DATOS DE LA EMPRESA', {
+      position: { left: 320, top: 180 },
+      styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
+    });
+    canvas.appendChild(companyTitle);
+
+    const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n{{company.phone}}\n{{company.address}}', {
+      position: { left: 320, top: 210 },
+      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
+    });
+    canvas.appendChild(companyData);
+
+    // Línea horizontal separadora
+    const horizontalLine = document.createElement('div');
+    horizontalLine.style.cssText = 'position: absolute; left: 40px; right: 40px; top: 320px; height: 1px; background: #000;';
+    canvas.appendChild(horizontalLine);
+
+    // Tabla de items mejorada con diseño similar a la imagen
+    const itemsTable = createRemissionItemsTable({ left: 40, top: 340 });
     canvas.appendChild(itemsTable);
 
-    // Total
-    const total = createEditableElement('text', 'TOTAL: {{money sale.total}}', {
-      position: { left: 500, top: 400 },
-      styles: { fontSize: '18px', fontWeight: 'bold', color: '#28a745' }
-    });
-    canvas.appendChild(total);
+    // Línea horizontal antes de totales
+    const totalLine = document.createElement('div');
+    totalLine.style.cssText = 'position: absolute; left: 40px; right: 40px; top: 580px; height: 1px; background: #000;';
+    canvas.appendChild(totalLine);
 
-    // Válida hasta
-    const validUntil = createEditableElement('text', 'Válida hasta: {{date sale.date}}', {
-      position: { left: 40, top: 450 },
-      styles: { fontSize: '12px', color: '#666' }
+    // Sección IVA
+    const ivaLabel = createEditableElement('text', 'IVA', {
+      position: { left: 40, top: 600 },
+      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif' }
     });
-    canvas.appendChild(validUntil);
+    canvas.appendChild(ivaLabel);
 
-    console.log('✅ Plantilla de cotización creada');
+    const ivaPercent = createEditableElement('text', '21%', {
+      position: { left: 300, top: 600 },
+      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'center' }
+    });
+    canvas.appendChild(ivaPercent);
+
+    const ivaAmount = createEditableElement('text', '{{money quote.tax}}', {
+      position: { left: 500, top: 600 },
+      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'right' }
+    });
+    canvas.appendChild(ivaAmount);
+
+    // TOTAL en caja negra
+    const totalBox = document.createElement('div');
+    totalBox.className = 'tpl-element';
+    totalBox.id = `element_${visualEditor.nextId++}`;
+    totalBox.style.cssText = 'position: absolute; left: 40px; top: 630px; border: 2px solid #000; padding: 12px 20px; display: inline-flex; align-items: center; gap: 200px;';
+    totalBox.innerHTML = '<span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">TOTAL</span><span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">{{money quote.total}}</span>';
+    makeDraggable(totalBox);
+    makeSelectable(totalBox);
+    canvas.appendChild(totalBox);
+    visualEditor.elements.push({ id: totalBox.id, type: 'text', element: totalBox });
+
+    // Footer con URL (centro abajo) - SIN información de pago
+    const footer = createEditableElement('text', '{{company.website}}', {
+      position: { left: 40, top: 700 },
+      styles: { fontSize: '12px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'center', width: '100%' }
+    });
+    canvas.appendChild(footer);
+
+    console.log('✅ Plantilla de cotización creada con todos los elementos');
   }
 
   function createWorkOrderTemplate(canvas) {
-    console.log('🎨 Creando plantilla de orden de trabajo simple...');
+    console.log('🎨 Creando plantilla de orden de trabajo completa...');
     
-    // Título
+    // Título ORDEN DE TRABAJO (arriba izquierda)
     const title = createEditableElement('title', 'ORDEN DE TRABAJO', {
       position: { left: 40, top: 30 },
-      styles: { fontSize: '32px', fontWeight: 'bold', color: '#fd7e14' }
+      styles: { fontSize: '48px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', letterSpacing: '2px' }
     });
     canvas.appendChild(title);
 
-    // Número de orden
-    const orderNumber = createEditableElement('text', 'Nº: OT-{{sale.number}}', {
-      position: { left: 40, top: 80 },
-      styles: { fontSize: '16px', fontWeight: 'bold' }
-    });
-    canvas.appendChild(orderNumber);
+    // Número de orden en caja negra
+    const numberBox = document.createElement('div');
+    numberBox.className = 'tpl-element';
+    numberBox.id = `element_${visualEditor.nextId++}`;
+    numberBox.style.cssText = 'position: absolute; left: 40px; top: 100px; border: 2px solid #000; padding: 8px 16px; display: inline-block;';
+    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 18px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{sale.number}}</span>';
+    makeDraggable(numberBox);
+    makeSelectable(numberBox);
+    canvas.appendChild(numberBox);
+    visualEditor.elements.push({ id: numberBox.id, type: 'text', element: numberBox });
 
-    // Datos del cliente
-    const clientSection = createEditableElement('text', 'CLIENTE:\n{{sale.customerName}}\n{{sale.customerPhone}}', {
-      position: { left: 40, top: 130 },
-      styles: { fontSize: '14px', whiteSpace: 'pre-line' }
-    });
-    canvas.appendChild(clientSection);
+    // Logo/empresa (arriba derecha) - editable con imagen o variable
+    const logoBox = document.createElement('div');
+    logoBox.className = 'tpl-element';
+    logoBox.id = `element_${visualEditor.nextId++}`;
+    logoBox.style.cssText = 'position: absolute; right: 40px; top: 30px; width: 100px; height: 100px; border: 2px solid #000; padding: 5px; display: flex; align-items: center; justify-content: center; cursor: move; background: white; box-sizing: border-box;';
+    logoBox.innerHTML = `
+      <div class="image-placeholder" style="width: 100%; height: 100%; background: #f5f5f5; border: 2px dashed #999; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; color: #666; text-align: center; padding: 5px; box-sizing: border-box; position: relative;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none;">
+          <div style="font-size: 24px;">🖼️</div>
+          <div>Haz clic para<br>agregar logo</div>
+        </div>
+        <div style="position: absolute; bottom: 2px; left: 2px; right: 2px; font-size: 9px; color: #999; pointer-events: none; text-align: center;">o edita para usar:<br>{{company.logoUrl}}</div>
+      </div>
+      <div class="logo-text-editable" contenteditable="true" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: 0; cursor: text; z-index: 10; font-size: 10px; padding: 5px; word-break: break-all;" title="Haz doble clic para editar y usar variable {{company.logoUrl}}"></div>
+    `;
+    
+    // Permitir edición de texto para usar variables
+    const textEditor = logoBox.querySelector('.logo-text-editable');
+    if (textEditor) {
+      textEditor.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        textEditor.style.opacity = '1';
+        textEditor.style.background = 'rgba(255,255,255,0.95)';
+        textEditor.focus();
+        textEditor.textContent = '{{company.logoUrl}}';
+      });
+      textEditor.addEventListener('blur', () => {
+        const content = textEditor.textContent.trim();
+        if (content && content.includes('{{')) {
+          // Si tiene variable, crear imagen con esa variable
+          const placeholder = logoBox.querySelector('.image-placeholder');
+          if (placeholder) {
+            placeholder.innerHTML = `<img src="${content}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'padding: 10px; text-align: center; font-size: 10px; color: #999;\\'>Variable: ${content}</div>';" />`;
+            placeholder.style.border = 'none';
+            placeholder.style.background = 'transparent';
+          }
+        }
+        textEditor.style.opacity = '0';
+        textEditor.style.background = 'transparent';
+      });
+    }
+    
+    makeDraggable(logoBox);
+    makeSelectable(logoBox);
+    setupImageUpload(logoBox);
+    canvas.appendChild(logoBox);
+    visualEditor.elements.push({ id: logoBox.id, type: 'image', element: logoBox });
 
-    // Datos del vehículo
-    const vehicleSection = createEditableElement('text', 'VEHÍCULO:\n{{sale.vehicle.plate}}\n{{sale.vehicle.brand}}', {
-      position: { left: 300, top: 130 },
-      styles: { fontSize: '14px', whiteSpace: 'pre-line' }
+    // Sección DATOS DEL CLIENTE (izquierda)
+    const clientTitle = createEditableElement('text', 'DATOS DEL CLIENTE', {
+      position: { left: 40, top: 180 },
+      styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
     });
-    canvas.appendChild(vehicleSection);
+    canvas.appendChild(clientTitle);
 
-    // Tabla de servicios
-    const itemsTable = createItemsTableElement({ left: 40, top: 220 });
+    const clientData = createEditableElement('text', '{{sale.customer.name}}\n{{sale.customer.email}}\n{{sale.customer.phone}}\n{{sale.customer.address}}', {
+      position: { left: 40, top: 210 },
+      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
+    });
+    canvas.appendChild(clientData);
+
+    // Línea divisoria vertical
+    const divider = document.createElement('div');
+    divider.style.cssText = 'position: absolute; left: 50%; top: 180px; width: 1px; height: 120px; background: #000;';
+    canvas.appendChild(divider);
+
+    // Sección DATOS DE LA EMPRESA (derecha)
+    const companyTitle = createEditableElement('text', 'DATOS DE LA EMPRESA', {
+      position: { left: 320, top: 180 },
+      styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
+    });
+    canvas.appendChild(companyTitle);
+
+    const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n{{company.phone}}\n{{company.address}}', {
+      position: { left: 320, top: 210 },
+      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
+    });
+    canvas.appendChild(companyData);
+
+    // Línea horizontal separadora
+    const horizontalLine = document.createElement('div');
+    horizontalLine.style.cssText = 'position: absolute; left: 40px; right: 40px; top: 320px; height: 1px; background: #000;';
+    canvas.appendChild(horizontalLine);
+
+    // Tabla de items SIN precios (solo Detalle y Cantidad)
+    const itemsTable = createWorkOrderItemsTable({ left: 40, top: 340 });
     canvas.appendChild(itemsTable);
 
-    // Total estimado
-    const total = createEditableElement('text', 'TOTAL ESTIMADO: {{money sale.total}}', {
-      position: { left: 500, top: 400 },
-      styles: { fontSize: '18px', fontWeight: 'bold', color: '#fd7e14' }
+    // Footer con URL (centro abajo) - SIN IVA, SIN TOTAL, SIN información de pago
+    const footer = createEditableElement('text', '{{company.website}}', {
+      position: { left: 40, top: 500 },
+      styles: { fontSize: '12px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'center', width: '100%' }
     });
-    canvas.appendChild(total);
+    canvas.appendChild(footer);
 
-    console.log('✅ Plantilla de orden de trabajo creada');
+    console.log('✅ Plantilla de orden de trabajo creada con todos los elementos');
+  }
+
+  function createWorkOrderItemsTable(position) {
+    const tableContainer = document.createElement('div');
+    tableContainer.className = 'tpl-element items-table';
+    tableContainer.id = `element_${visualEditor.nextId++}`;
+    tableContainer.style.cssText = `
+      position: absolute;
+      left: ${position.left}px;
+      top: ${position.top}px;
+      border: 2px solid transparent;
+      cursor: move;
+      width: 700px;
+      background: white;
+      max-width: 100%;
+    `;
+
+    tableContainer.innerHTML = `
+      <style>
+        .workorder-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-family: Arial, sans-serif;
+          table-layout: fixed;
+          margin: 0;
+        }
+        .workorder-table thead {
+          display: table-header-group;
+        }
+        .workorder-table tbody {
+          display: table-row-group;
+        }
+        .workorder-table th {
+          border: 2px solid #000 !important;
+          padding: 12px 8px;
+          font-weight: bold;
+          color: #000;
+          font-size: 12px;
+          background: white;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+        }
+        .workorder-table td {
+          border: 1px solid #000 !important;
+          padding: 10px 8px;
+          color: #000;
+          font-size: 12px;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          vertical-align: top;
+        }
+        .workorder-table th:nth-child(1),
+        .workorder-table td:nth-child(1) {
+          width: 70%;
+          text-align: left;
+        }
+        .workorder-table th:nth-child(2),
+        .workorder-table td:nth-child(2) {
+          width: 30%;
+          text-align: center;
+        }
+        /* Estilos para impresión/PDF */
+        @media print {
+          .workorder-table {
+            page-break-inside: auto;
+            border-collapse: collapse !important;
+            width: 100% !important;
+          }
+          .workorder-table thead {
+            display: table-header-group !important;
+          }
+          .workorder-table tbody {
+            display: table-row-group !important;
+          }
+          .workorder-table tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+          .workorder-table th,
+          .workorder-table td {
+            border: 1px solid #000 !important;
+            padding: 8px !important;
+            font-size: 11px !important;
+          }
+          .workorder-table th {
+            border-width: 2px !important;
+            background: white !important;
+          }
+        }
+        /* Estilos para vista previa */
+        .workorder-table {
+          border: 2px solid #000;
+        }
+      </style>
+      <table class="workorder-table">
+        <thead>
+          <tr>
+            <th>Detalle</th>
+            <th>Cantidad</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each sale.items}}
+          <tr>
+            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td>{{qty}}</td>
+          </tr>
+          {{/each}}
+          {{#unless sale.items}}
+          <tr>
+            <td colspan="2" style="text-align: center; color: #666;">Sin ítems</td>
+          </tr>
+          {{/unless}}
+        </tbody>
+      </table>
+    `;
+
+    makeDraggable(tableContainer);
+    makeSelectable(tableContainer);
+
+    visualEditor.elements.push({
+      id: tableContainer.id,
+      type: 'items-table',
+      element: tableContainer
+    });
+
+    return tableContainer;
+  }
+
+  function createPayrollTemplate(canvas) {
+    console.log('🎨 Creando plantilla de nómina completa...');
+    
+    // Logo/empresa (centrado arriba) - editable con imagen o variable
+    const logoBox = document.createElement('div');
+    logoBox.className = 'tpl-element';
+    logoBox.id = `element_${visualEditor.nextId++}`;
+    logoBox.style.cssText = 'position: absolute; left: 50%; top: 20px; transform: translateX(-50%); width: 120px; height: 80px; border: 2px solid #000; padding: 5px; display: flex; align-items: center; justify-content: center; cursor: move; background: white; box-sizing: border-box;';
+    logoBox.innerHTML = `
+      <div class="image-placeholder" style="width: 100%; height: 100%; background: #f5f5f5; border: 2px dashed #999; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; color: #666; text-align: center; padding: 5px; box-sizing: border-box; position: relative;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none;">
+          <div style="font-size: 24px;">🖼️</div>
+          <div>Logo</div>
+        </div>
+        <div style="position: absolute; bottom: 2px; left: 2px; right: 2px; font-size: 9px; color: #999; pointer-events: none; text-align: center;">{{company.logoUrl}}</div>
+      </div>
+      <div class="logo-text-editable" contenteditable="true" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: 0; cursor: text; z-index: 10; font-size: 10px; padding: 5px; word-break: break-all;" title="Haz doble clic para editar y usar variable {{company.logoUrl}}"></div>
+    `;
+    
+    // Permitir edición de texto para usar variables
+    const textEditor = logoBox.querySelector('.logo-text-editable');
+    if (textEditor) {
+      textEditor.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        textEditor.style.opacity = '1';
+        textEditor.style.background = 'rgba(255,255,255,0.95)';
+        textEditor.focus();
+        textEditor.textContent = '{{company.logoUrl}}';
+      });
+      textEditor.addEventListener('blur', () => {
+        const content = textEditor.textContent.trim();
+        if (content && content.includes('{{')) {
+          const placeholder = logoBox.querySelector('.image-placeholder');
+          if (placeholder) {
+            placeholder.innerHTML = `<img src="${content}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'padding: 10px; text-align: center; font-size: 10px; color: #999;\\'>Variable: ${content}</div>';" />`;
+            placeholder.style.border = 'none';
+            placeholder.style.background = 'transparent';
+          }
+        }
+        textEditor.style.opacity = '0';
+        textEditor.style.background = 'transparent';
+      });
+    }
+    
+    makeDraggable(logoBox);
+    makeSelectable(logoBox);
+    setupImageUpload(logoBox);
+    canvas.appendChild(logoBox);
+    visualEditor.elements.push({ id: logoBox.id, type: 'image', element: logoBox });
+
+    // Datos del empleado (izquierda superior) - tabla con bordes
+    const employeeDataBox = document.createElement('div');
+    employeeDataBox.className = 'tpl-element';
+    employeeDataBox.id = `element_${visualEditor.nextId++}`;
+    employeeDataBox.style.cssText = 'position: absolute; left: 40px; top: 120px; width: 350px; border: 2px solid #000; padding: 10px; background: white;';
+    employeeDataBox.innerHTML = `
+      <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11px;">
+        <tr>
+          <td style="border: 1px solid #000; padding: 6px; font-weight: bold; width: 40%;">NOMBRE:</td>
+          <td style="border: 1px solid #000; padding: 6px;">{{settlement.technicianName}}</td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">CÉDULA:</td>
+          <td style="border: 1px solid #000; padding: 6px;">{{settlement.technicianIdNumber}}</td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">PERIODO:</td>
+          <td style="border: 1px solid #000; padding: 6px;">{{period.formattedStartDate}} A {{period.formattedEndDate}}</td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">SALARIO BÁSICO ($/MES):</td>
+          <td style="border: 1px solid #000; padding: 6px;">{{settlement.baseSalary}}</td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">HORAS TRABAJO MES:</td>
+          <td style="border: 1px solid #000; padding: 6px;">{{settlement.workHoursPerMonth}}</td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">SALARIO BÁSICO (DÍA):</td>
+          <td style="border: 1px solid #000; padding: 6px;">{{settlement.dailySalary}}</td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">TIPO CONTRATO:</td>
+          <td style="border: 1px solid #000; padding: 6px;">{{settlement.contractType}}</td>
+        </tr>
+      </table>
+    `;
+    makeDraggable(employeeDataBox);
+    makeSelectable(employeeDataBox);
+    canvas.appendChild(employeeDataBox);
+    visualEditor.elements.push({ id: employeeDataBox.id, type: 'text', element: employeeDataBox });
+
+    // Resumen (derecha superior) - cajas destacadas
+    const daysWorkedBox = document.createElement('div');
+    daysWorkedBox.className = 'tpl-element';
+    daysWorkedBox.id = `element_${visualEditor.nextId++}`;
+    daysWorkedBox.style.cssText = 'position: absolute; right: 40px; top: 120px; width: 200px; border: 2px solid #000; padding: 15px; background: white; text-align: center;';
+    daysWorkedBox.innerHTML = '<div style="font-weight: bold; font-size: 12px; margin-bottom: 8px;">DÍAS TRABAJADOS</div><div contenteditable="true" style="font-size: 24px; font-weight: bold;">{{settlement.workDays}}</div>';
+    makeDraggable(daysWorkedBox);
+    makeSelectable(daysWorkedBox);
+    canvas.appendChild(daysWorkedBox);
+    visualEditor.elements.push({ id: daysWorkedBox.id, type: 'text', element: daysWorkedBox });
+
+    const totalEarnedBox = document.createElement('div');
+    totalEarnedBox.className = 'tpl-element';
+    totalEarnedBox.id = `element_${visualEditor.nextId++}`;
+    totalEarnedBox.style.cssText = 'position: absolute; right: 40px; top: 220px; width: 200px; border: 2px solid #000; padding: 15px; background: white; text-align: center;';
+    totalEarnedBox.innerHTML = '<div style="font-weight: bold; font-size: 12px; margin-bottom: 8px;">TOTAL DEVENGADO</div><div contenteditable="true" style="font-size: 20px; font-weight: bold;">{{settlement.formattedGrossTotal}}</div>';
+    makeDraggable(totalEarnedBox);
+    makeSelectable(totalEarnedBox);
+    canvas.appendChild(totalEarnedBox);
+    visualEditor.elements.push({ id: totalEarnedBox.id, type: 'text', element: totalEarnedBox });
+
+    // Tabla de ingresos (izquierda)
+    const earningsTable = createPayrollEarningsTable({ left: 40, top: 420 });
+    canvas.appendChild(earningsTable);
+
+    // Tabla de descuentos (derecha)
+    const deductionsTable = createPayrollDeductionsTable({ left: 400, top: 420 });
+    canvas.appendChild(deductionsTable);
+
+    // Totales (debajo de las tablas)
+    const totalIncomeBox = document.createElement('div');
+    totalIncomeBox.className = 'tpl-element';
+    totalIncomeBox.id = `element_${visualEditor.nextId++}`;
+    totalIncomeBox.style.cssText = 'position: absolute; left: 40px; top: 680px; width: 300px; border: 2px solid #000; padding: 12px; background: white; font-weight: bold; font-size: 14px;';
+    totalIncomeBox.innerHTML = '<div contenteditable="true">TOTAL INGRESOS: {{settlement.formattedGrossTotal}}</div>';
+    makeDraggable(totalIncomeBox);
+    makeSelectable(totalIncomeBox);
+    canvas.appendChild(totalIncomeBox);
+    visualEditor.elements.push({ id: totalIncomeBox.id, type: 'text', element: totalIncomeBox });
+
+    const totalDeductionsBox = document.createElement('div');
+    totalDeductionsBox.className = 'tpl-element';
+    totalDeductionsBox.id = `element_${visualEditor.nextId++}`;
+    totalDeductionsBox.style.cssText = 'position: absolute; right: 40px; top: 680px; width: 300px; border: 2px solid #000; padding: 12px; background: white; font-weight: bold; font-size: 14px; text-align: right;';
+    totalDeductionsBox.innerHTML = '<div contenteditable="true">TOTAL EGRESOS: {{settlement.formattedDeductionsTotal}}</div>';
+    makeDraggable(totalDeductionsBox);
+    makeSelectable(totalDeductionsBox);
+    canvas.appendChild(totalDeductionsBox);
+    visualEditor.elements.push({ id: totalDeductionsBox.id, type: 'text', element: totalDeductionsBox });
+
+    // Sección "RECIBÍ A SATISFACCIÓN" (abajo izquierda)
+    const receivedBox = document.createElement('div');
+    receivedBox.className = 'tpl-element';
+    receivedBox.id = `element_${visualEditor.nextId++}`;
+    receivedBox.style.cssText = 'position: absolute; left: 40px; top: 750px; width: 300px; border: 2px solid #000; padding: 20px; background: white; text-align: center;';
+    receivedBox.innerHTML = '<div contenteditable="true" style="font-size: 16px; font-weight: bold;">RECIBÍ A SATISFACCIÓN</div>';
+    makeDraggable(receivedBox);
+    makeSelectable(receivedBox);
+    canvas.appendChild(receivedBox);
+    visualEditor.elements.push({ id: receivedBox.id, type: 'text', element: receivedBox });
+
+    // Firma y datos (abajo derecha)
+    const signatureBox = document.createElement('div');
+    signatureBox.className = 'tpl-element';
+    signatureBox.id = `element_${visualEditor.nextId++}`;
+    signatureBox.style.cssText = 'position: absolute; right: 40px; top: 750px; width: 300px; border: 2px solid #000; padding: 15px; background: white; font-size: 11px;';
+    signatureBox.innerHTML = `
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr>
+          <td style="padding: 4px 0;"><strong>NOMBRE:</strong> {{settlement.technicianName}}</td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0;"><strong>FIRMA:</strong></td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0; border-top: 1px solid #000; margin-top: 20px;">&nbsp;</td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0;"><strong>IDENTIFICACION:</strong> {{settlement.technicianIdNumber}}</td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0;"><strong>FECHA:</strong> {{date now}}</td>
+        </tr>
+      </table>
+    `;
+    makeDraggable(signatureBox);
+    makeSelectable(signatureBox);
+    canvas.appendChild(signatureBox);
+    visualEditor.elements.push({ id: signatureBox.id, type: 'text', element: signatureBox });
+
+    console.log('✅ Plantilla de nómina creada con todos los elementos');
+  }
+
+  function createPayrollEarningsTable(position) {
+    const tableContainer = document.createElement('div');
+    tableContainer.className = 'tpl-element items-table';
+    tableContainer.id = `element_${visualEditor.nextId++}`;
+    tableContainer.style.cssText = `
+      position: absolute;
+      left: ${position.left}px;
+      top: ${position.top}px;
+      border: 2px solid transparent;
+      cursor: move;
+      width: 320px;
+      background: white;
+      max-width: 100%;
+    `;
+
+    tableContainer.innerHTML = `
+      <style>
+        .payroll-earnings-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-family: Arial, sans-serif;
+          table-layout: fixed;
+          margin: 0;
+        }
+        .payroll-earnings-table th {
+          border: 2px solid #000 !important;
+          padding: 8px 4px;
+          font-weight: bold;
+          color: #000;
+          font-size: 10px;
+          background: white;
+          text-align: center;
+        }
+        .payroll-earnings-table td {
+          border: 1px solid #000 !important;
+          padding: 6px 4px;
+          color: #000;
+          font-size: 10px;
+          text-align: center;
+        }
+        .payroll-earnings-table td:first-child {
+          text-align: left;
+        }
+        @media print {
+          .payroll-earnings-table {
+            border-collapse: collapse !important;
+            width: 100% !important;
+          }
+          .payroll-earnings-table th,
+          .payroll-earnings-table td {
+            border: 1px solid #000 !important;
+            padding: 4px !important;
+            font-size: 9px !important;
+          }
+          .payroll-earnings-table th {
+            border-width: 2px !important;
+          }
+        }
+      </style>
+      <table class="payroll-earnings-table">
+        <thead>
+          <tr>
+            <th style="width: 50%;">DESCRIPCION</th>
+            <th style="width: 15%;">DIAS</th>
+            <th style="width: 17%;">TRANSP.</th>
+            <th style="width: 18%;">DEVENGADO</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each settlement.itemsByType.earnings}}
+          <tr>
+            <td>{{code}} - {{name}}</td>
+            <td>{{days}}</td>
+            <td>{{money transport}}</td>
+            <td>{{money value}}</td>
+          </tr>
+          {{/each}}
+          {{#unless settlement.itemsByType.earnings}}
+          <tr>
+            <td colspan="4" style="text-align: center; color: #666;">Sin ingresos</td>
+          </tr>
+          {{/unless}}
+        </tbody>
+      </table>
+    `;
+
+    makeDraggable(tableContainer);
+    makeSelectable(tableContainer);
+
+    visualEditor.elements.push({
+      id: tableContainer.id,
+      type: 'items-table',
+      element: tableContainer
+    });
+
+    return tableContainer;
+  }
+
+  function createPayrollDeductionsTable(position) {
+    const tableContainer = document.createElement('div');
+    tableContainer.className = 'tpl-element items-table';
+    tableContainer.id = `element_${visualEditor.nextId++}`;
+    tableContainer.style.cssText = `
+      position: absolute;
+      left: ${position.left}px;
+      top: ${position.top}px;
+      border: 2px solid transparent;
+      cursor: move;
+      width: 320px;
+      background: white;
+      max-width: 100%;
+    `;
+
+    tableContainer.innerHTML = `
+      <style>
+        .payroll-deductions-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-family: Arial, sans-serif;
+          table-layout: fixed;
+          margin: 0;
+        }
+        .payroll-deductions-table th {
+          border: 2px solid #000 !important;
+          padding: 8px 4px;
+          font-weight: bold;
+          color: #000;
+          font-size: 10px;
+          background: white;
+          text-align: center;
+        }
+        .payroll-deductions-table td {
+          border: 1px solid #000 !important;
+          padding: 6px 4px;
+          color: #000;
+          font-size: 10px;
+          text-align: center;
+        }
+        .payroll-deductions-table td:first-child {
+          text-align: left;
+        }
+        @media print {
+          .payroll-deductions-table {
+            border-collapse: collapse !important;
+            width: 100% !important;
+          }
+          .payroll-deductions-table th,
+          .payroll-deductions-table td {
+            border: 1px solid #000 !important;
+            padding: 4px !important;
+            font-size: 9px !important;
+          }
+          .payroll-deductions-table th {
+            border-width: 2px !important;
+          }
+        }
+      </style>
+      <table class="payroll-deductions-table">
+        <thead>
+          <tr>
+            <th style="width: 50%;">DESCRIPCIÓN</th>
+            <th style="width: 25%;">VALOR</th>
+            <th style="width: 25%;">DESCUENTOS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each settlement.itemsByType.deductions}}
+          <tr>
+            <td>{{code}} - {{name}}</td>
+            <td>{{percent}}%</td>
+            <td>{{money value}}</td>
+          </tr>
+          {{/each}}
+          {{#unless settlement.itemsByType.deductions}}
+          <tr>
+            <td colspan="3" style="text-align: center; color: #666;">Sin descuentos</td>
+          </tr>
+          {{/unless}}
+        </tbody>
+      </table>
+    `;
+
+    makeDraggable(tableContainer);
+    makeSelectable(tableContainer);
+
+    visualEditor.elements.push({
+      id: tableContainer.id,
+      type: 'items-table',
+      element: tableContainer
+    });
+
+    return tableContainer;
   }
 
   function createStickerTemplate(canvas, documentType) {
