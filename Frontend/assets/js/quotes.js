@@ -657,15 +657,16 @@ export function initQuotes({ getCompanyEmail }) {
         };
         
         // Si hay una cotización guardada, usar su ID para obtener datos reales
-        // Si no, pasar los datos de la UI directamente
+        // Pero también pasar quoteData para que se use si los items de la BD están vacíos
         const sampleId = currentQuoteId || undefined;
-        // Enviar a endpoint preview con datos de la UI para que use los datos actuales
+        // Enviar a endpoint preview con datos de la UI
+        // El backend decidirá si usar quoteData basándose en si los items del contexto están vacíos
         const pv = await API.templates.preview({ 
           type:'quote', 
           contentHtml, 
           contentCss, 
           sampleId,
-          quoteData: sampleId ? undefined : quoteData // Solo pasar quoteData si no hay sampleId
+          quoteData: quoteData // Siempre pasar quoteData para que se use si los items de la BD están vacíos
         });
         const w = window.open('', 'quoteTpl');
         if (w) {

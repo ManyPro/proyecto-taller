@@ -41,6 +41,7 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
         saleObj.items = [];
       }
       // Asegurar que cada item tenga las propiedades necesarias
+      // NO filtrar items vacíos aquí, dejarlos pasar para que el template decida
       saleObj.items = saleObj.items.map(item => ({
         sku: item.sku || '',
         name: item.name || '',
@@ -48,6 +49,16 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
         unitPrice: Number(item.unitPrice) || 0,
         total: Number(item.total) || (Number(item.qty) || 0) * (Number(item.unitPrice) || 0)
       }));
+      
+      // Log para depuración
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[buildContext Sale]', {
+          saleId: saleObj._id,
+          saleNumber: saleObj.number,
+          itemsCount: saleObj.items.length,
+          items: saleObj.items.map(i => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice, total: i.total }))
+        });
+      }
       // Asegurar que customer esté presente
       if (!saleObj.customer) {
         saleObj.customer = { name: '', email: '', phone: '', address: '' };
@@ -77,6 +88,7 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
         quoteObj.items = [];
       }
       // Asegurar que cada item tenga las propiedades necesarias
+      // NO filtrar items vacíos aquí, dejarlos pasar para que el template decida
       quoteObj.items = quoteObj.items.map(item => ({
         sku: item.sku || '',
         description: item.description || '',
@@ -84,6 +96,16 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
         unitPrice: Number(item.unitPrice) || 0,
         subtotal: Number(item.subtotal) || (item.qty ? Number(item.qty) : 1) * (Number(item.unitPrice) || 0)
       }));
+      
+      // Log para depuración
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[buildContext Quote]', {
+          quoteId: quoteObj._id,
+          quoteNumber: quoteObj.number,
+          itemsCount: quoteObj.items.length,
+          items: quoteObj.items.map(i => ({ description: i.description, qty: i.qty, unitPrice: i.unitPrice, subtotal: i.subtotal }))
+        });
+      }
       // Asegurar que customer esté presente
       if (!quoteObj.customer) {
         quoteObj.customer = { name: '', phone: '', email: '' };
@@ -242,32 +264,53 @@ export async function previewTemplate(req, res) {
   const ctx = await buildContext({ companyId: req.companyId, type, sampleId, sampleType });
   
   // Si se proporcionan datos de cotización directamente (desde UI sin guardar), sobrescribir el contexto
+  // O si hay quoteData y los items del contexto están vacíos, usar quoteData
   if (quoteData && type === 'quote') {
-    ctx.quote = {
-      number: quoteData.number || '',
-      createdAt: quoteData.date || new Date(),
-      customer: {
-        name: quoteData.customer?.name || '',
-        phone: quoteData.customer?.phone || '',
-        email: quoteData.customer?.email || ''
-      },
-      vehicle: {
-        plate: quoteData.vehicle?.plate || '',
-        make: quoteData.vehicle?.make || '',
-        line: quoteData.vehicle?.line || '',
-        modelYear: quoteData.vehicle?.modelYear || '',
-        displacement: quoteData.vehicle?.displacement || ''
-      },
-      validity: quoteData.validity || '',
-      items: (quoteData.items || []).map(item => ({
-        description: item.description || '',
-        qty: item.qty || null,
-        unitPrice: item.unitPrice || 0,
-        subtotal: item.subtotal || (item.qty > 0 ? item.qty : 1) * (item.unitPrice || 0),
-        sku: item.sku || ''
-      })),
-      total: quoteData.totals?.total || 0
-    };
+    const hasItemsInData = (quoteData.items || []).length > 0;
+    const hasItemsInContext = (ctx.quote?.items || []).length > 0;
+    
+    // Usar quoteData si no hay sampleId o si los items del contexto están vacíos pero quoteData tiene items
+    if (!sampleId || (!hasItemsInContext && hasItemsInData)) {
+      ctx.quote = {
+        number: quoteData.number || '',
+        createdAt: quoteData.date || new Date(),
+        customer: {
+          name: quoteData.customer?.name || '',
+          phone: quoteData.customer?.phone || '',
+          email: quoteData.customer?.email || ''
+        },
+        vehicle: {
+          plate: quoteData.vehicle?.plate || '',
+          make: quoteData.vehicle?.make || '',
+          line: quoteData.vehicle?.line || '',
+          modelYear: quoteData.vehicle?.modelYear || '',
+          displacement: quoteData.vehicle?.displacement || ''
+        },
+        validity: quoteData.validity || '',
+        items: (quoteData.items || []).map(item => ({
+          description: item.description || '',
+          qty: item.qty || null,
+          unitPrice: Number(item.unitPrice) || 0,
+          subtotal: Number(item.subtotal) || (item.qty > 0 ? Number(item.qty) : 1) * (Number(item.unitPrice) || 0),
+          sku: item.sku || ''
+        })),
+        total: quoteData.totals?.total || 0
+      };
+    }
+  }
+  
+  // Log para depuración (solo en desarrollo)
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('[Template Preview]', {
+      type,
+      sampleId,
+      sampleType,
+      hasQuoteData: !!quoteData,
+      saleItemsCount: ctx.sale?.items?.length || 0,
+      quoteItemsCount: ctx.quote?.items?.length || 0,
+      saleItems: ctx.sale?.items || [],
+      quoteItems: ctx.quote?.items || []
+    });
   }
   
   const html = renderHB(contentHtml, ctx);
