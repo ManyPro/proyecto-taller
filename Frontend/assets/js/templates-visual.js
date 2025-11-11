@@ -3489,6 +3489,113 @@
     content = content.replace(/&#123;&#123;/g, '{{');
     content = content.replace(/&#125;&#125;/g, '}}');
     
+    // CORREGIR: Si las tablas tienen contenido pero NO tienen {{#each, agregarlas
+    // Esto corrige templates que se guardaron sin las variables correctas
+    if (content.includes('remission-table') || content.includes('items-table')) {
+      const tbodyMatches = content.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+      if (tbodyMatches) {
+        tbodyMatches.forEach((match) => {
+          // Si tiene {{name}} pero NO tiene {{#each sale.items}}
+          if (match.includes('{{name}}') && !match.includes('{{#each sale.items}}')) {
+            const tbodyContent = match.replace(/<\/?tbody>/gi, '').trim();
+            // Extraer solo las filas <tr> que tienen las variables
+            const rowsMatch = tbodyContent.match(/<tr>[\s\S]*?<\/tr>/gi);
+            if (rowsMatch && rowsMatch.length > 0) {
+              // Buscar la fila con las variables de item (no la de "Sin ítems")
+              const itemRow = rowsMatch.find(row => row.includes('{{name}}') && !row.includes('Sin ítems'));
+              const sinItemsRow = rowsMatch.find(row => row.includes('Sin ítems'));
+              
+              if (itemRow) {
+                // Crear nuevo tbody con las variables correctas
+                const newTbody = `<tbody>
+          {{#each sale.items}}
+          ${itemRow}
+          {{/each}}
+          ${sinItemsRow ? `{{#unless sale.items}}
+          ${sinItemsRow}
+          {{/unless}}` : `{{#unless sale.items}}
+          <tr>
+            <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
+          </tr>
+          {{/unless}}`}
+        </tbody>`;
+                content = content.replace(match, newTbody);
+                console.log('🔧 Corregido tbody de remisión sin {{#each}}');
+              }
+            }
+          }
+        });
+      }
+    }
+    
+    // Similar para cotizaciones
+    if (content.includes('quote-table')) {
+      const tbodyMatches = content.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+      if (tbodyMatches) {
+        tbodyMatches.forEach((match) => {
+          if (match.includes('{{description}}') && !match.includes('{{#each quote.items}}')) {
+            const tbodyContent = match.replace(/<\/?tbody>/gi, '').trim();
+            const rowsMatch = tbodyContent.match(/<tr>[\s\S]*?<\/tr>/gi);
+            if (rowsMatch && rowsMatch.length > 0) {
+              const itemRow = rowsMatch.find(row => row.includes('{{description}}') && !row.includes('Sin ítems'));
+              const sinItemsRow = rowsMatch.find(row => row.includes('Sin ítems'));
+              
+              if (itemRow) {
+                const newTbody = `<tbody>
+          {{#each quote.items}}
+          ${itemRow}
+          {{/each}}
+          ${sinItemsRow ? `{{#unless quote.items}}
+          ${sinItemsRow}
+          {{/unless}}` : `{{#unless quote.items}}
+          <tr>
+            <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
+          </tr>
+          {{/unless}}`}
+        </tbody>`;
+                content = content.replace(match, newTbody);
+                console.log('🔧 Corregido tbody de cotización sin {{#each}}');
+              }
+            }
+          }
+        });
+      }
+    }
+    
+    // Similar para orden de trabajo
+    if (content.includes('workorder-table')) {
+      const tbodyMatches = content.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+      if (tbodyMatches) {
+        tbodyMatches.forEach((match) => {
+          if (match.includes('{{name}}') && !match.includes('{{#each sale.items}}')) {
+            const tbodyContent = match.replace(/<\/?tbody>/gi, '').trim();
+            const rowsMatch = tbodyContent.match(/<tr>[\s\S]*?<\/tr>/gi);
+            if (rowsMatch && rowsMatch.length > 0) {
+              const itemRow = rowsMatch.find(row => row.includes('{{name}}') && !row.includes('Sin ítems'));
+              const sinItemsRow = rowsMatch.find(row => row.includes('Sin ítems'));
+              
+              if (itemRow) {
+                const newTbody = `<tbody>
+          {{#each sale.items}}
+          ${itemRow}
+          {{/each}}
+          ${sinItemsRow ? `{{#unless sale.items}}
+          ${sinItemsRow}
+          {{/unless}}` : `{{#unless sale.items}}
+          <tr>
+            <td colspan="2" style="text-align: center; color: #666;">Sin ítems</td>
+          </tr>
+          {{/unless}}`}
+        </tbody>`;
+                content = content.replace(match, newTbody);
+                console.log('🔧 Corregido tbody de orden de trabajo sin {{#each}}');
+              }
+            }
+          }
+        });
+      }
+    }
+    
     console.log('📄 Contenido del canvas:', content.substring(0, 100) + '...');
     
     // Verificar que las tablas tengan las variables correctas
@@ -3502,6 +3609,15 @@
         hasQuoteTable: content.includes('quote-table'),
         hasWorkOrderTable: content.includes('workorder-table')
       });
+      
+      // Verificar tbody específicamente
+      const tbodyMatches = content.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+      if (tbodyMatches) {
+        tbodyMatches.forEach((match, idx) => {
+          console.log(`📊 tbody ${idx + 1} tiene {{#each sale.items}}:`, match.includes('{{#each sale.items}}'));
+          console.log(`📊 tbody ${idx + 1} tiene {{#each quote.items}}:`, match.includes('{{#each quote.items}}'));
+        });
+      }
     }
     
     if ((!content || content.includes('Haz clic en los botones') || content.includes('Tu plantilla está vacía')) && !hasElements) {
