@@ -323,7 +323,7 @@
       }
     }
 
-    toolbar.style.cssText = 'padding: 12px; background: var(--card-alt); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; box-shadow: var(--shadow-elev);';
+    toolbar.style.cssText = 'padding: 12px; background: var(--card-alt); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow-elev);';
 
     toolbar.innerHTML = `
       <style>
@@ -347,15 +347,17 @@
         .toolbar-sep { border-left: 2px solid var(--border); padding-left: 12px; margin-left: 12px; display: inline-flex; align-items: center; gap: 6px; }
       </style>
       
-      <button id="add-title-btn" class="toolbar-btn primary">📄 Título</button>
-      <button id="add-text-btn" class="toolbar-btn primary">📝 Texto</button>
-      <button id="add-image-btn" class="toolbar-btn secondary">🖼️ Imagen</button>
-      <button id="add-table-btn" class="toolbar-btn secondary">📊 Tabla</button>
-      <button id="add-items-table-btn" class="toolbar-btn secondary">📋 Items</button>
-      
-      <div class="toolbar-sep">
-        <button id="delete-selected-btn" class="toolbar-btn danger" title="Eliminar elemento seleccionado">🗑️ Eliminar</button>
-        <button id="clear-canvas-btn" class="toolbar-btn secondary">🧹 Limpiar Todo</button>
+      <div id="toolbar-buttons" style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+        <button id="add-title-btn" class="toolbar-btn primary">📄 Título</button>
+        <button id="add-text-btn" class="toolbar-btn primary">📝 Texto</button>
+        <button id="add-image-btn" class="toolbar-btn secondary">🖼️ Imagen</button>
+        <button id="add-table-btn" class="toolbar-btn secondary">📊 Tabla</button>
+        <button id="add-items-table-btn" class="toolbar-btn secondary">📋 Items</button>
+        
+        <div class="toolbar-sep">
+          <button id="delete-selected-btn" class="toolbar-btn danger" title="Eliminar elemento seleccionado">🗑️ Eliminar</button>
+          <button id="clear-canvas-btn" class="toolbar-btn secondary">🧹 Limpiar Todo</button>
+        </div>
       </div>
     `;
 
@@ -1176,6 +1178,32 @@
       // Acortar la expresión completa del número de remisión
       { from: /\{\{#if sale\.formattedNumber\}\}\{\{sale\.formattedNumber\}\}\{\{else\}\}\{\{#if sale\.number\}\}\{\{pad sale\.number\}\}\{\{else\}\}\[Sin número\]\{\{\/if\}\}\{\{\/if\}\}/g, to: '{{#if S.nº}}{{S.nº}}{{else}}[Sin nº]{{/if}}' },
       
+      // Variables de cotización
+      { from: /\{\{money quote\.total\}\}/g, to: '{{$ Q.total}}' },
+      { from: /\{\{quote\.total\}\}/g, to: '{{Q.total}}' },
+      { from: /\{\{quote\.number\}\}/g, to: '{{Q.nº}}' },
+      { from: /\{\{date quote\.date\}\}/g, to: '{{date Q.fecha}}' },
+      { from: /\{\{date quote\.validUntil\}\}/g, to: '{{date Q.válida}}' },
+      { from: /\{\{quote\.date\}\}/g, to: '{{Q.fecha}}' },
+      { from: /\{\{quote\.validUntil\}\}/g, to: '{{Q.válida}}' },
+      { from: /\{\{quote\.customer\.name\}\}/g, to: '{{Q.C.nombre}}' },
+      { from: /\{\{quote\.customer\.email\}\}/g, to: '{{Q.C.email}}' },
+      { from: /\{\{quote\.customer\.phone\}\}/g, to: '{{Q.C.tel}}' },
+      { from: /\{\{quote\.vehicle\.plate\}\}/g, to: '{{Q.V.placa}}' },
+      { from: /\{\{quote\.vehicle\.brand\}\}/g, to: '{{Q.V.marca}}' },
+      { from: /\{\{quote\.vehicle\.model\}\}/g, to: '{{Q.V.modelo}}' },
+      { from: /\{\{quote\.vehicle\.year\}\}/g, to: '{{Q.V.año}}' },
+      
+      // Variables de fecha (helpers)
+      { from: /\{\{date sale\.date\}\}/g, to: '{{date S.fecha}}' },
+      { from: /\{\{sale\.date\}\}/g, to: '{{S.fecha}}' },
+      
+      // Variables de vehículo
+      { from: /\{\{sale\.vehicle\.plate\}\}/g, to: '{{V.placa}}' },
+      { from: /\{\{sale\.vehicle\.brand\}\}/g, to: '{{V.marca}}' },
+      { from: /\{\{sale\.vehicle\.model\}\}/g, to: '{{V.modelo}}' },
+      { from: /\{\{sale\.vehicle\.year\}\}/g, to: '{{V.año}}' },
+      
       // Variables de empresa
       { from: /\{\{company\.name\}\}/g, to: '{{E.nombre}}' },
       { from: /\{\{company\.email\}\}/g, to: '{{E.email}}' },
@@ -1242,6 +1270,29 @@
       { from: /\{\{\$ tot\}\}/g, to: '{{money total}}' },
       { from: /\{\{pad S\.nº\}\}/g, to: '{{pad sale.number}}' },
       { from: /\{\{#if S\.nº\}\}\{\{S\.nº\}\}\{\{else\}\}\[Sin nº\]\{\{\/if\}\}/g, to: '{{#if sale.formattedNumber}}{{sale.formattedNumber}}{{else}}{{#if sale.number}}{{pad sale.number}}{{else}}[Sin número]{{/if}}{{/if}}' },
+      // Restaurar variables de cotización
+      { from: /\{\{\$ Q\.total\}\}/g, to: '{{money quote.total}}' },
+      { from: /\{\{Q\.total\}\}/g, to: '{{quote.total}}' },
+      { from: /\{\{Q\.nº\}\}/g, to: '{{quote.number}}' },
+      { from: /\{\{date Q\.fecha\}\}/g, to: '{{date quote.date}}' },
+      { from: /\{\{date Q\.válida\}\}/g, to: '{{date quote.validUntil}}' },
+      { from: /\{\{Q\.fecha\}\}/g, to: '{{quote.date}}' },
+      { from: /\{\{Q\.válida\}\}/g, to: '{{quote.validUntil}}' },
+      { from: /\{\{Q\.C\.nombre\}\}/g, to: '{{quote.customer.name}}' },
+      { from: /\{\{Q\.C\.email\}\}/g, to: '{{quote.customer.email}}' },
+      { from: /\{\{Q\.C\.tel\}\}/g, to: '{{quote.customer.phone}}' },
+      { from: /\{\{Q\.V\.placa\}\}/g, to: '{{quote.vehicle.plate}}' },
+      { from: /\{\{Q\.V\.marca\}\}/g, to: '{{quote.vehicle.brand}}' },
+      { from: /\{\{Q\.V\.modelo\}\}/g, to: '{{quote.vehicle.model}}' },
+      { from: /\{\{Q\.V\.año\}\}/g, to: '{{quote.vehicle.year}}' },
+      // Restaurar variables de fecha
+      { from: /\{\{date S\.fecha\}\}/g, to: '{{date sale.date}}' },
+      { from: /\{\{S\.fecha\}\}/g, to: '{{sale.date}}' },
+      // Restaurar variables de vehículo
+      { from: /\{\{V\.placa\}\}/g, to: '{{sale.vehicle.plate}}' },
+      { from: /\{\{V\.marca\}\}/g, to: '{{sale.vehicle.brand}}' },
+      { from: /\{\{V\.modelo\}\}/g, to: '{{sale.vehicle.model}}' },
+      { from: /\{\{V\.año\}\}/g, to: '{{sale.vehicle.year}}' },
       { from: /\{\{#unless S\.P\}\}/g, to: '{{#unless sale.itemsGrouped.hasProducts}}' },
       { from: /\{\{#unless S\.S\}\}/g, to: '{{#unless sale.itemsGrouped.hasServices}}' },
       { from: /\{\{#unless S\.C\}\}/g, to: '{{#unless sale.itemsGrouped.hasCombos}}' },
@@ -1263,60 +1314,60 @@
     return result;
   }
   
-  // Función para agregar leyenda de variables FUERA del canvas
+  // Función para agregar leyenda de variables ENCIMA de los botones del toolbar
   function addVariableLegend(canvas) {
-    // Remover leyenda existente si hay (buscar tanto dentro como fuera del canvas)
+    // Remover leyenda existente si hay (buscar tanto dentro como fuera del canvas y toolbar)
     const existingLegend = document.querySelector('.variable-legend');
     if (existingLegend) {
       existingLegend.remove();
     }
     
-    // Buscar el contenedor padre del canvas
-    const canvasParent = canvas.parentElement;
-    if (!canvasParent) {
-      console.warn('[addVariableLegend] No se encontró el contenedor padre del canvas');
+    // Buscar el toolbar donde están los botones
+    const toolbar = qs('#ce-toolbar') || qs('.ce-toolbar') || qs('.editor-toolbar');
+    if (!toolbar) {
+      console.warn('[addVariableLegend] No se encontró el toolbar');
       return;
     }
     
     const legend = document.createElement('div');
     legend.className = 'variable-legend';
     legend.style.cssText = `
-      position: fixed;
-      top: 80px;
-      right: 20px;
+      width: 100%;
       background: white;
       border: 2px solid #2563eb;
       border-radius: 8px;
-      padding: 12px;
-      font-size: 11px;
+      padding: 10px;
+      font-size: 10px;
       font-family: 'Courier New', monospace;
-      z-index: 10000;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      max-width: 280px;
-      line-height: 1.6;
-      pointer-events: auto;
+      margin-bottom: 10px;
+      line-height: 1.5;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     `;
     
     legend.innerHTML = `
-      <div style="font-weight: bold; margin-bottom: 8px; color: #2563eb; font-size: 12px;">
+      <div style="font-weight: bold; margin-bottom: 6px; color: #2563eb; font-size: 11px;">
         📋 Leyenda de Variables
       </div>
-      <div style="margin-bottom: 4px;"><strong>C.</strong> = Cliente</div>
-      <div style="margin-bottom: 4px;"><strong>S.</strong> = Venta</div>
-      <div style="margin-bottom: 4px;"><strong>E.</strong> = Empresa</div>
-      <div style="margin-bottom: 4px;"><strong>S.P</strong> = Productos</div>
-      <div style="margin-bottom: 4px;"><strong>S.S</strong> = Servicios</div>
-      <div style="margin-bottom: 4px;"><strong>S.C</strong> = Combos</div>
-      <div style="margin-bottom: 4px;"><strong>$</strong> = Formato dinero</div>
-      <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd; font-size: 10px; color: #666;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 4px;">
+        <div><strong>C.</strong> = Cliente</div>
+        <div><strong>S.</strong> = Venta</div>
+        <div><strong>E.</strong> = Empresa</div>
+        <div><strong>S.P</strong> = Productos</div>
+        <div><strong>S.S</strong> = Servicios</div>
+        <div><strong>S.C</strong> = Combos</div>
+        <div><strong>Q.</strong> = Cotización</div>
+        <div><strong>V.</strong> = Vehículo</div>
+        <div><strong>$</strong> = Formato dinero</div>
+      </div>
+      <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #ddd; font-size: 9px; color: #666;">
         Las variables se restauran automáticamente al guardar
       </div>
     `;
     
-    // Agregar al body o al contenedor padre del canvas, NO al canvas mismo
-    document.body.appendChild(legend);
+    // Agregar la leyenda AL INICIO del toolbar, antes de los botones
+    toolbar.insertBefore(legend, toolbar.firstChild);
     
-    console.log('[addVariableLegend] Leyenda agregada fuera del canvas');
+    console.log('[addVariableLegend] Leyenda agregada en el toolbar');
   }
 
   function setupImageUpload(element) {
@@ -1443,17 +1494,30 @@
               img.src = optimizedSrc;
               img.draggable = false;
               img.alt = 'Imagen';
-              img.style.cssText = 'max-width: 100%; max-height: 100%; width: auto; height: auto; display: block;';
+              // Usar dimensiones explícitas en lugar de porcentajes para evitar que se achique
+              img.style.cssText = 'width: auto; height: auto; display: block; max-width: none; max-height: none;';
               
-              // Agregar evento para verificar carga
+              // Agregar evento para verificar carga y establecer dimensiones
               img.onload = () => {
                 console.log('[setupImageUpload] ✅ Imagen cargada correctamente (independiente)');
-                // Asegurar que el contenedor tenga dimensiones después de cargar la imagen
-                const imgWidth = img.naturalWidth || img.offsetWidth || 200;
-                const imgHeight = img.naturalHeight || img.offsetHeight || 200;
+                // Establecer dimensiones explícitas basadas en las dimensiones naturales de la imagen
+                const imgWidth = img.naturalWidth || 200;
+                const imgHeight = img.naturalHeight || 200;
+                
+                // Establecer dimensiones del contenedor ANTES de agregar la imagen
                 imgContainer.style.width = imgWidth + 'px';
                 imgContainer.style.height = imgHeight + 'px';
-                console.log('[setupImageUpload] Dimensiones de imagen aplicadas:', { width: imgWidth, height: imgHeight });
+                
+                // Establecer dimensiones explícitas de la imagen
+                img.style.width = imgWidth + 'px';
+                img.style.height = imgHeight + 'px';
+                
+                console.log('[setupImageUpload] Dimensiones de imagen aplicadas:', { 
+                  width: imgWidth, 
+                  height: imgHeight,
+                  containerWidth: imgContainer.style.width,
+                  containerHeight: imgContainer.style.height
+                });
               };
               img.onerror = (e) => {
                 console.error('[setupImageUpload] ❌ Error cargando imagen:', e);
@@ -1650,8 +1714,24 @@
       const shouldShow = !!(visualEditor.selectedElement && visualEditor.selectedElement.contains(container));
       Object.values(handleElements).forEach(h => h.style.display = shouldShow ? 'block' : 'none');
       try {
-        container.style.width = img.offsetWidth + 'px';
-        container.style.height = img.offsetHeight + 'px';
+        // Solo actualizar dimensiones si la imagen tiene dimensiones válidas y no se está reduciendo
+        const imgWidth = img.naturalWidth || img.offsetWidth;
+        const imgHeight = img.naturalHeight || img.offsetHeight;
+        
+        // Solo actualizar si las dimensiones son válidas y mayores que un mínimo
+        if (imgWidth > 10 && imgHeight > 10) {
+          const currentWidth = parseInt(container.style.width) || 0;
+          const currentHeight = parseInt(container.style.height) || 0;
+          
+          // Solo actualizar si las dimensiones actuales son significativamente diferentes
+          // o si no hay dimensiones establecidas
+          if (currentWidth === 0 || currentHeight === 0 || 
+              Math.abs(currentWidth - imgWidth) > 5 || 
+              Math.abs(currentHeight - imgHeight) > 5) {
+            container.style.width = imgWidth + 'px';
+            container.style.height = imgHeight + 'px';
+          }
+        }
       } catch(_) {}
     };
 
@@ -2493,7 +2573,7 @@
     numberBox.className = 'tpl-element';
     numberBox.id = `element_${visualEditor.nextId++}`;
     numberBox.style.cssText = 'position: absolute; left: 40px; top: 70px; border: 2px solid #000; padding: 6px 12px; display: inline-block;';
-    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{#if sale.formattedNumber}}{{sale.formattedNumber}}{{else}}{{#if sale.number}}{{pad sale.number}}{{else}}[Sin número]{{/if}}{{/if}}</span>';
+    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{#if S.nº}}{{S.nº}}{{else}}[Sin nº]{{/if}}</span>';
     makeDraggable(numberBox);
     makeSelectable(numberBox);
     canvas.appendChild(numberBox);
@@ -2603,7 +2683,7 @@
     totalBox.className = 'tpl-element tpl-total-box';
     totalBox.id = `element_${visualEditor.nextId++}`;
     totalBox.style.cssText = 'position: absolute; left: 40px; top: 306px; border: 2px solid #000; padding: 8px 16px; display: inline-flex; align-items: center; gap: 200px;';
-    totalBox.innerHTML = '<span contenteditable="true" style="font-size: 12px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">TOTAL</span><span contenteditable="true" style="font-size: 12px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">{{money sale.total}}</span>';
+    totalBox.innerHTML = '<span contenteditable="true" style="font-size: 12px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">TOTAL</span><span contenteditable="true" style="font-size: 12px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">{{$ S.total}}</span>';
     totalBox.setAttribute('data-table-container-id', itemsTable.id);
     makeDraggable(totalBox);
     makeSelectable(totalBox);
@@ -2615,15 +2695,26 @@
     const adjustTotalPosition = () => {
       const table = itemsTable.querySelector('table.remission-table');
       if (table) {
-        const tableTop = 250; // Posición inicial de la tabla (compactada)
-        // Obtener altura real de la tabla
-        const tableHeight = table.offsetHeight || table.getBoundingClientRect().height || 75;
+        // Obtener posición real de la tabla usando getBoundingClientRect
+        const tableRect = table.getBoundingClientRect();
+        const canvasRect = canvas.getBoundingClientRect();
+        const tableTop = tableRect.top - canvasRect.top + canvas.scrollTop;
+        const tableHeight = table.offsetHeight || tableRect.height || 75;
         const newTop = tableTop + tableHeight;
+        
         // Asegurar que el total no se salga de la página A4 (altura máxima ~1123px)
         const maxTop = 1100; // Dejar espacio para márgenes inferiores
         const finalTop = Math.min(newTop, maxTop);
+        
         totalLine.style.top = `${finalTop}px`;
         totalBox.style.top = `${finalTop + 1}px`;
+        
+        console.log('[adjustTotalPosition] Total ajustado:', {
+          tableTop,
+          tableHeight,
+          newTop,
+          finalTop
+        });
       }
     };
     
@@ -3061,7 +3152,7 @@
     });
     canvas.appendChild(clientTitle);
 
-    const clientData = createEditableElement('text', '{{quote.customer.name}}\n{{quote.customer.email}}\n{{quote.customer.phone}}', {
+    const clientData = createEditableElement('text', '{{Q.C.nombre}}\n{{Q.C.email}}\n{{Q.C.tel}}', {
       position: { left: 40, top: 210 },
       styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
     });
@@ -3124,7 +3215,7 @@
     totalBox.className = 'tpl-element';
     totalBox.id = `element_${visualEditor.nextId++}`;
     totalBox.style.cssText = 'position: absolute; left: 40px; top: 630px; border: 2px solid #000; padding: 12px 20px; display: inline-flex; align-items: center; gap: 200px;';
-    totalBox.innerHTML = '<span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">TOTAL</span><span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">{{money quote.total}}</span>';
+    totalBox.innerHTML = '<span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">TOTAL</span><span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">{{$ Q.total}}</span>';
     makeDraggable(totalBox);
     makeSelectable(totalBox);
     canvas.appendChild(totalBox);
