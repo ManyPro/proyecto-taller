@@ -84,6 +84,19 @@ function printSaleTicket(sale){
           hasSaleCustomer: tpl.contentHtml?.includes('{{sale.customer'),
           hasSaleTotal: tpl.contentHtml?.includes('{{sale.total}}') || tpl.contentHtml?.includes('{{money sale.total}}')
         });
+        
+        // Extraer y mostrar el contenido del tbody del template
+        const templateTbodyMatch = tpl.contentHtml?.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+        if (templateTbodyMatch) {
+          console.log('[printSaleTicket] Tablas encontradas en template:', templateTbodyMatch.length);
+          templateTbodyMatch.forEach((match, idx) => {
+            console.log(`[printSaleTicket] Template tbody ${idx + 1} (COMPLETO):`, match);
+            console.log(`[printSaleTicket] Template tbody ${idx + 1} tiene {{#each sale.items}}:`, match.includes('{{#each sale.items}}'));
+            console.log(`[printSaleTicket] Template tbody ${idx + 1} tiene {{#unless sale.items}}:`, match.includes('{{#unless sale.items}}'));
+          });
+        } else {
+          console.warn('[printSaleTicket] ⚠️ NO se encontraron tablas <tbody> en el template guardado!');
+        }
         return API.templates.preview({ type:'invoice', contentHtml: tpl.contentHtml, contentCss: tpl.contentCss || '', sampleId: sale._id })
           .then(r=>{
             console.log('[printSaleTicket] ===== PREVIEW RECIBIDO =====');
@@ -133,21 +146,30 @@ function printSaleTicket(sale){
             // Agregar script para logs en la ventana de impresión
             const debugScript = `
               <script>
-                console.log('[VENTANA IMPRESION] Ventana abierta');
-                console.log('[VENTANA IMPRESION] HTML length:', document.body.innerHTML.length);
-                const tables = document.querySelectorAll('table');
-                console.log('[VENTANA IMPRESION] Tablas encontradas:', tables.length);
-                tables.forEach((table, idx) => {
-                  const rows = table.querySelectorAll('tr');
-                  console.log(\`[VENTANA IMPRESION] Tabla \${idx + 1} tiene \${rows.length} filas\`);
-                  rows.forEach((row, rowIdx) => {
-                    console.log(\`[VENTANA IMPRESION] Tabla \${idx + 1}, Fila \${rowIdx}:\`, row.innerHTML.substring(0, 200));
+                window.addEventListener('DOMContentLoaded', function() {
+                  console.log('[VENTANA IMPRESION] Ventana abierta');
+                  console.log('[VENTANA IMPRESION] HTML length:', document.body ? document.body.innerHTML.length : 'body no disponible');
+                  const tables = document.querySelectorAll('table');
+                  console.log('[VENTANA IMPRESION] Tablas encontradas:', tables.length);
+                  tables.forEach((table, idx) => {
+                    const rows = table.querySelectorAll('tr');
+                    console.log(\`[VENTANA IMPRESION] Tabla \${idx + 1} tiene \${rows.length} filas\`);
+                    rows.forEach((row, rowIdx) => {
+                      console.log(\`[VENTANA IMPRESION] Tabla \${idx + 1}, Fila \${rowIdx}:\`, row.innerHTML.substring(0, 200));
+                    });
                   });
-                });
-                const tbodyElements = document.querySelectorAll('tbody');
-                console.log('[VENTANA IMPRESION] Elementos tbody encontrados:', tbodyElements.length);
-                tbodyElements.forEach((tbody, idx) => {
-                  console.log(\`[VENTANA IMPRESION] tbody \${idx + 1} contenido:\`, tbody.innerHTML.substring(0, 500));
+                  const tbodyElements = document.querySelectorAll('tbody');
+                  console.log('[VENTANA IMPRESION] Elementos tbody encontrados:', tbodyElements.length);
+                  tbodyElements.forEach((tbody, idx) => {
+                    console.log(\`[VENTANA IMPRESION] tbody \${idx + 1} contenido:\`, tbody.innerHTML.substring(0, 500));
+                  });
+                  
+                  // Verificar si hay contenido de items
+                  const hasItemsText = document.body.textContent.includes('CAMBIO DE ACEITE') || 
+                                       document.body.textContent.includes('FILTRO') ||
+                                       document.body.textContent.includes('Sin ítems');
+                  console.log('[VENTANA IMPRESION] Contiene texto de items:', hasItemsText);
+                  console.log('[VENTANA IMPRESION] Contiene "Sin ítems":', document.body.textContent.includes('Sin ítems'));
                 });
               </script>
             `;
