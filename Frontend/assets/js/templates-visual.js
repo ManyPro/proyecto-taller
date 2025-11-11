@@ -1180,7 +1180,7 @@
             imgContainer.style.cssText = 'position: relative; display: block; padding:0; margin:0; line-height:0; width: 100%; height: 100%;';
           } else {
             // Para otras imágenes: tamaño automático
-            imgContainer.style.cssText = 'position: relative; display: inline-block; padding:0; margin:0; line-height:0;';
+          imgContainer.style.cssText = 'position: relative; display: inline-block; padding:0; margin:0; line-height:0;';
           }
           
           const img = document.createElement('img');
@@ -1197,12 +1197,12 @@
           } else {
             // Otras imágenes: tamaño automático
             img.style.cssText = 'width:150px; height:auto; display:block; user-select:none; margin:0; padding:0;';
-            img.onload = () => {
-              try {
-                imgContainer.style.width = img.naturalWidth + 'px';
-                imgContainer.style.height = img.naturalHeight + 'px';
-              } catch (_) {}
-            };
+          img.onload = () => {
+            try {
+              imgContainer.style.width = img.naturalWidth + 'px';
+              imgContainer.style.height = img.naturalHeight + 'px';
+            } catch (_) {}
+          };
           }
           
           imgContainer.appendChild(img);
@@ -1894,12 +1894,41 @@
       // Ajustar tamaño del canvas según el formato
       applyCanvasSizeFromFormat(template);
       
-      // SIEMPRE usar la nueva plantilla - NUNCA cargar contenido viejo
-      // Ignorar completamente cualquier HTML viejo que pueda tener la plantilla
-      console.log('🔄 Ignorando contenido viejo completamente, cargando nueva plantilla...');
-      const templateType = template.type || window.currentTemplateSession?.type || 'invoice';
-      loadDefaultTemplate(templateType);
-      showQuickNotification(`🆕 Nueva plantilla cargada para "${template.name}"`, 'success');
+      // Cargar el HTML guardado si existe y tiene contenido válido
+      if (template.contentHtml && template.contentHtml.trim() && !template.contentHtml.includes('Haz clic en los botones')) {
+        console.log('📄 Cargando HTML guardado del formato...');
+        canvas.innerHTML = template.contentHtml;
+        
+        // Restaurar elementos del visual editor desde el HTML
+        const elements = canvas.querySelectorAll('.tpl-element');
+        elements.forEach((el, idx) => {
+          if (!el.id) {
+            el.id = `element_${visualEditor.nextId++}`;
+          }
+          makeDraggable(el);
+          makeSelectable(el);
+          
+          // Extraer el ID numérico para actualizar nextId
+          const idMatch = el.id.match(/element_(\d+)/);
+          if (idMatch) {
+            const numId = parseInt(idMatch[1], 10);
+            if (numId >= visualEditor.nextId) {
+              visualEditor.nextId = numId + 1;
+            }
+          }
+        });
+        
+        // Ajustar altura del canvas al contenido
+        adjustCanvasHeightToContent(canvas);
+        
+        showQuickNotification(`✅ Formato "${template.name}" cargado correctamente`, 'success');
+      } else {
+        // Si no hay HTML guardado o está vacío, cargar plantilla por defecto
+        console.log('🔄 No hay HTML guardado, cargando nueva plantilla por defecto...');
+        const templateType = template.type || window.currentTemplateSession?.type || 'invoice';
+        loadDefaultTemplate(templateType);
+        showQuickNotification(`🆕 Nueva plantilla cargada para "${template.name}"`, 'success');
+      }
       
     } catch (error) {
       console.error('❌ Error cargando formato:', error);
@@ -2089,13 +2118,13 @@
 
     // Sección DATOS DE LA EMPRESA (derecha) - más a la derecha
     const companyTitle = createEditableElement('text', 'DATOS DE LA EMPRESA', {
-      position: { left: 550, top: 180 },
+      position: { left: 650, top: 180 },
       styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
     });
     canvas.appendChild(companyTitle);
 
     const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n{{company.phone}}\n{{company.address}}', {
-      position: { left: 550, top: 210 },
+      position: { left: 650, top: 210 },
       styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
     });
     canvas.appendChild(companyData);
@@ -2536,13 +2565,13 @@
 
     // Sección DATOS DE LA EMPRESA (derecha) - más a la derecha
     const companyTitle = createEditableElement('text', 'DATOS DE LA EMPRESA', {
-      position: { left: 550, top: 180 },
+      position: { left: 650, top: 180 },
       styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
     });
     canvas.appendChild(companyTitle);
 
     const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n{{company.phone}}\n{{company.address}}', {
-      position: { left: 550, top: 210 },
+      position: { left: 650, top: 210 },
       styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
     });
     canvas.appendChild(companyData);
@@ -2690,13 +2719,13 @@
 
     // Sección DATOS DE LA EMPRESA (derecha) - más a la derecha
     const companyTitle = createEditableElement('text', 'DATOS DE LA EMPRESA', {
-      position: { left: 550, top: 180 },
+      position: { left: 650, top: 180 },
       styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
     });
     canvas.appendChild(companyTitle);
 
     const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n{{company.phone}}\n{{company.address}}', {
-      position: { left: 550, top: 210 },
+      position: { left: 650, top: 210 },
       styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
     });
     canvas.appendChild(companyData);
