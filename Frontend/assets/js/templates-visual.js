@@ -2059,11 +2059,12 @@
     canvas.appendChild(title);
 
     // Número de remisión en caja negra - usando helper pad para formatear con ceros a la izquierda
+    // Usar sale.formattedNumber si existe, sino usar pad sale.number, sino mostrar vacío
     const numberBox = document.createElement('div');
     numberBox.className = 'tpl-element';
     numberBox.id = `element_${visualEditor.nextId++}`;
     numberBox.style.cssText = 'position: absolute; left: 40px; top: 100px; border: 2px solid #000; padding: 8px 16px; display: inline-block;';
-    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 18px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{pad sale.number}}</span>';
+    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 18px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{#if sale.formattedNumber}}{{sale.formattedNumber}}{{else}}{{#if sale.number}}{{pad sale.number}}{{else}}[Sin número]{{/if}}{{/if}}</span>';
     makeDraggable(numberBox);
     makeSelectable(numberBox);
     canvas.appendChild(numberBox);

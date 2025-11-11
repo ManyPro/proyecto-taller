@@ -50,15 +50,6 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
         total: Number(item.total) || (Number(item.qty) || 0) * (Number(item.unitPrice) || 0)
       }));
       
-      // Log para depuración
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[buildContext Sale]', {
-          saleId: saleObj._id,
-          saleNumber: saleObj.number,
-          itemsCount: saleObj.items.length,
-          items: saleObj.items.map(i => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice, total: i.total }))
-        });
-      }
       // Asegurar que customer esté presente
       if (!saleObj.customer) {
         saleObj.customer = { name: '', email: '', phone: '', address: '' };
@@ -67,13 +58,49 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
       if (!saleObj.vehicle) {
         saleObj.vehicle = { plate: '', brand: '', line: '', engine: '', year: null, mileage: null };
       }
-      // Formatear número de remisión si existe
-      if (saleObj.number) {
+      // Asegurar que el número de remisión esté presente y formateado
+      // Si no tiene número pero tiene _id, usar el _id como fallback temporal
+      if (!saleObj.number || !Number.isFinite(Number(saleObj.number))) {
+        // Si la venta no tiene número asignado, intentar obtenerlo del contador
+        // Pero solo si es una venta cerrada (para no afectar el contador)
+        if (saleObj.status === 'closed') {
+          // Para ventas cerradas sin número, usar un número temporal basado en _id
+          saleObj.number = saleObj._id ? parseInt(saleObj._id.toString().slice(-6), 16) % 100000 : 0;
+        } else {
+          saleObj.number = null;
+        }
+      }
+      // Formatear número de remisión
+      if (saleObj.number && Number.isFinite(Number(saleObj.number))) {
         saleObj.formattedNumber = String(saleObj.number).padStart(5, '0');
       } else {
         saleObj.formattedNumber = '';
       }
+      
+      // Log para depuración
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[buildContext Sale]', {
+          saleId: saleObj._id,
+          saleNumber: saleObj.number,
+          saleFormattedNumber: saleObj.formattedNumber,
+          saleStatus: saleObj.status,
+          itemsCount: saleObj.items.length,
+          items: saleObj.items.map(i => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice, total: i.total })),
+          customer: saleObj.customer,
+          vehicle: saleObj.vehicle
+        });
+      }
+      
       ctx.sale = saleObj;
+    } else {
+      // Log si no se encontró la venta
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[buildContext Sale]', {
+          error: 'Sale not found',
+          sampleId,
+          companyId
+        });
+      }
     }
   }
   // CotizaciÃ³n
@@ -312,8 +339,12 @@ export async function previewTemplate(req, res) {
       hasQuoteData: !!quoteData,
       saleItemsCount: ctx.sale?.items?.length || 0,
       quoteItemsCount: ctx.quote?.items?.length || 0,
+      saleNumber: ctx.sale?.number,
+      saleFormattedNumber: ctx.sale?.formattedNumber,
       saleItems: ctx.sale?.items || [],
-      quoteItems: ctx.quote?.items || []
+      quoteItems: ctx.quote?.items || [],
+      saleCustomer: ctx.sale?.customer,
+      saleVehicle: ctx.sale?.vehicle
     });
   }
   
