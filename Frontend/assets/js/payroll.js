@@ -279,8 +279,16 @@ async function addConcept(){
 async function loadTechnicians(){
   try {
     const r = await api.get('/api/v1/company/technicians');
-    const names = r.technicians || [];
-    const opts = names.map(n => `<option value="${htmlEscape(n)}">${htmlEscape(n)}</option>`).join('');
+    const technicians = r.technicians || [];
+    // Normalizar: puede ser array de strings o array de objetos
+    const normalizedTechs = technicians.map(t => {
+      if (typeof t === 'string') {
+        return { name: t, identification: '' };
+      }
+      return { name: t.name || t, identification: t.identification || '' };
+    });
+    const names = normalizedTechs.map(t => t.name);
+    const opts = normalizedTechs.map(t => `<option value="${htmlEscape(t.name)}">${htmlEscape(t.name)}${t.identification ? ' (' + htmlEscape(t.identification) + ')' : ''}</option>`).join('');
     
     // Actualizar selects de técnicos
     const techSel = document.getElementById('pl-technicianSel');
@@ -298,17 +306,37 @@ async function loadTechnicians(){
     // Render listado de técnicos con mejor diseño
     const listEl = document.getElementById('tk-list');
     if (listEl) {
-      if (names.length === 0) {
+      if (normalizedTechs.length === 0) {
         listEl.innerHTML = '<div class="text-center py-3 px-3 text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay técnicos registrados. Crea el primero arriba.</div>';
       } else {
-        listEl.innerHTML = names.map(n => {
+        listEl.innerHTML = normalizedTechs.map(t => {
+          const identificationText = t.identification ? ` <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">(${htmlEscape(t.identification)})</span>` : '';
           return `<div class="technician-chip inline-flex items-center gap-2 bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 border border-blue-500/30 dark:border-blue-500/30 theme-light:border-blue-300 text-white dark:text-white theme-light:text-slate-900 px-3 py-2 rounded-lg text-sm font-medium">
-            <span>👤 ${htmlEscape(n)}</span>
-            <button class="x-del bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/30 dark:hover:bg-red-600/30 theme-light:bg-red-50 theme-light:hover:bg-red-100 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 text-red-400 dark:text-red-400 theme-light:text-red-600 px-2 py-0.5 rounded text-xs font-semibold transition-all duration-200 cursor-pointer" data-name="${htmlEscape(n)}" title="Eliminar técnico">
+            <span>👤 ${htmlEscape(t.name)}${identificationText}</span>
+            <button class="x-edit bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/30 dark:hover:bg-blue-600/30 theme-light:bg-blue-50 theme-light:hover:bg-blue-100 border border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-300 text-blue-400 dark:text-blue-400 theme-light:text-blue-600 px-2 py-0.5 rounded text-xs font-semibold transition-all duration-200 cursor-pointer" data-name="${htmlEscape(t.name)}" data-identification="${htmlEscape(t.identification || '')}" title="Editar identificación">
+              ✏️ Editar
+            </button>
+            <button class="x-del bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/30 dark:hover:bg-red-600/30 theme-light:bg-red-50 theme-light:hover:bg-red-100 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 text-red-400 dark:text-red-400 theme-light:text-red-600 px-2 py-0.5 rounded text-xs font-semibold transition-all duration-200 cursor-pointer" data-name="${htmlEscape(t.name)}" title="Eliminar técnico">
               🗑️ Eliminar
             </button>
           </div>`;
         }).join('');
+        
+        // Agregar event listeners para editar
+        listEl.querySelectorAll('.x-edit').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const name = btn.getAttribute('data-name');
+            const currentIdentification = btn.getAttribute('data-identification') || '';
+            if (!name) return;
+            
+            // Mostrar modal o formulario para editar
+            const newIdentification = prompt(`Editar identificación para "${name}":\n\nIngresa el número de identificación:`, currentIdentification);
+            if (newIdentification === null) return; // Usuario canceló
+            
+            // Actualizar técnico
+            editTechnician(name, newIdentification.trim());
+          });
+        });
         
         // Agregar event listeners para eliminar
         listEl.querySelectorAll('.x-del').forEach(btn => {
@@ -345,9 +373,10 @@ async function loadTechnicians(){
               
               await loadTechnicians();
             } catch (err) {
+              console.error('Error eliminando técnico:', err);
               alert('❌ Error al eliminar técnico: ' + (err.message || 'Error desconocido'));
               btn.disabled = false;
-              btn.innerHTML = '🗑️ Eliminar';
+              btn.textContent = '🗑️ Eliminar';
             }
           });
         });
@@ -2479,6 +2508,51 @@ async function createTechnician(){
     }
   } catch (err) {
     console.error('Error in createTechnician:', err);
+    alert('❌ Error inesperado: ' + (err.message || 'Error desconocido'));
+  }
+}
+
+async function editTechnician(name, identification) {
+  try {
+    if (!name) {
+      alert('⚠️ Nombre de técnico requerido');
+      return;
+    }
+    
+    // Deshabilitar botones durante la petición
+    const editBtns = document.querySelectorAll(`.x-edit[data-name="${htmlEscape(name)}"]`);
+    editBtns.forEach(btn => {
+      btn.disabled = true;
+      btn.textContent = 'Actualizando...';
+    });
+    
+    try {
+      // Usar POST para actualizar (el backend actualiza si existe)
+      await api.post('/api/v1/company/technicians', { name, identification });
+      
+      // Recargar lista de técnicos
+      await loadTechnicians();
+      
+      // Feedback visual
+      editBtns.forEach(btn => {
+        btn.textContent = '✓ Actualizado';
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.textContent = '✏️ Editar';
+        }, 1500);
+      });
+      
+      alert(`✅ Identificación actualizada para ${name}`);
+    } catch (err) {
+      const errorMsg = err.message || 'Error desconocido';
+      alert('❌ Error al actualizar técnico: ' + errorMsg);
+      editBtns.forEach(btn => {
+        btn.disabled = false;
+        btn.textContent = '✏️ Editar';
+      });
+    }
+  } catch (err) {
+    console.error('Error in editTechnician:', err);
     alert('❌ Error inesperado: ' + (err.message || 'Error desconocido'));
   }
 }

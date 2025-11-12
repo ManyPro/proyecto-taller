@@ -2533,6 +2533,9 @@
       if (documentType === 'invoice') {
         createRemissionTemplate(canvas);
         showQuickNotification('📄 Plantilla de Remisión cargada', 'success');
+      } else if (documentType === 'workOrder') {
+        createWorkOrderTemplate(canvas);
+        showQuickNotification('🔧 Plantilla de Orden de Trabajo cargada', 'success');
       } else if (documentType === 'quote') {
         createQuoteTemplate(canvas);
         showQuickNotification('💰 Plantilla de Cotización cargada', 'success');
