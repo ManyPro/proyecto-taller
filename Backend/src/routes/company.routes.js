@@ -104,9 +104,9 @@ router.get('/technicians', (req, res) => {
 router.post('/technicians', async (req, res) => {
   const name = String(req.body?.name || '').trim().toUpperCase();
   const identification = String(req.body?.identification || '').trim();
-  const basicSalary = req.body?.basicSalary ? Number(req.body.basicSalary) : null;
-  const workHoursPerMonth = req.body?.workHoursPerMonth ? Number(req.body.workHoursPerMonth) : null;
-  const basicSalaryPerDay = req.body?.basicSalaryPerDay ? Number(req.body.basicSalaryPerDay) : null;
+  const basicSalary = (req.body?.basicSalary !== null && req.body?.basicSalary !== undefined && req.body?.basicSalary !== '') ? Number(req.body.basicSalary) : null;
+  const workHoursPerMonth = (req.body?.workHoursPerMonth !== null && req.body?.workHoursPerMonth !== undefined && req.body?.workHoursPerMonth !== '') ? Number(req.body.workHoursPerMonth) : null;
+  const basicSalaryPerDay = (req.body?.basicSalaryPerDay !== null && req.body?.basicSalaryPerDay !== undefined && req.body?.basicSalaryPerDay !== '') ? Number(req.body.basicSalaryPerDay) : null;
   const contractType = String(req.body?.contractType || '').trim();
   
   if (!name) return res.status(400).json({ error: 'nombre requerido' });
@@ -148,9 +148,9 @@ router.put('/technicians/:name', async (req, res) => {
     const name = String(req.params.name || '').trim().toUpperCase();
     const newName = String(req.body?.name || '').trim().toUpperCase();
     const identification = String(req.body?.identification || '').trim();
-    const basicSalary = req.body?.basicSalary ? Number(req.body.basicSalary) : null;
-    const workHoursPerMonth = req.body?.workHoursPerMonth ? Number(req.body.workHoursPerMonth) : null;
-    const basicSalaryPerDay = req.body?.basicSalaryPerDay ? Number(req.body.basicSalaryPerDay) : null;
+    const basicSalary = (req.body?.basicSalary !== null && req.body?.basicSalary !== undefined && req.body?.basicSalary !== '') ? Number(req.body.basicSalary) : null;
+    const workHoursPerMonth = (req.body?.workHoursPerMonth !== null && req.body?.workHoursPerMonth !== undefined && req.body?.workHoursPerMonth !== '') ? Number(req.body.workHoursPerMonth) : null;
+    const basicSalaryPerDay = (req.body?.basicSalaryPerDay !== null && req.body?.basicSalaryPerDay !== undefined && req.body?.basicSalaryPerDay !== '') ? Number(req.body.basicSalaryPerDay) : null;
     const contractType = String(req.body?.contractType || '').trim();
     
     if (!name) return res.status(400).json({ error: 'nombre requerido' });

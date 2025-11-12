@@ -2528,10 +2528,15 @@ async function createTechnician(){
     
     const name = (nameInput?.value || '').trim();
     const identification = (identificationInput?.value || '').trim();
-    const basicSalary = (basicSalaryInput?.value || '').trim();
-    const workHoursPerMonth = (workHoursInput?.value || '').trim();
-    const basicSalaryPerDay = (salaryPerDayInput?.value || '').trim();
+    const basicSalaryStr = (basicSalaryInput?.value || '').trim();
+    const workHoursStr = (workHoursInput?.value || '').trim();
+    const basicSalaryPerDayStr = (salaryPerDayInput?.value || '').trim();
     const contractType = (contractTypeInput?.value || '').trim();
+    
+    // Convertir valores numéricos
+    const basicSalary = basicSalaryStr ? Number(basicSalaryStr) : null;
+    const workHoursPerMonth = workHoursStr ? Number(workHoursStr) : null;
+    const basicSalaryPerDay = basicSalaryPerDayStr ? Number(basicSalaryPerDayStr) : null;
     
     // Validaciones
     if (!name) {
@@ -2561,22 +2566,25 @@ async function createTechnician(){
     }
     
     try {
-      // Verificar que api.company esté disponible
-      let addFn = null;
-      if (api && api.company && typeof api.company.addTechnician === 'function') {
-        addFn = api.company.addTechnician;
-      } else if (window.API && window.API.company && typeof window.API.company.addTechnician === 'function') {
-        addFn = window.API.company.addTechnician;
-      } else {
+      // Usar window.API directamente ya que es más confiable
+      const API = window.API;
+      if (!API || !API.company || typeof API.company.addTechnician !== 'function') {
+        console.error('API disponible:', {
+          hasWindowAPI: !!window.API,
+          hasCompany: !!(window.API && window.API.company),
+          hasAddFn: !!(window.API && window.API.company && typeof window.API.company.addTechnician === 'function'),
+          apiKeys: window.API ? Object.keys(window.API) : [],
+          companyKeys: (window.API && window.API.company) ? Object.keys(window.API.company) : []
+        });
         throw new Error('API no disponible. Por favor recarga la página.');
       }
       
-      await addFn(
+      await API.company.addTechnician(
         name,
         identification,
-        basicSalary || null,
-        workHoursPerMonth || null,
-        basicSalaryPerDay || null,
+        basicSalary,
+        workHoursPerMonth,
+        basicSalaryPerDay,
         contractType
       );
       
@@ -2777,17 +2785,20 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
       saveBtn.textContent = 'Guardando...';
       
       try {
-        // Verificar que api.company esté disponible
-        if (!api || !api.company || typeof api.company.updateTechnician !== 'function') {
-          // Fallback: usar window.API directamente
-          const API = window.API || api;
-          if (!API || !API.company || typeof API.company.updateTechnician !== 'function') {
-            throw new Error('API no disponible. Por favor recarga la página.');
-          }
-          await API.company.updateTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
-        } else {
-          await api.company.updateTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+        // Usar window.API directamente ya que es más confiable
+        const API = window.API;
+        if (!API || !API.company || typeof API.company.updateTechnician !== 'function') {
+          console.error('API disponible:', {
+            hasWindowAPI: !!window.API,
+            hasCompany: !!(window.API && window.API.company),
+            hasUpdateFn: !!(window.API && window.API.company && typeof window.API.company.updateTechnician === 'function'),
+            apiKeys: window.API ? Object.keys(window.API) : [],
+            companyKeys: (window.API && window.API.company) ? Object.keys(window.API.company) : []
+          });
+          throw new Error('API no disponible. Por favor recarga la página.');
         }
+        
+        await API.company.updateTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
         await loadTechnicians();
         closeModal();
       } catch (err) {

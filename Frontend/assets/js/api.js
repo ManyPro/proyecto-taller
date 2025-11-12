@@ -126,9 +126,9 @@ const API = {
       const res = await http.post('/api/v1/company/technicians', { 
         name,
         identification: identification || '',
-        basicSalary: basicSalary ? Number(basicSalary) : null,
-        workHoursPerMonth: workHoursPerMonth ? Number(workHoursPerMonth) : null,
-        basicSalaryPerDay: basicSalaryPerDay ? Number(basicSalaryPerDay) : null,
+        basicSalary: (basicSalary !== null && basicSalary !== undefined && basicSalary !== '') ? Number(basicSalary) : null,
+        workHoursPerMonth: (workHoursPerMonth !== null && workHoursPerMonth !== undefined && workHoursPerMonth !== '') ? Number(workHoursPerMonth) : null,
+        basicSalaryPerDay: (basicSalaryPerDay !== null && basicSalaryPerDay !== undefined && basicSalaryPerDay !== '') ? Number(basicSalaryPerDay) : null,
         contractType: contractType || ''
       });
       return res.technicians || [];
@@ -141,9 +141,9 @@ const API = {
       const res = await http.put(`/api/v1/company/technicians/${encodeURIComponent(String(currentName||''))}`, {
         name: newName,
         identification: identification || '',
-        basicSalary: basicSalary ? Number(basicSalary) : null,
-        workHoursPerMonth: workHoursPerMonth ? Number(workHoursPerMonth) : null,
-        basicSalaryPerDay: basicSalaryPerDay ? Number(basicSalaryPerDay) : null,
+        basicSalary: (basicSalary !== null && basicSalary !== undefined && basicSalary !== '') ? Number(basicSalary) : null,
+        workHoursPerMonth: (workHoursPerMonth !== null && workHoursPerMonth !== undefined && workHoursPerMonth !== '') ? Number(workHoursPerMonth) : null,
+        basicSalaryPerDay: (basicSalaryPerDay !== null && basicSalaryPerDay !== undefined && basicSalaryPerDay !== '') ? Number(basicSalaryPerDay) : null,
         contractType: contractType || ''
       });
       return res.technicians || [];
