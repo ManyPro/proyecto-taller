@@ -44,7 +44,17 @@ const CompanySchema = new mongoose.Schema(
     passwordResetTokenHash: { type: String, default: '' },
     passwordResetExpires: { type: Date, default: null },
 
-    technicians: { type: [String], default: [] },
+    technicians: {
+      type: [{
+        name: { type: String, required: true, trim: true },
+        identification: { type: String, default: '', trim: true },
+        basicSalary: { type: Number, default: null }, // Salario básico mensual
+        workHoursPerMonth: { type: Number, default: null }, // Horas de trabajo por mes
+        basicSalaryPerDay: { type: Number, default: null }, // Salario básico por día
+        contractType: { type: String, default: '', trim: true } // Tipo de contrato
+      }],
+      default: []
+    },
 
     preferences: {
       laborPercents: { type: [Number], default: [30, 40, 50] },

@@ -386,19 +386,37 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
         };
       }
       
-      // Buscar identificación del técnico desde Company.technicians
+      // Buscar datos del técnico desde Company.technicians
       if (settlementObj.technicianName) {
         const company = await Company.findOne({ _id: companyId });
         if (company && company.technicians) {
           const technicians = company.technicians.map(t => {
             if (typeof t === 'string') {
-              return { name: t.toUpperCase(), identification: '' };
+              return { name: t.toUpperCase(), identification: '', basicSalary: null, workHoursPerMonth: null, basicSalaryPerDay: null, contractType: '' };
             }
-            return { name: String(t.name || '').toUpperCase(), identification: String(t.identification || '').trim() };
+            return { 
+              name: String(t.name || '').toUpperCase(), 
+              identification: String(t.identification || '').trim(),
+              basicSalary: t.basicSalary !== undefined && t.basicSalary !== null ? Number(t.basicSalary) : null,
+              workHoursPerMonth: t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null ? Number(t.workHoursPerMonth) : null,
+              basicSalaryPerDay: t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null ? Number(t.basicSalaryPerDay) : null,
+              contractType: String(t.contractType || '').trim()
+            };
           });
           const tech = technicians.find(t => t.name === String(settlementObj.technicianName).toUpperCase());
-          if (tech && tech.identification) {
-            ctx.settlement.technicianIdentification = tech.identification;
+          if (tech) {
+            ctx.settlement.technician = {
+              name: tech.name,
+              identification: tech.identification || '',
+              basicSalary: tech.basicSalary,
+              workHoursPerMonth: tech.workHoursPerMonth,
+              basicSalaryPerDay: tech.basicSalaryPerDay,
+              contractType: tech.contractType || ''
+            };
+            // Mantener compatibilidad con código anterior
+            if (tech.identification) {
+              ctx.settlement.technicianIdentification = tech.identification;
+            }
           }
         }
       }

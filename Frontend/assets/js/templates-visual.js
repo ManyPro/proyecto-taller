@@ -2131,6 +2131,15 @@
           { label: 'Lista de ingresos', icon: '📈', value: '{{#each settlement.itemsByType.earnings}}\\n• {{name}}: {{money value}}\\n{{/each}}', multiline: true },
           { label: 'Lista de descuentos', icon: '📉', value: '{{#each settlement.itemsByType.deductions}}\\n• {{name}}: {{money value}}\\n{{/each}}', multiline: true }
         ])}
+      </div>
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">💼 Datos del Técnico/Empleado</h4>
+        ${createFriendlyButtons([
+          { label: 'Salario Básico ($/MES)', icon: '💰', value: '{{#if settlement.technician.basicSalary}}{{money settlement.technician.basicSalary}}{{/if}}' },
+          { label: 'Horas Trabajo MES', icon: '⏰', value: '{{#if settlement.technician.workHoursPerMonth}}{{settlement.technician.workHoursPerMonth}}{{/if}}' },
+          { label: 'Salario Básico (DÍA)', icon: '💵', value: '{{#if settlement.technician.basicSalaryPerDay}}{{money settlement.technician.basicSalaryPerDay}}{{/if}}' },
+          { label: 'Tipo Contrato', icon: '📄', value: '{{#if settlement.technician.contractType}}{{settlement.technician.contractType}}{{/if}}' }
+        ])}
       </div>`;
     } else {
       html += `

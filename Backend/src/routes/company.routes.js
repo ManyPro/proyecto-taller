@@ -53,6 +53,73 @@ router.post('/technicians', async (req, res) => {
   res.status(201).json({ technicians: req.companyDoc.technicians });
 });
 
+router.put('/technicians/:oldName', async (req, res) => {
+  try {
+    const oldName = String(req.params.oldName || '').trim().toUpperCase();
+    const newName = String(req.body?.name || '').trim().toUpperCase();
+    const identification = String(req.body?.identification || '').trim();
+    const basicSalary = req.body?.basicSalary !== undefined && req.body?.basicSalary !== null ? Number(req.body.basicSalary) : null;
+    const workHoursPerMonth = req.body?.workHoursPerMonth !== undefined && req.body?.workHoursPerMonth !== null ? Number(req.body.workHoursPerMonth) : null;
+    const basicSalaryPerDay = req.body?.basicSalaryPerDay !== undefined && req.body?.basicSalaryPerDay !== null ? Number(req.body.basicSalaryPerDay) : null;
+    const contractType = String(req.body?.contractType || '').trim();
+    
+    if (!oldName) return res.status(400).json({ error: 'nombre actual requerido' });
+    if (!newName) return res.status(400).json({ error: 'nuevo nombre requerido' });
+    
+    // Normalizar technicians: convertir strings a objetos si es necesario
+    const technicians = (req.companyDoc.technicians || []).map(t => {
+      if (typeof t === 'string') {
+        return { name: t.toUpperCase(), identification: '', basicSalary: null, workHoursPerMonth: null, basicSalaryPerDay: null, contractType: '' };
+      }
+      return { 
+        name: String(t.name || '').toUpperCase(), 
+        identification: String(t.identification || '').trim(),
+        basicSalary: t.basicSalary !== undefined && t.basicSalary !== null ? Number(t.basicSalary) : null,
+        workHoursPerMonth: t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null ? Number(t.workHoursPerMonth) : null,
+        basicSalaryPerDay: t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null ? Number(t.basicSalaryPerDay) : null,
+        contractType: String(t.contractType || '').trim()
+      };
+    });
+    
+    // Verificar que el técnico existe
+    const existingIndex = technicians.findIndex(t => t.name === oldName);
+    if (existingIndex < 0) {
+      return res.status(404).json({ error: 'Técnico no encontrado' });
+    }
+    
+    // Si el nuevo nombre es diferente, verificar que no exista otro con ese nombre
+    if (newName !== oldName && technicians.some(t => t.name === newName)) {
+      return res.status(409).json({ error: 'Ya existe un técnico con ese nombre' });
+    }
+    
+    // Actualizar técnico
+    technicians[existingIndex] = { 
+      name: newName, 
+      identification,
+      basicSalary,
+      workHoursPerMonth,
+      basicSalaryPerDay,
+      contractType
+    };
+    technicians.sort((a, b) => a.name.localeCompare(b.name));
+    req.companyDoc.technicians = technicians;
+    await req.companyDoc.save();
+    
+    // Si el nombre cambió, actualizar asignaciones
+    if (newName !== oldName) {
+      const { default: TechnicianAssignment } = await import('../models/TechnicianAssignment.js');
+      await TechnicianAssignment.updateMany(
+        { companyId: req.companyDoc._id, technicianName: oldName },
+        { $set: { technicianName: newName } }
+      );
+    }
+    
+    res.json({ technicians: req.companyDoc.technicians });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al actualizar técnico', message: err.message });
+  }
+});
+
 router.delete('/technicians/:name', async (req, res) => {
   try {
     const name = String(req.params.name || '').trim().toUpperCase();

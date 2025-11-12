@@ -283,9 +283,16 @@ async function loadTechnicians(){
     // Normalizar: puede ser array de strings o array de objetos
     const normalizedTechs = technicians.map(t => {
       if (typeof t === 'string') {
-        return { name: t, identification: '' };
+        return { name: t, identification: '', basicSalary: null, workHoursPerMonth: null, basicSalaryPerDay: null, contractType: '' };
       }
-      return { name: t.name || t, identification: t.identification || '' };
+      return { 
+        name: t.name || t, 
+        identification: t.identification || '',
+        basicSalary: t.basicSalary !== undefined && t.basicSalary !== null ? Number(t.basicSalary) : null,
+        workHoursPerMonth: t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null ? Number(t.workHoursPerMonth) : null,
+        basicSalaryPerDay: t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null ? Number(t.basicSalaryPerDay) : null,
+        contractType: t.contractType || ''
+      };
     });
     const names = normalizedTechs.map(t => t.name);
     const opts = normalizedTechs.map(t => `<option value="${htmlEscape(t.name)}">${htmlEscape(t.name)}${t.identification ? ' (' + htmlEscape(t.identification) + ')' : ''}</option>`).join('');
@@ -313,7 +320,14 @@ async function loadTechnicians(){
           const identificationText = t.identification ? ` <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">(${htmlEscape(t.identification)})</span>` : '';
           return `<div class="technician-chip inline-flex items-center gap-2 bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 border border-blue-500/30 dark:border-blue-500/30 theme-light:border-blue-300 text-white dark:text-white theme-light:text-slate-900 px-3 py-2 rounded-lg text-sm font-medium">
             <span>👤 ${htmlEscape(t.name)}${identificationText}</span>
-            <button class="x-edit bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/30 dark:hover:bg-blue-600/30 theme-light:bg-blue-50 theme-light:hover:bg-blue-100 border border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-300 text-blue-400 dark:text-blue-400 theme-light:text-blue-600 px-2 py-0.5 rounded text-xs font-semibold transition-all duration-200 cursor-pointer" data-name="${htmlEscape(t.name)}" data-identification="${htmlEscape(t.identification || '')}" title="Editar identificación">
+            <button class="x-edit bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/30 dark:hover:bg-blue-600/30 theme-light:bg-blue-50 theme-light:hover:bg-blue-100 border border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-300 text-blue-400 dark:text-blue-400 theme-light:text-blue-600 px-2 py-0.5 rounded text-xs font-semibold transition-all duration-200 cursor-pointer" 
+              data-name="${htmlEscape(t.name)}" 
+              data-identification="${htmlEscape(t.identification || '')}"
+              data-basic-salary="${t.basicSalary !== null && t.basicSalary !== undefined ? t.basicSalary : ''}"
+              data-work-hours="${t.workHoursPerMonth !== null && t.workHoursPerMonth !== undefined ? t.workHoursPerMonth : ''}"
+              data-salary-per-day="${t.basicSalaryPerDay !== null && t.basicSalaryPerDay !== undefined ? t.basicSalaryPerDay : ''}"
+              data-contract-type="${htmlEscape(t.contractType || '')}"
+              title="Editar técnico">
               ✏️ Editar
             </button>
             <button class="x-del bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/30 dark:hover:bg-red-600/30 theme-light:bg-red-50 theme-light:hover:bg-red-100 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 text-red-400 dark:text-red-400 theme-light:text-red-600 px-2 py-0.5 rounded text-xs font-semibold transition-all duration-200 cursor-pointer" data-name="${htmlEscape(t.name)}" title="Eliminar técnico">
@@ -327,14 +341,14 @@ async function loadTechnicians(){
           btn.addEventListener('click', () => {
             const name = btn.getAttribute('data-name');
             const currentIdentification = btn.getAttribute('data-identification') || '';
+            const basicSalary = btn.getAttribute('data-basic-salary') || '';
+            const workHoursPerMonth = btn.getAttribute('data-work-hours') || '';
+            const basicSalaryPerDay = btn.getAttribute('data-salary-per-day') || '';
+            const contractType = btn.getAttribute('data-contract-type') || '';
             if (!name) return;
             
-            // Mostrar modal o formulario para editar
-            const newIdentification = prompt(`Editar identificación para "${name}":\n\nIngresa el número de identificación:`, currentIdentification);
-            if (newIdentification === null) return; // Usuario canceló
-            
-            // Actualizar técnico
-            editTechnician(name, newIdentification.trim());
+            // Mostrar modal para editar
+            showEditTechnicianModal(name, currentIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
           });
         });
         
@@ -2512,23 +2526,220 @@ async function createTechnician(){
   }
 }
 
-async function editTechnician(name, identification) {
+function showEditTechnicianModal(oldName, currentIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) {
+  const modal = document.getElementById('modal');
+  const modalBody = document.getElementById('modalBody');
+  const modalClose = document.getElementById('modalClose');
+  
+  if (!modal || !modalBody) {
+    alert('Modal no disponible');
+    return;
+  }
+  
+  // Crear contenido del modal
+  modalBody.innerHTML = `
+    <div class="p-6">
+      <h3 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Editar Técnico</h3>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+            Nombre del técnico
+          </label>
+          <input 
+            id="edit-tech-name" 
+            type="text" 
+            value="${htmlEscape(oldName)}" 
+            maxlength="100"
+            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Ej: Juan Pérez"
+          />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+            Número de identificación
+          </label>
+          <input 
+            id="edit-tech-identification" 
+            type="text" 
+            value="${htmlEscape(currentIdentification)}" 
+            maxlength="20"
+            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Ej: 1234567890"
+          />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+            Salario Básico ($/MES)
+          </label>
+          <input 
+            id="edit-tech-basic-salary" 
+            type="number" 
+            step="0.01"
+            min="0"
+            value="${basicSalary || ''}" 
+            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Ej: 1000000"
+          />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+            Horas Trabajo MES
+          </label>
+          <input 
+            id="edit-tech-work-hours" 
+            type="number" 
+            step="1"
+            min="0"
+            value="${workHoursPerMonth || ''}" 
+            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Ej: 240"
+          />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+            Salario Básico (DÍA)
+          </label>
+          <input 
+            id="edit-tech-salary-per-day" 
+            type="number" 
+            step="0.01"
+            min="0"
+            value="${basicSalaryPerDay || ''}" 
+            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Ej: 33333.33"
+          />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+            Tipo Contrato
+          </label>
+          <input 
+            id="edit-tech-contract-type" 
+            type="text" 
+            value="${htmlEscape(contractType)}" 
+            maxlength="50"
+            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Ej: Término Indefinido"
+          />
+        </div>
+      </div>
+      
+      <div class="flex gap-3 mt-6">
+        <button 
+          id="edit-tech-save" 
+          class="flex-1 px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+        >
+          💾 Guardar cambios
+        </button>
+        <button 
+          id="edit-tech-cancel" 
+          class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  `;
+  
+  // Mostrar modal
+  modal.classList.remove('hidden');
+  
+  // Focus en el campo de nombre
+  const nameInput = document.getElementById('edit-tech-name');
+  if (nameInput) {
+    nameInput.focus();
+    nameInput.select();
+  }
+  
+  // Event listeners
+  const saveBtn = document.getElementById('edit-tech-save');
+  const cancelBtn = document.getElementById('edit-tech-cancel');
+  
+  const closeModal = () => {
+    modal.classList.add('hidden');
+  };
+  
+  if (saveBtn) {
+    saveBtn.addEventListener('click', async () => {
+      const newName = document.getElementById('edit-tech-name')?.value?.trim() || '';
+      const newIdentification = document.getElementById('edit-tech-identification')?.value?.trim() || '';
+      const basicSalary = document.getElementById('edit-tech-basic-salary')?.value?.trim() || '';
+      const workHoursPerMonth = document.getElementById('edit-tech-work-hours')?.value?.trim() || '';
+      const basicSalaryPerDay = document.getElementById('edit-tech-salary-per-day')?.value?.trim() || '';
+      const contractType = document.getElementById('edit-tech-contract-type')?.value?.trim() || '';
+      
+      if (!newName) {
+        alert('⚠️ El nombre del técnico es requerido');
+        return;
+      }
+      
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Guardando...';
+      
+      try {
+        await editTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+        closeModal();
+      } catch (err) {
+        console.error('Error guardando técnico:', err);
+        alert('❌ Error al guardar: ' + (err.message || 'Error desconocido'));
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 Guardar cambios';
+      }
+    });
+  }
+  
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', closeModal);
+  }
+  
+  if (modalClose) {
+    modalClose.addEventListener('click', closeModal);
+  }
+  
+  // Cerrar con ESC
+  const escHandler = (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+      closeModal();
+      document.removeEventListener('keydown', escHandler);
+    }
+  };
+  document.addEventListener('keydown', escHandler);
+}
+
+async function editTechnician(oldName, newName, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) {
   try {
-    if (!name) {
+    if (!oldName || !newName) {
       alert('⚠️ Nombre de técnico requerido');
       return;
     }
     
     // Deshabilitar botones durante la petición
-    const editBtns = document.querySelectorAll(`.x-edit[data-name="${htmlEscape(name)}"]`);
+    const editBtns = document.querySelectorAll(`.x-edit[data-name="${htmlEscape(oldName)}"]`);
     editBtns.forEach(btn => {
       btn.disabled = true;
       btn.textContent = 'Actualizando...';
     });
     
     try {
-      // Usar POST para actualizar (el backend actualiza si existe)
-      await api.post('/api/v1/company/technicians', { name, identification });
+      // Preparar datos para enviar
+      const payload = {
+        name: newName,
+        identification: identification || '',
+        basicSalary: basicSalary ? Number(basicSalary) : null,
+        workHoursPerMonth: workHoursPerMonth ? Number(workHoursPerMonth) : null,
+        basicSalaryPerDay: basicSalaryPerDay ? Number(basicSalaryPerDay) : null,
+        contractType: contractType || ''
+      };
+      
+      // Usar PUT para actualizar
+      await api.put(`/api/v1/company/technicians/${encodeURIComponent(oldName)}`, payload);
       
       // Recargar lista de técnicos
       await loadTechnicians();
@@ -2541,8 +2752,6 @@ async function editTechnician(name, identification) {
           btn.textContent = '✏️ Editar';
         }, 1500);
       });
-      
-      alert(`✅ Identificación actualizada para ${name}`);
     } catch (err) {
       const errorMsg = err.message || 'Error desconocido';
       alert('❌ Error al actualizar técnico: ' + errorMsg);
@@ -2550,10 +2759,11 @@ async function editTechnician(name, identification) {
         btn.disabled = false;
         btn.textContent = '✏️ Editar';
       });
+      throw err;
     }
   } catch (err) {
     console.error('Error in editTechnician:', err);
-    alert('❌ Error inesperado: ' + (err.message || 'Error desconocido'));
+    throw err;
   }
 }
 

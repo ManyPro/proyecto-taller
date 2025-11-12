@@ -130,6 +130,17 @@ const API = {
       const res = await http.del(`/api/v1/company/technicians/${encodeURIComponent(String(name||''))}`);
       return res.technicians || [];
     },
+    updateTechnician: async (oldName, newName, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) => {
+      const res = await http.put(`/api/v1/company/technicians/${encodeURIComponent(String(oldName||''))}`, {
+        name: newName,
+        identification: identification || '',
+        basicSalary: basicSalary ? Number(basicSalary) : null,
+        workHoursPerMonth: workHoursPerMonth ? Number(workHoursPerMonth) : null,
+        basicSalaryPerDay: basicSalaryPerDay ? Number(basicSalaryPerDay) : null,
+        contractType: contractType || ''
+      });
+      return res.technicians || [];
+    },
     getTechConfig: () => http.get('/api/v1/company/tech-config').then(r=> r.config || { laborKinds:[], technicians:[] }),
     setTechConfig: (config) => http.put('/api/v1/company/tech-config', config).then(r=> r.config || config),
     updateTechConfig: (updates) => {
