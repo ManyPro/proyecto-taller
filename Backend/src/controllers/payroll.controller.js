@@ -975,29 +975,62 @@ export const approveSettlement = async (req, res) => {
       return mongoose.Types.ObjectId.isValid(String(id));
     });
     
-    const updateFilter = { companyId: req.companyId, periodId };
-    if (technicianId && technicianId.trim() !== '') {
-      updateFilter.technicianId = technicianId;
-    } else if (techNameUpper) {
-      updateFilter.technicianName = techNameUpper;
+    // Construir el filtro de búsqueda: usar technicianName cuando technicianId es null
+    // Primero intentar buscar por technicianId si existe, sino por technicianName
+    let existingSettlement = null;
+    if (technicianId && technicianId.trim() !== '' && mongoose.Types.ObjectId.isValid(technicianId)) {
+      existingSettlement = await PayrollSettlement.findOne({
+        companyId: req.companyId,
+        periodId,
+        technicianId: new mongoose.Types.ObjectId(technicianId)
+      });
     }
     
-    const doc = await PayrollSettlement.findOneAndUpdate(
-      updateFilter,
-      { 
-        selectedConceptIds: validConceptIdsForSave, // Solo ObjectIds válidos
-        items,
-        grossTotal,
-        deductionsTotal,
-        netTotal,
-        technicianName: techNameUpper,
-        technicianId: technicianId || null,
-        status: 'approved',
-        approvedBy: req.user?.id || null,
-        approvedAt: new Date()
-      },
-      { new: true, upsert: true }
-    );
+    // Si no se encontró por technicianId, buscar por technicianName
+    if (!existingSettlement && techNameUpper) {
+      existingSettlement = await PayrollSettlement.findOne({
+        companyId: req.companyId,
+        periodId,
+        technicianName: techNameUpper
+      });
+    }
+    
+    // Construir el objeto de actualización
+    const updateData = { 
+      selectedConceptIds: validConceptIdsForSave, // Solo ObjectIds válidos
+      items,
+      grossTotal,
+      deductionsTotal,
+      netTotal,
+      technicianName: techNameUpper,
+      status: 'approved',
+      approvedBy: req.user?.id || null,
+      approvedAt: new Date()
+    };
+    
+    // Solo incluir technicianId si es válido, de lo contrario establecerlo explícitamente como null
+    if (technicianId && technicianId.trim() !== '' && mongoose.Types.ObjectId.isValid(technicianId)) {
+      updateData.technicianId = new mongoose.Types.ObjectId(technicianId);
+    } else {
+      updateData.technicianId = null;
+    }
+    
+    let doc;
+    if (existingSettlement) {
+      // Si existe, actualizar
+      doc = await PayrollSettlement.findByIdAndUpdate(
+        existingSettlement._id,
+        updateData,
+        { new: true }
+      );
+    } else {
+      // Si no existe, crear nuevo
+      doc = await PayrollSettlement.create({
+        companyId: req.companyId,
+        periodId,
+        ...updateData
+      });
+    }
     
     // Actualizar estado de préstamos si se pagaron (parcial o completo)
     if (loanUpdates.length > 0) {

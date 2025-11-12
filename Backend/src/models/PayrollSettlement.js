@@ -30,8 +30,10 @@ const PayrollSettlementSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Índice único por técnico y período (una liquidación por técnico por período)
-PayrollSettlementSchema.index({ companyId: 1, technicianId: 1, periodId: 1 }, { unique: true, partialFilterExpression: { technicianId: { $type: 'objectId' } } });
-PayrollSettlementSchema.index({ companyId: 1, technicianName: 1, periodId: 1 }, { unique: true, partialFilterExpression: { technicianName: { $type: 'string' } } });
+// Índice para cuando technicianId existe (ObjectId válido)
+PayrollSettlementSchema.index({ companyId: 1, technicianId: 1, periodId: 1 }, { unique: true, partialFilterExpression: { technicianId: { $ne: null, $type: 'objectId' } } });
+// Índice para cuando technicianId es null (usar solo technicianName)
+PayrollSettlementSchema.index({ companyId: 1, technicianName: 1, periodId: 1 }, { unique: true, partialFilterExpression: { technicianId: null } });
 
 export default mongoose.model('PayrollSettlement', PayrollSettlementSchema);
 
