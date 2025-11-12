@@ -1336,7 +1336,19 @@ function fillCloseModal(){
       const pcInp = tr.querySelector('input[data-role=pc]');
       const shareCell = tr.querySelector('[data-role=share]');
       const delBtn = tr.querySelector('button[data-role=del]');
-      if(pref.technician) techSel2.value = pref.technician;
+      if(pref.technician) {
+        techSel2.value = pref.technician;
+      } else {
+        // Si no se proporciona técnico, intentar usar el de la venta actual
+        const saleTechnician = (current?.technician || current?.initialTechnician || '').trim().toUpperCase();
+        if (saleTechnician) {
+          // Buscar el técnico en la lista (case-insensitive)
+          const foundTech = companyTechnicians.find(t => String(t).trim().toUpperCase() === saleTechnician);
+          if (foundTech) {
+            techSel2.value = foundTech; // Usar el valor exacto de la lista
+          }
+        }
+      }
       if(pref.kind) kindSel2.value = pref.kind;
       function recalc(){
         const lv = Number(lvInp.value||0)||0; const pc=Number(pcInp.value||0)||0; const sh = Math.round(lv*pc/100);
@@ -1413,7 +1425,12 @@ function fillCloseModal(){
       addCommissionBtn.addEventListener('click', ()=> {
         // Remover mensaje de "No hay líneas" si existe antes de agregar
         updateEmptyMessage();
-        addLine({}).catch(err => console.error('Error agregando línea:', err));
+        
+        // Obtener el técnico de la venta actual para asignarlo automáticamente
+        const saleTechnician = (current?.technician || current?.initialTechnician || '').trim().toUpperCase();
+        const pref = saleTechnician ? { technician: saleTechnician } : {};
+        
+        addLine(pref).catch(err => console.error('Error agregando línea:', err));
       });
     }
     
@@ -1429,7 +1446,13 @@ function fillCloseModal(){
     // Detectar automáticamente items con laborValue y laborKind del PriceEntry
     async function autoAddLaborFromItems() {
       if (!current || !current.items || current.items.length === 0) return;
-      if (!techSel.value || !techSel.value.trim()) return; // Necesitamos un técnico seleccionado
+      
+      // Obtener el técnico de la venta actual (initialTechnician o technician)
+      const saleTechnician = (current.technician || current.initialTechnician || '').trim().toUpperCase();
+      if (!saleTechnician) {
+        console.log('No hay técnico asignado a la venta, no se pueden agregar líneas automáticas');
+        return; // No hay técnico asignado
+      }
       
       try {
         // Obtener todos los refIds de los items de la venta
@@ -1464,23 +1487,32 @@ function fillCloseModal(){
         
         // Agregar líneas automáticamente para cada item con mano de obra
         for (const item of itemsWithLabor) {
-          const technician = techSel.value.trim().toUpperCase();
+          // Buscar el técnico exacto en la lista (para usar el valor correcto del select)
+          const foundTech = companyTechnicians.find(t => String(t).trim().toUpperCase() === saleTechnician);
+          if (!foundTech) {
+            console.log(`Técnico "${saleTechnician}" no encontrado en la lista de técnicos`);
+            continue; // Saltar si el técnico no está en la lista
+          }
+          
+          const technician = foundTech; // Usar el valor exacto de la lista
           const kind = item.laborKind;
           const laborValue = item.laborValue;
           
           // Verificar si ya existe una línea con este técnico y tipo
           const existingRows = Array.from(tbody.querySelectorAll('tr'));
           const alreadyExists = existingRows.some(tr => {
+            if (tr.querySelector('td[colspan]')) return false; // Ignorar mensaje vacío
             const techSelect = tr.querySelector('select[data-role=tech]');
             const kindSelect = tr.querySelector('select[data-role=kind]');
-            return techSelect?.value?.trim().toUpperCase() === technician &&
+            return techSelect?.value?.trim().toUpperCase() === technician.toUpperCase() &&
                    kindSelect?.value?.trim().toUpperCase() === kind;
           });
           
           if (!alreadyExists && technician && kind && laborValue > 0) {
             // Obtener el porcentaje del perfil del técnico o del tipo
             let percent = 0;
-            const prof = (techConfig?.technicians||[]).find(t=> String(t.name||'').toUpperCase() === technician);
+            const techNameUpper = String(technician).trim().toUpperCase();
+            const prof = (techConfig?.technicians||[]).find(t=> String(t.name||'').toUpperCase() === techNameUpper);
             if(prof && kind){ 
               const r = (prof.rates||[]).find(x=> String(x.kind||'').toUpperCase() === kind); 
               if(r && r.percent > 0){ 
