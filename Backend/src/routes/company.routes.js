@@ -38,10 +38,34 @@ router.get('/technicians', (req, res) => {
     
     // Si es un objeto Mongoose o un objeto plano
     if (t && typeof t === 'object') {
-      // Si tiene la propiedad name, es un objeto válido
-      if (t.name !== undefined && t.name !== null && String(t.name).trim()) {
+      // Extraer nombre de forma segura
+      let name = '';
+      if (t.name !== undefined && t.name !== null) {
+        if (typeof t.name === 'string') {
+          name = String(t.name).trim();
+        } else if (typeof t.name === 'object') {
+          // Si name es un objeto (caracteres indexados de Mongoose), convertirlo a string
+          try {
+            // Si tiene propiedades numéricas, es un string indexado
+            const nameKeys = Object.keys(t.name);
+            if (nameKeys.length > 0 && nameKeys.every(k => /^\d+$/.test(k))) {
+              name = Object.values(t.name).join('').trim();
+            } else {
+              // Intentar convertir de otra forma
+              name = String(t.name).trim();
+            }
+          } catch (e) {
+            name = String(t.name).trim();
+          }
+        } else {
+          name = String(t.name).trim();
+        }
+      }
+      
+      // Si tiene nombre válido, devolver objeto normalizado
+      if (name) {
         return {
-          name: String(t.name).trim(),
+          name: name,
           identification: String(t?.identification || '').trim(),
           basicSalary: t?.basicSalary !== undefined && t?.basicSalary !== null ? Number(t.basicSalary) : null,
           workHoursPerMonth: t?.workHoursPerMonth !== undefined && t?.workHoursPerMonth !== null ? Number(t.workHoursPerMonth) : null,

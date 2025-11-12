@@ -285,9 +285,46 @@ async function loadTechnicians(){
       if (typeof t === 'string') {
         return { name: String(t).trim(), identification: '', basicSalary: null, workHoursPerMonth: null, basicSalaryPerDay: null, contractType: '' };
       }
+      
+      // Extraer nombre de forma segura, incluso si viene como objeto
+      let name = '';
+      if (t && typeof t === 'object') {
+        if (typeof t.name === 'string') {
+          name = String(t.name).trim();
+        } else if (t.name && typeof t.name === 'object') {
+          // Si name es un objeto (caracteres indexados), convertirlo a string
+          try {
+            name = Object.values(t.name).join('').trim();
+          } catch (e) {
+            name = String(t.name).trim();
+          }
+        } else if (t.name !== undefined && t.name !== null) {
+          name = String(t.name).trim();
+        }
+      }
+      
+      // Si aún no hay nombre, intentar usar el objeto completo como string
+      if (!name && t && typeof t === 'object') {
+        try {
+          // Si el objeto tiene propiedades numéricas (caracteres indexados), es un string antiguo
+          const keys = Object.keys(t);
+          if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
+            name = Object.values(t).join('').trim();
+          } else {
+            name = String(t).trim();
+          }
+        } catch (e) {
+          name = 'Sin nombre';
+        }
+      }
+      
+      if (!name) {
+        name = 'Sin nombre';
+      }
+      
       // El backend debería devolver objetos, pero por seguridad validamos
       return { 
-        name: String(t?.name || '').trim() || 'Sin nombre', 
+        name: name, 
         identification: String(t?.identification || '').trim(),
         basicSalary: t?.basicSalary !== undefined && t?.basicSalary !== null ? Number(t.basicSalary) : null,
         workHoursPerMonth: t?.workHoursPerMonth !== undefined && t?.workHoursPerMonth !== null ? Number(t.workHoursPerMonth) : null,
