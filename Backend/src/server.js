@@ -34,6 +34,7 @@ import publicCatalogRouter from './routes/catalog.public.routes.js';
 import adminRouter from './routes/admin.routes.js';
 import adminCompanyRouter from './routes/admin.company.routes.js';
 import vehiclesRouter from './routes/vehicles.routes.js';
+import receivablesRouter from './routes/receivables.routes.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -227,6 +228,7 @@ app.use('/api/v1/quotes', authCompany, withCompanyDefaults, quotesRouter);
 app.use('/api/v1/profiles', authCompany, withCompanyDefaults, profilesRouter);
 app.use('/api/v1/company', companyRouter);
 app.use('/api/v1/cashflow', authCompany, withCompanyDefaults, cashflowRouter);
+app.use('/api/v1/receivables', authCompany, withCompanyDefaults, receivablesRouter);
 app.use('/api/v1/templates', authCompany, withCompanyDefaults, templatesRouter);
 app.use('/api/v1/notifications', authCompany, withCompanyDefaults, notificationsRouter);
 app.use('/api/v1/skus', authCompany, withCompanyDefaults, skusRouter);

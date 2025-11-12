@@ -1572,7 +1572,7 @@ function fillCloseModal(){
   }
 
   function methodOptionsHTML(selected=''){
-    const opts = ['', 'EFECTIVO','TRANSFERENCIA','TARJETA','OTRO'];
+    const opts = ['', 'EFECTIVO','TRANSFERENCIA','TARJETA','CREDITO','CRÉDITO','OTRO'];
     return opts.map(v=>`<option value="${v}" ${v===selected?'selected':''}>${v? v : '--'}</option>`).join('');
   }
   function accountOptionsHTML(selected=''){

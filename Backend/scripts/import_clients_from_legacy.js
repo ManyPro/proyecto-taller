@@ -45,7 +45,8 @@ const delimiter = args.delimiter || ';';
 const encoding = args.encoding || 'utf8';
 const limit = args.limit ? parseInt(args.limit,10) : null;
 const dryRun = !!args.dry;
-const progressEvery = args.progressInterval ? parseInt(args.progressInterval,10) : 100; // Mostrar progreso cada 100 registros
+const progressEvery = args.progressInterval ? parseInt(args.progressInterval,10) : 50; // Mostrar progreso cada 50 registros
+const progressTimeInterval = 10000; // Forzar progreso cada 10 segundos
 
 let companyMap = {};
 if (args.companyMap) {
@@ -64,95 +65,206 @@ async function parseCSV(filePath, { delimiter, encoding }){
 
 function clean(s){ return (s==null)?'':String(s).trim(); }
 
-// Normalizar cilindraje para comparación (1.6 -> 1600, 2.0 -> 2000, etc.)
+// Normalizar cilindraje para comparación bidireccional
+// Convierte entre formatos: 1.6 <-> 1600, 1.3 <-> 1300, 2.0 <-> 2000
 function normalizeEngine(engine) {
   if (!engine) return '';
-  const str = String(engine).trim().toUpperCase();
-  // Si es un número con punto decimal (ej: 1.6, 2.0)
+  const str = String(engine).trim().toUpperCase().replace(/[^0-9.]/g, '');
+  if (!str) return '';
+  
+  // Si es un número con punto decimal (ej: 1.6, 2.0, 1.3)
   if (/^\d+\.\d+$/.test(str)) {
     const num = parseFloat(str);
-    return String(Math.round(num * 1000)); // 1.6 -> 1600, 2.0 -> 2000
+    // Convertir a formato de 4 dígitos: 1.6 -> 1600, 1.3 -> 1300
+    return String(Math.round(num * 1000));
   }
-  // Si ya es un número entero (ej: 1600, 2000)
-  if (/^\d+$/.test(str)) {
-    return str;
+  
+  // Si es un número entero de 4 dígitos (ej: 1600, 1300, 2000)
+  if (/^\d{4}$/.test(str)) {
+    const num = parseInt(str, 10);
+    // Convertir a formato decimal: 1600 -> 1.6, 1300 -> 1.3, 2000 -> 2.0
+    const decimal = (num / 1000).toFixed(1);
+    return String(Math.round(parseFloat(decimal) * 1000)); // Volver a 4 dígitos para comparar
   }
-  return str;
-}
-
-// Comparar cilindrajes considerando equivalencias (1.6 = 1600, 2.0 = 2000)
-function enginesMatch(engine1, engine2) {
-  if (!engine1 || !engine2) return false;
-  const norm1 = normalizeEngine(engine1);
-  const norm2 = normalizeEngine(engine2);
-  return norm1 === norm2;
-}
-
-// Buscar vehículo en BD por matching exacto o por similitud
-async function findVehicleMatch(brand, line, engine) {
-  if (!engine) return null;
   
-  const engineNorm = normalizeEngine(engine);
-  const brandUpper = brand ? String(brand).trim().toUpperCase() : '';
-  const lineUpper = line ? String(line).trim().toUpperCase() : '';
-  
-  // 1. Matching exacto: marca + línea + cilindraje
-  if (brandUpper && lineUpper) {
-    // Intentar primero con el cilindraje original
-    let vehicle = await Vehicle.findOne({
-      make: brandUpper,
-      line: lineUpper,
-      displacement: String(engine).trim().toUpperCase(),
-      active: true
-    });
-    
-    if (vehicle) return { vehicle, matchType: 'exact', confidence: 'Coincidencia exacta' };
-    
-    // Intentar con cilindraje normalizado (1.6 -> buscar también "1600")
-    if (engineNorm && engineNorm !== String(engine).trim().toUpperCase()) {
-      vehicle = await Vehicle.findOne({
-        make: brandUpper,
-        line: lineUpper,
-        displacement: engineNorm,
-        active: true
-      });
-      
-      if (vehicle) return { vehicle, matchType: 'exact', confidence: `Coincidencia exacta (cilindraje normalizado: ${engineNorm})` };
+  // Si es un número entero de 3 dígitos o menos (ej: 16, 13, 20) - asumir que es decimal * 10
+  if (/^\d{1,3}$/.test(str)) {
+    const num = parseInt(str, 10);
+    if (num >= 12 && num <= 99) {
+      // Tratar como decimal: 16 -> 1.6 -> 1600
+      const decimal = (num / 10).toFixed(1);
+      return String(Math.round(parseFloat(decimal) * 1000));
     }
   }
   
-  // 2. Matching por similitud de cilindraje (solo si hay marca y línea)
+  return str;
+}
+
+// Comparar cilindrajes considerando equivalencias bidireccionales
+// 1.6 = 1600, 1.3 = 1300, 2.0 = 2000, etc.
+function enginesMatch(engine1, engine2) {
+  if (!engine1 || !engine2) return false;
+  
+  // Normalizar ambos a formato de 4 dígitos para comparar
+  const norm1 = normalizeEngine(engine1);
+  const norm2 = normalizeEngine(engine2);
+  
+  // Comparación directa
+  if (norm1 === norm2) return true;
+  
+  // También comparar formatos originales normalizados de forma alternativa
+  const str1 = String(engine1).trim().toUpperCase().replace(/[^0-9.]/g, '');
+  const str2 = String(engine2).trim().toUpperCase().replace(/[^0-9.]/g, '');
+  
+  // Si uno es decimal y otro es entero de 4 dígitos
+  if (/^\d+\.\d+$/.test(str1) && /^\d{4}$/.test(str2)) {
+    const decimal1 = parseFloat(str1);
+    const int2 = parseInt(str2, 10);
+    return Math.round(decimal1 * 1000) === int2;
+  }
+  
+  if (/^\d{4}$/.test(str1) && /^\d+\.\d+$/.test(str2)) {
+    const int1 = parseInt(str1, 10);
+    const decimal2 = parseFloat(str2);
+    return int1 === Math.round(decimal2 * 1000);
+  }
+  
+  return false;
+}
+
+// Cache de vehículos para evitar consultas repetidas
+let vehicleCache = null;
+let vehicleCacheByDisplacement = null;
+
+// Precargar vehículos en memoria para búsquedas rápidas
+async function loadVehicleCache() {
+  if (vehicleCache) return; // Ya está cargado
+  
+  console.log('📦 Cargando vehículos en memoria para búsquedas rápidas...');
+  const vehicles = await Vehicle.find({ active: true });
+  vehicleCache = vehicles;
+  
+  // Crear índice por displacement para búsquedas rápidas
+  vehicleCacheByDisplacement = new Map();
+  vehicles.forEach(v => {
+    const disp = String(v.displacement).trim().toUpperCase();
+    if (!vehicleCacheByDisplacement.has(disp)) {
+      vehicleCacheByDisplacement.set(disp, []);
+    }
+    vehicleCacheByDisplacement.get(disp).push(v);
+  });
+  
+  console.log(`✅ ${vehicles.length} vehículos cargados en memoria\n`);
+}
+
+// Buscar vehículo en BD por matching exacto o por similitud (usando cache)
+async function findVehicleMatch(brand, line, engine) {
+  if (!engine) return null;
+  
+  // Asegurar que el cache esté cargado
+  if (!vehicleCache) {
+    await loadVehicleCache();
+  }
+  
+  const brandUpper = brand ? String(brand).trim().toUpperCase() : '';
+  const lineUpper = line ? String(line).trim().toUpperCase() : '';
+  const engineStr = String(engine).trim().toUpperCase().replace(/[^0-9.]/g, '');
+  
+  // Generar todas las variantes posibles del cilindraje para buscar
+  const engineVariants = new Set();
+  
+  // Agregar formato original
+  engineVariants.add(engineStr);
+  
+  // Si es decimal (ej: 1.6), agregar formato de 4 dígitos (1600)
+  if (/^\d+\.\d+$/.test(engineStr)) {
+    const num = parseFloat(engineStr);
+    engineVariants.add(String(Math.round(num * 1000))); // 1.6 -> 1600
+  }
+  
+  // Si es de 4 dígitos (ej: 1600), agregar formato decimal (1.6)
+  if (/^\d{4}$/.test(engineStr)) {
+    const num = parseInt(engineStr, 10);
+    const decimal = (num / 1000).toFixed(1);
+    engineVariants.add(decimal); // 1600 -> 1.6
+    // También agregar sin el .0 si es entero (2000 -> 2.0 y 2)
+    if (num % 1000 === 0) {
+      engineVariants.add(String(num / 1000)); // 2000 -> 2
+    }
+  }
+  
+  // 1. Matching exacto: marca + línea + cilindraje (usando cache)
   if (brandUpper && lineUpper) {
-    // Buscar vehículos con misma marca y línea pero cilindraje similar
-    const vehicles = await Vehicle.find({
-      make: brandUpper,
-      line: lineUpper,
-      active: true
-    });
-    
-    for (const v of vehicles) {
-      if (enginesMatch(v.displacement, engine)) {
+    for (const variant of engineVariants) {
+      const vehicle = vehicleCache.find(v => 
+        v.active && 
+        v.make === brandUpper && 
+        v.line === lineUpper && 
+        v.displacement === variant
+      );
+      
+      if (vehicle) {
         return { 
-          vehicle: v, 
-          matchType: 'engine_similarity', 
-          confidence: `Similitud de cilindraje: ${v.displacement} vs ${engine}` 
+          vehicle, 
+          matchType: 'exact', 
+          confidence: `Coincidencia exacta: ${brandUpper} ${lineUpper} ${variant} (cilindraje original: ${engine})` 
         };
+      }
+    }
+    
+    // Si no encontró con formato exacto, buscar por marca/línea y comparar cilindrajes equivalentes
+    const vehiclesByBrandLine = vehicleCache.filter(v => 
+      v.active && v.make === brandUpper && v.line === lineUpper
+    );
+    
+    for (const v of vehiclesByBrandLine) {
+      for (const variant of engineVariants) {
+        if (enginesMatch(v.displacement, variant)) {
+          return { 
+            vehicle: v, 
+            matchType: 'exact',
+            confidence: `Coincidencia exacta (cilindraje equivalente: ${v.displacement} = ${engine})` 
+          };
+        }
       }
     }
   }
   
-  // 3. Matching solo por cilindraje (sin marca/línea)
-  const vehiclesByEngine = await Vehicle.find({
-    displacement: engineNorm,
-    active: true
-  }).limit(5);
-  
-  if (vehiclesByEngine.length === 1) {
-    return { 
-      vehicle: vehiclesByEngine[0], 
-      matchType: 'engine_similarity', 
-      confidence: `Solo cilindraje coincide: ${vehiclesByEngine[0].make} ${vehiclesByEngine[0].line} ${vehiclesByEngine[0].displacement}` 
-    };
+  // 2. Matching solo por cilindraje (sin marca/línea) - usar cache
+  for (const variant of engineVariants) {
+    // Buscar en cache por displacement exacto
+    const vehiclesByEngine = vehicleCacheByDisplacement.get(variant) || [];
+    
+    // También buscar variantes equivalentes
+    const allMatching = [];
+    vehicleCacheByDisplacement.forEach((vehicles, disp) => {
+      for (const variant2 of engineVariants) {
+        if (enginesMatch(disp, variant2)) {
+          allMatching.push(...vehicles);
+          break;
+        }
+      }
+    });
+    
+    const uniqueVehicles = Array.from(new Map(allMatching.map(v => [String(v._id), v])).values());
+    
+    // Si solo hay un vehículo con ese cilindraje, asignarlo automáticamente
+    if (uniqueVehicles.length === 1) {
+      return { 
+        vehicle: uniqueVehicles[0], 
+        matchType: 'exact',
+        confidence: `Cilindraje único coincide: ${uniqueVehicles[0].make} ${uniqueVehicles[0].line} ${uniqueVehicles[0].displacement} (equivalente a ${engine})` 
+      };
+    }
+    
+    // Si hay pocos vehículos (2-3) con el mismo cilindraje, también asignar el primero
+    if (uniqueVehicles.length >= 2 && uniqueVehicles.length <= 3) {
+      return { 
+        vehicle: uniqueVehicles[0], 
+        matchType: 'engine_similarity',
+        confidence: `Cilindraje coincide (${uniqueVehicles.length} opciones): ${uniqueVehicles[0].make} ${uniqueVehicles[0].line} ${uniqueVehicles[0].displacement} (equivalente a ${engine})` 
+      };
+    }
   }
   
   return null;
@@ -230,8 +342,27 @@ async function main(){
 
   // Métrica total a procesar
   const totalToProcess = Array.from(perCompany.values()).reduce((a,m)=> a + m.size, 0);
+  console.log(`\n📊 Total de clientes únicos a procesar: ${totalToProcess}`);
+  
+  // Precargar vehículos en memoria para búsquedas rápidas
+  if(!dryRun || uri){
+    await loadVehicleCache();
+  }
+  
   const started = Date.now();
-  function logProgress(){
+  let lastProgressTime = Date.now();
+  
+  function logProgress(force = false){
+    const now = Date.now();
+    const timeSinceLastProgress = now - lastProgressTime;
+    
+    // Solo mostrar si es el umbral de registros O si han pasado 10 segundos
+    if (!force && progressEvery && counters.processed % progressEvery !== 0 && timeSinceLastProgress < progressTimeInterval) {
+      return;
+    }
+    
+    lastProgressTime = now;
+    
     const p = totalToProcess ? Math.min(100, (counters.processed/totalToProcess)*100) : 0;
     const elapsed = (Date.now()-started)/1000;
     const rate = counters.processed>0 ? elapsed/counters.processed : 0;
@@ -246,9 +377,16 @@ async function main(){
     
     // Limpiar línea anterior (si es posible)
     process.stdout.write('\r');
-    process.stdout.write(`[${bar}] ${p.toFixed(1)}% | ${counters.processed}/${totalToProcess} | ✅ ${counters.created} | 🔄 ${counters.updated} | 🚗 ${counters.vehiclesMatched} | ⚠️  ${counters.vehiclesUnassigned} | ⏱️  ETA: ${fmt(eta)}`);
+    process.stdout.write(`[${bar}] ${p.toFixed(1)}% | ${counters.processed}/${totalToProcess} | ✅ ${counters.created} | 🔄 ${counters.updated} | ➖ ${counters.unchanged} | 🚗 ${counters.vehiclesMatched} | ⚠️  ${counters.vehiclesUnassigned} | ⏱️  ETA: ${fmt(eta)}`);
     process.stdout.write(' '.repeat(20)); // Limpiar caracteres residuales
   }
+  
+  // Timer para forzar progreso cada 10 segundos
+  const progressTimer = setInterval(() => {
+    if (counters.processed > 0) {
+      logProgress(true);
+    }
+  }, progressTimeInterval);
   
   // Función para mostrar resumen final
   function showFinalSummary() {
@@ -303,13 +441,23 @@ async function main(){
       for(const legacyAutoId of clientData.vehicles){
         const veh = vehicleIdx.get(String(legacyAutoId));
         if(veh){
-          vehicleEngine = clean(veh['au_cilidraje'] || veh['au_cilindraje'] || '');
+          vehicleEngine = clean(veh['au_cilidraje'] || veh['au_cilindraje'] || veh['au_cilindraje'] || '');
           vehicleYear = veh['au_modelo'] ? parseInt(veh['au_modelo'], 10) : null;
-          vehiclePlate = clean(veh['au_placa'] || '');
+          vehiclePlate = clean(veh['au_placa'] || veh['placa'] || '');
           // Nota: au_fk_marca y au_fk_serie son IDs, no nombres directos
           // Intentaremos obtener marca/línea desde CustomerProfile existentes o desde el matching
           break; // Usar el primer vehículo encontrado
         }
+      }
+      
+      // Debug: mostrar primeros registros para entender qué datos tenemos
+      if(counters.processed === 0 && vehicleEngine){
+        console.log(`\n🔍 Ejemplo de datos encontrados:`);
+        console.log(`   Cliente: ${name || 'Sin nombre'}`);
+        console.log(`   Cilindraje: ${vehicleEngine}`);
+        console.log(`   Placa: ${vehiclePlate || 'Sin placa'}`);
+        console.log(`   Marca: ${vehicleBrand || 'Sin marca'}`);
+        console.log(`   Línea: ${vehicleLine || 'Sin línea'}\n`);
       }
 
       // En modo dry run, simular el procesamiento sin guardar
@@ -353,47 +501,74 @@ async function main(){
         const query = { companyId: companyIdStr, $or: [ { identificationNumber: idNumber }, { plate: plateSynthetic } ] };
         const existing = await CustomerProfile.findOne(query);
         
-        // Simular contadores
-        if(vehicleMatch && vehicleMatch.matchType === 'exact'){
-          counters.vehiclesMatched++;
-          if(!existing){
-            counters.created++;
-          } else {
-            // Verificar si necesita actualización
-            const needsUpdate = !existing.customer?.idNumber && idNumber ||
-                               !existing.customer?.name && name ||
-                               !existing.customer?.phone && phone ||
-                               !existing.customer?.email && email ||
-                               !existing.customer?.address && address ||
-                               !existing.vehicle?.vehicleId;
-            if(needsUpdate){
-              counters.updated++;
-            } else {
-              counters.unchanged++;
-            }
-          }
+        // SIEMPRE crear/actualizar cliente (simulación)
+        // Primero verificar qué necesita actualización
+        let needsUpdate = false;
+        if(!existing){
+          // Cliente nuevo, siempre crear
+          counters.created++;
         } else {
-          if(!existing){
-            counters.created++;
+          // Cliente existente, verificar si necesita actualización
+          needsUpdate = (!existing.customer?.idNumber && idNumber) ||
+                       (!existing.customer?.name && name) ||
+                       (!existing.customer?.phone && phone) ||
+                       (!existing.customer?.email && email) ||
+                       (!existing.customer?.address && address) ||
+                       (!existing.vehicle?.vehicleId && vehicleMatch);
+          
+          if(needsUpdate){
+            counters.updated++;
           } else {
-            const needsUpdate = !existing.customer?.idNumber && idNumber ||
-                               !existing.customer?.name && name ||
-                               !existing.customer?.phone && phone ||
-                               !existing.customer?.email && email ||
-                               !existing.customer?.address && address;
-            if(needsUpdate){
-              counters.updated++;
-            } else {
-              counters.unchanged++;
-            }
-          }
-          if(vehicleEngine || vehicleMatch){
-            counters.vehiclesUnassigned++;
+            counters.unchanged++;
           }
         }
         
+        // Debug cada 50 registros si todos los contadores están en 0
+        if(counters.processed > 0 && counters.processed % 50 === 0 && counters.created === 0 && counters.updated === 0 && counters.vehiclesMatched === 0 && counters.vehiclesUnassigned === 0){
+          console.log(`\n⚠️  DEBUG: Después de ${counters.processed} registros, todos los contadores están en 0.`);
+          console.log(`   Último cliente: ${name || 'Sin nombre'} | ID: ${idNumber || 'Sin ID'}`);
+          console.log(`   ¿Existe en BD?: ${existing ? 'Sí' : 'No'}`);
+          console.log(`   ¿Tiene cilindraje?: ${vehicleEngine ? 'Sí (' + vehicleEngine + ')' : 'No'}`);
+          console.log(`   ¿Hay matching?: ${vehicleMatch ? 'Sí (' + vehicleMatch.matchType + ')' : 'No'}`);
+          if(existing){
+            console.log(`   Cliente existente tiene vehículo?: ${existing.vehicle?.vehicleId ? 'Sí' : 'No'}`);
+            console.log(`   Cliente existente tiene datos?: ${existing.customer?.name ? 'Sí' : 'No'}`);
+            console.log(`   ¿Necesita actualización?: ${needsUpdate ? 'Sí' : 'No'}`);
+          }
+          console.log(`   Contadores actuales: creados=${counters.created}, actualizados=${counters.updated}, sin cambios=${counters.unchanged}`);
+          console.log('');
+        }
+        
+        // Decidir si asignar vehículo automáticamente o dejarlo pendiente
+        // Ser más permisivo: si hay matching (incluso por similitud), asignar automáticamente
+        if(vehicleMatch){
+          // Si es exacto O si hay marca/línea con similitud, asignar automáticamente
+          if(vehicleMatch.matchType === 'exact' || (vehicleBrand && vehicleLine)){
+            counters.vehiclesMatched++;
+          } else {
+            // Matching solo por cilindraje sin marca/línea -> pendiente pero con sugerencia
+            counters.vehiclesUnassigned++;
+          }
+        } else if(vehicleEngine){
+          // Hay cilindraje pero no hay matching -> pendiente sin sugerencia
+          counters.vehiclesUnassigned++;
+        }
+        
         counters.processed++;
-        if(progressEvery && counters.processed % progressEvery===0) logProgress();
+        
+        // Debug cada 50 registros para ver qué está pasando
+        if(counters.processed % 50 === 0){
+          console.log(`\n📊 Progreso después de ${counters.processed} registros:`);
+          console.log(`   ✅ Creados: ${counters.created}`);
+          console.log(`   🔄 Actualizados: ${counters.updated}`);
+          console.log(`   ➖ Sin cambios: ${counters.unchanged}`);
+          console.log(`   🚗 Vehículos asignados: ${counters.vehiclesMatched}`);
+          console.log(`   ⚠️  Vehículos pendientes: ${counters.vehiclesUnassigned}`);
+          console.log(`   Último cliente procesado: ${name || 'Sin nombre'}`);
+          console.log('');
+        }
+        
+        logProgress(); // Siempre intentar mostrar progreso
         continue;
       }
 
@@ -436,14 +611,49 @@ async function main(){
         vehicleMatch = await findVehicleMatch('', '', vehicleEngine);
       }
 
-      const query = { companyId: companyIdStr, $or: [ { identificationNumber: idNumber }, { plate: plateSynthetic } ] };
-      const existing = await CustomerProfile.findOne(query);
+      // Buscar perfil existente: primero por placa real, luego por ID o placa sintética
+      let existing = null;
+      const finalPlate = vehiclePlate || plateSynthetic;
       
-      if(vehicleMatch && vehicleMatch.matchType === 'exact'){
-        // Asignación directa: matching exacto
+      // 1. Buscar por placa real primero (más específico)
+      if(vehiclePlate){
+        existing = await CustomerProfile.findOne({
+          companyId: companyIdStr,
+          plate: vehiclePlate
+        });
+      }
+      
+      // 2. Si no existe, buscar por ID o placa sintética
+      if(!existing){
+        existing = await CustomerProfile.findOne({
+          companyId: companyIdStr,
+          $or: [
+            { identificationNumber: idNumber },
+            { plate: plateSynthetic }
+          ]
+        });
+      }
+      
+      // 3. Si aún no existe pero la placa final ya está en uso, buscar por esa placa
+      if(!existing && finalPlate){
+        existing = await CustomerProfile.findOne({
+          companyId: companyIdStr,
+          plate: finalPlate
+        });
+      }
+      
+      // SIEMPRE crear/actualizar cliente primero
+      let profile;
+      const shouldAssignVehicle = vehicleMatch && (
+        vehicleMatch.matchType === 'exact' || 
+        (vehicleBrand && vehicleLine) // Si hay marca y línea, asignar aunque sea similitud
+      );
+      
+      if(shouldAssignVehicle){
+        // Asignación directa: matching exacto o similitud con marca/línea
         vehicleId = vehicleMatch.vehicle._id;
         const vehicleData = {
-          plate: vehiclePlate || plateSynthetic,
+          plate: finalPlate,
           vehicleId: vehicleId,
           brand: vehicleMatch.vehicle.make,
           line: vehicleMatch.vehicle.line,
@@ -452,18 +662,60 @@ async function main(){
         };
         
         if(!existing){
-          await CustomerProfile.findOneAndUpdate(
-            query,
-            {
-              $set: { 
-                customer: { idNumber, name, phone, email, address },
-                vehicle: vehicleData
+          // Intentar crear nuevo perfil
+          try {
+            profile = await CustomerProfile.findOneAndUpdate(
+              { companyId: companyIdStr, plate: finalPlate },
+              {
+                $set: { 
+                  customer: { idNumber, name, phone, email, address },
+                  vehicle: vehicleData
+                },
+                $setOnInsert: { 
+                  companyId: companyIdStr, 
+                  identificationNumber: idNumber, 
+                  plate: finalPlate 
+                }
               },
-              $setOnInsert: { companyId: companyIdStr, identificationNumber: idNumber, plate: vehicleData.plate }
-            },
-            { upsert: true, new: true }
-          );
-          counters.created++;
+              { upsert: true, new: true }
+            );
+            counters.created++;
+          } catch(err){
+            // Si hay error de duplicado, buscar el perfil existente
+            if(err.code === 11000){
+              profile = await CustomerProfile.findOne({
+                companyId: companyIdStr,
+                plate: finalPlate
+              });
+              if(profile){
+                // Actualizar el existente
+                const update = { $set: {} };
+                if(!profile.customer?.idNumber && idNumber) update.$set['customer.idNumber']=idNumber;
+                if(!profile.customer?.name && name) update.$set['customer.name']=name;
+                if(!profile.customer?.phone && phone) update.$set['customer.phone']=phone;
+                if(!profile.customer?.email && email) update.$set['customer.email']=email;
+                if(!profile.customer?.address && address) update.$set['customer.address']=address;
+                if(!profile.vehicle?.vehicleId) {
+                  update.$set['vehicle.vehicleId'] = vehicleId;
+                  update.$set['vehicle.brand'] = vehicleMatch.vehicle.make;
+                  update.$set['vehicle.line'] = vehicleMatch.vehicle.line;
+                  update.$set['vehicle.engine'] = vehicleMatch.vehicle.displacement;
+                  update.$set['vehicle.plate'] = finalPlate;
+                  if(vehicleYear) update.$set['vehicle.year'] = vehicleYear;
+                }
+                if(Object.keys(update.$set).length){
+                  await CustomerProfile.updateOne({ _id: profile._id }, update);
+                  counters.updated++;
+                } else {
+                  counters.unchanged++;
+                }
+              } else {
+                counters.created++;
+              }
+            } else {
+              throw err;
+            }
+          }
         } else {
           const update = { $set: {} };
           if(!existing.customer?.idNumber && idNumber) update.$set['customer.idNumber']=idNumber;
@@ -476,28 +728,66 @@ async function main(){
             update.$set['vehicle.brand'] = vehicleMatch.vehicle.make;
             update.$set['vehicle.line'] = vehicleMatch.vehicle.line;
             update.$set['vehicle.engine'] = vehicleMatch.vehicle.displacement;
+            if(vehiclePlate) update.$set['vehicle.plate'] = vehiclePlate;
+            if(vehicleYear) update.$set['vehicle.year'] = vehicleYear;
           }
           if(Object.keys(update.$set).length){ 
             await CustomerProfile.updateOne({ _id: existing._id }, update); 
             counters.updated++; 
+            profile = await CustomerProfile.findById(existing._id);
           } else {
             counters.unchanged++;
+            profile = existing;
           }
         }
         counters.vehiclesMatched++;
       } else {
-        // Sin matching exacto: crear/actualizar perfil sin vehículo asignado y guardar en UnassignedVehicle
-        let profile;
+        // Sin matching automático: crear/actualizar perfil sin vehículo asignado y guardar en UnassignedVehicle
         if(!existing){
-          profile = await CustomerProfile.findOneAndUpdate(
-            query,
-            {
-              $set: { customer: { idNumber, name, phone, email, address } },
-              $setOnInsert: { companyId: companyIdStr, identificationNumber: idNumber, vehicle: { plate: plateSynthetic }, plate: plateSynthetic }
-            },
-            { upsert: true, new: true }
-          );
-          counters.created++;
+          // Intentar crear nuevo perfil
+          try {
+            profile = await CustomerProfile.findOneAndUpdate(
+              { companyId: companyIdStr, plate: finalPlate },
+              {
+                $set: { customer: { idNumber, name, phone, email, address } },
+                $setOnInsert: { 
+                  companyId: companyIdStr, 
+                  identificationNumber: idNumber, 
+                  vehicle: { plate: finalPlate }, 
+                  plate: finalPlate 
+                }
+              },
+              { upsert: true, new: true }
+            );
+            counters.created++;
+          } catch(err){
+            // Si hay error de duplicado, buscar el perfil existente
+            if(err.code === 11000){
+              profile = await CustomerProfile.findOne({
+                companyId: companyIdStr,
+                plate: finalPlate
+              });
+              if(profile){
+                // Actualizar el existente
+                const update = { $set: {} };
+                if(!profile.customer?.idNumber && idNumber) update.$set['customer.idNumber']=idNumber;
+                if(!profile.customer?.name && name) update.$set['customer.name']=name;
+                if(!profile.customer?.phone && phone) update.$set['customer.phone']=phone;
+                if(!profile.customer?.email && email) update.$set['customer.email']=email;
+                if(!profile.customer?.address && address) update.$set['customer.address']=address;
+                if(Object.keys(update.$set).length){
+                  await CustomerProfile.updateOne({ _id: profile._id }, update);
+                  counters.updated++;
+                } else {
+                  counters.unchanged++;
+                }
+              } else {
+                counters.created++;
+              }
+            } else {
+              throw err;
+            }
+          }
         } else {
           const update = { $set: {} };
           if(!existing.customer?.idNumber && idNumber) update.$set['customer.idNumber']=idNumber;
@@ -508,13 +798,14 @@ async function main(){
           if(Object.keys(update.$set).length){ 
             await CustomerProfile.updateOne({ _id: existing._id }, update); 
             counters.updated++; 
+            profile = await CustomerProfile.findById(existing._id);
           } else {
             counters.unchanged++;
+            profile = existing;
           }
-          profile = existing;
         }
         
-        // Guardar en UnassignedVehicle si hay datos de vehículo o matching por similitud
+        // SIEMPRE guardar en UnassignedVehicle si hay datos de vehículo (para depuración manual)
         if(vehicleEngine || vehicleMatch){
           const unassignedData = {
             companyId: companyIdStr,
@@ -522,10 +813,10 @@ async function main(){
             customer: { idNumber, name, phone, email, address },
             vehicleData: {
               plate: vehiclePlate || plateSynthetic,
-              brand: vehicleBrand,
-              line: vehicleLine,
-              engine: vehicleEngine,
-              year: vehicleYear
+              brand: vehicleBrand || '',
+              line: vehicleLine || '',
+              engine: vehicleEngine || '',
+              year: vehicleYear || null
             },
             status: 'pending',
             source: 'import',
@@ -546,8 +837,10 @@ async function main(){
           // Evitar duplicados: buscar si ya existe
           const existingUnassigned = await UnassignedVehicle.findOne({
             companyId: companyIdStr,
-            profileId: profile._id,
-            status: 'pending'
+            $or: [
+              { profileId: profile._id, status: 'pending' },
+              { 'vehicleData.plate': vehiclePlate || plateSynthetic, companyId: companyIdStr, status: 'pending' }
+            ]
           });
           
           if(!existingUnassigned){
@@ -558,11 +851,14 @@ async function main(){
       }
       
       counters.processed++;
-      if(progressEvery && counters.processed % progressEvery===0) logProgress();
+      logProgress(); // Siempre intentar mostrar progreso
     }
   }
 
-  logProgress();
+  // Limpiar timer de progreso
+  clearInterval(progressTimer);
+  
+  logProgress(true);
   console.log(''); // Nueva línea después del progreso
   showFinalSummary();
 }

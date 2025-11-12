@@ -813,14 +813,67 @@ export const closeSale = async (req, res) => {
     }
     
     let cashflowEntries = [];
-    try {
-      const accountId = req.body?.accountId; // opcional desde frontend
-      const resEntries = await registerSaleIncome({ companyId: req.companyId, sale, accountId });
-      cashflowEntries = Array.isArray(resEntries) ? resEntries : (resEntries ? [resEntries] : []);
-    } catch(e) { console.warn('registerSaleIncome failed:', e?.message||e); }
+    let receivable = null;
+    
+    // Verificar si algún método de pago es CREDITO
+    const hasCredit = sale.paymentMethods?.some(m => 
+      String(m.method || '').toUpperCase() === 'CREDITO' || 
+      String(m.method || '').toUpperCase() === 'CRÉDITO'
+    ) || String(sale.paymentMethod || '').toUpperCase() === 'CREDITO' ||
+       String(sale.paymentMethod || '').toUpperCase() === 'CRÉDITO';
+    
+    if (hasCredit) {
+      // Si hay crédito, crear cuenta por cobrar en lugar de flujo de caja
+      try {
+        const AccountReceivable = (await import('../models/AccountReceivable.js')).default;
+        const CompanyAccount = (await import('../models/CompanyAccount.js')).default;
+        
+        // Calcular monto de crédito
+        const creditAmount = sale.paymentMethods?.find(m => 
+          String(m.method || '').toUpperCase() === 'CREDITO' || 
+          String(m.method || '').toUpperCase() === 'CRÉDITO'
+        )?.amount || sale.total;
+        
+        // Buscar empresa asociada por placa si existe
+        let companyAccountId = null;
+        if (sale.vehicle?.plate) {
+          const companyAccount = await CompanyAccount.findOne({
+            companyId: String(req.companyId),
+            active: true,
+            plates: String(sale.vehicle.plate).trim().toUpperCase()
+          });
+          if (companyAccount) {
+            companyAccountId = companyAccount._id;
+          }
+        }
+        
+        receivable = await AccountReceivable.create({
+          companyId: String(req.companyId),
+          saleId: sale._id,
+          saleNumber: String(sale.number || '').padStart(5, '0'),
+          customer: sale.customer || {},
+          vehicle: sale.vehicle || {},
+          companyAccountId,
+          totalAmount: Number(creditAmount),
+          paidAmount: 0,
+          balance: Number(creditAmount),
+          status: 'pending',
+          source: 'sale'
+        });
+      } catch(e) { 
+        console.warn('createReceivable failed:', e?.message||e); 
+      }
+    } else {
+      // Solo registrar en flujo de caja si NO es crédito
+      try {
+        const accountId = req.body?.accountId; // opcional desde frontend
+        const resEntries = await registerSaleIncome({ companyId: req.companyId, sale, accountId });
+        cashflowEntries = Array.isArray(resEntries) ? resEntries : (resEntries ? [resEntries] : []);
+      } catch(e) { console.warn('registerSaleIncome failed:', e?.message||e); }
+    }
     
     try{ publish(req.companyId, 'sale:closed', { id: (sale?._id)||undefined }) }catch{}
-    res.json({ ok: true, sale: sale.toObject(), cashflowEntries });
+    res.json({ ok: true, sale: sale.toObject(), cashflowEntries, receivable: receivable?.toObject() });
   } catch (err) {
     await session.abortTransaction().catch(()=>{});
     res.status(400).json({ error: err?.message || 'Cannot close sale' });

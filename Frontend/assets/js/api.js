@@ -361,6 +361,23 @@ const API = {
       delete: (id) => http.del(`/api/v1/cashflow/loans/${id}`)
     }
   },
+  receivables: {
+    // Empresas
+    companies: {
+      list: (params={}) => http.get(`/api/v1/receivables/companies${toQuery(params)}`),
+      get: (id) => http.get(`/api/v1/receivables/companies/${id}`),
+      create: (payload) => http.post('/api/v1/receivables/companies', payload),
+      update: (id, payload) => http.put(`/api/v1/receivables/companies/${id}`, payload),
+      delete: (id) => http.del(`/api/v1/receivables/companies/${id}`)
+    },
+    // Cuentas por cobrar
+    list: (params={}) => http.get(`/api/v1/receivables${toQuery(params)}`),
+    get: (id) => http.get(`/api/v1/receivables/${id}`),
+    create: (payload) => http.post('/api/v1/receivables', payload),
+    addPayment: (id, payload) => http.post(`/api/v1/receivables/${id}/payment`, payload),
+    cancel: (id, payload={}) => http.post(`/api/v1/receivables/${id}/cancel`, payload),
+    stats: (params={}) => http.get(`/api/v1/receivables/stats${toQuery(params)}`)
+  },
   templates: {
     list: (params={}) => http.get(`/api/v1/templates${toQuery(params)}`),
     getByType: (type) => http.get(`/api/v1/templates?type=${encodeURIComponent(type)}`),
