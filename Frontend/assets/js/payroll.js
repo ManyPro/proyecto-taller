@@ -2120,10 +2120,30 @@ async function printSettlement(settlementId, button) {
       return;
     }
     
-    const css = preview.css ? `<style>${preview.css}</style>` : '';
+    // Agregar estilos para media carta y encoding UTF-8
+    const pageStyles = `
+      @page {
+        size: 5.5in 8.5in; /* Half-letter size */
+        margin: 0.5in;
+      }
+      @media print {
+        body {
+          margin: 0;
+          padding: 0;
+        }
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+      }
+    `;
+    const css = preview.css ? `<style>${pageStyles}${preview.css}</style>` : `<style>${pageStyles}</style>`;
     win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}</head><body>${preview.rendered}</body></html>`);
     win.document.close();
     win.focus();
+    
+    // Mostrar alerta con el tamaño de página (siempre media carta para nómina)
+    alert('📄 TAMAÑO DE HOJA REQUERIDO:\n\nMEDIA CARTA (5.5" x 8.5")\n\nAsegúrate de configurar tu impresora con este tamaño antes de imprimir.');
     
     // Esperar a que cargue y luego imprimir
     setTimeout(() => {

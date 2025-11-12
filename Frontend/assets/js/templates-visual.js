@@ -3765,6 +3765,40 @@
   function createPayrollTemplate(canvas) {
     console.log('🎨 Creando plantilla de nómina completa...');
     
+    // Establecer tamaño de página a media carta (half-letter)
+    const canvasParent = canvas.parentElement;
+    if (canvasParent) {
+      const halfLetterWidth = 14 * 37.795275591; // 14cm en px
+      const halfLetterHeight = 21.6 * 37.795275591; // 21.6cm en px
+      canvas.style.width = `${halfLetterWidth}px`;
+      canvas.style.height = `${halfLetterHeight}px`;
+      canvas.style.minHeight = `${halfLetterHeight}px`;
+      canvas.style.maxHeight = `${halfLetterHeight}px`;
+    }
+    
+    // Agregar estilos globales para media carta y encoding UTF-8
+    const globalStyles = document.createElement('style');
+    globalStyles.id = 'payroll-template-global-styles';
+    globalStyles.textContent = `
+      @page {
+        size: 5.5in 8.5in; /* Half-letter size */
+        margin: 0.5in;
+      }
+      @media print {
+        body {
+          margin: 0;
+          padding: 0;
+        }
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+      }
+    `;
+    if (!document.getElementById('payroll-template-global-styles')) {
+      document.head.appendChild(globalStyles);
+    }
+    
     // Logo/empresa (centrado arriba) - editable con imagen o variable
     const logoBox = document.createElement('div');
     logoBox.className = 'tpl-element';
@@ -3966,10 +4000,12 @@
       <style>
         .payroll-earnings-table {
           width: 100%;
-          border-collapse: collapse;
+          border-collapse: collapse !important;
+          border-spacing: 0 !important;
           font-family: Arial, sans-serif;
           table-layout: fixed;
           margin: 0;
+          border: 2px solid #000 !important;
         }
         .payroll-earnings-table th {
           border: 2px solid #000 !important;
@@ -3979,6 +4015,7 @@
           font-size: 10px;
           background: white;
           text-align: center;
+          border-collapse: collapse !important;
         }
         .payroll-earnings-table td {
           border: 1px solid #000 !important;
@@ -3986,20 +4023,36 @@
           color: #000;
           font-size: 10px;
           text-align: center;
+          border-collapse: collapse !important;
         }
         .payroll-earnings-table td:first-child {
           text-align: left;
         }
+        .payroll-earnings-table thead tr:first-child th:first-child {
+          border-top-left-radius: 0 !important;
+        }
+        .payroll-earnings-table thead tr:first-child th:last-child {
+          border-top-right-radius: 0 !important;
+        }
+        .payroll-earnings-table tbody tr:last-child td:first-child {
+          border-bottom-left-radius: 0 !important;
+        }
+        .payroll-earnings-table tbody tr:last-child td:last-child {
+          border-bottom-right-radius: 0 !important;
+        }
         @media print {
           .payroll-earnings-table {
             border-collapse: collapse !important;
+            border-spacing: 0 !important;
             width: 100% !important;
+            border: 2px solid #000 !important;
           }
           .payroll-earnings-table th,
           .payroll-earnings-table td {
             border: 1px solid #000 !important;
             padding: 4px !important;
             font-size: 9px !important;
+            border-collapse: collapse !important;
           }
           .payroll-earnings-table th {
             border-width: 2px !important;
@@ -4009,26 +4062,27 @@
       <table class="payroll-earnings-table">
         <thead>
           <tr>
-            <th style="width: 50%;">DESCRIPCION</th>
-            <th style="width: 15%;">DIAS</th>
+            <th style="width: 50%;">DESCRIPCIÓN</th>
+            <th style="width: 15%;">DÍAS</th>
             <th style="width: 17%;">TRANSP.</th>
             <th style="width: 18%;">DEVENGADO</th>
           </tr>
         </thead>
         <tbody>
-          {{#each settlement.itemsByType.earnings}}
-          <tr>
-            <td>{{name}}</td>
-            <td>-</td>
-            <td>-</td>
-            <td>{{money value}}</td>
-          </tr>
-          {{/each}}
-          {{#unless settlement.itemsByType.earnings}}
-          <tr>
-            <td colspan="4" style="text-align: center; color: #666;">Sin ingresos</td>
-          </tr>
-          {{/unless}}
+          {{#if settlement.itemsByType.earnings}}
+            {{#each settlement.itemsByType.earnings}}
+            <tr>
+              <td>{{name}}</td>
+              <td>-</td>
+              <td>-</td>
+              <td>{{money value}}</td>
+            </tr>
+            {{/each}}
+          {{else}}
+            <tr>
+              <td colspan="4" style="text-align: center; color: #666;">Sin ingresos</td>
+            </tr>
+          {{/if}}
         </tbody>
       </table>
     `;
@@ -4064,10 +4118,12 @@
       <style>
         .payroll-deductions-table {
           width: 100%;
-          border-collapse: collapse;
+          border-collapse: collapse !important;
+          border-spacing: 0 !important;
           font-family: Arial, sans-serif;
           table-layout: fixed;
           margin: 0;
+          border: 2px solid #000 !important;
         }
         .payroll-deductions-table th {
           border: 2px solid #000 !important;
@@ -4077,6 +4133,7 @@
           font-size: 10px;
           background: white;
           text-align: center;
+          border-collapse: collapse !important;
         }
         .payroll-deductions-table td {
           border: 1px solid #000 !important;
@@ -4084,20 +4141,36 @@
           color: #000;
           font-size: 10px;
           text-align: center;
+          border-collapse: collapse !important;
         }
         .payroll-deductions-table td:first-child {
           text-align: left;
         }
+        .payroll-deductions-table thead tr:first-child th:first-child {
+          border-top-left-radius: 0 !important;
+        }
+        .payroll-deductions-table thead tr:first-child th:last-child {
+          border-top-right-radius: 0 !important;
+        }
+        .payroll-deductions-table tbody tr:last-child td:first-child {
+          border-bottom-left-radius: 0 !important;
+        }
+        .payroll-deductions-table tbody tr:last-child td:last-child {
+          border-bottom-right-radius: 0 !important;
+        }
         @media print {
           .payroll-deductions-table {
             border-collapse: collapse !important;
+            border-spacing: 0 !important;
             width: 100% !important;
+            border: 2px solid #000 !important;
           }
           .payroll-deductions-table th,
           .payroll-deductions-table td {
             border: 1px solid #000 !important;
             padding: 4px !important;
             font-size: 9px !important;
+            border-collapse: collapse !important;
           }
           .payroll-deductions-table th {
             border-width: 2px !important;
@@ -4113,18 +4186,19 @@
           </tr>
         </thead>
         <tbody>
-          {{#each settlement.itemsByType.deductions}}
-          <tr>
-            <td>{{name}}</td>
-            <td>-</td>
-            <td>{{money value}}</td>
-          </tr>
-          {{/each}}
-          {{#unless settlement.itemsByType.deductions}}
-          <tr>
-            <td colspan="3" style="text-align: center; color: #666;">Sin descuentos</td>
-          </tr>
-          {{/unless}}
+          {{#if settlement.itemsByType.deductions}}
+            {{#each settlement.itemsByType.deductions}}
+            <tr>
+              <td>{{name}}</td>
+              <td>-</td>
+              <td>{{money value}}</td>
+            </tr>
+            {{/each}}
+          {{else}}
+            <tr>
+              <td colspan="3" style="text-align: center; color: #666;">Sin descuentos</td>
+            </tr>
+          {{/if}}
         </tbody>
       </table>
     `;

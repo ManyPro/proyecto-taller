@@ -605,16 +605,26 @@ function printSaleTicket(sale){
                 adjustTotalPosition();
                 detectAndSetPageSize();
                 
+                // Determinar tamaño de página para la alerta
+                const body = win.document.body;
+                const html = win.document.documentElement;
+                const contentHeight = Math.max(
+                  body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight
+                );
+                const mediaCartaMaxHeight = 800;
+                const isMediaCarta = contentHeight <= mediaCartaMaxHeight;
+                const pageSize = isMediaCarta ? 'MEDIA CARTA (5.5" x 8.5")' : 'CARTA COMPLETA (8.5" x 11")';
+                
+                // Mostrar alerta con el tamaño de página
+                alert(`📄 TAMAÑO DE HOJA REQUERIDO:\n\n${pageSize}\n\nAsegúrate de configurar tu impresora con este tamaño antes de imprimir.`);
+                
                 // Abrir diálogo de impresión automáticamente con el tamaño correcto
-                // La ventana permanecerá abierta para ver logs si el usuario cancela la impresión
                 setTimeout(() => {
                   adjustTotalPosition();
                   requestAnimationFrame(() => {
                     adjustTotalPosition();
                     // Abrir diálogo de impresión automáticamente
                     win.print();
-                    // NO cerrar automáticamente - dejar abierta para ver logs
-                    // Cuando esté al 100%, cambiar a: setTimeout(() => { try { win.close(); } catch {} }, 100);
                   });
                 }, 300);
               }, 500);
@@ -817,6 +827,28 @@ function printWorkOrder(){
             // Abrir diálogo de impresión automáticamente después de detectar tamaño
             win.focus();
             
+            // Mostrar alerta con el tamaño de página (siempre media carta para orden de trabajo)
+            alert('📄 TAMAÑO DE HOJA REQUERIDO:\n\nMEDIA CARTA (5.5" x 8.5")\n\nAsegúrate de configurar tu impresora con este tamaño antes de imprimir.');
+            
+            // Forzar tamaño a media carta para orden de trabajo
+            let pageSizeStyle = win.document.getElementById('dynamic-page-size');
+            if (!pageSizeStyle) {
+              pageSizeStyle = win.document.createElement('style');
+              pageSizeStyle.id = 'dynamic-page-size';
+              win.document.head.appendChild(pageSizeStyle);
+            }
+            pageSizeStyle.textContent = `
+              @page {
+                size: 5.5in 8.5in;
+                margin: 10mm;
+              }
+              @media print {
+                body {
+                  max-height: 216mm !important;
+                }
+              }
+            `;
+            
             // Esperar a que se cargue y detectar tamaño de página, luego abrir diálogo de impresión automáticamente
             setTimeout(() => {
               detectAndSetPageSize();
@@ -826,15 +858,12 @@ function printWorkOrder(){
                 detectAndSetPageSize();
                 
                 // Abrir diálogo de impresión automáticamente con el tamaño correcto
-                // La ventana permanecerá abierta para ver logs si el usuario cancela la impresión
                 setTimeout(() => {
                   detectAndSetPageSize();
                   requestAnimationFrame(() => {
                     detectAndSetPageSize();
                     // Abrir diálogo de impresión automáticamente
                     win.print();
-                    // NO cerrar automáticamente - dejar abierta para ver logs
-                    // Cuando esté al 100%, cambiar a: setTimeout(() => { try { win.close(); } catch {} }, 100);
                   });
                 }, 300);
               }, 500);
@@ -1028,49 +1057,57 @@ async function ensureCompanyData(){
 function buildCloseModalContent(){
   const total = current?.total || 0;
   const wrap = document.createElement('div');
+  wrap.className = 'space-y-4';
   wrap.innerHTML = `
-    <h3>Cerrar venta</h3>
-    <div class="muted" style="font-size:12px;margin-bottom:6px;">Total venta: <strong>${money(total)}</strong></div>
-    <div id="cv-payments-block" class="card" style="padding:10px; margin-bottom:12px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-        <strong>Formas de pago</strong>
-        <button id="cv-add-payment" type="button" class="small secondary">+ Agregar</button>
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Cerrar venta</h3>
+    </div>
+    <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">
+      Total venta: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(total)}</strong>
+    </div>
+    <div id="cv-payments-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+      <div class="flex justify-between items-center mb-4">
+        <strong class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">Formas de pago</strong>
+        <button id="cv-add-payment" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">+ Agregar</button>
       </div>
-      <table style="width:100%; font-size:12px; border-collapse:collapse;" id="cv-payments-table">
+      <table class="w-full text-xs border-collapse" id="cv-payments-table">
         <thead>
-          <tr style="text-align:left;">
-            <th style="padding:4px 2px;">Método</th>
-            <th style="padding:4px 2px;">Cuenta</th>
-            <th style="padding:4px 2px; width:90px;">Monto</th>
-            <th style="padding:4px 2px; width:32px;"></th>
+          <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
+            <th class="py-2 px-2 text-left text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">Método</th>
+            <th class="py-2 px-2 text-left text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">Cuenta</th>
+            <th class="py-2 px-2 text-left text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold w-24">Monto</th>
+            <th class="py-2 px-2 w-8"></th>
           </tr>
         </thead>
         <tbody id="cv-payments-body"></tbody>
       </table>
-      <div id="cv-payments-summary" style="margin-top:6px; font-size:11px;" class="muted"></div>
+      <div id="cv-payments-summary" class="mt-3 text-xs"></div>
     </div>
-    <div class="grid-2" style="gap:12px;">
-      <div style="display:none;">
-        <label>Técnico (cierre)</label>
-        <select id="cv-technician"></select>
-        <div id="cv-initial-tech" class="muted" style="margin-top:4px;font-size:11px;display:none;"></div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="hidden">
+        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Técnico (cierre)</label>
+        <select id="cv-technician" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+        <div id="cv-initial-tech" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 hidden"></div>
       </div>
-      <div style="display:none;">
-        <label>% Técnico</label>
-        <select id="cv-laborPercent"></select>
-        <input id="cv-laborPercentManual" type="number" min="0" max="100" placeholder="Manual %" style="margin-top:4px;display:none;" />
-        <button id="cv-toggle-percent" type="button" class="small" style="margin-top:4px;">Manual %</button>
+      <div class="hidden">
+        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">% Técnico</label>
+        <select id="cv-laborPercent" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+        <input id="cv-laborPercentManual" type="number" min="0" max="100" placeholder="Manual %" class="w-full px-3 py-2 mt-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 hidden" />
+        <button id="cv-toggle-percent" type="button" class="mt-2 px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Manual %</button>
       </div>
-      <div style="grid-column:1/3;">
-        <label>Comprobante (opcional)</label>
-        <input id="cv-receipt" type="file" accept="image/*,.pdf" />
+      <div class="md:col-span-2">
+        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Comprobante (opcional)</label>
+        <div class="relative">
+          <input id="cv-receipt" type="file" accept="image/*,.pdf" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-600/50 file:text-white file:cursor-pointer hover:file:bg-slate-600" />
+        </div>
+        <div id="cv-receipt-status" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin archivos seleccionados</div>
       </div>
-      <div style="grid-column:1/3; font-size:12px; display:none;" class="muted" id="cv-laborSharePreview"></div>
-      <div class="sticky-actions" style="grid-column:1/3; margin-top:8px; display:flex; gap:8px;">
-        <button id="cv-confirm">Confirmar cierre</button>
-        <button type="button" class="secondary" id="cv-cancel">Cancelar</button>
+      <div class="md:col-span-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 hidden" id="cv-laborSharePreview"></div>
+      <div class="md:col-span-2 flex gap-3 mt-4">
+        <button id="cv-confirm" class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Confirmar cierre</button>
+        <button type="button" id="cv-cancel" class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
       </div>
-      <div id="cv-msg" class="muted" style="grid-column:1/3; margin-top:6px; font-size:12px;"></div>
+      <div id="cv-msg" class="md:col-span-2 mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
     </div>`;
   return wrap;
 }
@@ -1123,6 +1160,24 @@ function fillCloseModal(){
   const percentToggle = document.getElementById('cv-toggle-percent');
   const sharePrev = document.getElementById('cv-laborSharePreview');
   const msg = document.getElementById('cv-msg');
+
+  // Listener para actualizar estado del archivo
+  const receiptInput = document.getElementById('cv-receipt');
+  const receiptStatus = document.getElementById('cv-receipt-status');
+  if (receiptInput && receiptStatus) {
+    receiptInput.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        receiptStatus.textContent = `Archivo seleccionado: ${file.name}`;
+        receiptStatus.classList.remove('text-slate-400', 'dark:text-slate-400', 'theme-light:text-slate-600');
+        receiptStatus.classList.add('text-green-400', 'dark:text-green-400', 'theme-light:text-green-600');
+      } else {
+        receiptStatus.textContent = 'Sin archivos seleccionados';
+        receiptStatus.classList.remove('text-green-400', 'dark:text-green-400', 'theme-light:text-green-600');
+        receiptStatus.classList.add('text-slate-400', 'dark:text-slate-400', 'theme-light:text-slate-600');
+      }
+    });
+  }
 
   // ---- Desglose por maniobra (dinámico, sin tocar el HTML base) ----
   try {
@@ -1285,8 +1340,10 @@ function fillCloseModal(){
       confirmBtn.disabled = Math.abs(diff) > 0.01 || payments.length===0;
       if(confirmBtn.disabled){
         confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        confirmBtn.classList.remove('hover:from-blue-700', 'hover:to-blue-800', 'hover:shadow-lg');
       } else {
         confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        confirmBtn.classList.add('hover:from-blue-700', 'hover:to-blue-800', 'hover:shadow-lg');
       }
     }
   }

@@ -1329,6 +1329,17 @@ export const printSettlementHtml = async (req, res) => {
       formattedNow: new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     };
     
+    // Debug: verificar que los items se estén pasando correctamente
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[printSettlementHtml] Items por tipo:', {
+        earnings: itemsByType.earnings?.length || 0,
+        deductions: itemsByType.deductions?.length || 0,
+        surcharges: itemsByType.surcharges?.length || 0,
+        earningsItems: itemsByType.earnings,
+        deductionsItems: itemsByType.deductions
+      });
+    }
+    
     let html = '';
     let css = '';
     if (tpl) {
@@ -1416,8 +1427,31 @@ export const printSettlementHtml = async (req, res) => {
         </div>`;
       css = `table td{border-bottom:1px solid #ddd;padding:8px}`;
     }
+    // Agregar estilos para media carta y encoding UTF-8
+    const pageStyles = `
+      @page {
+        size: 5.5in 8.5in; /* Half-letter size */
+        margin: 0.5in;
+      }
+      @media print {
+        body {
+          margin: 0;
+          padding: 0;
+        }
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+      }
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+    `;
+    
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.end(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body>${html}</body></html>`);
+    res.end(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${pageStyles}${css}</style></head><body>${html}</body></html>`);
   } catch (err) {
     console.error('Error in printSettlementHtml:', err);
     res.status(500).send(`<html><body><h1>Error</h1><p>${err.message}</p></body></html>`);
@@ -1487,9 +1521,15 @@ export const generateSettlementPdf = async (req, res) => {
     // Si no hay template o hubo error, usar fallback
     if (!html) {
       const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
-      const earningsRows = itemsByType.earnings.map(i => `<tr><td>${i.name}</td><td style="text-align:right">${formatMoney(i.value)}</td></tr>`).join('');
-      const deductionsRows = itemsByType.deductions.map(i => `<tr><td>${i.name}</td><td style="text-align:right">${formatMoney(i.value)}</td></tr>`).join('');
-      const surchargesRows = itemsByType.surcharges.map(i => `<tr><td>${i.name}</td><td style="text-align:right">${formatMoney(i.value)}</td></tr>`).join('');
+      const earningsRows = (itemsByType.earnings || []).length > 0 
+        ? itemsByType.earnings.map(i => `<tr><td>${i.name || 'Sin nombre'}</td><td style="text-align:right">${formatMoney(i.value || 0)}</td></tr>`).join('')
+        : '<tr><td colspan="2" style="text-align:center;color:#666;">Sin ingresos</td></tr>';
+      const deductionsRows = (itemsByType.deductions || []).length > 0
+        ? itemsByType.deductions.map(i => `<tr><td>${i.name || 'Sin nombre'}</td><td style="text-align:right">${formatMoney(i.value || 0)}</td></tr>`).join('')
+        : '<tr><td colspan="2" style="text-align:center;color:#666;">Sin descuentos</td></tr>';
+      const surchargesRows = (itemsByType.surcharges || []).length > 0
+        ? itemsByType.surcharges.map(i => `<tr><td>${i.name || 'Sin nombre'}</td><td style="text-align:right">${formatMoney(i.value || 0)}</td></tr>`).join('')
+        : '';
       const periodRange = periodObj ? `${new Date(periodObj.startDate).toLocaleDateString('es-CO')} → ${new Date(periodObj.endDate).toLocaleDateString('es-CO')}` : '';
       
       html = `
@@ -1567,8 +1607,11 @@ export const generateSettlementPdf = async (req, res) => {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="comprobante_nomina_${String(st._id)}.pdf"`);
     
-    // Por ahora usar PDFKit básico mejorado
-    const doc = new PDFDocument({ size: 'A4', margin: 36 });
+    // Usar PDFKit con tamaño media carta (half-letter: 5.5" x 8.5")
+    const doc = new PDFDocument({ 
+      size: [396, 612], // Half-letter en puntos (5.5" x 8.5" a 72 DPI)
+      margin: 36 
+    });
     doc.pipe(res);
     
     // Título

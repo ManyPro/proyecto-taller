@@ -1083,7 +1083,7 @@ export function initQuotes({ getCompanyEmail }) {
               adjustTotalPosition();
             });
             
-            // Abrir diálogo de impresión automáticamente después de detectar tamaño y ajustar posición
+            // Detectar tamaño de página y mostrar alerta antes de imprimir
             win.focus();
             
             setTimeout(() => {
@@ -1092,6 +1092,19 @@ export function initQuotes({ getCompanyEmail }) {
               setTimeout(() => {
                 adjustTotalPosition();
                 detectAndSetPageSize();
+                
+                // Determinar tamaño de página para la alerta
+                const body = win.document.body;
+                const html = win.document.documentElement;
+                const contentHeight = Math.max(
+                  body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight
+                );
+                const mediaCartaMaxHeight = 800;
+                const isMediaCarta = contentHeight <= mediaCartaMaxHeight;
+                const pageSize = isMediaCarta ? 'MEDIA CARTA (5.5" x 8.5")' : 'CARTA COMPLETA (8.5" x 11")';
+                
+                // Mostrar alerta con el tamaño de página
+                alert(`📄 TAMAÑO DE HOJA REQUERIDO:\n\n${pageSize}\n\nAsegúrate de configurar tu impresora con este tamaño antes de imprimir.`);
                 
                 setTimeout(() => {
                   adjustTotalPosition();
@@ -2336,36 +2349,8 @@ export function initQuotes({ getCompanyEmail }) {
       const text = buildWAText(); if(!text.trim()) return; window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,'_blank');
     });
     q('#m-pdf')?.addEventListener('click',()=>{
-      const rows=readRows();
-      const items = rows.map(r=>({ kind:r.type, description:r.desc, qty:r.qty, unitPrice:r.price, subtotal:(r.qty>0?r.qty:1)*(r.price||0) }));
-      
-      // Calcular descuento para PDF
-      let discountValue = 0;
-      const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-      if (currentDiscount.type === 'percent' && currentDiscount.value > 0) {
-        discountValue = (subtotal * currentDiscount.value) / 100;
-      } else if (currentDiscount.type === 'fixed' && currentDiscount.value > 0) {
-        discountValue = currentDiscount.value;
-      }
-      
-        exportPDFFromData({
-        number: iNumber.value,
-        datetime: iDatetime.value,
-        customer: { name:iName.value, clientPhone:iPhone.value, email:iEmail.value, idNumber: iClientId?.value || '' },
-        vehicle: { 
-          vehicleId: mVehicleId?.value || null,
-          make:iBrand.value, 
-          line:iLine.value, 
-          modelYear:iYear.value, 
-          plate:iPlate.value, 
-          displacement:iCc.value, 
-        },
-        mileage: iMileage.value,
-        validity: iValid.value,
-        specialNotes: modalSpecialNotes,
-        items,
-        discount: discountValue > 0 ? { value: discountValue, type: currentDiscount.type } : null
-      }).catch(e=>alert(e?.message||'Error generando PDF'));
+      // Usar exportPDF que ya maneja templates correctamente
+      exportPDF().catch(e=>alert(e?.message||'Error generando PDF'));
     });
     q('#m-save')?.addEventListener('click', async ()=>{
       try{
@@ -2455,7 +2440,13 @@ export function initQuotes({ getCompanyEmail }) {
     currentQuoteId = d?._id || null;
     iNumber.value = d?.number || nextNumber();
     iNumberBig.textContent = iNumber.value;
-    iDatetime.value = d?.createdAt ? new Date(d.createdAt).toLocaleString() : todayIso();
+    // Usar formato ISO para compatibilidad con exportPDF
+    if (d?.createdAt) {
+      const date = new Date(d.createdAt);
+      iDatetime.value = date.toISOString().slice(0, 16);
+    } else {
+      iDatetime.value = todayIso();
+    }
 
     iClientName.value  = d?.customer?.name  || '';
     iClientPhone.value = d?.customer?.phone || '';
@@ -2495,31 +2486,30 @@ export function initQuotes({ getCompanyEmail }) {
     window.scrollTo({ top: tab.offsetTop, behavior:'smooth' });
   }
 
-  function exportPDFFromDoc(d){
-    // Log para debugging
-    console.log('[exportPDFFromDoc] Documento recibido:', {
-      docId: d._id,
-      itemsCount: d.items?.length || 0,
-      items: d.items
-    });
-    
-    exportPDFFromData({
-      number:d.number,
-      datetime:d.createdAt?new Date(d.createdAt).toLocaleString():todayIso(),
-      customer:d.customer||{},
-      vehicle:d.vehicle||{},
-      validity:d.validity||'',
-      specialNotes:d.specialNotes||[],
-      discount: d.discount || null,
-      items:(d.items||[]).map(it=>({
-        ...it,
-        kind: it.kind || 'PRODUCTO',
-        description: it.description || '',
-        qty: it.qty || null,
-        unitPrice: it.unitPrice || 0,
-        subtotal:(it.qty && it.qty>0 ? it.qty : 1) * (it.unitPrice || 0)
-      })).filter(it => it.description || it.unitPrice > 0 || (it.qty && it.qty > 0))
-    });
+  async function exportPDFFromDoc(d){
+    try {
+      // Log para debugging
+      console.log('[exportPDFFromDoc] Documento recibido:', {
+        docId: d._id,
+        itemsCount: d.items?.length || 0,
+        items: d.items
+      });
+      
+      // Establecer el ID de la cotización actual
+      currentQuoteId = d._id;
+      
+      // Cargar datos del documento en la UI usando la función existente
+      setUIFromQuote(d);
+      
+      // Esperar un momento para que la UI se actualice
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Usar exportPDF que ya maneja templates correctamente
+      await exportPDF();
+    } catch(e) {
+      console.error('[exportPDFFromDoc] Error:', e);
+      alert(e?.message || 'Error generando PDF');
+    }
   }
 
   function openWAFromDoc(d){
