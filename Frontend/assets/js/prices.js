@@ -2356,15 +2356,17 @@ export function initPrices(){
         // Preparar datos comunes del payload
         const yearFromInput = node.querySelector('#pe-modal-year-from');
         const yearToInput = node.querySelector('#pe-modal-year-to');
-        const yearFrom = yearFromInput?.value?.trim() || null;
-        const yearTo = yearToInput?.value?.trim() || null;
+        const yearFromRaw = yearFromInput?.value?.trim() || '';
+        const yearToRaw = yearToInput?.value?.trim() || '';
+        const yearFrom = yearFromRaw ? Number(yearFromRaw) : null;
+        const yearTo = yearToRaw ? Number(yearToRaw) : null;
         
         const basePayload = {
           name: name,
           type: type,
           total: price,
-          yearFrom: yearFrom || null,
-          yearTo: yearTo || null
+          yearFrom: yearFrom,
+          yearTo: yearTo
         };
         
         if (isProduct) {

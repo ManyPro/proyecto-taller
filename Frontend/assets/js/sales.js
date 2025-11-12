@@ -1139,8 +1139,30 @@ function openCloseModal(){
 }
 
 function fillCloseModal(){
+  // Función helper para extraer el nombre del técnico
+  const extractName = (obj) => {
+    if (!obj) return '';
+    if (typeof obj === 'string') return obj.trim();
+    if (typeof obj === 'object') {
+      if (obj.name) return String(obj.name).trim();
+      // Si es un objeto con caracteres indexados (ej: {0: 'J', 1: 'o', 2: 'h', 3: 'n'})
+      const keys = Object.keys(obj).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b));
+      if (keys.length > 0) {
+        return keys.map(k => String(obj[k] || '')).join('').trim();
+      }
+    }
+    return '';
+  };
+  
   const techSel = document.getElementById('cv-technician');
-  techSel.innerHTML = '<option value="">-- Ninguno --</option>' + (companyTechnicians||[]).map(t=>`<option value="${t}">${t}</option>`).join('') + '<option value="__ADD_TECH__">+ Agregar técnico…</option>';
+  const techNames = (companyTechnicians||[]).map(t => {
+    const name = extractName(t);
+    return name;
+  }).filter(n => n && n.trim() !== '');
+  
+  techSel.innerHTML = '<option value="">-- Ninguno --</option>' + 
+    techNames.map(t=>`<option value="${t}">${t}</option>`).join('') + 
+    '<option value="__ADD_TECH__">+ Agregar técnico…</option>';
   const initialTechLabel = document.getElementById('cv-initial-tech');
   if(current){
     if(current.initialTechnician){
@@ -1228,6 +1250,10 @@ function fillCloseModal(){
   // ---- Desglose por maniobra (PRINCIPAL - siempre visible) ----
   try {
     const grid = document.querySelector('.grid');
+    if (!grid) {
+      console.error('No se encontró el elemento .grid en el modal de cierre');
+      return;
+    }
     const wrap = document.createElement('div');
     wrap.className = 'md:col-span-2';
     wrap.innerHTML = `
@@ -1264,7 +1290,13 @@ function fillCloseModal(){
           </table>
         </div>
       </div>`;
-    grid.insertBefore(wrap, grid.querySelector('#cv-receipt')?.parentElement);
+    const receiptParent = grid.querySelector('#cv-receipt')?.parentElement;
+    if (receiptParent) {
+      grid.insertBefore(wrap, receiptParent);
+    } else {
+      // Si no encuentra el elemento, agregar al final del grid
+      grid.appendChild(wrap);
+    }
 
     const tbody = wrap.querySelector('#cv-comm-body');
     
@@ -1282,9 +1314,28 @@ function fillCloseModal(){
       }
     }
     
+    // Función helper para extraer el nombre del técnico
+    const extractName = (obj) => {
+      if (!obj) return '';
+      if (typeof obj === 'string') return obj.trim();
+      if (typeof obj === 'object') {
+        if (obj.name) return String(obj.name).trim();
+        // Si es un objeto con caracteres indexados (ej: {0: 'J', 1: 'o', 2: 'h', 3: 'n'})
+        const keys = Object.keys(obj).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b));
+        if (keys.length > 0) {
+          return keys.map(k => String(obj[k] || '')).join('').trim();
+        }
+      }
+      return '';
+    };
+    
     async function addLine(pref={}){
       const tr = document.createElement('tr');
-      const techOpts = ['',''].concat(companyTechnicians||[]).map(t=> `<option value="${t}">${t}</option>`).join('');
+      const techNames = (companyTechnicians||[]).map(t => {
+        const name = extractName(t);
+        return name;
+      }).filter(n => n && n.trim() !== '');
+      const techOpts = '<option value="">-- Seleccione técnico --</option>' + techNames.map(t=> `<option value="${t}">${t}</option>`).join('');
       
       // Obtener laborKinds actualizados
       const laborKinds = await getLaborKinds();

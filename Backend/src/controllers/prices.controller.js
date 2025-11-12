@@ -261,7 +261,7 @@ export const createPrice = async (req, res) => {
 // ============ update ============
 export const updatePrice = async (req, res) => {
   const id = req.params.id;
-  const { name, type, variables = {}, total: totalRaw, serviceId, itemId, comboProducts } = req.body || {};
+  const { name, type, variables = {}, total: totalRaw, serviceId, itemId, comboProducts, yearFrom, yearTo, laborValue, laborKind } = req.body || {};
   const row = await PriceEntry.findOne({ _id: id, companyId: req.companyId });
   if (!row) return res.status(404).json({ error: 'No encontrado' });
 
@@ -380,6 +380,14 @@ export const updatePrice = async (req, res) => {
   // Validar que yearFrom no sea mayor que yearTo
   if (row.yearFrom !== null && row.yearTo !== null && row.yearFrom > row.yearTo) {
     return res.status(400).json({ error: 'yearFrom no puede ser mayor que yearTo' });
+  }
+
+  // Actualizar campos de mano de obra si se proporcionan
+  if (laborValue !== undefined) {
+    row.laborValue = (laborValue !== null && laborValue !== '') ? Math.max(0, num(laborValue)) : 0;
+  }
+  if (laborKind !== undefined) {
+    row.laborKind = (laborKind !== null && laborKind !== '') ? String(laborKind).trim() : '';
   }
 
   row.variables = variables || row.variables;
