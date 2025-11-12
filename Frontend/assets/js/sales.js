@@ -1089,11 +1089,14 @@ function buildCloseModalContent(){
         <select id="cv-technician" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
         <div id="cv-initial-tech" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 hidden"></div>
       </div>
-      <div class="hidden">
-        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">% Técnico</label>
-        <select id="cv-laborPercent" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
-        <input id="cv-laborPercentManual" type="number" min="0" max="100" placeholder="Manual %" class="w-full px-3 py-2 mt-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 hidden" />
-        <button id="cv-toggle-percent" type="button" class="mt-2 px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Manual %</button>
+      <div class="bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-50 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4">
+        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">% Técnico (Mano de obra)</label>
+        <select id="cv-laborPercent" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"></select>
+        <input id="cv-laborPercentManual" type="number" min="0" max="100" step="0.1" placeholder="Ej: 15.5" class="w-full px-3 py-2 mt-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hidden" />
+        <div class="flex items-center gap-2 mt-2">
+          <button id="cv-toggle-percent" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 font-medium">📝 Manual %</button>
+        </div>
+        <div id="cv-laborSharePreview" class="mt-3 p-2 bg-blue-900/20 dark:bg-blue-900/20 theme-light:bg-blue-50 rounded border border-blue-700/30 dark:border-blue-700/30 theme-light:border-blue-300 text-xs text-blue-300 dark:text-blue-300 theme-light:text-blue-700 font-medium hidden"></div>
       </div>
       <div class="md:col-span-2">
         <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Comprobante (opcional)</label>
@@ -1102,7 +1105,6 @@ function buildCloseModalContent(){
         </div>
         <div id="cv-receipt-status" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin archivos seleccionados</div>
       </div>
-      <div class="md:col-span-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 hidden" id="cv-laborSharePreview"></div>
       <div class="md:col-span-2 flex gap-3 mt-4">
         <button id="cv-confirm" class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Confirmar cierre</button>
         <button type="button" id="cv-cancel" class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
@@ -1152,7 +1154,7 @@ function fillCloseModal(){
     }
   }
 
-  // Labor percent options (ocultos pero necesarios para compatibilidad)
+  // Labor percent options
   const percSel = document.getElementById('cv-laborPercent');
   const perc = (companyPrefs?.laborPercents||[]);
   percSel.innerHTML = '<option value="">-- % --</option>' + perc.map(p=>`<option value="${p}">${p}%</option>`).join('');
@@ -1160,6 +1162,50 @@ function fillCloseModal(){
   const percentToggle = document.getElementById('cv-toggle-percent');
   const sharePrev = document.getElementById('cv-laborSharePreview');
   const msg = document.getElementById('cv-msg');
+  
+  // Función para calcular y mostrar el preview del labor share
+  function updateLaborSharePreview() {
+    if (!sharePrev) return;
+    const laborValue = Number(current?.laborValue || 0);
+    const percent = Number(percSel.value || manualPercentInput.value || 0);
+    
+    if (laborValue > 0 && percent > 0) {
+      const share = Math.round(laborValue * percent / 100);
+      sharePrev.innerHTML = `<span class="font-semibold">💰 Participación calculada:</span> <span class="text-blue-200 dark:text-blue-200 theme-light:text-blue-600">${money(share)}</span> <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">(${percent}% de ${money(laborValue)})</span>`;
+      sharePrev.classList.remove('hidden');
+    } else {
+      sharePrev.innerHTML = '';
+      sharePrev.classList.add('hidden');
+    }
+  }
+  
+  // Toggle entre select y input manual
+  let isManualMode = false;
+  if (percentToggle && manualPercentInput && percSel) {
+    percentToggle.addEventListener('click', () => {
+      isManualMode = !isManualMode;
+      if (isManualMode) {
+        percSel.classList.add('hidden');
+        manualPercentInput.classList.remove('hidden');
+        manualPercentInput.value = percSel.value || '';
+        percentToggle.textContent = 'Usar lista';
+        manualPercentInput.focus();
+      } else {
+        percSel.classList.remove('hidden');
+        manualPercentInput.classList.add('hidden');
+        percSel.value = manualPercentInput.value || '';
+        percentToggle.textContent = 'Manual %';
+        updateLaborSharePreview();
+      }
+    });
+    
+    // Listeners para actualizar preview
+    percSel.addEventListener('change', updateLaborSharePreview);
+    manualPercentInput.addEventListener('input', updateLaborSharePreview);
+  }
+  
+  // Actualizar preview inicial
+  updateLaborSharePreview();
 
   // Listener para actualizar estado del archivo
   const receiptInput = document.getElementById('cv-receipt');
@@ -1295,6 +1341,99 @@ function fillCloseModal(){
     wrap.querySelector('#cv-add-commission').addEventListener('click', ()=> addLine({}).catch(err => console.error('Error agregando línea:', err)));
     // precargar una línea si hay técnico
     if((techSel.value||'').trim()){ addLine({ technician: techSel.value }).catch(err => console.error('Error precargando línea:', err)); }
+    
+    // Detectar automáticamente items con laborValue y laborKind del PriceEntry
+    async function autoAddLaborFromItems() {
+      if (!current || !current.items || current.items.length === 0) return;
+      if (!techSel.value || !techSel.value.trim()) return; // Necesitamos un técnico seleccionado
+      
+      try {
+        // Obtener todos los refIds de los items de la venta
+        const refIds = current.items
+          .map(item => item.refId)
+          .filter(refId => refId && refId.trim() !== '');
+        
+        if (refIds.length === 0) return;
+        
+        // Buscar los PriceEntries correspondientes
+        const priceEntries = await Promise.all(
+          refIds.map(async (refId) => {
+            try {
+              // Buscar el precio usando pricesList con el ID
+              const prices = await API.pricesList({ limit: 1000 }); // Obtener todos los precios
+              const price = prices?.items?.find(p => String(p._id) === String(refId)) || null;
+              return price || null;
+            } catch (err) {
+              console.error('Error obteniendo precio:', err);
+              return null;
+            }
+          })
+        );
+        
+        // Filtrar los que tienen laborValue y laborKind
+        const itemsWithLabor = priceEntries
+          .filter(pe => pe && pe.laborValue > 0 && pe.laborKind && pe.laborKind.trim() !== '')
+          .map(pe => ({
+            laborValue: Number(pe.laborValue || 0),
+            laborKind: String(pe.laborKind || '').trim().toUpperCase()
+          }));
+        
+        // Agregar líneas automáticamente para cada item con mano de obra
+        for (const item of itemsWithLabor) {
+          const technician = techSel.value.trim().toUpperCase();
+          const kind = item.laborKind;
+          const laborValue = item.laborValue;
+          
+          // Verificar si ya existe una línea con este técnico y tipo
+          const existingRows = Array.from(tbody.querySelectorAll('tr'));
+          const alreadyExists = existingRows.some(tr => {
+            const techSelect = tr.querySelector('select[data-role=tech]');
+            const kindSelect = tr.querySelector('select[data-role=kind]');
+            return techSelect?.value?.trim().toUpperCase() === technician &&
+                   kindSelect?.value?.trim().toUpperCase() === kind;
+          });
+          
+          if (!alreadyExists && technician && kind && laborValue > 0) {
+            // Obtener el porcentaje del perfil del técnico o del tipo
+            let percent = 0;
+            const prof = (techConfig?.technicians||[]).find(t=> String(t.name||'').toUpperCase() === technician);
+            if(prof && kind){ 
+              const r = (prof.rates||[]).find(x=> String(x.kind||'').toUpperCase() === kind); 
+              if(r && r.percent > 0){ 
+                percent = Number(r.percent||0);
+              }
+            }
+            
+            // Si no está en el perfil, usar el defaultPercent del tipo
+            if (percent === 0) {
+              const laborKinds = await getLaborKinds();
+              const laborKind = laborKinds.find(k=> {
+                const kindName = typeof k === 'string' ? k : (k?.name || '');
+                return String(kindName).toUpperCase() === kind;
+              });
+              if(laborKind && typeof laborKind === 'object' && laborKind.defaultPercent > 0){
+                percent = Number(laborKind.defaultPercent||0);
+              }
+            }
+            
+            // Agregar la línea
+            await addLine({
+              technician: technician,
+              kind: kind,
+              laborValue: laborValue,
+              percent: percent
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error agregando líneas automáticas de mano de obra:', err);
+      }
+    }
+    
+    // Ejecutar después de un pequeño delay para asegurar que todo esté cargado
+    setTimeout(() => {
+      autoAddLaborFromItems();
+    }, 500);
   } catch{}
 
   // Dynamic payments
@@ -1430,11 +1569,15 @@ function fillCloseModal(){
           if(tech && kind && lv>0 && pc>=0) comm.push({ technician: tech, kind, laborValue: lv, percent: pc });
         });
       }
+      // Obtener el porcentaje de mano de obra del campo (si no hay comisiones en la tabla)
+      const laborPercentValue = comm.length === 0 ? (Number(percSel.value || manualPercentInput.value || 0) || 0) : 0;
+      const laborValueFromSale = Number(current?.laborValue || 0);
+      
       const payload = {
         paymentMethods: filtered.map(p=>({ method:p.method, amount:Number(p.amount)||0, accountId:p.accountId||null })),
         technician: techSel.value||'',
-        laborValue: 0,
-        laborPercent: 0,
+        laborValue: laborValueFromSale,
+        laborPercent: laborPercentValue,
         laborCommissions: comm,
         paymentReceiptUrl: receiptUrl
       };
@@ -3254,6 +3397,24 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
         </div>
       </div>
     </div>
+    ${isCombo || isProduct ? `
+    <div style="margin-bottom:16px;padding:12px;background:rgba(59, 130, 246, 0.1);border-radius:8px;border:1px solid rgba(59, 130, 246, 0.3);">
+      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500;">Mano de obra (opcional)</label>
+      <p class="muted" style="margin-bottom:8px;font-size:11px;">Estos valores se usarán automáticamente al cerrar la venta para agregar participación técnica.</p>
+      <div class="row" style="gap:8px;">
+        <div style="flex:1;">
+          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Valor de mano de obra</label>
+          <input id="price-labor-value" type="number" min="0" step="1" placeholder="0" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+        </div>
+        <div style="flex:1;">
+          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Tipo de mano de obra</label>
+          <select id="price-labor-kind" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+            <option value="">-- Seleccione tipo --</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    ` : ''}
     <div id="price-msg" style="margin-bottom:16px;font-size:13px;"></div>
     <div class="row" style="gap:8px;">
       <button id="price-save" style="flex:1;padding:10px;">💾 Guardar</button>
@@ -3269,6 +3430,30 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
   const saveBtn = node.querySelector('#price-save');
   const cancelBtn = node.querySelector('#price-cancel');
   let selectedItem = null;
+  
+  // Cargar laborKinds en el select si existe
+  if (isCombo || isProduct) {
+    const laborKindSelect = node.querySelector('#price-labor-kind');
+    if (laborKindSelect) {
+      async function loadLaborKinds() {
+        try {
+          const response = await API.get('/api/v1/company/tech-config');
+          const config = response?.config || response || { laborKinds: [] };
+          const laborKinds = config?.laborKinds || [];
+          const laborKindsList = laborKinds.map(k => {
+            const name = typeof k === 'string' ? k : (k?.name || '');
+            return name;
+          }).filter(k => k && k.trim() !== '');
+          
+          laborKindSelect.innerHTML = '<option value="">-- Seleccione tipo --</option>' + 
+            laborKindsList.map(k => `<option value="${k}">${k}</option>`).join('');
+        } catch (err) {
+          console.error('Error cargando laborKinds:', err);
+        }
+      }
+      loadLaborKinds();
+    }
+  }
   
   // Funcionalidad de búsqueda de items (solo para productos)
   if (isProduct) {
@@ -3737,6 +3922,20 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
             isOpenSlot: isOpenSlot
           };
         }).filter(p => p.name);
+      }
+      
+      // Agregar campos de mano de obra si existen
+      if (isCombo || isProduct) {
+        const laborValueInput = node.querySelector('#price-labor-value');
+        const laborKindSelect = node.querySelector('#price-labor-kind');
+        if (laborValueInput && laborKindSelect) {
+          const laborValue = Number(laborValueInput.value || 0) || 0;
+          const laborKind = laborKindSelect.value?.trim() || '';
+          if (laborValue > 0 || laborKind) {
+            payload.laborValue = laborValue;
+            payload.laborKind = laborKind;
+          }
+        }
       }
       
       await API.priceCreate(payload);

@@ -107,7 +107,7 @@ export const listPrices = async (req, res) => {
 
 // ============ create ============
 export const createPrice = async (req, res) => {
-  const { vehicleId, name, type = 'service', serviceId, variables = {}, total: totalRaw, itemId, comboProducts = [], yearFrom, yearTo } = req.body || {};
+  const { vehicleId, name, type = 'service', serviceId, variables = {}, total: totalRaw, itemId, comboProducts = [], yearFrom, yearTo, laborValue, laborKind } = req.body || {};
   
   // Nuevo modelo: vehicleId y name son requeridos
   if (!vehicleId) return res.status(400).json({ error: 'vehicleId requerido' });
@@ -220,7 +220,9 @@ export const createPrice = async (req, res) => {
     engine: vehicle.displacement,
     year: null,
     variables: variables || {},
-    total
+    total,
+    laborValue: (laborValue !== undefined && laborValue !== null && laborValue !== '') ? Math.max(0, num(laborValue)) : 0,
+    laborKind: (laborKind !== undefined && laborKind !== null && laborKind !== '') ? String(laborKind).trim() : ''
   };
   
   try {

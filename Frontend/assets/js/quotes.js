@@ -3330,6 +3330,24 @@ export function initQuotes({ getCompanyEmail }) {
           </div>
         </div>
       </div>
+      ${isCombo || isProduct ? `
+      <div class="mb-4 p-3 bg-blue-900/20 dark:bg-blue-900/20 theme-light:bg-blue-50 rounded-lg border border-blue-700/30 dark:border-blue-700/30 theme-light:border-blue-300">
+        <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2 font-medium">Mano de obra (opcional)</label>
+        <p class="mb-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Estos valores se usarán automáticamente al cerrar la venta para agregar participación técnica.</p>
+        <div class="flex gap-2">
+          <div class="flex-1">
+            <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Valor de mano de obra</label>
+            <input id="price-labor-value" type="number" min="0" step="1" placeholder="0" class="w-full px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div class="flex-1">
+            <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Tipo de mano de obra</label>
+            <select id="price-labor-kind" class="w-full px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">-- Seleccione tipo --</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      ` : ''}
       <div id="price-msg" class="mb-4 text-sm"></div>
       <div class="flex gap-2">
         <button id="price-save" class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💾 Guardar</button>
@@ -3345,6 +3363,30 @@ export function initQuotes({ getCompanyEmail }) {
     const saveBtn = node.querySelector('#price-save');
     const cancelBtn = node.querySelector('#price-cancel');
     let selectedItem = null;
+    
+    // Cargar laborKinds en el select si existe
+    if (isCombo || isProduct) {
+      const laborKindSelect = node.querySelector('#price-labor-kind');
+      if (laborKindSelect) {
+        async function loadLaborKinds() {
+          try {
+            const response = await API.get('/api/v1/company/tech-config');
+            const config = response?.config || response || { laborKinds: [] };
+            const laborKinds = config?.laborKinds || [];
+            const laborKindsList = laborKinds.map(k => {
+              const name = typeof k === 'string' ? k : (k?.name || '');
+              return name;
+            }).filter(k => k && k.trim() !== '');
+            
+            laborKindSelect.innerHTML = '<option value="">-- Seleccione tipo --</option>' + 
+              laborKindsList.map(k => `<option value="${k}">${k}</option>`).join('');
+          } catch (err) {
+            console.error('Error cargando laborKinds:', err);
+          }
+        }
+        loadLaborKinds();
+      }
+    }
     
     // Funcionalidad de búsqueda de items (solo para productos) - similar a sales.js
     if (isProduct) {
@@ -3821,6 +3863,20 @@ export function initQuotes({ getCompanyEmail }) {
               isOpenSlot: isOpenSlot
             };
           }).filter(p => p.name);
+        }
+        
+        // Agregar campos de mano de obra si existen
+        if (isCombo || isProduct) {
+          const laborValueInput = node.querySelector('#price-labor-value');
+          const laborKindSelect = node.querySelector('#price-labor-kind');
+          if (laborValueInput && laborKindSelect) {
+            const laborValue = Number(laborValueInput.value || 0) || 0;
+            const laborKind = laborKindSelect.value?.trim() || '';
+            if (laborValue > 0 || laborKind) {
+              payload.laborValue = laborValue;
+              payload.laborKind = laborKind;
+            }
+          }
         }
         
         await API.priceCreate(payload);
