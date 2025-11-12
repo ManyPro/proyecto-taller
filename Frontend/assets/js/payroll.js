@@ -2001,9 +2001,9 @@ async function loadSettlements(){
               <div class="mt-1 text-sm font-semibold text-green-400 dark:text-green-400 theme-light:text-green-600">Neto: ${formatMoney(s.netTotal)}</div>
             </div>
             <div class="flex items-center gap-2">
-              <a href="${printUrl}" target="_blank" class="px-3 py-1.5 text-xs border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 rounded-md bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 text-white dark:text-white theme-light:text-slate-700 hover:bg-blue-500/20 dark:hover:bg-blue-500/20 theme-light:hover:bg-blue-50 no-underline transition-all duration-200" title="Imprimir con template configurado">
+              <button data-settlement-id="${settlementId}" class="print-settlement-btn px-3 py-1.5 text-xs border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 rounded-md bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 text-white dark:text-white theme-light:text-slate-700 hover:bg-blue-500/20 dark:hover:bg-blue-500/20 theme-light:hover:bg-blue-50 transition-all duration-200" title="Imprimir con template configurado">
                 🖨️ Imprimir
-              </a>
+              </button>
               <button data-settlement-id="${settlementId}" class="pdf-download-btn px-3 py-1.5 text-xs border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 rounded-md bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 text-white dark:text-white theme-light:text-slate-700 hover:bg-red-500/20 dark:hover:bg-red-500/20 theme-light:hover:bg-red-50 transition-all duration-200" title="Descargar PDF">
                 📄 PDF
               </button>
@@ -2067,6 +2067,84 @@ async function loadSettlements(){
   }
 }
 
+async function printSettlement(settlementId, button) {
+  if (!settlementId) {
+    alert('❌ ID de liquidación no válido');
+    return;
+  }
+  
+  const originalText = button?.textContent || '';
+  const originalDisabled = button?.disabled;
+  
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = '⏳ Cargando...';
+    }
+    
+    // Obtener template activo
+    const API = window.API || api;
+    if (!API?.templates?.active) {
+      throw new Error('API de templates no disponible');
+    }
+    
+    const tpl = await API.templates.active('payroll');
+    if (!tpl || !tpl.contentHtml) {
+      // Fallback: usar endpoint directo
+      const apiBase = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
+      const printUrl = `${apiBase}/api/v1/payroll/settlements/${settlementId}/print`;
+      window.open(printUrl, '_blank');
+      if (button) {
+        button.textContent = originalText;
+        button.disabled = originalDisabled;
+      }
+      return;
+    }
+    
+    // Usar preview con el settlementId como sampleId
+    const preview = await API.templates.preview({
+      type: 'payroll',
+      contentHtml: tpl.contentHtml,
+      contentCss: tpl.contentCss || '',
+      sampleId: settlementId
+    });
+    
+    // Abrir ventana de impresión
+    const win = window.open('', '_blank');
+    if (!win) {
+      alert('⚠️ No se pudo abrir ventana de impresión. Verifica que los popups estén permitidos.');
+      if (button) {
+        button.textContent = originalText;
+        button.disabled = originalDisabled;
+      }
+      return;
+    }
+    
+    const css = preview.css ? `<style>${preview.css}</style>` : '';
+    win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}</head><body>${preview.rendered}</body></html>`);
+    win.document.close();
+    win.focus();
+    
+    // Esperar a que cargue y luego imprimir
+    setTimeout(() => {
+      win.print();
+    }, 500);
+    
+    if (button) {
+      button.textContent = originalText;
+      button.disabled = originalDisabled;
+    }
+  } catch (err) {
+    console.error('Error printing settlement:', err);
+    alert('❌ Error al imprimir: ' + (err.message || 'Error desconocido'));
+    
+    if (button) {
+      button.textContent = originalText;
+      button.disabled = originalDisabled;
+    }
+  }
+}
+
 async function downloadSettlementPdf(settlementId, button) {
   if (!settlementId) {
     alert('❌ ID de liquidación no válido');
@@ -2083,16 +2161,55 @@ async function downloadSettlementPdf(settlementId, button) {
       button.textContent = '⏳ Descargando...';
     }
     
-    // Obtener token y API base
-    const apiBase = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
-    const token = api.token.get();
+    // Obtener template activo
+    const API = window.API || api;
+    if (!API?.templates?.active) {
+      throw new Error('API de templates no disponible');
+    }
     
-    if (!token) {
-      alert('❌ No hay sesión activa. Por favor, inicia sesión nuevamente.');
+    const tpl = await API.templates.active('payroll');
+    if (!tpl || !tpl.contentHtml) {
+      // Fallback: usar endpoint directo
+      const apiBase = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
+      const token = api.token.get();
+      const response = await fetch(`${apiBase}/api/v1/payroll/settlements/${settlementId}/pdf`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `liquidacion-${settlementId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      
+      if (button) {
+        button.textContent = originalText;
+        button.disabled = originalDisabled;
+      }
       return;
     }
     
-    // Fetch PDF con autenticación
+    // Usar preview con el settlementId como sampleId
+    const preview = await API.templates.preview({
+      type: 'payroll',
+      contentHtml: tpl.contentHtml,
+      contentCss: tpl.contentCss || '',
+      sampleId: settlementId
+    });
+    
+    // Generar PDF desde HTML usando html2pdf o similar
+    // Por ahora, usar el endpoint del backend que genera PDF
+    const apiBase = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
+    const token = api.token.get();
     const response = await fetch(`${apiBase}/api/v1/payroll/settlements/${settlementId}/pdf`, {
       method: 'GET',
       headers: {
@@ -2115,19 +2232,14 @@ async function downloadSettlementPdf(settlementId, button) {
     // Obtener blob del PDF
     const blob = await response.blob();
     
-    // Crear URL temporal y abrir en nueva ventana
+    // Crear URL temporal y descargar
     const blobUrl = URL.createObjectURL(blob);
-    const newWindow = window.open(blobUrl, '_blank');
-    
-    if (!newWindow) {
-      // Si el popup fue bloqueado, intentar descargar directamente
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = `liquidacion-${settlementId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = `liquidacion-${settlementId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     
     // Limpiar URL después de un tiempo
     setTimeout(() => {
@@ -2471,14 +2583,27 @@ function init(){
   const addTechBtn = document.getElementById('tk-add-btn');
   if (addTechBtn) addTechBtn.addEventListener('click', createTechnician);
   
-  // Event delegation para botones de PDF (se crean dinámicamente)
+  // Event delegation para botones de PDF e Imprimir (se crean dinámicamente)
   document.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.pdf-download-btn');
-    if (!btn) return;
-    const settlementId = btn.getAttribute('data-settlement-id');
-    if (!settlementId) return;
-    e.preventDefault();
-    await downloadSettlementPdf(settlementId, btn);
+    const pdfBtn = e.target.closest('.pdf-download-btn');
+    if (pdfBtn) {
+      const settlementId = pdfBtn.getAttribute('data-settlement-id');
+      if (settlementId) {
+        e.preventDefault();
+        await downloadSettlementPdf(settlementId, pdfBtn);
+      }
+      return;
+    }
+    
+    const printBtn = e.target.closest('.print-settlement-btn');
+    if (printBtn) {
+      const settlementId = printBtn.getAttribute('data-settlement-id');
+      if (settlementId) {
+        e.preventDefault();
+        await printSettlement(settlementId, printBtn);
+      }
+      return;
+    }
   });
   
   // Tabs internas
