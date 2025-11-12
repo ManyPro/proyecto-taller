@@ -2,7 +2,7 @@ import API from './api.esm.js';
 const api = API;
 
 function el(id){ return document.getElementById(id); }
-function htmlEscape(s){ return (s||'').replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
+function htmlEscape(s){ return String(s || '').replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
 
 // Cargar conceptos para el selector de base de porcentaje
 async function loadConceptsForPercentBase() {
@@ -280,12 +280,83 @@ async function loadTechnicians(){
   try {
     const r = await api.get('/api/v1/company/technicians');
     const technicians = r.technicians || [];
-    // Normalizar: puede ser array de strings o array de objetos
+    // Normalizar: convertir a objetos simples con nombre como string
     const normalizedTechs = technicians.map(t => {
-      if (typeof t === 'string') {
-        return { name: t, identification: '' };
+      // Función auxiliar para extraer nombre como string
+      const extractName = (obj) => {
+        if (!obj) return 'Sin nombre';
+        
+        // Si es string, devolverlo directamente
+        if (typeof obj === 'string') {
+          return obj.trim() || 'Sin nombre';
+        }
+        
+        // Si es objeto con propiedad name
+        if (obj && typeof obj === 'object') {
+          // Si tiene propiedad name
+          if (obj.name !== undefined && obj.name !== null) {
+            // Si name es string
+            if (typeof obj.name === 'string') {
+              return obj.name.trim() || 'Sin nombre';
+            }
+            // Si name es objeto (caracteres indexados), convertirlo
+            if (typeof obj.name === 'object') {
+              try {
+                const nameKeys = Object.keys(obj.name);
+                if (nameKeys.length > 0) {
+                  // Si tiene claves numéricas, es un string indexado
+                  if (nameKeys.every(k => /^\d+$/.test(k))) {
+                    return Object.values(obj.name).join('').trim() || 'Sin nombre';
+                  }
+                }
+                return String(obj.name).trim() || 'Sin nombre';
+              } catch (e) {
+                return 'Sin nombre';
+              }
+            }
+            return String(obj.name).trim() || 'Sin nombre';
+          }
+          
+          // Si no tiene name pero tiene claves numéricas, es un string antiguo
+          const keys = Object.keys(obj);
+          if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
+            try {
+              return Object.values(obj).join('').trim() || 'Sin nombre';
+            } catch (e) {
+              return 'Sin nombre';
+            }
+          }
+        }
+        
+        return 'Sin nombre';
+      };
+      
+      const name = extractName(t);
+      
+      // Extraer otros campos de forma segura
+      let identification = '';
+      let basicSalary = null;
+      let workHoursPerMonth = null;
+      let basicSalaryPerDay = null;
+      let contractType = '';
+      
+      if (t && typeof t === 'object') {
+        identification = String(t.identification || '').trim();
+        basicSalary = (t.basicSalary !== undefined && t.basicSalary !== null) ? Number(t.basicSalary) : null;
+        workHoursPerMonth = (t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null) ? Number(t.workHoursPerMonth) : null;
+        basicSalaryPerDay = (t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null) ? Number(t.basicSalaryPerDay) : null;
+        contractType = String(t.contractType || '').trim();
       }
-      return { name: t.name || t, identification: t.identification || '' };
+      
+      // Retornar objeto normalizado con nombre SIEMPRE como string
+      return { 
+        name: String(name), // Asegurar que sea string
+        identification: identification,
+        basicSalary: basicSalary,
+        workHoursPerMonth: workHoursPerMonth,
+        basicSalaryPerDay: basicSalaryPerDay,
+        contractType: contractType
+      };
     });
     const names = normalizedTechs.map(t => t.name);
     const opts = normalizedTechs.map(t => `<option value="${htmlEscape(t.name)}">${htmlEscape(t.name)}${t.identification ? ' (' + htmlEscape(t.identification) + ')' : ''}</option>`).join('');
@@ -313,7 +384,14 @@ async function loadTechnicians(){
           const identificationText = t.identification ? ` <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">(${htmlEscape(t.identification)})</span>` : '';
           return `<div class="technician-chip inline-flex items-center gap-2 bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 border border-blue-500/30 dark:border-blue-500/30 theme-light:border-blue-300 text-white dark:text-white theme-light:text-slate-900 px-3 py-2 rounded-lg text-sm font-medium">
             <span>👤 ${htmlEscape(t.name)}${identificationText}</span>
-            <button class="x-edit bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/30 dark:hover:bg-blue-600/30 theme-light:bg-blue-50 theme-light:hover:bg-blue-100 border border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-300 text-blue-400 dark:text-blue-400 theme-light:text-blue-600 px-2 py-0.5 rounded text-xs font-semibold transition-all duration-200 cursor-pointer" data-name="${htmlEscape(t.name)}" data-identification="${htmlEscape(t.identification || '')}" title="Editar identificación">
+            <button class="x-edit bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/30 dark:hover:bg-blue-600/30 theme-light:bg-blue-50 theme-light:hover:bg-blue-100 border border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-300 text-blue-400 dark:text-blue-400 theme-light:text-blue-600 px-2 py-0.5 rounded text-xs font-semibold transition-all duration-200 cursor-pointer" 
+              data-name="${htmlEscape(t.name)}" 
+              data-identification="${htmlEscape(t.identification || '')}"
+              data-basic-salary="${t.basicSalary !== null && t.basicSalary !== undefined ? t.basicSalary : ''}"
+              data-work-hours="${t.workHoursPerMonth !== null && t.workHoursPerMonth !== undefined ? t.workHoursPerMonth : ''}"
+              data-salary-per-day="${t.basicSalaryPerDay !== null && t.basicSalaryPerDay !== undefined ? t.basicSalaryPerDay : ''}"
+              data-contract-type="${htmlEscape(t.contractType || '')}"
+              title="Editar técnico">
               ✏️ Editar
             </button>
             <button class="x-del bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/30 dark:hover:bg-red-600/30 theme-light:bg-red-50 theme-light:hover:bg-red-100 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 text-red-400 dark:text-red-400 theme-light:text-red-600 px-2 py-0.5 rounded text-xs font-semibold transition-all duration-200 cursor-pointer" data-name="${htmlEscape(t.name)}" title="Eliminar técnico">
@@ -327,14 +405,14 @@ async function loadTechnicians(){
           btn.addEventListener('click', () => {
             const name = btn.getAttribute('data-name');
             const currentIdentification = btn.getAttribute('data-identification') || '';
+            const basicSalary = btn.getAttribute('data-basic-salary') || '';
+            const workHoursPerMonth = btn.getAttribute('data-work-hours') || '';
+            const basicSalaryPerDay = btn.getAttribute('data-salary-per-day') || '';
+            const contractType = btn.getAttribute('data-contract-type') || '';
             if (!name) return;
             
-            // Mostrar modal o formulario para editar
-            const newIdentification = prompt(`Editar identificación para "${name}":\n\nIngresa el número de identificación:`, currentIdentification);
-            if (newIdentification === null) return; // Usuario canceló
-            
-            // Actualizar técnico
-            editTechnician(name, newIdentification.trim());
+            // Mostrar modal para editar
+            showEditTechnicianModal(name, currentIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
           });
         });
         
@@ -1923,9 +2001,9 @@ async function loadSettlements(){
               <div class="mt-1 text-sm font-semibold text-green-400 dark:text-green-400 theme-light:text-green-600">Neto: ${formatMoney(s.netTotal)}</div>
             </div>
             <div class="flex items-center gap-2">
-              <a href="${printUrl}" target="_blank" class="px-3 py-1.5 text-xs border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 rounded-md bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 text-white dark:text-white theme-light:text-slate-700 hover:bg-blue-500/20 dark:hover:bg-blue-500/20 theme-light:hover:bg-blue-50 no-underline transition-all duration-200" title="Imprimir con template configurado">
+              <button data-settlement-id="${settlementId}" class="print-settlement-btn px-3 py-1.5 text-xs border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 rounded-md bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 text-white dark:text-white theme-light:text-slate-700 hover:bg-blue-500/20 dark:hover:bg-blue-500/20 theme-light:hover:bg-blue-50 transition-all duration-200" title="Imprimir con template configurado">
                 🖨️ Imprimir
-              </a>
+              </button>
               <button data-settlement-id="${settlementId}" class="pdf-download-btn px-3 py-1.5 text-xs border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 rounded-md bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 text-white dark:text-white theme-light:text-slate-700 hover:bg-red-500/20 dark:hover:bg-red-500/20 theme-light:hover:bg-red-50 transition-all duration-200" title="Descargar PDF">
                 📄 PDF
               </button>
@@ -1989,6 +2067,104 @@ async function loadSettlements(){
   }
 }
 
+async function printSettlement(settlementId, button) {
+  if (!settlementId) {
+    alert('❌ ID de liquidación no válido');
+    return;
+  }
+  
+  const originalText = button?.textContent || '';
+  const originalDisabled = button?.disabled;
+  
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = '⏳ Cargando...';
+    }
+    
+    // Obtener template activo
+    const API = window.API || api;
+    if (!API?.templates?.active) {
+      throw new Error('API de templates no disponible');
+    }
+    
+    const tpl = await API.templates.active('payroll');
+    if (!tpl || !tpl.contentHtml) {
+      // Fallback: usar endpoint directo
+      const apiBase = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
+      const printUrl = `${apiBase}/api/v1/payroll/settlements/${settlementId}/print`;
+      window.open(printUrl, '_blank');
+      if (button) {
+        button.textContent = originalText;
+        button.disabled = originalDisabled;
+      }
+      return;
+    }
+    
+    // Usar preview con el settlementId como sampleId
+    const preview = await API.templates.preview({
+      type: 'payroll',
+      contentHtml: tpl.contentHtml,
+      contentCss: tpl.contentCss || '',
+      sampleId: settlementId
+    });
+    
+    // Abrir ventana de impresión
+    const win = window.open('', '_blank');
+    if (!win) {
+      alert('⚠️ No se pudo abrir ventana de impresión. Verifica que los popups estén permitidos.');
+      if (button) {
+        button.textContent = originalText;
+        button.disabled = originalDisabled;
+      }
+      return;
+    }
+    
+    // Agregar estilos para media carta y encoding UTF-8
+    const pageStyles = `
+      @page {
+        size: 5.5in 8.5in; /* Half-letter size */
+        margin: 0.5in;
+      }
+      @media print {
+        body {
+          margin: 0;
+          padding: 0;
+        }
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+      }
+    `;
+    const css = preview.css ? `<style>${pageStyles}${preview.css}</style>` : `<style>${pageStyles}</style>`;
+    win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}</head><body>${preview.rendered}</body></html>`);
+    win.document.close();
+    win.focus();
+    
+    // Mostrar alerta con el tamaño de página (siempre media carta para nómina)
+    alert('📄 TAMAÑO DE HOJA REQUERIDO:\n\nMEDIA CARTA (5.5" x 8.5")\n\nAsegúrate de configurar tu impresora con este tamaño antes de imprimir.');
+    
+    // Esperar a que cargue y luego imprimir
+    setTimeout(() => {
+      win.print();
+    }, 500);
+    
+    if (button) {
+      button.textContent = originalText;
+      button.disabled = originalDisabled;
+    }
+  } catch (err) {
+    console.error('Error printing settlement:', err);
+    alert('❌ Error al imprimir: ' + (err.message || 'Error desconocido'));
+    
+    if (button) {
+      button.textContent = originalText;
+      button.disabled = originalDisabled;
+    }
+  }
+}
+
 async function downloadSettlementPdf(settlementId, button) {
   if (!settlementId) {
     alert('❌ ID de liquidación no válido');
@@ -2005,16 +2181,55 @@ async function downloadSettlementPdf(settlementId, button) {
       button.textContent = '⏳ Descargando...';
     }
     
-    // Obtener token y API base
-    const apiBase = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
-    const token = api.token.get();
+    // Obtener template activo
+    const API = window.API || api;
+    if (!API?.templates?.active) {
+      throw new Error('API de templates no disponible');
+    }
     
-    if (!token) {
-      alert('❌ No hay sesión activa. Por favor, inicia sesión nuevamente.');
+    const tpl = await API.templates.active('payroll');
+    if (!tpl || !tpl.contentHtml) {
+      // Fallback: usar endpoint directo
+      const apiBase = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
+      const token = api.token.get();
+      const response = await fetch(`${apiBase}/api/v1/payroll/settlements/${settlementId}/pdf`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = `liquidacion-${settlementId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      
+      if (button) {
+        button.textContent = originalText;
+        button.disabled = originalDisabled;
+      }
       return;
     }
     
-    // Fetch PDF con autenticación
+    // Usar preview con el settlementId como sampleId
+    const preview = await API.templates.preview({
+      type: 'payroll',
+      contentHtml: tpl.contentHtml,
+      contentCss: tpl.contentCss || '',
+      sampleId: settlementId
+    });
+    
+    // Generar PDF desde HTML usando html2pdf o similar
+    // Por ahora, usar el endpoint del backend que genera PDF
+    const apiBase = (typeof window !== 'undefined' && window.API_BASE) ? window.API_BASE : '';
+    const token = api.token.get();
     const response = await fetch(`${apiBase}/api/v1/payroll/settlements/${settlementId}/pdf`, {
       method: 'GET',
       headers: {
@@ -2037,19 +2252,14 @@ async function downloadSettlementPdf(settlementId, button) {
     // Obtener blob del PDF
     const blob = await response.blob();
     
-    // Crear URL temporal y abrir en nueva ventana
+    // Crear URL temporal y descargar
     const blobUrl = URL.createObjectURL(blob);
-    const newWindow = window.open(blobUrl, '_blank');
-    
-    if (!newWindow) {
-      // Si el popup fue bloqueado, intentar descargar directamente
-      const a = document.createElement('a');
-      a.href = blobUrl;
-      a.download = `liquidacion-${settlementId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = `liquidacion-${settlementId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
     
     // Limpiar URL después de un tiempo
     setTimeout(() => {
@@ -2393,14 +2603,27 @@ function init(){
   const addTechBtn = document.getElementById('tk-add-btn');
   if (addTechBtn) addTechBtn.addEventListener('click', createTechnician);
   
-  // Event delegation para botones de PDF (se crean dinámicamente)
+  // Event delegation para botones de PDF e Imprimir (se crean dinámicamente)
   document.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.pdf-download-btn');
-    if (!btn) return;
-    const settlementId = btn.getAttribute('data-settlement-id');
-    if (!settlementId) return;
-    e.preventDefault();
-    await downloadSettlementPdf(settlementId, btn);
+    const pdfBtn = e.target.closest('.pdf-download-btn');
+    if (pdfBtn) {
+      const settlementId = pdfBtn.getAttribute('data-settlement-id');
+      if (settlementId) {
+        e.preventDefault();
+        await downloadSettlementPdf(settlementId, pdfBtn);
+      }
+      return;
+    }
+    
+    const printBtn = e.target.closest('.print-settlement-btn');
+    if (printBtn) {
+      const settlementId = printBtn.getAttribute('data-settlement-id');
+      if (settlementId) {
+        e.preventDefault();
+        await printSettlement(settlementId, printBtn);
+      }
+      return;
+    }
   });
   
   // Tabs internas
@@ -2441,27 +2664,41 @@ function switchTab(name){
 
 async function createTechnician(){
   try {
-    const input = document.getElementById('tk-add-name');
+    const nameInput = document.getElementById('tk-add-name');
     const identificationInput = document.getElementById('tk-add-identification');
-    const name = (input?.value || '').trim();
+    const basicSalaryInput = document.getElementById('tk-add-basic-salary');
+    const workHoursInput = document.getElementById('tk-add-work-hours');
+    const salaryPerDayInput = document.getElementById('tk-add-salary-per-day');
+    const contractTypeInput = document.getElementById('tk-add-contract-type');
+    
+    const name = (nameInput?.value || '').trim();
     const identification = (identificationInput?.value || '').trim();
+    const basicSalaryStr = (basicSalaryInput?.value || '').trim();
+    const workHoursStr = (workHoursInput?.value || '').trim();
+    const basicSalaryPerDayStr = (salaryPerDayInput?.value || '').trim();
+    const contractType = (contractTypeInput?.value || '').trim();
+    
+    // Convertir valores numéricos
+    const basicSalary = basicSalaryStr ? Number(basicSalaryStr) : null;
+    const workHoursPerMonth = workHoursStr ? Number(workHoursStr) : null;
+    const basicSalaryPerDay = basicSalaryPerDayStr ? Number(basicSalaryPerDayStr) : null;
     
     // Validaciones
     if (!name) {
       alert('⚠️ Ingresa un nombre de técnico');
-      input?.focus();
+      nameInput?.focus();
       return;
     }
     
     if (name.length < 2) {
       alert('⚠️ El nombre debe tener al menos 2 caracteres');
-      input?.focus();
+      nameInput?.focus();
       return;
     }
     
     if (name.length > 100) {
       alert('⚠️ El nombre no puede exceder 100 caracteres');
-      input?.focus();
+      nameInput?.focus();
       return;
     }
     
@@ -2474,11 +2711,35 @@ async function createTechnician(){
     }
     
     try {
-      await api.post('/api/v1/company/technicians', { name, identification });
+      // Usar window.API directamente ya que es más confiable
+      const API = window.API;
+      if (!API || !API.company || typeof API.company.addTechnician !== 'function') {
+        console.error('API disponible:', {
+          hasWindowAPI: !!window.API,
+          hasCompany: !!(window.API && window.API.company),
+          hasAddFn: !!(window.API && window.API.company && typeof window.API.company.addTechnician === 'function'),
+          apiKeys: window.API ? Object.keys(window.API) : [],
+          companyKeys: (window.API && window.API.company) ? Object.keys(window.API.company) : []
+        });
+        throw new Error('API no disponible. Por favor recarga la página.');
+      }
+      
+      await API.company.addTechnician(
+        name,
+        identification,
+        basicSalary,
+        workHoursPerMonth,
+        basicSalaryPerDay,
+        contractType
+      );
       
       // Limpiar campos
-      input.value = '';
+      if (nameInput) nameInput.value = '';
       if (identificationInput) identificationInput.value = '';
+      if (basicSalaryInput) basicSalaryInput.value = '';
+      if (workHoursInput) workHoursInput.value = '';
+      if (salaryPerDayInput) salaryPerDayInput.value = '';
+      if (contractTypeInput) contractTypeInput.value = '';
       
       // Recargar lista de técnicos
       await loadTechnicians();
@@ -2504,7 +2765,7 @@ async function createTechnician(){
         btn.disabled = false;
         btn.textContent = originalText;
       }
-      input?.focus();
+      nameInput?.focus();
     }
   } catch (err) {
     console.error('Error in createTechnician:', err);
@@ -2512,49 +2773,219 @@ async function createTechnician(){
   }
 }
 
-async function editTechnician(name, identification) {
-  try {
-    if (!name) {
-      alert('⚠️ Nombre de técnico requerido');
-      return;
-    }
-    
-    // Deshabilitar botones durante la petición
-    const editBtns = document.querySelectorAll(`.x-edit[data-name="${htmlEscape(name)}"]`);
-    editBtns.forEach(btn => {
-      btn.disabled = true;
-      btn.textContent = 'Actualizando...';
-    });
-    
-    try {
-      // Usar POST para actualizar (el backend actualiza si existe)
-      await api.post('/api/v1/company/technicians', { name, identification });
-      
-      // Recargar lista de técnicos
-      await loadTechnicians();
-      
-      // Feedback visual
-      editBtns.forEach(btn => {
-        btn.textContent = '✓ Actualizado';
-        setTimeout(() => {
-          btn.disabled = false;
-          btn.textContent = '✏️ Editar';
-        }, 1500);
-      });
-      
-      alert(`✅ Identificación actualizada para ${name}`);
-    } catch (err) {
-      const errorMsg = err.message || 'Error desconocido';
-      alert('❌ Error al actualizar técnico: ' + errorMsg);
-      editBtns.forEach(btn => {
-        btn.disabled = false;
-        btn.textContent = '✏️ Editar';
-      });
-    }
-  } catch (err) {
-    console.error('Error in editTechnician:', err);
-    alert('❌ Error inesperado: ' + (err.message || 'Error desconocido'));
+function showEditTechnicianModal(oldName, currentIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) {
+  const modal = document.getElementById('modal');
+  const modalBody = document.getElementById('modalBody');
+  const modalClose = document.getElementById('modalClose');
+  
+  if (!modal || !modalBody) {
+    alert('Modal no disponible');
+    return;
   }
+  
+  // Crear contenido del modal
+  modalBody.innerHTML = `
+    <div class="p-6">
+      <h3 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Editar Técnico</h3>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+            Nombre del técnico
+          </label>
+          <input 
+            id="edit-tech-name" 
+            type="text" 
+            value="${htmlEscape(oldName)}" 
+            maxlength="100"
+            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Ej: Juan Pérez"
+          />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+            Número de identificación
+          </label>
+          <input 
+            id="edit-tech-identification" 
+            type="text" 
+            value="${htmlEscape(currentIdentification)}" 
+            maxlength="20"
+            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Ej: 1234567890"
+          />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+            Salario Básico ($/MES)
+          </label>
+          <input 
+            id="edit-tech-basic-salary" 
+            type="number" 
+            step="0.01"
+            min="0"
+            value="${basicSalary || ''}" 
+            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Ej: 1000000"
+          />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+            Horas Trabajo MES
+          </label>
+          <input 
+            id="edit-tech-work-hours" 
+            type="number" 
+            step="1"
+            min="0"
+            value="${workHoursPerMonth || ''}" 
+            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Ej: 240"
+          />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+            Salario Básico (DÍA)
+          </label>
+          <input 
+            id="edit-tech-salary-per-day" 
+            type="number" 
+            step="0.01"
+            min="0"
+            value="${basicSalaryPerDay || ''}" 
+            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Ej: 33333.33"
+          />
+        </div>
+        
+        <div>
+          <label class="block text-sm font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">
+            Tipo Contrato
+          </label>
+          <input 
+            id="edit-tech-contract-type" 
+            type="text" 
+            value="${htmlEscape(contractType)}" 
+            maxlength="50"
+            class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Ej: Término Indefinido"
+          />
+        </div>
+      </div>
+      
+      <div class="flex gap-3 mt-6">
+        <button 
+          id="edit-tech-save" 
+          class="flex-1 px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+        >
+          💾 Guardar cambios
+        </button>
+        <button 
+          id="edit-tech-cancel" 
+          class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  `;
+  
+  // Mostrar modal
+  modal.classList.remove('hidden');
+  
+  // Focus en el campo de nombre
+  const nameInput = document.getElementById('edit-tech-name');
+  if (nameInput) {
+    nameInput.focus();
+    nameInput.select();
+  }
+  
+  // Event listeners
+  const saveBtn = document.getElementById('edit-tech-save');
+  const cancelBtn = document.getElementById('edit-tech-cancel');
+  
+  const closeModal = () => {
+    modal.classList.add('hidden');
+  };
+  
+  if (saveBtn) {
+    saveBtn.addEventListener('click', async () => {
+      const newName = document.getElementById('edit-tech-name')?.value?.trim() || '';
+      const newIdentification = document.getElementById('edit-tech-identification')?.value?.trim() || '';
+      const basicSalaryStr = document.getElementById('edit-tech-basic-salary')?.value?.trim() || '';
+      const workHoursStr = document.getElementById('edit-tech-work-hours')?.value?.trim() || '';
+      const basicSalaryPerDayStr = document.getElementById('edit-tech-salary-per-day')?.value?.trim() || '';
+      const contractType = document.getElementById('edit-tech-contract-type')?.value?.trim() || '';
+      
+      // Convertir valores numéricos
+      const basicSalary = basicSalaryStr ? Number(basicSalaryStr) : null;
+      const workHoursPerMonth = workHoursStr ? Number(workHoursStr) : null;
+      const basicSalaryPerDay = basicSalaryPerDayStr ? Number(basicSalaryPerDayStr) : null;
+      
+      if (!newName) {
+        alert('⚠️ El nombre del técnico es requerido');
+        return;
+      }
+      
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Guardando...';
+      
+      try {
+        // Usar window.API directamente ya que es más confiable
+        const API = window.API;
+        if (!API || !API.company || typeof API.company.updateTechnician !== 'function') {
+          console.error('API disponible:', {
+            hasWindowAPI: !!window.API,
+            hasCompany: !!(window.API && window.API.company),
+            hasUpdateFn: !!(window.API && window.API.company && typeof window.API.company.updateTechnician === 'function'),
+            apiKeys: window.API ? Object.keys(window.API) : [],
+            companyKeys: (window.API && window.API.company) ? Object.keys(window.API.company) : []
+          });
+          throw new Error('API no disponible. Por favor recarga la página.');
+        }
+        
+        await API.company.updateTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+        await loadTechnicians();
+        closeModal();
+      } catch (err) {
+        console.error('Error guardando técnico:', err);
+        alert('❌ Error al guardar: ' + (err.message || 'Error desconocido'));
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 Guardar cambios';
+      }
+    });
+  }
+  
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', closeModal);
+  }
+  
+  if (modalClose) {
+    modalClose.addEventListener('click', closeModal);
+  }
+  
+  // Cerrar con ESC
+  const escHandler = (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+      closeModal();
+      document.removeEventListener('keydown', escHandler);
+    }
+  };
+  document.addEventListener('keydown', escHandler);
+}
+
+async function editTechnician(name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) {
+  if (!name) {
+    throw new Error('Nombre de técnico requerido');
+  }
+  
+  await api.company.updateTechnician(name, name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+  await loadTechnicians();
 }
 
 // ===== Gestión de tipos de mano de obra =====

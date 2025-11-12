@@ -1083,7 +1083,7 @@ export function initQuotes({ getCompanyEmail }) {
               adjustTotalPosition();
             });
             
-            // Abrir diálogo de impresión automáticamente después de detectar tamaño y ajustar posición
+            // Detectar tamaño de página y mostrar alerta antes de imprimir
             win.focus();
             
             setTimeout(() => {
@@ -1092,6 +1092,19 @@ export function initQuotes({ getCompanyEmail }) {
               setTimeout(() => {
                 adjustTotalPosition();
                 detectAndSetPageSize();
+                
+                // Determinar tamaño de página para la alerta
+                const body = win.document.body;
+                const html = win.document.documentElement;
+                const contentHeight = Math.max(
+                  body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight
+                );
+                const mediaCartaMaxHeight = 800;
+                const isMediaCarta = contentHeight <= mediaCartaMaxHeight;
+                const pageSize = isMediaCarta ? 'MEDIA CARTA (5.5" x 8.5")' : 'CARTA COMPLETA (8.5" x 11")';
+                
+                // Mostrar alerta con el tamaño de página
+                alert(`📄 TAMAÑO DE HOJA REQUERIDO:\n\n${pageSize}\n\nAsegúrate de configurar tu impresora con este tamaño antes de imprimir.`);
                 
                 setTimeout(() => {
                   adjustTotalPosition();
@@ -1432,7 +1445,7 @@ export function initQuotes({ getCompanyEmail }) {
           <div class="flex flex-wrap gap-2 md:flex-col md:items-end">
             <button data-act="edit" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">Ver/Editar</button>
             <button data-act="wa" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm whitespace-nowrap">WhatsApp</button>
-            <button data-act="pdf" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm whitespace-nowrap">PDF</button>
+            <button data-act="pdf" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm whitespace-nowrap">🖨️ Imprimir</button>
             <button data-act="del" class="px-4 py-2 bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300 text-sm whitespace-nowrap">Eliminar</button>
           </div>
         </div>`;
@@ -1567,7 +1580,7 @@ export function initQuotes({ getCompanyEmail }) {
         <div class="flex flex-wrap gap-3 mb-4">
           <button id="m-save" class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar cambios</button>
           <button id="m-wa" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">WhatsApp</button>
-          <button id="m-pdf" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">PDF</button>
+          <button id="m-pdf" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">🖨️ Imprimir PDF</button>
           <button id="m-close" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cerrar</button>
         </div>
         <div class="mb-4">
@@ -2336,36 +2349,8 @@ export function initQuotes({ getCompanyEmail }) {
       const text = buildWAText(); if(!text.trim()) return; window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,'_blank');
     });
     q('#m-pdf')?.addEventListener('click',()=>{
-      const rows=readRows();
-      const items = rows.map(r=>({ kind:r.type, description:r.desc, qty:r.qty, unitPrice:r.price, subtotal:(r.qty>0?r.qty:1)*(r.price||0) }));
-      
-      // Calcular descuento para PDF
-      let discountValue = 0;
-      const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-      if (currentDiscount.type === 'percent' && currentDiscount.value > 0) {
-        discountValue = (subtotal * currentDiscount.value) / 100;
-      } else if (currentDiscount.type === 'fixed' && currentDiscount.value > 0) {
-        discountValue = currentDiscount.value;
-      }
-      
-        exportPDFFromData({
-        number: iNumber.value,
-        datetime: iDatetime.value,
-        customer: { name:iName.value, clientPhone:iPhone.value, email:iEmail.value, idNumber: iClientId?.value || '' },
-        vehicle: { 
-          vehicleId: mVehicleId?.value || null,
-          make:iBrand.value, 
-          line:iLine.value, 
-          modelYear:iYear.value, 
-          plate:iPlate.value, 
-          displacement:iCc.value, 
-        },
-        mileage: iMileage.value,
-        validity: iValid.value,
-        specialNotes: modalSpecialNotes,
-        items,
-        discount: discountValue > 0 ? { value: discountValue, type: currentDiscount.type } : null
-      }).catch(e=>alert(e?.message||'Error generando PDF'));
+      // Usar exportPDF que ya maneja templates correctamente
+      exportPDF().catch(e=>alert(e?.message||'Error generando PDF'));
     });
     q('#m-save')?.addEventListener('click', async ()=>{
       try{
@@ -2455,7 +2440,13 @@ export function initQuotes({ getCompanyEmail }) {
     currentQuoteId = d?._id || null;
     iNumber.value = d?.number || nextNumber();
     iNumberBig.textContent = iNumber.value;
-    iDatetime.value = d?.createdAt ? new Date(d.createdAt).toLocaleString() : todayIso();
+    // Usar formato ISO para compatibilidad con exportPDF
+    if (d?.createdAt) {
+      const date = new Date(d.createdAt);
+      iDatetime.value = date.toISOString().slice(0, 16);
+    } else {
+      iDatetime.value = todayIso();
+    }
 
     iClientName.value  = d?.customer?.name  || '';
     iClientPhone.value = d?.customer?.phone || '';
@@ -2495,31 +2486,30 @@ export function initQuotes({ getCompanyEmail }) {
     window.scrollTo({ top: tab.offsetTop, behavior:'smooth' });
   }
 
-  function exportPDFFromDoc(d){
-    // Log para debugging
-    console.log('[exportPDFFromDoc] Documento recibido:', {
-      docId: d._id,
-      itemsCount: d.items?.length || 0,
-      items: d.items
-    });
-    
-    exportPDFFromData({
-      number:d.number,
-      datetime:d.createdAt?new Date(d.createdAt).toLocaleString():todayIso(),
-      customer:d.customer||{},
-      vehicle:d.vehicle||{},
-      validity:d.validity||'',
-      specialNotes:d.specialNotes||[],
-      discount: d.discount || null,
-      items:(d.items||[]).map(it=>({
-        ...it,
-        kind: it.kind || 'PRODUCTO',
-        description: it.description || '',
-        qty: it.qty || null,
-        unitPrice: it.unitPrice || 0,
-        subtotal:(it.qty && it.qty>0 ? it.qty : 1) * (it.unitPrice || 0)
-      })).filter(it => it.description || it.unitPrice > 0 || (it.qty && it.qty > 0))
-    });
+  async function exportPDFFromDoc(d){
+    try {
+      // Log para debugging
+      console.log('[exportPDFFromDoc] Documento recibido:', {
+        docId: d._id,
+        itemsCount: d.items?.length || 0,
+        items: d.items
+      });
+      
+      // Establecer el ID de la cotización actual
+      currentQuoteId = d._id;
+      
+      // Cargar datos del documento en la UI usando la función existente
+      setUIFromQuote(d);
+      
+      // Esperar un momento para que la UI se actualice
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Usar exportPDF que ya maneja templates correctamente
+      await exportPDF();
+    } catch(e) {
+      console.error('[exportPDFFromDoc] Error:', e);
+      alert(e?.message || 'Error generando PDF');
+    }
   }
 
   function openWAFromDoc(d){
@@ -3286,6 +3276,7 @@ export function initQuotes({ getCompanyEmail }) {
     
     const isCombo = type === 'combo';
     const isProduct = type === 'product';
+    const isService = type === 'service';
     
     node.innerHTML = `
       <h3 class="mt-0 mb-4 text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Crear ${type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto')}</h3>
@@ -3340,6 +3331,24 @@ export function initQuotes({ getCompanyEmail }) {
           </div>
         </div>
       </div>
+      ${isCombo || isProduct || isService ? `
+      <div class="mb-4 p-3 bg-blue-900/20 dark:bg-blue-900/20 theme-light:bg-blue-50 rounded-lg border border-blue-700/30 dark:border-blue-700/30 theme-light:border-blue-300">
+        <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2 font-medium">Mano de obra (opcional)</label>
+        <p class="mb-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Estos valores se usarán automáticamente al cerrar la venta para agregar participación técnica.</p>
+        <div class="flex gap-2">
+          <div class="flex-1">
+            <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Valor de mano de obra</label>
+            <input id="price-labor-value" type="number" min="0" step="1" placeholder="0" class="w-full px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          </div>
+          <div class="flex-1">
+            <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Tipo de mano de obra</label>
+            <select id="price-labor-kind" class="w-full px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">-- Seleccione tipo --</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      ` : ''}
       <div id="price-msg" class="mb-4 text-sm"></div>
       <div class="flex gap-2">
         <button id="price-save" class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💾 Guardar</button>
@@ -3355,6 +3364,30 @@ export function initQuotes({ getCompanyEmail }) {
     const saveBtn = node.querySelector('#price-save');
     const cancelBtn = node.querySelector('#price-cancel');
     let selectedItem = null;
+    
+    // Cargar laborKinds en el select si existe
+    if (isCombo || isProduct || isService) {
+      const laborKindSelect = node.querySelector('#price-labor-kind');
+      if (laborKindSelect) {
+        async function loadLaborKinds() {
+          try {
+            const response = await API.get('/api/v1/company/tech-config');
+            const config = response?.config || response || { laborKinds: [] };
+            const laborKinds = config?.laborKinds || [];
+            const laborKindsList = laborKinds.map(k => {
+              const name = typeof k === 'string' ? k : (k?.name || '');
+              return name;
+            }).filter(k => k && k.trim() !== '');
+            
+            laborKindSelect.innerHTML = '<option value="">-- Seleccione tipo --</option>' + 
+              laborKindsList.map(k => `<option value="${k}">${k}</option>`).join('');
+          } catch (err) {
+            console.error('Error cargando laborKinds:', err);
+          }
+        }
+        loadLaborKinds();
+      }
+    }
     
     // Funcionalidad de búsqueda de items (solo para productos) - similar a sales.js
     if (isProduct) {
@@ -3831,6 +3864,20 @@ export function initQuotes({ getCompanyEmail }) {
               isOpenSlot: isOpenSlot
             };
           }).filter(p => p.name);
+        }
+        
+        // Agregar campos de mano de obra si existen
+        if (isCombo || isProduct || isService) {
+          const laborValueInput = node.querySelector('#price-labor-value');
+          const laborKindSelect = node.querySelector('#price-labor-kind');
+          if (laborValueInput && laborKindSelect) {
+            const laborValue = Number(laborValueInput.value || 0) || 0;
+            const laborKind = laborKindSelect.value?.trim() || '';
+            if (laborValue > 0 || laborKind) {
+              payload.laborValue = laborValue;
+              payload.laborKind = laborKind;
+            }
+          }
         }
         
         await API.priceCreate(payload);

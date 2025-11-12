@@ -1144,6 +1144,67 @@
   }
 
   // Función para acortar variables de Handlebars para mejor visualización en el canvas
+  // Función para actualizar campos editables en plantillas de nómina
+  function updatePayrollEditableFields(html) {
+    if (!html || typeof html !== 'string') return html;
+    
+    // Reemplazar campos editables relacionados con salario básico mensual
+    html = html.replace(
+      /(<td[^>]*>.*?SALARIO\s+BÁSICO\s*\(\$\/MES\):.*?<\/td>\s*<td[^>]*>)(.*?)(<\/td>)/gi,
+      (match, opening, content, closing) => {
+        // Si el contenido no tiene variables de Handlebars, agregarlas
+        if (!content.includes('{{') || !content.includes('settlement.technician.basicSalary')) {
+          return opening + '{{#if settlement.technician.basicSalary}}{{money settlement.technician.basicSalary}}{{/if}}' + closing;
+        }
+        return match;
+      }
+    );
+    
+    // Reemplazar campos editables relacionados con horas de trabajo
+    html = html.replace(
+      /(<td[^>]*>.*?HORAS\s+TRABAJO\s+MES:.*?<\/td>\s*<td[^>]*>)(.*?)(<\/td>)/gi,
+      (match, opening, content, closing) => {
+        // Si el contenido no tiene variables de Handlebars, agregarlas
+        if (!content.includes('{{') || !content.includes('settlement.technician.workHoursPerMonth')) {
+          return opening + '{{#if settlement.technician.workHoursPerMonth}}{{settlement.technician.workHoursPerMonth}}{{/if}}' + closing;
+        }
+        return match;
+      }
+    );
+    
+    // Reemplazar campos editables relacionados con salario básico por día
+    html = html.replace(
+      /(<td[^>]*>.*?SALARIO\s+BÁSICO\s*\(DÍA\):.*?<\/td>\s*<td[^>]*>)(.*?)(<\/td>)/gi,
+      (match, opening, content, closing) => {
+        // Si el contenido no tiene variables de Handlebars, agregarlas
+        if (!content.includes('{{') || !content.includes('settlement.technician.basicSalaryPerDay')) {
+          return opening + '{{#if settlement.technician.basicSalaryPerDay}}{{money settlement.technician.basicSalaryPerDay}}{{/if}}' + closing;
+        }
+        return match;
+      }
+    );
+    
+    // Reemplazar campos editables relacionados con tipo de contrato
+    html = html.replace(
+      /(<td[^>]*>.*?TIPO\s+CONTRATO:.*?<\/td>\s*<td[^>]*>)(.*?)(<\/td>)/gi,
+      (match, opening, content, closing) => {
+        // Si el contenido no tiene variables de Handlebars, agregarlas
+        if (!content.includes('{{') || !content.includes('settlement.technician.contractType')) {
+          return opening + '{{#if settlement.technician.contractType}}{{settlement.technician.contractType}}{{/if}}' + closing;
+        }
+        return match;
+      }
+    );
+    
+    // También buscar y reemplazar texto literal de campos editables
+    html = html.replace(/\[Editar\s+salario\s+básico\]/gi, '{{#if settlement.technician.basicSalary}}{{money settlement.technician.basicSalary}}{{/if}}');
+    html = html.replace(/\[Editar\s+horas\]/gi, '{{#if settlement.technician.workHoursPerMonth}}{{settlement.technician.workHoursPerMonth}}{{/if}}');
+    html = html.replace(/\[Editar\s+salario\s+diario\]/gi, '{{#if settlement.technician.basicSalaryPerDay}}{{money settlement.technician.basicSalaryPerDay}}{{/if}}');
+    html = html.replace(/\[Editar\s+tipo\s+de\s+contrato\]/gi, '{{#if settlement.technician.contractType}}{{settlement.technician.contractType}}{{/if}}');
+    
+    return html;
+  }
+
   function shortenHandlebarsVars(html) {
     if (!html) return html;
     
@@ -2131,6 +2192,15 @@
           { label: 'Lista de ingresos', icon: '📈', value: '{{#each settlement.itemsByType.earnings}}\\n• {{name}}: {{money value}}\\n{{/each}}', multiline: true },
           { label: 'Lista de descuentos', icon: '📉', value: '{{#each settlement.itemsByType.deductions}}\\n• {{name}}: {{money value}}\\n{{/each}}', multiline: true }
         ])}
+      </div>
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">💼 Datos del Técnico/Empleado</h4>
+        ${createFriendlyButtons([
+          { label: 'Salario Básico ($/MES)', icon: '💰', value: '{{#if settlement.technician.basicSalary}}{{money settlement.technician.basicSalary}}{{/if}}' },
+          { label: 'Horas Trabajo MES', icon: '⏰', value: '{{#if settlement.technician.workHoursPerMonth}}{{settlement.technician.workHoursPerMonth}}{{/if}}' },
+          { label: 'Salario Básico (DÍA)', icon: '💵', value: '{{#if settlement.technician.basicSalaryPerDay}}{{money settlement.technician.basicSalaryPerDay}}{{/if}}' },
+          { label: 'Tipo Contrato', icon: '📄', value: '{{#if settlement.technician.contractType}}{{settlement.technician.contractType}}{{/if}}' }
+        ])}
       </div>`;
     } else {
       html += `
@@ -2393,7 +2463,13 @@
           console.log('[loadExistingFormat] HTML original guardado, longitud:', template.contentHtml.length);
           
           // Convertir variables largas a formato corto para el canvas
-          const shortHtml = shortenHandlebarsVars(template.contentHtml);
+          let shortHtml = shortenHandlebarsVars(template.contentHtml);
+          
+          // Si es una plantilla de nómina, actualizar campos editables con variables
+          if (template.type === 'payroll') {
+            shortHtml = updatePayrollEditableFields(shortHtml);
+          }
+          
           console.log('[loadExistingFormat] HTML acortado generado, longitud:', shortHtml.length);
           console.log('[loadExistingFormat] Ejemplo de acortamiento:', {
             original: template.contentHtml.substring(0, 200),
@@ -3689,6 +3765,40 @@
   function createPayrollTemplate(canvas) {
     console.log('🎨 Creando plantilla de nómina completa...');
     
+    // Establecer tamaño de página a media carta (half-letter)
+    const canvasParent = canvas.parentElement;
+    if (canvasParent) {
+      const halfLetterWidth = 14 * 37.795275591; // 14cm en px
+      const halfLetterHeight = 21.6 * 37.795275591; // 21.6cm en px
+      canvas.style.width = `${halfLetterWidth}px`;
+      canvas.style.height = `${halfLetterHeight}px`;
+      canvas.style.minHeight = `${halfLetterHeight}px`;
+      canvas.style.maxHeight = `${halfLetterHeight}px`;
+    }
+    
+    // Agregar estilos globales para media carta y encoding UTF-8
+    const globalStyles = document.createElement('style');
+    globalStyles.id = 'payroll-template-global-styles';
+    globalStyles.textContent = `
+      @page {
+        size: 5.5in 8.5in; /* Half-letter size */
+        margin: 0.5in;
+      }
+      @media print {
+        body {
+          margin: 0;
+          padding: 0;
+        }
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+      }
+    `;
+    if (!document.getElementById('payroll-template-global-styles')) {
+      document.head.appendChild(globalStyles);
+    }
+    
     // Logo/empresa (centrado arriba) - editable con imagen o variable
     const logoBox = document.createElement('div');
     logoBox.className = 'tpl-element';
@@ -3757,19 +3867,19 @@
         </tr>
         <tr>
           <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">SALARIO BÁSICO ($/MES):</td>
-          <td style="border: 1px solid #000; padding: 6px;">[Editar salario básico]</td>
+          <td style="border: 1px solid #000; padding: 6px;">{{#if settlement.technician.basicSalary}}{{money settlement.technician.basicSalary}}{{/if}}</td>
         </tr>
         <tr>
           <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">HORAS TRABAJO MES:</td>
-          <td style="border: 1px solid #000; padding: 6px;">[Editar horas]</td>
+          <td style="border: 1px solid #000; padding: 6px;">{{#if settlement.technician.workHoursPerMonth}}{{settlement.technician.workHoursPerMonth}}{{/if}}</td>
         </tr>
         <tr>
           <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">SALARIO BÁSICO (DÍA):</td>
-          <td style="border: 1px solid #000; padding: 6px;">[Editar salario diario]</td>
+          <td style="border: 1px solid #000; padding: 6px;">{{#if settlement.technician.basicSalaryPerDay}}{{money settlement.technician.basicSalaryPerDay}}{{/if}}</td>
         </tr>
         <tr>
           <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">TIPO CONTRATO:</td>
-          <td style="border: 1px solid #000; padding: 6px;">[Editar tipo de contrato]</td>
+          <td style="border: 1px solid #000; padding: 6px;">{{#if settlement.technician.contractType}}{{settlement.technician.contractType}}{{/if}}</td>
         </tr>
       </table>
     `;
@@ -3890,10 +4000,12 @@
       <style>
         .payroll-earnings-table {
           width: 100%;
-          border-collapse: collapse;
+          border-collapse: collapse !important;
+          border-spacing: 0 !important;
           font-family: Arial, sans-serif;
           table-layout: fixed;
           margin: 0;
+          border: 2px solid #000 !important;
         }
         .payroll-earnings-table th {
           border: 2px solid #000 !important;
@@ -3903,6 +4015,7 @@
           font-size: 10px;
           background: white;
           text-align: center;
+          border-collapse: collapse !important;
         }
         .payroll-earnings-table td {
           border: 1px solid #000 !important;
@@ -3910,20 +4023,36 @@
           color: #000;
           font-size: 10px;
           text-align: center;
+          border-collapse: collapse !important;
         }
         .payroll-earnings-table td:first-child {
           text-align: left;
         }
+        .payroll-earnings-table thead tr:first-child th:first-child {
+          border-top-left-radius: 0 !important;
+        }
+        .payroll-earnings-table thead tr:first-child th:last-child {
+          border-top-right-radius: 0 !important;
+        }
+        .payroll-earnings-table tbody tr:last-child td:first-child {
+          border-bottom-left-radius: 0 !important;
+        }
+        .payroll-earnings-table tbody tr:last-child td:last-child {
+          border-bottom-right-radius: 0 !important;
+        }
         @media print {
           .payroll-earnings-table {
             border-collapse: collapse !important;
+            border-spacing: 0 !important;
             width: 100% !important;
+            border: 2px solid #000 !important;
           }
           .payroll-earnings-table th,
           .payroll-earnings-table td {
             border: 1px solid #000 !important;
             padding: 4px !important;
             font-size: 9px !important;
+            border-collapse: collapse !important;
           }
           .payroll-earnings-table th {
             border-width: 2px !important;
@@ -3933,26 +4062,27 @@
       <table class="payroll-earnings-table">
         <thead>
           <tr>
-            <th style="width: 50%;">DESCRIPCION</th>
-            <th style="width: 15%;">DIAS</th>
+            <th style="width: 50%;">DESCRIPCIÓN</th>
+            <th style="width: 15%;">DÍAS</th>
             <th style="width: 17%;">TRANSP.</th>
             <th style="width: 18%;">DEVENGADO</th>
           </tr>
         </thead>
         <tbody>
-          {{#each settlement.itemsByType.earnings}}
-          <tr>
-            <td>{{name}}</td>
-            <td>-</td>
-            <td>-</td>
-            <td>{{money value}}</td>
-          </tr>
-          {{/each}}
-          {{#unless settlement.itemsByType.earnings}}
-          <tr>
-            <td colspan="4" style="text-align: center; color: #666;">Sin ingresos</td>
-          </tr>
-          {{/unless}}
+          {{#if settlement.itemsByType.earnings}}
+            {{#each settlement.itemsByType.earnings}}
+            <tr>
+              <td>{{name}}</td>
+              <td>-</td>
+              <td>-</td>
+              <td>{{money value}}</td>
+            </tr>
+            {{/each}}
+          {{else}}
+            <tr>
+              <td colspan="4" style="text-align: center; color: #666;">Sin ingresos</td>
+            </tr>
+          {{/if}}
         </tbody>
       </table>
     `;
@@ -3988,10 +4118,12 @@
       <style>
         .payroll-deductions-table {
           width: 100%;
-          border-collapse: collapse;
+          border-collapse: collapse !important;
+          border-spacing: 0 !important;
           font-family: Arial, sans-serif;
           table-layout: fixed;
           margin: 0;
+          border: 2px solid #000 !important;
         }
         .payroll-deductions-table th {
           border: 2px solid #000 !important;
@@ -4001,6 +4133,7 @@
           font-size: 10px;
           background: white;
           text-align: center;
+          border-collapse: collapse !important;
         }
         .payroll-deductions-table td {
           border: 1px solid #000 !important;
@@ -4008,20 +4141,36 @@
           color: #000;
           font-size: 10px;
           text-align: center;
+          border-collapse: collapse !important;
         }
         .payroll-deductions-table td:first-child {
           text-align: left;
         }
+        .payroll-deductions-table thead tr:first-child th:first-child {
+          border-top-left-radius: 0 !important;
+        }
+        .payroll-deductions-table thead tr:first-child th:last-child {
+          border-top-right-radius: 0 !important;
+        }
+        .payroll-deductions-table tbody tr:last-child td:first-child {
+          border-bottom-left-radius: 0 !important;
+        }
+        .payroll-deductions-table tbody tr:last-child td:last-child {
+          border-bottom-right-radius: 0 !important;
+        }
         @media print {
           .payroll-deductions-table {
             border-collapse: collapse !important;
+            border-spacing: 0 !important;
             width: 100% !important;
+            border: 2px solid #000 !important;
           }
           .payroll-deductions-table th,
           .payroll-deductions-table td {
             border: 1px solid #000 !important;
             padding: 4px !important;
             font-size: 9px !important;
+            border-collapse: collapse !important;
           }
           .payroll-deductions-table th {
             border-width: 2px !important;
@@ -4037,18 +4186,19 @@
           </tr>
         </thead>
         <tbody>
-          {{#each settlement.itemsByType.deductions}}
-          <tr>
-            <td>{{name}}</td>
-            <td>-</td>
-            <td>{{money value}}</td>
-          </tr>
-          {{/each}}
-          {{#unless settlement.itemsByType.deductions}}
-          <tr>
-            <td colspan="3" style="text-align: center; color: #666;">Sin descuentos</td>
-          </tr>
-          {{/unless}}
+          {{#if settlement.itemsByType.deductions}}
+            {{#each settlement.itemsByType.deductions}}
+            <tr>
+              <td>{{name}}</td>
+              <td>-</td>
+              <td>{{money value}}</td>
+            </tr>
+            {{/each}}
+          {{else}}
+            <tr>
+              <td colspan="3" style="text-align: center; color: #666;">Sin descuentos</td>
+            </tr>
+          {{/if}}
         </tbody>
       </table>
     `;
@@ -4259,6 +4409,12 @@
       content = restoreHandlebarsVars(content, window.templateOriginalHtml[formatId]);
     }
     
+    // Si es una plantilla de nómina, actualizar campos editables con variables
+    let templateType = window.currentTemplateSession?.type;
+    if (templateType === 'payroll') {
+      content = updatePayrollEditableFields(content);
+    }
+    
     // Asegurar que las variables de Handlebars en las tablas se preserven correctamente
     // Reemplazar cualquier escape HTML de las llaves de Handlebars
     content = content.replace(/&#123;&#123;/g, '{{');
@@ -4408,7 +4564,13 @@
 
     const session = window.currentTemplateSession;
     let templateName = session?.name;
-    let templateType = session?.type || 'invoice';
+    // templateType ya fue declarado arriba, solo reasignar si es necesario
+    if (!templateType) {
+      templateType = session?.type || 'invoice';
+    } else {
+      // Asegurar que templateType tenga un valor por defecto si no está definido
+      templateType = templateType || session?.type || 'invoice';
+    }
     let isUpdate = session?.action === 'edit';
 
     if (!templateName || session?.action === 'create') {

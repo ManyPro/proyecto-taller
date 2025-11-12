@@ -39,7 +39,11 @@ const PriceEntrySchema = new mongoose.Schema({
   // Clave → valor (número o texto) - para servicios con variables
   variables: { type: Map, of: mongoose.Schema.Types.Mixed, default: {} },
 
-  total: { type: Number, default: 0 }
+  total: { type: Number, default: 0 },
+  
+  // Valor de mano de obra y tipo (para combos y productos)
+  laborValue: { type: Number, default: 0, min: 0 }, // Valor base de mano de obra
+  laborKind: { type: String, trim: true, default: '' } // Tipo de mano de obra (MOTOR, SUSPENSION, FRENOS, etc.)
 }, { timestamps: true });
 
 // Índice único: companyId + vehicleId + name + type (nuevo modelo) - sparse para permitir datos legacy sin name

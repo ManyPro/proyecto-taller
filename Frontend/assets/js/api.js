@@ -121,13 +121,44 @@ const API = {
   company: {
     getPreferences: () => http.get('/api/v1/company/preferences').then(r=> r.preferences || { laborPercents: [] }),
     setPreferences: (prefs) => http.put('/api/v1/company/preferences', prefs).then(r=> r.preferences || {}),
-    getTechnicians: () => http.get('/api/v1/company/technicians').then(r=> r.technicians || []),
-    addTechnician: async (name) => {
-      const res = await http.post('/api/v1/company/technicians', { name });
+    getTechnicians: async () => {
+      const response = await http.get('/api/v1/company/technicians');
+      const techs = response?.technicians || [];
+      // Normalizar: extraer nombres como strings
+      return Array.isArray(techs) ? techs.map(t => {
+        if (typeof t === 'string') return t.trim();
+        if (t && typeof t === 'object' && t.name) return String(t.name).trim();
+        return '';
+      }).filter(n => n && n.trim() !== '') : [];
+    },
+    addTechnician: async (name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) => {
+      const res = await http.post('/api/v1/company/technicians', { 
+        name,
+        identification: identification || '',
+        basicSalary: (basicSalary !== null && basicSalary !== undefined && basicSalary !== '') ? Number(basicSalary) : null,
+        workHoursPerMonth: (workHoursPerMonth !== null && workHoursPerMonth !== undefined && workHoursPerMonth !== '') ? Number(workHoursPerMonth) : null,
+        basicSalaryPerDay: (basicSalaryPerDay !== null && basicSalaryPerDay !== undefined && basicSalaryPerDay !== '') ? Number(basicSalaryPerDay) : null,
+        contractType: contractType || ''
+      });
       return res.technicians || [];
     },
     deleteTechnician: async (name) => {
       const res = await http.del(`/api/v1/company/technicians/${encodeURIComponent(String(name||''))}`);
+      return res.technicians || [];
+    },
+    removeTechnician: async (name) => {
+      const res = await http.del(`/api/v1/company/technicians/${encodeURIComponent(String(name||''))}`);
+      return res.technicians || [];
+    },
+    updateTechnician: async (currentName, newName, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) => {
+      const res = await http.put(`/api/v1/company/technicians/${encodeURIComponent(String(currentName||''))}`, {
+        name: newName,
+        identification: identification || '',
+        basicSalary: (basicSalary !== null && basicSalary !== undefined && basicSalary !== '') ? Number(basicSalary) : null,
+        workHoursPerMonth: (workHoursPerMonth !== null && workHoursPerMonth !== undefined && workHoursPerMonth !== '') ? Number(workHoursPerMonth) : null,
+        basicSalaryPerDay: (basicSalaryPerDay !== null && basicSalaryPerDay !== undefined && basicSalaryPerDay !== '') ? Number(basicSalaryPerDay) : null,
+        contractType: contractType || ''
+      });
       return res.technicians || [];
     },
     getTechConfig: () => http.get('/api/v1/company/tech-config').then(r=> r.config || { laborKinds:[], technicians:[] }),
@@ -138,7 +169,18 @@ const API = {
         const merged = { ...current, ...updates };
         return http.put('/api/v1/company/tech-config', merged).then(res => res.config || merged);
       });
-    }
+    },
+    togglePublicCatalog: (enabled) => http.patch('/api/v1/company/public-catalog', { enabled }).then(r => !!r.publicCatalogEnabled),
+    getFeatures: () => http.get('/api/v1/company/features').then(r => r.features || {}),
+    getToggles: () => http.get('/api/v1/company/features').then(r => ({
+      features: r?.features || {},
+      featureOptions: r?.featureOptions || {},
+      restrictions: r?.restrictions || {}
+    })),
+    setFeatures: (patch) => http.patch('/api/v1/company/features', patch).then(r => r.features || {}),
+    getFeatureOptions: () => http.get('/api/v1/company/feature-options').then(r => r.featureOptions || {}),
+    setFeatureOptions: (patch) => http.patch('/api/v1/company/feature-options', patch).then(r => r.featureOptions || {}),
+    getRestrictions: () => http.get('/api/v1/company/restrictions').then(r => r.restrictions || {})
   },
 
   // Empresa activa
@@ -298,28 +340,6 @@ const API = {
       return http.get(`/api/v1/sales/profile/by-id/${id}`);
     },
     setTechnician: (id, technician) => http.patch(`/api/v1/sales/${id}/technician`, { technician })
-  },
-  company: {
-    getTechnicians: () => http.get('/api/v1/company/technicians').then(r => r.technicians || []),
-    addTechnician: (name) => http.post('/api/v1/company/technicians', { name }).then(r => r.technicians || []),
-    removeTechnician: (name) => http.del(`/api/v1/company/technicians/${encodeURIComponent(name)}`).then(r => r.technicians || []),
-    getPreferences: () => http.get('/api/v1/company/preferences').then(r => r.preferences || { laborPercents: [] }),
-    setPreferences: (prefs) => http.put('/api/v1/company/preferences', prefs).then(r => r.preferences || { laborPercents: [] }),
-    togglePublicCatalog: (enabled) => http.patch('/api/v1/company/public-catalog', { enabled }).then(r => !!r.publicCatalogEnabled),
-    // Note: getFeatures returns just the features object for backward compatibility
-    getFeatures: () => http.get('/api/v1/company/features').then(r => r.features || {}),
-    // New: get all toggles at once { features, featureOptions, restrictions }
-    getToggles: () => http.get('/api/v1/company/features').then(r => ({
-      features: r?.features || {},
-      featureOptions: r?.featureOptions || {},
-      restrictions: r?.restrictions || {}
-    })),
-    setFeatures: (patch) => http.patch('/api/v1/company/features', patch).then(r => r.features || {}),
-    // Feature options (sub-features per module)
-    getFeatureOptions: () => http.get('/api/v1/company/feature-options').then(r => r.featureOptions || {}),
-    setFeatureOptions: (patch) => http.patch('/api/v1/company/feature-options', patch).then(r => r.featureOptions || {}),
-    // Restrictions (read-only for company in general, but exposed for UI masking)
-    getRestrictions: () => http.get('/api/v1/company/restrictions').then(r => r.restrictions || {})
   },
   accounts: {
     list: () => http.get('/api/v1/cashflow/accounts'),

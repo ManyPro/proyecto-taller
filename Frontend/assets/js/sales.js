@@ -605,16 +605,26 @@ function printSaleTicket(sale){
                 adjustTotalPosition();
                 detectAndSetPageSize();
                 
+                // Determinar tamaño de página para la alerta
+                const body = win.document.body;
+                const html = win.document.documentElement;
+                const contentHeight = Math.max(
+                  body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight
+                );
+                const mediaCartaMaxHeight = 800;
+                const isMediaCarta = contentHeight <= mediaCartaMaxHeight;
+                const pageSize = isMediaCarta ? 'MEDIA CARTA (5.5" x 8.5")' : 'CARTA COMPLETA (8.5" x 11")';
+                
+                // Mostrar alerta con el tamaño de página
+                alert(`📄 TAMAÑO DE HOJA REQUERIDO:\n\n${pageSize}\n\nAsegúrate de configurar tu impresora con este tamaño antes de imprimir.`);
+                
                 // Abrir diálogo de impresión automáticamente con el tamaño correcto
-                // La ventana permanecerá abierta para ver logs si el usuario cancela la impresión
                 setTimeout(() => {
                   adjustTotalPosition();
                   requestAnimationFrame(() => {
                     adjustTotalPosition();
                     // Abrir diálogo de impresión automáticamente
                     win.print();
-                    // NO cerrar automáticamente - dejar abierta para ver logs
-                    // Cuando esté al 100%, cambiar a: setTimeout(() => { try { win.close(); } catch {} }, 100);
                   });
                 }, 300);
               }, 500);
@@ -817,6 +827,28 @@ function printWorkOrder(){
             // Abrir diálogo de impresión automáticamente después de detectar tamaño
             win.focus();
             
+            // Mostrar alerta con el tamaño de página (siempre media carta para orden de trabajo)
+            alert('📄 TAMAÑO DE HOJA REQUERIDO:\n\nMEDIA CARTA (5.5" x 8.5")\n\nAsegúrate de configurar tu impresora con este tamaño antes de imprimir.');
+            
+            // Forzar tamaño a media carta para orden de trabajo
+            let pageSizeStyle = win.document.getElementById('dynamic-page-size');
+            if (!pageSizeStyle) {
+              pageSizeStyle = win.document.createElement('style');
+              pageSizeStyle.id = 'dynamic-page-size';
+              win.document.head.appendChild(pageSizeStyle);
+            }
+            pageSizeStyle.textContent = `
+              @page {
+                size: 5.5in 8.5in;
+                margin: 10mm;
+              }
+              @media print {
+                body {
+                  max-height: 216mm !important;
+                }
+              }
+            `;
+            
             // Esperar a que se cargue y detectar tamaño de página, luego abrir diálogo de impresión automáticamente
             setTimeout(() => {
               detectAndSetPageSize();
@@ -826,15 +858,12 @@ function printWorkOrder(){
                 detectAndSetPageSize();
                 
                 // Abrir diálogo de impresión automáticamente con el tamaño correcto
-                // La ventana permanecerá abierta para ver logs si el usuario cancela la impresión
                 setTimeout(() => {
                   detectAndSetPageSize();
                   requestAnimationFrame(() => {
                     detectAndSetPageSize();
                     // Abrir diálogo de impresión automáticamente
                     win.print();
-                    // NO cerrar automáticamente - dejar abierta para ver logs
-                    // Cuando esté al 100%, cambiar a: setTimeout(() => { try { win.close(); } catch {} }, 100);
                   });
                 }, 300);
               }, 500);
@@ -1014,8 +1043,29 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
 let companyPrefs = { laborPercents: [] };
 let techConfig = { laborKinds: [], technicians: [] };
+// Función helper para extraer el nombre del técnico (reutilizable)
+function extractTechnicianName(obj) {
+  if (!obj) return '';
+  if (typeof obj === 'string') return obj.trim();
+  if (typeof obj === 'object') {
+    if (obj.name) return String(obj.name).trim();
+    // Si es un objeto con caracteres indexados (ej: {0: 'J', 1: 'o', 2: 'h', 3: 'n'})
+    const keys = Object.keys(obj).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b));
+    if (keys.length > 0) {
+      return keys.map(k => String(obj[k] || '')).join('').trim();
+    }
+  }
+  return '';
+}
+
 async function ensureCompanyData(){
-  try { companyTechnicians = await API.company.getTechnicians(); } catch { companyTechnicians = []; }
+  try { 
+    const techs = await API.company.getTechnicians();
+    // Normalizar técnicos: extraer solo los nombres como strings
+    companyTechnicians = Array.isArray(techs) ? techs.map(t => extractTechnicianName(t)).filter(n => n && n.trim() !== '') : [];
+  } catch { 
+    companyTechnicians = []; 
+  }
   try { companyPrefs = await API.company.getPreferences(); } catch { companyPrefs = { laborPercents: [] }; }
   try { 
     const response = await API.get('/api/v1/company/tech-config');
@@ -1028,49 +1078,92 @@ async function ensureCompanyData(){
 function buildCloseModalContent(){
   const total = current?.total || 0;
   const wrap = document.createElement('div');
+  wrap.className = 'space-y-4';
   wrap.innerHTML = `
-    <h3>Cerrar venta</h3>
-    <div class="muted" style="font-size:12px;margin-bottom:6px;">Total venta: <strong>${money(total)}</strong></div>
-    <div id="cv-payments-block" class="card" style="padding:10px; margin-bottom:12px;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-        <strong>Formas de pago</strong>
-        <button id="cv-add-payment" type="button" class="small secondary">+ Agregar</button>
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Cerrar venta</h3>
+    </div>
+    <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">
+      Total venta: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(total)}</strong>
+    </div>
+    <div id="cv-payments-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+      <div class="flex justify-between items-center mb-4">
+        <strong class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">Formas de pago</strong>
+        <button id="cv-add-payment" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">+ Agregar</button>
       </div>
-      <table style="width:100%; font-size:12px; border-collapse:collapse;" id="cv-payments-table">
+      <table class="w-full text-xs border-collapse" id="cv-payments-table">
         <thead>
-          <tr style="text-align:left;">
-            <th style="padding:4px 2px;">Método</th>
-            <th style="padding:4px 2px;">Cuenta</th>
-            <th style="padding:4px 2px; width:90px;">Monto</th>
-            <th style="padding:4px 2px; width:32px;"></th>
+          <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
+            <th class="py-2 px-2 text-left text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">Método</th>
+            <th class="py-2 px-2 text-left text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">Cuenta</th>
+            <th class="py-2 px-2 text-left text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold w-24">Monto</th>
+            <th class="py-2 px-2 w-8"></th>
           </tr>
         </thead>
         <tbody id="cv-payments-body"></tbody>
       </table>
-      <div id="cv-payments-summary" style="margin-top:6px; font-size:11px;" class="muted"></div>
+      <div id="cv-payments-summary" class="mt-3 text-xs"></div>
     </div>
-    <div class="grid-2" style="gap:12px;">
-      <div style="display:none;">
-        <label>Técnico (cierre)</label>
-        <select id="cv-technician"></select>
-        <div id="cv-initial-tech" class="muted" style="margin-top:4px;font-size:11px;display:none;"></div>
+    <div id="cv-labor-commissions-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Desglose de mano de obra</label>
+          <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Agrega líneas para asignar participación técnica. Los valores pueden venir del combo/servicio o ingresarse manualmente.</p>
+        </div>
+        <button id="cv-add-commission" type="button" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">+ Agregar línea</button>
       </div>
-      <div style="display:none;">
-        <label>% Técnico</label>
-        <select id="cv-laborPercent"></select>
-        <input id="cv-laborPercentManual" type="number" min="0" max="100" placeholder="Manual %" style="margin-top:4px;display:none;" />
-        <button id="cv-toggle-percent" type="button" class="small" style="margin-top:4px;">Manual %</button>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs border-collapse">
+          <thead>
+            <tr class="border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-400 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-200">
+              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Técnico</th>
+              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Tipo de MO</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Valor MO</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">% Técnico</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Participación</th>
+              <th class="py-3 px-3 w-10"></th>
+            </tr>
+          </thead>
+          <tbody id="cv-comm-body">
+            <tr>
+              <td colspan="6" class="py-8 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">
+                <div class="flex flex-col items-center gap-2">
+                  <span>No hay líneas de participación técnica</span>
+                  <span class="text-xs">Haz clic en "+ Agregar línea" para comenzar</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <div style="grid-column:1/3;">
-        <label>Comprobante (opcional)</label>
-        <input id="cv-receipt" type="file" accept="image/*,.pdf" />
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="hidden">
+        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Técnico (cierre)</label>
+        <select id="cv-technician" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+        <div id="cv-initial-tech" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 hidden"></div>
       </div>
-      <div style="grid-column:1/3; font-size:12px; display:none;" class="muted" id="cv-laborSharePreview"></div>
-      <div class="sticky-actions" style="grid-column:1/3; margin-top:8px; display:flex; gap:8px;">
-        <button id="cv-confirm">Confirmar cierre</button>
-        <button type="button" class="secondary" id="cv-cancel">Cancelar</button>
+      <div class="hidden">
+        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">% Técnico (Mano de obra)</label>
+        <select id="cv-laborPercent" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"></select>
+        <input id="cv-laborPercentManual" type="number" min="0" max="100" step="0.1" placeholder="Ej: 15.5" class="w-full px-3 py-2 mt-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hidden" />
+        <div class="flex items-center gap-2 mt-2">
+          <button id="cv-toggle-percent" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 font-medium">📝 Manual %</button>
+        </div>
+        <div id="cv-laborSharePreview" class="mt-3 p-2 bg-blue-900/20 dark:bg-blue-900/20 theme-light:bg-blue-50 rounded border border-blue-700/30 dark:border-blue-700/30 theme-light:border-blue-300 text-xs text-blue-300 dark:text-blue-300 theme-light:text-blue-700 font-medium hidden"></div>
       </div>
-      <div id="cv-msg" class="muted" style="grid-column:1/3; margin-top:6px; font-size:12px;"></div>
+      <div class="md:col-span-2">
+        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Comprobante (opcional)</label>
+        <div class="relative">
+          <input id="cv-receipt" type="file" accept="image/*,.pdf" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-600/50 file:text-white file:cursor-pointer hover:file:bg-slate-600" />
+        </div>
+        <div id="cv-receipt-status" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin archivos seleccionados</div>
+      </div>
+      <div class="md:col-span-2 flex gap-3 mt-4">
+        <button id="cv-confirm" class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Confirmar cierre</button>
+        <button type="button" id="cv-cancel" class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
+      </div>
+      <div id="cv-msg" class="md:col-span-2 mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
     </div>`;
   return wrap;
 }
@@ -1101,7 +1194,10 @@ function openCloseModal(){
 
 function fillCloseModal(){
   const techSel = document.getElementById('cv-technician');
-  techSel.innerHTML = '<option value="">-- Ninguno --</option>' + (companyTechnicians||[]).map(t=>`<option value="${t}">${t}</option>`).join('') + '<option value="__ADD_TECH__">+ Agregar técnico…</option>';
+  // companyTechnicians ya está normalizado como array de strings en ensureCompanyData
+  techSel.innerHTML = '<option value="">-- Ninguno --</option>' + 
+    (companyTechnicians||[]).map(t=>`<option value="${t}">${t}</option>`).join('') + 
+    '<option value="__ADD_TECH__">+ Agregar técnico…</option>';
   const initialTechLabel = document.getElementById('cv-initial-tech');
   if(current){
     if(current.initialTechnician){
@@ -1115,7 +1211,7 @@ function fillCloseModal(){
     }
   }
 
-  // Labor percent options (ocultos pero necesarios para compatibilidad)
+  // Labor percent options
   const percSel = document.getElementById('cv-laborPercent');
   const perc = (companyPrefs?.laborPercents||[]);
   percSel.innerHTML = '<option value="">-- % --</option>' + perc.map(p=>`<option value="${p}">${p}%</option>`).join('');
@@ -1123,36 +1219,77 @@ function fillCloseModal(){
   const percentToggle = document.getElementById('cv-toggle-percent');
   const sharePrev = document.getElementById('cv-laborSharePreview');
   const msg = document.getElementById('cv-msg');
+  
+  // Función para calcular y mostrar el preview del labor share
+  function updateLaborSharePreview() {
+    if (!sharePrev) return;
+    const laborValue = Number(current?.laborValue || 0);
+    const percent = Number(percSel.value || manualPercentInput.value || 0);
+    
+    if (laborValue > 0 && percent > 0) {
+      const share = Math.round(laborValue * percent / 100);
+      sharePrev.innerHTML = `<span class="font-semibold">💰 Participación calculada:</span> <span class="text-blue-200 dark:text-blue-200 theme-light:text-blue-600">${money(share)}</span> <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">(${percent}% de ${money(laborValue)})</span>`;
+      sharePrev.classList.remove('hidden');
+    } else {
+      sharePrev.innerHTML = '';
+      sharePrev.classList.add('hidden');
+    }
+  }
+  
+  // Toggle entre select y input manual
+  let isManualMode = false;
+  if (percentToggle && manualPercentInput && percSel) {
+    percentToggle.addEventListener('click', () => {
+      isManualMode = !isManualMode;
+      if (isManualMode) {
+        percSel.classList.add('hidden');
+        manualPercentInput.classList.remove('hidden');
+        manualPercentInput.value = percSel.value || '';
+        percentToggle.textContent = 'Usar lista';
+        manualPercentInput.focus();
+      } else {
+        percSel.classList.remove('hidden');
+        manualPercentInput.classList.add('hidden');
+        percSel.value = manualPercentInput.value || '';
+        percentToggle.textContent = 'Manual %';
+        updateLaborSharePreview();
+      }
+    });
+    
+    // Listeners para actualizar preview
+    percSel.addEventListener('change', updateLaborSharePreview);
+    manualPercentInput.addEventListener('input', updateLaborSharePreview);
+  }
+  
+  // Actualizar preview inicial
+  updateLaborSharePreview();
 
-  // ---- Desglose por maniobra (dinámico, sin tocar el HTML base) ----
+  // Listener para actualizar estado del archivo
+  const receiptInput = document.getElementById('cv-receipt');
+  const receiptStatus = document.getElementById('cv-receipt-status');
+  if (receiptInput && receiptStatus) {
+    receiptInput.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        receiptStatus.textContent = `Archivo seleccionado: ${file.name}`;
+        receiptStatus.classList.remove('text-slate-400', 'dark:text-slate-400', 'theme-light:text-slate-600');
+        receiptStatus.classList.add('text-green-400', 'dark:text-green-400', 'theme-light:text-green-600');
+      } else {
+        receiptStatus.textContent = 'Sin archivos seleccionados';
+        receiptStatus.classList.remove('text-green-400', 'dark:text-green-400', 'theme-light:text-green-600');
+        receiptStatus.classList.add('text-slate-400', 'dark:text-slate-400', 'theme-light:text-slate-600');
+      }
+    });
+  }
+
+  // ---- Desglose por maniobra (PRINCIPAL - siempre visible) ----
+  // La tabla ya está en el HTML, solo necesitamos obtener referencias y configurar eventos
   try {
-    const grid = document.querySelector('.grid');
-    const wrap = document.createElement('div');
-    wrap.className = 'md:col-span-2';
-    wrap.innerHTML = `
-      <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Desglose de mano de obra</label>
-      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4">
-        <div class="flex justify-between items-center mb-4">
-          <strong class="text-white dark:text-white theme-light:text-slate-900 text-base">Participación técnica</strong>
-          <button id="cv-add-commission" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">+ Línea</button>
-        </div>
-        <table class="w-full text-xs border-collapse">
-          <thead>
-            <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
-              <th class="py-2 px-2 text-left text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">Técnico</th>
-              <th class="py-2 px-2 text-left text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">Tipo</th>
-              <th class="py-2 px-2 text-right text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">Valor MO</th>
-              <th class="py-2 px-2 text-right text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">% Tec</th>
-              <th class="py-2 px-2 text-right text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">Participación</th>
-              <th class="py-2 px-2 w-8"></th>
-            </tr>
-          </thead>
-          <tbody id="cv-comm-body"></tbody>
-        </table>
-      </div>`;
-    grid.insertBefore(wrap, grid.querySelector('#cv-receipt')?.parentElement);
-
-    const tbody = wrap.querySelector('#cv-comm-body');
+    const tbody = document.getElementById('cv-comm-body');
+    if (!tbody) {
+      console.error('No se encontró el elemento #cv-comm-body en el modal de cierre');
+      return;
+    }
     
     // Función para obtener laborKinds actualizados
     async function getLaborKinds() {
@@ -1170,7 +1307,8 @@ function fillCloseModal(){
     
     async function addLine(pref={}){
       const tr = document.createElement('tr');
-      const techOpts = ['',''].concat(companyTechnicians||[]).map(t=> `<option value="${t}">${t}</option>`).join('');
+      // companyTechnicians ya está normalizado como array de strings en ensureCompanyData
+      const techOpts = '<option value="">-- Seleccione técnico --</option>' + (companyTechnicians||[]).map(t=> `<option value="${t}">${t}</option>`).join('');
       
       // Obtener laborKinds actualizados
       const laborKinds = await getLaborKinds();
@@ -1185,12 +1323,12 @@ function fillCloseModal(){
       const kindOpts = '<option value="">-- Seleccione tipo --</option>' + laborKindsList.map(k=> `<option value="${k}">${k}</option>`).join('');
       tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 hover:bg-slate-800/30 dark:hover:bg-slate-800/30 theme-light:hover:bg-slate-50';
       tr.innerHTML = `
-        <td class="py-2 px-2"><select data-role="tech" class="w-full px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">${techOpts}</select></td>
-        <td class="py-2 px-2"><select data-role="kind" class="w-full px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">${kindOpts}</select></td>
-        <td class="py-2 px-2 text-right"><input data-role="lv" type="number" min="0" step="1" value="${Number(pref.laborValue||0)||0}" class="w-24 px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500"></td>
-        <td class="py-2 px-2 text-right"><input data-role="pc" type="number" min="0" max="100" step="1" value="${Number(pref.percent||0)||0}" class="w-20 px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500"></td>
-        <td class="py-2 px-2 text-right text-white dark:text-white theme-light:text-slate-900 font-medium" data-role="share">$0</td>
-        <td class="py-2 px-2 text-center"><button type="button" class="px-2 py-1 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 theme-light:bg-red-50 theme-light:hover:bg-red-100 text-red-400 dark:text-red-400 theme-light:text-red-600 rounded transition-colors duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300" data-role="del">×</button></td>`;
+        <td class="py-2.5 px-3"><select data-role="tech" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">${techOpts}</select></td>
+        <td class="py-2.5 px-3"><select data-role="kind" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">${kindOpts}</select></td>
+        <td class="py-2.5 px-3 text-right"><input data-role="lv" type="number" min="0" step="1" value="${Number(pref.laborValue||0)||0}" class="w-28 px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs text-right focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" placeholder="0"></td>
+        <td class="py-2.5 px-3 text-right"><input data-role="pc" type="number" min="0" max="100" step="0.1" value="${Number(pref.percent||0)||0}" class="w-24 px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs text-right focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" placeholder="0%"></td>
+        <td class="py-2.5 px-3 text-right text-white dark:text-white theme-light:text-slate-900 font-bold text-sm" data-role="share">$0</td>
+        <td class="py-2.5 px-3 text-center"><button type="button" class="px-3 py-1.5 text-sm bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 theme-light:bg-red-50 theme-light:hover:bg-red-100 text-red-400 dark:text-red-400 theme-light:text-red-600 rounded-lg transition-colors duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 font-bold" data-role="del">×</button></td>`;
       tbody.appendChild(tr);
       const techSel2 = tr.querySelector('select[data-role=tech]');
       const kindSel2 = tr.querySelector('select[data-role=kind]');
@@ -1198,14 +1336,29 @@ function fillCloseModal(){
       const pcInp = tr.querySelector('input[data-role=pc]');
       const shareCell = tr.querySelector('[data-role=share]');
       const delBtn = tr.querySelector('button[data-role=del]');
-      if(pref.technician) techSel2.value = pref.technician;
+      if(pref.technician) {
+        techSel2.value = pref.technician;
+      } else {
+        // Si no se proporciona técnico, intentar usar el de la venta actual
+        const saleTechnician = (current?.technician || current?.initialTechnician || '').trim().toUpperCase();
+        if (saleTechnician) {
+          // Buscar el técnico en la lista (case-insensitive)
+          const foundTech = companyTechnicians.find(t => String(t).trim().toUpperCase() === saleTechnician);
+          if (foundTech) {
+            techSel2.value = foundTech; // Usar el valor exacto de la lista
+          }
+        }
+      }
       if(pref.kind) kindSel2.value = pref.kind;
       function recalc(){
         const lv = Number(lvInp.value||0)||0; const pc=Number(pcInp.value||0)||0; const sh = Math.round(lv*pc/100);
         shareCell.textContent = money(sh);
       }
       [lvInp, pcInp, techSel2, kindSel2].forEach(el=> el.addEventListener('input', recalc));
-      delBtn.addEventListener('click', ()=> tr.remove());
+      delBtn.addEventListener('click', ()=> {
+        tr.remove();
+        updateEmptyMessage(); // Actualizar mensaje vacío después de eliminar
+      });
       recalc();
       // autocompletar % desde perfil del técnico o desde defaultPercent del tipo
       function autoFillPercent(){
@@ -1237,9 +1390,168 @@ function fillCloseModal(){
       kindSel2.addEventListener('change', autoFillPercent);
       return tr;
     }
-    wrap.querySelector('#cv-add-commission').addEventListener('click', ()=> addLine({}).catch(err => console.error('Error agregando línea:', err)));
-    // precargar una línea si hay técnico
-    if((techSel.value||'').trim()){ addLine({ technician: techSel.value }).catch(err => console.error('Error precargando línea:', err)); }
+    // Función para verificar si hay líneas y mostrar/ocultar mensaje vacío
+    function updateEmptyMessage() {
+      const rows = Array.from(tbody.querySelectorAll('tr')).filter(tr => {
+        // Filtrar filas ocultas y filas de mensaje vacío
+        return !tr.querySelector('td[colspan]') && tr.style.display !== 'none';
+      });
+      
+      const emptyRow = tbody.querySelector('tr td[colspan]');
+      if (rows.length === 0) {
+        // Si no hay filas, agregar mensaje vacío
+        if (!emptyRow) {
+          const newEmptyRow = document.createElement('tr');
+          newEmptyRow.innerHTML = `
+            <td colspan="6" class="py-8 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">
+              <div class="flex flex-col items-center gap-2">
+                <span>No hay líneas de participación técnica</span>
+                <span class="text-xs">Haz clic en "+ Agregar línea" para comenzar</span>
+              </div>
+            </td>
+          `;
+          tbody.appendChild(newEmptyRow);
+        }
+      } else {
+        // Si hay filas, remover mensaje vacío si existe
+        if (emptyRow) {
+          emptyRow.closest('tr')?.remove();
+        }
+      }
+    }
+    
+    const addCommissionBtn = document.getElementById('cv-add-commission');
+    if (addCommissionBtn) {
+      addCommissionBtn.addEventListener('click', ()=> {
+        // Remover mensaje de "No hay líneas" si existe antes de agregar
+        updateEmptyMessage();
+        
+        // Obtener el técnico de la venta actual para asignarlo automáticamente
+        const saleTechnician = (current?.technician || current?.initialTechnician || '').trim().toUpperCase();
+        const pref = saleTechnician ? { technician: saleTechnician } : {};
+        
+        addLine(pref).catch(err => console.error('Error agregando línea:', err));
+      });
+    }
+    
+    // Observar cambios en la tabla para actualizar mensaje vacío
+    const observer = new MutationObserver(() => {
+      setTimeout(updateEmptyMessage, 50); // Pequeño delay para evitar actualizaciones excesivas
+    });
+    observer.observe(tbody, { childList: true, subtree: true });
+    
+    // Inicializar mensaje vacío
+    updateEmptyMessage();
+    
+    // Detectar automáticamente items con laborValue y laborKind del PriceEntry
+    async function autoAddLaborFromItems() {
+      if (!current || !current.items || current.items.length === 0) return;
+      
+      // Obtener el técnico de la venta actual (initialTechnician o technician)
+      const saleTechnician = (current.technician || current.initialTechnician || '').trim().toUpperCase();
+      if (!saleTechnician) {
+        console.log('No hay técnico asignado a la venta, no se pueden agregar líneas automáticas');
+        return; // No hay técnico asignado
+      }
+      
+      try {
+        // Obtener todos los refIds de los items de la venta
+        const refIds = current.items
+          .map(item => item.refId)
+          .filter(refId => refId && refId.trim() !== '');
+        
+        if (refIds.length === 0) return;
+        
+        // Buscar los PriceEntries correspondientes
+        const priceEntries = await Promise.all(
+          refIds.map(async (refId) => {
+            try {
+              // Buscar el precio usando pricesList con el ID
+              const prices = await API.pricesList({ limit: 1000 }); // Obtener todos los precios
+              const price = prices?.items?.find(p => String(p._id) === String(refId)) || null;
+              return price || null;
+            } catch (err) {
+              console.error('Error obteniendo precio:', err);
+              return null;
+            }
+          })
+        );
+        
+        // Filtrar los que tienen laborValue y laborKind
+        const itemsWithLabor = priceEntries
+          .filter(pe => pe && pe.laborValue > 0 && pe.laborKind && pe.laborKind.trim() !== '')
+          .map(pe => ({
+            laborValue: Number(pe.laborValue || 0),
+            laborKind: String(pe.laborKind || '').trim().toUpperCase()
+          }));
+        
+        // Agregar líneas automáticamente para cada item con mano de obra
+        for (const item of itemsWithLabor) {
+          // Buscar el técnico exacto en la lista (para usar el valor correcto del select)
+          const foundTech = companyTechnicians.find(t => String(t).trim().toUpperCase() === saleTechnician);
+          if (!foundTech) {
+            console.log(`Técnico "${saleTechnician}" no encontrado en la lista de técnicos`);
+            continue; // Saltar si el técnico no está en la lista
+          }
+          
+          const technician = foundTech; // Usar el valor exacto de la lista
+          const kind = item.laborKind;
+          const laborValue = item.laborValue;
+          
+          // Verificar si ya existe una línea con este técnico y tipo
+          const existingRows = Array.from(tbody.querySelectorAll('tr'));
+          const alreadyExists = existingRows.some(tr => {
+            if (tr.querySelector('td[colspan]')) return false; // Ignorar mensaje vacío
+            const techSelect = tr.querySelector('select[data-role=tech]');
+            const kindSelect = tr.querySelector('select[data-role=kind]');
+            return techSelect?.value?.trim().toUpperCase() === technician.toUpperCase() &&
+                   kindSelect?.value?.trim().toUpperCase() === kind;
+          });
+          
+          if (!alreadyExists && technician && kind && laborValue > 0) {
+            // Obtener el porcentaje del perfil del técnico o del tipo
+            let percent = 0;
+            const techNameUpper = String(technician).trim().toUpperCase();
+            const prof = (techConfig?.technicians||[]).find(t=> String(t.name||'').toUpperCase() === techNameUpper);
+            if(prof && kind){ 
+              const r = (prof.rates||[]).find(x=> String(x.kind||'').toUpperCase() === kind); 
+              if(r && r.percent > 0){ 
+                percent = Number(r.percent||0);
+              }
+            }
+            
+            // Si no está en el perfil, usar el defaultPercent del tipo
+            if (percent === 0) {
+              const laborKinds = await getLaborKinds();
+              const laborKind = laborKinds.find(k=> {
+                const kindName = typeof k === 'string' ? k : (k?.name || '');
+                return String(kindName).toUpperCase() === kind;
+              });
+              if(laborKind && typeof laborKind === 'object' && laborKind.defaultPercent > 0){
+                percent = Number(laborKind.defaultPercent||0);
+              }
+            }
+            
+            // Agregar la línea
+            await addLine({
+              technician: technician,
+              kind: kind,
+              laborValue: laborValue,
+              percent: percent
+            });
+            // Actualizar mensaje vacío después de agregar línea automática
+            updateEmptyMessage();
+          }
+        }
+      } catch (err) {
+        console.error('Error agregando líneas automáticas de mano de obra:', err);
+      }
+    }
+    
+    // Ejecutar después de un pequeño delay para asegurar que todo esté cargado
+    setTimeout(() => {
+      autoAddLaborFromItems();
+    }, 500);
   } catch{}
 
   // Dynamic payments
@@ -1285,8 +1597,10 @@ function fillCloseModal(){
       confirmBtn.disabled = Math.abs(diff) > 0.01 || payments.length===0;
       if(confirmBtn.disabled){
         confirmBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        confirmBtn.classList.remove('hover:from-blue-700', 'hover:to-blue-800', 'hover:shadow-lg');
       } else {
         confirmBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        confirmBtn.classList.add('hover:from-blue-700', 'hover:to-blue-800', 'hover:shadow-lg');
       }
     }
   }
@@ -1366,18 +1680,53 @@ function fillCloseModal(){
       const commBody = document.getElementById('cv-comm-body');
       if (commBody) {
         commBody.querySelectorAll('tr').forEach(tr=>{
+          // Ignorar fila de mensaje vacío
+          if (tr.querySelector('td[colspan]')) return;
+          
           const tech = tr.querySelector('select[data-role=tech]')?.value?.trim().toUpperCase();
           const kind = tr.querySelector('select[data-role=kind]')?.value?.trim().toUpperCase();
           const lv = Number(tr.querySelector('input[data-role=lv]')?.value||0)||0;
           const pc = Number(tr.querySelector('input[data-role=pc]')?.value||0)||0;
-          if(tech && kind && lv>0 && pc>=0) comm.push({ technician: tech, kind, laborValue: lv, percent: pc });
+          
+          // Validar que tenga técnico, tipo, valor y porcentaje
+          if(tech && kind && lv>0 && pc>0) {
+            comm.push({ technician: tech, kind, laborValue: lv, percent: pc });
+          } else if(tech || kind || lv>0 || pc>0) {
+            // Si tiene algún valor pero no está completo, mostrar error
+            msg.textContent = 'Todas las líneas de participación técnica deben tener: técnico, tipo, valor MO y % completos.';
+            msg.className = 'md:col-span-2 mt-2 text-xs text-red-400 dark:text-red-400 theme-light:text-red-600';
+            return;
+          }
         });
       }
+      
+      // Validar que si hay líneas, todas estén completas
+      if (commBody && commBody.querySelectorAll('tr:not([style*="display: none"])').length > 0) {
+        const incompleteRows = Array.from(commBody.querySelectorAll('tr')).filter(tr => {
+          if (tr.querySelector('td[colspan]')) return false; // Ignorar mensaje vacío
+          const tech = tr.querySelector('select[data-role=tech]')?.value?.trim();
+          const kind = tr.querySelector('select[data-role=kind]')?.value?.trim();
+          const lv = Number(tr.querySelector('input[data-role=lv]')?.value||0)||0;
+          const pc = Number(tr.querySelector('input[data-role=pc]')?.value||0)||0;
+          return (tech || kind || lv>0 || pc>0) && (!tech || !kind || lv<=0 || pc<=0);
+        });
+        
+        if (incompleteRows.length > 0) {
+          msg.textContent = 'Todas las líneas de participación técnica deben tener: técnico, tipo, valor MO y % completos.';
+          msg.className = 'md:col-span-2 mt-2 text-xs text-red-400 dark:text-red-400 theme-light:text-red-600';
+          return;
+        }
+      }
+      
+      // Obtener el porcentaje de mano de obra del campo (solo si no hay comisiones en la tabla - para compatibilidad legacy)
+      const laborPercentValue = comm.length === 0 ? (Number(percSel.value || manualPercentInput.value || 0) || 0) : 0;
+      const laborValueFromSale = Number(current?.laborValue || 0);
+      
       const payload = {
         paymentMethods: filtered.map(p=>({ method:p.method, amount:Number(p.amount)||0, accountId:p.accountId||null })),
         technician: techSel.value||'',
-        laborValue: 0,
-        laborPercent: 0,
+        laborValue: laborValueFromSale,
+        laborPercent: laborPercentValue,
         laborCommissions: comm,
         paymentReceiptUrl: receiptUrl
       };
@@ -3143,6 +3492,7 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
   
   const isCombo = type === 'combo';
   const isProduct = type === 'product';
+  const isService = type === 'service';
   
   node.innerHTML = `
     <h3 style="margin-top:0;margin-bottom:16px;">Crear ${type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto')}</h3>
@@ -3197,6 +3547,24 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
         </div>
       </div>
     </div>
+    ${isCombo || isProduct || isService ? `
+    <div style="margin-bottom:16px;padding:12px;background:rgba(59, 130, 246, 0.1);border-radius:8px;border:1px solid rgba(59, 130, 246, 0.3);">
+      <label style="display:block;font-size:12px;color:var(--muted);margin-bottom:8px;font-weight:500;">Mano de obra (opcional)</label>
+      <p class="muted" style="margin-bottom:8px;font-size:11px;">Estos valores se usarán automáticamente al cerrar la venta para agregar participación técnica.</p>
+      <div class="row" style="gap:8px;">
+        <div style="flex:1;">
+          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Valor de mano de obra</label>
+          <input id="price-labor-value" type="number" min="0" step="1" placeholder="0" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);" />
+        </div>
+        <div style="flex:1;">
+          <label style="display:block;font-size:11px;color:var(--muted);margin-bottom:4px;">Tipo de mano de obra</label>
+          <select id="price-labor-kind" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);">
+            <option value="">-- Seleccione tipo --</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    ` : ''}
     <div id="price-msg" style="margin-bottom:16px;font-size:13px;"></div>
     <div class="row" style="gap:8px;">
       <button id="price-save" style="flex:1;padding:10px;">💾 Guardar</button>
@@ -3212,6 +3580,30 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
   const saveBtn = node.querySelector('#price-save');
   const cancelBtn = node.querySelector('#price-cancel');
   let selectedItem = null;
+  
+  // Cargar laborKinds en el select si existe
+  if (isCombo || isProduct || isService) {
+    const laborKindSelect = node.querySelector('#price-labor-kind');
+    if (laborKindSelect) {
+      async function loadLaborKinds() {
+        try {
+          const response = await API.get('/api/v1/company/tech-config');
+          const config = response?.config || response || { laborKinds: [] };
+          const laborKinds = config?.laborKinds || [];
+          const laborKindsList = laborKinds.map(k => {
+            const name = typeof k === 'string' ? k : (k?.name || '');
+            return name;
+          }).filter(k => k && k.trim() !== '');
+          
+          laborKindSelect.innerHTML = '<option value="">-- Seleccione tipo --</option>' + 
+            laborKindsList.map(k => `<option value="${k}">${k}</option>`).join('');
+        } catch (err) {
+          console.error('Error cargando laborKinds:', err);
+        }
+      }
+      loadLaborKinds();
+    }
+  }
   
   // Funcionalidad de búsqueda de items (solo para productos)
   if (isProduct) {
@@ -3680,6 +4072,20 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
             isOpenSlot: isOpenSlot
           };
         }).filter(p => p.name);
+      }
+      
+      // Agregar campos de mano de obra si existen
+      if (isCombo || isProduct || isService) {
+        const laborValueInput = node.querySelector('#price-labor-value');
+        const laborKindSelect = node.querySelector('#price-labor-kind');
+        if (laborValueInput && laborKindSelect) {
+          const laborValue = Number(laborValueInput.value || 0) || 0;
+          const laborKind = laborKindSelect.value?.trim() || '';
+          if (laborValue > 0 || laborKind) {
+            payload.laborValue = laborValue;
+            payload.laborKind = laborKind;
+          }
+        }
       }
       
       await API.priceCreate(payload);
