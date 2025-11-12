@@ -2747,7 +2747,9 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
       saveBtn.textContent = 'Guardando...';
       
       try {
-        await editTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+        // Usar el nombre actual (oldName) para buscar el técnico, y newName para actualizar
+        await api.updateTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+        await loadTechnicians();
         closeModal();
       } catch (err) {
         console.error('Error guardando técnico:', err);
@@ -2777,58 +2779,13 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
   document.addEventListener('keydown', escHandler);
 }
 
-async function editTechnician(oldName, newName, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) {
-  try {
-    if (!oldName || !newName) {
-      alert('⚠️ Nombre de técnico requerido');
-      return;
-    }
-    
-    // Deshabilitar botones durante la petición
-    const editBtns = document.querySelectorAll(`.x-edit[data-name="${htmlEscape(oldName)}"]`);
-    editBtns.forEach(btn => {
-      btn.disabled = true;
-      btn.textContent = 'Actualizando...';
-    });
-    
-    try {
-      // Preparar datos para enviar
-      const payload = {
-        name: newName,
-        identification: identification || '',
-        basicSalary: basicSalary ? Number(basicSalary) : null,
-        workHoursPerMonth: workHoursPerMonth ? Number(workHoursPerMonth) : null,
-        basicSalaryPerDay: basicSalaryPerDay ? Number(basicSalaryPerDay) : null,
-        contractType: contractType || ''
-      };
-      
-      // Usar PUT para actualizar
-      await api.put(`/api/v1/company/technicians/${encodeURIComponent(oldName)}`, payload);
-      
-      // Recargar lista de técnicos
-      await loadTechnicians();
-      
-      // Feedback visual
-      editBtns.forEach(btn => {
-        btn.textContent = '✓ Actualizado';
-        setTimeout(() => {
-          btn.disabled = false;
-          btn.textContent = '✏️ Editar';
-        }, 1500);
-      });
-    } catch (err) {
-      const errorMsg = err.message || 'Error desconocido';
-      alert('❌ Error al actualizar técnico: ' + errorMsg);
-      editBtns.forEach(btn => {
-        btn.disabled = false;
-        btn.textContent = '✏️ Editar';
-      });
-      throw err;
-    }
-  } catch (err) {
-    console.error('Error in editTechnician:', err);
-    throw err;
+async function editTechnician(name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) {
+  if (!name) {
+    throw new Error('Nombre de técnico requerido');
   }
+  
+  await api.updateTechnician(name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+  await loadTechnicians();
 }
 
 // ===== Gestión de tipos de mano de obra =====

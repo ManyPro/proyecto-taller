@@ -122,16 +122,23 @@ const API = {
     getPreferences: () => http.get('/api/v1/company/preferences').then(r=> r.preferences || { laborPercents: [] }),
     setPreferences: (prefs) => http.put('/api/v1/company/preferences', prefs).then(r=> r.preferences || {}),
     getTechnicians: () => http.get('/api/v1/company/technicians').then(r=> r.technicians || []),
-    addTechnician: async (name) => {
-      const res = await http.post('/api/v1/company/technicians', { name });
+    addTechnician: async (name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) => {
+      const res = await http.post('/api/v1/company/technicians', { 
+        name,
+        identification: identification || '',
+        basicSalary: basicSalary ? Number(basicSalary) : null,
+        workHoursPerMonth: workHoursPerMonth ? Number(workHoursPerMonth) : null,
+        basicSalaryPerDay: basicSalaryPerDay ? Number(basicSalaryPerDay) : null,
+        contractType: contractType || ''
+      });
       return res.technicians || [];
     },
     deleteTechnician: async (name) => {
       const res = await http.del(`/api/v1/company/technicians/${encodeURIComponent(String(name||''))}`);
       return res.technicians || [];
     },
-    updateTechnician: async (oldName, newName, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) => {
-      const res = await http.put(`/api/v1/company/technicians/${encodeURIComponent(String(oldName||''))}`, {
+    updateTechnician: async (currentName, newName, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) => {
+      const res = await http.put(`/api/v1/company/technicians/${encodeURIComponent(String(currentName||''))}`, {
         name: newName,
         identification: identification || '',
         basicSalary: basicSalary ? Number(basicSalary) : null,

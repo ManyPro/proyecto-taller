@@ -104,99 +104,82 @@ router.get('/technicians', (req, res) => {
 router.post('/technicians', async (req, res) => {
   const name = String(req.body?.name || '').trim().toUpperCase();
   const identification = String(req.body?.identification || '').trim();
+  const basicSalary = req.body?.basicSalary ? Number(req.body.basicSalary) : null;
+  const workHoursPerMonth = req.body?.workHoursPerMonth ? Number(req.body.workHoursPerMonth) : null;
+  const basicSalaryPerDay = req.body?.basicSalaryPerDay ? Number(req.body.basicSalaryPerDay) : null;
+  const contractType = String(req.body?.contractType || '').trim();
+  
   if (!name) return res.status(400).json({ error: 'nombre requerido' });
   
-  // Normalizar technicians: convertir strings a objetos si es necesario
-  const technicians = (req.companyDoc.technicians || []).map(t => {
-    if (typeof t === 'string') {
-      return { name: t.toUpperCase(), identification: '' };
-    }
-    return { name: String(t.name || '').toUpperCase(), identification: String(t.identification || '').trim() };
+  const technicians = JSON.parse(JSON.stringify(req.companyDoc.technicians || []));
+  
+  // Verificar si ya existe
+  const existingIndex = technicians.findIndex(t => {
+    const tName = typeof t === 'string' ? t.toUpperCase() : String(t?.name || '').toUpperCase();
+    return tName === name;
   });
   
-  // Verificar si ya existe un técnico con ese nombre
-  const existingIndex = technicians.findIndex(t => t.name === name);
   if (existingIndex >= 0) {
-    // Actualizar identificación si se proporciona
-    if (identification) {
-      technicians[existingIndex].identification = identification;
-      req.companyDoc.technicians = technicians;
-      await req.companyDoc.save();
-      return res.status(200).json({ technicians: req.companyDoc.technicians });
-    }
     return res.status(409).json({ error: 'Ya existe un técnico con ese nombre' });
   }
   
   // Agregar nuevo técnico
-  technicians.push({ name, identification });
-  technicians.sort((a, b) => a.name.localeCompare(b.name));
+  technicians.push({ 
+    name, 
+    identification, 
+    basicSalary, 
+    workHoursPerMonth, 
+    basicSalaryPerDay, 
+    contractType 
+  });
+  technicians.sort((a, b) => {
+    const aName = typeof a === 'string' ? a : String(a?.name || '');
+    const bName = typeof b === 'string' ? b : String(b?.name || '');
+    return aName.localeCompare(bName);
+  });
+  
   req.companyDoc.technicians = technicians;
   await req.companyDoc.save();
   res.status(201).json({ technicians: req.companyDoc.technicians });
 });
 
-router.put('/technicians/:oldName', async (req, res) => {
+router.put('/technicians/:name', async (req, res) => {
   try {
-    // Convertir a formato plano para evitar problemas con documentos Mongoose
-    const rawTechnicians = JSON.parse(JSON.stringify(req.companyDoc.technicians || []));
-    
-    const oldNameParam = String(req.params.oldName || '').trim();
+    const name = String(req.params.name || '').trim().toUpperCase();
     const newName = String(req.body?.name || '').trim().toUpperCase();
     const identification = String(req.body?.identification || '').trim();
-    const basicSalary = req.body?.basicSalary !== undefined && req.body?.basicSalary !== null ? Number(req.body.basicSalary) : null;
-    const workHoursPerMonth = req.body?.workHoursPerMonth !== undefined && req.body?.workHoursPerMonth !== null ? Number(req.body.workHoursPerMonth) : null;
-    const basicSalaryPerDay = req.body?.basicSalaryPerDay !== undefined && req.body?.basicSalaryPerDay !== null ? Number(req.body.basicSalaryPerDay) : null;
+    const basicSalary = req.body?.basicSalary ? Number(req.body.basicSalary) : null;
+    const workHoursPerMonth = req.body?.workHoursPerMonth ? Number(req.body.workHoursPerMonth) : null;
+    const basicSalaryPerDay = req.body?.basicSalaryPerDay ? Number(req.body.basicSalaryPerDay) : null;
     const contractType = String(req.body?.contractType || '').trim();
     
-    if (!oldNameParam) return res.status(400).json({ error: 'nombre actual requerido' });
+    if (!name) return res.status(400).json({ error: 'nombre requerido' });
     if (!newName) return res.status(400).json({ error: 'nuevo nombre requerido' });
     
-    // Normalizar technicians: convertir strings a objetos si es necesario
-    const technicians = rawTechnicians.map(t => {
-      if (typeof t === 'string') {
-        return { 
-          name: String(t).trim().toUpperCase(), 
-          identification: '', 
-          basicSalary: null, 
-          workHoursPerMonth: null, 
-          basicSalaryPerDay: null, 
-          contractType: '' 
-        };
-      }
-      if (t && typeof t === 'object' && !Array.isArray(t)) {
-        return { 
-          name: String(t.name || '').trim().toUpperCase() || 'SIN NOMBRE', 
-          identification: String(t.identification || '').trim(),
-          basicSalary: t.basicSalary !== undefined && t.basicSalary !== null ? Number(t.basicSalary) : null,
-          workHoursPerMonth: t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null ? Number(t.workHoursPerMonth) : null,
-          basicSalaryPerDay: t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null ? Number(t.basicSalaryPerDay) : null,
-          contractType: String(t.contractType || '').trim()
-        };
-      }
-      return {
-        name: 'SIN NOMBRE',
-        identification: '',
-        basicSalary: null,
-        workHoursPerMonth: null,
-        basicSalaryPerDay: null,
-        contractType: ''
-      };
+    const technicians = JSON.parse(JSON.stringify(req.companyDoc.technicians || []));
+    
+    // Buscar técnico
+    const existingIndex = technicians.findIndex(t => {
+      const tName = typeof t === 'string' ? t.toUpperCase() : String(t?.name || '').toUpperCase();
+      return tName === name;
     });
     
-    // Buscar el técnico por nombre (comparar sin importar mayúsculas/minúsculas)
-    const oldNameUpper = oldNameParam.toUpperCase();
-    const existingIndex = technicians.findIndex(t => t.name.toUpperCase() === oldNameUpper);
     if (existingIndex < 0) {
       return res.status(404).json({ error: 'Técnico no encontrado' });
     }
     
-    // Si el nuevo nombre es diferente, verificar que no exista otro con ese nombre
-    const currentName = technicians[existingIndex].name;
-    if (newName !== currentName && technicians.some(t => t.name === newName)) {
-      return res.status(409).json({ error: 'Ya existe un técnico con ese nombre' });
+    // Si el nombre cambió, verificar que no exista otro
+    if (newName !== name) {
+      const nameExists = technicians.some(t => {
+        const tName = typeof t === 'string' ? t.toUpperCase() : String(t?.name || '').toUpperCase();
+        return tName === newName;
+      });
+      if (nameExists) {
+        return res.status(409).json({ error: 'Ya existe un técnico con ese nombre' });
+      }
     }
     
-    // Actualizar técnico
+    // Actualizar
     technicians[existingIndex] = { 
       name: newName, 
       identification,
@@ -205,18 +188,24 @@ router.put('/technicians/:oldName', async (req, res) => {
       basicSalaryPerDay,
       contractType
     };
-    technicians.sort((a, b) => a.name.localeCompare(b.name));
-    req.companyDoc.technicians = technicians;
-    await req.companyDoc.save();
     
-    // Si el nombre cambió, actualizar asignaciones
-    if (newName !== oldName) {
-      const { default: TechnicianAssignment } = await import('../models/TechnicianAssignment.js');
+    // Si el nombre cambió, actualizar referencias
+    if (newName !== name) {
+      const TechnicianAssignment = (await import('../models/TechnicianAssignment.js')).default;
       await TechnicianAssignment.updateMany(
-        { companyId: req.companyDoc._id, technicianName: oldName },
+        { companyId: req.companyDoc._id, technicianName: name },
         { $set: { technicianName: newName } }
       );
     }
+    
+    technicians.sort((a, b) => {
+      const aName = typeof a === 'string' ? a : String(a?.name || '');
+      const bName = typeof b === 'string' ? b : String(b?.name || '');
+      return aName.localeCompare(bName);
+    });
+    
+    req.companyDoc.technicians = technicians;
+    await req.companyDoc.save();
     
     res.json({ technicians: req.companyDoc.technicians });
   } catch (err) {
