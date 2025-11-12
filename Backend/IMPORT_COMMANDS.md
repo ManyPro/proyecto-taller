@@ -6,6 +6,30 @@
 2. **Verifica que los archivos CSV estén en la carpeta correcta**: `Backend/data/legacy/`
 3. **Reemplaza `TU_MONGODB_URI`** con tu cadena de conexión real
 
+## 🔄 ¿Los scripts eliminan datos anteriores?
+
+**NO**, los scripts NO eliminan datos automáticamente. Son **idempotentes**, lo que significa:
+
+- ✅ **Puedes ejecutarlos múltiples veces sin crear duplicados**
+- ✅ **Si un registro ya existe, lo actualiza en lugar de crear uno nuevo**
+- ⚠️ **NO eliminan datos legacy anteriores automáticamente**
+
+### Cómo evitan duplicados:
+
+**Script de Clientes:**
+- Busca por `companyId + identificationNumber` o `plate`
+- Si existe → actualiza
+- Si no existe → crea nuevo
+
+**Script de Órdenes:**
+- Busca por `legacyOrId` o patrón `LEGACY or_id=` en notas
+- Si existe → actualiza
+- Si no existe → crea nuevo
+
+### Si necesitas limpiar datos legacy antes de reimportar:
+
+Usa el script de limpieza (ver sección "🧹 Limpieza de Datos Legacy" más abajo)
+
 ## 📋 Archivos CSV Requeridos
 
 Coloca estos archivos en `Backend/data/legacy/`:
@@ -28,7 +52,7 @@ Este script importa clientes y los conecta automáticamente con vehículos de la
 
 ```powershell
 cd Backend
-$env:MONGODB_URI = "TU_MONGODB_URI"
+$env:MONGODB_URI = "mongodb+srv://giovannymanriquelol_db_user:XfOvU9NYHxoNgKAl@cluster0.gs3ajdl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 node scripts/import_clients_from_legacy.js --orders "data/legacy/ordenesfinal.csv" --clients "data/legacy/clientesfinal.csv" --vehicles "data/legacy/automovilfinal.csv" --mongo "$env:MONGODB_URI" --companyMap "2:68cb18f4202d108152a26e4c,3:68c871198d7595062498d7a1" --dry --progressInterval 50
 ```
 
@@ -36,7 +60,7 @@ node scripts/import_clients_from_legacy.js --orders "data/legacy/ordenesfinal.cs
 
 ```powershell
 cd Backend
-$env:MONGODB_URI = "TU_MONGODB_URI"
+$env:MONGODB_URI = "mongodb+srv://giovannymanriquelol_db_user:XfOvU9NYHxoNgKAl@cluster0.gs3ajdl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
 node scripts/import_clients_from_legacy.js --orders "data/legacy/ordenesfinal.csv" --clients "data/legacy/clientesfinal.csv" --vehicles "data/legacy/automovilfinal.csv" --mongo "$env:MONGODB_URI" --companyMap "2:68cb18f4202d108152a26e4c,3:68c871198d7595062498d7a1" --progressInterval 50
 ```
 
@@ -170,6 +194,43 @@ node scripts/import_orders_from_legacy.js --orders "data/legacy/ordenesfinal.csv
 ### Error de archivo no encontrado:
 - Verifica las rutas de los archivos CSV
 - Usa rutas absolutas si es necesario: `C:\ruta\completa\archivo.csv`
+
+---
+
+## 🧹 Limpieza de Datos Legacy (Opcional)
+
+Si necesitas eliminar datos legacy anteriores antes de reimportar, usa este script:
+
+### Paso 1: Preview (Ver qué se eliminaría)
+
+```powershell
+cd Backend
+$env:MONGODB_URI = "TU_MONGODB_URI"
+node scripts/clean_legacy_imports.js --mongo "$env:MONGODB_URI" --dry
+```
+
+### Paso 2: Limpieza Real
+
+```powershell
+cd Backend
+$env:MONGODB_URI = "TU_MONGODB_URI"
+node scripts/clean_legacy_imports.js --mongo "$env:MONGODB_URI" --force
+```
+
+### Limpiar solo empresas específicas:
+
+```powershell
+cd Backend
+$env:MONGODB_URI = "TU_MONGODB_URI"
+node scripts/clean_legacy_imports.js --mongo "$env:MONGODB_URI" --force --companyIds "68cb18f4202d108152a26e4c,68c871198d7595062498d7a1"
+```
+
+**⚠️ ADVERTENCIA:** Este script elimina:
+- Ventas marcadas como legacy (`legacyOrId` o notas con `LEGACY or_id=`)
+- Vehículos no asignados con `source: 'import'`
+- Perfiles de clientes con placas sintéticas (`CATALOGO-*` o `CLIENT-*`)
+
+**💡 Recomendación:** Siempre ejecuta primero con `--dry` para ver qué se eliminaría.
 
 ---
 
