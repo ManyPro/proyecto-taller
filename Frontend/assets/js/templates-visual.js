@@ -3766,19 +3766,19 @@
         </tr>
         <tr>
           <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">SALARIO BÁSICO ($/MES):</td>
-          <td style="border: 1px solid #000; padding: 6px;">[Editar salario básico]</td>
+          <td style="border: 1px solid #000; padding: 6px;">{{#if settlement.technician.basicSalary}}{{money settlement.technician.basicSalary}}{{/if}}</td>
         </tr>
         <tr>
           <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">HORAS TRABAJO MES:</td>
-          <td style="border: 1px solid #000; padding: 6px;">[Editar horas]</td>
+          <td style="border: 1px solid #000; padding: 6px;">{{#if settlement.technician.workHoursPerMonth}}{{settlement.technician.workHoursPerMonth}}{{/if}}</td>
         </tr>
         <tr>
           <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">SALARIO BÁSICO (DÍA):</td>
-          <td style="border: 1px solid #000; padding: 6px;">[Editar salario diario]</td>
+          <td style="border: 1px solid #000; padding: 6px;">{{#if settlement.technician.basicSalaryPerDay}}{{money settlement.technician.basicSalaryPerDay}}{{/if}}</td>
         </tr>
         <tr>
           <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">TIPO CONTRATO:</td>
-          <td style="border: 1px solid #000; padding: 6px;">[Editar tipo de contrato]</td>
+          <td style="border: 1px solid #000; padding: 6px;">{{#if settlement.technician.contractType}}{{settlement.technician.contractType}}{{/if}}</td>
         </tr>
       </table>
     `;

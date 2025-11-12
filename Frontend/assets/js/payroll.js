@@ -2,7 +2,7 @@ import API from './api.esm.js';
 const api = API;
 
 function el(id){ return document.getElementById(id); }
-function htmlEscape(s){ return (s||'').replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
+function htmlEscape(s){ return String(s || '').replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
 
 // Cargar conceptos para el selector de base de porcentaje
 async function loadConceptsForPercentBase() {

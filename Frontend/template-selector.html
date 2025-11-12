@@ -304,6 +304,12 @@
           <h3>Nómina</h3>
           <p>Comprobante de pago de nómina para técnicos</p>
         </div>
+
+        <div class="document-type-card" data-type="workOrder">
+          <div class="icon">🔧</div>
+          <h3>Orden de Trabajo</h3>
+          <p>Documento de orden de trabajo para servicios técnicos</p>
+        </div>
       </div>
 
       <!-- Formats Section -->
@@ -397,6 +403,17 @@
               <option value="">Cargando formatos...</option>
             </select>
             <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará para imprimir comprobantes de nómina</p>
+          </div>
+
+          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="workOrder">
+            <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
+              <span>🔧</span>
+              <span>Formato de Orden de Trabajo Activo</span>
+            </h4>
+            <select id="active-workorder-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900">
+              <option value="">Cargando formatos...</option>
+            </select>
+            <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará para imprimir órdenes de trabajo</p>
           </div>
         </div>
       </div>
@@ -566,7 +583,8 @@
         'invoice-factura': 'Formatos de Factura',
         'quote': 'Formatos de Cotización', 
         'sticker-qr': 'Formatos de Sticker',
-        'payroll': 'Formatos de Nómina'
+        'payroll': 'Formatos de Nómina',
+        'workOrder': 'Formatos de Orden de Trabajo'
       };
       document.getElementById('formats-title').textContent = titles[selectedDocumentType] || 'Formatos';
       
@@ -791,7 +809,7 @@
     async function loadActiveFormats() {
       console.log('🔄 Cargando formatos activos...');
       
-  const documentTypes = ['invoice', 'invoice-factura', 'quote', 'sticker-qr', 'payroll'];
+  const documentTypes = ['invoice', 'invoice-factura', 'quote', 'sticker-qr', 'payroll', 'workOrder'];
       
       for (const type of documentTypes) {
         try {
@@ -828,7 +846,8 @@
           
         } catch (error) {
           console.error(`Error cargando formatos para ${type}:`, error);
-          const selectElement = document.getElementById(`active-${type === 'invoice-factura' ? 'invoicefactura' : type.replace(/\-/g,'')}-format`);
+          const selectId = type === 'invoice-factura' ? 'invoicefactura' : type === 'workOrder' ? 'workorder' : type.replace(/\-/g,'');
+          const selectElement = document.getElementById(`active-${selectId}-format`);
           if (selectElement) {
             selectElement.innerHTML = '<option value="">Error cargando formatos</option>';
           }
@@ -848,7 +867,7 @@
           await API.templates.activate(formatId);
           
           // Show success message
-          const selectId = `active-${documentType === 'invoice-factura' ? 'invoicefactura' : documentType.replace(/\\-/g,'')}-format`;
+          const selectId = `active-${documentType === 'invoice-factura' ? 'invoicefactura' : documentType === 'workOrder' ? 'workorder' : documentType.replace(/\\-/g,'')}-format`;
           const optionEl = document.querySelector(`#${selectId} option[value="${formatId}"]`);
           const formatName = optionEl ? optionEl.textContent : formatId;
           
@@ -873,7 +892,8 @@
         'invoice-factura': 'Factura',
         'quote': 'Cotización', 
         'sticker-qr': 'Sticker',
-        'payroll': 'Nómina'
+        'payroll': 'Nómina',
+        'workOrder': 'Orden de Trabajo'
       };
       return names[type] || type;
     }
@@ -884,7 +904,8 @@
         'invoice-factura': 'Facturas',
         'quote': 'Cotizaciones', 
         'sticker-qr': 'Stickers',
-        'payroll': 'Nóminas'
+        'payroll': 'Nóminas',
+        'workOrder': 'Órdenes de Trabajo'
       };
       return names[type] || type;
     }
@@ -909,7 +930,8 @@
         'invoice-factura': '📄',
         'quote': '💰',
         'sticker-qr': '🏷️',
-        'payroll': '💰'
+        'payroll': '💰',
+        'workOrder': '🔧'
       };
       
       modalTitle.textContent = `🎨 Crear Nuevo ${documentTypeName}`;
