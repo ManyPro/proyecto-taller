@@ -1,54 +1,90 @@
 // ========== CARTERA ==========
 
-const api = window.API || {};
-
 let companies = [];
 let receivables = [];
 let stats = { balance: 0, pending: 0, partial: 0, paid: 0 };
+
+// Función para obtener la API de forma segura
+function getAPI() {
+  return window.API || {};
+}
 
 // Inicialización
 document.addEventListener('DOMContentLoaded', () => {
   if (document.body.dataset.page !== 'cartera') return;
   
-  initCartera();
+  // Esperar a que la API esté disponible
+  const checkAPI = setInterval(() => {
+    if (window.API) {
+      clearInterval(checkAPI);
+      initCartera();
+    }
+  }, 100);
+  
+  // Timeout de seguridad después de 5 segundos
+  setTimeout(() => {
+    clearInterval(checkAPI);
+    if (document.body.dataset.page === 'cartera') {
+      initCartera();
+    }
+  }, 5000);
 });
 
 async function initCartera() {
-  await loadCompanies();
-  await loadReceivables();
-  await loadStats();
-  
-  // Event listeners
-  document.getElementById('btn-refresh')?.addEventListener('click', async () => {
+  try {
     await loadCompanies();
     await loadReceivables();
     await loadStats();
-  });
-  
-  document.getElementById('btn-add-company')?.addEventListener('click', () => {
-    showCompanyModal();
-  });
-  
-  document.getElementById('btn-apply-filters')?.addEventListener('click', async () => {
-    await loadReceivables();
-  });
-  
-  // Modal close
-  document.getElementById('modalClose')?.addEventListener('click', () => {
-    document.getElementById('modal')?.classList.add('hidden');
-  });
-  
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      document.getElementById('modal')?.classList.add('hidden');
+    
+    // Event listeners
+    const btnRefresh = document.getElementById('btn-refresh');
+    if (btnRefresh) {
+      btnRefresh.addEventListener('click', async () => {
+        await loadCompanies();
+        await loadReceivables();
+        await loadStats();
+      });
     }
-  });
+    
+    const btnAddCompany = document.getElementById('btn-add-company');
+    if (btnAddCompany) {
+      btnAddCompany.addEventListener('click', () => {
+        showCompanyModal();
+      });
+    }
+    
+    const btnApplyFilters = document.getElementById('btn-apply-filters');
+    if (btnApplyFilters) {
+      btnApplyFilters.addEventListener('click', async () => {
+        await loadReceivables();
+      });
+    }
+    
+    // Modal close
+    const modalClose = document.getElementById('modalClose');
+    if (modalClose) {
+      modalClose.addEventListener('click', () => {
+        const modal = document.getElementById('modal');
+        if (modal) modal.classList.add('hidden');
+      });
+    }
+    
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        const modal = document.getElementById('modal');
+        if (modal) modal.classList.add('hidden');
+      }
+    });
+  } catch (err) {
+    console.error('Error inicializando cartera:', err);
+  }
 }
 
 // ========== EMPRESAS ==========
 
 async function loadCompanies() {
   try {
+    const api = getAPI();
     const res = await api.receivables?.companies?.list() || [];
     companies = res || [];
     renderCompanies();
@@ -164,6 +200,7 @@ function showCompanyModal(companyId = null) {
 
 async function saveCompany(companyId) {
   try {
+    const api = getAPI();
     const name = document.getElementById('company-name')?.value.trim();
     if (!name) {
       showError('El nombre es requerido');
@@ -194,7 +231,8 @@ async function saveCompany(companyId) {
       await api.receivables?.companies?.create(data);
     }
     
-    document.getElementById('modal')?.classList.add('hidden');
+    const modal = document.getElementById('modal');
+    if (modal) modal.classList.add('hidden');
     await loadCompanies();
     showSuccess(companyId ? 'Empresa actualizada' : 'Empresa creada');
   } catch (err) {
@@ -203,14 +241,16 @@ async function saveCompany(companyId) {
   }
 }
 
-async function editCompany(companyId) {
+// Funciones globales para onclick
+window.editCompany = async function(companyId) {
   showCompanyModal(companyId);
-}
+};
 
-async function deleteCompany(companyId) {
+window.deleteCompany = async function(companyId) {
   if (!confirm('¿Estás seguro de eliminar esta empresa?')) return;
   
   try {
+    const api = getAPI();
     await api.receivables?.companies?.delete(companyId);
     await loadCompanies();
     showSuccess('Empresa eliminada');
@@ -218,12 +258,13 @@ async function deleteCompany(companyId) {
     console.error('Error deleting company:', err);
     showError(err?.response?.data?.error || 'Error al eliminar empresa');
   }
-}
+};
 
 // ========== CUENTAS POR COBRAR ==========
 
 async function loadReceivables() {
   try {
+    const api = getAPI();
     const status = document.getElementById('filter-status')?.value || '';
     const companyId = document.getElementById('filter-company')?.value || '';
     const plate = document.getElementById('filter-plate')?.value.trim() || '';
@@ -310,19 +351,25 @@ function renderReceivables() {
 
 async function loadStats() {
   try {
+    const api = getAPI();
     const res = await api.receivables?.stats() || {};
     stats = res || {};
     
-    document.getElementById('stats-balance')?.textContent = `$${formatMoney(stats.balance || 0)}`;
-    document.getElementById('stats-pending')?.textContent = stats.pending || 0;
-    document.getElementById('stats-partial')?.textContent = stats.partial || 0;
-    document.getElementById('stats-paid')?.textContent = stats.paid || 0;
+    const balanceEl = document.getElementById('stats-balance');
+    const pendingEl = document.getElementById('stats-pending');
+    const partialEl = document.getElementById('stats-partial');
+    const paidEl = document.getElementById('stats-paid');
+    
+    if (balanceEl) balanceEl.textContent = '$' + formatMoney(stats.balance || 0);
+    if (pendingEl) pendingEl.textContent = stats.pending || 0;
+    if (partialEl) partialEl.textContent = stats.partial || 0;
+    if (paidEl) paidEl.textContent = stats.paid || 0;
   } catch (err) {
     console.error('Error loading stats:', err);
   }
 }
 
-function showPaymentModal(receivableId) {
+window.showPaymentModal = function(receivableId) {
   const receivable = receivables.find(r => r._id === receivableId);
   if (!receivable) return;
   
@@ -375,10 +422,11 @@ function showPaymentModal(receivableId) {
     e.preventDefault();
     await addPayment(receivableId);
   });
-}
+};
 
 async function addPayment(receivableId) {
   try {
+    const api = getAPI();
     const amount = parseFloat(document.getElementById('payment-amount')?.value || 0);
     const paymentMethod = document.getElementById('payment-method')?.value || '';
     const notes = document.getElementById('payment-notes')?.value.trim() || '';
@@ -394,7 +442,8 @@ async function addPayment(receivableId) {
       notes
     });
     
-    document.getElementById('modal')?.classList.add('hidden');
+    const modal = document.getElementById('modal');
+    if (modal) modal.classList.add('hidden');
     await loadReceivables();
     await loadStats();
     showSuccess('Pago registrado');
@@ -404,8 +453,9 @@ async function addPayment(receivableId) {
   }
 }
 
-async function showReceivableDetail(receivableId) {
+window.showReceivableDetail = async function(receivableId) {
   try {
+    const api = getAPI();
     const receivable = await api.receivables?.get(receivableId);
     const modalBody = document.getElementById('modalBody');
     if (!modalBody) return;
@@ -465,12 +515,13 @@ async function showReceivableDetail(receivableId) {
     console.error('Error loading receivable detail:', err);
     showError('Error al cargar detalle');
   }
-}
+};
 
-async function cancelReceivable(receivableId) {
+window.cancelReceivable = async function(receivableId) {
   if (!confirm('¿Estás seguro de cancelar esta cuenta por cobrar?')) return;
   
   try {
+    const api = getAPI();
     await api.receivables?.cancel(receivableId);
     await loadReceivables();
     await loadStats();
@@ -479,7 +530,7 @@ async function cancelReceivable(receivableId) {
     console.error('Error cancelling receivable:', err);
     showError(err?.response?.data?.error || 'Error al cancelar cuenta');
   }
-}
+};
 
 // ========== HELPERS ==========
 
