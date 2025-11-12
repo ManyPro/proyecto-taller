@@ -106,23 +106,23 @@ function renderCompanies() {
   
   tbody.innerHTML = companies.map(company => `
     <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-100/50">
-      <td class="px-4 py-2" data-label="Nombre">
-        <div class="font-medium">${escapeHtml(company.name)}</div>
-        ${company.description ? `<div class="text-xs text-slate-400">${escapeHtml(company.description)}</div>` : ''}
+      <td class="px-2 sm:px-4 py-2" data-label="Nombre">
+        <div class="font-medium text-sm sm:text-base">${escapeHtml(company.name)}</div>
+        ${company.description ? `<div class="text-xs text-slate-400 mt-1">${escapeHtml(company.description)}</div>` : ''}
       </td>
-      <td class="px-4 py-2" data-label="Placas">
+      <td class="px-2 sm:px-4 py-2" data-label="Placas">
         ${company.plates && company.plates.length > 0 
           ? `<div class="flex flex-wrap gap-1 mb-1">${company.plates.map(p => `<span class="inline-block px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 rounded text-xs font-mono">${escapeHtml(p)}</span>`).join('')}</div><div class="text-xs text-slate-400">${company.plates.length} placa${company.plates.length !== 1 ? 's' : ''}</div>`
           : '<span class="text-slate-400 text-xs">Sin placas</span>'}
       </td>
-      <td class="px-4 py-2" data-label="Contacto">
-        ${company.contact?.name ? `<div class="text-sm">${escapeHtml(company.contact.name)}</div>` : ''}
+      <td class="px-2 sm:px-4 py-2" data-label="Contacto">
+        ${company.contact?.name ? `<div class="text-xs sm:text-sm">${escapeHtml(company.contact.name)}</div>` : ''}
         ${company.contact?.phone ? `<div class="text-xs text-slate-400">${escapeHtml(company.contact.phone)}</div>` : ''}
       </td>
-      <td class="px-4 py-2" data-label="Acciones">
-        <div class="flex gap-2">
-          <button onclick="editCompany('${company._id}')" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors">Editar</button>
-          <button onclick="deleteCompany('${company._id}')" class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors">Eliminar</button>
+      <td class="px-2 sm:px-4 py-2" data-label="Acciones">
+        <div class="flex flex-col sm:flex-row gap-1 sm:gap-2">
+          <button onclick="editCompany('${company._id}')" class="px-2 sm:px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors whitespace-nowrap">Editar</button>
+          <button onclick="deleteCompany('${company._id}')" class="px-2 sm:px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors whitespace-nowrap">Eliminar</button>
         </div>
       </td>
     </tr>
@@ -453,34 +453,34 @@ function renderReceivables() {
     
     return `
       <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-100/50">
-        <td class="px-4 py-2" data-label="Fecha">${formatDate(r.createdAt)}</td>
-        <td class="px-4 py-2" data-label="Remisión">#${r.saleNumber || 'N/A'}</td>
-        <td class="px-4 py-2" data-label="Cliente">
-          <div class="font-medium">${escapeHtml(r.customer?.name || 'Sin nombre')}</div>
+        <td class="px-2 sm:px-4 py-2" data-label="Fecha">${formatDate(r.createdAt)}</td>
+        <td class="px-2 sm:px-4 py-2" data-label="Remisión">#${r.saleNumber || 'N/A'}</td>
+        <td class="px-2 sm:px-4 py-2" data-label="Cliente">
+          <div class="font-medium text-sm sm:text-base">${escapeHtml(r.customer?.name || 'Sin nombre')}</div>
           ${r.customer?.idNumber ? `<div class="text-xs text-slate-400">${escapeHtml(r.customer.idNumber)}</div>` : ''}
         </td>
-        <td class="px-4 py-2" data-label="Placa">
-          <span class="font-mono">${escapeHtml(r.vehicle?.plate || 'N/A')}</span>
+        <td class="px-2 sm:px-4 py-2" data-label="Placa">
+          <span class="font-mono text-sm">${escapeHtml(r.vehicle?.plate || 'N/A')}</span>
         </td>
-        <td class="px-4 py-2" data-label="Empresa">
-          ${r.companyAccountId?.name ? `<span class="text-sm">${escapeHtml(r.companyAccountId.name)}</span>` : '<span class="text-slate-400 text-xs">-</span>'}
+        <td class="px-2 sm:px-4 py-2" data-label="Empresa">
+          ${r.companyAccountId?.name ? `<span class="text-xs sm:text-sm">${escapeHtml(r.companyAccountId.name)}</span>` : '<span class="text-slate-400 text-xs">-</span>'}
         </td>
-        <td class="px-4 py-2 text-right" data-label="Total">$${formatMoney(r.totalAmount || 0)}</td>
-        <td class="px-4 py-2 text-right" data-label="Pagado">$${formatMoney(r.paidAmount || 0)}</td>
-        <td class="px-4 py-2 text-right font-bold" data-label="Saldo">
-          <span class="${r.balance > 0 ? 'text-orange-400' : 'text-green-400'}">$${formatMoney(r.balance || 0)}</span>
+        <td class="px-2 sm:px-4 py-2 text-right" data-label="Total"><span class="text-sm sm:text-base">$${formatMoney(r.totalAmount || 0)}</span></td>
+        <td class="px-2 sm:px-4 py-2 text-right" data-label="Pagado"><span class="text-sm sm:text-base">$${formatMoney(r.paidAmount || 0)}</span></td>
+        <td class="px-2 sm:px-4 py-2 text-right font-bold" data-label="Saldo">
+          <span class="text-sm sm:text-base ${r.balance > 0 ? 'text-orange-400' : 'text-green-400'}">$${formatMoney(r.balance || 0)}</span>
         </td>
-        <td class="px-4 py-2" data-label="Estado">
+        <td class="px-2 sm:px-4 py-2" data-label="Estado">
           <span class="px-2 py-1 rounded text-xs ${statusColors[r.status] || ''}">${statusLabels[r.status] || r.status}</span>
         </td>
-        <td class="px-4 py-2" data-label="Acciones">
-          <div class="flex gap-2">
+        <td class="px-2 sm:px-4 py-2" data-label="Acciones">
+          <div class="flex flex-col sm:flex-row gap-1 sm:gap-2">
             ${r.status !== 'paid' && r.status !== 'cancelled' ? `
-              <button onclick="showPaymentModal('${r._id}')" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors">Pago</button>
+              <button onclick="showPaymentModal('${r._id}')" class="px-2 sm:px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-xs rounded transition-colors whitespace-nowrap">Pago</button>
             ` : ''}
-            <button onclick="showReceivableDetail('${r._id}')" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors">Ver</button>
+            <button onclick="showReceivableDetail('${r._id}')" class="px-2 sm:px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors whitespace-nowrap">Ver</button>
             ${r.status !== 'paid' && r.status !== 'cancelled' ? `
-              <button onclick="cancelReceivable('${r._id}')" class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors">Cancelar</button>
+              <button onclick="cancelReceivable('${r._id}')" class="px-2 sm:px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors whitespace-nowrap">Cancelar</button>
             ` : ''}
           </div>
         </td>

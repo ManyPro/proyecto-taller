@@ -135,7 +135,9 @@
       color: #ffffff !important;
       background-color: #2563eb !important;
     }
+    /* Responsive design */
     @media (max-width: 768px) {
+      /* Tablas responsivas */
       .overflow-x-auto {
         overflow-x: visible !important;
       }
@@ -196,6 +198,126 @@
       }
       .overflow-x-auto td:last-child:before {
         display: none;
+      }
+      
+      /* Tablas sin overflow-x-auto también deben ser responsivas */
+      table:not(.overflow-x-auto table) {
+        display: block;
+        width: 100%;
+      }
+      table:not(.overflow-x-auto table) thead {
+        display: none;
+      }
+      table:not(.overflow-x-auto table) tbody {
+        display: block;
+        width: 100%;
+      }
+      table:not(.overflow-x-auto table) tr {
+        display: block;
+        margin-bottom: 1rem;
+        background: rgba(30, 41, 59, 0.5);
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+      }
+      body.theme-light table:not(.overflow-x-auto table) tr {
+        background: #ffffff;
+        border-color: rgba(203, 213, 225, 0.5);
+      }
+      table:not(.overflow-x-auto table) td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border: none;
+        text-align: right;
+        width: 100%;
+      }
+      table:not(.overflow-x-auto table) td:before {
+        content: attr(data-label);
+        font-weight: 600;
+        text-align: left;
+        margin-right: 1rem;
+        color: rgba(148, 163, 184, 0.8);
+        flex-shrink: 0;
+      }
+      body.theme-light table:not(.overflow-x-auto table) td:before {
+        color: rgba(100, 116, 139, 0.8);
+      }
+      table:not(.overflow-x-auto table) td:last-child {
+        border-top: 1px solid rgba(148, 163, 184, 0.2);
+        padding-top: 0.75rem;
+        margin-top: 0.5rem;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      body.theme-light table:not(.overflow-x-auto table) td:last-child {
+        border-top-color: rgba(203, 213, 225, 0.5);
+      }
+      table:not(.overflow-x-auto table) td:last-child:before {
+        display: none;
+      }
+      
+      /* Estadísticas en grid más pequeño */
+      .grid.grid-cols-1.md\\:grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      /* Filtros apilados */
+      .flex.flex-wrap.gap-2.items-end {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .flex.flex-wrap.gap-2.items-end > * {
+        width: 100%;
+      }
+      
+      /* Botones de acción más pequeños */
+      .flex.gap-2 button {
+        flex: 1;
+        min-width: auto;
+      }
+      
+      /* Modal más pequeño en móvil */
+      #modal .max-w-4xl {
+        max-width: 95vw;
+        margin: 1rem;
+      }
+      
+      /* Padding reducido en móvil */
+      .p-6 {
+        padding: 1rem;
+      }
+      
+      /* Títulos más pequeños */
+      .text-xl {
+        font-size: 1.125rem;
+      }
+      
+      /* Tarjetas de placas más compactas */
+      .plate-item {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .plate-item > div:first-child {
+        width: 100%;
+        margin-bottom: 0.5rem;
+      }
+      .plate-item button {
+        width: 100%;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      /* Estadísticas en una sola columna en móviles muy pequeños */
+      .grid.grid-cols-1.md\\:grid-cols-4 {
+        grid-template-columns: 1fr;
+      }
+      
+      /* Texto más pequeño */
+      .text-2xl {
+        font-size: 1.5rem;
       }
     }
   </style>
@@ -280,10 +402,10 @@
 
     <section id="appSection" class="hidden">
       <!-- Modal global reutilizable -->
-      <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
-        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] my-auto overflow-hidden">
-          <button id="modalClose" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
-          <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
+      <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-2 sm:p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
+        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-xl sm:rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] my-auto overflow-hidden">
+          <button id="modalClose" class="absolute top-2 right-2 sm:top-4 sm:right-4 z-50 w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-lg sm:text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
+          <div id="modalBody" class="p-4 sm:p-6 overflow-y-auto max-h-[95vh] sm:max-h-[90vh] custom-scrollbar">
             <!-- Content will be injected here -->
           </div>
         </div>
@@ -313,19 +435,19 @@
           </div>
 
           <!-- Empresas de Cartera -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
-            <div class="flex items-center justify-between mb-4">
-              <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Empresas de Cartera</h3>
-              <button id="btn-add-company" class="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">+ Empresa</button>
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-6 mb-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
+              <h3 class="text-lg sm:text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Empresas de Cartera</h3>
+              <button id="btn-add-company" class="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm sm:text-base">+ Empresa</button>
             </div>
-            <div class="max-h-[200px] overflow-auto custom-scrollbar">
+            <div class="max-h-[200px] sm:max-h-[300px] overflow-auto custom-scrollbar">
               <table class="w-full text-sm">
                 <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100">
                   <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Nombre</th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Placas</th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Contacto</th>
-                    <th class="px-4 py-2 text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700"></th>
+                    <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Nombre">Nombre</th>
+                    <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Placas">Placas</th>
+                    <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Contacto">Contacto</th>
+                    <th class="px-2 sm:px-4 py-2 text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Acciones">Acciones</th>
                   </tr>
                 </thead>
                 <tbody id="companies-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
@@ -334,40 +456,42 @@
           </div>
 
           <!-- Cuentas por Cobrar -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
-            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Cuentas por Cobrar</h3>
-            <div class="flex flex-wrap gap-2 items-end mb-4">
-              <select id="filter-status" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-6">
+            <h3 class="text-lg sm:text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Cuentas por Cobrar</h3>
+            <div class="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-end mb-4">
+              <select id="filter-status" class="w-full sm:w-auto flex-1 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent">
                 <option value="">Todos los estados</option>
                 <option value="pending">Pendientes</option>
                 <option value="partial">Parciales</option>
                 <option value="paid">Pagadas</option>
                 <option value="cancelled">Canceladas</option>
               </select>
-              <select id="filter-company" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+              <select id="filter-company" class="w-full sm:w-auto flex-1 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent">
                 <option value="">Todas las empresas</option>
               </select>
-              <input type="text" id="filter-plate" placeholder="Placa" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" />
-              <input type="date" id="filter-from" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" />
-              <input type="date" id="filter-to" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" />
-              <button id="btn-apply-filters" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Aplicar</button>
-              <button id="btn-refresh" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Actualizar</button>
+              <input type="text" id="filter-plate" placeholder="Placa" class="w-full sm:w-auto flex-1 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent uppercase" />
+              <input type="date" id="filter-from" class="w-full sm:w-auto px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" />
+              <input type="date" id="filter-to" class="w-full sm:w-auto px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" />
+              <div class="flex gap-2 w-full sm:w-auto">
+                <button id="btn-apply-filters" class="flex-1 sm:flex-none px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">Aplicar</button>
+                <button id="btn-refresh" class="flex-1 sm:flex-none px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">Actualizar</button>
+              </div>
             </div>
-            <div class="max-h-[500px] overflow-auto custom-scrollbar">
+            <div class="max-h-[400px] sm:max-h-[500px] overflow-auto custom-scrollbar">
               <div class="overflow-x-auto">
                 <table class="w-full text-sm min-w-[1000px]">
                   <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100">
                     <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-                      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Fecha">Fecha</th>
-                      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Remisión">Remisión</th>
-                      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Cliente">Cliente</th>
-                      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Placa">Placa</th>
-                      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Empresa">Empresa</th>
-                      <th class="px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Total">Total</th>
-                      <th class="px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Pagado">Pagado</th>
-                      <th class="px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Saldo">Saldo</th>
-                      <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Estado">Estado</th>
-                      <th class="px-4 py-2 text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Acciones">Acciones</th>
+                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Fecha">Fecha</th>
+                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Remisión">Remisión</th>
+                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Cliente">Cliente</th>
+                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Placa">Placa</th>
+                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Empresa">Empresa</th>
+                      <th class="px-2 sm:px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Total">Total</th>
+                      <th class="px-2 sm:px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Pagado">Pagado</th>
+                      <th class="px-2 sm:px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Saldo">Saldo</th>
+                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Estado">Estado</th>
+                      <th class="px-2 sm:px-4 py-2 text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Acciones">Acciones</th>
                     </tr>
                   </thead>
                   <tbody id="receivables-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
