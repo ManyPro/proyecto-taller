@@ -398,6 +398,15 @@ const API = {
       if (!id) return Promise.resolve(null);
       // Preferir endpoint de ventas que implementa el lookup consolidado
       return http.get(`/api/v1/sales/profile/by-id/${id}`);
+    },
+    // Vehículos no asignados (pendientes de aprobación)
+    unassignedVehicles: {
+      list: (params = {}) => http.get(`/api/v1/profiles/unassigned-vehicles${toQuery(params)}`),
+      get: (id) => http.get(`/api/v1/profiles/unassigned-vehicles/${id}`),
+      approve: (id, payload = {}) => http.post(`/api/v1/profiles/unassigned-vehicles/${id}/approve`, payload),
+      reject: (id, payload = {}) => http.post(`/api/v1/profiles/unassigned-vehicles/${id}/reject`, payload),
+      delete: (id, deleteProfile = false) => http.del(`/api/v1/profiles/unassigned-vehicles/${id}${deleteProfile ? '?deleteProfile=true' : ''}`),
+      stats: () => http.get('/api/v1/profiles/unassigned-vehicles/stats')
     }
   },
   
