@@ -2771,10 +2771,15 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
     saveBtn.addEventListener('click', async () => {
       const newName = document.getElementById('edit-tech-name')?.value?.trim() || '';
       const newIdentification = document.getElementById('edit-tech-identification')?.value?.trim() || '';
-      const basicSalary = document.getElementById('edit-tech-basic-salary')?.value?.trim() || '';
-      const workHoursPerMonth = document.getElementById('edit-tech-work-hours')?.value?.trim() || '';
-      const basicSalaryPerDay = document.getElementById('edit-tech-salary-per-day')?.value?.trim() || '';
+      const basicSalaryStr = document.getElementById('edit-tech-basic-salary')?.value?.trim() || '';
+      const workHoursStr = document.getElementById('edit-tech-work-hours')?.value?.trim() || '';
+      const basicSalaryPerDayStr = document.getElementById('edit-tech-salary-per-day')?.value?.trim() || '';
       const contractType = document.getElementById('edit-tech-contract-type')?.value?.trim() || '';
+      
+      // Convertir valores numéricos
+      const basicSalary = basicSalaryStr ? Number(basicSalaryStr) : null;
+      const workHoursPerMonth = workHoursStr ? Number(workHoursStr) : null;
+      const basicSalaryPerDay = basicSalaryPerDayStr ? Number(basicSalaryPerDayStr) : null;
       
       if (!newName) {
         alert('⚠️ El nombre del técnico es requerido');
