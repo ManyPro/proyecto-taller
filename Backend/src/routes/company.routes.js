@@ -16,26 +16,69 @@ router.use(async (req, res, next) => {
 
 // ========== Technicians CRUD ==========
 router.get('/technicians', (req, res) => {
+  // Obtener técnicos directamente del documento Mongoose
+  const rawTechnicians = req.companyDoc.technicians || [];
+  
   // Normalizar: convertir strings antiguos a objetos
-  const technicians = (req.companyDoc.technicians || []).map(t => {
+  const technicians = rawTechnicians.map(t => {
+    // Si es un string (técnicos antiguos guardados como strings)
     if (typeof t === 'string') {
-      return { 
-        name: String(t).trim(), 
-        identification: '', 
-        basicSalary: null, 
-        workHoursPerMonth: null, 
-        basicSalaryPerDay: null, 
-        contractType: '' 
-      };
+      const name = String(t).trim();
+      if (name) {
+        return { 
+          name: name, 
+          identification: '', 
+          basicSalary: null, 
+          workHoursPerMonth: null, 
+          basicSalaryPerDay: null, 
+          contractType: '' 
+        };
+      }
     }
-    // Si es un objeto, asegurar que tenga todas las propiedades
+    
+    // Si es un objeto Mongoose o un objeto plano
+    if (t && typeof t === 'object') {
+      // Si tiene la propiedad name, es un objeto válido
+      if (t.name !== undefined && t.name !== null && String(t.name).trim()) {
+        return {
+          name: String(t.name).trim(),
+          identification: String(t?.identification || '').trim(),
+          basicSalary: t?.basicSalary !== undefined && t?.basicSalary !== null ? Number(t.basicSalary) : null,
+          workHoursPerMonth: t?.workHoursPerMonth !== undefined && t?.workHoursPerMonth !== null ? Number(t.workHoursPerMonth) : null,
+          basicSalaryPerDay: t?.basicSalaryPerDay !== undefined && t?.basicSalaryPerDay !== null ? Number(t.basicSalaryPerDay) : null,
+          contractType: String(t?.contractType || '').trim()
+        };
+      }
+      
+      // Si no tiene name pero es un objeto, intentar convertirlo a string
+      // (puede ser un objeto Mongoose que representa un string antiguo)
+      try {
+        // Intentar usar toString() si está disponible (objetos Mongoose)
+        const nameStr = (t.toString && typeof t.toString === 'function') ? t.toString() : String(t);
+        const trimmed = String(nameStr).trim();
+        if (trimmed && trimmed !== '[object Object]' && trimmed !== '{}') {
+          return { 
+            name: trimmed, 
+            identification: '', 
+            basicSalary: null, 
+            workHoursPerMonth: null, 
+            basicSalaryPerDay: null, 
+            contractType: '' 
+          };
+        }
+      } catch (e) {
+        // Si falla, continuar con el fallback
+      }
+    }
+    
+    // Fallback: técnico sin nombre válido
     return {
-      name: String(t?.name || '').trim() || 'Sin nombre',
-      identification: String(t?.identification || '').trim(),
-      basicSalary: t?.basicSalary !== undefined && t?.basicSalary !== null ? Number(t.basicSalary) : null,
-      workHoursPerMonth: t?.workHoursPerMonth !== undefined && t?.workHoursPerMonth !== null ? Number(t.workHoursPerMonth) : null,
-      basicSalaryPerDay: t?.basicSalaryPerDay !== undefined && t?.basicSalaryPerDay !== null ? Number(t.basicSalaryPerDay) : null,
-      contractType: String(t?.contractType || '').trim()
+      name: 'Sin nombre',
+      identification: '',
+      basicSalary: null,
+      workHoursPerMonth: null,
+      basicSalaryPerDay: null,
+      contractType: ''
     };
   });
   res.json({ technicians });
@@ -77,7 +120,10 @@ router.post('/technicians', async (req, res) => {
 
 router.put('/technicians/:oldName', async (req, res) => {
   try {
-    const oldName = String(req.params.oldName || '').trim().toUpperCase();
+    // Convertir a formato plano para evitar problemas con documentos Mongoose
+    const rawTechnicians = JSON.parse(JSON.stringify(req.companyDoc.technicians || []));
+    
+    const oldNameParam = String(req.params.oldName || '').trim();
     const newName = String(req.body?.name || '').trim().toUpperCase();
     const identification = String(req.body?.identification || '').trim();
     const basicSalary = req.body?.basicSalary !== undefined && req.body?.basicSalary !== null ? Number(req.body.basicSalary) : null;
@@ -85,32 +131,51 @@ router.put('/technicians/:oldName', async (req, res) => {
     const basicSalaryPerDay = req.body?.basicSalaryPerDay !== undefined && req.body?.basicSalaryPerDay !== null ? Number(req.body.basicSalaryPerDay) : null;
     const contractType = String(req.body?.contractType || '').trim();
     
-    if (!oldName) return res.status(400).json({ error: 'nombre actual requerido' });
+    if (!oldNameParam) return res.status(400).json({ error: 'nombre actual requerido' });
     if (!newName) return res.status(400).json({ error: 'nuevo nombre requerido' });
     
     // Normalizar technicians: convertir strings a objetos si es necesario
-    const technicians = (req.companyDoc.technicians || []).map(t => {
+    const technicians = rawTechnicians.map(t => {
       if (typeof t === 'string') {
-        return { name: t.toUpperCase(), identification: '', basicSalary: null, workHoursPerMonth: null, basicSalaryPerDay: null, contractType: '' };
+        return { 
+          name: String(t).trim().toUpperCase(), 
+          identification: '', 
+          basicSalary: null, 
+          workHoursPerMonth: null, 
+          basicSalaryPerDay: null, 
+          contractType: '' 
+        };
       }
-      return { 
-        name: String(t.name || '').toUpperCase(), 
-        identification: String(t.identification || '').trim(),
-        basicSalary: t.basicSalary !== undefined && t.basicSalary !== null ? Number(t.basicSalary) : null,
-        workHoursPerMonth: t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null ? Number(t.workHoursPerMonth) : null,
-        basicSalaryPerDay: t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null ? Number(t.basicSalaryPerDay) : null,
-        contractType: String(t.contractType || '').trim()
+      if (t && typeof t === 'object' && !Array.isArray(t)) {
+        return { 
+          name: String(t.name || '').trim().toUpperCase() || 'SIN NOMBRE', 
+          identification: String(t.identification || '').trim(),
+          basicSalary: t.basicSalary !== undefined && t.basicSalary !== null ? Number(t.basicSalary) : null,
+          workHoursPerMonth: t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null ? Number(t.workHoursPerMonth) : null,
+          basicSalaryPerDay: t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null ? Number(t.basicSalaryPerDay) : null,
+          contractType: String(t.contractType || '').trim()
+        };
+      }
+      return {
+        name: 'SIN NOMBRE',
+        identification: '',
+        basicSalary: null,
+        workHoursPerMonth: null,
+        basicSalaryPerDay: null,
+        contractType: ''
       };
     });
     
-    // Verificar que el técnico existe
-    const existingIndex = technicians.findIndex(t => t.name === oldName);
+    // Buscar el técnico por nombre (comparar sin importar mayúsculas/minúsculas)
+    const oldNameUpper = oldNameParam.toUpperCase();
+    const existingIndex = technicians.findIndex(t => t.name.toUpperCase() === oldNameUpper);
     if (existingIndex < 0) {
       return res.status(404).json({ error: 'Técnico no encontrado' });
     }
     
     // Si el nuevo nombre es diferente, verificar que no exista otro con ese nombre
-    if (newName !== oldName && technicians.some(t => t.name === newName)) {
+    const currentName = technicians[existingIndex].name;
+    if (newName !== currentName && technicians.some(t => t.name === newName)) {
       return res.status(409).json({ error: 'Ya existe un técnico con ese nombre' });
     }
     

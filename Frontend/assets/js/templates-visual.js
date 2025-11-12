@@ -1144,6 +1144,67 @@
   }
 
   // Función para acortar variables de Handlebars para mejor visualización en el canvas
+  // Función para actualizar campos editables en plantillas de nómina
+  function updatePayrollEditableFields(html) {
+    if (!html || typeof html !== 'string') return html;
+    
+    // Reemplazar campos editables relacionados con salario básico mensual
+    html = html.replace(
+      /(<td[^>]*>.*?SALARIO\s+BÁSICO\s*\(\$\/MES\):.*?<\/td>\s*<td[^>]*>)(.*?)(<\/td>)/gi,
+      (match, opening, content, closing) => {
+        // Si el contenido no tiene variables de Handlebars, agregarlas
+        if (!content.includes('{{') || !content.includes('settlement.technician.basicSalary')) {
+          return opening + '{{#if settlement.technician.basicSalary}}{{money settlement.technician.basicSalary}}{{/if}}' + closing;
+        }
+        return match;
+      }
+    );
+    
+    // Reemplazar campos editables relacionados con horas de trabajo
+    html = html.replace(
+      /(<td[^>]*>.*?HORAS\s+TRABAJO\s+MES:.*?<\/td>\s*<td[^>]*>)(.*?)(<\/td>)/gi,
+      (match, opening, content, closing) => {
+        // Si el contenido no tiene variables de Handlebars, agregarlas
+        if (!content.includes('{{') || !content.includes('settlement.technician.workHoursPerMonth')) {
+          return opening + '{{#if settlement.technician.workHoursPerMonth}}{{settlement.technician.workHoursPerMonth}}{{/if}}' + closing;
+        }
+        return match;
+      }
+    );
+    
+    // Reemplazar campos editables relacionados con salario básico por día
+    html = html.replace(
+      /(<td[^>]*>.*?SALARIO\s+BÁSICO\s*\(DÍA\):.*?<\/td>\s*<td[^>]*>)(.*?)(<\/td>)/gi,
+      (match, opening, content, closing) => {
+        // Si el contenido no tiene variables de Handlebars, agregarlas
+        if (!content.includes('{{') || !content.includes('settlement.technician.basicSalaryPerDay')) {
+          return opening + '{{#if settlement.technician.basicSalaryPerDay}}{{money settlement.technician.basicSalaryPerDay}}{{/if}}' + closing;
+        }
+        return match;
+      }
+    );
+    
+    // Reemplazar campos editables relacionados con tipo de contrato
+    html = html.replace(
+      /(<td[^>]*>.*?TIPO\s+CONTRATO:.*?<\/td>\s*<td[^>]*>)(.*?)(<\/td>)/gi,
+      (match, opening, content, closing) => {
+        // Si el contenido no tiene variables de Handlebars, agregarlas
+        if (!content.includes('{{') || !content.includes('settlement.technician.contractType')) {
+          return opening + '{{#if settlement.technician.contractType}}{{settlement.technician.contractType}}{{/if}}' + closing;
+        }
+        return match;
+      }
+    );
+    
+    // También buscar y reemplazar texto literal de campos editables
+    html = html.replace(/\[Editar\s+salario\s+básico\]/gi, '{{#if settlement.technician.basicSalary}}{{money settlement.technician.basicSalary}}{{/if}}');
+    html = html.replace(/\[Editar\s+horas\]/gi, '{{#if settlement.technician.workHoursPerMonth}}{{settlement.technician.workHoursPerMonth}}{{/if}}');
+    html = html.replace(/\[Editar\s+salario\s+diario\]/gi, '{{#if settlement.technician.basicSalaryPerDay}}{{money settlement.technician.basicSalaryPerDay}}{{/if}}');
+    html = html.replace(/\[Editar\s+tipo\s+de\s+contrato\]/gi, '{{#if settlement.technician.contractType}}{{settlement.technician.contractType}}{{/if}}');
+    
+    return html;
+  }
+
   function shortenHandlebarsVars(html) {
     if (!html) return html;
     
@@ -2402,7 +2463,13 @@
           console.log('[loadExistingFormat] HTML original guardado, longitud:', template.contentHtml.length);
           
           // Convertir variables largas a formato corto para el canvas
-          const shortHtml = shortenHandlebarsVars(template.contentHtml);
+          let shortHtml = shortenHandlebarsVars(template.contentHtml);
+          
+          // Si es una plantilla de nómina, actualizar campos editables con variables
+          if (template.type === 'payroll') {
+            shortHtml = updatePayrollEditableFields(shortHtml);
+          }
+          
           console.log('[loadExistingFormat] HTML acortado generado, longitud:', shortHtml.length);
           console.log('[loadExistingFormat] Ejemplo de acortamiento:', {
             original: template.contentHtml.substring(0, 200),
@@ -4266,6 +4333,12 @@
     const formatId = window.currentTemplateSession?.formatId;
     if (formatId && window.templateOriginalHtml && window.templateOriginalHtml[formatId]) {
       content = restoreHandlebarsVars(content, window.templateOriginalHtml[formatId]);
+    }
+    
+    // Si es una plantilla de nómina, actualizar campos editables con variables
+    const templateType = window.currentTemplateSession?.type;
+    if (templateType === 'payroll') {
+      content = updatePayrollEditableFields(content);
     }
     
     // Asegurar que las variables de Handlebars en las tablas se preserven correctamente
