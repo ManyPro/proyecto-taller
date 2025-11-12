@@ -280,18 +280,19 @@ async function loadTechnicians(){
   try {
     const r = await api.get('/api/v1/company/technicians');
     const technicians = r.technicians || [];
-    // Normalizar: puede ser array de strings o array de objetos
+    // Normalizar: el backend ya normaliza, pero por seguridad también normalizamos aquí
     const normalizedTechs = technicians.map(t => {
       if (typeof t === 'string') {
-        return { name: t, identification: '', basicSalary: null, workHoursPerMonth: null, basicSalaryPerDay: null, contractType: '' };
+        return { name: String(t).trim(), identification: '', basicSalary: null, workHoursPerMonth: null, basicSalaryPerDay: null, contractType: '' };
       }
+      // El backend debería devolver objetos, pero por seguridad validamos
       return { 
-        name: t.name || t, 
-        identification: t.identification || '',
-        basicSalary: t.basicSalary !== undefined && t.basicSalary !== null ? Number(t.basicSalary) : null,
-        workHoursPerMonth: t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null ? Number(t.workHoursPerMonth) : null,
-        basicSalaryPerDay: t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null ? Number(t.basicSalaryPerDay) : null,
-        contractType: t.contractType || ''
+        name: String(t?.name || '').trim() || 'Sin nombre', 
+        identification: String(t?.identification || '').trim(),
+        basicSalary: t?.basicSalary !== undefined && t?.basicSalary !== null ? Number(t.basicSalary) : null,
+        workHoursPerMonth: t?.workHoursPerMonth !== undefined && t?.workHoursPerMonth !== null ? Number(t.workHoursPerMonth) : null,
+        basicSalaryPerDay: t?.basicSalaryPerDay !== undefined && t?.basicSalaryPerDay !== null ? Number(t.basicSalaryPerDay) : null,
+        contractType: String(t?.contractType || '').trim()
       };
     });
     const names = normalizedTechs.map(t => t.name);

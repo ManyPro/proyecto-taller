@@ -16,7 +16,29 @@ router.use(async (req, res, next) => {
 
 // ========== Technicians CRUD ==========
 router.get('/technicians', (req, res) => {
-  res.json({ technicians: req.companyDoc.technicians || [] });
+  // Normalizar: convertir strings antiguos a objetos
+  const technicians = (req.companyDoc.technicians || []).map(t => {
+    if (typeof t === 'string') {
+      return { 
+        name: String(t).trim(), 
+        identification: '', 
+        basicSalary: null, 
+        workHoursPerMonth: null, 
+        basicSalaryPerDay: null, 
+        contractType: '' 
+      };
+    }
+    // Si es un objeto, asegurar que tenga todas las propiedades
+    return {
+      name: String(t?.name || '').trim() || 'Sin nombre',
+      identification: String(t?.identification || '').trim(),
+      basicSalary: t?.basicSalary !== undefined && t?.basicSalary !== null ? Number(t.basicSalary) : null,
+      workHoursPerMonth: t?.workHoursPerMonth !== undefined && t?.workHoursPerMonth !== null ? Number(t.workHoursPerMonth) : null,
+      basicSalaryPerDay: t?.basicSalaryPerDay !== undefined && t?.basicSalaryPerDay !== null ? Number(t.basicSalaryPerDay) : null,
+      contractType: String(t?.contractType || '').trim()
+    };
+  });
+  res.json({ technicians });
 });
 
 router.post('/technicians', async (req, res) => {
