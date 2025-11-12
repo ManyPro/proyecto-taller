@@ -1250,7 +1250,10 @@
       { from: /\{\{C\.email\}\}/g, to: '{{sale.customer.email}}' },
       { from: /\{\{C\.tel\}\}/g, to: '{{sale.customer.phone}}' },
       { from: /\{\{C\.dir\}\}/g, to: '{{sale.customer.address}}' },
-      { from: /\{\{S\.nº\}\}/g, to: '{{sale.number}}' },
+      // IMPORTANTE: Restaurar expresión completa ANTES que variables individuales
+      { from: /\{\{#if S\.nº\}\}\{\{S\.nº\}\}\{\{else\}\}\[Sin nº\]\{\{\/if\}\}/g, to: '{{#if sale.formattedNumber}}{{sale.formattedNumber}}{{else}}{{#if sale.number}}{{pad sale.number}}{{else}}[Sin número]{{/if}}{{/if}}' },
+      { from: /\{\{pad S\.nº\}\}/g, to: '{{pad sale.number}}' },
+      { from: /\{\{S\.nº\}\}/g, to: '{{sale.formattedNumber}}' }, // Restaurar S.nº a formattedNumber, no a number
       { from: /\{\{S\.total\}\}/g, to: '{{sale.total}}' },
       { from: /\{\{\$ S\.total\}\}/g, to: '{{money sale.total}}' },
       { from: /\{\{E\.nombre\}\}/g, to: '{{company.name}}' },
@@ -1268,8 +1271,6 @@
       { from: /\{\{\$ precio\}\}/g, to: '{{money unitPrice}}' },
       { from: /\{\{tot\}\}/g, to: '{{total}}' },
       { from: /\{\{\$ tot\}\}/g, to: '{{money total}}' },
-      { from: /\{\{pad S\.nº\}\}/g, to: '{{pad sale.number}}' },
-      { from: /\{\{#if S\.nº\}\}\{\{S\.nº\}\}\{\{else\}\}\[Sin nº\]\{\{\/if\}\}/g, to: '{{#if sale.formattedNumber}}{{sale.formattedNumber}}{{else}}{{#if sale.number}}{{pad sale.number}}{{else}}[Sin número]{{/if}}{{/if}}' },
       // Restaurar variables de cotización
       { from: /\{\{\$ Q\.total\}\}/g, to: '{{money quote.total}}' },
       { from: /\{\{Q\.total\}\}/g, to: '{{quote.total}}' },
@@ -1310,6 +1311,72 @@
       console.warn('[restoreHandlebarsVars] No se pudieron restaurar variables, usando HTML original');
       return originalHtml;
     }
+    
+    return result;
+  }
+  
+  // Función para restaurar variables acortadas antes de enviar al preview (sin necesidad de HTML original)
+  function restoreHandlebarsVarsForPreview(html) {
+    if (!html) return html;
+    
+    // Mismo mapeo que restoreHandlebarsVars pero sin necesidad del HTML original
+    const replacements = [
+      { from: /\{\{C\.nombre\}\}/g, to: '{{sale.customer.name}}' },
+      { from: /\{\{C\.email\}\}/g, to: '{{sale.customer.email}}' },
+      { from: /\{\{C\.tel\}\}/g, to: '{{sale.customer.phone}}' },
+      { from: /\{\{C\.dir\}\}/g, to: '{{sale.customer.address}}' },
+      // IMPORTANTE: Restaurar expresión completa ANTES que variables individuales
+      { from: /\{\{#if S\.nº\}\}\{\{S\.nº\}\}\{\{else\}\}\[Sin nº\]\{\{\/if\}\}/g, to: '{{#if sale.formattedNumber}}{{sale.formattedNumber}}{{else}}{{#if sale.number}}{{pad sale.number}}{{else}}[Sin número]{{/if}}{{/if}}' },
+      { from: /\{\{pad S\.nº\}\}/g, to: '{{pad sale.number}}' },
+      { from: /\{\{S\.nº\}\}/g, to: '{{sale.formattedNumber}}' }, // Restaurar S.nº a formattedNumber, no a number
+      { from: /\{\{S\.total\}\}/g, to: '{{sale.total}}' },
+      { from: /\{\{\$ S\.total\}\}/g, to: '{{money sale.total}}' },
+      { from: /\{\{S\.fecha\}\}/g, to: '{{sale.date}}' },
+      { from: /\{\{date S\.fecha\}\}/g, to: '{{date sale.date}}' },
+      { from: /\{\{E\.nombre\}\}/g, to: '{{company.name}}' },
+      { from: /\{\{E\.email\}\}/g, to: '{{company.email}}' },
+      { from: /\{\{E\.logo\}\}/g, to: '{{company.logoUrl}}' },
+      { from: /\{\{#if S\.P\}\}/g, to: '{{#if sale.itemsGrouped.hasProducts}}' },
+      { from: /\{\{#if S\.S\}\}/g, to: '{{#if sale.itemsGrouped.hasServices}}' },
+      { from: /\{\{#if S\.C\}\}/g, to: '{{#if sale.itemsGrouped.hasCombos}}' },
+      { from: /\{\{#each S\.P\}\}/g, to: '{{#each sale.itemsGrouped.products}}' },
+      { from: /\{\{#each S\.S\}\}/g, to: '{{#each sale.itemsGrouped.services}}' },
+      { from: /\{\{#each S\.C\}\}/g, to: '{{#each sale.itemsGrouped.combos}}' },
+      { from: /\{\{nom\}\}/g, to: '{{name}}' },
+      { from: /\{\{cant\}\}/g, to: '{{qty}}' },
+      { from: /\{\{precio\}\}/g, to: '{{unitPrice}}' },
+      { from: /\{\{\$ precio\}\}/g, to: '{{money unitPrice}}' },
+      { from: /\{\{tot\}\}/g, to: '{{total}}' },
+      { from: /\{\{\$ tot\}\}/g, to: '{{money total}}' },
+      { from: /\{\{\$ Q\.total\}\}/g, to: '{{money quote.total}}' },
+      { from: /\{\{Q\.total\}\}/g, to: '{{quote.total}}' },
+      { from: /\{\{Q\.nº\}\}/g, to: '{{quote.number}}' },
+      { from: /\{\{date Q\.fecha\}\}/g, to: '{{date quote.date}}' },
+      { from: /\{\{date Q\.válida\}\}/g, to: '{{date quote.validUntil}}' },
+      { from: /\{\{Q\.fecha\}\}/g, to: '{{quote.date}}' },
+      { from: /\{\{Q\.válida\}\}/g, to: '{{quote.validUntil}}' },
+      { from: /\{\{Q\.C\.nombre\}\}/g, to: '{{quote.customer.name}}' },
+      { from: /\{\{Q\.C\.email\}\}/g, to: '{{quote.customer.email}}' },
+      { from: /\{\{Q\.C\.tel\}\}/g, to: '{{quote.customer.phone}}' },
+      { from: /\{\{Q\.V\.placa\}\}/g, to: '{{quote.vehicle.plate}}' },
+      { from: /\{\{Q\.V\.marca\}\}/g, to: '{{quote.vehicle.brand}}' },
+      { from: /\{\{Q\.V\.modelo\}\}/g, to: '{{quote.vehicle.model}}' },
+      { from: /\{\{Q\.V\.año\}\}/g, to: '{{quote.vehicle.year}}' },
+      { from: /\{\{date S\.fecha\}\}/g, to: '{{date sale.date}}' },
+      { from: /\{\{V\.placa\}\}/g, to: '{{sale.vehicle.plate}}' },
+      { from: /\{\{V\.marca\}\}/g, to: '{{sale.vehicle.brand}}' },
+      { from: /\{\{V\.modelo\}\}/g, to: '{{sale.vehicle.model}}' },
+      { from: /\{\{V\.año\}\}/g, to: '{{sale.vehicle.year}}' },
+      { from: /\{\{#unless S\.P\}\}/g, to: '{{#unless sale.itemsGrouped.hasProducts}}' },
+      { from: /\{\{#unless S\.S\}\}/g, to: '{{#unless sale.itemsGrouped.hasServices}}' },
+      { from: /\{\{#unless S\.C\}\}/g, to: '{{#unless sale.itemsGrouped.hasCombos}}' },
+      { from: /\{\{#if sku\}\}\[\{\{sku\}\}\] \{\{\/if\}\}\{\{nom\}\}/g, to: '{{#if sku}}[{{sku}}] {{/if}}{{name}}' },
+    ];
+    
+    let result = html;
+    replacements.forEach(({ from, to }) => {
+      result = result.replace(from, to);
+    });
     
     return result;
   }
@@ -4330,9 +4397,12 @@
     try {
       showQuickNotification('🔄 Generando vista previa con datos reales...', 'info');
       
+      // Restaurar variables acortadas antes de enviar al preview
+      const restoredContent = restoreHandlebarsVarsForPreview(content);
+      
       const result = await API.templates.preview({
         type: templateType,
-        contentHtml: content,
+        contentHtml: restoredContent,
         contentCss: templateCss
       });
       
