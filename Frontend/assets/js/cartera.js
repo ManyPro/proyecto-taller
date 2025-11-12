@@ -112,7 +112,7 @@ function renderCompanies() {
       </td>
       <td class="px-4 py-2" data-label="Placas">
         ${company.plates && company.plates.length > 0 
-          ? company.plates.map(p => `<span class="inline-block px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 rounded text-xs mr-1">${escapeHtml(p)}</span>`).join('')
+          ? `<div class="flex flex-wrap gap-1 mb-1">${company.plates.map(p => `<span class="inline-block px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 rounded text-xs font-mono">${escapeHtml(p)}</span>`).join('')}</div><div class="text-xs text-slate-400">${company.plates.length} placa${company.plates.length !== 1 ? 's' : ''}</div>`
           : '<span class="text-slate-400 text-xs">Sin placas</span>'}
       </td>
       <td class="px-4 py-2" data-label="Contacto">
@@ -171,9 +171,26 @@ function showCompanyModal(companyId = null) {
           class="w-full mt-2 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500">${company?.contact?.address || ''}</textarea>
       </div>
       <div>
-        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Placas (una por línea)</label>
-        <textarea id="company-plates" rows="3" placeholder="ABC123&#10;XYZ789"
-          class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500">${company?.plates?.join('\n') || ''}</textarea>
+        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Placas</label>
+        <div class="flex gap-2 mb-2">
+          <input type="text" id="new-plate-input" placeholder="Ej: ABC123" 
+            class="flex-1 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 uppercase"
+            onkeypress="if(event.key==='Enter'){event.preventDefault();addPlateToCompany();}" />
+          <button type="button" onclick="addPlateToCompany()" 
+            class="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Agregar</button>
+        </div>
+        <div id="plates-list" class="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar mb-2">
+          ${company?.plates?.map(plate => `
+            <div class="plate-item flex items-center justify-between p-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300" data-plate="${escapeHtml(plate)}">
+              <div class="flex-1">
+                <div class="font-mono font-semibold text-white dark:text-white theme-light:text-slate-900">${escapeHtml(plate)}</div>
+                <div class="plate-vehicle-info text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Buscando información...</div>
+              </div>
+              <button type="button" onclick="removePlateFromCompany('${escapeHtml(plate)}')" 
+                class="ml-2 px-2 py-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 hover:text-red-300 rounded text-xs transition-colors">Eliminar</button>
+            </div>
+          `).join('') || '<p class="text-xs text-slate-400 text-center py-2">No hay placas agregadas</p>'}
+        </div>
         <p class="text-xs text-slate-400 mt-1">Cuando una de estas placas quede debiendo, se asociará automáticamente a esta empresa</p>
       </div>
       <div>
@@ -192,10 +209,135 @@ function showCompanyModal(companyId = null) {
   
   document.getElementById('modal')?.classList.remove('hidden');
   
+  // Inicializar lista de placas
+  window.currentCompanyPlates = company?.plates ? [...company.plates] : [];
+  
+  // Cargar información de vehículos para las placas existentes
+  if (company?.plates && company.plates.length > 0) {
+    company.plates.forEach(plate => {
+      loadVehicleInfo(plate);
+    });
+  }
+  
   document.getElementById('company-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     await saveCompany(companyId);
   });
+}
+
+// Funciones globales para manejar placas
+window.addPlateToCompany = async function() {
+  const input = document.getElementById('new-plate-input');
+  if (!input) return;
+  
+  const plate = input.value.trim().toUpperCase();
+  if (!plate) {
+    showError('Ingresa una placa');
+    return;
+  }
+  
+  // Validar formato básico de placa (al menos 3 caracteres)
+  if (plate.length < 3) {
+    showError('La placa debe tener al menos 3 caracteres');
+    return;
+  }
+  
+  // Verificar que no esté duplicada
+  if (window.currentCompanyPlates.includes(plate)) {
+    showError('Esta placa ya está agregada');
+    return;
+  }
+  
+  // Agregar a la lista
+  window.currentCompanyPlates.push(plate);
+  
+  // Agregar al DOM
+  const platesList = document.getElementById('plates-list');
+  if (platesList) {
+    if (platesList.querySelector('p')) {
+      platesList.innerHTML = '';
+    }
+    
+    const plateDiv = document.createElement('div');
+    plateDiv.className = 'plate-item flex items-center justify-between p-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300';
+    plateDiv.setAttribute('data-plate', plate);
+    plateDiv.innerHTML = `
+      <div class="flex-1">
+        <div class="font-mono font-semibold text-white dark:text-white theme-light:text-slate-900">${escapeHtml(plate)}</div>
+        <div class="plate-vehicle-info text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Buscando información...</div>
+      </div>
+      <button type="button" onclick="removePlateFromCompany('${escapeHtml(plate)}')" 
+        class="ml-2 px-2 py-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 hover:text-red-300 rounded text-xs transition-colors">Eliminar</button>
+    `;
+    platesList.appendChild(plateDiv);
+    
+    // Cargar información del vehículo
+    await loadVehicleInfo(plate);
+  }
+  
+  // Limpiar input
+  input.value = '';
+};
+
+window.removePlateFromCompany = function(plate) {
+  if (!confirm(`¿Eliminar la placa ${plate}?`)) return;
+  
+  window.currentCompanyPlates = window.currentCompanyPlates.filter(p => p !== plate);
+  
+  const plateItem = document.querySelector(`.plate-item[data-plate="${plate}"]`);
+  if (plateItem) {
+    plateItem.remove();
+  }
+  
+  const platesList = document.getElementById('plates-list');
+  if (platesList && platesList.children.length === 0) {
+    platesList.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">No hay placas agregadas</p>';
+  }
+};
+
+async function loadVehicleInfo(plate) {
+  try {
+    const api = getAPI();
+    // Usar el endpoint de sales para obtener información del perfil por placa
+    const profile = await api.sales?.profileByPlate?.(plate) || null;
+    
+    const plateItem = document.querySelector(`.plate-item[data-plate="${plate}"]`);
+    if (!plateItem) return;
+    
+    const infoEl = plateItem.querySelector('.plate-vehicle-info');
+    if (!infoEl) return;
+    
+    if (profile && profile.vehicle) {
+      const vehicle = profile.vehicle;
+      const parts = [];
+      if (vehicle.brand) parts.push(vehicle.brand);
+      if (vehicle.line) parts.push(vehicle.line);
+      if (vehicle.engine) parts.push(vehicle.engine);
+      if (vehicle.year) parts.push(`Año: ${vehicle.year}`);
+      
+      if (parts.length > 0) {
+        infoEl.textContent = parts.join(' - ');
+        infoEl.classList.remove('text-slate-400');
+        infoEl.classList.add('text-green-400', 'dark:text-green-400', 'theme-light:text-green-600');
+      } else {
+        infoEl.textContent = 'Sin información de vehículo';
+        infoEl.classList.add('text-yellow-400', 'dark:text-yellow-400', 'theme-light:text-yellow-600');
+      }
+    } else {
+      infoEl.textContent = 'Placa no registrada en el sistema';
+      infoEl.classList.add('text-yellow-400', 'dark:text-yellow-400', 'theme-light:text-yellow-600');
+    }
+  } catch (err) {
+    console.error('Error loading vehicle info:', err);
+    const plateItem = document.querySelector(`.plate-item[data-plate="${plate}"]`);
+    if (plateItem) {
+      const infoEl = plateItem.querySelector('.plate-vehicle-info');
+      if (infoEl) {
+        infoEl.textContent = 'Error al buscar información';
+        infoEl.classList.add('text-red-400', 'dark:text-red-400', 'theme-light:text-red-600');
+      }
+    }
+  }
 }
 
 async function saveCompany(companyId) {
@@ -207,10 +349,8 @@ async function saveCompany(companyId) {
       return;
     }
     
-    const plates = (document.getElementById('company-plates')?.value || '')
-      .split('\n')
-      .map(p => p.trim().toUpperCase())
-      .filter(p => p);
+    // Obtener placas de la lista actual
+    const plates = window.currentCompanyPlates || [];
     
     const data = {
       name,
