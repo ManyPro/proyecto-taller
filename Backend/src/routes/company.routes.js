@@ -16,95 +16,88 @@ router.use(async (req, res, next) => {
 
 // ========== Technicians CRUD ==========
 router.get('/technicians', (req, res) => {
-  // Obtener técnicos directamente del documento Mongoose
-  const rawTechnicians = req.companyDoc.technicians || [];
+  // Convertir a JSON y parsear para obtener objetos planos (evita problemas con documentos Mongoose)
+  const rawTechnicians = JSON.parse(JSON.stringify(req.companyDoc.technicians || []));
   
-  // Normalizar: convertir strings antiguos a objetos
-  const technicians = rawTechnicians.map(t => {
-    // Si es un string (técnicos antiguos guardados como strings)
-    if (typeof t === 'string') {
-      const name = String(t).trim();
-      if (name) {
-        return { 
-          name: name, 
-          identification: '', 
-          basicSalary: null, 
-          workHoursPerMonth: null, 
-          basicSalaryPerDay: null, 
-          contractType: '' 
-        };
-      }
+  // Función auxiliar para extraer nombre como string
+  const extractName = (obj) => {
+    if (!obj) return 'Sin nombre';
+    
+    // Si es string, devolverlo directamente
+    if (typeof obj === 'string') {
+      return obj.trim() || 'Sin nombre';
     }
     
-    // Si es un objeto Mongoose o un objeto plano
-    if (t && typeof t === 'object') {
-      // Extraer nombre de forma segura
-      let name = '';
-      if (t.name !== undefined && t.name !== null) {
-        if (typeof t.name === 'string') {
-          name = String(t.name).trim();
-        } else if (typeof t.name === 'object') {
-          // Si name es un objeto (caracteres indexados de Mongoose), convertirlo a string
+    // Si es objeto con propiedad name
+    if (obj && typeof obj === 'object') {
+      // Si tiene propiedad name
+      if (obj.name !== undefined && obj.name !== null) {
+        // Si name es string
+        if (typeof obj.name === 'string') {
+          return obj.name.trim() || 'Sin nombre';
+        }
+        // Si name es objeto (caracteres indexados), convertirlo
+        if (typeof obj.name === 'object') {
           try {
-            // Si tiene propiedades numéricas, es un string indexado
-            const nameKeys = Object.keys(t.name);
-            if (nameKeys.length > 0 && nameKeys.every(k => /^\d+$/.test(k))) {
-              name = Object.values(t.name).join('').trim();
-            } else {
-              // Intentar convertir de otra forma
-              name = String(t.name).trim();
+            const nameKeys = Object.keys(obj.name);
+            if (nameKeys.length > 0) {
+              // Si tiene claves numéricas, es un string indexado
+              if (nameKeys.every(k => /^\d+$/.test(k))) {
+                return Object.values(obj.name).join('').trim() || 'Sin nombre';
+              }
             }
+            return String(obj.name).trim() || 'Sin nombre';
           } catch (e) {
-            name = String(t.name).trim();
+            return 'Sin nombre';
           }
-        } else {
-          name = String(t.name).trim();
         }
+        return String(obj.name).trim() || 'Sin nombre';
       }
       
-      // Si tiene nombre válido, devolver objeto normalizado
-      if (name) {
-        return {
-          name: name,
-          identification: String(t?.identification || '').trim(),
-          basicSalary: t?.basicSalary !== undefined && t?.basicSalary !== null ? Number(t.basicSalary) : null,
-          workHoursPerMonth: t?.workHoursPerMonth !== undefined && t?.workHoursPerMonth !== null ? Number(t.workHoursPerMonth) : null,
-          basicSalaryPerDay: t?.basicSalaryPerDay !== undefined && t?.basicSalaryPerDay !== null ? Number(t.basicSalaryPerDay) : null,
-          contractType: String(t?.contractType || '').trim()
-        };
-      }
-      
-      // Si no tiene name pero es un objeto, intentar convertirlo a string
-      // (puede ser un objeto Mongoose que representa un string antiguo)
-      try {
-        // Intentar usar toString() si está disponible (objetos Mongoose)
-        const nameStr = (t.toString && typeof t.toString === 'function') ? t.toString() : String(t);
-        const trimmed = String(nameStr).trim();
-        if (trimmed && trimmed !== '[object Object]' && trimmed !== '{}') {
-          return { 
-            name: trimmed, 
-            identification: '', 
-            basicSalary: null, 
-            workHoursPerMonth: null, 
-            basicSalaryPerDay: null, 
-            contractType: '' 
-          };
+      // Si no tiene name pero tiene claves numéricas, es un string antiguo
+      const keys = Object.keys(obj);
+      if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
+        try {
+          return Object.values(obj).join('').trim() || 'Sin nombre';
+        } catch (e) {
+          return 'Sin nombre';
         }
-      } catch (e) {
-        // Si falla, continuar con el fallback
       }
     }
     
-    // Fallback: técnico sin nombre válido
+    return 'Sin nombre';
+  };
+  
+  // Normalizar: convertir strings antiguos a objetos con nombre SIEMPRE como string
+  const technicians = rawTechnicians.map(t => {
+    const name = extractName(t);
+    
+    // Extraer otros campos
+    let identification = '';
+    let basicSalary = null;
+    let workHoursPerMonth = null;
+    let basicSalaryPerDay = null;
+    let contractType = '';
+    
+    if (t && typeof t === 'object') {
+      identification = String(t.identification || '').trim();
+      basicSalary = (t.basicSalary !== undefined && t.basicSalary !== null) ? Number(t.basicSalary) : null;
+      workHoursPerMonth = (t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null) ? Number(t.workHoursPerMonth) : null;
+      basicSalaryPerDay = (t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null) ? Number(t.basicSalaryPerDay) : null;
+      contractType = String(t.contractType || '').trim();
+    }
+    
+    // Retornar objeto normalizado con nombre SIEMPRE como string
     return {
-      name: 'Sin nombre',
-      identification: '',
-      basicSalary: null,
-      workHoursPerMonth: null,
-      basicSalaryPerDay: null,
-      contractType: ''
+      name: String(name), // Asegurar que sea string
+      identification: identification,
+      basicSalary: basicSalary,
+      workHoursPerMonth: workHoursPerMonth,
+      basicSalaryPerDay: basicSalaryPerDay,
+      contractType: contractType
     };
   });
+  
   res.json({ technicians });
 });
 

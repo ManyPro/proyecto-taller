@@ -280,56 +280,82 @@ async function loadTechnicians(){
   try {
     const r = await api.get('/api/v1/company/technicians');
     const technicians = r.technicians || [];
-    // Normalizar: el backend ya normaliza, pero por seguridad también normalizamos aquí
+    // Normalizar: convertir a objetos simples con nombre como string
     const normalizedTechs = technicians.map(t => {
-      if (typeof t === 'string') {
-        return { name: String(t).trim(), identification: '', basicSalary: null, workHoursPerMonth: null, basicSalaryPerDay: null, contractType: '' };
-      }
-      
-      // Extraer nombre de forma segura, incluso si viene como objeto
-      let name = '';
-      if (t && typeof t === 'object') {
-        if (typeof t.name === 'string') {
-          name = String(t.name).trim();
-        } else if (t.name && typeof t.name === 'object') {
-          // Si name es un objeto (caracteres indexados), convertirlo a string
-          try {
-            name = Object.values(t.name).join('').trim();
-          } catch (e) {
-            name = String(t.name).trim();
-          }
-        } else if (t.name !== undefined && t.name !== null) {
-          name = String(t.name).trim();
+      // Función auxiliar para extraer nombre como string
+      const extractName = (obj) => {
+        if (!obj) return 'Sin nombre';
+        
+        // Si es string, devolverlo directamente
+        if (typeof obj === 'string') {
+          return obj.trim() || 'Sin nombre';
         }
-      }
-      
-      // Si aún no hay nombre, intentar usar el objeto completo como string
-      if (!name && t && typeof t === 'object') {
-        try {
-          // Si el objeto tiene propiedades numéricas (caracteres indexados), es un string antiguo
-          const keys = Object.keys(t);
+        
+        // Si es objeto con propiedad name
+        if (obj && typeof obj === 'object') {
+          // Si tiene propiedad name
+          if (obj.name !== undefined && obj.name !== null) {
+            // Si name es string
+            if (typeof obj.name === 'string') {
+              return obj.name.trim() || 'Sin nombre';
+            }
+            // Si name es objeto (caracteres indexados), convertirlo
+            if (typeof obj.name === 'object') {
+              try {
+                const nameKeys = Object.keys(obj.name);
+                if (nameKeys.length > 0) {
+                  // Si tiene claves numéricas, es un string indexado
+                  if (nameKeys.every(k => /^\d+$/.test(k))) {
+                    return Object.values(obj.name).join('').trim() || 'Sin nombre';
+                  }
+                }
+                return String(obj.name).trim() || 'Sin nombre';
+              } catch (e) {
+                return 'Sin nombre';
+              }
+            }
+            return String(obj.name).trim() || 'Sin nombre';
+          }
+          
+          // Si no tiene name pero tiene claves numéricas, es un string antiguo
+          const keys = Object.keys(obj);
           if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
-            name = Object.values(t).join('').trim();
-          } else {
-            name = String(t).trim();
+            try {
+              return Object.values(obj).join('').trim() || 'Sin nombre';
+            } catch (e) {
+              return 'Sin nombre';
+            }
           }
-        } catch (e) {
-          name = 'Sin nombre';
         }
+        
+        return 'Sin nombre';
+      };
+      
+      const name = extractName(t);
+      
+      // Extraer otros campos de forma segura
+      let identification = '';
+      let basicSalary = null;
+      let workHoursPerMonth = null;
+      let basicSalaryPerDay = null;
+      let contractType = '';
+      
+      if (t && typeof t === 'object') {
+        identification = String(t.identification || '').trim();
+        basicSalary = (t.basicSalary !== undefined && t.basicSalary !== null) ? Number(t.basicSalary) : null;
+        workHoursPerMonth = (t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null) ? Number(t.workHoursPerMonth) : null;
+        basicSalaryPerDay = (t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null) ? Number(t.basicSalaryPerDay) : null;
+        contractType = String(t.contractType || '').trim();
       }
       
-      if (!name) {
-        name = 'Sin nombre';
-      }
-      
-      // El backend debería devolver objetos, pero por seguridad validamos
+      // Retornar objeto normalizado con nombre SIEMPRE como string
       return { 
-        name: name, 
-        identification: String(t?.identification || '').trim(),
-        basicSalary: t?.basicSalary !== undefined && t?.basicSalary !== null ? Number(t.basicSalary) : null,
-        workHoursPerMonth: t?.workHoursPerMonth !== undefined && t?.workHoursPerMonth !== null ? Number(t.workHoursPerMonth) : null,
-        basicSalaryPerDay: t?.basicSalaryPerDay !== undefined && t?.basicSalaryPerDay !== null ? Number(t.basicSalaryPerDay) : null,
-        contractType: String(t?.contractType || '').trim()
+        name: String(name), // Asegurar que sea string
+        identification: identification,
+        basicSalary: basicSalary,
+        workHoursPerMonth: workHoursPerMonth,
+        basicSalaryPerDay: basicSalaryPerDay,
+        contractType: contractType
       };
     });
     const names = normalizedTechs.map(t => t.name);
