@@ -822,7 +822,6 @@ if (__ON_INV_PAGE__) {
       </button>
       <div class="flex gap-2 flex-wrap">
         <button id="sel-stickers-qr" class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" title="Generar PDF - Solo QR">Solo QR</button>
-        <button id="sel-stickers-brand" class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" title="Generar PDF - Marca + QR">Marca + QR</button>
         <button id="sel-stock-in-bulk" class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" title="Agregar stock a todos los seleccionados">Agregar stock (masivo)</button>
         <button id="sel-publish-bulk" class="px-4 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" title="Publicar/Despublicar ítems seleccionados, por entrada o SKUs">Publicación (masiva)</button>
       </div>
@@ -843,9 +842,7 @@ if (__ON_INV_PAGE__) {
       updateSelectionBar();
     };
     const btnQR = selectionBar.querySelector("#sel-stickers-qr");
-    const btnBrand = selectionBar.querySelector("#sel-stickers-brand");
     if (btnQR) btnQR.onclick = () => generateStickersFromSelection('qr');
-    if (btnBrand) btnBrand.onclick = () => generateStickersFromSelection('brand');
     const btnBulk = selectionBar.querySelector('#sel-stock-in-bulk');
     if (btnBulk) btnBulk.onclick = openBulkStockInModal;
     const btnPub = selectionBar.querySelector('#sel-publish-bulk');
@@ -856,9 +853,7 @@ if (__ON_INV_PAGE__) {
       const fo = (typeof getFeatureOptions === 'function') ? getFeatureOptions() : {};
       const tpl = (fo.templates||{});
       const allowQR = (tpl.stickerQR !== false);
-      const allowBrand = (tpl.stickerQRyMarca !== false);
       if (btnQR) btnQR.style.display = allowQR ? '' : 'none';
-      if (btnBrand) btnBrand.style.display = allowBrand ? '' : 'none';
     }catch{}
   }
 
@@ -2397,7 +2392,7 @@ function openMarketplaceHelper(item){
         return;
       }
       // Intentar usar la PLANTILLA ACTIVA del tipo seleccionado
-      const type = (variant === 'brand') ? 'sticker-brand' : 'sticker-qr';
+      const type = 'sticker-qr';
       try {
         const tpl = await API.templates.active(type);
         if (tpl && tpl.contentHtml) {
@@ -2459,12 +2454,11 @@ function openMarketplaceHelper(item){
 
           const images = [];
           for (const html of results) {
-            // Para 'brand', el contenido puede tener 2 páginas (.editor-page[data-page="1"] y [data-page="2"]) que se deben capturar por separado
+            // Solo usar sticker-qr (sin páginas múltiples)
             const tmp = document.createElement('div');
             tmp.innerHTML = html || '';
-            const pages = (variant === 'brand') ? Array.from(tmp.querySelectorAll('.editor-page')) : [];
 
-            const captureSingleBox = async (contentFragment) => {
+            const captureSingleBox = async () => {
               const box = document.createElement('div');
               box.className = 'sticker-capture';
               box.style.cssText = 'width:5cm;height:3cm;overflow:hidden;background:#fff;';
@@ -2477,11 +2471,7 @@ function openMarketplaceHelper(item){
                 `img,svg,canvas{outline:none!important;border:none!important;-webkit-user-drag:none!important;}`;
               box.appendChild(style);
               const inner = document.createElement('div');
-              if (contentFragment) {
-                inner.appendChild(contentFragment);
-              } else {
-                inner.innerHTML = html || '';
-              }
+              inner.innerHTML = html || '';
               try {
                 inner.querySelectorAll('[contenteditable]')
                   .forEach(el => { el.setAttribute('contenteditable', 'false'); el.removeAttribute('contenteditable'); });
@@ -2495,24 +2485,8 @@ function openMarketplaceHelper(item){
               root.removeChild(box);
             };
 
-            if (pages.length >= 2) {
-              // Clonar contenido de cada página y capturar en orden
-              const p1 = pages.find(p => p.dataset.page === '1') || pages[0];
-              const p2 = pages.find(p => p.dataset.page === '2') || pages[1];
-              // Usar su contenido interno para evitar contenedor del editor
-              const frag1 = document.createElement('div');
-              frag1.innerHTML = p1.innerHTML;
-              const frag2 = document.createElement('div');
-              frag2.innerHTML = p2.innerHTML;
-              // eslint-disable-next-line no-await-in-loop
-              await captureSingleBox(frag1);
-              // eslint-disable-next-line no-await-in-loop
-              await captureSingleBox(frag2);
-            } else {
-              // Plantilla de 1 página (qr) o fallback si no se detectan páginas
-              // eslint-disable-next-line no-await-in-loop
-              await captureSingleBox(null);
-            }
+            // Capturar el sticker directamente (sin páginas múltiples)
+            await captureSingleBox();
           }
           document.body.removeChild(root);
 
@@ -2524,7 +2498,7 @@ function openMarketplaceHelper(item){
             if (idx > 0) doc.addPage([50, 30]);
             doc.addImage(src, 'PNG', 0, 0, 50, 30);
           });
-          doc.save(`stickers-${variant}.pdf`);
+          doc.save(`stickers.pdf`);
           invCloseModal();
           hideBusy();
           return; // hecho con plantilla (PDF descargado)
@@ -2540,7 +2514,7 @@ function openMarketplaceHelper(item){
       });
       try {
         const base = API.base?.replace(/\/$/, '') || '';
-        const variantPath = variant === 'brand' ? '/api/v1/media/stickers/pdf/brand' : '/api/v1/media/stickers/pdf/qr';
+        const variantPath = '/api/v1/media/stickers/pdf/qr';
         const endpoint = base + variantPath;
         const headers = Object.assign({ 'Content-Type': 'application/json' }, authHeader());
         const resp = await fetch(endpoint, { method: 'POST', headers, credentials: 'same-origin', body: JSON.stringify({ items: payload }) });
@@ -2548,7 +2522,7 @@ function openMarketplaceHelper(item){
         const blob = await resp.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url; a.download = `stickers-${variant}.pdf`; document.body.appendChild(a); a.click(); a.remove();
+        a.download = `stickers.pdf`; document.body.appendChild(a); a.click(); a.remove();
         URL.revokeObjectURL(url);
         invCloseModal();
         hideBusy();

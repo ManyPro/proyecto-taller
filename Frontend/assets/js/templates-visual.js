@@ -2275,7 +2275,6 @@
       'letter': { width: 21.6, height: 27.9 },
       'sticker': { width: 5, height: 3 },
       'sticker-qr': { width: 5, height: 3 },
-      'sticker-brand': { width: 5, height: 3 }
     };
     
     // Función para convertir cm a px (96 DPI)
@@ -2537,10 +2536,11 @@
       } else if (documentType === 'quote') {
         createQuoteTemplate(canvas);
         showQuickNotification('💰 Plantilla de Cotización cargada', 'success');
-      } else if (documentType === 'workOrder') {
-        createWorkOrderTemplate(canvas);
-        showQuickNotification('🔧 Plantilla de Orden de Trabajo cargada', 'success');
-      } else if (documentType === 'sticker-qr' || documentType === 'sticker-brand') {
+      } else if (documentType === 'invoice-factura') {
+        // Factura usa la misma plantilla que remisión por ahora
+        createRemissionTemplate(canvas);
+        showQuickNotification('📄 Plantilla de Factura cargada (usa plantilla de remisión)', 'success');
+      } else if (documentType === 'sticker-qr') {
         createStickerTemplate(canvas, documentType);
         showQuickNotification('🏷️ Plantilla de Sticker cargada', 'success');
       } else if (documentType === 'payroll') {
@@ -2752,7 +2752,7 @@
     const totalBox = document.createElement('div');
     totalBox.className = 'tpl-element tpl-total-box';
     totalBox.id = `element_${visualEditor.nextId++}`;
-    totalBox.style.cssText = 'position: absolute; left: 40px; top: 306px; border: 2px solid #000; padding: 8px 16px; display: inline-flex; align-items: center; gap: 200px;';
+    totalBox.style.cssText = 'position: absolute; left: 40px; top: 306px; right: 40px; border: 2px solid #000; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between;';
     totalBox.innerHTML = '<span contenteditable="true" style="font-size: 12px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">TOTAL</span><span contenteditable="true" style="font-size: 12px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">{{$ S.total}}</span>';
     totalBox.setAttribute('data-table-container-id', itemsTable.id);
     makeDraggable(totalBox);
@@ -2775,6 +2775,13 @@
       
       // Obtener posición relativa al canvas
       const tableTop = tableRect.top - canvasRect.top + canvas.scrollTop;
+      const tableLeft = tableRect.left - canvasRect.left + canvas.scrollLeft;
+      const tableWidth = Math.max(
+        table.offsetWidth || 0,
+        table.scrollWidth || 0,
+        tableRect.width || 0,
+        table.clientWidth || 0
+      );
       
       // Obtener altura real de la tabla usando el mayor valor disponible
       const tableHeight = Math.max(
@@ -2791,11 +2798,19 @@
       const maxTop = 1100; // Dejar espacio para márgenes inferiores
       const finalTop = Math.min(newTop, maxTop);
       
+      // Ajustar posición vertical y ancho del total para que coincida con la tabla
       totalLine.style.top = `${finalTop}px`;
+      totalLine.style.left = `${tableLeft}px`;
+      totalLine.style.width = `${tableWidth}px`;
+      
       totalBox.style.top = `${finalTop + 1}px`;
+      totalBox.style.left = `${tableLeft}px`;
+      totalBox.style.width = `${tableWidth}px`;
       
       console.log('[adjustTotalPosition] Total ajustado:', {
         tableTop,
+        tableLeft,
+        tableWidth,
         tableHeight,
         tableOffsetHeight: table.offsetHeight,
         tableScrollHeight: table.scrollHeight,
@@ -3281,47 +3296,103 @@
     const itemsTable = createQuoteItemsTable({ left: 40, top: 340 });
     canvas.appendChild(itemsTable);
 
-    // Línea horizontal antes de totales
+    // Línea horizontal antes de totales - será ajustada dinámicamente
     const totalLine = document.createElement('div');
-    totalLine.style.cssText = 'position: absolute; left: 40px; right: 40px; top: 580px; height: 1px; background: #000;';
+    totalLine.className = 'tpl-total-line';
+    totalLine.style.cssText = 'position: absolute; left: 40px; right: 40px; top: 580px; height: 1px; background: #000; z-index: 1000;';
     canvas.appendChild(totalLine);
 
-    // Sección IVA
-    const ivaLabel = createEditableElement('text', 'IVA', {
-      position: { left: 40, top: 600 },
-      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif' }
-    });
-    canvas.appendChild(ivaLabel);
-
-    const ivaPercent = createEditableElement('text', '21%', {
-      position: { left: 300, top: 600 },
-      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'center' }
-    });
-    canvas.appendChild(ivaPercent);
-
-    const ivaAmount = createEditableElement('text', '$0', {
-      position: { left: 500, top: 600 },
-      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'right' }
-    });
-    canvas.appendChild(ivaAmount);
-
-    // TOTAL en caja negra
+    // TOTAL en caja negra - será ajustado dinámicamente
     const totalBox = document.createElement('div');
-    totalBox.className = 'tpl-element';
+    totalBox.className = 'tpl-element tpl-total-box';
     totalBox.id = `element_${visualEditor.nextId++}`;
-    totalBox.style.cssText = 'position: absolute; left: 40px; top: 630px; border: 2px solid #000; padding: 12px 20px; display: inline-flex; align-items: center; gap: 200px;';
+    totalBox.style.cssText = 'position: absolute; left: 40px; top: 590px; right: 40px; border: 2px solid #000; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; z-index: 1000;';
     totalBox.innerHTML = '<span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">TOTAL</span><span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">{{$ Q.total}}</span>';
+    totalBox.setAttribute('data-table-container-id', itemsTable.id);
     makeDraggable(totalBox);
     makeSelectable(totalBox);
     canvas.appendChild(totalBox);
     visualEditor.elements.push({ id: totalBox.id, type: 'text', element: totalBox });
-
-    // Footer con URL (centro abajo) - SIN información de pago
-    const footer = createEditableElement('text', '[Editar sitio web]', {
-      position: { left: 40, top: 700 },
-      styles: { fontSize: '12px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'center', width: '100%' }
+    
+    // Función para ajustar posición del total después de que la tabla se renderice con datos reales
+    // Esto se ejecutará cuando se renderice el template con datos reales
+    const adjustTotalPosition = () => {
+      const table = itemsTable.querySelector('table.quote-table');
+      if (!table) {
+        console.log('[adjustTotalPosition Quote] Tabla no encontrada aún');
+        return;
+      }
+      
+      // Usar múltiples métodos para obtener la altura real de la tabla (igual que en impresión)
+      const tableRect = table.getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect();
+      
+      // Obtener posición relativa al canvas
+      const tableTop = tableRect.top - canvasRect.top + canvas.scrollTop;
+      const tableLeft = tableRect.left - canvasRect.left + canvas.scrollLeft;
+      const tableWidth = Math.max(
+        table.offsetWidth || 0,
+        table.scrollWidth || 0,
+        tableRect.width || 0,
+        table.clientWidth || 0
+      );
+      
+      // Obtener altura real de la tabla usando el mayor valor disponible
+      const tableHeight = Math.max(
+        table.offsetHeight || 0,
+        table.scrollHeight || 0,
+        tableRect.height || 0,
+        table.clientHeight || 0
+      );
+      
+      // Calcular nueva posición: inicio de tabla + altura + espacio adicional
+      const newTop = tableTop + tableHeight + 10; // 10px de espacio adicional para evitar solapamiento
+      
+      // Asegurar que el total no se salga de la página A4 (altura máxima ~1123px)
+      const maxTop = 1100; // Dejar espacio para márgenes inferiores
+      const finalTop = Math.min(newTop, maxTop);
+      
+      // Ajustar posición vertical y ancho del total para que coincida con la tabla
+      totalLine.style.top = `${finalTop}px`;
+      totalLine.style.left = `${tableLeft}px`;
+      totalLine.style.width = `${tableWidth}px`;
+      
+      totalBox.style.top = `${finalTop + 1}px`;
+      totalBox.style.left = `${tableLeft}px`;
+      totalBox.style.width = `${tableWidth}px`;
+      
+      console.log('[adjustTotalPosition Quote] Total ajustado:', {
+        tableTop,
+        tableLeft,
+        tableWidth,
+        tableHeight,
+        tableOffsetHeight: table.offsetHeight,
+        tableScrollHeight: table.scrollHeight,
+        tableRectHeight: tableRect.height,
+        tableClientHeight: table.clientHeight,
+        newTop,
+        finalTop
+      });
+    };
+    
+    // Ajustar posición cuando se cargue el template con datos
+    // Usar MutationObserver para detectar cambios en la tabla
+    const observer = new MutationObserver(() => {
+      adjustTotalPosition();
     });
-    canvas.appendChild(footer);
+    if (itemsTable) {
+      observer.observe(itemsTable, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+    }
+    
+    // También ajustar después de múltiples delays para asegurar que se ejecute cuando la tabla tenga su altura real
+    setTimeout(adjustTotalPosition, 100);
+    setTimeout(adjustTotalPosition, 300);
+    setTimeout(adjustTotalPosition, 500);
+    setTimeout(adjustTotalPosition, 1000);
+    setTimeout(adjustTotalPosition, 2000);
+    
+    // Ajustar también cuando se redimensiona la ventana
+    window.addEventListener('resize', adjustTotalPosition);
 
     console.log('✅ Plantilla de cotización creada con todos los elementos');
   }
@@ -3675,7 +3746,7 @@
         </tr>
         <tr>
           <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">CÉDULA:</td>
-          <td style="border: 1px solid #000; padding: 6px;">[Editar cédula]</td>
+          <td style="border: 1px solid #000; padding: 6px;">{{settlement.technicianIdentification}}</td>
         </tr>
         <tr>
           <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">PERIODO:</td>
@@ -3709,7 +3780,7 @@
     daysWorkedBox.className = 'tpl-element';
     daysWorkedBox.id = `element_${visualEditor.nextId++}`;
     daysWorkedBox.style.cssText = 'position: absolute; right: 40px; top: 120px; width: 200px; border: 2px solid #000; padding: 15px; background: white; text-align: center;';
-    daysWorkedBox.innerHTML = '<div style="font-weight: bold; font-size: 12px; margin-bottom: 8px;">DÍAS TRABAJADOS</div><div contenteditable="true" style="font-size: 24px; font-weight: bold;">[Editar días]</div>';
+    daysWorkedBox.innerHTML = '<div style="font-weight: bold; font-size: 12px; margin-bottom: 8px;">DÍAS TRABAJADOS</div><div contenteditable="true" style="font-size: 24px; font-weight: bold;">{{period.daysWorked}}</div>';
     makeDraggable(daysWorkedBox);
     makeSelectable(daysWorkedBox);
     canvas.appendChild(daysWorkedBox);
@@ -3782,7 +3853,7 @@
           <td style="padding: 4px 0; border-top: 1px solid #000; margin-top: 20px;">&nbsp;</td>
         </tr>
         <tr>
-          <td style="padding: 4px 0;"><strong>IDENTIFICACION:</strong> [Editar identificación]</td>
+          <td style="padding: 4px 0;"><strong>IDENTIFICACION:</strong> {{settlement.technicianIdentification}}</td>
         </tr>
         <tr>
           <td style="padding: 4px 0;"><strong>FECHA:</strong> {{date now}}</td>
@@ -4155,10 +4226,9 @@
   function getDocumentTypeName(type) {
     const names = {
       'invoice': 'Remisión',
+      'invoice-factura': 'Factura',
       'quote': 'Cotización', 
-      'workOrder': 'Orden de Trabajo',
-      'sticker-qr': 'Sticker (Solo QR)',
-      'sticker-brand': 'Sticker (Marca + QR)',
+      'sticker-qr': 'Sticker',
       'payroll': 'Nómina'
     };
     return names[type] || type;

@@ -281,28 +281,22 @@
           <p>Documento de cobro oficial con datos fiscales completos</p>
         </div>
 
+        <div class="document-type-card" data-type="invoice-factura">
+          <div class="icon">📄</div>
+          <h3>Factura</h3>
+          <p>Factura con la misma plantilla de remisión (preparado para futuras mejoras)</p>
+        </div>
+
         <div class="document-type-card" data-type="quote">
           <div class="icon">💰</div>
           <h3>Cotización</h3>
           <p>Presupuesto detallado de servicios y productos</p>
         </div>
 
-        <div class="document-type-card" data-type="workOrder">
-          <div class="icon">🔧</div>
-          <h3>Orden de Trabajo</h3>
-          <p>Documento técnico para registro de reparaciones</p>
-        </div>
-
         <div class="document-type-card" data-type="sticker-qr">
           <div class="icon">🏷️</div>
-          <h3>Sticker: Solo QR</h3>
+          <h3>Sticker</h3>
           <p>Etiqueta compacta con QR y código SKU</p>
-        </div>
-
-        <div class="document-type-card" data-type="sticker-brand">
-          <div class="icon">🏷️</div>
-          <h3>Sticker: Marca + QR</h3>
-          <p>Etiqueta con logo/marca y QR</p>
         </div>
 
         <div class="document-type-card" data-type="payroll">
@@ -372,17 +366,6 @@
             <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará al imprimir cotizaciones</p>
           </div>
 
-          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="workOrder">
-            <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
-              <span>🔧</span>
-              <span>Formato de Orden de Trabajo Activo</span>
-            </h4>
-            <select id="active-workorder-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900">
-              <option value="">Cargando formatos...</option>
-            </select>
-            <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará al imprimir órdenes de trabajo</p>
-          </div>
-
           <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="sticker-qr">
             <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
               <span>🏷️</span>
@@ -394,15 +377,15 @@
             <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Se usará para imprimir stickers con solo QR y código</p>
           </div>
 
-          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="sticker-brand">
+          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="invoice-factura">
             <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
-              <span>🏷️</span>
-              <span>Formato de Sticker Activo (Marca + QR)</span>
+              <span>📄</span>
+              <span>Formato de Factura Activo</span>
             </h4>
-            <select id="active-stickerbrand-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900">
+            <select id="active-invoicefactura-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900">
               <option value="">Cargando formatos...</option>
             </select>
-            <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Se usará para imprimir stickers con marca y QR</p>
+            <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará para imprimir facturas (usa la misma plantilla de remisión por ahora)</p>
           </div>
 
           <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="payroll">
@@ -520,9 +503,11 @@
             console.log('📡 Guardando formato en servidor...');
             
             // Create minimal template to save
+            // Para invoice-factura, usar 'invoice' en la API ya que comparten la misma plantilla
+            const apiType = selectedDocumentType === 'invoice-factura' ? 'invoice' : selectedDocumentType;
             const newTemplate = await API.templates.create({
               name: selectedFormat.name,
-              type: selectedDocumentType,
+              type: apiType,
               contentHtml: '', // Will be filled in editor
               contentCss: '',
               activate: false // Don't activate until it's complete
@@ -578,24 +563,24 @@
       // Update title
       const titles = {
         'invoice': 'Formatos de Remisión',
+        'invoice-factura': 'Formatos de Factura',
         'quote': 'Formatos de Cotización', 
-        'workOrder': 'Formatos de Orden de Trabajo',
-        'sticker': 'Formatos de Stickers',
-        'sticker-qr': 'Formatos: Sticker Solo QR',
-        'sticker-brand': 'Formatos: Sticker Marca + QR',
+        'sticker-qr': 'Formatos de Sticker',
         'payroll': 'Formatos de Nómina'
       };
-      document.getElementById('formats-title').textContent = titles[selectedDocumentType];
+      document.getElementById('formats-title').textContent = titles[selectedDocumentType] || 'Formatos';
       
       try {
         // Load formats from API
         if (typeof API !== 'undefined') {
-          const response = await API.templates.getByType(selectedDocumentType);
+          // Para invoice-factura, usar 'invoice' en la API ya que comparten la misma plantilla
+          const apiType = selectedDocumentType === 'invoice-factura' ? 'invoice' : selectedDocumentType;
+          const response = await API.templates.getByType(apiType);
           availableFormats = response || [];
           
           // Get active format
           try {
-            const activeFormat = await API.templates.active(selectedDocumentType);
+            const activeFormat = await API.templates.active(apiType);
             console.log('⭐ Active format for', selectedDocumentType, ':', activeFormat);
             
             // Mark active format
@@ -806,17 +791,19 @@
     async function loadActiveFormats() {
       console.log('🔄 Cargando formatos activos...');
       
-  const documentTypes = ['invoice', 'quote', 'workOrder', 'sticker-qr', 'sticker-brand', 'payroll'];
+  const documentTypes = ['invoice', 'invoice-factura', 'quote', 'sticker-qr', 'payroll'];
       
       for (const type of documentTypes) {
         try {
-          const selectElement = document.getElementById(`active-${type === 'workOrder' ? 'workorder' : type.replace(/\-/g,'')}-format`);
+          // Para invoice-factura, usar 'invoice' en la API ya que comparten la misma plantilla
+          const apiType = type === 'invoice-factura' ? 'invoice' : type;
+          const selectElement = document.getElementById(`active-${type === 'invoice-factura' ? 'invoicefactura' : type.replace(/\-/g,'')}-format`);
           if (!selectElement) continue;
           
           // Load all formats for this type
           let formats = [];
           if (typeof API !== 'undefined') {
-            formats = await API.templates.getByType(type);
+            formats = await API.templates.getByType(apiType);
           } else {
             formats = [];
           }
@@ -841,7 +828,7 @@
           
         } catch (error) {
           console.error(`Error cargando formatos para ${type}:`, error);
-          const selectElement = document.getElementById(`active-${type === 'workOrder' ? 'workorder' : type.replace(/\-/g,'')}-format`);
+          const selectElement = document.getElementById(`active-${type === 'invoice-factura' ? 'invoicefactura' : type.replace(/\-/g,'')}-format`);
           if (selectElement) {
             selectElement.innerHTML = '<option value="">Error cargando formatos</option>';
           }
@@ -856,10 +843,12 @@
         console.log(`🔄 Activando formato ${formatId} para tipo ${documentType}`);
         
         if (typeof API !== 'undefined') {
+          // Para invoice-factura, usar 'invoice' en la API ya que comparten la misma plantilla
+          const apiType = documentType === 'invoice-factura' ? 'invoice' : documentType;
           await API.templates.activate(formatId);
           
           // Show success message
-          const selectId = `active-${documentType === 'workOrder' ? 'workorder' : documentType.replace(/\\-/g,'')}-format`;
+          const selectId = `active-${documentType === 'invoice-factura' ? 'invoicefactura' : documentType.replace(/\\-/g,'')}-format`;
           const optionEl = document.querySelector(`#${selectId} option[value="${formatId}"]`);
           const formatName = optionEl ? optionEl.textContent : formatId;
           
@@ -881,10 +870,9 @@
     function getDocumentTypeName(type) {
       const names = {
         'invoice': 'Remisión',
+        'invoice-factura': 'Factura',
         'quote': 'Cotización', 
-        'workOrder': 'Orden de Trabajo',
-        'sticker-qr': 'Sticker Solo QR',
-        'sticker-brand': 'Sticker con Marca',
+        'sticker-qr': 'Sticker',
         'payroll': 'Nómina'
       };
       return names[type] || type;
@@ -893,10 +881,9 @@
     function getDocumentTypeNamePlural(type) {
       const names = {
         'invoice': 'Remisiones',
+        'invoice-factura': 'Facturas',
         'quote': 'Cotizaciones', 
-        'workOrder': 'Órdenes de Trabajo',
-        'sticker-qr': 'Stickers (Solo QR)',
-        'sticker-brand': 'Stickers (Marca + QR)',
+        'sticker-qr': 'Stickers',
         'payroll': 'Nóminas'
       };
       return names[type] || type;
@@ -919,10 +906,9 @@
       const documentTypeName = getDocumentTypeName(selectedDocumentType);
       const icons = {
         'invoice': '🧾',
+        'invoice-factura': '📄',
         'quote': '💰',
-        'workOrder': '🔧',
         'sticker-qr': '🏷️',
-        'sticker-brand': '🏷️',
         'payroll': '💰'
       };
       

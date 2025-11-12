@@ -960,7 +960,15 @@ export function initQuotes({ getCompanyEmail }) {
             
             const tableRect = table.getBoundingClientRect();
             const scrollTop = w.pageYOffset || w.document.documentElement.scrollTop || w.document.body.scrollTop || 0;
+            const scrollLeft = w.pageXOffset || w.document.documentElement.scrollLeft || w.document.body.scrollLeft || 0;
             const tableTop = tableRect.top + scrollTop;
+            const tableLeft = tableRect.left + scrollLeft;
+            const tableWidth = Math.max(
+              table.offsetWidth || 0,
+              table.scrollWidth || 0,
+              tableRect.width || 0,
+              table.clientWidth || 0
+            );
             const tableHeight = Math.max(
               table.offsetHeight || 0,
               table.scrollHeight || 0,
@@ -980,11 +988,15 @@ export function initQuotes({ getCompanyEmail }) {
             
             if (totalLine) {
               totalLine.style.top = `${finalTop}px`;
+              totalLine.style.left = `${tableLeft}px`;
+              totalLine.style.width = `${tableWidth}px`;
               totalLine.style.position = 'absolute';
               totalLine.style.zIndex = '1000';
             }
             if (totalBox) {
               totalBox.style.top = `${finalTop + 1}px`;
+              totalBox.style.left = `${tableLeft}px`;
+              totalBox.style.width = `${tableWidth}px`;
               totalBox.style.position = 'absolute';
               totalBox.style.zIndex = '1000';
             }

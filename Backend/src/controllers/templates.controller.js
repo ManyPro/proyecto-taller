@@ -367,12 +367,40 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
       };
       
       if (period) {
+        // Calcular días trabajados basándose en el periodo
+        let daysWorked = 0;
+        if (period.startDate && period.endDate) {
+          const start = new Date(period.startDate);
+          const end = new Date(period.endDate);
+          // Calcular diferencia en días (incluyendo ambos días)
+          const diffTime = Math.abs(end - start);
+          daysWorked = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 para incluir ambos días
+        }
+        
         ctx.period = {
           ...period.toObject(),
           formattedStartDate: period.startDate ? new Date(period.startDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '',
           formattedEndDate: period.endDate ? new Date(period.endDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '',
-          periodTypeLabel: period.periodType === 'monthly' ? 'Mensual' : period.periodType === 'biweekly' ? 'Quincenal' : period.periodType === 'weekly' ? 'Semanal' : period.periodType
+          periodTypeLabel: period.periodType === 'monthly' ? 'Mensual' : period.periodType === 'biweekly' ? 'Quincenal' : period.periodType === 'weekly' ? 'Semanal' : period.periodType,
+          daysWorked
         };
+      }
+      
+      // Buscar identificación del técnico desde Company.technicians
+      if (settlementObj.technicianName) {
+        const company = await Company.findOne({ _id: companyId });
+        if (company && company.technicians) {
+          const technicians = company.technicians.map(t => {
+            if (typeof t === 'string') {
+              return { name: t.toUpperCase(), identification: '' };
+            }
+            return { name: String(t.name || '').toUpperCase(), identification: String(t.identification || '').trim() };
+          });
+          const tech = technicians.find(t => t.name === String(settlementObj.technicianName).toUpperCase());
+          if (tech && tech.identification) {
+            ctx.settlement.technicianIdentification = tech.identification;
+          }
+        }
       }
     }
   }

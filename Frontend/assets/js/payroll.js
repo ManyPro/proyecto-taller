@@ -2413,7 +2413,9 @@ function switchTab(name){
 async function createTechnician(){
   try {
     const input = document.getElementById('tk-add-name');
+    const identificationInput = document.getElementById('tk-add-identification');
     const name = (input?.value || '').trim();
+    const identification = (identificationInput?.value || '').trim();
     
     // Validaciones
     if (!name) {
@@ -2443,10 +2445,11 @@ async function createTechnician(){
     }
     
     try {
-      await api.post('/api/v1/company/technicians', { name });
+      await api.post('/api/v1/company/technicians', { name, identification });
       
-      // Limpiar campo
+      // Limpiar campos
       input.value = '';
+      if (identificationInput) identificationInput.value = '';
       
       // Recargar lista de técnicos
       await loadTechnicians();

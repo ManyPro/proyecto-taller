@@ -21,10 +21,34 @@ router.get('/technicians', (req, res) => {
 
 router.post('/technicians', async (req, res) => {
   const name = String(req.body?.name || '').trim().toUpperCase();
+  const identification = String(req.body?.identification || '').trim();
   if (!name) return res.status(400).json({ error: 'nombre requerido' });
-  const list = new Set((req.companyDoc.technicians || []).map(t => t.toUpperCase()));
-  list.add(name);
-  req.companyDoc.technicians = Array.from(list).sort();
+  
+  // Normalizar technicians: convertir strings a objetos si es necesario
+  const technicians = (req.companyDoc.technicians || []).map(t => {
+    if (typeof t === 'string') {
+      return { name: t.toUpperCase(), identification: '' };
+    }
+    return { name: String(t.name || '').toUpperCase(), identification: String(t.identification || '').trim() };
+  });
+  
+  // Verificar si ya existe un técnico con ese nombre
+  const existingIndex = technicians.findIndex(t => t.name === name);
+  if (existingIndex >= 0) {
+    // Actualizar identificación si se proporciona
+    if (identification) {
+      technicians[existingIndex].identification = identification;
+      req.companyDoc.technicians = technicians;
+      await req.companyDoc.save();
+      return res.status(200).json({ technicians: req.companyDoc.technicians });
+    }
+    return res.status(409).json({ error: 'Ya existe un técnico con ese nombre' });
+  }
+  
+  // Agregar nuevo técnico
+  technicians.push({ name, identification });
+  technicians.sort((a, b) => a.name.localeCompare(b.name));
+  req.companyDoc.technicians = technicians;
   await req.companyDoc.save();
   res.status(201).json({ technicians: req.companyDoc.technicians });
 });
@@ -34,14 +58,21 @@ router.delete('/technicians/:name', async (req, res) => {
     const name = String(req.params.name || '').trim().toUpperCase();
     if (!name) return res.status(400).json({ error: 'nombre requerido' });
     
+    // Normalizar technicians: convertir strings a objetos si es necesario
+    const technicians = (req.companyDoc.technicians || []).map(t => {
+      if (typeof t === 'string') {
+        return { name: t.toUpperCase(), identification: '' };
+      }
+      return { name: String(t.name || '').toUpperCase(), identification: String(t.identification || '').trim() };
+    });
+    
     // Verificar que el técnico existe
-    const technicians = req.companyDoc.technicians || [];
-    if (!technicians.some(t => t.toUpperCase() === name)) {
+    if (!technicians.some(t => t.name === name)) {
       return res.status(404).json({ error: 'Técnico no encontrado' });
     }
     
     // Eliminar técnico de la lista
-    req.companyDoc.technicians = technicians.filter(t => t.toUpperCase() !== name);
+    req.companyDoc.technicians = technicians.filter(t => t.name !== name);
     await req.companyDoc.save();
     
     // Eliminar todas las asignaciones de este técnico

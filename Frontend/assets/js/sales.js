@@ -478,9 +478,19 @@ function printSaleTicket(sale){
               // Usar múltiples métodos para asegurar precisión
               const tableRect = table.getBoundingClientRect();
               const scrollTop = win.pageYOffset || win.document.documentElement.scrollTop || win.document.body.scrollTop || 0;
+              const scrollLeft = win.pageXOffset || win.document.documentElement.scrollLeft || win.document.body.scrollLeft || 0;
               
               // Obtener posición absoluta: posición relativa al viewport + scroll
               const tableTop = tableRect.top + scrollTop;
+              const tableLeft = tableRect.left + scrollLeft;
+              
+              // Obtener ancho real de la tabla
+              const tableWidth = Math.max(
+                table.offsetWidth || 0,
+                table.scrollWidth || 0,
+                tableRect.width || 0,
+                table.clientWidth || 0
+              );
               
               // Obtener altura real de la tabla (usar el mayor valor para asegurar que incluya todo)
               const tableHeight = Math.max(
@@ -513,6 +523,8 @@ function printSaleTicket(sale){
                 tableRectTop: tableRect.top,
                 scrollTop,
                 tableTop,
+                tableLeft,
+                tableWidth,
                 tableHeight,
                 newTop,
                 finalTop,
@@ -527,6 +539,8 @@ function printSaleTicket(sale){
               
               if (totalLine) {
                 totalLine.style.top = `${finalTop}px`;
+                totalLine.style.left = `${tableLeft}px`;
+                totalLine.style.width = `${tableWidth}px`;
                 totalLine.style.position = 'absolute';
                 totalLine.style.zIndex = '1000';
                 totalLine.style.display = 'block';
@@ -534,6 +548,8 @@ function printSaleTicket(sale){
               }
               if (totalBox) {
                 totalBox.style.top = `${finalTop + 1}px`;
+                totalBox.style.left = `${tableLeft}px`;
+                totalBox.style.width = `${tableWidth}px`;
                 totalBox.style.position = 'absolute';
                 totalBox.style.zIndex = '1000';
                 totalBox.style.display = 'block';
