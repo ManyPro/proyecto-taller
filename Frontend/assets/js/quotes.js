@@ -753,310 +753,370 @@ export function initQuotes({ getCompanyEmail }) {
 
   // ====== PDF (desde UI) ======
   async function exportPDF(){
-    // Intentar usar plantilla activa (quote) -> abrir ventana/imprimir
-    try {
-      const tpl = await API.templates.active('quote');
-      if (tpl && tpl.contentHtml) {
-        const contentHtml = tpl.contentHtml;
-        const contentCss = tpl.contentCss || '';
-        
-        // Preparar datos de la cotización desde la UI
-        const quoteData = {
-          number: iNumber.value || '',
-          date: iDatetime.value || todayIso(),
-          customer: {
-            name: iClientName.value || '',
-            phone: iClientPhone.value || '',
-            email: iClientEmail.value || ''
-          },
-          vehicle: {
-            plate: iPlate.value || '',
-            make: iBrand.value || '',
-            line: iLine.value || '',
-            modelYear: iYear.value || '',
-            displacement: iCc.value || ''
-          },
-          validity: iValidDays.value || '',
-          items: readRows().map(r => ({
-            description: r.desc || '',
-            qty: r.qty === null || r.qty === undefined || r.qty === '' ? null : Number(r.qty),
-            unitPrice: Number(r.price || 0),
-            subtotal: (r.qty > 0 ? r.qty : 1) * (r.price || 0),
-            sku: r.sku || ''
-          })),
-          totals: {
-            total: parseMoney(lblTotal.textContent) || 0
+    // Función fallback simple si no hay plantilla
+    function fallback(){
+      const number = iNumber.value || '00001';
+      const linesOut = [
+        'Cotización',
+        '',
+        '# ' + number + '  Total: ' + (lblTotal.textContent || '$0'),
+        '',
+        'Cliente: ' + (iClientName.value || ''),
+        'Vehículo: ' + (iPlate.value || '') + ' - ' + (iBrand.value || '') + ' ' + (iLine.value || ''),
+        '',
+        'Items:'
+      ];
+      readRows().forEach(r => {
+        linesOut.push('- ' + (r.qty || 0) + ' x ' + (r.desc || '') + ' (' + money((r.qty>0?r.qty:1)*(r.price||0)) + ')');
+      });
+      const txt = linesOut.join('\n');
+      const win = window.open('', '_blank');
+      if (!win) { alert('No se pudo abrir ventana de impresión'); return; }
+      win.document.write('<pre>' + txt + '</pre>');
+      win.document.close(); win.focus(); win.print(); try { win.close(); } catch {}
+    }
+    
+    // Intentar usar plantilla activa (quote) -> abrir ventana/imprimir (igual que en ventas)
+    if(API?.templates?.active){
+      API.templates.active('quote')
+        .then(tpl=>{
+          console.log('[exportPDF] Template activo recibido:', {
+            hasTemplate: !!tpl,
+            hasContentHtml: !!(tpl?.contentHtml),
+            contentHtmlLength: tpl?.contentHtml?.length || 0,
+            hasContentCss: !!(tpl?.contentCss),
+            templateId: tpl?._id,
+            templateName: tpl?.name
+          });
+          if(!tpl || !tpl.contentHtml){ 
+            console.warn('[exportPDF] No hay template activo o contentHtml está vacío, usando fallback');
+            fallback(); 
+            return; 
           }
-        };
-        
-        // Si hay una cotización guardada, usar su ID para obtener datos reales
-        // Pero también pasar quoteData para que se use si los items de la BD están vacíos
-        const sampleId = currentQuoteId || undefined;
-        
-        // Restaurar variables acortadas antes de enviar al preview
-        const restoredContentHtml = restoreHandlebarsVarsForPreview(contentHtml);
-        
-        // Enviar a endpoint preview con datos de la UI
-        // El backend decidirá si usar quoteData basándose en si los items del contexto están vacíos
-        const pv = await API.templates.preview({ 
-          type:'quote', 
-          contentHtml: restoredContentHtml, 
-          contentCss, 
-          sampleId,
-          quoteData: quoteData // Siempre pasar quoteData para que se use si los items de la BD están vacíos
-        });
-        const w = window.open('', 'quoteTpl');
-        if (w) {
-          w.document.write(`<!doctype html><html><head><meta charset='utf-8'><title>Cotización</title>
-            <style>
-              /* Estilos base para mejor uso del espacio */
-              body {
-                margin: 0;
-                padding: 10mm;
-                font-family: Arial, sans-serif;
-                font-size: 12px;
-                line-height: 1.4;
-                color: #000;
-              }
-              
-              /* Aumentar tamaño de fuente para mejor legibilidad en carta */
-              h1, h2, h3 {
-                font-size: 1.5em !important;
-                margin: 0.5em 0 !important;
-              }
-              
-              table {
-                width: 100%;
-                border-collapse: collapse;
-                font-size: 11px;
-              }
-              
-              table th, table td {
-                padding: 8px 6px;
-                border: 1px solid #000;
-              }
-              
-              table th {
-                font-weight: bold;
-                background: #f0f0f0;
-              }
-              
-              /* Detectar tamaño de página automáticamente */
-              @page {
-                size: auto;
-                margin: 10mm;
-              }
-              
-              /* Estilos específicos para impresión */
-              @media print {
+          console.log('[exportPDF] Usando template guardado:', tpl.name || tpl._id);
+          
+          // Restaurar variables acortadas antes de enviar al preview
+          const restoredHtml = restoreHandlebarsVarsForPreview(tpl.contentHtml);
+          
+          // Preparar datos de la cotización desde la UI
+          const quoteData = {
+            number: iNumber.value || '',
+            date: iDatetime.value || todayIso(),
+            customer: {
+              name: iClientName.value || '',
+              phone: iClientPhone.value || '',
+              email: iClientEmail.value || ''
+            },
+            vehicle: {
+              plate: iPlate.value || '',
+              make: iBrand.value || '',
+              line: iLine.value || '',
+              modelYear: iYear.value || '',
+              displacement: iCc.value || ''
+            },
+            validity: iValidDays.value || '',
+            items: readRows().map(r => ({
+              description: r.desc || '',
+              qty: r.qty === null || r.qty === undefined || r.qty === '' ? null : Number(r.qty),
+              unitPrice: Number(r.price || 0),
+              subtotal: (r.qty > 0 ? r.qty : 1) * (r.price || 0),
+              sku: r.sku || ''
+            })),
+            totals: {
+              total: parseMoney(lblTotal.textContent) || 0
+            }
+          };
+          
+          // Si hay una cotización guardada, usar su ID para obtener datos reales
+          const sampleId = currentQuoteId || undefined;
+          
+          // Enviar a endpoint preview con datos de la UI
+          return API.templates.preview({ 
+            type:'quote', 
+            contentHtml: restoredHtml, 
+            contentCss: tpl.contentCss || '', 
+            sampleId,
+            quoteData: quoteData // Siempre pasar quoteData para que se use si los items de la BD están vacíos
+          })
+          .then(r=>{
+            console.log('[exportPDF] ===== PREVIEW RECIBIDO =====');
+            console.log('[exportPDF] Has rendered:', !!r.rendered);
+            console.log('[exportPDF] Rendered length:', r.rendered?.length || 0);
+            
+            const win = window.open('', '_blank');
+            if(!win){ fallback(); return; }
+            const css = r.css ? `<style>${r.css}</style>`:'';
+            
+            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}
+              <style>
+                /* Estilos base para mejor uso del espacio */
                 body {
-                  margin: 0 !important;
-                  padding: 10mm !important;
-                  overflow: hidden !important;
-                  font-size: 12px !important;
+                  margin: 0;
+                  padding: 10mm;
+                  font-family: Arial, sans-serif;
+                  font-size: 12px;
+                  line-height: 1.4;
+                  color: #000;
                 }
                 
-                /* Aumentar tamaño de fuente en impresión */
-                h1, h2 {
-                  font-size: 2em !important;
+                /* Aumentar tamaño de fuente para mejor legibilidad en carta */
+                h1, h2, h3 {
+                  font-size: 1.5em !important;
+                  margin: 0.5em 0 !important;
                 }
                 
                 table {
-                  font-size: 11px !important;
+                  width: 100%;
+                  border-collapse: collapse;
+                  font-size: 11px;
                 }
                 
                 table th, table td {
-                  padding: 10px 8px !important;
+                  padding: 8px 6px;
+                  border: 1px solid #000;
                 }
                 
-                .tpl-total-line,
-                .tpl-total-box {
-                  position: absolute !important;
-                  display: block !important;
-                  visibility: visible !important;
-                  opacity: 1 !important;
-                  page-break-inside: avoid !important;
-                  page-break-after: avoid !important;
+                table th {
+                  font-weight: bold;
+                  background: #f0f0f0;
                 }
-                .tpl-total-box {
-                  border: 2px solid #000 !important;
-                  background: white !important;
-                  -webkit-print-color-adjust: exact !important;
-                  print-color-adjust: exact !important;
-                  font-size: 14px !important;
-                  font-weight: bold !important;
+                
+                /* Detectar tamaño de página automáticamente */
+                @page {
+                  size: auto;
+                  margin: 10mm;
                 }
-                /* Asegurar que las tablas no se corten */
-                table.quote-table,
-                table.remission-table {
-                  page-break-inside: auto !important;
+                
+                /* Estilos específicos para impresión */
+                @media print {
+                  body {
+                    margin: 0 !important;
+                    padding: 10mm !important;
+                    overflow: hidden !important;
+                    font-size: 12px !important;
+                  }
+                  
+                  /* Aumentar tamaño de fuente en impresión */
+                  h1, h2 {
+                    font-size: 2em !important;
+                  }
+                  
+                  table {
+                    font-size: 11px !important;
+                  }
+                  
+                  table th, table td {
+                    padding: 10px 8px !important;
+                  }
+                  
+                  .tpl-total-line,
+                  .tpl-total-box {
+                    position: absolute !important;
+                    display: block !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                    page-break-inside: avoid !important;
+                    page-break-after: avoid !important;
+                  }
+                  .tpl-total-box {
+                    border: 2px solid #000 !important;
+                    background: white !important;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                    font-size: 14px !important;
+                    font-weight: bold !important;
+                  }
+                  /* Asegurar que las tablas no se corten */
+                  table.quote-table,
+                  table.remission-table {
+                    page-break-inside: auto !important;
+                  }
+                  table.quote-table tr,
+                  table.remission-table tr {
+                    page-break-inside: avoid !important;
+                  }
                 }
-                table.quote-table tr,
-                table.remission-table tr {
-                  page-break-inside: avoid !important;
-                }
+              </style>
+            </head><body>${r.rendered}</body></html>`);
+            win.document.close(); 
+            
+            // Función para detectar si el contenido cabe en media carta y ajustar tamaño de página
+            const detectAndSetPageSize = () => {
+              const body = win.document.body;
+              const html = win.document.documentElement;
+              
+              const contentHeight = Math.max(
+                body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight
+              );
+              
+              const mediaCartaMaxHeight = 800; // px (más tolerante)
+              
+              let pageSizeStyle = win.document.getElementById('dynamic-page-size');
+              if (!pageSizeStyle) {
+                pageSizeStyle = win.document.createElement('style');
+                pageSizeStyle.id = 'dynamic-page-size';
+                win.document.head.appendChild(pageSizeStyle);
               }
-            </style>
-            ${pv.css||contentCss}
-          </head><body>${pv.rendered || contentHtml}</body></html>`);
-          w.document.close();
-          
-          // Función para detectar si el contenido cabe en media carta y ajustar tamaño de página
-          const detectAndSetPageSize = () => {
-            const body = w.document.body;
-            const html = w.document.documentElement;
-            
-            const contentHeight = Math.max(
-              body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight
-            );
-            
-            const mediaCartaMaxHeight = 800; // px (más tolerante)
-            
-            let pageSizeStyle = w.document.getElementById('dynamic-page-size');
-            if (!pageSizeStyle) {
-              pageSizeStyle = w.document.createElement('style');
-              pageSizeStyle.id = 'dynamic-page-size';
-              w.document.head.appendChild(pageSizeStyle);
-            }
-            
-            if (contentHeight <= mediaCartaMaxHeight) {
-              pageSizeStyle.textContent = `
-                @page {
-                  size: 5.5in 8.5in; /* Half-letter */
-                  margin: 10mm;
-                }
-                @media print {
-                  body {
-                    max-height: 216mm !important; /* 8.5 inches */
+              
+              if (contentHeight <= mediaCartaMaxHeight) {
+                pageSizeStyle.textContent = `
+                  @page {
+                    size: 5.5in 8.5in;
+                    margin: 10mm;
                   }
-                }
-              `;
-              console.log('[exportPDF] ✅ Configurado para MEDIA CARTA (5.5" x 8.5")');
-            } else {
-              pageSizeStyle.textContent = `
-                @page {
-                  size: letter; /* Full letter */
-                  margin: 10mm;
-                }
-                @media print {
-                  body {
-                    max-height: 279mm !important; /* 11 inches */
+                  @media print {
+                    body {
+                      max-height: 216mm !important;
+                    }
                   }
-                }
-              `;
-              console.log('[exportPDF] ✅ Configurado para CARTA COMPLETA (8.5" x 11")');
-            }
-          };
-          
-          // Función para ajustar posición del total dinámicamente
-          const adjustTotalPosition = () => {
-            const table = w.document.querySelector('table.quote-table, table.remission-table');
-            const totalLine = w.document.querySelector('.tpl-total-line');
-            const totalBox = w.document.querySelector('.tpl-total-box');
+                `;
+                console.log('[exportPDF] ✅ Configurado para MEDIA CARTA (5.5" x 8.5")');
+              } else {
+                pageSizeStyle.textContent = `
+                  @page {
+                    size: letter;
+                    margin: 10mm;
+                  }
+                  @media print {
+                    body {
+                      max-height: 279mm !important;
+                    }
+                  }
+                `;
+                console.log('[exportPDF] ✅ Configurado para CARTA COMPLETA (8.5" x 11")');
+              }
+            };
             
-            if (!table || (!totalLine && !totalBox)) return;
-            
-            detectAndSetPageSize();
-            
-            const tableRect = table.getBoundingClientRect();
-            const scrollTop = w.pageYOffset || w.document.documentElement.scrollTop || w.document.body.scrollTop || 0;
-            const scrollLeft = w.pageXOffset || w.document.documentElement.scrollLeft || w.document.body.scrollLeft || 0;
-            const tableTop = tableRect.top + scrollTop;
-            const tableLeft = tableRect.left + scrollLeft;
-            const tableWidth = Math.max(
-              table.offsetWidth || 0,
-              table.scrollWidth || 0,
-              tableRect.width || 0,
-              table.clientWidth || 0
-            );
-            const tableHeight = Math.max(
-              table.offsetHeight || 0,
-              table.scrollHeight || 0,
-              tableRect.height || 0,
-              table.clientHeight || 0
-            );
-            const newTop = tableTop + tableHeight + 10;
-            
-            const body = w.document.body;
-            const html = w.document.documentElement;
-            const contentHeight = Math.max(
-              body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight
-            );
-            const mediaCartaMaxHeight = 800;
-            const maxTop = contentHeight <= mediaCartaMaxHeight ? 700 : 1100;
-            const finalTop = Math.min(newTop, maxTop);
-            
-            if (totalLine) {
-              totalLine.style.top = `${finalTop}px`;
-              totalLine.style.left = `${tableLeft}px`;
-              totalLine.style.width = `${tableWidth}px`;
-              totalLine.style.position = 'absolute';
-              totalLine.style.zIndex = '1000';
-            }
-            if (totalBox) {
-              totalBox.style.top = `${finalTop + 1}px`;
-              totalBox.style.left = `${tableLeft}px`;
-              totalBox.style.width = `${tableWidth}px`;
-              totalBox.style.position = 'absolute';
-              totalBox.style.zIndex = '1000';
-            }
-          };
-          
-          // Abrir diálogo de impresión automáticamente después de detectar tamaño
-          w.focus();
-          setTimeout(() => {
-            detectAndSetPageSize();
-            adjustTotalPosition();
-            setTimeout(() => {
+            // Función robusta para ajustar posición del total
+            const adjustTotalPosition = () => {
+              const table = win.document.querySelector('table.quote-table, table.remission-table');
+              const totalLine = win.document.querySelector('.tpl-total-line');
+              const totalBox = win.document.querySelector('.tpl-total-box');
+              
+              if (!table) {
+                console.log('[exportPDF] Tabla no encontrada aún, reintentando...');
+                return false;
+              }
+              
+              if (!totalLine && !totalBox) {
+                console.log('[exportPDF] Total no encontrado aún, reintentando...');
+                return false;
+              }
+              
               detectAndSetPageSize();
-              adjustTotalPosition();
+              
+              const tableRect = table.getBoundingClientRect();
+              const scrollTop = win.pageYOffset || win.document.documentElement.scrollTop || win.document.body.scrollTop || 0;
+              const scrollLeft = win.pageXOffset || win.document.documentElement.scrollLeft || win.document.body.scrollLeft || 0;
+              const tableTop = tableRect.top + scrollTop;
+              const tableLeft = tableRect.left + scrollLeft;
+              const tableWidth = Math.max(
+                table.offsetWidth || 0,
+                table.scrollWidth || 0,
+                tableRect.width || 0,
+                table.clientWidth || 0
+              );
+              const tableHeight = Math.max(
+                table.offsetHeight || 0,
+                table.scrollHeight || 0,
+                tableRect.height || 0,
+                table.clientHeight || 0
+              );
+              const newTop = tableTop + tableHeight + 10;
+              
+              const body = win.document.body;
+              const html = win.document.documentElement;
+              const contentHeight = Math.max(
+                body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight
+              );
+              const mediaCartaMaxHeight = 800;
+              const maxTop = contentHeight <= mediaCartaMaxHeight ? 700 : 1100;
+              const finalTop = Math.min(newTop, maxTop);
+              
+              if (totalLine) {
+                totalLine.style.top = `${finalTop}px`;
+                totalLine.style.left = `${tableLeft}px`;
+                totalLine.style.width = `${tableWidth}px`;
+                totalLine.style.position = 'absolute';
+                totalLine.style.zIndex = '1000';
+                totalLine.style.display = 'block';
+                totalLine.style.visibility = 'visible';
+              }
+              if (totalBox) {
+                totalBox.style.top = `${finalTop + 1}px`;
+                totalBox.style.left = `${tableLeft}px`;
+                totalBox.style.width = `${tableWidth}px`;
+                totalBox.style.position = 'absolute';
+                totalBox.style.zIndex = '1000';
+                totalBox.style.display = 'block';
+                totalBox.style.visibility = 'visible';
+              }
+              
+              return true;
+            };
+            
+            // Ajustar posición del total dinámicamente después de que se renderice la tabla
+            win.addEventListener('DOMContentLoaded', () => {
               setTimeout(() => {
-                detectAndSetPageSize();
+                if (!adjustTotalPosition()) {
+                  setTimeout(() => {
+                    if (!adjustTotalPosition()) {
+                      setTimeout(adjustTotalPosition, 500);
+                    }
+                  }, 300);
+                }
+              }, 100);
+              
+              setTimeout(adjustTotalPosition, 500);
+              setTimeout(adjustTotalPosition, 1000);
+              setTimeout(adjustTotalPosition, 2000);
+            });
+            
+            win.addEventListener('load', () => {
+              setTimeout(adjustTotalPosition, 100);
+              setTimeout(adjustTotalPosition, 500);
+            });
+            
+            // CRÍTICO: Ajustar justo antes de imprimir
+            win.addEventListener('beforeprint', () => {
+              console.log('[exportPDF] Evento beforeprint - ajustando total...');
+              adjustTotalPosition();
+            });
+            
+            // Abrir diálogo de impresión automáticamente después de detectar tamaño y ajustar posición
+            win.focus();
+            
+            setTimeout(() => {
+              adjustTotalPosition();
+              
+              setTimeout(() => {
                 adjustTotalPosition();
-                requestAnimationFrame(() => {
-                  detectAndSetPageSize();
+                detectAndSetPageSize();
+                
+                setTimeout(() => {
                   adjustTotalPosition();
-                  w.print();
-                });
-              }, 300);
-            }, 500);
-          }, 1000);
-          
-          // Detectar tamaño antes de imprimir también
-          w.addEventListener('beforeprint', () => {
-            detectAndSetPageSize();
-            adjustTotalPosition();
+                  requestAnimationFrame(() => {
+                    adjustTotalPosition();
+                    // Abrir diálogo de impresión automáticamente
+                    win.print();
+                  });
+                }, 300);
+              }, 500);
+            }, 1000);
+          })
+          .catch((err)=>{
+            console.error('[exportPDF] Error en preview:', err);
+            fallback();
           });
-        }
-        return; // no continuar a PDF jsPDF
-      }
-    } catch(e){ console.warn('Fallo plantilla quote, usando fallback PDF', e); }
-    await exportPDFFromData({
-      number:iNumber.value,
-      datetime:iDatetime.value||todayIso(),
-      customer:{ name:iClientName.value,clientPhone:iClientPhone.value, email:iClientEmail.value },
-      vehicle:{ 
-        vehicleId: iVehicleId?.value || null,
-        make:iBrand.value, 
-        line:iLine.value, 
-        modelYear:iYear.value, 
-        plate:iPlate.value, 
-        displacement:iCc.value, 
-        mileage:iMileage.value 
-      },
-      validity:iValidDays.value,
-      specialNotes:specialNotes,
-      items:readRows().map(r=>({
-        kind:r.type, description:r.desc, qty:r.qty, unitPrice:r.price,
-        subtotal:(r.qty>0?r.qty:1)*(r.price||0)
-      })),
-      totals:{
-        subP:parseMoney(lblSubtotalProducts.textContent),
-        subS:parseMoney(lblSubtotalServices.textContent),
-        total:parseMoney(lblTotal.textContent)
-      }
-    });
-  // No mover correlativo aquí.
+      })
+      .catch((err)=>{
+        console.error('[exportPDF] Error obteniendo template activo:', err);
+        fallback();
+      });
+    } else {
+      fallback();
+    }
+    
     syncSummaryHeight();
   }
 
