@@ -1043,8 +1043,29 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
 let companyPrefs = { laborPercents: [] };
 let techConfig = { laborKinds: [], technicians: [] };
+// Función helper para extraer el nombre del técnico (reutilizable)
+function extractTechnicianName(obj) {
+  if (!obj) return '';
+  if (typeof obj === 'string') return obj.trim();
+  if (typeof obj === 'object') {
+    if (obj.name) return String(obj.name).trim();
+    // Si es un objeto con caracteres indexados (ej: {0: 'J', 1: 'o', 2: 'h', 3: 'n'})
+    const keys = Object.keys(obj).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b));
+    if (keys.length > 0) {
+      return keys.map(k => String(obj[k] || '')).join('').trim();
+    }
+  }
+  return '';
+}
+
 async function ensureCompanyData(){
-  try { companyTechnicians = await API.company.getTechnicians(); } catch { companyTechnicians = []; }
+  try { 
+    const techs = await API.company.getTechnicians();
+    // Normalizar técnicos: extraer solo los nombres como strings
+    companyTechnicians = Array.isArray(techs) ? techs.map(t => extractTechnicianName(t)).filter(n => n && n.trim() !== '') : [];
+  } catch { 
+    companyTechnicians = []; 
+  }
   try { companyPrefs = await API.company.getPreferences(); } catch { companyPrefs = { laborPercents: [] }; }
   try { 
     const response = await API.get('/api/v1/company/tech-config');
@@ -1082,6 +1103,39 @@ function buildCloseModalContent(){
         <tbody id="cv-payments-body"></tbody>
       </table>
       <div id="cv-payments-summary" class="mt-3 text-xs"></div>
+    </div>
+    <div id="cv-labor-commissions-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Desglose de mano de obra</label>
+          <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Agrega líneas para asignar participación técnica. Los valores pueden venir del combo/servicio o ingresarse manualmente.</p>
+        </div>
+        <button id="cv-add-commission" type="button" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">+ Agregar línea</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs border-collapse">
+          <thead>
+            <tr class="border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-400 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-200">
+              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Técnico</th>
+              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Tipo de MO</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Valor MO</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">% Técnico</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Participación</th>
+              <th class="py-3 px-3 w-10"></th>
+            </tr>
+          </thead>
+          <tbody id="cv-comm-body">
+            <tr>
+              <td colspan="6" class="py-8 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">
+                <div class="flex flex-col items-center gap-2">
+                  <span>No hay líneas de participación técnica</span>
+                  <span class="text-xs">Haz clic en "+ Agregar línea" para comenzar</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div class="hidden">
@@ -1139,29 +1193,10 @@ function openCloseModal(){
 }
 
 function fillCloseModal(){
-  // Función helper para extraer el nombre del técnico
-  const extractName = (obj) => {
-    if (!obj) return '';
-    if (typeof obj === 'string') return obj.trim();
-    if (typeof obj === 'object') {
-      if (obj.name) return String(obj.name).trim();
-      // Si es un objeto con caracteres indexados (ej: {0: 'J', 1: 'o', 2: 'h', 3: 'n'})
-      const keys = Object.keys(obj).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b));
-      if (keys.length > 0) {
-        return keys.map(k => String(obj[k] || '')).join('').trim();
-      }
-    }
-    return '';
-  };
-  
   const techSel = document.getElementById('cv-technician');
-  const techNames = (companyTechnicians||[]).map(t => {
-    const name = extractName(t);
-    return name;
-  }).filter(n => n && n.trim() !== '');
-  
+  // companyTechnicians ya está normalizado como array de strings en ensureCompanyData
   techSel.innerHTML = '<option value="">-- Ninguno --</option>' + 
-    techNames.map(t=>`<option value="${t}">${t}</option>`).join('') + 
+    (companyTechnicians||[]).map(t=>`<option value="${t}">${t}</option>`).join('') + 
     '<option value="__ADD_TECH__">+ Agregar técnico…</option>';
   const initialTechLabel = document.getElementById('cv-initial-tech');
   if(current){
@@ -1248,57 +1283,13 @@ function fillCloseModal(){
   }
 
   // ---- Desglose por maniobra (PRINCIPAL - siempre visible) ----
+  // La tabla ya está en el HTML, solo necesitamos obtener referencias y configurar eventos
   try {
-    const grid = document.querySelector('.grid');
-    if (!grid) {
-      console.error('No se encontró el elemento .grid en el modal de cierre');
+    const tbody = document.getElementById('cv-comm-body');
+    if (!tbody) {
+      console.error('No se encontró el elemento #cv-comm-body en el modal de cierre');
       return;
     }
-    const wrap = document.createElement('div');
-    wrap.className = 'md:col-span-2';
-    wrap.innerHTML = `
-      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
-        <div class="flex justify-between items-center mb-4">
-          <div>
-            <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Desglose de mano de obra</label>
-            <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Agrega líneas para asignar participación técnica. Los valores pueden venir del combo/servicio o ingresarse manualmente.</p>
-          </div>
-          <button id="cv-add-commission" type="button" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">+ Agregar línea</button>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-xs border-collapse">
-            <thead>
-              <tr class="border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-400 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-200">
-                <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Técnico</th>
-                <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Tipo de MO</th>
-                <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Valor MO</th>
-                <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">% Técnico</th>
-                <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Participación</th>
-                <th class="py-3 px-3 w-10"></th>
-              </tr>
-            </thead>
-            <tbody id="cv-comm-body">
-              <tr>
-                <td colspan="6" class="py-8 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">
-                  <div class="flex flex-col items-center gap-2">
-                    <span>No hay líneas de participación técnica</span>
-                    <span class="text-xs">Haz clic en "+ Agregar línea" para comenzar</span>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>`;
-    const receiptParent = grid.querySelector('#cv-receipt')?.parentElement;
-    if (receiptParent) {
-      grid.insertBefore(wrap, receiptParent);
-    } else {
-      // Si no encuentra el elemento, agregar al final del grid
-      grid.appendChild(wrap);
-    }
-
-    const tbody = wrap.querySelector('#cv-comm-body');
     
     // Función para obtener laborKinds actualizados
     async function getLaborKinds() {
@@ -1314,28 +1305,10 @@ function fillCloseModal(){
       }
     }
     
-    // Función helper para extraer el nombre del técnico
-    const extractName = (obj) => {
-      if (!obj) return '';
-      if (typeof obj === 'string') return obj.trim();
-      if (typeof obj === 'object') {
-        if (obj.name) return String(obj.name).trim();
-        // Si es un objeto con caracteres indexados (ej: {0: 'J', 1: 'o', 2: 'h', 3: 'n'})
-        const keys = Object.keys(obj).filter(k => /^\d+$/.test(k)).sort((a, b) => Number(a) - Number(b));
-        if (keys.length > 0) {
-          return keys.map(k => String(obj[k] || '')).join('').trim();
-        }
-      }
-      return '';
-    };
-    
     async function addLine(pref={}){
       const tr = document.createElement('tr');
-      const techNames = (companyTechnicians||[]).map(t => {
-        const name = extractName(t);
-        return name;
-      }).filter(n => n && n.trim() !== '');
-      const techOpts = '<option value="">-- Seleccione técnico --</option>' + techNames.map(t=> `<option value="${t}">${t}</option>`).join('');
+      // companyTechnicians ya está normalizado como array de strings en ensureCompanyData
+      const techOpts = '<option value="">-- Seleccione técnico --</option>' + (companyTechnicians||[]).map(t=> `<option value="${t}">${t}</option>`).join('');
       
       // Obtener laborKinds actualizados
       const laborKinds = await getLaborKinds();
@@ -1435,11 +1408,14 @@ function fillCloseModal(){
       }
     }
     
-    wrap.querySelector('#cv-add-commission').addEventListener('click', ()=> {
-      // Remover mensaje de "No hay líneas" si existe antes de agregar
-      updateEmptyMessage();
-      addLine({}).catch(err => console.error('Error agregando línea:', err));
-    });
+    const addCommissionBtn = document.getElementById('cv-add-commission');
+    if (addCommissionBtn) {
+      addCommissionBtn.addEventListener('click', ()=> {
+        // Remover mensaje de "No hay líneas" si existe antes de agregar
+        updateEmptyMessage();
+        addLine({}).catch(err => console.error('Error agregando línea:', err));
+      });
+    }
     
     // Observar cambios en la tabla para actualizar mensaje vacío
     const observer = new MutationObserver(() => {

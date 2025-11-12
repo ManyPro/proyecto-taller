@@ -121,7 +121,16 @@ const API = {
   company: {
     getPreferences: () => http.get('/api/v1/company/preferences').then(r=> r.preferences || { laborPercents: [] }),
     setPreferences: (prefs) => http.put('/api/v1/company/preferences', prefs).then(r=> r.preferences || {}),
-    getTechnicians: () => http.get('/api/v1/company/technicians').then(r=> r.technicians || []),
+    getTechnicians: async () => {
+      const response = await http.get('/api/v1/company/technicians');
+      const techs = response?.technicians || [];
+      // Normalizar: extraer nombres como strings
+      return Array.isArray(techs) ? techs.map(t => {
+        if (typeof t === 'string') return t.trim();
+        if (t && typeof t === 'object' && t.name) return String(t.name).trim();
+        return '';
+      }).filter(n => n && n.trim() !== '') : [];
+    },
     addTechnician: async (name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType) => {
       const res = await http.post('/api/v1/company/technicians', { 
         name,
