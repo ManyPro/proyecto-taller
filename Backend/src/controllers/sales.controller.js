@@ -1065,6 +1065,11 @@ export const listSales = async (req, res) => {
   const { status, from, to, plate, page = 1, limit = 50 } = req.query || {};
   const q = { companyId: req.companyId };
   if (status) q.status = String(status);
+  // Filtrar por placa si se proporciona
+  if (plate) {
+    const plateUpper = String(plate).trim().toUpperCase();
+    q['vehicle.plate'] = plateUpper;
+  }
   if (from || to) {
     // Usar closedAt si está disponible, sino createdAt
     // Para ventas cerradas, es más preciso usar closedAt
@@ -1120,9 +1125,6 @@ export const listSales = async (req, res) => {
     if (dateConditions.length > 0) {
       q.$expr = { $or: dateConditions };
     }
-  }
-  if (plate) {
-    q['vehicle.plate'] = String(plate).toUpperCase();
   }
   const pg = Math.max(1, Number(page || 1));
   const lim = Math.max(1, Math.min(500, Number(limit || 50)));
@@ -1255,8 +1257,157 @@ export const technicianReport = async (req, res) => {
   }
 };
 
-
-
+// GET /api/v1/sales/by-plate/:plate
+// Obtener historial completo de ventas por placa con todos los detalles (productos, servicios, etc.)
+export const getSalesByPlate = async (req, res) => {
+  const companyId = req.companyId || req.company?.id;
+  if (!companyId) return res.status(400).json({ error: 'Falta companyId' });
+  
+  const plate = String(req.params.plate || '').trim().toUpperCase();
+  if (!plate) return res.status(400).json({ error: 'Falta placa' });
+  
+  const { status, from, to, limit = 1000 } = req.query || {};
+  const lim = Math.max(1, Math.min(5000, Number(limit || 1000)));
+  
+  const query = { 
+    companyId, 
+    'vehicle.plate': plate 
+  };
+  
+  if (status) {
+    query.status = String(status);
+  } else {
+    // Por defecto, mostrar solo ventas cerradas (historial)
+    query.status = 'closed';
+  }
+  
+  // Filtro por fechas
+  if (from || to) {
+    const dateConditions = [];
+    const fromDate = from ? new Date(from) : null;
+    const toDate = to ? new Date(`${to}T23:59:59.999Z`) : null;
+    
+    if (fromDate && toDate) {
+      dateConditions.push({
+        $and: [
+          { $ne: ['$closedAt', null] },
+          { $gte: ['$closedAt', fromDate] },
+          { $lte: ['$closedAt', toDate] }
+        ]
+      });
+      dateConditions.push({
+        $and: [
+          { $or: [{ $eq: ['$closedAt', null] }, { $not: { $ifNull: ['$closedAt', false] } }] },
+          { $gte: ['$createdAt', fromDate] },
+          { $lte: ['$createdAt', toDate] }
+        ]
+      });
+    } else if (fromDate) {
+      dateConditions.push({
+        $and: [
+          { $ne: ['$closedAt', null] },
+          { $gte: ['$closedAt', fromDate] }
+        ]
+      });
+      dateConditions.push({
+        $and: [
+          { $or: [{ $eq: ['$closedAt', null] }, { $not: { $ifNull: ['$closedAt', false] } }] },
+          { $gte: ['$createdAt', fromDate] }
+        ]
+      });
+    } else if (toDate) {
+      dateConditions.push({
+        $and: [
+          { $ne: ['$closedAt', null] },
+          { $lte: ['$closedAt', toDate] }
+        ]
+      });
+      dateConditions.push({
+        $and: [
+          { $or: [{ $eq: ['$closedAt', null] }, { $not: { $ifNull: ['$closedAt', false] } }] },
+          { $lte: ['$createdAt', toDate] }
+        ]
+      });
+    }
+    
+    if (dateConditions.length > 0) {
+      query.$expr = { $or: dateConditions };
+    }
+  }
+  
+  // Obtener todas las ventas con todos los detalles
+  const sales = await Sale.find(query)
+    .populate('vehicle.vehicleId', 'make line displacement modelYear')
+    .sort({ closedAt: -1, createdAt: -1 })
+    .limit(lim)
+    .lean();
+  
+  // Calcular estadísticas
+  const totalSales = sales.length;
+  const totalAmount = sales.reduce((sum, sale) => sum + (sale.total || 0), 0);
+  const totalProducts = sales.reduce((sum, sale) => {
+    return sum + (sale.items || []).filter(item => item.source === 'inventory').length;
+  }, 0);
+  const totalServices = sales.reduce((sum, sale) => {
+    return sum + (sale.items || []).filter(item => item.source === 'service' || item.source === 'price').length;
+  }, 0);
+  
+  // Agrupar productos y servicios más vendidos
+  const productCounts = {};
+  const serviceCounts = {};
+  
+  sales.forEach(sale => {
+    (sale.items || []).forEach(item => {
+      if (item.source === 'inventory') {
+        const key = item.sku || item.name || 'Sin SKU';
+        productCounts[key] = (productCounts[key] || 0) + (item.qty || 1);
+      } else if (item.source === 'service' || item.source === 'price') {
+        const key = item.name || item.sku || 'Sin nombre';
+        serviceCounts[key] = (serviceCounts[key] || 0) + (item.qty || 1);
+      }
+    });
+  });
+  
+  const topProducts = Object.entries(productCounts)
+    .map(([name, qty]) => ({ name, qty }))
+    .sort((a, b) => b.qty - a.qty)
+    .slice(0, 10);
+  
+  const topServices = Object.entries(serviceCounts)
+    .map(([name, qty]) => ({ name, qty }))
+    .sort((a, b) => b.qty - a.qty)
+    .slice(0, 10);
+  
+  res.json({
+    plate,
+    summary: {
+      totalSales,
+      totalAmount,
+      totalProducts,
+      totalServices,
+      topProducts,
+      topServices
+    },
+    sales: sales.map(sale => ({
+      _id: sale._id,
+      number: sale.number,
+      name: sale.name,
+      status: sale.status,
+      createdAt: sale.createdAt,
+      closedAt: sale.closedAt,
+      customer: sale.customer,
+      vehicle: sale.vehicle,
+      items: sale.items || [],
+      subtotal: sale.subtotal,
+      tax: sale.tax,
+      total: sale.total,
+      laborValue: sale.laborValue,
+      notes: sale.notes,
+      technician: sale.technician,
+      legacyOrId: sale.legacyOrId
+    }))
+  });
+};
 
 
 

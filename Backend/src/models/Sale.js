@@ -107,11 +107,14 @@ SaleSchema.pre('save', function(next){
 });
 
 // Índices adicionales para agilizar reporte técnico (consultas por closedAt y técnicos)
+// Índice para consultas por placa (historial de vehículos)
 try {
   SaleSchema.index({ companyId: 1, closedAt: -1 });
   SaleSchema.index({ companyId: 1, closedAt: -1, technician: 1 });
   SaleSchema.index({ companyId: 1, closedAt: -1, initialTechnician: 1 });
   SaleSchema.index({ companyId: 1, closedAt: -1, closingTechnician: 1 });
+  SaleSchema.index({ companyId: 1, 'vehicle.plate': 1, closedAt: -1 });
+  SaleSchema.index({ companyId: 1, status: 1, closedAt: -1 });
 } catch(e) { /* ignore duplicate index definition in dev hot reload */ }
 
 export default mongoose.model('Sale', SaleSchema);

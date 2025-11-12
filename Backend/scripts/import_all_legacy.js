@@ -98,7 +98,7 @@ async function main() {
   }
 
   // 2. Importar clientes
-  const clientsCmd = `node scripts/import_clients_from_legacy.js --orders "${ordersPath}" --clients "${clientsPath}" --mongo "${mongoUri}" --companyMap "${companyMap}"${dryRun ? ' --dry' : ''}${limit ? ` --limit ${limit}` : ''}`;
+  const clientsCmd = `node scripts/import_clients_from_legacy.js --orders "${ordersPath}" --clients "${clientsPath}" --vehicles "${vehiclesPath}" --mongo "${mongoUri}" --companyMap "${companyMap}"${dryRun ? ' --dry' : ''}${limit ? ` --limit ${limit}` : ''}`;
   const clientsImported = await runCommand(clientsCmd, 'Importando clientes');
   if (!clientsImported && !dryRun) {
     console.error('❌ Error importando clientes. Continuando con órdenes...');

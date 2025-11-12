@@ -399,10 +399,20 @@ const counters = {
 };
 
 async function main() {
-  console.log('Reading legacy CSV files...');
+  console.log('🚀 Iniciando importación de órdenes con productos y servicios...');
+  console.log('📂 Leyendo archivos CSV...');
+  console.log(`   - Órdenes: ${args.orders}`);
+  console.log(`   - Clientes: ${args.clients}`);
+  console.log(`   - Vehículos: ${args.vehicles}`);
+  
   const ordersRows = await parseCSV(args.orders, { delimiter, encoding });
+  console.log(`✅ Órdenes leídas: ${ordersRows.length}`);
+  
   const clientRows = await parseCSV(args.clients, { delimiter, encoding });
+  console.log(`✅ Clientes leídos: ${clientRows.length}`);
+  
   const vehicleRows = await parseCSV(args.vehicles, { delimiter, encoding });
+  console.log(`✅ Vehículos leídos: ${vehicleRows.length}`);
 
   let orderProductRows = [];
   let productRows = [];
@@ -415,15 +425,42 @@ async function main() {
     console.log('Using remis.csv for order details (products and services)');
   }
   
-  if (detailPaths.orderProducts) orderProductRows = await parseCSV(detailPaths.orderProducts, { delimiter, encoding });
-  if (detailPaths.products) productRows = await parseCSV(detailPaths.products, { delimiter, encoding });
-  if (detailPaths.orderServices) orderServiceRows = await parseCSV(detailPaths.orderServices, { delimiter, encoding });
-  if (detailPaths.services) serviceRows = await parseCSV(detailPaths.services, { delimiter, encoding });
-  if (detailPaths.remisions) remisionRows = await parseCSV(detailPaths.remisions, { delimiter, encoding });
+  if (detailPaths.orderProducts) {
+    console.log(`📦 Leyendo productos por orden: ${detailPaths.orderProducts}`);
+    orderProductRows = await parseCSV(detailPaths.orderProducts, { delimiter, encoding });
+    console.log(`✅ Relaciones producto-orden leídas: ${orderProductRows.length}`);
+  }
+  if (detailPaths.products) {
+    console.log(`📦 Leyendo catálogo de productos: ${detailPaths.products}`);
+    productRows = await parseCSV(detailPaths.products, { delimiter, encoding });
+    console.log(`✅ Productos en catálogo: ${productRows.length}`);
+  }
+  if (detailPaths.orderServices) {
+    console.log(`🔧 Leyendo servicios por orden: ${detailPaths.orderServices}`);
+    orderServiceRows = await parseCSV(detailPaths.orderServices, { delimiter, encoding });
+    console.log(`✅ Relaciones servicio-orden leídas: ${orderServiceRows.length}`);
+  }
+  if (detailPaths.services) {
+    console.log(`🔧 Leyendo catálogo de servicios: ${detailPaths.services}`);
+    serviceRows = await parseCSV(detailPaths.services, { delimiter, encoding });
+    console.log(`✅ Servicios en catálogo: ${serviceRows.length}`);
+  }
+  if (detailPaths.remisions) {
+    console.log(`📄 Leyendo remisiones: ${detailPaths.remisions}`);
+    remisionRows = await parseCSV(detailPaths.remisions, { delimiter, encoding });
+    console.log(`✅ Remisiones leídas: ${remisionRows.length}`);
+  }
 
-  console.log(`Orders: ${ordersRows.length}, Clients: ${clientRows.length}, Vehicles: ${vehicleRows.length}`);
+  console.log(`\n📊 Resumen de archivos cargados:`);
+  console.log(`   - Órdenes: ${ordersRows.length}`);
+  console.log(`   - Clientes: ${clientRows.length}`);
+  console.log(`   - Vehículos: ${vehicleRows.length}`);
   if (detailMode) {
-    console.log(`OrderProducts: ${orderProductRows.length}, Products: ${productRows.length}, OrderServices: ${orderServiceRows.length}, Services: ${serviceRows.length}, Remisions: ${remisionRows.length}`);
+    console.log(`   - Relaciones producto-orden: ${orderProductRows.length}`);
+    console.log(`   - Productos en catálogo: ${productRows.length}`);
+    console.log(`   - Relaciones servicio-orden: ${orderServiceRows.length}`);
+    console.log(`   - Servicios en catálogo: ${serviceRows.length}`);
+    console.log(`   - Remisiones: ${remisionRows.length}`);
   }
 
   const clientIndex = new Map(clientRows.map(row => [String(row['cl_id'] ?? row['id'] ?? ''), row]));
@@ -486,8 +523,14 @@ async function main() {
   const totalRows = ordersRows.length;
   let lastProgressTime = Date.now();
   
-  console.log(`\n📊 Total de órdenes a procesar: ${totalRows}`);
-  console.log(`⏱️  Mostrando progreso cada ${progressEvery} registros o cada ${progressTimeInterval/1000} segundos\n`);
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`📊 INICIANDO PROCESAMIENTO DE ÓRDENES`);
+  console.log(`${'='.repeat(60)}`);
+  console.log(`📈 Total de órdenes a procesar: ${totalRows}`);
+  console.log(`⏱️  Mostrando progreso cada ${progressEvery} registros o cada ${progressTimeInterval/1000} segundos`);
+  console.log(`💾 Modo: ${dryRun ? 'DRY RUN (preview, no guarda)' : 'REAL (guardando en BD)'}`);
+  if (limit) console.log(`🔢 Límite: ${limit} registros`);
+  console.log(`${'='.repeat(60)}\n`);
   
   function logProgress(force = false) {
     if (!progressEvery && !force) return;
