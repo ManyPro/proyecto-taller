@@ -2748,7 +2748,7 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
       
       try {
         // Usar el nombre actual (oldName) para buscar el técnico, y newName para actualizar
-        await api.updateTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+        await api.company.updateTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
         await loadTechnicians();
         closeModal();
       } catch (err) {
@@ -2784,7 +2784,7 @@ async function editTechnician(name, identification, basicSalary, workHoursPerMon
     throw new Error('Nombre de técnico requerido');
   }
   
-  await api.updateTechnician(name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+  await api.company.updateTechnician(name, name, identification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
   await loadTechnicians();
 }
 
