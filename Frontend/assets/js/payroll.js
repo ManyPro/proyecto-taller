@@ -2519,27 +2519,36 @@ function switchTab(name){
 
 async function createTechnician(){
   try {
-    const input = document.getElementById('tk-add-name');
+    const nameInput = document.getElementById('tk-add-name');
     const identificationInput = document.getElementById('tk-add-identification');
-    const name = (input?.value || '').trim();
+    const basicSalaryInput = document.getElementById('tk-add-basic-salary');
+    const workHoursInput = document.getElementById('tk-add-work-hours');
+    const salaryPerDayInput = document.getElementById('tk-add-salary-per-day');
+    const contractTypeInput = document.getElementById('tk-add-contract-type');
+    
+    const name = (nameInput?.value || '').trim();
     const identification = (identificationInput?.value || '').trim();
+    const basicSalary = (basicSalaryInput?.value || '').trim();
+    const workHoursPerMonth = (workHoursInput?.value || '').trim();
+    const basicSalaryPerDay = (salaryPerDayInput?.value || '').trim();
+    const contractType = (contractTypeInput?.value || '').trim();
     
     // Validaciones
     if (!name) {
       alert('⚠️ Ingresa un nombre de técnico');
-      input?.focus();
+      nameInput?.focus();
       return;
     }
     
     if (name.length < 2) {
       alert('⚠️ El nombre debe tener al menos 2 caracteres');
-      input?.focus();
+      nameInput?.focus();
       return;
     }
     
     if (name.length > 100) {
       alert('⚠️ El nombre no puede exceder 100 caracteres');
-      input?.focus();
+      nameInput?.focus();
       return;
     }
     
@@ -2552,11 +2561,32 @@ async function createTechnician(){
     }
     
     try {
-      await api.post('/api/v1/company/technicians', { name, identification });
+      // Verificar que api.company esté disponible
+      let addFn = null;
+      if (api && api.company && typeof api.company.addTechnician === 'function') {
+        addFn = api.company.addTechnician;
+      } else if (window.API && window.API.company && typeof window.API.company.addTechnician === 'function') {
+        addFn = window.API.company.addTechnician;
+      } else {
+        throw new Error('API no disponible. Por favor recarga la página.');
+      }
+      
+      await addFn(
+        name,
+        identification,
+        basicSalary || null,
+        workHoursPerMonth || null,
+        basicSalaryPerDay || null,
+        contractType
+      );
       
       // Limpiar campos
-      input.value = '';
+      if (nameInput) nameInput.value = '';
       if (identificationInput) identificationInput.value = '';
+      if (basicSalaryInput) basicSalaryInput.value = '';
+      if (workHoursInput) workHoursInput.value = '';
+      if (salaryPerDayInput) salaryPerDayInput.value = '';
+      if (contractTypeInput) contractTypeInput.value = '';
       
       // Recargar lista de técnicos
       await loadTechnicians();
@@ -2582,7 +2612,7 @@ async function createTechnician(){
         btn.disabled = false;
         btn.textContent = originalText;
       }
-      input?.focus();
+      nameInput?.focus();
     }
   } catch (err) {
     console.error('Error in createTechnician:', err);
@@ -2747,8 +2777,17 @@ function showEditTechnicianModal(oldName, currentIdentification, basicSalary, wo
       saveBtn.textContent = 'Guardando...';
       
       try {
-        // Usar el nombre actual (oldName) para buscar el técnico, y newName para actualizar
-        await api.company.updateTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+        // Verificar que api.company esté disponible
+        if (!api || !api.company || typeof api.company.updateTechnician !== 'function') {
+          // Fallback: usar window.API directamente
+          const API = window.API || api;
+          if (!API || !API.company || typeof API.company.updateTechnician !== 'function') {
+            throw new Error('API no disponible. Por favor recarga la página.');
+          }
+          await API.company.updateTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+        } else {
+          await api.company.updateTechnician(oldName, newName, newIdentification, basicSalary, workHoursPerMonth, basicSalaryPerDay, contractType);
+        }
         await loadTechnicians();
         closeModal();
       } catch (err) {
