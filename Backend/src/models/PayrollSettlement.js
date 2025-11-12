@@ -35,6 +35,24 @@ PayrollSettlementSchema.index({ companyId: 1, technicianName: 1, periodId: 1 }, 
 // Índice adicional para búsquedas por technicianId cuando existe (sparse: solo indexa cuando technicianId no es null)
 PayrollSettlementSchema.index({ companyId: 1, technicianId: 1, periodId: 1 }, { unique: true, sparse: true });
 
-export default mongoose.model('PayrollSettlement', PayrollSettlementSchema);
+const PayrollSettlement = mongoose.model('PayrollSettlement', PayrollSettlementSchema);
+
+// Eliminar índice problemático antiguo si existe (migración)
+// Este índice causa conflictos cuando technicianId es null
+if (mongoose.connection.readyState === 1) {
+  // Si ya está conectado, eliminar el índice inmediatamente
+  PayrollSettlement.collection.dropIndex('companyId_1_technicianId_1_periodId_1').catch(() => {
+    // Ignorar error si el índice no existe
+  });
+} else {
+  // Si no está conectado, esperar a que se conecte
+  mongoose.connection.once('connected', () => {
+    PayrollSettlement.collection.dropIndex('companyId_1_technicianId_1_periodId_1').catch(() => {
+      // Ignorar error si el índice no existe
+    });
+  });
+}
+
+export default PayrollSettlement;
 
 

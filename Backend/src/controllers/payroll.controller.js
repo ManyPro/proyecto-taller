@@ -976,22 +976,24 @@ export const approveSettlement = async (req, res) => {
     });
     
     // Construir el filtro de búsqueda: usar technicianName cuando technicianId es null
-    // Primero intentar buscar por technicianId si existe, sino por technicianName
+    // Buscar primero por technicianName (más confiable cuando technicianId puede ser null)
     let existingSettlement = null;
-    if (technicianId && technicianId.trim() !== '' && mongoose.Types.ObjectId.isValid(technicianId)) {
-      existingSettlement = await PayrollSettlement.findOne({
-        companyId: req.companyId,
-        periodId,
-        technicianId: new mongoose.Types.ObjectId(technicianId)
-      });
-    }
     
-    // Si no se encontró por technicianId, buscar por technicianName
-    if (!existingSettlement && techNameUpper) {
+    // Siempre buscar primero por technicianName, que es el índice único principal
+    if (techNameUpper) {
       existingSettlement = await PayrollSettlement.findOne({
         companyId: req.companyId,
         periodId,
         technicianName: techNameUpper
+      });
+    }
+    
+    // Si no se encontró por technicianName y technicianId existe, buscar por technicianId
+    if (!existingSettlement && technicianId && technicianId.trim() !== '' && mongoose.Types.ObjectId.isValid(technicianId)) {
+      existingSettlement = await PayrollSettlement.findOne({
+        companyId: req.companyId,
+        periodId,
+        technicianId: new mongoose.Types.ObjectId(technicianId)
       });
     }
     
@@ -1024,12 +1026,38 @@ export const approveSettlement = async (req, res) => {
         { new: true }
       );
     } else {
-      // Si no existe, crear nuevo
-      doc = await PayrollSettlement.create({
-        companyId: req.companyId,
-        periodId,
-        ...updateData
-      });
+      // Si no existe, intentar crear nuevo
+      try {
+        doc = await PayrollSettlement.create({
+          companyId: req.companyId,
+          periodId,
+          ...updateData
+        });
+      } catch (createError) {
+        // Si hay error de clave duplicada, buscar nuevamente y actualizar
+        if (createError.code === 11000 || createError.message?.includes('duplicate key')) {
+          // Buscar el documento duplicado
+          const duplicateSettlement = await PayrollSettlement.findOne({
+            companyId: req.companyId,
+            periodId,
+            technicianName: techNameUpper
+          });
+          
+          if (duplicateSettlement) {
+            // Actualizar el documento existente
+            doc = await PayrollSettlement.findByIdAndUpdate(
+              duplicateSettlement._id,
+              updateData,
+              { new: true }
+            );
+          } else {
+            // Si no se encuentra, lanzar el error original
+            throw createError;
+          }
+        } else {
+          throw createError;
+        }
+      }
     }
     
     // Actualizar estado de préstamos si se pagaron (parcial o completo)
