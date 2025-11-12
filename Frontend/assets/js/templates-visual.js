@@ -3341,7 +3341,7 @@
     numberBox.className = 'tpl-element';
     numberBox.id = `element_${visualEditor.nextId++}`;
     numberBox.style.cssText = 'position: absolute; left: 40px; top: 100px; border: 2px solid #000; padding: 8px 16px; display: inline-block;';
-    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 18px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{sale.number}}</span>';
+    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 18px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{#if S.nº}}{{S.nº}}{{else}}[Sin nº]{{/if}}</span>';
     makeDraggable(numberBox);
     makeSelectable(numberBox);
     canvas.appendChild(numberBox);
@@ -3549,17 +3549,53 @@
           </tr>
         </thead>
         <tbody>
-          {{#each sale.items}}
+          {{#if sale.itemsGrouped.hasProducts}}
+          <tr class="section-header">
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">PRODUCTOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.products}}
           <tr>
             <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
             <td class="t-center">{{qty}}</td>
           </tr>
           {{/each}}
-          {{#unless sale.items}}
+          {{/if}}
+          
+          {{#if sale.itemsGrouped.hasServices}}
+          <tr class="section-header">
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">SERVICIOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.services}}
+          <tr>
+            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+          </tr>
+          {{/each}}
+          {{/if}}
+          
+          {{#if sale.itemsGrouped.hasCombos}}
+          <tr class="section-header">
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">COMBOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.combos}}
+          <tr>
+            <td><strong>{{name}}</strong></td>
+            <td class="t-center">{{qty}}</td>
+          </tr>
+          {{#each items}}
+          <tr>
+            <td style="padding-left: 30px;">• {{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+          </tr>
+          {{/each}}
+          {{/each}}
+          {{/if}}
+          
+          {{#unless sale.itemsGrouped.hasProducts}}{{#unless sale.itemsGrouped.hasServices}}{{#unless sale.itemsGrouped.hasCombos}}
           <tr>
             <td colspan="2" style="text-align: center; color: #666;">Sin ítems</td>
           </tr>
-          {{/unless}}
+          {{/unless}}{{/unless}}{{/unless}}
         </tbody>
       </table>
     `;

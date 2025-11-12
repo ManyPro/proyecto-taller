@@ -807,8 +807,214 @@ export function initQuotes({ getCompanyEmail }) {
         });
         const w = window.open('', 'quoteTpl');
         if (w) {
-          w.document.write(`<html><head><title>Cotización</title><style>${pv.css||contentCss}</style></head><body>${pv.rendered || contentHtml}</body></html>`);
+          w.document.write(`<!doctype html><html><head><meta charset='utf-8'><title>Cotización</title>
+            <style>
+              /* Estilos base para mejor uso del espacio */
+              body {
+                margin: 0;
+                padding: 10mm;
+                font-family: Arial, sans-serif;
+                font-size: 12px;
+                line-height: 1.4;
+                color: #000;
+              }
+              
+              /* Aumentar tamaño de fuente para mejor legibilidad en carta */
+              h1, h2, h3 {
+                font-size: 1.5em !important;
+                margin: 0.5em 0 !important;
+              }
+              
+              table {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 11px;
+              }
+              
+              table th, table td {
+                padding: 8px 6px;
+                border: 1px solid #000;
+              }
+              
+              table th {
+                font-weight: bold;
+                background: #f0f0f0;
+              }
+              
+              /* Detectar tamaño de página automáticamente */
+              @page {
+                size: auto;
+                margin: 10mm;
+              }
+              
+              /* Estilos específicos para impresión */
+              @media print {
+                body {
+                  margin: 0 !important;
+                  padding: 10mm !important;
+                  overflow: hidden !important;
+                  font-size: 12px !important;
+                }
+                
+                /* Aumentar tamaño de fuente en impresión */
+                h1, h2 {
+                  font-size: 2em !important;
+                }
+                
+                table {
+                  font-size: 11px !important;
+                }
+                
+                table th, table td {
+                  padding: 10px 8px !important;
+                }
+                
+                .tpl-total-line,
+                .tpl-total-box {
+                  position: absolute !important;
+                  display: block !important;
+                  visibility: visible !important;
+                  opacity: 1 !important;
+                  page-break-inside: avoid !important;
+                  page-break-after: avoid !important;
+                }
+                .tpl-total-box {
+                  border: 2px solid #000 !important;
+                  background: white !important;
+                  -webkit-print-color-adjust: exact !important;
+                  print-color-adjust: exact !important;
+                  font-size: 14px !important;
+                  font-weight: bold !important;
+                }
+                /* Asegurar que las tablas no se corten */
+                table.quote-table,
+                table.remission-table {
+                  page-break-inside: auto !important;
+                }
+                table.quote-table tr,
+                table.remission-table tr {
+                  page-break-inside: avoid !important;
+                }
+              }
+            </style>
+            ${pv.css||contentCss}
+          </head><body>${pv.rendered || contentHtml}</body></html>`);
           w.document.close();
+          
+          // Función para detectar si el contenido cabe en media carta y ajustar tamaño de página
+          const detectAndSetPageSize = () => {
+            const body = w.document.body;
+            const html = w.document.documentElement;
+            
+            const contentHeight = Math.max(
+              body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight
+            );
+            
+            const mediaCartaMaxHeight = 800; // px (más tolerante)
+            
+            let pageSizeStyle = w.document.getElementById('dynamic-page-size');
+            if (!pageSizeStyle) {
+              pageSizeStyle = w.document.createElement('style');
+              pageSizeStyle.id = 'dynamic-page-size';
+              w.document.head.appendChild(pageSizeStyle);
+            }
+            
+            if (contentHeight <= mediaCartaMaxHeight) {
+              pageSizeStyle.textContent = `
+                @page {
+                  size: 5.5in 8.5in; /* Half-letter */
+                  margin: 10mm;
+                }
+                @media print {
+                  body {
+                    max-height: 216mm !important; /* 8.5 inches */
+                  }
+                }
+              `;
+              console.log('[exportPDF] ✅ Configurado para MEDIA CARTA (5.5" x 8.5")');
+            } else {
+              pageSizeStyle.textContent = `
+                @page {
+                  size: letter; /* Full letter */
+                  margin: 10mm;
+                }
+                @media print {
+                  body {
+                    max-height: 279mm !important; /* 11 inches */
+                  }
+                }
+              `;
+              console.log('[exportPDF] ✅ Configurado para CARTA COMPLETA (8.5" x 11")');
+            }
+          };
+          
+          // Función para ajustar posición del total dinámicamente
+          const adjustTotalPosition = () => {
+            const table = w.document.querySelector('table.quote-table, table.remission-table');
+            const totalLine = w.document.querySelector('.tpl-total-line');
+            const totalBox = w.document.querySelector('.tpl-total-box');
+            
+            if (!table || (!totalLine && !totalBox)) return;
+            
+            detectAndSetPageSize();
+            
+            const tableRect = table.getBoundingClientRect();
+            const scrollTop = w.pageYOffset || w.document.documentElement.scrollTop || w.document.body.scrollTop || 0;
+            const tableTop = tableRect.top + scrollTop;
+            const tableHeight = Math.max(
+              table.offsetHeight || 0,
+              table.scrollHeight || 0,
+              tableRect.height || 0,
+              table.clientHeight || 0
+            );
+            const newTop = tableTop + tableHeight + 10;
+            
+            const body = w.document.body;
+            const html = w.document.documentElement;
+            const contentHeight = Math.max(
+              body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight
+            );
+            const mediaCartaMaxHeight = 800;
+            const maxTop = contentHeight <= mediaCartaMaxHeight ? 700 : 1100;
+            const finalTop = Math.min(newTop, maxTop);
+            
+            if (totalLine) {
+              totalLine.style.top = `${finalTop}px`;
+              totalLine.style.position = 'absolute';
+              totalLine.style.zIndex = '1000';
+            }
+            if (totalBox) {
+              totalBox.style.top = `${finalTop + 1}px`;
+              totalBox.style.position = 'absolute';
+              totalBox.style.zIndex = '1000';
+            }
+          };
+          
+          // Abrir diálogo de impresión automáticamente después de detectar tamaño
+          w.focus();
+          setTimeout(() => {
+            detectAndSetPageSize();
+            adjustTotalPosition();
+            setTimeout(() => {
+              detectAndSetPageSize();
+              adjustTotalPosition();
+              setTimeout(() => {
+                detectAndSetPageSize();
+                adjustTotalPosition();
+                requestAnimationFrame(() => {
+                  detectAndSetPageSize();
+                  adjustTotalPosition();
+                  w.print();
+                });
+              }, 300);
+            }, 500);
+          }, 1000);
+          
+          // Detectar tamaño antes de imprimir también
+          w.addEventListener('beforeprint', () => {
+            detectAndSetPageSize();
+            adjustTotalPosition();
+          });
         }
         return; // no continuar a PDF jsPDF
       }

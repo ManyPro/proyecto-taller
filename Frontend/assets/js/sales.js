@@ -14,6 +14,10 @@ const htmlEscape = (str) => {
 function restoreHandlebarsVarsForPreview(html) {
   if (!html) return html;
   
+  console.log('[restoreHandlebarsVarsForPreview] Iniciando restauración, HTML length:', html.length);
+  const hasShortNumber = html.includes('{{#if S.nº}}');
+  console.log('[restoreHandlebarsVarsForPreview] HTML tiene expresión acortada de número:', hasShortNumber);
+  
   // Restaurar variables acortadas a su forma completa
   const replacements = [
     // Variables de cliente
@@ -78,7 +82,22 @@ function restoreHandlebarsVarsForPreview(html) {
   
   let result = html;
   replacements.forEach(({ from, to }) => {
+    const before = result;
     result = result.replace(from, to);
+    if (before !== result && from.toString().includes('S.nº')) {
+      console.log('[restoreHandlebarsVarsForPreview] Reemplazo aplicado:', {
+        pattern: from.toString().substring(0, 50),
+        replacement: to.substring(0, 50)
+      });
+    }
+  });
+  
+  const hasFullNumberAfter = result.includes('{{#if sale.formattedNumber}}');
+  const stillHasShortNumber = result.includes('{{#if S.nº}}');
+  console.log('[restoreHandlebarsVarsForPreview] Después de restauración:', {
+    hasFullNumber: hasFullNumberAfter,
+    stillHasShortNumber: stillHasShortNumber,
+    sample: result.match(/Nº:.*?\{\{.*?\}\}/)?.[0]?.substring(0, 150)
   });
   
   return result;
@@ -157,13 +176,34 @@ function printSaleTicket(sale){
         const restoredHtml = restoreHandlebarsVarsForPreview(tpl.contentHtml);
         console.log('[printSaleTicket] Variables restauradas, HTML length:', restoredHtml?.length);
         
+        // Verificar el HTML original antes de restaurar
+        const hasShortNumberInOriginal = tpl.contentHtml?.includes('{{#if S.nº}}');
+        const hasShortNumberInRestored = restoredHtml?.includes('{{#if S.nº}}');
+        const hasFullNumberInRestored = restoredHtml?.includes('{{#if sale.formattedNumber}}');
+        console.log('[printSaleTicket] Verificación de número:', {
+          originalHasShort: hasShortNumberInOriginal,
+          restoredHasShort: hasShortNumberInRestored,
+          restoredHasFull: hasFullNumberInRestored,
+          originalSample: tpl.contentHtml?.match(/Nº:.*?\{\{.*?\}\}/)?.[0]?.substring(0, 100),
+          restoredSample: restoredHtml?.match(/Nº:.*?\{\{.*?\}\}/)?.[0]?.substring(0, 100)
+        });
+        
         console.log('[printSaleTicket] Verificando variables en HTML:', {
           hasSaleItems: restoredHtml?.includes('{{#each sale.items}}') || restoredHtml?.includes('{{#if sale.itemsGrouped.hasProducts}}'),
           hasSaleNumber: restoredHtml?.includes('{{sale.number}}') || restoredHtml?.includes('{{pad sale.number}}') || restoredHtml?.includes('{{sale.formattedNumber}}'),
           hasSaleCustomer: restoredHtml?.includes('{{sale.customer'),
           hasSaleTotal: restoredHtml?.includes('{{sale.total}}') || restoredHtml?.includes('{{money sale.total}}'),
-          hasMoneyHelper: restoredHtml?.includes('{{money')
+          hasMoneyHelper: restoredHtml?.includes('{{money'),
+          hasFormattedNumberExpression: restoredHtml?.includes('{{#if sale.formattedNumber}}'),
+          hasShortNumberExpression: restoredHtml?.includes('{{#if S.nº}}'),
+          sampleNumberExpression: restoredHtml?.match(/\{\{#if.*?sale\.(formattedNumber|number).*?\}\}/)?.[0] || 'NO ENCONTRADA'
         });
+        
+        // Verificar específicamente la expresión del número
+        const numberExpressions = restoredHtml?.match(/\{\{#if.*?S\.nº.*?\}\}[\s\S]*?\{\{\/if\}\}/g) || [];
+        console.log('[printSaleTicket] Expresiones de número encontradas (acortadas):', numberExpressions);
+        const fullNumberExpressions = restoredHtml?.match(/\{\{#if.*?sale\.(formattedNumber|number).*?\}\}[\s\S]*?\{\{\/if\}\}/g) || [];
+        console.log('[printSaleTicket] Expresiones de número encontradas (completas):', fullNumberExpressions);
         
         // Extraer y mostrar el contenido del tbody del template
         const templateTbodyMatch = restoredHtml?.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
@@ -187,6 +227,10 @@ function printSaleTicket(sale){
             console.log('[printSaleTicket] Context sale items:', JSON.stringify(r.context?.sale?.items || [], null, 2));
             console.log('[printSaleTicket] Context sale number:', r.context?.sale?.number);
             console.log('[printSaleTicket] Context sale formattedNumber:', r.context?.sale?.formattedNumber);
+            console.log('[printSaleTicket] Context sale tiene number:', !!r.context?.sale?.number);
+            console.log('[printSaleTicket] Context sale tiene formattedNumber:', !!r.context?.sale?.formattedNumber);
+            console.log('[printSaleTicket] Context sale number type:', typeof r.context?.sale?.number);
+            console.log('[printSaleTicket] Context sale formattedNumber type:', typeof r.context?.sale?.formattedNumber);
             
             // Verificar si el HTML renderizado tiene filas de tabla
             const renderedRows = (r.rendered?.match(/<tr>/g) || []).length;
@@ -674,27 +718,12 @@ function printWorkOrder(){
                     padding: 10px 8px !important;
                   }
                   
-                  .tpl-total-line,
-                  .tpl-total-box {
-                    position: absolute !important;
-                    display: block !important;
-                    visibility: visible !important;
-                    opacity: 1 !important;
-                    page-break-inside: avoid !important;
-                    page-break-after: avoid !important;
-                  }
-                  .tpl-total-box {
-                    border: 2px solid #000 !important;
-                    background: white !important;
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
-                    font-size: 14px !important;
-                    font-weight: bold !important;
-                  }
-                  /* Asegurar que la tabla no se corte */
+                  /* Asegurar que las tablas no se corten */
+                  table.workorder-table,
                   table.remission-table {
                     page-break-inside: auto !important;
                   }
+                  table.workorder-table tr,
                   table.remission-table tr {
                     page-break-inside: avoid !important;
                   }
@@ -769,141 +798,23 @@ function printWorkOrder(){
               }
             };
             
-            // Función robusta para ajustar posición del total
-            const adjustTotalPosition = () => {
-              const table = win.document.querySelector('table.remission-table');
-              const totalLine = win.document.querySelector('.tpl-total-line');
-              const totalBox = win.document.querySelector('.tpl-total-box');
-              
-              if (!table) {
-                console.log('[printWorkOrder] Tabla no encontrada aún, reintentando...');
-                return false;
-              }
-              
-              if (!totalLine && !totalBox) {
-                console.log('[printWorkOrder] Total no encontrado aún, reintentando...');
-                return false;
-              }
-              
-              // Detectar tamaño de página primero
-              detectAndSetPageSize();
-              
-              // Método más confiable: obtener posición y altura de la tabla
-              // Usar múltiples métodos para asegurar precisión
-              const tableRect = table.getBoundingClientRect();
-              const scrollTop = win.pageYOffset || win.document.documentElement.scrollTop || win.document.body.scrollTop || 0;
-              
-              // Obtener posición absoluta: posición relativa al viewport + scroll
-              const tableTop = tableRect.top + scrollTop;
-              
-              // Obtener altura real de la tabla (usar el mayor valor para asegurar que incluya todo)
-              const tableHeight = Math.max(
-                table.offsetHeight || 0,
-                table.scrollHeight || 0,
-                tableRect.height || 0,
-                table.clientHeight || 0
-              );
-              
-              // Calcular nueva posición: inicio de tabla + altura + espacio adicional
-              const newTop = tableTop + tableHeight + 10; // 10px de espacio adicional para evitar solapamiento
-              
-              // Obtener altura total del contenido para determinar límite máximo
-              const body = win.document.body;
-              const html = win.document.documentElement;
-              const contentHeight = Math.max(
-                body.scrollHeight,
-                body.offsetHeight,
-                html.clientHeight,
-                html.scrollHeight,
-                html.offsetHeight
-              );
-              
-              // Ajustar límite máximo según tamaño de página detectado
-              const mediaCartaMaxHeight = 800; // px (más tolerante)
-              const maxTop = contentHeight <= mediaCartaMaxHeight ? 700 : 1100; // Límite más bajo para media carta
-              const finalTop = Math.min(newTop, maxTop);
-              
-              console.log('[printWorkOrder] Ajustando total:', {
-                tableRectTop: tableRect.top,
-                scrollTop,
-                tableTop,
-                tableHeight,
-                newTop,
-                finalTop,
-                maxTop,
-                contentHeight,
-                pageSize: contentHeight <= mediaCartaMaxHeight ? 'MEDIA CARTA' : 'CARTA COMPLETA',
-                offsetHeight: table.offsetHeight,
-                scrollHeight: table.scrollHeight,
-                clientHeight: table.clientHeight,
-                rectHeight: tableRect.height
-              });
-              
-              if (totalLine) {
-                totalLine.style.top = `${finalTop}px`;
-                totalLine.style.position = 'absolute';
-                totalLine.style.zIndex = '1000';
-                totalLine.style.display = 'block';
-                totalLine.style.visibility = 'visible';
-              }
-              if (totalBox) {
-                totalBox.style.top = `${finalTop + 1}px`;
-                totalBox.style.position = 'absolute';
-                totalBox.style.zIndex = '1000';
-                totalBox.style.display = 'block';
-                totalBox.style.visibility = 'visible';
-              }
-              
-              return true;
-            };
-            
-            // Ajustar posición del total dinámicamente después de que se renderice la tabla
-            win.addEventListener('DOMContentLoaded', () => {
-              setTimeout(() => {
-                if (!adjustTotalPosition()) {
-                  setTimeout(() => {
-                    if (!adjustTotalPosition()) {
-                      setTimeout(adjustTotalPosition, 500);
-                    }
-                  }, 300);
-                }
-              }, 100);
-              
-              setTimeout(adjustTotalPosition, 500);
-              setTimeout(adjustTotalPosition, 1000);
-              setTimeout(adjustTotalPosition, 2000);
-            });
-            
-            win.addEventListener('load', () => {
-              setTimeout(adjustTotalPosition, 100);
-              setTimeout(adjustTotalPosition, 500);
-            });
-            
-            // CRÍTICO: Ajustar justo antes de imprimir
-            win.addEventListener('beforeprint', () => {
-              console.log('[printWorkOrder] Evento beforeprint - ajustando total...');
-              adjustTotalPosition();
-            });
-            
-            // Abrir diálogo de impresión automáticamente después de detectar tamaño y ajustar posición
+            // Abrir diálogo de impresión automáticamente después de detectar tamaño
             win.focus();
             
-            // Esperar a que se cargue y ajuste todo, luego abrir diálogo de impresión automáticamente
+            // Esperar a que se cargue y detectar tamaño de página, luego abrir diálogo de impresión automáticamente
             setTimeout(() => {
-              // Ajustar posición del total
-              adjustTotalPosition();
+              detectAndSetPageSize();
               
               // Esperar un poco más para asegurar que todo esté renderizado
               setTimeout(() => {
-                adjustTotalPosition();
                 detectAndSetPageSize();
                 
                 // Abrir diálogo de impresión automáticamente con el tamaño correcto
                 // La ventana permanecerá abierta para ver logs si el usuario cancela la impresión
                 setTimeout(() => {
-                  adjustTotalPosition();
+                  detectAndSetPageSize();
                   requestAnimationFrame(() => {
-                    adjustTotalPosition();
+                    detectAndSetPageSize();
                     // Abrir diálogo de impresión automáticamente
                     win.print();
                     // NO cerrar automáticamente - dejar abierta para ver logs
@@ -912,6 +823,12 @@ function printWorkOrder(){
                 }, 300);
               }, 500);
             }, 1000);
+            
+            // Detectar tamaño antes de imprimir también
+            win.addEventListener('beforeprint', () => {
+              console.log('[printWorkOrder] Evento beforeprint - detectando tamaño de página...');
+              detectAndSetPageSize();
+            });
           })
           .catch(()=> fallback());
       })
