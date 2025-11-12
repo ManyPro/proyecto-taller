@@ -511,7 +511,13 @@ export const previewSettlement = async (req, res) => {
           base: Math.round(detail.laborValue),
           value: Math.round(detail.share),
           calcRule: `laborPercent:${detail.percent}`,
-          notes: `${detail.percent}% sobre ${Math.round(detail.laborValue).toLocaleString('es-CO')}`
+          notes: `${detail.percent}% sobre ${Math.round(detail.laborValue).toLocaleString('es-CO')}`,
+          // Guardar información de porcentaje para liquidación
+          isPercent: true,
+          percentValue: detail.percent,
+          percentBaseType: 'total_gross',
+          percentBaseConceptId: null,
+          percentBaseFixedValue: 0
         });
       });
     } else if (commissionRounded > 0) {
@@ -801,7 +807,13 @@ export const approveSettlement = async (req, res) => {
             base: Math.round(detail.laborValue),
             value: adjustedValue,
             calcRule: `laborPercent:${detail.percent}`,
-            notes: `${detail.percent}% sobre ${Math.round(detail.laborValue).toLocaleString('es-CO')}`
+            notes: `${detail.percent}% sobre ${Math.round(detail.laborValue).toLocaleString('es-CO')}`,
+            // Guardar información de porcentaje para liquidación
+            isPercent: true,
+            percentValue: detail.percent,
+            percentBaseType: 'total_gross',
+            percentBaseConceptId: null,
+            percentBaseFixedValue: 0
           });
         });
       } else if (finalCommissionAmount > 0) {

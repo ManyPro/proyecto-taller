@@ -528,23 +528,118 @@ function initializeLogoutListener() {
     // Preferir desktop, pero usar mobile si no existe desktop
     return desktopActions || mobileActions || null;
   }
-  function ensureBell(){
-    const header = getHeaderActionsRow();
-    if(!header) return;
-    if(document.getElementById('notifBell')) return;
-    bell = document.createElement('button');
-    bell.id='notifBell';
-    // Usar clases de Tailwind para el botón de notificaciones
-    bell.className='p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200 relative';
-    bell.innerHTML='\uD83D\uDD14 <span id="notifCount" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;padding:2px 6px;border-radius:14px;font-size:10px;line-height:1;display:none;">0</span>';
-    // Insertar antes del último botón (themeToggle o mobileMenuToggle)
-    const lastButton = header.querySelector('#themeToggle') || header.querySelector('#mobileMenuToggle');
-    if(lastButton && lastButton.parentNode) {
-      lastButton.parentNode.insertBefore(bell, lastButton);
-    } else {
-      header.appendChild(bell);
+  let audioContext = null;
+  function initAudioContext(){
+    if(!audioContext) {
+      try {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      } catch(e) {
+        console.warn('AudioContext no disponible:', e);
+      }
     }
-    bell.addEventListener('click', togglePanel);
+    return audioContext;
+  }
+  function playNotificationSound(){
+    try {
+      const ctx = initAudioContext();
+      if(!ctx) {
+        // Fallback: vibrar en móvil si está disponible
+        if(navigator.vibrate) {
+          navigator.vibrate([100, 50, 100]);
+        }
+        return;
+      }
+      
+      // Resumir contexto si está suspendido (requiere interacción del usuario)
+      if(ctx.state === 'suspended') {
+        ctx.resume().then(() => {
+          playNotificationSound();
+        }).catch(() => {
+          // Si no se puede resumir, usar vibración en móvil
+          if(navigator.vibrate) {
+            navigator.vibrate([100, 50, 100]);
+          }
+        });
+        return;
+      }
+      
+      // Crear sonido de campana (dos tonos)
+      const oscillator1 = ctx.createOscillator();
+      const oscillator2 = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      oscillator1.connect(gainNode);
+      oscillator2.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      // Primer tono (más agudo)
+      oscillator1.frequency.setValueAtTime(800, ctx.currentTime);
+      oscillator1.type = 'sine';
+      
+      // Segundo tono (más grave, con delay)
+      oscillator2.frequency.setValueAtTime(600, ctx.currentTime + 0.1);
+      oscillator2.type = 'sine';
+      
+      // Volumen con fade out
+      gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4);
+      
+      // Reproducir
+      oscillator1.start(ctx.currentTime);
+      oscillator1.stop(ctx.currentTime + 0.4);
+      oscillator2.start(ctx.currentTime + 0.1);
+      oscillator2.stop(ctx.currentTime + 0.4);
+      
+      // También vibrar en móvil si está disponible
+      if(navigator.vibrate) {
+        navigator.vibrate([100, 50, 100]);
+      }
+    } catch(e) {
+      // Fallback: vibrar en móvil
+      if(navigator.vibrate) {
+        navigator.vibrate([100, 50, 100]);
+      }
+      console.log('🔔 Nueva notificación');
+    }
+  }
+  function ensureBell(){
+    // Buscar en desktop primero
+    const desktopHeader = getHeaderActionsRow();
+    if(desktopHeader && !desktopHeader.querySelector('#notifBell')) {
+      bell = document.createElement('button');
+      bell.id='notifBell';
+      bell.className='p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200 relative';
+      bell.innerHTML='🔔 <span id="notifCount" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;padding:2px 6px;border-radius:14px;font-size:10px;line-height:1;display:none;">0</span>';
+      const lastButton = desktopHeader.querySelector('#themeToggle') || desktopHeader.querySelector('#mobileMenuToggle');
+      if(lastButton && lastButton.parentNode) {
+        lastButton.parentNode.insertBefore(bell, lastButton);
+      } else {
+        desktopHeader.appendChild(bell);
+      }
+      bell.addEventListener('click', togglePanel);
+    }
+    
+    // Buscar específicamente en la barra móvil
+    const appHeaderEl = document.getElementById('appHeader');
+    if(appHeaderEl) {
+      const mobileActions = appHeaderEl.querySelector('[class*="md:hidden flex"]');
+      if(mobileActions && !mobileActions.querySelector('#notifBellMobile')) {
+        const mobileBell = document.createElement('button');
+        mobileBell.id='notifBellMobile';
+        mobileBell.className='p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200 relative';
+        mobileBell.innerHTML='🔔 <span id="notifCountMobile" style="position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;padding:2px 6px;border-radius:14px;font-size:10px;line-height:1;display:none;">0</span>';
+        // Insertar antes del botón de tema o menú hamburguesa
+        const themeToggle = mobileActions.querySelector('#themeToggle');
+        const menuToggle = mobileActions.querySelector('#mobileMenuToggle');
+        const insertBefore = themeToggle || menuToggle;
+        if(insertBefore && insertBefore.parentNode) {
+          insertBefore.parentNode.insertBefore(mobileBell, insertBefore);
+        } else {
+          mobileActions.appendChild(mobileBell);
+        }
+        mobileBell.addEventListener('click', togglePanel);
+      }
+    }
   }
   function ensurePanel(){
     if(panel) return panel;
@@ -570,8 +665,22 @@ function initializeLogoutListener() {
   }
   function renderNotifications(list){
     ensureBell(); ensurePanel();
+    
+    // Detectar nuevas notificaciones comparando con las anteriores
+    const currentIds = new Set(list.map(n => String(n._id)));
+    const hasNewNotifications = list.length > 0 && Array.from(currentIds).some(id => !lastIds.has(id));
+    
+    // Actualizar contador en ambas campanitas (desktop y mobile)
     const countEl = document.getElementById('notifCount');
+    const countElMobile = document.getElementById('notifCountMobile');
     if(countEl){ countEl.textContent = String(list.length); countEl.style.display = list.length? 'inline-block':'none'; }
+    if(countElMobile){ countElMobile.textContent = String(list.length); countElMobile.style.display = list.length? 'inline-block':'none'; }
+    
+    // Reproducir sonido si hay nuevas notificaciones
+    if(hasNewNotifications) {
+      playNotificationSound();
+    }
+    
     const ul = document.getElementById('notifList'); if(!ul) return;
     ul.innerHTML='';
     // Friendly formatter for notification types
@@ -653,18 +762,49 @@ function initializeLogoutListener() {
       await fetch((API.base||'') + '/api/v1/notifications/' + id + '/read', { method:'PATCH', headers:{ 'Content-Type':'application/json', ...authHeader() } });
       if(el) el.style.opacity='.35';
       lastIds.delete(String(id));
-      const countEl = document.getElementById('notifCount'); if(countEl) countEl.textContent = String(lastIds.size); if(lastIds.size===0 && countEl) countEl.style.display='none';
+      const countEl = document.getElementById('notifCount');
+      const countElMobile = document.getElementById('notifCountMobile');
+      if(countEl) countEl.textContent = String(lastIds.size);
+      if(countElMobile) countElMobile.textContent = String(lastIds.size);
+      if(lastIds.size===0) {
+        if(countEl) countEl.style.display='none';
+        if(countElMobile) countElMobile.style.display='none';
+      }
     }catch(e){ /* ignore */ }
   }
   async function markAll(){
     try{
       await fetch((API.base||'') + '/api/v1/notifications/read-all', { method:'POST', headers:{ 'Content-Type':'application/json', ...authHeader() } });
-      lastIds.clear(); fetchNotifications();
+      lastIds.clear();
+      const countEl = document.getElementById('notifCount');
+      const countElMobile = document.getElementById('notifCountMobile');
+      if(countEl) { countEl.textContent = '0'; countEl.style.display = 'none'; }
+      if(countElMobile) { countElMobile.textContent = '0'; countElMobile.style.display = 'none'; }
+      fetchNotifications();
     }catch(e){/* ignore */ }
   }
   function togglePanel(){ ensurePanel(); panel.style.display = panel.style.display==='none'? 'block':'none'; if(panel.style.display==='block'){ fetchNotifications(); } }
   function startPolling(){ if(polling) return; polling = setInterval(fetchNotifications, 30000); fetchNotifications(); }
-  document.addEventListener('DOMContentLoaded', ()=>{ ensureBell(); startPolling(); });
+  
+  // Inicializar AudioContext en la primera interacción del usuario
+  function initAudioOnUserInteraction(){
+    if(audioContext) return;
+    const init = () => {
+      initAudioContext();
+      document.removeEventListener('click', init);
+      document.removeEventListener('touchstart', init);
+      document.removeEventListener('keydown', init);
+    };
+    document.addEventListener('click', init, { once: true });
+    document.addEventListener('touchstart', init, { once: true });
+    document.addEventListener('keydown', init, { once: true });
+  }
+  
+  document.addEventListener('DOMContentLoaded', ()=>{ 
+    ensureBell(); 
+    startPolling();
+    initAudioOnUserInteraction();
+  });
 })();
 
 // ================= Feature gating (UI) =================
