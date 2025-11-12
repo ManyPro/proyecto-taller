@@ -4336,7 +4336,7 @@
     }
     
     // Si es una plantilla de nómina, actualizar campos editables con variables
-    const templateType = window.currentTemplateSession?.type;
+    let templateType = window.currentTemplateSession?.type;
     if (templateType === 'payroll') {
       content = updatePayrollEditableFields(content);
     }
@@ -4490,7 +4490,13 @@
 
     const session = window.currentTemplateSession;
     let templateName = session?.name;
-    let templateType = session?.type || 'invoice';
+    // templateType ya fue declarado arriba, solo reasignar si es necesario
+    if (!templateType) {
+      templateType = session?.type || 'invoice';
+    } else {
+      // Asegurar que templateType tenga un valor por defecto si no está definido
+      templateType = templateType || session?.type || 'invoice';
+    }
     let isUpdate = session?.action === 'edit';
 
     if (!templateName || session?.action === 'create') {
