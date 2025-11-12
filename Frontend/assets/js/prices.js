@@ -1235,6 +1235,7 @@ export function initPrices(){
     const isEdit = !!existingPrice;
     const isProduct = type === 'product';
     const isCombo = type === 'combo';
+    const isService = type === 'service';
     const linkedItem = existingPrice?.itemId;
     const comboProducts = existingPrice?.comboProducts || [];
     
@@ -1370,6 +1371,24 @@ export function initPrices(){
         <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">El precio se calcula automáticamente desde los productos, o puedes establecerlo manualmente.</p>
       </div>
       `}
+      ${isCombo || isProduct || isService ? `
+      <div class="mb-4 p-3 bg-blue-900/20 dark:bg-blue-900/20 theme-light:bg-blue-50 rounded-lg border border-blue-700/30 dark:border-blue-700/30 theme-light:border-blue-300">
+        <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">Mano de obra (opcional)</label>
+        <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">Estos valores se usarán automáticamente al cerrar la venta para agregar participación técnica.</p>
+        <div class="flex gap-2">
+          <div class="flex-1">
+            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Valor de mano de obra</label>
+            <input id="pe-modal-labor-value" type="number" min="0" step="1" placeholder="0" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" value="${existingPrice?.laborValue || ''}" />
+          </div>
+          <div class="flex-1">
+            <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Tipo de mano de obra</label>
+            <select id="pe-modal-labor-kind" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+              <option value="">-- Seleccione tipo --</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      ` : ''}
       <div class="mb-4 p-3 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
         <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">Rango de años (opcional)</label>
         <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">Solo aplicar este precio si el año del vehículo está en el rango especificado. Déjalo vacío para aplicar a todos los años.</p>
@@ -1398,6 +1417,30 @@ export function initPrices(){
     const saveBtn = node.querySelector('#pe-modal-save');
     const cancelBtn = node.querySelector('#pe-modal-cancel');
     let selectedItem = linkedItem ? { _id: linkedItem._id, sku: linkedItem.sku, name: linkedItem.name, stock: linkedItem.stock } : null;
+    
+    // Cargar laborKinds en el select si existe
+    if (isCombo || isProduct || isService) {
+      const laborKindSelect = node.querySelector('#pe-modal-labor-kind');
+      if (laborKindSelect) {
+        async function loadLaborKinds() {
+          try {
+            const response = await API.get('/api/v1/company/tech-config');
+            const config = response?.config || response || { laborKinds: [] };
+            const laborKinds = config?.laborKinds || [];
+            const laborKindsList = laborKinds.map(k => {
+              const name = typeof k === 'string' ? k : (k?.name || '');
+              return name;
+            }).filter(k => k && k.trim() !== '');
+            
+            laborKindSelect.innerHTML = '<option value="">-- Seleccione tipo --</option>' + 
+              laborKindsList.map(k => `<option value="${k}" ${existingPrice?.laborKind === k ? 'selected' : ''}>${k}</option>`).join('');
+          } catch (err) {
+            console.error('Error cargando laborKinds:', err);
+          }
+        }
+        loadLaborKinds();
+      }
+    }
     
     // Funcionalidad de búsqueda de items (solo para productos)
     if (isProduct) {
@@ -2350,6 +2393,20 @@ export function initPrices(){
               isOpenSlot: isOpenSlot
             };
           }).filter(p => p.name);
+        }
+        
+        // Agregar campos de mano de obra si existen
+        if (isCombo || isProduct || isService) {
+          const laborValueInput = node.querySelector('#pe-modal-labor-value');
+          const laborKindSelect = node.querySelector('#pe-modal-labor-kind');
+          if (laborValueInput && laborKindSelect) {
+            const laborValue = Number(laborValueInput.value || 0) || 0;
+            const laborKind = laborKindSelect.value?.trim() || '';
+            if (laborValue > 0 || laborKind) {
+              basePayload.laborValue = laborValue;
+              basePayload.laborKind = laborKind;
+            }
+          }
         }
         
         // Si hay múltiples vehículos, crear un precio para cada uno

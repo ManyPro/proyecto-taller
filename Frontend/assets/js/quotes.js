@@ -1445,7 +1445,7 @@ export function initQuotes({ getCompanyEmail }) {
           <div class="flex flex-wrap gap-2 md:flex-col md:items-end">
             <button data-act="edit" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">Ver/Editar</button>
             <button data-act="wa" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm whitespace-nowrap">WhatsApp</button>
-            <button data-act="pdf" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm whitespace-nowrap">PDF</button>
+            <button data-act="pdf" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm whitespace-nowrap">🖨️ Imprimir</button>
             <button data-act="del" class="px-4 py-2 bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300 text-sm whitespace-nowrap">Eliminar</button>
           </div>
         </div>`;
@@ -1580,7 +1580,7 @@ export function initQuotes({ getCompanyEmail }) {
         <div class="flex flex-wrap gap-3 mb-4">
           <button id="m-save" class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar cambios</button>
           <button id="m-wa" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">WhatsApp</button>
-          <button id="m-pdf" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">PDF</button>
+          <button id="m-pdf" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">🖨️ Imprimir PDF</button>
           <button id="m-close" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cerrar</button>
         </div>
         <div class="mb-4">
@@ -3276,6 +3276,7 @@ export function initQuotes({ getCompanyEmail }) {
     
     const isCombo = type === 'combo';
     const isProduct = type === 'product';
+    const isService = type === 'service';
     
     node.innerHTML = `
       <h3 class="mt-0 mb-4 text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Crear ${type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto')}</h3>
@@ -3330,7 +3331,7 @@ export function initQuotes({ getCompanyEmail }) {
           </div>
         </div>
       </div>
-      ${isCombo || isProduct ? `
+      ${isCombo || isProduct || isService ? `
       <div class="mb-4 p-3 bg-blue-900/20 dark:bg-blue-900/20 theme-light:bg-blue-50 rounded-lg border border-blue-700/30 dark:border-blue-700/30 theme-light:border-blue-300">
         <label class="block text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2 font-medium">Mano de obra (opcional)</label>
         <p class="mb-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Estos valores se usarán automáticamente al cerrar la venta para agregar participación técnica.</p>
@@ -3365,7 +3366,7 @@ export function initQuotes({ getCompanyEmail }) {
     let selectedItem = null;
     
     // Cargar laborKinds en el select si existe
-    if (isCombo || isProduct) {
+    if (isCombo || isProduct || isService) {
       const laborKindSelect = node.querySelector('#price-labor-kind');
       if (laborKindSelect) {
         async function loadLaborKinds() {
@@ -3866,7 +3867,7 @@ export function initQuotes({ getCompanyEmail }) {
         }
         
         // Agregar campos de mano de obra si existen
-        if (isCombo || isProduct) {
+        if (isCombo || isProduct || isService) {
           const laborValueInput = node.querySelector('#price-labor-value');
           const laborKindSelect = node.querySelector('#price-labor-kind');
           if (laborValueInput && laborKindSelect) {
