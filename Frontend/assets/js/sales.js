@@ -4242,12 +4242,13 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
         }
       }
       
-      await API.priceCreate(payload);
+      // Crear el precio y obtener el precio completo con comboProducts si es combo
+      const newPrice = await API.priceCreate(payload);
       
       // Agregar el precio recién creado a la venta
-      const prices = await API.pricesList({ vehicleId, name, limit: 1 });
-      if (prices && prices.length > 0) {
-        const newPrice = prices[0];
+      // El backend maneja automáticamente los combos cuando se agrega un precio tipo combo
+      // Buscará el precio completo y agregará todos los productos del combo automáticamente
+      if (newPrice && newPrice._id) {
         current = await API.sales.addItem(current._id, { source:'price', refId: newPrice._id, qty:1 });
         syncCurrentIntoOpenList();
         renderTabs();

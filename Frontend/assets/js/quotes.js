@@ -1553,6 +1553,29 @@ export function initQuotes({ getCompanyEmail }) {
           <button id="m-add-unified" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">➕ Agregar</button>
           <button id="m-addRow" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">+ Agregar línea manual</button>
         </div>
+        
+        <!-- Panel integrado para agregar items -->
+        <div id="m-add-items-panel" class="hidden mb-4 bg-gradient-to-br from-slate-800/80 to-slate-900/80 dark:from-slate-800/80 dark:to-slate-900/80 theme-light:from-slate-100 theme-light:to-slate-50 rounded-xl border-2 border-blue-500/50 dark:border-blue-500/50 theme-light:border-blue-300 shadow-2xl overflow-hidden transition-all duration-300">
+          <div class="p-4 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+            <div class="flex justify-between items-center">
+              <h4 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900">Agregar Items</h4>
+              <button id="m-close-add-panel" class="w-8 h-8 flex items-center justify-center bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 rounded-lg transition-all duration-200 text-xl font-bold">×</button>
+            </div>
+            <div class="flex gap-2 mt-3">
+              <button id="m-add-qr-btn-inline" class="flex-1 px-4 py-3 rounded-lg text-sm font-semibold flex flex-col items-center gap-2 border-none cursor-pointer transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white shadow-lg hover:shadow-xl">
+                <span class="text-3xl">📷</span>
+                <span>Agregar QR</span>
+              </button>
+              <button id="m-add-manual-btn-inline" class="flex-1 px-4 py-3 rounded-lg text-sm font-semibold flex flex-col items-center gap-2 border-none cursor-pointer transition-all duration-200 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white shadow-lg hover:shadow-xl theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">
+                <span class="text-3xl">✏️</span>
+                <span>Agregar Manual</span>
+              </button>
+            </div>
+          </div>
+          <div id="m-add-items-content" class="p-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+            <!-- Contenido dinámico: QR scanner o lista manual -->
+          </div>
+        </div>
         <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-50 rounded-lg p-4 mb-4 space-y-2">
           <div class="flex justify-between text-sm text-white dark:text-white theme-light:text-slate-900">
             <span>Subtotal Productos:</span>
@@ -2261,62 +2284,60 @@ export function initQuotes({ getCompanyEmail }) {
     // ---- acciones ----
     btnAdd?.addEventListener('click',()=>{ addRow(); recalc(); });
     
-    // Botón agregar unificado (QR/Manual)
+    // Panel integrado para agregar items
+    const addItemsPanel = q('#m-add-items-panel');
+    const addItemsContent = q('#m-add-items-content');
+    const closeAddPanel = q('#m-close-add-panel');
+    const btnAddQRInline = q('#m-add-qr-btn-inline');
+    const btnAddManualInline = q('#m-add-manual-btn-inline');
+    
+    // Guardar contexto del modal para usar en las funciones de agregar
+    window._modalQuoteContext = {
+      rowsBox,
+      cloneRow,
+      updateRowSubtotal,
+      recalc,
+      vehicleId: mVehicleId?.value || null
+    };
+    
+    // Botón agregar unificado (QR/Manual) - ahora muestra panel integrado
     const btnAddUnified = q('#m-add-unified');
     if (btnAddUnified) {
       btnAddUnified.addEventListener('click', () => {
-        // Cerrar modal actual temporalmente
-        const currentModal = document.getElementById('modal');
-        const wasVisible = !currentModal.classList.contains('hidden');
-        if (wasVisible) currentModal.classList.add('hidden');
-        
-        // Abrir modal de agregar unificado (usar función existente)
-        // Guardar referencias del modal actual para usar en la función
-        window._modalQuoteContext = {
-          rowsBox,
-          cloneRow,
-          updateRowSubtotal,
-          recalc,
-          vehicleId: mVehicleId?.value || null
-        };
-        openAddUnifiedForQuote();
-        
-        // Si el modal de agregar se cierra, volver a mostrar el modal de edición
-        const checkModal = () => {
-          const addModal = document.getElementById('modal');
-          if (!addModal || addModal.classList.contains('hidden')) {
-            if (wasVisible && currentModal) {
-              currentModal.classList.remove('hidden');
-            }
-            // Limpiar contexto después de un breve delay
-            setTimeout(() => {
-              if (window._modalQuoteContext) {
-                delete window._modalQuoteContext;
-              }
-            }, 100);
-            return true;
+        // Mostrar panel integrado
+        if (addItemsPanel) {
+          addItemsPanel.classList.remove('hidden');
+          // Limpiar contenido previo
+          if (addItemsContent) {
+            addItemsContent.innerHTML = '<div class="text-center py-8 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Selecciona una opción para agregar items</div>';
           }
-          return false;
-        };
-        const intervalId = setInterval(() => {
-          if (checkModal()) {
-            clearInterval(intervalId);
+        }
+      });
+    }
+    
+    // Cerrar panel de agregar items
+    if (closeAddPanel) {
+      closeAddPanel.addEventListener('click', () => {
+        if (addItemsPanel) {
+          addItemsPanel.classList.add('hidden');
+          if (addItemsContent) {
+            addItemsContent.innerHTML = '';
           }
-        }, 100);
-        
-        // También limpiar cuando se cierra manualmente
-        const originalClose = window.closeModal;
-        window.closeModal = function() {
-          if (originalClose) originalClose();
-          if (wasVisible && currentModal) {
-            currentModal.classList.remove('hidden');
-          }
-          setTimeout(() => {
-            if (window._modalQuoteContext) {
-              delete window._modalQuoteContext;
-            }
-          }, 100);
-        };
+        }
+      });
+    }
+    
+    // Botón QR inline
+    if (btnAddQRInline) {
+      btnAddQRInline.addEventListener('click', () => {
+        renderQRScannerInline(addItemsContent);
+      });
+    }
+    
+    // Botón Manual inline
+    if (btnAddManualInline) {
+      btnAddManualInline.addEventListener('click', () => {
+        renderManualViewInline(addItemsContent, mVehicleId?.value || null);
       });
     }
     
@@ -2573,7 +2594,13 @@ export function initQuotes({ getCompanyEmail }) {
 
   // ===== UI Bindings =====
   function bindUI(){
-    btnAddUnified?.addEventListener('click', openAddUnifiedForQuote);
+    // El botón "Agregar" ahora usa el panel integrado en el modal de edición
+    // Para el contexto principal, también se puede usar el panel integrado si existe
+    btnAddUnified?.addEventListener('click', () => {
+      // Si estamos en el contexto principal (no modal), crear un panel similar
+      // Por ahora, solo funciona en el modal de edición
+      console.log('Agregar items - usar desde el modal de edición');
+    });
     iSaveDraft?.addEventListener('click',saveDraft);
     btnWA?.addEventListener('click',openWhatsApp);
     btnPDF?.addEventListener('click',()=>{ exportPDF().catch(err=>alert(err?.message||err)); });
@@ -2825,126 +2852,6 @@ export function initQuotes({ getCompanyEmail }) {
     load();
   }
 
-  // ===== Agregar unificado (QR + Manual) para cotizaciones =====
-  function openAddUnifiedForQuote(){
-    // Modal inicial: elegir entre QR y Manual
-    const node = document.createElement('div');
-    node.className = 'max-w-[600px] mx-auto';
-    node.innerHTML = `
-      <h3 class="mt-0 mb-6 text-xl font-semibold text-white dark:text-white theme-light:text-slate-900 text-center">Agregar items</h3>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-        <button id="add-qr-btn" class="px-6 py-6 rounded-xl text-base font-semibold flex flex-col items-center gap-2 border-none cursor-pointer transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white shadow-lg hover:shadow-xl hover:scale-105">
-          <span class="text-5xl">📷</span>
-          <span>Agregar QR</span>
-        </button>
-        <button id="add-manual-btn" class="px-6 py-6 rounded-xl text-base font-semibold flex flex-col items-center gap-2 border-none cursor-pointer transition-all duration-200 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white shadow-lg hover:shadow-xl hover:scale-105 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">
-          <span class="text-5xl">✏️</span>
-          <span>Agregar manual</span>
-        </button>
-      </div>
-      <div class="text-center">
-        <button id="add-cancel-btn" class="px-6 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
-      </div>
-    `;
-    
-    openModal(node);
-    
-    // Estilos hover para los botones
-    const qrBtn = node.querySelector('#add-qr-btn');
-    const manualBtn = node.querySelector('#add-manual-btn');
-    const cancelBtn = node.querySelector('#add-cancel-btn');
-    
-    qrBtn.addEventListener('mouseenter', () => {
-      qrBtn.classList.add('scale-105');
-      qrBtn.classList.add('shadow-xl');
-    });
-    qrBtn.addEventListener('mouseleave', () => {
-      qrBtn.classList.remove('scale-105');
-      qrBtn.classList.remove('shadow-xl');
-    });
-    
-    manualBtn.addEventListener('mouseenter', () => {
-      manualBtn.classList.add('scale-105');
-      manualBtn.classList.add('shadow-xl');
-    });
-    manualBtn.addEventListener('mouseleave', () => {
-      manualBtn.classList.remove('scale-105');
-      manualBtn.classList.remove('shadow-xl');
-    });
-    
-    // Si selecciona QR, abrir el modal de QR (usar la función existente pero mejorada)
-    qrBtn.onclick = () => {
-      closeModal();
-      openQRModalForQuote();
-    };
-    
-    // Si selecciona Manual, mostrar navegación entre Lista de precios e Inventario
-    manualBtn.onclick = () => {
-      showManualViewForQuote(node);
-    };
-    
-    cancelBtn.onclick = () => {
-      closeModal();
-    };
-  }
-
-  // Vista de agregar manual para cotizaciones
-  function showManualViewForQuote(parentNode) {
-    // Detectar si estamos en el modal de edición
-    const isModal = !!window._modalQuoteContext;
-    const currentVehicleId = isModal 
-      ? (window._modalQuoteContext.vehicleId || null)
-      : (iVehicleId?.value || null);
-    let currentView = currentVehicleId ? 'prices' : 'inventory';
-    
-    function renderView() {
-      parentNode.innerHTML = `
-        <div class="mb-4">
-          <h3 class="mt-0 mb-4 text-lg font-semibold text-white dark:text-white theme-light:text-slate-900">Agregar manual</h3>
-          <div class="flex gap-2 border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 pb-2">
-            <button id="nav-prices" class="flex-1 px-3 py-3 rounded-t-lg border-none font-semibold cursor-pointer transition-all duration-200 ${currentView === 'prices' ? 'bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 text-white' : 'bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900'}">
-              💰 Lista de precios
-            </button>
-            <button id="nav-inventory" class="flex-1 px-3 py-3 rounded-t-lg border-none font-semibold cursor-pointer transition-all duration-200 ${currentView === 'inventory' ? 'bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 text-white' : 'bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900'}">
-              📦 Inventario
-            </button>
-          </div>
-        </div>
-        <div id="manual-content" class="min-h-[400px] max-h-[70vh] overflow-y-auto custom-scrollbar"></div>
-        <div class="mt-4 text-center">
-          <button id="manual-back-btn" class="px-6 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">← Volver</button>
-        </div>
-      `;
-      
-      const navPrices = parentNode.querySelector('#nav-prices');
-      const navInventory = parentNode.querySelector('#nav-inventory');
-      const manualBack = parentNode.querySelector('#manual-back-btn');
-      const content = parentNode.querySelector('#manual-content');
-      
-      navPrices.onclick = () => {
-        currentView = 'prices';
-        renderView();
-      };
-      
-      navInventory.onclick = () => {
-        currentView = 'inventory';
-        renderView();
-      };
-      
-      manualBack.onclick = () => {
-        openAddUnifiedForQuote();
-      };
-      
-      // Renderizar contenido según la vista actual
-      if (currentView === 'prices') {
-        renderPricesViewForQuote(content, currentVehicleId, isModal);
-      } else {
-        renderInventoryViewForQuote(content, isModal);
-      }
-    }
-    
-    renderView();
-  }
 
   // Vista de Lista de precios para cotizaciones
   async function renderPricesViewForQuote(container, vehicleId, isModal = false) {
@@ -3105,24 +3012,8 @@ export function initQuotes({ getCompanyEmail }) {
             if (!isModal) {
               saveDraft();
             }
-            // Solo cerrar el modal si NO estamos editando una cotización existente
-            // Si estamos en el modal de edición (window._modalQuoteContext existe), 
-            // solo cerramos el modal de lista de precios, no el modal principal de edición
-            if (!window._modalQuoteContext) {
-              closeModal();
-            } else {
-              // Estamos en el modal de edición, solo cerrar el modal de lista de precios
-              // Buscar el modal que contiene la lista de precios y cerrarlo
-              const priceModal = document.getElementById('modal');
-              if (priceModal) {
-                // Verificar si este modal contiene la lista de precios
-                const pricesListInModal = priceModal.querySelector('#prices-list');
-                if (pricesListInModal) {
-                  // Este es el modal de lista de precios, cerrarlo sin afectar el modal de edición
-                  priceModal.classList.add('hidden');
-                }
-              }
-            }
+            // No cerrar nada cuando estamos en el panel integrado del modal de edición
+            // El panel integrado permanece abierto para agregar más items
           };
           
           pricesList.appendChild(card);
@@ -3317,24 +3208,8 @@ export function initQuotes({ getCompanyEmail }) {
             if (!isModal) {
               saveDraft();
             }
-            // Solo cerrar el modal si NO estamos editando una cotización existente
-            // Si estamos en el modal de edición (window._modalQuoteContext existe), 
-            // solo cerramos el modal de agregar items, no el modal principal de edición
-            if (!window._modalQuoteContext) {
-              closeModal();
-            } else {
-              // Estamos en el modal de edición, solo cerrar el modal de agregar items
-              // Buscar el modal que contiene el inventario y cerrarlo
-              const addModal = document.getElementById('modal');
-              if (addModal) {
-                // Verificar si este modal contiene el inventario
-                const inventoryList = addModal.querySelector('#inventory-list');
-                if (inventoryList) {
-                  // Este es el modal de agregar items, cerrarlo sin afectar el modal de edición
-                  addModal.classList.add('hidden');
-                }
-              }
-            }
+            // No cerrar nada cuando estamos en el panel integrado del modal de edición
+            // El panel integrado permanece abierto para agregar más items
           };
           
           listContainer.appendChild(card);
@@ -4028,21 +3903,64 @@ export function initQuotes({ getCompanyEmail }) {
           }
         }
         
-        await API.priceCreate(payload);
+        // Crear el precio y obtener el precio completo con comboProducts si es combo
+        const newPrice = await API.priceCreate(payload);
         
         // Agregar el precio recién creado a la cotización
-        const prices = await API.pricesList({ vehicleId, name, limit: 1 });
-        if (prices && prices.length > 0) {
-          const newPrice = prices[0];
-          const row = quoteCtx.cloneRow();
-          row.querySelector('select').value = newPrice.type === 'product' ? 'PRODUCTO' : 'SERVICIO';
-          row.querySelectorAll('input')[0].value = newPrice.name || '';
-          row.querySelectorAll('input')[1].value = 1;
-          row.querySelectorAll('input')[2].value = Math.round(newPrice.total || newPrice.price || 0);
-          row.dataset.source = 'price';
-          if (newPrice._id) row.dataset.refId = String(newPrice._id);
-          quoteCtx.updateRowSubtotal(row);
-          quoteCtx.rowsBox.appendChild(row);
+        // Manejar combos correctamente igual que cuando se agrega desde la lista de precios
+        if (newPrice && newPrice._id) {
+          if (newPrice.type === 'combo' && newPrice.comboProducts && newPrice.comboProducts.length > 0) {
+            // Agregar el combo principal
+            const comboRow = quoteCtx.cloneRow();
+            comboRow.querySelector('select').value = 'PRODUCTO';
+            comboRow.querySelectorAll('input')[0].value = newPrice.name || '';
+            comboRow.querySelectorAll('input')[1].value = 1;
+            comboRow.querySelectorAll('input')[2].value = Math.round(newPrice.total || newPrice.price || 0);
+            comboRow.dataset.source = 'price';
+            comboRow.dataset.refId = String(newPrice._id);
+            quoteCtx.updateRowSubtotal(comboRow);
+            quoteCtx.rowsBox.appendChild(comboRow);
+            
+            // Agregar cada producto del combo
+            newPrice.comboProducts.forEach(cp => {
+              const row = quoteCtx.cloneRow();
+              row.querySelector('select').value = 'PRODUCTO';
+              // Para slots abiertos, solo mostrar el nombre (sin indicadores)
+              row.querySelectorAll('input')[0].value = cp.name || '';
+              row.querySelectorAll('input')[1].value = cp.qty || 1;
+              row.querySelectorAll('input')[2].value = Math.round(cp.unitPrice || 0);
+              row.dataset.source = cp.itemId ? 'inventory' : 'price';
+              // Asegurar que refId sea un string (puede venir como objeto con _id)
+              if (cp.itemId) {
+                const refIdValue = typeof cp.itemId === 'object' && cp.itemId._id 
+                  ? String(cp.itemId._id) 
+                  : String(cp.itemId || '');
+                if (refIdValue) row.dataset.refId = refIdValue;
+              }
+              if (cp.itemId) {
+                const skuValue = typeof cp.itemId === 'object' && cp.itemId.sku 
+                  ? cp.itemId.sku 
+                  : (cp.sku || '');
+                if (skuValue) row.dataset.sku = skuValue;
+              }
+              // Marcar como item del combo
+              row.dataset.comboParent = String(newPrice._id);
+              quoteCtx.updateRowSubtotal(row);
+              quoteCtx.rowsBox.appendChild(row);
+            });
+          } else {
+            // Item normal (servicio o producto)
+            const row = quoteCtx.cloneRow();
+            row.querySelector('select').value = newPrice.type === 'product' ? 'PRODUCTO' : 'SERVICIO';
+            row.querySelectorAll('input')[0].value = newPrice.name || '';
+            row.querySelectorAll('input')[1].value = 1;
+            row.querySelectorAll('input')[2].value = Math.round(newPrice.total || newPrice.price || 0);
+            row.dataset.source = 'price';
+            row.dataset.refId = String(newPrice._id);
+            quoteCtx.updateRowSubtotal(row);
+            quoteCtx.rowsBox.appendChild(row);
+          }
+          
           quoteCtx.recalc();
           if (!isModal) {
             saveDraft();
@@ -4064,11 +3982,11 @@ export function initQuotes({ getCompanyEmail }) {
     };
   }
 
-  // ===== Agregar por QR (con cámara, igual que ventas) =====
-  function openQRModalForQuote(){
-    // Detectar si estamos en el modal de edición
-    const isModal = !!window._modalQuoteContext;
-    const quoteCtx = isModal && window._modalQuoteContext ? window._modalQuoteContext : {
+  // ===== Renderizar QR Scanner dentro del panel integrado =====
+  function renderQRScannerInline(container) {
+    if (!container) return;
+    
+    const quoteCtx = window._modalQuoteContext || {
       rowsBox,
       cloneRow,
       updateRowSubtotal,
@@ -4076,33 +3994,52 @@ export function initQuotes({ getCompanyEmail }) {
       vehicleId: iVehicleId?.value || null
     };
     
-    const tpl = document.getElementById('tpl-qr-scanner-quote');
-    if (!tpl) {
-      // Fallback si no existe el template
-      alert('Template de QR no encontrado');
-      return;
-    }
-    const node = tpl.content.firstElementChild.cloneNode(true);
-    openModal(node);
-
-    const video = node.querySelector('#qr-video-quote');
-    const canvas = node.querySelector('#qr-canvas-quote');
+    container.innerHTML = `
+      <div class="space-y-4">
+        <div class="flex gap-2 mb-4">
+          <button id="qr-single-mode-inline" class="flex-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-all duration-200">Un solo item</button>
+          <button id="qr-multi-mode-inline" class="flex-1 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-semibold transition-all duration-200">Múltiples items</button>
+          <button id="qr-finish-multi-inline" class="hidden px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold transition-all duration-200">Finalizar</button>
+        </div>
+        <div class="mb-3">
+          <select id="qr-cam-inline" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm"></select>
+        </div>
+        <div class="relative bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-200 rounded-lg overflow-hidden" style="aspect-ratio: 4/3;">
+          <video id="qr-video-inline" autoplay playsinline muted class="w-full h-full object-cover"></video>
+          <canvas id="qr-canvas-inline" class="hidden"></canvas>
+        </div>
+        <div id="qr-msg-inline" class="text-sm text-center text-white dark:text-white theme-light:text-slate-900 min-h-[20px]"></div>
+        <div class="mt-3">
+          <div class="flex gap-2">
+            <input id="qr-manual-inline" type="text" placeholder="Ingresar código manualmente..." class="flex-1 px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <button id="qr-add-manual-inline" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-semibold transition-all duration-200">Agregar</button>
+          </div>
+        </div>
+        <div class="mt-3">
+          <h5 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Historial escaneado:</h5>
+          <ul id="qr-history-inline" class="max-h-32 overflow-y-auto bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 rounded-lg p-2 space-y-1 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></ul>
+        </div>
+      </div>
+    `;
+    
+    const video = container.querySelector('#qr-video-inline');
+    const canvas = container.querySelector('#qr-canvas-inline');
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    const sel = node.querySelector('#qr-cam-quote');
-    const msg = node.querySelector('#qr-msg-quote');
-    const list = node.querySelector('#qr-history-quote');
-    const singleModeBtn = node.querySelector('#qr-single-mode-quote');
-    const multiModeBtn = node.querySelector('#qr-multi-mode-quote');
-    const finishMultiBtn = node.querySelector('#qr-finish-multi-quote');
-    const manualInput = node.querySelector('#qr-manual-quote');
-    const manualBtn = node.querySelector('#qr-add-manual-quote');
-
-    let stream=null, running=false, detector=null, lastCode='', lastTs=0;
+    const sel = container.querySelector('#qr-cam-inline');
+    const msg = container.querySelector('#qr-msg-inline');
+    const list = container.querySelector('#qr-history-inline');
+    const singleModeBtn = container.querySelector('#qr-single-mode-inline');
+    const multiModeBtn = container.querySelector('#qr-multi-mode-inline');
+    const finishMultiBtn = container.querySelector('#qr-finish-multi-inline');
+    const manualInput = container.querySelector('#qr-manual-inline');
+    const manualBtn = container.querySelector('#qr-add-manual-inline');
+    
+    let stream = null, running = false, detector = null, lastCode = '', lastTs = 0;
     let multiMode = false;
     let cameraDisabled = false;
-
-    async function fillCams(){
-      try{
+    
+    async function fillCams() {
+      try {
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if (isMobile) {
           const defaultOpt = document.createElement('option');
@@ -4114,7 +4051,7 @@ export function initQuotes({ getCompanyEmail }) {
         }
         try {
           const devs = await navigator.mediaDevices.enumerateDevices();
-          const cams = devs.filter(d=>d.kind==='videoinput');
+          const cams = devs.filter(d => d.kind === 'videoinput');
           if (cams.length === 0) {
             const defaultOpt = document.createElement('option');
             defaultOpt.value = '';
@@ -4123,10 +4060,10 @@ export function initQuotes({ getCompanyEmail }) {
             sel.value = '';
             return;
           }
-          sel.replaceChildren(...cams.map((c,i)=>{
-            const o=document.createElement('option'); 
-            o.value=c.deviceId; 
-            o.textContent=c.label||('Cam '+(i+1)); 
+          sel.replaceChildren(...cams.map((c, i) => {
+            const o = document.createElement('option');
+            o.value = c.deviceId;
+            o.textContent = c.label || ('Cam ' + (i + 1));
             return o;
           }));
         } catch (enumErr) {
@@ -4137,7 +4074,7 @@ export function initQuotes({ getCompanyEmail }) {
           sel.replaceChildren(defaultOpt);
           sel.value = '';
         }
-      }catch(err){
+      } catch (err) {
         console.error('Error al cargar cámaras:', err);
         const defaultOpt = document.createElement('option');
         defaultOpt.value = '';
@@ -4146,28 +4083,28 @@ export function initQuotes({ getCompanyEmail }) {
         sel.value = '';
       }
     }
-
-    function stop(){ 
-      try{ 
-        video.pause(); 
+    
+    function stop() {
+      try {
+        video.pause();
         video.srcObject = null;
-      }catch{}; 
-      try{ 
-        (stream?.getTracks()||[]).forEach(t=>t.stop()); 
-      }catch{}; 
-      running=false; 
+      } catch {}
+      try {
+        (stream?.getTracks() || []).forEach(t => t.stop());
+      } catch {}
+      running = false;
       stream = null;
     }
     
-    async function start(){
-      try{
+    async function start() {
+      try {
         stop();
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         let videoConstraints;
         if (sel.value && sel.value.trim() !== '') {
           videoConstraints = { deviceId: { exact: sel.value } };
         } else if (isMobile) {
-          videoConstraints = { 
+          videoConstraints = {
             facingMode: 'environment',
             width: { ideal: 1280 },
             height: { ideal: 720 }
@@ -4183,7 +4120,7 @@ export function initQuotes({ getCompanyEmail }) {
         video.setAttribute('webkit-playsinline', 'true');
         video.setAttribute('x5-playsinline', 'true');
         video.muted = true;
-        video.srcObject = stream; 
+        video.srcObject = stream;
         await new Promise((resolve, reject) => {
           video.onloadedmetadata = () => {
             video.play().then(resolve).catch(reject);
@@ -4198,30 +4135,14 @@ export function initQuotes({ getCompanyEmail }) {
           }, 10000);
         });
         running = true;
-        if (!isMobile) {
-          try {
-            const devs = await navigator.mediaDevices.enumerateDevices();
-            const cams = devs.filter(d=>d.kind==='videoinput' && d.label);
-            if (cams.length > 0 && sel.children.length <= 1) {
-              sel.replaceChildren(...cams.map((c,i)=>{
-                const o=document.createElement('option'); 
-                o.value=c.deviceId; 
-                o.textContent=c.label||('Cam '+(i+1)); 
-                return o;
-              }));
-            }
-          } catch (enumErr) {
-            console.warn('No se pudieron actualizar las cámaras:', enumErr);
-          }
+        if (window.BarcodeDetector) {
+          detector = new BarcodeDetector({ formats: ['qr_code'] });
+          tickNative();
+        } else {
+          tickCanvas();
         }
-        if (window.BarcodeDetector) { 
-          detector = new BarcodeDetector({ formats: ['qr_code'] }); 
-          tickNative(); 
-        } else { 
-          tickCanvas(); 
-        }
-        msg.textContent='';
-      }catch(e){ 
+        msg.textContent = '';
+      } catch (e) {
         console.error('Error al iniciar cámara:', e);
         let errorMsg = '';
         if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
@@ -4231,15 +4152,15 @@ export function initQuotes({ getCompanyEmail }) {
         } else if (e.name === 'NotReadableError' || e.name === 'TrackStartError') {
           errorMsg = '❌ La cámara está siendo usada por otra aplicación.';
         } else {
-          errorMsg = '❌ Error: ' + (e?.message||'Error desconocido');
+          errorMsg = '❌ Error: ' + (e?.message || 'Error desconocido');
         }
         msg.textContent = errorMsg;
         msg.className = 'text-sm text-red-500 dark:text-red-400 theme-light:text-red-600';
         running = false;
       }
     }
-
-    function accept(value){
+    
+    function accept(value) {
       if (cameraDisabled) return false;
       const normalized = String(value || '').trim().toUpperCase();
       const t = Date.now();
@@ -4248,12 +4169,12 @@ export function initQuotes({ getCompanyEmail }) {
       lastTs = t;
       return true;
     }
-
-    function parseInventoryCode(raw){
+    
+    function parseInventoryCode(raw) {
       const text = String(raw || '').trim();
-      if (!text) return { itemId:'', sku:'', raw:text };
+      if (!text) return { itemId: '', sku: '', raw: text };
       const upper = text.toUpperCase();
-      if (upper.startsWith('IT:')){
+      if (upper.startsWith('IT:')) {
         const parts = text.split(':').map(p => p.trim()).filter(Boolean);
         return {
           companyId: parts[1] || '',
@@ -4262,10 +4183,10 @@ export function initQuotes({ getCompanyEmail }) {
         };
       }
       const match = text.match(/[a-f0-9]{24}/i);
-      return { companyId:'', itemId: match ? match[0] : '', sku:'', raw:text };
+      return { companyId: '', itemId: match ? match[0] : '', sku: '', raw: text };
     }
-
-    function playConfirmSound(){
+    
+    function playConfirmSound() {
       try {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const oscillator = audioContext.createOscillator();
@@ -4282,8 +4203,8 @@ export function initQuotes({ getCompanyEmail }) {
         console.warn('No se pudo reproducir sonido:', err);
       }
     }
-
-    function showItemAddedPopup(){
+    
+    function showItemAddedPopup() {
       const popup = document.createElement('div');
       popup.textContent = '✓ Item agregado!';
       popup.className = 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-green-500/95 text-white px-10 py-5 rounded-xl text-lg font-semibold z-[10000] shadow-lg pointer-events-none animate-[fadeInOut_1.5s_ease-in-out]';
@@ -4303,18 +4224,20 @@ export function initQuotes({ getCompanyEmail }) {
         popup.remove();
       }, 1500);
     }
-
-    async function handleCode(raw, fromManual = false){
+    
+    async function handleCode(raw, fromManual = false) {
       const text = String(raw || '').trim();
       if (!text) return;
       if (!fromManual && !accept(text)) return;
       
       cameraDisabled = true;
-      const li=document.createElement('li'); li.textContent=text; list.prepend(li);
+      const li = document.createElement('li');
+      li.textContent = text;
+      list.prepend(li);
       const parsed = parseInventoryCode(text);
-      try{
+      try {
         let it = null;
-        if (parsed.itemId){
+        if (parsed.itemId) {
           const items = await API.inventory.itemsList({});
           it = items.find(i => String(i._id) === parsed.itemId);
         } else {
@@ -4330,49 +4253,29 @@ export function initQuotes({ getCompanyEmail }) {
           }, 2000);
           return;
         }
-        const row=quoteCtx.cloneRow();
-        row.querySelector('select').value='PRODUCTO';
-        row.querySelectorAll('input')[0].value=it.name||it.sku||text;
-        row.querySelectorAll('input')[1].value=1;
-        row.querySelectorAll('input')[2].value=Math.round(it.salePrice||0);
-        row.dataset.source='inventory'; 
-        if(it._id) row.dataset.refId=String(it._id); 
-        if(it.sku) row.dataset.sku=it.sku;
-        quoteCtx.updateRowSubtotal(row); 
-        quoteCtx.rowsBox.appendChild(row); 
-        quoteCtx.recalc(); 
-        if (!isModal) {
-          saveDraft();
-        }
+        const row = quoteCtx.cloneRow();
+        row.querySelector('select').value = 'PRODUCTO';
+        row.querySelectorAll('input')[0].value = it.name || it.sku || text;
+        row.querySelectorAll('input')[1].value = 1;
+        row.querySelectorAll('input')[2].value = Math.round(it.salePrice || 0);
+        row.dataset.source = 'inventory';
+        if (it._id) row.dataset.refId = String(it._id);
+        if (it.sku) row.dataset.sku = it.sku;
+        quoteCtx.updateRowSubtotal(row);
+        quoteCtx.rowsBox.appendChild(row);
+        quoteCtx.recalc();
         playConfirmSound();
         showItemAddedPopup();
-        if (!multiMode && !fromManual){ 
+        if (!multiMode && !fromManual) {
           setTimeout(() => {
-            stop(); 
-            // Solo cerrar el modal si NO estamos editando una cotización existente
-            // Si estamos en el modal de edición (window._modalQuoteContext existe), 
-            // solo cerramos el modal de QR, no el modal principal de edición
-            if (!window._modalQuoteContext) {
-              closeModal();
-            } else {
-              // Estamos en el modal de edición, solo cerrar el modal de QR
-              const qrModal = document.getElementById('modal');
-              if (qrModal) {
-                // Verificar si este modal contiene el QR scanner
-                const qrVideo = qrModal.querySelector('#qr-video-quote');
-                if (qrVideo) {
-                  // Este es el modal de QR, cerrarlo sin afectar el modal de edición
-                  qrModal.classList.add('hidden');
-                }
-              }
-            }
+            stop();
           }, 1500);
         }
         setTimeout(() => {
           cameraDisabled = false;
         }, 2000);
         msg.textContent = '';
-      }catch(e){ 
+      } catch (e) {
         msg.textContent = e?.message || 'No se pudo agregar';
         msg.className = 'text-sm text-red-500 dark:text-red-400 theme-light:text-red-600';
         setTimeout(() => {
@@ -4380,22 +4283,22 @@ export function initQuotes({ getCompanyEmail }) {
         }, 2000);
       }
     }
-
-    function onCode(code){
+    
+    function onCode(code) {
       handleCode(code);
     }
-
-    async function tickNative(){ 
-      if(!running || cameraDisabled) return;
+    
+    async function tickNative() {
+      if (!running || cameraDisabled) return;
       try {
         const codes = await detector.detect(video);
         if (codes?.[0]?.rawValue) onCode(codes[0].rawValue);
       } catch (e) {}
       requestAnimationFrame(tickNative);
     }
-
-    function tickCanvas(){
-      if(!running || cameraDisabled) return;
+    
+    function tickCanvas() {
+      if (!running || cameraDisabled) return;
       try {
         const w = video.videoWidth | 0, h = video.videoHeight | 0;
         if (!w || !h) {
@@ -4413,7 +4316,7 @@ export function initQuotes({ getCompanyEmail }) {
       } catch (e) {}
       requestAnimationFrame(tickCanvas);
     }
-
+    
     singleModeBtn?.addEventListener('click', async (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -4425,7 +4328,7 @@ export function initQuotes({ getCompanyEmail }) {
       await fillCams();
       await start();
     });
-
+    
     multiModeBtn?.addEventListener('click', async (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -4437,7 +4340,7 @@ export function initQuotes({ getCompanyEmail }) {
       await fillCams();
       await start();
     });
-
+    
     finishMultiBtn?.addEventListener('click', () => {
       multiMode = false;
       singleModeBtn.style.display = 'inline-block';
@@ -4445,11 +4348,10 @@ export function initQuotes({ getCompanyEmail }) {
       if (finishMultiBtn) finishMultiBtn.style.display = 'none';
       msg.textContent = 'Modo múltiples items desactivado.';
       stop();
-      closeModal();
     });
-
+    
     if (finishMultiBtn) finishMultiBtn.style.display = 'none';
-
+    
     manualBtn?.addEventListener('click', () => {
       const val = manualInput?.value.trim();
       if (!val) return;
@@ -4457,7 +4359,7 @@ export function initQuotes({ getCompanyEmail }) {
       manualInput.value = '';
       manualInput.focus();
     });
-
+    
     manualInput?.addEventListener('keydown', (ev) => {
       if (ev.key === 'Enter') {
         ev.preventDefault();
@@ -4468,9 +4370,57 @@ export function initQuotes({ getCompanyEmail }) {
         }
       }
     });
-
+    
     fillCams();
   }
+  
+  // ===== Renderizar vista manual dentro del panel integrado =====
+  function renderManualViewInline(container, vehicleId) {
+    if (!container) return;
+    
+    const isModal = !!window._modalQuoteContext;
+    let currentView = vehicleId ? 'prices' : 'inventory';
+    
+    function renderView() {
+      container.innerHTML = `
+        <div class="space-y-4">
+          <div class="flex gap-2 border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 pb-2">
+            <button id="nav-prices-inline" class="flex-1 px-3 py-2 rounded-t-lg border-none font-semibold cursor-pointer transition-all duration-200 ${currentView === 'prices' ? 'bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 text-white' : 'bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900'}">
+              💰 Lista de precios
+            </button>
+            <button id="nav-inventory-inline" class="flex-1 px-3 py-2 rounded-t-lg border-none font-semibold cursor-pointer transition-all duration-200 ${currentView === 'inventory' ? 'bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 text-white' : 'bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900'}">
+              📦 Inventario
+            </button>
+          </div>
+          <div id="manual-content-inline" class="min-h-[300px] max-h-[50vh] overflow-y-auto custom-scrollbar"></div>
+        </div>
+      `;
+      
+      const navPrices = container.querySelector('#nav-prices-inline');
+      const navInventory = container.querySelector('#nav-inventory-inline');
+      const content = container.querySelector('#manual-content-inline');
+      
+      navPrices.onclick = () => {
+        currentView = 'prices';
+        renderView();
+      };
+      
+      navInventory.onclick = () => {
+        currentView = 'inventory';
+        renderView();
+      };
+      
+      // Renderizar contenido según la vista actual
+      if (currentView === 'prices') {
+        renderPricesViewForQuote(content, vehicleId, isModal);
+      } else {
+        renderInventoryViewForQuote(content, isModal);
+      }
+    }
+    
+    renderView();
+  }
+
 
   // ===== Altura panel derecho =====
   function syncSummaryHeight(){
