@@ -1,68 +1,15 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<title>M&M - Restablecer contraseña</title>
-<link rel="stylesheet" href="assets/styles.css" />
-<script src="./assets/js/config.js"></script>
-<script src="./assets/js/api.js"></script>
-<script type="module">
-import { API } from './assets/js/api.esm.js';
-const params = new URLSearchParams(location.search);
-const token = params.get('token') || '';
-const email = params.get('email') || '';
-const form = document.getElementById('reset-form');
-const pass1 = document.getElementById('new-pass');
-const pass2 = document.getElementById('new-pass2');
-const msg = document.getElementById('reset-msg');
-const emailSpan = document.getElementById('reset-email');
-emailSpan.textContent = email || '(desconocido)';
-form.addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  if(pass1.value !== pass2.value){ msg.textContent='Las contraseñas no coinciden'; return; }
-  msg.textContent='Procesando...';
-  try{
-    await fetch((API.base||'') + '/api/v1/auth/company/password/reset', {
-      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email, token, password:pass1.value })
-    }).then(r=>r.json()).then(data=>{
-      if(data.error) throw new Error(data.error);
-      msg.textContent='Contraseña actualizada. Puedes volver al inicio de sesión.';
-    });
-  }catch(err){ msg.textContent = err.message || 'Error'; }
-});
-</script>
-<style>
-body{max-width:480px;margin:40px auto;padding:0 16px;} .card{margin-top:30px;}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M&M - Restablecer contraseña</title>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <script src="./assets/js/config.js"></script>
 </head>
 <body>
-  <div class="topbar">
-    <div class="topbar-inner">
-      <div class="topbar-card">
-        <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
-          <div class="brand">
-            <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" />
-            <h1>M&M</h1>
-          </div>
-          <div class="row" style="gap:6px;align-items:center;">
-            <button id="themeToggle" class="secondary" title="Cambiar tema">🌗</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <h1>Restablecer contraseña</h1>
-  <div class="card">
-    <p>Correo: <strong id="reset-email"></strong></p>
-    <form id="reset-form">
-      <label>Nueva contraseña</label>
-      <input id="new-pass" type="password" required minlength="6" />
-      <label>Repetir contraseña</label>
-      <input id="new-pass2" type="password" required minlength="6" />
-      <button>Cambiar contraseña</button>
-    </form>
-    <p id="reset-msg" class="muted" style="margin-top:12px;"></p>
-    <p style="margin-top:16px;"><a href="index.html">Ir a inicio de sesión</a></p>
-  </div>
+  <div id="app"></div>
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html>
+

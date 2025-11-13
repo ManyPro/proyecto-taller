@@ -1,0 +1,90 @@
+/* Estilos específicos para PortalSelector */
+#portalSection {
+  max-width: 980px;
+  margin: 24px auto 8px;
+}
+
+.portal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.portal-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 18px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-elev);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.portal-card h3 {
+  margin: 0 0 6px 0;
+}
+
+.badge {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--tab-bg-active);
+  color: var(--tab-text-active);
+}
+
+.sep {
+  height: 1px;
+  background: var(--border);
+  margin: 10px 0;
+}
+
+.portal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.portal-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(59, 130, 246, 0.16);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.portal-button:hover {
+  background: rgba(59, 130, 246, 0.28);
+  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.25);
+  transform: translateY(-1px);
+}
+
+.portal-button.secondary {
+  background: transparent;
+  border-color: rgba(148, 163, 184, 0.28);
+  color: var(--muted);
+}
+
+.portal-button.secondary:hover {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text);
+}
+
+.portal-button span.icon {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+

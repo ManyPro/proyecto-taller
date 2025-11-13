@@ -1,86 +1,15 @@
 <!doctype html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<title>Taller App - Recuperar contraseña</title>
-<link rel="stylesheet" href="assets/styles.css" />
-<!-- Carga la configuración global (API_BASE, etc.) igual que index.html -->
-<script src="./assets/js/config.js"></script>
-<script src="./assets/js/api.js"></script>
-<script type="module">
-import { API } from './assets/js/api.esm.js';
-const form = document.getElementById('forgot-form');
-const emailInput = document.getElementById('forgot-email');
-const nameInput = document.getElementById('company-name');
-const passInput = document.getElementById('new-password');
-const msg = document.getElementById('forgot-msg');
-form.addEventListener('submit', async (e)=>{
-  e.preventDefault();
-  msg.classList.remove('error');
-  msg.textContent='Procesando…';
-  try {
-    const email = emailInput.value.trim();
-    const companyName = nameInput.value.trim();
-    const newPassword = passInput.value.trim();
-    if(newPassword.length < 6) throw new Error('La nueva contraseña debe tener al menos 6 caracteres');
-    const apiBase = (API.base || window.API_BASE || window.BACKEND_URL || '');
-    const res = await fetch(apiBase + '/api/v1/auth/company/password/reset-local', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ email, companyName, newPassword })
-    });
-    const text = await res.text();
-    let data={};
-    try { data = text ? JSON.parse(text) : {}; } catch { throw new Error('Respuesta inválida del servidor'); }
-    if(!res.ok) throw new Error(data.error || 'Error en solicitud');
-    msg.textContent = 'Contraseña actualizada. Ahora puedes volver e iniciar sesión.';
-    passInput.value='';
-  } catch(err){
-    msg.classList.add('error');
-    msg.textContent = err.message || 'Error inesperado';
-  }
-});
-</script>
-<style>
-body{max-width:520px;margin:40px auto;padding:0 16px;}
-.card{margin-top:30px;}
-h1{text-align:center;}
-form button{width:100%; margin-top:14px;}
-#forgot-msg.error{color:#ef4444;}
-.muted a{color:var(--accent);}
-.back-link{display:inline-block;margin-top:24px;font-size:13px;}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Taller App - Recuperar contraseña</title>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <script src="./assets/js/config.js"></script>
 </head>
 <body>
-  <div class="topbar">
-    <div class="topbar-inner">
-      <div class="topbar-card">
-        <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
-          <div class="brand">
-            <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" />
-            <h1>M&M</h1>
-          </div>
-          <div class="row" style="gap:6px;align-items:center;">
-            <button id="themeToggle" class="secondary" title="Cambiar tema">🌗</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <h1>Recuperar contraseña</h1>
-  <div class="card">
-    <form id="forgot-form">
-      <label>Correo de la cuenta</label>
-      <input id="forgot-email" type="email" required />
-      <label>Nombre exacto de la empresa</label>
-      <input id="company-name" type="text" placeholder="Como fue registrado" required />
-      <label>Nueva contraseña</label>
-      <input id="new-password" type="password" required minlength="6" />
-      <button>Cambiar contraseña</button>
-    </form>
-    <p id="forgot-msg" class="muted" style="margin-top:12px;"></p>
-  <!-- Flujo local: ya no se usa token ni enlace -->
-    <p class="back-link"><a href="index.html">← Volver</a></p>
-  </div>
+  <div id="app"></div>
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html>
+
