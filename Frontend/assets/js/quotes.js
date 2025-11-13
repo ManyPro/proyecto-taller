@@ -3317,6 +3317,7 @@ export function initQuotes({ getCompanyEmail }) {
           <input id="price-item-search" placeholder="Buscar por SKU o nombre..." class="flex-1 px-2 py-2 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-md bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
           <button id="price-item-qr" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">📷 QR</button>
         </div>
+        <div id="price-item-dropdown" class="hidden relative max-h-48 overflow-y-auto border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white mt-1 mb-2 custom-scrollbar"></div>
         <div id="price-item-selected" class="mt-2 p-2 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-100 rounded-md text-xs hidden"></div>
         <input type="hidden" id="price-item-id" />
       </div>
@@ -3412,17 +3413,69 @@ export function initQuotes({ getCompanyEmail }) {
       }
     }
     
-    // Funcionalidad de búsqueda de items (solo para productos) - similar a sales.js
+    // Funcionalidad de búsqueda de items (solo para productos) - similar a prices.js
     if (isProduct) {
       const itemSearch = node.querySelector('#price-item-search');
       const itemSelected = node.querySelector('#price-item-selected');
+      const itemDropdown = node.querySelector('#price-item-dropdown');
       const itemIdInput = node.querySelector('#price-item-id');
       const itemQrBtn = node.querySelector('#price-item-qr');
       
       let searchTimeout = null;
       
+      // Función para limpiar la selección
+      function clearSelection() {
+        selectedItem = null;
+        itemIdInput.value = '';
+        itemSearch.value = '';
+        itemSelected.classList.add('hidden');
+        itemSelected.classList.remove('block');
+        itemDropdown.classList.add('hidden');
+        itemDropdown.classList.remove('block');
+      }
+      
+      // Función para seleccionar un item
+      function selectItem(item) {
+        selectedItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
+        itemIdInput.value = item._id;
+        itemSearch.value = `${item.sku} - ${item.name}`;
+        itemDropdown.classList.add('hidden');
+        itemDropdown.classList.remove('block');
+        itemSelected.innerHTML = `
+          <div class="flex justify-between items-center">
+            <div>
+              <strong class="text-white dark:text-white theme-light:text-slate-900">${item.name}</strong><br>
+              <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"><strong class="font-bold">SKU:</strong> <strong class="font-bold">${item.sku}</strong> | Stock: ${item.stock || 0}</span>
+            </div>
+            <button id="price-item-remove" class="px-2 py-1 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300">✕</button>
+          </div>
+        `;
+        itemSelected.classList.remove('hidden');
+        itemSelected.classList.add('block');
+        
+        // Agregar listener al botón de eliminar después de crear el HTML
+        const removeBtn = itemSelected.querySelector('#price-item-remove');
+        if (removeBtn) {
+          removeBtn.onclick = () => {
+            clearSelection();
+          };
+        }
+        
+        if (!totalInput.value || totalInput.value === '0') {
+          totalInput.value = item.salePrice || 0;
+        }
+      }
+      
       async function searchItems(query) {
-        if (!query || query.length < 2) return;
+        if (!query || query.length < 2) {
+          itemDropdown.classList.add('hidden');
+          itemDropdown.classList.remove('block');
+          return;
+        }
+        
+        // Si ya hay un item seleccionado, no buscar
+        if (selectedItem) return;
+        
         try {
           let items = [];
           try {
@@ -3433,36 +3486,77 @@ export function initQuotes({ getCompanyEmail }) {
           } catch (err) {
             console.error('Error al buscar items:', err);
           }
+          
           if (items && items.length > 0) {
-            const item = items[0];
-            selectedItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
-            itemIdInput.value = item._id;
-            itemSearch.value = `${item.sku} - ${item.name}`;
-            itemSelected.innerHTML = `
-              <div class="flex justify-between items-center">
-                <div>
-                <strong class="text-white dark:text-white theme-light:text-slate-900">${item.name}</strong><br>
-                <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"><strong class="font-bold">SKU:</strong> <strong class="font-bold">${item.sku}</strong> | Stock: ${item.stock || 0}</span>
+            // Limpiar dropdown antes de agregar nuevos resultados
+            itemDropdown.innerHTML = '';
+            itemDropdown.replaceChildren(...items.map(item => {
+              const div = document.createElement('div');
+              div.className = 'px-3 py-2 cursor-pointer border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-700/30 dark:hover:bg-slate-700/30 theme-light:hover:bg-slate-200 transition-colors duration-200';
+              div.innerHTML = `
+                <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${item.name || item.sku}</div>
+                <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">
+                  <strong class="font-bold">SKU:</strong> <strong class="font-bold">${item.sku}</strong> | Stock: ${item.stock || 0} | Precio: $${(item.salePrice || 0).toLocaleString()}
                 </div>
-                <button id="price-item-remove" class="px-2 py-1 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300">✕</button>
-              </div>
-            `;
-            itemSelected.classList.remove('hidden');
-            itemSelected.classList.add('block');
-            if (!totalInput.value || totalInput.value === '0') {
-              totalInput.value = item.salePrice || 0;
-            }
+              `;
+              div.addEventListener('click', () => {
+                selectItem(item);
+              });
+              return div;
+            }));
+            itemDropdown.classList.remove('hidden');
+            itemDropdown.classList.add('block');
+          } else {
+            itemDropdown.classList.add('hidden');
+            itemDropdown.classList.remove('block');
           }
         } catch (err) {
           console.error('Error al buscar items:', err);
+          itemDropdown.classList.add('hidden');
+          itemDropdown.classList.remove('block');
         }
       }
       
       itemSearch.addEventListener('input', (e) => {
+        // Si el usuario está escribiendo, limpiar la selección
+        if (selectedItem) {
+          clearSelection();
+        }
         clearTimeout(searchTimeout);
         searchTimeout = setTimeout(() => {
           searchItems(e.target.value);
         }, 300);
+      });
+      
+      // Permitir seleccionar con Enter si hay un solo resultado
+      itemSearch.addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const query = itemSearch.value.trim();
+          if (!query || selectedItem) return;
+          
+          try {
+            let items = [];
+            items = await API.inventory.itemsList({ sku: query.toUpperCase() });
+            if (items.length === 0) {
+              const allItems = await API.inventory.itemsList({});
+              items = allItems.filter(item => 
+                item.sku && item.sku.toUpperCase().includes(query.toUpperCase())
+              );
+            }
+            if (items.length === 0) {
+              items = await API.inventory.itemsList({ name: query });
+            }
+            
+            if (items && items.length > 0) {
+              // Si hay un solo resultado o el primero coincide exactamente, seleccionarlo
+              const item = items.find(i => i.sku && i.sku.toUpperCase() === query.toUpperCase()) || items[0];
+              selectItem(item);
+            }
+          } catch (err) {
+            console.error('Error al buscar item:', err);
+          }
+        }
       });
       
       itemQrBtn.onclick = async () => {
@@ -3472,71 +3566,72 @@ export function initQuotes({ getCompanyEmail }) {
           const qrCode = await openQRForItem();
           if (!qrCode) return;
           
-          if (qrCode.toUpperCase().startsWith('IT:')) {
+          const normalizedCode = String(qrCode || '').trim().toUpperCase();
+          let item = null;
+          
+          // Intentar parsear como formato IT:companyId:itemId:sku
+          if (normalizedCode.startsWith('IT:')) {
             const parts = qrCode.split(':').map(p => p.trim()).filter(Boolean);
             const itemId = parts.length >= 3 ? parts[2] : null;
             if (itemId) {
-              const items = await API.inventory.itemsList({});
-              const item = items.find(i => String(i._id) === itemId);
-              if (item) {
-                selectedItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
-                itemIdInput.value = item._id;
-                itemSearch.value = `${item.sku} - ${item.name}`;
-                itemSelected.innerHTML = `
-                  <div class="flex justify-between items-center">
-                    <div>
-                <strong class="text-white dark:text-white theme-light:text-slate-900">${item.name}</strong><br>
-                <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"><strong class="font-bold">SKU:</strong> <strong class="font-bold">${item.sku}</strong> | Stock: ${item.stock || 0}</span>
-                    </div>
-                    <button id="price-item-remove" class="px-2 py-1 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300">✕</button>
-                  </div>
-                `;
-                itemSelected.classList.remove('hidden');
-                itemSelected.classList.add('block');
-                if (!totalInput.value || totalInput.value === '0') {
-                  totalInput.value = item.salePrice || 0;
-                }
-                return;
+              try {
+                const allItems = await API.inventory.itemsList({});
+                item = allItems.find(i => String(i._id) === itemId);
+              } catch (err) {
+                console.error('Error al buscar por itemId:', err);
               }
             }
           }
           
-          const items = await API.inventory.itemsList({ sku: qrCode, limit: 1 });
-          if (items && items.length > 0) {
-            const item = items[0];
-            selectedItem = { _id: item._id, sku: item.sku, name: item.name, stock: item.stock, salePrice: item.salePrice };
-            itemIdInput.value = item._id;
-            itemSearch.value = `${item.sku} - ${item.name}`;
-            itemSelected.innerHTML = `
-              <div class="flex justify-between items-center">
-                <div>
-                <strong class="text-white dark:text-white theme-light:text-slate-900">${item.name}</strong><br>
-                <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"><strong class="font-bold">SKU:</strong> <strong class="font-bold">${item.sku}</strong> | Stock: ${item.stock || 0}</span>
-                </div>
-                <button id="price-item-remove" class="px-2 py-1 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300">✕</button>
-              </div>
-            `;
-            itemSelected.classList.remove('hidden');
-            itemSelected.classList.add('block');
-            if (!totalInput.value || totalInput.value === '0') {
-              totalInput.value = item.salePrice || 0;
+          // Si no se encontró por itemId, buscar por SKU exacto
+          if (!item) {
+            try {
+              const items = await API.inventory.itemsList({ sku: normalizedCode });
+              if (items && items.length > 0) {
+                item = items[0];
+              }
+            } catch (err) {
+              console.error('Error al buscar por SKU exacto:', err);
             }
+          }
+          
+          // Si aún no se encontró, buscar por SKU parcial (case insensitive)
+          if (!item) {
+            try {
+              const allItems = await API.inventory.itemsList({});
+              item = allItems.find(i => 
+                i.sku && i.sku.toUpperCase() === normalizedCode
+              );
+            } catch (err) {
+              console.error('Error al buscar por SKU parcial:', err);
+            }
+          }
+          
+          // Si aún no se encontró, intentar buscar si el código es un ObjectId de MongoDB
+          if (!item) {
+            const objectIdMatch = normalizedCode.match(/^[A-F0-9]{24}$/);
+            if (objectIdMatch) {
+              try {
+                const allItems = await API.inventory.itemsList({});
+                item = allItems.find(i => String(i._id).toUpperCase() === normalizedCode);
+              } catch (err) {
+                console.error('Error al buscar por ObjectId:', err);
+              }
+            }
+          }
+          
+          if (item) {
+            selectItem(item);
           } else {
-            alert('Item no encontrado');
+            alert(`Item no encontrado para el código: ${qrCode}`);
           }
         } catch (err) {
-          alert('Error al leer QR: ' + (err?.message || 'Error desconocido'));
+          // Ignorar error si el usuario canceló
+          if (err?.message !== 'Cancelado por el usuario') {
+            console.error('Error al leer QR:', err);
+            alert('Error al leer QR: ' + (err?.message || 'Error desconocido'));
+          }
         }
-      };
-      
-      const removeBtn = itemSelected.querySelector('#price-item-remove');
-      if (removeBtn) {
-        removeBtn.onclick = () => {
-          selectedItem = null;
-          itemIdInput.value = '';
-          itemSearch.value = '';
-          itemSelected.classList.add('hidden');
-          itemSelected.classList.remove('block');
       };
     }
   }
