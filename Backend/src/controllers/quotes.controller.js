@@ -246,13 +246,14 @@ export async function updateQuote(req, res) {
   const exists = await Quote.findOne({ _id: req.params.id, companyId });
   if (!exists) return res.status(404).json({ error: 'No encontrada' });
 
-  const { customer = {}, vehicle = {}, validity = '', items: itemsInput = [] } = req.body || {};
+  const { customer = {}, vehicle = {}, validity = '', specialNotes = [], items: itemsInput = [], discount = null } = req.body || {};
   const { items, total } = computeItems(itemsInput);
 
   exists.customer = {
     name:  customer.name  ?? exists.customer.name,
     phone: customer.phone ?? exists.customer.phone,
-    email: customer.email ?? exists.customer.email
+    email: customer.email ?? exists.customer.email,
+    idNumber: customer.idNumber ?? exists.customer.idNumber
   };
   // Si se proporciona vehicleId, obtener datos del vehículo
   let vehicleData = {
@@ -261,7 +262,8 @@ export async function updateQuote(req, res) {
     make:         vehicle.make         ?? exists.vehicle.make,
     line:         vehicle.line         ?? exists.vehicle.line,
     modelYear:    vehicle.modelYear    ?? exists.vehicle.modelYear,
-    displacement: vehicle.displacement ?? exists.vehicle.displacement
+    displacement: vehicle.displacement ?? exists.vehicle.displacement,
+    mileage:      vehicle.mileage      ?? exists.vehicle.mileage
   };
 
   if (vehicle.vehicleId !== undefined && vehicle.vehicleId !== null) {
@@ -291,6 +293,19 @@ export async function updateQuote(req, res) {
   exists.vehicle = vehicleData;
   exists.validity = validity ?? exists.validity;
   exists.specialNotes = Array.isArray(specialNotes) ? specialNotes : (exists.specialNotes || []);
+  
+  // Actualizar descuento si se proporciona
+  if (discount !== undefined) {
+    if (discount === null || (discount.value === 0)) {
+      exists.discount = null;
+    } else {
+      exists.discount = {
+        type: discount.type || 'fixed',
+        value: Number(discount.value) || 0,
+        amount: Number(discount.amount) || 0
+      };
+    }
+  }
   exists.items = items;
   exists.total = total;
 
