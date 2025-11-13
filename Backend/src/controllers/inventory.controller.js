@@ -376,22 +376,48 @@ export const listItems = async (req, res) => {
   const q = { companyId: new mongoose.Types.ObjectId(req.companyId) };
 
   if (name) {
-    const normalizedName = (name || "").trim().toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^\w\s]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
+    const searchText = (name || "").trim();
     
-    if (normalizedName) {
-      // Crear regex que busque todas las palabras en cualquier orden
-      const words = normalizedName.split(' ').filter(w => w.length > 0);
-      if (words.length > 0) {
-        const regexPattern = words.map(word => `(?=.*${word})`).join('');
-        q.$or = [
-          { name: new RegExp(regexPattern, "i") }, 
-          { internalName: new RegExp(regexPattern, "i") }
-        ];
+    if (searchText) {
+      // Normalizar texto de búsqueda: quitar tildes y caracteres especiales
+      const normalizedSearch = searchText.toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\w\s]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+      
+      if (normalizedSearch) {
+        // Crear regex que busque todas las palabras en cualquier orden
+        const words = normalizedSearch.split(' ').filter(w => w.length > 0);
+        if (words.length > 0) {
+          // Función helper para crear regex que ignore tildes
+          const createAccentInsensitiveRegex = (text) => {
+            // Escapar caracteres especiales de regex primero
+            const escaped = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            // Reemplazar cada letra con su variante que incluya tildes comunes
+            return escaped
+              .replace(/a/g, '[aáàäâ]')
+              .replace(/e/g, '[eéèëê]')
+              .replace(/i/g, '[iíìïî]')
+              .replace(/o/g, '[oóòöô]')
+              .replace(/u/g, '[uúùüû]')
+              .replace(/n/g, '[nñ]')
+              .replace(/c/g, '[cç]');
+          };
+          
+          // Crear patrón que busque todas las palabras (cualquier variante con/sin tildes) en cualquier orden
+          const regexPattern = words.map(word => {
+            const accentInsensitiveWord = createAccentInsensitiveRegex(word);
+            return `(?=.*${accentInsensitiveWord})`;
+          }).join('');
+          
+          // Buscar en name e internalName con regex que ignore tildes
+          q.$or = [
+            { name: new RegExp(regexPattern, "i") }, 
+            { internalName: new RegExp(regexPattern, "i") }
+          ];
+        }
       }
     }
   }
