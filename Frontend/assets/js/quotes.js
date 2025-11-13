@@ -713,7 +713,8 @@ export function initQuotes({ getCompanyEmail }) {
     lines.push(`*TOTAL: ${money(total)}*`);
     
     // Añadir notas especiales antes de "Valores SIN IVA"
-    if (specialNotes.length > 0) {
+    // Verificar si specialNotes está definido antes de usarlo
+    if (typeof specialNotes !== 'undefined' && specialNotes && specialNotes.length > 0) {
       lines.push('');
       specialNotes.forEach(note => {
         lines.push(`📝 ${note}`);
@@ -2532,13 +2533,22 @@ export function initQuotes({ getCompanyEmail }) {
         refId: it.refId || undefined,
         comboParent: it.comboParent || undefined
       })).filter(row => row.desc || row.price > 0 || (row.qty && row.qty > 0));
-      const bak={ n:iNumber.value, c:iClientName.value, b:iBrand.value, l:iLine.value, y:iYear.value, p:iPlate.value, cc:iCc.value, m:iMileage.value, v:iValidDays.value, sn:specialNotes };
+      // Usar specialNotes global si existe, sino usar un array vacío
+      const currentSpecialNotes = typeof specialNotes !== 'undefined' ? specialNotes : [];
+      const bak={ n:iNumber.value, c:iClientName.value, b:iBrand.value, l:iLine.value, y:iYear.value, p:iPlate.value, cc:iCc.value, m:iMileage.value, v:iValidDays.value, sn:currentSpecialNotes };
       iNumber.value=d.number||iNumber.value;
       iClientName.value=d.customer?.name||'';
       iBrand.value=d.vehicle?.make||''; iLine.value=d.vehicle?.line||''; iYear.value=d.vehicle?.modelYear||''; iPlate.value=d.vehicle?.plate||''; iCc.value=d.vehicle?.displacement||''; iMileage.value=d.vehicle?.mileage||''; iValidDays.value=d.validity||'';
-      specialNotes=d.specialNotes||[];
+      // Solo asignar specialNotes si está definido en el scope global
+      if (typeof specialNotes !== 'undefined') {
+        specialNotes=d.specialNotes||[];
+      }
       const text=buildWhatsAppText(rows,subP,subS,total);
-      iNumber.value=bak.n; iClientName.value=bak.c; iBrand.value=bak.b; iLine.value=bak.l; iYear.value=bak.y; iPlate.value=bak.p; iCc.value=bak.cc; iMileage.value=bak.m; iValidDays.value=bak.v; specialNotes=bak.sn;
+      iNumber.value=bak.n; iClientName.value=bak.c; iBrand.value=bak.b; iLine.value=bak.l; iYear.value=bak.y; iPlate.value=bak.p; iCc.value=bak.cc; iMileage.value=bak.m; iValidDays.value=bak.v;
+      // Solo restaurar specialNotes si está definido en el scope global
+      if (typeof specialNotes !== 'undefined') {
+        specialNotes=bak.sn;
+      }
       return text;
     })();
 
@@ -3095,7 +3105,24 @@ export function initQuotes({ getCompanyEmail }) {
             if (!isModal) {
               saveDraft();
             }
-            closeModal();
+            // Solo cerrar el modal si NO estamos editando una cotización existente
+            // Si estamos en el modal de edición (window._modalQuoteContext existe), 
+            // solo cerramos el modal de lista de precios, no el modal principal de edición
+            if (!window._modalQuoteContext) {
+              closeModal();
+            } else {
+              // Estamos en el modal de edición, solo cerrar el modal de lista de precios
+              // Buscar el modal que contiene la lista de precios y cerrarlo
+              const priceModal = document.getElementById('modal');
+              if (priceModal) {
+                // Verificar si este modal contiene la lista de precios
+                const pricesListInModal = priceModal.querySelector('#prices-list');
+                if (pricesListInModal) {
+                  // Este es el modal de lista de precios, cerrarlo sin afectar el modal de edición
+                  priceModal.classList.add('hidden');
+                }
+              }
+            }
           };
           
           pricesList.appendChild(card);
