@@ -370,6 +370,29 @@
             <div class="mb-4" id="q-addbar">
               <button id="q-add-unified" class="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">➕ Agregar</button>
             </div>
+            
+            <!-- Panel integrado para agregar items -->
+            <div id="q-add-items-panel" class="hidden mb-4 bg-gradient-to-br from-slate-800/80 to-slate-900/80 dark:from-slate-800/80 dark:to-slate-900/80 theme-light:from-slate-100 theme-light:to-slate-50 rounded-xl border-2 border-blue-500/50 dark:border-blue-500/50 theme-light:border-blue-300 shadow-2xl overflow-hidden transition-all duration-300">
+              <div class="p-4 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                <div class="flex justify-between items-center">
+                  <h4 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900">Agregar Items</h4>
+                  <button id="q-close-add-panel" class="w-8 h-8 flex items-center justify-center bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 rounded-lg transition-all duration-200 text-xl font-bold">×</button>
+                </div>
+                <div class="flex gap-2 mt-3">
+                  <button id="q-add-qr-btn-inline" class="flex-1 px-4 py-3 rounded-lg text-sm font-semibold flex flex-col items-center gap-2 border-none cursor-pointer transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white shadow-lg hover:shadow-xl">
+                    <span class="text-3xl">📷</span>
+                    <span>Agregar QR</span>
+                  </button>
+                  <button id="q-add-manual-btn-inline" class="flex-1 px-4 py-3 rounded-lg text-sm font-semibold flex flex-col items-center gap-2 border-none cursor-pointer transition-all duration-200 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white shadow-lg hover:shadow-xl theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">
+                    <span class="text-3xl">✏️</span>
+                    <span>Agregar Manual</span>
+                  </button>
+                </div>
+              </div>
+              <div id="q-add-items-content" class="p-4 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                <!-- Contenido dinámico: QR scanner o lista manual -->
+              </div>
+            </div>
 
             <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded-lg p-4 mb-4">
               <div class="space-y-2 text-sm">

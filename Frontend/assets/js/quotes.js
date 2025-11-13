@@ -2594,13 +2594,57 @@ export function initQuotes({ getCompanyEmail }) {
 
   // ===== UI Bindings =====
   function bindUI(){
-    // El botón "Agregar" ahora usa el panel integrado en el modal de edición
-    // Para el contexto principal, también se puede usar el panel integrado si existe
+    // Panel integrado para agregar items en el contexto principal
+    const addItemsPanel = $('#q-add-items-panel');
+    const addItemsContent = $('#q-add-items-content');
+    const closeAddPanel = $('#q-close-add-panel');
+    const btnAddQRInline = $('#q-add-qr-btn-inline');
+    const btnAddManualInline = $('#q-add-manual-btn-inline');
+    
+    // Botón "Agregar" principal - mostrar/ocultar panel
     btnAddUnified?.addEventListener('click', () => {
-      // Si estamos en el contexto principal (no modal), crear un panel similar
-      // Por ahora, solo funciona en el modal de edición
-      console.log('Agregar items - usar desde el modal de edición');
+      if (addItemsPanel) {
+        const isHidden = addItemsPanel.classList.contains('hidden');
+        if (isHidden) {
+          addItemsPanel.classList.remove('hidden');
+          // Si el contenido está vacío, mostrar vista manual por defecto
+          if (!addItemsContent || addItemsContent.innerHTML.trim() === '') {
+            // Pasar isModal=false porque estamos en el contexto principal
+            renderManualViewInline(addItemsContent, iVehicleId?.value || null);
+          }
+        } else {
+          addItemsPanel.classList.add('hidden');
+        }
+      }
     });
+    
+    // Cerrar panel
+    if (closeAddPanel) {
+      closeAddPanel.addEventListener('click', () => {
+        if (addItemsPanel) {
+          addItemsPanel.classList.add('hidden');
+        }
+      });
+    }
+    
+    // Botón QR inline
+    if (btnAddQRInline) {
+      btnAddQRInline.addEventListener('click', () => {
+        if (addItemsContent) {
+          renderQRScannerInline(addItemsContent);
+        }
+      });
+    }
+    
+    // Botón Manual inline
+    if (btnAddManualInline) {
+      btnAddManualInline.addEventListener('click', () => {
+        if (addItemsContent) {
+          // La función detecta automáticamente si está en modal usando window._modalQuoteContext
+          renderManualViewInline(addItemsContent, iVehicleId?.value || null);
+        }
+      });
+    }
     iSaveDraft?.addEventListener('click',saveDraft);
     btnWA?.addEventListener('click',openWhatsApp);
     btnPDF?.addEventListener('click',()=>{ exportPDF().catch(err=>alert(err?.message||err)); });
@@ -3108,18 +3152,17 @@ export function initQuotes({ getCompanyEmail }) {
       });
       
       // Botones de crear
+      // No cerrar el modal/panel aquí - createPriceFromQuote manejará el cierre si es necesario
+      // y agregará automáticamente el item a la cotización después de crearlo
       container.querySelector('#create-service-btn').onclick = () => {
-        closeModal();
         createPriceFromQuote('service', vehicleId, vehicle);
       };
       
       container.querySelector('#create-product-btn').onclick = () => {
-        closeModal();
         createPriceFromQuote('product', vehicleId, vehicle);
       };
       
       container.querySelector('#create-combo-btn').onclick = () => {
-        closeModal();
         createPriceFromQuote('combo', vehicleId, vehicle);
       };
       
@@ -4061,6 +4104,8 @@ export function initQuotes({ getCompanyEmail }) {
           }
         }
         
+        // Cerrar el modal de creación siempre después de guardar exitosamente
+        // El panel integrado permanecerá abierto para agregar más items
         closeModal();
       } catch(e) {
         msgEl.textContent = 'Error: ' + (e?.message || 'Error desconocido');
@@ -4072,7 +4117,9 @@ export function initQuotes({ getCompanyEmail }) {
     };
     
     cancelBtn.onclick = () => {
+      // Cerrar el modal de creación (siempre, tanto en modal como en contexto principal)
       closeModal();
+      // No cerrar el panel integrado - el usuario puede querer agregar más items
     };
   }
 
