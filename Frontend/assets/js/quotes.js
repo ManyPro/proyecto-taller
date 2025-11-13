@@ -3634,10 +3634,9 @@ export function initQuotes({ getCompanyEmail }) {
         }
       };
     }
-  }
-  
-  // Funcionalidad para combos (similar a createPriceFromSale)
-  if (isCombo) {
+    
+    // Funcionalidad para combos (similar a createPriceFromSale)
+    if (isCombo) {
     const comboProductsContainer = node.querySelector('#price-combo-products');
     const addComboProductBtn = node.querySelector('#price-add-combo-product');
     
