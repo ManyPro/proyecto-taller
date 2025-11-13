@@ -101,13 +101,15 @@
         }
     });
     
-    // Observar cambios en todo el documento
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['style', 'class', 'draggable']
-    });
+    // Observar cambios en todo el documento (solo si body existe)
+    if (document.body) {
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['style', 'class', 'draggable']
+        });
+    }
     
     // Listener para cambios de tab que podrían afectar el editor de templates
     document.addEventListener('click', function(e) {

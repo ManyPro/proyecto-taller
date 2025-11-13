@@ -395,14 +395,26 @@ const counters = {
   skippedNoData: 0,
   imported: 0,
   updated: 0,
-  duplicates: 0
+  duplicates: 0,
+  unchanged: 0,
+  errors: 0
 };
 
 async function main() {
-  console.log('Reading legacy CSV files...');
+  console.log('🚀 Iniciando importación de órdenes con productos y servicios...');
+  console.log('📂 Leyendo archivos CSV...');
+  console.log(`   - Órdenes: ${args.orders}`);
+  console.log(`   - Clientes: ${args.clients}`);
+  console.log(`   - Vehículos: ${args.vehicles}`);
+  
   const ordersRows = await parseCSV(args.orders, { delimiter, encoding });
+  console.log(`✅ Órdenes leídas: ${ordersRows.length}`);
+  
   const clientRows = await parseCSV(args.clients, { delimiter, encoding });
+  console.log(`✅ Clientes leídos: ${clientRows.length}`);
+  
   const vehicleRows = await parseCSV(args.vehicles, { delimiter, encoding });
+  console.log(`✅ Vehículos leídos: ${vehicleRows.length}`);
 
   let orderProductRows = [];
   let productRows = [];
@@ -415,15 +427,42 @@ async function main() {
     console.log('Using remis.csv for order details (products and services)');
   }
   
-  if (detailPaths.orderProducts) orderProductRows = await parseCSV(detailPaths.orderProducts, { delimiter, encoding });
-  if (detailPaths.products) productRows = await parseCSV(detailPaths.products, { delimiter, encoding });
-  if (detailPaths.orderServices) orderServiceRows = await parseCSV(detailPaths.orderServices, { delimiter, encoding });
-  if (detailPaths.services) serviceRows = await parseCSV(detailPaths.services, { delimiter, encoding });
-  if (detailPaths.remisions) remisionRows = await parseCSV(detailPaths.remisions, { delimiter, encoding });
+  if (detailPaths.orderProducts) {
+    console.log(`📦 Leyendo productos por orden: ${detailPaths.orderProducts}`);
+    orderProductRows = await parseCSV(detailPaths.orderProducts, { delimiter, encoding });
+    console.log(`✅ Relaciones producto-orden leídas: ${orderProductRows.length}`);
+  }
+  if (detailPaths.products) {
+    console.log(`📦 Leyendo catálogo de productos: ${detailPaths.products}`);
+    productRows = await parseCSV(detailPaths.products, { delimiter, encoding });
+    console.log(`✅ Productos en catálogo: ${productRows.length}`);
+  }
+  if (detailPaths.orderServices) {
+    console.log(`🔧 Leyendo servicios por orden: ${detailPaths.orderServices}`);
+    orderServiceRows = await parseCSV(detailPaths.orderServices, { delimiter, encoding });
+    console.log(`✅ Relaciones servicio-orden leídas: ${orderServiceRows.length}`);
+  }
+  if (detailPaths.services) {
+    console.log(`🔧 Leyendo catálogo de servicios: ${detailPaths.services}`);
+    serviceRows = await parseCSV(detailPaths.services, { delimiter, encoding });
+    console.log(`✅ Servicios en catálogo: ${serviceRows.length}`);
+  }
+  if (detailPaths.remisions) {
+    console.log(`📄 Leyendo remisiones: ${detailPaths.remisions}`);
+    remisionRows = await parseCSV(detailPaths.remisions, { delimiter, encoding });
+    console.log(`✅ Remisiones leídas: ${remisionRows.length}`);
+  }
 
-  console.log(`Orders: ${ordersRows.length}, Clients: ${clientRows.length}, Vehicles: ${vehicleRows.length}`);
+  console.log(`\n📊 Resumen de archivos cargados:`);
+  console.log(`   - Órdenes: ${ordersRows.length}`);
+  console.log(`   - Clientes: ${clientRows.length}`);
+  console.log(`   - Vehículos: ${vehicleRows.length}`);
   if (detailMode) {
-    console.log(`OrderProducts: ${orderProductRows.length}, Products: ${productRows.length}, OrderServices: ${orderServiceRows.length}, Services: ${serviceRows.length}, Remisions: ${remisionRows.length}`);
+    console.log(`   - Relaciones producto-orden: ${orderProductRows.length}`);
+    console.log(`   - Productos en catálogo: ${productRows.length}`);
+    console.log(`   - Relaciones servicio-orden: ${orderServiceRows.length}`);
+    console.log(`   - Servicios en catálogo: ${serviceRows.length}`);
+    console.log(`   - Remisiones: ${remisionRows.length}`);
   }
 
   const clientIndex = new Map(clientRows.map(row => [String(row['cl_id'] ?? row['id'] ?? ''), row]));
@@ -486,8 +525,14 @@ async function main() {
   const totalRows = ordersRows.length;
   let lastProgressTime = Date.now();
   
-  console.log(`\n📊 Total de órdenes a procesar: ${totalRows}`);
-  console.log(`⏱️  Mostrando progreso cada ${progressEvery} registros o cada ${progressTimeInterval/1000} segundos\n`);
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`📊 INICIANDO PROCESAMIENTO DE ÓRDENES`);
+  console.log(`${'='.repeat(60)}`);
+  console.log(`📈 Total de órdenes a procesar: ${totalRows}`);
+  console.log(`⏱️  Mostrando progreso cada ${progressEvery} registros o cada ${progressTimeInterval/1000} segundos`);
+  console.log(`💾 Modo: ${dryRun ? 'DRY RUN (preview, no guarda)' : 'REAL (guardando en BD)'}`);
+  if (limit) console.log(`🔢 Límite: ${limit} registros`);
+  console.log(`${'='.repeat(60)}\n`);
   
   function logProgress(force = false) {
     if (!progressEvery && !force) return;
@@ -522,7 +567,7 @@ async function main() {
     
     // Limpiar línea anterior
     process.stdout.write('\r');
-    process.stdout.write(`[${bar}] ${percent}% | ${counters.total}/${totalRows} | ✅ ${counters.imported} | 🔄 ${counters.updated} | ⏭️  ${counters.duplicates} | ⏱️  ETA: ${fmt(etaSec)}`);
+    process.stdout.write(`[${bar}] ${percent}% | ${counters.total}/${totalRows} | ✅ ${counters.imported} | 🔄 ${counters.updated} | ➖ ${counters.unchanged} | ⏭️  ${counters.duplicates} | ❌ ${counters.errors} | ⏱️  ETA: ${fmt(etaSec)}`);
     process.stdout.write(' '.repeat(30)); // Limpiar caracteres residuales
   }
   
@@ -542,10 +587,12 @@ async function main() {
     console.log(`📊 Total procesado: ${counters.total}/${totalRows}`);
     console.log(`✅ Importadas: ${counters.imported}`);
     console.log(`🔄 Actualizadas: ${counters.updated}`);
+    console.log(`➖ Sin cambios: ${counters.unchanged}`);
     console.log(`⏭️  Duplicadas (saltadas): ${counters.duplicates}`);
     console.log(`⏩ Saltadas (sin empresa): ${counters.skippedCompany}`);
     console.log(`🚫 Saltadas (sin placa): ${counters.skippedNoPlate}`);
     console.log(`📭 Saltadas (sin datos): ${counters.skippedNoData}`);
+    console.log(`❌ Errores: ${counters.errors}`);
     console.log(`⏱️  Tiempo total: ${dur}s`);
     console.log('='.repeat(60));
   }
@@ -732,109 +779,231 @@ async function main() {
       continue;
     }
 
-    let existing = await Sale.findOne({ companyId, legacyOrId });
-    if (!existing) {
-      const rx = new RegExp(`\\bor_id=${legacyOrId}\\b`);
-      existing = await Sale.findOne({ companyId, notes: { $regex: rx } });
-    }
-
-    if (existing) {
-      counters.duplicates++;
-      const update = { $set: {} };
-
-      if (items.length) update.$set.items = items;
-      update.$set.subtotal = subtotal;
-      update.$set.total = total;
-      update.$set.tax = tax;
-      update.$set.laborValue = laborValue;
-      if (saleName && saleName !== existing.name) update.$set.name = saleName;
-
-      if (closedAt && (!existing.closedAt || existing.closedAt.getTime() !== closedAt.getTime())) {
-        update.$set.closedAt = closedAt;
+    // Buscar orden existente por legacyOrId
+    let existing = null;
+    try {
+      // Primero buscar por legacyOrId exacto (companyId es ObjectId)
+      existing = await Sale.findOne({ 
+        companyId: companyId, 
+        legacyOrId: String(legacyOrId).trim() 
+      });
+      
+      // Si no se encuentra, buscar por regex en notes
+      if (!existing && legacyOrId) {
+        const rx = new RegExp(`\\bor_id=${String(legacyOrId).trim()}\\b`);
+        existing = await Sale.findOne({ 
+          companyId: companyId, 
+          notes: { $regex: rx } 
+        });
       }
-
-      if (!existing.customer?.name && customerName) update.$set['customer.name'] = customerName;
-      if (!existing.customer?.idNumber && idNumber) update.$set['customer.idNumber'] = idNumber;
-      if (!existing.customer?.phone && phone) update.$set['customer.phone'] = phone;
-      if (!existing.customer?.email && email) update.$set['customer.email'] = email;
-      if (!existing.customer?.address && address) update.$set['customer.address'] = address;
-
-      if (!existing.vehicle?.plate || existing.vehicle.plate !== plate) update.$set['vehicle.plate'] = plate;
-      if (brand && (!existing.vehicle?.brand || existing.vehicle.brand !== brand)) update.$set['vehicle.brand'] = brand;
-      if (line && (!existing.vehicle?.line || existing.vehicle.line !== line)) update.$set['vehicle.line'] = line;
-      if (!existing.vehicle?.engine && engine) update.$set['vehicle.engine'] = engine;
-      if (year != null && (existing.vehicle?.year == null || existing.vehicle.year !== year)) update.$set['vehicle.year'] = year;
-      if (mileage != null && (existing.vehicle?.mileage == null || existing.vehicle.mileage !== mileage)) update.$set['vehicle.mileage'] = mileage;
-      if (vehicleId && (!existing.vehicle?.vehicleId || String(existing.vehicle.vehicleId) !== String(vehicleId))) update.$set['vehicle.vehicleId'] = vehicleId;
-
-      if (notes && (!existing.notes || existing.notes.includes('LEGACY or_id='))) update.$set.notes = notes;
-
-      if (Object.keys(update.$set).length) {
-        await Sale.updateOne({ _id: existing._id }, update);
-        counters.updated++;
-      }
-
-      logProgress(); // Mostrar progreso (la función decide si realmente muestra)
+    } catch (err) {
+      console.warn(`Error buscando orden existente or_id=${legacyOrId}: ${err.message}`);
+      counters.errors++;
+      logProgress();
       continue;
     }
 
-    const saleDoc = await Sale.create({
-      companyId,
-      status: 'closed',
-      origin: 'internal',
-      technician: '',
-      legacyOrId,
-      name: saleName,
-      items,
-      customer: { idNumber, name: customerName, phone, email, address },
-      vehicle: { plate, brand, line, engine, year, mileage, vehicleId },
-      notes,
-      subtotal,
-      tax,
-      total,
-      laborValue,
-      closedAt
-    });
+    if (existing) {
+      // Orden existente encontrada - verificar si necesita actualización
+      const update = { $set: {} };
+      let hasChanges = false;
 
-    try {
-      await Sale.updateOne(
-        { _id: saleDoc._id },
-        { $set: { createdAt, updatedAt: closedAt || createdAt } }
-      );
-    } catch (err) {
-      console.warn(`Could not backfill timestamps for sale ${saleDoc._id}: ${err.message}`);
-    }
-
-    if (doProfile) {
-      try {
-        // Usar upsertProfileFromSource para crear/actualizar perfil y conectar vehículo
-        await upsertProfileFromSource(
-          String(companyId),
-          { customer: saleDoc.customer, vehicle: saleDoc.vehicle },
-          { source: 'script-legacy-orders', overwriteMileage: true, overwriteYear: true, overwriteVehicle: false }
-        );
-        
-        // Si el perfil ahora tiene vehicleId pero la venta no, actualizar la venta
-        if (saleDoc.vehicle && !saleDoc.vehicle.vehicleId) {
-          const profile = await CustomerProfile.findOne({
-            companyId,
-            $or: [{ plate }, { 'vehicle.plate': plate }]
-          }).sort({ updatedAt: -1 });
-          
-          if (profile && profile.vehicle && profile.vehicle.vehicleId) {
-            await Sale.updateOne(
-              { _id: saleDoc._id },
-              { $set: { 'vehicle.vehicleId': profile.vehicle.vehicleId } }
-            );
-            saleDoc.vehicle.vehicleId = profile.vehicle.vehicleId;
-          }
+      // Actualizar items si hay cambios
+      if (items.length > 0) {
+        const existingItemsStr = JSON.stringify(existing.items || []);
+        const newItemsStr = JSON.stringify(items);
+        if (existingItemsStr !== newItemsStr) {
+          update.$set.items = items;
+          hasChanges = true;
         }
-      } catch (err) {
-        console.warn(`Profile upsert failed for plate ${plate}: ${err.message}`);
       }
+
+      // Actualizar totales si hay diferencias
+      if (Math.abs((existing.subtotal || 0) - subtotal) > DIFF_TOLERANCE) {
+        update.$set.subtotal = subtotal;
+        hasChanges = true;
+      }
+      if (Math.abs((existing.total || 0) - total) > DIFF_TOLERANCE) {
+        update.$set.total = total;
+        hasChanges = true;
+      }
+      if (Math.abs((existing.tax || 0) - tax) > DIFF_TOLERANCE) {
+        update.$set.tax = tax;
+        hasChanges = true;
+      }
+      if (Math.abs((existing.laborValue || 0) - laborValue) > DIFF_TOLERANCE) {
+        update.$set.laborValue = laborValue;
+        hasChanges = true;
+      }
+
+      // Actualizar nombre si cambió
+      if (saleName && saleName !== existing.name) {
+        update.$set.name = saleName;
+        hasChanges = true;
+      }
+
+      // Actualizar fecha de cierre si cambió
+      if (closedAt && (!existing.closedAt || Math.abs(existing.closedAt.getTime() - closedAt.getTime()) > 1000)) {
+        update.$set.closedAt = closedAt;
+        hasChanges = true;
+      }
+
+      // Actualizar información del cliente (solo si falta o cambió)
+      if (customerName && (!existing.customer?.name || existing.customer.name !== customerName)) {
+        update.$set['customer.name'] = customerName;
+        hasChanges = true;
+      }
+      if (idNumber && (!existing.customer?.idNumber || existing.customer.idNumber !== idNumber)) {
+        update.$set['customer.idNumber'] = idNumber;
+        hasChanges = true;
+      }
+      if (phone && (!existing.customer?.phone || existing.customer.phone !== phone)) {
+        update.$set['customer.phone'] = phone;
+        hasChanges = true;
+      }
+      if (email && (!existing.customer?.email || existing.customer.email !== email)) {
+        update.$set['customer.email'] = email;
+        hasChanges = true;
+      }
+      if (address && (!existing.customer?.address || existing.customer.address !== address)) {
+        update.$set['customer.address'] = address;
+        hasChanges = true;
+      }
+
+      // Actualizar información del vehículo
+      if (plate && (!existing.vehicle?.plate || existing.vehicle.plate !== plate)) {
+        update.$set['vehicle.plate'] = plate;
+        hasChanges = true;
+      }
+      if (brand && (!existing.vehicle?.brand || existing.vehicle.brand !== brand)) {
+        update.$set['vehicle.brand'] = brand;
+        hasChanges = true;
+      }
+      if (line && (!existing.vehicle?.line || existing.vehicle.line !== line)) {
+        update.$set['vehicle.line'] = line;
+        hasChanges = true;
+      }
+      if (engine && (!existing.vehicle?.engine || existing.vehicle.engine !== engine)) {
+        update.$set['vehicle.engine'] = engine;
+        hasChanges = true;
+      }
+      if (year != null && (existing.vehicle?.year == null || existing.vehicle.year !== year)) {
+        update.$set['vehicle.year'] = year;
+        hasChanges = true;
+      }
+      if (mileage != null && (existing.vehicle?.mileage == null || existing.vehicle.mileage !== mileage)) {
+        update.$set['vehicle.mileage'] = mileage;
+        hasChanges = true;
+      }
+      if (vehicleId && (!existing.vehicle?.vehicleId || String(existing.vehicle.vehicleId) !== String(vehicleId))) {
+        update.$set['vehicle.vehicleId'] = vehicleId;
+        hasChanges = true;
+      }
+
+      // Actualizar notes si cambió o si no tiene el marcador legacy
+      if (notes && (!existing.notes || !existing.notes.includes('LEGACY or_id=') || existing.notes !== notes)) {
+        update.$set.notes = notes;
+        hasChanges = true;
+      }
+
+      // Asegurar que legacyOrId esté guardado
+      if (!existing.legacyOrId || existing.legacyOrId !== String(legacyOrId).trim()) {
+        update.$set.legacyOrId = String(legacyOrId).trim();
+        hasChanges = true;
+      }
+
+      // Ejecutar actualización si hay cambios
+      if (hasChanges && Object.keys(update.$set).length > 0) {
+        try {
+          await Sale.updateOne({ _id: existing._id }, update);
+          counters.updated++;
+          
+          // Debug: mostrar algunas actualizaciones
+          if (counters.updated <= 5) {
+            console.log(`\n[UPDATE] or_id=${legacyOrId} plate=${plate} - Campos actualizados: ${Object.keys(update.$set).join(', ')}`);
+          }
+        } catch (err) {
+          console.warn(`\nError actualizando orden or_id=${legacyOrId}: ${err.message}`);
+          counters.errors++;
+        }
+      } else {
+        counters.unchanged++;
+      }
+
+      logProgress();
+      continue;
     }
 
-    counters.imported++;
+    // Crear nueva orden
+    try {
+      const saleDoc = await Sale.create({
+        companyId: companyId, // ObjectId, no String
+        status: 'closed',
+        origin: 'internal',
+        technician: '',
+        legacyOrId: String(legacyOrId).trim(),
+        name: saleName,
+        items,
+        customer: { idNumber, name: customerName, phone, email, address },
+        vehicle: { plate, brand, line, engine, year, mileage, vehicleId },
+        notes,
+        subtotal,
+        tax,
+        total,
+        laborValue,
+        closedAt
+      });
+
+      // Actualizar timestamps
+      try {
+        await Sale.updateOne(
+          { _id: saleDoc._id },
+          { $set: { createdAt, updatedAt: closedAt || createdAt } }
+        );
+      } catch (err) {
+        console.warn(`Could not backfill timestamps for sale ${saleDoc._id}: ${err.message}`);
+      }
+
+      if (doProfile) {
+        try {
+          // Usar upsertProfileFromSource para crear/actualizar perfil y conectar vehículo
+          await upsertProfileFromSource(
+            String(companyId),
+            { customer: saleDoc.customer, vehicle: saleDoc.vehicle },
+            { source: 'script-legacy-orders', overwriteMileage: true, overwriteYear: true, overwriteVehicle: false }
+          );
+          
+          // Si el perfil ahora tiene vehicleId pero la venta no, actualizar la venta
+          if (saleDoc.vehicle && !saleDoc.vehicle.vehicleId) {
+            const profile = await CustomerProfile.findOne({
+              companyId: companyId, // ObjectId
+              $or: [{ plate }, { 'vehicle.plate': plate }]
+            }).sort({ updatedAt: -1 });
+            
+            if (profile && profile.vehicle && profile.vehicle.vehicleId) {
+              await Sale.updateOne(
+                { _id: saleDoc._id },
+                { $set: { 'vehicle.vehicleId': profile.vehicle.vehicleId } }
+              );
+              saleDoc.vehicle.vehicleId = profile.vehicle.vehicleId;
+            }
+          }
+        } catch (err) {
+          console.warn(`Profile upsert failed for plate ${plate}: ${err.message}`);
+        }
+      }
+
+      counters.imported++;
+      
+      // Debug: mostrar algunas importaciones
+      if (counters.imported <= 5) {
+        console.log(`\n[CREATE] or_id=${legacyOrId} plate=${plate} items=${items.length} total=${total}`);
+      }
+    } catch (err) {
+      console.warn(`\nError creando orden or_id=${legacyOrId} plate=${plate}: ${err.message}`);
+      counters.errors++;
+    }
+
     logProgress(); // Mostrar progreso (la función decide si realmente muestra)
   }
 

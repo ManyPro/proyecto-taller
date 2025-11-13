@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Taller App - Cartera</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: ['class', '.theme-light'],
+      theme: {
+        extend: {
+          colors: {
+            'dark-bg': '#0f172a',
+            'dark-card': '#111827',
+            'dark-card-alt': '#0b1220',
+            'dark-text': '#e5e7eb',
+            'dark-muted': '#9ca3af',
+            'dark-border': '#1f2937',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Estilos para modo claro - Sobrescribir colores de Tailwind */
+    body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
+    body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
+      background: linear-gradient(to right, #f8fafc, #f1f5f9, #f8fafc) !important;
+    }
+    body.theme-light [class*="bg-slate-800/50"],
+    body.theme-light [class*="bg-slate-800"][class*="/50"] {
+      background-color: rgba(241, 245, 249, 0.8) !important;
+    }
+    body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
+      background-color: #f1f5f9 !important;
+    }
+    body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-orange-600):not(.bg-orange-700) {
+      color: #0f172a !important;
+    }
+    body.theme-light .text-slate-300 {
+      color: #475569 !important;
+    }
+    body.theme-light .text-slate-400 {
+      color: #64748b !important;
+    }
+    body.theme-light [class*="border-slate-700/50"],
+    body.theme-light [class*="border-slate-700"][class*="/50"] {
+      border-color: rgba(203, 213, 225, 0.5) !important;
+    }
+    body.theme-light [class*="hover:bg-slate-700/50"]:hover,
+    body.theme-light button:hover[class*="hover:bg-slate-700"] {
+      background-color: rgba(203, 213, 225, 0.5) !important;
+    }
+    body.theme-light [class*="hover:text-white"]:hover:not(.bg-blue-600):not(.bg-blue-700) {
+      color: #0f172a !important;
+    }
+    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]),
+    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]) {
+      background-color: #e2e8f0 !important;
+      color: #475569 !important;
+      border-color: #cbd5e1 !important;
+    }
+    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]):hover,
+    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]):hover {
+      background-color: #cbd5e1 !important;
+      color: #334155 !important;
+      border-color: #94a3b8 !important;
+    }
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"],
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"] {
+      background-color: #ffffff !important;
+      color: #0f172a !important;
+      border-color: #94a3b8 !important;
+    }
+    body {
+      background-color: #0f172a;
+      min-height: 100vh;
+    }
+    body.theme-light {
+      background-color: #f8fafc;
+    }
+    #modal.hidden {
+      display: none !important;
+    }
+    #modal:not(.hidden) {
+      display: flex !important;
+    }
+    #modal {
+      align-items: center;
+      justify-content: center;
+    }
+    .custom-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(148, 163, 184, 0.5);
+      border-radius: 4px;
+      transition: background 0.2s ease;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(148, 163, 184, 0.7);
+    }
+    body.theme-light .custom-scrollbar {
+      scrollbar-color: rgba(100, 116, 139, 0.4) transparent;
+    }
+    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.4);
+    }
+    body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.6);
+    }
+    body.theme-light .nav-tab:not(.active),
+    body.theme-light .mobile-nav-tab:not(.active) {
+      color: #475569 !important;
+      background-color: transparent !important;
+    }
+    body.theme-light .nav-tab:not(.active):hover,
+    body.theme-light .mobile-nav-tab:not(.active):hover {
+      color: #0f172a !important;
+      background-color: rgba(203, 213, 225, 0.5) !important;
+    }
+    body.theme-light .nav-tab.active,
+    body.theme-light .mobile-nav-tab.active {
+      color: #ffffff !important;
+      background-color: #2563eb !important;
+    }
+    /* Responsive design */
+    @media (max-width: 768px) {
+      /* Tablas responsivas */
+      .overflow-x-auto {
+        overflow-x: visible !important;
+      }
+      .overflow-x-auto table {
+        display: block;
+        width: 100%;
+        min-width: 100% !important;
+      }
+      .overflow-x-auto thead {
+        display: none;
+      }
+      .overflow-x-auto tbody {
+        display: block;
+        width: 100%;
+      }
+      .overflow-x-auto tr {
+        display: block;
+        margin-bottom: 1rem;
+        background: rgba(30, 41, 59, 0.5);
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+      }
+      body.theme-light .overflow-x-auto tr {
+        background: #ffffff;
+        border-color: rgba(203, 213, 225, 0.5);
+      }
+      .overflow-x-auto td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border: none;
+        text-align: right;
+        width: 100%;
+      }
+      .overflow-x-auto td:before {
+        content: attr(data-label);
+        font-weight: 600;
+        text-align: left;
+        margin-right: 1rem;
+        color: rgba(148, 163, 184, 0.8);
+        flex-shrink: 0;
+      }
+      body.theme-light .overflow-x-auto td:before {
+        color: rgba(100, 116, 139, 0.8);
+      }
+      .overflow-x-auto td:last-child {
+        border-top: 1px solid rgba(148, 163, 184, 0.2);
+        padding-top: 0.75rem;
+        margin-top: 0.5rem;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      body.theme-light .overflow-x-auto td:last-child {
+        border-top-color: rgba(203, 213, 225, 0.5);
+      }
+      .overflow-x-auto td:last-child:before {
+        display: none;
+      }
+      
+      /* Tablas sin overflow-x-auto también deben ser responsivas */
+      table:not(.overflow-x-auto table) {
+        display: block;
+        width: 100%;
+      }
+      table:not(.overflow-x-auto table) thead {
+        display: none;
+      }
+      table:not(.overflow-x-auto table) tbody {
+        display: block;
+        width: 100%;
+      }
+      table:not(.overflow-x-auto table) tr {
+        display: block;
+        margin-bottom: 1rem;
+        background: rgba(30, 41, 59, 0.5);
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+      }
+      body.theme-light table:not(.overflow-x-auto table) tr {
+        background: #ffffff;
+        border-color: rgba(203, 213, 225, 0.5);
+      }
+      table:not(.overflow-x-auto table) td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border: none;
+        text-align: right;
+        width: 100%;
+      }
+      table:not(.overflow-x-auto table) td:before {
+        content: attr(data-label);
+        font-weight: 600;
+        text-align: left;
+        margin-right: 1rem;
+        color: rgba(148, 163, 184, 0.8);
+        flex-shrink: 0;
+      }
+      body.theme-light table:not(.overflow-x-auto table) td:before {
+        color: rgba(100, 116, 139, 0.8);
+      }
+      table:not(.overflow-x-auto table) td:last-child {
+        border-top: 1px solid rgba(148, 163, 184, 0.2);
+        padding-top: 0.75rem;
+        margin-top: 0.5rem;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      body.theme-light table:not(.overflow-x-auto table) td:last-child {
+        border-top-color: rgba(203, 213, 225, 0.5);
+      }
+      table:not(.overflow-x-auto table) td:last-child:before {
+        display: none;
+      }
+      
+      /* Estadísticas en grid más pequeño */
+      .grid.grid-cols-1.md\\:grid-cols-4 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      
+      /* Filtros apilados */
+      .flex.flex-wrap.gap-2.items-end {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .flex.flex-wrap.gap-2.items-end > * {
+        width: 100%;
+      }
+      
+      /* Botones de acción más pequeños */
+      .flex.gap-2 button {
+        flex: 1;
+        min-width: auto;
+      }
+      
+      /* Modal más pequeño en móvil */
+      #modal .max-w-4xl {
+        max-width: 95vw;
+        margin: 1rem;
+      }
+      
+      /* Padding reducido en móvil */
+      .p-6 {
+        padding: 1rem;
+      }
+      
+      /* Títulos más pequeños */
+      .text-xl {
+        font-size: 1.125rem;
+      }
+      
+      /* Tarjetas de placas más compactas */
+      .plate-item {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .plate-item > div:first-child {
+        width: 100%;
+        margin-bottom: 0.5rem;
+      }
+      .plate-item button {
+        width: 100%;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      /* Estadísticas en una sola columna en móviles muy pequeños */
+      .grid.grid-cols-1.md\\:grid-cols-4 {
+        grid-template-columns: 1fr;
+      }
+      
+      /* Texto más pequeño */
+      .text-2xl {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <script src="./assets/js/config.js"></script>
+  <script src="./assets/js/api.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+  <script src="./assets/js/input-fix.js"></script>
+</head>
+<body data-page="cartera">
+  <main>
+    <!-- ========== APP HEADER ========== -->
+    <div class="topbar hidden" id="appHeader">
+      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex items-center justify-between h-16 md:h-20">
+            <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
+              <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
+              <div class="hidden sm:flex flex-col">
+                <span class="text-xs text-slate-400 font-medium">Empresa</span>
+                <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
+              </div>
+              <div class="sm:hidden text-white font-semibold text-sm">
+                <span id="companyNameMobile">-</span>
+              </div>
+            </div>
+            <div class="hidden md:flex items-center gap-2">
+              <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
+              <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
+              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+            </div>
+            <div class="md:hidden flex items-center gap-2">
+              <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
+              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+              <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navegación Principal (Desktop) -->
+      <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
+            <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inicio</button>
+            <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
+            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
+            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
+            <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+            <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-orange-600 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cartera</button>
+            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
+            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
+            <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
+          </nav>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Menú Móvil (Mobile Menu) -->
+    <div id="mobileMenu" class="md:hidden hidden bg-slate-800 border-t border-slate-700/50 shadow-xl">
+      <div class="px-4 py-3 space-y-1">
+        <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inicio</button>
+        <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Notas</button>
+        <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Ventas</button>
+        <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cotizaciones</button>
+        <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inventario</button>
+        <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Lista de precios</button>
+        <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Flujo de Caja</button>
+        <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-orange-600 rounded-lg transition-all duration-200">Cartera</button>
+        <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
+        <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
+        <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
+        <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
+      </div>
+    </div>
+
+    <section id="appSection" class="hidden">
+      <!-- Modal global reutilizable -->
+      <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-2 sm:p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
+        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-xl sm:rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] my-auto overflow-hidden">
+          <button id="modalClose" class="absolute top-2 right-2 sm:top-4 sm:right-4 z-50 w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-lg sm:text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
+          <div id="modalBody" class="p-4 sm:p-6 overflow-y-auto max-h-[95vh] sm:max-h-[90vh] custom-scrollbar">
+            <!-- Content will be injected here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== CARTERA ========== -->
+      <section id="tab-cartera" class="tab active">
+        <div class="w-full px-2 sm:px-4 lg:px-6 py-6">
+          <!-- Estadísticas -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total Pendiente</div>
+              <div id="stats-balance" class="text-2xl font-bold text-orange-400 dark:text-orange-400 theme-light:text-orange-600">$0</div>
+            </div>
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Pendientes</div>
+              <div id="stats-pending" class="text-2xl font-bold text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-600">0</div>
+            </div>
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Parciales</div>
+              <div id="stats-partial" class="text-2xl font-bold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">0</div>
+            </div>
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Pagadas</div>
+              <div id="stats-paid" class="text-2xl font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">0</div>
+            </div>
+          </div>
+
+          <!-- Empresas de Cartera -->
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-6 mb-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
+              <h3 class="text-lg sm:text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Empresas de Cartera</h3>
+              <button id="btn-add-company" class="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm sm:text-base">+ Empresa</button>
+            </div>
+            <div class="max-h-[200px] sm:max-h-[300px] overflow-auto custom-scrollbar">
+              <table class="w-full text-sm">
+                <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100">
+                  <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                    <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Nombre">Nombre</th>
+                    <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Placas">Placas</th>
+                    <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Contacto">Contacto</th>
+                    <th class="px-2 sm:px-4 py-2 text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Acciones">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="companies-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Cuentas por Cobrar -->
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-6">
+            <h3 class="text-lg sm:text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Cuentas por Cobrar</h3>
+            <div class="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-end mb-4">
+              <select id="filter-status" class="w-full sm:w-auto flex-1 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+                <option value="">Todos los estados</option>
+                <option value="pending">Pendientes</option>
+                <option value="partial">Parciales</option>
+                <option value="paid">Pagadas</option>
+                <option value="cancelled">Canceladas</option>
+              </select>
+              <select id="filter-company" class="w-full sm:w-auto flex-1 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent">
+                <option value="">Todas las empresas</option>
+              </select>
+              <input type="text" id="filter-plate" placeholder="Placa" class="w-full sm:w-auto flex-1 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent uppercase" />
+              <input type="date" id="filter-from" class="w-full sm:w-auto px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" />
+              <input type="date" id="filter-to" class="w-full sm:w-auto px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" />
+              <div class="flex gap-2 w-full sm:w-auto">
+                <button id="btn-apply-filters" class="flex-1 sm:flex-none px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">Aplicar</button>
+                <button id="btn-refresh" class="flex-1 sm:flex-none px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm">Actualizar</button>
+              </div>
+            </div>
+            <div class="max-h-[400px] sm:max-h-[500px] overflow-auto custom-scrollbar">
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm min-w-[1000px]">
+                  <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100">
+                    <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Fecha">Fecha</th>
+                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Remisión">Remisión</th>
+                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Cliente">Cliente</th>
+                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Placa">Placa</th>
+                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Empresa">Empresa</th>
+                      <th class="px-2 sm:px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Total">Total</th>
+                      <th class="px-2 sm:px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Pagado">Pagado</th>
+                      <th class="px-2 sm:px-4 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Saldo">Saldo</th>
+                      <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Estado">Estado</th>
+                      <th class="px-2 sm:px-4 py-2 text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Acciones">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="receivables-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
+  <script src="./assets/js/cartera.js"></script>
+  <script>
+    // Menú móvil y navegación
+    document.addEventListener('DOMContentLoaded', () => {
+      const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+      const mobileMenu = document.getElementById('mobileMenu');
+      const logoutBtn = document.getElementById('logoutBtn');
+      const logoutBtnMobile = document.getElementById('logoutBtnMobile');
+      const companyName = document.getElementById('companyName');
+      const companyNameMobile = document.getElementById('companyNameMobile');
+
+      // Sincronizar nombre de empresa en móvil
+      if (companyName && companyNameMobile) {
+        const observer = new MutationObserver(() => {
+          companyNameMobile.textContent = companyName.textContent;
+        });
+        observer.observe(companyName, { childList: true, characterData: true, subtree: true });
+        companyNameMobile.textContent = companyName.textContent;
+      }
+
+      // Sincronizar botón de logout
+      if (logoutBtn && logoutBtnMobile) {
+        logoutBtnMobile.addEventListener('click', () => {
+          if (logoutBtn.onclick) logoutBtn.onclick();
+          else logoutBtn.click();
+        });
+        
+        const logoutObserver = new MutationObserver(() => {
+          logoutBtnMobile.classList.toggle('hidden', logoutBtn.classList.contains('hidden'));
+        });
+        logoutObserver.observe(logoutBtn, { attributes: true, attributeFilter: ['class'] });
+        logoutBtnMobile.classList.toggle('hidden', logoutBtn.classList.contains('hidden'));
+      }
+
+      // Toggle menú móvil
+      if (mobileMenuToggle && mobileMenu) {
+        mobileMenuToggle.addEventListener('click', () => {
+          mobileMenu.classList.toggle('hidden');
+          const icon = mobileMenuToggle.querySelector('svg');
+          if (icon) {
+            if (mobileMenu.classList.contains('hidden')) {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>';
+            } else {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>';
+            }
+          }
+        });
+
+        // Cerrar menú al hacer clic en un enlace
+        mobileMenu.querySelectorAll('.mobile-nav-tab').forEach(link => {
+          link.addEventListener('click', () => {
+            mobileMenu.classList.add('hidden');
+            const icon = mobileMenuToggle.querySelector('svg');
+            if (icon) {
+              icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>';
+            }
+          });
+        });
+      }
+      
+      // Manejar navegación activa
+      const currentPage = document.body.getAttribute('data-page');
+      document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach(tab => {
+        if (tab.getAttribute('data-tab') === currentPage) {
+          tab.classList.add('active');
+        }
+      });
+
+      // Manejar clicks en botones de navegación
+      document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const href = btn.getAttribute('data-href');
+          if (href && href !== window.location.pathname.split('/').pop()) {
+            window.location.href = href;
+          }
+        });
+      });
+    });
+    
+    // Botón del catálogo
+    document.addEventListener('DOMContentLoaded', () => {
+      const btn = document.getElementById('openPublicCatalog');
+      if(!btn) return;
+      const API = window.API || {};
+      const token = API?.token?.get?.() || '';
+      if(!token){ btn.disabled=true; btn.title='Inicia sesión para usar el catálogo'; return; }
+      (API.companyMe ? API.companyMe() : Promise.reject(new Error('API no disponible')))
+        .then(body => {
+          const company = body?.company || body || {};
+          const storedId = API?.companyId?.get?.() || '';
+          const companyId = company.id || company._id || storedId || '';
+          const enabled = (typeof company.publicCatalogEnabled === 'boolean') ? company.publicCatalogEnabled : true;
+          if(!companyId){ btn.disabled=true; btn.title='No se pudo obtener companyId'; return; }
+          if(!enabled){ btn.disabled=true; btn.title='Catálogo público deshabilitado'; btn.dataset.state='disabled'; return; }
+          btn.dataset.state='ready';
+          btn.onclick = () => {
+            const url = 'catalogo.html?companyId=' + encodeURIComponent(companyId);
+            window.open(url, '_blank');
+          };
+        })
+        .catch(()=>{
+          const storedId = API?.companyId?.get?.() || '';
+          if(storedId){
+            btn.dataset.state='ready'; btn.title=''; btn.disabled=false;
+            btn.onclick = () => window.open('catalogo.html?companyId=' + encodeURIComponent(storedId), '_blank');
+          } else {
+            btn.disabled=true; btn.title='Error consultando empresa'; btn.dataset.state='error';
+          }
+        });
+    });
+  </script>
+</body>
+</html>
+

@@ -7,7 +7,13 @@ const ItemSchema = new mongoose.Schema({
   base: { type: Number, default: 0 },
   value: { type: Number, required: true },
   calcRule: { type: String, default: '' },
-  notes: { type: String, default: '' }
+  notes: { type: String, default: '' },
+  // Campos para porcentajes (guardados para liquidación)
+  isPercent: { type: Boolean, default: false },
+  percentValue: { type: Number, default: null },
+  percentBaseType: { type: String, enum: ['total_gross', 'specific_concept', 'fixed_value'], default: 'total_gross' },
+  percentBaseConceptId: { type: mongoose.Schema.Types.ObjectId, default: null },
+  percentBaseFixedValue: { type: Number, default: 0 }
 }, { _id: false });
 
 const PayrollSettlementSchema = new mongoose.Schema({

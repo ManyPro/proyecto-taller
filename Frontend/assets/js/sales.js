@@ -1572,7 +1572,7 @@ function fillCloseModal(){
   }
 
   function methodOptionsHTML(selected=''){
-    const opts = ['', 'EFECTIVO','TRANSFERENCIA','TARJETA','OTRO'];
+    const opts = ['', 'EFECTIVO','TRANSFERENCIA','TARJETA','CREDITO','OTRO'];
     return opts.map(v=>`<option value="${v}" ${v===selected?'selected':''}>${v? v : '--'}</option>`).join('');
   }
   function accountOptionsHTML(selected=''){
@@ -1609,13 +1609,38 @@ function fillCloseModal(){
     const aSel = tr.querySelector('select[data-role=account]');
     const amt  = tr.querySelector('input[data-role=amount]');
     const del  = tr.querySelector('button[data-role=del]');
-    mSel.addEventListener('change', ()=>{ pay.method = mSel.value.trim().toUpperCase(); recalc(); });
+    const accountCell = tr.querySelector('td:nth-child(2)'); // Celda de cuenta (segunda columna)
+    
+    // Función para mostrar/ocultar selector de cuenta según el método
+    function toggleAccountVisibility() {
+      const method = mSel.value.trim().toUpperCase();
+      const isCredit = method === 'CREDITO';
+      
+      if (isCredit) {
+        // Ocultar selector de cuenta para crédito
+        if (accountCell) accountCell.style.display = 'none';
+        pay.accountId = null; // Limpiar accountId cuando es crédito
+        if (aSel) aSel.value = ''; // Limpiar el select
+      } else {
+        // Mostrar selector de cuenta para otros métodos
+        if (accountCell) accountCell.style.display = '';
+      }
+    }
+    
+    mSel.addEventListener('change', ()=>{ 
+      pay.method = mSel.value.trim().toUpperCase(); 
+      toggleAccountVisibility();
+      recalc(); 
+    });
     aSel.addEventListener('change', ()=>{ pay.accountId = aSel.value||null; });
     amt.addEventListener('input', ()=>{ pay.amount = Number(amt.value||0)||0; recalc(); });
     del.addEventListener('click', ()=>{
       payments = payments.filter(p => p !== pay);
       tr.remove(); recalc();
     });
+    
+    // Aplicar visibilidad inicial
+    toggleAccountVisibility();
   }
   function addPaymentRow(p){
     const pay = { method:'', amount:0, accountId:'', ...(p||{}) };
@@ -1634,8 +1659,27 @@ function fillCloseModal(){
 
   (async ()=>{
     await loadAccounts();
-    // Prefill single row with full total
-    addPaymentRow({ method:'EFECTIVO', amount: Number(current?.total||0), accountId: accountsCache[0]?._id||'' });
+    // Cargar pagos existentes si la venta ya está cerrada, sino crear uno nuevo
+    if (current && current.paymentMethods && Array.isArray(current.paymentMethods) && current.paymentMethods.length > 0) {
+      // Cargar pagos existentes
+      current.paymentMethods.forEach(p => {
+        addPaymentRow({ 
+          method: p.method || '', 
+          amount: Number(p.amount || 0), 
+          accountId: p.accountId || '' 
+        });
+      });
+    } else if (current && current.paymentMethod) {
+      // Cargar método de pago único (legacy)
+      addPaymentRow({ 
+        method: current.paymentMethod, 
+        amount: Number(current?.total||0), 
+        accountId: null 
+      });
+    } else {
+      // Prefill single row with full total (nueva venta)
+      addPaymentRow({ method:'EFECTIVO', amount: Number(current?.total||0), accountId: accountsCache[0]?._id||'' });
+    }
     recalc();
   })();
 
@@ -1723,7 +1767,16 @@ function fillCloseModal(){
       const laborValueFromSale = Number(current?.laborValue || 0);
       
       const payload = {
-        paymentMethods: filtered.map(p=>({ method:p.method, amount:Number(p.amount)||0, accountId:p.accountId||null })),
+        paymentMethods: filtered.map(p=>{
+          const method = String(p.method || '').toUpperCase();
+          const isCredit = method === 'CREDITO';
+          // No enviar accountId si es crédito (va a cartera, no a flujo de caja)
+          return { 
+            method: p.method, 
+            amount: Number(p.amount)||0, 
+            accountId: isCredit ? null : (p.accountId||null) 
+          };
+        }),
         technician: techSel.value||'',
         laborValue: laborValueFromSale,
         laborPercent: laborPercentValue,
