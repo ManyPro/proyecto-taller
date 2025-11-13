@@ -2961,36 +2961,50 @@ export function initQuotes({ getCompanyEmail }) {
     
     try {
       const vehicle = await API.vehicles.get(vehicleId);
-      const pricesData = await API.pricesList({ vehicleId, page: 1, limit: 10 });
+      
+      // Variables de estado para filtros y paginación
+      let currentPage = 1;
+      const pageSize = 10;
+      let filterType = '';
+      let filterName = '';
+      let totalPrices = 0;
+      
+      async function loadPrices() {
+        try {
+          const pricesParams = { 
+            vehicleId, 
+            page: currentPage, 
+            limit: pageSize 
+          };
+          if (filterType) {
+            pricesParams.type = filterType;
+          }
+          if (filterName) {
+            pricesParams.name = filterName;
+          }
+          
+          const pricesData = await API.pricesList(pricesParams);
       const prices = Array.isArray(pricesData?.items) ? pricesData.items : (Array.isArray(pricesData) ? pricesData : []);
+          totalPrices = pricesData?.total || pricesData?.items?.length || prices.length;
+          
+          renderPricesList(prices);
+          updatePagination();
+        } catch (err) {
+          console.error('Error loading prices:', err);
+          container.querySelector('#prices-list').innerHTML = '<div class="text-center py-6 px-6 text-red-500 dark:text-red-400 theme-light:text-red-600">Error al cargar precios</div>';
+        }
+      }
       
-      container.innerHTML = `
-        <div class="mb-4 p-3 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-100 rounded-lg">
-          <div class="font-semibold mb-1 text-white dark:text-white theme-light:text-slate-900">${vehicle?.make || ''} ${vehicle?.line || ''}</div>
-          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cilindraje: ${vehicle?.displacement || ''}${vehicle?.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}</div>
-        </div>
-        <div class="mb-3 flex gap-2 flex-wrap">
-          <button id="create-service-btn" class="flex-1 min-w-[120px] px-2.5 py-2.5 rounded-lg font-semibold bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">
-            ➕ Crear servicio
-          </button>
-          <button id="create-product-btn" class="flex-1 min-w-[120px] px-2.5 py-2.5 rounded-lg font-semibold bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">
-            ➕ Crear producto
-          </button>
-          <button id="create-combo-btn" class="flex-1 min-w-[120px] px-2.5 py-2.5 rounded-lg font-semibold bg-purple-600 dark:bg-purple-600 theme-light:bg-purple-500 hover:bg-purple-700 dark:hover:bg-purple-700 theme-light:hover:bg-purple-600 text-white transition-all duration-200 border-none">
-            🎁 Crear combo
-          </button>
-        </div>
-        <div class="mb-3">
-          <h4 class="mb-2 text-base font-semibold text-white dark:text-white theme-light:text-slate-900">Precios disponibles (${prices.length})</h4>
-          <div id="prices-list" class="grid gap-2"></div>
-        </div>
-      `;
-      
+      function renderPricesList(prices) {
       const pricesList = container.querySelector('#prices-list');
+        if (!pricesList) return;
       
       if (prices.length === 0) {
-        pricesList.innerHTML = '<div class="text-center py-6 px-6 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay precios registrados para este vehículo.</div>';
-      } else {
+          pricesList.innerHTML = '<div class="text-center py-6 px-6 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No hay precios que coincidan con los filtros.</div>';
+          return;
+        }
+        
+        pricesList.innerHTML = '';
         prices.forEach(pe => {
           const card = document.createElement('div');
           card.className = 'p-3 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg flex justify-between items-center';
@@ -3088,6 +3102,93 @@ export function initQuotes({ getCompanyEmail }) {
         });
       }
       
+      function updatePagination() {
+        const pageInfo = container.querySelector('#page-info-quote');
+        const btnPrev = container.querySelector('#btn-prev-prices-quote');
+        const btnNext = container.querySelector('#btn-next-prices-quote');
+        const totalPages = Math.ceil(totalPrices / pageSize);
+        
+        if (pageInfo) {
+          const start = (currentPage - 1) * pageSize + 1;
+          const end = Math.min(currentPage * pageSize, totalPrices);
+          pageInfo.textContent = `${start}-${end} de ${totalPrices}`;
+        }
+        
+        if (btnPrev) btnPrev.disabled = currentPage <= 1;
+        if (btnNext) btnNext.disabled = currentPage >= totalPages;
+      }
+      
+      container.innerHTML = `
+        <div class="mb-4 p-3 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-100 rounded-lg">
+          <div class="font-semibold mb-1 text-white dark:text-white theme-light:text-slate-900">${vehicle?.make || ''} ${vehicle?.line || ''}</div>
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cilindraje: ${vehicle?.displacement || ''}${vehicle?.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}</div>
+        </div>
+        <div class="mb-3 flex gap-2 flex-wrap">
+          <button id="create-service-btn" class="flex-1 min-w-[120px] px-2.5 py-2.5 rounded-lg font-semibold bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">
+            ➕ Crear servicio
+          </button>
+          <button id="create-product-btn" class="flex-1 min-w-[120px] px-2.5 py-2.5 rounded-lg font-semibold bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">
+            ➕ Crear producto
+          </button>
+          <button id="create-combo-btn" class="flex-1 min-w-[120px] px-2.5 py-2.5 rounded-lg font-semibold bg-purple-600 dark:bg-purple-600 theme-light:bg-purple-500 hover:bg-purple-700 dark:hover:bg-purple-700 theme-light:hover:bg-purple-600 text-white transition-all duration-200 border-none">
+            🎁 Crear combo
+          </button>
+        </div>
+        <div class="mb-3">
+          <div class="flex gap-2 mb-2 flex-wrap">
+            <select id="filter-type-prices-quote" class="flex-1 min-w-[120px] px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Todos los tipos</option>
+              <option value="service">Servicios</option>
+              <option value="product">Productos</option>
+              <option value="combo">Combos</option>
+            </select>
+            <input type="text" id="filter-name-prices-quote" placeholder="Buscar por nombre..." class="flex-2 min-w-[150px] px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <button id="btn-apply-filters-prices-quote" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-semibold">Buscar</button>
+          </div>
+          <h4 class="mb-2 text-base font-semibold text-white dark:text-white theme-light:text-slate-900">Precios disponibles</h4>
+          <div id="prices-list" class="grid gap-2"></div>
+          <div class="flex justify-between items-center mt-3 pt-3 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+              Mostrando <span id="page-info-quote">0-0</span>
+            </div>
+            <div class="flex gap-2">
+              <button id="btn-prev-prices-quote" class="px-3 py-1.5 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed" disabled>← Anterior</button>
+              <button id="btn-next-prices-quote" class="px-3 py-1.5 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed">Siguiente →</button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Event listeners para filtros
+      container.querySelector('#btn-apply-filters-prices-quote')?.addEventListener('click', () => {
+        filterType = container.querySelector('#filter-type-prices-quote')?.value || '';
+        filterName = container.querySelector('#filter-name-prices-quote')?.value.trim() || '';
+        currentPage = 1;
+        loadPrices();
+      });
+      
+      container.querySelector('#filter-name-prices-quote')?.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          filterType = container.querySelector('#filter-type-prices-quote')?.value || '';
+          filterName = container.querySelector('#filter-name-prices-quote')?.value.trim() || '';
+          currentPage = 1;
+          loadPrices();
+        }
+      });
+      
+      // Event listeners para paginación
+      container.querySelector('#btn-prev-prices-quote')?.addEventListener('click', () => {
+        if (currentPage > 1) {
+          currentPage--;
+          loadPrices();
+        }
+      });
+      
+      container.querySelector('#btn-next-prices-quote')?.addEventListener('click', () => {
+        currentPage++;
+        loadPrices();
+      });
+      
       // Botones de crear
       container.querySelector('#create-service-btn').onclick = () => {
         closeModal();
@@ -3103,6 +3204,9 @@ export function initQuotes({ getCompanyEmail }) {
         closeModal();
         createPriceFromQuote('combo', vehicleId, vehicle);
       };
+      
+      // Cargar precios iniciales
+      await loadPrices();
       
     } catch (err) {
       console.error('Error al cargar precios:', err);
