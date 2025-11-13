@@ -9,7 +9,16 @@
 </head>
 <body>
   <div id="app"></div>
+  <!-- Desarrollo: carga módulo ES6 con Vite -->
+  <!-- Producción: después de build, Vite inyecta el script aquí automáticamente -->
   <script type="module" src="/src/main.js"></script>
+  <!-- Fallback: si no hay Vite, este script no se ejecutará pero no romperá nada -->
+  <script>
+    // Detección: si estamos en desarrollo (Vite) o producción (build)
+    if (typeof window !== 'undefined' && !document.querySelector('script[src*="/src/main.js"]')) {
+      console.warn('Svelte app no disponible. Usando modo desarrollo con: npm run dev');
+    }
+  </script>
 </body>
 </html>
 
