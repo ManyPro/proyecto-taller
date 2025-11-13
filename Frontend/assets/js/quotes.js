@@ -3317,7 +3317,24 @@ export function initQuotes({ getCompanyEmail }) {
             if (!isModal) {
               saveDraft();
             }
-            closeModal();
+            // Solo cerrar el modal si NO estamos editando una cotización existente
+            // Si estamos en el modal de edición (window._modalQuoteContext existe), 
+            // solo cerramos el modal de agregar items, no el modal principal de edición
+            if (!window._modalQuoteContext) {
+              closeModal();
+            } else {
+              // Estamos en el modal de edición, solo cerrar el modal de agregar items
+              // Buscar el modal que contiene el inventario y cerrarlo
+              const addModal = document.getElementById('modal');
+              if (addModal) {
+                // Verificar si este modal contiene el inventario
+                const inventoryList = addModal.querySelector('#inventory-list');
+                if (inventoryList) {
+                  // Este es el modal de agregar items, cerrarlo sin afectar el modal de edición
+                  addModal.classList.add('hidden');
+                }
+              }
+            }
           };
           
           listContainer.appendChild(card);
@@ -4332,7 +4349,23 @@ export function initQuotes({ getCompanyEmail }) {
         if (!multiMode && !fromManual){ 
           setTimeout(() => {
             stop(); 
-            closeModal();
+            // Solo cerrar el modal si NO estamos editando una cotización existente
+            // Si estamos en el modal de edición (window._modalQuoteContext existe), 
+            // solo cerramos el modal de QR, no el modal principal de edición
+            if (!window._modalQuoteContext) {
+              closeModal();
+            } else {
+              // Estamos en el modal de edición, solo cerrar el modal de QR
+              const qrModal = document.getElementById('modal');
+              if (qrModal) {
+                // Verificar si este modal contiene el QR scanner
+                const qrVideo = qrModal.querySelector('#qr-video-quote');
+                if (qrVideo) {
+                  // Este es el modal de QR, cerrarlo sin afectar el modal de edición
+                  qrModal.classList.add('hidden');
+                }
+              }
+            }
           }, 1500);
         }
         setTimeout(() => {
