@@ -1678,7 +1678,7 @@ function fillCloseModal(){
       });
     } else {
       // Prefill single row with full total (nueva venta)
-      addPaymentRow({ method:'EFECTIVO', amount: Number(current?.total||0), accountId: accountsCache[0]?._id||'' });
+    addPaymentRow({ method:'EFECTIVO', amount: Number(current?.total||0), accountId: accountsCache[0]?._id||'' });
     }
     recalc();
   })();
@@ -3281,42 +3281,53 @@ async function renderPricesView(container, vehicleId) {
     // Obtener información del vehículo
     const vehicle = await API.vehicles.get(vehicleId);
     
-    // Obtener precios del vehículo (filtrar por año si está disponible)
+    // Variables de estado para filtros y paginación
+    let currentPage = 1;
+    const pageSize = 10;
+    let filterType = '';
+    let filterName = '';
+    let totalPrices = 0;
+    
+    async function loadPrices() {
+      try {
     const vehicleYear = current?.vehicle?.year || null;
-    const pricesParams = { vehicleId, page: 1, limit: 10 };
+        const pricesParams = { 
+          vehicleId, 
+          page: currentPage, 
+          limit: pageSize 
+        };
     if (vehicleYear) {
       pricesParams.vehicleYear = vehicleYear;
     }
+        if (filterType) {
+          pricesParams.type = filterType;
+        }
+        if (filterName) {
+          pricesParams.name = filterName;
+        }
+        
     const pricesData = await API.pricesList(pricesParams);
     const prices = Array.isArray(pricesData?.items) ? pricesData.items : (Array.isArray(pricesData) ? pricesData : []);
+        totalPrices = pricesData?.total || pricesData?.items?.length || prices.length;
+        
+        renderPricesList(prices);
+        updatePagination();
+      } catch (err) {
+        console.error('Error loading prices:', err);
+        container.querySelector('#prices-list').innerHTML = '<div style="text-align:center;padding:24px;color:var(--danger);">Error al cargar precios</div>';
+      }
+    }
     
-    container.innerHTML = `
-      <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;">
-        <div style="font-weight:600;margin-bottom:4px;">${vehicle?.make || ''} ${vehicle?.line || ''}</div>
-        <div style="font-size:12px;color:var(--muted);">Cilindraje: ${vehicle?.displacement || ''}${vehicle?.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}</div>
-      </div>
-      <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
-        <button id="create-service-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;">
-          ➕ Crear servicio
-        </button>
-        <button id="create-product-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;">
-          ➕ Crear producto
-        </button>
-        <button id="create-combo-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;background:#9333ea;color:white;border:none;">
-          🎁 Crear combo
-        </button>
-      </div>
-      <div style="margin-bottom:12px;">
-        <h4 style="margin-bottom:8px;">Precios disponibles (${prices.length})</h4>
-        <div id="prices-list" style="display:grid;gap:8px;"></div>
-      </div>
-    `;
-    
+    function renderPricesList(prices) {
     const pricesList = container.querySelector('#prices-list');
+      if (!pricesList) return;
     
     if (prices.length === 0) {
-      pricesList.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">No hay precios registrados para este vehículo.</div>';
-    } else {
+        pricesList.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">No hay precios que coincidan con los filtros.</div>';
+        return;
+      }
+      
+      pricesList.innerHTML = '';
       prices.forEach(pe => {
         const card = document.createElement('div');
         card.style.cssText = 'padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:8px;display:flex;justify-content:space-between;align-items:center;';
@@ -3366,6 +3377,93 @@ async function renderPricesView(container, vehicleId) {
       });
     }
     
+    function updatePagination() {
+      const pageInfo = container.querySelector('#page-info');
+      const btnPrev = container.querySelector('#btn-prev-prices');
+      const btnNext = container.querySelector('#btn-next-prices');
+      const totalPages = Math.ceil(totalPrices / pageSize);
+      
+      if (pageInfo) {
+        const start = (currentPage - 1) * pageSize + 1;
+        const end = Math.min(currentPage * pageSize, totalPrices);
+        pageInfo.textContent = `${start}-${end} de ${totalPrices}`;
+      }
+      
+      if (btnPrev) btnPrev.disabled = currentPage <= 1;
+      if (btnNext) btnNext.disabled = currentPage >= totalPages;
+    }
+    
+    container.innerHTML = `
+      <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;">
+        <div style="font-weight:600;margin-bottom:4px;">${vehicle?.make || ''} ${vehicle?.line || ''}</div>
+        <div style="font-size:12px;color:var(--muted);">Cilindraje: ${vehicle?.displacement || ''}${vehicle?.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}</div>
+      </div>
+      <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button id="create-service-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;">
+          ➕ Crear servicio
+        </button>
+        <button id="create-product-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;">
+          ➕ Crear producto
+        </button>
+        <button id="create-combo-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;background:#9333ea;color:white;border:none;">
+          🎁 Crear combo
+        </button>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+          <select id="filter-type-prices" style="flex:1;min-width:120px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);">
+            <option value="">Todos los tipos</option>
+            <option value="service">Servicios</option>
+            <option value="product">Productos</option>
+            <option value="combo">Combos</option>
+          </select>
+          <input type="text" id="filter-name-prices" placeholder="Buscar por nombre..." style="flex:2;min-width:150px;padding:8px;border-radius:6px;border:1px solid var(--border);background:var(--card);color:var(--text);" />
+          <button id="btn-apply-filters-prices" class="primary" style="padding:8px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;">Buscar</button>
+        </div>
+        <h4 style="margin-bottom:8px;">Precios disponibles</h4>
+        <div id="prices-list" style="display:grid;gap:8px;"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <div style="font-size:12px;color:var(--muted);">
+            Mostrando <span id="page-info">0-0</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button id="btn-prev-prices" class="secondary" style="padding:6px 12px;border-radius:6px;border:none;cursor:pointer;" disabled>← Anterior</button>
+            <button id="btn-next-prices" class="secondary" style="padding:6px 12px;border-radius:6px;border:none;cursor:pointer;">Siguiente →</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Event listeners para filtros
+    container.querySelector('#btn-apply-filters-prices')?.addEventListener('click', () => {
+      filterType = container.querySelector('#filter-type-prices')?.value || '';
+      filterName = container.querySelector('#filter-name-prices')?.value.trim() || '';
+      currentPage = 1;
+      loadPrices();
+    });
+    
+    container.querySelector('#filter-name-prices')?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        filterType = container.querySelector('#filter-type-prices')?.value || '';
+        filterName = container.querySelector('#filter-name-prices')?.value.trim() || '';
+        currentPage = 1;
+        loadPrices();
+      }
+    });
+    
+    // Event listeners para paginación
+    container.querySelector('#btn-prev-prices')?.addEventListener('click', () => {
+      if (currentPage > 1) {
+        currentPage--;
+        loadPrices();
+      }
+    });
+    
+    container.querySelector('#btn-next-prices')?.addEventListener('click', () => {
+      currentPage++;
+      loadPrices();
+    });
+    
     // Botones de crear
     container.querySelector('#create-service-btn').onclick = () => {
       closeModal();
@@ -3381,6 +3479,9 @@ async function renderPricesView(container, vehicleId) {
       closeModal();
       createPriceFromSale('combo', vehicleId, vehicle);
     };
+    
+    // Cargar precios iniciales
+    await loadPrices();
     
   } catch (err) {
     console.error('Error al cargar precios:', err);
