@@ -144,12 +144,20 @@ function createDayElement(day, isOtherMonth, date, isToday = false, dayEvents = 
     dayEl.appendChild(eventsContainer);
   }
   
-  // Permitir hacer clic en el día para crear evento
+  // Permitir hacer clic en el día para mostrar eventos o crear uno nuevo
   if (!isOtherMonth && date) {
     dayEl.style.cursor = 'pointer';
     dayEl.onclick = (e) => {
-      // Solo abrir modal si no se hizo clic en un evento
-      if (e.target === dayEl || e.target === dayNumber) {
+      // Si se hizo clic en un evento específico o en el contenedor de eventos, no hacer nada (ya tiene su propio handler)
+      if (e.target.closest('[style*="background-color"]') || e.target.closest('.space-y-0\\.5')) {
+        return;
+      }
+      
+      // Si hay eventos en este día, mostrar el modal con todos los eventos
+      if (dayEvents.length > 0) {
+        openDayEventsModal(date, dayEvents);
+      } else {
+        // Si no hay eventos, crear uno nuevo
         openNewEventModal(date);
       }
     };
@@ -616,15 +624,15 @@ function openEventModal(event) {
       <div class="flex flex-wrap gap-2 mt-4">
         ${event.eventType !== 'reminder' ? `
           ${hasCustomerData && !event.saleId ? `
-            <button id="event-create-sale" class="px-4 py-2 bg-green-600/20 dark:bg-green-600/20 hover:bg-green-600/40 dark:hover:bg-green-600/40 text-green-400 dark:text-green-400 hover:text-green-300 dark:hover:text-green-300 font-medium rounded-lg transition-all duration-200 border border-green-600/30 dark:border-green-600/30">💰 Crear Venta</button>
+            <button id="event-create-sale" class="px-3 sm:px-4 py-2 text-sm sm:text-base bg-green-600/20 dark:bg-green-600/20 hover:bg-green-600/40 dark:hover:bg-green-600/40 text-green-400 dark:text-green-400 hover:text-green-300 dark:hover:text-green-300 font-medium rounded-lg transition-all duration-200 border border-green-600/30 dark:border-green-600/30">💰 Crear Venta</button>
           ` : ''}
           ${hasCustomerData && event.saleId ? `
-            <button id="event-send-whatsapp" class="px-4 py-2 bg-green-600/20 dark:bg-green-600/20 hover:bg-green-600/40 dark:hover:bg-green-600/40 text-green-400 dark:text-green-400 hover:text-green-300 dark:hover:text-green-300 font-medium rounded-lg transition-all duration-200 border border-green-600/30 dark:border-green-600/30">📱 Enviar confirmación por WhatsApp</button>
+            <button id="event-send-whatsapp" class="px-3 sm:px-4 py-2 text-sm sm:text-base bg-green-600/20 dark:bg-green-600/20 hover:bg-green-600/40 dark:hover:bg-green-600/40 text-green-400 dark:text-green-400 hover:text-green-300 dark:hover:text-green-300 font-medium rounded-lg transition-all duration-200 border border-green-600/30 dark:border-green-600/30 w-full sm:w-auto">📱 Enviar confirmación por WhatsApp</button>
           ` : ''}
-          <button id="event-edit" class="px-4 py-2 bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-medium rounded-lg transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30">Editar</button>
-          <button id="event-delete" class="px-4 py-2 bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30">Eliminar</button>
+          <button id="event-edit" class="px-3 sm:px-4 py-2 text-sm sm:text-base bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-medium rounded-lg transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30">Editar</button>
+          <button id="event-delete" class="px-3 sm:px-4 py-2 text-sm sm:text-base bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30">Eliminar</button>
         ` : ''}
-        <button id="event-close" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-800 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 ml-auto">Cerrar</button>
+        <button id="event-close" class="px-3 sm:px-4 py-2 text-sm sm:text-base bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-800 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 ml-auto w-full sm:w-auto">Cerrar</button>
       </div>
     </div>
   `;
@@ -1076,13 +1084,19 @@ function openDayEventsModal(date, dayEvents) {
   const eventsHtml = dayEvents.map((event, index) => {
     const startDate = new Date(event.startDate);
     const eventId = `event-${index}`;
+    const hasCustomerData = event.plate && event.customer?.name && event.customer?.phone;
     return `
       <div id="${eventId}" class="p-3 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-sky-50 cursor-pointer hover:bg-slate-800/50 dark:hover:bg-slate-800/50 theme-light:hover:bg-slate-50 transition-all">
         <div class="flex items-center gap-2 mb-1">
-          <div class="w-3 h-3 rounded-full" style="background-color: ${event.color || '#3b82f6'}"></div>
-          <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${htmlEscape(event.title)}</div>
+          <div class="w-3 h-3 rounded-full flex-shrink-0" style="background-color: ${event.color || '#3b82f6'}"></div>
+          <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 flex-1">${htmlEscape(event.title)}</div>
         </div>
         ${event.description ? `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">${htmlEscape(event.description)}</div>` : ''}
+        ${hasCustomerData ? `
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">
+            ${htmlEscape(event.customer.name)} • ${htmlEscape(event.plate)}
+          </div>
+        ` : ''}
         <div class="text-xs text-slate-500 dark:text-slate-500 theme-light:text-slate-400">${startDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</div>
       </div>
     `;
@@ -1090,8 +1104,11 @@ function openDayEventsModal(date, dayEvents) {
   
   body.innerHTML = `
     <div class="space-y-4">
-      <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">Eventos del ${dateStr}</h3>
-      <div class="space-y-2">
+      <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h3 class="text-lg sm:text-xl font-semibold text-white dark:text-white theme-light:text-slate-900">Eventos del ${dateStr}</h3>
+        <button id="day-events-new" class="px-3 sm:px-4 py-2 text-sm sm:text-base bg-green-600/20 dark:bg-green-600/20 hover:bg-green-600/40 dark:hover:bg-green-600/40 text-green-400 dark:text-green-400 hover:text-green-300 dark:hover:text-green-300 font-medium rounded-lg transition-all duration-200 border border-green-600/30 dark:border-green-600/30">➕ Nueva Cita</button>
+      </div>
+      <div class="space-y-2 max-h-[60vh] overflow-y-auto custom-scrollbar">
         ${eventsHtml}
       </div>
       <button id="day-events-close" class="w-full px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-800 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cerrar</button>
@@ -1109,6 +1126,16 @@ function openDayEventsModal(date, dayEvents) {
       };
     }
   });
+  
+  // Botón para crear nueva cita
+  const newEventBtn = document.getElementById('day-events-new');
+  if (newEventBtn) {
+    newEventBtn.onclick = () => {
+      modal.classList.add("hidden");
+      body.innerHTML = "";
+      openNewEventModal(date);
+    };
+  }
   
   modal.classList.remove("hidden");
   
