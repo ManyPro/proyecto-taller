@@ -4917,8 +4917,26 @@ async function sendPostServiceSurvey(sale) {
     let message = `Hola ${customerName}, ha sido un placer atenderte en nuestras instalaciones.\n\n`;
     message += `Espero todo haya sido de tu agrado, seria genial que nos dieras tu opinion por este medio: ${config.ratingLink}\n\n`;
     
+    // Agregar imagen QR si existe
+    // IMPORTANTE: WhatsApp Web/App no muestra imágenes automáticamente desde URLs cuando se usa wa.me
+    // Sin embargo, si la URL está en una línea separada y es accesible públicamente,
+    // WhatsApp puede mostrar una vista previa en algunos casos (depende del servicio de hosting)
     if (config.ratingQrImageUrl) {
-      message += `${config.ratingQrImageUrl}\n\n`;
+      const qrUrl = config.ratingQrImageUrl.trim();
+      // Asegurar que la URL sea HTTPS (requerido por WhatsApp)
+      let finalUrl = qrUrl;
+      if (qrUrl.startsWith('http://')) {
+        // Convertir HTTP a HTTPS (Cloudinary soporta HTTPS)
+        finalUrl = qrUrl.replace('http://', 'https://');
+      } else if (!qrUrl.startsWith('https://') && !qrUrl.startsWith('http://')) {
+        // Si no es una URL completa, intentar agregar https://
+        finalUrl = `https://${qrUrl}`;
+      }
+      
+      // Colocar la URL en una línea separada para maximizar las posibilidades de que WhatsApp la detecte
+      // Nota: WhatsApp puede mostrar una vista previa si la URL es de un servicio conocido
+      // (como Cloudinary) y la imagen es accesible públicamente
+      message += `\n${finalUrl}\n\n`;
     }
     
     message += 'Muchas gracias!';
@@ -4927,6 +4945,11 @@ async function sendPostServiceSurvey(sale) {
     const encodedMessage = encodeURIComponent(message);
     
     // Abrir WhatsApp Web/App
+    // WhatsApp automáticamente mostrará una vista previa de la imagen si:
+    // 1. La URL es HTTPS
+    // 2. La imagen es accesible públicamente (sin autenticación)
+    // 3. La URL está en una línea separada en el mensaje
+    // 4. La imagen tiene un formato soportado (JPG, PNG, etc.)
     const whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
     window.open(whatsappUrl, '_blank');
   } catch (err) {
