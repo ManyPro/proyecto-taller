@@ -195,5 +195,41 @@ router.patch('/admins/:id/companies', authAdmin, requireAdminRole('developer'), 
   res.json({ ok: true, user: { id: user._id, email: user.email, companies: user.companies } });
 });
 
+// Impersonate company - Get company token for admin (developer or admin)
+router.post('/impersonate/:companyId', authAdmin, requireAdminRole('developer','admin'), async (req, res) => {
+  const companyId = req.params.companyId;
+  const company = await Company.findById(companyId).lean();
+  if(!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+  
+  // Check if admin has access to this company
+  if(req.user?.role === 'admin') {
+    const admin = await AdminUser.findById(req.user.id).lean();
+    const hasAccess = admin?.companies?.some(c => String(c) === String(companyId));
+    if(!hasAccess) return res.status(403).json({ error: 'No tienes acceso a esta empresa' });
+  }
+  
+  // Generate company token
+  const payload = {
+    sub: String(company._id),
+    companyId: String(company._id),
+    email: company.email,
+    role: 'company',
+    impersonatedBy: String(req.user.id), // Track who is impersonating
+    kind: 'impersonated'
+  };
+  const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' });
+  
+  res.json({
+    token,
+    company: {
+      id: company._id,
+      name: company.name,
+      email: company.email,
+      publicCatalogEnabled: company.publicCatalogEnabled,
+      features: company.features || {}
+    }
+  });
+});
+
 export default router;
 

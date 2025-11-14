@@ -192,21 +192,26 @@
       </div>
     </section>
 
-    <section id="appSection" class="hidden">
-      <div class="card" style="max-width:1000px;margin:20px auto;">
-        <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
-          <h3 style="margin:0;">Empresas</h3>
-          <div class="row" style="gap:6px;">
-            <button id="loadCompanies" class="secondary">Actualizar</button>
-          </div>
+    <!-- Selector de Empresa -->
+    <section id="companySelectorSection" class="hidden h-screen flex items-center justify-center px-4 overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 theme-light:from-slate-50 theme-light:via-slate-100 theme-light:to-slate-50 relative">
+      <button id="themeToggleSelector" class="absolute top-4 right-4 p-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700 hover:text-white dark:hover:text-white theme-light:hover:text-slate-900 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-200/50 rounded-lg transition-colors duration-200 z-20" title="Cambiar tema">🌗</button>
+      <div class="w-full max-w-4xl">
+        <div class="text-center mb-6">
+          <h1 class="text-2xl sm:text-3xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">Seleccionar Empresa</h1>
+          <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Elige la empresa con la que deseas trabajar</p>
         </div>
-        <div class="table-wrap" style="margin-top:8px;">
-          <table class="table">
-            <thead><tr><th>Nombre</th><th>Email</th><th>Activa</th><th>Features</th><th></th></tr></thead>
-            <tbody id="adm-body"></tbody>
-          </table>
+        <div id="companiesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <!-- Las empresas se cargarán aquí dinámicamente -->
+        </div>
+        <div class="text-center mt-6">
+          <button id="backToAdmin" class="px-4 py-2 text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white theme-light:border-2 theme-light:border-slate-300 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-50 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200">Volver al panel admin</button>
         </div>
       </div>
+    </section>
+
+    <!-- Vista completa de empresa (igual que index.html) -->
+    <section id="appSection" class="hidden">
+      <!-- Esta sección se llenará dinámicamente con el contenido de la empresa seleccionada -->
     </section>
   </main>
 
@@ -224,20 +229,22 @@
     return data;
   }
   const loginSec = document.getElementById('loginSection');
+  const companySelectorSec = document.getElementById('companySelectorSection');
   const appSec = document.getElementById('appSection');
   const header = document.getElementById('appHeader');
   const emailLbl = document.getElementById('adminEmail');
   const logoutBtn = document.getElementById('adminLogout');
   let currentRole = null;
+  let companiesList = [];
+  let currentCompanyToken = null;
+  let currentCompanyData = null;
 
   async function enterDashboard(user, fallbackEmail){
     currentRole = user?.role || 'admin';
     emailLbl.textContent = user?.email || fallbackEmail || '-';
     loginSec.classList.add('hidden');
-    appSec.classList.remove('hidden');
-    header.classList.remove('hidden');
-    logoutBtn.classList.remove('hidden');
-    loadCompanies();
+    companySelectorSec.classList.remove('hidden');
+    loadCompaniesForSelector();
   }
 
   document.getElementById('a-login').onclick = async ()=>{
@@ -273,16 +280,22 @@
     }catch(e){ msg.textContent = e.message||'Error'; }
   };
 
-  logoutBtn.addEventListener('click', ()=>{
+  // Logout - delegar a la función correcta según el contexto
+  function handleLogout(){
     setToken('');
     currentRole = null;
     emailLbl.textContent = '-';
     appSec.classList.add('hidden');
-    header.classList.add('hidden');
+    companySelectorSec.classList.add('hidden');
+    if(header) header.classList.add('hidden');
     logoutBtn.classList.add('hidden');
-    document.getElementById('adm-body').innerHTML = '';
+    currentCompanyToken = null;
+    currentCompanyData = null;
+    API.setActiveCompany('');
     loginSec.classList.remove('hidden');
-  });
+  }
+  
+  // El logoutBtn original se maneja en setupAdminNavigation
 
   async function loadCompanies(){
     const tbody = document.getElementById('adm-body');
@@ -348,6 +361,357 @@
     }
   }
   document.getElementById('loadCompanies').onclick = loadCompanies;
+
+  // Cargar empresas para el selector
+  async function loadCompaniesForSelector(){
+    const grid = document.getElementById('companiesGrid');
+    grid.innerHTML = '<div class="col-span-full text-center text-slate-400">Cargando empresas...</div>';
+    try{
+      const r = await req('/api/v1/admin/companies');
+      companiesList = r.items || [];
+      grid.innerHTML = '';
+      if(!companiesList.length){
+        grid.innerHTML = '<div class="col-span-full text-center text-slate-400">No hay empresas disponibles</div>';
+        return;
+      }
+      companiesList.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 hover:shadow-2xl transition-all duration-300 cursor-pointer';
+        card.innerHTML = `
+          <h3 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">${c.name || '-'}</h3>
+          <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">${c.email || '-'}</p>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-1 text-xs rounded-full ${c.active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">${c.active ? 'Activa' : 'Inactiva'}</span>
+          </div>
+        `;
+        card.onclick = () => selectCompany(c);
+        grid.appendChild(card);
+      });
+    }catch(e){
+      grid.innerHTML = `<div class="col-span-full text-center text-red-400">Error: ${e.message}</div>`;
+    }
+  }
+
+  // Seleccionar empresa y cargar vista completa
+  async function selectCompany(company){
+    try{
+      // Obtener token de impersonación
+      const r = await req(`/api/v1/admin/impersonate/${company._id}`, { method: 'POST' });
+      currentCompanyToken = r.token;
+      currentCompanyData = r.company;
+      
+      // Guardar token de empresa en API
+      API.setActiveCompany(company.email);
+      API.token.set(r.token, company.email);
+      if(company._id) {
+        try {
+          const companyIdKey = `taller.companyId:${window.__SCOPE || 'local'}:${company.email.toLowerCase()}`;
+          localStorage.setItem(companyIdKey, String(company._id));
+        } catch {}
+      }
+      
+      // Guardar features
+      if(r.company.features) {
+        try {
+          const featuresKey = `taller.features:${window.__SCOPE || 'local'}:${company.email.toLowerCase()}`;
+          localStorage.setItem(featuresKey, JSON.stringify(r.company.features));
+        } catch {}
+      }
+      
+      // Ocultar selector y mostrar vista de empresa
+      companySelectorSec.classList.add('hidden');
+      await loadCompanyView();
+    }catch(e){
+      alert('Error al seleccionar empresa: ' + e.message);
+    }
+  }
+
+  // Botón volver al selector
+  document.getElementById('backToAdmin').onclick = () => {
+    appSec.classList.add('hidden');
+    if(header) header.classList.add('hidden');
+    companySelectorSec.classList.remove('hidden');
+    currentCompanyToken = null;
+    currentCompanyData = null;
+    // Limpiar token de empresa
+    API.setActiveCompany('');
+  };
+
+  // Cargar vista completa de empresa (igual que index.html)
+  async function loadCompanyView(){
+    // Limpiar appSection
+    appSec.innerHTML = '';
+    appSec.classList.remove('hidden');
+    
+    // Crear header completo (similar a index.html)
+    const headerHTML = `
+      <div class="topbar" id="appHeader">
+        <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16 md:h-20">
+              <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
+                <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
+                <div class="hidden sm:flex flex-col">
+                  <span class="text-xs text-slate-400 font-medium">Empresa</span>
+                  <span id="companyName" class="text-sm md:text-base font-semibold text-white">${currentCompanyData?.name || currentCompanyData?.email || '-'}</span>
+                </div>
+                <div class="sm:hidden text-white font-semibold text-sm">
+                  <span id="companyNameMobile">${currentCompanyData?.name || currentCompanyData?.email || '-'}</span>
+                </div>
+              </div>
+              <div class="hidden md:flex items-center gap-2">
+                <button id="switchCompany" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Cambiar empresa</button>
+                <button id="logoutBtn" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
+                <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
+                <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+              </div>
+              <div class="md:hidden flex items-center gap-2">
+                <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
+                <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+                <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
+                <button data-tab="home" data-href="index.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-t-lg transition-all duration-200 hover:bg-blue-700 whitespace-nowrap">Inicio</button>
+                <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
+                <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
+                <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+                <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
+                <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+                <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+                <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cartera</button>
+                <button data-tab="pendientes" data-href="vehiculos-pendientes.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">⚠️ Pendientes</button>
+                <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
+                <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
+                <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
+                <button data-tab="admin" class="nav-tab px-4 py-3 text-sm font-medium text-purple-300 hover:text-purple-100 hover:bg-purple-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">⚙️ ADMIN</button>
+              </nav>
+            </div>
+          </div>
+        </div>
+        <div id="mobileMenu" class="md:hidden hidden bg-slate-800 border-t border-slate-700/50 shadow-xl">
+          <div class="px-4 py-3 space-y-1">
+            <button data-tab="home" data-href="index.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">Inicio</button>
+            <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Notas</button>
+            <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Ventas</button>
+            <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cotizaciones</button>
+            <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inventario</button>
+            <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Lista de precios</button>
+            <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Flujo de Caja</button>
+            <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cartera</button>
+            <button data-tab="pendientes" data-href="vehiculos-pendientes.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">⚠️ Pendientes</button>
+            <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
+            <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
+            <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
+            <button data-tab="admin" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-purple-300 hover:text-purple-100 hover:bg-purple-700/50 rounded-lg transition-all duration-200">⚙️ ADMIN</button>
+            <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Insertar header antes de appSection
+    appSec.insertAdjacentHTML('beforebegin', headerHTML);
+    
+    // Cargar scripts necesarios si no están cargados
+    if(!window.adminScriptsLoaded){
+      await loadAdminScripts();
+      window.adminScriptsLoaded = true;
+    }
+    
+    // Cargar contenido inicial (pestaña Inicio)
+    await loadTabContent('home');
+    
+    // Configurar navegación
+    setupAdminNavigation();
+    
+    // Mostrar header
+    const newHeader = document.getElementById('appHeader');
+    if(newHeader) newHeader.classList.remove('hidden');
+  }
+
+  // Cargar scripts necesarios
+  async function loadAdminScripts(){
+    return new Promise((resolve) => {
+      const scripts = [
+        { src: './assets/js/app.js', type: 'module' },
+        { src: './assets/js/notes.js', type: 'module' },
+        { src: './assets/js/quotes.js', type: 'module' },
+        { src: './assets/js/sales.js', type: 'module' },
+        { src: './assets/js/cashflow.js', type: 'module' },
+        { src: './assets/js/prices.js', type: 'module' },
+        { src: './assets/js/inventory.js', type: 'module' },
+        { src: './assets/js/templates.js' },
+        { src: './assets/js/input-fix.js' }
+      ];
+      
+      let loaded = 0;
+      scripts.forEach(({src, type}) => {
+        const script = document.createElement('script');
+        if(type === 'module') script.type = 'module';
+        script.src = src;
+        script.onload = () => {
+          loaded++;
+          if(loaded === scripts.length) resolve();
+        };
+        script.onerror = () => {
+          loaded++;
+          if(loaded === scripts.length) resolve();
+        };
+        document.head.appendChild(script);
+      });
+    });
+  }
+
+  // Configurar navegación de pestañas
+  function setupAdminNavigation(){
+    document.querySelectorAll('[data-tab]').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const tab = btn.dataset.tab;
+        if(!tab) return;
+        e.preventDefault();
+        
+        // Actualizar pestañas activas
+        document.querySelectorAll('.nav-tab, .mobile-nav-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // Cargar contenido de la pestaña
+        if(tab === 'admin'){
+          await loadAdminTab();
+        } else {
+          const href = btn.dataset.href;
+          if(href && href !== 'index.html'){
+            // Navegar a la página correspondiente pero manteniendo el contexto admin
+            window.location.href = href + '?admin=true';
+          } else {
+            await loadTabContent(tab);
+          }
+        }
+      });
+    });
+    
+    // Menú móvil toggle
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const mobileMenu = document.getElementById('mobileMenu');
+    if(mobileMenuToggle && mobileMenu){
+      mobileMenuToggle.onclick = () => {
+        mobileMenu.classList.toggle('hidden');
+      };
+    }
+    
+    // Botón cambiar empresa
+    const switchCompanyBtn = document.getElementById('switchCompany');
+    if(switchCompanyBtn){
+      switchCompanyBtn.onclick = () => {
+        appSec.classList.add('hidden');
+        const headerEl = document.getElementById('appHeader');
+        if(headerEl) headerEl.classList.add('hidden');
+        companySelectorSec.classList.remove('hidden');
+      };
+    }
+    
+    // Botón logout
+    const logoutBtnEl = document.getElementById('logoutBtn');
+    const logoutBtnMobileEl = document.getElementById('logoutBtnMobile');
+    if(logoutBtnEl) logoutBtnEl.onclick = handleLogout;
+    if(logoutBtnMobileEl) logoutBtnMobileEl.onclick = handleLogout;
+  }
+
+  // Cargar contenido de pestaña
+  async function loadTabContent(tab){
+    if(tab === 'home'){
+      // Cargar contenido de inicio similar a index.html
+      appSec.innerHTML = `
+        <section id="tab-home" class="tab active">
+          <div class="flex items-center justify-center px-4 py-6 sm:py-8">
+            <div class="w-full max-w-2xl">
+              <div class="bg-gradient-to-br from-slate-800 via-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700/50 p-6 sm:p-8 lg:p-10 text-center relative overflow-hidden">
+                <div class="absolute inset-0 opacity-10">
+                  <div class="absolute top-0 left-0 w-64 h-64 bg-blue-500 rounded-full blur-3xl"></div>
+                  <div class="absolute bottom-0 right-0 w-64 h-64 bg-purple-500 rounded-full blur-3xl"></div>
+                </div>
+                <div class="relative z-10">
+                  <div class="mb-4 flex justify-center">
+                    <div class="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg">
+                      <svg class="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                      </svg>
+                    </div>
+                  </div>
+                  <h2 class="text-base sm:text-lg text-slate-400 font-medium mb-1">Bienvenido a</h2>
+                  <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                    <span id="welcomeCompany">${currentCompanyData?.name || currentCompanyData?.email || 'Tu empresa'}</span>
+                  </h1>
+                  <p class="text-sm sm:text-base text-slate-300 mb-6 max-w-md mx-auto">
+                    Usa la barra de navegación para acceder a cada herramienta de tu taller.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      `;
+    } else {
+      // Para otras pestañas, las páginas individuales se cargarán cuando se navegue a ellas
+      appSec.innerHTML = `<div class="p-6 text-center text-slate-400">Navega usando las pestañas para acceder a ${tab}</div>`;
+    }
+  }
+
+  // Cargar pestaña ADMIN
+  async function loadAdminTab(){
+    const company = companiesList.find(c => c._id === currentCompanyData?.id || c.email === currentCompanyData?.email);
+    if(!company) return;
+    
+    appSec.innerHTML = `
+      <div class="card" style="max-width:1000px;margin:20px auto;">
+        <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
+          <h3 style="margin:0;">Configuración de Empresa: ${company.name || company.email}</h3>
+          <div class="row" style="gap:6px;">
+            <button id="saveCompanyFeatures" class="primary">Guardar cambios</button>
+          </div>
+        </div>
+        <div style="margin-top:16px;">
+          <h4 style="margin-bottom:12px;">Features (Funciones)</h4>
+          <div id="adminFeaturesList" class="row wrap" style="gap:8px;">
+            ${Object.keys(company.features || {}).map(k => `
+              <label class="chip">
+                <input type="checkbox" data-feature="${k}" ${company.features[k] !== false ? 'checked' : ''}/>
+                ${k}
+              </label>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Guardar features
+    document.getElementById('saveCompanyFeatures').onclick = async () => {
+      const patch = {};
+      document.querySelectorAll('#adminFeaturesList input[data-feature]').forEach(ch => {
+        patch[ch.dataset.feature] = ch.checked;
+      });
+      try{
+        await req(`/api/v1/admin/company/companies/${company._id}/features`, { method:'PATCH', body: patch });
+        alert('Features guardados');
+        // Recargar datos de empresa
+        const r = await req('/api/v1/admin/companies');
+        const updated = r.items.find(c => c._id === company._id);
+        if(updated) {
+          Object.assign(company, updated);
+          await loadAdminTab();
+        }
+      }catch(e){
+        alert('Error: ' + e.message);
+      }
+    };
+  }
 
   (async ()=>{
     if(!getToken()) return;
