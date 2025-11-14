@@ -618,6 +618,9 @@ function openEventModal(event) {
           ${hasCustomerData && !event.saleId ? `
             <button id="event-create-sale" class="px-4 py-2 bg-green-600/20 dark:bg-green-600/20 hover:bg-green-600/40 dark:hover:bg-green-600/40 text-green-400 dark:text-green-400 hover:text-green-300 dark:hover:text-green-300 font-medium rounded-lg transition-all duration-200 border border-green-600/30 dark:border-green-600/30">💰 Crear Venta</button>
           ` : ''}
+          ${hasCustomerData && event.saleId ? `
+            <button id="event-send-whatsapp" class="px-4 py-2 bg-green-600/20 dark:bg-green-600/20 hover:bg-green-600/40 dark:hover:bg-green-600/40 text-green-400 dark:text-green-400 hover:text-green-300 dark:hover:text-green-300 font-medium rounded-lg transition-all duration-200 border border-green-600/30 dark:border-green-600/30">📱 Enviar confirmación por WhatsApp</button>
+          ` : ''}
           <button id="event-edit" class="px-4 py-2 bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-medium rounded-lg transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30">Editar</button>
           <button id="event-delete" class="px-4 py-2 bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30">Eliminar</button>
         ` : ''}
@@ -635,6 +638,18 @@ function openEventModal(event) {
   };
   
   if (event.eventType !== 'reminder') {
+    // Botón de WhatsApp si hay venta creada
+    const whatsappEl = document.getElementById('event-send-whatsapp');
+    if (whatsappEl && hasCustomerData && event.saleId) {
+      whatsappEl.onclick = async () => {
+        try {
+          await sendWhatsAppConfirmationFromEvent(event);
+        } catch (err) {
+          alert('Error al enviar confirmación por WhatsApp: ' + (err.message || 'Error desconocido'));
+        }
+      };
+    }
+    
     const editEl = document.getElementById('event-edit');
     const deleteEl = document.getElementById('event-delete');
     const createSaleEl = document.getElementById('event-create-sale');
@@ -1259,6 +1274,53 @@ window.calendarReload = async () => {
   await loadEvents();
   renderCalendar();
 };
+
+// Función para enviar confirmación por WhatsApp desde evento del calendario
+async function sendWhatsAppConfirmationFromEvent(event) {
+  try {
+    // Obtener configuración del calendario
+    const settings = await API.calendar.getSettings();
+    
+    // Obtener fecha y hora del evento
+    const eventDateObj = new Date(event.startDate);
+    const eventDate = eventDateObj.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const eventTime = eventDateObj.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    
+    const customerName = event.customer?.name || 'Cliente';
+    const companyName = settings.companyName || 'Nuestra empresa';
+    const address = settings.address || '';
+    const mapsLink = settings.mapsLink || '';
+    
+    // Formatear mensaje según especificación
+    let message = `Estimado ${customerName}, su cita en ${companyName}, está confirmada para el día ${eventDate} y hora ${eventTime}.\n\n`;
+    
+    if (address) {
+      message += `Te esperamos en esta dirección: ${address}\n`;
+    }
+    
+    if (mapsLink) {
+      message += `${mapsLink}\n`;
+    }
+    
+    message += '\nTe esperamos!';
+    
+    // Codificar mensaje para URL
+    const encodedMessage = encodeURIComponent(message);
+    
+    // Número de teléfono del cliente (limpiar formato)
+    const phone = (event.customer?.phone || '').replace(/\D/g, '');
+    if (!phone) {
+      return alert('No se encontró número de teléfono del cliente');
+    }
+    
+    // Abrir WhatsApp Web/App
+    const whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
+  } catch (err) {
+    console.error('Error sending WhatsApp confirmation:', err);
+    throw err;
+  }
+}
 
 // Abrir modal de configuración del calendario
 function openCalendarSettings() {

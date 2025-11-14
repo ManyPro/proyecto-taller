@@ -238,6 +238,104 @@
     body.theme-light .custom-scrollbar::-webkit-scrollbar-thumb:hover {
       background: rgba(100, 116, 139, 0.6);
     }
+    /* Estilos para el carrito */
+    .cart-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: rgba(30, 41, 59, 0.3);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    body.theme-light .cart-item {
+      background: #f8fafc;
+      border-color: rgba(203, 213, 225, 0.5);
+    }
+    .cart-item > span:first-child {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 500;
+      color: white;
+      word-break: break-word;
+    }
+    body.theme-light .cart-item > span:first-child {
+      color: #0f172a;
+    }
+    .cart-item input[type="number"] {
+      width: 70px;
+      padding: 6px 8px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      border-radius: 6px;
+      background: rgba(15, 23, 42, 0.5);
+      color: white;
+      text-align: center;
+      font-size: 14px;
+    }
+    body.theme-light .cart-item input[type="number"] {
+      background: #ffffff;
+      border-color: rgba(203, 213, 225, 0.5);
+      color: #0f172a;
+    }
+    .cart-item button.danger {
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 6px;
+      background: rgba(239, 68, 68, 0.8);
+      color: white;
+      border: 0;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .cart-item button.danger:hover {
+      background: rgba(239, 68, 68, 1);
+      transform: scale(1.05);
+    }
+    body.theme-light .cart-item button.danger {
+      background: #ef4444;
+      color: white;
+    }
+    body.theme-light .cart-item button.danger:hover {
+      background: #dc2626;
+    }
+    #cartModal .bg-slate-800 {
+      padding: 24px;
+    }
+    #cartModal h3 {
+      margin-bottom: 16px;
+      font-size: 20px;
+      font-weight: 700;
+    }
+    #cartTotal {
+      font-size: 18px;
+      font-weight: 700;
+      color: white;
+    }
+    body.theme-light #cartTotal {
+      color: #0f172a;
+    }
+    #cartItems {
+      min-height: 100px;
+      max-height: 400px;
+    }
+    #cartItems:empty::before {
+      content: "El carrito está vacío";
+      display: block;
+      text-align: center;
+      padding: 40px 20px;
+      color: rgba(148, 163, 184, 0.7);
+      font-style: italic;
+    }
+    body.theme-light #cartItems:empty::before {
+      color: rgba(100, 116, 139, 0.6);
+    }
     /* Estilos para tarjetas de items del catálogo */
     .item-card {
       background: rgba(30, 41, 59, 0.5);
@@ -377,6 +475,10 @@
       cursor: not-allowed;
     }
   </style>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <script src="./assets/js/cache-buster.js"></script>
   <!-- Backend config must load before API to set API_BASE/BACKEND_URL -->
   <script src="./assets/js/config.js"></script>
   <script src="./assets/js/api.js"></script>
@@ -415,8 +517,8 @@
       <strong class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">Catálogo</strong>
       <nav class="flex items-center gap-2">
         <a href="catalogo.html" class="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 transition-colors duration-200 bg-blue-600/20 dark:bg-blue-600/20 theme-light:bg-blue-50 text-blue-200 dark:text-blue-200 theme-light:text-blue-700 border border-blue-500/30 dark:border-blue-500/30 theme-light:border-blue-200">Inicio</a>
-        <a href="#" class="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-600 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 transition-colors duration-200 opacity-55 cursor-not-allowed" title="Próximamente">Categorías</a>
-        <a href="#" class="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-600 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 transition-colors duration-200 opacity-55 cursor-not-allowed" title="Próximamente">Promociones</a>
+        <button disabled class="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-600 opacity-50 cursor-not-allowed border-0 bg-transparent" title="Próximamente" style="pointer-events: none;">Categorías</button>
+        <button disabled class="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-600 opacity-50 cursor-not-allowed border-0 bg-transparent" title="Próximamente" style="pointer-events: none;">Promociones</button>
       </nav>
       <button id="toggleTheme" class="ml-auto px-4 py-2 rounded-full text-sm font-medium bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 text-white dark:text-white theme-light:text-slate-700 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Oscuro</button>
       <a id="waHeader" href="#" target="_blank" rel="noopener" class="hidden px-4 py-2 rounded-full text-sm font-medium bg-green-600 text-white hover:bg-green-700 transition-colors duration-200 border border-green-500/30" style="display:none;">WhatsApp</a>
@@ -481,16 +583,21 @@
 
   <!-- Cart modal -->
   <div id="cartModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm" aria-hidden="true">
-    <div class="bg-slate-800 dark:bg-slate-800 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 w-full max-w-2xl max-h-[82vh] overflow-auto rounded-2xl p-4 shadow-2xl flex flex-col gap-3 custom-scrollbar border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50" role="dialog" aria-modal="true" aria-label="Carrito">
-      <div class="flex items-center gap-2">
-        <h3 class="m-0 text-lg font-semibold">Carrito (<span id="cartCount">0</span>)</h3>
-        <button id="closeCart" class="ml-auto px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cerrar</button>
+    <div class="bg-slate-800 dark:bg-slate-800 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 w-full max-w-2xl max-h-[82vh] overflow-auto rounded-2xl p-6 shadow-2xl flex flex-col gap-4 custom-scrollbar border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50" role="dialog" aria-modal="true" aria-label="Carrito">
+      <div class="flex items-center justify-between border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 pb-3">
+        <h3 class="m-0 text-xl font-bold">Carrito (<span id="cartCount">0</span>)</h3>
+        <button id="closeCart" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cerrar</button>
       </div>
-      <div class="flex-1 overflow-auto flex flex-col gap-2 custom-scrollbar" id="cartItems"></div>
-      <div class="text-sm flex flex-col gap-1 mt-2">
-        <div>Total: <b id="cartTotal">0</b></div>
+      <div class="flex-1 overflow-auto flex flex-col gap-2 custom-scrollbar min-h-[200px]" id="cartItems">
+        <div class="text-center py-12 text-slate-400 dark:text-slate-400 theme-light:text-slate-500 italic">El carrito está vacío</div>
+      </div>
+      <div class="border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 pt-4 mt-2">
+        <div class="flex items-center justify-between mb-4">
+          <span class="text-base font-semibold">Total:</span>
+          <span class="text-xl font-bold" id="cartTotal">$ 0</span>
+        </div>
         <div class="flex gap-2 justify-end">
-          <button id="cartCheckout" disabled class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">Checkout</button>
+          <button id="cartCheckout" disabled class="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-base">Checkout</button>
         </div>
       </div>
     </div>

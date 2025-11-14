@@ -282,6 +282,10 @@
     }
   </style>
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <script src="./assets/js/cache-buster.js"></script>
   <script src="./assets/js/config.js"></script>
 </head>
 <body data-page="notas">
@@ -548,6 +552,20 @@
   <script type="module" src="./assets/js/notes.js" charset="utf-8"></script>
   <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
   <script src="./assets/js/input-fix.js"></script>
+  <script>
+    // Forzar recarga de scripts si la versión cambió
+    (function() {
+      const currentVersion = window.APP_VERSION || Date.now();
+      const storedVersion = sessionStorage.getItem('app:version');
+      if (storedVersion && storedVersion !== currentVersion) {
+        console.log('Nueva versión detectada, recargando página...');
+        sessionStorage.setItem('app:version', currentVersion);
+        window.location.reload();
+      } else if (!storedVersion) {
+        sessionStorage.setItem('app:version', currentVersion);
+      }
+    })();
+  </script>
   <script>
     // Menú móvil y navegación
     document.addEventListener('DOMContentLoaded', () => {

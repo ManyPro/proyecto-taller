@@ -1905,31 +1905,10 @@ function renderMini(){
   const urlParams = new URLSearchParams(window.location.search);
   const calendarEventId = fromCalendarEventId || urlParams.get('fromCalendar');
   
-  // Buscar contenedor de botones o crear uno si no existe
-  const miniContainer = document.getElementById('sv-customer-mini');
-  if (miniContainer && calendarEventId && c.name && c.phone && current) {
-    // Eliminar botón anterior si existe
-    const existingBtn = document.getElementById('sv-whatsapp-btn');
-    if (existingBtn) existingBtn.remove();
-    
-    // Crear botón de WhatsApp
-    const whatsappBtn = document.createElement('button');
-    whatsappBtn.id = 'sv-whatsapp-btn';
-    whatsappBtn.className = 'mt-3 w-full px-4 py-2 bg-green-600/20 dark:bg-green-600/20 hover:bg-green-600/40 dark:hover:bg-green-600/40 text-green-400 dark:text-green-400 hover:text-green-300 dark:hover:text-green-300 font-medium rounded-lg transition-all duration-200 border border-green-600/30 dark:border-green-600/30 theme-light:bg-green-50 theme-light:text-green-700 theme-light:hover:bg-green-100 theme-light:border-green-300 flex items-center justify-center gap-2';
-    whatsappBtn.innerHTML = '<span>📱</span> <span>Enviar confirmación por WhatsApp</span>';
-    whatsappBtn.onclick = async () => {
-      try {
-        await sendWhatsAppConfirmation(current, calendarEventId);
-      } catch (err) {
-        alert('Error: ' + (err.message || 'No se pudo enviar el mensaje'));
-      }
-    };
-    miniContainer.appendChild(whatsappBtn);
-  } else if (miniContainer) {
-    // Eliminar botón si no viene del calendario
-    const existingBtn = document.getElementById('sv-whatsapp-btn');
-    if (existingBtn) existingBtn.remove();
-  }
+  // Botón de WhatsApp removido - ahora está en el modal del evento del calendario
+  // Eliminar botón si existe
+  const existingBtn = document.getElementById('sv-whatsapp-btn');
+  if (existingBtn) existingBtn.remove();
 }
 
 function renderSale(){

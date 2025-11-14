@@ -54,4 +54,15 @@
   
   window.PLATE_RECOGNIZER_API_KEY = window.PLATE_RECOGNIZER_API_KEY || 'cd13b6b2c23e9dc10d7f0d33869c6dde31a1aeaa';
   window.USE_PLATE_RECOGNIZER = window.USE_PLATE_RECOGNIZER !== undefined ? window.USE_PLATE_RECOGNIZER : true;
+  
+  // Cache busting: Actualizar este número cuando se desplieguen cambios
+  // Formato: YYYYMMDDHHMM (año, mes, día, hora, minuto)
+  // Ejemplo: 202501141430 = 14 de enero de 2025, 14:30
+  window.APP_VERSION = window.APP_VERSION || '202501141500';
+  
+  // Función helper para agregar versión a URLs de assets
+  window.assetUrl = function(path) {
+    const separator = path.includes('?') ? '&' : '?';
+    return path + separator + 'v=' + window.APP_VERSION;
+  };
 })();
