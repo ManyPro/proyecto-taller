@@ -17,7 +17,26 @@ function formatDate(date) {
 
 function formatDateTime(date) {
   const d = new Date(date);
-  return d.toISOString().slice(0, 16);
+  // Usar hora local en lugar de UTC para evitar problemas de zona horaria
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+// Función helper para convertir fecha/hora local a ISO sin cambiar la hora
+function localDateTimeToISO(dateString, timeString) {
+  if (!dateString || !timeString) return null;
+  // Crear fecha en hora local
+  const localDate = new Date(`${dateString}T${timeString}`);
+  // Obtener el offset de zona horaria en minutos
+  const offsetMs = localDate.getTimezoneOffset() * 60000;
+  // Ajustar la fecha para compensar el offset (convertir a UTC manteniendo la hora local)
+  const adjustedDate = new Date(localDate.getTime() - offsetMs);
+  // Retornar en formato ISO
+  return adjustedDate.toISOString();
 }
 
 function getEventsForDate(date) {
@@ -548,17 +567,19 @@ function openNewEventModal(date = null) {
         return alert("La fecha y hora son obligatorias");
       }
       
-      const startDateTime = new Date(`${startDate}T${startTime}`);
-      const endDateTime = endEl.value ? new Date(endEl.value) : null;
+      // Usar función helper para evitar problemas de zona horaria
+      const startDateTimeISO = localDateTimeToISO(startDate, startTime);
+      const endDateTimeISO = endEl.value ? localDateTimeToISO(endEl.value.split('T')[0], endEl.value.split('T')[1]) : null;
+      const notificationAtISO = notificationEl.checked && notificationAtEl.value ? localDateTimeToISO(notificationAtEl.value.split('T')[0], notificationAtEl.value.split('T')[1]) : null;
       
       const payload = {
         title: titleEl.value.trim() || `Cita: ${customerName}`,
         description: descriptionEl.value.trim(),
-        startDate: startDateTime.toISOString(),
-        endDate: endDateTime ? endDateTime.toISOString() : undefined,
+        startDate: startDateTimeISO,
+        endDate: endDateTimeISO || undefined,
         color: colorEl.value,
         hasNotification: notificationEl.checked,
-        notificationAt: notificationEl.checked && notificationAtEl.value ? new Date(notificationAtEl.value).toISOString() : undefined,
+        notificationAt: notificationAtISO || undefined,
         plate,
         customer: {
           name: customerName,
@@ -1115,16 +1136,19 @@ function openEditEventModal(event) {
       
       const startDate = startDateEl.value;
       const startTime = startTimeEl.value;
-      const startDateTime = new Date(`${startDate}T${startTime}`);
+      // Usar función helper para evitar problemas de zona horaria
+      const startDateTimeISO = localDateTimeToISO(startDate, startTime);
+      const endDateTimeISO = endEl.value ? localDateTimeToISO(endEl.value.split('T')[0], endEl.value.split('T')[1]) : null;
+      const notificationAtISO = notificationEl.checked && notificationAtEl.value ? localDateTimeToISO(notificationAtEl.value.split('T')[0], notificationAtEl.value.split('T')[1]) : null;
       
       const payload = {
         title: titleEl.value.trim(),
         description: descriptionEl.value.trim(),
-        startDate: startDateTime.toISOString(),
-        endDate: endEl.value ? new Date(endEl.value).toISOString() : null,
+        startDate: startDateTimeISO,
+        endDate: endDateTimeISO,
         color: colorEl.value,
         hasNotification: notificationEl.checked,
-        notificationAt: notificationEl.checked && notificationAtEl.value ? new Date(notificationAtEl.value).toISOString() : null,
+        notificationAt: notificationAtISO,
         plate: plateEl.value.trim().toUpperCase() || '',
         customer: {
           name: customerNameEl.value.trim() || '',

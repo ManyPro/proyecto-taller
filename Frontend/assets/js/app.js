@@ -761,6 +761,20 @@ function initializeLogoutListener() {
           const action = d?.purchaseLabel ? ` - Pedir mas en (${d.purchaseLabel})` : ' - Pedir mas';
           return { icon:'🚨', title:'STOCK MUY BAJO', body: baseText + action, meta: ago, urgent: true };
         }
+        case /^calendar\.event$/.test(t):{
+          const eventTitle = d?.title || 'Evento del calendario';
+          const plate = d?.plate ? ` - Placa: ${d.plate}` : '';
+          const customerName = d?.customerName ? ` - Cliente: ${d.customerName}` : '';
+          const startDate = d?.startDate ? new Date(d.startDate).toLocaleString('es-CO', { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          }) : '';
+          return { icon:'📅', title:'Recordatorio de cita', body: `${eventTitle}${plate}${customerName}${startDate ? ' - ' + startDate : ''}`, meta: ago, urgent: false };
+        }
         case /^sale\.created$/.test(t):
           return { icon:'??', title:'Nueva venta creada', body:`Se registró un nuevo pedido${d?.origin==='catalog'?' desde el catálogo público':''}.`, meta: ago };
         case /^workOrder\.created$/.test(t):
@@ -845,6 +859,44 @@ function initializeLogoutListener() {
   function togglePanel(){ ensurePanel(); panel.style.display = panel.style.display==='none'? 'block':'none'; if(panel.style.display==='block'){ fetchNotifications(); } }
   function startPolling(){ if(polling) return; polling = setInterval(fetchNotifications, 30000); fetchNotifications(); }
   
+  // Conectar SSE para recibir notificaciones en tiempo real
+  let notificationSSE = null;
+  function connectNotificationSSE(){
+    if(notificationSSE) return; // Ya conectado
+    try{
+      const token = API?.token?.get?.();
+      if(!token) return;
+      const base = API?.base || '';
+      const url = new URL('/api/v1/sales/stream', base);
+      url.searchParams.set('token', token);
+      notificationSSE = new EventSource(url.toString(), { withCredentials: false });
+      
+      notificationSSE.addEventListener('notification', (e) => {
+        try{
+          const data = JSON.parse(e.data);
+          // Refrescar notificaciones cuando llega una nueva
+          fetchNotifications();
+        }catch(err){
+          console.warn('Error parsing notification SSE:', err);
+        }
+      });
+      
+      notificationSSE.addEventListener('error', (e) => {
+        console.warn('SSE notification error:', e);
+        // Reconectar después de 5 segundos
+        setTimeout(() => {
+          if(notificationSSE) {
+            notificationSSE.close();
+            notificationSSE = null;
+          }
+          connectNotificationSSE();
+        }, 5000);
+      });
+    }catch(e){
+      console.warn('No se pudo conectar SSE para notificaciones:', e);
+    }
+  }
+  
   // Inicializar AudioContext en la primera interacción del usuario
   function initAudioOnUserInteraction(){
     if(audioContext) return;
@@ -862,6 +914,7 @@ function initializeLogoutListener() {
   document.addEventListener('DOMContentLoaded', ()=>{ 
     ensureBell(); 
     startPolling();
+    connectNotificationSSE();
     initAudioOnUserInteraction();
   });
 })();

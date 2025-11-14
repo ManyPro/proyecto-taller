@@ -137,6 +137,7 @@ export function initQuotes({ getCompanyEmail }) {
   const btnDiscountFixed = $('#q-discount-fixed');
   const btnDiscountClear = $('#q-discount-clear');
   const previewWA = $('#q-whatsappPreview');
+  const hideTotalWA = $('#q-hide-total-wa');
   const qData = $('#q-data');
   const qSummary = $('#q-summary');
   const qhText = $('#qh-text');
@@ -602,7 +603,8 @@ export function initQuotes({ getCompanyEmail }) {
     
     // Actualizar preview de WhatsApp
     if (previewWA) {
-      const previewText = buildWhatsAppText(rows,subP,subS,total);
+      const hideTotal = hideTotalWA && hideTotalWA.checked;
+      const previewText = buildWhatsAppText(rows,subP,subS,total, hideTotal);
       console.log('[recalcAll] Preview WhatsApp generado:', previewText);
       previewWA.textContent = previewText;
     } else {
@@ -612,7 +614,7 @@ export function initQuotes({ getCompanyEmail }) {
     syncSummaryHeight();
   }
 
-  function buildWhatsAppText(rows,subP,subS,total){
+  function buildWhatsAppText(rows,subP,subS,total, hideTotal = false){
     const num=iNumber.value;
   const cliente=iClientName.value||'—';
     const veh=`${iBrand.value||''} ${iLine.value||''} ${iYear.value||''}`.trim();
@@ -710,7 +712,10 @@ export function initQuotes({ getCompanyEmail }) {
       lines.push(`Descuento: ${money(discountValue)}`);
     }
     
-    lines.push(`*TOTAL: ${money(total)}*`);
+    // Solo agregar el total si no está oculto
+    if (!hideTotal) {
+      lines.push(`*TOTAL: ${money(total)}*`);
+    }
     
     // Añadir notas especiales antes de "Valores SIN IVA"
     // Verificar si specialNotes está definido antes de usarlo
@@ -1268,6 +1273,13 @@ export function initQuotes({ getCompanyEmail }) {
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,'_blank');
   // No mover correlativo aquí.
     syncSummaryHeight();
+  }
+  
+  // Event listener para el checkbox de ocultar total
+  if (hideTotalWA) {
+    hideTotalWA.addEventListener('change', () => {
+      recalcAll();
+    });
   }
 
   // ===== Backend (crear / actualizar) =====
@@ -2564,7 +2576,8 @@ export function initQuotes({ getCompanyEmail }) {
       if (typeof specialNotes !== 'undefined') {
         specialNotes=d.specialNotes||[];
       }
-      const text=buildWhatsAppText(rows,subP,subS,total);
+      const hideTotal = hideTotalWA && hideTotalWA.checked;
+      const text=buildWhatsAppText(rows,subP,subS,total, hideTotal);
       iNumber.value=bak.n; iClientName.value=bak.c; iBrand.value=bak.b; iLine.value=bak.l; iYear.value=bak.y; iPlate.value=bak.p; iCc.value=bak.cc; iMileage.value=bak.m; iValidDays.value=bak.v;
       // Solo restaurar specialNotes si está definido en el scope global
       if (typeof specialNotes !== 'undefined') {

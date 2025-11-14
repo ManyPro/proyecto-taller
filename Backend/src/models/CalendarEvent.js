@@ -11,6 +11,7 @@ const CalendarEventSchema = new mongoose.Schema(
     // Si el evento tiene notificación
     hasNotification: { type: Boolean, default: false },
     notificationAt: { type: Date },
+    notified: { type: Boolean, default: false }, // Si ya se envió la notificación
     
     // Tipo de evento: 'event' (evento del calendario) o 'reminder' (recordatorio de nota)
     eventType: { 

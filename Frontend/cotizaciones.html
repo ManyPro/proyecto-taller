@@ -428,7 +428,13 @@
                 <input id="q-valid-days" type="number" min="0" step="1" placeholder="p. ej. 8" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
               </div>
               <div class="mb-4">
-                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Vista previa WhatsApp</label>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Vista previa WhatsApp</label>
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="q-hide-total-wa" class="w-4 h-4 text-blue-600 bg-slate-700 dark:bg-slate-700 theme-light:bg-white border-slate-600 dark:border-slate-600 theme-light:border-slate-300 rounded focus:ring-blue-500" />
+                    <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Ocultar total</span>
+                  </label>
+                </div>
                 <pre id="q-whatsappPreview" class="w-full px-4 py-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm whitespace-pre-wrap min-h-[220px] custom-scrollbar"></pre>
               </div>
               

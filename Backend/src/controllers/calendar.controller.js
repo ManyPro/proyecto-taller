@@ -4,7 +4,9 @@ import CustomerProfile from "../models/CustomerProfile.js";
 import Vehicle from "../models/Vehicle.js";
 import Quote from "../models/Quote.js";
 import Company from "../models/Company.js";
+import Notification from "../models/Notification.js";
 import { upsertProfileFromSource } from "./profile.helper.js";
+import { publish } from "../lib/live.js";
 import mongoose from "mongoose";
 
 export const listEvents = async (req, res) => {
@@ -359,6 +361,63 @@ export const updateSettings = async (req, res) => {
   } catch (err) {
     console.error('Error updating calendar settings:', err);
     return res.status(500).json({ error: 'Error al actualizar configuración' });
+  }
+};
+
+// Función para verificar y disparar notificaciones de eventos del calendario
+export const checkCalendarNotifications = async () => {
+  try {
+    const now = new Date();
+    // Buscar eventos con notificación pendiente (hasta 5 minutos después de la hora programada)
+    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+    const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+    
+    const eventsToNotify = await CalendarEvent.find({
+      hasNotification: true,
+      notificationAt: {
+        $gte: fiveMinutesAgo,
+        $lte: fiveMinutesFromNow
+      },
+      notified: { $ne: true } // Solo eventos que no han sido notificados
+    }).lean();
+    
+    for (const event of eventsToNotify) {
+      try {
+        // Crear notificación en la base de datos
+        const notification = await Notification.create({
+          companyId: event.companyId,
+          type: 'calendar.event',
+          data: {
+            eventId: event._id.toString(),
+            title: event.title,
+            description: event.description,
+            startDate: event.startDate,
+            plate: event.plate || '',
+            customerName: event.customer?.name || ''
+          }
+        });
+        
+        // Marcar el evento como notificado
+        await CalendarEvent.updateOne(
+          { _id: event._id },
+          { $set: { notified: true } }
+        );
+        
+        // Publicar evento SSE para todos los dispositivos conectados de la empresa
+        publish(String(event.companyId), 'notification', {
+          id: notification._id.toString(),
+          type: 'calendar.event',
+          data: notification.data,
+          createdAt: notification.createdAt
+        });
+        
+        console.log(`[checkCalendarNotifications] Notificación creada para evento ${event._id} de empresa ${event.companyId}`);
+      } catch (err) {
+        console.error(`[checkCalendarNotifications] Error procesando evento ${event._id}:`, err);
+      }
+    }
+  } catch (err) {
+    console.error('[checkCalendarNotifications] Error general:', err);
   }
 };
 

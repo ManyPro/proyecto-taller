@@ -252,7 +252,16 @@ if (!MONGODB_URI) {
 }
 
 mongoose.connect(MONGODB_URI, { dbName: process.env.MONGODB_DB || 'taller' })
-  .then(() => logger.info('mongo.connected', { db: process.env.MONGODB_DB || 'taller' }))
+  .then(() => {
+    logger.info('mongo.connected', { db: process.env.MONGODB_DB || 'taller' });
+    
+    // Iniciar job periódico para verificar notificaciones del calendario
+    const { checkCalendarNotifications } = await import('./controllers/calendar.controller.js');
+    // Ejecutar inmediatamente y luego cada minuto
+    checkCalendarNotifications();
+    setInterval(checkCalendarNotifications, 60 * 1000); // Cada 60 segundos
+    logger.info('calendar.notifications.job.started');
+  })
   .catch(err => {
     logger.error('mongo.connect.error', { err: err.message });
     process.exit(1);
