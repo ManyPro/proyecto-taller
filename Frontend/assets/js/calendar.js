@@ -26,17 +26,17 @@ function formatDateTime(date) {
   return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
-// Función helper para convertir fecha/hora local a ISO sin cambiar la hora
+// Función helper para convertir fecha/hora local a ISO correctamente
+// Cuando el usuario ingresa 15:03 hora local, debe guardarse como 15:03 hora local (no UTC)
+// MongoDB guarda fechas como UTC, así que necesitamos convertir correctamente
 function localDateTimeToISO(dateString, timeString) {
   if (!dateString || !timeString) return null;
-  // Crear fecha en hora local
+  // Crear fecha en hora local (JavaScript interpreta como hora local)
   const localDate = new Date(`${dateString}T${timeString}`);
-  // Obtener el offset de zona horaria en minutos
-  const offsetMs = localDate.getTimezoneOffset() * 60000;
-  // Ajustar la fecha para compensar el offset (convertir a UTC manteniendo la hora local)
-  const adjustedDate = new Date(localDate.getTime() - offsetMs);
-  // Retornar en formato ISO
-  return adjustedDate.toISOString();
+  // toISOString() convierte correctamente a UTC
+  // Si el usuario está en UTC-5 e ingresa 15:03, esto guardará 20:03 UTC
+  // Cuando MongoDB lo lea y lo convierta de vuelta a hora local, mostrará 15:03 correctamente
+  return localDate.toISOString();
 }
 
 function getEventsForDate(date) {
@@ -238,7 +238,7 @@ function openNewEventModal(date = null) {
           </div>
           <div>
             <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">Hora <span class="text-red-400">*</span></label>
-            <input id="event-start-time" type="time" value="${defaultDate.toTimeString().slice(0, 5)}" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input id="event-start-time" type="time" value="${String(defaultDate.getHours()).padStart(2, '0')}:${String(defaultDate.getMinutes()).padStart(2, '0')}" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
         </div>
         
@@ -851,9 +851,12 @@ function openEditEventModal(event) {
   const endDate = event.endDate ? new Date(event.endDate) : null;
   const notificationAt = event.notificationAt ? new Date(event.notificationAt) : null;
   
-  // Preparar valores para los campos nuevos
+  // Preparar valores para los campos nuevos usando hora local
   const eventStartDate = formatDate(startDate);
-  const eventStartTime = startDate.toTimeString().slice(0, 5);
+  // Usar getHours() y getMinutes() para obtener hora local, no UTC
+  const eventStartHours = String(startDate.getHours()).padStart(2, '0');
+  const eventStartMinutes = String(startDate.getMinutes()).padStart(2, '0');
+  const eventStartTime = `${eventStartHours}:${eventStartMinutes}`;
   
   body.innerHTML = `
     <div class="space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar pr-2">
