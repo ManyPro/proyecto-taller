@@ -254,25 +254,67 @@ router.get('/preferences', (req, res) => {
 });
 
 router.put('/preferences', async (req, res) => {
-  let { laborPercents, whatsAppNumber } = req.body || {};
-  if (laborPercents) {
-    if (!Array.isArray(laborPercents)) return res.status(400).json({ error: 'laborPercents debe ser array' });
-    laborPercents = laborPercents
-      .map(n => Number(n))
-      .filter(n => Number.isFinite(n) && n >= 0 && n <= 100)
-      .map(n => Math.round(n));
-    // quitar duplicados y ordenar
-    laborPercents = Array.from(new Set(laborPercents)).sort((a,b)=>a-b);
+  try {
+    const body = req.body || {};
+    let { laborPercents, whatsAppNumber, postServiceMessage, calendar } = body;
+    
+    // Inicializar preferences si no existe
     req.companyDoc.preferences ||= {};
-    req.companyDoc.preferences.laborPercents = laborPercents;
+    
+    // Manejar laborPercents
+    if (laborPercents !== undefined) {
+      if (!Array.isArray(laborPercents)) return res.status(400).json({ error: 'laborPercents debe ser array' });
+      laborPercents = laborPercents
+        .map(n => Number(n))
+        .filter(n => Number.isFinite(n) && n >= 0 && n <= 100)
+        .map(n => Math.round(n));
+      // quitar duplicados y ordenar
+      laborPercents = Array.from(new Set(laborPercents)).sort((a,b)=>a-b);
+      req.companyDoc.preferences.laborPercents = laborPercents;
+    }
+    
+    // Manejar whatsAppNumber
+    if (typeof whatsAppNumber === 'string') {
+      // store as-is; client should send E.164 or local
+      req.companyDoc.preferences.whatsAppNumber = whatsAppNumber.trim();
+    }
+    
+    // Manejar postServiceMessage
+    if (postServiceMessage !== undefined && typeof postServiceMessage === 'object' && !Array.isArray(postServiceMessage)) {
+      req.companyDoc.preferences.postServiceMessage ||= {};
+      if (typeof postServiceMessage.ratingLink === 'string') {
+        req.companyDoc.preferences.postServiceMessage.ratingLink = postServiceMessage.ratingLink.trim();
+      }
+      if (typeof postServiceMessage.ratingQrImageUrl === 'string') {
+        req.companyDoc.preferences.postServiceMessage.ratingQrImageUrl = postServiceMessage.ratingQrImageUrl.trim();
+      }
+    }
+    
+    // Manejar calendar
+    if (calendar !== undefined && typeof calendar === 'object' && !Array.isArray(calendar)) {
+      req.companyDoc.preferences.calendar ||= {};
+      if (typeof calendar.address === 'string') {
+        req.companyDoc.preferences.calendar.address = calendar.address.trim();
+      }
+      if (typeof calendar.mapsLink === 'string') {
+        req.companyDoc.preferences.calendar.mapsLink = calendar.mapsLink.trim();
+      }
+    }
+    
+    // Guardar solo el campo preferences usando updateOne para evitar validar otros campos
+    await Company.updateOne(
+      { _id: req.companyDoc._id },
+      { $set: { preferences: req.companyDoc.preferences } }
+    );
+    
+    // Refrescar el documento para devolver los datos actualizados
+    await req.companyDoc.refresh();
+    
+    res.json({ preferences: req.companyDoc.preferences });
+  } catch (err) {
+    console.error('Error updating preferences:', err);
+    res.status(500).json({ error: 'Error al actualizar preferencias', message: err.message });
   }
-  if (typeof whatsAppNumber === 'string') {
-    req.companyDoc.preferences ||= {};
-    // store as-is; client should send E.164 or local
-    req.companyDoc.preferences.whatsAppNumber = whatsAppNumber.trim();
-  }
-  await req.companyDoc.save();
-  res.json({ preferences: req.companyDoc.preferences });
 });
 
 // ========== Features (flags por empresa) ==========
