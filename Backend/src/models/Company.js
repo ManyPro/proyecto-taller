@@ -63,6 +63,10 @@ const CompanySchema = new mongoose.Schema(
       calendar: {
         address: { type: String, default: '' },
         mapsLink: { type: String, default: '' }
+      },
+      postServiceMessage: {
+        ratingLink: { type: String, default: '' },
+        ratingQrImageUrl: { type: String, default: '' }
       }
     }
   },

@@ -1159,9 +1159,10 @@ function buildCloseModalContent(){
         </div>
         <div id="cv-receipt-status" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin archivos seleccionados</div>
       </div>
-      <div class="md:col-span-2 flex gap-3 mt-4">
-        <button id="cv-confirm" class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Confirmar cierre</button>
-        <button type="button" id="cv-cancel" class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
+      <div class="md:col-span-2 flex flex-wrap gap-2 sm:gap-3 mt-4">
+        <button id="cv-confirm" class="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Confirmar cierre</button>
+        <button type="button" id="cv-send-survey" class="px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">📱 Enviar encuesta</button>
+        <button type="button" id="cv-cancel" class="px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
       </div>
       <div id="cv-msg" class="md:col-span-2 mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
     </div>`;
@@ -1700,6 +1701,19 @@ function fillCloseModal(){
     if(edited && !confirm('Hay cambios en los pagos sin cerrar. ¿Cerrar modal?')) return;
     document.getElementById('modal')?.classList.add('hidden');
   });
+  
+  // Botón de enviar encuesta
+  const sendSurveyBtn = document.getElementById('cv-send-survey');
+  if (sendSurveyBtn) {
+    sendSurveyBtn.addEventListener('click', async () => {
+      if (!current) return;
+      try {
+        await sendPostServiceSurvey(current);
+      } catch (err) {
+        alert('Error al enviar encuesta: ' + (err.message || 'Error desconocido'));
+      }
+    });
+  }
 
   document.getElementById('cv-confirm').addEventListener('click', async ()=>{
     if(!current) return;
@@ -4615,6 +4629,169 @@ function renderQuoteMini(q){
   }
 }
 
+// Abrir modal de configuración del mensaje post-servicio
+async function openPostServiceConfigModal() {
+  const modal = document.getElementById('modal');
+  const body = document.getElementById('modalBody');
+  const close = document.getElementById('modalClose');
+  if (!modal || !body || !close) return;
+  
+  try {
+    // Obtener configuración actual
+    const prefs = await API.company.getPreferences();
+    const currentConfig = prefs.postServiceMessage || { ratingLink: '', ratingQrImageUrl: '' };
+    
+    body.innerHTML = `
+      <div class="space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar pr-2">
+        <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">Configurar mensaje post-servicio</h3>
+        
+        <div class="bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-sky-100/50 p-4 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 mb-4">
+          <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">
+            <strong>Plantilla del mensaje:</strong>
+          </p>
+          <pre class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-pre-wrap bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white p-3 rounded border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">Hola {nombre del cliente}, ha sido un placer atenderte en nuestras instalaciones.
+
+Espero todo haya sido de tu agrado, seria genial que nos dieras tu opinion por este medio: {link calificanos}
+
+{Qr calificanos}
+
+Muchas gracias!</pre>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">
+            Link de calificación <span class="text-red-400">*</span>
+          </label>
+          <input 
+            id="ps-rating-link" 
+            type="url" 
+            value="${htmlEscape(currentConfig.ratingLink || '')}"
+            class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+            placeholder="https://ejemplo.com/calificar"
+          />
+          <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">
+            Este link reemplazará {link calificanos} en el mensaje
+          </p>
+        </div>
+        
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">
+            QR de calificación (imagen)
+          </label>
+          <div class="mb-2">
+            <input 
+              id="ps-rating-qr-file" 
+              type="file" 
+              accept="image/*"
+              class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-600/50 file:text-white file:cursor-pointer hover:file:bg-slate-600"
+            />
+          </div>
+          ${currentConfig.ratingQrImageUrl ? `
+            <div class="mt-3 p-3 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+              <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">Imagen actual:</p>
+              <img src="${htmlEscape(currentConfig.ratingQrImageUrl)}" alt="QR de calificación" class="max-w-[200px] max-h-[200px] rounded border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" />
+            </div>
+          ` : ''}
+          <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">
+            Esta imagen reemplazará {Qr calificanos} en el mensaje
+          </p>
+        </div>
+        
+        <div class="flex flex-wrap gap-3 mt-6 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+          <button id="ps-save" class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
+          <button id="ps-cancel" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-800 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+        </div>
+      </div>
+    `;
+    
+    modal.classList.remove('hidden');
+    
+    // Event listeners
+    document.getElementById('ps-cancel').onclick = () => {
+      modal.classList.add('hidden');
+      body.innerHTML = '';
+    };
+    
+    document.getElementById('ps-save').onclick = async () => {
+      try {
+        const linkInput = document.getElementById('ps-rating-link');
+        const fileInput = document.getElementById('ps-rating-qr-file');
+        
+        if (!linkInput.value.trim()) {
+          return alert('El link de calificación es obligatorio');
+        }
+        
+        let qrImageUrl = currentConfig.ratingQrImageUrl || '';
+        
+        // Subir imagen si se seleccionó una nueva
+        if (fileInput.files && fileInput.files[0]) {
+          const uploadRes = await API.mediaUpload([fileInput.files[0]]);
+          if (uploadRes && uploadRes.files && uploadRes.files[0]) {
+            qrImageUrl = uploadRes.files[0].url || uploadRes.files[0].path || '';
+          }
+        }
+        
+        // Guardar configuración
+        const prefs = await API.company.getPreferences();
+        prefs.postServiceMessage = {
+          ratingLink: linkInput.value.trim(),
+          ratingQrImageUrl: qrImageUrl
+        };
+        
+        await API.company.setPreferences(prefs);
+        
+        alert('Configuración guardada exitosamente');
+        modal.classList.add('hidden');
+        body.innerHTML = '';
+      } catch (err) {
+        alert('Error al guardar configuración: ' + (err.message || 'Error desconocido'));
+      }
+    };
+  } catch (err) {
+    alert('Error al cargar configuración: ' + (err.message || 'Error desconocido'));
+  }
+}
+
+// Enviar encuesta post-servicio por WhatsApp
+async function sendPostServiceSurvey(sale) {
+  try {
+    // Obtener configuración
+    const prefs = await API.company.getPreferences();
+    const config = prefs.postServiceMessage || {};
+    
+    if (!config.ratingLink) {
+      return alert('Por favor configura el mensaje post-servicio primero usando el botón "Configurar mensaje post-servicio"');
+    }
+    
+    const customerName = sale.customer?.name || 'Cliente';
+    const phone = (sale.customer?.phone || '').replace(/\D/g, '');
+    
+    if (!phone) {
+      return alert('No se encontró número de teléfono del cliente');
+    }
+    
+    // Construir mensaje reemplazando variables
+    let message = `Hola ${customerName}, ha sido un placer atenderte en nuestras instalaciones.\n\n`;
+    message += `Espero todo haya sido de tu agrado, seria genial que nos dieras tu opinion por este medio: ${config.ratingLink}\n\n`;
+    
+    if (config.ratingQrImageUrl) {
+      message += `${config.ratingQrImageUrl}\n\n`;
+    }
+    
+    message += 'Muchas gracias!';
+    
+    // Codificar mensaje para URL
+    const encodedMessage = encodeURIComponent(message);
+    
+    // Abrir WhatsApp Web/App
+    const whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
+  } catch (err) {
+    console.error('Error sending post-service survey:', err);
+    throw err;
+  }
+}
+
 // Enviar confirmación por WhatsApp desde evento del calendario
 async function sendWhatsAppConfirmation(sale, calendarEventId) {
   try {
@@ -7089,6 +7266,11 @@ export function initSales(){
   document.getElementById('sales-close')?.addEventListener('click', async ()=>{
     if (!current) return;
     openCloseModal();
+  });
+  
+  // Botón de configurar mensaje post-servicio
+  document.getElementById('sales-configure-post-service')?.addEventListener('click', () => {
+    openPostServiceConfigModal();
   });
 
   document.getElementById('sales-print')?.addEventListener('click', async ()=>{
