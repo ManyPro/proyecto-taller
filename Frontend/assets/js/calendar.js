@@ -473,17 +473,32 @@ function openNewEventModal(date = null) {
     }
   }
   
-  // Notificación
-  notificationEl.addEventListener('change', () => {
-    notificationTimeEl.classList.toggle('hidden', !notificationEl.checked);
-    if (notificationEl.checked && !notificationAtEl.value) {
+  // Notificación - Configurar automáticamente 1 hora antes de la cita
+  function updateNotificationTime() {
+    if (notificationEl.checked) {
       const date = startDateEl.value;
       const time = startTimeEl.value;
       if (date && time) {
-        notificationAtEl.value = `${date}T${time}`;
+        const startDateTime = new Date(`${date}T${time}`);
+        // Si no hay fecha de notificación configurada o está vacía, usar 1 hora antes
+        if (!notificationAtEl.value) {
+          const notificationDateTime = new Date(startDateTime.getTime() - 60 * 60 * 1000); // 1 hora antes
+          notificationAtEl.value = formatDateTime(notificationDateTime);
+        }
       }
     }
+  }
+  
+  notificationEl.addEventListener('change', () => {
+    notificationTimeEl.classList.toggle('hidden', !notificationEl.checked);
+    if (notificationEl.checked) {
+      updateNotificationTime();
+    }
   });
+  
+  // Actualizar fecha de notificación cuando cambie la fecha/hora de inicio
+  startDateEl.addEventListener('change', updateNotificationTime);
+  startTimeEl.addEventListener('input', updateNotificationTime);
   
   // Cancelar
   cancelEl.onclick = () => {
@@ -539,6 +554,8 @@ function openNewEventModal(date = null) {
       body.innerHTML = "";
       await loadEvents();
       renderCalendar();
+      // Mostrar notificación de éxito (sin sonido)
+      showSuccessNotification('Cita creada exitosamente');
     } catch (e) {
       alert("Error: " + (e.message || 'Error al crear el evento'));
     }
@@ -626,7 +643,7 @@ function openEventModal(event) {
           ${hasCustomerData && !event.saleId ? `
             <button id="event-create-sale" class="px-3 sm:px-4 py-2 text-sm sm:text-base bg-green-600/20 dark:bg-green-600/20 hover:bg-green-600/40 dark:hover:bg-green-600/40 text-green-400 dark:text-green-400 hover:text-green-300 dark:hover:text-green-300 font-medium rounded-lg transition-all duration-200 border border-green-600/30 dark:border-green-600/30">💰 Crear Venta</button>
           ` : ''}
-          ${hasCustomerData && event.saleId ? `
+          ${hasCustomerData ? `
             <button id="event-send-whatsapp" class="px-3 sm:px-4 py-2 text-sm sm:text-base bg-green-600/20 dark:bg-green-600/20 hover:bg-green-600/40 dark:hover:bg-green-600/40 text-green-400 dark:text-green-400 hover:text-green-300 dark:hover:text-green-300 font-medium rounded-lg transition-all duration-200 border border-green-600/30 dark:border-green-600/30 w-full sm:w-auto">📱 Enviar confirmación por WhatsApp</button>
           ` : ''}
           <button id="event-edit" class="px-3 sm:px-4 py-2 text-sm sm:text-base bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-medium rounded-lg transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30">Editar</button>
@@ -646,9 +663,9 @@ function openEventModal(event) {
   };
   
   if (event.eventType !== 'reminder') {
-    // Botón de WhatsApp si hay venta creada
+    // Botón de WhatsApp si hay datos del cliente (independientemente de si hay venta)
     const whatsappEl = document.getElementById('event-send-whatsapp');
-    if (whatsappEl && hasCustomerData && event.saleId) {
+    if (whatsappEl && hasCustomerData) {
       whatsappEl.onclick = async () => {
         try {
           await sendWhatsAppConfirmationFromEvent(event);
@@ -1013,16 +1030,32 @@ function openEditEventModal(event) {
     }
   });
   
-  notificationEl.addEventListener('change', () => {
-    notificationTimeEl.classList.toggle('hidden', !notificationEl.checked);
-    if (notificationEl.checked && !notificationAtEl.value) {
+  // Función para actualizar la hora de notificación en edición
+  function updateEditNotificationTime() {
+    if (notificationEl.checked) {
       const date = startDateEl.value;
       const time = startTimeEl.value;
       if (date && time) {
-        notificationAtEl.value = `${date}T${time}`;
+        // Si no hay fecha de notificación configurada, usar 1 hora antes de la cita
+        if (!notificationAtEl.value) {
+          const startDateTime = new Date(`${date}T${time}`);
+          const notificationDateTime = new Date(startDateTime.getTime() - 60 * 60 * 1000); // 1 hora antes
+          notificationAtEl.value = formatDateTime(notificationDateTime);
+        }
       }
     }
+  }
+  
+  notificationEl.addEventListener('change', () => {
+    notificationTimeEl.classList.toggle('hidden', !notificationEl.checked);
+    if (notificationEl.checked) {
+      updateEditNotificationTime();
+    }
   });
+  
+  // Actualizar fecha de notificación cuando cambie la fecha/hora de inicio en edición
+  startDateEl.addEventListener('change', updateEditNotificationTime);
+  startTimeEl.addEventListener('input', updateEditNotificationTime);
   
   cancelEl.onclick = () => {
     modal.classList.add("hidden");
@@ -1068,6 +1101,8 @@ function openEditEventModal(event) {
       body.innerHTML = "";
       await loadEvents();
       renderCalendar();
+      // Mostrar notificación de éxito (sin sonido)
+      showSuccessNotification('Cita actualizada exitosamente');
     } catch (e) {
       alert("Error: " + e.message);
     }
@@ -1187,8 +1222,9 @@ function checkEventNotifications() {
     const timeDiff = notificationDate.getTime() - now.getTime();
     const eventId = String(event._id);
     
-    // Notificar si está entre 1 minuto antes y 5 minutos después
-    if (timeDiff <= 60000 && timeDiff >= -300000 && !notifiedIds.includes(eventId)) {
+    // Notificar si la hora de notificación ya pasó (hasta 5 minutos después) y no se ha notificado antes
+    // Esto permite que funcione incluso si la página se recarga después de la hora programada
+    if (timeDiff <= 300000 && timeDiff >= -300000 && !notifiedIds.includes(eventId)) {
       showEventNotification(event);
       notifiedIds.push(eventId);
       localStorage.setItem("calendarNotificationsNotified", JSON.stringify(notifiedIds));
@@ -1203,6 +1239,31 @@ function checkEventNotifications() {
     return new Date(event.notificationAt).getTime() > oneDayAgo;
   });
   localStorage.setItem("calendarNotificationsNotified", JSON.stringify(filteredIds));
+}
+
+// Función para mostrar notificaciones de éxito (sin sonido, baja importancia)
+function showSuccessNotification(message) {
+  const notification = document.createElement("div");
+  notification.className = "fixed top-5 right-5 z-[3000] bg-green-500 dark:bg-green-500 theme-light:bg-green-400 text-white dark:text-white theme-light:text-green-900 px-5 py-3 rounded-lg text-sm font-semibold shadow-lg max-w-[400px] animate-[slideInFromRight_0.3s_ease-out]";
+  notification.innerHTML = `
+    <div class="flex items-start gap-3">
+      <div class="text-xl flex-shrink-0">✓</div>
+      <div class="flex-1">
+        <div class="font-bold mb-1">${htmlEscape(message)}</div>
+      </div>
+      <button onclick="this.parentElement.parentElement.remove()" class="text-white hover:text-gray-200 text-lg font-bold flex-shrink-0">×</button>
+    </div>
+  `;
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    notification.style.animation = "slideOutToRight 0.3s ease-in";
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.remove();
+      }
+    }, 300);
+  }, 3000); // Desaparece después de 3 segundos
 }
 
 function showEventNotification(event) {
@@ -1468,6 +1529,10 @@ export function initCalendar() {
   // Cargar eventos y renderizar calendario
   loadEvents().then(() => {
     renderCalendar();
+    // Verificar notificaciones después de cargar eventos
+    setTimeout(() => {
+      checkEventNotifications();
+    }, 1000);
   });
   
   // Redimensionar calendario cuando cambia el tamaño de la ventana
@@ -1479,12 +1544,12 @@ export function initCalendar() {
     }, 250);
   });
   
-  // Verificar notificaciones cada minuto
+  // Verificar notificaciones cada 30 segundos para mayor precisión
   setInterval(() => {
     checkEventNotifications();
-  }, 60000);
+  }, 30000);
   
-  // Verificar notificaciones al cargar
+  // Verificar notificaciones al cargar (fallback)
   setTimeout(() => {
     checkEventNotifications();
   }, 2000);
