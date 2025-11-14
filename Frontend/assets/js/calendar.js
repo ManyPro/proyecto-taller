@@ -473,32 +473,51 @@ function openNewEventModal(date = null) {
     }
   }
   
-  // Notificación - Configurar automáticamente 1 hora antes de la cita
+  // Notificación - Configurar automáticamente con la misma hora de la cita si no se cambia
+  let notificationTimeManuallySet = false;
+  
   function updateNotificationTime() {
     if (notificationEl.checked) {
       const date = startDateEl.value;
       const time = startTimeEl.value;
       if (date && time) {
         const startDateTime = new Date(`${date}T${time}`);
-        // Si no hay fecha de notificación configurada o está vacía, usar 1 hora antes
-        if (!notificationAtEl.value) {
-          const notificationDateTime = new Date(startDateTime.getTime() - 60 * 60 * 1000); // 1 hora antes
-          notificationAtEl.value = formatDateTime(notificationDateTime);
+        // Solo actualizar automáticamente si el usuario no ha configurado manualmente la hora
+        if (!notificationTimeManuallySet && !notificationAtEl.value) {
+          // Usar la misma hora de la cita (no restar 1 hora)
+          notificationAtEl.value = formatDateTime(startDateTime);
         }
       }
     }
   }
   
+  // Detectar cuando el usuario cambia manualmente la hora de notificación
+  notificationAtEl.addEventListener('change', () => {
+    notificationTimeManuallySet = true;
+  });
+  
   notificationEl.addEventListener('change', () => {
     notificationTimeEl.classList.toggle('hidden', !notificationEl.checked);
     if (notificationEl.checked) {
+      // Resetear el flag cuando se activa/desactiva
+      if (!notificationAtEl.value) {
+        notificationTimeManuallySet = false;
+      }
       updateNotificationTime();
     }
   });
   
-  // Actualizar fecha de notificación cuando cambie la fecha/hora de inicio
-  startDateEl.addEventListener('change', updateNotificationTime);
-  startTimeEl.addEventListener('input', updateNotificationTime);
+  // Actualizar fecha de notificación cuando cambie la fecha/hora de inicio (solo si no fue configurada manualmente)
+  startDateEl.addEventListener('change', () => {
+    if (!notificationTimeManuallySet) {
+      updateNotificationTime();
+    }
+  });
+  startTimeEl.addEventListener('input', () => {
+    if (!notificationTimeManuallySet) {
+      updateNotificationTime();
+    }
+  });
   
   // Cancelar
   cancelEl.onclick = () => {
@@ -614,7 +633,7 @@ function openEventModal(event) {
       ${event.hasNotification && notificationAt ? `
         <div class="text-sm">
           <div class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Notificación:</div>
-          <div class="text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-600">⏰ ${notificationAt.toLocaleString('es-CO')}</div>
+          <div class="text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-600">⏰ ${notificationAt.toLocaleString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
         </div>
       ` : ''}
       
@@ -1031,31 +1050,50 @@ function openEditEventModal(event) {
   });
   
   // Función para actualizar la hora de notificación en edición
+  let editNotificationTimeManuallySet = false;
+  
   function updateEditNotificationTime() {
     if (notificationEl.checked) {
       const date = startDateEl.value;
       const time = startTimeEl.value;
       if (date && time) {
-        // Si no hay fecha de notificación configurada, usar 1 hora antes de la cita
-        if (!notificationAtEl.value) {
-          const startDateTime = new Date(`${date}T${time}`);
-          const notificationDateTime = new Date(startDateTime.getTime() - 60 * 60 * 1000); // 1 hora antes
-          notificationAtEl.value = formatDateTime(notificationDateTime);
+        const startDateTime = new Date(`${date}T${time}`);
+        // Solo actualizar automáticamente si el usuario no ha configurado manualmente la hora
+        if (!editNotificationTimeManuallySet && !notificationAtEl.value) {
+          // Usar la misma hora de la cita (no restar 1 hora)
+          notificationAtEl.value = formatDateTime(startDateTime);
         }
       }
     }
   }
   
+  // Detectar cuando el usuario cambia manualmente la hora de notificación en edición
+  notificationAtEl.addEventListener('change', () => {
+    editNotificationTimeManuallySet = true;
+  });
+  
   notificationEl.addEventListener('change', () => {
     notificationTimeEl.classList.toggle('hidden', !notificationEl.checked);
     if (notificationEl.checked) {
+      // Resetear el flag cuando se activa/desactiva
+      if (!notificationAtEl.value) {
+        editNotificationTimeManuallySet = false;
+      }
       updateEditNotificationTime();
     }
   });
   
-  // Actualizar fecha de notificación cuando cambie la fecha/hora de inicio en edición
-  startDateEl.addEventListener('change', updateEditNotificationTime);
-  startTimeEl.addEventListener('input', updateEditNotificationTime);
+  // Actualizar fecha de notificación cuando cambie la fecha/hora de inicio en edición (solo si no fue configurada manualmente)
+  startDateEl.addEventListener('change', () => {
+    if (!editNotificationTimeManuallySet) {
+      updateEditNotificationTime();
+    }
+  });
+  startTimeEl.addEventListener('input', () => {
+    if (!editNotificationTimeManuallySet) {
+      updateEditNotificationTime();
+    }
+  });
   
   cancelEl.onclick = () => {
     modal.classList.add("hidden");
@@ -1243,8 +1281,38 @@ function checkEventNotifications() {
 
 // Función para mostrar notificaciones de éxito (sin sonido, baja importancia)
 function showSuccessNotification(message) {
+  // Asegurar que las animaciones CSS estén disponibles
+  if (!document.getElementById('success-notification-styles')) {
+    const style = document.createElement('style');
+    style.id = 'success-notification-styles';
+    style.textContent = `
+      @keyframes slideInFromRight {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      @keyframes slideOutToRight {
+        from {
+          transform: translateX(0);
+          opacity: 1;
+        }
+        to {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
   const notification = document.createElement("div");
-  notification.className = "fixed top-5 right-5 z-[3000] bg-green-500 dark:bg-green-500 theme-light:bg-green-400 text-white dark:text-white theme-light:text-green-900 px-5 py-3 rounded-lg text-sm font-semibold shadow-lg max-w-[400px] animate-[slideInFromRight_0.3s_ease-out]";
+  notification.className = "fixed top-5 right-5 z-[3000] bg-green-500 dark:bg-green-500 theme-light:bg-green-400 text-white dark:text-white theme-light:text-green-900 px-5 py-3 rounded-lg text-sm font-semibold shadow-lg max-w-[400px]";
+  notification.style.animation = "slideInFromRight 0.3s ease-out";
   notification.innerHTML = `
     <div class="flex items-start gap-3">
       <div class="text-xl flex-shrink-0">✓</div>
