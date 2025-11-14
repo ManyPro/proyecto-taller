@@ -628,16 +628,17 @@
         } else {
           const href = btn.dataset.href;
           if(href && href !== 'index.html'){
-            // Cargar contenido dentro de admin.html usando iframe para mantener contexto
-            appSec.innerHTML = `
-              <div class="w-full h-screen" style="min-height: calc(100vh - 200px);">
-                <iframe src="${href}?admin=true&token=${encodeURIComponent(currentCompanyToken || '')}" 
-                        class="w-full h-full border-0" 
-                        style="min-height: calc(100vh - 200px);"
-                        title="${tab}">
-                </iframe>
-              </div>
-            `;
+            // Guardar contexto de admin en sessionStorage antes de navegar
+            try {
+              sessionStorage.setItem('admin:context', 'true');
+              sessionStorage.setItem('admin:token', currentCompanyToken || '');
+              sessionStorage.setItem('admin:email', emailLbl?.textContent || adminEmail || '');
+              sessionStorage.setItem('admin:company', JSON.stringify(currentCompanyData || {}));
+            } catch(e) {
+              console.warn('Error guardando contexto admin:', e);
+            }
+            // Navegar directamente a la página
+            window.location.href = href;
           } else {
             await loadTabContent(tab);
           }
