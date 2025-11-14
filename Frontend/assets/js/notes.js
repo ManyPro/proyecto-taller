@@ -1,5 +1,6 @@
 import { API } from "./api.esm.js";
 import { plateColor, fmt, upper } from "./utils.js";
+import { initCalendar } from "./calendar.js";
 
 const notesState = { page: 1, limit: 50, lastFilters: {} };
 
@@ -319,6 +320,18 @@ export function initNotes() {
         await http.updateNote(row._id, body);
         hardHideModal();
         await refresh(notesState.lastFilters);
+        // Sincronizar recordatorios con calendario
+        if (typeof API !== 'undefined' && API.calendar && API.calendar.syncNoteReminders) {
+          try {
+            await API.calendar.syncNoteReminders();
+            // Recargar calendario si está inicializado
+            if (typeof window !== 'undefined' && window.calendarReload) {
+              window.calendarReload();
+            }
+          } catch (e) {
+            console.error("Error syncing reminders:", e);
+          }
+        }
       } catch (e) {
         alert("Error: " + e.message);
       }
@@ -362,6 +375,18 @@ export function initNotes() {
       if (nReminder) nReminder.value = "";
       nContent.value = ""; nFiles.value = "";
       refresh(notesState.lastFilters);
+      // Sincronizar recordatorios con calendario
+      if (payload.reminderAt && typeof API !== 'undefined' && API.calendar && API.calendar.syncNoteReminders) {
+        try {
+          await API.calendar.syncNoteReminders();
+          // Recargar calendario si está inicializado
+          if (typeof window !== 'undefined' && window.calendarReload) {
+            window.calendarReload();
+          }
+        } catch (e) {
+          console.error("Error syncing reminders:", e);
+        }
+      }
     } catch (e) {
       alert("Error: " + e.message);
     }
@@ -456,4 +481,9 @@ export function initNotes() {
   checkReminders();
 
   refresh({});
+  
+  // Inicializar calendario
+  setTimeout(() => {
+    initCalendar();
+  }, 500);
 }

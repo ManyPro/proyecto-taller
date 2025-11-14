@@ -225,6 +225,15 @@ const API = {
   notesList: (q = '') => http.get(`/api/v1/notes${q}`),
   notesCreate: (payload) => http.post('/api/v1/notes', payload),
   mediaUpload: (files) => http.upload('/api/v1/media/upload', files),
+  
+  // --- Calendario / Eventos ---
+  calendar: {
+    list: (params = {}) => http.get(`/api/v1/calendar${toQuery(params)}`),
+    create: (payload) => http.post('/api/v1/calendar', payload),
+    update: (id, payload) => http.put(`/api/v1/calendar/${id}`, payload),
+    delete: (id) => http.del(`/api/v1/calendar/${id}`),
+    syncNoteReminders: () => http.post('/api/v1/calendar/sync-note-reminders')
+  },
 
   // --- Cotizaciones ---
   // --- Cotizaciones ---

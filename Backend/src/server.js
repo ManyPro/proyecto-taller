@@ -35,6 +35,7 @@ import adminRouter from './routes/admin.routes.js';
 import adminCompanyRouter from './routes/admin.company.routes.js';
 import vehiclesRouter from './routes/vehicles.routes.js';
 import receivablesRouter from './routes/receivables.routes.js';
+import calendarRouter from './routes/calendar.routes.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -220,6 +221,7 @@ function withCompanyDefaults(req, _res, next) {
 }
 
 app.use('/api/v1/notes', authCompany, withCompanyDefaults, notesRouter);
+app.use('/api/v1/calendar', authCompany, withCompanyDefaults, calendarRouter);
 app.use('/api/v1/sales', authCompany, withCompanyDefaults, salesRouter);
 app.use('/api/v1/inventory', authCompany, withCompanyDefaults, inventoryRouter);
 app.use('/api/v1/services', authCompany, withCompanyDefaults, servicesRouter);
