@@ -628,11 +628,15 @@
     });
     
     // Botón del catálogo
-    document.addEventListener('DOMContentLoaded', () => {
+    function setupCatalogButton() {
       const btn = document.getElementById('openPublicCatalog');
       if(!btn) return;
-      const API = window.API || {};
-      const token = API?.token?.get?.() || '';
+      const API = window.API;
+      if(!API || !API.token || !API.token.get) {
+        setTimeout(setupCatalogButton, 100);
+        return;
+      }
+      const token = API.token.get() || '';
       if(!token){ btn.disabled=true; btn.title='Inicia sesión para usar el catálogo'; return; }
       (API.companyMe ? API.companyMe() : Promise.reject(new Error('API no disponible')))
         .then(body => {
@@ -643,6 +647,7 @@
           if(!companyId){ btn.disabled=true; btn.title='No se pudo obtener companyId'; return; }
           if(!enabled){ btn.disabled=true; btn.title='Catálogo público deshabilitado'; btn.dataset.state='disabled'; return; }
           btn.dataset.state='ready';
+          btn.disabled = false;
           btn.onclick = () => {
             const url = 'catalogo.html?companyId=' + encodeURIComponent(companyId);
             window.open(url, '_blank');
@@ -657,7 +662,14 @@
             btn.disabled=true; btn.title='Error consultando empresa'; btn.dataset.state='error';
           }
         });
-    });
+    }
+    document.addEventListener('DOMContentLoaded', setupCatalogButton);
+    // También intentar después de que los scripts se carguen
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', setupCatalogButton);
+    } else {
+      setupCatalogButton();
+    }
   </script>
 </body>
 </html>
