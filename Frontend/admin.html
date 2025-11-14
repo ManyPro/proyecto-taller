@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
@@ -12,7 +12,7 @@
       theme: {
         extend: {
           colors: {
-            'dark-bg': '#0f172a',
+            'dark-bg': '#000000',
             'dark-card': '#111827',
             'dark-card-alt': '#0b1220',
             'dark-text': '#e5e7eb',
@@ -27,55 +27,55 @@
     /* Estilos para modo claro - Sobrescribir colores de Tailwind */
     body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
     body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
-      background: linear-gradient(to right, #f8fafc, #f1f5f9, #f8fafc) !important;
+      background: linear-gradient(to right, #e0f2fe, #e0f2fe, #e0f2fe) !important;
     }
     body.theme-light [class*="bg-slate-800/50"],
     body.theme-light [class*="bg-slate-800"][class*="/50"] {
-      background-color: rgba(241, 245, 249, 0.8) !important;
+      background-color: rgba(224, 242, 254, 0.9) !important;
     }
     body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
-      background-color: #f1f5f9 !important;
+      background-color: #e0f2fe !important;
     }
     body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700) {
-      color: #0f172a !important;
+      color: #000000 !important;
     }
     body.theme-light .text-slate-300 {
-      color: #475569 !important;
+      color: #000000 !important;
     }
     body.theme-light .text-slate-400 {
-      color: #64748b !important;
+      color: #000000 !important;
     }
     body.theme-light [class*="border-slate-700/50"],
     body.theme-light [class*="border-slate-700"][class*="/50"] {
-      border-color: rgba(203, 213, 225, 0.5) !important;
+      border-color: rgba(125, 211, 252, 0.5) !important;
     }
     body.theme-light [class*="bg-slate-900/50"] {
       background-color: rgba(255, 255, 255, 0.9) !important;
     }
     body.theme-light [class*="bg-slate-700/50"] {
-      background-color: rgba(203, 213, 225, 0.5) !important;
+      background-color: rgba(125, 211, 252, 0.5) !important;
     }
     /* Mejorar contrastes en inputs y botones en modo claro */
     body.theme-light input[type="email"],
     body.theme-light input[type="password"],
     body.theme-light input[type="text"] {
       background-color: #ffffff !important;
-      color: #0f172a !important;
-      border-color: #cbd5e1 !important;
+      color: #000000 !important;
+      border-color: #7dd3fc !important;
     }
     body.theme-light input[type="email"]::placeholder,
     body.theme-light input[type="password"]::placeholder,
     body.theme-light input[type="text"]::placeholder {
-      color: #64748b !important;
+      color: #000000 !important;
     }
     body.theme-light #s-request {
       background-color: #ffffff !important;
-      color: #0f172a !important;
-      border: 2px solid #cbd5e1 !important;
+      color: #000000 !important;
+      border: 2px solid #7dd3fc !important;
     }
     body.theme-light #s-request:hover {
-      background-color: #f8fafc !important;
-      border-color: #94a3b8 !important;
+      background-color: #e0f2fe !important;
+      border-color: #7dd3fc !important;
     }
     /* Desactivar scroll en página de login admin */
     body:has(#loginSection:not(.hidden)) {
@@ -138,7 +138,7 @@
       <button id="themeToggleAdmin" class="absolute top-4 right-4 p-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700 hover:text-white dark:hover:text-white theme-light:hover:text-slate-900 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-200/50 rounded-lg transition-colors duration-200 z-20" title="Cambiar tema">🌗</button>
       <div class="w-full max-w-xl space-y-4">
         <!-- Card de Login Admin -->
-        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 relative overflow-hidden">
+        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 relative overflow-hidden">
           <!-- Decoración de fondo -->
           <div class="absolute inset-0 opacity-5">
             <div class="absolute top-0 right-0 w-48 h-48 bg-purple-500 rounded-full blur-3xl"></div>
@@ -164,11 +164,11 @@
             <form class="space-y-3" onsubmit="event.preventDefault(); document.getElementById('a-login')?.click();">
               <div>
                 <label for="a-email" class="block text-xs font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1.5">Correo</label>
-                <input id="a-email" type="email" placeholder="admin@correo.com" class="w-full px-3 py-2 text-sm bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white theme-light:!bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 theme-light:!border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
+                <input id="a-email" type="email" placeholder="admin@correo.com" class="w-full px-3 py-2 text-sm bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 theme-light:!bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 theme-light:!border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
           </div>
           <div>
                 <label for="a-password" class="block text-xs font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1.5">Contraseña</label>
-                <input id="a-password" type="password" placeholder="********" class="w-full px-3 py-2 text-sm bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white theme-light:!bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 theme-light:!border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
+                <input id="a-password" type="password" placeholder="********" class="w-full px-3 py-2 text-sm bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 theme-light:!bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 theme-light:!border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
               </div>
               <button id="a-login" type="button" class="w-full px-4 py-2 text-sm bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200">Entrar</button>
             </form>
@@ -176,7 +176,7 @@
         </div>
 
         <!-- Card de Registro Admin -->
-        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 relative overflow-hidden">
+        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 relative overflow-hidden">
           <!-- Decoración de fondo -->
           <div class="absolute inset-0 opacity-5">
             <div class="absolute top-0 left-0 w-48 h-48 bg-blue-500 rounded-full blur-3xl"></div>
@@ -192,24 +192,24 @@
               <div>
                 <label for="s-email" class="block text-xs font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1.5">Correo</label>
                 <div class="flex gap-2">
-                  <input id="s-email" type="email" placeholder="tu-correo@dominio.com" class="flex-1 px-3 py-2 text-sm bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white theme-light:!bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 theme-light:!border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
-                  <button id="s-request" type="button" class="px-4 py-2 text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white theme-light:!bg-white theme-light:border-2 theme-light:!border-2 theme-light:border-slate-300 theme-light:!border-slate-300 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-50 theme-light:!hover:bg-slate-50 text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 font-semibold rounded-lg transition-all duration-200 whitespace-nowrap">Solicitar</button>
+                  <input id="s-email" type="email" placeholder="tu-correo@dominio.com" class="flex-1 px-3 py-2 text-sm bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 theme-light:!bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 theme-light:!border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
+                  <button id="s-request" type="button" class="px-4 py-2 text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 theme-light:!bg-white theme-light:border-2 theme-light:!border-2 theme-light:border-slate-300 theme-light:!border-slate-300 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-50 theme-light:!hover:bg-slate-50 text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 font-semibold rounded-lg transition-all duration-200 whitespace-nowrap">Solicitar</button>
                 </div>
               </div>
             </div>
 
-            <div class="h-px bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-300/50 my-4"></div>
+            <div class="h-px bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-300/50 my-4"></div>
 
             <!-- Confirmar registro -->
             <div class="space-y-3">
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label for="s-code" class="block text-xs font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1.5">Código</label>
-                  <input id="s-code" type="text" placeholder="000000" class="w-full px-3 py-2 text-sm bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white theme-light:!bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 theme-light:!border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
+                  <input id="s-code" type="text" placeholder="000000" class="w-full px-3 py-2 text-sm bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 theme-light:!bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 theme-light:!border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
           </div>
           <div>
                   <label for="s-pass" class="block text-xs font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1.5">Contraseña</label>
-                  <input id="s-pass" type="password" placeholder="********" class="w-full px-3 py-2 text-sm bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white theme-light:!bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 theme-light:!border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
+                  <input id="s-pass" type="password" placeholder="********" class="w-full px-3 py-2 text-sm bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 theme-light:!bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 theme-light:!border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 theme-light:!text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200" />
                 </div>
               </div>
               <button id="s-confirm" type="button" class="w-full px-4 py-2 text-sm bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200">Confirmar registro</button>
@@ -232,7 +232,7 @@
           <!-- Las empresas se cargarán aquí dinámicamente -->
         </div>
         <div class="text-center mt-6">
-          <button id="backToAdmin" class="px-4 py-2 text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white theme-light:border-2 theme-light:border-slate-300 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-50 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200">Volver al panel admin</button>
+          <button id="backToAdmin" class="px-4 py-2 text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 theme-light:border-2 theme-light:border-slate-300 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-50 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200">Volver al panel admin</button>
         </div>
       </div>
     </section>
@@ -404,7 +404,7 @@
       }
       companiesList.forEach(c => {
         const card = document.createElement('div');
-        card.className = 'bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 hover:shadow-2xl transition-all duration-300 cursor-pointer';
+        card.className = 'bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 hover:shadow-2xl transition-all duration-300 cursor-pointer';
         card.innerHTML = `
           <h3 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">${c.name || '-'}</h3>
           <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">${c.email || '-'}</p>

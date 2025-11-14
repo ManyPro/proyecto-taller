@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
@@ -12,7 +12,7 @@
       theme: {
         extend: {
           colors: {
-            'dark-bg': '#0f172a',
+            'dark-bg': '#000000',
             'dark-card': '#111827',
             'dark-card-alt': '#0b1220',
             'dark-text': '#e5e7eb',
@@ -27,55 +27,55 @@
     /* Estilos para modo claro - Sobrescribir colores de Tailwind */
     body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
     body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
-      background: linear-gradient(to right, #f8fafc, #f1f5f9, #f8fafc) !important;
+      background: linear-gradient(to right, #e0f2fe, #e0f2fe, #e0f2fe) !important;
     }
     body.theme-light [class*="bg-slate-800/50"],
     body.theme-light [class*="bg-slate-800"][class*="/50"] {
-      background-color: rgba(241, 245, 249, 0.8) !important;
+      background-color: rgba(224, 242, 254, 0.9) !important;
     }
     body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
-      background-color: #f1f5f9 !important;
+      background-color: #e0f2fe !important;
     }
     body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700) {
-      color: #0f172a !important;
+      color: #000000 !important;
     }
     body.theme-light .text-slate-300 {
-      color: #475569 !important;
+      color: #000000 !important;
     }
     body.theme-light .text-slate-400 {
-      color: #64748b !important;
+      color: #000000 !important;
     }
     body.theme-light [class*="border-slate-700/50"],
     body.theme-light [class*="border-slate-700"][class*="/50"] {
-      border-color: rgba(203, 213, 225, 0.5) !important;
+      border-color: rgba(125, 211, 252, 0.5) !important;
     }
     body.theme-light [class*="hover:bg-slate-700/50"]:hover,
     body.theme-light button:hover[class*="hover:bg-slate-700"] {
-      background-color: rgba(203, 213, 225, 0.5) !important;
+      background-color: rgba(125, 211, 252, 0.5) !important;
     }
     body.theme-light [class*="hover:text-white"]:hover:not(.bg-blue-600):not(.bg-blue-700) {
-      color: #0f172a !important;
+      color: #000000 !important;
     }
     /* Mejorar contraste de botones grises en modo claro */
     body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]),
     body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]) {
-      background-color: #e2e8f0 !important;
-      color: #475569 !important;
-      border-color: #cbd5e1 !important;
+      background-color: #bae6fd !important;
+      color: #000000 !important;
+      border-color: #7dd3fc !important;
     }
     body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]):hover,
     body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]):hover {
-      background-color: #cbd5e1 !important;
-      color: #334155 !important;
-      border-color: #94a3b8 !important;
+      background-color: #7dd3fc !important;
+      color: #000000 !important;
+      border-color: #7dd3fc !important;
     }
     /* Estilos para el fondo de la página */
     body {
-      background-color: #0f172a;
+      background-color: #000000;
       min-height: 100vh;
     }
     body.theme-light {
-      background-color: #f8fafc;
+      background-color: #e0f2fe;
     }
     /* Estilos para el modal global */
     #modal.hidden {
@@ -121,13 +121,13 @@
     /* Mejorar contrastes de barras de navegación en modo claro */
     body.theme-light .nav-tab:not(.active),
     body.theme-light .mobile-nav-tab:not(.active) {
-      color: #475569 !important;
+      color: #000000 !important;
       background-color: transparent !important;
     }
     body.theme-light .nav-tab:not(.active):hover,
     body.theme-light .mobile-nav-tab:not(.active):hover {
-      color: #0f172a !important;
-      background-color: rgba(203, 213, 225, 0.5) !important;
+      color: #000000 !important;
+      background-color: rgba(125, 211, 252, 0.5) !important;
     }
     body.theme-light .nav-tab.active,
     body.theme-light .mobile-nav-tab.active {
@@ -136,19 +136,19 @@
     }
     /* Estilos del selector de plantillas - mantener compatibilidad */
     body[data-page="formatos"]{
-      background: #0f172a !important;
+      background: #000000 !important;
       padding: 0 !important;
     }
     body.theme-light[data-page="formatos"] {
-      background: #f8fafc !important;
+      background: #e0f2fe !important;
     }
     body[data-page="formatos"] main {
-      background: #0f172a;
+      background: #000000;
       min-height: 100vh;
       padding: 20px;
     }
     body.theme-light[data-page="formatos"] main {
-      background: #f8fafc;
+      background: #e0f2fe;
     }
   </style>
   <link rel="stylesheet" href="assets/css/pages/template-selector.css?v=20251010-2">
@@ -236,7 +236,7 @@
 
       <!-- MODAL GLOBAL -->
       <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
-        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] my-auto overflow-hidden">
+        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-sky-50 rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] my-auto overflow-hidden">
           <button id="modalClose" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
           <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
             <div id="modal-img-wrap" class="flex flex-col items-center justify-center gap-4">
@@ -244,7 +244,7 @@
               <div class="zoom-controls flex gap-2">
                 <button id="zoom-in" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200">+</button>
                 <button id="zoom-out" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200">-</button>
-                <button id="zoom-reset" class="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Reset</button>
+                <button id="zoom-reset" class="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Reset</button>
               </div>
             </div>
           </div>
@@ -351,67 +351,67 @@
         </div>
 
         <div class="active-formats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
-          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="invoice">
+          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="invoice">
             <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
               <span>🧾</span>
               <span>Formato de Remisión Activo</span>
             </h4>
-            <select id="active-invoice-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900">
+            <select id="active-invoice-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900">
               <option value="">Cargando formatos...</option>
             </select>
             <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará al imprimir remisiones desde ventas</p>
           </div>
 
-          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="quote">
+          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="quote">
             <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
               <span>💰</span>
               <span>Formato de Cotización Activo</span>
             </h4>
-            <select id="active-quote-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900">
+            <select id="active-quote-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900">
               <option value="">Cargando formatos...</option>
             </select>
             <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará al imprimir cotizaciones</p>
           </div>
 
-          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="sticker-qr">
+          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="sticker-qr">
             <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
               <span>🏷️</span>
               <span>Formato de Sticker Activo (Solo QR)</span>
             </h4>
-            <select id="active-stickerqr-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900">
+            <select id="active-stickerqr-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900">
               <option value="">Cargando formatos...</option>
             </select>
             <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Se usará para imprimir stickers con solo QR y código</p>
           </div>
 
-          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="invoice-factura">
+          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="invoice-factura">
             <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
               <span>📄</span>
               <span>Formato de Factura Activo</span>
             </h4>
-            <select id="active-invoicefactura-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900">
+            <select id="active-invoicefactura-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900">
               <option value="">Cargando formatos...</option>
             </select>
             <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará para imprimir facturas (usa la misma plantilla de remisión por ahora)</p>
           </div>
 
-          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="payroll">
+          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="payroll">
             <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
               <span>💰</span>
               <span>Formato de Nómina Activo</span>
             </h4>
-            <select id="active-payroll-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900">
+            <select id="active-payroll-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900">
               <option value="">Cargando formatos...</option>
             </select>
             <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará para imprimir comprobantes de nómina</p>
           </div>
 
-          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="workOrder">
+          <div class="format-config-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg p-4" data-type="workOrder">
             <h4 class="m-0 mb-4 text-white dark:text-white theme-light:text-slate-900 flex items-center gap-2">
               <span>🔧</span>
               <span>Formato de Orden de Trabajo Activo</span>
             </h4>
-            <select id="active-workorder-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900">
+            <select id="active-workorder-format" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900">
               <option value="">Cargando formatos...</option>
             </select>
             <p class="mt-2 mb-0 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Este formato se usará para imprimir órdenes de trabajo</p>
@@ -420,7 +420,7 @@
       </div>
 
       <div class="navigation flex justify-between items-center gap-4 mt-6">
-        <button class="back-btn px-4 py-3 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 flex items-center gap-2" onclick="history.back()">
+        <button class="back-btn px-4 py-3 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 flex items-center gap-2" onclick="history.back()">
           <span>⬅️</span>
           <span>Volver</span>
         </button>
@@ -434,21 +434,21 @@
 
   <!-- Modal para nombre de formato -->
   <div id="format-name-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
-    <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 w-full max-w-lg overflow-hidden">
-      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 px-6 py-4 flex justify-between items-center border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
+    <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-sky-50 rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 w-full max-w-lg overflow-hidden">
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 px-6 py-4 flex justify-between items-center border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
         <h3 id="modal-title" class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 m-0">🎨 Crear Nuevo Formato</h3>
         <button class="modal-close bg-transparent border-0 text-white dark:text-white theme-light:text-slate-900 text-2xl cursor-pointer hover:opacity-70 transition-opacity duration-200" onclick="closeFormatNameModal()">&times;</button>
       </div>
       <div class="modal-body p-6">
         <div class="input-group mb-4">
           <label for="format-name-input" class="block text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mb-2">Nombre del formato:</label>
-          <input type="text" id="format-name-input" placeholder="Ej: Mi Factura Premium" maxlength="50" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input type="text" id="format-name-input" placeholder="Ej: Mi Factura Premium" maxlength="50" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
           <div class="input-help flex justify-end mt-2">
             <span id="char-counter" class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600">0/50</span>
           </div>
         </div>
         <div class="format-preview flex gap-3 items-center mt-4">
-          <div class="preview-icon w-10 h-10 flex items-center justify-center bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-2xl" id="modal-icon">📄</div>
+          <div class="preview-icon w-10 h-10 flex items-center justify-center bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-2xl" id="modal-icon">📄</div>
           <div class="preview-text">
             <strong id="preview-type" class="block text-white dark:text-white theme-light:text-slate-900">Remisión</strong>
             <p class="m-0 text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600">Se creará con la plantilla correspondiente</p>
@@ -647,7 +647,7 @@
               </h4>
               <div class="actions flex gap-1">
                 <button class="action-btn px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors duration-200" title="Editar" onclick="editFormat('${format.id || format._id}', '${format.type || selectedDocumentType}', '${(format.name||'').replace(/'/g, "\'")}')">✏️</button>
-                <button class="action-btn px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white theme-light:text-slate-700 rounded transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:hover:bg-slate-300" title="Duplicar" onclick="duplicateFormat('${format.id || format._id}')">📋</button>
+                <button class="action-btn px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white theme-light:text-slate-700 rounded transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:hover:bg-slate-300" title="Duplicar" onclick="duplicateFormat('${format.id || format._id}')">📋</button>
                 ${!format.isActive ? `<button class="action-btn px-2 py-1 bg-yellow-600 hover:bg-yellow-700 text-white rounded transition-colors duration-200" title="Activar" onclick="activateFormat('${format.id || format._id}')">⭐</button>` : ''}
                 <button class="action-btn px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded transition-colors duration-200" title="Eliminar" onclick="deleteFormat('${format.id || format._id}')">🗑️</button>
               </div>

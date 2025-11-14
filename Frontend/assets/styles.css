@@ -157,40 +157,40 @@ body.theme-light .toggle input:checked + .toggle-slider{
   margin-top:10px;
 }
 
-/* Tema claro: se aplica añadiendo body.theme-light */
+/* Tema claro: se aplica añadiendo body.theme-light - Celeste claro */
 body.theme-light{
-  --bg:#f5f7fb;
+  --bg:#e0f2fe;
   --card:#ffffff;
-  --card-alt:#f1f5f9;
-  --text:#1f2937;
+  --card-alt:#dbeafe;
+  --text:#000000;
   --text-invert:#ffffff;
-  --muted:#64748b;
+  --muted:#000000;
   --accent:#2563eb;
   --accent-hover:#1d4ed8;
   --danger:#dc2626;
-  --border:#d0d7e2;
+  --border:#7dd3fc;
   --input-bg:#ffffff;
-  --scroll-track:#e2e8f0;
-  --scroll-thumb:#94a3b8;
+  --scroll-track:#bae6fd;
+  --scroll-thumb:#7dd3fc;
   --focus-ring:0 0 0 2px rgba(37,99,235,.35);
-  --table-head:#f1f5f9;
+  --table-head:#dbeafe;
   --badge-bg:#2563eb;
   --shadow-elev:0 6px 20px rgba(0,0,0,.15);
-  --header-bg:linear-gradient(90deg,#ffffff,#f1f5f9);
-  --tab-bg:#f1f5f9;
-  --tab-border:#d9e0e9;
+  --header-bg:linear-gradient(90deg,#ffffff,#e0f2fe);
+  --tab-bg:#dbeafe;
+  --tab-border:#7dd3fc;
   --tab-bg-active:#2563eb;
-  --tab-text:#334155;
+  --tab-text:#000000;
   --tab-text-active:#ffffff;
-  --sales-tab-bg:#f1f5f9;
-  --sales-tab-bg-active:#dbe4ee;
-  --sales-tab-text:#334155;
-  --sales-tab-text-active:#1e293b;
+  --sales-tab-bg:#dbeafe;
+  --sales-tab-bg-active:#bae6fd;
+  --sales-tab-text:#000000;
+  --sales-tab-text-active:#000000;
   --highlight-bg:rgba(37,99,235,.13);
   --added-row-bg:rgba(56,189,248,.18);
   --added-row-border:rgba(2,132,199,.45);
   --sales-tab-border-active:#2563eb;
-  --avatar-bg:#d8e2ec;
+  --avatar-bg:#bae6fd;
   --plate-chip-bg:#1e293b; /* fondo oscuro para placa en claro */
   --plate-chip-text:#ffffff;
   --inv-badge-bg:#047857;        /* verde para modo claro */

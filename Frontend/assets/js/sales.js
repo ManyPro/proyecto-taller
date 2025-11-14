@@ -1086,10 +1086,10 @@ function buildCloseModalContent(){
     <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">
       Total venta: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(total)}</strong>
     </div>
-    <div id="cv-payments-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+    <div id="cv-payments-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
       <div class="flex justify-between items-center mb-4">
         <strong class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">Formas de pago</strong>
-        <button id="cv-add-payment" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">+ Agregar</button>
+        <button id="cv-add-payment" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">+ Agregar</button>
       </div>
       <table class="w-full text-xs border-collapse" id="cv-payments-table">
         <thead>
@@ -1104,7 +1104,7 @@ function buildCloseModalContent(){
       </table>
       <div id="cv-payments-summary" class="mt-3 text-xs"></div>
     </div>
-    <div id="cv-labor-commissions-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+    <div id="cv-labor-commissions-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
       <div class="flex justify-between items-center mb-4">
         <div>
           <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Desglose de mano de obra</label>
@@ -1115,7 +1115,7 @@ function buildCloseModalContent(){
       <div class="overflow-x-auto">
         <table class="w-full text-xs border-collapse">
           <thead>
-            <tr class="border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-400 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-200">
+            <tr class="border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-400 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-200">
               <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Técnico</th>
               <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Tipo de MO</th>
               <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Valor MO</th>
@@ -1140,28 +1140,28 @@ function buildCloseModalContent(){
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div class="hidden">
         <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Técnico (cierre)</label>
-        <select id="cv-technician" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
+        <select id="cv-technician" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></select>
         <div id="cv-initial-tech" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 hidden"></div>
       </div>
       <div class="hidden">
         <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">% Técnico (Mano de obra)</label>
-        <select id="cv-laborPercent" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"></select>
-        <input id="cv-laborPercentManual" type="number" min="0" max="100" step="0.1" placeholder="Ej: 15.5" class="w-full px-3 py-2 mt-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hidden" />
+        <select id="cv-laborPercent" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"></select>
+        <input id="cv-laborPercentManual" type="number" min="0" max="100" step="0.1" placeholder="Ej: 15.5" class="w-full px-3 py-2 mt-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 hidden" />
         <div class="flex items-center gap-2 mt-2">
-          <button id="cv-toggle-percent" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 font-medium">📝 Manual %</button>
+          <button id="cv-toggle-percent" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 font-medium">📝 Manual %</button>
         </div>
         <div id="cv-laborSharePreview" class="mt-3 p-2 bg-blue-900/20 dark:bg-blue-900/20 theme-light:bg-blue-50 rounded border border-blue-700/30 dark:border-blue-700/30 theme-light:border-blue-300 text-xs text-blue-300 dark:text-blue-300 theme-light:text-blue-700 font-medium hidden"></div>
       </div>
       <div class="md:col-span-2">
         <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Comprobante (opcional)</label>
         <div class="relative">
-          <input id="cv-receipt" type="file" accept="image/*,.pdf" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-600/50 file:text-white file:cursor-pointer hover:file:bg-slate-600" />
+          <input id="cv-receipt" type="file" accept="image/*,.pdf" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-600/50 file:text-white file:cursor-pointer hover:file:bg-slate-600" />
         </div>
         <div id="cv-receipt-status" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin archivos seleccionados</div>
       </div>
       <div class="md:col-span-2 flex gap-3 mt-4">
         <button id="cv-confirm" class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Confirmar cierre</button>
-        <button type="button" id="cv-cancel" class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
+        <button type="button" id="cv-cancel" class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
       </div>
       <div id="cv-msg" class="md:col-span-2 mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
     </div>`;
@@ -1323,10 +1323,10 @@ function fillCloseModal(){
       const kindOpts = '<option value="">-- Seleccione tipo --</option>' + laborKindsList.map(k=> `<option value="${k}">${k}</option>`).join('');
       tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 hover:bg-slate-800/30 dark:hover:bg-slate-800/30 theme-light:hover:bg-slate-50';
       tr.innerHTML = `
-        <td class="py-2.5 px-3"><select data-role="tech" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">${techOpts}</select></td>
-        <td class="py-2.5 px-3"><select data-role="kind" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">${kindOpts}</select></td>
-        <td class="py-2.5 px-3 text-right"><input data-role="lv" type="number" min="0" step="1" value="${Number(pref.laborValue||0)||0}" class="w-28 px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs text-right focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" placeholder="0"></td>
-        <td class="py-2.5 px-3 text-right"><input data-role="pc" type="number" min="0" max="100" step="0.1" value="${Number(pref.percent||0)||0}" class="w-24 px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs text-right focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" placeholder="0%"></td>
+        <td class="py-2.5 px-3"><select data-role="tech" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">${techOpts}</select></td>
+        <td class="py-2.5 px-3"><select data-role="kind" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200">${kindOpts}</select></td>
+        <td class="py-2.5 px-3 text-right"><input data-role="lv" type="number" min="0" step="1" value="${Number(pref.laborValue||0)||0}" class="w-28 px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs text-right focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" placeholder="0"></td>
+        <td class="py-2.5 px-3 text-right"><input data-role="pc" type="number" min="0" max="100" step="0.1" value="${Number(pref.percent||0)||0}" class="w-24 px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-xs text-right focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" placeholder="0%"></td>
         <td class="py-2.5 px-3 text-right text-white dark:text-white theme-light:text-slate-900 font-bold text-sm" data-role="share">$0</td>
         <td class="py-2.5 px-3 text-center"><button type="button" class="px-3 py-1.5 text-sm bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 theme-light:bg-red-50 theme-light:hover:bg-red-100 text-red-400 dark:text-red-400 theme-light:text-red-600 rounded-lg transition-colors duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300 font-bold" data-role="del">×</button></td>`;
       tbody.appendChild(tr);
@@ -1648,9 +1648,9 @@ function fillCloseModal(){
     const tr = document.createElement('tr');
     tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 hover:bg-slate-800/30 dark:hover:bg-slate-800/30 theme-light:hover:bg-slate-50';
     tr.innerHTML = `
-      <td class="py-2 px-2"><select data-role="method" class="w-full px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">${methodOptionsHTML(pay.method)}</select></td>
-      <td class="py-2 px-2"><select data-role="account" class="w-full px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">${accountOptionsHTML(pay.accountId)}</select></td>
-      <td class="py-2 px-2"><input data-role="amount" type="number" min="0" step="1" value="${pay.amount||''}" class="w-full px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500" /></td>
+      <td class="py-2 px-2"><select data-role="method" class="w-full px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">${methodOptionsHTML(pay.method)}</select></td>
+      <td class="py-2 px-2"><select data-role="account" class="w-full px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">${accountOptionsHTML(pay.accountId)}</select></td>
+      <td class="py-2 px-2"><input data-role="amount" type="number" min="0" step="1" value="${pay.amount||''}" class="w-full px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500" /></td>
       <td class="py-2 px-2 text-center"><button data-role="del" type="button" class="px-2 py-1 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 theme-light:bg-red-50 theme-light:hover:bg-red-100 text-red-400 dark:text-red-400 theme-light:text-red-600 rounded transition-colors duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300">×</button></td>`;
     pmBody.appendChild(tr);
     bindRowEvents(tr, pay);
@@ -1899,6 +1899,37 @@ function renderMini(){
   if (lp) lp.textContent = v.plate || '—';
   if (ln) ln.textContent = `Cliente: ${c.name || '—'}`;
   if (lr) lr.textContent = `Cel: ${c.phone || '—'}`;
+  
+  // Verificar si la venta viene de un evento del calendario
+  const fromCalendarEventId = localStorage.getItem('sales:fromCalendarEvent');
+  const urlParams = new URLSearchParams(window.location.search);
+  const calendarEventId = fromCalendarEventId || urlParams.get('fromCalendar');
+  
+  // Buscar contenedor de botones o crear uno si no existe
+  const miniContainer = document.getElementById('sv-customer-mini');
+  if (miniContainer && calendarEventId && c.name && c.phone && current) {
+    // Eliminar botón anterior si existe
+    const existingBtn = document.getElementById('sv-whatsapp-btn');
+    if (existingBtn) existingBtn.remove();
+    
+    // Crear botón de WhatsApp
+    const whatsappBtn = document.createElement('button');
+    whatsappBtn.id = 'sv-whatsapp-btn';
+    whatsappBtn.className = 'mt-3 w-full px-4 py-2 bg-green-600/20 dark:bg-green-600/20 hover:bg-green-600/40 dark:hover:bg-green-600/40 text-green-400 dark:text-green-400 hover:text-green-300 dark:hover:text-green-300 font-medium rounded-lg transition-all duration-200 border border-green-600/30 dark:border-green-600/30 theme-light:bg-green-50 theme-light:text-green-700 theme-light:hover:bg-green-100 theme-light:border-green-300 flex items-center justify-center gap-2';
+    whatsappBtn.innerHTML = '<span>📱</span> <span>Enviar confirmación por WhatsApp</span>';
+    whatsappBtn.onclick = async () => {
+      try {
+        await sendWhatsAppConfirmation(current, calendarEventId);
+      } catch (err) {
+        alert('Error: ' + (err.message || 'No se pudo enviar el mensaje'));
+      }
+    };
+    miniContainer.appendChild(whatsappBtn);
+  } else if (miniContainer) {
+    // Eliminar botón si no viene del calendario
+    const existingBtn = document.getElementById('sv-whatsapp-btn');
+    if (existingBtn) existingBtn.remove();
+  }
 }
 
 function renderSale(){
@@ -3085,7 +3116,7 @@ function openAddUnified(){
   console.log('Creando modal de agregar...');
   // Modal inicial: elegir entre QR y Manual
   const node = document.createElement('div');
-  node.className = 'bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6';
+  node.className = 'bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6';
   node.style.cssText = 'max-width:600px;margin:0 auto;';
   node.innerHTML = `
     <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6 text-center">Agregar items</h3>
@@ -3094,13 +3125,13 @@ function openAddUnified(){
         <span class="text-5xl">📷</span>
         <span class="text-base">Agregar QR</span>
       </button>
-      <button id="add-manual-btn" class="px-6 py-8 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center gap-3 border-none cursor-pointer">
+      <button id="add-manual-btn" class="px-6 py-8 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 flex flex-col items-center gap-3 border-none cursor-pointer">
         <span class="text-5xl">✏️</span>
         <span class="text-base">Agregar manual</span>
       </button>
     </div>
     <div class="text-center">
-      <button id="add-cancel-btn" class="px-6 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200">Cancelar</button>
+      <button id="add-cancel-btn" class="px-6 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200">Cancelar</button>
     </div>
   `;
   
@@ -4397,18 +4428,18 @@ async function openPickerPrices(){
 // ---------- cotización → venta (mini) ----------
 async function loadQuote(){
   const node=document.createElement('div');
-  node.className='bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6';
+  node.className='bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6';
   node.innerHTML=`<h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6 text-center">Selecciona una cotización</h3>
     <div class="flex flex-col sm:flex-row gap-3 mb-4">
-      <input id="qh-text" placeholder="Buscar por cliente/placa..." class="flex-1 px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+      <input id="qh-text" placeholder="Buscar por cliente/placa..." class="flex-1 px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
       <button id="qh-apply" class="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 whitespace-nowrap">Buscar</button>
     </div>
     <div id="qh-list" class="custom-scrollbar space-y-2" style="max-height:400px; overflow-y:auto; margin-top:8px; padding-right:4px;"></div>
     <div class="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
       <div id="qh-meta" class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
       <div class="flex gap-2">
-        <button id="qh-prev" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:hover:bg-slate-300" disabled>◀</button>
-        <button id="qh-next" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:hover:bg-slate-300" disabled>▶</button>
+        <button id="qh-prev" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:hover:bg-slate-300" disabled>◀</button>
+        <button id="qh-next" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-white theme-light:text-slate-900 font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:hover:bg-slate-300" disabled>▶</button>
       </div>
     </div>`;
   openModal(node);
@@ -4436,7 +4467,7 @@ async function loadQuote(){
     list.innerHTML='';
     items.forEach(qq=>{
       const card=document.createElement('button');
-      card.className='w-full text-left p-4 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-200 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 rounded-lg transition-all duration-200 group';
+      card.className='w-full text-left p-4 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-sky-100 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-200 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 rounded-lg transition-all duration-200 group';
       card.innerHTML=`
         <div class="flex items-center justify-between">
           <div class="flex-1">
@@ -4602,6 +4633,84 @@ function renderQuoteMini(q){
         }
       });
     };
+  }
+}
+
+// Enviar confirmación por WhatsApp desde evento del calendario
+async function sendWhatsAppConfirmation(sale, calendarEventId) {
+  try {
+    // Obtener configuración del calendario
+    const settings = await API.calendar.getSettings();
+    
+    // Obtener evento del calendario para obtener fecha/hora
+    let eventDate = null;
+    let eventTime = null;
+    try {
+      // Buscar evento por ID (necesitamos obtenerlo de alguna manera)
+      // Por ahora, usaremos la fecha/hora actual o la fecha de creación de la venta
+      const saleDate = sale.createdAt ? new Date(sale.createdAt) : new Date();
+      eventDate = saleDate.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      eventTime = saleDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+      
+      // Intentar obtener el evento del calendario si tenemos el ID
+      if (calendarEventId) {
+        try {
+          // Obtener eventos del mes actual y el siguiente para encontrar el evento
+          const now = new Date();
+          const nextMonth = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+          const events = await API.calendar.list({
+            from: new Date(now.getFullYear(), now.getMonth(), 1).toISOString(),
+            to: nextMonth.toISOString()
+          });
+          const event = events.items?.find(e => String(e._id) === String(calendarEventId));
+          if (event && event.startDate) {
+            const eventDateObj = new Date(event.startDate);
+            eventDate = eventDateObj.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            eventTime = eventDateObj.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+          }
+        } catch (err) {
+          console.warn('No se pudo obtener evento del calendario:', err);
+        }
+      }
+    } catch (err) {
+      console.error('Error getting event date:', err);
+      eventDate = new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      eventTime = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    }
+    
+    const customerName = sale.customer?.name || 'Cliente';
+    const companyName = settings.companyName || 'Nuestra empresa';
+    const address = settings.address || '';
+    const mapsLink = settings.mapsLink || '';
+    
+    // Formatear mensaje según especificación
+    let message = `Estimado ${customerName}, su cita en ${companyName}, está confirmada para el día ${eventDate} y hora ${eventTime}.\n\n`;
+    
+    if (address) {
+      message += `Te esperamos en esta dirección: ${address}\n`;
+    }
+    
+    if (mapsLink) {
+      message += `${mapsLink}\n`;
+    }
+    
+    message += '\nTe esperamos!';
+    
+    // Codificar mensaje para URL
+    const encodedMessage = encodeURIComponent(message);
+    
+    // Número de teléfono del cliente (limpiar formato)
+    const phone = (sale.customer?.phone || '').replace(/\D/g, '');
+    if (!phone) {
+      return alert('No se encontró número de teléfono del cliente');
+    }
+    
+    // Abrir WhatsApp Web/App
+    const whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
+  } catch (err) {
+    console.error('Error sending WhatsApp confirmation:', err);
+    throw err;
   }
 }
 
@@ -5170,6 +5279,49 @@ export function initSales(){
   })();
 
   try { localStorage.removeItem('sales:lastQuoteId'); } catch {}
+
+  // Detectar si viene del calendario y cargar cotización si existe
+  const urlParams = new URLSearchParams(window.location.search);
+  const fromCalendar = urlParams.get('fromCalendar');
+  const saleId = urlParams.get('saleId');
+  
+  if (fromCalendar && saleId) {
+    // Limpiar parámetros de URL después de leerlos
+    const newUrl = window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
+    
+    // Cargar venta y cotización después de un breve delay
+    setTimeout(async () => {
+      try {
+        const sale = await API.sales.get(saleId);
+        if (sale) {
+          current = sale;
+          syncCurrentIntoOpenList();
+          renderTabs();
+          renderSale();
+          renderMini();
+          renderWO();
+          
+          // Cargar cotización si existe en localStorage
+          const quoteId = localStorage.getItem('sales:lastQuoteId');
+          if (quoteId) {
+            try {
+              const quote = await API.quoteGet(quoteId);
+              if (quote) {
+                lastQuoteLoaded = quote;
+                ensureSaleQuoteLink(quote);
+                await renderQuoteForCurrentSale();
+              }
+            } catch (err) {
+              console.warn('No se pudo cargar cotización:', err);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error loading sale from calendar:', err);
+      }
+    }, 500);
+  }
 
   refreshOpenSales();
   startSalesAutoRefresh();

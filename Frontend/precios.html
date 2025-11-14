@@ -12,7 +12,7 @@
       theme: {
         extend: {
           colors: {
-            'dark-bg': '#0f172a',
+            'dark-bg': '#000000',
             'dark-card': '#111827',
             'dark-card-alt': '#0b1220',
             'dark-text': '#e5e7eb',
@@ -27,68 +27,68 @@
     /* Estilos para modo claro - Sobrescribir colores de Tailwind */
     body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
     body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
-      background: linear-gradient(to right, #f8fafc, #f1f5f9, #f8fafc) !important;
+      background: linear-gradient(to right, #e0f2fe, #e0f2fe, #e0f2fe) !important;
     }
     body.theme-light [class*="bg-slate-800/50"],
     body.theme-light [class*="bg-slate-800"][class*="/50"] {
-      background-color: rgba(241, 245, 249, 0.8) !important;
+      background-color: rgba(224, 242, 254, 0.9) !important;
     }
     body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
-      background-color: #f1f5f9 !important;
+      background-color: #e0f2fe !important;
     }
     body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700) {
-      color: #0f172a !important;
+      color: #000000 !important;
     }
     body.theme-light .text-slate-300 {
-      color: #475569 !important;
+      color: #000000 !important;
     }
     body.theme-light .text-slate-400 {
-      color: #64748b !important;
+      color: #000000 !important;
     }
     body.theme-light [class*="border-slate-700/50"],
     body.theme-light [class*="border-slate-700"][class*="/50"] {
-      border-color: rgba(203, 213, 225, 0.5) !important;
+      border-color: rgba(125, 211, 252, 0.5) !important;
     }
     body.theme-light [class*="hover:bg-slate-700/50"]:hover,
     body.theme-light button:hover[class*="hover:bg-slate-700"] {
-      background-color: rgba(203, 213, 225, 0.5) !important;
+      background-color: rgba(125, 211, 252, 0.5) !important;
     }
     body.theme-light [class*="hover:text-white"]:hover:not(.bg-blue-600):not(.bg-blue-700) {
-      color: #0f172a !important;
+      color: #000000 !important;
     }
     /* Mejorar contraste de botones grises en modo claro */
     body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]),
     body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]) {
-      background-color: #e2e8f0 !important;
-      color: #475569 !important;
-      border-color: #cbd5e1 !important;
+      background-color: #bae6fd !important;
+      color: #000000 !important;
+      border-color: #7dd3fc !important;
     }
     body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]):hover,
     body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]):hover {
-      background-color: #cbd5e1 !important;
-      color: #334155 !important;
-      border-color: #94a3b8 !important;
+      background-color: #7dd3fc !important;
+      color: #000000 !important;
+      border-color: #7dd3fc !important;
     }
-    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"],
-    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"] {
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"],
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"] {
       background-color: #ffffff !important;
-      color: #0f172a !important;
-      border-color: #94a3b8 !important;
+      color: #000000 !important;
+      border-color: #7dd3fc !important;
     }
-    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"]:hover,
-    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"]:focus,
-    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"]:hover,
-    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"]:focus {
-      border-color: #64748b !important;
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"]:hover,
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"]:focus,
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"]:hover,
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"]:focus {
+      border-color: #000000 !important;
       background-color: #ffffff !important;
     }
     /* Estilos para el fondo de la página */
     body {
-      background-color: #0f172a;
+      background-color: #000000;
       min-height: 100vh;
     }
     body.theme-light {
-      background-color: #f8fafc;
+      background-color: #e0f2fe;
     }
     /* Estilos para el modal global */
     #modal.hidden {
@@ -133,13 +133,13 @@
     /* Mejorar contrastes de barras de navegación en modo claro */
     body.theme-light .nav-tab:not(.active),
     body.theme-light .mobile-nav-tab:not(.active) {
-      color: #475569 !important;
+      color: #000000 !important;
       background-color: transparent !important;
     }
     body.theme-light .nav-tab:not(.active):hover,
     body.theme-light .mobile-nav-tab:not(.active):hover {
-      color: #0f172a !important;
-      background-color: rgba(203, 213, 225, 0.5) !important;
+      color: #000000 !important;
+      background-color: rgba(125, 211, 252, 0.5) !important;
     }
     body.theme-light .nav-tab.active,
     body.theme-light .mobile-nav-tab.active {
@@ -235,7 +235,7 @@
 
       <!-- MODAL GLOBAL -->
       <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
-        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] my-auto overflow-hidden">
+        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-sky-50 rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] my-auto overflow-hidden">
           <button id="modalClose" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
           <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
             <!-- Content will be injected here -->
@@ -247,7 +247,7 @@
       <section id="tab-precios" class="tab active">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <!-- Tabs internas: Lista de precios y Vehículos -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mb-6">
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mb-6">
             <div class="flex flex-wrap gap-2 payroll-tabs">
               <button class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 data-subtab-prices bg-blue-600 text-white" data-subtab="prices">💰 Lista de precios</button>
               <button class="px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 data-subtab-vehicles bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" data-subtab="vehicles">🚗 Vehículos</button>
@@ -255,14 +255,14 @@
           </div>
 
           <!-- Tab: Lista de precios -->
-          <div data-subsection="prices" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+          <div data-subsection="prices" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
             <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6">Lista de precios</h3>
             
             <!-- Filtros -->
             <div id="filters-bar" class="mb-6">
               <div class="mb-4">
                 <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">Seleccionar marca</label>
-                <select id="pf-make-select" class="w-full max-w-md px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                <select id="pf-make-select" class="w-full max-w-md px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
                   <option value="">-- Selecciona una marca --</option>
                 </select>
               </div>
@@ -271,7 +271,7 @@
                 <div id="pf-lines-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3"></div>
               </div>
               <input type="hidden" id="pf-vehicle-id" />
-              <div id="pf-vehicle-selected" class="hidden mt-4 p-4 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+              <div id="pf-vehicle-selected" class="hidden mt-4 p-4 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
                 <div class="flex justify-between items-center">
                   <div>
                     <span class="text-green-400 dark:text-green-400 theme-light:text-green-600 font-semibold">✓ Vehículo seleccionado:</span>
@@ -296,11 +296,11 @@
             <div id="pe-filters" class="hidden mb-6 flex flex-wrap gap-3">
               <div class="flex-1 min-w-[200px]">
                 <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Buscar por nombre</label>
-                <input id="pe-filter-name" placeholder="Nombre del servicio/producto..." class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+                <input id="pe-filter-name" placeholder="Nombre del servicio/producto..." class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
               </div>
               <div class="min-w-[150px]">
                 <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Tipo</label>
-                <select id="pe-filter-type" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                <select id="pe-filter-type" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
                   <option value="">Todos</option>
                   <option value="service">Servicios</option>
                   <option value="product">Productos</option>
@@ -313,10 +313,10 @@
             </div>
 
             <!-- Tabla de precios -->
-            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mt-4">
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mt-4">
               <div class="overflow-x-auto custom-scrollbar">
                 <table class="w-full text-sm mobile-as-cards" id="pe-table">
-                  <thead id="pe-head" class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100"></thead>
+                  <thead id="pe-head" class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100"></thead>
                   <tbody id="pe-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
                 </table>
               </div>
@@ -325,29 +325,29 @@
           </div>
 
           <!-- Tab: Vehículos -->
-          <div data-subsection="vehicles" class="hidden bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+          <div data-subsection="vehicles" class="hidden bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
             <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">Base de datos de vehículos</h3>
             <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-6">Gestiona la base de datos global de vehículos. Esta base es compartida por todas las empresas.</p>
             
             <!-- Formulario crear/editar vehículo -->
-            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mb-6">
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mb-6">
               <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">Crear/Editar vehículo</h4>
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
                 <div>
                   <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Marca</label>
-                  <input id="v-make" placeholder="Ej: RENAULT" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 uppercase" />
+                  <input id="v-make" placeholder="Ej: RENAULT" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 uppercase" />
                 </div>
                 <div>
                   <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Línea</label>
-                  <input id="v-line" placeholder="Ej: DUSTER" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 uppercase" />
+                  <input id="v-line" placeholder="Ej: DUSTER" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 uppercase" />
                 </div>
                 <div>
                   <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Cilindraje</label>
-                  <input id="v-displacement" placeholder="Ej: 1.6" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 uppercase" />
+                  <input id="v-displacement" placeholder="Ej: 1.6" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 uppercase" />
                 </div>
                 <div>
                   <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Modelo (año o rango)</label>
-                  <input id="v-modelyear" placeholder="Ej: 2020 o 2018-2022" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+                  <input id="v-modelyear" placeholder="Ej: 2020 o 2018-2022" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
                   <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Año fijo (2020) o rango (2018-2022). Dejar vacío si no aplica.</p>
                 </div>
                 <div>
@@ -358,15 +358,15 @@
             </div>
 
             <!-- Filtros y búsqueda -->
-            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mb-6">
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mb-6">
               <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-end">
                 <div class="sm:col-span-2">
                   <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Buscar</label>
-                  <input id="v-search" placeholder="Buscar por marca, línea o cilindraje..." class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+                  <input id="v-search" placeholder="Buscar por marca, línea o cilindraje..." class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
                 </div>
                 <div>
                   <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Marca</label>
-                  <select id="v-filter-make" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                  <select id="v-filter-make" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
                     <option value="">Todas</option>
                   </select>
                 </div>
@@ -402,7 +402,7 @@
       <td class="py-3 px-4" data-vehicle data-label="Tipo"></td>
       <td class="py-3 px-4" data-name data-label="Nombre"></td>
       <td class="py-3 px-4 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600" data-item-info data-label="Item vinculado / Productos"></td>
-      <td class="py-3 px-4 text-right" data-label="Precio"><input data-price type="number" step="0.01" class="w-24 px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" /></td>
+      <td class="py-3 px-4 text-right" data-label="Precio"><input data-price type="number" step="0.01" class="w-24 px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" /></td>
       <td class="py-3 px-4 text-center" data-label="Acciones">
         <div class="flex gap-2 justify-center">
           <button class="edit px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200">✏️ Editar</button>

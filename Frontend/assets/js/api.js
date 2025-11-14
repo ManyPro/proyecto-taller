@@ -232,7 +232,11 @@ const API = {
     create: (payload) => http.post('/api/v1/calendar', payload),
     update: (id, payload) => http.put(`/api/v1/calendar/${id}`, payload),
     delete: (id) => http.del(`/api/v1/calendar/${id}`),
-    syncNoteReminders: () => http.post('/api/v1/calendar/sync-note-reminders')
+    syncNoteReminders: () => http.post('/api/v1/calendar/sync-note-reminders'),
+    searchByPlate: (plate) => http.get(`/api/v1/calendar/search-by-plate/${encodeURIComponent(plate)}`),
+    getQuotesByPlate: (plate) => http.get(`/api/v1/calendar/quotes-by-plate/${encodeURIComponent(plate)}`),
+    getSettings: () => http.get('/api/v1/calendar/settings'),
+    updateSettings: (payload) => http.put('/api/v1/calendar/settings', payload)
   },
 
   // --- Cotizaciones ---

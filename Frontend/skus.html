@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
         <meta charset="utf-8" />
@@ -12,7 +12,7 @@
             theme: {
                 extend: {
                     colors: {
-                        'dark-bg': '#0f172a',
+                        'dark-bg': '#000000',
                         'dark-card': '#111827',
                         'dark-card-alt': '#0b1220',
                         'dark-text': '#e5e7eb',
@@ -27,68 +27,68 @@
         /* Estilos para modo claro - Sobrescribir colores de Tailwind */
         body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
         body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
-            background: linear-gradient(to right, #f8fafc, #f1f5f9, #f8fafc) !important;
+            background: linear-gradient(to right, #e0f2fe, #e0f2fe, #e0f2fe) !important;
         }
         body.theme-light [class*="bg-slate-800/50"],
         body.theme-light [class*="bg-slate-800"][class*="/50"] {
-            background-color: rgba(241, 245, 249, 0.8) !important;
+            background-color: rgba(224, 242, 254, 0.9) !important;
         }
         body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
-            background-color: #f1f5f9 !important;
+            background-color: #e0f2fe !important;
         }
         body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700) {
-            color: #0f172a !important;
+            color: #000000 !important;
         }
         body.theme-light .text-slate-300 {
-            color: #475569 !important;
+            color: #000000 !important;
         }
         body.theme-light .text-slate-400 {
-            color: #64748b !important;
+            color: #000000 !important;
         }
         body.theme-light [class*="border-slate-700/50"],
         body.theme-light [class*="border-slate-700"][class*="/50"] {
-            border-color: rgba(203, 213, 225, 0.5) !important;
+            border-color: rgba(125, 211, 252, 0.5) !important;
         }
         body.theme-light [class*="hover:bg-slate-700/50"]:hover,
         body.theme-light button:hover[class*="hover:bg-slate-700"] {
-            background-color: rgba(203, 213, 225, 0.5) !important;
+            background-color: rgba(125, 211, 252, 0.5) !important;
         }
         body.theme-light [class*="hover:text-white"]:hover:not(.bg-blue-600):not(.bg-blue-700) {
-            color: #0f172a !important;
+            color: #000000 !important;
         }
         /* Mejorar contraste de botones grises en modo claro */
         body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]),
         body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]) {
-            background-color: #e2e8f0 !important;
-            color: #475569 !important;
-            border-color: #cbd5e1 !important;
+            background-color: #bae6fd !important;
+            color: #000000 !important;
+            border-color: #7dd3fc !important;
         }
         body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]):hover,
         body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]):hover {
-            background-color: #cbd5e1 !important;
-            color: #334155 !important;
-            border-color: #94a3b8 !important;
+            background-color: #7dd3fc !important;
+            color: #000000 !important;
+            border-color: #7dd3fc !important;
         }
-        body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"],
-        body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"] {
+        body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"],
+        body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"] {
             background-color: #ffffff !important;
-            color: #0f172a !important;
-            border-color: #94a3b8 !important;
+            color: #000000 !important;
+            border-color: #7dd3fc !important;
         }
-        body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"]:hover,
-        body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"]:focus,
-        body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"]:hover,
-        body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"]:focus {
-            border-color: #64748b !important;
+        body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"]:hover,
+        body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"]:focus,
+        body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"]:hover,
+        body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"]:focus {
+            border-color: #000000 !important;
             background-color: #ffffff !important;
         }
         /* Estilos para el fondo de la página */
         body {
-            background-color: #0f172a;
+            background-color: #000000;
             min-height: 100vh;
         }
         body.theme-light {
-            background-color: #f8fafc;
+            background-color: #e0f2fe;
         }
         /* Estilos para el modal global */
         #modal.hidden {
@@ -134,13 +134,13 @@
         /* Mejorar contrastes de barras de navegación en modo claro */
         body.theme-light .nav-tab:not(.active),
         body.theme-light .mobile-nav-tab:not(.active) {
-            color: #475569 !important;
+            color: #000000 !important;
             background-color: transparent !important;
         }
         body.theme-light .nav-tab:not(.active):hover,
         body.theme-light .mobile-nav-tab:not(.active):hover {
-            color: #0f172a !important;
-            background-color: rgba(203, 213, 225, 0.5) !important;
+            color: #000000 !important;
+            background-color: rgba(125, 211, 252, 0.5) !important;
         }
         body.theme-light .nav-tab.active,
         body.theme-light .mobile-nav-tab.active {
@@ -164,7 +164,7 @@
         }
         body.theme-light .sku-select {
             background: #ffffff;
-            border-color: rgba(203, 213, 225, 0.5);
+            border-color: rgba(125, 211, 252, 0.5);
         }
         .sku-select:hover {
             box-shadow: 0 0 0 3px rgba(2,132,199,.15);
@@ -321,7 +321,7 @@
         <section id="appSection" class="hidden">
             <!-- Modal global reutilizable -->
             <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
-                <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-2xl w-full max-h-[90vh] my-auto overflow-hidden">
+                <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-sky-50 rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-2xl w-full max-h-[90vh] my-auto overflow-hidden">
                     <button id="modalClose" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
                     <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
                         <!-- Content will be injected here -->
@@ -331,14 +331,14 @@
 
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <!-- Header -->
-                <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
+                <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
                             <h1 class="text-2xl md:text-3xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">📦 Gestión de SKUs</h1>
                             <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 opacity-90">Control y seguimiento de códigos de repuestos</p>
             </div>
                         <div class="flex gap-3">
-                            <button id="btn-refresh" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 flex items-center gap-2">
+                            <button id="btn-refresh" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 flex items-center gap-2">
                     <span>🔄</span>
                     <span>Actualizar</span>
                 </button>
@@ -348,34 +348,34 @@
 
         <!-- Stats -->
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5 mb-6" id="stats-grid">
-                    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 border-l-4 border-l-blue-600">
+                    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 border-l-4 border-l-blue-600">
                         <div class="text-3xl md:text-4xl font-bold text-white dark:text-white theme-light:text-slate-900" id="total-skus">0</div>
                         <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Total SKUs</div>
             </div>
-                    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 border-l-4 border-l-amber-500">
+                    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 border-l-4 border-l-amber-500">
                         <div class="text-3xl md:text-4xl font-bold text-white dark:text-white theme-light:text-slate-900" id="pending-skus">0</div>
                         <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Pendientes</div>
             </div>
-                    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 border-l-4 border-l-blue-600">
+                    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 border-l-4 border-l-blue-600">
                         <div class="text-3xl md:text-4xl font-bold text-white dark:text-white theme-light:text-slate-900" id="printed-skus">0</div>
                         <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Impresos</div>
             </div>
-                    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 border-l-4 border-l-green-600">
+                    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-5 border-l-4 border-l-green-600">
                         <div class="text-3xl md:text-4xl font-bold text-white dark:text-white theme-light:text-slate-900" id="applied-skus">0</div>
                         <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">Aplicados</div>
             </div>
         </div>
 
                 <!-- Filters + Pagination -->
-                <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
+                <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
                     <div class="flex flex-wrap gap-3 items-end mb-4">
                         <div class="flex-1 min-w-[260px]">
                             <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Buscar (código, descripción, notas)</label>
-                            <input id="sku-search" placeholder="Ej: FLINY, BOMBA, filtro" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+                            <input id="sku-search" placeholder="Ej: FLINY, BOMBA, filtro" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Categoría</label>
-                            <select id="sku-category" class="px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                            <select id="sku-category" class="px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
                                 <option value="all">Todas</option>
                                 <option value="MOTOR">Motor</option>
                                 <option value="TRANSMISION">Transmisión</option>
@@ -392,7 +392,7 @@
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Estado</label>
-                            <select id="sku-status" class="px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                            <select id="sku-status" class="px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
                                 <option value="all">Todos</option>
                                 <option value="pending">Pendiente</option>
                                 <option value="printed">Impreso</option>
@@ -402,17 +402,17 @@
                         <div>
                             <label class="block text-xs font-medium text-transparent mb-1.5">&nbsp;</label>
                             <div class="flex gap-2">
-                                <button id="sku-apply" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Buscar</button>
-                                <button id="sku-clear" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Limpiar</button>
+                                <button id="sku-apply" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Buscar</button>
+                                <button id="sku-clear" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Limpiar</button>
                             </div>
                         </div>
                     </div>
                     <!-- Selection toolbar -->
                     <div class="flex flex-wrap gap-2 items-center pt-4 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
-                        <button id="sku-sel-page" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm" title="Seleccionar todos los SKUs de la página">Seleccionar página</button>
-                        <button id="sku-sel-clear" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm" title="Limpiar selección">Limpiar selección</button>
+                        <button id="sku-sel-page" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm" title="Seleccionar todos los SKUs de la página">Seleccionar página</button>
+                        <button id="sku-sel-clear" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm" title="Limpiar selección">Limpiar selección</button>
                         <button id="sku-bulk-printed" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm" title="Marcar seleccionados como impresos">Marcar impresos (<span id="sku-sel-count">0</span>)</button>
-                        <button id="sku-bulk-applied" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm" title="Marcar seleccionados como aplicados">Marcar aplicados</button>
+                        <button id="sku-bulk-applied" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 text-sm" title="Marcar seleccionados como aplicados">Marcar aplicados</button>
                     </div>
                 </div>
 
@@ -423,11 +423,11 @@
                 </div>
 
                 <!-- List (paginated) -->
-                <div id="sku-list" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 overflow-hidden"></div>
+                <div id="sku-list" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 overflow-hidden"></div>
                 <div id="sku-pager" class="hidden flex justify-end items-center gap-2 mt-4">
-                    <button id="pg-prev" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">◀ Anterior</button>
+                    <button id="pg-prev" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">◀ Anterior</button>
                     <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 min-w-[120px] text-center" id="pg-info">Página 1/1</div>
-                    <button id="pg-next" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">Siguiente ▶</button>
+                    <button id="pg-next" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">Siguiente ▶</button>
                 </div>
     </div>
         </section>
@@ -513,7 +513,7 @@
                     const btns = [];
             if (sku.printStatus === 'pending') btns.push(`<button class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all duration-200 text-sm font-semibold" data-print="${sku._id}" title="Marcar como impreso">🖨️</button>`);
             if (sku.printStatus === 'printed') btns.push(`<button class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-all duration-200 text-sm font-semibold" data-apply="${sku._id}" title="Marcar como aplicado">✅</button>`);
-            btns.push(`<button class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white rounded-lg transition-all duration-200 text-sm font-semibold border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" data-notes="${sku._id}" title="Editar notas">✏️</button>`);
+            btns.push(`<button class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white rounded-lg transition-all duration-200 text-sm font-semibold border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900" data-notes="${sku._id}" title="Editar notas">✏️</button>`);
                     return btns.join(' ');
                 }
 
@@ -540,7 +540,7 @@
                                         ${sku.brand ? `<span>🏷️ ${sku.brand}</span>` : ''}
                                         ${sku.location ? `<span>📍 ${sku.location}</span>` : ''}
                                     </div>
-                            <div class="mt-2 p-2 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">📝 <span id="n-${sku._id}">${sku.notes || ''}</span></div>
+                            <div class="mt-2 p-2 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-50 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 rounded text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">📝 <span id="n-${sku._id}">${sku.notes || ''}</span></div>
                                 </div>
                         <div class="flex items-center gap-2">
                                 ${skuStatusPill(sku.printStatus, sku.pendingStickers)}
@@ -643,9 +643,9 @@
                     if(!modal||!body||!close){ return alert('Modal no disponible'); }
                     body.innerHTML = `
                 <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Notas del SKU</h3>
-                <textarea id="sku-notes-text" rows="6" class="w-full px-4 py-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y">${current.replace(/</g,'&lt;')}</textarea>
+                <textarea id="sku-notes-text" rows="6" class="w-full px-4 py-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y">${current.replace(/</g,'&lt;')}</textarea>
                 <div class="flex justify-end gap-2 mt-4">
-                    <button id="notes-cancel" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+                    <button id="notes-cancel" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
                     <button id="notes-save" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
                         </div>`;
                     modal.classList.remove('hidden');

@@ -12,7 +12,7 @@
       theme: {
         extend: {
           colors: {
-            'dark-bg': '#0f172a',
+            'dark-bg': '#000000',
             'dark-card': '#111827',
             'dark-card-alt': '#0b1220',
             'dark-text': '#e5e7eb',
@@ -27,68 +27,68 @@
     /* Estilos para modo claro - Sobrescribir colores de Tailwind */
     body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
     body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
-      background: linear-gradient(to right, #f8fafc, #f1f5f9, #f8fafc) !important;
+      background: linear-gradient(to right, #e0f2fe, #e0f2fe, #e0f2fe) !important;
     }
     body.theme-light [class*="bg-slate-800/50"],
     body.theme-light [class*="bg-slate-800"][class*="/50"] {
-      background-color: rgba(241, 245, 249, 0.8) !important;
+      background-color: rgba(224, 242, 254, 0.9) !important;
     }
     body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
-      background-color: #f1f5f9 !important;
+      background-color: #e0f2fe !important;
     }
     body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700) {
-      color: #0f172a !important;
+      color: #000000 !important;
     }
     body.theme-light .text-slate-300 {
-      color: #475569 !important;
+      color: #000000 !important;
     }
     body.theme-light .text-slate-400 {
-      color: #64748b !important;
+      color: #000000 !important;
     }
     body.theme-light [class*="border-slate-700/50"],
     body.theme-light [class*="border-slate-700"][class*="/50"] {
-      border-color: rgba(203, 213, 225, 0.5) !important;
+      border-color: rgba(125, 211, 252, 0.5) !important;
     }
     body.theme-light [class*="hover:bg-slate-700/50"]:hover,
     body.theme-light button:hover[class*="hover:bg-slate-700"] {
-      background-color: rgba(203, 213, 225, 0.5) !important;
+      background-color: rgba(125, 211, 252, 0.5) !important;
     }
     body.theme-light [class*="hover:text-white"]:hover:not(.bg-blue-600):not(.bg-blue-700) {
-      color: #0f172a !important;
+      color: #000000 !important;
     }
     /* Mejorar contraste de botones grises en modo claro */
     body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]),
     body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]) {
-      background-color: #e2e8f0 !important;
-      color: #475569 !important;
-      border-color: #cbd5e1 !important;
+      background-color: #bae6fd !important;
+      color: #000000 !important;
+      border-color: #7dd3fc !important;
     }
     body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]):hover,
     body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]):hover {
-      background-color: #cbd5e1 !important;
-      color: #334155 !important;
-      border-color: #94a3b8 !important;
+      background-color: #7dd3fc !important;
+      color: #000000 !important;
+      border-color: #7dd3fc !important;
     }
-    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"],
-    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"] {
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"],
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"] {
       background-color: #ffffff !important;
-      color: #0f172a !important;
-      border-color: #94a3b8 !important;
+      color: #000000 !important;
+      border-color: #7dd3fc !important;
     }
-    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"]:hover,
-    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-white"]:focus,
-    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"]:hover,
-    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-white"]:focus {
-      border-color: #64748b !important;
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"]:hover,
+    body.theme-light select.bg-slate-700\/50[class*="theme-light:bg-sky-50"]:focus,
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"]:hover,
+    body.theme-light select[class*="bg-slate-700/50"][class*="theme-light:bg-sky-50"]:focus {
+      border-color: #000000 !important;
       background-color: #ffffff !important;
     }
     /* Estilos para el fondo de la página */
     body {
-      background-color: #0f172a;
+      background-color: #000000;
       min-height: 100vh;
     }
     body.theme-light {
-      background-color: #f8fafc;
+      background-color: #e0f2fe;
     }
     /* Estilos para el modal global */
     #modal.hidden {
@@ -134,13 +134,13 @@
     /* Mejorar contrastes de barras de navegación en modo claro */
     body.theme-light .nav-tab:not(.active),
     body.theme-light .mobile-nav-tab:not(.active) {
-      color: #475569 !important;
+      color: #000000 !important;
       background-color: transparent !important;
     }
     body.theme-light .nav-tab:not(.active):hover,
     body.theme-light .mobile-nav-tab:not(.active):hover {
-      color: #0f172a !important;
-      background-color: rgba(203, 213, 225, 0.5) !important;
+      color: #000000 !important;
+      background-color: rgba(125, 211, 252, 0.5) !important;
     }
     body.theme-light .nav-tab.active,
     body.theme-light .mobile-nav-tab.active {
@@ -174,7 +174,7 @@
       }
       body.theme-light .overflow-x-auto tr {
         background: #ffffff;
-        border-color: rgba(203, 213, 225, 0.5);
+        border-color: rgba(125, 211, 252, 0.5);
       }
       .overflow-x-auto td {
         display: flex;
@@ -205,7 +205,7 @@
         flex-wrap: wrap;
       }
       body.theme-light .overflow-x-auto td:last-child {
-        border-top-color: rgba(203, 213, 225, 0.5);
+        border-top-color: rgba(125, 211, 252, 0.5);
       }
       .overflow-x-auto td:last-child:before {
         display: none;
@@ -305,7 +305,7 @@
     <section id="appSection" class="hidden">
       <!-- Modal global reutilizable -->
       <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
-        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-white rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] my-auto overflow-hidden">
+        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-sky-50 rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] my-auto overflow-hidden">
           <button id="modalClose" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
           <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
             <!-- Content will be injected here -->
@@ -317,15 +317,15 @@
   <section id="tab-cashflow" class="tab active">
         <div class="w-full px-2 sm:px-4 lg:px-6 py-6">
           <!-- Cuentas -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
             <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Cuentas</h3>
             <div class="flex flex-wrap gap-2 items-end mb-4">
-              <button id="cf-refresh" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Actualizar</button>
+              <button id="cf-refresh" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Actualizar</button>
               <button id="cf-add-account" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">+ Cuenta</button>
             </div>
             <div id="cf-accounts" class="max-h-[200px] overflow-auto custom-scrollbar mb-2">
               <table class="w-full text-sm">
-                <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100">
+                <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100">
                   <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
                     <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Nombre</th>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Tipo</th>
@@ -340,25 +340,25 @@
           </div>
 
           <!-- Movimientos -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 mb-6">
             <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Movimientos</h3>
             <div class="flex flex-wrap gap-2 items-end mb-4">
-              <select id="cf-filter-account" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              <select id="cf-filter-account" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">-- Cuenta --</option>
               </select>
-              <input type="date" id="cf-from" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-              <input type="date" id="cf-to" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
-              <select id="cf-kind" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              <input type="date" id="cf-from" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+              <input type="date" id="cf-to" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+              <select id="cf-kind" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">IN/OUT</option>
                 <option value="IN">Entradas</option>
                 <option value="OUT">Salidas</option>
               </select>
-              <select id="cf-source" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              <select id="cf-source" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">Fuente</option>
                 <option value="SALE">Venta</option>
                 <option value="MANUAL">Manual</option>
               </select>
-              <button id="cf-apply" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Aplicar</button>
+              <button id="cf-apply" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Aplicar</button>
               <button id="cf-new-entry" class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">+ Entrada manual</button>
               <button id="cf-new-expense" class="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 dark:from-red-600 dark:to-red-700 theme-light:from-red-500 theme-light:to-red-600 hover:from-red-700 hover:to-red-800 dark:hover:from-red-700 dark:hover:to-red-800 theme-light:hover:from-red-600 theme-light:hover:to-red-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">- Salida</button>
               <button id="cf-new-loan" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💰 Préstamo</button>
@@ -367,7 +367,7 @@
             <div class="max-h-[360px] overflow-auto custom-scrollbar mb-4">
               <div class="overflow-x-auto">
                 <table class="w-full text-sm min-w-[920px]">
-                  <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100">
+                  <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100">
                     <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
                       <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Fecha</th>
                       <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Cuenta</th>
@@ -386,31 +386,31 @@
             <div class="flex justify-between items-center text-xs">
               <div id="cf-pag" class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Página 1</div>
               <div class="flex gap-2">
-                <button id="cf-prev" disabled class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">←</button>
-                <button id="cf-next" disabled class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">→</button>
+                <button id="cf-prev" disabled class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">←</button>
+                <button id="cf-next" disabled class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 disabled:opacity-50 disabled:cursor-not-allowed">→</button>
             </div>
           </div>
         </div>
         
         <!-- Sección de Préstamos a Empleados -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
             <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Préstamos a Empleados</h3>
             <div class="flex flex-wrap gap-2 items-end mb-4">
-              <select id="cf-loan-filter-tech" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              <select id="cf-loan-filter-tech" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">-- Todos los empleados --</option>
               </select>
-              <select id="cf-loan-filter-status" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              <select id="cf-loan-filter-status" class="px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
               <option value="">Todos</option>
               <option value="pending">Pendientes</option>
               <option value="partially_paid">Parcialmente pagados</option>
               <option value="paid">Pagados</option>
             </select>
-              <button id="cf-refresh-loans" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Actualizar</button>
+              <button id="cf-refresh-loans" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Actualizar</button>
           </div>
             <div class="max-h-[300px] overflow-auto custom-scrollbar mb-2">
               <div class="overflow-x-auto">
                 <table class="w-full text-sm">
-                  <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100">
+                  <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100">
                     <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
                       <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Fecha</th>
                       <th class="px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Empleado</th>

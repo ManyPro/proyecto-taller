@@ -59,7 +59,11 @@ const CompanySchema = new mongoose.Schema(
     preferences: {
       laborPercents: { type: [Number], default: [30, 40, 50] },
       laborKinds: { type: [String], default: ['MOTOR', 'SUSPENSION', 'FRENOS'] },
-      whatsAppNumber: { type: String, default: '' }
+      whatsAppNumber: { type: String, default: '' },
+      calendar: {
+        address: { type: String, default: '' },
+        mapsLink: { type: String, default: '' }
+      }
     }
   },
   { timestamps: true }

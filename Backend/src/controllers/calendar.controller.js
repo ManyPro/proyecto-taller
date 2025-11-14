@@ -1,5 +1,10 @@
 import CalendarEvent from "../models/CalendarEvent.js";
 import Note from "../models/Note.js";
+import CustomerProfile from "../models/CustomerProfile.js";
+import Vehicle from "../models/Vehicle.js";
+import Quote from "../models/Quote.js";
+import Company from "../models/Company.js";
+import { upsertProfileFromSource } from "./profile.helper.js";
 import mongoose from "mongoose";
 
 export const listEvents = async (req, res) => {
@@ -29,10 +34,39 @@ export const listEvents = async (req, res) => {
 };
 
 export const createEvent = async (req, res) => {
-  const { title, description, startDate, endDate, allDay, hasNotification, notificationAt, color } = req.body || {};
+  const { 
+    title, description, startDate, endDate, allDay, hasNotification, notificationAt, color,
+    plate, customer, vehicleId, quoteId
+  } = req.body || {};
   
   if (!title || !startDate) {
     return res.status(400).json({ error: "title y startDate son requeridos" });
+  }
+  
+  const companyId = new mongoose.Types.ObjectId(req.companyId);
+  
+  // Si hay placa, cliente y teléfono, crear/actualizar perfil de cliente
+  if (plate && customer?.name && customer?.phone) {
+    const normalizedPlate = String(plate).trim().toUpperCase();
+    try {
+      await upsertProfileFromSource(
+        req.companyId,
+        {
+          customer: {
+            name: customer.name || '',
+            phone: customer.phone || ''
+          },
+          vehicle: {
+            plate: normalizedPlate,
+            vehicleId: vehicleId || null
+          }
+        },
+        { source: 'calendar' }
+      );
+    } catch (err) {
+      console.error('Error creating/updating customer profile:', err);
+      // No fallar la creación del evento si falla el perfil
+    }
   }
   
   const event = await CalendarEvent.create({
@@ -45,7 +79,14 @@ export const createEvent = async (req, res) => {
     notificationAt: hasNotification && notificationAt ? new Date(notificationAt) : undefined,
     color: color || '#3b82f6',
     eventType: 'event',
-    companyId: new mongoose.Types.ObjectId(req.companyId),
+    plate: plate ? String(plate).trim().toUpperCase() : '',
+    customer: plate && customer ? {
+      name: String(customer.name || '').trim(),
+      phone: String(customer.phone || '').trim()
+    } : {},
+    vehicleId: vehicleId ? new mongoose.Types.ObjectId(vehicleId) : null,
+    quoteId: quoteId ? new mongoose.Types.ObjectId(quoteId) : null,
+    companyId,
     userId: req.userId ? new mongoose.Types.ObjectId(req.userId) : undefined
   });
   
@@ -61,6 +102,41 @@ export const updateEvent = async (req, res) => {
   if (body.notificationAt) body.notificationAt = body.notificationAt ? new Date(body.notificationAt) : null;
   if (body.hasNotification !== undefined) body.hasNotification = Boolean(body.hasNotification);
   if (body.allDay !== undefined) body.allDay = Boolean(body.allDay);
+  
+  // Manejar nuevos campos
+  if (body.plate) body.plate = String(body.plate).trim().toUpperCase();
+  if (body.customer) {
+    body.customer = {
+      name: String(body.customer.name || '').trim(),
+      phone: String(body.customer.phone || '').trim()
+    };
+  }
+  if (body.vehicleId) body.vehicleId = new mongoose.Types.ObjectId(body.vehicleId);
+  if (body.quoteId) body.quoteId = new mongoose.Types.ObjectId(body.quoteId);
+  if (body.saleId) body.saleId = new mongoose.Types.ObjectId(body.saleId);
+  
+  // Si hay placa, cliente y teléfono, crear/actualizar perfil de cliente
+  if (body.plate && body.customer?.name && body.customer?.phone) {
+    try {
+      await upsertProfileFromSource(
+        req.companyId,
+        {
+          customer: {
+            name: body.customer.name || '',
+            phone: body.customer.phone || ''
+          },
+          vehicle: {
+            plate: body.plate,
+            vehicleId: body.vehicleId || null
+          }
+        },
+        { source: 'calendar' }
+      );
+    } catch (err) {
+      console.error('Error updating customer profile:', err);
+      // No fallar la actualización del evento si falla el perfil
+    }
+  }
   
   const event = await CalendarEvent.findOneAndUpdate(
     { _id: id, companyId: new mongoose.Types.ObjectId(req.companyId) },
@@ -141,5 +217,148 @@ export const syncNoteReminders = async (req, res) => {
   });
   
   res.json({ synced: synced.length, items: synced });
+};
+
+// Buscar cliente/vehículo por placa para autocompletar
+export const searchByPlate = async (req, res) => {
+  const plate = String(req.params.plate || '').trim().toUpperCase();
+  if (!plate) {
+    return res.status(400).json({ error: 'Placa requerida' });
+  }
+  
+  const companyId = String(req.companyId);
+  
+  try {
+    // Buscar perfil de cliente
+    const profile = await CustomerProfile.findOne({
+      companyId,
+      $or: [{ plate }, { 'vehicle.plate': plate }]
+    }).sort({ updatedAt: -1 });
+    
+    if (!profile) {
+      return res.json({ 
+        found: false,
+        profile: null,
+        vehicle: null
+      });
+    }
+    
+    const profileObj = profile.toObject();
+    
+    // Buscar vehículo si hay vehicleId
+    let vehicle = null;
+    if (profileObj.vehicle?.vehicleId) {
+      vehicle = await Vehicle.findById(profileObj.vehicle.vehicleId).lean();
+    }
+    
+    return res.json({
+      found: true,
+      profile: {
+        customer: {
+          name: profileObj.customer?.name || '',
+          phone: profileObj.customer?.phone || ''
+        },
+        vehicle: {
+          plate: profileObj.vehicle?.plate || plate,
+          vehicleId: profileObj.vehicle?.vehicleId || null,
+          brand: profileObj.vehicle?.brand || '',
+          line: profileObj.vehicle?.line || '',
+          engine: profileObj.vehicle?.engine || '',
+          year: profileObj.vehicle?.year || null
+        }
+      },
+      vehicle: vehicle ? {
+        _id: vehicle._id,
+        make: vehicle.make,
+        line: vehicle.line,
+        displacement: vehicle.displacement,
+        modelYear: vehicle.modelYear
+      } : null
+    });
+  } catch (err) {
+    console.error('Error searching by plate:', err);
+    return res.status(500).json({ error: 'Error al buscar por placa' });
+  }
+};
+
+// Buscar cotizaciones por placa o cliente
+export const getQuotesByPlate = async (req, res) => {
+  const plate = String(req.params.plate || '').trim().toUpperCase();
+  const companyId = new mongoose.Types.ObjectId(req.companyId);
+  
+  if (!plate) {
+    return res.status(400).json({ error: 'Placa requerida' });
+  }
+  
+  try {
+    const quotes = await Quote.find({
+      companyId,
+      'vehicle.plate': plate
+    })
+    .sort({ createdAt: -1 })
+    .limit(50)
+    .lean();
+    
+    return res.json({ items: quotes });
+  } catch (err) {
+    console.error('Error getting quotes by plate:', err);
+    return res.status(500).json({ error: 'Error al buscar cotizaciones' });
+  }
+};
+
+// Obtener configuración del calendario
+export const getSettings = async (req, res) => {
+  try {
+    const company = await Company.findById(req.companyId).lean();
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
+    }
+    
+    return res.json({
+      companyName: company.name || '',
+      address: company.preferences?.calendar?.address || '',
+      mapsLink: company.preferences?.calendar?.mapsLink || ''
+    });
+  } catch (err) {
+    console.error('Error getting calendar settings:', err);
+    return res.status(500).json({ error: 'Error al obtener configuración' });
+  }
+};
+
+// Actualizar configuración del calendario
+export const updateSettings = async (req, res) => {
+  const { address, mapsLink } = req.body || {};
+  
+  try {
+    const company = await Company.findById(req.companyId);
+    if (!company) {
+      return res.status(404).json({ error: 'Empresa no encontrada' });
+    }
+    
+    if (!company.preferences) {
+      company.preferences = {};
+    }
+    if (!company.preferences.calendar) {
+      company.preferences.calendar = {};
+    }
+    
+    if (address !== undefined) {
+      company.preferences.calendar.address = String(address || '').trim();
+    }
+    if (mapsLink !== undefined) {
+      company.preferences.calendar.mapsLink = String(mapsLink || '').trim();
+    }
+    
+    await company.save();
+    
+    return res.json({
+      companyName: company.name || '',
+      address: company.preferences.calendar.address || '',
+      mapsLink: company.preferences.calendar.mapsLink || ''
+    });
+  } catch (err) {
+    console.error('Error updating calendar settings:', err);
+    return res.status(500).json({ error: 'Error al actualizar configuración' });
+  }
 };
 
