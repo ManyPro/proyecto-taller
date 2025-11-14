@@ -81,6 +81,34 @@
     body:has(#loginSection:not(.hidden)) {
       overflow: hidden !important;
     }
+    /* Asegurar ancho completo en admin */
+    body[data-page="admin"] {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+    body[data-page="admin"] main {
+      width: 100%;
+      max-width: 100%;
+    }
+    body[data-page="admin"] #appSection {
+      width: 100%;
+      max-width: 100%;
+    }
+    /* Asegurar que la barra de navegación sea scrollable horizontalmente */
+    body[data-page="admin"] nav {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    /* Estilos para la pestaña ADMIN destacada */
+    body[data-page="admin"] .nav-tab[data-tab="admin"] {
+      position: relative;
+      z-index: 10;
+    }
+    body[data-page="admin"] .nav-tab[data-tab="admin"]:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(147, 51, 234, 0.4);
+    }
   </style>
   <link rel="stylesheet" href="assets/styles.css?v=20251010" />
   <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
@@ -210,7 +238,7 @@
     </section>
 
     <!-- Vista completa de empresa (igual que index.html) -->
-    <section id="appSection" class="hidden">
+    <section id="appSection" class="hidden w-full">
       <!-- Esta sección se llenará dinámicamente con el contenido de la empresa seleccionada -->
     </section>
   </main>
@@ -443,11 +471,23 @@
     appSec.innerHTML = '';
     appSec.classList.remove('hidden');
     
-    // Crear header completo (similar a index.html)
+    // Crear header completo (similar a index.html) con indicador de admin
+    const adminEmail = emailLbl?.textContent || '-';
     const headerHTML = `
       <div class="topbar" id="appHeader">
+        <!-- Barra superior con indicador de admin -->
+        <div class="bg-slate-900 border-b border-slate-700/50">
+          <div class="w-full px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-10">
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-purple-400 font-semibold">⚙️ ADMIN:</span>
+                <span class="text-xs text-slate-300">${adminEmail}</span>
+              </div>
+            </div>
+          </div>
+        </div>
         <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
-          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="w-full px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16 md:h-20">
               <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
                 <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
@@ -477,8 +517,8 @@
             </div>
           </div>
           <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
+            <div class="w-full px-4 sm:px-6 lg:px-8">
+              <nav class="flex items-center gap-1 overflow-x-auto" style="scrollbar-width: thin; scrollbar-color: rgba(148,163,184,0.5) transparent;">
                 <button data-tab="home" data-href="index.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-t-lg transition-all duration-200 hover:bg-blue-700 whitespace-nowrap">Inicio</button>
                 <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
                 <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
@@ -491,7 +531,7 @@
                 <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
                 <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
                 <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
-                <button data-tab="admin" class="nav-tab px-4 py-3 text-sm font-medium text-purple-300 hover:text-purple-100 hover:bg-purple-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">⚙️ ADMIN</button>
+                <button data-tab="admin" class="nav-tab px-4 py-3 text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-t-lg transition-all duration-200 whitespace-nowrap border-2 border-purple-400 shadow-lg">⚙️ ADMIN</button>
               </nav>
             </div>
           </div>
@@ -510,7 +550,7 @@
             <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
             <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
             <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
-            <button data-tab="admin" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-purple-300 hover:text-purple-100 hover:bg-purple-700/50 rounded-lg transition-all duration-200">⚙️ ADMIN</button>
+            <button data-tab="admin" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-bold text-white bg-purple-600 hover:bg-purple-700 rounded-lg transition-all duration-200 border-2 border-purple-400">⚙️ ADMIN</button>
             <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
           </div>
         </div>
@@ -588,8 +628,16 @@
         } else {
           const href = btn.dataset.href;
           if(href && href !== 'index.html'){
-            // Navegar a la página correspondiente pero manteniendo el contexto admin
-            window.location.href = href + '?admin=true';
+            // Cargar contenido dentro de admin.html usando iframe para mantener contexto
+            appSec.innerHTML = `
+              <div class="w-full h-screen" style="min-height: calc(100vh - 200px);">
+                <iframe src="${href}?admin=true&token=${encodeURIComponent(currentCompanyToken || '')}" 
+                        class="w-full h-full border-0" 
+                        style="min-height: calc(100vh - 200px);"
+                        title="${tab}">
+                </iframe>
+              </div>
+            `;
           } else {
             await loadTabContent(tab);
           }
@@ -627,11 +675,11 @@
   // Cargar contenido de pestaña
   async function loadTabContent(tab){
     if(tab === 'home'){
-      // Cargar contenido de inicio similar a index.html
+      // Cargar contenido de inicio similar a index.html - usando todo el ancho
       appSec.innerHTML = `
-        <section id="tab-home" class="tab active">
-          <div class="flex items-center justify-center px-4 py-6 sm:py-8">
-            <div class="w-full max-w-2xl">
+        <section id="tab-home" class="tab active w-full">
+          <div class="flex items-center justify-center px-4 py-6 sm:py-8 w-full">
+            <div class="w-full max-w-6xl">
               <div class="bg-gradient-to-br from-slate-800 via-slate-800 to-slate-900 rounded-2xl shadow-2xl border border-slate-700/50 p-6 sm:p-8 lg:p-10 text-center relative overflow-hidden">
                 <div class="absolute inset-0 opacity-10">
                   <div class="absolute top-0 left-0 w-64 h-64 bg-blue-500 rounded-full blur-3xl"></div>
@@ -659,8 +707,8 @@
         </section>
       `;
     } else {
-      // Para otras pestañas, las páginas individuales se cargarán cuando se navegue a ellas
-      appSec.innerHTML = `<div class="p-6 text-center text-slate-400">Navega usando las pestañas para acceder a ${tab}</div>`;
+      // Para otras pestañas, mostrar mensaje
+      appSec.innerHTML = `<div class="w-full px-4 py-6 text-center text-slate-400">Selecciona una pestaña de la barra de navegación para acceder a ${tab}</div>`;
     }
   }
 
@@ -670,7 +718,8 @@
     if(!company) return;
     
     appSec.innerHTML = `
-      <div class="card" style="max-width:1000px;margin:20px auto;">
+      <div class="w-full px-4 sm:px-6 lg:px-8 py-6">
+        <div class="card" style="max-width:100%;margin:0;">
         <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
           <h3 style="margin:0;">Configuración de Empresa: ${company.name || company.email}</h3>
           <div class="row" style="gap:6px;">
