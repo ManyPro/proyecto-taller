@@ -36,6 +36,7 @@ import adminCompanyRouter from './routes/admin.company.routes.js';
 import vehiclesRouter from './routes/vehicles.routes.js';
 import receivablesRouter from './routes/receivables.routes.js';
 import calendarRouter from './routes/calendar.routes.js';
+import { checkCalendarNotifications } from './controllers/calendar.controller.js';
 
 const app = express();
 app.disable('x-powered-by');
@@ -256,11 +257,24 @@ mongoose.connect(MONGODB_URI, { dbName: process.env.MONGODB_DB || 'taller' })
     logger.info('mongo.connected', { db: process.env.MONGODB_DB || 'taller' });
     
     // Iniciar job periódico para verificar notificaciones del calendario
-    const { checkCalendarNotifications } = await import('./controllers/calendar.controller.js');
-    // Ejecutar inmediatamente y luego cada minuto
-    checkCalendarNotifications();
-    setInterval(checkCalendarNotifications, 60 * 1000); // Cada 60 segundos
-    logger.info('calendar.notifications.job.started');
+    // Ejecutar después de un pequeño delay para asegurar que MongoDB esté completamente conectado
+    setTimeout(() => {
+      try {
+        // Ejecutar inmediatamente y luego cada minuto
+        checkCalendarNotifications().catch(err => {
+          logger.error('calendar.notifications.job.error', { err: err.message });
+        });
+        setInterval(() => {
+          checkCalendarNotifications().catch(err => {
+            logger.error('calendar.notifications.job.error', { err: err.message });
+          });
+        }, 60 * 1000); // Cada 60 segundos
+        logger.info('calendar.notifications.job.started');
+      } catch (err) {
+        logger.error('calendar.notifications.job.init.error', { err: err.message });
+        // No fallar el servidor si el job no se puede iniciar
+      }
+    }, 2000); // Esperar 2 segundos después de la conexión
   })
   .catch(err => {
     logger.error('mongo.connect.error', { err: err.message });

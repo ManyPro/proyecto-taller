@@ -378,7 +378,11 @@ export const checkCalendarNotifications = async () => {
         $gte: fiveMinutesAgo,
         $lte: fiveMinutesFromNow
       },
-      notified: { $ne: true } // Solo eventos que no han sido notificados
+      $or: [
+        { notified: { $exists: false } }, // Eventos sin campo notified (legacy)
+        { notified: false }, // Eventos explícitamente no notificados
+        { notified: { $ne: true } } // Eventos que no son true
+      ]
     }).lean();
     
     for (const event of eventsToNotify) {
