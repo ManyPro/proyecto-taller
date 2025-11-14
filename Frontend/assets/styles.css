@@ -862,12 +862,19 @@ html{ font-size:16px; }
 
 /* Sticky topbar – global (desktop + mobile) */
 .topbar {
-  position: sticky;
-  top: 0;
-  z-index: 1000;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1000 !important;
   background: var(--header-bg);
   backdrop-filter: saturate(120%) blur(6px);
   box-shadow: 0 4px 18px rgba(0,0,0,.35);
+}
+
+/* Asegurar que el sticky funcione incluso cuando se muestra dinámicamente */
+.topbar:not(.hidden) {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1000 !important;
 }
 .topbar-inner{
   max-width: 1200px;
