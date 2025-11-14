@@ -1159,10 +1159,10 @@ function buildCloseModalContent(){
         </div>
         <div id="cv-receipt-status" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin archivos seleccionados</div>
       </div>
-      <div class="md:col-span-2 flex flex-wrap gap-2 sm:gap-3 mt-4">
-        <button id="cv-confirm" class="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Confirmar cierre</button>
-        <button type="button" id="cv-send-survey" class="px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">📱 Enviar encuesta</button>
-        <button type="button" id="cv-cancel" class="px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
+      <div class="md:col-span-2 flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 mt-4">
+        <button id="cv-confirm" class="w-full sm:flex-1 px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Confirmar cierre</button>
+        <button type="button" id="cv-send-survey" class="w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">📱 Enviar encuesta</button>
+        <button type="button" id="cv-cancel" class="w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
       </div>
       <div id="cv-msg" class="md:col-span-2 mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
     </div>`;
@@ -1702,17 +1702,59 @@ function fillCloseModal(){
     document.getElementById('modal')?.classList.add('hidden');
   });
   
-  // Botón de enviar encuesta
+  // Botón de enviar encuesta - Configurar para móvil y desktop
   const sendSurveyBtn = document.getElementById('cv-send-survey');
   if (sendSurveyBtn) {
-    sendSurveyBtn.addEventListener('click', async () => {
-      if (!current) return;
-      try {
-        await sendPostServiceSurvey(current);
-      } catch (err) {
-        alert('Error al enviar encuesta: ' + (err.message || 'Error desconocido'));
+    // Función unificada para manejar tanto click como touch
+    let touchStarted = false;
+    const handleSurveyEvent = async (e) => {
+      if (e.type === 'touchstart') {
+        e.preventDefault();
+        touchStarted = true;
+        return;
       }
-    });
+      
+      if (e.type === 'touchend') {
+        if (!touchStarted) return;
+        e.preventDefault();
+        e.stopPropagation();
+        touchStarted = false;
+        if (!current) return;
+        try {
+          await sendPostServiceSurvey(current);
+        } catch (err) {
+          alert('Error al enviar encuesta: ' + (err.message || 'Error desconocido'));
+        }
+        return;
+      }
+      
+      if (e.type === 'click') {
+        if (touchStarted) {
+          touchStarted = false;
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        if (!current) return;
+        try {
+          await sendPostServiceSurvey(current);
+        } catch (err) {
+          alert('Error al enviar encuesta: ' + (err.message || 'Error desconocido'));
+        }
+      }
+    };
+    
+    sendSurveyBtn.addEventListener('touchstart', handleSurveyEvent, { passive: false });
+    sendSurveyBtn.addEventListener('touchend', handleSurveyEvent, { passive: false });
+    sendSurveyBtn.addEventListener('click', handleSurveyEvent);
+    
+    // Asegurar que el botón sea clickeable y visible en móvil
+    sendSurveyBtn.style.cursor = 'pointer';
+    sendSurveyBtn.style.pointerEvents = 'auto';
+    sendSurveyBtn.style.touchAction = 'manipulation';
+    sendSurveyBtn.style.userSelect = 'none';
+    sendSurveyBtn.style.webkitUserSelect = 'none';
+    sendSurveyBtn.style.webkitTapHighlightColor = 'transparent';
   }
 
   document.getElementById('cv-confirm').addEventListener('click', async ()=>{
@@ -7268,10 +7310,50 @@ export function initSales(){
     openCloseModal();
   });
   
-  // Botón de configurar mensaje post-servicio
-  document.getElementById('sales-configure-post-service')?.addEventListener('click', () => {
-    openPostServiceConfigModal();
-  });
+  // Botón de configurar mensaje post-servicio - Configurar para móvil y desktop
+  const configurePostServiceBtn = document.getElementById('sales-configure-post-service');
+  if (configurePostServiceBtn) {
+    // Función unificada para manejar tanto click como touch
+    let touchStarted = false;
+    const handleConfigEvent = (e) => {
+      if (e.type === 'touchstart') {
+        e.preventDefault();
+        touchStarted = true;
+        return;
+      }
+      
+      if (e.type === 'touchend') {
+        if (!touchStarted) return;
+        e.preventDefault();
+        e.stopPropagation();
+        touchStarted = false;
+        openPostServiceConfigModal();
+        return;
+      }
+      
+      if (e.type === 'click') {
+        if (touchStarted) {
+          touchStarted = false;
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        openPostServiceConfigModal();
+      }
+    };
+    
+    configurePostServiceBtn.addEventListener('touchstart', handleConfigEvent, { passive: false });
+    configurePostServiceBtn.addEventListener('touchend', handleConfigEvent, { passive: false });
+    configurePostServiceBtn.addEventListener('click', handleConfigEvent);
+    
+    // Asegurar que el botón sea clickeable y visible en móvil
+    configurePostServiceBtn.style.cursor = 'pointer';
+    configurePostServiceBtn.style.pointerEvents = 'auto';
+    configurePostServiceBtn.style.touchAction = 'manipulation';
+    configurePostServiceBtn.style.userSelect = 'none';
+    configurePostServiceBtn.style.webkitUserSelect = 'none';
+    configurePostServiceBtn.style.webkitTapHighlightColor = 'transparent';
+  }
 
   document.getElementById('sales-print')?.addEventListener('click', async ()=>{
     if (!current) return;
