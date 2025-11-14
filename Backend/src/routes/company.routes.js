@@ -307,10 +307,10 @@ router.put('/preferences', async (req, res) => {
       { $set: { preferences: req.companyDoc.preferences } }
     );
     
-    // Refrescar el documento para devolver los datos actualizados
-    await req.companyDoc.refresh();
+    // Recargar el documento desde la base de datos para devolver los datos actualizados
+    const updatedCompany = await Company.findById(req.companyDoc._id);
     
-    res.json({ preferences: req.companyDoc.preferences });
+    res.json({ preferences: updatedCompany.preferences || {} });
   } catch (err) {
     console.error('Error updating preferences:', err);
     res.status(500).json({ error: 'Error al actualizar preferencias', message: err.message });
