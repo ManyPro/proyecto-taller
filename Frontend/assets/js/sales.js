@@ -1703,59 +1703,136 @@ function fillCloseModal(){
   });
   
   // Botón de enviar encuesta - Configurar para móvil y desktop
-  const sendSurveyBtn = document.getElementById('cv-send-survey');
-  if (sendSurveyBtn) {
-    // Función unificada para manejar tanto click como touch
-    let touchStarted = false;
-    const handleSurveyEvent = async (e) => {
-      if (e.type === 'touchstart') {
-        e.preventDefault();
-        touchStarted = true;
-        return;
-      }
+  // Usar setTimeout para asegurar que el botón esté en el DOM
+  setTimeout(() => {
+    const sendSurveyBtn = document.getElementById('cv-send-survey');
+    if (sendSurveyBtn) {
+      // Remover listeners anteriores si existen (clonar el botón)
+      const newBtn = sendSurveyBtn.cloneNode(true);
+      sendSurveyBtn.parentNode.replaceChild(newBtn, sendSurveyBtn);
       
-      if (e.type === 'touchend') {
-        if (!touchStarted) return;
-        e.preventDefault();
-        e.stopPropagation();
-        touchStarted = false;
-        if (!current) return;
-        try {
-          await sendPostServiceSurvey(current);
-        } catch (err) {
-          alert('Error al enviar encuesta: ' + (err.message || 'Error desconocido'));
-        }
-        return;
-      }
-      
-      if (e.type === 'click') {
-        if (touchStarted) {
-          touchStarted = false;
+      // Función unificada para manejar tanto click como touch
+      let touchStarted = false;
+      const handleSurveyEvent = async (e) => {
+        if (e.type === 'touchstart') {
+          e.preventDefault();
+          touchStarted = true;
           return;
         }
-        e.preventDefault();
-        e.stopPropagation();
-        if (!current) return;
-        try {
-          await sendPostServiceSurvey(current);
-        } catch (err) {
-          alert('Error al enviar encuesta: ' + (err.message || 'Error desconocido'));
+        
+        if (e.type === 'touchend') {
+          if (!touchStarted) return;
+          e.preventDefault();
+          e.stopPropagation();
+          touchStarted = false;
+          if (!current) {
+            alert('No hay venta activa');
+            return;
+          }
+          try {
+            await sendPostServiceSurvey(current);
+          } catch (err) {
+            alert('Error al enviar encuesta: ' + (err.message || 'Error desconocido'));
+          }
+          return;
         }
-      }
-    };
-    
-    sendSurveyBtn.addEventListener('touchstart', handleSurveyEvent, { passive: false });
-    sendSurveyBtn.addEventListener('touchend', handleSurveyEvent, { passive: false });
-    sendSurveyBtn.addEventListener('click', handleSurveyEvent);
-    
-    // Asegurar que el botón sea clickeable y visible en móvil
-    sendSurveyBtn.style.cursor = 'pointer';
-    sendSurveyBtn.style.pointerEvents = 'auto';
-    sendSurveyBtn.style.touchAction = 'manipulation';
-    sendSurveyBtn.style.userSelect = 'none';
-    sendSurveyBtn.style.webkitUserSelect = 'none';
-    sendSurveyBtn.style.webkitTapHighlightColor = 'transparent';
-  }
+        
+        if (e.type === 'click') {
+          if (touchStarted) {
+            touchStarted = false;
+            return;
+          }
+          e.preventDefault();
+          e.stopPropagation();
+          if (!current) {
+            alert('No hay venta activa');
+            return;
+          }
+          try {
+            await sendPostServiceSurvey(current);
+          } catch (err) {
+            alert('Error al enviar encuesta: ' + (err.message || 'Error desconocido'));
+          }
+        }
+      };
+      
+      newBtn.addEventListener('touchstart', handleSurveyEvent, { passive: false });
+      newBtn.addEventListener('touchend', handleSurveyEvent, { passive: false });
+      newBtn.addEventListener('click', handleSurveyEvent);
+      
+      // Asegurar que el botón sea clickeable y visible en móvil
+      newBtn.style.cursor = 'pointer';
+      newBtn.style.pointerEvents = 'auto';
+      newBtn.style.touchAction = 'manipulation';
+      newBtn.style.userSelect = 'none';
+      newBtn.style.webkitUserSelect = 'none';
+      newBtn.style.webkitTapHighlightColor = 'transparent';
+    } else {
+      // Si no se encuentra, intentar de nuevo después de un delay
+      console.warn('Botón cv-send-survey no encontrado, reintentando...');
+      setTimeout(() => {
+        const retryBtn = document.getElementById('cv-send-survey');
+        if (retryBtn) {
+          // Configurar el botón encontrado
+          const newBtn = retryBtn.cloneNode(true);
+          retryBtn.parentNode.replaceChild(newBtn, retryBtn);
+          
+          let touchStarted = false;
+          const handleSurveyEvent = async (e) => {
+            if (e.type === 'touchstart') {
+              e.preventDefault();
+              touchStarted = true;
+              return;
+            }
+            if (e.type === 'touchend') {
+              if (!touchStarted) return;
+              e.preventDefault();
+              e.stopPropagation();
+              touchStarted = false;
+              if (!current) {
+                alert('No hay venta activa');
+                return;
+              }
+              try {
+                await sendPostServiceSurvey(current);
+              } catch (err) {
+                alert('Error al enviar encuesta: ' + (err.message || 'Error desconocido'));
+              }
+              return;
+            }
+            if (e.type === 'click') {
+              if (touchStarted) {
+                touchStarted = false;
+                return;
+              }
+              e.preventDefault();
+              e.stopPropagation();
+              if (!current) {
+                alert('No hay venta activa');
+                return;
+              }
+              try {
+                await sendPostServiceSurvey(current);
+              } catch (err) {
+                alert('Error al enviar encuesta: ' + (err.message || 'Error desconocido'));
+              }
+            }
+          };
+          
+          newBtn.addEventListener('touchstart', handleSurveyEvent, { passive: false });
+          newBtn.addEventListener('touchend', handleSurveyEvent, { passive: false });
+          newBtn.addEventListener('click', handleSurveyEvent);
+          
+          newBtn.style.cursor = 'pointer';
+          newBtn.style.pointerEvents = 'auto';
+          newBtn.style.touchAction = 'manipulation';
+          newBtn.style.userSelect = 'none';
+          newBtn.style.webkitUserSelect = 'none';
+          newBtn.style.webkitTapHighlightColor = 'transparent';
+        }
+      }, 200);
+    }
+  }, 100);
 
   document.getElementById('cv-confirm').addEventListener('click', async ()=>{
     if(!current) return;
@@ -4748,48 +4825,72 @@ Muchas gracias!</pre>
     
     modal.classList.remove('hidden');
     
-    // Event listeners
-    document.getElementById('ps-cancel').onclick = () => {
+    // Configurar botón de cerrar del modal
+    close.onclick = () => {
       modal.classList.add('hidden');
       body.innerHTML = '';
     };
     
-    document.getElementById('ps-save').onclick = async () => {
-      try {
-        const linkInput = document.getElementById('ps-rating-link');
-        const fileInput = document.getElementById('ps-rating-qr-file');
-        
-        if (!linkInput.value.trim()) {
-          return alert('El link de calificación es obligatorio');
-        }
-        
-        let qrImageUrl = currentConfig.ratingQrImageUrl || '';
-        
-        // Subir imagen si se seleccionó una nueva
-        if (fileInput.files && fileInput.files[0]) {
-          const uploadRes = await API.mediaUpload([fileInput.files[0]]);
-          if (uploadRes && uploadRes.files && uploadRes.files[0]) {
-            qrImageUrl = uploadRes.files[0].url || uploadRes.files[0].path || '';
-          }
-        }
-        
-        // Guardar configuración
-        const prefs = await API.company.getPreferences();
-        prefs.postServiceMessage = {
-          ratingLink: linkInput.value.trim(),
-          ratingQrImageUrl: qrImageUrl
+    // Event listeners con setTimeout para asegurar que los elementos existan
+    setTimeout(() => {
+      const cancelBtn = document.getElementById('ps-cancel');
+      const saveBtn = document.getElementById('ps-save');
+      
+      if (cancelBtn) {
+        cancelBtn.onclick = () => {
+          modal.classList.add('hidden');
+          body.innerHTML = '';
         };
-        
-        await API.company.setPreferences(prefs);
-        
-        alert('Configuración guardada exitosamente');
-        modal.classList.add('hidden');
-        body.innerHTML = '';
-      } catch (err) {
-        alert('Error al guardar configuración: ' + (err.message || 'Error desconocido'));
+        // Asegurar que sea clickeable en móvil
+        cancelBtn.style.cursor = 'pointer';
+        cancelBtn.style.pointerEvents = 'auto';
+        cancelBtn.style.touchAction = 'manipulation';
       }
-    };
+      
+      if (saveBtn) {
+        saveBtn.onclick = async () => {
+          try {
+            const linkInput = document.getElementById('ps-rating-link');
+            const fileInput = document.getElementById('ps-rating-qr-file');
+            
+            if (!linkInput || !linkInput.value.trim()) {
+              return alert('El link de calificación es obligatorio');
+            }
+            
+            let qrImageUrl = currentConfig.ratingQrImageUrl || '';
+            
+            // Subir imagen si se seleccionó una nueva
+            if (fileInput && fileInput.files && fileInput.files[0]) {
+              const uploadRes = await API.mediaUpload([fileInput.files[0]]);
+              if (uploadRes && uploadRes.files && uploadRes.files[0]) {
+                qrImageUrl = uploadRes.files[0].url || uploadRes.files[0].path || '';
+              }
+            }
+            
+            // Guardar configuración
+            const prefs = await API.company.getPreferences();
+            prefs.postServiceMessage = {
+              ratingLink: linkInput.value.trim(),
+              ratingQrImageUrl: qrImageUrl
+            };
+            
+            await API.company.setPreferences(prefs);
+            
+            alert('Configuración guardada exitosamente');
+            modal.classList.add('hidden');
+            body.innerHTML = '';
+          } catch (err) {
+            alert('Error al guardar configuración: ' + (err.message || 'Error desconocido'));
+          }
+        };
+        // Asegurar que sea clickeable en móvil
+        saveBtn.style.cursor = 'pointer';
+        saveBtn.style.pointerEvents = 'auto';
+        saveBtn.style.touchAction = 'manipulation';
+      }
+    }, 50);
   } catch (err) {
+    console.error('Error opening post-service config modal:', err);
     alert('Error al cargar configuración: ' + (err.message || 'Error desconocido'));
   }
 }
@@ -7311,8 +7412,19 @@ export function initSales(){
   });
   
   // Botón de configurar mensaje post-servicio - Configurar para móvil y desktop
-  const configurePostServiceBtn = document.getElementById('sales-configure-post-service');
-  if (configurePostServiceBtn) {
+  // Configurar botón de configuración post-servicio con retry
+  function setupConfigurePostServiceButton() {
+    const configurePostServiceBtn = document.getElementById('sales-configure-post-service');
+    if (!configurePostServiceBtn) {
+      // Retry después de un pequeño delay si el botón no existe aún
+      setTimeout(setupConfigurePostServiceButton, 100);
+      return;
+    }
+    
+    // Remover listeners anteriores si existen
+    const newBtn = configurePostServiceBtn.cloneNode(true);
+    configurePostServiceBtn.parentNode.replaceChild(newBtn, configurePostServiceBtn);
+    
     // Función unificada para manejar tanto click como touch
     let touchStarted = false;
     const handleConfigEvent = (e) => {
@@ -7327,7 +7439,10 @@ export function initSales(){
         e.preventDefault();
         e.stopPropagation();
         touchStarted = false;
-        openPostServiceConfigModal();
+        openPostServiceConfigModal().catch(err => {
+          console.error('Error opening post-service config modal:', err);
+          alert('Error al abrir configuración: ' + (err.message || 'Error desconocido'));
+        });
         return;
       }
       
@@ -7338,21 +7453,30 @@ export function initSales(){
         }
         e.preventDefault();
         e.stopPropagation();
-        openPostServiceConfigModal();
+        openPostServiceConfigModal().catch(err => {
+          console.error('Error opening post-service config modal:', err);
+          alert('Error al abrir configuración: ' + (err.message || 'Error desconocido'));
+        });
       }
     };
     
-    configurePostServiceBtn.addEventListener('touchstart', handleConfigEvent, { passive: false });
-    configurePostServiceBtn.addEventListener('touchend', handleConfigEvent, { passive: false });
-    configurePostServiceBtn.addEventListener('click', handleConfigEvent);
+    newBtn.addEventListener('touchstart', handleConfigEvent, { passive: false });
+    newBtn.addEventListener('touchend', handleConfigEvent, { passive: false });
+    newBtn.addEventListener('click', handleConfigEvent);
     
     // Asegurar que el botón sea clickeable y visible en móvil
-    configurePostServiceBtn.style.cursor = 'pointer';
-    configurePostServiceBtn.style.pointerEvents = 'auto';
-    configurePostServiceBtn.style.touchAction = 'manipulation';
-    configurePostServiceBtn.style.userSelect = 'none';
-    configurePostServiceBtn.style.webkitUserSelect = 'none';
-    configurePostServiceBtn.style.webkitTapHighlightColor = 'transparent';
+    newBtn.style.cursor = 'pointer';
+    newBtn.style.pointerEvents = 'auto';
+    newBtn.style.touchAction = 'manipulation';
+    newBtn.style.userSelect = 'none';
+    newBtn.style.webkitUserSelect = 'none';
+    newBtn.style.webkitTapHighlightColor = 'transparent';
+  }
+  
+  // Intentar configurar inmediatamente y con retry
+  setupConfigurePostServiceButton();
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupConfigurePostServiceButton);
   }
 
   document.getElementById('sales-print')?.addEventListener('click', async ()=>{
