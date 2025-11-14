@@ -33,10 +33,17 @@ function renderCalendar() {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
   
-  // Actualizar mes/año
+  // Actualizar mes/año - formato más corto en móvil
   const monthYearEl = document.getElementById('calendar-month-year');
   if (monthYearEl) {
-    monthYearEl.textContent = `${monthNames[month]} ${year}`;
+    const isMobile = window.innerWidth < 640;
+    if (isMobile) {
+      // Formato corto para móvil: "Ene 2024"
+      const shortMonth = monthNames[month].substring(0, 3);
+      monthYearEl.textContent = `${shortMonth} ${year}`;
+    } else {
+      monthYearEl.textContent = `${monthNames[month]} ${year}`;
+    }
   }
   
   // Obtener primer día del mes y cuántos días tiene
@@ -79,14 +86,15 @@ function renderCalendar() {
 
 function createDayElement(day, isOtherMonth, date, isToday = false, dayEvents = []) {
   const dayEl = document.createElement('div');
-  dayEl.className = `min-h-[80px] p-1 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded-lg ${
+  // Responsive: altura mínima más pequeña en móvil
+  dayEl.className = `min-h-[50px] sm:min-h-[80px] p-0.5 sm:p-1 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300 rounded ${
     isOtherMonth ? 'bg-slate-900/20 dark:bg-slate-900/20 theme-light:bg-slate-100/50' : 'bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white'
   } ${
-    isToday ? 'ring-2 ring-blue-500' : ''
+    isToday ? 'ring-1 sm:ring-2 ring-blue-500' : ''
   }`;
   
   const dayNumber = document.createElement('div');
-  dayNumber.className = `text-xs font-semibold mb-1 ${
+  dayNumber.className = `text-[10px] sm:text-xs font-semibold mb-0.5 sm:mb-1 ${
     isOtherMonth ? 'text-slate-600 dark:text-slate-600 theme-light:text-slate-400' : 
     isToday ? 'text-blue-400 dark:text-blue-400 theme-light:text-blue-600' : 
     'text-white dark:text-white theme-light:text-slate-900'
@@ -97,24 +105,38 @@ function createDayElement(day, isOtherMonth, date, isToday = false, dayEvents = 
   // Mostrar eventos del día
   if (!isOtherMonth && dayEvents.length > 0) {
     const eventsContainer = document.createElement('div');
-    eventsContainer.className = 'space-y-0.5';
+    eventsContainer.className = 'space-y-0.5 sm:space-y-0.5';
     
-    dayEvents.slice(0, 3).forEach(event => {
+    // En móvil mostrar solo 1 evento, en desktop hasta 3
+    const maxEvents = window.innerWidth < 640 ? 1 : 3;
+    dayEvents.slice(0, maxEvents).forEach(event => {
       const eventEl = document.createElement('div');
-      eventEl.className = `text-xs px-1 py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity`;
+      eventEl.className = `text-[9px] sm:text-xs px-0.5 sm:px-1 py-0 sm:py-0.5 rounded truncate cursor-pointer hover:opacity-80 transition-opacity`;
       eventEl.style.backgroundColor = event.color || '#3b82f6';
       eventEl.style.color = 'white';
       eventEl.title = `${event.title}${event.description ? ': ' + event.description : ''}`;
-      eventEl.textContent = event.title;
-      eventEl.onclick = () => openEventModal(event);
+      // En móvil mostrar solo un punto de color si hay eventos, en desktop el título
+      if (window.innerWidth < 640) {
+        eventEl.textContent = '●';
+        eventEl.className = `text-[8px] sm:text-xs px-0.5 sm:px-1 py-0 sm:py-0.5 rounded-full cursor-pointer hover:opacity-80 transition-opacity w-2 h-2 sm:w-auto sm:h-auto`;
+      } else {
+        eventEl.textContent = event.title;
+      }
+      eventEl.onclick = (e) => {
+        e.stopPropagation();
+        openEventModal(event);
+      };
       eventsContainer.appendChild(eventEl);
     });
     
-    if (dayEvents.length > 3) {
+    if (dayEvents.length > maxEvents) {
       const moreEl = document.createElement('div');
-      moreEl.className = 'text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 px-1';
-      moreEl.textContent = `+${dayEvents.length - 3} más`;
-      moreEl.onclick = () => openDayEventsModal(date, dayEvents);
+      moreEl.className = 'text-[9px] sm:text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 px-0.5 sm:px-1';
+      moreEl.textContent = window.innerWidth < 640 ? `+${dayEvents.length}` : `+${dayEvents.length - maxEvents} más`;
+      moreEl.onclick = (e) => {
+        e.stopPropagation();
+        openDayEventsModal(date, dayEvents);
+      };
       moreEl.style.cursor = 'pointer';
       eventsContainer.appendChild(moreEl);
     }
@@ -126,6 +148,7 @@ function createDayElement(day, isOtherMonth, date, isToday = false, dayEvents = 
   if (!isOtherMonth && date) {
     dayEl.style.cursor = 'pointer';
     dayEl.onclick = (e) => {
+      // Solo abrir modal si no se hizo clic en un evento
       if (e.target === dayEl || e.target === dayNumber) {
         openNewEventModal(date);
       }
@@ -630,6 +653,15 @@ export function initCalendar() {
   // Cargar eventos y renderizar calendario
   loadEvents().then(() => {
     renderCalendar();
+  });
+  
+  // Redimensionar calendario cuando cambia el tamaño de la ventana
+  let resizeTimeout;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(() => {
+      renderCalendar();
+    }, 250);
   });
   
   // Verificar notificaciones cada minuto
