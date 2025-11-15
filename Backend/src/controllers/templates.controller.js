@@ -914,6 +914,56 @@ function normalizeTemplateHtml(html='') {
         }
       });
     }
+    
+    // Asegurar que las tablas de orden de trabajo solo tengan 2 columnas (Detalle y Cantidad)
+    // Eliminar columnas de Precio y Total si existen
+    // Buscar y corregir el thead para que solo tenga 2 columnas
+      const theadMatches = output.match(/<thead>([\s\S]*?)<\/thead>/gi);
+      if (theadMatches) {
+        theadMatches.forEach((match) => {
+          // Si tiene más de 2 columnas (Precio, Total), reducirlas a 2
+          if (match.includes('Precio') || match.includes('Total') || match.includes('Price') || (match.match(/<th>/g) || []).length > 2) {
+            const newThead = `<thead>
+          <tr>
+            <th>Detalle</th>
+            <th>Cantidad</th>
+          </tr>
+        </thead>`;
+            output = output.replace(match, newThead);
+            console.log('[normalizeTemplateHtml] ✅ Corregido thead de orden de trabajo a 2 columnas');
+          }
+        });
+      }
+      
+      // Buscar y corregir filas que tengan más de 2 columnas
+      output = output.replace(/<tr[^>]*>[\s\S]*?<td[^>]*>[\s\S]*?<\/td>[\s\S]*?<td[^>]*>[\s\S]*?<\/td>[\s\S]*?<td[^>]*>[\s\S]*?<\/td>/g, (match) => {
+        // Si es un section-header, mantenerlo con colspan="2"
+        if (match.includes('section-header') || match.includes('PRODUCTOS') || match.includes('SERVICIOS') || match.includes('COMBOS')) {
+          return match.replace(/colspan="[^"]*"/g, 'colspan="2"');
+        }
+        // Si tiene más de 2 td, eliminar los extras (Precio y Total)
+        const tdMatches = match.match(/<td[^>]*>[\s\S]*?<\/td>/g);
+        if (tdMatches && tdMatches.length > 2) {
+          // Mantener solo los primeros 2 td
+          const firstTwo = tdMatches.slice(0, 2);
+          return match.replace(/<td[^>]*>[\s\S]*?<\/td>/g, (m, i) => {
+            if (i < 2) return firstTwo[i];
+            return '';
+          }).replace(/<tr[^>]*>/, '<tr>').replace(/<\/tr>/, '</tr>');
+        }
+        return match;
+      });
+      
+    // Limpiar cualquier referencia a columnas de precio o total en las filas de items
+    // Eliminar columnas con clase t-right (precio/total)
+    output = output.replace(/<td[^>]*class="[^"]*t-right[^"]*"[^>]*>[\s\S]*?<\/td>/g, '');
+    // Eliminar columnas con $ (precio)
+    output = output.replace(/<td[^>]*>\s*\$[\s\S]*?<\/td>/g, '');
+    // Eliminar columnas con {{money}} (precio/total)
+    output = output.replace(/<td[^>]*>\s*{{money[^}]*}}[\s\S]*?<\/td>/g, '');
+    
+    // Corregir colspan en section-headers para que sea 2
+    output = output.replace(/(<tr[^>]*class="[^"]*section-header[^"]*"[^>]*>[\s\S]*?<td[^>]*)colspan="[^"]*"([^>]*>[\s\S]*?PRODUCTOS|SERVICIOS|COMBOS[\s\S]*?<\/td>)/g, '$1colspan="2"$2');
   }
   
   // Luego, normalizar patrones antiguos
