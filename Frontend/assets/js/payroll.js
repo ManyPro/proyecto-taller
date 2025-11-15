@@ -2224,10 +2224,12 @@ async function printSettlement(settlementId, button) {
     const css = preview.css ? `<style>${pageStyles}${preview.css}</style>` : `<style>${pageStyles}</style>`;
     win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}</head><body>${preview.rendered}</body></html>`);
     win.document.close();
-    win.focus();
+    // NO abrir la ventana todavía, primero mostrar el modal
     
-    // Mostrar modal con el tamaño de página (siempre media carta para nómina)
+    // Mostrar modal con el tamaño de página (siempre media carta para nómina) PRIMERO
     showPageSizeModal('MEDIA CARTA (5.5" x 8.5")', () => {
+      // Solo después de aceptar, abrir y enfocar la ventana
+      win.focus();
       // Esperar a que cargue y luego imprimir
       setTimeout(() => {
         win.print();

@@ -1197,9 +1197,8 @@ export function initQuotes({ getCompanyEmail }) {
               adjustTotalPosition();
             });
             
-            // Detectar tamaño de página y mostrar alerta antes de imprimir
-            win.focus();
-            
+            // NO abrir la ventana todavía, primero mostrar el modal
+            // Esperar a que se cargue y ajuste todo, luego mostrar modal
             setTimeout(() => {
               adjustTotalPosition();
               
@@ -1217,8 +1216,10 @@ export function initQuotes({ getCompanyEmail }) {
                 const isMediaCarta = contentHeight <= mediaCartaMaxHeight;
                 const pageSize = isMediaCarta ? 'MEDIA CARTA (5.5" x 8.5")' : 'CARTA COMPLETA (8.5" x 11")';
                 
-                // Mostrar modal con el tamaño de página
+                // Mostrar modal con el tamaño de página PRIMERO
                 showPageSizeModal(pageSize, () => {
+                  // Solo después de aceptar, abrir y enfocar la ventana
+                  win.focus();
                   setTimeout(() => {
                     adjustTotalPosition();
                     requestAnimationFrame(() => {

@@ -592,10 +592,8 @@ function printSaleTicket(sale){
               adjustTotalPosition();
             });
             
-            // Abrir diálogo de impresión automáticamente después de detectar tamaño y ajustar posición
-            win.focus();
-            
-            // Esperar a que se cargue y ajuste todo, luego abrir diálogo de impresión automáticamente
+            // NO abrir la ventana todavía, primero mostrar el modal
+            // Esperar a que se cargue y ajuste todo, luego mostrar modal
             setTimeout(() => {
               // Ajustar posición del total
               adjustTotalPosition();
@@ -615,8 +613,10 @@ function printSaleTicket(sale){
                 const isMediaCarta = contentHeight <= mediaCartaMaxHeight;
                 const pageSize = isMediaCarta ? 'MEDIA CARTA (5.5" x 8.5")' : 'CARTA COMPLETA (8.5" x 11")';
                 
-                // Mostrar modal con el tamaño de página
+                // Mostrar modal con el tamaño de página PRIMERO
                 showPageSizeModal(pageSize, () => {
+                  // Solo después de aceptar, abrir y enfocar la ventana
+                  win.focus();
                   // Abrir diálogo de impresión automáticamente con el tamaño correcto
                   setTimeout(() => {
                     adjustTotalPosition();
@@ -908,11 +908,11 @@ function printWorkOrder(){
               }
             };
             
-            // Abrir diálogo de impresión automáticamente después de detectar tamaño
-            win.focus();
-            
-            // Mostrar modal con el tamaño de página (siempre media carta para orden de trabajo)
+            // NO abrir la ventana todavía, primero mostrar el modal
+            // Mostrar modal con el tamaño de página (siempre media carta para orden de trabajo) PRIMERO
             showPageSizeModal('MEDIA CARTA (5.5" x 8.5")', () => {
+              // Solo después de aceptar, abrir y enfocar la ventana
+              win.focus();
               // Forzar tamaño a media carta para orden de trabajo
               let pageSizeStyle = win.document.getElementById('dynamic-page-size');
               if (!pageSizeStyle) {
