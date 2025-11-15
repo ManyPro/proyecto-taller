@@ -4704,12 +4704,12 @@ function renderQuoteMini(q){
     const tr = document.createElement('tr');
     tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors';
     tr.innerHTML = `
-      <td class="py-1 px-0.5 text-xs text-white dark:text-white theme-light:text-slate-900 truncate">${typeLabel}</td>
-      <td class="py-1 px-0.5 text-xs text-white dark:text-white theme-light:text-slate-900 truncate" title="${htmlEscape(name || 'Item')}">${htmlEscape(name || 'Item')}</td>
-      <td class="py-1 px-0.5 text-center text-xs text-white dark:text-white theme-light:text-slate-900">${qty}</td>
-      <td class="py-1 px-0.5 text-right text-xs text-white dark:text-white theme-light:text-slate-900 font-medium whitespace-nowrap">${money(unit)}</td>
-      <td class="py-1 px-0.5 text-right text-xs text-white dark:text-white theme-light:text-slate-900 font-semibold whitespace-nowrap">${money(total)}</td>
-      <td class="py-1 px-0.5 text-center">
+      <td class="py-1 px-0.5 text-xs text-white dark:text-white theme-light:text-slate-900 align-top">${typeLabel}</td>
+      <td class="py-1 px-0.5 text-xs text-white dark:text-white theme-light:text-slate-900 break-words align-top">${htmlEscape(name || 'Item')}</td>
+      <td class="py-1 px-0.5 text-center text-xs text-white dark:text-white theme-light:text-slate-900 align-top">${qty}</td>
+      <td class="py-1 px-0.5 text-right text-xs text-white dark:text-white theme-light:text-slate-900 font-medium whitespace-nowrap align-top">${money(unit)}</td>
+      <td class="py-1 px-0.5 text-right text-xs text-white dark:text-white theme-light:text-slate-900 font-semibold whitespace-nowrap align-top">${money(total)}</td>
+      <td class="py-1 px-0.5 text-center align-top">
         <button class="add w-6 h-6 flex items-center justify-center text-xs bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-bold rounded transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30 theme-light:bg-blue-50 theme-light:text-blue-600 theme-light:hover:bg-blue-100 theme-light:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed" type="button" title="Agregar">+</button>
       </td>
     `;
