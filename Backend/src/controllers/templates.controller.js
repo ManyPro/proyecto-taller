@@ -810,7 +810,7 @@ function normalizeTemplateHtml(html='') {
           const newTbody = `<tbody>
           {{#if sale.itemsGrouped.hasProducts}}
           <tr class="section-header">
-            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">PRODUCTOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">PRODUCTOS</td>
           </tr>
           {{#each sale.itemsGrouped.products}}
           <tr>
@@ -822,7 +822,7 @@ function normalizeTemplateHtml(html='') {
           
           {{#if sale.itemsGrouped.hasServices}}
           <tr class="section-header">
-            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">SERVICIOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">SERVICIOS</td>
           </tr>
           {{#each sale.itemsGrouped.services}}
           <tr>
@@ -834,7 +834,7 @@ function normalizeTemplateHtml(html='') {
           
           {{#if sale.itemsGrouped.hasCombos}}
           <tr class="section-header">
-            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">COMBOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">COMBOS</td>
           </tr>
           {{#each sale.itemsGrouped.combos}}
           <tr>
@@ -863,7 +863,7 @@ function normalizeTemplateHtml(html='') {
           const newTbody = `<tbody>
           {{#if sale.itemsGrouped.hasProducts}}
           <tr class="section-header">
-            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">PRODUCTOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">PRODUCTOS</td>
           </tr>
           {{#each sale.itemsGrouped.products}}
           <tr>
@@ -875,7 +875,7 @@ function normalizeTemplateHtml(html='') {
           
           {{#if sale.itemsGrouped.hasServices}}
           <tr class="section-header">
-            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">SERVICIOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">SERVICIOS</td>
           </tr>
           {{#each sale.itemsGrouped.services}}
           <tr>
@@ -887,7 +887,7 @@ function normalizeTemplateHtml(html='') {
           
           {{#if sale.itemsGrouped.hasCombos}}
           <tr class="section-header">
-            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">COMBOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">COMBOS</td>
           </tr>
           {{#each sale.itemsGrouped.combos}}
           <tr>
