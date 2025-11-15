@@ -1205,10 +1205,41 @@
     return html;
   }
 
-  function shortenHandlebarsVars(html) {
+  function shortenHandlebarsVars(html, templateType) {
     if (!html) return html;
     
-    console.log('[shortenHandlebarsVars] Iniciando acortamiento, longitud HTML:', html.length);
+    console.log('[shortenHandlebarsVars] Iniciando acortamiento, longitud HTML:', html.length, 'templateType:', templateType);
+    
+    // Para payroll, proteger variables dentro de settlement.itemsByType antes de acortar
+    let payrollMarkers = null;
+    if (templateType === 'payroll') {
+      payrollMarkers = {
+        earningsName: '___PAYROLL_EARNINGS_NAME_MARKER___',
+        earningsValue: '___PAYROLL_EARNINGS_VALUE_MARKER___',
+        deductionsName: '___PAYROLL_DEDUCTIONS_NAME_MARKER___',
+        deductionsValue: '___PAYROLL_DEDUCTIONS_VALUE_MARKER___'
+      };
+      
+      // Proteger variables dentro de earnings (usar replace con función para capturar todo el bloque)
+      html = html.replace(/(\{\{#each settlement\.itemsByType\.earnings\}\})([\s\S]*?)(\{\{\/each\}\})/g, 
+        (match, openTag, content, closeTag) => {
+          const protected = content
+            .replace(/\{\{name\}\}/g, payrollMarkers.earningsName)
+            .replace(/\{\{money value\}\}/g, payrollMarkers.earningsValue);
+          return openTag + protected + closeTag;
+        }
+      );
+      
+      // Proteger variables dentro de deductions
+      html = html.replace(/(\{\{#each settlement\.itemsByType\.deductions\}\})([\s\S]*?)(\{\{\/each\}\})/g,
+        (match, openTag, content, closeTag) => {
+          const protected = content
+            .replace(/\{\{name\}\}/g, payrollMarkers.deductionsName)
+            .replace(/\{\{money value\}\}/g, payrollMarkers.deductionsValue);
+          return openTag + protected + closeTag;
+        }
+      );
+    }
     
     // Mapeo de variables completas a versiones cortas más legibles
     // IMPORTANTE: Ordenar de más específico a menos específico para evitar conflictos
@@ -1271,10 +1302,12 @@
       { from: /\{\{company\.logoUrl\}\}/g, to: '{{E.logo}}' },
       { from: /\{\{company\.logo\}\}/g, to: '{{E.logo}}' },
       
-      // Variables dentro de items (con helpers primero)
+      // Variables dentro de items (con helpers primero) - EXCLUIR si está dentro de settlement.itemsByType
+      // NOTA: Estas solo se aplican a items de ventas/cotizaciones, NO a payroll
       { from: /\{\{money unitPrice\}\}/g, to: '{{$ precio}}' },
       { from: /\{\{money total\}\}/g, to: '{{$ tot}}' },
       { from: /\{\{#if sku\}\}\[\{\{sku\}\}\] \{\{\/if\}\}\{\{name\}\}/g, to: '{{#if sku}}[{{sku}}] {{/if}}{{nom}}' },
+      // IMPORTANTE: Solo acortar {{name}} si NO está dentro de settlement.itemsByType (ya protegido arriba)
       { from: /\{\{name\}\}/g, to: '{{nom}}' },
       { from: /\{\{qty\}\}/g, to: '{{cant}}' },
       { from: /\{\{unitPrice\}\}/g, to: '{{precio}}' },
@@ -1294,6 +1327,15 @@
         console.log(`[shortenHandlebarsVars] Reemplazo ${idx + 1}: ${matches.length} coincidencias`);
       }
     });
+    
+    // Restaurar variables de payroll después del acortamiento
+    if (payrollMarkers) {
+      result = result.replace(new RegExp(payrollMarkers.earningsName, 'g'), '{{name}}');
+      result = result.replace(new RegExp(payrollMarkers.earningsValue, 'g'), '{{money value}}');
+      result = result.replace(new RegExp(payrollMarkers.deductionsName, 'g'), '{{name}}');
+      result = result.replace(new RegExp(payrollMarkers.deductionsValue, 'g'), '{{money value}}');
+      console.log('[shortenHandlebarsVars] Variables de payroll restauradas');
+    }
     
     console.log('[shortenHandlebarsVars] Total de reemplazos realizados:', totalReplacements);
     console.log('[shortenHandlebarsVars] Longitud HTML resultante:', result.length);
@@ -1326,6 +1368,18 @@
       { from: /\{\{#each S\.P\}\}/g, to: '{{#each sale.itemsGrouped.products}}' },
       { from: /\{\{#each S\.S\}\}/g, to: '{{#each sale.itemsGrouped.services}}' },
       { from: /\{\{#each S\.C\}\}/g, to: '{{#each sale.itemsGrouped.combos}}' },
+      // IMPORTANTE: Restaurar variables de payroll ANTES de restaurar {{nom}} genérico
+      // Esto asegura que las variables dentro de settlement.itemsByType se restauren correctamente
+      { from: /\{\{#each settlement\.itemsByType\.earnings\}\}([\s\S]*?)\{\{nom\}\}([\s\S]*?)\{\{\/each\}\}/g, 
+        (match, before, after) => {
+          return `{{#each settlement.itemsByType.earnings}}${before}{{name}}${after}{{/each}}`;
+        }
+      },
+      { from: /\{\{#each settlement\.itemsByType\.deductions\}\}([\s\S]*?)\{\{nom\}\}([\s\S]*?)\{\{\/each\}\}/g,
+        (match, before, after) => {
+          return `{{#each settlement.itemsByType.deductions}}${before}{{name}}${after}{{/each}}`;
+        }
+      },
       { from: /\{\{nom\}\}/g, to: '{{name}}' },
       { from: /\{\{cant\}\}/g, to: '{{qty}}' },
       { from: /\{\{precio\}\}/g, to: '{{unitPrice}}' },
@@ -2463,7 +2517,7 @@
           console.log('[loadExistingFormat] HTML original guardado, longitud:', template.contentHtml.length);
           
           // Convertir variables largas a formato corto para el canvas
-          let shortHtml = shortenHandlebarsVars(template.contentHtml);
+          let shortHtml = shortenHandlebarsVars(template.contentHtml, template.type);
           
           // Si es una plantilla de nómina, actualizar campos editables con variables
           if (template.type === 'payroll') {
@@ -2647,7 +2701,8 @@
       // Aplicar acortamiento de variables al HTML del canvas después de crear la plantilla
       console.log('[loadDefaultTemplate] Aplicando acortamiento de variables...');
       const currentHtml = canvas.innerHTML;
-      const shortenedHtml = shortenHandlebarsVars(currentHtml);
+      const templateType = window.currentTemplateSession?.type || '';
+      const shortenedHtml = shortenHandlebarsVars(currentHtml, templateType);
       
       // Solo actualizar si hubo cambios
       if (shortenedHtml !== currentHtml) {
@@ -4484,12 +4539,17 @@
     let templateType = window.currentTemplateSession?.type;
     if (templateType === 'payroll') {
       content = updatePayrollEditableFields(content);
+      // IMPORTANTE: Para payroll, NO acortar variables de itemsByType
+      // Las variables {{name}} y {{value}} dentro de settlement.itemsByType deben mantenerse completas
     }
     
     // Asegurar que las variables de Handlebars en las tablas se preserven correctamente
     // Reemplazar cualquier escape HTML de las llaves de Handlebars
     content = content.replace(/&#123;&#123;/g, '{{');
     content = content.replace(/&#125;&#125;/g, '}}');
+    
+    // NOTA: Las variables de payroll están protegidas en shortenHandlebarsVars
+    // No necesitamos protegerlas aquí porque el template ya debería tenerlas correctas
     
     // CORREGIR: Si las tablas tienen contenido pero NO tienen {{#each, agregarlas
     // Esto corrige templates que se guardaron sin las variables correctas
@@ -4731,6 +4791,35 @@
           word-wrap: break-word !important;
           overflow-wrap: break-word !important;
           max-width: 0 !important;
+        }
+        /* Asegurar anchos de columna específicos para tablas de nómina */
+        .payroll-earnings-table th:nth-child(1),
+        .payroll-earnings-table td:nth-child(1) {
+          width: 38% !important;
+        }
+        .payroll-earnings-table th:nth-child(2),
+        .payroll-earnings-table td:nth-child(2) {
+          width: 12% !important;
+        }
+        .payroll-earnings-table th:nth-child(3),
+        .payroll-earnings-table td:nth-child(3) {
+          width: 15% !important;
+        }
+        .payroll-earnings-table th:nth-child(4),
+        .payroll-earnings-table td:nth-child(4) {
+          width: 35% !important;
+        }
+        .payroll-deductions-table th:nth-child(1),
+        .payroll-deductions-table td:nth-child(1) {
+          width: 40% !important;
+        }
+        .payroll-deductions-table th:nth-child(2),
+        .payroll-deductions-table td:nth-child(2) {
+          width: 20% !important;
+        }
+        .payroll-deductions-table th:nth-child(3),
+        .payroll-deductions-table td:nth-child(3) {
+          width: 40% !important;
         }
         /* Reducir márgenes y espaciado */
         * {

@@ -1317,6 +1317,21 @@ export const printSettlementHtml = async (req, res) => {
       surcharges: Array.isArray(settlementObj.items) ? settlementObj.items.filter(i => i && i.type === 'surcharge') : []
     };
     
+    // Debug: verificar estructura de items
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[printSettlementHtml] Items originales:', {
+        totalItems: settlementObj.items?.length || 0,
+        itemsSample: settlementObj.items?.[0] || null,
+        itemsByType: {
+          earnings: itemsByType.earnings.length,
+          deductions: itemsByType.deductions.length,
+          surcharges: itemsByType.surcharges.length
+        },
+        earningsSample: itemsByType.earnings[0] || null,
+        deductionsSample: itemsByType.deductions[0] || null
+      });
+    }
+    
     const context = {
       company: {
         name: company?.name || company?.email || '',
@@ -1404,10 +1419,28 @@ export const printSettlementHtml = async (req, res) => {
     if (tpl) {
       ensureHB();
       try {
+        // Log del contexto para debug
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[printSettlementHtml] Renderizando template con contexto:', {
+            hasItemsByType: !!context.settlement.itemsByType,
+            earningsCount: context.settlement.itemsByType?.earnings?.length || 0,
+            deductionsCount: context.settlement.itemsByType?.deductions?.length || 0,
+            earningsSample: context.settlement.itemsByType?.earnings?.[0] || null,
+            deductionsSample: context.settlement.itemsByType?.deductions?.[0] || null
+          });
+        }
         html = Handlebars.compile(tpl.contentHtml||'')(context);
         css = tpl.contentCss || '';
+        
+        // Log del HTML generado para debug
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[printSettlementHtml] HTML generado, longitud:', html.length);
+          console.log('[printSettlementHtml] HTML contiene {{#each earnings}}:', html.includes('{{#each') && html.includes('earnings'));
+          console.log('[printSettlementHtml] HTML contiene {{#each deductions}}:', html.includes('{{#each') && html.includes('deductions'));
+        }
       } catch(e){ 
         console.error('Template error:', e);
+        console.error('Template error stack:', e.stack);
         html = `<!-- template error: ${e.message} --><div style="padding:20px;color:red;">Error al renderizar template: ${e.message}</div>`; 
       }
     } else {
@@ -1582,25 +1615,29 @@ export const printSettlementHtml = async (req, res) => {
       .payroll-earnings-table th,
       .payroll-deductions-table th {
         border: 2px solid #000 !important;
-        padding: 4px 3px !important;
+        padding: 3px 2px !important;
         font-weight: bold !important;
         color: #000 !important;
         background: white !important;
         text-align: center !important;
         font-size: 9px !important;
         word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
         overflow: hidden !important;
+        max-width: 0 !important;
       }
       .payroll-earnings-table td,
       .payroll-deductions-table td {
         border: 1px solid #000 !important;
-        padding: 3px 2px !important;
+        padding: 2px 2px !important;
         color: #000 !important;
         font-size: 9px !important;
         text-align: center !important;
         word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
         overflow: hidden !important;
         vertical-align: top !important;
+        max-width: 0 !important;
       }
       .payroll-earnings-table td:first-child,
       .payroll-deductions-table td:first-child {
@@ -1612,6 +1649,35 @@ export const printSettlementHtml = async (req, res) => {
         word-wrap: break-word !important;
         overflow-wrap: break-word !important;
         max-width: 0 !important;
+      }
+      /* Asegurar anchos de columna específicos para tablas de nómina */
+      .payroll-earnings-table th:nth-child(1),
+      .payroll-earnings-table td:nth-child(1) {
+        width: 38% !important;
+      }
+      .payroll-earnings-table th:nth-child(2),
+      .payroll-earnings-table td:nth-child(2) {
+        width: 12% !important;
+      }
+      .payroll-earnings-table th:nth-child(3),
+      .payroll-earnings-table td:nth-child(3) {
+        width: 15% !important;
+      }
+      .payroll-earnings-table th:nth-child(4),
+      .payroll-earnings-table td:nth-child(4) {
+        width: 35% !important;
+      }
+      .payroll-deductions-table th:nth-child(1),
+      .payroll-deductions-table td:nth-child(1) {
+        width: 40% !important;
+      }
+      .payroll-deductions-table th:nth-child(2),
+      .payroll-deductions-table td:nth-child(2) {
+        width: 20% !important;
+      }
+      .payroll-deductions-table th:nth-child(3),
+      .payroll-deductions-table td:nth-child(3) {
+        width: 40% !important;
       }
       /* Reducir márgenes y espaciado */
       * {
@@ -1654,6 +1720,11 @@ export const printSettlementHtml = async (req, res) => {
         padding: 2px 3px !important;
       }
     `;
+    
+    // Asegurar que el HTML tenga un contenedor principal si no lo tiene
+    if (!html.includes('<div') || (!html.trim().startsWith('<div') && !html.trim().startsWith('<'))) {
+      html = `<div style="width:100%;max-width:100%;margin:0;padding:0;font-family:Arial,sans-serif;font-size:9px;line-height:1.2;box-sizing:border-box;">${html}</div>`;
+    }
     
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.end(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${pageStyles}${css}</style></head><body>${html}</body></html>`);
