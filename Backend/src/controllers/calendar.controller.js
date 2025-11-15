@@ -347,7 +347,7 @@ export const searchByPlate = async (req, res) => {
 
 // Buscar cotizaciones por placa o cliente
 export const getQuotesByPlate = async (req, res) => {
-  const plate = String(req.params.plate || '').trim().toUpperCase();
+  const plate = String(req.params.plate || '').trim();
   const companyId = new mongoose.Types.ObjectId(req.companyId);
   
   if (!plate) {
@@ -355,9 +355,14 @@ export const getQuotesByPlate = async (req, res) => {
   }
   
   try {
+    // Normalizar placa: eliminar espacios, convertir a mayúsculas para búsqueda
+    const normalizedPlate = plate.trim().toUpperCase();
+    
+    // Buscar con expresión regular case-insensitive para tolerar mayúsculas/minúsculas
+    // Esto asegura que encuentre cotizaciones sin importar cómo se guardó la placa
     const quotes = await Quote.find({
       companyId,
-      'vehicle.plate': plate
+      'vehicle.plate': new RegExp(`^${normalizedPlate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
     })
     .sort({ createdAt: -1 })
     .limit(50)

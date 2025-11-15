@@ -515,7 +515,10 @@ function openNewEventModal(date = null) {
     quoteInfoEl?.classList.add('hidden');
     
     try {
-      const result = await API.calendar.getQuotesByPlate(plate);
+      // Normalizar placa: convertir a mayúsculas y eliminar espacios
+      // Esto asegura consistencia en la búsqueda
+      const normalizedPlate = plate.trim().toUpperCase();
+      const result = await API.calendar.getQuotesByPlate(normalizedPlate);
       quotesCache = Array.isArray(result?.items) ? result.items : [];
       
       quoteEl.innerHTML = '<option value="">Sin cotización</option>';
