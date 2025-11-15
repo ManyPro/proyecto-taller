@@ -5035,7 +5035,7 @@ async function openPostServiceConfigModal() {
   try {
     // Obtener configuración actual
     const prefs = await API.company.getPreferences();
-    const currentConfig = prefs.postServiceMessage || { ratingLink: '', ratingQrImageUrl: '' };
+    const currentConfig = prefs.postServiceMessage || { ratingLink: '' };
     
     body.innerHTML = `
       <div class="space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar pr-2">
@@ -5048,8 +5048,6 @@ async function openPostServiceConfigModal() {
           <pre class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-pre-wrap bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white p-3 rounded border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">Hola {nombre del cliente}, ha sido un placer atenderte en nuestras instalaciones.
 
 Espero todo haya sido de tu agrado, seria genial que nos dieras tu opinion por este medio: {link calificanos}
-
-{Qr calificanos}
 
 Muchas gracias!</pre>
         </div>
@@ -5067,29 +5065,6 @@ Muchas gracias!</pre>
           />
           <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">
             Este link reemplazará {link calificanos} en el mensaje
-          </p>
-        </div>
-        
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">
-            QR de calificación (imagen)
-          </label>
-          <div class="mb-2">
-            <input 
-              id="ps-rating-qr-file" 
-              type="file" 
-              accept="image/*"
-              class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-600/50 file:text-white file:cursor-pointer hover:file:bg-slate-600"
-            />
-          </div>
-          ${currentConfig.ratingQrImageUrl ? `
-            <div class="mt-3 p-3 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-              <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">Imagen actual:</p>
-              <img src="${htmlEscape(currentConfig.ratingQrImageUrl)}" alt="QR de calificación" class="max-w-[200px] max-h-[200px] rounded border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" />
-            </div>
-          ` : ''}
-          <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">
-            Esta imagen reemplazará {Qr calificanos} en el mensaje
           </p>
         </div>
         
@@ -5128,27 +5103,15 @@ Muchas gracias!</pre>
         saveBtn.onclick = async () => {
           try {
             const linkInput = document.getElementById('ps-rating-link');
-            const fileInput = document.getElementById('ps-rating-qr-file');
             
             if (!linkInput || !linkInput.value.trim()) {
               return alert('El link de calificación es obligatorio');
             }
             
-            let qrImageUrl = currentConfig.ratingQrImageUrl || '';
-            
-            // Subir imagen si se seleccionó una nueva
-            if (fileInput && fileInput.files && fileInput.files[0]) {
-              const uploadRes = await API.mediaUpload([fileInput.files[0]]);
-              if (uploadRes && uploadRes.files && uploadRes.files[0]) {
-                qrImageUrl = uploadRes.files[0].url || uploadRes.files[0].path || '';
-              }
-            }
-            
             // Guardar configuración
             const prefs = await API.company.getPreferences();
             prefs.postServiceMessage = {
-              ratingLink: linkInput.value.trim(),
-              ratingQrImageUrl: qrImageUrl
+              ratingLink: linkInput.value.trim()
             };
             
             await API.company.setPreferences(prefs);
@@ -5193,40 +5156,12 @@ async function sendPostServiceSurvey(sale) {
     // Construir mensaje reemplazando variables
     let message = `Hola ${customerName}, ha sido un placer atenderte en nuestras instalaciones.\n\n`;
     message += `Espero todo haya sido de tu agrado, seria genial que nos dieras tu opinion por este medio: ${config.ratingLink}\n\n`;
-    
-    // Agregar imagen QR si existe
-    // IMPORTANTE: WhatsApp Web/App no muestra imágenes automáticamente desde URLs cuando se usa wa.me
-    // Sin embargo, si la URL está en una línea separada y es accesible públicamente,
-    // WhatsApp puede mostrar una vista previa en algunos casos (depende del servicio de hosting)
-    if (config.ratingQrImageUrl) {
-      const qrUrl = config.ratingQrImageUrl.trim();
-      // Asegurar que la URL sea HTTPS (requerido por WhatsApp)
-      let finalUrl = qrUrl;
-      if (qrUrl.startsWith('http://')) {
-        // Convertir HTTP a HTTPS (Cloudinary soporta HTTPS)
-        finalUrl = qrUrl.replace('http://', 'https://');
-      } else if (!qrUrl.startsWith('https://') && !qrUrl.startsWith('http://')) {
-        // Si no es una URL completa, intentar agregar https://
-        finalUrl = `https://${qrUrl}`;
-      }
-      
-      // Colocar la URL en una línea separada para maximizar las posibilidades de que WhatsApp la detecte
-      // Nota: WhatsApp puede mostrar una vista previa si la URL es de un servicio conocido
-      // (como Cloudinary) y la imagen es accesible públicamente
-      message += `\n${finalUrl}\n\n`;
-    }
-    
     message += 'Muchas gracias!';
     
     // Codificar mensaje para URL
     const encodedMessage = encodeURIComponent(message);
     
     // Abrir WhatsApp Web/App
-    // WhatsApp automáticamente mostrará una vista previa de la imagen si:
-    // 1. La URL es HTTPS
-    // 2. La imagen es accesible públicamente (sin autenticación)
-    // 3. La URL está en una línea separada en el mensaje
-    // 4. La imagen tiene un formato soportado (JPG, PNG, etc.)
     const whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
     window.open(whatsappUrl, '_blank');
   } catch (err) {
