@@ -1,4 +1,5 @@
 ﻿import { Router } from 'express';
+import mongoose from 'mongoose';
 import { adminLogin, adminMe } from '../controllers/admin.auth.controller.js';
 import { authAdmin, requireAdminRole } from '../middlewares/auth.js';
 import Company from '../models/Company.js';
@@ -79,7 +80,13 @@ router.post('/signup/requests/:id/approve', authAdmin, requireAdminRole('develop
   const code = genCode();
   r.codeHash = await bcrypt.hash(code, 10);
   r.status = 'approved';
-  r.approvedBy = req.user?.id || null;
+  // Solo asignar approvedBy si es un ObjectId válido (no para dev-panel)
+  const userId = req.user?.id;
+  if(userId && mongoose.Types.ObjectId.isValid(userId) && userId !== 'dev-panel'){
+    r.approvedBy = userId;
+  } else {
+    r.approvedBy = null; // Para dev-panel o usuarios sin ID válido
+  }
   // Opcionalmente, asignar compaÃ±Ã­as enviadas en el body
   const assign = req.body?.companies || [];
   if(Array.isArray(assign) && assign.length){

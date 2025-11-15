@@ -521,7 +521,11 @@
       tbody.innerHTML = `<tr><td colspan='5' class='t-center'>${e.message||'Error'}</td></tr>`;
     }
   }
-  document.getElementById('loadCompanies').onclick = loadCompanies;
+  // Asignar evento solo si el elemento existe
+  const loadCompaniesBtn = document.getElementById('loadCompanies');
+  if(loadCompaniesBtn){
+    loadCompaniesBtn.onclick = loadCompanies;
+  }
 
   // Cargar empresas para el selector
   async function loadCompaniesForSelector(){
