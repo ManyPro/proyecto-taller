@@ -9098,14 +9098,35 @@ function processReportData(sales, cashflowEntries, receivables, inventoryItems, 
       ingresosPorCuenta[accountName] = (ingresosPorCuenta[accountName] || 0) + (Number(e.amount) || 0);
     });
   
-  // 3. Valor en cartera
-  const valorCartera = receivables.reduce((sum, r) => {
-    const total = Number(r.total) || 0;
-    const pagado = Number(r.paidAmount) || 0;
-    return sum + (total - pagado);
-  }, 0);
+  // 3. Valor en cartera (solo pendientes y parciales, usar balance)
+  const valorCartera = receivables
+    .filter(r => r.status === 'pending' || r.status === 'partial')
+    .reduce((sum, r) => {
+      // Usar balance si existe, sino calcularlo
+      const balance = Number(r.balance) || (Number(r.totalAmount) || 0) - (Number(r.paidAmount) || 0);
+      return sum + Math.max(0, balance); // Asegurar que no sea negativo
+    }, 0);
   
-  // 4. Ítems que salieron del inventario (de ventas)
+  // 4. Detalle de deudores (para el reporte de cartera)
+  const deudores = receivables
+    .filter(r => r.status === 'pending' || r.status === 'partial')
+    .map(r => {
+      const balance = Number(r.balance) || (Number(r.totalAmount) || 0) - (Number(r.paidAmount) || 0);
+      return {
+        cliente: r.customer?.name || 'Sin nombre',
+        identificacion: r.customer?.idNumber || '-',
+        placa: r.vehicle?.plate || '-',
+        venta: r.saleNumber || r.saleId?.number || '-',
+        total: Number(r.totalAmount) || 0,
+        pagado: Number(r.paidAmount) || 0,
+        pendiente: Math.max(0, balance),
+        estado: r.status === 'pending' ? 'Pendiente' : 'Parcial',
+        fecha: r.createdAt || r.dueDate || null
+      };
+    })
+    .sort((a, b) => b.pendiente - a.pendiente); // Ordenar por monto pendiente descendente
+  
+  // 5. Ítems que salieron del inventario (de ventas)
   const itemsSalidos = {};
   sales.forEach(sale => {
     sale.items?.forEach(item => {
@@ -9116,7 +9137,7 @@ function processReportData(sales, cashflowEntries, receivables, inventoryItems, 
     });
   });
   
-  // 5. Ítems que necesitan restock
+  // 6. Ítems que necesitan restock
   const itemsNecesitanRestock = inventoryItems
     .filter(item => {
       const stock = Number(item.stock) || 0;
@@ -9130,7 +9151,7 @@ function processReportData(sales, cashflowEntries, receivables, inventoryItems, 
       minStock: Number(item.minStock) || 0
     }));
   
-  // 6. Dinero que entró y salió (flujo de caja)
+  // 7. Dinero que entró y salió (flujo de caja)
   const dineroEntrado = cashflowEntries
     .filter(e => e.kind === 'IN')
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
@@ -9139,7 +9160,7 @@ function processReportData(sales, cashflowEntries, receivables, inventoryItems, 
     .filter(e => e.kind === 'OUT')
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   
-  // 7. Mano de obra por técnico
+  // 8. Mano de obra por técnico
   const manoObraPorTecnico = {};
   const tipoManoObra = {};
   
@@ -9174,7 +9195,7 @@ function processReportData(sales, cashflowEntries, receivables, inventoryItems, 
   const tipoMasUsado = Object.entries(tipoManoObra)
     .sort((a, b) => b[1] - a[1])[0] || ['N/A', 0];
   
-  // 8. Número de agendas
+  // 9. Número de agendas
   const totalAgendas = appointments.length;
   
   return {
@@ -9185,7 +9206,9 @@ function processReportData(sales, cashflowEntries, receivables, inventoryItems, 
     },
     ingresosPorCuenta,
     cartera: {
-      valor: valorCartera
+      valor: valorCartera,
+      deudores: deudores,
+      totalDeudores: deudores.length
     },
     itemsSalidos,
     itemsNecesitanRestock,
@@ -9258,11 +9281,58 @@ function showReport(reportData, fechaDesde, fechaHasta) {
       <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
         <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Valor en Cartera</div>
         <div class="text-2xl font-bold text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-600">${money(reportData.cartera.valor)}</div>
+        <div class="text-xs text-slate-500 dark:text-slate-500 theme-light:text-slate-500 mt-1">${reportData.cartera.totalDeudores} cuenta(s) pendiente(s)</div>
       </div>
       <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
         <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total Agendas</div>
         <div class="text-2xl font-bold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${reportData.agendas.total}</div>
       </div>
+    </div>
+    
+    <!-- Reporte de Cartera -->
+    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">💼 Reporte de Cartera</h3>
+      <div class="mb-4 p-4 bg-yellow-600/20 dark:bg-yellow-600/20 theme-light:bg-yellow-50 rounded-lg border border-yellow-600/30">
+        <div class="text-sm text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-600 mb-1">Valor Total en Cartera</div>
+        <div class="text-2xl font-bold text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-600">${money(reportData.cartera.valor)}</div>
+        <div class="text-xs text-yellow-300 dark:text-yellow-300 theme-light:text-yellow-700 mt-1">${reportData.cartera.totalDeudores} cuenta(s) pendiente(s)</div>
+      </div>
+      ${reportData.cartera.deudores.length > 0 ? `
+        <div class="max-h-96 overflow-y-auto custom-scrollbar">
+          <table class="w-full text-sm border-collapse">
+            <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 z-10">
+              <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400">
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Cliente</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">ID</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Placa</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Venta</th>
+                <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Total</th>
+                <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Pagado</th>
+                <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">Pendiente</th>
+                <th class="px-4 py-3 text-center text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reportData.cartera.deudores.map(d => `
+                <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50">
+                  <td class="px-4 py-3 text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtmlReport(d.cliente)}</td>
+                  <td class="px-4 py-3 text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtmlReport(d.identificacion)}</td>
+                  <td class="px-4 py-3 text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 font-mono">${escapeHtmlReport(d.placa)}</td>
+                  <td class="px-4 py-3 text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtmlReport(d.venta)}</td>
+                  <td class="px-4 py-3 text-right text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(d.total)}</td>
+                  <td class="px-4 py-3 text-right text-green-400 dark:text-green-400 theme-light:text-green-600 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(d.pagado)}</td>
+                  <td class="px-4 py-3 text-right text-red-400 dark:text-red-400 theme-light:text-red-600 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 font-semibold">${money(d.pendiente)}</td>
+                  <td class="px-4 py-3 text-center">
+                    <span class="px-2 py-1 text-xs rounded ${d.estado === 'Pendiente' ? 'bg-yellow-600/20 dark:bg-yellow-600/20 theme-light:bg-yellow-50 text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-600' : 'bg-blue-600/20 dark:bg-blue-600/20 theme-light:bg-blue-50 text-blue-400 dark:text-blue-400 theme-light:text-blue-600'}">
+                      ${d.estado}
+                    </span>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : '<p class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-center py-4">No hay cuentas pendientes</p>'}
     </div>
     
     <!-- Ingresos por cuenta -->
@@ -9275,7 +9345,7 @@ function showReport(reportData, fechaDesde, fechaHasta) {
             <span class="text-green-400 dark:text-green-400 theme-light:text-green-600 font-semibold">${money(monto)}</span>
           </div>
         `).join('')}
-        ${Object.keys(reportData.ingresosPorCuenta).length === 0 ? '<p class="text-slate-400 text-center py-4">No hay ingresos registrados</p>' : ''}
+        ${Object.keys(reportData.ingresosPorCuenta).length === 0 ? '<p class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-center py-4">No hay ingresos registrados</p>' : ''}
       </div>
     </div>
     
@@ -9542,6 +9612,46 @@ function downloadReportPDF(reportData, fechaDesde, fechaHasta) {
     doc.setFontSize(10);
     doc.text(`Tipo más usado: ${reportData.manoObra.tipoMasUsado.nombre} - ${money(reportData.manoObra.tipoMasUsado.monto)}`, 14, yPos);
     yPos += 10;
+  }
+  
+  // Reporte de cartera
+  if(reportData.cartera.deudores.length > 0) {
+    doc.setFontSize(14);
+    if(yPos > 270) {
+      doc.addPage();
+      yPos = 20;
+    }
+    doc.text('Reporte de Cartera', 14, yPos);
+    yPos += 8;
+    
+    doc.setFontSize(10);
+    doc.text(`Valor Total en Cartera: ${money(reportData.cartera.valor)}`, 14, yPos);
+    yPos += 6;
+    doc.text(`Total de Deudores: ${reportData.cartera.totalDeudores}`, 14, yPos);
+    yPos += 10;
+    
+    const carteraData = reportData.cartera.deudores.map(d => [
+      d.cliente.substring(0, 20),
+      d.placa || '-',
+      d.venta || '-',
+      money(d.total),
+      money(d.pagado),
+      money(d.pendiente),
+      d.estado
+    ]);
+    
+    doc.autoTable({
+      startY: yPos,
+      head: [['Cliente', 'Placa', 'Venta', 'Total', 'Pagado', 'Pendiente', 'Estado']],
+      body: carteraData,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [234, 179, 8] },
+      columnStyles: {
+        5: { fontStyle: 'bold', textColor: [239, 68, 68] }
+      }
+    });
+    
+    yPos = doc.lastAutoTable.finalY + 10;
   }
   
   // Ítems que necesitan restock
