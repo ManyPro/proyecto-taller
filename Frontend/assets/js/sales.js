@@ -7844,8 +7844,16 @@ function initInternalNavigation() {
   // Filtros de fecha con debounce
   const btnFiltrar = document.getElementById('historial-filtrar');
   const btnLimpiar = document.getElementById('historial-limpiar');
+  const btnExportarReporte = document.getElementById('historial-exportar-reporte');
   const fechaDesde = document.getElementById('historial-fecha-desde');
   const fechaHasta = document.getElementById('historial-fecha-hasta');
+  
+  // Botón exportar reporte
+  if(btnExportarReporte) {
+    btnExportarReporte.addEventListener('click', () => {
+      openReportModal();
+    });
+  }
 
   let filterTimeout = null;
   const applyFilters = () => {
@@ -8939,7 +8947,632 @@ function setupEditCloseModalListeners(sale, payments, commissions) {
   });
 }
 
+// ========== REPORTE DE VENTAS ==========
 
+function openReportModal() {
+  const modal = document.getElementById('modal');
+  const body = document.getElementById('modalBody');
+  if(!modal||!body) return;
+  
+  const div = document.createElement('div');
+  div.innerHTML = `<div class="space-y-4">
+    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">📊 Generar Reporte de Ventas</h3>
+    <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">
+      Selecciona el rango de fechas para generar un reporte completo con estadísticas de ventas, flujo de caja, cartera, inventario y mano de obra.
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Fecha desde</label>
+        <input id='report-fecha-desde' type='date' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Fecha hasta</label>
+        <input id='report-fecha-hasta' type='date' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-6">
+      <button id='report-generar' class="flex-1 px-4 py-2.5 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">📊 Generar Reporte</button>
+      <button id='report-cancel' class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+    </div>
+    <div id='report-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
+  </div>`;
+  
+  body.innerHTML=''; body.appendChild(div); modal.classList.remove('hidden');
+  
+  const fechaDesdeInput = div.querySelector('#report-fecha-desde');
+  const fechaHastaInput = div.querySelector('#report-fecha-hasta');
+  const msgEl = div.querySelector('#report-msg');
+  const generarBtn = div.querySelector('#report-generar');
+  const cancelBtn = div.querySelector('#report-cancel');
+  
+  // Establecer fechas por defecto (último mes)
+  const hoy = new Date();
+  const haceUnMes = new Date();
+  haceUnMes.setMonth(haceUnMes.getMonth() - 1);
+  
+  fechaDesdeInput.value = haceUnMes.toISOString().split('T')[0];
+  fechaHastaInput.value = hoy.toISOString().split('T')[0];
+  
+  cancelBtn.onclick = () => modal.classList.add('hidden');
+  
+  generarBtn.onclick = async () => {
+    const desde = fechaDesdeInput?.value;
+    const hasta = fechaHastaInput?.value;
+    
+    if(!desde || !hasta) {
+      msgEl.textContent = '⚠️ Selecciona ambas fechas';
+      msgEl.style.color = '#ef4444';
+      return;
+    }
+    
+    if(new Date(desde) > new Date(hasta)) {
+      msgEl.textContent = '⚠️ La fecha desde debe ser anterior a la fecha hasta';
+      msgEl.style.color = '#ef4444';
+      return;
+    }
+    
+    msgEl.textContent = 'Generando reporte...';
+    msgEl.style.color = '#3b82f6';
+    generarBtn.disabled = true;
+    
+    try {
+      await generateReport(desde, hasta);
+      modal.classList.add('hidden');
+    } catch(err) {
+      msgEl.textContent = '❌ ' + (err?.message || 'Error al generar reporte');
+      msgEl.style.color = '#ef4444';
+      generarBtn.disabled = false;
+    }
+  };
+}
 
+async function generateReport(fechaDesde, fechaHasta) {
+  // Mostrar loading
+  const viewHistorial = document.getElementById('sales-view-historial');
+  if(!viewHistorial) return;
+  
+  const loadingDiv = document.createElement('div');
+  loadingDiv.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm';
+  loadingDiv.innerHTML = `
+    <div class="bg-slate-800 rounded-xl p-8 shadow-2xl border border-slate-700">
+      <div class="text-center">
+        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mb-4"></div>
+        <div class="text-white text-lg font-semibold">Generando reporte...</div>
+        <div class="text-slate-400 text-sm mt-2">Esto puede tomar unos momentos</div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(loadingDiv);
+  
+  try {
+    // Recopilar todos los datos en paralelo
+    const [salesData, cashflowData, receivablesData, inventoryData, calendarData, techniciansData] = await Promise.all([
+      // Ventas
+      API.sales.list({ status: 'closed', from: fechaDesde, to: fechaHasta, limit: 10000 }),
+      // Flujo de caja
+      API.cashflow.list({ from: fechaDesde, to: fechaHasta, limit: 10000 }),
+      // Cartera
+      API.receivables.list({ from: fechaDesde, to: fechaHasta, limit: 10000 }),
+      // Inventario
+      API.inventory.itemsList({ limit: 10000 }),
+      // Calendario/Agendas
+      API.calendar.list({ from: fechaDesde, to: fechaHasta }),
+      // Técnicos
+      API.company.getTechnicians()
+    ]);
+    
+    const sales = Array.isArray(salesData?.items) ? salesData.items : [];
+    const cashflowEntries = Array.isArray(cashflowData?.items) ? cashflowData.items : [];
+    const receivables = Array.isArray(receivablesData) ? receivablesData : [];
+    const inventoryItems = Array.isArray(inventoryData) ? inventoryData : [];
+    const appointments = Array.isArray(calendarData) ? calendarData : [];
+    const technicians = Array.isArray(techniciansData) ? techniciansData : [];
+    
+    // Procesar datos
+    const reportData = processReportData(sales, cashflowEntries, receivables, inventoryItems, appointments, technicians, fechaDesde, fechaHasta);
+    
+    // Mostrar reporte
+    showReport(reportData, fechaDesde, fechaHasta);
+    
+  } catch(err) {
+    console.error('Error generando reporte:', err);
+    alert('Error al generar reporte: ' + (err?.message || 'Error desconocido'));
+  } finally {
+    loadingDiv.remove();
+  }
+}
+
+function processReportData(sales, cashflowEntries, receivables, inventoryItems, appointments, technicians, fechaDesde, fechaHasta) {
+  const money = (n) => '$' + Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  
+  // 1. Estadísticas de ventas
+  const totalVentas = sales.length;
+  const totalIngresos = sales.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
+  
+  // 2. Ingresos por cuenta
+  const ingresosPorCuenta = {};
+  cashflowEntries
+    .filter(e => e.kind === 'IN')
+    .forEach(e => {
+      const accountName = e.accountId?.name || e.accountName || 'Sin cuenta';
+      ingresosPorCuenta[accountName] = (ingresosPorCuenta[accountName] || 0) + (Number(e.amount) || 0);
+    });
+  
+  // 3. Valor en cartera
+  const valorCartera = receivables.reduce((sum, r) => {
+    const total = Number(r.total) || 0;
+    const pagado = Number(r.paidAmount) || 0;
+    return sum + (total - pagado);
+  }, 0);
+  
+  // 4. Ítems que salieron del inventario (de ventas)
+  const itemsSalidos = {};
+  sales.forEach(sale => {
+    sale.items?.forEach(item => {
+      if(item.source === 'inventory' && item.refId) {
+        const itemId = String(item.refId);
+        itemsSalidos[itemId] = (itemsSalidos[itemId] || 0) + (Number(item.qty) || 0);
+      }
+    });
+  });
+  
+  // 5. Ítems que necesitan restock
+  const itemsNecesitanRestock = inventoryItems
+    .filter(item => {
+      const stock = Number(item.stock) || 0;
+      const minStock = Number(item.minStock) || 0;
+      return stock <= minStock && minStock > 0;
+    })
+    .map(item => ({
+      name: item.name || 'Sin nombre',
+      sku: item.sku || '-',
+      stock: Number(item.stock) || 0,
+      minStock: Number(item.minStock) || 0
+    }));
+  
+  // 6. Dinero que entró y salió (flujo de caja)
+  const dineroEntrado = cashflowEntries
+    .filter(e => e.kind === 'IN')
+    .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  
+  const dineroSalido = cashflowEntries
+    .filter(e => e.kind === 'OUT')
+    .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  
+  // 7. Mano de obra por técnico
+  const manoObraPorTecnico = {};
+  const tipoManoObra = {};
+  
+  sales.forEach(sale => {
+    const technician = sale.closingTechnician || sale.technician || 'Sin técnico';
+    sale.items?.forEach(item => {
+      if(item.source === 'service') {
+        const laborValue = Number(item.total) || 0;
+        manoObraPorTecnico[technician] = (manoObraPorTecnico[technician] || 0) + laborValue;
+        
+        const tipo = item.name || 'Servicio';
+        tipoManoObra[tipo] = (tipoManoObra[tipo] || 0) + laborValue;
+      }
+    });
+  });
+  
+  // Calcular porcentajes de técnicos (asumiendo que cada técnico tiene un porcentaje configurado)
+  // Por ahora, asumimos 70% técnico, 30% empresa (esto debería venir de configuración)
+  const porcentajeTecnico = 70;
+  const porcentajeEmpresa = 30;
+  
+  const manoObraDetalle = Object.entries(manoObraPorTecnico).map(([tech, total]) => ({
+    tecnico: tech,
+    total: total,
+    porcentajeTecnico: porcentajeTecnico,
+    montoTecnico: (total * porcentajeTecnico) / 100,
+    porcentajeEmpresa: porcentajeEmpresa,
+    montoEmpresa: (total * porcentajeEmpresa) / 100
+  }));
+  
+  // Tipo de mano de obra más usado
+  const tipoMasUsado = Object.entries(tipoManoObra)
+    .sort((a, b) => b[1] - a[1])[0] || ['N/A', 0];
+  
+  // 8. Número de agendas
+  const totalAgendas = appointments.length;
+  
+  return {
+    periodo: { desde: fechaDesde, hasta: fechaHasta },
+    ventas: {
+      total: totalVentas,
+      ingresos: totalIngresos
+    },
+    ingresosPorCuenta,
+    cartera: {
+      valor: valorCartera
+    },
+    itemsSalidos,
+    itemsNecesitanRestock,
+    flujoCaja: {
+      entrada: dineroEntrado,
+      salida: dineroSalido,
+      neto: dineroEntrado - dineroSalido
+    },
+    manoObra: {
+      porTecnico: manoObraDetalle,
+      tipoMasUsado: {
+        nombre: tipoMasUsado[0],
+        monto: tipoMasUsado[1]
+      },
+      porcentajeTecnico,
+      porcentajeEmpresa
+    },
+    agendas: {
+      total: totalAgendas
+    }
+  };
+}
+
+// Helper para escapar HTML en reportes
+function escapeHtmlReport(str) {
+  if(!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function showReport(reportData, fechaDesde, fechaHasta) {
+  const viewHistorial = document.getElementById('sales-view-historial');
+  if(!viewHistorial) return;
+  
+  const money = (n) => '$' + Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  
+  // Crear contenedor del reporte
+  const reportContainer = document.createElement('div');
+  reportContainer.id = 'report-container';
+  reportContainer.className = 'space-y-6';
+  
+  reportContainer.innerHTML = `
+    <!-- Header del reporte -->
+    <div class="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 rounded-xl shadow-lg border border-blue-500/50 p-6 mb-6">
+      <div class="flex justify-between items-start">
+        <div>
+          <h2 class="text-2xl font-bold text-white mb-2">📊 Reporte de Ventas</h2>
+          <p class="text-blue-100 text-sm">Período: ${new Date(fechaDesde).toLocaleDateString('es-CO')} - ${new Date(fechaHasta).toLocaleDateString('es-CO')}</p>
+        </div>
+        <button id="report-download-pdf" class="px-4 py-2 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-lg transition-all duration-200">
+          📥 Descargar PDF
+        </button>
+      </div>
+    </div>
+    
+    <!-- Resumen general -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total Ventas</div>
+        <div class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900">${reportData.ventas.total}</div>
+      </div>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Ingresos Totales</div>
+        <div class="text-2xl font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${money(reportData.ventas.ingresos)}</div>
+      </div>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Valor en Cartera</div>
+        <div class="text-2xl font-bold text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-600">${money(reportData.cartera.valor)}</div>
+      </div>
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total Agendas</div>
+        <div class="text-2xl font-bold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${reportData.agendas.total}</div>
+      </div>
+    </div>
+    
+    <!-- Ingresos por cuenta -->
+    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">💰 Ingresos por Cuenta</h3>
+      <div class="space-y-2">
+        ${Object.entries(reportData.ingresosPorCuenta).map(([cuenta, monto]) => `
+          <div class="flex justify-between items-center p-3 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-white rounded-lg">
+            <span class="text-white dark:text-white theme-light:text-slate-900 font-medium">${escapeHtmlReport(cuenta)}</span>
+            <span class="text-green-400 dark:text-green-400 theme-light:text-green-600 font-semibold">${money(monto)}</span>
+          </div>
+        `).join('')}
+        ${Object.keys(reportData.ingresosPorCuenta).length === 0 ? '<p class="text-slate-400 text-center py-4">No hay ingresos registrados</p>' : ''}
+      </div>
+    </div>
+    
+    <!-- Flujo de caja -->
+    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">💵 Flujo de Caja</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="p-4 bg-green-600/20 dark:bg-green-600/20 theme-light:bg-green-50 rounded-lg border border-green-600/30">
+          <div class="text-sm text-green-400 dark:text-green-400 theme-light:text-green-600 mb-1">Entradas</div>
+          <div class="text-xl font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${money(reportData.flujoCaja.entrada)}</div>
+        </div>
+        <div class="p-4 bg-red-600/20 dark:bg-red-600/20 theme-light:bg-red-50 rounded-lg border border-red-600/30">
+          <div class="text-sm text-red-400 dark:text-red-400 theme-light:text-red-600 mb-1">Salidas</div>
+          <div class="text-xl font-bold text-red-400 dark:text-red-400 theme-light:text-red-600">${money(reportData.flujoCaja.salida)}</div>
+        </div>
+        <div class="p-4 bg-blue-600/20 dark:bg-blue-600/20 theme-light:bg-blue-50 rounded-lg border border-blue-600/30">
+          <div class="text-sm text-blue-400 dark:text-blue-400 theme-light:text-blue-600 mb-1">Neto</div>
+          <div class="text-xl font-bold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${money(reportData.flujoCaja.neto)}</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Mano de obra por técnico -->
+    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">👷 Mano de Obra por Técnico</h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm border-collapse">
+          <thead>
+            <tr class="border-b-2 border-slate-600/70">
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 border-r border-slate-700/50">Técnico</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 border-r border-slate-700/50">Total</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 border-r border-slate-700/50">${reportData.manoObra.porcentajeTecnico}% Técnico</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300">${reportData.manoObra.porcentajeEmpresa}% Empresa</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${reportData.manoObra.porTecnico.map(t => `
+              <tr class="border-b border-slate-700/30">
+                <td class="px-4 py-3 text-white border-r border-slate-700/30">${escapeHtmlReport(t.tecnico)}</td>
+                <td class="px-4 py-3 text-right text-white border-r border-slate-700/30">${money(t.total)}</td>
+                <td class="px-4 py-3 text-right text-green-400 border-r border-slate-700/30">${money(t.montoTecnico)}</td>
+                <td class="px-4 py-3 text-right text-blue-400">${money(t.montoEmpresa)}</td>
+              </tr>
+            `).join('')}
+            ${reportData.manoObra.porTecnico.length === 0 ? '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">No hay datos de mano de obra</td></tr>' : ''}
+          </tbody>
+        </table>
+      </div>
+      <div class="mt-4 p-4 bg-purple-600/20 dark:bg-purple-600/20 theme-light:bg-purple-50 rounded-lg border border-purple-600/30">
+        <div class="text-sm text-purple-400 dark:text-purple-400 theme-light:text-purple-600 mb-1">Tipo de Mano de Obra Más Usado</div>
+        <div class="text-lg font-bold text-purple-400 dark:text-purple-400 theme-light:text-purple-600">${escapeHtmlReport(reportData.manoObra.tipoMasUsado.nombre)} - ${money(reportData.manoObra.tipoMasUsado.monto)}</div>
+      </div>
+    </div>
+    
+    <!-- Gráfico de pastel para mano de obra -->
+    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">📊 Distribución de Mano de Obra</h3>
+      <div class="flex justify-center">
+        <canvas id="manoObraChart" style="max-width: 400px; max-height: 400px;"></canvas>
+      </div>
+    </div>
+    
+    <!-- Ítems que necesitan restock -->
+    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">⚠️ Ítems que Necesitan Restock</h3>
+      <div class="max-h-64 overflow-y-auto custom-scrollbar">
+        <table class="w-full text-sm border-collapse">
+          <thead class="sticky top-0 bg-slate-900/50 z-10">
+            <tr class="border-b-2 border-slate-600/70">
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 border-r border-slate-700/50">SKU</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-slate-300 border-r border-slate-700/50">Nombre</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300 border-r border-slate-700/50">Stock Actual</th>
+              <th class="px-4 py-3 text-right text-xs font-semibold text-slate-300">Stock Mínimo</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${reportData.itemsNecesitanRestock.map(item => `
+              <tr class="border-b border-slate-700/30">
+                <td class="px-4 py-3 text-white border-r border-slate-700/30">${escapeHtmlReport(item.sku)}</td>
+                <td class="px-4 py-3 text-white border-r border-slate-700/30">${escapeHtmlReport(item.name)}</td>
+                <td class="px-4 py-3 text-right text-red-400 border-r border-slate-700/30">${item.stock}</td>
+                <td class="px-4 py-3 text-right text-yellow-400">${item.minStock}</td>
+              </tr>
+            `).join('')}
+            ${reportData.itemsNecesitanRestock.length === 0 ? '<tr><td colspan="4" class="px-4 py-6 text-center text-slate-400">Todos los ítems tienen stock suficiente</td></tr>' : ''}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Botón para volver -->
+    <div class="flex justify-center">
+      <button id="report-volver" class="px-6 py-3 bg-slate-700/50 hover:bg-slate-700 text-white font-semibold rounded-lg transition-all duration-200">
+        ← Volver al Historial
+      </button>
+    </div>
+  `;
+  
+  // Reemplazar contenido del historial con el reporte
+  viewHistorial.innerHTML = '';
+  viewHistorial.appendChild(reportContainer);
+  
+  // Configurar eventos
+  document.getElementById('report-volver')?.addEventListener('click', () => {
+    loadHistorial(true);
+  });
+  
+  document.getElementById('report-download-pdf')?.addEventListener('click', () => {
+    downloadReportPDF(reportData, fechaDesde, fechaHasta);
+  });
+  
+  // Crear gráfico de pastel
+  setTimeout(() => {
+    createManoObraChart(reportData.manoObra.porTecnico);
+  }, 100);
+}
+
+function createManoObraChart(manoObraData) {
+  const canvas = document.getElementById('manoObraChart');
+  if(!canvas || !window.Chart) return;
+  
+  const ctx = canvas.getContext('2d');
+  
+  const labels = manoObraData.map(t => t.tecnico);
+  const data = manoObraData.map(t => t.total);
+  
+  new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: data,
+        backgroundColor: [
+          '#3b82f6',
+          '#10b981',
+          '#f59e0b',
+          '#ef4444',
+          '#8b5cf6',
+          '#ec4899',
+          '#06b6d4'
+        ]
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: {
+            color: '#e5e7eb',
+            font: {
+              size: 12
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function downloadReportPDF(reportData, fechaDesde, fechaHasta) {
+  if(!window.jspdf?.jsPDF) {
+    alert('Error: jsPDF no está disponible');
+    return;
+  }
+  
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p', 'mm', 'a4');
+  const money = (n) => '$' + Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  
+  let yPos = 20;
+  
+  // Título
+  doc.setFontSize(20);
+  doc.text('Reporte de Ventas', 105, yPos, { align: 'center' });
+  yPos += 10;
+  
+  doc.setFontSize(12);
+  doc.text(`Período: ${new Date(fechaDesde).toLocaleDateString('es-CO')} - ${new Date(fechaHasta).toLocaleDateString('es-CO')}`, 105, yPos, { align: 'center' });
+  yPos += 15;
+  
+  // Resumen general
+  doc.setFontSize(16);
+  doc.text('Resumen General', 14, yPos);
+  yPos += 8;
+  
+  doc.setFontSize(10);
+  doc.text(`Total Ventas: ${reportData.ventas.total}`, 14, yPos);
+  yPos += 6;
+  doc.text(`Ingresos Totales: ${money(reportData.ventas.ingresos)}`, 14, yPos);
+  yPos += 6;
+  doc.text(`Valor en Cartera: ${money(reportData.cartera.valor)}`, 14, yPos);
+  yPos += 6;
+  doc.text(`Total Agendas: ${reportData.agendas.total}`, 14, yPos);
+  yPos += 10;
+  
+  // Ingresos por cuenta
+  if(Object.keys(reportData.ingresosPorCuenta).length > 0) {
+    doc.setFontSize(14);
+    doc.text('Ingresos por Cuenta', 14, yPos);
+    yPos += 8;
+    
+    doc.setFontSize(10);
+    Object.entries(reportData.ingresosPorCuenta).forEach(([cuenta, monto]) => {
+      if(yPos > 270) {
+        doc.addPage();
+        yPos = 20;
+      }
+      doc.text(`${cuenta}: ${money(monto)}`, 20, yPos);
+      yPos += 6;
+    });
+    yPos += 5;
+  }
+  
+  // Flujo de caja
+  doc.setFontSize(14);
+  if(yPos > 270) {
+    doc.addPage();
+    yPos = 20;
+  }
+  doc.text('Flujo de Caja', 14, yPos);
+  yPos += 8;
+  
+  doc.setFontSize(10);
+  doc.text(`Entradas: ${money(reportData.flujoCaja.entrada)}`, 14, yPos);
+  yPos += 6;
+  doc.text(`Salidas: ${money(reportData.flujoCaja.salida)}`, 14, yPos);
+  yPos += 6;
+  doc.text(`Neto: ${money(reportData.flujoCaja.neto)}`, 14, yPos);
+  yPos += 10;
+  
+  // Mano de obra
+  if(reportData.manoObra.porTecnico.length > 0) {
+    doc.setFontSize(14);
+    if(yPos > 270) {
+      doc.addPage();
+      yPos = 20;
+    }
+    doc.text('Mano de Obra por Técnico', 14, yPos);
+    yPos += 8;
+    
+    const tableData = reportData.manoObra.porTecnico.map(t => [
+      t.tecnico,
+      money(t.total),
+      money(t.montoTecnico),
+      money(t.montoEmpresa)
+    ]);
+    
+    doc.autoTable({
+      startY: yPos,
+      head: [['Técnico', 'Total', `${reportData.manoObra.porcentajeTecnico}% Técnico`, `${reportData.manoObra.porcentajeEmpresa}% Empresa`]],
+      body: tableData,
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [59, 130, 246] }
+    });
+    
+    yPos = doc.lastAutoTable.finalY + 10;
+    
+    if(yPos > 270) {
+      doc.addPage();
+      yPos = 20;
+    }
+    doc.setFontSize(10);
+    doc.text(`Tipo más usado: ${reportData.manoObra.tipoMasUsado.nombre} - ${money(reportData.manoObra.tipoMasUsado.monto)}`, 14, yPos);
+    yPos += 10;
+  }
+  
+  // Ítems que necesitan restock
+  if(reportData.itemsNecesitanRestock.length > 0) {
+    doc.setFontSize(14);
+    if(yPos > 270) {
+      doc.addPage();
+      yPos = 20;
+    }
+    doc.text('Ítems que Necesitan Restock', 14, yPos);
+    yPos += 8;
+    
+    const restockData = reportData.itemsNecesitanRestock.map(item => [
+      item.sku,
+      item.name.substring(0, 30),
+      String(item.stock),
+      String(item.minStock)
+    ]);
+    
+    doc.autoTable({
+      startY: yPos,
+      head: [['SKU', 'Nombre', 'Stock Actual', 'Stock Mínimo']],
+      body: restockData,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [239, 68, 68] }
+    });
+  }
+  
+  // Descargar
+  const fileName = `reporte-ventas-${fechaDesde}-${fechaHasta}.pdf`;
+  doc.save(fileName);
+}
 
 

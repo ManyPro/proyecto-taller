@@ -4,6 +4,17 @@ const money = (n)=>'$'+Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})
 let cfState = { page:1, pages:1, limit:50 };
 let cfBound = false;
 
+// Helper para escapar HTML (reutilizable)
+function escapeHtml(str) {
+  if(!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 export function initCashFlow(){
   const tab = document.getElementById('tab-cashflow');
   if(!tab) return;
@@ -17,11 +28,7 @@ export function initCashFlow(){
 
 function bind(){
   document.getElementById('cf-refresh')?.addEventListener('click', ()=>{ loadAccounts(); });
-  document.getElementById('cf-add-account')?.addEventListener('click', async ()=>{
-    const name = prompt('Nombre de la cuenta:'); if(!name) return;
-    const type = confirm('¿Cuenta bancaria? Aceptar=Banco, Cancelar=Caja') ? 'BANK':'CASH';
-    try { await API.accounts.create({ name, type }); loadAccounts(); } catch(e){ alert(e?.message||'Error'); }
-  });
+  document.getElementById('cf-add-account')?.addEventListener('click', openAddAccountModal);
   document.getElementById('cf-apply')?.addEventListener('click', ()=> loadMovements(true));
   document.getElementById('cf-prev')?.addEventListener('click', ()=>{ if(cfState.page>1){ cfState.page--; loadMovements(); } });
   document.getElementById('cf-next')?.addEventListener('click', ()=>{ if(cfState.page<cfState.pages){ cfState.page++; loadMovements(); } });
@@ -41,7 +48,7 @@ async function loadAccounts(){
     const totalLbl = document.getElementById('cf-acc-total');
     const filterSel = document.getElementById('cf-filter-account');
     if(body){
-      body.innerHTML = (list.balances||[]).map(a=>`<tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors"><td data-label="Nombre" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${a.name}</td><td data-label="Tipo" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${a.type}</td><td data-label="Saldo" class="px-4 py-3 text-right text-xs font-semibold text-white dark:text-white theme-light:text-slate-900">${money(a.balance)}</td><td class="px-4 py-3"></td></tr>`).join('');
+      body.innerHTML = (list.balances||[]).map(a=>`<tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors"><td data-label="Nombre" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${a.name}</td><td data-label="Tipo" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${a.type}</td><td data-label="Saldo" class="px-4 py-3 text-right text-xs font-semibold text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(a.balance)}</td><td class="px-4 py-3"></td></tr>`).join('');
       if(!(list.balances||[]).length) body.innerHTML='<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin cuentas</td></tr>';
     }
     if(totalLbl) totalLbl.textContent = 'Total: '+money(list.total||0);
@@ -50,29 +57,43 @@ async function loadAccounts(){
       filterSel.innerHTML='<option value="">-- Cuenta --</option>' + (list.balances||[]).map(a=>`<option value="${a.accountId}">${a.name}</option>`).join('');
       if(selVal) filterSel.value=selVal;
     }
-  }catch(e){ console.warn('loadAccounts', e); }
+  }catch(e){ 
+    const body = document.getElementById('cf-acc-body');
+    if(body) body.innerHTML='<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-red-400">Error al cargar cuentas</td></tr>';
+  }
 }
 
 async function loadMovements(reset=false){
   if(reset) cfState.page=1;
+  
+  // Recopilar parámetros de filtro de forma eficiente
+  const filterAccount = document.getElementById('cf-filter-account');
+  const filterFrom = document.getElementById('cf-from');
+  const filterTo = document.getElementById('cf-to');
+  const filterKind = document.getElementById('cf-kind');
+  const filterSource = document.getElementById('cf-source');
+  
   const params = { page: cfState.page, limit: cfState.limit };
-  const acc = document.getElementById('cf-filter-account')?.value; if(acc) params.accountId = acc;
-  const from = document.getElementById('cf-from')?.value; if(from) params.from = from;
-  const to = document.getElementById('cf-to')?.value; if(to) params.to = to;
-  const kind = document.getElementById('cf-kind')?.value; if(kind) params.kind = kind;
-  const source = document.getElementById('cf-source')?.value; if(source) params.source = source;
+  if(filterAccount?.value) params.accountId = filterAccount.value;
+  if(filterFrom?.value) params.from = filterFrom.value;
+  if(filterTo?.value) params.to = filterTo.value;
+  if(filterKind?.value) params.kind = filterKind.value;
+  if(filterSource?.value) params.source = filterSource.value;
+  
   const rowsBody = document.getElementById('cf-rows');
   const summary = document.getElementById('cf-mov-summary');
   const pag = document.getElementById('cf-pag');
+  const prevBtn = document.getElementById('cf-prev');
+  const nextBtn = document.getElementById('cf-next');
+  
   try {
     if(rowsBody) rowsBody.innerHTML='<tr><td colspan="8" class="px-4 py-6 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cargando...</td></tr>';
     const data = await API.cashflow.list(params);
     const items = data.items || [];
     if(rowsBody){
-      rowsBody.innerHTML = items.map(x=>{
-        const inAmt = x.kind==='IN'? money(x.amount):'';
-        const outAmt = x.kind==='OUT'? money(x.amount):'';
-        const date = new Date(x.date||x.createdAt||Date.now()).toLocaleString('es-CO', { 
+      // Función helper para formatear fecha
+      const formatDate = (dateValue) => {
+        return new Date(dateValue||Date.now()).toLocaleString('es-CO', { 
           year: 'numeric', 
           month: '2-digit', 
           day: '2-digit', 
@@ -80,17 +101,26 @@ async function loadMovements(reset=false){
           minute: '2-digit', 
           second: '2-digit' 
         });
-        const accName = x.accountId?.name||x.accountName||'';
-        const desc = x.description||'';
-        const canEdit = true; // se podría restringir según x.source
-        return `<tr data-id='${x._id}' class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors">
-          <td data-label="Fecha" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${date}</td>
-          <td data-label="Cuenta" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${accName}</td>
-          <td data-label="Descripción" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${desc}</td>
-          <td data-label="Fuente" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${x.source||''}</td>
-          <td data-label="IN" class='px-4 py-3 text-right text-xs font-semibold text-green-400 dark:text-green-400 theme-light:text-green-600 ${x.kind==='IN'?'':'text-slate-500 dark:text-slate-500 theme-light:text-slate-400'}'>${inAmt}</td>
-          <td data-label="OUT" class='px-4 py-3 text-right text-xs font-semibold text-red-400 dark:text-red-400 theme-light:text-red-600 ${x.kind==='OUT'?'':'text-slate-500 dark:text-slate-500 theme-light:text-slate-400'}'>${outAmt}</td>
-          <td data-label="Saldo" class='px-4 py-3 text-right text-xs font-medium text-white dark:text-white theme-light:text-slate-900'>${money(x.balanceAfter||0)}</td>
+      };
+      
+      rowsBody.innerHTML = items.map(x=>{
+        const inAmt = x.kind==='IN'? money(x.amount):'';
+        const outAmt = x.kind==='OUT'? money(x.amount):'';
+        const date = formatDate(x.date||x.createdAt);
+        const accName = escapeHtml(x.accountId?.name||x.accountName||'');
+        const desc = escapeHtml(x.description||'');
+        const source = escapeHtml(x.source||'');
+        const canEdit = true;
+        const rowId = escapeHtml(x._id);
+        
+        return `<tr data-id='${rowId}' class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors">
+          <td data-label="Fecha" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${date}</td>
+          <td data-label="Cuenta" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${accName}</td>
+          <td data-label="Descripción" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${desc}</td>
+          <td data-label="Fuente" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${source}</td>
+          <td data-label="IN" class='px-4 py-3 text-right text-xs font-semibold text-green-400 dark:text-green-400 theme-light:text-green-600 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 ${x.kind==='IN'?'':'text-slate-500 dark:text-slate-500 theme-light:text-slate-400'}'>${inAmt}</td>
+          <td data-label="OUT" class='px-4 py-3 text-right text-xs font-semibold text-red-400 dark:text-red-400 theme-light:text-red-600 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 ${x.kind==='OUT'?'':'text-slate-500 dark:text-slate-500 theme-light:text-slate-400'}'>${outAmt}</td>
+          <td data-label="Saldo" class='px-4 py-3 text-right text-xs font-medium text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200'>${money(x.balanceAfter||0)}</td>
           <td class="px-4 py-3" style='white-space:nowrap;'>${canEdit?`<button class='px-3 py-1.5 text-xs bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-medium rounded-lg transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30 theme-light:bg-blue-50 theme-light:text-blue-600 theme-light:hover:bg-blue-100 theme-light:border-blue-300 mr-1' data-act='edit' title='Editar'>Editar</button><button class='px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300' data-act='del' title='Eliminar'>Eliminar</button>`:''}</td>
         </tr>`;
       }).join('');
@@ -101,28 +131,213 @@ async function loadMovements(reset=false){
             const act = btn.getAttribute('data-act');
             if(act==='del'){
               if(!confirm('¿Eliminar movimiento?')) return;
-              try{ await API.cashflow.delete(id); loadAccounts(); loadMovements(); }catch(err){ alert(err?.message||'Error'); }
+              try{ 
+                await API.cashflow.delete(id); 
+                loadAccounts(); 
+                loadMovements(); 
+              }catch(err){ 
+                alert(err?.message||'Error'); 
+              }
             } else if(act==='edit') {
-              const currentDesc = tr.children[2]?.textContent||'';
-              const currentAmount = (tr.children[4]?.textContent||'').replace(/[^\d]/g,'') || (tr.children[5]?.textContent||'').replace(/[^\d]/g,'');
-              const newAmountStr = prompt('Nuevo monto (solo número):', currentAmount);
-              if(!newAmountStr) return;
-              const newAmount = Number(newAmountStr)||0; if(newAmount<=0){ alert('Monto inválido'); return; }
-              const newDesc = prompt('Nueva descripción:', currentDesc) ?? currentDesc;
-              try{ await API.cashflow.update(id, { amount: newAmount, description: newDesc }); loadAccounts(); loadMovements(); }catch(err){ alert(err?.message||'Error'); }
+              openEditMovementModal(id, tr);
             }
           });
         });
       });
       if(!items.length) rowsBody.innerHTML='<tr><td colspan="8" class="px-4 py-6 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin movimientos</td></tr>';
     }
-    const IN = data.totals?.in||0; const OUT = data.totals?.out||0;
+    
+    // Actualizar controles de paginación
+    const IN = data.totals?.in||0; 
+    const OUT = data.totals?.out||0;
     if(summary) summary.textContent = `Entradas: ${money(IN)} | Salidas: ${money(OUT)} | Neto: ${money(IN-OUT)}`;
-    cfState.page = data.page||1; cfState.pages = Math.max(1, Math.ceil((data.total||0)/cfState.limit));
+    cfState.page = data.page||1; 
+    cfState.pages = Math.max(1, Math.ceil((data.total||0)/cfState.limit));
     if(pag) pag.textContent = `Página ${cfState.page} de ${cfState.pages}`;
-    document.getElementById('cf-prev').disabled = cfState.page<=1;
-    document.getElementById('cf-next').disabled = cfState.page>=cfState.pages;
-  }catch(e){ if(summary) summary.textContent = e?.message||'Error'; }
+    if(prevBtn) prevBtn.disabled = cfState.page<=1;
+    if(nextBtn) nextBtn.disabled = cfState.page>=cfState.pages;
+  }catch(e){ 
+    if(summary) summary.textContent = e?.message||'Error';
+    if(rowsBody) rowsBody.innerHTML='<tr><td colspan="8" class="px-4 py-6 text-center text-xs text-red-400">Error al cargar movimientos</td></tr>';
+  }
+}
+
+function openAddAccountModal(){
+  const modal = document.getElementById('modal');
+  const body = document.getElementById('modalBody');
+  if(!modal||!body) return;
+  const div = document.createElement('div');
+  div.innerHTML = `<div class="space-y-4">
+    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">➕ Nueva Cuenta</h3>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Nombre de la cuenta</label>
+      <input id='nacc-name' type='text' placeholder='Ej: Caja Principal, Banco BBVA...' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 placeholder-slate-400 dark:placeholder-slate-400 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Tipo de cuenta</label>
+      <div class="flex gap-3">
+        <label class="flex items-center gap-2 p-3 border-2 border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-sky-50 cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 theme-light:hover:border-blue-400 transition-all duration-200 flex-1">
+          <input type="radio" name="nacc-type" value="CASH" checked class="w-4 h-4 text-blue-600 focus:ring-blue-500"/>
+          <div>
+            <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">💵 Caja</div>
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Efectivo físico</div>
+          </div>
+        </label>
+        <label class="flex items-center gap-2 p-3 border-2 border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-sky-50 cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 theme-light:hover:border-blue-400 transition-all duration-200 flex-1">
+          <input type="radio" name="nacc-type" value="BANK" class="w-4 h-4 text-blue-600 focus:ring-blue-500"/>
+          <div>
+            <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">🏦 Banco</div>
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cuenta bancaria</div>
+          </div>
+        </label>
+      </div>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Saldo inicial (opcional)</label>
+      <input id='nacc-balance' type='number' step='0.01' min='0' placeholder='0' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 placeholder-slate-400 dark:placeholder-slate-400 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Notas (opcional)</label>
+      <textarea id='nacc-notes' placeholder='Notas adicionales sobre la cuenta...' rows="3" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 placeholder-slate-400 dark:placeholder-slate-400 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-y"></textarea>
+    </div>
+    <div class="flex gap-2 mt-6">
+      <button id='nacc-save' class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💾 Guardar</button>
+      <button id='nacc-cancel' class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+    </div>
+    <div id='nacc-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
+  </div>`;
+  body.innerHTML=''; body.appendChild(div); modal.classList.remove('hidden');
+  
+  const nameInput = div.querySelector('#nacc-name');
+  const typeRadios = div.querySelectorAll('input[name="nacc-type"]');
+  const balanceInput = div.querySelector('#nacc-balance');
+  const notesInput = div.querySelector('#nacc-notes');
+  const msgEl = div.querySelector('#nacc-msg');
+  const saveBtn = div.querySelector('#nacc-save');
+  const cancelBtn = div.querySelector('#nacc-cancel');
+  
+  // Focus en el input de nombre
+  setTimeout(() => nameInput?.focus(), 100);
+  
+  // Enter en nombre para guardar
+  nameInput?.addEventListener('keypress', (e) => {
+    if(e.key === 'Enter') saveBtn?.click();
+  });
+  
+  cancelBtn.onclick = () => modal.classList.add('hidden');
+  
+  saveBtn.onclick = async () => {
+    const name = nameInput?.value?.trim() || '';
+    if(!name){
+      msgEl.textContent = '⚠️ El nombre de la cuenta es requerido';
+      msgEl.style.color = 'var(--danger, #ef4444)';
+      nameInput?.focus();
+      return;
+    }
+    
+    const type = Array.from(typeRadios).find(r => r.checked)?.value || 'CASH';
+    const initialBalance = Number(balanceInput?.value || 0) || 0;
+    const notes = notesInput?.value?.trim() || '';
+    
+    msgEl.textContent = 'Guardando...';
+    msgEl.style.color = 'var(--muted)';
+    saveBtn.disabled = true;
+    
+    try {
+      await API.accounts.create({ name, type, initialBalance, notes });
+      msgEl.textContent = '✅ Cuenta creada exitosamente';
+      msgEl.style.color = 'var(--success, #10b981)';
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        loadAccounts();
+      }, 800);
+    } catch(e) {
+      msgEl.textContent = '❌ ' + (e?.message || 'Error al crear la cuenta');
+      msgEl.style.color = 'var(--danger, #ef4444)';
+      saveBtn.disabled = false;
+    }
+  };
+}
+
+function openEditMovementModal(id, trRow){
+  const modal = document.getElementById('modal');
+  const body = document.getElementById('modalBody');
+  if(!modal||!body) return;
+  
+  const currentDesc = trRow.children[2]?.textContent||'';
+  const currentAmount = (trRow.children[4]?.textContent||'').replace(/[^\d]/g,'') || (trRow.children[5]?.textContent||'').replace(/[^\d]/g,'');
+  
+  const div = document.createElement('div');
+  div.innerHTML = `<div class="space-y-4">
+    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">✏️ Editar Movimiento</h3>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Monto</label>
+      <input id='edit-mov-amount' type='number' min='1' step='0.01' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Descripción</label>
+      <input id='edit-mov-desc' type='text' placeholder='Descripción' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 placeholder-slate-400 dark:placeholder-slate-400 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
+    </div>
+    <div class="flex gap-2 mt-6">
+      <button id='edit-mov-save' class="flex-1 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">💾 Guardar</button>
+      <button id='edit-mov-cancel' class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+    </div>
+    <div id='edit-mov-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
+  </div>`;
+  body.innerHTML=''; body.appendChild(div); modal.classList.remove('hidden');
+  
+  const amountInput = div.querySelector('#edit-mov-amount');
+  const descInput = div.querySelector('#edit-mov-desc');
+  const msgEl = div.querySelector('#edit-mov-msg');
+  const saveBtn = div.querySelector('#edit-mov-save');
+  const cancelBtn = div.querySelector('#edit-mov-cancel');
+  
+  // Establecer valores de forma segura
+  if(amountInput) amountInput.value = currentAmount;
+  if(descInput) descInput.value = currentDesc;
+  
+  setTimeout(() => amountInput?.focus(), 100);
+  
+  amountInput?.addEventListener('keypress', (e) => {
+    if(e.key === 'Enter') saveBtn?.click();
+  });
+  
+  descInput?.addEventListener('keypress', (e) => {
+    if(e.key === 'Enter') saveBtn?.click();
+  });
+  
+  cancelBtn.onclick = () => modal.classList.add('hidden');
+  
+  saveBtn.onclick = async () => {
+    const newAmount = Number(amountInput?.value || 0) || 0;
+    if(newAmount <= 0){
+      msgEl.textContent = '⚠️ El monto debe ser mayor a 0';
+      msgEl.style.color = 'var(--danger, #ef4444)';
+      amountInput?.focus();
+      return;
+    }
+    
+    const newDesc = descInput?.value?.trim() || '';
+    
+    msgEl.textContent = 'Guardando...';
+    msgEl.style.color = 'var(--muted)';
+    saveBtn.disabled = true;
+    
+    try {
+      await API.cashflow.update(id, { amount: newAmount, description: newDesc });
+      msgEl.textContent = '✅ Movimiento actualizado exitosamente';
+      msgEl.style.color = 'var(--success, #10b981)';
+      setTimeout(() => {
+        modal.classList.add('hidden');
+        loadAccounts();
+        loadMovements();
+      }, 800);
+    } catch(err) {
+      msgEl.textContent = '❌ ' + (err?.message || 'Error al actualizar');
+      msgEl.style.color = 'var(--danger, #ef4444)';
+      saveBtn.disabled = false;
+    }
+  };
 }
 
 function openNewEntryModal(defaultKind='IN'){
@@ -230,7 +445,6 @@ function openNewLoanModal(){
       techSel.innerHTML = '<option value="">No hay técnicos registrados</option>';
     }
   }).catch(err=>{
-    console.error('Error cargando técnicos:', err);
     techSel.innerHTML = '<option value="">Error al cargar técnicos</option>';
   });
   
@@ -315,13 +529,13 @@ async function loadLoans(reset=false){
         };
         const canDelete = loan.status === 'pending' && (!loan.settlementIds || loan.settlementIds.length === 0);
         return `<tr data-id='${loan._id}' class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors">
-          <td data-label="Fecha" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${date}</td>
-          <td data-label="Técnico" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${loan.technicianName}</td>
-          <td data-label="Monto" class="px-4 py-3 text-right text-xs text-white dark:text-white theme-light:text-slate-900">${money(loan.amount)}</td>
-          <td data-label="Pagado" class="px-4 py-3 text-right text-xs text-white dark:text-white theme-light:text-slate-900">${money(loan.paidAmount||0)}</td>
-          <td data-label="Pendiente" class="px-4 py-3 text-right text-xs font-semibold text-white dark:text-white theme-light:text-slate-900">${money(pending)}</td>
-          <td data-label="Estado" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${statusLabels[loan.status]||loan.status}</td>
-          <td data-label="Descripción" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900">${loan.description||'-'}</td>
+          <td data-label="Fecha" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${date}</td>
+          <td data-label="Técnico" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${loan.technicianName}</td>
+          <td data-label="Monto" class="px-4 py-3 text-right text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(loan.amount)}</td>
+          <td data-label="Pagado" class="px-4 py-3 text-right text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(loan.paidAmount||0)}</td>
+          <td data-label="Pendiente" class="px-4 py-3 text-right text-xs font-semibold text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(pending)}</td>
+          <td data-label="Estado" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${statusLabels[loan.status]||loan.status}</td>
+          <td data-label="Descripción" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${loan.description||'-'}</td>
           <td class="px-4 py-3" style='white-space:nowrap;'>
             ${canDelete?`<button class='px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300' data-act='del' title='Eliminar'>Eliminar</button>`:''}
           </td>
