@@ -10,7 +10,7 @@ router.use(authAdmin);
 
 // List companies (developer only)
 router.get('/companies', requireAdminRole('developer'), async (req, res) => {
-  const list = await Company.find({}).select('name email active features featureOptions restrictions publicCatalogEnabled sharedDatabaseId').lean();
+  const list = await Company.find({}).select('name email active features featureOptions restrictions publicCatalogEnabled sharedDatabaseId sharedDatabaseConfig').lean();
   res.json({ items: list });
 });
 
@@ -88,7 +88,74 @@ router.patch('/companies/:id/restrictions', requireAdminRole('developer','admin'
   res.json({ restrictions: c.restrictions });
 });
 
-// Patch sharedDatabaseId (developer only)
+// Patch sharedDatabaseConfig (developer or admin)
+// Permite agregar/quitar empresas secundarias y configurar qué compartir
+router.patch('/companies/:id/shared-database-config', requireAdminRole('developer','admin'), async (req, res) => {
+  const id = req.params.id;
+  const { sharedWith } = req.body || {};
+  const c = await Company.findById(id);
+  if(!c) return res.status(404).json({ error: 'Empresa no encontrada' });
+  
+  // Inicializar sharedDatabaseConfig si no existe
+  if (!c.sharedDatabaseConfig) {
+    c.sharedDatabaseConfig = { sharedWith: [], sharedFrom: { companyId: null } };
+  }
+  
+  // Validar y actualizar sharedWith
+  if (Array.isArray(sharedWith)) {
+    // Validar cada entrada
+    for (const item of sharedWith) {
+      if (!item.companyId || !mongoose.Types.ObjectId.isValid(item.companyId)) {
+        return res.status(400).json({ error: `companyId inválido: ${item.companyId}` });
+      }
+      // No permitir compartir consigo misma
+      if (String(id) === String(item.companyId)) {
+        return res.status(400).json({ error: 'No se puede compartir base de datos consigo misma' });
+      }
+      // Verificar que la empresa destino existe
+      const targetCompany = await Company.findById(item.companyId);
+      if (!targetCompany) {
+        return res.status(404).json({ error: `Empresa destino no encontrada: ${item.companyId}` });
+      }
+      
+      // Actualizar sharedFrom en la empresa secundaria
+      if (!targetCompany.sharedDatabaseConfig) {
+        targetCompany.sharedDatabaseConfig = { sharedWith: [], sharedFrom: { companyId: null } };
+      }
+      targetCompany.sharedDatabaseConfig.sharedFrom = {
+        companyId: new mongoose.Types.ObjectId(id),
+        shareCustomers: item.shareCustomers !== false,
+        shareInventory: item.shareInventory !== false,
+        shareCalendar: item.shareCalendar === true
+      };
+      await targetCompany.save();
+    }
+    
+    // Actualizar sharedWith en la empresa principal
+    c.sharedDatabaseConfig.sharedWith = sharedWith.map(item => ({
+      companyId: new mongoose.Types.ObjectId(item.companyId),
+      shareCustomers: item.shareCustomers !== false,
+      shareInventory: item.shareInventory !== false,
+      shareCalendar: item.shareCalendar === true
+    }));
+  } else if (sharedWith === null || sharedWith === undefined) {
+    // Si se envía null, limpiar todas las empresas compartidas
+    // Primero limpiar sharedFrom en las empresas secundarias
+    for (const item of c.sharedDatabaseConfig.sharedWith || []) {
+      const targetCompany = await Company.findById(item.companyId);
+      if (targetCompany && targetCompany.sharedDatabaseConfig) {
+        targetCompany.sharedDatabaseConfig.sharedFrom = { companyId: null };
+        await targetCompany.save();
+      }
+    }
+    c.sharedDatabaseConfig.sharedWith = [];
+  }
+  
+  await c.save();
+  res.json({ sharedDatabaseConfig: c.sharedDatabaseConfig });
+});
+
+// DEPRECATED: Mantener por compatibilidad
 router.patch('/companies/:id/shared-database', requireAdminRole('developer'), async (req, res) => {
   const id = req.params.id;
   let { sharedDatabaseId } = req.body || {};

@@ -208,20 +208,66 @@ async function withCompanyDefaults(req, _res, next) {
   if (req.company?.id) {
     const originalCompanyId = String(req.company.id);
     
-    // Verificar si la empresa tiene sharedDatabaseId
     try {
       const Company = (await import('./models/Company.js')).default;
-      const companyDoc = await Company.findById(originalCompanyId).select('sharedDatabaseId').lean();
-      if (companyDoc?.sharedDatabaseId) {
-        // Usar el sharedDatabaseId como companyId real
-        req.companyId = String(companyDoc.sharedDatabaseId);
-        req.originalCompanyId = originalCompanyId; // Guardar el ID original por si se necesita
-      } else {
-        req.companyId = originalCompanyId;
+      const companyDoc = await Company.findById(originalCompanyId).select('sharedDatabaseId sharedDatabaseConfig').lean();
+      
+      // Determinar qué companyId usar según el nuevo sistema o el antiguo (compatibilidad)
+      let effectiveCompanyId = originalCompanyId;
+      let shareConfig = null;
+      
+      // Nuevo sistema: sharedDatabaseConfig.sharedFrom
+      if (companyDoc?.sharedDatabaseConfig?.sharedFrom?.companyId) {
+        const sharedFrom = companyDoc.sharedDatabaseConfig.sharedFrom;
+        effectiveCompanyId = String(sharedFrom.companyId);
+        shareConfig = sharedFrom;
       }
+      // Sistema antiguo: sharedDatabaseId (compatibilidad)
+      else if (companyDoc?.sharedDatabaseId) {
+        effectiveCompanyId = String(companyDoc.sharedDatabaseId);
+        shareConfig = { shareCustomers: true, shareInventory: true, shareCalendar: false };
+      }
+      
+      // Determinar qué compartir según la ruta
+      const path = req.path || '';
+      const isCalendarRoute = path.includes('/calendar');
+      const isInventoryRoute = path.includes('/inventory') || path.includes('/items') || path.includes('/skus');
+      const isCustomersRoute = path.includes('/profiles') || path.includes('/customers');
+      const isVehiclesRoute = path.includes('/vehicles');
+      const isSalesRoute = path.includes('/sales');
+      const isQuotesRoute = path.includes('/quotes');
+      
+      // Si hay configuración de compartir BD, aplicar reglas
+      if (shareConfig) {
+        // Calendar: solo compartir si shareCalendar es true
+        if (isCalendarRoute && !shareConfig.shareCalendar) {
+          effectiveCompanyId = originalCompanyId;
+        }
+        // Inventory/SKUs: solo compartir si shareInventory es true
+        else if (isInventoryRoute && !shareConfig.shareInventory) {
+          effectiveCompanyId = originalCompanyId;
+        }
+        // Customers/Profiles: solo compartir si shareCustomers es true
+        else if (isCustomersRoute && !shareConfig.shareCustomers) {
+          effectiveCompanyId = originalCompanyId;
+        }
+        // Vehicles: compartir si shareCustomers o shareInventory es true (los vehículos pueden estar en ambos contextos)
+        else if (isVehiclesRoute && !shareConfig.shareCustomers && !shareConfig.shareInventory) {
+          effectiveCompanyId = originalCompanyId;
+        }
+        // Sales y Quotes: compartir si shareCustomers es true (necesitan clientes)
+        else if ((isSalesRoute || isQuotesRoute) && !shareConfig.shareCustomers) {
+          effectiveCompanyId = originalCompanyId;
+        }
+      }
+      
+      req.companyId = effectiveCompanyId;
+      req.originalCompanyId = originalCompanyId;
+      req.shareConfig = shareConfig;
     } catch (err) {
       // Si hay error, usar el ID original
       req.companyId = originalCompanyId;
+      req.originalCompanyId = originalCompanyId;
     }
     
     if (req.user?.id) req.userId = String(req.user.id);

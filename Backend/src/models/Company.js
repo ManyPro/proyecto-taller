@@ -41,7 +41,26 @@ const CompanySchema = new mongoose.Schema(
       default: {}
     },
 
-    // Compartir base de datos con otra empresa
+    // Compartir base de datos: desde la empresa principal, se pueden agregar múltiples empresas secundarias
+    // Cada empresa secundaria tiene su propia configuración de qué compartir
+    sharedDatabaseConfig: {
+      // Empresas que comparten la BD de esta empresa (solo para empresa principal)
+      sharedWith: [{
+        companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true },
+        shareCustomers: { type: Boolean, default: true }, // Compartir datos de clientes
+        shareInventory: { type: Boolean, default: true }, // Compartir items de inventario
+        shareCalendar: { type: Boolean, default: false } // NO compartir agenda por defecto
+      }],
+      // Si esta empresa es secundaria, referencia a la empresa principal
+      sharedFrom: {
+        companyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Company', default: null },
+        shareCustomers: { type: Boolean, default: true },
+        shareInventory: { type: Boolean, default: true },
+        shareCalendar: { type: Boolean, default: false }
+      }
+    },
+    
+    // DEPRECATED: Mantener por compatibilidad, pero usar sharedDatabaseConfig
     sharedDatabaseId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Company',
