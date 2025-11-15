@@ -38,36 +38,63 @@ async function computeItems(itemsInput = [], companyId = null) {
     const sku = typeof it.sku === 'string' ? it.sku : undefined;
 
     // Determinar el tipo (kind) del item
-    let itemKind = normKind(it.kind);
+    // PRIORIDAD: Si el frontend envía kind, respetarlo (después de normalizarlo)
+    // Solo si no viene kind, intentar detectarlo automáticamente
+    let itemKind = null;
     
-    // Si viene con source='price' y refId, verificar si es un combo
-    if (source === 'price' && refId && PriceEntry && companyId) {
-      let pe = priceEntryCache.get(String(refId));
-      if (!pe) {
-        try {
-          pe = await PriceEntry.findOne({ _id: refId, companyId }).lean();
-          if (pe) priceEntryCache.set(String(refId), pe);
-        } catch (err) {
-          // Continuar si hay error
-        }
+    // Si viene kind del frontend, usarlo (normalizado)
+    if (it.kind) {
+      itemKind = normKind(it.kind);
+      // Log para debugging
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[computeItems] Item con kind del frontend:', {
+          originalKind: it.kind,
+          normalizedKind: itemKind,
+          description: it.description?.substring(0, 50) || '',
+          source: source,
+          refId: refId ? String(refId).substring(0, 10) : null
+        });
       }
-      if (pe && pe.type === 'combo') {
-        itemKind = 'Combo';
-      } else if (pe && pe.type === 'service') {
+    }
+    
+    // Si no viene kind, intentar detectarlo automáticamente
+    if (!itemKind) {
+      // Si viene con source='price' y refId, verificar si es un combo
+      if (source === 'price' && refId && PriceEntry && companyId) {
+        let pe = priceEntryCache.get(String(refId));
+        if (!pe) {
+          try {
+            pe = await PriceEntry.findOne({ _id: refId, companyId }).lean();
+            if (pe) priceEntryCache.set(String(refId), pe);
+          } catch (err) {
+            // Continuar si hay error
+          }
+        }
+        if (pe && pe.type === 'combo') {
+          itemKind = 'Combo';
+        } else if (pe && pe.type === 'service') {
+          itemKind = 'Servicio';
+        } else if (pe && pe.type === 'product') {
+          itemKind = 'Producto';
+        } else {
+          // Si es price pero no se encontró o no tiene tipo claro, asumir servicio
+          itemKind = 'Servicio';
+        }
+      } else if (source === 'inventory') {
+        // Items de inventario son productos
+        itemKind = 'Producto';
+      } else if (source === 'price' && !refId) {
+        // Servicios manuales
         itemKind = 'Servicio';
-      } else if (pe && pe.type === 'product') {
+      } else {
+        // Fallback: Producto por defecto
         itemKind = 'Producto';
       }
-    } else if (source === 'inventory') {
-      // Items de inventario son productos
-      itemKind = 'Producto';
-    } else if (source === 'price' && !refId) {
-      // Servicios manuales
-      itemKind = 'Servicio';
     }
     
     // Si el SKU empieza con "CP-", es un producto anidado de combo
-    if (sku && String(sku).toUpperCase().startsWith('CP-')) {
+    // PERO solo sobrescribir si no se especificó kind explícitamente
+    if (!it.kind && sku && String(sku).toUpperCase().startsWith('CP-')) {
       itemKind = 'Combo'; // Marcar como Combo para items anidados
     }
 

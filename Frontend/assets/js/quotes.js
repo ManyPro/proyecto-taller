@@ -1150,16 +1150,32 @@ export function initQuotes({ getCompanyEmail }) {
   }
 
   async function exportPDFFromData(doc){
-    const rows = (doc.items || []).map(it => [
-      (it.kind === 'SERVICIO') ? 'Servicio' : 'Producto',
+    const rows = (doc.items || []).map(it => {
+      const k = String(it.kind || 'Producto').trim().toUpperCase();
+      let kindLabel = 'Producto';
+      if (k === 'SERVICIO') kindLabel = 'Servicio';
+      else if (k === 'COMBO') kindLabel = 'Combo';
+      return [
+        kindLabel,
       it.description || '',
       it.qty && it.qty > 0 ? it.qty : 1,
       money(it.unitPrice || 0),
       money(it.subtotal || ((it.qty || 1) * (it.unitPrice || 0)))
     ]);
-    const subP = (doc.items||[]).filter(i=>i.kind!=='SERVICIO').reduce((a,i)=>a+(i.subtotal||0),0);
-    const subS = (doc.items||[]).filter(i=>i.kind==='SERVICIO').reduce((a,i)=>a+(i.subtotal||0),0);
-    const subtotal = subP + subS;
+    // Calcular subtotales por tipo (Productos, Servicios, Combos)
+    const subP = (doc.items||[]).filter(i=>{
+      const k = String(i.kind||'Producto').trim().toUpperCase();
+      return k !== 'SERVICIO' && k !== 'COMBO';
+    }).reduce((a,i)=>a+(i.subtotal||0),0);
+    const subS = (doc.items||[]).filter(i=>{
+      const k = String(i.kind||'Producto').trim().toUpperCase();
+      return k === 'SERVICIO';
+    }).reduce((a,i)=>a+(i.subtotal||0),0);
+    const subC = (doc.items||[]).filter(i=>{
+      const k = String(i.kind||'Producto').trim().toUpperCase();
+      return k === 'COMBO';
+    }).reduce((a,i)=>a+(i.subtotal||0),0);
+    const subtotal = subP + subS + subC;
     
     // Calcular descuento si existe
     let discountValue = 0;
@@ -1296,13 +1312,23 @@ export function initQuotes({ getCompanyEmail }) {
   function payloadFromUI(){
     const items=readRows().map(r=>{
       // Usar el tipo del rowData (que viene del select), o el kind si está disponible
+      // El tipo viene como 'COMBO', 'PRODUCTO', 'SERVICIO' (mayúsculas)
+      // El backend lo normalizará a 'Combo', 'Producto', 'Servicio'
       const itemKind = r.kind || r.type || 'PRODUCTO';
       const base={
-        kind: itemKind, // Preservar el tipo correcto (COMBO, PRODUCTO, SERVICIO)
+        kind: itemKind, // Enviar el tipo tal cual viene del select (COMBO, PRODUCTO, SERVICIO)
         description:r.desc || '',
         qty:r.qty === null || r.qty === undefined || r.qty === '' ? null : Number(r.qty),
         unitPrice:Number(r.price||0)
       };
+      
+      console.log('[payloadFromUI] Item mapeado:', {
+        kind: base.kind,
+        type: r.type,
+        description: base.description,
+        source: r.source,
+        refId: r.refId
+      });
       // Asegurar que description no sea vacío si hay precio o cantidad
       if(!base.description && (base.unitPrice > 0 || (base.qty && base.qty > 0))) {
         base.description = 'Item sin descripción';
