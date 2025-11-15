@@ -25,6 +25,22 @@ export const listNotes = async (req, res) => {
   res.json({ items });
 };
 
+// Helper para parsear fechas correctamente (misma lógica que calendar)
+const parseDate = (dateStr) => {
+  if (!dateStr) return undefined;
+  if (dateStr instanceof Date) return dateStr;
+  if (typeof dateStr === 'string' && dateStr.includes('Z')) {
+    return new Date(dateStr);
+  }
+  if (typeof dateStr === 'string' && dateStr.includes('T')) {
+    if (!dateStr.match(/[+-]\d{2}:\d{2}$/) && !dateStr.endsWith('Z')) {
+      return new Date(dateStr + 'Z');
+    }
+    return new Date(dateStr);
+  }
+  return new Date(dateStr);
+};
+
 export const createNote = async (req, res) => {
   const { plate, text, type, amount, technician, media, reminderAt } = req.body || {};
   const responsible = normResp(req.body?.responsible);
@@ -41,7 +57,7 @@ export const createNote = async (req, res) => {
     amount: type === "PAGO" ? Number(amount || 0) : 0,
     technician: technician ? String(technician).toUpperCase().trim() : undefined,
     media: Array.isArray(media) ? media : [],
-    reminderAt: reminderAt ? new Date(reminderAt) : undefined,
+    reminderAt: reminderAt ? parseDate(reminderAt) : undefined,
     companyId: new mongoose.Types.ObjectId(req.companyId),
     userId: req.userId ? new mongoose.Types.ObjectId(req.userId) : undefined
   });
@@ -66,7 +82,7 @@ export const updateNote = async (req, res) => {
   if (body.type === "GENERICA") body.amount = 0;
 
   if (body.reminderAt !== undefined) {
-    body.reminderAt = body.reminderAt ? new Date(body.reminderAt) : null;
+    body.reminderAt = body.reminderAt ? parseDate(body.reminderAt) : null;
   }
 
   const note = await Note.findOneAndUpdate(

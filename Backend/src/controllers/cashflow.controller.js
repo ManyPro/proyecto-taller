@@ -198,6 +198,10 @@ export async function registerSaleIncome({ companyId, sale, accountId }) {
   // Track balances por cuenta para pagos múltiples a la misma cuenta
   const accountBalances = new Map();
   
+  // Usar la fecha de cierre de la venta (closedAt) en lugar de new Date()
+  // Esto asegura que la fecha del movimiento coincida con la fecha de cierre
+  const saleDate = sale.closedAt || sale.updatedAt || new Date();
+  
   for (const m of methods) {
     let accId = m.accountId || accountId;
     if (!accId) {
@@ -227,7 +231,7 @@ export async function registerSaleIncome({ companyId, sale, accountId }) {
       description: `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`,
       amount,
       balanceAfter: newBal,
-      date: new Date(), // Asegurar fecha actual
+      date: saleDate, // Usar la fecha de cierre de la venta, no la hora actual del servidor
       meta: { saleNumber: sale.number, paymentMethod: m.method }
     });
     entries.push(entry);

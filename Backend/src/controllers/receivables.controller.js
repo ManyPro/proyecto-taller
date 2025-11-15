@@ -1,7 +1,19 @@
 import AccountReceivable from '../models/AccountReceivable.js';
 import CompanyAccount from '../models/CompanyAccount.js';
 import Sale from '../models/Sale.js';
+import CashFlowEntry from '../models/CashFlowEntry.js';
+import Account from '../models/Account.js';
+import { computeBalance } from './cashflow.controller.js';
 import mongoose from 'mongoose';
+
+// Helper para obtener cuenta por defecto (similar a cashflow.controller.js)
+async function ensureDefaultCashAccount(companyId) {
+  let acc = await Account.findOne({ companyId, type: 'CASH', name: /caja/i });
+  if (!acc) {
+    acc = await Account.create({ companyId, name: 'Caja', type: 'CASH', initialBalance: 0 });
+  }
+  return acc;
+}
 
 // ===== Empresas de Cartera =====
 
@@ -323,10 +335,14 @@ export const addPayment = async (req, res) => {
     });
   }
 
+  // Usar la fecha del pago (puede venir del frontend o usar la actual)
+  // Si viene del frontend, usar esa fecha; si no, usar la actual pero guardarla para consistencia
+  const paymentDate = req.body?.paymentDate ? new Date(req.body.paymentDate) : new Date();
+
   // Agregar pago al historial
   receivable.payments.push({
     amount: paymentAmount,
-    paymentDate: new Date(),
+    paymentDate: paymentDate,
     paymentMethod: String(paymentMethod || '').trim(),
     notes: String(notes || '').trim(),
     createdBy: req.user?.name || req.user?.email || ''
@@ -338,12 +354,50 @@ export const addPayment = async (req, res) => {
   // Actualizar estado
   if (receivable.balance <= 0) {
     receivable.status = 'paid';
-    receivable.paidAt = new Date();
+    receivable.paidAt = paymentDate;
   } else {
     receivable.status = 'partial';
   }
 
   await receivable.save();
+
+  // Registrar el pago en el flujo de caja
+  // Obtener la cuenta por defecto o la especificada
+  const { accountId } = req.body || {};
+  let cashAccountId = accountId;
+  if (!cashAccountId) {
+    const defaultAccount = await ensureDefaultCashAccount(companyId);
+    cashAccountId = defaultAccount._id;
+  }
+
+  // Verificar que la cuenta existe
+  const cashAccount = await Account.findOne({ _id: cashAccountId, companyId: String(companyId) });
+  if (!cashAccount) {
+    return res.status(400).json({ error: 'Cuenta de flujo de caja no encontrada' });
+  }
+
+  // Calcular balance actual de la cuenta
+  const currentBalance = await computeBalance(cashAccountId, companyId);
+  const newBalance = currentBalance + paymentAmount;
+
+  // Crear entrada en flujo de caja
+  const cashFlowEntry = await CashFlowEntry.create({
+    companyId: String(companyId),
+    accountId: cashAccountId,
+    kind: 'IN',
+    source: 'RECEIVABLE',
+    sourceRef: receivable._id,
+    description: `Pago de cartera: Venta #${receivable.saleNumber || 'N/A'} (${String(paymentMethod || '').trim() || 'Pago'})`,
+    amount: paymentAmount,
+    balanceAfter: newBalance,
+    date: paymentDate, // Usar la misma fecha del pago, no la hora actual del servidor
+    meta: {
+      receivableId: receivable._id.toString(),
+      saleNumber: receivable.saleNumber,
+      paymentMethod: String(paymentMethod || '').trim(),
+      plate: receivable.vehicle?.plate || ''
+    }
+  });
 
   const populated = await AccountReceivable.findById(receivable._id)
     .populate('saleId', 'number total')
