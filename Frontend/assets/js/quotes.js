@@ -802,8 +802,67 @@ export function initQuotes({ getCompanyEmail }) {
       const txt = linesOut.join('\n');
       const win = window.open('', '_blank');
       if (!win) { alert('No se pudo abrir ventana de impresión'); return; }
-      win.document.write('<pre>' + txt + '</pre>');
-      win.document.close(); win.focus(); win.print(); try { win.close(); } catch {}
+      const modalScript = `
+        <script>
+          (function() {
+            const pageSize = 'MEDIA CARTA (5.5" x 8.5")';
+            const modal = document.createElement('div');
+            modal.id = 'page-size-modal';
+            modal.style.cssText = 'position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);';
+            modal.innerHTML = \`
+              <div style="background: linear-gradient(to bottom right, #1e293b, #0f172a); border: 1px solid rgba(148, 163, 184, 0.5); border-radius: 1rem; padding: 2rem; max-width: 28rem; width: 100%; margin: 1rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.2s ease-in-out;">
+                <div style="text-align: center; margin-bottom: 1.5rem;">
+                  <div style="display: inline-flex; align-items: center; justify-content: center; width: 4rem; height: 4rem; background: rgba(59, 130, 246, 0.2); border-radius: 9999px; margin-bottom: 1rem;">
+                    <svg style="width: 2rem; height: 2rem; color: #60a5fa;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                  </div>
+                  <h3 style="font-size: 1.5rem; font-weight: 700; color: white; margin-bottom: 0.5rem;">Tamaño de Hoja Requerido</h3>
+                </div>
+                <div style="background: rgba(51, 65, 85, 0.3); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                  <div style="text-align: center;">
+                    <div style="font-size: 1.875rem; font-weight: 700; color: #60a5fa; margin-bottom: 0.5rem;">\${pageSize}</div>
+                    <p style="font-size: 0.875rem; color: #cbd5e1; margin-top: 0.5rem;">
+                      Asegúrate de configurar tu impresora con este tamaño antes de imprimir.
+                    </p>
+                  </div>
+                </div>
+                <div style="display: flex; gap: 0.75rem;">
+                  <button id="page-size-cancel" style="flex: 1; padding: 0.75rem 1rem; background: rgba(51, 65, 85, 0.5); border: 1px solid rgba(100, 116, 139, 0.5); border-radius: 0.5rem; color: white; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                    Cancelar
+                  </button>
+                  <button id="page-size-accept" style="flex: 1; padding: 0.75rem 1rem; background: linear-gradient(to right, #2563eb, #1d4ed8); border: none; border-radius: 0.5rem; color: white; font-weight: 600; cursor: pointer; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); transition: all 0.2s;">
+                    Aceptar
+                  </button>
+                </div>
+              </div>
+            \`;
+            document.body.appendChild(modal);
+            const modalContent = modal.querySelector('div > div');
+            const acceptBtn = document.getElementById('page-size-accept');
+            const cancelBtn = document.getElementById('page-size-cancel');
+            const closeModal = () => {
+              modal.style.opacity = '0';
+              if (modalContent) modalContent.style.transform = 'scale(0.95)';
+              setTimeout(() => modal.remove(), 200);
+            };
+            acceptBtn.onclick = () => {
+              closeModal();
+              setTimeout(() => window.print(), 100);
+            };
+            cancelBtn.onclick = () => {
+              closeModal();
+              window.close();
+            };
+            setTimeout(() => {
+              modal.style.opacity = '1';
+              if (modalContent) modalContent.style.transform = 'scale(1)';
+            }, 10);
+          })();
+        </script>
+      `;
+      win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${modalScript}</head><body><pre>${txt}</pre></body></html>`);
+      win.document.close(); win.focus();
     }
     
     // Intentar usar plantilla activa (quote) -> abrir ventana/imprimir (igual que en ventas)
