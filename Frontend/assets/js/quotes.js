@@ -459,7 +459,15 @@ export function initQuotes({ getCompanyEmail }) {
   function clearRows(){ rowsBox.innerHTML=''; }
   function addRowFromData(r){
     const row = cloneRow();
-    row.querySelector('select').value = r.type || 'PRODUCTO';
+    // Determinar el tipo: usar r.type si está disponible, o inferir desde r.kind
+    let itemType = r.type;
+    if (!itemType && r.kind) {
+      const kindUpper = String(r.kind).toUpperCase();
+      if (kindUpper === 'SERVICIO') itemType = 'SERVICIO';
+      else if (kindUpper === 'COMBO') itemType = 'COMBO';
+      else itemType = 'PRODUCTO';
+    }
+    row.querySelector('select').value = itemType || 'PRODUCTO';
     row.querySelectorAll('input')[0].value = r.desc  || '';
     row.querySelectorAll('input')[1].value = r.qty   || '';
     row.querySelectorAll('input')[2].value = r.price || '';
@@ -469,6 +477,7 @@ export function initQuotes({ getCompanyEmail }) {
     if(r.source) row.dataset.source = r.source;
     if(r.refId)  row.dataset.refId = r.refId;
     if(r.sku)    row.dataset.sku = r.sku;
+    if(r.comboParent) row.dataset.comboParent = r.comboParent;
     updateRowSubtotal(row); rowsBox.appendChild(row);
   }
   function addRow(){ rowsBox.appendChild(cloneRow()); }
@@ -527,6 +536,7 @@ export function initQuotes({ getCompanyEmail }) {
       
       const rowData = {
         type,desc,qty,price,
+        kind: type, // Guardar el tipo como 'kind' para que se preserve en el backend
         source: r.dataset.source || undefined,
         refId: refId,
         sku: r.dataset.sku || undefined,
@@ -1285,8 +1295,10 @@ export function initQuotes({ getCompanyEmail }) {
   // ===== Backend (crear / actualizar) =====
   function payloadFromUI(){
     const items=readRows().map(r=>{
+      // Usar el tipo del rowData (que viene del select), o el kind si está disponible
+      const itemKind = r.kind || r.type || 'PRODUCTO';
       const base={
-        kind:r.type || 'PRODUCTO', 
+        kind: itemKind, // Preservar el tipo correcto (COMBO, PRODUCTO, SERVICIO)
         description:r.desc || '',
         qty:r.qty === null || r.qty === undefined || r.qty === '' ? null : Number(r.qty),
         unitPrice:Number(r.price||0)
@@ -1538,6 +1550,7 @@ export function initQuotes({ getCompanyEmail }) {
               <select class="w-full px-2 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">
                 <option value="PRODUCTO">Producto</option>
                 <option value="SERVICIO">Servicio</option>
+                <option value="COMBO">Combo</option>
               </select>
             </div>
             <div>
@@ -1906,13 +1919,22 @@ export function initQuotes({ getCompanyEmail }) {
     function addRow(){ rowsBox.appendChild(cloneRow()); }
     function addRowFromData(r){
       const row = cloneRow();
-      row.querySelector('select').value = r.type || (String(r.kind||'PRODUCTO').toUpperCase()==='SERVICIO'?'SERVICIO':'PRODUCTO');
+      // Determinar el tipo: usar r.type si está disponible, o inferir desde r.kind
+      let itemType = r.type;
+      if (!itemType && r.kind) {
+        const kindUpper = String(r.kind).toUpperCase();
+        if (kindUpper === 'SERVICIO') itemType = 'SERVICIO';
+        else if (kindUpper === 'COMBO') itemType = 'COMBO';
+        else itemType = 'PRODUCTO';
+      }
+      row.querySelector('select').value = itemType || 'PRODUCTO';
       row.querySelectorAll('input')[0].value = r.desc  ?? r.description ?? '';
       row.querySelectorAll('input')[1].value = r.qty   ?? '';
       row.querySelectorAll('input')[2].value = r.price ?? r.unitPrice ?? '';
       if(r.source) row.dataset.source = r.source;
       if(r.refId)  row.dataset.refId = r.refId;
       if(r.sku)    row.dataset.sku = r.sku;
+      if(r.comboParent) row.dataset.comboParent = r.comboParent;
       updateRowSubtotal(row); rowsBox.appendChild(row);
     }
     function readRows(){
@@ -2288,7 +2310,11 @@ export function initQuotes({ getCompanyEmail }) {
     
     rowsBox.innerHTML='';
     (doc?.items||[]).forEach(it=>{
-      addRowFromData({ type:(String(it.kind||'PRODUCTO').toUpperCase()==='SERVICIO'?'SERVICIO':'PRODUCTO'), desc:it.description||'', qty:it.qty??'', price:it.unitPrice||0, source:it.source, refId:it.refId, sku:it.sku });
+      const k=String(it.kind||'Producto').trim().toUpperCase();
+      let itemType = 'PRODUCTO';
+      if (k === 'SERVICIO') itemType = 'SERVICIO';
+      else if (k === 'COMBO') itemType = 'COMBO';
+      addRowFromData({ type: itemType, desc:it.description||'', qty:it.qty??'', price:it.unitPrice||0, source:it.source, refId:it.refId, sku:it.sku });
     });
     if(!(doc?.items||[]).length) addRow();
     recalc();
@@ -2508,8 +2534,12 @@ export function initQuotes({ getCompanyEmail }) {
   // Heurística legacy: si es PRODUCTO y tiene refId o sku de item y no trae source, asumir inventory
       let source = it.source;
       if(!source && k==='PRODUCTO' && (it.refId || it.sku)) source='inventory';
+      // Determinar el tipo correcto
+      let itemType = 'PRODUCTO';
+      if (k === 'SERVICIO') itemType = 'SERVICIO';
+      else if (k === 'COMBO') itemType = 'COMBO';
       addRowFromData({
-        type:(k==='SERVICIO'?'SERVICIO':'PRODUCTO'),
+        type: itemType,
         desc:it.description||'',
         qty:it.qty??'',
         price:it.unitPrice||0,
@@ -2889,7 +2919,11 @@ export function initQuotes({ getCompanyEmail }) {
           btn.textContent = 'Agregar';
           btn.onclick=()=>{
             const row=cloneRow();
-            row.querySelector('select').value='SERVICIO';
+            // Determinar el tipo según el PriceEntry
+            let itemType = 'SERVICIO';
+            if (pe.type === 'combo') itemType = 'COMBO';
+            else if (pe.type === 'product') itemType = 'PRODUCTO';
+            row.querySelector('select').value = itemType;
             const desc = pe.vehicleId && pe.vehicleId.make 
               ? `${pe.vehicleId.make} ${pe.vehicleId.line} ${pe.vehicleId.displacement}`.trim()
               : `${pe.brand||''} ${pe.line||''} ${pe.engine||''} ${pe.year||''}`.trim();
@@ -3003,9 +3037,9 @@ export function initQuotes({ getCompanyEmail }) {
           
           card.querySelector('.add-price-btn').onclick = () => {
             if (pe.type === 'combo' && pe.comboProducts && pe.comboProducts.length > 0) {
-              // Agregar el combo principal
+              // Agregar el combo principal - tipo COMBO
               const comboRow = ctx.cloneRow();
-              comboRow.querySelector('select').value = 'PRODUCTO';
+              comboRow.querySelector('select').value = 'COMBO';
               comboRow.querySelectorAll('input')[0].value = pe.name || '';
               comboRow.querySelectorAll('input')[1].value = 1;
               comboRow.querySelectorAll('input')[2].value = Math.round(pe.total || pe.price || 0);
@@ -3014,10 +3048,10 @@ export function initQuotes({ getCompanyEmail }) {
               ctx.updateRowSubtotal(comboRow);
               ctx.rowsBox.appendChild(comboRow);
               
-              // Agregar cada producto del combo
+              // Agregar cada producto del combo - tipo COMBO para items anidados
               pe.comboProducts.forEach(cp => {
                 const row = ctx.cloneRow();
-                row.querySelector('select').value = 'PRODUCTO';
+                row.querySelector('select').value = 'COMBO'; // Items anidados del combo también son tipo COMBO
                 // Para slots abiertos, solo mostrar el nombre (sin indicadores)
                 row.querySelectorAll('input')[0].value = cp.name || '';
                 row.querySelectorAll('input')[1].value = cp.qty || 1;

@@ -10,13 +10,20 @@ import CustomerProfile from '../models/CustomerProfile.js';
  */
 const normKind = (k) => {
   const s = String(k || '').trim().toUpperCase();
-  return s === 'SERVICIO' ? 'Servicio' : 'Producto';
+  if (s === 'SERVICIO') return 'Servicio';
+  if (s === 'COMBO') return 'Combo';
+  return 'Producto';
 };
 
 // Calcula subtotales/total y aplica normalización de items
-function computeItems(itemsInput = []) {
+async function computeItems(itemsInput = [], companyId = null) {
   const items = [];
   let total = 0;
+  
+  // Si tenemos companyId, podemos verificar tipos de PriceEntry para combos
+  const PriceEntry = companyId ? (await import('../models/PriceEntry.js')).default : null;
+  const priceEntryCache = new Map();
+  
   for (const it of itemsInput) {
     if (!it) continue;
     const qtyRaw = it.qty;
@@ -30,8 +37,42 @@ function computeItems(itemsInput = []) {
     try { if (it.refId) refId = it.refId; } catch {}
     const sku = typeof it.sku === 'string' ? it.sku : undefined;
 
+    // Determinar el tipo (kind) del item
+    let itemKind = normKind(it.kind);
+    
+    // Si viene con source='price' y refId, verificar si es un combo
+    if (source === 'price' && refId && PriceEntry && companyId) {
+      let pe = priceEntryCache.get(String(refId));
+      if (!pe) {
+        try {
+          pe = await PriceEntry.findOne({ _id: refId, companyId }).lean();
+          if (pe) priceEntryCache.set(String(refId), pe);
+        } catch (err) {
+          // Continuar si hay error
+        }
+      }
+      if (pe && pe.type === 'combo') {
+        itemKind = 'Combo';
+      } else if (pe && pe.type === 'service') {
+        itemKind = 'Servicio';
+      } else if (pe && pe.type === 'product') {
+        itemKind = 'Producto';
+      }
+    } else if (source === 'inventory') {
+      // Items de inventario son productos
+      itemKind = 'Producto';
+    } else if (source === 'price' && !refId) {
+      // Servicios manuales
+      itemKind = 'Servicio';
+    }
+    
+    // Si el SKU empieza con "CP-", es un producto anidado de combo
+    if (sku && String(sku).toUpperCase().startsWith('CP-')) {
+      itemKind = 'Combo'; // Marcar como Combo para items anidados
+    }
+
     items.push({
-      kind: normKind(it.kind),
+      kind: itemKind,
       description: String(it.description || '').trim(),
       qty,
       unitPrice,
@@ -60,7 +101,7 @@ export async function createQuote(req, res) {
   const number = String(seq).padStart(5, '0');
 
   const { customer = {}, vehicle = {}, validity = '', specialNotes = [], items: itemsInput = [] } = req.body || {};
-  const { items, total } = computeItems(itemsInput);
+  const { items, total } = await computeItems(itemsInput, companyId);
 
   // Si se proporciona vehicleId, obtener datos del vehículo
   let vehicleData = {
@@ -247,7 +288,7 @@ export async function updateQuote(req, res) {
   if (!exists) return res.status(404).json({ error: 'No encontrada' });
 
   const { customer = {}, vehicle = {}, validity = '', specialNotes = [], items: itemsInput = [], discount = null } = req.body || {};
-  const { items, total } = computeItems(itemsInput);
+  const { items, total } = await computeItems(itemsInput, companyId);
 
   exists.customer = {
     name:  customer.name  ?? exists.customer.name,

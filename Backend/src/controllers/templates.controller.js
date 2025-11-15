@@ -86,6 +86,19 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
       const combos = [];
       
       // Primero, identificar combos y sus productos anidados
+      // Necesitamos cargar los combos con sus productos para identificar correctamente
+      const comboPriceEntries = priceEntries.filter(pe => pe.type === 'combo');
+      const comboProductItemIds = new Set();
+      comboPriceEntries.forEach(pe => {
+        if (pe.comboProducts && Array.isArray(pe.comboProducts)) {
+          pe.comboProducts.forEach(cp => {
+            if (cp.itemId) {
+              comboProductItemIds.add(String(cp.itemId));
+            }
+          });
+        }
+      });
+      
       let i = 0;
       while (i < saleObj.items.length) {
         const item = saleObj.items[i];
@@ -105,17 +118,30 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
           const pe = priceEntryMap[item.refId.toString()];
           if (pe && pe.type === 'combo') {
             // Es un combo - buscar productos siguientes que pertenecen a este combo
-            // Los productos del combo generalmente vienen después y tienen precio 0
             const comboItems = [];
             let j = i + 1;
             
-            // Buscar items siguientes hasta encontrar otro item con precio > 0 que sea price (otro combo o servicio)
+            // Cargar el combo completo con sus productos para identificar correctamente
+            const fullCombo = await PriceEntry.findOne({ _id: item.refId, companyId })
+              .populate('comboProducts.itemId', 'sku name stock salePrice')
+              .lean();
+            
+            const comboProductRefIds = new Set();
+            if (fullCombo && fullCombo.comboProducts) {
+              fullCombo.comboProducts.forEach(cp => {
+                if (cp.itemId) {
+                  comboProductRefIds.add(String(cp.itemId));
+                }
+              });
+            }
+            
+            // Buscar items siguientes que pertenecen a este combo
             while (j < saleObj.items.length) {
               const nextItem = saleObj.items[j];
-              const nextPrice = Number(nextItem.unitPrice) || 0;
+              const nextSku = String(nextItem.sku || '').toUpperCase();
               
-              // Si el siguiente item tiene precio 0, probablemente es del combo
-              if (nextPrice === 0) {
+              // Si el SKU empieza con "CP-", es definitivamente parte del combo
+              if (nextSku.startsWith('CP-')) {
                 comboItems.push({
                   sku: nextItem.sku || '',
                   name: nextItem.name || '',
@@ -127,18 +153,66 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
                   isNested: true
                 });
                 j++;
-              } else if (nextItem.source === 'price' && nextPrice > 0) {
-                // Si tiene precio > 0 y es price, podría ser otro combo o servicio
-                const nextPe = nextItem.refId ? priceEntryMap[nextItem.refId.toString()] : null;
+                continue;
+              }
+              
+              // Si es un item de inventario y su refId está en los productos del combo
+              if (nextItem.source === 'inventory' && nextItem.refId && comboProductRefIds.has(String(nextItem.refId))) {
+                comboItems.push({
+                  sku: nextItem.sku || '',
+                  name: nextItem.name || '',
+                  qty: Number(nextItem.qty) || 0,
+                  unitPrice: Number(nextItem.unitPrice) || 0,
+                  total: Number(nextItem.total) || 0,
+                  source: nextItem.source || '',
+                  refId: nextItem.refId || null,
+                  isNested: true
+                });
+                j++;
+                continue;
+              }
+              
+              // Si tiene precio 0 y es price sin refId o con refId diferente, podría ser producto del combo sin vincular
+              const nextPrice = Number(nextItem.unitPrice) || 0;
+              if (nextPrice === 0 && nextItem.source === 'price' && 
+                  (!nextItem.refId || String(nextItem.refId) !== String(item.refId))) {
+                // Verificar si el nombre coincide con algún producto del combo
+                const matchesComboProduct = fullCombo && fullCombo.comboProducts && 
+                  fullCombo.comboProducts.some(cp => 
+                    String(cp.name || '').trim().toUpperCase() === String(nextItem.name || '').trim().toUpperCase()
+                  );
+                if (matchesComboProduct) {
+                  comboItems.push({
+                    sku: nextItem.sku || '',
+                    name: nextItem.name || '',
+                    qty: Number(nextItem.qty) || 0,
+                    unitPrice: Number(nextItem.unitPrice) || 0,
+                    total: Number(nextItem.total) || 0,
+                    source: nextItem.source || '',
+                    refId: nextItem.refId || null,
+                    isNested: true
+                  });
+                  j++;
+                  continue;
+                }
+              }
+              
+              // Si encontramos otro combo o servicio con precio > 0, parar
+              if (nextItem.source === 'price' && nextItem.refId) {
+                const nextPe = priceEntryMap[nextItem.refId.toString()];
                 if (nextPe && nextPe.type === 'combo') {
                   // Es otro combo, parar aquí
                   break;
-                } else {
-                  // Es un servicio, parar aquí
+                } else if (nextPrice > 0) {
+                  // Es un servicio con precio, parar aquí
                   break;
                 }
-              } else if (nextItem.source === 'inventory' && nextPrice > 0) {
-                // Es un producto del inventario con precio > 0, no es del combo
+              } else if (nextItem.source === 'inventory' && nextPrice > 0 && 
+                        !comboProductRefIds.has(String(nextItem.refId || ''))) {
+                // Es un producto del inventario con precio > 0 que NO es del combo, parar
+                break;
+              } else if (nextItem.source === 'service' || (nextItem.source === 'price' && !nextItem.refId && nextPrice > 0)) {
+                // Es un servicio independiente, parar
                 break;
               } else {
                 // Otro caso, parar por seguridad
@@ -163,15 +237,15 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
           }
         } else if (item.source === 'inventory') {
           // Es un producto del inventario
-          // Verificar si no es parte de un combo (si tiene precio > 0, es producto independiente)
-          const itemPrice = Number(item.unitPrice) || 0;
-          if (itemPrice > 0) {
-            products.push(itemObj);
-          } else {
-            // Producto con precio 0 podría ser parte de un combo, pero si llegamos aquí
-            // significa que no había un combo antes, así que lo tratamos como producto
+          // Verificar si NO es parte de un combo (no está en comboProductItemIds)
+          const itemRefId = item.refId ? String(item.refId) : '';
+          if (!comboProductItemIds.has(itemRefId)) {
             products.push(itemObj);
           }
+          // Si es parte de un combo, ya fue procesado arriba
+        } else if (item.source === 'service') {
+          // Es un servicio explícito
+          services.push(itemObj);
         } else {
           // Fallback: tratar como servicio
           services.push(itemObj);

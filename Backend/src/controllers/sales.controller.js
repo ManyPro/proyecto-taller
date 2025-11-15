@@ -350,6 +350,31 @@ export const addItemsBatch = async (req, res) => {
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
   if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
 
+  // Pre-procesar para identificar combos en el batch y sus productos
+  // Esto nos ayuda a evitar duplicados cuando los productos del combo ya vienen en el batch
+  const combosInBatch = new Set(); // IDs de combos que vienen en el batch
+  const comboProductRefIds = new Map(); // itemId -> comboRefId (para saber a qué combo pertenece)
+  
+  for (const raw of list) {
+    if (!raw || raw.source !== 'price' || !raw.refId) continue;
+    try {
+      const pe = await PriceEntry.findOne({ _id: raw.refId, companyId: req.companyId })
+        .populate('comboProducts.itemId', 'sku name stock salePrice');
+      if (pe && pe.type === 'combo' && Array.isArray(pe.comboProducts) && pe.comboProducts.length > 0) {
+        combosInBatch.add(String(raw.refId));
+        // Marcar los itemIds de los productos del combo y a qué combo pertenecen
+        pe.comboProducts.forEach(cp => {
+          if (cp.itemId) {
+            comboProductRefIds.set(String(cp.itemId), String(raw.refId));
+          }
+        });
+      }
+    } catch (err) {
+      // Continuar si hay error
+      continue;
+    }
+  }
+
   const added = [];
   for (const raw of list) {
     if (!raw) continue;
@@ -408,7 +433,7 @@ export const addItemsBatch = async (req, res) => {
             });
             
             // Luego agregamos cada producto del combo
-            // PERO solo si no viene ya en el batch (para evitar duplicados)
+            // Siempre agregar los productos del combo, a menos que ya vengan explícitamente en el batch
             for (let idx = 0; idx < pe.comboProducts.length; idx++) {
               const cp = pe.comboProducts[idx];
               const comboQty = qty * (cp.qty || 1);
@@ -426,11 +451,14 @@ export const addItemsBatch = async (req, res) => {
                   completedItemId: null
                 });
               } else if (cp.itemId) {
-                // Verificar si este producto ya viene en el batch
+                // Verificar si este producto ya viene explícitamente en el batch como item independiente
+                // (no como parte de otro combo, sino como item de inventario directo)
                 const productAlreadyInBatch = list.some(r => 
                   r && r.source === 'inventory' && r.refId && String(r.refId) === String(cp.itemId._id)
                 );
                 
+                // SIEMPRE agregar el producto del combo, a menos que ya venga explícitamente en el batch
+                // Esto asegura que los productos del combo se agreguen incluso si no vienen en la cotización
                 if (!productAlreadyInBatch) {
                   // Producto vinculado: agregar como inventory para que se descuente
                   const comboItem = cp.itemId;
@@ -444,15 +472,17 @@ export const addItemsBatch = async (req, res) => {
                     total: Math.round(comboQty * (cp.unitPrice || 0))
                   });
                 }
-                // Si ya viene en el batch, omitirlo para evitar duplicado
+                // Si ya viene en el batch como item independiente, omitirlo para evitar duplicado
               } else {
                 // Producto sin vincular: agregar como price
-                // Verificar si ya viene en el batch por nombre y SKU
-                const productAlreadyInBatch = list.some(r => 
-                  r && r.source === 'price' && 
-                  (!r.refId || String(r.refId) === String(pe._id)) &&
-                  String(r.sku || '').toUpperCase().startsWith('CP-')
-                );
+                // Verificar si ya viene en el batch (por nombre similar o SKU CP-)
+                const productAlreadyInBatch = list.some(r => {
+                  if (!r || r.source !== 'price') return false;
+                  // Si tiene el mismo nombre y viene después del combo, probablemente es el mismo
+                  const rName = String(r.name || r.description || '').trim().toUpperCase();
+                  const cpName = String(cp.name || '').trim().toUpperCase();
+                  return rName === cpName && rName.length > 0;
+                });
                 
                 if (!productAlreadyInBatch) {
                   added.push({

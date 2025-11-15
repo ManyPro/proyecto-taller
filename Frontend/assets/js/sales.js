@@ -997,6 +997,22 @@ function mapQuoteItemToSale(it){
   let source = it.source || it.kindSource || '';
   const refId = it.refId || it.refID || it.ref_id || null;
   const kindUpper = String(it.kind || it.type || '').toUpperCase();
+  
+  // Si es tipo COMBO, siempre usar source='price' con refId
+  if (kindUpper === 'COMBO') {
+    if (refId) {
+      return { source:'price', refId: refId || undefined, qty, unitPrice:unit };
+    }
+    // Si es combo pero no tiene refId, tratar como servicio
+    return {
+      source:'service',
+      name: it.description || it.name || 'Item',
+      sku: it.sku || undefined,
+      qty,
+      unitPrice: unit
+    };
+  }
+  
   if(!source && kindUpper === 'PRODUCTO' && (refId || it.sku)) source = 'inventory';
   if(source === 'inventory'){
     return { source:'inventory', refId: refId || undefined, sku: it.sku || undefined, qty, unitPrice:unit };
