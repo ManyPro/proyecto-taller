@@ -4,6 +4,90 @@ const api = API;
 function el(id){ return document.getElementById(id); }
 function htmlEscape(s){ return String(s || '').replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c])); }
 
+// Función para mostrar modal de tamaño de hoja antes de imprimir (compartida)
+function showPageSizeModal(pageSize, onAccept) {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/60 backdrop-blur-sm';
+    modal.style.opacity = '0';
+    modal.style.transition = 'opacity 0.2s ease-in-out';
+    modal.innerHTML = `
+      <div class="bg-gradient-to-br from-slate-800 to-slate-900 dark:from-slate-800 dark:to-slate-900 theme-light:from-white theme-light:to-slate-50 rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-8 max-w-md w-full mx-4 transform transition-all" style="transform: scale(0.95); transition: transform 0.2s ease-in-out;">
+        <div class="text-center mb-6">
+          <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-600/20 dark:bg-blue-600/20 theme-light:bg-blue-100 rounded-full mb-4">
+            <svg class="w-8 h-8 text-blue-400 dark:text-blue-400 theme-light:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+          </div>
+          <h3 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">Tamaño de Hoja Requerido</h3>
+        </div>
+        
+        <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-6 mb-6 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300">
+          <div class="text-center">
+            <div class="text-3xl font-bold text-blue-400 dark:text-blue-400 theme-light:text-blue-600 mb-2">${pageSize}</div>
+            <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2">
+              Asegúrate de configurar tu impresora con este tamaño antes de imprimir.
+            </p>
+          </div>
+        </div>
+        
+        <div class="flex gap-3">
+          <button id="page-size-cancel" class="flex-1 px-4 py-3 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+            Cancelar
+          </button>
+          <button id="page-size-accept" class="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200">
+            Aceptar
+          </button>
+        </div>
+      </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    const acceptBtn = modal.querySelector('#page-size-accept');
+    const cancelBtn = modal.querySelector('#page-size-cancel');
+    
+    const closeModal = () => {
+      modal.style.opacity = '0';
+      const modalContent = modal.querySelector('div > div');
+      if (modalContent) {
+        modalContent.style.transform = 'scale(0.95)';
+      }
+      setTimeout(() => {
+        modal.remove();
+      }, 200);
+    };
+    
+    acceptBtn.onclick = () => {
+      closeModal();
+      if (onAccept) onAccept();
+      resolve(true);
+    };
+    
+    cancelBtn.onclick = () => {
+      closeModal();
+      resolve(false);
+    };
+    
+    // Cerrar al hacer clic fuera del modal
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        closeModal();
+        resolve(false);
+      }
+    };
+    
+    // Animación de entrada
+    const modalContent = modal.querySelector('div > div');
+    setTimeout(() => {
+      modal.style.opacity = '1';
+      if (modalContent) {
+        modalContent.style.transform = 'scale(1)';
+      }
+    }, 10);
+  });
+}
+
 // Cargar conceptos para el selector de base de porcentaje
 async function loadConceptsForPercentBase() {
   try {
@@ -2142,13 +2226,13 @@ async function printSettlement(settlementId, button) {
     win.document.close();
     win.focus();
     
-    // Mostrar alerta con el tamaño de página (siempre media carta para nómina)
-    alert('📄 TAMAÑO DE HOJA REQUERIDO:\n\nMEDIA CARTA (5.5" x 8.5")\n\nAsegúrate de configurar tu impresora con este tamaño antes de imprimir.');
-    
-    // Esperar a que cargue y luego imprimir
-    setTimeout(() => {
-      win.print();
-    }, 500);
+    // Mostrar modal con el tamaño de página (siempre media carta para nómina)
+    showPageSizeModal('MEDIA CARTA (5.5" x 8.5")', () => {
+      // Esperar a que cargue y luego imprimir
+      setTimeout(() => {
+        win.print();
+      }, 500);
+    });
     
     if (button) {
       button.textContent = originalText;

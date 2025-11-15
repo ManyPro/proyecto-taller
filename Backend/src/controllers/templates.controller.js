@@ -800,27 +800,117 @@ function normalizeTemplateHtml(html='') {
     }
   }
   
-  // Para orden de trabajo
+  // Para orden de trabajo - convertir a estructura agrupada
   if (output.includes('workorder-table')) {
     const tbodyMatches = output.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
     if (tbodyMatches) {
       tbodyMatches.forEach((match) => {
-        if (match.includes('{{name}}') && !match.includes('{{#each sale.items}}')) {
+        // Si tiene {{#each sale.items}} pero NO tiene sale.itemsGrouped, convertir a nueva estructura
+        if (match.includes('{{#each sale.items}}') && !match.includes('sale.itemsGrouped')) {
           const newTbody = `<tbody>
-          {{#each sale.items}}
+          {{#if sale.itemsGrouped.hasProducts}}
+          <tr class="section-header">
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">PRODUCTOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.products}}
           <tr>
             <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
             <td class="t-center">{{qty}}</td>
           </tr>
           {{/each}}
-          {{#unless sale.items}}
+          {{/if}}
+          
+          {{#if sale.itemsGrouped.hasServices}}
+          <tr class="section-header">
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">SERVICIOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.services}}
+          <tr>
+            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+          </tr>
+          {{/each}}
+          {{/if}}
+          
+          {{#if sale.itemsGrouped.hasCombos}}
+          <tr class="section-header">
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">COMBOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.combos}}
+          <tr>
+            <td><strong>{{name}}</strong></td>
+            <td class="t-center">{{qty}}</td>
+          </tr>
+          {{#each items}}
+          <tr>
+            <td style="padding-left: 30px;">• {{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+          </tr>
+          {{/each}}
+          {{/each}}
+          {{/if}}
+          
+          {{#unless sale.itemsGrouped.hasProducts}}{{#unless sale.itemsGrouped.hasServices}}{{#unless sale.itemsGrouped.hasCombos}}
           <tr>
             <td colspan="2" style="text-align: center; color: #666;">Sin ítems</td>
           </tr>
-          {{/unless}}
+          {{/unless}}{{/unless}}{{/unless}}
         </tbody>`;
           output = output.replace(match, newTbody);
-          console.log('[normalizeTemplateHtml] ✅ Corregido tbody de orden de trabajo sin {{#each}}');
+          console.log('[normalizeTemplateHtml] ✅ Convertido tbody de orden de trabajo a estructura agrupada');
+        } else if (match.includes('{{name}}') && !match.includes('{{#each sale.items}}') && !match.includes('sale.itemsGrouped')) {
+          // Template sin estructura, agregar estructura agrupada
+          const newTbody = `<tbody>
+          {{#if sale.itemsGrouped.hasProducts}}
+          <tr class="section-header">
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">PRODUCTOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.products}}
+          <tr>
+            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+          </tr>
+          {{/each}}
+          {{/if}}
+          
+          {{#if sale.itemsGrouped.hasServices}}
+          <tr class="section-header">
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">SERVICIOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.services}}
+          <tr>
+            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+          </tr>
+          {{/each}}
+          {{/if}}
+          
+          {{#if sale.itemsGrouped.hasCombos}}
+          <tr class="section-header">
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">COMBOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.combos}}
+          <tr>
+            <td><strong>{{name}}</strong></td>
+            <td class="t-center">{{qty}}</td>
+          </tr>
+          {{#each items}}
+          <tr>
+            <td style="padding-left: 30px;">• {{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+          </tr>
+          {{/each}}
+          {{/each}}
+          {{/if}}
+          
+          {{#unless sale.itemsGrouped.hasProducts}}{{#unless sale.itemsGrouped.hasServices}}{{#unless sale.itemsGrouped.hasCombos}}
+          <tr>
+            <td colspan="2" style="text-align: center; color: #666;">Sin ítems</td>
+          </tr>
+          {{/unless}}{{/unless}}{{/unless}}
+        </tbody>`;
+          output = output.replace(match, newTbody);
+          console.log('[normalizeTemplateHtml] ✅ Agregado estructura agrupada a orden de trabajo');
         }
       });
     }
