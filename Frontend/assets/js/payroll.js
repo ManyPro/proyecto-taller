@@ -2142,11 +2142,17 @@ async function printSettlement(settlementId, button) {
     const modalScript = `
       <script>
         (function() {
-          const pageSize = 'MEDIA CARTA (5.5" x 8.5")';
-          const modal = document.createElement('div');
-          modal.id = 'page-size-modal';
-          modal.style.cssText = 'position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);';
-          modal.innerHTML = \`
+          function showModal() {
+            if (!document.body) {
+              setTimeout(showModal, 50);
+              return;
+            }
+            
+            const pageSize = 'MEDIA CARTA (5.5" x 8.5")';
+            const modal = document.createElement('div');
+            modal.id = 'page-size-modal';
+            modal.style.cssText = 'position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);';
+            modal.innerHTML = \`
             <div style="background: linear-gradient(to bottom right, #1e293b, #0f172a); border: 1px solid rgba(148, 163, 184, 0.5); border-radius: 1rem; padding: 2rem; max-width: 28rem; width: 100%; margin: 1rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.2s ease-in-out;">
               <div style="text-align: center; margin-bottom: 1.5rem;">
                 <div style="display: inline-flex; align-items: center; justify-content: center; width: 4rem; height: 4rem; background: rgba(59, 130, 246, 0.2); border-radius: 9999px; margin-bottom: 1rem;">
@@ -2202,13 +2208,20 @@ async function printSettlement(settlementId, button) {
             window.close();
           };
           
-          // Animación de entrada
-          setTimeout(() => {
-            modal.style.opacity = '1';
-            if (modalContent) {
-              modalContent.style.transform = 'scale(1)';
-            }
-          }, 10);
+            // Animación de entrada
+            setTimeout(() => {
+              modal.style.opacity = '1';
+              if (modalContent) {
+                modalContent.style.transform = 'scale(1)';
+              }
+            }, 10);
+          }
+          
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', showModal);
+          } else {
+            setTimeout(showModal, 100);
+          }
         })();
       </script>
     `;
