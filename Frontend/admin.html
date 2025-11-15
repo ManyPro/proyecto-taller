@@ -437,6 +437,22 @@
     currentCompanyToken = null;
     currentCompanyData = null;
     API.setActiveCompany('');
+    // Limpiar contexto de admin del sessionStorage
+    try {
+      sessionStorage.removeItem('admin:context');
+      sessionStorage.removeItem('admin:email');
+      sessionStorage.removeItem('admin:token');
+      sessionStorage.removeItem('admin:company');
+    } catch {}
+    // Remover barra de admin si existe
+    const adminBar = document.getElementById('adminIndicatorBar');
+    if (adminBar) {
+      adminBar.remove();
+      document.body.style.paddingTop = '';
+      if (header) {
+        header.style.marginTop = '';
+      }
+    }
     loginSec.classList.remove('hidden');
   }
   
@@ -835,38 +851,216 @@
     const company = companiesList.find(c => c._id === currentCompanyData?.id || c.email === currentCompanyData?.email);
     if(!company) return;
     
+    // Recargar lista de empresas para el selector de BD compartida
+    const allCompanies = companiesList.filter(c => c._id !== company._id);
+    
+    // Lista de todas las pestañas disponibles
+    const allTabs = [
+      { id: 'notas', name: 'Notas', feature: 'notas' },
+      { id: 'ventas', name: 'Ventas', feature: 'ventas' },
+      { id: 'cotizaciones', name: 'Cotizaciones', feature: 'cotizaciones' },
+      { id: 'inventario', name: 'Inventario', feature: 'inventario' },
+      { id: 'precios', name: 'Lista de precios', feature: 'precios' },
+      { id: 'cashflow', name: 'Flujo de Caja', feature: 'cashflow' },
+      { id: 'cartera', name: 'Cartera', feature: 'receivables' },
+      { id: 'pendientes', name: 'Pendientes', feature: null },
+      { id: 'nomina', name: 'Nómina', feature: 'payroll' },
+      { id: 'formatos', name: 'Formatos', feature: 'templates' },
+      { id: 'skus', name: 'SKUs', feature: 'skus' }
+    ];
+    
+    const hiddenTabs = company.restrictions?.hiddenTabs || [];
+    const hiddenAccounts = company.restrictions?.cashflow?.hiddenAccounts || [];
+    
     appSec.innerHTML = `
-      <div class="w-full px-4 sm:px-6 lg:px-8 py-6">
-        <div class="card" style="max-width:100%;margin:0;">
-        <div class="row between" style="align-items:center;gap:8px;flex-wrap:wrap;">
-          <h3 style="margin:0;">Configuración de Empresa: ${company.name || company.email}</h3>
-          <div class="row" style="gap:6px;">
-            <button id="saveCompanyFeatures" class="primary">Guardar cambios</button>
+      <div class="w-full px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex justify-center">
+        <div class="w-full max-w-4xl">
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 sm:p-8">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+              <div class="flex-1">
+                <h3 class="text-xl sm:text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Configuración de Empresa</h3>
+                <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${company.name || company.email}</p>
+              </div>
+              <button id="saveAllChanges" class="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 whitespace-nowrap">💾 Guardar todos los cambios</button>
+            </div>
+          
+          <!-- Features (Funciones) -->
+          <div class="mb-6">
+            <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-3">Features (Funciones)</h4>
+            <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">Activa o desactiva las funciones disponibles para esta empresa:</p>
+            <div id="adminFeaturesList" class="flex flex-wrap gap-3 justify-center sm:justify-start">
+              ${Object.keys(company.features || {}).map(k => `
+                <label class="flex items-center gap-2 px-3 py-2 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-white rounded-lg cursor-pointer hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 transition-colors">
+                  <input type="checkbox" data-feature="${k}" ${company.features[k] !== false ? 'checked' : ''} class="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"/>
+                  <span class="text-sm text-white dark:text-white theme-light:text-slate-900">${k}</span>
+                </label>
+              `).join('')}
+            </div>
           </div>
-        </div>
-        <div style="margin-top:16px;">
-          <h4 style="margin-bottom:12px;">Features (Funciones)</h4>
-          <div id="adminFeaturesList" class="row wrap" style="gap:8px;">
-            ${Object.keys(company.features || {}).map(k => `
-              <label class="chip">
-                <input type="checkbox" data-feature="${k}" ${company.features[k] !== false ? 'checked' : ''}/>
-                ${k}
-              </label>
-            `).join('')}
+          
+          <!-- Ocultar Pestañas -->
+          <div class="mb-6 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 pt-6">
+            <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-3">👁️ Ocultar Pestañas</h4>
+            <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">Selecciona las pestañas que quieres ocultar para esta empresa:</p>
+            <div id="adminHiddenTabsList" class="flex flex-wrap gap-3 justify-center sm:justify-start">
+              ${allTabs.map(tab => `
+                <label class="flex items-center gap-2 px-3 py-2 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-white rounded-lg cursor-pointer hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 transition-colors">
+                  <input type="checkbox" data-tab="${tab.id}" ${hiddenTabs.includes(tab.id) ? 'checked' : ''} class="w-4 h-4 text-red-600 rounded focus:ring-red-500"/>
+                  <span class="text-sm text-white dark:text-white theme-light:text-slate-900">${tab.name}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+          
+          <!-- Compartir Base de Datos -->
+          <div class="mb-6 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 pt-6">
+            <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-3">🔗 Compartir Base de Datos</h4>
+            <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">Selecciona una empresa con la que compartir base de datos y agenda. Esta empresa usará los mismos datos que la empresa seleccionada.</p>
+            <div class="flex items-center gap-3 max-w-2xl">
+              <select id="sharedDatabaseSelect" class="flex-1 px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                <option value="">-- Sin compartir --</option>
+                ${allCompanies.map(c => `
+                  <option value="${c._id}" ${String(company.sharedDatabaseId) === String(c._id) ? 'selected' : ''}>${c.name || c.email}</option>
+                `).join('')}
+              </select>
+            </div>
+            ${company.sharedDatabaseId ? `
+              <div class="mt-3 p-3 bg-yellow-600/20 dark:bg-yellow-600/20 theme-light:bg-yellow-50 rounded-lg border border-yellow-600/30">
+                <p class="text-sm text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-600">
+                  ⚠️ Esta empresa está compartiendo base de datos con: <strong>${allCompanies.find(c => String(c._id) === String(company.sharedDatabaseId))?.name || company.sharedDatabaseId}</strong>
+                </p>
+              </div>
+            ` : ''}
+          </div>
+          
+          <!-- Toggle Movimientos de Caja -->
+          <div class="border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 pt-6">
+            <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-3">💰 Ocultar Movimientos de Caja</h4>
+            <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">Cargando cuentas...</p>
+            <div id="adminCashflowAccountsList" class="flex flex-wrap gap-3 justify-center sm:justify-start">
+              <!-- Se cargará dinámicamente -->
+            </div>
           </div>
         </div>
       </div>
     `;
     
-    // Guardar features
-    document.getElementById('saveCompanyFeatures').onclick = async () => {
-      const patch = {};
-      document.querySelectorAll('#adminFeaturesList input[data-feature]').forEach(ch => {
-        patch[ch.dataset.feature] = ch.checked;
+    // Cargar cuentas de flujo de caja
+    try {
+      const cashflowReq = await fetch(`${API.base || ''}/api/v1/cashflow/accounts`, {
+        headers: {
+          'Authorization': `Bearer ${currentCompanyToken}`,
+          'Content-Type': 'application/json'
+        }
       });
-      try{
-        await req(`/api/v1/admin/company/companies/${company._id}/features`, { method:'PATCH', body: patch });
-        alert('Features guardados');
+      if (cashflowReq.ok) {
+        const cashflowData = await cashflowReq.json();
+        const accounts = cashflowData.accounts || [];
+        const accountsListEl = document.getElementById('adminCashflowAccountsList');
+        const accountsDescEl = accountsListEl?.previousElementSibling;
+        
+        if (accountsListEl && accounts.length > 0) {
+          if (accountsDescEl) {
+            accountsDescEl.textContent = 'Selecciona las cuentas cuyos movimientos quieres ocultar:';
+          }
+          accountsListEl.innerHTML = accounts.map(acc => `
+            <label class="flex items-center gap-2 px-3 py-2 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-white rounded-lg cursor-pointer hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 transition-colors">
+              <input type="checkbox" data-account-id="${acc._id || acc.id}" data-account-name="${acc.name || ''}" ${hiddenAccounts.includes(String(acc._id || acc.id)) ? 'checked' : ''} class="w-4 h-4 text-red-600 rounded focus:ring-red-500"/>
+              <span class="text-sm text-white dark:text-white theme-light:text-slate-900">${acc.name || 'Sin nombre'}</span>
+            </label>
+          `).join('');
+        } else if (accountsDescEl) {
+          accountsDescEl.textContent = 'No hay cuentas disponibles.';
+        }
+      }
+    } catch(e) {
+      console.warn('Error cargando cuentas:', e);
+      const accountsDescEl = document.getElementById('adminCashflowAccountsList')?.previousElementSibling;
+      if (accountsDescEl) {
+        accountsDescEl.textContent = 'Error al cargar cuentas.';
+      }
+    }
+    
+    // Guardar todos los cambios
+    document.getElementById('saveAllChanges').onclick = async () => {
+      try {
+        // Guardar features
+        const featuresPatch = {};
+        document.querySelectorAll('#adminFeaturesList input[data-feature]').forEach(ch => {
+          featuresPatch[ch.dataset.feature] = ch.checked;
+        });
+        await req(`/api/v1/admin/company/companies/${company._id}/features`, { method:'PATCH', body: featuresPatch });
+        
+        // Preparar todas las restrictions en una sola llamada para evitar sobrescritura
+        const hiddenTabsArray = [];
+        document.querySelectorAll('#adminHiddenTabsList input[data-tab]:checked').forEach(ch => {
+          hiddenTabsArray.push(ch.dataset.tab);
+        });
+        
+        const hiddenAccountsArray = [];
+        document.querySelectorAll('#adminCashflowAccountsList input[data-account-id]:checked').forEach(ch => {
+          hiddenAccountsArray.push(String(ch.dataset.accountId));
+        });
+        
+        // Guardar todas las restrictions en una sola llamada
+        const restrictionsPatch = {
+          hiddenTabs: hiddenTabsArray,
+          cashflow: {
+            hiddenAccounts: hiddenAccountsArray
+          }
+        };
+        await req(`/api/v1/admin/company/companies/${company._id}/restrictions`, { 
+          method:'PATCH', 
+          body: restrictionsPatch
+        });
+        
+        // Guardar BD compartida
+        const sharedDbSelect = document.getElementById('sharedDatabaseSelect');
+        const sharedDbId = sharedDbSelect?.value || '';
+        // Enviar null si está vacío, o el ID si tiene valor
+        await req(`/api/v1/admin/company/companies/${company._id}/shared-database`, { 
+          method:'PATCH', 
+          body: { sharedDatabaseId: sharedDbId === '' ? null : sharedDbId } 
+        });
+        
+        alert('✅ Todos los cambios guardados correctamente');
+        
+        // Limpiar caché de restrictions para todas las empresas afectadas
+        // Esto asegura que cuando la empresa afectada inicie sesión, vea los cambios inmediatamente
+        try {
+          // Obtener __SCOPE desde config.js o calcularlo
+          const __SCOPE = (() => {
+            try {
+              if (window.__SCOPE) return window.__SCOPE;
+              const base = window.API_BASE || window.BACKEND_URL || '';
+              if (!base) return 'local';
+              try {
+                const url = new URL(base);
+                return `${url.hostname}${url.port ? ':' + url.port : ''}${url.pathname}`.replace(/\/$/, '') || 'local';
+              } catch {
+                return base.replace(/^https?:\/\//, '').replace(/\/$/, '') || 'local';
+              }
+            } catch {
+              return 'local';
+            }
+          })();
+          
+          const email = company.email || '';
+          if(email) {
+            localStorage.removeItem(`taller.restrictions:${__SCOPE}:${email.toLowerCase()}`);
+          }
+          // También limpiar para la empresa compartida si existe
+          const finalSharedDbId = sharedDbId === '' ? null : sharedDbId;
+          if(finalSharedDbId) {
+            const sharedCompany = allCompanies.find(c => c._id === finalSharedDbId);
+            if(sharedCompany?.email) {
+              localStorage.removeItem(`taller.restrictions:${__SCOPE}:${sharedCompany.email.toLowerCase()}`);
+            }
+          }
+        } catch(e) {
+          console.warn('Error limpiando caché:', e);
+        }
+        
         // Recargar datos de empresa
         const r = await req('/api/v1/admin/companies');
         const updated = r.items.find(c => c._id === company._id);
@@ -875,7 +1069,7 @@
           await loadAdminTab();
         }
       }catch(e){
-        alert('Error: ' + e.message);
+        alert('❌ Error: ' + e.message);
       }
     };
   }

@@ -41,6 +41,13 @@ const CompanySchema = new mongoose.Schema(
       default: {}
     },
 
+    // Compartir base de datos con otra empresa
+    sharedDatabaseId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Company',
+      default: null
+    },
+
     passwordResetTokenHash: { type: String, default: '' },
     passwordResetExpires: { type: Date, default: null },
 

@@ -89,7 +89,23 @@ async function loadMovements(reset=false){
   try {
     if(rowsBody) rowsBody.innerHTML='<tr><td colspan="8" class="px-4 py-6 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cargando...</td></tr>';
     const data = await API.cashflow.list(params);
-    const items = data.items || [];
+    let items = data.items || [];
+    
+    // Filtrar movimientos según restrictions.cashflow.hiddenAccounts
+    try {
+      const restrictions = await API.company.getRestrictions();
+      const hiddenAccounts = restrictions?.cashflow?.hiddenAccounts || [];
+      if(Array.isArray(hiddenAccounts) && hiddenAccounts.length > 0){
+        const hiddenIds = hiddenAccounts.map(id => String(id));
+        items = items.filter(item => {
+          const accountId = String(item.accountId?._id || item.accountId?.id || item.accountId || '');
+          return !hiddenIds.includes(accountId);
+        });
+      }
+    } catch(e) {
+      console.warn('Error obteniendo restrictions para filtrar movimientos:', e);
+    }
+    
     if(rowsBody){
       // Función helper para formatear fecha
       const formatDate = (dateValue) => {

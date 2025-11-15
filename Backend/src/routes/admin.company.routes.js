@@ -1,4 +1,5 @@
 ﻿import { Router } from 'express';
+import mongoose from 'mongoose';
 import Company from '../models/Company.js';
 import { authAdmin, requireAdminRole } from '../middlewares/auth.js';
 
@@ -9,7 +10,7 @@ router.use(authAdmin);
 
 // List companies (developer only)
 router.get('/companies', requireAdminRole('developer'), async (req, res) => {
-  const list = await Company.find({}).select('name email active features featureOptions restrictions publicCatalogEnabled').lean();
+  const list = await Company.find({}).select('name email active features featureOptions restrictions publicCatalogEnabled sharedDatabaseId').lean();
   res.json({ items: list });
 });
 
@@ -58,13 +59,68 @@ router.patch('/companies/:id/restrictions', requireAdminRole('developer','admin'
   const c = await Company.findById(id);
   if(!c) return res.status(404).json({ error: 'Empresa no encontrada' });
   c.restrictions ||= {};
-  Object.entries(patch).forEach(([area, cfg]) => {
-    if(typeof cfg !== 'object' || Array.isArray(cfg)) return;
-    c.restrictions[area] ||= {};
-    Object.entries(cfg).forEach(([k,v]) => { c.restrictions[area][k] = !!v; });
+  
+  // Manejar arrays directamente (como hiddenTabs) y objetos anidados (como cashflow)
+  Object.entries(patch).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      // Si es un array, guardarlo directamente
+      c.restrictions[key] = value;
+    } else if (typeof value === 'object' && value !== null) {
+      // Si es un objeto, hacer merge profundo preservando propiedades existentes
+      c.restrictions[key] = c.restrictions[key] || {};
+      Object.entries(value).forEach(([k, v]) => {
+        if (Array.isArray(v)) {
+          c.restrictions[key][k] = v;
+        } else if (typeof v === 'object' && v !== null) {
+          // Si es un objeto anidado, hacer merge también
+          c.restrictions[key][k] = { ...(c.restrictions[key][k] || {}), ...v };
+        } else {
+          c.restrictions[key][k] = !!v;
+        }
+      });
+    } else {
+      // Valores primitivos
+      c.restrictions[key] = value;
+    }
   });
+  
   await c.save();
   res.json({ restrictions: c.restrictions });
+});
+
+// Patch sharedDatabaseId (developer only)
+router.patch('/companies/:id/shared-database', requireAdminRole('developer'), async (req, res) => {
+  const id = req.params.id;
+  let { sharedDatabaseId } = req.body || {};
+  const c = await Company.findById(id);
+  if(!c) return res.status(404).json({ error: 'Empresa no encontrada' });
+  
+  // Normalizar: convertir string vacío a null
+  if (sharedDatabaseId === '' || sharedDatabaseId === undefined) {
+    sharedDatabaseId = null;
+  }
+  
+  // Validar que sharedDatabaseId sea un ObjectId válido o null
+  if (sharedDatabaseId !== null) {
+    if (!mongoose.Types.ObjectId.isValid(sharedDatabaseId)) {
+      return res.status(400).json({ error: 'sharedDatabaseId inválido' });
+    }
+    // Verificar que la empresa destino existe
+    const targetCompany = await Company.findById(sharedDatabaseId);
+    if (!targetCompany) {
+      return res.status(404).json({ error: 'Empresa destino no encontrada' });
+    }
+    // No permitir compartir BD consigo misma
+    if (String(id) === String(sharedDatabaseId)) {
+      return res.status(400).json({ error: 'No se puede compartir base de datos consigo misma' });
+    }
+    c.sharedDatabaseId = sharedDatabaseId;
+  } else {
+    c.sharedDatabaseId = null;
+  }
+  
+  await c.save();
+  res.json({ sharedDatabaseId: c.sharedDatabaseId });
 });
 
 export default router;

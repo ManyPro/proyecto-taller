@@ -204,9 +204,26 @@ app.use('/api/v1/public/catalog', publicCatalogRouter);
 app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/admin/company', adminCompanyRouter);
 
-function withCompanyDefaults(req, _res, next) {
+async function withCompanyDefaults(req, _res, next) {
   if (req.company?.id) {
-    req.companyId = String(req.company.id);
+    const originalCompanyId = String(req.company.id);
+    
+    // Verificar si la empresa tiene sharedDatabaseId
+    try {
+      const Company = (await import('./models/Company.js')).default;
+      const companyDoc = await Company.findById(originalCompanyId).select('sharedDatabaseId').lean();
+      if (companyDoc?.sharedDatabaseId) {
+        // Usar el sharedDatabaseId como companyId real
+        req.companyId = String(companyDoc.sharedDatabaseId);
+        req.originalCompanyId = originalCompanyId; // Guardar el ID original por si se necesita
+      } else {
+        req.companyId = originalCompanyId;
+      }
+    } catch (err) {
+      // Si hay error, usar el ID original
+      req.companyId = originalCompanyId;
+    }
+    
     if (req.user?.id) req.userId = String(req.user.id);
 
     if (req.method === 'GET') {

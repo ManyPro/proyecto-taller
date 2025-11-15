@@ -496,6 +496,9 @@ async function doLogin(isRegister = false) {
     updateCompanyLabels({ email: resolvedEmail, name: compName });
     API.setActiveCompany(resolvedEmail);
   try{ if(res?.company?.features) localStorage.setItem(featuresKeyFor(resolvedEmail), JSON.stringify(res.company.features)); }catch{}
+    // Cargar restrictions
+    cachedRestrictions = null;
+    await getRestrictions();
     enterApp();
     applyFeatureGating();
     // Tras login exitoso, siempre ir a Inicio
@@ -526,6 +529,24 @@ function initializeLogoutListener() {
   logoutBtn?.addEventListener('click', async () => {
     try { await API.logout(); } catch {}
     try { sessionStorage.removeItem(lastTabKey); } catch {}
+    // Limpiar contexto de admin
+    try {
+      sessionStorage.removeItem('admin:context');
+      sessionStorage.removeItem('admin:email');
+      sessionStorage.removeItem('admin:token');
+      sessionStorage.removeItem('admin:company');
+    } catch {}
+    // Remover barra de admin si existe
+    const adminBar = document.getElementById('adminIndicatorBar');
+    if (adminBar) {
+      adminBar.remove();
+      // Restaurar padding del body
+      document.body.style.paddingTop = '';
+      // Restaurar margin del header
+      if (appHeader) {
+        appHeader.style.marginTop = '';
+      }
+    }
     updateCompanyLabels('');
     sectionApp?.classList.add('hidden');
     sectionLogin?.classList.remove('hidden');
@@ -545,7 +566,11 @@ function initializeLogoutListener() {
       updateCompanyLabels({ email: company.email, name: company.name });
       // Persist features if provided
       try{ if(company.features) localStorage.setItem(featuresKeyFor(company.email), JSON.stringify(company.features)); }catch{}
+      // Cargar restrictions
+      cachedRestrictions = null;
+      await getRestrictions();
       enterApp();
+      applyFeatureGating();
     } else {
       const active = API.getActiveCompany?.();
       if (active) updateCompanyLabels({ email: active });
@@ -933,8 +958,45 @@ function isFeatureEnabled(name){
   if(Object.prototype.hasOwnProperty.call(f, name)) return !!f[name];
   return true;
 }
+// Obtener restrictions desde localStorage o API
+let cachedRestrictions = null;
+async function getRestrictions(){
+  if(cachedRestrictions) return cachedRestrictions;
+  try{
+    const email = API.getActiveCompany?.() || '';
+    if(!email) return {};
+    const stored = localStorage.getItem(`taller.restrictions:${__SCOPE}:${email.toLowerCase()}`);
+    if(stored){
+      try{
+        cachedRestrictions = JSON.parse(stored);
+        return cachedRestrictions;
+      }catch{}
+    }
+    const remote = await API.company.getRestrictions();
+    if(remote && typeof remote === 'object'){
+      cachedRestrictions = remote;
+      try{
+        localStorage.setItem(`taller.restrictions:${__SCOPE}:${email.toLowerCase()}`, JSON.stringify(remote));
+      }catch{}
+      return remote;
+    }
+  }catch(err){
+    console.warn('restrictions sync failed', err?.message || err);
+  }
+  return {};
+}
+
+function isTabHidden(tabId){
+  if(!tabId) return false;
+  const restrictions = cachedRestrictions || {};
+  const hiddenTabs = restrictions.hiddenTabs || [];
+  if(!Array.isArray(hiddenTabs)) return false;
+  return hiddenTabs.includes(String(tabId));
+}
+
 function applyFeatureGating(){
-  document.querySelectorAll('.tabs button[data-feature]').forEach(btn => {
+  // Aplicar filtrado por features
+  document.querySelectorAll('.tabs button[data-feature], nav button[data-feature], .mobile-nav-tab[data-feature]').forEach(btn => {
     const feature = btn.getAttribute('data-feature');
     if(!feature) return;
     const enabled = isFeatureEnabled(feature);
@@ -945,6 +1007,27 @@ function applyFeatureGating(){
     }
   });
   
+  // Aplicar filtrado por restrictions.hiddenTabs
+  document.querySelectorAll('.tabs button[data-tab], nav button[data-tab], .mobile-nav-tab[data-tab]').forEach(btn => {
+    const tabId = btn.getAttribute('data-tab');
+    if(!tabId || tabId === 'home' || tabId === 'admin') {
+      // Asegurar que home y admin siempre sean visibles
+      btn.style.display = '';
+      return;
+    }
+    const hidden = isTabHidden(tabId);
+    if(hidden){
+      btn.style.display = 'none';
+      // Si la pestaña actual está oculta, redirigir a Inicio
+      const currentPage = getCurrentPage();
+      if(currentPage && String(currentPage) === String(tabId)){
+        showTab('home');
+      }
+    } else {
+      // Asegurar que la pestaña sea visible si no está oculta
+      btn.style.display = '';
+    }
+  });
 }
 
 async function syncFeaturesFromServer(force=false){
@@ -957,8 +1040,11 @@ async function syncFeaturesFromServer(force=false){
     if(remote && typeof remote === 'object'){
       setLocalFeatures(email, remote);
       lastFeaturesSyncTs = now;
-      applyFeatureGating();
     }
+    // También sincronizar restrictions
+    cachedRestrictions = null;
+    await getRestrictions();
+    applyFeatureGating();
   }catch(err){
     console.warn('feature sync failed', err?.message || err);
   }

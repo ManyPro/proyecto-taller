@@ -364,15 +364,32 @@ router.get('/restrictions', (req, res) => {
   res.json({ restrictions: req.companyDoc.restrictions || {} });
 });
 
-// PATCH /company/restrictions (empresa puede ver pero no deberÃ­a poder cambiar; mantener para futuros casos)
+// PATCH /company/restrictions (empresa puede ver pero no debería poder cambiar; mantener para futuros casos)
 router.patch('/restrictions', async (req, res) => {
   const patch = req.body || {};
   req.companyDoc.restrictions ||= {};
-  Object.entries(patch).forEach(([area, cfg]) => {
-    if(typeof cfg !== 'object' || Array.isArray(cfg)) return;
-    req.companyDoc.restrictions[area] ||= {};
-    Object.entries(cfg).forEach(([k,v]) => { req.companyDoc.restrictions[area][k] = !!v; });
+  
+  // Manejar arrays directamente (como hiddenTabs)
+  Object.entries(patch).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      // Si es un array, guardarlo directamente
+      req.companyDoc.restrictions[key] = value;
+    } else if (typeof value === 'object' && value !== null) {
+      // Si es un objeto, hacer merge profundo
+      req.companyDoc.restrictions[key] ||= {};
+      Object.entries(value).forEach(([k, v]) => {
+        if (Array.isArray(v)) {
+          req.companyDoc.restrictions[key][k] = v;
+        } else {
+          req.companyDoc.restrictions[key][k] = !!v;
+        }
+      });
+    } else {
+      // Valores primitivos
+      req.companyDoc.restrictions[key] = value;
+    }
   });
+  
   await req.companyDoc.save();
   res.json({ restrictions: req.companyDoc.restrictions });
 });
