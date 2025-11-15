@@ -2120,11 +2120,11 @@ async function printSettlement(settlementId, button) {
       return;
     }
     
-    // Agregar estilos para media carta y encoding UTF-8
+    // Agregar estilos para media carta y encoding UTF-8 con mejoras para PDF
     const pageStyles = `
       @page {
         size: 5.5in 8.5in; /* Half-letter size */
-        margin: 0.5in;
+        margin: 0.4in;
       }
       @media print {
         body {
@@ -2135,6 +2135,71 @@ async function printSettlement(settlementId, button) {
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
         }
+      }
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        font-size: 10px;
+        line-height: 1.2;
+      }
+      /* Estilos mejorados para tablas de nómina */
+      .payroll-earnings-table,
+      .payroll-deductions-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        border-spacing: 0 !important;
+        border: 2px solid #000 !important;
+        margin: 0 !important;
+        table-layout: fixed !important;
+        font-size: 9px !important;
+      }
+      .payroll-earnings-table th,
+      .payroll-deductions-table th {
+        border: 2px solid #000 !important;
+        padding: 4px 3px !important;
+        font-weight: bold !important;
+        color: #000 !important;
+        background: white !important;
+        text-align: center !important;
+        font-size: 9px !important;
+        word-wrap: break-word !important;
+        overflow: hidden !important;
+      }
+      .payroll-earnings-table td,
+      .payroll-deductions-table td {
+        border: 1px solid #000 !important;
+        padding: 3px 2px !important;
+        color: #000 !important;
+        font-size: 9px !important;
+        text-align: center !important;
+        word-wrap: break-word !important;
+        overflow: hidden !important;
+        vertical-align: top !important;
+      }
+      .payroll-earnings-table td:first-child,
+      .payroll-deductions-table td:first-child {
+        text-align: left !important;
+        padding-left: 4px !important;
+      }
+      /* Asegurar que los textos no se salgan */
+      table td, table th {
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+        max-width: 0 !important;
+      }
+      /* Reducir márgenes y espaciado */
+      * {
+        box-sizing: border-box !important;
+      }
+      div {
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      /* Ajustar contenedores principales */
+      .tpl-element {
+        margin: 0 !important;
+        padding: 0 !important;
       }
     `;
     const css = preview.css ? `<style>${pageStyles}${preview.css}</style>` : `<style>${pageStyles}</style>`;

@@ -3,17 +3,8 @@ import CompanyAccount from '../models/CompanyAccount.js';
 import Sale from '../models/Sale.js';
 import CashFlowEntry from '../models/CashFlowEntry.js';
 import Account from '../models/Account.js';
-import { computeBalance } from './cashflow.controller.js';
+import { computeBalance, ensureDefaultCashAccount } from './cashflow.controller.js';
 import mongoose from 'mongoose';
-
-// Helper para obtener cuenta por defecto (similar a cashflow.controller.js)
-async function ensureDefaultCashAccount(companyId) {
-  let acc = await Account.findOne({ companyId, type: 'CASH', name: /caja/i });
-  if (!acc) {
-    acc = await Account.create({ companyId, name: 'Caja', type: 'CASH', initialBalance: 0 });
-  }
-  return acc;
-}
 
 // ===== Empresas de Cartera =====
 

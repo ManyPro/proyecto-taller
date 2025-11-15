@@ -4,6 +4,7 @@ import VehicleIntake from "../models/VehicleIntake.js";
 import Item from "../models/Item.js";
 import Notification from "../models/Notification.js";
 import StockMove from "../models/StockMove.js";
+import StockEntry from "../models/StockEntry.js";
 import SKU from "../models/SKU.js";
 import { checkLowStockAndNotify, checkLowStockForMany } from "../lib/stockAlerts.js";
 import xlsx from 'xlsx';
@@ -62,9 +63,14 @@ function sanitizePublicDescription(html){
 }
 
 // NUEVO: genera el payload estable del QR
-function makeQrData({ companyId, item }) {
-  // Estructura: IT:<companyId>:<itemId>:<sku>
-  return `IT:${companyId}:${item._id}:${(item.sku || "").toUpperCase()}`;
+// Estructura: IT:<companyId>:<itemId>:<sku>[:<entryId>]
+// Si entryId está presente, vincula el QR a una entrada específica
+function makeQrData({ companyId, item, entryId = null }) {
+  const base = `IT:${companyId}:${item._id}:${(item.sku || "").toUpperCase()}`;
+  if (entryId) {
+    return `${base}:${entryId}`;
+  }
+  return base;
 }
 
 // Prorratea el costo del vehiculo entre items 'AUTO' ponderando por stock.
@@ -776,17 +782,23 @@ export const addItemStock = async (req, res) => {
   const item = await Item.findOne({ _id: id, companyId: req.companyId });
   if (!item) return res.status(404).json({ error: "Item no encontrado" });
 
-  // Registrar movimiento primero (para auditoría), luego incrementar stock
-  const meta = { note: (b.note || '').trim() };
+  // Validar vehicleIntakeId si se proporciona
+  let vehicleIntakeId = null;
+  let vehicleIntake = null;
   if (b.vehicleIntakeId && mongoose.Types.ObjectId.isValid(b.vehicleIntakeId)) {
-    meta.vehicleIntakeId = new mongoose.Types.ObjectId(b.vehicleIntakeId);
-    try {
-      const vi = await VehicleIntake.findOne({ _id: meta.vehicleIntakeId, companyId: req.companyId });
-      if (vi) {
-        meta.intakeKind = vi.intakeKind;
-        meta.intakeLabel = makeIntakeLabel(vi);
-      }
-    } catch { /* noop */ }
+    vehicleIntakeId = new mongoose.Types.ObjectId(b.vehicleIntakeId);
+    vehicleIntake = await VehicleIntake.findOne({ _id: vehicleIntakeId, companyId: req.companyId });
+    if (!vehicleIntake) {
+      return res.status(404).json({ error: "Entrada (VehicleIntake) no encontrada" });
+    }
+  }
+
+  // Registrar movimiento primero (para auditoría)
+  const meta = { note: (b.note || '').trim() };
+  if (vehicleIntakeId) {
+    meta.vehicleIntakeId = vehicleIntakeId;
+    meta.intakeKind = vehicleIntake.intakeKind;
+    meta.intakeLabel = makeIntakeLabel(vehicleIntake);
   }
 
   await StockMove.create({
@@ -796,6 +808,38 @@ export const addItemStock = async (req, res) => {
     reason: 'IN',
     meta
   });
+
+  // Crear o actualizar StockEntry si hay vehicleIntakeId
+  let stockEntry = null;
+  if (vehicleIntakeId) {
+    // Buscar si ya existe un StockEntry para este item y entrada
+    stockEntry = await StockEntry.findOne({
+      companyId: req.companyId,
+      itemId: item._id,
+      vehicleIntakeId: vehicleIntakeId
+    });
+
+    if (stockEntry) {
+      // Actualizar cantidad existente
+      stockEntry.qty += qty;
+      await stockEntry.save();
+    } else {
+      // Crear nuevo StockEntry
+      stockEntry = await StockEntry.create({
+        companyId: req.companyId,
+        itemId: item._id,
+        vehicleIntakeId: vehicleIntakeId,
+        qty: qty,
+        entryPrice: item.entryPrice || null,
+        entryDate: vehicleIntake.intakeDate || new Date(),
+        meta: {
+          note: meta.note,
+          supplier: vehicleIntake.purchasePlace || '',
+          purchaseOrder: ''
+        }
+      });
+    }
+  }
 
   const updated = await Item.findOneAndUpdate(
     { _id: id, companyId: req.companyId },
@@ -823,7 +867,13 @@ export const addItemStock = async (req, res) => {
     console.error('sku-pending-on-stock-in', e?.message);
   }
 
-  res.json({ item: updated });
+  // Retornar información incluyendo el StockEntry creado/actualizado
+  const response = { item: updated };
+  if (stockEntry) {
+    response.stockEntry = stockEntry.toObject();
+  }
+
+  res.json(response);
   // Al subir stock, si supera el mínimo limpiar bandera de alerta; si sigue por debajo, no notifica (solo notifica en bajadas o si han pasado 24h)
   try { 
     await checkLowStockAndNotify(req.companyId, updated._id); 
@@ -952,14 +1002,33 @@ export const addItemsStockBulk = async (req, res) => {
 
 // ===== QR =====
 // Devuelve un PNG con el QR del item
+// Query params: size (opcional), entryId (opcional - ID de StockEntry para vincular QR a entrada específica)
 export const itemQrPng = async (req, res) => {
   const { id } = req.params;
   const size = Math.min(Math.max(parseInt(req.query.size || "220", 10), 120), 1024);
+  const entryId = req.query.entryId ? String(req.query.entryId).trim() : null;
 
   const item = await Item.findOne({ _id: id, companyId: req.companyId });
   if (!item) return res.status(404).json({ error: "Item no encontrado" });
 
-  const payload = item.qrData || makeQrData({ companyId: req.companyId, item });
+  // Si se proporciona entryId, validar que existe y pertenece al item
+  let stockEntry = null;
+  if (entryId && mongoose.Types.ObjectId.isValid(entryId)) {
+    stockEntry = await StockEntry.findOne({
+      _id: entryId,
+      companyId: req.companyId,
+      itemId: item._id
+    });
+    if (!stockEntry) {
+      return res.status(404).json({ error: "StockEntry no encontrado o no pertenece al item" });
+    }
+  }
+
+  // Generar QR con entryId si está disponible
+  const payload = stockEntry 
+    ? makeQrData({ companyId: req.companyId, item, entryId: stockEntry._id })
+    : (item.qrData || makeQrData({ companyId: req.companyId, item }));
+
   const png = await QRCode.toBuffer(payload, {
     errorCorrectionLevel: "M",
     type: "png",
@@ -970,6 +1039,36 @@ export const itemQrPng = async (req, res) => {
   res.setHeader("Content-Type", "image/png");
   res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
   return res.end(png);
+};
+
+// ===== Stock Entries =====
+// Obtiene los StockEntries (stock por entrada) de un item
+export const getItemStockEntries = async (req, res) => {
+  const { id } = req.params;
+  
+  const item = await Item.findOne({ _id: id, companyId: req.companyId });
+  if (!item) return res.status(404).json({ error: "Item no encontrado" });
+
+  const stockEntries = await StockEntry.find({
+    companyId: req.companyId,
+    itemId: item._id,
+    qty: { $gt: 0 } // Solo mostrar entradas con stock disponible
+  })
+  .populate('vehicleIntakeId', 'intakeKind intakeDate purchasePlace brand model engine')
+  .sort({ entryDate: 1, _id: 1 })
+  .lean();
+
+  // Enriquecer con información de la entrada
+  const enriched = stockEntries.map(se => {
+    const vi = se.vehicleIntakeId || {};
+    return {
+      ...se,
+      intakeLabel: makeIntakeLabel(vi),
+      intakeKind: vi.intakeKind || 'unknown'
+    };
+  });
+
+  res.json({ item: item.toObject(), stockEntries: enriched });
 };
 
 // ===== Publicación MASIVA =====

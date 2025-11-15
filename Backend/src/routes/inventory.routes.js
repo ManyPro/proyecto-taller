@@ -13,6 +13,7 @@ import {
   itemQrPng,
   addItemStock,
   addItemsStockBulk,
+  getItemStockEntries,
   bulkPublishItems,
   downloadImportTemplate,
   importItemsFromExcel,
@@ -44,5 +45,6 @@ router.get('/items/export/excel', exportInventoryToExcel);
 router.post('/items/maintenance/unpublish-zero-stock', unpublishZeroStock);
 
 router.get('/items/:id/qr.png', itemQrPng);
+router.get('/items/:id/stock-entries', getItemStockEntries);
 
 export default router;

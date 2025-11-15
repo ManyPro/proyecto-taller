@@ -64,7 +64,11 @@ async function computeItems(itemsInput = [], companyId = null) {
         let pe = priceEntryCache.get(String(refId));
         if (!pe) {
           try {
-            pe = await PriceEntry.findOne({ _id: refId, companyId }).lean();
+            pe = await PriceEntry.findOne({ _id: refId, companyId })
+              .populate('vehicleId', 'make line displacement modelYear')
+              .populate('itemId', 'sku name stock salePrice')
+              .populate('comboProducts.itemId', 'sku name stock salePrice')
+              .lean();
             if (pe) priceEntryCache.set(String(refId), pe);
           } catch (err) {
             // Continuar si hay error

@@ -3825,7 +3825,7 @@
     const logoBox = document.createElement('div');
     logoBox.className = 'tpl-element';
     logoBox.id = `element_${visualEditor.nextId++}`;
-    logoBox.style.cssText = 'position: absolute; left: 50%; top: 20px; transform: translateX(-50%); width: 120px; height: 80px; border: 2px solid #000; padding: 5px; display: flex; align-items: center; justify-content: center; cursor: move; background: white; box-sizing: border-box;';
+    logoBox.style.cssText = 'position: absolute; left: 50%; top: 10px; transform: translateX(-50%); width: 100px; height: 60px; border: 2px solid #000; padding: 3px; display: flex; align-items: center; justify-content: center; cursor: move; background: white; box-sizing: border-box;';
     logoBox.innerHTML = `
       <div class="image-placeholder" style="width: 100%; height: 100%; background: #f5f5f5; border: 2px dashed #999; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; color: #666; text-align: center; padding: 5px; box-sizing: border-box; position: relative;">
         <div style="display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none;">
@@ -3872,36 +3872,36 @@
     const employeeDataBox = document.createElement('div');
     employeeDataBox.className = 'tpl-element';
     employeeDataBox.id = `element_${visualEditor.nextId++}`;
-    employeeDataBox.style.cssText = 'position: absolute; left: 40px; top: 120px; width: 350px; border: 2px solid #000; padding: 10px; background: white;';
+    employeeDataBox.style.cssText = 'position: absolute; left: 30px; top: 80px; width: 320px; border: 2px solid #000; padding: 6px; background: white;';
     employeeDataBox.innerHTML = `
-      <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11px;">
+      <table style="width: 100%; border-collapse: collapse; font-family: Arial, sans-serif; font-size: 9px;">
         <tr>
-          <td style="border: 1px solid #000; padding: 6px; font-weight: bold; width: 40%;">NOMBRE:</td>
-          <td style="border: 1px solid #000; padding: 6px;">{{settlement.technicianName}}</td>
+          <td style="border: 1px solid #000; padding: 3px; font-weight: bold; width: 40%; word-wrap: break-word;">NOMBRE:</td>
+          <td style="border: 1px solid #000; padding: 3px; word-wrap: break-word;">{{settlement.technicianName}}</td>
         </tr>
         <tr>
-          <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">CÉDULA:</td>
-          <td style="border: 1px solid #000; padding: 6px;">{{settlement.technicianIdentification}}</td>
+          <td style="border: 1px solid #000; padding: 3px; font-weight: bold; word-wrap: break-word;">CÉDULA:</td>
+          <td style="border: 1px solid #000; padding: 3px; word-wrap: break-word;">{{settlement.technicianIdentification}}</td>
         </tr>
         <tr>
-          <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">PERIODO:</td>
-          <td style="border: 1px solid #000; padding: 6px;">{{period.formattedStartDate}} A {{period.formattedEndDate}}</td>
+          <td style="border: 1px solid #000; padding: 3px; font-weight: bold; word-wrap: break-word;">PERIODO:</td>
+          <td style="border: 1px solid #000; padding: 3px; word-wrap: break-word;">{{period.formattedStartDate}} A {{period.formattedEndDate}}</td>
         </tr>
         <tr>
-          <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">SALARIO BÁSICO ($/MES):</td>
-          <td style="border: 1px solid #000; padding: 6px;">{{#if settlement.technician.basicSalary}}{{money settlement.technician.basicSalary}}{{/if}}</td>
+          <td style="border: 1px solid #000; padding: 3px; font-weight: bold; word-wrap: break-word;">SALARIO BÁSICO ($/MES):</td>
+          <td style="border: 1px solid #000; padding: 3px; word-wrap: break-word;">{{#if settlement.technician.basicSalary}}{{money settlement.technician.basicSalary}}{{/if}}</td>
         </tr>
         <tr>
-          <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">HORAS TRABAJO MES:</td>
-          <td style="border: 1px solid #000; padding: 6px;">{{#if settlement.technician.workHoursPerMonth}}{{settlement.technician.workHoursPerMonth}}{{/if}}</td>
+          <td style="border: 1px solid #000; padding: 3px; font-weight: bold; word-wrap: break-word;">HORAS TRABAJO MES:</td>
+          <td style="border: 1px solid #000; padding: 3px; word-wrap: break-word;">{{#if settlement.technician.workHoursPerMonth}}{{settlement.technician.workHoursPerMonth}}{{/if}}</td>
         </tr>
         <tr>
-          <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">SALARIO BÁSICO (DÍA):</td>
-          <td style="border: 1px solid #000; padding: 6px;">{{#if settlement.technician.basicSalaryPerDay}}{{money settlement.technician.basicSalaryPerDay}}{{/if}}</td>
+          <td style="border: 1px solid #000; padding: 3px; font-weight: bold; word-wrap: break-word;">SALARIO BÁSICO (DÍA):</td>
+          <td style="border: 1px solid #000; padding: 3px; word-wrap: break-word;">{{#if settlement.technician.basicSalaryPerDay}}{{money settlement.technician.basicSalaryPerDay}}{{/if}}</td>
         </tr>
         <tr>
-          <td style="border: 1px solid #000; padding: 6px; font-weight: bold;">TIPO CONTRATO:</td>
-          <td style="border: 1px solid #000; padding: 6px;">{{#if settlement.technician.contractType}}{{settlement.technician.contractType}}{{/if}}</td>
+          <td style="border: 1px solid #000; padding: 3px; font-weight: bold; word-wrap: break-word;">TIPO CONTRATO:</td>
+          <td style="border: 1px solid #000; padding: 3px; word-wrap: break-word;">{{#if settlement.technician.contractType}}{{settlement.technician.contractType}}{{/if}}</td>
         </tr>
       </table>
     `;
@@ -3914,8 +3914,8 @@
     const daysWorkedBox = document.createElement('div');
     daysWorkedBox.className = 'tpl-element';
     daysWorkedBox.id = `element_${visualEditor.nextId++}`;
-    daysWorkedBox.style.cssText = 'position: absolute; right: 40px; top: 120px; width: 200px; border: 2px solid #000; padding: 15px; background: white; text-align: center;';
-    daysWorkedBox.innerHTML = '<div style="font-weight: bold; font-size: 12px; margin-bottom: 8px;">DÍAS TRABAJADOS</div><div contenteditable="true" style="font-size: 24px; font-weight: bold;">{{period.daysWorked}}</div>';
+    daysWorkedBox.style.cssText = 'position: absolute; right: 30px; top: 80px; width: 180px; border: 2px solid #000; padding: 8px; background: white; text-align: center;';
+    daysWorkedBox.innerHTML = '<div style="font-weight: bold; font-size: 10px; margin-bottom: 4px;">DÍAS TRABAJADOS</div><div contenteditable="true" style="font-size: 20px; font-weight: bold;">{{period.daysWorked}}</div>';
     makeDraggable(daysWorkedBox);
     makeSelectable(daysWorkedBox);
     canvas.appendChild(daysWorkedBox);
@@ -3924,27 +3924,27 @@
     const totalEarnedBox = document.createElement('div');
     totalEarnedBox.className = 'tpl-element';
     totalEarnedBox.id = `element_${visualEditor.nextId++}`;
-    totalEarnedBox.style.cssText = 'position: absolute; right: 40px; top: 220px; width: 200px; border: 2px solid #000; padding: 15px; background: white; text-align: center;';
-    totalEarnedBox.innerHTML = '<div style="font-weight: bold; font-size: 12px; margin-bottom: 8px;">TOTAL DEVENGADO</div><div contenteditable="true" style="font-size: 20px; font-weight: bold;">{{settlement.formattedGrossTotal}}</div>';
+    totalEarnedBox.style.cssText = 'position: absolute; right: 30px; top: 170px; width: 180px; border: 2px solid #000; padding: 8px; background: white; text-align: center;';
+    totalEarnedBox.innerHTML = '<div style="font-weight: bold; font-size: 10px; margin-bottom: 4px;">TOTAL DEVENGADO</div><div contenteditable="true" style="font-size: 16px; font-weight: bold; word-wrap: break-word;">{{settlement.formattedGrossTotal}}</div>';
     makeDraggable(totalEarnedBox);
     makeSelectable(totalEarnedBox);
     canvas.appendChild(totalEarnedBox);
     visualEditor.elements.push({ id: totalEarnedBox.id, type: 'text', element: totalEarnedBox });
 
     // Tabla de ingresos (izquierda)
-    const earningsTable = createPayrollEarningsTable({ left: 40, top: 420 });
+    const earningsTable = createPayrollEarningsTable({ left: 30, top: 260 });
     canvas.appendChild(earningsTable);
 
     // Tabla de descuentos (derecha)
-    const deductionsTable = createPayrollDeductionsTable({ left: 400, top: 420 });
+    const deductionsTable = createPayrollDeductionsTable({ left: 360, top: 260 });
     canvas.appendChild(deductionsTable);
 
     // Totales (debajo de las tablas)
     const totalIncomeBox = document.createElement('div');
     totalIncomeBox.className = 'tpl-element';
     totalIncomeBox.id = `element_${visualEditor.nextId++}`;
-    totalIncomeBox.style.cssText = 'position: absolute; left: 40px; top: 680px; width: 300px; border: 2px solid #000; padding: 12px; background: white; font-weight: bold; font-size: 14px;';
-    totalIncomeBox.innerHTML = '<div contenteditable="true">TOTAL INGRESOS: {{settlement.formattedGrossTotal}}</div>';
+    totalIncomeBox.style.cssText = 'position: absolute; left: 30px; top: 480px; width: 280px; border: 2px solid #000; padding: 6px; background: white; font-weight: bold; font-size: 11px;';
+    totalIncomeBox.innerHTML = '<div contenteditable="true" style="word-wrap: break-word;">TOTAL INGRESOS: {{settlement.formattedGrossTotal}}</div>';
     makeDraggable(totalIncomeBox);
     makeSelectable(totalIncomeBox);
     canvas.appendChild(totalIncomeBox);
@@ -3953,8 +3953,8 @@
     const totalDeductionsBox = document.createElement('div');
     totalDeductionsBox.className = 'tpl-element';
     totalDeductionsBox.id = `element_${visualEditor.nextId++}`;
-    totalDeductionsBox.style.cssText = 'position: absolute; right: 40px; top: 680px; width: 300px; border: 2px solid #000; padding: 12px; background: white; font-weight: bold; font-size: 14px; text-align: right;';
-    totalDeductionsBox.innerHTML = '<div contenteditable="true">TOTAL EGRESOS: {{settlement.formattedDeductionsTotal}}</div>';
+    totalDeductionsBox.style.cssText = 'position: absolute; right: 30px; top: 480px; width: 280px; border: 2px solid #000; padding: 6px; background: white; font-weight: bold; font-size: 11px; text-align: right;';
+    totalDeductionsBox.innerHTML = '<div contenteditable="true" style="word-wrap: break-word;">TOTAL EGRESOS: {{settlement.formattedDeductionsTotal}}</div>';
     makeDraggable(totalDeductionsBox);
     makeSelectable(totalDeductionsBox);
     canvas.appendChild(totalDeductionsBox);
@@ -3964,8 +3964,8 @@
     const receivedBox = document.createElement('div');
     receivedBox.className = 'tpl-element';
     receivedBox.id = `element_${visualEditor.nextId++}`;
-    receivedBox.style.cssText = 'position: absolute; left: 40px; top: 750px; width: 300px; border: 2px solid #000; padding: 20px; background: white; text-align: center;';
-    receivedBox.innerHTML = '<div contenteditable="true" style="font-size: 16px; font-weight: bold;">RECIBÍ A SATISFACCIÓN</div>';
+    receivedBox.style.cssText = 'position: absolute; left: 30px; top: 540px; width: 280px; border: 2px solid #000; padding: 8px; background: white; text-align: center;';
+    receivedBox.innerHTML = '<div contenteditable="true" style="font-size: 12px; font-weight: bold;">RECIBÍ A SATISFACCIÓN</div>';
     makeDraggable(receivedBox);
     makeSelectable(receivedBox);
     canvas.appendChild(receivedBox);
@@ -3975,23 +3975,23 @@
     const signatureBox = document.createElement('div');
     signatureBox.className = 'tpl-element';
     signatureBox.id = `element_${visualEditor.nextId++}`;
-    signatureBox.style.cssText = 'position: absolute; right: 40px; top: 750px; width: 300px; border: 2px solid #000; padding: 15px; background: white; font-size: 11px;';
+    signatureBox.style.cssText = 'position: absolute; right: 30px; top: 540px; width: 280px; border: 2px solid #000; padding: 8px; background: white; font-size: 9px;';
     signatureBox.innerHTML = `
       <table style="width: 100%; border-collapse: collapse;">
         <tr>
-          <td style="padding: 4px 0;"><strong>NOMBRE:</strong> {{settlement.technicianName}}</td>
+          <td style="padding: 2px 0; word-wrap: break-word;"><strong>NOMBRE:</strong> {{settlement.technicianName}}</td>
         </tr>
         <tr>
-          <td style="padding: 4px 0;"><strong>FIRMA:</strong></td>
+          <td style="padding: 2px 0;"><strong>FIRMA:</strong></td>
         </tr>
         <tr>
-          <td style="padding: 4px 0; border-top: 1px solid #000; margin-top: 20px;">&nbsp;</td>
+          <td style="padding: 2px 0; border-top: 1px solid #000; margin-top: 10px;">&nbsp;</td>
         </tr>
         <tr>
-          <td style="padding: 4px 0;"><strong>IDENTIFICACION:</strong> {{settlement.technicianIdentification}}</td>
+          <td style="padding: 2px 0; word-wrap: break-word;"><strong>IDENTIFICACION:</strong> {{settlement.technicianIdentification}}</td>
         </tr>
         <tr>
-          <td style="padding: 4px 0;"><strong>FECHA:</strong> {{date now}}</td>
+          <td style="padding: 2px 0; word-wrap: break-word;"><strong>FECHA:</strong> {{date now}}</td>
         </tr>
       </table>
     `;
@@ -4013,7 +4013,7 @@
       top: ${position.top}px;
       border: 2px solid transparent;
       cursor: move;
-      width: 320px;
+      width: 300px;
       background: white;
       max-width: 100%;
     `;
@@ -4031,24 +4031,30 @@
         }
         .payroll-earnings-table th {
           border: 2px solid #000 !important;
-          padding: 8px 4px;
-          font-weight: bold;
-          color: #000;
-          font-size: 10px;
-          background: white;
-          text-align: center;
+          padding: 4px 3px !important;
+          font-weight: bold !important;
+          color: #000 !important;
+          font-size: 9px !important;
+          background: white !important;
+          text-align: center !important;
           border-collapse: collapse !important;
+          word-wrap: break-word !important;
+          overflow: hidden !important;
         }
         .payroll-earnings-table td {
           border: 1px solid #000 !important;
-          padding: 6px 4px;
-          color: #000;
-          font-size: 10px;
-          text-align: center;
+          padding: 3px 2px !important;
+          color: #000 !important;
+          font-size: 9px !important;
+          text-align: center !important;
           border-collapse: collapse !important;
+          word-wrap: break-word !important;
+          overflow: hidden !important;
+          vertical-align: top !important;
         }
         .payroll-earnings-table td:first-child {
-          text-align: left;
+          text-align: left !important;
+          padding-left: 4px !important;
         }
         .payroll-earnings-table thead tr:first-child th:first-child {
           border-top-left-radius: 0 !important;
@@ -4068,16 +4074,24 @@
             border-spacing: 0 !important;
             width: 100% !important;
             border: 2px solid #000 !important;
+            table-layout: fixed !important;
           }
           .payroll-earnings-table th,
           .payroll-earnings-table td {
             border: 1px solid #000 !important;
-            padding: 4px !important;
+            padding: 3px 2px !important;
             font-size: 9px !important;
             border-collapse: collapse !important;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            max-width: 0 !important;
           }
           .payroll-earnings-table th {
             border-width: 2px !important;
+            padding: 4px 3px !important;
+          }
+          .payroll-earnings-table td:first-child {
+            padding-left: 4px !important;
           }
         }
       </style>
@@ -4131,7 +4145,7 @@
       top: ${position.top}px;
       border: 2px solid transparent;
       cursor: move;
-      width: 320px;
+      width: 300px;
       background: white;
       max-width: 100%;
     `;
@@ -4149,24 +4163,30 @@
         }
         .payroll-deductions-table th {
           border: 2px solid #000 !important;
-          padding: 8px 4px;
-          font-weight: bold;
-          color: #000;
-          font-size: 10px;
-          background: white;
-          text-align: center;
+          padding: 4px 3px !important;
+          font-weight: bold !important;
+          color: #000 !important;
+          font-size: 9px !important;
+          background: white !important;
+          text-align: center !important;
           border-collapse: collapse !important;
+          word-wrap: break-word !important;
+          overflow: hidden !important;
         }
         .payroll-deductions-table td {
           border: 1px solid #000 !important;
-          padding: 6px 4px;
-          color: #000;
-          font-size: 10px;
-          text-align: center;
+          padding: 3px 2px !important;
+          color: #000 !important;
+          font-size: 9px !important;
+          text-align: center !important;
           border-collapse: collapse !important;
+          word-wrap: break-word !important;
+          overflow: hidden !important;
+          vertical-align: top !important;
         }
         .payroll-deductions-table td:first-child {
-          text-align: left;
+          text-align: left !important;
+          padding-left: 4px !important;
         }
         .payroll-deductions-table thead tr:first-child th:first-child {
           border-top-left-radius: 0 !important;
@@ -4186,16 +4206,24 @@
             border-spacing: 0 !important;
             width: 100% !important;
             border: 2px solid #000 !important;
+            table-layout: fixed !important;
           }
           .payroll-deductions-table th,
           .payroll-deductions-table td {
             border: 1px solid #000 !important;
-            padding: 4px !important;
+            padding: 3px 2px !important;
             font-size: 9px !important;
             border-collapse: collapse !important;
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            max-width: 0 !important;
           }
           .payroll-deductions-table th {
             border-width: 2px !important;
+            padding: 4px 3px !important;
+          }
+          .payroll-deductions-table td:first-child {
+            padding-left: 4px !important;
           }
         }
       </style>

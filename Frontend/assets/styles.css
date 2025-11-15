@@ -798,6 +798,168 @@ button:focus{ outline:none; box-shadow:var(--focus-ring); }
 .w-fit{ white-space:nowrap; }
 
 /* ===== Ventas – lector QR ===== */
+/* Estilos específicos para modal de lectura de placa en móviles y tablets */
+#qr-video {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  width: 100% !important;
+  height: auto !important;
+}
+
+/* Contenedor del video con altura máxima en móviles/tablets */
+@media (max-width: 1024px) {
+  /* Modal que contiene el video QR */
+  #modal .modal-content {
+    max-height: 95vh !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Contenedor del video - selector directo */
+  #modal .modal-content > div:has(#qr-video),
+  #modal .modal-content div[style*="max-height"]:has(#qr-video) {
+    max-height: 50vh !important;
+    min-height: 200px !important;
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: hidden !important;
+  }
+  
+  /* Video dentro del contenedor */
+  #qr-video {
+    max-height: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
+  }
+  
+  /* Botón de captura accesible */
+  #qr-capture-plate {
+    position: absolute !important;
+    bottom: 8px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    z-index: 30 !important;
+    padding: 8px 16px !important;
+    font-size: 14px !important;
+    white-space: nowrap !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+    pointer-events: auto !important;
+  }
+  
+  /* Panel de confirmación de placa */
+  #qr-plate-confirm {
+    margin-top: 12px !important;
+    padding: 12px !important;
+  }
+  
+  /* Input manual y botones */
+  #modal .modal-content > div:has(#qr-manual) {
+    margin-top: 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  
+  #qr-manual {
+    width: 100% !important;
+    margin-bottom: 8px !important;
+  }
+  
+  #qr-add-manual {
+    width: 100% !important;
+  }
+}
+
+/* Estilos adicionales para tablets */
+@media (min-width: 768px) and (max-width: 1024px) {
+  #modal .modal-content > div:has(#qr-video),
+  #modal .modal-content div[style*="max-height"]:has(#qr-video) {
+    max-height: 55vh !important;
+  }
+}
+
+/* Estilos para móviles pequeños */
+@media (max-width: 640px) {
+  #modal .modal-content {
+    padding: 8px !important;
+  }
+  
+  #modal .modal-content > div:has(#qr-video),
+  #modal .modal-content div[style*="max-height"]:has(#qr-video) {
+    max-height: 45vh !important;
+    min-height: 180px !important;
+  }
+  
+  #qr-capture-plate {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+    bottom: 6px !important;
+  }
+  
+  /* Mensaje y controles */
+  #qr-msg {
+    font-size: 12px !important;
+    margin-top: 8px !important;
+  }
+  
+  /* Selector de cámara */
+  #qr-cam {
+    font-size: 14px !important;
+    padding: 6px 8px !important;
+  }
+}
+
+/* Fallback para navegadores que no soportan :has() */
+@supports not selector(:has(*)) {
+  @media (max-width: 1024px) {
+    /* Contenedor del video usando selector de atributo */
+    #modal .modal-content > div[style*="max-height"] {
+      max-height: 50vh !important;
+      min-height: 200px !important;
+      position: relative !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      overflow: hidden !important;
+    }
+    
+    #qr-video {
+      max-height: 100% !important;
+      width: 100% !important;
+      height: auto !important;
+      object-fit: contain !important;
+    }
+    
+    #qr-capture-plate {
+      position: absolute !important;
+      bottom: 8px !important;
+      left: 50% !important;
+      transform: translateX(-50%) !important;
+      z-index: 30 !important;
+      padding: 8px 16px !important;
+      font-size: 14px !important;
+      white-space: nowrap !important;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+      pointer-events: auto !important;
+    }
+  }
+  
+  @media (max-width: 640px) {
+    #modal .modal-content > div[style*="max-height"] {
+      max-height: 45vh !important;
+      min-height: 180px !important;
+    }
+    
+    #qr-capture-plate {
+      padding: 6px 12px !important;
+      font-size: 12px !important;
+      bottom: 6px !important;
+    }
+  }
+}
 .qrbar{ justify-content:space-between; margin-bottom:8px; }
 .qrwrap{ position:relative; background:#0d1117; border-radius:8px; padding:8px; display:flex; justify-content:center; }
 .qrwrap video{ width:100%; max-height:320px; border-radius:6px; background:#000; }

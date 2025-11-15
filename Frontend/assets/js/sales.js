@@ -9322,19 +9322,58 @@ function showReport(reportData, fechaDesde, fechaHasta) {
   reportContainer.innerHTML = `
     <!-- Header del reporte -->
     <div class="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 rounded-xl shadow-lg border border-blue-500/50 p-6 mb-6">
-      <div class="flex justify-between items-start">
+      <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
         <div>
           <h2 class="text-2xl font-bold text-white mb-2">📊 Reporte de Ventas</h2>
           <p class="text-blue-100 text-sm">Período: ${new Date(fechaDesde).toLocaleDateString('es-CO')} - ${new Date(fechaHasta).toLocaleDateString('es-CO')}</p>
         </div>
-        <button id="report-download-pdf" class="px-4 py-2 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-lg transition-all duration-200">
-          📥 Descargar PDF
-        </button>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <button id="report-download-pdf" class="px-4 py-2 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-lg transition-all duration-200 whitespace-nowrap">
+            📥 Descargar PDF
+          </button>
+          <button id="report-download-image" class="px-4 py-2 bg-green-600/80 hover:bg-green-600 text-white font-semibold rounded-lg transition-all duration-200 whitespace-nowrap">
+            🖼️ Exportar Imagen
+          </button>
+        </div>
+      </div>
+      <!-- Opciones de selección para exportar imagen -->
+      <div class="mt-4 pt-4 border-t border-blue-500/30">
+        <p class="text-blue-100 text-xs mb-3 font-semibold">Selecciona las secciones a incluir en la imagen:</p>
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+          <label class="flex items-center gap-2 text-blue-100 text-xs cursor-pointer">
+            <input type="checkbox" class="report-section-checkbox" data-section="resumen" checked>
+            <span>Resumen</span>
+          </label>
+          <label class="flex items-center gap-2 text-blue-100 text-xs cursor-pointer">
+            <input type="checkbox" class="report-section-checkbox" data-section="cartera" checked>
+            <span>Cartera</span>
+          </label>
+          <label class="flex items-center gap-2 text-blue-100 text-xs cursor-pointer">
+            <input type="checkbox" class="report-section-checkbox" data-section="ingresos" checked>
+            <span>Ingresos</span>
+          </label>
+          <label class="flex items-center gap-2 text-blue-100 text-xs cursor-pointer">
+            <input type="checkbox" class="report-section-checkbox" data-section="flujo" checked>
+            <span>Flujo Caja</span>
+          </label>
+          <label class="flex items-center gap-2 text-blue-100 text-xs cursor-pointer">
+            <input type="checkbox" class="report-section-checkbox" data-section="manoobra" checked>
+            <span>Mano Obra</span>
+          </label>
+          <label class="flex items-center gap-2 text-blue-100 text-xs cursor-pointer">
+            <input type="checkbox" class="report-section-checkbox" data-section="grafico" checked>
+            <span>Gráfico</span>
+          </label>
+          <label class="flex items-center gap-2 text-blue-100 text-xs cursor-pointer">
+            <input type="checkbox" class="report-section-checkbox" data-section="restock" checked>
+            <span>Restock</span>
+          </label>
+        </div>
       </div>
     </div>
     
     <!-- Resumen general -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div id="report-section-resumen" class="report-section grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
       <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
         <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total Ventas</div>
         <div class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900">${reportData.ventas.total}</div>
@@ -9355,7 +9394,7 @@ function showReport(reportData, fechaDesde, fechaHasta) {
     </div>
     
     <!-- Reporte de Cartera -->
-    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+    <div id="report-section-cartera" class="report-section bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
       <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">💼 Reporte de Cartera</h3>
       <div class="mb-4 p-4 bg-yellow-600/20 dark:bg-yellow-600/20 theme-light:bg-yellow-50 rounded-lg border border-yellow-600/30">
         <div class="text-sm text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-600 mb-1">Valor Total en Cartera</div>
@@ -9401,7 +9440,7 @@ function showReport(reportData, fechaDesde, fechaHasta) {
     </div>
     
     <!-- Ingresos por cuenta -->
-    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+    <div id="report-section-ingresos" class="report-section bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
       <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">💰 Ingresos por Cuenta</h3>
       <div class="space-y-2">
         ${Object.entries(reportData.ingresosPorCuenta).map(([cuenta, monto]) => `
@@ -9415,7 +9454,7 @@ function showReport(reportData, fechaDesde, fechaHasta) {
     </div>
     
     <!-- Flujo de caja -->
-    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+    <div id="report-section-flujo" class="report-section bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
       <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">💵 Flujo de Caja</h3>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div class="p-4 bg-green-600/20 dark:bg-green-600/20 theme-light:bg-green-50 rounded-lg border border-green-600/30">
@@ -9434,7 +9473,7 @@ function showReport(reportData, fechaDesde, fechaHasta) {
     </div>
     
     <!-- Mano de obra por técnico -->
-    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+    <div id="report-section-manoobra" class="report-section bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
       <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">👷 Mano de Obra por Técnico</h3>
       <div class="overflow-x-auto">
         <table class="w-full text-sm border-collapse">
@@ -9466,7 +9505,7 @@ function showReport(reportData, fechaDesde, fechaHasta) {
     </div>
     
     <!-- Gráfico de pastel para mano de obra -->
-    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+    <div id="report-section-grafico" class="report-section bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
       <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">📊 Distribución de Mano de Obra</h3>
       <div class="flex justify-center">
         <canvas id="manoObraChart" style="max-width: 400px; max-height: 400px;"></canvas>
@@ -9474,7 +9513,7 @@ function showReport(reportData, fechaDesde, fechaHasta) {
     </div>
     
     <!-- Ítems que necesitan restock -->
-    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+    <div id="report-section-restock" class="report-section bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
       <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">⚠️ Ítems que Necesitan Restock</h3>
       <div class="max-h-64 overflow-y-auto custom-scrollbar">
         <table class="w-full text-sm border-collapse">
@@ -9522,10 +9561,174 @@ function showReport(reportData, fechaDesde, fechaHasta) {
     downloadReportPDF(reportData, fechaDesde, fechaHasta);
   });
   
+  document.getElementById('report-download-image')?.addEventListener('click', () => {
+    exportReportAsImage(reportData, fechaDesde, fechaHasta);
+  });
+  
   // Crear gráfico de pastel
   setTimeout(() => {
     createManoObraChart(reportData.manoObra.porTecnico);
   }, 100);
+}
+
+// Cargar html2canvas on-demand
+function ensureHtml2Canvas(){
+  return new Promise((resolve, reject) => {
+    if (window.html2canvas) return resolve(window.html2canvas);
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+    s.onload = () => resolve(window.html2canvas);
+    s.onerror = () => reject(new Error('No se pudo cargar html2canvas'));
+    document.head.appendChild(s);
+  });
+}
+
+async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
+  try {
+    // Obtener secciones seleccionadas
+    const checkboxes = document.querySelectorAll('.report-section-checkbox:checked');
+    const selectedSections = Array.from(checkboxes).map(cb => cb.dataset.section);
+    
+    if (selectedSections.length === 0) {
+      alert('Por favor selecciona al menos una sección para exportar');
+      return;
+    }
+    
+    // Mostrar loading
+    const btn = document.getElementById('report-download-image');
+    const originalText = btn?.textContent || '';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = '⏳ Generando imagen...';
+    }
+    
+    // Cargar html2canvas
+    const html2canvas = await ensureHtml2Canvas();
+    
+    // Crear contenedor temporal para la imagen
+    const exportContainer = document.createElement('div');
+    exportContainer.id = 'report-export-container';
+    exportContainer.style.cssText = `
+      position: fixed;
+      left: -9999px;
+      top: 0;
+      width: 1200px;
+      background: linear-gradient(to bottom, #1e293b, #0f172a);
+      padding: 40px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    `;
+    
+    // Clonar header siempre (solo el título y período)
+    const header = document.querySelector('#report-container .bg-gradient-to-r.from-blue-600');
+    if (header) {
+      // Crear header limpio solo con título y período
+      const headerClone = document.createElement('div');
+      headerClone.className = header.className;
+      headerClone.style.cssText = header.style.cssText;
+      const titleDiv = header.querySelector('div:first-child');
+      if (titleDiv) {
+        headerClone.innerHTML = titleDiv.outerHTML;
+      }
+      exportContainer.appendChild(headerClone);
+    }
+    
+    // Agregar secciones seleccionadas
+    selectedSections.forEach(sectionId => {
+      const section = document.getElementById(`report-section-${sectionId}`);
+      if (section) {
+        const sectionClone = section.cloneNode(true);
+        // Remover scroll y ajustar alturas máximas para que todo se vea
+        const scrollContainers = sectionClone.querySelectorAll('.max-h-96, .max-h-64, .overflow-y-auto');
+        scrollContainers.forEach(container => {
+          container.style.maxHeight = 'none';
+          container.style.overflow = 'visible';
+        });
+        exportContainer.appendChild(sectionClone);
+      }
+    });
+    
+    document.body.appendChild(exportContainer);
+    
+    // Si hay gráfico seleccionado, recrearlo en el contenedor de exportación
+    if (selectedSections.includes('grafico') && reportData.manoObra.porTecnico.length > 0) {
+      const chartContainer = exportContainer.querySelector('#report-section-grafico');
+      const chartCanvas = chartContainer?.querySelector('#manoObraChart');
+      if (chartCanvas && window.Chart) {
+        // Esperar un momento para que el canvas esté en el DOM
+        await new Promise(resolve => setTimeout(resolve, 300));
+        // Recrear el gráfico
+        const ctx = chartCanvas.getContext('2d');
+        const labels = reportData.manoObra.porTecnico.map(t => t.tecnico);
+        const data = reportData.manoObra.porTecnico.map(t => t.total);
+        
+        new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: data,
+              backgroundColor: [
+                '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+                '#8b5cf6', '#ec4899', '#06b6d4'
+              ]
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  color: '#e5e7eb',
+                  font: { size: 12 }
+                }
+              }
+            }
+          }
+        });
+        // Esperar a que Chart.js renderice
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+    
+    // Esperar un momento adicional para que todo se renderice
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Capturar como imagen
+    const canvas = await html2canvas(exportContainer, {
+      scale: 2,
+      backgroundColor: '#0f172a',
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      width: exportContainer.scrollWidth,
+      height: exportContainer.scrollHeight
+    });
+    
+    // Limpiar
+    document.body.removeChild(exportContainer);
+    
+    // Descargar imagen
+    const link = document.createElement('a');
+    link.download = `reporte-ventas-${fechaDesde}-${fechaHasta}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+    
+  } catch (error) {
+    console.error('Error exportando imagen:', error);
+    alert('Error al exportar imagen: ' + (error.message || 'Error desconocido'));
+    const btn = document.getElementById('report-download-image');
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🖼️ Exportar Imagen';
+    }
+  }
 }
 
 function createManoObraChart(manoObraData) {

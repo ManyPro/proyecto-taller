@@ -42,6 +42,48 @@ function computeTotal(service, variables = {}) {
   return safeEval(formula, map);
 }
 
+// Helper para procesar productos de combo (evita duplicación)
+async function processComboProducts(comboProducts, companyId) {
+  if (!Array.isArray(comboProducts) || comboProducts.length === 0) {
+    return { error: 'Un combo debe incluir al menos un producto', products: null };
+  }
+  
+  const processed = [];
+  for (let idx = 0; idx < comboProducts.length; idx++) {
+    const cp = comboProducts[idx];
+    if (!cp.name || !cp.name.trim()) {
+      return { error: 'Todos los productos del combo deben tener nombre', products: null };
+    }
+    
+    const isOpenSlot = Boolean(cp.isOpenSlot);
+    const comboProduct = {
+      name: String(cp.name).trim(),
+      qty: Math.max(1, num(cp.qty || 1)),
+      unitPrice: Math.max(0, num(cp.unitPrice || 0)),
+      itemId: null,
+      isOpenSlot: isOpenSlot
+    };
+    
+    // Si es slot abierto, no debe tener itemId
+    if (isOpenSlot && cp.itemId) {
+      return { error: `El slot abierto "${comboProduct.name}" no puede tener itemId asignado. Se asignará al crear la venta mediante QR.`, products: null };
+    }
+    
+    // Si tiene itemId y NO es slot abierto, validar que existe
+    if (!isOpenSlot && cp.itemId) {
+      const comboItem = await Item.findOne({ _id: cp.itemId, companyId });
+      if (!comboItem) {
+        return { error: `Item del inventario no encontrado para producto: ${comboProduct.name}`, products: null };
+      }
+      comboProduct.itemId = comboItem._id;
+    }
+    
+    processed.push(comboProduct);
+  }
+  
+  return { error: null, products: processed };
+}
+
 // ============ list ============
 export const listPrices = async (req, res) => {
   const { serviceId, vehicleId, type, brand, line, engine, year, name, page = 1, limit = 10, vehicleYear } = req.query || {};
@@ -71,36 +113,50 @@ export const listPrices = async (req, res) => {
   const lim = Math.min(100, Math.max(1, parseInt(limit, 10)));
   const skip = (pg - 1) * lim;
 
-  // Obtener todos los precios primero
-  let query = PriceEntry.find(q)
-    .populate('vehicleId', 'make line displacement modelYear')
-    .populate('itemId', 'sku name stock salePrice')
-    .populate('comboProducts.itemId', 'sku name stock salePrice')
-    .sort({ type: 1, name: 1, createdAt: -1 });
-
-  const allItems = await query.lean();
-  
-  // Filtrar por año del vehículo si se proporciona vehicleYear
-  let filteredItems = allItems;
+  // Filtrar por año del vehículo en la consulta MongoDB (más eficiente)
+  // Solo aplicar si vehicleYear está definido y es válido
   if (vehicleYear !== undefined && vehicleYear !== null && vehicleYear !== '') {
     const vehicleYearNum = Number(vehicleYear);
     if (!isNaN(vehicleYearNum)) {
-      filteredItems = allItems.filter(item => {
-        // Si el precio no tiene restricción de año, incluirlo siempre
-        if (!item.yearFrom && !item.yearTo) {
-          return true;
-        }
-        // Si tiene restricción de año, verificar que el año del vehículo esté en el rango
-        const from = item.yearFrom || 1900;
-        const to = item.yearTo || 2100;
-        return vehicleYearNum >= from && vehicleYearNum <= to;
+      // Agregar condición: precio sin restricción de año O año del vehículo dentro del rango
+      // Usar $and para combinar con condiciones existentes
+      const yearCondition = {
+        $or: [
+          { yearFrom: null, yearTo: null }, // Sin restricción de año
+          { 
+            $and: [
+              { $or: [{ yearFrom: null }, { yearFrom: { $lte: vehicleYearNum } }] },
+              { $or: [{ yearTo: null }, { yearTo: { $gte: vehicleYearNum } }] }
+            ]
+          }
+        ]
+      };
+      
+      // Combinar todas las condiciones con $and
+      const baseQuery = { ...q };
+      q.$and = [
+        baseQuery,
+        yearCondition
+      ];
+      // Limpiar propiedades duplicadas (mantener solo $and)
+      Object.keys(baseQuery).forEach(key => {
+        delete q[key];
       });
     }
   }
+
+  // Contar total antes de paginar (necesario para paginación correcta)
+  const total = await PriceEntry.countDocuments(q);
   
-  // Aplicar paginación después del filtro por año
-  const total = filteredItems.length;
-  const items = filteredItems.slice(skip, skip + lim);
+  // Obtener items paginados con populate
+  const items = await PriceEntry.find(q)
+    .populate('vehicleId', 'make line displacement modelYear')
+    .populate('itemId', 'sku name stock salePrice')
+    .populate('comboProducts.itemId', 'sku name stock salePrice')
+    .sort({ type: 1, name: 1, createdAt: -1 })
+    .skip(skip)
+    .limit(lim)
+    .lean();
   
   res.json({ items, page: pg, limit: lim, total, pages: Math.ceil(total / lim) });
 };
@@ -135,41 +191,11 @@ export const createPrice = async (req, res) => {
   // Si es combo, validar y procesar productos del combo
   let processedComboProducts = [];
   if (type === 'combo') {
-    if (!Array.isArray(comboProducts) || comboProducts.length === 0) {
-      return res.status(400).json({ error: 'Un combo debe incluir al menos un producto' });
+    const result = await processComboProducts(comboProducts, req.companyId);
+    if (result.error) {
+      return res.status(400).json({ error: result.error });
     }
-    
-    for (let idx = 0; idx < comboProducts.length; idx++) {
-      const cp = comboProducts[idx];
-      if (!cp.name || !cp.name.trim()) {
-        return res.status(400).json({ error: 'Todos los productos del combo deben tener nombre' });
-      }
-      
-      const isOpenSlot = Boolean(cp.isOpenSlot);
-      const comboProduct = {
-        name: String(cp.name).trim(),
-        qty: Math.max(1, num(cp.qty || 1)),
-        unitPrice: Math.max(0, num(cp.unitPrice || 0)),
-        itemId: null,
-        isOpenSlot: isOpenSlot
-      };
-      
-      // Si es slot abierto, no debe tener itemId al crear
-      if (isOpenSlot && cp.itemId) {
-        return res.status(400).json({ error: `El slot abierto "${comboProduct.name}" no puede tener itemId asignado. Se asignará al crear la venta mediante QR.` });
-      }
-      
-      // Si tiene itemId y NO es slot abierto, validar que existe
-      if (!isOpenSlot && cp.itemId) {
-        const comboItem = await Item.findOne({ _id: cp.itemId, companyId: req.companyId });
-        if (!comboItem) {
-          return res.status(404).json({ error: `Item del inventario no encontrado para producto: ${comboProduct.name}` });
-        }
-        comboProduct.itemId = comboItem._id;
-      }
-      
-      processedComboProducts.push(comboProduct);
-    }
+    processedComboProducts = result.products;
   }
 
   // Calcular total: si hay servicio con fórmula, usarla; si no, usar el total proporcionado
@@ -300,40 +326,15 @@ export const updatePrice = async (req, res) => {
   
   // Actualizar comboProducts si se proporciona (solo para combos)
   if (comboProducts !== undefined && row.type === 'combo') {
-    if (!Array.isArray(comboProducts) || comboProducts.length === 0) {
-      return res.status(400).json({ error: 'Un combo debe incluir al menos un producto' });
+    const result = await processComboProducts(comboProducts, req.companyId);
+    if (result.error) {
+      return res.status(400).json({ error: result.error });
     }
-    
-    const processedComboProducts = [];
-    for (const cp of comboProducts) {
-      if (!cp.name || !cp.name.trim()) {
-        return res.status(400).json({ error: 'Todos los productos del combo deben tener nombre' });
-      }
-      
-      const comboProduct = {
-        name: String(cp.name).trim(),
-        qty: Math.max(1, num(cp.qty || 1)),
-        unitPrice: Math.max(0, num(cp.unitPrice || 0)),
-        itemId: null
-      };
-      
-      // Si tiene itemId, validar que existe
-      if (cp.itemId) {
-        const comboItem = await Item.findOne({ _id: cp.itemId, companyId: req.companyId });
-        if (!comboItem) {
-          return res.status(404).json({ error: `Item del inventario no encontrado para producto: ${comboProduct.name}` });
-        }
-        comboProduct.itemId = comboItem._id;
-      }
-      
-      processedComboProducts.push(comboProduct);
-    }
-    
-    row.comboProducts = processedComboProducts;
+    row.comboProducts = result.products;
     
     // Si no se proporciona total, recalcular desde productos
     if (totalRaw === undefined) {
-      row.total = processedComboProducts.reduce((sum, cp) => sum + (cp.unitPrice * cp.qty), 0);
+      row.total = result.products.reduce((sum, cp) => sum + (cp.unitPrice * cp.qty), 0);
     }
   }
 

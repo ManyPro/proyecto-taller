@@ -6,6 +6,7 @@ import Item from '../models/Item.js';
 import PriceEntry from '../models/PriceEntry.js';
 import Counter from '../models/Counter.js';
 import StockMove from '../models/StockMove.js';
+import StockEntry from '../models/StockEntry.js';
 import CustomerProfile from '../models/CustomerProfile.js';
 import { upsertProfileFromSource } from './profile.helper.js';
 import { publish } from '../lib/live.js';
@@ -196,8 +197,10 @@ export const addItem = async (req, res) => {
   } else if (src === 'price') {
     if (refId) {
       const pe = await PriceEntry.findOne({ _id: refId, companyId: String(req.companyId) })
+        .populate('vehicleId', 'make line displacement modelYear')
         .populate('itemId', 'sku name stock salePrice')
-        .populate('comboProducts.itemId', 'sku name stock salePrice');
+        .populate('comboProducts.itemId', 'sku name stock salePrice')
+        .lean();
       if (!pe) return res.status(404).json({ error: 'PriceEntry not found' });
       const q = asNum(qty) || 1;
       const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNum(pe.total || pe.price);
@@ -359,7 +362,10 @@ export const addItemsBatch = async (req, res) => {
     if (!raw || raw.source !== 'price' || !raw.refId) continue;
     try {
       const pe = await PriceEntry.findOne({ _id: raw.refId, companyId: req.companyId })
-        .populate('comboProducts.itemId', 'sku name stock salePrice');
+        .populate('vehicleId', 'make line displacement modelYear')
+        .populate('itemId', 'sku name stock salePrice')
+        .populate('comboProducts.itemId', 'sku name stock salePrice')
+        .lean();
       if (pe && pe.type === 'combo' && Array.isArray(pe.comboProducts) && pe.comboProducts.length > 0) {
         combosInBatch.add(String(raw.refId));
         // Marcar los itemIds de los productos del combo y a qué combo pertenecen
@@ -410,8 +416,10 @@ export const addItemsBatch = async (req, res) => {
       if (source === 'price') {
         if (raw.refId) {
           const pe = await PriceEntry.findOne({ _id: raw.refId, companyId: req.companyId })
+            .populate('vehicleId', 'make line displacement modelYear')
             .populate('itemId', 'sku name stock salePrice')
-            .populate('comboProducts.itemId', 'sku name stock salePrice');
+            .populate('comboProducts.itemId', 'sku name stock salePrice')
+            .lean();
           if (!pe) throw new Error('PriceEntry not found');
           const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : asNum(pe.total || pe.price);
           // Usar pe.name si existe (nuevo modelo), sino fallback a campos legacy
@@ -725,13 +733,13 @@ export const closeSale = async (req, res) => {
         const q = asNum(it.qty) || 0;
         if (q <= 0) continue;
         let target = null;
-        // Fallback: si no hay refId vÃ¡lido intentar por SKU
+        // Fallback: si no hay refId válido intentar por SKU
         if (it.refId) {
           target = await Item.findOne({ _id: it.refId, companyId: req.companyId }).session(session);
         }
         if (!target && it.sku) {
           target = await Item.findOne({ sku: String(it.sku).trim().toUpperCase(), companyId: req.companyId }).session(session);
-          // Si lo encontramos por sku y no habÃ­a refId, opcionalmente lo guardamos para trazabilidad
+          // Si lo encontramos por sku y no había refId, opcionalmente lo guardamos para trazabilidad
           if (target && !it.refId) {
             it.refId = target._id; // queda persistido al save posterior
           }
@@ -739,26 +747,73 @@ export const closeSale = async (req, res) => {
         if (!target) throw new Error(`Inventory item not found (${it.sku || it.refId || 'sin id'})`);
         if ((target.stock ?? 0) < q) throw new Error(`Insufficient stock for ${target.sku || target.name}`);
 
+        // Descontar usando FIFO: buscar StockEntries ordenados por fecha (más antiguos primero)
+        let remainingQty = q;
+        const stockEntries = await StockEntry.find({
+          companyId: req.companyId,
+          itemId: target._id,
+          qty: { $gt: 0 }
+        })
+        .sort({ entryDate: 1, _id: 1 }) // FIFO: más antiguos primero
+        .session(session);
+
+        const stockEntriesUsed = [];
+        for (const entry of stockEntries) {
+          if (remainingQty <= 0) break;
+          
+          const qtyToDeduct = Math.min(remainingQty, entry.qty);
+          entry.qty -= qtyToDeduct;
+          remainingQty -= qtyToDeduct;
+          
+          stockEntriesUsed.push({
+            entryId: entry._id,
+            qty: qtyToDeduct,
+            vehicleIntakeId: entry.vehicleIntakeId
+          });
+          
+          if (entry.qty <= 0) {
+            await StockEntry.deleteOne({ _id: entry._id }).session(session);
+          } else {
+            await entry.save({ session });
+          }
+        }
+
+        if (remainingQty > 0) {
+          throw new Error(`Insufficient stock in entries for ${target.sku || target.name}. Needed: ${q}, Available: ${q - remainingQty}`);
+        }
+
+        // Actualizar stock total del item
         const upd = await Item.updateOne(
           { _id: target._id, companyId: req.companyId, stock: { $gte: q } },
           { $inc: { stock: -q } }
         ).session(session);
         if (upd.matchedCount === 0) throw new Error(`Stock update failed for ${target.sku || target.name}`);
 
-        // Si quedÃ³ en 0, despublicar automÃ¡ticamente para ocultarlo del catÃ¡logo
+        // Si quedó en 0, despublicar automáticamente para ocultarlo del catálogo
         const fresh = await Item.findOne({ _id: target._id, companyId: req.companyId }).session(session);
         if ((fresh?.stock || 0) <= 0 && fresh?.published) {
           fresh.published = false;
           await fresh.save({ session });
         }
 
-        await StockMove.create([{
+        // Registrar movimientos de stock con información de procedencia
+        const stockMoves = stockEntriesUsed.map(se => ({
           companyId: req.companyId,
           itemId: target._id,
-          qty: q,
+          qty: se.qty,
           reason: 'OUT',
-          meta: { saleId: sale._id, sku: it.sku, name: it.name }
-        }], { session });
+          meta: { 
+            saleId: sale._id, 
+            sku: it.sku, 
+            name: it.name,
+            stockEntryId: se.entryId,
+            vehicleIntakeId: se.vehicleIntakeId
+          }
+        }));
+
+        if (stockMoves.length > 0) {
+          await StockMove.insertMany(stockMoves, { session });
+        }
         affectedItemIds.push(String(target._id));
       }
 
@@ -1317,16 +1372,39 @@ export const addByQR = async (req, res) => {
   if (s.toUpperCase().startsWith('IT:')) {
     const parts = s.split(':').map(p => p.trim()).filter(Boolean);
     let itemId = null;
-    if (parts.length === 2) itemId = parts[1];
-    if (parts.length >= 3) itemId = parts[2];
+    let entryId = null;
+    
+    // Formato: IT:<companyId>:<itemId>:<sku>[:<entryId>]
+    if (parts.length >= 3) {
+      itemId = parts[2]; // itemId está en la posición 2
+      if (parts.length >= 5) {
+        entryId = parts[4]; // entryId está en la posición 4 (opcional)
+      }
+    } else if (parts.length === 2) {
+      itemId = parts[1]; // Formato antiguo sin companyId
+    }
 
     if (itemId) {
       const it = await Item.findOne({ _id: itemId, companyId: req.companyId });
       if (!it) return res.status(404).json({ error: 'Item not found for QR' });
 
+      // Si hay entryId, validar que existe y tiene stock disponible
+      if (entryId && mongoose.Types.ObjectId.isValid(entryId)) {
+        const stockEntry = await StockEntry.findOne({
+          _id: entryId,
+          companyId: req.companyId,
+          itemId: it._id,
+          qty: { $gt: 0 }
+        });
+        if (!stockEntry) {
+          return res.status(404).json({ error: 'StockEntry no encontrado o sin stock disponible' });
+        }
+        // Guardar entryId en meta para trazabilidad
+      }
+
       const q = 1;
       const up = asNum(it.salePrice);
-      sale.items.push({
+      const saleItem = {
         source: 'inventory',
         refId: it._id,
         sku: it.sku,
@@ -1334,7 +1412,14 @@ export const addByQR = async (req, res) => {
         qty: q,
         unitPrice: up,
         total: Math.round(q * up)
-      });
+      };
+      
+      // Agregar entryId al meta si está presente
+      if (entryId) {
+        saleItem.meta = { entryId };
+      }
+      
+      sale.items.push(saleItem);
       computeTotals(sale);
       await sale.save();
   await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });

@@ -15,26 +15,38 @@ export async function ensureDefaultCashAccount(companyId) {
 export async function computeBalance(accountId, companyId) {
   // Obtener balance inicial de la cuenta
   const acc = await Account.findOne({ _id: accountId, companyId });
-  const initialBalance = acc ? acc.initialBalance : 0;
+  const initialBalance = acc ? (acc.initialBalance || 0) : 0;
   
-  // Calcular balance basándose en todas las entradas hasta la fecha actual
+  // Calcular balance usando agregación MongoDB (más eficiente que cargar todas las entradas)
   // Esto asegura que las entradas con fecha futura no afecten el balance actual
   const now = new Date();
-  const entries = await CashFlowEntry.find({ 
-    companyId, 
-    accountId,
-    date: { $lte: now } // Solo entradas hasta la fecha actual
-  }).sort({ date: 1, _id: 1 }); // Ordenar cronológicamente (más antiguo primero)
-  
-  // Calcular balance sumando/restando todas las entradas en orden cronológico
-  let balance = initialBalance;
-  for (const entry of entries) {
-    if (entry.kind === 'IN') {
-      balance += (entry.amount || 0);
-    } else if (entry.kind === 'OUT') {
-      balance -= (entry.amount || 0);
+  const result = await CashFlowEntry.aggregate([
+    {
+      $match: {
+        companyId: new mongoose.Types.ObjectId(companyId),
+        accountId: new mongoose.Types.ObjectId(accountId),
+        date: { $lte: now } // Solo entradas hasta la fecha actual
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        totalIn: {
+          $sum: {
+            $cond: [{ $eq: ['$kind', 'IN'] }, '$amount', 0]
+          }
+        },
+        totalOut: {
+          $sum: {
+            $cond: [{ $eq: ['$kind', 'OUT'] }, '$amount', 0]
+          }
+        }
+      }
     }
-  }
+  ]);
+  
+  const totals = result[0] || { totalIn: 0, totalOut: 0 };
+  const balance = initialBalance + (totals.totalIn || 0) - (totals.totalOut || 0);
   
   return balance;
 }
@@ -132,15 +144,30 @@ export async function recomputeAccountBalances(companyId, accountId){
   if(!companyId || !accountId) return;
   const acc = await Account.findOne({ _id: accountId, companyId });
   if(!acc) return;
-  const entries = await CashFlowEntry.find({ companyId, accountId }).sort({ date: 1, _id: 1 });
+  
+  const entries = await CashFlowEntry.find({ companyId, accountId }).sort({ date: 1, _id: 1 }).lean();
   let running = acc.initialBalance || 0;
+  
+  // Preparar actualizaciones en batch
+  const updates = [];
   for(const e of entries){
-    if(e.kind === 'IN') running += e.amount; else if(e.kind === 'OUT') running -= e.amount;
-    // Solo actualizar si cambiÃ³ para minimizar writes
+    if(e.kind === 'IN') running += (e.amount || 0);
+    else if(e.kind === 'OUT') running -= (e.amount || 0);
+    
+    // Solo actualizar si cambió para minimizar writes
     if(e.balanceAfter !== running){
-      e.balanceAfter = running;
-      await e.save();
+      updates.push({
+        updateOne: {
+          filter: { _id: e._id },
+          update: { $set: { balanceAfter: running } }
+        }
+      });
     }
+  }
+  
+  // Ejecutar actualizaciones en batch si hay cambios
+  if(updates.length > 0){
+    await CashFlowEntry.bulkWrite(updates);
   }
 }
 
@@ -150,20 +177,40 @@ export async function updateEntry(req, res){
   const { amount, description, date, kind } = req.body || {};
   const entry = await CashFlowEntry.findOne({ _id: id, companyId: req.companyId });
   if(!entry) return res.status(404).json({ error: 'entry not found' });
-  // Opcional: restringir ediciÃ³n de movimientos generados por venta a sÃ³lo descripciÃ³n
-  // Permitimos ediciÃ³n completa para correcciones manuales.
+  
+  // Opcional: restringir edición de movimientos generados por venta a sólo descripción
+  // Permitimos edición completa para correcciones manuales.
   let mutated = false;
-  if(amount!=null){
+  if(amount != null){
     const a = Number(amount);
-    if(!Number.isFinite(a) || a<=0) return res.status(400).json({ error: 'amount invÃ¡lido' });
-    entry.amount = Math.round(a); mutated = true;
+    if(!Number.isFinite(a) || a <= 0) return res.status(400).json({ error: 'amount inválido' });
+    entry.amount = Math.round(a);
+    mutated = true;
   }
-  if(description!==undefined){ entry.description = String(description||''); mutated = true; }
-  if(date){ const d=new Date(date); if(!isNaN(d.getTime())){ entry.date = d; mutated = true; } }
-  if(kind && (kind==='IN' || kind==='OUT')){ entry.kind = kind; mutated = true; }
+  if(description !== undefined){
+    entry.description = String(description || '');
+    mutated = true;
+  }
+  if(date){
+    const d = new Date(date);
+    if(!isNaN(d.getTime())){
+      entry.date = d;
+      mutated = true;
+    }
+  }
+  if(kind && (kind === 'IN' || kind === 'OUT')){
+    entry.kind = kind;
+    mutated = true;
+  }
+  
   if(!mutated) return res.json(entry);
+  
   await entry.save();
-  await recomputeAccountBalances(req.companyId, entry.accountId);
+  // Recalcular balances solo si cambió amount, kind o date (afectan el balance)
+  if(amount != null || kind || date){
+    await recomputeAccountBalances(req.companyId, entry.accountId);
+  }
+  
   res.json(entry);
 }
 
@@ -181,21 +228,39 @@ export async function deleteEntry(req, res){
 // Utilizada desde cierre de venta
 export async function registerSaleIncome({ companyId, sale, accountId, forceCreate = false }) {
   if (!sale || !sale._id) return [];
-  // Si ya existen entradas para la venta, devolverlas (idempotencia multi)
+  
+  // Si ya existen entradas para la venta, devolverlas (idempotencia)
   // A menos que forceCreate sea true (para actualizaciones de cierre)
   if (!forceCreate) {
-    const existing = await CashFlowEntry.find({ companyId, source: 'SALE', sourceRef: sale._id });
+    const existing = await CashFlowEntry.find({ 
+      companyId, 
+      source: 'SALE', 
+      sourceRef: sale._id 
+    }).lean();
     if (existing.length) return existing;
   }
 
-  // Determinar mÃ©todos de pago: nuevo array o fallback al legacy
+  // Determinar métodos de pago: nuevo array o fallback al legacy
   let methods = Array.isArray(sale.paymentMethods) && sale.paymentMethods.length
-    ? sale.paymentMethods.filter(m=>m && m.method && Number(m.amount)>0)
+    ? sale.paymentMethods.filter(m => m && m.method && Number(m.amount) > 0)
     : [];
+  
   if (!methods.length) {
-    // fallback al paymentMethod Ãºnico con total completo
-    methods = [{ method: sale.paymentMethod || 'DESCONOCIDO', amount: Number(sale.total||0), accountId }];
+    // Fallback al paymentMethod único con total completo
+    methods = [{ 
+      method: sale.paymentMethod || 'DESCONOCIDO', 
+      amount: Number(sale.total || 0), 
+      accountId 
+    }];
   }
+
+  // Filtrar métodos de crédito (no deben generar entrada de caja)
+  methods = methods.filter(m => {
+    const method = String(m.method || '').toUpperCase();
+    return method !== 'CREDITO' && method !== 'CRÉDITO';
+  });
+
+  if (!methods.length) return []; // No hay métodos de pago efectivo
 
   const entries = [];
   // Track balances por cuenta para pagos múltiples a la misma cuenta
@@ -204,6 +269,9 @@ export async function registerSaleIncome({ companyId, sale, accountId, forceCrea
   // Usar la fecha de cierre de la venta (closedAt) en lugar de new Date()
   // Esto asegura que la fecha del movimiento coincida con la fecha de cierre
   const saleDate = sale.closedAt || sale.updatedAt || new Date();
+  
+  // Preparar todas las entradas antes de crear (mejor para transacciones)
+  const entriesToCreate = [];
   
   for (const m of methods) {
     let accId = m.accountId || accountId;
@@ -221,24 +289,32 @@ export async function registerSaleIncome({ companyId, sale, accountId, forceCrea
       accountBalances.set(String(accId), prevBal);
     }
     
-    const amount = Number(m.amount||0);
+    const amount = Number(m.amount || 0);
+    if (amount <= 0) continue; // Saltar montos inválidos
+    
     const newBal = prevBal + amount;
     accountBalances.set(String(accId), newBal); // Actualizar para el próximo pago
     
-    const entry = await CashFlowEntry.create({
+    entriesToCreate.push({
       companyId,
       accountId: accId,
       kind: 'IN',
       source: 'SALE',
       sourceRef: sale._id,
-      description: `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`,
+      description: `Venta #${String(sale.number || '').padStart(5, '0')} (${m.method})`,
       amount,
       balanceAfter: newBal,
-      date: saleDate, // Usar la fecha de cierre de la venta, no la hora actual del servidor
+      date: saleDate,
       meta: { saleNumber: sale.number, paymentMethod: m.method }
     });
-    entries.push(entry);
   }
+  
+  // Crear todas las entradas en batch si hay alguna
+  if (entriesToCreate.length > 0) {
+    const created = await CashFlowEntry.insertMany(entriesToCreate);
+    entries.push(...created);
+  }
+  
   return entries;
 }
 

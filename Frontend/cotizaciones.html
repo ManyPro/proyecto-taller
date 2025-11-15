@@ -34,6 +34,18 @@
     }
   </script>
   <style>
+    /* Zoom global del 85% para toda la página */
+    html {
+      zoom: 0.85;
+      -moz-transform: scale(0.85);
+      -moz-transform-origin: 0 0;
+    }
+    @media screen and (-webkit-min-device-pixel-ratio: 0) {
+      html {
+        zoom: 0.85;
+      }
+    }
+    
     /* Estilos para modo claro - Sobrescribir colores de Tailwind */
     body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
     body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
