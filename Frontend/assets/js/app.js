@@ -9,9 +9,9 @@ import { API } from "./api.esm.js";
 import { initPrices } from "./prices.js";
 import { initSales } from "./sales.js";
 import { initCashFlow } from "./cashflow.js";
-import { loadFeatureOptionsAndRestrictions, getFeatureOptions, getRestrictions, gateElement } from "./feature-gating.js";
+import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from "./feature-gating.js";
 
-export { loadFeatureOptionsAndRestrictions, getFeatureOptions, getRestrictions, gateElement } from "./feature-gating.js";
+export { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from "./feature-gating.js";
 
 // ========== THEME (oscuro / claro) ==========
 const THEME_KEY = 'app:theme';
