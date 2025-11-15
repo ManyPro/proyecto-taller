@@ -75,90 +75,6 @@ function restoreHandlebarsVarsForPreview(html) {
   return result;
 }
 
-// Función para mostrar modal de tamaño de hoja antes de imprimir (compartida)
-function showPageSizeModal(pageSize, onAccept) {
-  return new Promise((resolve) => {
-    const modal = document.createElement('div');
-    modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/60 backdrop-blur-sm';
-    modal.style.opacity = '0';
-    modal.style.transition = 'opacity 0.2s ease-in-out';
-    modal.innerHTML = `
-      <div class="bg-gradient-to-br from-slate-800 to-slate-900 dark:from-slate-800 dark:to-slate-900 theme-light:from-white theme-light:to-slate-50 rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-8 max-w-md w-full mx-4 transform transition-all" style="transform: scale(0.95); transition: transform 0.2s ease-in-out;">
-        <div class="text-center mb-6">
-          <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-600/20 dark:bg-blue-600/20 theme-light:bg-blue-100 rounded-full mb-4">
-            <svg class="w-8 h-8 text-blue-400 dark:text-blue-400 theme-light:text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-            </svg>
-          </div>
-          <h3 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">Tamaño de Hoja Requerido</h3>
-        </div>
-        
-        <div class="bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg p-6 mb-6 border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300">
-          <div class="text-center">
-            <div class="text-3xl font-bold text-blue-400 dark:text-blue-400 theme-light:text-blue-600 mb-2">${pageSize}</div>
-            <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-600 mt-2">
-              Asegúrate de configurar tu impresora con este tamaño antes de imprimir.
-            </p>
-          </div>
-        </div>
-        
-        <div class="flex gap-3">
-          <button id="page-size-cancel" class="flex-1 px-4 py-3 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
-            Cancelar
-          </button>
-          <button id="page-size-accept" class="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200">
-            Aceptar
-          </button>
-        </div>
-      </div>
-    `;
-    
-    document.body.appendChild(modal);
-    
-    const acceptBtn = modal.querySelector('#page-size-accept');
-    const cancelBtn = modal.querySelector('#page-size-cancel');
-    
-    const closeModal = () => {
-      modal.style.opacity = '0';
-      const modalContent = modal.querySelector('div > div');
-      if (modalContent) {
-        modalContent.style.transform = 'scale(0.95)';
-      }
-      setTimeout(() => {
-        modal.remove();
-      }, 200);
-    };
-    
-    acceptBtn.onclick = () => {
-      closeModal();
-      if (onAccept) onAccept();
-      resolve(true);
-    };
-    
-    cancelBtn.onclick = () => {
-      closeModal();
-      resolve(false);
-    };
-    
-    // Cerrar al hacer clic fuera del modal
-    modal.onclick = (e) => {
-      if (e.target === modal) {
-        closeModal();
-        resolve(false);
-      }
-    };
-    
-    // Animación de entrada
-    const modalContent = modal.querySelector('div > div');
-    setTimeout(() => {
-      modal.style.opacity = '1';
-      if (modalContent) {
-        modalContent.style.transform = 'scale(1)';
-      }
-    }, 10);
-  });
-}
-
 export function initQuotes({ getCompanyEmail }) {
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -961,7 +877,91 @@ export function initQuotes({ getCompanyEmail }) {
             if(!win){ fallback(); return; }
             const css = r.css ? `<style>${r.css}</style>`:'';
             
-            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}
+            // Función para mostrar modal de tamaño de hoja en la ventana de impresión
+            const modalScript = `
+              <script>
+                (function() {
+                  // Determinar tamaño de página dinámicamente
+                  const body = document.body;
+                  const html = document.documentElement;
+                  const contentHeight = Math.max(
+                    body?.scrollHeight || 0, body?.offsetHeight || 0, html?.clientHeight || 0, html?.scrollHeight || 0, html?.offsetHeight || 0
+                  );
+                  const mediaCartaMaxHeight = 800;
+                  const isMediaCarta = contentHeight <= mediaCartaMaxHeight;
+                  const pageSize = isMediaCarta ? 'MEDIA CARTA (5.5" x 8.5")' : 'CARTA COMPLETA (8.5" x 11")';
+                  
+                  const modal = document.createElement('div');
+                  modal.id = 'page-size-modal';
+                  modal.style.cssText = 'position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);';
+                  modal.innerHTML = \`
+                    <div style="background: linear-gradient(to bottom right, #1e293b, #0f172a); border: 1px solid rgba(148, 163, 184, 0.5); border-radius: 1rem; padding: 2rem; max-width: 28rem; width: 100%; margin: 1rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.2s ease-in-out;">
+                      <div style="text-align: center; margin-bottom: 1.5rem;">
+                        <div style="display: inline-flex; align-items: center; justify-content: center; width: 4rem; height: 4rem; background: rgba(59, 130, 246, 0.2); border-radius: 9999px; margin-bottom: 1rem;">
+                          <svg style="width: 2rem; height: 2rem; color: #60a5fa;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                          </svg>
+                        </div>
+                        <h3 style="font-size: 1.5rem; font-weight: 700; color: white; margin-bottom: 0.5rem;">Tamaño de Hoja Requerido</h3>
+                      </div>
+                      <div style="background: rgba(51, 65, 85, 0.3); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                        <div style="text-align: center;">
+                          <div style="font-size: 1.875rem; font-weight: 700; color: #60a5fa; margin-bottom: 0.5rem;">\${pageSize}</div>
+                          <p style="font-size: 0.875rem; color: #cbd5e1; margin-top: 0.5rem;">
+                            Asegúrate de configurar tu impresora con este tamaño antes de imprimir.
+                          </p>
+                        </div>
+                      </div>
+                      <div style="display: flex; gap: 0.75rem;">
+                        <button id="page-size-cancel" style="flex: 1; padding: 0.75rem 1rem; background: rgba(51, 65, 85, 0.5); border: 1px solid rgba(100, 116, 139, 0.5); border-radius: 0.5rem; color: white; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                          Cancelar
+                        </button>
+                        <button id="page-size-accept" style="flex: 1; padding: 0.75rem 1rem; background: linear-gradient(to right, #2563eb, #1d4ed8); border: none; border-radius: 0.5rem; color: white; font-weight: 600; cursor: pointer; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); transition: all 0.2s;">
+                          Aceptar
+                        </button>
+                      </div>
+                    </div>
+                  \`;
+                  document.body.appendChild(modal);
+                  
+                  const modalContent = modal.querySelector('div > div');
+                  const acceptBtn = document.getElementById('page-size-accept');
+                  const cancelBtn = document.getElementById('page-size-cancel');
+                  
+                  const closeModal = () => {
+                    modal.style.opacity = '0';
+                    if (modalContent) {
+                      modalContent.style.transform = 'scale(0.95)';
+                    }
+                    setTimeout(() => {
+                      modal.remove();
+                    }, 200);
+                  };
+                  
+                  acceptBtn.onclick = () => {
+                    closeModal();
+                    setTimeout(() => {
+                      window.print();
+                    }, 100);
+                  };
+                  
+                  cancelBtn.onclick = () => {
+                    closeModal();
+                    window.close();
+                  };
+                  
+                  // Animación de entrada
+                  setTimeout(() => {
+                    modal.style.opacity = '1';
+                    if (modalContent) {
+                      modalContent.style.transform = 'scale(1)';
+                    }
+                  }, 10);
+                })();
+              </script>
+            `;
+            
+            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}${modalScript}
               <style>
                 /* Estilos base para mejor uso del espacio */
                 body {
@@ -1197,38 +1197,16 @@ export function initQuotes({ getCompanyEmail }) {
               adjustTotalPosition();
             });
             
-            // NO abrir la ventana todavía, primero mostrar el modal
-            // Esperar a que se cargue y ajuste todo, luego mostrar modal
+            // El modal ya está en la página de impresión, solo necesitamos ajustar y detectar tamaño
+            win.focus();
+            
+            // Esperar a que se cargue y ajuste todo
             setTimeout(() => {
               adjustTotalPosition();
               
               setTimeout(() => {
                 adjustTotalPosition();
                 detectAndSetPageSize();
-                
-                // Determinar tamaño de página para el modal
-                const body = win.document.body;
-                const html = win.document.documentElement;
-                const contentHeight = Math.max(
-                  body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight
-                );
-                const mediaCartaMaxHeight = 800;
-                const isMediaCarta = contentHeight <= mediaCartaMaxHeight;
-                const pageSize = isMediaCarta ? 'MEDIA CARTA (5.5" x 8.5")' : 'CARTA COMPLETA (8.5" x 11")';
-                
-                // Mostrar modal con el tamaño de página PRIMERO
-                showPageSizeModal(pageSize, () => {
-                  // Solo después de aceptar, abrir y enfocar la ventana
-                  win.focus();
-                  setTimeout(() => {
-                    adjustTotalPosition();
-                    requestAnimationFrame(() => {
-                      adjustTotalPosition();
-                      // Abrir diálogo de impresión automáticamente
-                      win.print();
-                    });
-                  }, 300);
-                });
               }, 500);
             }, 1000);
           })
