@@ -7,6 +7,16 @@
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
+    // Suprimir warning de producción para Tailwind CDN (usado intencionalmente)
+    if(typeof console !== 'undefined' && console.warn) {
+      const originalWarn = console.warn;
+      console.warn = function(...args) {
+        if(args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
+          return; // Suprimir warning de Tailwind CDN
+        }
+        originalWarn.apply(console, args);
+      };
+    }
     tailwind.config = {
       darkMode: ['class', '.theme-light'],
       theme: {

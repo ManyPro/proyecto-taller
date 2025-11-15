@@ -1010,9 +1010,35 @@ if(typeof window !== 'undefined' && window.addEventListener) {
     try{
       const token = API?.token?.get?.();
       if(!token) return;
-      const base = API?.base || '';
-      const url = new URL('/api/v1/sales/stream', base);
-      url.searchParams.set('token', token);
+      
+      // Usar API.base si existe y es válido, sino usar window.location.origin como fallback
+      let base = API?.base || '';
+      if(!base || base === '') {
+        base = typeof window !== 'undefined' ? window.location.origin : '';
+      }
+      
+      // Validar que base sea una URL válida
+      if(!base || base === '') {
+        console.warn('No se puede conectar SSE: base URL no disponible');
+        return;
+      }
+      
+      // Construir URL de forma segura
+      let url;
+      try {
+        // Si base ya es una URL completa, usarla directamente
+        if(base.startsWith('http://') || base.startsWith('https://')) {
+          url = new URL('/api/v1/sales/stream', base);
+        } else {
+          // Si base es relativa, usar window.location.origin
+          url = new URL('/api/v1/sales/stream', window.location.origin);
+        }
+        url.searchParams.set('token', token);
+      } catch(urlError) {
+        console.warn('Error construyendo URL SSE:', urlError);
+        return;
+      }
+      
       notificationSSE = new EventSource(url.toString(), { withCredentials: false });
       
       notificationSSE.addEventListener('notification', (e) => {
@@ -1026,7 +1052,10 @@ if(typeof window !== 'undefined' && window.addEventListener) {
       });
       
       notificationSSE.addEventListener('error', (e) => {
-        console.warn('SSE notification error:', e);
+        // Solo loggear errores si realmente hay un problema (no en reconexión normal)
+        if(notificationSSE?.readyState === EventSource.CLOSED) {
+          console.warn('SSE notification connection closed, reconnecting...');
+        }
         // Reconectar después de 5 segundos
         setTimeout(() => {
           if(notificationSSE) {
