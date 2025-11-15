@@ -1157,11 +1157,12 @@ export function initQuotes({ getCompanyEmail }) {
       else if (k === 'COMBO') kindLabel = 'Combo';
       return [
         kindLabel,
-      it.description || '',
-      it.qty && it.qty > 0 ? it.qty : 1,
-      money(it.unitPrice || 0),
-      money(it.subtotal || ((it.qty || 1) * (it.unitPrice || 0)))
-    ]);
+        it.description || '',
+        it.qty && it.qty > 0 ? it.qty : 1,
+        money(it.unitPrice || 0),
+        money(it.subtotal || ((it.qty || 1) * (it.unitPrice || 0)))
+      ];
+    });
     // Calcular subtotales por tipo (Productos, Servicios, Combos)
     const subP = (doc.items||[]).filter(i=>{
       const k = String(i.kind||'Producto').trim().toUpperCase();
