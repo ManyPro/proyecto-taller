@@ -461,6 +461,30 @@
         font-size: 0.875rem !important;
       }
       
+      /* Optimizar barra de navegación en tablets */
+      .topbar {
+        padding: 0 !important;
+      }
+      .topbar .h-16 {
+        height: 3.5rem !important;
+      }
+      .topbar .h-20 {
+        height: 3.5rem !important;
+      }
+      .topbar nav {
+        gap: 0.25rem !important;
+        padding: 0.5rem 0 !important;
+      }
+      .topbar .nav-tab {
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.8125rem !important;
+        min-width: auto !important;
+      }
+      .topbar .max-w-7xl {
+        padding-left: 0.75rem !important;
+        padding-right: 0.75rem !important;
+      }
+      
       /* Optimizar cards */
       .card,
       [class*="bg-slate-800"],
@@ -500,6 +524,17 @@
       img {
         max-width: 100% !important;
         height: auto !important;
+      }
+      
+      /* Limitar tamaño del logo en tablets */
+      #brandLogo,
+      img[alt="M&M logo"],
+      img[src*="lightlogo"],
+      img[src*="logo"] {
+        max-height: 2.5rem !important;
+        max-width: 8rem !important;
+        height: auto !important;
+        width: auto !important;
       }
       
       /* Reducir bordes redondeados grandes */
