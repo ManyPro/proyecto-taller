@@ -4764,9 +4764,16 @@ function renderQuoteMini(q){
         renderTabs();
       }
       ensureSaleQuoteLink(q);
+      
+      // Filtrar items para evitar duplicados de combos
+      // El backend expandirá automáticamente los combos, así que si la cotización
+      // ya tiene los productos del combo desglosados, debemos omitirlos
+      // Estrategia: enviar todos los items, pero el backend verificará si un producto
+      // ya viene en el batch antes de expandirlo desde el combo
+      const filteredItems = q.items.map(mapQuoteItemToSale);
+      
       try {
-        const batchPayload = q.items.map(mapQuoteItemToSale);
-        current = await API.sales.addItemsBatch(current._id, batchPayload);
+        current = await API.sales.addItemsBatch(current._id, filteredItems);
         syncCurrentIntoOpenList();
         renderTabs();
         renderSale();
@@ -7467,7 +7474,6 @@ export function initSales(){
       }, 'Agregar items');
     });
   });
-  document.getElementById('sales-history')?.addEventListener('click', openSalesHistory);
   document.getElementById('sv-edit-cv')?.addEventListener('click', openEditCV);
   document.getElementById('sv-loadQuote')?.addEventListener('click', loadQuote);
   document.getElementById('sv-applyQuoteCV')?.addEventListener('click', applyQuoteCustomerVehicle);
@@ -7877,104 +7883,159 @@ function buildSaleSummaryHTML(sale) {
 
   let itemsHTML = '';
   if (sale.items && sale.items.length > 0) {
-    itemsHTML = sale.items.map(item => `
-      <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
-        <td class="py-2 px-3 text-sm text-white dark:text-white theme-light:text-slate-900">${item.name || 'Item'}</td>
-        <td class="py-2 px-3 text-center text-sm text-white dark:text-white theme-light:text-slate-900">${item.qty || 1}</td>
-        <td class="py-2 px-3 text-right text-sm text-white dark:text-white theme-light:text-slate-900">${money(item.unitPrice || 0)}</td>
-        <td class="py-2 px-3 text-right text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">${money((item.qty || 1) * (item.unitPrice || 0))}</td>
+    itemsHTML = sale.items.map((item, idx) => `
+      <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-sky-50 transition-colors duration-150 ${idx % 2 === 0 ? 'bg-slate-800/20 dark:bg-slate-800/20 theme-light:bg-white' : ''}">
+        <td class="py-3 px-4 text-xs font-mono text-slate-300 dark:text-slate-300 theme-light:text-slate-700">${item.sku || '—'}</td>
+        <td class="py-3 px-4 text-sm text-white dark:text-white theme-light:text-slate-900 font-medium">${item.name || 'Item'}</td>
+        <td class="py-3 px-4 text-center text-sm text-white dark:text-white theme-light:text-slate-900">${item.qty || 1}</td>
+        <td class="py-3 px-4 text-right text-sm text-white dark:text-white theme-light:text-slate-900">${money(item.unitPrice || 0)}</td>
+        <td class="py-3 px-4 text-right text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">${money((item.qty || 1) * (item.unitPrice || 0))}</td>
       </tr>
     `).join('');
   }
 
   let paymentsHTML = '';
   if (paymentMethods.length > 0) {
-    paymentsHTML = paymentMethods.map(pm => `
-      <div class="flex justify-between py-2 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
-        <span class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-700">${pm.method || 'N/A'}</span>
-        <span class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">${money(pm.amount || 0)}</span>
-      </div>
+    paymentsHTML = paymentMethods.map((pm, idx) => `
+      <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-sky-50 transition-colors duration-150 ${idx % 2 === 0 ? 'bg-slate-800/20 dark:bg-slate-800/20 theme-light:bg-white' : ''}">
+        <td class="py-2 px-2 text-sm text-white dark:text-white theme-light:text-slate-900 font-medium">${pm.method || 'N/A'}</td>
+        <td class="py-2 px-2 text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${pm.accountId ? '—' : '—'}</td>
+        <td class="py-2 px-2 text-right text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">${money(pm.amount || 0)}</td>
+      </tr>
     `).join('');
-  } else {
-    paymentsHTML = '<div class="text-sm text-slate-400 py-2">Sin información de pago</div>';
   }
 
   let commissionsHTML = '';
   if (laborCommissions.length > 0) {
-    commissionsHTML = laborCommissions.map(comm => `
-      <div class="flex justify-between py-2 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
-        <div>
-          <span class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">${comm.technician || 'N/A'}</span>
-          <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 ml-2">${comm.kind || ''}</span>
-        </div>
-        <span class="text-sm font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${money(comm.share || 0)}</span>
-      </div>
+    commissionsHTML = laborCommissions.map((comm, idx) => `
+      <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-sky-50 transition-colors duration-150 ${idx % 2 === 0 ? 'bg-slate-800/20 dark:bg-slate-800/20 theme-light:bg-white' : ''}">
+        <td class="py-2 px-2 text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">${comm.technician || 'N/A'}</td>
+        <td class="py-2 px-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${comm.kind || '—'}</td>
+        <td class="py-2 px-2 text-right text-sm font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${money(comm.share || 0)}</td>
+      </tr>
     `).join('');
-  } else {
-    commissionsHTML = '<div class="text-sm text-slate-400 py-2">Sin comisiones registradas</div>';
   }
 
   return `
-    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 max-w-4xl max-h-[90vh] overflow-y-auto">
-      <div class="flex justify-between items-center mb-6">
-        <h3 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900">Resumen de Venta #${saleNumber}</h3>
+    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 max-w-5xl max-h-[90vh] overflow-y-auto">
+      <!-- Header -->
+      <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+        <div>
+          <h3 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Resumen de Venta</h3>
+          <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Venta #${saleNumber}</p>
+        </div>
         <button id="summary-close" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
           ✕ Cerrar
         </button>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 rounded-lg p-4">
-          <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">Cliente</h4>
-          <div class="text-base font-bold text-white dark:text-white theme-light:text-slate-900">${customer}</div>
-          ${customerId ? `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">ID: ${customerId}</div>` : ''}
-          ${customerPhone ? `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Tel: ${customerPhone}</div>` : ''}
+      <!-- Información General -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div class="bg-gradient-to-br from-slate-900/70 to-slate-800/70 dark:from-slate-900/70 dark:to-slate-800/70 theme-light:from-sky-100 theme-light:to-sky-50 rounded-lg p-4 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 shadow-md">
+          <h4 class="text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2 uppercase tracking-wide">Cliente</h4>
+          <div class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">${customer}</div>
+          ${customerId ? `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 flex items-center gap-2"><span class="font-medium">ID:</span> <span>${customerId}</span></div>` : ''}
+          ${customerPhone ? `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 flex items-center gap-2 mt-1"><span class="font-medium">Tel:</span> <span>${customerPhone}</span></div>` : ''}
         </div>
-        <div class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 rounded-lg p-4">
-          <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">Vehículo</h4>
-          <div class="text-base font-bold text-white dark:text-white theme-light:text-slate-900">${plate.toUpperCase()}</div>
-          ${sale.vehicle?.brand ? `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">${sale.vehicle.brand} ${sale.vehicle.line || ''}</div>` : ''}
+        <div class="bg-gradient-to-br from-slate-900/70 to-slate-800/70 dark:from-slate-900/70 dark:to-slate-800/70 theme-light:from-sky-100 theme-light:to-sky-50 rounded-lg p-4 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 shadow-md">
+          <h4 class="text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2 uppercase tracking-wide">Vehículo</h4>
+          <div class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">${plate.toUpperCase()}</div>
+          ${sale.vehicle?.brand ? `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${sale.vehicle.brand} ${sale.vehicle.line || ''} ${sale.vehicle.year ? `(${sale.vehicle.year})` : ''}</div>` : ''}
         </div>
       </div>
 
+      <!-- Items -->
       <div class="mb-6">
-        <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-3">Items</h4>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
+        <h4 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex items-center gap-2">
+          <span class="text-2xl">📦</span>
+          <span>Items de la Venta</span>
+        </h4>
+        <div class="overflow-x-auto rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 shadow-lg">
+          <table class="w-full text-sm border-collapse">
             <thead>
-              <tr class="border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-                <th class="text-left py-2 px-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Descripción</th>
-                <th class="text-center py-2 px-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Cant.</th>
-                <th class="text-right py-2 px-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Unit</th>
-                <th class="text-right py-2 px-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Total</th>
+              <tr class="bg-slate-900/80 dark:bg-slate-900/80 theme-light:bg-sky-200 border-b-2 border-slate-700/70 dark:border-slate-700/70 theme-light:border-slate-400">
+                <th class="text-left py-3 px-4 text-xs font-bold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider">SKU</th>
+                <th class="text-left py-3 px-4 text-xs font-bold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider">Descripción</th>
+                <th class="text-center py-3 px-4 text-xs font-bold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider">Cant.</th>
+                <th class="text-right py-3 px-4 text-xs font-bold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider">Unit</th>
+                <th class="text-right py-3 px-4 text-xs font-bold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider">Total</th>
               </tr>
             </thead>
-            <tbody>
-              ${itemsHTML || '<tr><td colspan="4" class="text-center py-4 text-slate-400">Sin items</td></tr>'}
+            <tbody class="bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white">
+              ${itemsHTML || '<tr><td colspan="5" class="text-center py-8 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin items</td></tr>'}
             </tbody>
             <tfoot>
-              <tr class="border-t-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-                <td colspan="3" class="text-right py-3 px-3 font-bold text-white dark:text-white theme-light:text-slate-900">Total</td>
-                <td class="text-right py-3 px-3 font-bold text-lg text-white dark:text-white theme-light:text-slate-900">${money(total)}</td>
+              <tr class="bg-slate-900/60 dark:bg-slate-900/60 theme-light:bg-sky-100 border-t-2 border-slate-700/70 dark:border-slate-700/70 theme-light:border-slate-400">
+                <td colspan="4" class="text-right py-4 px-4 font-bold text-base text-white dark:text-white theme-light:text-slate-900">Subtotal</td>
+                <td class="text-right py-4 px-4 font-bold text-lg text-white dark:text-white theme-light:text-slate-900">${money(total)}</td>
+              </tr>
+              <tr class="bg-gradient-to-r from-blue-900/40 to-blue-800/40 dark:from-blue-900/40 dark:to-blue-800/40 theme-light:from-blue-100 theme-light:to-blue-50 border-t-2 border-blue-700/50 dark:border-blue-700/50 theme-light:border-blue-400">
+                <td colspan="4" class="text-right py-4 px-4 font-bold text-lg text-white dark:text-white theme-light:text-slate-900">Total</td>
+                <td class="text-right py-4 px-4 font-bold text-xl text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${money(total)}</td>
               </tr>
             </tfoot>
           </table>
         </div>
       </div>
 
+      <!-- Pagos y Comisiones -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 rounded-lg p-4">
-          <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">Formas de pago</h4>
-          ${paymentsHTML}
+        <!-- Formas de pago -->
+        <div class="bg-gradient-to-br from-slate-900/70 to-slate-800/70 dark:from-slate-900/70 dark:to-slate-800/70 theme-light:from-sky-100 theme-light:to-sky-50 rounded-lg p-4 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 shadow-md">
+          <h4 class="text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex items-center gap-2">
+            <span class="text-xl">💳</span>
+            <span>Formas de Pago</span>
+          </h4>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm border-collapse">
+              <thead>
+                <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                  <th class="text-left py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 uppercase">Método</th>
+                  <th class="text-left py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 uppercase">Cuenta</th>
+                  <th class="text-right py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 uppercase">Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${paymentsHTML || '<tr><td colspan="3" class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">Sin información de pago</td></tr>'}
+              </tbody>
+              <tfoot>
+                <tr class="border-t-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-200">
+                  <td colspan="2" class="text-right py-2 px-2 font-bold text-sm text-white dark:text-white theme-light:text-slate-900">Total pagos:</td>
+                  <td class="text-right py-2 px-2 font-bold text-base text-green-400 dark:text-green-400 theme-light:text-green-600">${money(paymentMethods.reduce((sum, pm) => sum + (Number(pm.amount) || 0), 0))}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
-        <div class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 rounded-lg p-4">
-          <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">Comisiones técnicas</h4>
-          ${commissionsHTML}
+
+        <!-- Comisiones técnicas -->
+        <div class="bg-gradient-to-br from-slate-900/70 to-slate-800/70 dark:from-slate-900/70 dark:to-slate-800/70 theme-light:from-sky-100 theme-light:to-sky-50 rounded-lg p-4 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 shadow-md">
+          <h4 class="text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex items-center gap-2">
+            <span class="text-xl">👷</span>
+            <span>Comisiones Técnicas</span>
+          </h4>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm border-collapse">
+              <thead>
+                <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                  <th class="text-left py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 uppercase">Técnico</th>
+                  <th class="text-left py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 uppercase">Tipo</th>
+                  <th class="text-right py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 uppercase">Participación</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${commissionsHTML || '<tr><td colspan="3" class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">Sin comisiones registradas</td></tr>'}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-center">
-        Cerrada el ${closedDate}
+      <!-- Footer -->
+      <div class="pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 text-center">
+        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+          <span class="font-medium">Cerrada el:</span> <span>${closedDate}</span>
+        </div>
       </div>
     </div>
   `;
@@ -8168,12 +8229,22 @@ function renderEditPayments(payments) {
     return;
   }
 
+  const commonPaymentMethods = ['EFECTIVO', 'TRANSFERENCIA', 'TARJETA', 'CREDITO', 'CRÉDITO', 'NEQUI', 'DAVIPLATA', 'PSE'];
+  
   payments.forEach((p, idx) => {
     const tr = document.createElement('tr');
     tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200';
+    const currentMethod = (p.method || '').toUpperCase();
+    const isInCommon = commonPaymentMethods.includes(currentMethod);
+    
     tr.innerHTML = `
       <td class="py-2 px-2">
-        <input type="text" class="ecv-payment-method w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs" value="${p.method || ''}" data-idx="${idx}" placeholder="Efectivo, Transferencia, etc." />
+        <select class="ecv-payment-method w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs" data-idx="${idx}">
+          <option value="">Seleccionar método</option>
+          ${commonPaymentMethods.map(m => `<option value="${m}" ${currentMethod === m ? 'selected' : ''}>${m}</option>`).join('')}
+          <option value="__CUSTOM__" ${!isInCommon && p.method ? 'selected' : ''}>Otro (personalizado)</option>
+        </select>
+        <input type="text" class="ecv-payment-method-custom w-full px-2 py-1 mt-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs ${isInCommon || !p.method ? 'hidden' : ''}" value="${!isInCommon ? (p.method || '') : ''}" data-idx="${idx}" placeholder="Escribir método personalizado" />
       </td>
       <td class="py-2 px-2">
         <select class="ecv-payment-account w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs" data-idx="${idx}">
@@ -8379,15 +8450,36 @@ function setupEditCloseModalListeners(sale, payments, commissions) {
     });
   });
 
-  // Actualizar pago
-  document.querySelectorAll('.ecv-payment-method, .ecv-payment-amount').forEach(input => {
+  // Actualizar pago - método
+  document.querySelectorAll('.ecv-payment-method').forEach(select => {
+    select.addEventListener('change', () => {
+      const idx = parseInt(select.dataset.idx);
+      const customInput = document.querySelector(`.ecv-payment-method-custom[data-idx="${idx}"]`);
+      if (select.value === '__CUSTOM__') {
+        if (customInput) customInput.classList.remove('hidden');
+        payments[idx].method = customInput?.value || '';
+      } else {
+        if (customInput) customInput.classList.add('hidden');
+        payments[idx].method = select.value || '';
+      }
+      updateEditPaymentsSummary(payments);
+    });
+  });
+
+  // Actualizar pago - método personalizado
+  document.querySelectorAll('.ecv-payment-method-custom').forEach(input => {
     input.addEventListener('input', () => {
       const idx = parseInt(input.dataset.idx);
-      if (input.classList.contains('ecv-payment-method')) {
-        payments[idx].method = input.value;
-      } else if (input.classList.contains('ecv-payment-amount')) {
-        payments[idx].amount = Number(input.value) || 0;
-      }
+      payments[idx].method = input.value;
+      updateEditPaymentsSummary(payments);
+    });
+  });
+
+  // Actualizar pago - monto
+  document.querySelectorAll('.ecv-payment-amount').forEach(input => {
+    input.addEventListener('input', () => {
+      const idx = parseInt(input.dataset.idx);
+      payments[idx].amount = Number(input.value) || 0;
       updateEditPaymentsSummary(payments);
     });
   });

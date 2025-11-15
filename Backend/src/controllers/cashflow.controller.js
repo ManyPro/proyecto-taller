@@ -128,7 +128,7 @@ export async function createEntry(req, res) {
 }
 
 // --- Recalcular balances secuenciales de una cuenta ---
-async function recomputeAccountBalances(companyId, accountId){
+export async function recomputeAccountBalances(companyId, accountId){
   if(!companyId || !accountId) return;
   const acc = await Account.findOne({ _id: accountId, companyId });
   if(!acc) return;
