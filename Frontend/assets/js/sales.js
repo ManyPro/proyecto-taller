@@ -939,11 +939,36 @@ async function renderQuoteForCurrentSale(){
     renderQuoteMini(null);
     return;
   }
-  const quoteId = getSaleQuoteId(saleId);
+  
+  // Primero verificar si hay una cotización vinculada a la venta
+  let quoteId = getSaleQuoteId(saleId);
+  
+  // Si no hay cotización vinculada, verificar si hay una pendiente de cargar desde localStorage
+  // (esto puede pasar cuando se crea la venta desde el calendario)
+  if(!quoteId){
+    const pendingQuoteId = localStorage.getItem('sales:lastQuoteId');
+    if(pendingQuoteId){
+      quoteId = pendingQuoteId;
+      // Vincular la cotización a la venta
+      try {
+        const quote = await API.quoteGet(quoteId);
+        if(quote){
+          ensureSaleQuoteLink(quote);
+          // Limpiar localStorage después de vincular
+          localStorage.removeItem('sales:lastQuoteId');
+        }
+      } catch(err){
+        console.warn('No se pudo cargar cotización pendiente:', err);
+        localStorage.removeItem('sales:lastQuoteId');
+      }
+    }
+  }
+  
   if(!quoteId){
     renderQuoteMini(null);
     return;
   }
+  
   const token = ++saleQuoteRequestToken;
   try{
     let quote = saleQuoteCache.get(quoteId);
@@ -2044,10 +2069,25 @@ function renderMini(){
   if (existingBtn) existingBtn.remove();
 }
 
-function renderSale(){
+async function renderSale(){
   const body = document.getElementById('sales-body'), total = document.getElementById('sales-total');
   if (!body) return;
   body.innerHTML = '';
+  
+  // Verificar si hay una cotización pendiente de cargar cuando se renderiza la venta
+  // Esto asegura que se cargue incluso si no se detectó al inicio
+  if (current?._id) {
+    const pendingQuoteId = localStorage.getItem('sales:lastQuoteId');
+    if (pendingQuoteId && !getSaleQuoteId(current._id)) {
+      // Hay una cotización pendiente y la venta actual no tiene cotización vinculada
+      // Cargarla en el siguiente tick para no bloquear el render
+      setTimeout(async () => {
+        if (current?._id) {
+          await renderQuoteForCurrentSale();
+        }
+      }, 100);
+    }
+  }
 
   if (current?.openSlots && current.openSlots.length > 0) {
     const incompleteSlots = current.openSlots.filter(slot => !slot.completed);
@@ -5577,8 +5617,8 @@ export function initSales(){
     gateElement(canWO, '#sv-print-wo');
   })();
 
-  try { localStorage.removeItem('sales:lastQuoteId'); } catch {}
-
+  // NO eliminar sales:lastQuoteId aquí, se necesita para cargar la cotización cuando se renderiza la venta
+  
   // Detectar si viene del calendario y cargar cotización si existe
   const urlParams = new URLSearchParams(window.location.search);
   const fromCalendar = urlParams.get('fromCalendar');
@@ -5601,26 +5641,49 @@ export function initSales(){
           renderMini();
           renderWO();
           
-          // Cargar cotización si existe en localStorage
-          const quoteId = localStorage.getItem('sales:lastQuoteId');
-          if (quoteId) {
-            try {
-              const quote = await API.quoteGet(quoteId);
-              if (quote) {
-                lastQuoteLoaded = quote;
-                ensureSaleQuoteLink(quote);
-                await renderQuoteForCurrentSale();
-              }
-            } catch (err) {
-              console.warn('No se pudo cargar cotización:', err);
-            }
-          }
+          // Cargar cotización - renderQuoteForCurrentSale ahora verifica localStorage automáticamente
+          await renderQuoteForCurrentSale();
         }
       } catch (err) {
         console.error('Error loading sale from calendar:', err);
       }
     }, 500);
   }
+  
+  // Listener para cuando se crea una venta desde el calendario en la misma página
+  window.addEventListener('calendar:saleCreated', async (event) => {
+    const { saleId: eventSaleId, quoteId } = event.detail || {};
+    if (eventSaleId) {
+      // Si hay una venta actual y coincide, o si necesitamos cargar la venta
+      if (current?._id === eventSaleId) {
+        // La venta ya está cargada, solo cargar la cotización
+        if (quoteId) {
+          localStorage.setItem('sales:lastQuoteId', quoteId);
+          await renderQuoteForCurrentSale();
+        }
+      } else {
+        // La venta aún no está cargada, guardar el quoteId y esperar a que se cargue
+        if (quoteId) {
+          localStorage.setItem('sales:lastQuoteId', quoteId);
+        }
+        // Intentar cargar la venta
+        try {
+          const sale = await API.sales.get(eventSaleId);
+          if (sale) {
+            current = sale;
+            syncCurrentIntoOpenList();
+            renderTabs();
+            renderSale();
+            renderMini();
+            renderWO();
+            await renderQuoteForCurrentSale();
+          }
+        } catch (err) {
+          console.error('Error loading sale from calendar event:', err);
+        }
+      }
+    }
+  });
 
   refreshOpenSales();
   startSalesAutoRefresh();
