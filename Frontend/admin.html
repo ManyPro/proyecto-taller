@@ -406,6 +406,9 @@
       // Limpiar sesión anterior antes de iniciar nueva sesión
       handleLogout();
       
+      // Esperar un momento para asegurar que la limpieza se complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const r = await req('/api/v1/admin/auth/login', { method:'POST', body:{ email, password } });
       setToken(r.token);
       await enterDashboard(r.user, email);
@@ -431,6 +434,9 @@
     try{
       // Limpiar sesión anterior antes de iniciar nueva sesión
       handleLogout();
+      
+      // Esperar un momento para asegurar que la limpieza se complete
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       const r = await req('/api/v1/admin/signup/confirm', { method:'POST', body:{ email, code, password } });
       setToken(r.token);
@@ -479,12 +485,32 @@
       keysToRemove.forEach(key => localStorage.removeItem(key));
     } catch {}
     
-    // Remover barra de admin si existe
-    const adminBar = document.getElementById('adminIndicatorBar');
-    if (adminBar) {
-      adminBar.remove();
+    // Remover TODAS las barras de admin si existen (evitar duplicados)
+    const allAdminBars = document.querySelectorAll('#adminIndicatorBar');
+    allAdminBars.forEach(bar => {
+      try {
+        bar.remove();
+      } catch(e) {
+        try {
+          if (bar.parentNode) {
+            bar.parentNode.removeChild(bar);
+          }
+        } catch {}
+      }
+    });
+    
+    // Restaurar padding/margin
+    const currentPadding = parseInt(getComputedStyle(document.body).paddingTop) || 0;
+    if (currentPadding >= 24) {
+      document.body.style.paddingTop = (currentPadding - 24) + 'px';
+    } else {
       document.body.style.paddingTop = '';
-      if (header) {
+    }
+    if (header) {
+      const currentMargin = parseInt(getComputedStyle(header).marginTop) || 0;
+      if (currentMargin >= 24) {
+        header.style.marginTop = (currentMargin - 24) + 'px';
+      } else {
         header.style.marginTop = '';
       }
     }
@@ -603,6 +629,20 @@
   // Seleccionar empresa y cargar vista completa
   async function selectCompany(company){
     try{
+      // Limpiar TODAS las barras de admin antes de seleccionar nueva empresa
+      const allAdminBars = document.querySelectorAll('#adminIndicatorBar');
+      allAdminBars.forEach(bar => {
+        try {
+          bar.remove();
+        } catch(e) {
+          try {
+            if (bar.parentNode) {
+              bar.parentNode.removeChild(bar);
+            }
+          } catch {}
+        }
+      });
+      
       // Limpiar datos de empresa anterior antes de seleccionar nueva
       const previousToken = currentCompanyToken;
       const previousData = currentCompanyData;
@@ -875,6 +915,20 @@
           if(href && href !== 'index.html'){
             // Guardar contexto de admin en sessionStorage antes de navegar
             try {
+              // Limpiar barras existentes antes de actualizar el contexto
+              const allAdminBars = document.querySelectorAll('#adminIndicatorBar');
+              allAdminBars.forEach(bar => {
+                try {
+                  bar.remove();
+                } catch(e) {
+                  try {
+                    if (bar.parentNode) {
+                      bar.parentNode.removeChild(bar);
+                    }
+                  } catch {}
+                }
+              });
+              
               sessionStorage.setItem('admin:context', 'true');
               sessionStorage.setItem('admin:token', currentCompanyToken || '');
               sessionStorage.setItem('admin:email', emailLbl?.textContent || adminEmail || '');
@@ -966,7 +1020,8 @@
     // Recargar lista de empresas para el selector de BD compartida
     const allCompanies = companiesList.filter(c => c._id !== company._id);
     
-    // Lista de todas las pestañas disponibles
+    // Lista unificada de todas las pestañas disponibles
+    // Cada pestaña tiene un feature asociado (o null si no tiene feature)
     const allTabs = [
       { id: 'notas', name: 'Notas', feature: 'notas' },
       { id: 'ventas', name: 'Ventas', feature: 'ventas' },
@@ -984,6 +1039,28 @@
     const hiddenTabs = company.restrictions?.hiddenTabs || [];
     const hiddenAccounts = company.restrictions?.cashflow?.hiddenAccounts || [];
     const sharedWith = company.sharedDatabaseConfig?.sharedWith || [];
+    
+    // Determinar el estado de cada pestaña:
+    // Una pestaña está activada si:
+    // - NO está en hiddenTabs
+    // - Y (si tiene feature) el feature está activado (no es false)
+    const tabsState = allTabs.map(tab => {
+      const isHidden = hiddenTabs.includes(tab.id);
+      
+      // Si está explícitamente oculta, está desactivada
+      if (isHidden) {
+        return { ...tab, enabled: false };
+      }
+      
+      // Si tiene feature, verificar que esté activado
+      if (tab.feature) {
+        const featureEnabled = company.features?.[tab.feature] !== false;
+        return { ...tab, enabled: featureEnabled };
+      }
+      
+      // Si no tiene feature y no está oculta, está activada
+      return { ...tab, enabled: true };
+    });
     
     // Cargar cuentas de cashflow primero
     let cashflowAccounts = [];
@@ -1017,35 +1094,18 @@
           
           <!-- Menú unificado con toggles -->
           <div class="space-y-6">
-            <!-- Toggles unificados: Features y Pestañas -->
+            <!-- Lista unificada de Pestañas -->
             <div>
-              <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-3">⚙️ Configuración de Funciones y Pestañas</h4>
-              <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">Activa o desactiva funciones y oculta pestañas según necesites:</p>
+              <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-3">⚙️ Configuración de Pestañas</h4>
+              <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">Activa o desactiva las pestañas que quieres que estén disponibles para esta empresa:</p>
               
-              <!-- Features -->
-              <div class="mb-4">
-                <p class="text-xs font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Funciones:</p>
-                <div id="adminFeaturesList" class="flex flex-wrap gap-2 justify-center sm:justify-start">
-                  ${Object.keys(company.features || {}).map(k => `
-                    <label class="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-white rounded-lg cursor-pointer hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 transition-colors">
-                      <input type="checkbox" data-feature="${k}" ${company.features[k] !== false ? 'checked' : ''} class="w-3.5 h-3.5 text-purple-600 rounded focus:ring-purple-500"/>
-                      <span class="text-xs text-white dark:text-white theme-light:text-slate-900">${k}</span>
-                    </label>
-                  `).join('')}
-                </div>
-              </div>
-              
-              <!-- Tabs -->
-              <div class="border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 pt-4">
-                <p class="text-xs font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Ocultar Pestañas:</p>
-                <div id="adminHiddenTabsList" class="flex flex-wrap gap-2 justify-center sm:justify-start">
-                  ${allTabs.map(tab => `
-                    <label class="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-white rounded-lg cursor-pointer hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 transition-colors">
-                      <input type="checkbox" data-tab="${tab.id}" ${hiddenTabs.includes(tab.id) ? 'checked' : ''} class="w-3.5 h-3.5 text-red-600 rounded focus:ring-red-500"/>
-                      <span class="text-xs text-white dark:text-white theme-light:text-slate-900">${tab.name}</span>
-                    </label>
-                  `).join('')}
-                </div>
+              <div id="adminTabsList" class="flex flex-wrap gap-2 justify-center sm:justify-start">
+                ${tabsState.map(tab => `
+                  <label class="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-white rounded-lg cursor-pointer hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 transition-colors">
+                    <input type="checkbox" data-tab-id="${tab.id}" data-tab-feature="${tab.feature || ''}" ${tab.enabled ? 'checked' : ''} class="w-3.5 h-3.5 text-purple-600 rounded focus:ring-purple-500"/>
+                    <span class="text-xs text-white dark:text-white theme-light:text-slate-900">${tab.name}</span>
+                  </label>
+                `).join('')}
               </div>
             </div>
             
@@ -1190,18 +1250,31 @@
     // Guardar todos los cambios
     document.getElementById('saveAllChanges').onclick = async () => {
       try {
-        // Guardar features
+        // Procesar toggles unificados de pestañas
         const featuresPatch = {};
-        document.querySelectorAll('#adminFeaturesList input[data-feature]').forEach(ch => {
-          featuresPatch[ch.dataset.feature] = ch.checked;
-        });
-        await req(`/api/v1/admin/company/companies/${company._id}/features`, { method:'PATCH', body: featuresPatch });
-        
-        // Preparar todas las restrictions en una sola llamada para evitar sobrescritura
         const hiddenTabsArray = [];
-        document.querySelectorAll('#adminHiddenTabsList input[data-tab]:checked').forEach(ch => {
-          hiddenTabsArray.push(ch.dataset.tab);
+        
+        // Recorrer todos los toggles de pestañas unificadas
+        document.querySelectorAll('#adminTabsList input[data-tab-id]').forEach(ch => {
+          const tabId = ch.dataset.tabId;
+          const tabFeature = ch.dataset.tabFeature;
+          const isEnabled = ch.checked;
+          
+          // Si tiene feature, actualizar features
+          if (tabFeature) {
+            featuresPatch[tabFeature] = isEnabled;
+          }
+          
+          // Si está desactivada, agregar a hiddenTabs
+          if (!isEnabled) {
+            hiddenTabsArray.push(tabId);
+          }
         });
+        
+        // Guardar features (solo si hay features para actualizar)
+        if (Object.keys(featuresPatch).length > 0) {
+          await req(`/api/v1/admin/company/companies/${company._id}/features`, { method:'PATCH', body: featuresPatch });
+        }
         
         const hiddenAccountsArray = [];
         document.querySelectorAll('#adminCashflowAccountsList input[data-account-id]:checked').forEach(ch => {

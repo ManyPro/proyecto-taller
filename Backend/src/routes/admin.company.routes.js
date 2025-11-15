@@ -118,17 +118,24 @@ router.patch('/companies/:id/shared-database-config', requireAdminRole('develope
         return res.status(404).json({ error: `Empresa destino no encontrada: ${item.companyId}` });
       }
       
-      // Actualizar sharedFrom en la empresa secundaria
-      if (!targetCompany.sharedDatabaseConfig) {
-        targetCompany.sharedDatabaseConfig = { sharedWith: [], sharedFrom: { companyId: null } };
-      }
-      targetCompany.sharedDatabaseConfig.sharedFrom = {
-        companyId: new mongoose.Types.ObjectId(id),
-        shareCustomers: item.shareCustomers !== false,
-        shareInventory: item.shareInventory !== false,
-        shareCalendar: item.shareCalendar === true
-      };
-      await targetCompany.save();
+      // Actualizar sharedFrom en la empresa secundaria usando updateOne para evitar validación de technicians
+      await Company.updateOne(
+        { _id: item.companyId },
+        {
+          $set: {
+            'sharedDatabaseConfig.sharedFrom': {
+              companyId: new mongoose.Types.ObjectId(id),
+              shareCustomers: item.shareCustomers !== false,
+              shareInventory: item.shareInventory !== false,
+              shareCalendar: item.shareCalendar === true
+            }
+          },
+          $setOnInsert: {
+            'sharedDatabaseConfig.sharedWith': []
+          }
+        },
+        { runValidators: false, upsert: false }
+      );
     }
     
     // Actualizar sharedWith en la empresa principal
@@ -140,19 +147,35 @@ router.patch('/companies/:id/shared-database-config', requireAdminRole('develope
     }));
   } else if (sharedWith === null || sharedWith === undefined) {
     // Si se envía null, limpiar todas las empresas compartidas
-    // Primero limpiar sharedFrom en las empresas secundarias
+    // Primero limpiar sharedFrom en las empresas secundarias usando updateOne
     for (const item of c.sharedDatabaseConfig.sharedWith || []) {
-      const targetCompany = await Company.findById(item.companyId);
-      if (targetCompany && targetCompany.sharedDatabaseConfig) {
-        targetCompany.sharedDatabaseConfig.sharedFrom = { companyId: null };
-        await targetCompany.save();
-      }
+      await Company.updateOne(
+        { _id: item.companyId },
+        {
+          $set: {
+            'sharedDatabaseConfig.sharedFrom.companyId': null
+          }
+        },
+        { runValidators: false }
+      );
     }
     c.sharedDatabaseConfig.sharedWith = [];
   }
   
-  await c.save();
-  res.json({ sharedDatabaseConfig: c.sharedDatabaseConfig });
+  // Guardar usando updateOne para evitar validación de technicians (solo estamos actualizando sharedDatabaseConfig)
+  await Company.updateOne(
+    { _id: id },
+    {
+      $set: {
+        'sharedDatabaseConfig.sharedWith': c.sharedDatabaseConfig.sharedWith
+      }
+    },
+    { runValidators: false }
+  );
+  
+  // Recargar para devolver el estado actualizado
+  const updated = await Company.findById(id).select('sharedDatabaseConfig').lean();
+  res.json({ sharedDatabaseConfig: updated?.sharedDatabaseConfig || c.sharedDatabaseConfig });
 });
 
 // DEPRECATED: Mantener por compatibilidad

@@ -55,12 +55,41 @@ function detectInitialTheme(){
   function showAdminIndicator() {
     try {
       const isAdmin = sessionStorage.getItem('admin:context') === 'true';
-      if (!isAdmin) return;
+      if (!isAdmin) {
+        // Si no hay contexto, limpiar cualquier barra existente
+        const allAdminBars = document.querySelectorAll('#adminIndicatorBar');
+        allAdminBars.forEach(bar => {
+          try {
+            bar.remove();
+          } catch(e) {
+            try {
+              if (bar.parentNode) {
+                bar.parentNode.removeChild(bar);
+              }
+            } catch {}
+          }
+        });
+        return;
+      }
       
       const adminEmail = sessionStorage.getItem('admin:email') || '';
       if (!adminEmail) return;
       
-      // Verificar si ya existe el indicador
+      // Eliminar cualquier barra existente antes de crear una nueva (evitar duplicados)
+      const existingBars = document.querySelectorAll('#adminIndicatorBar');
+      existingBars.forEach(bar => {
+        try {
+          bar.remove();
+        } catch(e) {
+          try {
+            if (bar.parentNode) {
+              bar.parentNode.removeChild(bar);
+            }
+          } catch {}
+        }
+      });
+      
+      // Verificar si ya existe el indicador después de limpiar
       if (document.getElementById('adminIndicatorBar')) return;
       
       // Crear barra de indicador de admin (más compacta y discreta)
@@ -536,14 +565,32 @@ function initializeLogoutListener() {
       sessionStorage.removeItem('admin:token');
       sessionStorage.removeItem('admin:company');
     } catch {}
-    // Remover barra de admin si existe
-    const adminBar = document.getElementById('adminIndicatorBar');
-    if (adminBar) {
-      adminBar.remove();
-      // Restaurar padding del body
+    // Remover TODAS las barras de admin si existen (evitar duplicados)
+    const allAdminBars = document.querySelectorAll('#adminIndicatorBar');
+    allAdminBars.forEach(bar => {
+      try {
+        bar.remove();
+      } catch(e) {
+        try {
+          if (bar.parentNode) {
+            bar.parentNode.removeChild(bar);
+          }
+        } catch {}
+      }
+    });
+    
+    // Restaurar padding/margin
+    const currentPadding = parseInt(getComputedStyle(document.body).paddingTop) || 0;
+    if (currentPadding >= 24) {
+      document.body.style.paddingTop = (currentPadding - 24) + 'px';
+    } else {
       document.body.style.paddingTop = '';
-      // Restaurar margin del header
-      if (appHeader) {
+    }
+    if (appHeader) {
+      const currentMargin = parseInt(getComputedStyle(appHeader).marginTop) || 0;
+      if (currentMargin >= 24) {
+        appHeader.style.marginTop = (currentMargin - 24) + 'px';
+      } else {
         appHeader.style.marginTop = '';
       }
     }

@@ -25,27 +25,38 @@
     }
   };
   
-  // Limpiar indicador de admin si no hay contexto
+  // Limpiar indicador de admin (siempre elimina todas las instancias)
   function cleanupAdminIndicator() {
-    if (!isAdminContext()) {
-      const adminBar = document.getElementById('adminIndicatorBar');
-      if (adminBar) {
-        adminBar.remove();
-        // Restaurar padding/margin originales
-        const currentPadding = parseInt(getComputedStyle(document.body).paddingTop) || 0;
-        if (currentPadding >= 24) {
-          document.body.style.paddingTop = (currentPadding - 24) + 'px';
-        } else {
-          document.body.style.paddingTop = '';
-        }
-        const header = document.getElementById('appHeader');
-        if (header) {
-          const currentMargin = parseInt(getComputedStyle(header).marginTop) || 0;
-          if (currentMargin >= 24) {
-            header.style.marginTop = (currentMargin - 24) + 'px';
-          } else {
-            header.style.marginTop = '';
+    // Eliminar TODAS las barras de admin que puedan existir (por si hay duplicados)
+    const allAdminBars = document.querySelectorAll('#adminIndicatorBar');
+    allAdminBars.forEach(bar => {
+      try {
+        bar.remove();
+      } catch(e) {
+        // Si falla remove(), intentar con removeChild
+        try {
+          if (bar.parentNode) {
+            bar.parentNode.removeChild(bar);
           }
+        } catch {}
+      }
+    });
+    
+    // Restaurar padding/margin originales solo si no hay contexto de admin
+    if (!isAdminContext()) {
+      const currentPadding = parseInt(getComputedStyle(document.body).paddingTop) || 0;
+      if (currentPadding >= 24) {
+        document.body.style.paddingTop = (currentPadding - 24) + 'px';
+      } else {
+        document.body.style.paddingTop = '';
+      }
+      const header = document.getElementById('appHeader');
+      if (header) {
+        const currentMargin = parseInt(getComputedStyle(header).marginTop) || 0;
+        if (currentMargin >= 24) {
+          header.style.marginTop = (currentMargin - 24) + 'px';
+        } else {
+          header.style.marginTop = '';
         }
       }
     }
@@ -53,7 +64,7 @@
   
   // Mostrar indicador de admin
   function showAdminIndicator() {
-    // Primero limpiar si no hay contexto
+    // SIEMPRE limpiar primero para evitar duplicados
     cleanupAdminIndicator();
     
     if (!isAdminContext()) return;
@@ -65,7 +76,7 @@
     const existingHeader = document.getElementById('appHeader');
     if (!existingHeader) return;
     
-    // Verificar si ya existe el indicador
+    // Verificar si ya existe el indicador (después de limpiar)
     if (document.getElementById('adminIndicatorBar')) return;
     
     // Crear barra de indicador de admin (más compacta y discreta)
