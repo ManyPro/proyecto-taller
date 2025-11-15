@@ -1014,8 +1014,17 @@
 
   // Cargar pestaña ADMIN
   async function loadAdminTab(){
-    const company = companiesList.find(c => c._id === currentCompanyData?.id || c.email === currentCompanyData?.email);
-    if(!company) return;
+    // Buscar empresa por _id o email, usando currentCompanyData o companiesList
+    const companyId = currentCompanyData?.id || currentCompanyData?._id;
+    const companyEmail = currentCompanyData?.email;
+    const company = companiesList.find(c => 
+      (companyId && (String(c._id) === String(companyId))) || 
+      (companyEmail && c.email === companyEmail)
+    );
+    if(!company) {
+      console.warn('No se encontró la empresa en companiesList', { companyId, companyEmail, companiesList: companiesList.length });
+      return;
+    }
     
     // Recargar lista de empresas para el selector de BD compartida
     const allCompanies = companiesList.filter(c => c._id !== company._id);
@@ -1317,8 +1326,6 @@
           body: { sharedWith: sharedWithItems } 
         });
         
-        alert('✅ Todos los cambios guardados correctamente');
-        
         // Limpiar caché de restrictions para todas las empresas afectadas
         try {
           const __SCOPE = (() => {
@@ -1340,25 +1347,46 @@
           const email = company.email || '';
           if(email) {
             localStorage.removeItem(`taller.restrictions:${__SCOPE}:${email.toLowerCase()}`);
+            localStorage.removeItem(`taller.features:${__SCOPE}:${email.toLowerCase()}`);
           }
           // Limpiar caché para todas las empresas compartidas
           sharedWithItems.forEach(sw => {
             const sharedCompany = allCompanies.find(c => String(c._id) === String(sw.companyId));
             if(sharedCompany?.email) {
               localStorage.removeItem(`taller.restrictions:${__SCOPE}:${sharedCompany.email.toLowerCase()}`);
+              localStorage.removeItem(`taller.features:${__SCOPE}:${sharedCompany.email.toLowerCase()}`);
             }
           });
         } catch(e) {
           console.warn('Error limpiando caché:', e);
         }
         
-        // Recargar datos de empresa
+        // Recargar datos de empresa desde el servidor
         const r = await req('/api/v1/admin/companies');
-        const updated = r.items.find(c => c._id === company._id);
+        companiesList = r.items || [];
+        const updated = companiesList.find(c => String(c._id) === String(company._id));
         if(updated) {
-          Object.assign(company, updated);
+          // Actualizar la referencia en companiesList
+          const companyIndex = companiesList.findIndex(c => String(c._id) === String(company._id));
+          if(companyIndex >= 0) {
+            companiesList[companyIndex] = updated;
+          }
+          
+          // Actualizar currentCompanyData también (usar _id para consistencia)
+          if(currentCompanyData && (String(currentCompanyData.id || currentCompanyData._id) === String(updated._id) || currentCompanyData.email === updated.email)) {
+            currentCompanyData = { 
+              ...currentCompanyData, 
+              ...updated,
+              id: updated._id, // Asegurar que id y _id estén sincronizados
+              _id: updated._id
+            };
+          }
+          
+          // Recargar la pestaña de admin con los datos actualizados
           await loadAdminTab();
         }
+        
+        alert('✅ Todos los cambios guardados correctamente');
       }catch(e){
         alert('❌ Error: ' + (e.message || 'Error desconocido'));
       }

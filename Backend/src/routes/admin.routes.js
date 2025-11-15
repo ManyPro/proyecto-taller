@@ -230,10 +230,13 @@ router.post('/impersonate/:companyId', authAdmin, requireAdminRole('developer','
     token,
     company: {
       id: company._id,
+      _id: company._id,
       name: company.name,
       email: company.email,
       publicCatalogEnabled: company.publicCatalogEnabled,
-      features: company.features || {}
+      features: company.features || {},
+      restrictions: company.restrictions || {},
+      sharedDatabaseConfig: company.sharedDatabaseConfig || {}
     }
   });
 });
