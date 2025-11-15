@@ -716,6 +716,8 @@ export function initPrices(){
       allMakes = Array.isArray(r?.makes) ? r.makes : [];
       filteredMakes = [...allMakes];
       renderMakesGrid();
+      // Abrir el menú de marcas automáticamente al cargar
+      expandMakesMenu();
     } catch (err) {
       console.error('Error al cargar marcas:', err);
       if (fMakesGrid) {
@@ -781,6 +783,8 @@ export function initPrices(){
     collapseMakesMenu();
     await loadVehiclesForMake(make);
     showVehiclesMenu();
+    // Abrir automáticamente el menú de vehículos al seleccionar una marca
+    expandVehiclesMenu();
   }
 
   // Colapsar menú de marcas
@@ -1233,10 +1237,9 @@ export function initPrices(){
     // Actualizar visual del grid de vehículos
     renderVehiclesGrid();
     
-    // Colapsar menú de vehículos si hay al menos uno seleccionado
-    if (selectedVehicles.length > 0) {
-      collapseVehiclesMenu();
-    }
+    // NO colapsar automáticamente - el usuario cerrará manualmente cuando termine
+    // Solo actualizar el display de vehículos seleccionados
+    updateSelectedVehiclesDisplayNew();
     
     updateSelectedVehiclesDisplay();
   }
