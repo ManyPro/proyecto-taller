@@ -1017,29 +1017,35 @@
           
           <!-- Menú unificado con toggles -->
           <div class="space-y-6">
-            <!-- Features (Funciones) -->
+            <!-- Toggles unificados: Features y Pestañas -->
             <div>
-              <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-3">⚙️ Features (Funciones)</h4>
-              <div id="adminFeaturesList" class="flex flex-wrap gap-3 justify-center sm:justify-start">
-                ${Object.keys(company.features || {}).map(k => `
-                  <label class="flex items-center gap-2 px-3 py-2 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-white rounded-lg cursor-pointer hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 transition-colors">
-                    <input type="checkbox" data-feature="${k}" ${company.features[k] !== false ? 'checked' : ''} class="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"/>
-                    <span class="text-sm text-white dark:text-white theme-light:text-slate-900">${k}</span>
-                  </label>
-                `).join('')}
+              <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-3">⚙️ Configuración de Funciones y Pestañas</h4>
+              <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">Activa o desactiva funciones y oculta pestañas según necesites:</p>
+              
+              <!-- Features -->
+              <div class="mb-4">
+                <p class="text-xs font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Funciones:</p>
+                <div id="adminFeaturesList" class="flex flex-wrap gap-2 justify-center sm:justify-start">
+                  ${Object.keys(company.features || {}).map(k => `
+                    <label class="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-white rounded-lg cursor-pointer hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 transition-colors">
+                      <input type="checkbox" data-feature="${k}" ${company.features[k] !== false ? 'checked' : ''} class="w-3.5 h-3.5 text-purple-600 rounded focus:ring-purple-500"/>
+                      <span class="text-xs text-white dark:text-white theme-light:text-slate-900">${k}</span>
+                    </label>
+                  `).join('')}
+                </div>
               </div>
-            </div>
-            
-            <!-- Ocultar Pestañas -->
-            <div class="border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 pt-6">
-              <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-3">👁️ Ocultar Pestañas</h4>
-              <div id="adminHiddenTabsList" class="flex flex-wrap gap-3 justify-center sm:justify-start">
-                ${allTabs.map(tab => `
-                  <label class="flex items-center gap-2 px-3 py-2 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-white rounded-lg cursor-pointer hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 transition-colors">
-                    <input type="checkbox" data-tab="${tab.id}" ${hiddenTabs.includes(tab.id) ? 'checked' : ''} class="w-4 h-4 text-red-600 rounded focus:ring-red-500"/>
-                    <span class="text-sm text-white dark:text-white theme-light:text-slate-900">${tab.name}</span>
-                  </label>
-                `).join('')}
+              
+              <!-- Tabs -->
+              <div class="border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 pt-4">
+                <p class="text-xs font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Ocultar Pestañas:</p>
+                <div id="adminHiddenTabsList" class="flex flex-wrap gap-2 justify-center sm:justify-start">
+                  ${allTabs.map(tab => `
+                    <label class="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-white rounded-lg cursor-pointer hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 transition-colors">
+                      <input type="checkbox" data-tab="${tab.id}" ${hiddenTabs.includes(tab.id) ? 'checked' : ''} class="w-3.5 h-3.5 text-red-600 rounded focus:ring-red-500"/>
+                      <span class="text-xs text-white dark:text-white theme-light:text-slate-900">${tab.name}</span>
+                    </label>
+                  `).join('')}
+                </div>
               </div>
             </div>
             

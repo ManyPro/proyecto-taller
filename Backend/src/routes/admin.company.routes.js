@@ -14,8 +14,8 @@ router.get('/companies', requireAdminRole('developer'), async (req, res) => {
   res.json({ items: list });
 });
 
-// Patch top-level features (developer only)
-router.patch('/companies/:id/features', requireAdminRole('developer'), async (req, res) => {
+// Patch top-level features (developer or admin)
+router.patch('/companies/:id/features', requireAdminRole('developer','admin'), async (req, res) => {
   const id = req.params.id;
   const body = req.body || {};
   const c = await Company.findById(id);

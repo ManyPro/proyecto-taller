@@ -63,20 +63,20 @@ function detectInitialTheme(){
       // Verificar si ya existe el indicador
       if (document.getElementById('adminIndicatorBar')) return;
       
-      // Crear barra de indicador de admin
+      // Crear barra de indicador de admin (más compacta y discreta)
       const adminBar = document.createElement('div');
       adminBar.id = 'adminIndicatorBar';
-      adminBar.className = 'bg-slate-900 border-b border-slate-700/50 w-full';
+      adminBar.className = 'bg-slate-900/80 backdrop-blur-sm border-b border-purple-500/20 w-full';
       adminBar.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; z-index: 9999;';
       adminBar.innerHTML = `
-        <div class="w-full px-4 sm:px-6 lg:px-8">
-          <div class="flex items-center justify-between h-10">
-            <div class="flex items-center gap-2">
-              <span class="text-xs text-purple-400 font-semibold">⚙️ ADMIN:</span>
-              <span class="text-xs text-slate-300">${adminEmail}</span>
+        <div class="w-full px-3 sm:px-4">
+          <div class="flex items-center justify-between h-6">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[10px] text-purple-400/80 font-medium">⚙️ ADMIN:</span>
+              <span class="text-[10px] text-slate-400/80 truncate max-w-[200px]">${adminEmail}</span>
             </div>
             <div class="flex items-center gap-2">
-              <a href="admin.html" class="text-xs text-purple-400 hover:text-purple-300 transition-colors px-2 py-1 rounded hover:bg-purple-900/20">Volver a Admin</a>
+              <a href="admin.html" class="text-[10px] text-purple-400/80 hover:text-purple-300 transition-colors px-1.5 py-0.5 rounded hover:bg-purple-900/20">Volver</a>
             </div>
           </div>
         </div>
@@ -85,15 +85,15 @@ function detectInitialTheme(){
       // Insertar al inicio del body
       document.body.insertBefore(adminBar, document.body.firstChild);
       
-      // Ajustar padding del body
+      // Ajustar padding del body (más pequeño)
       const currentPadding = parseInt(getComputedStyle(document.body).paddingTop) || 0;
-      document.body.style.paddingTop = (currentPadding + 40) + 'px';
+      document.body.style.paddingTop = (currentPadding + 24) + 'px';
       
       // Ajustar header existente si existe
       const header = document.getElementById('appHeader');
       if (header) {
         const currentMargin = parseInt(getComputedStyle(header).marginTop) || 0;
-        header.style.marginTop = (currentMargin + 40) + 'px';
+        header.style.marginTop = (currentMargin + 24) + 'px';
       }
     } catch(e) {
       console.warn('Error mostrando indicador admin:', e);
