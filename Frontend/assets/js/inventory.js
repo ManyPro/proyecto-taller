@@ -162,7 +162,7 @@ function invOpenModal(innerHTML) {
     // Check if this is an image modal and force it
     const img = document.getElementById('modal-img');
     if (img) {
-      console.log('Image modal detected, forcing image modal setup...');
+      // Image modal detected
       if (window.forceImageModal) {
         window.forceImageModal();
       }
@@ -876,20 +876,32 @@ if (__ON_INV_PAGE__) {
     ].join('');
     const selected = Array.from(state.selected);
     invOpenModal(`
-      <h3>Publicación masiva</h3>
-      <label>Acción</label>
-      <select id="bpub-action">
-        <option value="publish">Publicar</option>
-        <option value="unpublish">Despublicar</option>
-      </select>
-      <label>Por entrada (opcional)</label>
-      <select id="bpub-intake">${optionsIntakes}</select>
-      <label>Por SKUs exactos (opcional, separados por comas)</label>
-      <input id="bpub-skus" placeholder="SKU1,SKU2,SKU3"/>
-      <div class=\"muted\" style=\"font-size:12px;\">Puedes publicar todos los de una procedencia (entrada) o escribir SKUs exactos. No es necesario seleccionar ítems.</div>
-      <div style="margin-top:10px;display:flex;gap:8px;">
-        <button id="bpub-run">Aplicar</button>
-        <button id="bpub-cancel" class="secondary">Cancelar</button>
+      <div class="p-6">
+        <h3 class="text-xl font-semibold text-white dark:text-white theme-light:text-slate-900 mb-6">Publicación masiva</h3>
+        <div class="space-y-5">
+          <div>
+            <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Acción</label>
+            <select id="bpub-action" class="w-full px-4 py-2.5 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+              <option value="publish">Publicar</option>
+              <option value="unpublish">Despublicar</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Por entrada (opcional)</label>
+            <select id="bpub-intake" class="w-full px-4 py-2.5 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">${optionsIntakes}</select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Por SKUs exactos (opcional, separados por comas)</label>
+            <input id="bpub-skus" placeholder="SKU1,SKU2,SKU3" class="w-full px-4 py-2.5 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-white dark:text-white theme-light:text-slate-900 placeholder-slate-400 dark:placeholder-slate-400 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
+          </div>
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-100 rounded-lg p-3 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
+            Puedes publicar todos los de una procedencia (entrada) o escribir SKUs exactos. No es necesario seleccionar ítems.
+          </div>
+        </div>
+        <div class="flex gap-3 mt-6 justify-end">
+          <button id="bpub-cancel" class="px-6 py-2.5 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 font-semibold transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
+          <button id="bpub-run" class="px-6 py-2.5 rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold shadow-md hover:shadow-lg transition-all duration-200">Aplicar</button>
+        </div>
       </div>
     `);
     document.getElementById('bpub-cancel').onclick = invCloseModal;
@@ -1251,14 +1263,29 @@ if (__ON_INV_PAGE__) {
     const disabledNext = page >= pages ? 'disabled' : '';
 
     const build = () => `
-      <div class="row" style="gap:8px;align-items:center;flex-wrap:wrap;">
-        <button id="inv-prev" class="secondary" ${disabledPrev}>◀ Anterior</button>
-        <span class="muted">Página ${page} de ${pages} — ${info}</span>
-        <button id="inv-next" class="secondary" ${disabledNext}>Siguiente ▶</button>
-        <span class="muted" style="margin-left:8px;">Por página:</span>
-        <select id="inv-limit" class="secondary">
-          ${[10,20,40,80].map(n=>`<option value="${n}" ${n===limit?'selected':''}>${n}</option>`).join('')}
-        </select>
+      <div class="flex flex-wrap items-center gap-4 w-full">
+        <div class="flex items-center gap-3">
+          <button id="inv-prev" class="px-4 py-2 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 font-semibold transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 ${disabledPrev ? 'opacity-50 cursor-not-allowed' : ''}" ${disabledPrev ? 'disabled' : ''}>
+            ◀ Anterior
+          </button>
+          <span class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-medium whitespace-nowrap">
+            Página ${page} de ${pages}
+          </span>
+          <span class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 whitespace-nowrap">
+            ${info}
+          </span>
+          <button id="inv-next" class="px-4 py-2 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900 font-semibold transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 ${disabledNext ? 'opacity-50 cursor-not-allowed' : ''}" ${disabledNext ? 'disabled' : ''}>
+            Siguiente ▶
+          </button>
+        </div>
+        <div class="flex items-center gap-2 ml-auto">
+          <label class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-medium whitespace-nowrap">
+            Por página:
+          </label>
+          <select id="inv-limit" class="px-3 py-2 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm font-medium">
+            ${[10,20,40,80].map(n=>`<option value="${n}" ${n===limit?'selected':''}>${n}</option>`).join('')}
+          </select>
+        </div>
       </div>`;
 
   // Ensure top pager is below filters/stickerBar
@@ -1484,7 +1511,7 @@ if (__ON_INV_PAGE__) {
             return;
           }
         } catch (e) {
-          console.warn('Fallo plantilla activa; se usará el backend PDF por defecto:', e?.message || e);
+          // Fallback a backend PDF por defecto
         }
 
         // Fallback: backend PDF por variante (layout por defecto)
@@ -2290,7 +2317,7 @@ function openMarketplaceHelper(item){
         
         // Enviar al servidor en background
         invAPI.updateItem(item._id, { marketplacePublished: published }).catch(error => {
-          console.error('Error actualizando estado:', error);
+          // Error actualizando estado
           // Revertir solo en caso de error
           item.marketplacePublished = originalState;
           publishedEl.checked = originalState;
@@ -2304,7 +2331,7 @@ function openMarketplaceHelper(item){
         });
         
       } catch (error) {
-        console.error('Error:', error);
+        // Error inesperado
         publishedEl.checked = originalState;
         alert('Error inesperado');
       }

@@ -128,12 +128,10 @@ export function openQRForItem() {
     }
     
     async function start() {
-      console.log('start() llamado - Iniciando cámara...');
       try {
         stop();
         
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        console.log('Dispositivo móvil:', isMobile);
         
         let videoConstraints;
         if (isMobile) {
@@ -285,7 +283,6 @@ export function openQRForItem() {
     }
     
     function onCode(code) {
-      console.log('onCode llamado con:', code);
       if (code) {
         handleCode(code);
       }
@@ -306,7 +303,6 @@ export function openQRForItem() {
         }
         const codes = await detector.detect(video);
         if (codes && codes.length > 0 && codes[0]?.rawValue) {
-          console.log('QR detectado (BarcodeDetector):', codes[0].rawValue);
           onCode(codes[0].rawValue);
           return; // Detener después de detectar
         }
@@ -344,7 +340,6 @@ export function openQRForItem() {
         if (window.jsQR) {
           const qr = window.jsQR(img.data, w, h);
           if (qr && qr.data) {
-            console.log('QR detectado (jsQR):', qr.data);
             onCode(qr.data);
             return; // Detener después de detectar
           }
@@ -422,7 +417,7 @@ export function openQRForItem() {
     
     // Iniciar cámara automáticamente
     start().catch(err => {
-      console.error('Error al iniciar cámara automáticamente en openQRForItem:', err);
+      // Error al iniciar cámara - se maneja en el catch del usuario
       msg.textContent = 'Error al iniciar cámara automáticamente. ' + (err?.message || 'Error desconocido');
       msg.style.color = 'var(--danger, #ef4444)';
       // Mostrar botón para intentar manualmente
@@ -447,7 +442,18 @@ function switchSubTab(name) {
 export function initPrices(){
   const tab = $('#tab-precios'); if(!tab) return;
 
-  const fMakeSelect=$('#pf-make-select'), fVehicleId=$('#pf-vehicle-id'), fVehicleSelected=$('#pf-vehicle-selected'), fVehicleName=$('#pf-vehicle-name');
+  // Elementos del nuevo sistema de menús colapsables
+  const fMakesToggle=$('#pf-makes-toggle'), fMakesToggleText=$('#pf-makes-toggle-text'), fMakesToggleIcon=$('#pf-makes-toggle-icon');
+  const fMakesCollapsible=$('#pf-makes-collapsible'), fMakesGrid=$('#pf-makes-grid'), fMakesFilter=$('#pf-makes-filter');
+  const fMakeSelected=$('#pf-make-selected'), fMakeSelectedName=$('#pf-make-selected-name'), fMakeChange=$('#pf-make-change');
+  
+  const fVehiclesContainer=$('#pf-vehicles-container'), fVehiclesToggle=$('#pf-vehicles-toggle');
+  const fVehiclesToggleText=$('#pf-vehicles-toggle-text'), fVehiclesToggleIcon=$('#pf-vehicles-toggle-icon');
+  const fVehiclesCollapsible=$('#pf-vehicles-collapsible'), fVehiclesGrid=$('#pf-vehicles-grid'), fVehiclesFilter=$('#pf-vehicles-filter');
+  const fVehiclesSelected=$('#pf-vehicles-selected'), fVehiclesSelectedList=$('#pf-vehicles-selected-list'), fVehiclesChange=$('#pf-vehicles-change');
+  
+  // Elementos legacy (mantener para compatibilidad)
+  const fVehicleId=$('#pf-vehicle-id'), fVehicleSelected=$('#pf-vehicle-selected'), fVehicleName=$('#pf-vehicle-name');
   const fLinesContainer=$('#pf-lines-container'), fLinesGrid=$('#pf-lines-grid');
   const fSearch=$('#pf-search'), fClear=$('#pf-clear');
   const btnNewService=$('#pe-new-service'), btnNewProduct=$('#pe-new-product');
@@ -463,11 +469,9 @@ export function initPrices(){
   let currentFilters = { name: '', type: '' };
   let paging = { page: 1, limit: 10, total: 0, pages: 1 };
 
-  // Acciones adicionales (import/export) – mantenemos usando DOM APIs
-  const filtersBar=document.getElementById('filters-bar')||tab;
-  const addBtn=(id, cls, text)=>{ const b=document.createElement('button'); b.id=id; b.className=cls; b.textContent=text; filtersBar?.appendChild(b); return b; };
-  const btnImport=addBtn('pe-import','secondary','📥 Importar');
-  const btnExport=addBtn('pe-export','secondary','📤 Exportar');
+  // Botones de importar/exportar (ya están en el HTML ahora)
+  const btnImport=$('#pe-import');
+  const btnExport=$('#pe-export');
 
   function renderTableHeader(){
     head.replaceChildren();
@@ -699,28 +703,212 @@ export function initPrices(){
     loadPrices();
   }
 
-  // Cargar marcas al iniciar
+  // Variables para filtrado de marcas y vehículos
+  let allMakes = [];
+  let filteredMakes = [];
+  let allVehiclesForMake = [];
+  let filteredVehicles = [];
+
+  // Cargar marcas al iniciar (nuevo sistema con tarjetas)
   async function loadMakes() {
     try {
       const r = await API.vehicles.getMakes();
-      const makes = Array.isArray(r?.makes) ? r.makes : [];
-      
-      const defaultOpt = document.createElement('option');
-      defaultOpt.value = '';
-      defaultOpt.textContent = '-- Selecciona una marca --';
-      fMakeSelect.replaceChildren(
-        defaultOpt,
-        ...makes.map(m => {
-          const opt = document.createElement('option');
-          opt.value = m;
-          opt.textContent = m;
-          return opt;
-        })
-      );
+      allMakes = Array.isArray(r?.makes) ? r.makes : [];
+      filteredMakes = [...allMakes];
+      renderMakesGrid();
     } catch (err) {
       console.error('Error al cargar marcas:', err);
+      if (fMakesGrid) {
+        fMakesGrid.innerHTML = '<div class="text-center py-6 text-red-400">Error al cargar marcas</div>';
+      }
     }
   }
+
+  // Renderizar grid de marcas con filtrado
+  function renderMakesGrid() {
+    if (!fMakesGrid) return;
+    
+    if (filteredMakes.length === 0) {
+      fMakesGrid.innerHTML = '<div class="col-span-full text-center py-6 text-slate-400">No se encontraron marcas</div>';
+      return;
+    }
+
+    fMakesGrid.innerHTML = filteredMakes.map(make => {
+      const isSelected = selectedMake === make;
+      return `
+        <div class="make-card p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 text-center ${
+          isSelected 
+            ? 'bg-blue-600/20 dark:bg-blue-600/20 theme-light:bg-blue-50 border-blue-500 dark:border-blue-500 theme-light:border-blue-400' 
+            : 'bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 hover:border-blue-500 dark:hover:border-blue-500 theme-light:hover:border-blue-400'
+        }" data-make="${make}">
+          <div class="font-semibold text-lg text-white dark:text-white theme-light:text-slate-900 ${isSelected ? 'text-blue-400 dark:text-blue-400 theme-light:text-blue-600' : ''}">${make}</div>
+          ${isSelected ? '<div class="mt-2 text-blue-400 dark:text-blue-400 theme-light:text-blue-600 text-sm">✓ Seleccionada</div>' : ''}
+        </div>
+      `;
+    }).join('');
+
+    // Agregar event listeners a las tarjetas
+    fMakesGrid.querySelectorAll('.make-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const make = card.dataset.make;
+        selectMake(make);
+      });
+      
+      card.addEventListener('mouseenter', function() {
+        if (selectedMake !== this.dataset.make) {
+          this.classList.add('transform', '-translate-y-1', 'shadow-lg');
+        }
+      });
+      
+      card.addEventListener('mouseleave', function() {
+        if (selectedMake !== this.dataset.make) {
+          this.classList.remove('transform', '-translate-y-1', 'shadow-lg');
+        }
+      });
+    });
+  }
+
+  // Seleccionar marca
+  async function selectMake(make) {
+    if (!make) {
+      selectedMake = null;
+      collapseMakesMenu();
+      hideVehiclesMenu();
+      return;
+    }
+
+    selectedMake = make;
+    collapseMakesMenu();
+    await loadVehiclesForMake(make);
+    showVehiclesMenu();
+  }
+
+  // Colapsar menú de marcas
+  function collapseMakesMenu() {
+    if (fMakesCollapsible) fMakesCollapsible.classList.add('hidden');
+    if (fMakesToggleIcon) fMakesToggleIcon.style.transform = 'rotate(0deg)';
+    if (fMakeSelected) fMakeSelected.classList.remove('hidden');
+    if (fMakeSelectedName) fMakeSelectedName.textContent = selectedMake || '';
+    if (fMakesToggleText) fMakesToggleText.textContent = selectedMake ? `Marca: ${selectedMake}` : 'Seleccionar marca';
+  }
+
+  // Expandir menú de marcas
+  function expandMakesMenu() {
+    if (fMakesCollapsible) fMakesCollapsible.classList.remove('hidden');
+    if (fMakesToggleIcon) fMakesToggleIcon.style.transform = 'rotate(180deg)';
+    if (fMakeSelected) fMakeSelected.classList.add('hidden');
+  }
+
+  // Mostrar menú de vehículos
+  function showVehiclesMenu() {
+    if (fVehiclesContainer) fVehiclesContainer.classList.remove('hidden');
+  }
+
+  // Ocultar menú de vehículos
+  function hideVehiclesMenu() {
+    if (fVehiclesContainer) fVehiclesContainer.classList.add('hidden');
+    if (fVehiclesCollapsible) fVehiclesCollapsible.classList.add('hidden');
+    if (fVehiclesSelected) fVehiclesSelected.classList.add('hidden');
+  }
+
+  // Cargar vehículos para una marca
+  async function loadVehiclesForMake(make) {
+    if (!make || !fVehiclesGrid) return;
+    
+    fVehiclesGrid.innerHTML = '<div class="col-span-full text-center py-6 text-slate-400">Cargando vehículos...</div>';
+    
+    try {
+      const vehiclesData = await API.vehicles.list({ make });
+      allVehiclesForMake = Array.isArray(vehiclesData?.items) ? vehiclesData.items : [];
+      filteredVehicles = [...allVehiclesForMake];
+      renderVehiclesGrid();
+    } catch (err) {
+      console.error('Error al cargar vehículos:', err);
+      fVehiclesGrid.innerHTML = '<div class="col-span-full text-center py-6 text-red-400">Error al cargar vehículos</div>';
+    }
+  }
+
+  // Renderizar grid de vehículos con filtrado
+  function renderVehiclesGrid() {
+    if (!fVehiclesGrid) return;
+    
+    if (filteredVehicles.length === 0) {
+      fVehiclesGrid.innerHTML = '<div class="col-span-full text-center py-6 text-slate-400">No se encontraron vehículos</div>';
+      return;
+    }
+
+    fVehiclesGrid.innerHTML = filteredVehicles.map(vehicle => {
+      const isSelected = selectedVehicles.some(sv => sv._id === vehicle._id);
+      return `
+        <div class="vehicle-card p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+          isSelected 
+            ? 'bg-green-600/20 dark:bg-green-600/20 theme-light:bg-green-50 border-green-500 dark:border-green-500 theme-light:border-green-400' 
+            : 'bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 hover:border-green-500 dark:hover:border-green-500 theme-light:hover:border-green-400'
+        }" data-vehicle-id="${vehicle._id}">
+          <div class="flex items-center gap-2 mb-2">
+            <input type="checkbox" ${isSelected ? 'checked' : ''} class="vehicle-checkbox w-4 h-4" data-vehicle-id="${vehicle._id}" />
+            <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 flex-1">${vehicle.make} ${vehicle.line}</div>
+          </div>
+          <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+            Cilindraje: ${vehicle.displacement || '-'}
+            ${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Agregar event listeners
+    fVehiclesGrid.querySelectorAll('.vehicle-card').forEach(card => {
+      const checkbox = card.querySelector('.vehicle-checkbox');
+      const vehicleId = card.dataset.vehicleId;
+      const vehicle = allVehiclesForMake.find(v => v._id === vehicleId);
+      
+      if (!vehicle) return;
+
+      // Click en checkbox
+      if (checkbox) {
+        checkbox.addEventListener('change', (e) => {
+          e.stopPropagation();
+          toggleVehicleSelection(vehicle);
+        });
+      }
+
+      // Click en tarjeta
+      card.addEventListener('click', (e) => {
+        if (e.target.type !== 'checkbox' && !e.target.closest('.vehicle-checkbox')) {
+          toggleVehicleSelection(vehicle);
+        }
+      });
+
+      card.addEventListener('mouseenter', function() {
+        if (!selectedVehicles.some(sv => sv._id === vehicleId)) {
+          this.classList.add('transform', '-translate-y-1', 'shadow-lg');
+        }
+      });
+
+      card.addEventListener('mouseleave', function() {
+        if (!selectedVehicles.some(sv => sv._id === vehicleId)) {
+          this.classList.remove('transform', '-translate-y-1', 'shadow-lg');
+        }
+      });
+    });
+  }
+
+  // Colapsar menú de vehículos
+  function collapseVehiclesMenu() {
+    if (fVehiclesCollapsible) fVehiclesCollapsible.classList.add('hidden');
+    if (fVehiclesToggleIcon) fVehiclesToggleIcon.style.transform = 'rotate(0deg)';
+    if (fVehiclesSelected) fVehiclesSelected.classList.remove('hidden');
+    updateSelectedVehiclesDisplayNew();
+  }
+
+  // Expandir menú de vehículos
+  function expandVehiclesMenu() {
+    if (fVehiclesCollapsible) fVehiclesCollapsible.classList.remove('hidden');
+    if (fVehiclesToggleIcon) fVehiclesToggleIcon.style.transform = 'rotate(180deg)';
+    if (fVehiclesSelected) fVehiclesSelected.classList.add('hidden');
+  }
+
 
   // Cargar líneas de una marca
   async function loadLinesForMake(make) {
@@ -1040,19 +1228,32 @@ export function initPrices(){
       // Seleccionar
       selectedVehicles.push(vehicle);
     }
+    
+    // Actualizar visual del grid de vehículos
+    renderVehiclesGrid();
+    
+    // Colapsar menú de vehículos si hay al menos uno seleccionado
+    if (selectedVehicles.length > 0) {
+      collapseVehiclesMenu();
+    }
+    
     updateSelectedVehiclesDisplay();
   }
   
   function updateSelectedVehiclesDisplay() {
+    // Actualizar display del nuevo sistema (sin recursión)
+    updateSelectedVehiclesDisplayNew();
+    
     if (selectedVehicles.length === 0) {
       selectedVehicle = null;
       activeTabVehicleId = null;
       fVehicleId.value = '';
-      fVehicleName.textContent = '';
-      fVehicleSelected.style.display = 'none';
-      fLinesContainer.style.display = 'block';
-      actionsBar.style.display = 'none';
-      $('#pe-filters').style.display = 'none';
+      if (fVehicleName) fVehicleName.textContent = '';
+      if (fVehicleSelected) fVehicleSelected.style.display = 'none';
+      if (fLinesContainer) fLinesContainer.style.display = 'none';
+      if (actionsBar) actionsBar.style.display = 'none';
+      const filtersEl = $('#pe-filters');
+      if (filtersEl) filtersEl.style.display = 'none';
       if (vehicleTabsContainer) {
         vehicleTabsContainer.style.display = 'none';
         vehicleTabsContainer.innerHTML = '';
@@ -1065,29 +1266,27 @@ export function initPrices(){
       // Hay vehículos seleccionados (1 o más)
       if (selectedVehicles.length === 1) {
         selectedVehicle = selectedVehicles[0];
-        activeTabVehicleId = null; // Limpiar pestaña activa cuando hay un solo vehículo
+        activeTabVehicleId = null;
         fVehicleId.value = selectedVehicle._id;
-        fVehicleName.textContent = `✓ Vehículo seleccionado: ${selectedVehicle.make} ${selectedVehicle.line} - Cilindraje: ${selectedVehicle.displacement}${selectedVehicle.modelYear ? ` | Modelo: ${selectedVehicle.modelYear}` : ''}`;
-        // Ocultar pestañas cuando hay un solo vehículo
+        if (fVehicleName) fVehicleName.textContent = `✓ Vehículo seleccionado: ${selectedVehicle.make} ${selectedVehicle.line} - Cilindraje: ${selectedVehicle.displacement}${selectedVehicle.modelYear ? ` | Modelo: ${selectedVehicle.modelYear}` : ''}`;
         renderVehicleTabs();
-        // Cargar precios solo si hay un solo vehículo
         currentPage = 1;
         currentFilters = { name: '', type: '' };
-        $('#pe-filter-name').value = '';
-        $('#pe-filter-type').value = '';
+        const filterName = $('#pe-filter-name');
+        const filterType = $('#pe-filter-type');
+        if (filterName) filterName.value = '';
+        if (filterType) filterType.value = '';
         loadPrices();
       } else {
         // Múltiples vehículos seleccionados
-        selectedVehicle = null; // No hay un vehículo único seleccionado
+        selectedVehicle = null;
         fVehicleId.value = '';
-        fVehicleName.textContent = `✓ ${selectedVehicles.length} vehículos seleccionados`;
+        if (fVehicleName) fVehicleName.textContent = `✓ ${selectedVehicles.length} vehículos seleccionados`;
         
-        // Activar el primer vehículo por defecto si no hay uno activo
         if (!activeTabVehicleId && selectedVehicles.length > 0) {
           activeTabVehicleId = selectedVehicles[0]._id;
         }
         
-        // Renderizar pestañas y cargar precios del vehículo activo
         renderVehicleTabs();
         currentPage = 1;
         currentFilters = { name: '', type: '' };
@@ -1098,20 +1297,37 @@ export function initPrices(){
         loadPrices();
       }
       
-      // Siempre mostrar la barra de acciones y mantener visible el contenedor de líneas para seguir seleccionando
-      fVehicleSelected.style.display = 'block';
-      fLinesContainer.style.display = 'block'; // Mantener visible para seguir seleccionando
-      actionsBar.style.display = 'flex';
+      if (fVehicleSelected) fVehicleSelected.style.display = 'block';
+      if (fLinesContainer) fLinesContainer.style.display = 'block';
+      if (actionsBar) actionsBar.style.display = 'flex';
       
-      // Mostrar filtros si hay vehículos seleccionados (1 o más)
-      if (selectedVehicles.length >= 1) {
-        $('#pe-filters').style.display = 'flex';
-      } else {
-        $('#pe-filters').style.display = 'none';
+      const filtersEl = $('#pe-filters');
+      if (filtersEl && selectedVehicles.length >= 1) {
+        filtersEl.style.display = 'flex';
+      } else if (filtersEl) {
+        filtersEl.style.display = 'none';
       }
       
-      // Actualizar visual de las tarjetas seleccionadas
       updateLinesVisualSelection();
+    }
+  }
+  
+  // Función auxiliar para actualizar el display del nuevo sistema (sin recursión)
+  function updateSelectedVehiclesDisplayNew() {
+    if (!fVehiclesSelectedList) return;
+    
+    if (selectedVehicles.length === 0) {
+      fVehiclesSelectedList.innerHTML = '<span class="text-slate-400 text-sm">Ningún vehículo seleccionado</span>';
+      if (fVehiclesToggleText) fVehiclesToggleText.textContent = 'Seleccionar vehículo(s)';
+    } else {
+      fVehiclesSelectedList.innerHTML = selectedVehicles.map(v => `
+        <span class="px-3 py-1 bg-green-600/20 dark:bg-green-600/20 theme-light:bg-green-50 text-green-400 dark:text-green-400 theme-light:text-green-600 rounded-lg text-sm font-medium border border-green-600/30 dark:border-green-600/30 theme-light:border-green-300">
+          ${v.make} ${v.line} ${v.displacement || ''}
+        </span>
+      `).join('');
+      if (fVehiclesToggleText) {
+        fVehiclesToggleText.textContent = `${selectedVehicles.length} vehículo(s) seleccionado(s)`;
+      }
     }
   }
   
@@ -1154,7 +1370,18 @@ export function initPrices(){
     activeTabVehicleId = null;
     selectedMake = null;
     fVehicleId.value = '';
-    fMakeSelect.value = '';
+    
+    // Limpiar nuevo sistema
+    hideVehiclesMenu();
+    if (fMakeSelected) fMakeSelected.classList.add('hidden');
+    if (fMakesToggleText) fMakesToggleText.textContent = 'Seleccionar marca';
+    if (fMakesFilter) fMakesFilter.value = '';
+    filteredMakes = [...allMakes];
+    renderMakesGrid();
+    
+    // Limpiar sistema legacy
+    const fMakeSelect = $('#pf-make-select');
+    if (fMakeSelect) fMakeSelect.value = '';
     fVehicleSelected.style.display = 'none';
     fLinesContainer.style.display = 'none';
     actionsBar.style.display = 'none';
@@ -1176,7 +1403,91 @@ export function initPrices(){
     if (filterType) filterType.value = '';
   }
 
-  // Eventos UI
+  // Event listeners para el nuevo sistema de menús colapsables
+  
+  // Toggle menú de marcas
+  if (fMakesToggle) {
+    fMakesToggle.addEventListener('click', () => {
+      const isHidden = fMakesCollapsible?.classList.contains('hidden');
+      if (isHidden) {
+        expandMakesMenu();
+      } else {
+        collapseMakesMenu();
+      }
+    });
+  }
+
+  // Botón "Cambiar" marca
+  if (fMakeChange) {
+    fMakeChange.addEventListener('click', () => {
+      expandMakesMenu();
+    });
+  }
+
+  // Filtro de marcas
+  if (fMakesFilter) {
+    let makesFilterTimeout = null;
+    fMakesFilter.addEventListener('input', (e) => {
+      clearTimeout(makesFilterTimeout);
+      makesFilterTimeout = setTimeout(() => {
+        const query = e.target.value.trim().toLowerCase();
+        if (query === '') {
+          filteredMakes = [...allMakes];
+        } else {
+          filteredMakes = allMakes.filter(make => 
+            make.toLowerCase().includes(query)
+          );
+        }
+        renderMakesGrid();
+      }, 300);
+    });
+  }
+
+  // Toggle menú de vehículos
+  if (fVehiclesToggle) {
+    fVehiclesToggle.addEventListener('click', () => {
+      const isHidden = fVehiclesCollapsible?.classList.contains('hidden');
+      if (isHidden) {
+        expandVehiclesMenu();
+      } else {
+        collapseVehiclesMenu();
+      }
+    });
+  }
+
+  // Botón "Cambiar" vehículos
+  if (fVehiclesChange) {
+    fVehiclesChange.addEventListener('click', () => {
+      expandVehiclesMenu();
+    });
+  }
+
+  // Filtro de vehículos
+  if (fVehiclesFilter) {
+    let vehiclesFilterTimeout = null;
+    fVehiclesFilter.addEventListener('input', (e) => {
+      clearTimeout(vehiclesFilterTimeout);
+      vehiclesFilterTimeout = setTimeout(() => {
+        const query = e.target.value.trim().toLowerCase();
+        if (query === '') {
+          filteredVehicles = [...allVehiclesForMake];
+        } else {
+          filteredVehicles = allVehiclesForMake.filter(v => {
+            const make = (v.make || '').toLowerCase();
+            const line = (v.line || '').toLowerCase();
+            const displacement = (v.displacement || '').toLowerCase();
+            const modelYear = (v.modelYear || '').toLowerCase();
+            return make.includes(query) || line.includes(query) || 
+                   displacement.includes(query) || modelYear.includes(query);
+          });
+        }
+        renderVehiclesGrid();
+      }, 300);
+    });
+  }
+
+  // Eventos UI legacy (mantener para compatibilidad)
+  const fMakeSelect = $('#pf-make-select');
   if (fMakeSelect) {
     fMakeSelect.addEventListener('change', (e) => {
       selectedMake = e.target.value;
@@ -2497,12 +2808,20 @@ export function initPrices(){
 
   // Import / Export
   if (btnExport) {
-  btnExport.onclick = async ()=>{
-      if(!selectedVehicle) return alert('Selecciona un vehículo');
+    btnExport.onclick = async () => {
+      const vehicleToUse = selectedVehicles.length > 0 
+        ? selectedVehicles[0] 
+        : (selectedVehicle || null);
+      
+      if (!vehicleToUse) return alert('Selecciona un vehículo');
+      
       try {
         btnExport.disabled = true;
-        btnExport.textContent = 'Exportando...';
-        const url = `${API.base || ''}/api/v1/prices/export?vehicleId=${selectedVehicle._id}`;
+        const exportText = btnExport.querySelector('span:last-child');
+        if (exportText) exportText.textContent = 'Exportando...';
+        else btnExport.textContent = 'Exportando...';
+        
+        const url = `${API.base || ''}/api/v1/prices/export?vehicleId=${vehicleToUse._id}`;
         const res = await fetch(url, { headers: { ...(API.token?.get ? { Authorization: `Bearer ${API.token.get()}` } : {}) } });
         if(!res.ok) throw new Error('No se pudo exportar');
         const blob = await res.blob();
@@ -2521,14 +2840,23 @@ export function initPrices(){
         alert('Error al exportar: ' + e.message);
       } finally {
         btnExport.disabled = false;
-        btnExport.textContent = '📤 Exportar';
+        if (btnExport) {
+          const exportText = btnExport.querySelector('span:last-child');
+          if (exportText) exportText.textContent = 'Exportar';
+          else btnExport.textContent = '📤 Exportar';
+        }
       }
     };
   }
 
   if (btnImport) {
-    btnImport.onclick = async ()=>{
-      if(!selectedVehicle) return alert('Selecciona un vehículo');
+    btnImport.onclick = async () => {
+      const vehicleToUse = selectedVehicles.length > 0 
+        ? selectedVehicles[0] 
+        : (selectedVehicle || null);
+      
+      if (!vehicleToUse) return alert('Selecciona un vehículo');
+      
       const body=$('#modalBody'), closeBtn=$('#modalClose'); 
       body.replaceChildren();
       
@@ -2537,7 +2865,7 @@ export function initPrices(){
       node.innerHTML = `
         <h3>Importar precios</h3>
         <p class="muted" style="margin-bottom:16px;font-size:13px;">
-          Vehículo: <strong>${selectedVehicle.make} ${selectedVehicle.line}</strong>
+          Vehículo: <strong>${vehicleToUse.make} ${vehicleToUse.line}</strong>
         </p>
         <div style="margin-bottom:16px;">
           <button id="pe-download-template" class="secondary" style="width:100%;padding:10px;margin-bottom:8px;">📥 Descargar plantilla</button>
@@ -2561,13 +2889,13 @@ export function initPrices(){
       templateBtn.onclick = async () => {
         try {
           templateBtn.disabled = true;
-          const url = `${API.base || ''}/api/v1/prices/import/template?vehicleId=${selectedVehicle._id}`;
+          const url = `${API.base || ''}/api/v1/prices/import/template?vehicleId=${vehicleToUse._id}`;
           const res = await fetch(url, { headers: { ...(API.token?.get ? { Authorization: `Bearer ${API.token.get()}` } : {}) } });
           if(!res.ok) throw new Error('No se pudo descargar la plantilla');
           const blob = await res.blob();
           const a = document.createElement('a');
           a.href = URL.createObjectURL(blob);
-          a.download = `plantilla-precios-${selectedVehicle.make}-${selectedVehicle.line}.xlsx`;
+          a.download = `plantilla-precios-${vehicleToUse.make}-${vehicleToUse.line}.xlsx`;
           document.body.appendChild(a); 
           a.click(); 
           a.remove();
@@ -2595,7 +2923,7 @@ export function initPrices(){
           
           const formData = new FormData();
           formData.append('file', file);
-          formData.append('vehicleId', selectedVehicle._id);
+          formData.append('vehicleId', vehicleToUse._id);
           formData.append('mode', 'upsert');
           
           const url = `${API.base || ''}/api/v1/prices/import`;
