@@ -44,17 +44,38 @@ function bind(){
 async function loadAccounts(){
   try{
     const list = await API.accounts.balances();
+    let balances = list.balances || [];
+    
+    // Filtrar cuentas según restrictions.cashflow.hiddenAccounts
+    try {
+      const restrictions = await API.company.getRestrictions();
+      const hiddenAccounts = restrictions?.cashflow?.hiddenAccounts || [];
+      if(Array.isArray(hiddenAccounts) && hiddenAccounts.length > 0){
+        const hiddenIds = hiddenAccounts.map(id => String(id));
+        balances = balances.filter(acc => {
+          const accountId = String(acc.accountId || acc._id || acc.id || '');
+          return !hiddenIds.includes(accountId);
+        });
+      }
+    } catch(e) {
+      console.warn('Error obteniendo restrictions para filtrar cuentas:', e);
+    }
+    
     const body = document.getElementById('cf-acc-body');
     const totalLbl = document.getElementById('cf-acc-total');
     const filterSel = document.getElementById('cf-filter-account');
+    
+    // Recalcular total solo con cuentas visibles
+    const visibleTotal = balances.reduce((sum, acc) => sum + (Number(acc.balance) || 0), 0);
+    
     if(body){
-      body.innerHTML = (list.balances||[]).map(a=>`<tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors"><td data-label="Nombre" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${a.name}</td><td data-label="Tipo" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${a.type}</td><td data-label="Saldo" class="px-4 py-3 text-right text-xs font-semibold text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(a.balance)}</td><td class="px-4 py-3"></td></tr>`).join('');
-      if(!(list.balances||[]).length) body.innerHTML='<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin cuentas</td></tr>';
+      body.innerHTML = balances.map(a=>`<tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors"><td data-label="Nombre" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtml(a.name)}</td><td data-label="Tipo" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtml(a.type)}</td><td data-label="Saldo" class="px-4 py-3 text-right text-xs font-semibold text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(a.balance)}</td><td class="px-4 py-3"></td></tr>`).join('');
+      if(!balances.length) body.innerHTML='<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin cuentas</td></tr>';
     }
-    if(totalLbl) totalLbl.textContent = 'Total: '+money(list.total||0);
+    if(totalLbl) totalLbl.textContent = 'Total: '+money(visibleTotal);
     if(filterSel){
       const selVal = filterSel.value;
-      filterSel.innerHTML='<option value="">-- Cuenta --</option>' + (list.balances||[]).map(a=>`<option value="${a.accountId}">${a.name}</option>`).join('');
+      filterSel.innerHTML='<option value="">-- Cuenta --</option>' + balances.map(a=>`<option value="${a.accountId || a._id || a.id}">${escapeHtml(a.name)}</option>`).join('');
       if(selVal) filterSel.value=selVal;
     }
   }catch(e){ 

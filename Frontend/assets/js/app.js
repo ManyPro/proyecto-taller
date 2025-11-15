@@ -295,6 +295,19 @@ function showTab(name) {
     highlightCurrentNav();
     return;
   }
+  
+  // Verificar si la pestaña está oculta antes de navegar
+  if(name !== 'home' && name !== 'admin') {
+    const hidden = isTabHidden(name);
+    if(hidden) {
+      // Si está oculta, redirigir a home
+      const homeBtn = document.querySelector(`button[data-tab="home"]`);
+      const homeHref = homeBtn?.dataset.href || 'index.html';
+      window.location.href = homeHref;
+      return;
+    }
+  }
+  
   const btn = document.querySelector(`.tabs button[data-tab="${name}"]`);
   const href = btn?.dataset?.href;
   if (href) {
@@ -314,6 +327,19 @@ const pageInitializers = {
 let pageBooted = false;
 function bootCurrentPage() {
   if (pageBooted) return;
+  
+  // Verificar si la página actual está oculta
+  const currentPage = getCurrentPage();
+  if(currentPage && currentPage !== 'home' && currentPage !== 'admin') {
+    const hidden = isTabHidden(currentPage);
+    if(hidden) {
+      // Si está oculta, redirigir a home
+      const homeHref = document.querySelector(`button[data-tab="home"]`)?.dataset.href || 'index.html';
+      window.location.href = homeHref;
+      return;
+    }
+  }
+  
   const init = pageInitializers[getCurrentPage()];
   if (typeof init === 'function') {
     init();
@@ -350,6 +376,14 @@ function enterApp() {
   appHeader?.classList.remove('hidden');
   portalSection?.classList.add('hidden');
   logoutBtn?.classList.remove('hidden');
+  
+  // Limpiar caché de restrictions cuando se entra a la app (por si cambió la empresa)
+  const currentEmail = API.getActiveCompany?.() || '';
+  if(cachedRestrictionsEmail !== currentEmail) {
+    cachedRestrictions = null;
+    cachedRestrictionsEmail = null;
+  }
+  
   applyFeatureGating();
   setupNavigation();
   bootCurrentPage();
@@ -525,9 +559,10 @@ async function doLogin(isRegister = false) {
     updateCompanyLabels({ email: resolvedEmail, name: compName });
     API.setActiveCompany(resolvedEmail);
   try{ if(res?.company?.features) localStorage.setItem(featuresKeyFor(resolvedEmail), JSON.stringify(res.company.features)); }catch{}
-    // Cargar restrictions
+    // Cargar restrictions (forzar recarga desde servidor)
     cachedRestrictions = null;
-    await getRestrictions();
+    cachedRestrictionsEmail = null;
+    await getRestrictions(true); // Forzar recarga desde servidor
     enterApp();
     applyFeatureGating();
     // Tras login exitoso, siempre ir a Inicio
@@ -613,9 +648,10 @@ function initializeLogoutListener() {
       updateCompanyLabels({ email: company.email, name: company.name });
       // Persist features if provided
       try{ if(company.features) localStorage.setItem(featuresKeyFor(company.email), JSON.stringify(company.features)); }catch{}
-      // Cargar restrictions
+      // Cargar restrictions (forzar recarga desde servidor)
       cachedRestrictions = null;
-      await getRestrictions();
+      cachedRestrictionsEmail = null;
+      await getRestrictions(true); // Forzar recarga desde servidor
       enterApp();
       applyFeatureGating();
     } else {
@@ -629,6 +665,40 @@ function initializeLogoutListener() {
     if (getCurrentPage() !== 'home') window.location.href = 'index.html';
   }
 })();
+
+// Listener para detectar cambios en la empresa activa (polling y storage events)
+if(typeof window !== 'undefined' && window.addEventListener) {
+  let lastActiveCompany = API.getActiveCompany?.() || '';
+  
+  // Polling para detectar cambios en la empresa activa (cada 2 segundos)
+  setInterval(() => {
+    const currentActiveCompany = API.getActiveCompany?.() || '';
+    if(currentActiveCompany && currentActiveCompany !== lastActiveCompany) {
+      lastActiveCompany = currentActiveCompany;
+      // La empresa activa cambió, limpiar caché de restrictions
+      cachedRestrictions = null;
+      cachedRestrictionsEmail = null;
+      // Recargar restrictions y aplicar filtros
+      getRestrictions(true).then(() => {
+        applyFeatureGating();
+      }).catch(() => {});
+    }
+  }, 2000);
+  
+  // También escuchar eventos de storage (para cambios entre pestañas)
+  window.addEventListener('storage', (e) => {
+    if(e.key && e.key.includes('taller.activeCompany')) {
+      // La empresa activa cambió, limpiar caché de restrictions
+      cachedRestrictions = null;
+      cachedRestrictionsEmail = null;
+      lastActiveCompany = API.getActiveCompany?.() || '';
+      // Recargar restrictions y aplicar filtros
+      getRestrictions(true).then(() => {
+        applyFeatureGating();
+      }).catch(() => {});
+    }
+  });
+}
 
 // === Notificaciones (campana) ===
 (function(){
@@ -1007,21 +1077,43 @@ function isFeatureEnabled(name){
 }
 // Obtener restrictions desde localStorage o API
 let cachedRestrictions = null;
-async function getRestrictions(){
-  if(cachedRestrictions) return cachedRestrictions;
+let cachedRestrictionsEmail = null; // Track qué email tiene el caché
+
+async function getRestrictions(force = false){
+  const email = API.getActiveCompany?.() || '';
+  if(!email) {
+    cachedRestrictions = null;
+    cachedRestrictionsEmail = null;
+    return {};
+  }
+  
+  // Si el email cambió, limpiar caché
+  if(cachedRestrictionsEmail !== email) {
+    cachedRestrictions = null;
+    cachedRestrictionsEmail = null;
+  }
+  
+  // Si hay caché y no se fuerza recarga, devolverlo
+  if(cachedRestrictions && !force) {
+    return cachedRestrictions;
+  }
+  
   try{
-    const email = API.getActiveCompany?.() || '';
-    if(!email) return {};
+    // Intentar cargar desde localStorage primero (más rápido)
     const stored = localStorage.getItem(`taller.restrictions:${__SCOPE}:${email.toLowerCase()}`);
-    if(stored){
+    if(stored && !force){
       try{
         cachedRestrictions = JSON.parse(stored);
+        cachedRestrictionsEmail = email;
         return cachedRestrictions;
       }catch{}
     }
+    
+    // Cargar desde servidor (siempre para asegurar datos actualizados)
     const remote = await API.company.getRestrictions();
     if(remote && typeof remote === 'object'){
       cachedRestrictions = remote;
+      cachedRestrictionsEmail = email;
       try{
         localStorage.setItem(`taller.restrictions:${__SCOPE}:${email.toLowerCase()}`, JSON.stringify(remote));
       }catch{}
@@ -1030,11 +1122,32 @@ async function getRestrictions(){
   }catch(err){
     console.warn('restrictions sync failed', err?.message || err);
   }
-  return {};
+  
+  // Si falla todo, devolver objeto vacío pero asegurar que el caché esté limpio si el email cambió
+  if(cachedRestrictionsEmail !== email) {
+    cachedRestrictions = {};
+    cachedRestrictionsEmail = email;
+  }
+  return cachedRestrictions || {};
 }
 
 function isTabHidden(tabId){
   if(!tabId) return false;
+  // Asegurar que tenemos restrictions cargadas
+  if(!cachedRestrictions) {
+    // Si no hay caché, intentar cargar síncronamente desde localStorage
+    const email = API.getActiveCompany?.() || '';
+    if(email) {
+      try {
+        const stored = localStorage.getItem(`taller.restrictions:${__SCOPE}:${email.toLowerCase()}`);
+        if(stored) {
+          cachedRestrictions = JSON.parse(stored);
+          cachedRestrictionsEmail = email;
+        }
+      } catch {}
+    }
+  }
+  
   const restrictions = cachedRestrictions || {};
   const hiddenTabs = restrictions.hiddenTabs || [];
   if(!Array.isArray(hiddenTabs)) return false;
@@ -1042,6 +1155,21 @@ function isTabHidden(tabId){
 }
 
 function applyFeatureGating(){
+  // Asegurar que restrictions estén cargadas antes de aplicar filtros
+  if(!cachedRestrictions) {
+    // Intentar cargar desde localStorage si no hay caché
+    const email = API.getActiveCompany?.() || '';
+    if(email) {
+      try {
+        const stored = localStorage.getItem(`taller.restrictions:${__SCOPE}:${email.toLowerCase()}`);
+        if(stored) {
+          cachedRestrictions = JSON.parse(stored);
+          cachedRestrictionsEmail = email;
+        }
+      } catch {}
+    }
+  }
+  
   // Aplicar filtrado por features
   document.querySelectorAll('.tabs button[data-feature], nav button[data-feature], .mobile-nav-tab[data-feature]').forEach(btn => {
     const feature = btn.getAttribute('data-feature');
@@ -1062,8 +1190,28 @@ function applyFeatureGating(){
       btn.style.display = '';
       return;
     }
-    const hidden = isTabHidden(tabId);
-    if(hidden){
+    
+    // Verificar tanto features como hiddenTabs
+    const feature = btn.getAttribute('data-feature');
+    let shouldHide = false;
+    
+    // Si tiene feature, verificar que esté habilitado
+    if(feature) {
+      const featureEnabled = isFeatureEnabled(feature);
+      if(!featureEnabled) {
+        shouldHide = true;
+      }
+    }
+    
+    // Verificar si está en hiddenTabs
+    if(!shouldHide) {
+      const hidden = isTabHidden(tabId);
+      if(hidden) {
+        shouldHide = true;
+      }
+    }
+    
+    if(shouldHide){
       btn.style.display = 'none';
       // Si la pestaña actual está oculta, redirigir a Inicio
       const currentPage = getCurrentPage();
@@ -1088,9 +1236,10 @@ async function syncFeaturesFromServer(force=false){
       setLocalFeatures(email, remote);
       lastFeaturesSyncTs = now;
     }
-    // También sincronizar restrictions
+    // También sincronizar restrictions (forzar recarga)
     cachedRestrictions = null;
-    await getRestrictions();
+    cachedRestrictionsEmail = null;
+    await getRestrictions(true); // Forzar recarga desde servidor
     applyFeatureGating();
   }catch(err){
     console.warn('feature sync failed', err?.message || err);

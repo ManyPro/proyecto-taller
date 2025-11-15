@@ -1371,7 +1371,7 @@
         }
         
         // Esperar un momento para asegurar que los cambios se persistan en la BD
-        await new Promise(resolve => setTimeout(resolve, 200));
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         // Recargar datos de empresa desde el servidor
         const r = await req('/api/v1/admin/companies');
@@ -1404,7 +1404,7 @@
         // Recargar la pestaña de admin con los datos actualizados
         await loadAdminTab();
         
-        alert('✅ Todos los cambios guardados correctamente');
+        alert('✅ Todos los cambios guardados correctamente\n\nLos cambios se aplicarán cuando ingreses con esa empresa.');
       }catch(e){
         alert('❌ Error: ' + (e.message || 'Error desconocido'));
       }
