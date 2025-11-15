@@ -9,7 +9,7 @@ const state = {
   items: [],
   selected: new Set(),
   itemCache: new Map(),
-  paging: { page: 1, limit: 10, pages: 1, total: 0 },
+  paging: { page: 1, limit: 15, pages: 1, total: 0 },
   permissions: {}
 };
 
@@ -1132,9 +1132,9 @@ if (__ON_INV_PAGE__) {
     delete filters.page; delete filters.limit;
     const prevFilters = { ...prev }; delete prevFilters.page; delete prevFilters.limit;
     const filtersChanged = JSON.stringify(filters) !== JSON.stringify(prevFilters);
-    const paging = state.paging || { page: 1, limit: 10 };
+    const paging = state.paging || { page: 1, limit: 15 };
     const page = filtersChanged ? 1 : (params.page || prev.page || paging.page || 1);
-    const limit = params.limit || prev.limit || paging.limit || 10;
+    const limit = params.limit || prev.limit || paging.limit || 15;
     const nextParams = { ...filters, page, limit };
     state.lastItemsParams = nextParams;
     const { data, meta } = await invAPI.listItems(nextParams);
@@ -1143,14 +1143,14 @@ if (__ON_INV_PAGE__) {
     if (meta && (meta.total != null || meta.pages != null || meta.page != null)) {
       state.paging = {
         page: meta.page || page || 1,
-        pages: meta.pages || Math.max(1, Math.ceil((meta.total || state.items.length || 0) / (meta.limit || limit || 10))),
+        pages: meta.pages || Math.max(1, Math.ceil((meta.total || state.items.length || 0) / (meta.limit || limit || 15))),
         total: meta.total || state.items.length || 0,
-        limit: meta.limit || limit || 10,
+        limit: meta.limit || limit || 15,
         truncated: !!meta.truncated,
       };
     } else {
       // No meta -> single page with all items
-      state.paging = { page: 1, pages: 1, total: state.items.length, limit: state.items.length || 10, truncated: false };
+      state.paging = { page: 1, pages: 1, total: state.items.length, limit: state.items.length || 15, truncated: false };
     }
 
     itemsList.innerHTML = "";
@@ -1254,7 +1254,7 @@ if (__ON_INV_PAGE__) {
     const top = document.getElementById('itemsPaginationTop');
     const bottom = document.getElementById('itemsPaginationBottom');
     if (!top || !bottom) return;
-    const { page, pages, total, limit } = state.paging || { page: 1, pages: 1, total: 0, limit: 10 };
+    const { page, pages, total, limit } = state.paging || { page: 1, pages: 1, total: 0, limit: 15 };
     const start = total ? (Math.min((page - 1) * limit + 1, total)) : 0;
     const end = Math.min(page * limit, total);
     const info = total ? `Mostrando ${start}-${end} de ${total}` : 'Sin resultados';
@@ -1283,7 +1283,7 @@ if (__ON_INV_PAGE__) {
             Por página:
           </label>
           <select id="inv-limit" class="px-3 py-2 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm font-medium">
-            ${[10,20,40,80].map(n=>`<option value="${n}" ${n===limit?'selected':''}>${n}</option>`).join('')}
+            ${[15,20,30,40,60,80].map(n=>`<option value="${n}" ${n===limit?'selected':''}>${n}</option>`).join('')}
           </select>
         </div>
       </div>`;
@@ -1308,13 +1308,13 @@ if (__ON_INV_PAGE__) {
   function gotoPage(p) {
     const { pages } = state.paging || { pages: 1 };
     const page = Math.max(1, Math.min(p, pages));
-    const limit = state.paging?.limit || 10;
+    const limit = state.paging?.limit || 15;
     const params = { ...state.lastItemsParams, page, limit };
     refreshItems(params);
   }
 
   function setLimit(n) {
-    const limit = Math.max(1, Math.min(n || 10, 100));
+    const limit = Math.max(1, Math.min(n || 15, 100));
     const params = { ...state.lastItemsParams, page: 1, limit };
     refreshItems(params);
   }
@@ -1769,7 +1769,7 @@ if (__ON_INV_PAGE__) {
       vehicleIntakeId: qIntake?.value || undefined,
     };
     // When searching, start from first page and keep current limit
-    refreshItems({ ...params, page: 1, limit: state.paging?.limit || 10 });
+    refreshItems({ ...params, page: 1, limit: state.paging?.limit || 15 });
   }
 
   if (qApply) qApply.onclick = doSearch;
