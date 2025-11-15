@@ -138,6 +138,9 @@ export function initQuotes({ getCompanyEmail }) {
   const btnDiscountClear = $('#q-discount-clear');
   const previewWA = $('#q-whatsappPreview');
   const hideTotalWA = $('#q-hide-total-wa');
+  const hideTotalIcon = $('#q-hide-total-icon');
+  const hideTotalText = $('#q-hide-total-text');
+  let hideTotalState = false;
   const qData = $('#q-data');
   const qSummary = $('#q-summary');
   const qhText = $('#qh-text');
@@ -447,7 +450,7 @@ export function initQuotes({ getCompanyEmail }) {
       noteDiv.className = 'flex items-center gap-3 mb-3 p-3 bg-gradient-to-r from-slate-800/50 to-slate-700/50 dark:from-slate-800/50 dark:to-slate-700/50 theme-light:from-slate-100 theme-light:to-slate-50 rounded-lg border-l-4 border-blue-500 shadow-sm transition-all duration-200';
       noteDiv.innerHTML = `
         <div class="flex-1 flex items-center gap-2">
-          <span class="text-base">📝</span>
+          <span class="text-base">•</span>
           <span class="flex-1 leading-relaxed text-white dark:text-white theme-light:text-slate-900">${note}</span>
         </div>
         <button type="button" onclick="removeSpecialNote(${index})" class="text-xs px-3 py-1.5 rounded bg-red-600 hover:bg-red-700 text-white border-0 cursor-pointer transition-colors duration-200 whitespace-nowrap">Eliminar</button>
@@ -627,7 +630,7 @@ export function initQuotes({ getCompanyEmail }) {
     
     // Actualizar preview de WhatsApp
     if (previewWA) {
-      const hideTotal = hideTotalWA && hideTotalWA.checked;
+      const hideTotal = hideTotalState;
       const previewText = buildWhatsAppText(rows,subP,subS,total, hideTotal);
       console.log('[recalcAll] Preview WhatsApp generado:', previewText);
       previewWA.textContent = previewText;
@@ -725,19 +728,20 @@ export function initQuotes({ getCompanyEmail }) {
     });
     
     lines.push('');
-    lines.push(`Subtotal Productos: ${money(subP)}`);
-    lines.push(`Subtotal Servicios: ${money(subS)}`);
     
-    // Agregar descuento si existe
-    if (currentDiscount.type && currentDiscount.value > 0) {
-      const discountValue = currentDiscount.type === 'percent' 
-        ? (subP + subS) * currentDiscount.value / 100 
-        : currentDiscount.value;
-      lines.push(`Descuento: ${money(discountValue)}`);
-    }
-    
-    // Solo agregar el total si no está oculto
+    // Solo agregar subtotales y total si no están ocultos
     if (!hideTotal) {
+      lines.push(`Subtotal Productos: ${money(subP)}`);
+      lines.push(`Subtotal Servicios: ${money(subS)}`);
+      
+      // Agregar descuento si existe
+      if (currentDiscount.type && currentDiscount.value > 0) {
+        const discountValue = currentDiscount.type === 'percent' 
+          ? (subP + subS) * currentDiscount.value / 100 
+          : currentDiscount.value;
+        lines.push(`Descuento: ${money(discountValue)}`);
+      }
+      
       lines.push(`*TOTAL: ${money(total)}*`);
     }
     
@@ -746,7 +750,8 @@ export function initQuotes({ getCompanyEmail }) {
     if (typeof specialNotes !== 'undefined' && specialNotes && specialNotes.length > 0) {
       lines.push('');
       specialNotes.forEach(note => {
-        lines.push(`📝 ${note}`);
+        // Usar un símbolo compatible con WhatsApp en lugar de emoji
+        lines.push(`• ${note}`);
       });
     }
     
@@ -1428,7 +1433,7 @@ export function initQuotes({ getCompanyEmail }) {
     if (doc.specialNotes && doc.specialNotes.length > 0) {
       d.setFont('helvetica','normal'); d.setFontSize(10);
       doc.specialNotes.forEach(note => {
-        d.text(`📝 ${note}`, left, y);
+        d.text(`• ${note}`, left, y);
         y += 12;
       });
       y += 8;
@@ -1464,11 +1469,30 @@ export function initQuotes({ getCompanyEmail }) {
     syncSummaryHeight();
   }
   
-  // Event listener para el checkbox de ocultar total
+  // Event listener para el botón de ocultar total (toggle)
   if (hideTotalWA) {
-    hideTotalWA.addEventListener('change', () => {
+    hideTotalWA.addEventListener('click', () => {
+      hideTotalState = !hideTotalState;
+      updateHideTotalButton();
       recalcAll();
     });
+    // Inicializar estado del botón
+    updateHideTotalButton();
+  }
+  
+  function updateHideTotalButton() {
+    if (!hideTotalWA || !hideTotalIcon || !hideTotalText) return;
+    if (hideTotalState) {
+      hideTotalIcon.textContent = '🚫';
+      hideTotalText.textContent = 'Mostrar totales';
+      hideTotalWA.classList.remove('from-purple-600', 'to-purple-700', 'dark:from-purple-600', 'dark:to-purple-700', 'theme-light:from-purple-500', 'theme-light:to-purple-600');
+      hideTotalWA.classList.add('from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600');
+    } else {
+      hideTotalIcon.textContent = '👁️';
+      hideTotalText.textContent = 'Ocultar totales';
+      hideTotalWA.classList.remove('from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600');
+      hideTotalWA.classList.add('from-purple-600', 'to-purple-700', 'dark:from-purple-600', 'dark:to-purple-700', 'theme-light:from-purple-500', 'theme-light:to-purple-600');
+    }
   }
 
   // ===== Backend (crear / actualizar) =====
@@ -2799,7 +2823,7 @@ export function initQuotes({ getCompanyEmail }) {
       if (typeof specialNotes !== 'undefined') {
         specialNotes=d.specialNotes||[];
       }
-      const hideTotal = hideTotalWA && hideTotalWA.checked;
+      const hideTotal = hideTotalState;
       const text=buildWhatsAppText(rows,subP,subS,total, hideTotal);
       iNumber.value=bak.n; iClientName.value=bak.c; iBrand.value=bak.b; iLine.value=bak.l; iYear.value=bak.y; iPlate.value=bak.p; iCc.value=bak.cc; iMileage.value=bak.m; iValidDays.value=bak.v;
       // Solo restaurar specialNotes si está definido en el scope global

@@ -4,73 +4,83 @@ import { initCalendar } from "./calendar.js";
 
 const notesState = { page: 1, limit: 50, lastFilters: {} };
 
-const apiBase = API.base || "";
-const authHeader = () => {
-  const t = API.token?.get?.();
-  return t ? { Authorization: `Bearer ${t}` } : {};
-};
-async function request(path, { method = "GET", json } = {}) {
-  const headers = { ...authHeader() };
-  if (json !== undefined) headers["Content-Type"] = "application/json";
-  const res = await fetch(`${apiBase}${path}`, {
-    method,
-    headers,
-    body: json !== undefined ? JSON.stringify(json) : undefined,
-  });
-  const raw = await res.text();
-  let body;
-  try { body = JSON.parse(raw); } catch { body = raw; }
-  if (!res.ok) {
-    throw new Error(body?.error || (typeof body === "string" ? body : res.statusText));
-  }
-  return body;
-}
-const http = {
-  updateNote: (id, body) => request(`/api/v1/notes/${id}`, { method: "PUT", json: body }),
-  deleteNote: (id) => request(`/api/v1/notes/${id}`, { method: "DELETE" }),
+// Helpers optimizados
+const htmlEscape = (text) => {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
 };
 
-function openModal(innerHTML) {
+const niceName = (s) => {
+  const m = String(s || '').toLowerCase();
+  return m ? m.charAt(0).toUpperCase() + m.slice(1) : '';
+};
+
+// Función consolidada para sincronizar recordatorios
+async function syncRemindersWithCalendar() {
+  if (typeof API !== 'undefined' && API.calendar && API.calendar.syncNoteReminders) {
+    try {
+      await API.calendar.syncNoteReminders();
+      if (typeof window !== 'undefined' && window.calendarReload) {
+        window.calendarReload();
+      }
+    } catch (e) {
+      console.error("Error syncing reminders:", e);
+    }
+  }
+}
+
+// Gestión de modal optimizada
+let modalHandlers = null;
+function initModalHandlers() {
+  if (modalHandlers) return modalHandlers;
+  
   const modal = document.getElementById("modal");
-  const body = document.getElementById("modalBody");
-  const close = document.getElementById("modalClose");
-  if (!modal || !body || !close) return;
+  const modalBody = document.getElementById("modalBody");
+  const modalClose = document.getElementById("modalClose");
   
-  body.innerHTML = innerHTML;
-  modal.classList.remove("hidden");
+  if (!modal || !modalBody || !modalClose) return null;
   
-  const closeModalHandler = () => {
+  const closeModal = () => {
+    modalBody.innerHTML = "";
     modal.classList.add("hidden");
-    document.removeEventListener("keydown", escHandler);
-    modal.removeEventListener("click", backdropHandler);
   };
   
   const escHandler = (e) => {
     if (e.key === "Escape" && !modal.classList.contains("hidden")) {
-      closeModalHandler();
+      closeModal();
     }
   };
   
   const backdropHandler = (e) => {
     if (e.target === modal) {
-      closeModalHandler();
+      closeModal();
     }
   };
   
-  document.addEventListener("keydown", escHandler);
+  modalClose.onclick = closeModal;
   modal.addEventListener("click", backdropHandler);
-  close.onclick = closeModalHandler;
-}
-function invCloseModal() {
-    const modal = document.getElementById("modal");
-    const body = document.getElementById("modalBody");
-    if (body) body.innerHTML = "";
-    if (modal) modal.classList.add("hidden");
+  document.addEventListener("keydown", escHandler);
+  
+  modalHandlers = { modal, modalBody, closeModal };
+  return modalHandlers;
 }
 
+function openModal(innerHTML) {
+  const handlers = initModalHandlers();
+  if (!handlers) return;
+  handlers.modalBody.innerHTML = innerHTML;
+  handlers.modal.classList.remove("hidden");
+}
+
+function closeModal() {
+  const handlers = initModalHandlers();
+  if (handlers) handlers.closeModal();
+}
 
 export function initNotes() {
-  const nPlate = document.getElementById("n-plate"); upper(nPlate);
+  const nPlate = document.getElementById("n-plate"); 
+  upper(nPlate);
   const nType = document.getElementById("n-type");
   const nResponsible = document.getElementById("n-responsible");
   const nContent = document.getElementById("n-content");
@@ -78,22 +88,35 @@ export function initNotes() {
   const nSave = document.getElementById("n-save");
   const nWhen = document.getElementById("n-when");
   const nReminder = document.getElementById("n-reminder");
-  const tick = () => { if (nWhen) nWhen.value = new Date().toLocaleString(); };
-  tick(); setInterval(tick, 1000);
+  
+  // Optimizar tick con throttling
+  let lastTick = 0;
+  const tick = () => {
+    if (nWhen) {
+      const now = Date.now();
+      if (now - lastTick >= 1000) {
+        nWhen.value = new Date().toLocaleString();
+        lastTick = now;
+      }
+    }
+  };
+  tick();
+  setInterval(tick, 1000);
+  
   const payBox = document.getElementById("pay-box");
   const nPayAmount = document.getElementById("n-pay-amount");
   const nPayMethod = document.getElementById("n-pay-method");
   const togglePay = () => {
-    if (!payBox) return;
-    payBox.classList.toggle("hidden", nType.value !== "PAGO");
+    if (payBox) payBox.classList.toggle("hidden", nType.value !== "PAGO");
   };
   nType.addEventListener("change", togglePay);
   togglePay();
-  const fPlate = document.getElementById("f-plate"); upper(fPlate);
+  
+  const fPlate = document.getElementById("f-plate"); 
+  upper(fPlate);
   const fFrom = document.getElementById("f-from");
   const fTo = document.getElementById("f-to");
   const fApply = document.getElementById("f-apply");
-
   const list = document.getElementById("notesList");
 
   function toQuery(params = {}) {
@@ -104,17 +127,6 @@ export function initNotes() {
     if (params.limit) qs.set("limit", params.limit);
     const s = qs.toString();
     return s ? `?${s}` : "";
-  }
-
-  const niceName = (s) => {
-    const m = String(s || '').toLowerCase();
-    return m ? m.charAt(0).toUpperCase() + m.slice(1) : '';
-  };
-
-  function htmlEscape(text) {
-    const div = document.createElement("div");
-    div.textContent = text;
-    return div.innerHTML;
   }
 
   async function refresh(params = {}) {
@@ -171,7 +183,7 @@ export function initNotes() {
             img.src = url;
             img.className = "w-20 h-20 object-cover rounded-lg cursor-pointer border-2 border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300 hover:opacity-80 transition-opacity";
             img.title = m.filename || "";
-            img.onclick = () => openModal(`<div class="flex items-center justify-center p-4"><img src="${url}" class="max-w-full h-auto rounded-lg border-2 border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300" /></div>`);
+            img.onclick = () => openModal(`<div class="flex items-center justify-center p-4"><img src="${htmlEscape(url)}" class="max-w-full h-auto rounded-lg border-2 border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300" /></div>`);
             wrap.appendChild(img);
           } else if ((m.mimetype || "").startsWith("video/")) {
             const vid = document.createElement("video");
@@ -200,10 +212,17 @@ export function initNotes() {
       delBtn.onclick = async () => {
         if (!confirm("¿Eliminar esta nota?")) return;
         try {
-          await http.deleteNote(row._id);
+          // Usar API directamente en lugar de http helper
+          const res = await fetch(`${API.base || ''}/api/v1/notes/${row._id}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${API.token?.get?.() || ''}`
+            }
+          });
+          if (!res.ok) throw new Error('Error al eliminar');
           refresh(notesState.lastFilters);
         } catch (e) {
-          alert("Error: " + e.message);
+          alert("Error: " + (e.message || 'Error desconocido'));
         }
       };
 
@@ -246,7 +265,7 @@ export function initNotes() {
 
         <div>
           <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Contenido</label>
-          <textarea id="e-text" rows="4" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y">${row.text || ""}</textarea>
+          <textarea id="e-text" rows="4" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y">${htmlEscape(row.text || "")}</textarea>
         </div>
 
         <div id="e-paybox" ${isPago ? "" : 'class="hidden"'} class="space-y-4">
@@ -290,7 +309,7 @@ export function initNotes() {
     eType.addEventListener("change", syncPayBox);
     syncPayBox();
 
-    eCancel.onclick = hardHideModal;
+    eCancel.onclick = closeModal;
 
     eSave.onclick = async () => {
       try {
@@ -317,21 +336,23 @@ export function initNotes() {
           body.reminderAt = null;
         }
 
-        await http.updateNote(row._id, body);
-        hardHideModal();
-        await refresh(notesState.lastFilters);
-        // Sincronizar recordatorios con calendario
-        if (typeof API !== 'undefined' && API.calendar && API.calendar.syncNoteReminders) {
-          try {
-            await API.calendar.syncNoteReminders();
-            // Recargar calendario si está inicializado
-            if (typeof window !== 'undefined' && window.calendarReload) {
-              window.calendarReload();
-            }
-          } catch (e) {
-            console.error("Error syncing reminders:", e);
-          }
+        // Usar API directamente
+        const res = await fetch(`${API.base || ''}/api/v1/notes/${row._id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${API.token?.get?.() || ''}`
+          },
+          body: JSON.stringify(body)
+        });
+        if (!res.ok) {
+          const error = await res.json().catch(() => ({ error: res.statusText }));
+          throw new Error(error.error || 'Error al actualizar');
         }
+        
+        closeModal();
+        await refresh(notesState.lastFilters);
+        await syncRemindersWithCalendar();
       } catch (e) {
         alert("Error: " + e.message);
       }
@@ -373,19 +394,12 @@ export function initNotes() {
       if (nPayAmount) nPayAmount.value = "";
       if (nPayMethod) nPayMethod.value = "EFECTIVO";
       if (nReminder) nReminder.value = "";
-      nContent.value = ""; nFiles.value = "";
+      nContent.value = ""; 
+      nFiles.value = "";
       refresh(notesState.lastFilters);
-      // Sincronizar recordatorios con calendario
-      if (payload.reminderAt && typeof API !== 'undefined' && API.calendar && API.calendar.syncNoteReminders) {
-        try {
-          await API.calendar.syncNoteReminders();
-          // Recargar calendario si está inicializado
-          if (typeof window !== 'undefined' && window.calendarReload) {
-            window.calendarReload();
-          }
-        } catch (e) {
-          console.error("Error syncing reminders:", e);
-        }
+      
+      if (payload.reminderAt) {
+        await syncRemindersWithCalendar();
       }
     } catch (e) {
       alert("Error: " + e.message);
@@ -400,23 +414,16 @@ export function initNotes() {
     refresh(p);
   };
 
-  const modal = document.getElementById("modal");
-  const modalBody = document.getElementById("modalBody");
-  const modalClose = document.getElementById("modalClose");
-
-  const hardHideModal = () => {
-    if (!modal) return;
-    modalBody.innerHTML = "";
-    modal.classList.add("hidden");
-  };
-  modalClose.onclick = hardHideModal;
-  modal.addEventListener("click", (e) => { if (e.target === modal) hardHideModal(); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hardHideModal(); });
-  hardHideModal();
-
+  // Inicializar modal handlers
+  initModalHandlers();
+  
+  // Exponer openModal globalmente para compatibilidad
   window.openModal = (html) => {
-    modalBody.innerHTML = html;
-    modal.classList.remove("hidden");
+    const handlers = initModalHandlers();
+    if (handlers) {
+      handlers.modalBody.innerHTML = html;
+      handlers.modal.classList.remove("hidden");
+    }
   };
 
   function showReminderNotification(note) {
@@ -445,17 +452,25 @@ export function initNotes() {
     }, 10000);
   }
 
+  // Optimizar checkReminders: solo ejecutar cuando la pestaña está visible
+  let lastReminderCheck = 0;
   async function checkReminders() {
+    // Solo verificar si la pestaña está visible y han pasado al menos 30 segundos desde la última verificación
+    if (document.visibilityState !== 'visible') return;
+    const now = Date.now();
+    if (now - lastReminderCheck < 30000) return;
+    lastReminderCheck = now;
+    
     try {
       const res = await API.notesList("?limit=200");
       const rows = Array.isArray(res) ? res : (res?.items || res?.data || []);
-      const now = new Date();
+      const nowDate = new Date();
       const notifiedIds = JSON.parse(localStorage.getItem("notesRemindersNotified") || "[]");
 
       rows.forEach(note => {
         if (!note.reminderAt) return;
         const reminderDate = new Date(note.reminderAt);
-        const timeDiff = reminderDate.getTime() - now.getTime();
+        const timeDiff = reminderDate.getTime() - nowDate.getTime();
         const noteId = String(note._id);
 
         if (timeDiff <= 60000 && timeDiff >= -300000 && !notifiedIds.includes(noteId)) {
@@ -465,7 +480,7 @@ export function initNotes() {
         }
       });
 
-      const oneDayAgo = now.getTime() - 24 * 60 * 60 * 1000;
+      const oneDayAgo = nowDate.getTime() - 24 * 60 * 60 * 1000;
       const filteredIds = notifiedIds.filter(id => {
         const note = rows.find(n => String(n._id) === id);
         if (!note || !note.reminderAt) return false;
@@ -477,7 +492,20 @@ export function initNotes() {
     }
   }
 
-  setInterval(checkReminders, 60000);
+  // Verificar recordatorios cada minuto, pero solo si la pestaña está visible
+  setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      checkReminders();
+    }
+  }, 60000);
+  
+  // Verificar cuando la pestaña se vuelve visible
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      checkReminders();
+    }
+  });
+  
   checkReminders();
 
   refresh({});

@@ -4,6 +4,33 @@ import mongoose from "mongoose";
 const ALLOWED_RESP = ['DAVID', 'VALENTIN', 'SEBASTIAN', 'GIOVANNY', 'SANDRA', 'CEDIEL'];
 const normResp = (v) => String(v || '').trim().toUpperCase();
 
+// Validar responsable
+const validateResponsible = (responsible) => {
+  const normalized = normResp(responsible);
+  if (!ALLOWED_RESP.includes(normalized)) {
+    return { error: "responsible inválido" };
+  }
+  return { valid: true, value: normalized };
+};
+
+// Helper optimizado para parsear fechas
+const parseDate = (dateStr) => {
+  if (!dateStr) return undefined;
+  if (dateStr instanceof Date) return dateStr;
+  
+  // Si es string, intentar parsear directamente
+  const date = new Date(dateStr);
+  // Si el parseo falla, retornar undefined
+  if (isNaN(date.getTime())) return undefined;
+  
+  // Si no tiene timezone, agregar Z para UTC
+  if (typeof dateStr === 'string' && dateStr.includes('T') && !dateStr.includes('Z') && !dateStr.match(/[+-]\d{2}:\d{2}$/)) {
+    return new Date(dateStr + 'Z');
+  }
+  
+  return date;
+};
+
 export const listNotes = async (req, res) => {
   const { plate, from, to, page = 1, limit = 50 } = req.query;
 
@@ -13,7 +40,7 @@ export const listNotes = async (req, res) => {
   if (from || to) {
     q.createdAt = {};
     if (from) q.createdAt.$gte = new Date(from);
-    if (to)   q.createdAt.$lte = new Date(`${to}T23:59:59.999Z`);
+    if (to) q.createdAt.$lte = new Date(`${to}T23:59:59.999Z`);
   }
 
   const items = await Note.find(q)
@@ -25,35 +52,21 @@ export const listNotes = async (req, res) => {
   res.json({ items });
 };
 
-// Helper para parsear fechas correctamente (misma lógica que calendar)
-const parseDate = (dateStr) => {
-  if (!dateStr) return undefined;
-  if (dateStr instanceof Date) return dateStr;
-  if (typeof dateStr === 'string' && dateStr.includes('Z')) {
-    return new Date(dateStr);
-  }
-  if (typeof dateStr === 'string' && dateStr.includes('T')) {
-    if (!dateStr.match(/[+-]\d{2}:\d{2}$/) && !dateStr.endsWith('Z')) {
-      return new Date(dateStr + 'Z');
-    }
-    return new Date(dateStr);
-  }
-  return new Date(dateStr);
-};
-
 export const createNote = async (req, res) => {
   const { plate, text, type, amount, technician, media, reminderAt } = req.body || {};
-  const responsible = normResp(req.body?.responsible);
+  
   if (!plate) return res.status(400).json({ error: "plate requerido" });
-  if (!ALLOWED_RESP.includes(responsible)) {
-    return res.status(400).json({ error: "responsible inválido" });
+  
+  const respValidation = validateResponsible(req.body?.responsible);
+  if (respValidation.error) {
+    return res.status(400).json({ error: respValidation.error });
   }
 
   const doc = await Note.create({
     plate: String(plate).toUpperCase().trim(),
     text: text || "",
     type: type || "GENERICA",
-    responsible,
+    responsible: respValidation.value,
     amount: type === "PAGO" ? Number(amount || 0) : 0,
     technician: technician ? String(technician).toUpperCase().trim() : undefined,
     media: Array.isArray(media) ? media : [],
@@ -73,13 +86,19 @@ export const updateNote = async (req, res) => {
   if (body.technician) body.technician = String(body.technician).toUpperCase().trim();
 
   if (body.responsible !== undefined) {
-    const r = normResp(body.responsible);
-    if (!ALLOWED_RESP.includes(r)) return res.status(400).json({ error: "responsible inválido" });
-    body.responsible = r;
+    const respValidation = validateResponsible(body.responsible);
+    if (respValidation.error) {
+      return res.status(400).json({ error: respValidation.error });
+    }
+    body.responsible = respValidation.value;
   }
 
-  if (body.type === "PAGO" && body.amount !== undefined) body.amount = Number(body.amount);
-  if (body.type === "GENERICA") body.amount = 0;
+  if (body.type === "PAGO" && body.amount !== undefined) {
+    body.amount = Number(body.amount);
+  }
+  if (body.type === "GENERICA") {
+    body.amount = 0;
+  }
 
   if (body.reminderAt !== undefined) {
     body.reminderAt = body.reminderAt ? parseDate(body.reminderAt) : null;

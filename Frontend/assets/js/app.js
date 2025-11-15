@@ -735,8 +735,10 @@ function initializeLogoutListener() {
     if(countEl){ countEl.textContent = String(list.length); countEl.style.display = list.length? 'inline-block':'none'; }
     if(countElMobile){ countElMobile.textContent = String(list.length); countElMobile.style.display = list.length? 'inline-block':'none'; }
     
-    // Reproducir sonido si hay nuevas notificaciones
-    if(hasNewNotifications) {
+    // Reproducir sonido solo si hay nuevas notificaciones Y la pestaña está visible
+    // No reproducir si lastIds está vacío (primera carga) para evitar sonar con todas las notificaciones existentes
+    // Esto evita que suene cuando cambias de pestaña y vuelves
+    if(hasNewNotifications && document.visibilityState === 'visible' && lastIds.size > 0) {
       playNotificationSound();
     }
     
