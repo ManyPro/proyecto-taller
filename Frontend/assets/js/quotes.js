@@ -459,7 +459,19 @@ export function initQuotes({ getCompanyEmail }) {
   function clearRows(){ rowsBox.innerHTML=''; }
   function addRowFromData(r){
     const row = cloneRow();
-    row.querySelector('select').value = r.type || 'PRODUCTO';
+    // Determinar el tipo: usar r.type si está disponible, o inferir desde r.kind
+    let itemType = r.type;
+    if (!itemType && r.kind) {
+      const kindUpper = String(r.kind).toUpperCase();
+      if (kindUpper === 'SERVICIO') itemType = 'SERVICIO';
+      else if (kindUpper === 'COMBO') itemType = 'COMBO';
+      else itemType = 'PRODUCTO';
+    }
+    // Si tiene comboParent, es un item anidado de combo, asegurar que el tipo sea COMBO
+    if (r.comboParent) {
+      itemType = 'COMBO';
+    }
+    row.querySelector('select').value = itemType || 'PRODUCTO';
     row.querySelectorAll('input')[0].value = r.desc  || '';
     row.querySelectorAll('input')[1].value = r.qty   || '';
     row.querySelectorAll('input')[2].value = r.price || '';
@@ -469,6 +481,7 @@ export function initQuotes({ getCompanyEmail }) {
     if(r.source) row.dataset.source = r.source;
     if(r.refId)  row.dataset.refId = r.refId;
     if(r.sku)    row.dataset.sku = r.sku;
+    if(r.comboParent) row.dataset.comboParent = r.comboParent;
     updateRowSubtotal(row); rowsBox.appendChild(row);
   }
   function addRow(){ rowsBox.appendChild(cloneRow()); }
@@ -525,15 +538,26 @@ export function initQuotes({ getCompanyEmail }) {
         refId = String(refId).trim() || undefined;
       }
       
+      // Si tiene comboParent, es un item anidado de combo, asegurar que el tipo sea COMBO
+      const hasComboParent = r.dataset.comboParent;
+      const finalType = hasComboParent ? 'COMBO' : type;
+      
       const rowData = {
-        type,desc,qty,price,
+        type: finalType,
+        desc,qty,price,
+        kind: finalType, // Guardar el tipo como 'kind' para que se preserve en el backend
         source: r.dataset.source || undefined,
         refId: refId,
         sku: r.dataset.sku || undefined,
         comboParent: r.dataset.comboParent || undefined
       };
       
-      console.log(`[readRows] Agregando fila ${idx + 1}:`, rowData);
+      console.log(`[readRows] Agregando fila ${idx + 1}:`, {
+        ...rowData,
+        hasComboParent: !!hasComboParent,
+        originalType: type,
+        finalType: finalType
+      });
       rows.push(rowData);
     }); 
     
@@ -778,8 +802,80 @@ export function initQuotes({ getCompanyEmail }) {
       const txt = linesOut.join('\n');
       const win = window.open('', '_blank');
       if (!win) { alert('No se pudo abrir ventana de impresión'); return; }
-      win.document.write('<pre>' + txt + '</pre>');
-      win.document.close(); win.focus(); win.print(); try { win.close(); } catch {}
+      const modalScript = `
+        <script>
+          (function() {
+            function showModal() {
+              if (!document.body) {
+                setTimeout(showModal, 50);
+                return;
+              }
+              
+              const pageSize = 'MEDIA CARTA (5.5" x 8.5")';
+              const modal = document.createElement('div');
+              modal.id = 'page-size-modal';
+              modal.style.cssText = 'position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);';
+              modal.innerHTML = \`
+                <div style="background: linear-gradient(to bottom right, #1e293b, #0f172a); border: 1px solid rgba(148, 163, 184, 0.5); border-radius: 1rem; padding: 2rem; max-width: 28rem; width: 100%; margin: 1rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.2s ease-in-out;">
+                  <div style="text-align: center; margin-bottom: 1.5rem;">
+                    <div style="display: inline-flex; align-items: center; justify-content: center; width: 4rem; height: 4rem; background: rgba(59, 130, 246, 0.2); border-radius: 9999px; margin-bottom: 1rem;">
+                      <svg style="width: 2rem; height: 2rem; color: #60a5fa;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                      </svg>
+                    </div>
+                    <h3 style="font-size: 1.5rem; font-weight: 700; color: white; margin-bottom: 0.5rem;">Tamaño de Hoja Requerido</h3>
+                  </div>
+                  <div style="background: rgba(51, 65, 85, 0.3); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                    <div style="text-align: center;">
+                      <div style="font-size: 1.875rem; font-weight: 700; color: #60a5fa; margin-bottom: 0.5rem;">\${pageSize}</div>
+                      <p style="font-size: 0.875rem; color: #cbd5e1; margin-top: 0.5rem;">
+                        Asegúrate de configurar tu impresora con este tamaño antes de imprimir.
+                      </p>
+                    </div>
+                  </div>
+                  <div style="display: flex; gap: 0.75rem;">
+                    <button id="page-size-cancel" style="flex: 1; padding: 0.75rem 1rem; background: rgba(51, 65, 85, 0.5); border: 1px solid rgba(100, 116, 139, 0.5); border-radius: 0.5rem; color: white; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                      Cancelar
+                    </button>
+                    <button id="page-size-accept" style="flex: 1; padding: 0.75rem 1rem; background: linear-gradient(to right, #2563eb, #1d4ed8); border: none; border-radius: 0.5rem; color: white; font-weight: 600; cursor: pointer; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); transition: all 0.2s;">
+                      Aceptar
+                    </button>
+                  </div>
+                </div>
+              \`;
+              document.body.appendChild(modal);
+              const modalContent = modal.querySelector('div > div');
+              const acceptBtn = document.getElementById('page-size-accept');
+              const cancelBtn = document.getElementById('page-size-cancel');
+              const closeModal = () => {
+                modal.style.opacity = '0';
+                if (modalContent) modalContent.style.transform = 'scale(0.95)';
+                setTimeout(() => modal.remove(), 200);
+              };
+              acceptBtn.onclick = () => {
+                closeModal();
+                setTimeout(() => window.print(), 100);
+              };
+              cancelBtn.onclick = () => {
+                closeModal();
+                window.close();
+              };
+              setTimeout(() => {
+                modal.style.opacity = '1';
+                if (modalContent) modalContent.style.transform = 'scale(1)';
+              }, 10);
+            }
+            
+            if (document.readyState === 'loading') {
+              document.addEventListener('DOMContentLoaded', showModal);
+            } else {
+              setTimeout(showModal, 100);
+            }
+          })();
+        </script>
+      `;
+      win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${modalScript}</head><body><pre>${txt}</pre></body></html>`);
+      win.document.close(); win.focus();
     }
     
     // Intentar usar plantilla activa (quote) -> abrir ventana/imprimir (igual que en ventas)
@@ -853,7 +949,104 @@ export function initQuotes({ getCompanyEmail }) {
             if(!win){ fallback(); return; }
             const css = r.css ? `<style>${r.css}</style>`:'';
             
-            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}
+            // Función para mostrar modal de tamaño de hoja en la ventana de impresión
+            const modalScript = `
+              <script>
+                (function() {
+                  function showModal() {
+                    if (!document.body) {
+                      setTimeout(showModal, 50);
+                      return;
+                    }
+                    
+                    // Determinar tamaño de página dinámicamente
+                    const body = document.body;
+                    const html = document.documentElement;
+                    const contentHeight = Math.max(
+                      body?.scrollHeight || 0, body?.offsetHeight || 0, html?.clientHeight || 0, html?.scrollHeight || 0, html?.offsetHeight || 0
+                    );
+                    const mediaCartaMaxHeight = 800;
+                    const isMediaCarta = contentHeight <= mediaCartaMaxHeight;
+                    const pageSize = isMediaCarta ? 'MEDIA CARTA (5.5" x 8.5")' : 'CARTA COMPLETA (8.5" x 11")';
+                    
+                    const modal = document.createElement('div');
+                    modal.id = 'page-size-modal';
+                    modal.style.cssText = 'position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);';
+                    modal.innerHTML = \`
+                    <div style="background: linear-gradient(to bottom right, #1e293b, #0f172a); border: 1px solid rgba(148, 163, 184, 0.5); border-radius: 1rem; padding: 2rem; max-width: 28rem; width: 100%; margin: 1rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.2s ease-in-out;">
+                      <div style="text-align: center; margin-bottom: 1.5rem;">
+                        <div style="display: inline-flex; align-items: center; justify-content: center; width: 4rem; height: 4rem; background: rgba(59, 130, 246, 0.2); border-radius: 9999px; margin-bottom: 1rem;">
+                          <svg style="width: 2rem; height: 2rem; color: #60a5fa;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                          </svg>
+                        </div>
+                        <h3 style="font-size: 1.5rem; font-weight: 700; color: white; margin-bottom: 0.5rem;">Tamaño de Hoja Requerido</h3>
+                      </div>
+                      <div style="background: rgba(51, 65, 85, 0.3); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                        <div style="text-align: center;">
+                          <div style="font-size: 1.875rem; font-weight: 700; color: #60a5fa; margin-bottom: 0.5rem;">\${pageSize}</div>
+                          <p style="font-size: 0.875rem; color: #cbd5e1; margin-top: 0.5rem;">
+                            Asegúrate de configurar tu impresora con este tamaño antes de imprimir.
+                          </p>
+                        </div>
+                      </div>
+                      <div style="display: flex; gap: 0.75rem;">
+                        <button id="page-size-cancel" style="flex: 1; padding: 0.75rem 1rem; background: rgba(51, 65, 85, 0.5); border: 1px solid rgba(100, 116, 139, 0.5); border-radius: 0.5rem; color: white; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                          Cancelar
+                        </button>
+                        <button id="page-size-accept" style="flex: 1; padding: 0.75rem 1rem; background: linear-gradient(to right, #2563eb, #1d4ed8); border: none; border-radius: 0.5rem; color: white; font-weight: 600; cursor: pointer; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); transition: all 0.2s;">
+                          Aceptar
+                        </button>
+                      </div>
+                    </div>
+                  \`;
+                  document.body.appendChild(modal);
+                  
+                  const modalContent = modal.querySelector('div > div');
+                  const acceptBtn = document.getElementById('page-size-accept');
+                  const cancelBtn = document.getElementById('page-size-cancel');
+                  
+                  const closeModal = () => {
+                    modal.style.opacity = '0';
+                    if (modalContent) {
+                      modalContent.style.transform = 'scale(0.95)';
+                    }
+                    setTimeout(() => {
+                      modal.remove();
+                    }, 200);
+                  };
+                  
+                  acceptBtn.onclick = () => {
+                    closeModal();
+                    setTimeout(() => {
+                      window.print();
+                    }, 100);
+                  };
+                  
+                  cancelBtn.onclick = () => {
+                    closeModal();
+                    window.close();
+                  };
+                  
+                    // Animación de entrada
+                    setTimeout(() => {
+                      modal.style.opacity = '1';
+                      if (modalContent) {
+                        modalContent.style.transform = 'scale(1)';
+                      }
+                    }, 10);
+                  }
+                  
+                  if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', showModal);
+                  } else {
+                    setTimeout(showModal, 100);
+                  }
+                })();
+              </script>
+            `;
+            
+            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}${modalScript}
               <style>
                 /* Estilos base para mejor uso del espacio */
                 body {
@@ -1089,37 +1282,16 @@ export function initQuotes({ getCompanyEmail }) {
               adjustTotalPosition();
             });
             
-            // Detectar tamaño de página y mostrar alerta antes de imprimir
+            // El modal ya está en la página de impresión, solo necesitamos ajustar y detectar tamaño
             win.focus();
             
+            // Esperar a que se cargue y ajuste todo
             setTimeout(() => {
               adjustTotalPosition();
               
               setTimeout(() => {
                 adjustTotalPosition();
                 detectAndSetPageSize();
-                
-                // Determinar tamaño de página para la alerta
-                const body = win.document.body;
-                const html = win.document.documentElement;
-                const contentHeight = Math.max(
-                  body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight
-                );
-                const mediaCartaMaxHeight = 800;
-                const isMediaCarta = contentHeight <= mediaCartaMaxHeight;
-                const pageSize = isMediaCarta ? 'MEDIA CARTA (5.5" x 8.5")' : 'CARTA COMPLETA (8.5" x 11")';
-                
-                // Mostrar alerta con el tamaño de página
-                alert(`📄 TAMAÑO DE HOJA REQUERIDO:\n\n${pageSize}\n\nAsegúrate de configurar tu impresora con este tamaño antes de imprimir.`);
-                
-                setTimeout(() => {
-                  adjustTotalPosition();
-                  requestAnimationFrame(() => {
-                    adjustTotalPosition();
-                    // Abrir diálogo de impresión automáticamente
-                    win.print();
-                  });
-                }, 300);
               }, 500);
             }, 1000);
           })
@@ -1140,16 +1312,33 @@ export function initQuotes({ getCompanyEmail }) {
   }
 
   async function exportPDFFromData(doc){
-    const rows = (doc.items || []).map(it => [
-      (it.kind === 'SERVICIO') ? 'Servicio' : 'Producto',
-      it.description || '',
-      it.qty && it.qty > 0 ? it.qty : 1,
-      money(it.unitPrice || 0),
-      money(it.subtotal || ((it.qty || 1) * (it.unitPrice || 0)))
-    ]);
-    const subP = (doc.items||[]).filter(i=>i.kind!=='SERVICIO').reduce((a,i)=>a+(i.subtotal||0),0);
-    const subS = (doc.items||[]).filter(i=>i.kind==='SERVICIO').reduce((a,i)=>a+(i.subtotal||0),0);
-    const subtotal = subP + subS;
+    const rows = (doc.items || []).map(it => {
+      const k = String(it.kind || 'Producto').trim().toUpperCase();
+      let kindLabel = 'Producto';
+      if (k === 'SERVICIO') kindLabel = 'Servicio';
+      else if (k === 'COMBO') kindLabel = 'Combo';
+      return [
+        kindLabel,
+        it.description || '',
+        it.qty && it.qty > 0 ? it.qty : 1,
+        money(it.unitPrice || 0),
+        money(it.subtotal || ((it.qty || 1) * (it.unitPrice || 0)))
+      ];
+    });
+    // Calcular subtotales por tipo (Productos, Servicios, Combos)
+    const subP = (doc.items||[]).filter(i=>{
+      const k = String(i.kind||'Producto').trim().toUpperCase();
+      return k !== 'SERVICIO' && k !== 'COMBO';
+    }).reduce((a,i)=>a+(i.subtotal||0),0);
+    const subS = (doc.items||[]).filter(i=>{
+      const k = String(i.kind||'Producto').trim().toUpperCase();
+      return k === 'SERVICIO';
+    }).reduce((a,i)=>a+(i.subtotal||0),0);
+    const subC = (doc.items||[]).filter(i=>{
+      const k = String(i.kind||'Producto').trim().toUpperCase();
+      return k === 'COMBO';
+    }).reduce((a,i)=>a+(i.subtotal||0),0);
+    const subtotal = subP + subS + subC;
     
     // Calcular descuento si existe
     let discountValue = 0;
@@ -1285,12 +1474,24 @@ export function initQuotes({ getCompanyEmail }) {
   // ===== Backend (crear / actualizar) =====
   function payloadFromUI(){
     const items=readRows().map(r=>{
+      // Usar el tipo del rowData (que viene del select), o el kind si está disponible
+      // El tipo viene como 'COMBO', 'PRODUCTO', 'SERVICIO' (mayúsculas)
+      // El backend lo normalizará a 'Combo', 'Producto', 'Servicio'
+      const itemKind = r.kind || r.type || 'PRODUCTO';
       const base={
-        kind:r.type || 'PRODUCTO', 
+        kind: itemKind, // Enviar el tipo tal cual viene del select (COMBO, PRODUCTO, SERVICIO)
         description:r.desc || '',
         qty:r.qty === null || r.qty === undefined || r.qty === '' ? null : Number(r.qty),
         unitPrice:Number(r.price||0)
       };
+      
+      console.log('[payloadFromUI] Item mapeado:', {
+        kind: base.kind,
+        type: r.type,
+        description: base.description,
+        source: r.source,
+        refId: r.refId
+      });
       // Asegurar que description no sea vacío si hay precio o cantidad
       if(!base.description && (base.unitPrice > 0 || (base.qty && base.qty > 0))) {
         base.description = 'Item sin descripción';
@@ -1538,6 +1739,7 @@ export function initQuotes({ getCompanyEmail }) {
               <select class="w-full px-2 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500">
                 <option value="PRODUCTO">Producto</option>
                 <option value="SERVICIO">Servicio</option>
+                <option value="COMBO">Combo</option>
               </select>
             </div>
             <div>
@@ -1906,13 +2108,26 @@ export function initQuotes({ getCompanyEmail }) {
     function addRow(){ rowsBox.appendChild(cloneRow()); }
     function addRowFromData(r){
       const row = cloneRow();
-      row.querySelector('select').value = r.type || (String(r.kind||'PRODUCTO').toUpperCase()==='SERVICIO'?'SERVICIO':'PRODUCTO');
+      // Determinar el tipo: usar r.type si está disponible, o inferir desde r.kind
+      let itemType = r.type;
+      if (!itemType && r.kind) {
+        const kindUpper = String(r.kind).toUpperCase();
+        if (kindUpper === 'SERVICIO') itemType = 'SERVICIO';
+        else if (kindUpper === 'COMBO') itemType = 'COMBO';
+        else itemType = 'PRODUCTO';
+      }
+      // Si tiene comboParent, es un item anidado de combo, asegurar que el tipo sea COMBO
+      if (r.comboParent) {
+        itemType = 'COMBO';
+      }
+      row.querySelector('select').value = itemType || 'PRODUCTO';
       row.querySelectorAll('input')[0].value = r.desc  ?? r.description ?? '';
       row.querySelectorAll('input')[1].value = r.qty   ?? '';
       row.querySelectorAll('input')[2].value = r.price ?? r.unitPrice ?? '';
       if(r.source) row.dataset.source = r.source;
       if(r.refId)  row.dataset.refId = r.refId;
       if(r.sku)    row.dataset.sku = r.sku;
+      if(r.comboParent) row.dataset.comboParent = r.comboParent;
       updateRowSubtotal(row); rowsBox.appendChild(row);
     }
     function readRows(){
@@ -2288,7 +2503,11 @@ export function initQuotes({ getCompanyEmail }) {
     
     rowsBox.innerHTML='';
     (doc?.items||[]).forEach(it=>{
-      addRowFromData({ type:(String(it.kind||'PRODUCTO').toUpperCase()==='SERVICIO'?'SERVICIO':'PRODUCTO'), desc:it.description||'', qty:it.qty??'', price:it.unitPrice||0, source:it.source, refId:it.refId, sku:it.sku });
+      const k=String(it.kind||'Producto').trim().toUpperCase();
+      let itemType = 'PRODUCTO';
+      if (k === 'SERVICIO') itemType = 'SERVICIO';
+      else if (k === 'COMBO') itemType = 'COMBO';
+      addRowFromData({ type: itemType, desc:it.description||'', qty:it.qty??'', price:it.unitPrice||0, source:it.source, refId:it.refId, sku:it.sku });
     });
     if(!(doc?.items||[]).length) addRow();
     recalc();
@@ -2508,8 +2727,12 @@ export function initQuotes({ getCompanyEmail }) {
   // Heurística legacy: si es PRODUCTO y tiene refId o sku de item y no trae source, asumir inventory
       let source = it.source;
       if(!source && k==='PRODUCTO' && (it.refId || it.sku)) source='inventory';
+      // Determinar el tipo correcto
+      let itemType = 'PRODUCTO';
+      if (k === 'SERVICIO') itemType = 'SERVICIO';
+      else if (k === 'COMBO') itemType = 'COMBO';
       addRowFromData({
-        type:(k==='SERVICIO'?'SERVICIO':'PRODUCTO'),
+        type: itemType,
         desc:it.description||'',
         qty:it.qty??'',
         price:it.unitPrice||0,
@@ -2889,7 +3112,11 @@ export function initQuotes({ getCompanyEmail }) {
           btn.textContent = 'Agregar';
           btn.onclick=()=>{
             const row=cloneRow();
-            row.querySelector('select').value='SERVICIO';
+            // Determinar el tipo según el PriceEntry
+            let itemType = 'SERVICIO';
+            if (pe.type === 'combo') itemType = 'COMBO';
+            else if (pe.type === 'product') itemType = 'PRODUCTO';
+            row.querySelector('select').value = itemType;
             const desc = pe.vehicleId && pe.vehicleId.make 
               ? `${pe.vehicleId.make} ${pe.vehicleId.line} ${pe.vehicleId.displacement}`.trim()
               : `${pe.brand||''} ${pe.line||''} ${pe.engine||''} ${pe.year||''}`.trim();
@@ -3003,9 +3230,9 @@ export function initQuotes({ getCompanyEmail }) {
           
           card.querySelector('.add-price-btn').onclick = () => {
             if (pe.type === 'combo' && pe.comboProducts && pe.comboProducts.length > 0) {
-              // Agregar el combo principal
+              // Agregar el combo principal - tipo COMBO
               const comboRow = ctx.cloneRow();
-              comboRow.querySelector('select').value = 'PRODUCTO';
+              comboRow.querySelector('select').value = 'COMBO';
               comboRow.querySelectorAll('input')[0].value = pe.name || '';
               comboRow.querySelectorAll('input')[1].value = 1;
               comboRow.querySelectorAll('input')[2].value = Math.round(pe.total || pe.price || 0);
@@ -3014,10 +3241,10 @@ export function initQuotes({ getCompanyEmail }) {
               ctx.updateRowSubtotal(comboRow);
               ctx.rowsBox.appendChild(comboRow);
               
-              // Agregar cada producto del combo
+              // Agregar cada producto del combo - tipo COMBO para items anidados
               pe.comboProducts.forEach(cp => {
                 const row = ctx.cloneRow();
-                row.querySelector('select').value = 'PRODUCTO';
+                row.querySelector('select').value = 'COMBO'; // Items anidados del combo también son tipo COMBO
                 // Para slots abiertos, solo mostrar el nombre (sin indicadores)
                 row.querySelectorAll('input')[0].value = cp.name || '';
                 row.querySelectorAll('input')[1].value = cp.qty || 1;

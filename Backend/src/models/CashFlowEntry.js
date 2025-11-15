@@ -5,7 +5,7 @@ const CashFlowEntrySchema = new mongoose.Schema({
   accountId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Account', index: true },
   date: { type: Date, default: Date.now, index: true },
   kind: { type: String, enum: ['IN','OUT'], required: true },
-  source: { type: String, enum: ['SALE','MANUAL'], default: 'MANUAL', index: true },
+  source: { type: String, enum: ['SALE','MANUAL','RECEIVABLE'], default: 'MANUAL', index: true },
   sourceRef: { type: mongoose.Schema.Types.ObjectId },
   description: { type: String, default: '' },
   amount: { type: Number, required: true }, // siempre positivo

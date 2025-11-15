@@ -24,6 +24,32 @@
     }
   </script>
   <style>
+    /* Estilos para navegación interna y vistas */
+    .sales-view {
+      display: block;
+    }
+    .sales-view.hidden {
+      display: none;
+    }
+    .sales-nav-btn.active {
+      background: linear-gradient(to right, #2563eb, #1d4ed8) !important;
+      color: white !important;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    .sales-nav-btn:not(.active) {
+      background: rgba(51, 65, 85, 0.5) !important;
+    }
+    .sales-nav-btn:not(.active):hover {
+      background: rgba(51, 65, 85, 0.7) !important;
+    }
+    /* Estilos para cards de historial */
+    .historial-sale-card {
+      transition: all 0.2s ease;
+    }
+    .historial-sale-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    }
     /* Estilos para modo claro - Sobrescribir colores de Tailwind */
     body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
     body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
@@ -470,15 +496,28 @@
 
   <!-- ========== VENTAS ========== -->
   <section id="tab-ventas" class="tab active">
-    <div class="w-full px-2 sm:px-4 lg:px-6 py-6">
-      <!-- Cápsulas y botones principales -->
+    <div class="w-[98%] max-w-[98%] mx-auto px-1 sm:px-2 lg:px-3 py-6">
+      <!-- Barra de navegación interna -->
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 mb-4">
+        <div class="flex gap-2 p-2">
+          <button id="sales-nav-ventas" class="sales-nav-btn active px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 text-white shadow-md">
+            Ventas
+          </button>
+          <button id="sales-nav-historial" class="sales-nav-btn px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+            Historial
+          </button>
+        </div>
+      </div>
+
+      <!-- Vista de Ventas (activa por defecto) -->
+      <div id="sales-view-ventas" class="sales-view">
+        <!-- Cápsulas y botones principales -->
       <div id="sales-capsules-bar" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mb-4">
         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div id="sales-capsules" class="flex flex-wrap gap-2 flex-1"></div>
           <div class="flex flex-wrap gap-2">
             <button id="sales-start" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">Nueva venta</button>
             <button id="sales-start-qr" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">📷 Nueva venta con placa</button>
-            <button id="sales-history" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 text-sm whitespace-nowrap border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Historial</button>
           </div>
         </div>
       </div>
@@ -493,30 +532,38 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
         <!-- Columna izquierda: Cotizaciones mini + Orden de trabajo -->
-        <div class="lg:col-span-1 space-y-4">
+        <div class="lg:col-span-5 space-y-4">
           <!-- Cotizaciones mini -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4" id="sv-quote-mini">
-            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
-              <h3 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Cotizaciones</h3>
-              <div class="flex flex-wrap gap-2">
-                <button id="sv-loadQuote" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 whitespace-nowrap border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Usar cotización</button>
-                <button id="sv-applyQuoteCV" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 whitespace-nowrap border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Aplicar datos</button>
-                <button id="sv-q-to-sale" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 whitespace-nowrap border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" title="Agregar todos los ítems">Agregar todo</button>
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-2" id="sv-quote-mini">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-2">
+              <h3 class="text-base font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Cotizaciones</h3>
+              <div class="flex flex-wrap gap-1">
+                <button id="sv-loadQuote" class="px-1.5 py-0.5 text-[10px] bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded transition-all duration-200 whitespace-nowrap border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Usar cotización</button>
+                <button id="sv-applyQuoteCV" class="px-1.5 py-0.5 text-[10px] bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded transition-all duration-200 whitespace-nowrap border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Aplicar datos</button>
+                <button id="sv-q-to-sale" class="px-1.5 py-0.5 text-[10px] bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded transition-all duration-200 whitespace-nowrap border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" title="Agregar todos los ítems">Agregar todo</button>
               </div>
             </div>
-            <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3" id="sv-q-header">— ninguna cotización cargada —</div>
-            <div class="overflow-x-auto overflow-y-auto max-h-[500px] custom-scrollbar">
-              <table class="w-full text-sm">
+            <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2" id="sv-q-header">— ninguna cotización cargada —</div>
+            <div class="overflow-y-auto max-h-[500px] custom-scrollbar">
+              <table class="w-full text-xs table-fixed border-collapse">
+                <colgroup>
+                  <col style="width: 14%;">
+                  <col style="width: 38%;">
+                  <col style="width: 7%;">
+                  <col style="width: 16%;">
+                  <col style="width: 16%;">
+                  <col style="width: 9%;">
+                </colgroup>
                 <thead class="sticky top-0 bg-slate-800/95 dark:bg-slate-800/95 theme-light:bg-sky-50/95 z-10">
-                  <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
-                    <th class="text-left py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Tipo</th>
-                    <th class="text-left py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Descripción</th>
-                    <th class="text-center py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cant.</th>
-                    <th class="text-right py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Unit</th>
-                    <th class="text-right py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Total</th>
-                    <th class="w-8"></th>
+                  <tr class="border-b-2 border-slate-600/70 dark:border-slate-600/70 theme-light:border-slate-400/70">
+                    <th class="text-left py-1 px-0.5 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">Tipo</th>
+                    <th class="text-left py-1 px-0.5 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">Descripción</th>
+                    <th class="text-center py-1 px-0.5 text-[10px] font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">Cant.</th>
+                    <th class="text-right py-1 px-0.5 text-[10px] font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 whitespace-nowrap">Unit</th>
+                    <th class="text-right py-1 px-0.5 text-[10px] font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 whitespace-nowrap">Total</th>
+                    <th class="text-center py-1 px-0.5"></th>
                   </tr>
                 </thead>
                 <tbody id="sv-q-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
@@ -525,17 +572,17 @@
           </div>
 
           <!-- Orden de trabajo (preview) -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4" id="sv-wo-card">
-            <div class="flex items-center justify-between mb-3">
+          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-2" id="sv-wo-card">
+            <div class="flex items-center justify-between mb-2">
               <h3 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Orden de trabajo</h3>
-              <button id="sv-print-wo" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Imprimir OT</button>
+              <button id="sv-print-wo" class="px-2 py-1 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Imprimir OT</button>
             </div>
             <div class="overflow-x-auto">
               <table class="w-full text-sm">
                 <thead>
                   <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
-                    <th class="text-left py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Descripción</th>
-                    <th class="text-center py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cant.</th>
+                    <th class="text-left py-1.5 px-1 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Descripción</th>
+                    <th class="text-center py-1.5 px-1 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cant.</th>
                   </tr>
                 </thead>
                 <tbody id="sv-wo-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
@@ -545,7 +592,7 @@
         </div>
 
         <!-- Columna derecha: Ventas -->
-        <div class="lg:col-span-2 space-y-4">
+        <div class="lg:col-span-7 space-y-4">
           <!-- preview cliente/vehículo + técnico -->
           <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4" id="sv-customer-mini">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -590,6 +637,55 @@
           </div>
         </div>
       </div>
+      </div>
+      <!-- Fin Vista de Ventas -->
+
+      <!-- Vista de Historial (oculta por defecto) -->
+      <div id="sales-view-historial" class="sales-view hidden">
+        <!-- Filtros de fecha -->
+        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mb-4">
+          <div class="flex flex-col sm:flex-row gap-4 items-end">
+            <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Fecha desde</label>
+                <input type="date" id="historial-fecha-desde" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Fecha hasta</label>
+                <input type="date" id="historial-fecha-hasta" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button id="historial-filtrar" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">
+                🔍 Filtrar
+              </button>
+              <button id="historial-limpiar" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 text-sm whitespace-nowrap border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+                Limpiar
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Información de paginación -->
+        <div id="historial-pagination-info" class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3 text-center"></div>
+
+        <!-- Lista de ventas -->
+        <div id="historial-ventas-container" class="space-y-3">
+          <!-- Las ventas se cargarán aquí dinámicamente -->
+        </div>
+
+        <!-- Controles de paginación -->
+        <div id="historial-pagination-controls" class="flex justify-center items-center gap-4 mt-6 mb-4">
+          <button id="historial-prev" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+            ◀ Anterior
+          </button>
+          <span id="historial-page-info" class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-medium"></span>
+          <button id="historial-next" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+            Siguiente ▶
+          </button>
+        </div>
+      </div>
+      <!-- Fin Vista de Historial -->
     </section>
 
             <!-- plantilla modal cliente/vehículo -->

@@ -3645,6 +3645,20 @@
           overflow-wrap: break-word;
           vertical-align: top;
         }
+        .workorder-table .section-header {
+          background: #f0f0f0 !important;
+        }
+        .workorder-table .section-header td {
+          border-top: 2px solid #000 !important;
+          border-bottom: 2px solid #000 !important;
+          font-weight: bold;
+          font-size: 11px;
+          padding: 8px;
+          background: #f0f0f0 !important;
+        }
+        .workorder-table tr.section-header + tr td {
+          border-top: 1px solid #000 !important;
+        }
         .workorder-table th:nth-child(1),
         .workorder-table td:nth-child(1) {
           width: 70%;
@@ -3685,6 +3699,14 @@
             border-width: 2px !important;
             background: white !important;
           }
+          .workorder-table .section-header td {
+            border-top: 2px solid #000 !important;
+            border-bottom: 2px solid #000 !important;
+            font-weight: bold !important;
+            font-size: 11px !important;
+            padding: 8px !important;
+            background: #f0f0f0 !important;
+          }
         }
         /* Estilos para vista previa */
         .workorder-table {
@@ -3701,7 +3723,7 @@
         <tbody>
           {{#if sale.itemsGrouped.hasProducts}}
           <tr class="section-header">
-            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">PRODUCTOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">PRODUCTOS</td>
           </tr>
           {{#each sale.itemsGrouped.products}}
           <tr>
@@ -3713,7 +3735,7 @@
           
           {{#if sale.itemsGrouped.hasServices}}
           <tr class="section-header">
-            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">SERVICIOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">SERVICIOS</td>
           </tr>
           {{#each sale.itemsGrouped.services}}
           <tr>
@@ -3725,7 +3747,7 @@
           
           {{#if sale.itemsGrouped.hasCombos}}
           <tr class="section-header">
-            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px;">COMBOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">COMBOS</td>
           </tr>
           {{#each sale.itemsGrouped.combos}}
           <tr>

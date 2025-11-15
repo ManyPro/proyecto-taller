@@ -329,6 +329,8 @@ const API = {
 
     close: (id, payload = {}) =>
       http.post(`/api/v1/sales/${id}/close`, payload),
+    updateClose: (id, payload = {}) =>
+      http.patch(`/api/v1/sales/${id}/close`, payload),
 
     addByQR: (saleId, payload) =>
       http.post(`/api/v1/sales/addByQR`, { saleId, payload }),

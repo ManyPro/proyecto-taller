@@ -255,9 +255,18 @@ function openNewEventModal(date = null) {
       <!-- Cotización (Opcional) -->
       <div class="border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 pt-4">
         <h4 class="text-sm font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-3">Cotización (Opcional)</h4>
-        <select id="event-quote" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="">Sin cotización</option>
-        </select>
+        <div class="relative">
+          <select id="event-quote" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none cursor-pointer">
+            <option value="">Sin cotización</option>
+          </select>
+          <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+            <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </div>
+        </div>
+        <div id="event-quote-loading" class="hidden text-xs text-blue-400 mt-1">Cargando cotizaciones...</div>
+        <div id="event-quote-info" class="hidden text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1"></div>
       </div>
       
       <!-- Información adicional -->
@@ -372,6 +381,10 @@ function openNewEventModal(date = null) {
     const plate = plateEl.value.trim().toUpperCase();
     if (plate.length < 3) {
       plateLoadingEl.classList.add('hidden');
+      // Limpiar cotizaciones si la placa es muy corta
+      quoteEl.innerHTML = '<option value="">Sin cotización</option>';
+      quoteInfoEl?.classList.add('hidden');
+      quotesCache = [];
       return;
     }
     
@@ -398,7 +411,7 @@ function openNewEventModal(date = null) {
           }
         }
         
-        // Cargar cotizaciones
+        // Cargar cotizaciones para esta placa
         await loadQuotesForPlate(plate);
       } else {
         // Limpiar si no se encuentra
@@ -408,12 +421,24 @@ function openNewEventModal(date = null) {
         vehicleSearchEl.value = '';
         vehicleSelectedEl.classList.add('hidden');
         quoteEl.innerHTML = '<option value="">Sin cotización</option>';
+        quoteInfoEl?.classList.add('hidden');
         quotesCache = [];
       }
     } catch (err) {
       console.error('Error searching by plate:', err);
     } finally {
       plateLoadingEl.classList.add('hidden');
+    }
+  });
+  
+  // También cargar cotizaciones cuando se cambia la placa manualmente (sin buscar perfil)
+  plateEl.addEventListener('blur', async () => {
+    const plate = plateEl.value.trim().toUpperCase();
+    if (plate.length >= 3) {
+      // Si no se encontró perfil pero hay placa, intentar cargar cotizaciones de todas formas
+      if (quotesCache.length === 0) {
+        await loadQuotesForPlate(plate);
+      }
     }
   });
   
@@ -475,20 +500,51 @@ function openNewEventModal(date = null) {
   });
   
   // Cargar cotizaciones por placa
+  const quoteLoadingEl = document.getElementById('event-quote-loading');
+  const quoteInfoEl = document.getElementById('event-quote-info');
+  
   async function loadQuotesForPlate(plate) {
+    if (!plate || plate.length < 3) {
+      quoteEl.innerHTML = '<option value="">Sin cotización</option>';
+      quoteInfoEl.classList.add('hidden');
+      quotesCache = [];
+      return;
+    }
+    
+    quoteLoadingEl?.classList.remove('hidden');
+    quoteInfoEl?.classList.add('hidden');
+    
     try {
-      const result = await API.calendar.getQuotesByPlate(plate);
+      // Normalizar placa: convertir a mayúsculas y eliminar espacios
+      // Esto asegura consistencia en la búsqueda
+      const normalizedPlate = plate.trim().toUpperCase();
+      const result = await API.calendar.getQuotesByPlate(normalizedPlate);
       quotesCache = Array.isArray(result?.items) ? result.items : [];
       
       quoteEl.innerHTML = '<option value="">Sin cotización</option>';
-      quotesCache.forEach(q => {
-        const option = document.createElement('option');
-        option.value = q._id;
-        option.textContent = `Cotización #${q.number} - ${new Date(q.createdAt).toLocaleDateString('es-CO')} - $${new Intl.NumberFormat('es-CO').format(q.total || 0)}`;
-        quoteEl.appendChild(option);
-      });
+      
+      if (quotesCache.length === 0) {
+        quoteInfoEl.textContent = 'No hay cotizaciones disponibles para esta placa';
+        quoteInfoEl.classList.remove('hidden');
+      } else {
+        quotesCache.forEach(q => {
+          const option = document.createElement('option');
+          option.value = q._id;
+          const date = q.createdAt ? new Date(q.createdAt).toLocaleDateString('es-CO') : 'Sin fecha';
+          const total = q.total ? new Intl.NumberFormat('es-CO').format(q.total) : '0';
+          option.textContent = `Cotización #${q.number || q._id} - ${date} - $${total}`;
+          quoteEl.appendChild(option);
+        });
+        quoteInfoEl.textContent = `${quotesCache.length} cotización${quotesCache.length !== 1 ? 'es' : ''} disponible${quotesCache.length !== 1 ? 's' : ''}`;
+        quoteInfoEl.classList.remove('hidden');
+      }
     } catch (err) {
       console.error('Error loading quotes:', err);
+      quoteEl.innerHTML = '<option value="">Error al cargar cotizaciones</option>';
+      quoteInfoEl.textContent = 'Error al cargar cotizaciones';
+      quoteInfoEl.classList.remove('hidden');
+    } finally {
+      quoteLoadingEl?.classList.add('hidden');
     }
   }
   
@@ -797,7 +853,7 @@ async function createSaleFromEvent(event) {
       vehicle: vehicleData
     });
     
-    // Si hay cotización vinculada, cargarla
+    // Si hay cotización vinculada, cargarla y vincularla a la venta
     if (event.quoteId) {
       try {
         const quote = await API.quoteGet(event.quoteId);
@@ -805,6 +861,9 @@ async function createSaleFromEvent(event) {
           // Guardar referencia a la cotización en localStorage para que sales.js la detecte
           localStorage.setItem('sales:lastQuoteId', event.quoteId);
           localStorage.setItem('sales:fromCalendarEvent', event._id);
+          
+          // Nota: La vinculación real de la cotización a la venta se hace en sales.js
+          // cuando detecta 'sales:lastQuoteId' en localStorage y llama a ensureSaleQuoteLink
         }
       } catch (err) {
         console.error('Error loading quote:', err);

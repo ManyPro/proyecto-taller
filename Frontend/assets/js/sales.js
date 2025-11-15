@@ -149,8 +149,80 @@ function printSaleTicket(sale){
     const txt = linesOut.join('\n');
     const win = window.open('', '_blank');
     if (!win) { alert('No se pudo abrir ventana de impresión'); return; }
-    win.document.write('<pre>' + txt + '</pre>');
-    win.document.close(); win.focus(); win.print(); try { win.close(); } catch {}
+    const modalScript = `
+      <script>
+        (function() {
+          function showModal() {
+            if (!document.body) {
+              setTimeout(showModal, 50);
+              return;
+            }
+            
+            const pageSize = 'MEDIA CARTA (5.5" x 8.5")';
+            const modal = document.createElement('div');
+            modal.id = 'page-size-modal';
+            modal.style.cssText = 'position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);';
+            modal.innerHTML = \`
+              <div style="background: linear-gradient(to bottom right, #1e293b, #0f172a); border: 1px solid rgba(148, 163, 184, 0.5); border-radius: 1rem; padding: 2rem; max-width: 28rem; width: 100%; margin: 1rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.2s ease-in-out;">
+                <div style="text-align: center; margin-bottom: 1.5rem;">
+                  <div style="display: inline-flex; align-items: center; justify-content: center; width: 4rem; height: 4rem; background: rgba(59, 130, 246, 0.2); border-radius: 9999px; margin-bottom: 1rem;">
+                    <svg style="width: 2rem; height: 2rem; color: #60a5fa;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                  </div>
+                  <h3 style="font-size: 1.5rem; font-weight: 700; color: white; margin-bottom: 0.5rem;">Tamaño de Hoja Requerido</h3>
+                </div>
+                <div style="background: rgba(51, 65, 85, 0.3); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                  <div style="text-align: center;">
+                    <div style="font-size: 1.875rem; font-weight: 700; color: #60a5fa; margin-bottom: 0.5rem;">\${pageSize}</div>
+                    <p style="font-size: 0.875rem; color: #cbd5e1; margin-top: 0.5rem;">
+                      Asegúrate de configurar tu impresora con este tamaño antes de imprimir.
+                    </p>
+                  </div>
+                </div>
+                <div style="display: flex; gap: 0.75rem;">
+                  <button id="page-size-cancel" style="flex: 1; padding: 0.75rem 1rem; background: rgba(51, 65, 85, 0.5); border: 1px solid rgba(100, 116, 139, 0.5); border-radius: 0.5rem; color: white; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                    Cancelar
+                  </button>
+                  <button id="page-size-accept" style="flex: 1; padding: 0.75rem 1rem; background: linear-gradient(to right, #2563eb, #1d4ed8); border: none; border-radius: 0.5rem; color: white; font-weight: 600; cursor: pointer; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); transition: all 0.2s;">
+                    Aceptar
+                  </button>
+                </div>
+              </div>
+            \`;
+            document.body.appendChild(modal);
+            const modalContent = modal.querySelector('div > div');
+            const acceptBtn = document.getElementById('page-size-accept');
+            const cancelBtn = document.getElementById('page-size-cancel');
+            const closeModal = () => {
+              modal.style.opacity = '0';
+              if (modalContent) modalContent.style.transform = 'scale(0.95)';
+              setTimeout(() => modal.remove(), 200);
+            };
+            acceptBtn.onclick = () => {
+              closeModal();
+              setTimeout(() => window.print(), 100);
+            };
+            cancelBtn.onclick = () => {
+              closeModal();
+              window.close();
+            };
+            setTimeout(() => {
+              modal.style.opacity = '1';
+              if (modalContent) modalContent.style.transform = 'scale(1)';
+            }, 10);
+          }
+          
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', showModal);
+          } else {
+            setTimeout(showModal, 100);
+          }
+        })();
+      </script>
+    `;
+    win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${modalScript}</head><body><pre>${txt}</pre></body></html>`);
+    win.document.close(); win.focus();
   }
   // Intento con plantilla activa invoice
   if(API?.templates?.active){
@@ -298,7 +370,106 @@ function printSaleTicket(sale){
               </script>
             `;
             
-            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}${debugScript}
+            // Función para mostrar modal de tamaño de hoja en la ventana de impresión
+            const modalScript = `
+              <script>
+                (function() {
+                  function showModal() {
+                    // Verificar que el body existe
+                    if (!document.body) {
+                      setTimeout(showModal, 50);
+                      return;
+                    }
+                    
+                    // Determinar tamaño de página dinámicamente
+                    const body = document.body;
+                    const html = document.documentElement;
+                    const contentHeight = Math.max(
+                      body?.scrollHeight || 0, body?.offsetHeight || 0, html?.clientHeight || 0, html?.scrollHeight || 0, html?.offsetHeight || 0
+                    );
+                    const mediaCartaMaxHeight = 800;
+                    const isMediaCarta = contentHeight <= mediaCartaMaxHeight;
+                    const pageSize = isMediaCarta ? 'MEDIA CARTA (5.5" x 8.5")' : 'CARTA COMPLETA (8.5" x 11")';
+                    
+                    const modal = document.createElement('div');
+                    modal.id = 'page-size-modal';
+                    modal.style.cssText = 'position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);';
+                    modal.innerHTML = \`
+                    <div style="background: linear-gradient(to bottom right, #1e293b, #0f172a); border: 1px solid rgba(148, 163, 184, 0.5); border-radius: 1rem; padding: 2rem; max-width: 28rem; width: 100%; margin: 1rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.2s ease-in-out;">
+                      <div style="text-align: center; margin-bottom: 1.5rem;">
+                        <div style="display: inline-flex; align-items: center; justify-content: center; width: 4rem; height: 4rem; background: rgba(59, 130, 246, 0.2); border-radius: 9999px; margin-bottom: 1rem;">
+                          <svg style="width: 2rem; height: 2rem; color: #60a5fa;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                          </svg>
+                        </div>
+                        <h3 style="font-size: 1.5rem; font-weight: 700; color: white; margin-bottom: 0.5rem;">Tamaño de Hoja Requerido</h3>
+                      </div>
+                      <div style="background: rgba(51, 65, 85, 0.3); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                        <div style="text-align: center;">
+                          <div style="font-size: 1.875rem; font-weight: 700; color: #60a5fa; margin-bottom: 0.5rem;">\${pageSize}</div>
+                          <p style="font-size: 0.875rem; color: #cbd5e1; margin-top: 0.5rem;">
+                            Asegúrate de configurar tu impresora con este tamaño antes de imprimir.
+                          </p>
+                        </div>
+                      </div>
+                      <div style="display: flex; gap: 0.75rem;">
+                        <button id="page-size-cancel" style="flex: 1; padding: 0.75rem 1rem; background: rgba(51, 65, 85, 0.5); border: 1px solid rgba(100, 116, 139, 0.5); border-radius: 0.5rem; color: white; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                          Cancelar
+                        </button>
+                        <button id="page-size-accept" style="flex: 1; padding: 0.75rem 1rem; background: linear-gradient(to right, #2563eb, #1d4ed8); border: none; border-radius: 0.5rem; color: white; font-weight: 600; cursor: pointer; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); transition: all 0.2s;">
+                          Aceptar
+                        </button>
+                      </div>
+                    </div>
+                  \`;
+                  document.body.appendChild(modal);
+                  
+                  const modalContent = modal.querySelector('div > div');
+                  const acceptBtn = document.getElementById('page-size-accept');
+                  const cancelBtn = document.getElementById('page-size-cancel');
+                  
+                  const closeModal = () => {
+                    modal.style.opacity = '0';
+                    if (modalContent) {
+                      modalContent.style.transform = 'scale(0.95)';
+                    }
+                    setTimeout(() => {
+                      modal.remove();
+                    }, 200);
+                  };
+                  
+                  acceptBtn.onclick = () => {
+                    closeModal();
+                    setTimeout(() => {
+                      window.print();
+                    }, 100);
+                  };
+                  
+                  cancelBtn.onclick = () => {
+                    closeModal();
+                    window.close();
+                  };
+                  
+                    // Animación de entrada
+                    setTimeout(() => {
+                      modal.style.opacity = '1';
+                      if (modalContent) {
+                        modalContent.style.transform = 'scale(1)';
+                      }
+                    }, 10);
+                  }
+                  
+                  // Intentar mostrar el modal inmediatamente, o esperar a que el DOM esté listo
+                  if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', showModal);
+                  } else {
+                    setTimeout(showModal, 100);
+                  }
+                })();
+              </script>
+            `;
+            
+            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}${debugScript}${modalScript}
               <style>
                 /* Estilos base para mejor uso del espacio */
                 body {
@@ -592,10 +763,10 @@ function printSaleTicket(sale){
               adjustTotalPosition();
             });
             
-            // Abrir diálogo de impresión automáticamente después de detectar tamaño y ajustar posición
+            // El modal ya está en la página de impresión, solo necesitamos ajustar y detectar tamaño
             win.focus();
             
-            // Esperar a que se cargue y ajuste todo, luego abrir diálogo de impresión automáticamente
+            // Esperar a que se cargue y ajuste todo
             setTimeout(() => {
               // Ajustar posición del total
               adjustTotalPosition();
@@ -604,29 +775,6 @@ function printSaleTicket(sale){
               setTimeout(() => {
                 adjustTotalPosition();
                 detectAndSetPageSize();
-                
-                // Determinar tamaño de página para la alerta
-                const body = win.document.body;
-                const html = win.document.documentElement;
-                const contentHeight = Math.max(
-                  body.scrollHeight, body.offsetHeight, html.clientHeight, html.scrollHeight, html.offsetHeight
-                );
-                const mediaCartaMaxHeight = 800;
-                const isMediaCarta = contentHeight <= mediaCartaMaxHeight;
-                const pageSize = isMediaCarta ? 'MEDIA CARTA (5.5" x 8.5")' : 'CARTA COMPLETA (8.5" x 11")';
-                
-                // Mostrar alerta con el tamaño de página
-                alert(`📄 TAMAÑO DE HOJA REQUERIDO:\n\n${pageSize}\n\nAsegúrate de configurar tu impresora con este tamaño antes de imprimir.`);
-                
-                // Abrir diálogo de impresión automáticamente con el tamaño correcto
-                setTimeout(() => {
-                  adjustTotalPosition();
-                  requestAnimationFrame(() => {
-                    adjustTotalPosition();
-                    // Abrir diálogo de impresión automáticamente
-                    win.print();
-                  });
-                }, 300);
               }, 500);
             }, 1000);
           })
@@ -656,8 +804,74 @@ function printWorkOrder(){
     (sale.items||[]).forEach(it=> lines.push('- '+ (it.qty||0) + ' x ' + (it.name||it.sku||'') ));
     const win = window.open('', '_blank');
     if(!win){ alert('No se pudo abrir impresión'); return; }
-    win.document.write('<pre>'+lines.join('\n')+'</pre>');
-    win.document.close(); win.focus(); win.print(); try{ win.close(); }catch{}
+    const modalScript = `
+      <script>
+        (function() {
+          const pageSize = 'MEDIA CARTA (5.5" x 8.5")';
+          const modal = document.createElement('div');
+          modal.id = 'page-size-modal';
+          modal.style.cssText = 'position: fixed; inset: 0; z-index: 99999; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);';
+          modal.innerHTML = \`
+            <div style="background: linear-gradient(to bottom right, #1e293b, #0f172a); border: 1px solid rgba(148, 163, 184, 0.5); border-radius: 1rem; padding: 2rem; max-width: 28rem; width: 100%; margin: 1rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.2s ease-in-out;">
+              <div style="text-align: center; margin-bottom: 1.5rem;">
+                <div style="display: inline-flex; align-items: center; justify-content: center; width: 4rem; height: 4rem; background: rgba(59, 130, 246, 0.2); border-radius: 9999px; margin-bottom: 1rem;">
+                  <svg style="width: 2rem; height: 2rem; color: #60a5fa;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                  </svg>
+                </div>
+                <h3 style="font-size: 1.5rem; font-weight: 700; color: white; margin-bottom: 0.5rem;">Tamaño de Hoja Requerido</h3>
+              </div>
+              <div style="background: rgba(51, 65, 85, 0.3); border: 1px solid rgba(100, 116, 139, 0.3); border-radius: 0.5rem; padding: 1.5rem; margin-bottom: 1.5rem;">
+                <div style="text-align: center;">
+                  <div style="font-size: 1.875rem; font-weight: 700; color: #60a5fa; margin-bottom: 0.5rem;">\${pageSize}</div>
+                  <p style="font-size: 0.875rem; color: #cbd5e1; margin-top: 0.5rem;">
+                    Asegúrate de configurar tu impresora con este tamaño antes de imprimir.
+                  </p>
+                </div>
+              </div>
+              <div style="display: flex; gap: 0.75rem;">
+                <button id="page-size-cancel" style="flex: 1; padding: 0.75rem 1rem; background: rgba(51, 65, 85, 0.5); border: 1px solid rgba(100, 116, 139, 0.5); border-radius: 0.5rem; color: white; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                  Cancelar
+                </button>
+                <button id="page-size-accept" style="flex: 1; padding: 0.75rem 1rem; background: linear-gradient(to right, #2563eb, #1d4ed8); border: none; border-radius: 0.5rem; color: white; font-weight: 600; cursor: pointer; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); transition: all 0.2s;">
+                  Aceptar
+                </button>
+              </div>
+            </div>
+          \`;
+            document.body.appendChild(modal);
+            const modalContent = modal.querySelector('div > div');
+            const acceptBtn = document.getElementById('page-size-accept');
+            const cancelBtn = document.getElementById('page-size-cancel');
+            const closeModal = () => {
+              modal.style.opacity = '0';
+              if (modalContent) modalContent.style.transform = 'scale(0.95)';
+              setTimeout(() => modal.remove(), 200);
+            };
+            acceptBtn.onclick = () => {
+              closeModal();
+              setTimeout(() => window.print(), 100);
+            };
+            cancelBtn.onclick = () => {
+              closeModal();
+              window.close();
+            };
+            setTimeout(() => {
+              modal.style.opacity = '1';
+              if (modalContent) modalContent.style.transform = 'scale(1)';
+            }, 10);
+          }
+          
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', showModal);
+          } else {
+            setTimeout(showModal, 100);
+          }
+        })();
+      </script>
+    `;
+    win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${modalScript}</head><body><pre>${lines.join('\n')}</pre></body></html>`);
+    win.document.close(); win.focus();
   }
   if(API?.templates?.active){
     API.templates.active('workOrder')
@@ -824,11 +1038,8 @@ function printWorkOrder(){
               }
             };
             
-            // Abrir diálogo de impresión automáticamente después de detectar tamaño
+            // El modal ya está en la página de impresión, solo necesitamos configurar tamaño y detectar
             win.focus();
-            
-            // Mostrar alerta con el tamaño de página (siempre media carta para orden de trabajo)
-            alert('📄 TAMAÑO DE HOJA REQUERIDO:\n\nMEDIA CARTA (5.5" x 8.5")\n\nAsegúrate de configurar tu impresora con este tamaño antes de imprimir.');
             
             // Forzar tamaño a media carta para orden de trabajo
             let pageSizeStyle = win.document.getElementById('dynamic-page-size');
@@ -849,23 +1060,13 @@ function printWorkOrder(){
               }
             `;
             
-            // Esperar a que se cargue y detectar tamaño de página, luego abrir diálogo de impresión automáticamente
+            // Esperar a que se cargue y detectar tamaño de página
             setTimeout(() => {
               detectAndSetPageSize();
               
               // Esperar un poco más para asegurar que todo esté renderizado
               setTimeout(() => {
                 detectAndSetPageSize();
-                
-                // Abrir diálogo de impresión automáticamente con el tamaño correcto
-                setTimeout(() => {
-                  detectAndSetPageSize();
-                  requestAnimationFrame(() => {
-                    detectAndSetPageSize();
-                    // Abrir diálogo de impresión automáticamente
-                    win.print();
-                  });
-                }, 300);
               }, 500);
             }, 1000);
             
@@ -939,11 +1140,36 @@ async function renderQuoteForCurrentSale(){
     renderQuoteMini(null);
     return;
   }
-  const quoteId = getSaleQuoteId(saleId);
+  
+  // Primero verificar si hay una cotización vinculada a la venta
+  let quoteId = getSaleQuoteId(saleId);
+  
+  // Si no hay cotización vinculada, verificar si hay una pendiente de cargar desde localStorage
+  // (esto puede pasar cuando se crea la venta desde el calendario)
+  if(!quoteId){
+    const pendingQuoteId = localStorage.getItem('sales:lastQuoteId');
+    if(pendingQuoteId){
+      quoteId = pendingQuoteId;
+      // Vincular la cotización a la venta
+      try {
+        const quote = await API.quoteGet(quoteId);
+        if(quote){
+          ensureSaleQuoteLink(quote);
+          // Limpiar localStorage después de vincular
+          localStorage.removeItem('sales:lastQuoteId');
+        }
+      } catch(err){
+        console.warn('No se pudo cargar cotización pendiente:', err);
+        localStorage.removeItem('sales:lastQuoteId');
+      }
+    }
+  }
+  
   if(!quoteId){
     renderQuoteMini(null);
     return;
   }
+  
   const token = ++saleQuoteRequestToken;
   try{
     let quote = saleQuoteCache.get(quoteId);
@@ -972,6 +1198,34 @@ function mapQuoteItemToSale(it){
   let source = it.source || it.kindSource || '';
   const refId = it.refId || it.refID || it.ref_id || null;
   const kindUpper = String(it.kind || it.type || '').toUpperCase();
+  const hasComboParent = it.comboParent || it.combo_parent;
+  
+  // Si es tipo COMBO y tiene refId (es el combo principal), usar source='price' con refId
+  // Los items anidados del combo (que también tienen kind='Combo' pero tienen comboParent)
+  // NO deben pasarse como combos separados, sino que el backend los expandirá desde el combo principal
+  if (kindUpper === 'COMBO' && !hasComboParent && refId) {
+    // Es el combo principal, pasarlo como price con refId
+    return { source:'price', refId: refId || undefined, qty, unitPrice:unit };
+  }
+  
+  // Si es un item anidado de combo (tiene comboParent), NO pasarlo
+  // El backend lo expandirá automáticamente desde el combo principal
+  if (hasComboParent) {
+    // Omitir items anidados del combo, el backend los agregará automáticamente
+    return null;
+  }
+  
+  // Si es combo pero no tiene refId ni comboParent, tratar como servicio
+  if (kindUpper === 'COMBO' && !refId) {
+    return {
+      source:'service',
+      name: it.description || it.name || 'Item',
+      sku: it.sku || undefined,
+      qty,
+      unitPrice: unit
+    };
+  }
+  
   if(!source && kindUpper === 'PRODUCTO' && (refId || it.sku)) source = 'inventory';
   if(source === 'inventory'){
     return { source:'inventory', refId: refId || undefined, sku: it.sku || undefined, qty, unitPrice:unit };
@@ -2044,10 +2298,25 @@ function renderMini(){
   if (existingBtn) existingBtn.remove();
 }
 
-function renderSale(){
+async function renderSale(){
   const body = document.getElementById('sales-body'), total = document.getElementById('sales-total');
   if (!body) return;
   body.innerHTML = '';
+  
+  // Verificar si hay una cotización pendiente de cargar cuando se renderiza la venta
+  // Esto asegura que se cargue incluso si no se detectó al inicio
+  if (current?._id) {
+    const pendingQuoteId = localStorage.getItem('sales:lastQuoteId');
+    if (pendingQuoteId && !getSaleQuoteId(current._id)) {
+      // Hay una cotización pendiente y la venta actual no tiene cotización vinculada
+      // Cargarla en el siguiente tick para no bloquear el render
+      setTimeout(async () => {
+        if (current?._id) {
+          await renderQuoteForCurrentSale();
+        }
+      }, 100);
+    }
+  }
 
   if (current?.openSlots && current.openSlots.length > 0) {
     const incompleteSlots = current.openSlots.filter(slot => !slot.completed);
@@ -2621,7 +2890,7 @@ function renderWO(){
     const headerRow = document.createElement('tr');
     headerRow.className = 'wo-section-header';
     headerRow.innerHTML = `
-      <td colspan="2" class="py-3 px-3 bg-blue-600/20 dark:bg-blue-600/20 theme-light:bg-blue-50 border-b border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-200">
+      <td colspan="2" class="py-2 px-1 bg-blue-600/20 dark:bg-blue-600/20 theme-light:bg-blue-50 border-b border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-200">
         <div class="flex items-center gap-2">
           <span class="text-lg">🔧</span>
           <span class="font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-700">Servicios</span>
@@ -2635,8 +2904,8 @@ function renderWO(){
       const tr = document.createElement('tr');
       tr.className = 'wo-item wo-service';
       tr.innerHTML = `
-        <td class="py-2.5 px-3 text-white dark:text-white theme-light:text-slate-900">${it.name||''}</td>
-        <td class="t-center py-2.5 px-3 text-white dark:text-white theme-light:text-slate-900 font-medium">${String(it.qty||1)}</td>
+        <td class="py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900">${it.name||''}</td>
+        <td class="t-center py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900 font-medium">${String(it.qty||1)}</td>
       `;
       b.appendChild(tr);
     });
@@ -2653,7 +2922,7 @@ function renderWO(){
     const headerRow = document.createElement('tr');
     headerRow.className = 'wo-section-header';
     headerRow.innerHTML = `
-      <td colspan="2" class="py-3 px-3 bg-green-600/20 dark:bg-green-600/20 theme-light:bg-green-50 border-b border-green-600/30 dark:border-green-600/30 theme-light:border-green-200">
+      <td colspan="2" class="py-2 px-1 bg-green-600/20 dark:bg-green-600/20 theme-light:bg-green-50 border-b border-green-600/30 dark:border-green-600/30 theme-light:border-green-200">
         <div class="flex items-center gap-2">
           <span class="text-lg">📦</span>
           <span class="font-semibold text-green-400 dark:text-green-400 theme-light:text-green-700">Productos</span>
@@ -2667,8 +2936,8 @@ function renderWO(){
       const tr = document.createElement('tr');
       tr.className = 'wo-item wo-product';
       tr.innerHTML = `
-        <td class="py-2.5 px-3 text-white dark:text-white theme-light:text-slate-900">${it.name||''}</td>
-        <td class="t-center py-2.5 px-3 text-white dark:text-white theme-light:text-slate-900 font-medium">${String(it.qty||1)}</td>
+        <td class="py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900">${it.name||''}</td>
+        <td class="t-center py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900 font-medium">${String(it.qty||1)}</td>
       `;
       b.appendChild(tr);
     });
@@ -4664,13 +4933,13 @@ function renderQuoteMini(q){
     const tr = document.createElement('tr');
     tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors';
     tr.innerHTML = `
-      <td class="py-2 px-2 text-xs text-white dark:text-white theme-light:text-slate-900">${typeLabel}</td>
-      <td class="py-2 px-2 text-xs text-white dark:text-white theme-light:text-slate-900">${htmlEscape(name || 'Item')}</td>
-      <td class="py-2 px-2 text-center text-xs text-white dark:text-white theme-light:text-slate-900">${qty}</td>
-      <td class="py-2 px-2 text-right text-xs text-white dark:text-white theme-light:text-slate-900 font-medium">${money(unit)}</td>
-      <td class="py-2 px-2 text-right text-xs text-white dark:text-white theme-light:text-slate-900 font-semibold">${money(total)}</td>
-      <td class="py-2 px-2 text-center w-8">
-        <button class="add px-2 py-1 text-xs bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-medium rounded transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30 theme-light:bg-blue-50 theme-light:text-blue-600 theme-light:hover:bg-blue-100 theme-light:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed" type="button">+</button>
+      <td class="py-1 px-0.5 text-xs text-white dark:text-white theme-light:text-slate-900 align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${typeLabel}</td>
+      <td class="py-1 px-0.5 text-xs text-white dark:text-white theme-light:text-slate-900 break-words align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${htmlEscape(name || 'Item')}</td>
+      <td class="py-1 px-0.5 text-center text-[10px] text-white dark:text-white theme-light:text-slate-900 align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${qty}</td>
+      <td class="py-1 px-0.5 text-right text-[10px] text-white dark:text-white theme-light:text-slate-900 font-medium whitespace-nowrap align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(unit)}</td>
+      <td class="py-1 px-0.5 text-right text-[10px] text-white dark:text-white theme-light:text-slate-900 font-semibold whitespace-nowrap align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(total)}</td>
+      <td class="py-1 px-0.5 text-center align-top border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
+        <button class="add w-5 h-5 flex items-center justify-center text-[10px] bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-bold rounded transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30 theme-light:bg-blue-50 theme-light:text-blue-600 theme-light:hover:bg-blue-100 theme-light:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed" type="button" title="Agregar">+</button>
       </td>
     `;
     const btn = tr.querySelector('button.add');
@@ -4724,9 +4993,17 @@ function renderQuoteMini(q){
         renderTabs();
       }
       ensureSaleQuoteLink(q);
+      
+      // Filtrar items para evitar duplicados de combos
+      // El backend expandirá automáticamente los combos, así que si la cotización
+      // ya tiene los productos del combo desglosados, debemos omitirlos
+      // Estrategia: enviar todos los items, pero el backend verificará si un producto
+      // ya viene en el batch antes de expandirlo desde el combo
+      // También omitir items anidados del combo (que tienen comboParent)
+      const filteredItems = q.items.map(mapQuoteItemToSale).filter(item => item !== null);
+      
       try {
-        const batchPayload = q.items.map(mapQuoteItemToSale);
-        current = await API.sales.addItemsBatch(current._id, batchPayload);
+        current = await API.sales.addItemsBatch(current._id, filteredItems);
         syncCurrentIntoOpenList();
         renderTabs();
         renderSale();
@@ -5600,8 +5877,8 @@ export function initSales(){
     gateElement(canWO, '#sv-print-wo');
   })();
 
-  try { localStorage.removeItem('sales:lastQuoteId'); } catch {}
-
+  // NO eliminar sales:lastQuoteId aquí, se necesita para cargar la cotización cuando se renderiza la venta
+  
   // Detectar si viene del calendario y cargar cotización si existe
   const urlParams = new URLSearchParams(window.location.search);
   const fromCalendar = urlParams.get('fromCalendar');
@@ -5624,27 +5901,53 @@ export function initSales(){
           renderMini();
           renderWO();
           
-          // Cargar cotización si existe en localStorage
-          const quoteId = localStorage.getItem('sales:lastQuoteId');
-          if (quoteId) {
-            try {
-              const quote = await API.quoteGet(quoteId);
-              if (quote) {
-                lastQuoteLoaded = quote;
-                ensureSaleQuoteLink(quote);
-                await renderQuoteForCurrentSale();
-              }
-            } catch (err) {
-              console.warn('No se pudo cargar cotización:', err);
-            }
-          }
+          // Cargar cotización - renderQuoteForCurrentSale ahora verifica localStorage automáticamente
+          await renderQuoteForCurrentSale();
         }
       } catch (err) {
         console.error('Error loading sale from calendar:', err);
       }
     }, 500);
   }
+  
+  // Listener para cuando se crea una venta desde el calendario en la misma página
+  window.addEventListener('calendar:saleCreated', async (event) => {
+    const { saleId: eventSaleId, quoteId } = event.detail || {};
+    if (eventSaleId) {
+      // Si hay una venta actual y coincide, o si necesitamos cargar la venta
+      if (current?._id === eventSaleId) {
+        // La venta ya está cargada, solo cargar la cotización
+        if (quoteId) {
+          localStorage.setItem('sales:lastQuoteId', quoteId);
+          await renderQuoteForCurrentSale();
+        }
+      } else {
+        // La venta aún no está cargada, guardar el quoteId y esperar a que se cargue
+        if (quoteId) {
+          localStorage.setItem('sales:lastQuoteId', quoteId);
+        }
+        // Intentar cargar la venta
+        try {
+          const sale = await API.sales.get(eventSaleId);
+          if (sale) {
+            current = sale;
+            syncCurrentIntoOpenList();
+            renderTabs();
+            renderSale();
+            renderMini();
+            renderWO();
+            await renderQuoteForCurrentSale();
+          }
+        } catch (err) {
+          console.error('Error loading sale from calendar event:', err);
+        }
+      }
+    }
+  });
 
+  // Inicializar navegación interna
+  initInternalNavigation();
+  
   refreshOpenSales();
   startSalesAutoRefresh();
 
@@ -7424,7 +7727,6 @@ export function initSales(){
       }, 'Agregar items');
     });
   });
-  document.getElementById('sales-history')?.addEventListener('click', openSalesHistory);
   document.getElementById('sv-edit-cv')?.addEventListener('click', openEditCV);
   document.getElementById('sv-loadQuote')?.addEventListener('click', loadQuote);
   document.getElementById('sv-applyQuoteCV')?.addEventListener('click', applyQuoteCustomerVehicle);
@@ -7511,6 +7813,1066 @@ export function initSales(){
   });
 
   connectLive();
+}
+
+// ========================
+// NAVEGACIÓN INTERNA Y HISTORIAL
+// ========================
+
+let historialCurrentPage = 1;
+let historialPageSize = 20;
+let historialTotalPages = 1;
+let historialTotal = 0;
+let historialDateFrom = null;
+let historialDateTo = null;
+
+function initInternalNavigation() {
+  const btnVentas = document.getElementById('sales-nav-ventas');
+  const btnHistorial = document.getElementById('sales-nav-historial');
+  const viewVentas = document.getElementById('sales-view-ventas');
+  const viewHistorial = document.getElementById('sales-view-historial');
+
+  if (!btnVentas || !btnHistorial || !viewVentas || !viewHistorial) return;
+
+  // Navegación entre vistas
+  btnVentas.addEventListener('click', () => {
+    btnVentas.classList.add('active');
+    btnHistorial.classList.remove('active');
+    viewVentas.classList.remove('hidden');
+    viewHistorial.classList.add('hidden');
+  });
+
+  btnHistorial.addEventListener('click', () => {
+    btnHistorial.classList.add('active');
+    btnVentas.classList.remove('active');
+    viewHistorial.classList.remove('hidden');
+    viewVentas.classList.add('hidden');
+    // Cargar historial al cambiar a esa vista
+    loadHistorial();
+  });
+
+  // Filtros de fecha
+  const btnFiltrar = document.getElementById('historial-filtrar');
+  const btnLimpiar = document.getElementById('historial-limpiar');
+  const fechaDesde = document.getElementById('historial-fecha-desde');
+  const fechaHasta = document.getElementById('historial-fecha-hasta');
+
+  if (btnFiltrar) {
+    btnFiltrar.addEventListener('click', () => {
+      historialDateFrom = fechaDesde?.value || null;
+      historialDateTo = fechaHasta?.value || null;
+      historialCurrentPage = 1;
+      loadHistorial();
+    });
+  }
+
+  if (btnLimpiar) {
+    btnLimpiar.addEventListener('click', () => {
+      if (fechaDesde) fechaDesde.value = '';
+      if (fechaHasta) fechaHasta.value = '';
+      historialDateFrom = null;
+      historialDateTo = null;
+      historialCurrentPage = 1;
+      loadHistorial();
+    });
+  }
+
+  // Paginación
+  const btnPrev = document.getElementById('historial-prev');
+  const btnNext = document.getElementById('historial-next');
+
+  if (btnPrev) {
+    btnPrev.addEventListener('click', () => {
+      if (historialCurrentPage > 1) {
+        historialCurrentPage--;
+        loadHistorial();
+      }
+    });
+  }
+
+  if (btnNext) {
+    btnNext.addEventListener('click', () => {
+      if (historialCurrentPage < historialTotalPages) {
+        historialCurrentPage++;
+        loadHistorial();
+      }
+    });
+  }
+}
+
+async function loadHistorial() {
+  const container = document.getElementById('historial-ventas-container');
+  const paginationInfo = document.getElementById('historial-pagination-info');
+  const pageInfo = document.getElementById('historial-page-info');
+  const btnPrev = document.getElementById('historial-prev');
+  const btnNext = document.getElementById('historial-next');
+
+  if (!container) return;
+
+  try {
+    container.innerHTML = '<div class="text-center py-8 text-slate-400">Cargando ventas...</div>';
+
+    const params = {
+      status: 'closed',
+      limit: historialPageSize,
+      page: historialCurrentPage
+    };
+
+    // Si hay filtros de fecha, usarlos; si no, cargar últimas 20
+    if (historialDateFrom || historialDateTo) {
+      if (historialDateFrom) params.from = historialDateFrom;
+      if (historialDateTo) params.to = historialDateTo;
+    } else {
+      // Sin filtros: cargar últimas 20 ventas
+      params.limit = 20;
+      params.page = 1;
+    }
+
+    const res = await API.sales.list(params);
+    const sales = Array.isArray(res?.items) ? res.items : [];
+    
+    historialTotal = res?.total || sales.length;
+    historialTotalPages = res?.pages || Math.ceil(historialTotal / historialPageSize);
+
+    if (sales.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-12">
+          <div class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-lg mb-2">No se encontraron ventas</div>
+          <div class="text-slate-500 dark:text-slate-500 theme-light:text-slate-500 text-sm">Intenta ajustar los filtros de fecha</div>
+        </div>
+      `;
+      if (paginationInfo) paginationInfo.textContent = '';
+      if (pageInfo) pageInfo.textContent = '';
+      if (btnPrev) btnPrev.disabled = true;
+      if (btnNext) btnNext.disabled = true;
+      return;
+    }
+
+    // Renderizar ventas
+    container.innerHTML = '';
+    sales.forEach(sale => {
+      const card = createHistorialSaleCard(sale);
+      container.appendChild(card);
+    });
+
+    // Actualizar información de paginación
+    if (paginationInfo) {
+      const start = (historialCurrentPage - 1) * historialPageSize + 1;
+      const end = Math.min(historialCurrentPage * historialPageSize, historialTotal);
+      paginationInfo.textContent = `Mostrando ${start} - ${end} de ${historialTotal} ventas`;
+    }
+
+    if (pageInfo) {
+      pageInfo.textContent = `Página ${historialCurrentPage} de ${historialTotalPages}`;
+    }
+
+    if (btnPrev) btnPrev.disabled = historialCurrentPage <= 1;
+    if (btnNext) btnNext.disabled = historialCurrentPage >= historialTotalPages;
+
+  } catch (err) {
+    console.error('Error loading historial:', err);
+    container.innerHTML = `
+      <div class="text-center py-12">
+        <div class="text-red-400 dark:text-red-400 theme-light:text-red-600 text-lg mb-2">Error al cargar ventas</div>
+        <div class="text-slate-500 dark:text-slate-500 theme-light:text-slate-500 text-sm">${err?.message || 'Error desconocido'}</div>
+      </div>
+    `;
+  }
+}
+
+function createHistorialSaleCard(sale) {
+  const card = document.createElement('div');
+  card.className = 'historial-sale-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4';
+  
+  const plate = sale?.vehicle?.plate || 'Sin placa';
+  const customer = sale?.customer?.name || 'Sin cliente';
+  const totalPaid = calculateTotalPaid(sale);
+  const closedDate = sale?.closedAt ? new Date(sale.closedAt).toLocaleDateString('es-CO', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }) : 'Sin fecha';
+  const saleNumber = sale?.number ? String(sale.number).padStart(5, '0') : sale?._id?.slice(-6) || 'N/A';
+
+  card.innerHTML = `
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Placa</div>
+          <div class="text-base font-bold text-white dark:text-white theme-light:text-slate-900">${plate.toUpperCase()}</div>
+        </div>
+        <div>
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Cliente</div>
+          <div class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">${customer}</div>
+        </div>
+        <div>
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Valor pagado</div>
+          <div class="text-lg font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${money(totalPaid)}</div>
+        </div>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-2">
+        <button class="btn-historial-print px-3 py-2 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" data-sale-id="${sale._id}">
+          🖨️ Imprimir remisión
+        </button>
+        <button class="btn-historial-view px-3 py-2 text-xs bg-blue-600/50 dark:bg-blue-600/50 hover:bg-blue-600 dark:hover:bg-blue-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-blue-500/50 dark:border-blue-500/50" data-sale-id="${sale._id}">
+          👁️ Ver resumen
+        </button>
+        <button class="btn-historial-edit px-3 py-2 text-xs bg-purple-600/50 dark:bg-purple-600/50 hover:bg-purple-600 dark:hover:bg-purple-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-purple-500/50 dark:border-purple-500/50" data-sale-id="${sale._id}">
+          ✏️ Editar cierre
+        </button>
+      </div>
+    </div>
+    <div class="mt-3 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 flex justify-between items-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+      <span>Venta #${saleNumber}</span>
+      <span>Cerrada: ${closedDate}</span>
+    </div>
+  `;
+
+  // Event listeners para los botones
+  const btnPrint = card.querySelector('.btn-historial-print');
+  const btnView = card.querySelector('.btn-historial-view');
+  const btnEdit = card.querySelector('.btn-historial-edit');
+
+  if (btnPrint) {
+    btnPrint.addEventListener('click', () => {
+      printSaleFromHistorial(btnPrint.dataset.saleId);
+    });
+  }
+
+  if (btnView) {
+    btnView.addEventListener('click', () => {
+      viewSaleSummary(btnView.dataset.saleId);
+    });
+  }
+
+  if (btnEdit) {
+    btnEdit.addEventListener('click', () => {
+      openEditCloseModal(btnEdit.dataset.saleId);
+    });
+  }
+
+  return card;
+}
+
+function calculateTotalPaid(sale) {
+  if (!sale) return 0;
+  
+  // Si tiene paymentMethods (multi-pago), sumar todos
+  if (sale.paymentMethods && Array.isArray(sale.paymentMethods) && sale.paymentMethods.length > 0) {
+    return sale.paymentMethods.reduce((sum, pm) => sum + (Number(pm.amount) || 0), 0);
+  }
+  
+  // Fallback al total de la venta
+  return Number(sale.total) || 0;
+}
+
+async function printSaleFromHistorial(saleId) {
+  try {
+    const sale = await API.sales.get(saleId);
+    if (sale) {
+      printSaleTicket(sale);
+    } else {
+      alert('No se pudo cargar la venta');
+    }
+  } catch (err) {
+    console.error('Error printing sale:', err);
+    alert('Error al imprimir: ' + (err?.message || 'Error desconocido'));
+  }
+}
+
+async function viewSaleSummary(saleId) {
+  try {
+    const sale = await API.sales.get(saleId);
+    if (!sale) {
+      alert('No se pudo cargar la venta');
+      return;
+    }
+
+    // Usar la función existente openSaleHistoryDetail si existe, o crear una nueva
+    if (typeof openSaleHistoryDetail === 'function') {
+      openSaleHistoryDetail(saleId);
+    } else {
+      // Crear modal simple con resumen
+      const modal = document.getElementById('modal');
+      const modalBody = document.getElementById('modalBody');
+      if (!modal || !modalBody) return;
+
+      const summary = buildSaleSummaryHTML(sale);
+      modalBody.innerHTML = summary;
+      modal.classList.remove('hidden');
+
+      // Botón cerrar
+      const closeBtn = modalBody.querySelector('#summary-close');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+          modal.classList.add('hidden');
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error viewing sale summary:', err);
+    alert('Error al cargar resumen: ' + (err?.message || 'Error desconocido'));
+  }
+}
+
+function buildSaleSummaryHTML(sale) {
+  const plate = sale?.vehicle?.plate || 'Sin placa';
+  const customer = sale?.customer?.name || 'Sin cliente';
+  const customerId = sale?.customer?.idNumber || '';
+  const customerPhone = sale?.customer?.phone || '';
+  const total = Number(sale?.total) || 0;
+  const closedDate = sale?.closedAt ? new Date(sale.closedAt).toLocaleDateString('es-CO', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }) : 'Sin fecha';
+  const saleNumber = sale?.number ? String(sale.number).padStart(5, '0') : sale?._id?.slice(-6) || 'N/A';
+  const paymentMethods = sale?.paymentMethods || [];
+  const laborCommissions = sale?.laborCommissions || [];
+
+  let itemsHTML = '';
+  if (sale.items && sale.items.length > 0) {
+    itemsHTML = sale.items.map((item, idx) => `
+      <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-sky-50 transition-colors duration-150 ${idx % 2 === 0 ? 'bg-slate-800/20 dark:bg-slate-800/20 theme-light:bg-white' : ''}">
+        <td class="py-3 px-4 text-xs font-mono text-slate-300 dark:text-slate-300 theme-light:text-slate-700">${item.sku || '—'}</td>
+        <td class="py-3 px-4 text-sm text-white dark:text-white theme-light:text-slate-900 font-medium">${item.name || 'Item'}</td>
+        <td class="py-3 px-4 text-center text-sm text-white dark:text-white theme-light:text-slate-900">${item.qty || 1}</td>
+        <td class="py-3 px-4 text-right text-sm text-white dark:text-white theme-light:text-slate-900">${money(item.unitPrice || 0)}</td>
+        <td class="py-3 px-4 text-right text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">${money((item.qty || 1) * (item.unitPrice || 0))}</td>
+      </tr>
+    `).join('');
+  }
+
+  let paymentsHTML = '';
+  if (paymentMethods.length > 0) {
+    paymentsHTML = paymentMethods.map((pm, idx) => `
+      <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-sky-50 transition-colors duration-150 ${idx % 2 === 0 ? 'bg-slate-800/20 dark:bg-slate-800/20 theme-light:bg-white' : ''}">
+        <td class="py-2 px-2 text-sm text-white dark:text-white theme-light:text-slate-900 font-medium">${pm.method || 'N/A'}</td>
+        <td class="py-2 px-2 text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${pm.accountId ? '—' : '—'}</td>
+        <td class="py-2 px-2 text-right text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">${money(pm.amount || 0)}</td>
+      </tr>
+    `).join('');
+  }
+
+  let commissionsHTML = '';
+  if (laborCommissions.length > 0) {
+    commissionsHTML = laborCommissions.map((comm, idx) => `
+      <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-sky-50 transition-colors duration-150 ${idx % 2 === 0 ? 'bg-slate-800/20 dark:bg-slate-800/20 theme-light:bg-white' : ''}">
+        <td class="py-2 px-2 text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">${comm.technician || 'N/A'}</td>
+        <td class="py-2 px-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${comm.kind || '—'}</td>
+        <td class="py-2 px-2 text-right text-sm font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${money(comm.share || 0)}</td>
+      </tr>
+    `).join('');
+  }
+
+  return `
+    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 max-w-5xl max-h-[90vh] overflow-y-auto">
+      <!-- Header -->
+      <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+        <div>
+          <h3 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Resumen de Venta</h3>
+          <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Venta #${saleNumber}</p>
+        </div>
+        <button id="summary-close" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+          ✕ Cerrar
+        </button>
+      </div>
+
+      <!-- Información General -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div class="bg-gradient-to-br from-slate-900/70 to-slate-800/70 dark:from-slate-900/70 dark:to-slate-800/70 theme-light:from-sky-100 theme-light:to-sky-50 rounded-lg p-4 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 shadow-md">
+          <h4 class="text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2 uppercase tracking-wide">Cliente</h4>
+          <div class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">${customer}</div>
+          ${customerId ? `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 flex items-center gap-2"><span class="font-medium">ID:</span> <span>${customerId}</span></div>` : ''}
+          ${customerPhone ? `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 flex items-center gap-2 mt-1"><span class="font-medium">Tel:</span> <span>${customerPhone}</span></div>` : ''}
+        </div>
+        <div class="bg-gradient-to-br from-slate-900/70 to-slate-800/70 dark:from-slate-900/70 dark:to-slate-800/70 theme-light:from-sky-100 theme-light:to-sky-50 rounded-lg p-4 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 shadow-md">
+          <h4 class="text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2 uppercase tracking-wide">Vehículo</h4>
+          <div class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">${plate.toUpperCase()}</div>
+          ${sale.vehicle?.brand ? `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${sale.vehicle.brand} ${sale.vehicle.line || ''} ${sale.vehicle.year ? `(${sale.vehicle.year})` : ''}</div>` : ''}
+        </div>
+      </div>
+
+      <!-- Items -->
+      <div class="mb-6">
+        <h4 class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex items-center gap-2">
+          <span class="text-2xl">📦</span>
+          <span>Items de la Venta</span>
+        </h4>
+        <div class="overflow-x-auto rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 shadow-lg">
+          <table class="w-full text-sm border-collapse">
+            <thead>
+              <tr class="bg-slate-900/80 dark:bg-slate-900/80 theme-light:bg-sky-200 border-b-2 border-slate-700/70 dark:border-slate-700/70 theme-light:border-slate-400">
+                <th class="text-left py-3 px-4 text-xs font-bold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider">SKU</th>
+                <th class="text-left py-3 px-4 text-xs font-bold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider">Descripción</th>
+                <th class="text-center py-3 px-4 text-xs font-bold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider">Cant.</th>
+                <th class="text-right py-3 px-4 text-xs font-bold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider">Unit</th>
+                <th class="text-right py-3 px-4 text-xs font-bold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 uppercase tracking-wider">Total</th>
+              </tr>
+            </thead>
+            <tbody class="bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-white">
+              ${itemsHTML || '<tr><td colspan="5" class="text-center py-8 text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin items</td></tr>'}
+            </tbody>
+            <tfoot>
+              <tr class="bg-slate-900/60 dark:bg-slate-900/60 theme-light:bg-sky-100 border-t-2 border-slate-700/70 dark:border-slate-700/70 theme-light:border-slate-400">
+                <td colspan="4" class="text-right py-4 px-4 font-bold text-base text-white dark:text-white theme-light:text-slate-900">Subtotal</td>
+                <td class="text-right py-4 px-4 font-bold text-lg text-white dark:text-white theme-light:text-slate-900">${money(total)}</td>
+              </tr>
+              <tr class="bg-gradient-to-r from-blue-900/40 to-blue-800/40 dark:from-blue-900/40 dark:to-blue-800/40 theme-light:from-blue-100 theme-light:to-blue-50 border-t-2 border-blue-700/50 dark:border-blue-700/50 theme-light:border-blue-400">
+                <td colspan="4" class="text-right py-4 px-4 font-bold text-lg text-white dark:text-white theme-light:text-slate-900">Total</td>
+                <td class="text-right py-4 px-4 font-bold text-xl text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${money(total)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Pagos y Comisiones -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <!-- Formas de pago -->
+        <div class="bg-gradient-to-br from-slate-900/70 to-slate-800/70 dark:from-slate-900/70 dark:to-slate-800/70 theme-light:from-sky-100 theme-light:to-sky-50 rounded-lg p-4 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 shadow-md">
+          <h4 class="text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex items-center gap-2">
+            <span class="text-xl">💳</span>
+            <span>Formas de Pago</span>
+          </h4>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm border-collapse">
+              <thead>
+                <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                  <th class="text-left py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 uppercase">Método</th>
+                  <th class="text-left py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 uppercase">Cuenta</th>
+                  <th class="text-right py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 uppercase">Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${paymentsHTML || '<tr><td colspan="3" class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">Sin información de pago</td></tr>'}
+              </tbody>
+              <tfoot>
+                <tr class="border-t-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-200">
+                  <td colspan="2" class="text-right py-2 px-2 font-bold text-sm text-white dark:text-white theme-light:text-slate-900">Total pagos:</td>
+                  <td class="text-right py-2 px-2 font-bold text-base text-green-400 dark:text-green-400 theme-light:text-green-600">${money(paymentMethods.reduce((sum, pm) => sum + (Number(pm.amount) || 0), 0))}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- Comisiones técnicas -->
+        <div class="bg-gradient-to-br from-slate-900/70 to-slate-800/70 dark:from-slate-900/70 dark:to-slate-800/70 theme-light:from-sky-100 theme-light:to-sky-50 rounded-lg p-4 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 shadow-md">
+          <h4 class="text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-4 flex items-center gap-2">
+            <span class="text-xl">👷</span>
+            <span>Comisiones Técnicas</span>
+          </h4>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm border-collapse">
+              <thead>
+                <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                  <th class="text-left py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 uppercase">Técnico</th>
+                  <th class="text-left py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 uppercase">Tipo</th>
+                  <th class="text-right py-2 px-2 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 uppercase">Participación</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${commissionsHTML || '<tr><td colspan="3" class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">Sin comisiones registradas</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 text-center">
+        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+          <span class="font-medium">Cerrada el:</span> <span>${closedDate}</span>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ========================
+// MODAL DE EDICIÓN DE CIERRE DE VENTA
+// ========================
+
+async function openEditCloseModal(saleId) {
+  if (!saleId) return;
+  
+  try {
+    const sale = await API.sales.get(saleId);
+    if (!sale) {
+      alert('No se pudo cargar la venta');
+      return;
+    }
+
+    if (sale.status !== 'closed') {
+      alert('Solo se pueden editar ventas cerradas');
+      return;
+    }
+
+    const modal = document.getElementById('modal');
+    const modalBody = document.getElementById('modalBody');
+    if (!modal || !modalBody) return;
+
+    // Construir contenido del modal similar al de cierre pero para edición
+    const total = sale?.total || 0;
+    const modalContent = buildEditCloseModalContent(sale, total);
+    modalBody.innerHTML = '';
+    modalBody.appendChild(modalContent);
+    modal.classList.remove('hidden');
+
+    // Configurar el modal
+    setupEditCloseModal(sale);
+
+    // Botón cancelar
+    const cancelBtn = document.getElementById('ecv-cancel');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+      });
+    }
+
+  } catch (err) {
+    console.error('Error opening edit close modal:', err);
+    alert('Error al cargar venta: ' + (err?.message || 'Error desconocido'));
+  }
+}
+
+function buildEditCloseModalContent(sale, total) {
+  const wrap = document.createElement('div');
+  wrap.className = 'space-y-4';
+  wrap.innerHTML = `
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Editar cierre de venta</h3>
+    </div>
+    <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">
+      Total venta: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(total)}</strong>
+    </div>
+    <div id="ecv-payments-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+      <div class="flex justify-between items-center mb-4">
+        <strong class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">Formas de pago</strong>
+        <button id="ecv-add-payment" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">+ Agregar</button>
+      </div>
+      <table class="w-full text-xs border-collapse" id="ecv-payments-table">
+        <thead>
+          <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
+            <th class="py-2 px-2 text-left text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">Método</th>
+            <th class="py-2 px-2 text-left text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">Cuenta</th>
+            <th class="py-2 px-2 text-left text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold w-24">Monto</th>
+            <th class="py-2 px-2 w-8"></th>
+          </tr>
+        </thead>
+        <tbody id="ecv-payments-body"></tbody>
+      </table>
+      <div id="ecv-payments-summary" class="mt-3 text-xs"></div>
+    </div>
+    <div id="ecv-labor-commissions-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Desglose de mano de obra</label>
+          <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Edita las líneas de participación técnica.</p>
+        </div>
+        <button id="ecv-add-commission" type="button" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">+ Agregar línea</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs border-collapse">
+          <thead>
+            <tr class="border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-400 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-200">
+              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Técnico</th>
+              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Tipo de MO</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Valor MO</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">% Técnico</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Participación</th>
+              <th class="py-3 px-3 w-10"></th>
+            </tr>
+          </thead>
+          <tbody id="ecv-comm-body">
+            <tr>
+              <td colspan="6" class="py-8 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">
+                <div class="flex flex-col items-center gap-2">
+                  <span>No hay líneas de participación técnica</span>
+                  <span class="text-xs">Haz clic en "+ Agregar línea" para comenzar</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="md:col-span-2">
+        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Comprobante (opcional)</label>
+        <div class="relative">
+          <input id="ecv-receipt" type="file" accept="image/*,.pdf" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-600/50 file:text-white file:cursor-pointer hover:file:bg-slate-600" />
+        </div>
+        <div id="ecv-receipt-status" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+          ${sale.paymentReceiptUrl ? `<a href="${sale.paymentReceiptUrl}" target="_blank" class="text-blue-400 hover:text-blue-300">Ver comprobante actual</a>` : 'Sin archivos seleccionados'}
+        </div>
+      </div>
+      <div class="md:col-span-2 flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 mt-4">
+        <button id="ecv-confirm" class="w-full sm:flex-1 px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar cambios</button>
+        <button type="button" id="ecv-cancel" class="w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
+      </div>
+      <div id="ecv-msg" class="md:col-span-2 mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
+    </div>
+  `;
+  return wrap;
+}
+
+async function setupEditCloseModal(sale) {
+  await ensureCompanyData();
+  
+  const payments = [];
+  const commissions = [];
+  
+  // Cargar métodos de pago existentes
+  if (sale.paymentMethods && Array.isArray(sale.paymentMethods) && sale.paymentMethods.length > 0) {
+    sale.paymentMethods.forEach(p => {
+      payments.push({
+        method: p.method || '',
+        amount: Number(p.amount) || 0,
+        accountId: p.accountId || null
+      });
+    });
+  } else if (sale.paymentMethod) {
+    // Fallback al método único legacy
+    payments.push({
+      method: sale.paymentMethod,
+      amount: Number(sale.total) || 0,
+      accountId: null
+    });
+  }
+
+  // Cargar comisiones existentes
+  if (sale.laborCommissions && Array.isArray(sale.laborCommissions) && sale.laborCommissions.length > 0) {
+    sale.laborCommissions.forEach(c => {
+      commissions.push({
+        technician: c.technician || '',
+        kind: c.kind || '',
+        laborValue: Number(c.laborValue) || 0,
+        percent: Number(c.percent) || 0,
+        share: Number(c.share) || 0
+      });
+    });
+  }
+
+  // Renderizar pagos
+  renderEditPayments(payments);
+  
+  // Renderizar comisiones
+  renderEditCommissions(commissions);
+
+  // Event listeners
+  setupEditCloseModalListeners(sale, payments, commissions);
+}
+
+function renderEditPayments(payments) {
+  const body = document.getElementById('ecv-payments-body');
+  const summary = document.getElementById('ecv-payments-summary');
+  if (!body) return;
+
+  body.innerHTML = '';
+  
+  if (payments.length === 0) {
+    body.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-slate-400 text-sm">No hay métodos de pago</td></tr>';
+    if (summary) summary.textContent = '';
+    return;
+  }
+
+  const commonPaymentMethods = ['EFECTIVO', 'TRANSFERENCIA', 'TARJETA', 'CREDITO', 'CRÉDITO', 'NEQUI', 'DAVIPLATA', 'PSE'];
+  
+  payments.forEach((p, idx) => {
+    const tr = document.createElement('tr');
+    tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200';
+    const currentMethod = (p.method || '').toUpperCase();
+    const isInCommon = commonPaymentMethods.includes(currentMethod);
+    
+    tr.innerHTML = `
+      <td class="py-2 px-2">
+        <select class="ecv-payment-method w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs" data-idx="${idx}">
+          <option value="">Seleccionar método</option>
+          ${commonPaymentMethods.map(m => `<option value="${m}" ${currentMethod === m ? 'selected' : ''}>${m}</option>`).join('')}
+          <option value="__CUSTOM__" ${!isInCommon && p.method ? 'selected' : ''}>Otro (personalizado)</option>
+        </select>
+        <input type="text" class="ecv-payment-method-custom w-full px-2 py-1 mt-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs ${isInCommon || !p.method ? 'hidden' : ''}" value="${!isInCommon ? (p.method || '') : ''}" data-idx="${idx}" placeholder="Escribir método personalizado" />
+      </td>
+      <td class="py-2 px-2">
+        <select class="ecv-payment-account w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs" data-idx="${idx}">
+          <option value="">Seleccionar cuenta</option>
+        </select>
+      </td>
+      <td class="py-2 px-2">
+        <input type="number" class="ecv-payment-amount w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs text-right" value="${p.amount || 0}" data-idx="${idx}" min="0" step="1" />
+      </td>
+      <td class="py-2 px-2 text-center">
+        <button type="button" class="ecv-remove-payment px-2 py-1 bg-red-600/50 hover:bg-red-600 text-white text-xs rounded" data-idx="${idx}">✕</button>
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+
+  // Cargar cuentas en los selects
+  loadAccountsForEditModal().then(() => {
+    payments.forEach((p, idx) => {
+      const select = body.querySelector(`.ecv-payment-account[data-idx="${idx}"]`);
+      if (select && p.accountId) {
+        select.value = p.accountId;
+      }
+    });
+  });
+
+  updateEditPaymentsSummary(payments);
+}
+
+function renderEditCommissions(commissions) {
+  const body = document.getElementById('ecv-comm-body');
+  if (!body) return;
+
+  body.innerHTML = '';
+
+  if (commissions.length === 0) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="6" class="py-8 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">
+          <div class="flex flex-col items-center gap-2">
+            <span>No hay líneas de participación técnica</span>
+            <span class="text-xs">Haz clic en "+ Agregar línea" para comenzar</span>
+          </div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  commissions.forEach((c, idx) => {
+    const tr = document.createElement('tr');
+    tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200';
+    const share = c.share || (c.laborValue * c.percent / 100);
+    tr.innerHTML = `
+      <td class="py-2 px-3">
+        <select class="ecv-comm-technician w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs" data-idx="${idx}">
+          <option value="">Seleccionar técnico</option>
+        </select>
+      </td>
+      <td class="py-2 px-3">
+        <select class="ecv-comm-kind w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs" data-idx="${idx}">
+          <option value="">Seleccionar tipo</option>
+        </select>
+      </td>
+      <td class="py-2 px-3">
+        <input type="number" class="ecv-comm-labor-value w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs text-right" value="${c.laborValue || 0}" data-idx="${idx}" min="0" step="1" />
+      </td>
+      <td class="py-2 px-3">
+        <input type="number" class="ecv-comm-percent w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs text-right" value="${c.percent || 0}" data-idx="${idx}" min="0" max="100" step="0.1" />
+      </td>
+      <td class="py-2 px-3 text-right text-sm font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">
+        <span class="ecv-comm-share">${money(share)}</span>
+      </td>
+      <td class="py-2 px-3 text-center">
+        <button type="button" class="ecv-remove-commission px-2 py-1 bg-red-600/50 hover:bg-red-600 text-white text-xs rounded" data-idx="${idx}">✕</button>
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+
+  // Cargar técnicos y tipos de MO
+  loadTechsAndKindsForEditModal().then(() => {
+    commissions.forEach((c, idx) => {
+      const techSelect = body.querySelector(`.ecv-comm-technician[data-idx="${idx}"]`);
+      const kindSelect = body.querySelector(`.ecv-comm-kind[data-idx="${idx}"]`);
+      if (techSelect && c.technician) {
+        techSelect.value = c.technician;
+      }
+      if (kindSelect && c.kind) {
+        kindSelect.value = c.kind;
+      }
+    });
+  });
+
+  // Event listeners para calcular participación
+  body.querySelectorAll('.ecv-comm-labor-value, .ecv-comm-percent').forEach(input => {
+    input.addEventListener('input', () => {
+      const idx = parseInt(input.dataset.idx);
+      updateCommissionShare(idx);
+    });
+  });
+}
+
+async function loadAccountsForEditModal() {
+  try {
+    const accounts = await API.accounts.list();
+    const selects = document.querySelectorAll('.ecv-payment-account');
+    selects.forEach(select => {
+      const currentValue = select.value;
+      select.innerHTML = '<option value="">Seleccionar cuenta</option>';
+      if (Array.isArray(accounts)) {
+        accounts.forEach(acc => {
+          const option = document.createElement('option');
+          option.value = acc._id;
+          option.textContent = acc.name || 'Sin nombre';
+          select.appendChild(option);
+        });
+      }
+      if (currentValue) select.value = currentValue;
+    });
+  } catch (err) {
+    console.error('Error loading accounts:', err);
+  }
+}
+
+async function loadTechsAndKindsForEditModal() {
+  const techSelects = document.querySelectorAll('.ecv-comm-technician');
+  const kindSelects = document.querySelectorAll('.ecv-comm-kind');
+
+  // Cargar técnicos
+  techSelects.forEach(select => {
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">Seleccionar técnico</option>';
+    companyTechnicians.forEach(tech => {
+      const option = document.createElement('option');
+      option.value = tech;
+      option.textContent = tech;
+      select.appendChild(option);
+    });
+    if (currentValue) select.value = currentValue;
+  });
+
+  // Cargar tipos de MO
+  const kinds = techConfig?.laborKinds || [];
+  kindSelects.forEach(select => {
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">Seleccionar tipo</option>';
+    kinds.forEach(kind => {
+      const option = document.createElement('option');
+      option.value = kind;
+      option.textContent = kind;
+      select.appendChild(option);
+    });
+    if (currentValue) select.value = currentValue;
+  });
+}
+
+function updateEditPaymentsSummary(payments) {
+  const summary = document.getElementById('ecv-payments-summary');
+  if (!summary) return;
+  
+  const sum = payments.reduce((a, p) => a + (Number(p.amount) || 0), 0);
+  const total = Number(document.querySelector('#ecv-payments-block')?.closest('.space-y-4')?.querySelector('strong')?.textContent?.replace(/[^0-9]/g, '') || 0);
+  
+  summary.innerHTML = `
+    <div class="flex justify-between items-center">
+      <span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Suma:</span>
+      <span class="font-semibold ${Math.abs(sum - total) < 0.01 ? 'text-green-400' : 'text-red-400'}">${money(sum)}</span>
+    </div>
+  `;
+}
+
+function updateCommissionShare(idx) {
+  const row = document.querySelector(`.ecv-comm-labor-value[data-idx="${idx}"]`)?.closest('tr');
+  if (!row) return;
+  
+  const laborValue = Number(row.querySelector('.ecv-comm-labor-value')?.value || 0);
+  const percent = Number(row.querySelector('.ecv-comm-percent')?.value || 0);
+  const share = Math.round(laborValue * percent / 100);
+  
+  const shareEl = row.querySelector('.ecv-comm-share');
+  if (shareEl) shareEl.textContent = money(share);
+}
+
+function setupEditCloseModalListeners(sale, payments, commissions) {
+  const saleId = sale._id;
+  const msg = document.getElementById('ecv-msg');
+  
+  // Agregar pago
+  document.getElementById('ecv-add-payment')?.addEventListener('click', () => {
+    payments.push({ method: '', amount: 0, accountId: null });
+    renderEditPayments(payments);
+    setupEditCloseModalListeners(sale, payments, commissions);
+  });
+
+  // Remover pago
+  document.querySelectorAll('.ecv-remove-payment').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx);
+      payments.splice(idx, 1);
+      renderEditPayments(payments);
+      setupEditCloseModalListeners(sale, payments, commissions);
+    });
+  });
+
+  // Actualizar pago - método
+  document.querySelectorAll('.ecv-payment-method').forEach(select => {
+    select.addEventListener('change', () => {
+      const idx = parseInt(select.dataset.idx);
+      const customInput = document.querySelector(`.ecv-payment-method-custom[data-idx="${idx}"]`);
+      if (select.value === '__CUSTOM__') {
+        if (customInput) customInput.classList.remove('hidden');
+        payments[idx].method = customInput?.value || '';
+      } else {
+        if (customInput) customInput.classList.add('hidden');
+        payments[idx].method = select.value || '';
+      }
+      updateEditPaymentsSummary(payments);
+    });
+  });
+
+  // Actualizar pago - método personalizado
+  document.querySelectorAll('.ecv-payment-method-custom').forEach(input => {
+    input.addEventListener('input', () => {
+      const idx = parseInt(input.dataset.idx);
+      payments[idx].method = input.value;
+      updateEditPaymentsSummary(payments);
+    });
+  });
+
+  // Actualizar pago - monto
+  document.querySelectorAll('.ecv-payment-amount').forEach(input => {
+    input.addEventListener('input', () => {
+      const idx = parseInt(input.dataset.idx);
+      payments[idx].amount = Number(input.value) || 0;
+      updateEditPaymentsSummary(payments);
+    });
+  });
+
+  document.querySelectorAll('.ecv-payment-account').forEach(select => {
+    select.addEventListener('change', () => {
+      const idx = parseInt(select.dataset.idx);
+      payments[idx].accountId = select.value || null;
+    });
+  });
+
+  // Agregar comisión
+  document.getElementById('ecv-add-commission')?.addEventListener('click', () => {
+    commissions.push({ technician: '', kind: '', laborValue: 0, percent: 0, share: 0 });
+    renderEditCommissions(commissions);
+    setupEditCloseModalListeners(sale, payments, commissions);
+  });
+
+  // Remover comisión
+  document.querySelectorAll('.ecv-remove-commission').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx);
+      commissions.splice(idx, 1);
+      renderEditCommissions(commissions);
+      setupEditCloseModalListeners(sale, payments, commissions);
+    });
+  });
+
+  // Actualizar comisión
+  document.querySelectorAll('.ecv-comm-technician, .ecv-comm-kind').forEach(select => {
+    select.addEventListener('change', () => {
+      const idx = parseInt(select.dataset.idx);
+      if (select.classList.contains('ecv-comm-technician')) {
+        commissions[idx].technician = select.value;
+      } else if (select.classList.contains('ecv-comm-kind')) {
+        commissions[idx].kind = select.value;
+      }
+    });
+  });
+
+  // Confirmar guardado
+  document.getElementById('ecv-confirm')?.addEventListener('click', async () => {
+    if (!msg) return;
+    msg.textContent = 'Procesando...';
+    msg.classList.remove('error');
+
+    // Validar suma de pagos
+    const sum = payments.reduce((a, p) => a + (Number(p.amount) || 0), 0);
+    const total = Number(document.querySelector('#ecv-payments-block')?.closest('.space-y-4')?.querySelector('strong')?.textContent?.replace(/[^0-9]/g, '') || 0);
+    
+    if (Math.abs(sum - total) > 0.01) {
+      msg.textContent = 'La suma de pagos no coincide con el total.';
+      msg.classList.add('error');
+      return;
+    }
+
+    const filtered = payments.filter(p => p.method && p.amount > 0);
+    if (!filtered.length) {
+      msg.textContent = 'Agregar al menos una forma de pago válida';
+      msg.classList.add('error');
+      return;
+    }
+
+    try {
+      let receiptUrl = sale.paymentReceiptUrl || '';
+      const file = document.getElementById('ecv-receipt')?.files?.[0];
+      if (file) {
+        const uploadRes = await API.mediaUpload ? API.mediaUpload([file]) : null;
+        if (uploadRes && uploadRes.files && uploadRes.files[0]) {
+          receiptUrl = uploadRes.files[0].url || uploadRes.files[0].path || '';
+        }
+      }
+
+      // Construir comisiones desde la tabla
+      const comm = [];
+      const commBody = document.getElementById('ecv-comm-body');
+      if (commBody) {
+        commBody.querySelectorAll('tr').forEach(tr => {
+          const techSelect = tr.querySelector('.ecv-comm-technician');
+          const kindSelect = tr.querySelector('.ecv-comm-kind');
+          const laborValueInput = tr.querySelector('.ecv-comm-labor-value');
+          const percentInput = tr.querySelector('.ecv-comm-percent');
+          
+          if (techSelect && techSelect.value && (laborValueInput?.value || percentInput?.value)) {
+            const laborValue = Number(laborValueInput?.value || 0);
+            const percent = Number(percentInput?.value || 0);
+            comm.push({
+              technician: techSelect.value,
+              kind: kindSelect?.value || '',
+              laborValue,
+              percent,
+              share: Math.round(laborValue * percent / 100)
+            });
+          }
+        });
+      }
+
+      const payload = {
+        paymentMethods: filtered.map(p => {
+          const method = String(p.method || '').toUpperCase();
+          const isCredit = method === 'CREDITO' || method === 'CRÉDITO';
+          return {
+            method: p.method,
+            amount: Number(p.amount) || 0,
+            accountId: isCredit ? null : (p.accountId || null)
+          };
+        }),
+        laborCommissions: comm,
+        paymentReceiptUrl: receiptUrl
+      };
+
+      await API.sales.updateClose(saleId, payload);
+      msg.textContent = 'Venta actualizada correctamente';
+      msg.classList.remove('error');
+      
+      setTimeout(() => {
+        document.getElementById('modal')?.classList.add('hidden');
+        // Recargar historial si estamos en esa vista
+        if (!document.getElementById('sales-view-historial')?.classList.contains('hidden')) {
+          loadHistorial();
+        }
+      }, 1500);
+
+    } catch (e) {
+      msg.textContent = e?.message || 'Error al actualizar';
+      msg.classList.add('error');
+    }
+  });
+
+  // Actualizar estado del comprobante
+  document.getElementById('ecv-receipt')?.addEventListener('change', (e) => {
+    const status = document.getElementById('ecv-receipt-status');
+    if (status) {
+      if (e.target.files && e.target.files.length > 0) {
+        status.textContent = `Archivo seleccionado: ${e.target.files[0].name}`;
+      } else {
+        status.textContent = sale.paymentReceiptUrl ? `<a href="${sale.paymentReceiptUrl}" target="_blank" class="text-blue-400 hover:text-blue-300">Ver comprobante actual</a>` : 'Sin archivos seleccionados';
+      }
+    }
+  });
 }
 
 

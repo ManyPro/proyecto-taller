@@ -350,6 +350,31 @@ export const addItemsBatch = async (req, res) => {
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
   if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
 
+  // Pre-procesar para identificar combos en el batch y sus productos
+  // Esto nos ayuda a evitar duplicados cuando los productos del combo ya vienen en el batch
+  const combosInBatch = new Set(); // IDs de combos que vienen en el batch
+  const comboProductRefIds = new Map(); // itemId -> comboRefId (para saber a qué combo pertenece)
+  
+  for (const raw of list) {
+    if (!raw || raw.source !== 'price' || !raw.refId) continue;
+    try {
+      const pe = await PriceEntry.findOne({ _id: raw.refId, companyId: req.companyId })
+        .populate('comboProducts.itemId', 'sku name stock salePrice');
+      if (pe && pe.type === 'combo' && Array.isArray(pe.comboProducts) && pe.comboProducts.length > 0) {
+        combosInBatch.add(String(raw.refId));
+        // Marcar los itemIds de los productos del combo y a qué combo pertenecen
+        pe.comboProducts.forEach(cp => {
+          if (cp.itemId) {
+            comboProductRefIds.set(String(cp.itemId), String(raw.refId));
+          }
+        });
+      }
+    } catch (err) {
+      // Continuar si hay error
+      continue;
+    }
+  }
+
   const added = [];
   for (const raw of list) {
     if (!raw) continue;
@@ -359,6 +384,12 @@ export const addItemsBatch = async (req, res) => {
       const unitCandidate = raw.unitPrice;
 
       if (source === 'inventory') {
+        // Si este item es un producto de un combo que se va a expandir, omitirlo
+        // porque el combo ya lo agregará
+        if (raw.refId && comboProductRefIds.has(String(raw.refId))) {
+          continue; // Omitir este item, el combo lo agregará
+        }
+        
         let it = null;
         if (raw.refId) it = await Item.findOne({ _id: raw.refId, companyId: req.companyId });
         if (!it && raw.sku) it = await Item.findOne({ sku: String(raw.sku).trim().toUpperCase(), companyId: req.companyId });
@@ -402,6 +433,7 @@ export const addItemsBatch = async (req, res) => {
             });
             
             // Luego agregamos cada producto del combo
+            // Siempre agregar los productos del combo, a menos que ya vengan explícitamente en el batch
             for (let idx = 0; idx < pe.comboProducts.length; idx++) {
               const cp = pe.comboProducts[idx];
               const comboQty = qty * (cp.qty || 1);
@@ -419,28 +451,51 @@ export const addItemsBatch = async (req, res) => {
                   completedItemId: null
                 });
               } else if (cp.itemId) {
-                // Producto vinculado: agregar como inventory para que se descuente
-                const comboItem = cp.itemId;
-                added.push({
-                  source: 'inventory',
-                  refId: comboItem._id,
-                  sku: comboItem.sku || `CP-${String(cp._id || '').slice(-6)}`,
-                  name: cp.name || 'Producto del combo',
-                  qty: comboQty,
-                  unitPrice: cp.unitPrice || 0,
-                  total: Math.round(comboQty * (cp.unitPrice || 0))
-                });
+                // Verificar si este producto ya viene explícitamente en el batch como item independiente
+                // (no como parte de otro combo, sino como item de inventario directo)
+                const productAlreadyInBatch = list.some(r => 
+                  r && r.source === 'inventory' && r.refId && String(r.refId) === String(cp.itemId._id)
+                );
+                
+                // SIEMPRE agregar el producto del combo, a menos que ya venga explícitamente en el batch
+                // Esto asegura que los productos del combo se agreguen incluso si no vienen en la cotización
+                if (!productAlreadyInBatch) {
+                  // Producto vinculado: agregar como inventory para que se descuente
+                  const comboItem = cp.itemId;
+                  added.push({
+                    source: 'inventory',
+                    refId: comboItem._id,
+                    sku: comboItem.sku || `CP-${String(cp._id || '').slice(-6)}`,
+                    name: cp.name || 'Producto del combo',
+                    qty: comboQty,
+                    unitPrice: cp.unitPrice || 0,
+                    total: Math.round(comboQty * (cp.unitPrice || 0))
+                  });
+                }
+                // Si ya viene en el batch como item independiente, omitirlo para evitar duplicado
               } else {
                 // Producto sin vincular: agregar como price
-                added.push({
-                  source: 'price',
-                  refId: new mongoose.Types.ObjectId(),
-                  sku: `CP-${String(cp._id || new mongoose.Types.ObjectId()).slice(-6)}`,
-                  name: cp.name || 'Producto del combo',
-                  qty: comboQty,
-                  unitPrice: cp.unitPrice || 0,
-                  total: Math.round(comboQty * (cp.unitPrice || 0))
+                // Verificar si ya viene en el batch (por nombre similar o SKU CP-)
+                const productAlreadyInBatch = list.some(r => {
+                  if (!r || r.source !== 'price') return false;
+                  // Si tiene el mismo nombre y viene después del combo, probablemente es el mismo
+                  const rName = String(r.name || r.description || '').trim().toUpperCase();
+                  const cpName = String(cp.name || '').trim().toUpperCase();
+                  return rName === cpName && rName.length > 0;
                 });
+                
+                if (!productAlreadyInBatch) {
+                  added.push({
+                    source: 'price',
+                    refId: new mongoose.Types.ObjectId(),
+                    sku: `CP-${String(cp._id || new mongoose.Types.ObjectId()).slice(-6)}`,
+                    name: cp.name || 'Producto del combo',
+                    qty: comboQty,
+                    unitPrice: cp.unitPrice || 0,
+                    total: Math.round(comboQty * (cp.unitPrice || 0))
+                  });
+                }
+                // Si ya viene en el batch, omitirlo para evitar duplicado
               }
             }
           } else if (pe.type === 'product' && pe.itemId) {
@@ -877,6 +932,291 @@ export const closeSale = async (req, res) => {
   } catch (err) {
     await session.abortTransaction().catch(()=>{});
     res.status(400).json({ error: err?.message || 'Cannot close sale' });
+  } finally {
+    session.endSession();
+  }
+};
+
+// ===== Actualizar cierre de venta (editar métodos de pago, comisiones, comprobante) =====
+export const updateCloseSale = async (req, res) => {
+  const { id } = req.params;
+  const session = await mongoose.startSession();
+  
+  try {
+    await session.withTransaction(async () => {
+      const sale = await Sale.findOne({ _id: id, companyId: req.companyId }).session(session);
+      if (!sale) throw new Error('Sale not found');
+      if (sale.status !== 'closed') throw new Error('Only closed sales can be updated');
+
+      // Importar dependencias necesarias
+      const CashFlowEntry = (await import('../models/CashFlowEntry.js')).default;
+      const AccountReceivable = (await import('../models/AccountReceivable.js')).default;
+      const cashflowModule = await import('./cashflow.controller.js');
+      const registerSaleIncome = cashflowModule.registerSaleIncome;
+      const computeBalance = cashflowModule.computeBalance;
+      const ensureDefaultCashAccount = cashflowModule.ensureDefaultCashAccount;
+      const recomputeAccountBalances = cashflowModule.recomputeAccountBalances;
+      const Account = (await import('../models/Account.js')).default;
+
+      // Guardar valores antiguos para comparar
+      const oldPaymentMethods = sale.paymentMethods || [];
+      const oldLaborCommissions = sale.laborCommissions || [];
+
+      // Actualizar paymentMethods si vienen en el body
+      if (req.body?.paymentMethods !== undefined) {
+        const rawMethods = Array.isArray(req.body.paymentMethods) ? req.body.paymentMethods : [];
+        const cleaned = rawMethods
+          .map(m => ({
+            method: String(m.method || '').trim(),
+            amount: Math.round(Number(m.amount) || 0),
+            accountId: m.accountId ? new mongoose.Types.ObjectId(m.accountId) : null
+          }))
+          .filter(m => m.method && m.amount > 0);
+        
+        // Validar que la suma coincida con el total
+        const sum = cleaned.reduce((a, m) => a + m.amount, 0);
+        const total = Number(sale.total || 0);
+        if (Math.abs(sum - total) > 0.01) {
+          throw new Error(`La suma de pagos (${sum}) no coincide con el total de la venta (${total})`);
+        }
+
+        sale.paymentMethods = cleaned;
+        
+        // Actualizar paymentMethod legacy para compatibilidad
+        if (cleaned.length === 1) {
+          sale.paymentMethod = cleaned[0].method;
+        } else if (cleaned.length > 1) {
+          sale.paymentMethod = 'MULTIPLE';
+        }
+      }
+
+      // Actualizar laborCommissions si vienen en el body
+      if (req.body?.laborCommissions !== undefined) {
+        const rawCommissions = Array.isArray(req.body.laborCommissions) ? req.body.laborCommissions : [];
+        sale.laborCommissions = rawCommissions
+          .map(c => ({
+            technician: String(c.technician || '').trim(),
+            kind: String(c.kind || '').trim(),
+            laborValue: Math.round(Number(c.laborValue) || 0),
+            percent: Number(c.percent) || 0,
+            share: Math.round((Number(c.laborValue) || 0) * (Number(c.percent) || 0) / 100)
+          }))
+          .filter(c => c.technician && (c.laborValue > 0 || c.percent > 0));
+        
+        // Recalcular laborValue, laborShare y laborPercent desde las comisiones
+        const sumVal = sale.laborCommissions.reduce((a, b) => a + (b.laborValue || 0), 0);
+        const sumShare = sale.laborCommissions.reduce((a, b) => a + (b.share || 0), 0);
+        if (sumVal > 0) sale.laborValue = sumVal;
+        if (sumShare > 0) sale.laborShare = sumShare;
+        if (sale.laborValue > 0 && sale.laborShare > 0) {
+          sale.laborPercent = Math.round((sale.laborShare / sale.laborValue) * 100);
+        }
+      }
+
+      // Actualizar laborPercent directamente si viene en el body (para compatibilidad)
+      if (req.body?.laborPercent !== undefined) {
+        const laborPercentRaw = req.body.laborPercent;
+        const laborPercent = Number(laborPercentRaw);
+        if (Number.isFinite(laborPercent) && laborPercent >= 0 && laborPercent <= 100) {
+          sale.laborPercent = Math.round(laborPercent);
+          if (sale.laborValue && sale.laborPercent) {
+            sale.laborShare = Math.round(sale.laborValue * (sale.laborPercent / 100));
+          }
+        }
+      }
+
+      // Actualizar paymentReceiptUrl si viene en el body
+      if (req.body?.paymentReceiptUrl !== undefined) {
+        sale.paymentReceiptUrl = String(req.body.paymentReceiptUrl || '').trim();
+      }
+
+      await sale.save({ session });
+
+      // Si cambiaron los métodos de pago, actualizar flujo de caja
+      const paymentMethodsChanged = JSON.stringify(oldPaymentMethods) !== JSON.stringify(sale.paymentMethods);
+      
+      if (paymentMethodsChanged) {
+        // Obtener entradas de flujo de caja existentes relacionadas con esta venta
+        const existingEntries = await CashFlowEntry.find({ 
+          companyId: req.companyId, 
+          source: 'SALE', 
+          sourceRef: sale._id 
+        }).session(session);
+        
+        // Filtrar métodos que no sean crédito
+        const nonCreditMethods = sale.paymentMethods?.filter(m => {
+          const method = String(m.method || '').toUpperCase();
+          return method !== 'CREDITO' && method !== 'CRÉDITO';
+        }) || [];
+
+        // Actualizar o crear entradas según corresponda
+        const saleDate = sale.closedAt || sale.updatedAt || new Date();
+        const accountsToRecalc = new Set();
+        
+        // Mapear entradas existentes por índice
+        const usedEntries = new Set();
+        
+        for (let i = 0; i < nonCreditMethods.length; i++) {
+          const m = nonCreditMethods[i];
+          let accId = m.accountId;
+          if (!accId) {
+            const acc = await ensureDefaultCashAccount(req.companyId);
+            accId = acc._id;
+          }
+          
+          // Buscar entrada existente que coincida con esta posición o cuenta
+          let existingEntry = null;
+          let entryIndex = -1;
+          
+          // Primero intentar encontrar una entrada en la misma posición
+          if (i < existingEntries.length) {
+            existingEntry = existingEntries[i];
+            entryIndex = i;
+          } else {
+            // Si no hay en la misma posición, buscar una que tenga la misma cuenta
+            for (let j = 0; j < existingEntries.length; j++) {
+              if (!usedEntries.has(j) && String(existingEntries[j].accountId) === String(accId)) {
+                existingEntry = existingEntries[j];
+                entryIndex = j;
+                break;
+              }
+            }
+          }
+          
+          if (existingEntry && String(existingEntry.accountId) === String(accId)) {
+            // Actualizar entrada existente
+            usedEntries.add(entryIndex);
+            accountsToRecalc.add(String(accId));
+            
+            const oldAmount = existingEntry.amount || 0;
+            const newAmount = Number(m.amount || 0);
+            
+            // Si el monto cambió, necesitamos recalcular balances
+            if (Math.abs(oldAmount - newAmount) > 0.01) {
+              existingEntry.amount = newAmount;
+              existingEntry.description = `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`;
+              existingEntry.meta = { saleNumber: sale.number, paymentMethod: m.method };
+              await existingEntry.save({ session });
+            } else {
+              // Solo actualizar descripción y meta si el monto no cambió
+              existingEntry.description = `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`;
+              existingEntry.meta = { saleNumber: sale.number, paymentMethod: m.method };
+              await existingEntry.save({ session });
+            }
+          } else {
+            // Crear nueva entrada
+            accountsToRecalc.add(String(accId));
+            
+            // Calcular balance previo
+            const prevBal = await computeBalance(accId, req.companyId);
+            const newBal = prevBal + Number(m.amount || 0);
+            
+            await CashFlowEntry.create([{
+              companyId: req.companyId,
+              accountId: accId,
+              kind: 'IN',
+              source: 'SALE',
+              sourceRef: sale._id,
+              description: `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`,
+              amount: Number(m.amount || 0),
+              balanceAfter: newBal,
+              date: saleDate,
+              meta: { saleNumber: sale.number, paymentMethod: m.method }
+            }], { session });
+          }
+        }
+        
+        // Eliminar entradas sobrantes (si había más entradas que métodos de pago)
+        for (let i = 0; i < existingEntries.length; i++) {
+          if (!usedEntries.has(i)) {
+            accountsToRecalc.add(String(existingEntries[i].accountId));
+            await CashFlowEntry.deleteOne({ _id: existingEntries[i]._id }).session(session);
+          }
+        }
+        
+        // Recalcular balances de todas las cuentas afectadas
+        for (const accIdStr of accountsToRecalc) {
+          await recomputeAccountBalances(req.companyId, new mongoose.Types.ObjectId(accIdStr));
+        }
+
+        // Verificar si hay crédito en los nuevos métodos
+        const hasCredit = sale.paymentMethods?.some(m => 
+          String(m.method || '').toUpperCase() === 'CREDITO' || 
+          String(m.method || '').toUpperCase() === 'CRÉDITO'
+        );
+
+        if (hasCredit) {
+          // Si hay crédito, verificar/crear cuenta por cobrar
+          const creditAmount = sale.paymentMethods?.find(m => 
+            String(m.method || '').toUpperCase() === 'CREDITO' || 
+            String(m.method || '').toUpperCase() === 'CRÉDITO'
+          )?.amount || sale.total;
+
+          // Buscar cuenta por cobrar existente
+          let receivable = await AccountReceivable.findOne({ 
+            saleId: sale._id, 
+            companyId: req.companyId 
+          }).session(session);
+
+          if (receivable) {
+            // Actualizar monto si cambió
+            receivable.totalAmount = Number(creditAmount);
+            receivable.balance = receivable.totalAmount - receivable.paidAmount;
+            if (receivable.balance <= 0) {
+              receivable.status = 'paid';
+            } else {
+              receivable.status = receivable.paidAmount > 0 ? 'partial' : 'pending';
+            }
+            await receivable.save({ session });
+          } else {
+            // Crear nueva cuenta por cobrar
+            const CompanyAccount = (await import('../models/CompanyAccount.js')).default;
+            let companyAccountId = null;
+            if (sale.vehicle?.plate) {
+              const companyAccount = await CompanyAccount.findOne({
+                companyId: String(req.companyId),
+                active: true,
+                plates: String(sale.vehicle.plate).trim().toUpperCase()
+              }).session(session);
+              if (companyAccount) companyAccountId = companyAccount._id;
+            }
+
+            receivable = await AccountReceivable.create([{
+              companyId: String(req.companyId),
+              saleId: sale._id,
+              saleNumber: String(sale.number || '').padStart(5, '0'),
+              customer: sale.customer || {},
+              vehicle: sale.vehicle || {},
+              companyAccountId,
+              totalAmount: Number(creditAmount),
+              paidAmount: 0,
+              balance: Number(creditAmount),
+              status: 'pending',
+              source: 'sale'
+            }], { session });
+            receivable = receivable[0];
+          }
+        } else {
+          // Si no hay crédito, eliminar cuenta por cobrar si existe
+          const receivable = await AccountReceivable.findOne({ 
+            saleId: sale._id, 
+            companyId: req.companyId 
+          }).session(session);
+          if (receivable) {
+            await AccountReceivable.deleteOne({ _id: receivable._id }).session(session);
+          }
+        }
+
+      }
+
+      try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+    });
+
+    const updatedSale = await Sale.findOne({ _id: id, companyId: req.companyId });
+    res.json(updatedSale.toObject());
+  } catch (err) {
+    await session.abortTransaction().catch(()=>{});
+    res.status(400).json({ error: err?.message || 'Cannot update sale' });
   } finally {
     session.endSession();
   }

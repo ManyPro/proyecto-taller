@@ -4,7 +4,7 @@ import Company from '../models/Company.js';
 import mongoose from 'mongoose';
 
 // Helpers
-async function ensureDefaultCashAccount(companyId) {
+export async function ensureDefaultCashAccount(companyId) {
   let acc = await Account.findOne({ companyId, type: 'CASH', name: /caja/i });
   if (!acc) {
     acc = await Account.create({ companyId, name: 'Caja', type: 'CASH', initialBalance: 0 });
@@ -128,7 +128,7 @@ export async function createEntry(req, res) {
 }
 
 // --- Recalcular balances secuenciales de una cuenta ---
-async function recomputeAccountBalances(companyId, accountId){
+export async function recomputeAccountBalances(companyId, accountId){
   if(!companyId || !accountId) return;
   const acc = await Account.findOne({ _id: accountId, companyId });
   if(!acc) return;
@@ -179,11 +179,14 @@ export async function deleteEntry(req, res){
 }
 
 // Utilizada desde cierre de venta
-export async function registerSaleIncome({ companyId, sale, accountId }) {
+export async function registerSaleIncome({ companyId, sale, accountId, forceCreate = false }) {
   if (!sale || !sale._id) return [];
   // Si ya existen entradas para la venta, devolverlas (idempotencia multi)
-  const existing = await CashFlowEntry.find({ companyId, source: 'SALE', sourceRef: sale._id });
-  if (existing.length) return existing;
+  // A menos que forceCreate sea true (para actualizaciones de cierre)
+  if (!forceCreate) {
+    const existing = await CashFlowEntry.find({ companyId, source: 'SALE', sourceRef: sale._id });
+    if (existing.length) return existing;
+  }
 
   // Determinar mÃ©todos de pago: nuevo array o fallback al legacy
   let methods = Array.isArray(sale.paymentMethods) && sale.paymentMethods.length
@@ -197,6 +200,10 @@ export async function registerSaleIncome({ companyId, sale, accountId }) {
   const entries = [];
   // Track balances por cuenta para pagos múltiples a la misma cuenta
   const accountBalances = new Map();
+  
+  // Usar la fecha de cierre de la venta (closedAt) en lugar de new Date()
+  // Esto asegura que la fecha del movimiento coincida con la fecha de cierre
+  const saleDate = sale.closedAt || sale.updatedAt || new Date();
   
   for (const m of methods) {
     let accId = m.accountId || accountId;
@@ -227,7 +234,7 @@ export async function registerSaleIncome({ companyId, sale, accountId }) {
       description: `Venta #${String(sale.number || '').padStart(5,'0')} (${m.method})`,
       amount,
       balanceAfter: newBal,
-      date: new Date(), // Asegurar fecha actual
+      date: saleDate, // Usar la fecha de cierre de la venta, no la hora actual del servidor
       meta: { saleNumber: sale.number, paymentMethod: m.method }
     });
     entries.push(entry);

@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const ItemSchema = new mongoose.Schema({
-  kind:        { type: String, enum: ['Producto', 'Servicio'], required: true },
+  kind:        { type: String, enum: ['Producto', 'Servicio', 'Combo'], required: true },
   description: { type: String, required: true, trim: true },
   qty:         { type: Number, default: null },
   unitPrice:   { type: Number, required: true, min: 0 },

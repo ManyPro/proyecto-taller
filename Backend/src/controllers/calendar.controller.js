@@ -71,14 +71,37 @@ export const createEvent = async (req, res) => {
     }
   }
   
+  // Asegurar que las fechas se interpreten correctamente desde ISO string
+  // Si viene como ISO string (con 'Z' o con offset), se interpreta como UTC
+  // Si viene sin 'Z', JavaScript lo interpreta como hora local, así que forzamos UTC
+  const parseDate = (dateStr) => {
+    if (!dateStr) return undefined;
+    // Si ya es un objeto Date, devolverlo
+    if (dateStr instanceof Date) return dateStr;
+    // Si es string ISO con 'Z', new Date() lo interpreta correctamente como UTC
+    if (typeof dateStr === 'string' && dateStr.includes('Z')) {
+      return new Date(dateStr);
+    }
+    // Si es string ISO sin 'Z', agregar 'Z' para forzar UTC
+    if (typeof dateStr === 'string' && dateStr.includes('T')) {
+      // Si no termina en 'Z' ni tiene offset (+/-), agregar 'Z'
+      if (!dateStr.match(/[+-]\d{2}:\d{2}$/) && !dateStr.endsWith('Z')) {
+        return new Date(dateStr + 'Z');
+      }
+      return new Date(dateStr);
+    }
+    // Fallback: intentar parsear normalmente
+    return new Date(dateStr);
+  };
+
   const event = await CalendarEvent.create({
     title: String(title).trim(),
     description: description || '',
-    startDate: new Date(startDate),
-    endDate: endDate ? new Date(endDate) : undefined,
+    startDate: parseDate(startDate),
+    endDate: endDate ? parseDate(endDate) : undefined,
     allDay: Boolean(allDay),
     hasNotification: Boolean(hasNotification),
-    notificationAt: hasNotification && notificationAt ? new Date(notificationAt) : undefined,
+    notificationAt: hasNotification && notificationAt ? parseDate(notificationAt) : undefined,
     color: color || '#3b82f6',
     eventType: 'event',
     plate: plate ? String(plate).trim().toUpperCase() : '',
@@ -99,9 +122,25 @@ export const updateEvent = async (req, res) => {
   const { id } = req.params;
   const body = { ...req.body };
   
-  if (body.startDate) body.startDate = new Date(body.startDate);
-  if (body.endDate) body.endDate = body.endDate ? new Date(body.endDate) : null;
-  if (body.notificationAt) body.notificationAt = body.notificationAt ? new Date(body.notificationAt) : null;
+  // Función helper para parsear fechas correctamente (misma lógica que createEvent)
+  const parseDate = (dateStr) => {
+    if (!dateStr) return undefined;
+    if (dateStr instanceof Date) return dateStr;
+    if (typeof dateStr === 'string' && dateStr.includes('Z')) {
+      return new Date(dateStr);
+    }
+    if (typeof dateStr === 'string' && dateStr.includes('T')) {
+      if (!dateStr.match(/[+-]\d{2}:\d{2}$/) && !dateStr.endsWith('Z')) {
+        return new Date(dateStr + 'Z');
+      }
+      return new Date(dateStr);
+    }
+    return new Date(dateStr);
+  };
+  
+  if (body.startDate) body.startDate = parseDate(body.startDate);
+  if (body.endDate) body.endDate = body.endDate ? parseDate(body.endDate) : null;
+  if (body.notificationAt) body.notificationAt = body.notificationAt ? parseDate(body.notificationAt) : null;
   if (body.hasNotification !== undefined) body.hasNotification = Boolean(body.hasNotification);
   if (body.allDay !== undefined) body.allDay = Boolean(body.allDay);
   
@@ -165,6 +204,26 @@ export const deleteEvent = async (req, res) => {
 export const syncNoteReminders = async (req, res) => {
   const companyId = new mongoose.Types.ObjectId(req.companyId);
   
+  // Helper para parsear fechas (reutilizar lógica)
+  const parseDate = (dateValue) => {
+    if (!dateValue) return undefined;
+    // Si ya es un objeto Date, devolverlo
+    if (dateValue instanceof Date) return dateValue;
+    // Si es string ISO con 'Z', new Date() lo interpreta correctamente como UTC
+    if (typeof dateValue === 'string' && dateValue.includes('Z')) {
+      return new Date(dateValue);
+    }
+    // Si es string ISO sin 'Z', agregar 'Z' para forzar UTC
+    if (typeof dateValue === 'string' && dateValue.includes('T')) {
+      if (!dateValue.match(/[+-]\d{2}:\d{2}$/) && !dateValue.endsWith('Z')) {
+        return new Date(dateValue + 'Z');
+      }
+      return new Date(dateValue);
+    }
+    // Fallback: intentar parsear normalmente
+    return new Date(dateValue);
+  };
+  
   // Obtener todas las notas con recordatorios
   const notes = await Note.find({
     companyId,
@@ -181,13 +240,16 @@ export const syncNoteReminders = async (req, res) => {
       eventType: 'reminder'
     });
     
+    // Parsear la fecha del recordatorio (puede venir como Date de MongoDB o como string)
+    const reminderDate = parseDate(note.reminderAt);
+    
     if (event) {
       // Actualizar evento existente
-      event.startDate = new Date(note.reminderAt);
+      event.startDate = reminderDate;
       event.title = `Recordatorio: ${note.plate}`;
       event.description = note.text || '';
       event.hasNotification = true;
-      event.notificationAt = new Date(note.reminderAt);
+      event.notificationAt = reminderDate;
       event.color = '#f59e0b'; // Color amarillo/naranja para recordatorios
       await event.save();
     } else {
@@ -195,10 +257,10 @@ export const syncNoteReminders = async (req, res) => {
       event = await CalendarEvent.create({
         title: `Recordatorio: ${note.plate}`,
         description: note.text || '',
-        startDate: new Date(note.reminderAt),
+        startDate: reminderDate,
         allDay: false,
         hasNotification: true,
-        notificationAt: new Date(note.reminderAt),
+        notificationAt: reminderDate,
         color: '#f59e0b',
         eventType: 'reminder',
         noteId: note._id,
@@ -285,7 +347,7 @@ export const searchByPlate = async (req, res) => {
 
 // Buscar cotizaciones por placa o cliente
 export const getQuotesByPlate = async (req, res) => {
-  const plate = String(req.params.plate || '').trim().toUpperCase();
+  const plate = String(req.params.plate || '').trim();
   const companyId = new mongoose.Types.ObjectId(req.companyId);
   
   if (!plate) {
@@ -293,9 +355,14 @@ export const getQuotesByPlate = async (req, res) => {
   }
   
   try {
+    // Normalizar placa: eliminar espacios, convertir a mayúsculas para búsqueda
+    const normalizedPlate = plate.trim().toUpperCase();
+    
+    // Buscar con expresión regular case-insensitive para tolerar mayúsculas/minúsculas
+    // Esto asegura que encuentre cotizaciones sin importar cómo se guardó la placa
     const quotes = await Quote.find({
       companyId,
-      'vehicle.plate': plate
+      'vehicle.plate': new RegExp(`^${normalizedPlate.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i')
     })
     .sort({ createdAt: -1 })
     .limit(50)
