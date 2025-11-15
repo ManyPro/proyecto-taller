@@ -2661,7 +2661,7 @@ function renderWO(){
     const headerRow = document.createElement('tr');
     headerRow.className = 'wo-section-header';
     headerRow.innerHTML = `
-      <td colspan="2" class="py-3 px-3 bg-blue-600/20 dark:bg-blue-600/20 theme-light:bg-blue-50 border-b border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-200">
+      <td colspan="2" class="py-2 px-1 bg-blue-600/20 dark:bg-blue-600/20 theme-light:bg-blue-50 border-b border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-200">
         <div class="flex items-center gap-2">
           <span class="text-lg">🔧</span>
           <span class="font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-700">Servicios</span>
@@ -2675,8 +2675,8 @@ function renderWO(){
       const tr = document.createElement('tr');
       tr.className = 'wo-item wo-service';
       tr.innerHTML = `
-        <td class="py-2.5 px-3 text-white dark:text-white theme-light:text-slate-900">${it.name||''}</td>
-        <td class="t-center py-2.5 px-3 text-white dark:text-white theme-light:text-slate-900 font-medium">${String(it.qty||1)}</td>
+        <td class="py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900">${it.name||''}</td>
+        <td class="t-center py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900 font-medium">${String(it.qty||1)}</td>
       `;
       b.appendChild(tr);
     });
@@ -2693,7 +2693,7 @@ function renderWO(){
     const headerRow = document.createElement('tr');
     headerRow.className = 'wo-section-header';
     headerRow.innerHTML = `
-      <td colspan="2" class="py-3 px-3 bg-green-600/20 dark:bg-green-600/20 theme-light:bg-green-50 border-b border-green-600/30 dark:border-green-600/30 theme-light:border-green-200">
+      <td colspan="2" class="py-2 px-1 bg-green-600/20 dark:bg-green-600/20 theme-light:bg-green-50 border-b border-green-600/30 dark:border-green-600/30 theme-light:border-green-200">
         <div class="flex items-center gap-2">
           <span class="text-lg">📦</span>
           <span class="font-semibold text-green-400 dark:text-green-400 theme-light:text-green-700">Productos</span>
@@ -2707,8 +2707,8 @@ function renderWO(){
       const tr = document.createElement('tr');
       tr.className = 'wo-item wo-product';
       tr.innerHTML = `
-        <td class="py-2.5 px-3 text-white dark:text-white theme-light:text-slate-900">${it.name||''}</td>
-        <td class="t-center py-2.5 px-3 text-white dark:text-white theme-light:text-slate-900 font-medium">${String(it.qty||1)}</td>
+        <td class="py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900">${it.name||''}</td>
+        <td class="t-center py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900 font-medium">${String(it.qty||1)}</td>
       `;
       b.appendChild(tr);
     });
@@ -4704,12 +4704,12 @@ function renderQuoteMini(q){
     const tr = document.createElement('tr');
     tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors';
     tr.innerHTML = `
-      <td class="py-2 px-2 text-xs text-white dark:text-white theme-light:text-slate-900">${typeLabel}</td>
-      <td class="py-2 px-2 text-xs text-white dark:text-white theme-light:text-slate-900">${htmlEscape(name || 'Item')}</td>
-      <td class="py-2 px-2 text-center text-xs text-white dark:text-white theme-light:text-slate-900">${qty}</td>
-      <td class="py-2 px-2 text-right text-xs text-white dark:text-white theme-light:text-slate-900 font-medium">${money(unit)}</td>
-      <td class="py-2 px-2 text-right text-xs text-white dark:text-white theme-light:text-slate-900 font-semibold">${money(total)}</td>
-      <td class="py-2 px-2 text-center w-8">
+      <td class="py-1.5 px-1 text-xs text-white dark:text-white theme-light:text-slate-900">${typeLabel}</td>
+      <td class="py-1.5 px-1 text-xs text-white dark:text-white theme-light:text-slate-900">${htmlEscape(name || 'Item')}</td>
+      <td class="py-1.5 px-1 text-center text-xs text-white dark:text-white theme-light:text-slate-900">${qty}</td>
+      <td class="py-1.5 px-1 text-right text-xs text-white dark:text-white theme-light:text-slate-900 font-medium">${money(unit)}</td>
+      <td class="py-1.5 px-1 text-right text-xs text-white dark:text-white theme-light:text-slate-900 font-semibold">${money(total)}</td>
+      <td class="py-1.5 px-1 text-center w-8">
         <button class="add px-2 py-1 text-xs bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-medium rounded transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30 theme-light:bg-blue-50 theme-light:text-blue-600 theme-light:hover:bg-blue-100 theme-light:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed" type="button">+</button>
       </td>
     `;
