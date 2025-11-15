@@ -736,13 +736,13 @@ export function initPrices(){
     fMakesGrid.innerHTML = filteredMakes.map(make => {
       const isSelected = selectedMake === make;
       return `
-        <div class="make-card p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 text-center ${
+        <div class="make-card p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 text-center h-24 flex flex-col items-center justify-center ${
           isSelected 
             ? 'bg-blue-600/20 dark:bg-blue-600/20 theme-light:bg-blue-50 border-blue-500 dark:border-blue-500 theme-light:border-blue-400' 
             : 'bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 hover:border-blue-500 dark:hover:border-blue-500 theme-light:hover:border-blue-400'
         }" data-make="${make}">
-          <div class="font-semibold text-lg text-white dark:text-white theme-light:text-slate-900 ${isSelected ? 'text-blue-400 dark:text-blue-400 theme-light:text-blue-600' : ''}">${make}</div>
-          ${isSelected ? '<div class="mt-2 text-blue-400 dark:text-blue-400 theme-light:text-blue-600 text-sm">✓ Seleccionada</div>' : ''}
+          <div class="font-semibold text-base text-white dark:text-white theme-light:text-slate-900 ${isSelected ? 'text-blue-400 dark:text-blue-400 theme-light:text-blue-600' : ''} truncate w-full px-2" title="${make}">${make}</div>
+          ${isSelected ? '<div class="mt-1 text-blue-400 dark:text-blue-400 theme-light:text-blue-600 text-xs">✓ Seleccionada</div>' : ''}
         </div>
       `;
     }).join('');
@@ -839,19 +839,20 @@ export function initPrices(){
 
     fVehiclesGrid.innerHTML = filteredVehicles.map(vehicle => {
       const isSelected = selectedVehicles.some(sv => sv._id === vehicle._id);
+      const vehicleName = `${vehicle.make} ${vehicle.line}`;
+      const vehicleDetails = `Cilindraje: ${vehicle.displacement || '-'}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}`;
       return `
-        <div class="vehicle-card p-4 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+        <div class="vehicle-card p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 h-28 flex flex-col ${
           isSelected 
             ? 'bg-green-600/20 dark:bg-green-600/20 theme-light:bg-green-50 border-green-500 dark:border-green-500 theme-light:border-green-400' 
             : 'bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 hover:border-green-500 dark:hover:border-green-500 theme-light:hover:border-green-400'
         }" data-vehicle-id="${vehicle._id}">
-          <div class="flex items-center gap-2 mb-2">
-            <input type="checkbox" ${isSelected ? 'checked' : ''} class="vehicle-checkbox w-4 h-4" data-vehicle-id="${vehicle._id}" />
-            <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 flex-1">${vehicle.make} ${vehicle.line}</div>
+          <div class="flex items-start gap-2 mb-2 flex-shrink-0">
+            <input type="checkbox" ${isSelected ? 'checked' : ''} class="vehicle-checkbox w-4 h-4 mt-0.5 flex-shrink-0" data-vehicle-id="${vehicle._id}" />
+            <div class="font-semibold text-sm text-white dark:text-white theme-light:text-slate-900 flex-1 min-w-0 line-clamp-2" title="${vehicleName}">${vehicleName}</div>
           </div>
-          <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
-            Cilindraje: ${vehicle.displacement || '-'}
-            ${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 line-clamp-2 flex-1 overflow-hidden" title="${vehicleDetails}">
+            ${vehicleDetails}
           </div>
         </div>
       `;
