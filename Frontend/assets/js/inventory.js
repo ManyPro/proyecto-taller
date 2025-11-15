@@ -108,6 +108,10 @@ const invAPI = {
   saveItem: (body) => request("/api/v1/inventory/items", { method: "POST", json: body }),
   updateItem: (id, body) => request(`/api/v1/inventory/items/${id}`, { method: "PUT", json: body }),
   deleteItem: (id) => request(`/api/v1/inventory/items/${id}`, { method: "DELETE" }),
+  getItemStockEntries: async (id) => {
+    const r = await request(`/api/v1/inventory/items/${id}/stock-entries`);
+    return r;
+  },
 
   mediaUpload: (files) => API.mediaUpload(files),
   // Import template and upload
@@ -1194,6 +1198,7 @@ if (__ON_INV_PAGE__) {
         <div class="actions">
           <button class="secondary" data-edit="${it._id}">Editar</button>
           <button class="danger" data-del="${it._id}">Eliminar</button>
+          <button class="secondary" data-summary="${it._id}">Ver resumen</button>
           <button class="secondary" data-qr-dl="${it._id}">Descargar QR</button>
           <button class="secondary" data-qr="${it._id}">Expandir codigo QR</button>
           <button class="secondary" data-stock-in="${it._id}">Agregar stock</button>
@@ -1220,6 +1225,7 @@ if (__ON_INV_PAGE__) {
       };
       div.querySelector("[data-qr]").onclick = () => openQrModal(it, companyId);
       div.querySelector("[data-qr-dl]").onclick = () => downloadQrPng(it._id, 720, `QR_${it.sku || it._id}.png`);
+      div.querySelector("[data-summary]").onclick = () => openItemSummaryModal(it);
      div.querySelector("[data-stock-in]").onclick = () => openStockInModal(it);
      const mpBtn = div.querySelector("[data-mp]");
      if (!state.permissions?.allowMarketplace && mpBtn) {
@@ -1554,6 +1560,112 @@ if (__ON_INV_PAGE__) {
     n.textContent=msg||'OK';
     document.body.appendChild(n);
     setTimeout(()=>{ n.classList.remove('show'); setTimeout(()=>n.remove(), 300); }, 1700);
+  }
+
+  async function openItemSummaryModal(it) {
+    try {
+      showBusy('Cargando resumen del item...');
+      const data = await invAPI.getItemStockEntries(it._id);
+      hideBusy();
+      
+      const item = data.item || it;
+      const stockEntries = data.stockEntries || [];
+      const totalStock = stockEntries.reduce((sum, se) => sum + (se.qty || 0), 0);
+      
+      // Formatear información de cada entrada
+      const entriesHtml = stockEntries.length > 0
+        ? stockEntries.map(se => {
+            const intakeLabel = se.intakeLabel || 'GENERAL';
+            const entryDate = se.entryDate ? new Date(se.entryDate).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
+            const entryPrice = se.entryPrice ? fmtMoney(se.entryPrice) : '-';
+            const qty = se.qty || 0;
+            
+            return `
+              <div class="border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg p-4 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-slate-50">
+                <div class="flex justify-between items-start mb-2">
+                  <div class="flex-1">
+                    <div class="text-sm font-semibold text-white theme-light:text-slate-900 mb-1">${intakeLabel}</div>
+                    <div class="text-xs text-slate-400 theme-light:text-slate-600">Fecha de entrada: ${entryDate}</div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-lg font-bold text-blue-400 theme-light:text-blue-600">${qty} unidades</div>
+                    ${entryPrice !== '-' ? `<div class="text-xs text-slate-400 theme-light:text-slate-600">Precio: $${entryPrice}</div>` : ''}
+                  </div>
+                </div>
+                ${se.meta?.note ? `<div class="text-xs text-slate-400 theme-light:text-slate-600 mt-2 italic">Nota: ${se.meta.note}</div>` : ''}
+              </div>
+            `;
+          }).join('')
+        : '<div class="text-center py-8 text-slate-400 theme-light:text-slate-600">No hay entradas de stock registradas</div>';
+      
+      invOpenModal(`
+        <div class="p-6 max-w-4xl">
+          <h3 class="text-2xl font-bold text-white theme-light:text-slate-900 mb-6">📊 Resumen del Item</h3>
+          
+          <!-- Información general del item -->
+          <div class="mb-6 p-4 rounded-lg bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-slate-100 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <div class="text-sm text-slate-400 theme-light:text-slate-600 mb-1">Nombre</div>
+                <div class="text-lg font-semibold text-white theme-light:text-slate-900">${item.name || '-'}</div>
+              </div>
+              <div>
+                <div class="text-sm text-slate-400 theme-light:text-slate-600 mb-1">SKU</div>
+                <div class="text-lg font-semibold text-white theme-light:text-slate-900">${item.sku || '-'}</div>
+              </div>
+              <div>
+                <div class="text-sm text-slate-400 theme-light:text-slate-600 mb-1">Stock Total</div>
+                <div class="text-2xl font-bold text-blue-400 theme-light:text-blue-600">${item.stock || 0}</div>
+              </div>
+              <div>
+                <div class="text-sm text-slate-400 theme-light:text-slate-600 mb-1">Precio de Venta</div>
+                <div class="text-lg font-semibold text-white theme-light:text-slate-900">$${fmtMoney(item.salePrice || 0)}</div>
+              </div>
+              ${item.entryPrice ? `
+              <div>
+                <div class="text-sm text-slate-400 theme-light:text-slate-600 mb-1">Precio de Entrada</div>
+                <div class="text-lg font-semibold text-white theme-light:text-slate-900">$${fmtMoney(item.entryPrice)}</div>
+              </div>
+              ` : ''}
+              ${item.location ? `
+              <div>
+                <div class="text-sm text-slate-400 theme-light:text-slate-600 mb-1">Ubicación</div>
+                <div class="text-lg font-semibold text-white theme-light:text-slate-900">${item.location}</div>
+              </div>
+              ` : ''}
+            </div>
+          </div>
+          
+          <!-- Resumen de entradas -->
+          <div class="mb-4">
+            <h4 class="text-lg font-semibold text-white theme-light:text-slate-900 mb-3">
+              📦 Entradas de Stock (${stockEntries.length} ${stockEntries.length === 1 ? 'entrada' : 'entradas'})
+            </h4>
+            ${totalStock !== (item.stock || 0) ? `
+              <div class="mb-3 p-3 rounded-lg bg-yellow-900/30 dark:bg-yellow-900/30 theme-light:bg-yellow-50 border border-yellow-600/50 dark:border-yellow-600/50 theme-light:border-yellow-300">
+                <div class="text-sm text-yellow-300 theme-light:text-yellow-700">
+                  ⚠️ Nota: El stock total del item (${item.stock || 0}) no coincide exactamente con la suma de entradas (${totalStock}). 
+                  Esto puede deberse a stock agregado sin entrada específica o ajustes manuales.
+                </div>
+              </div>
+            ` : ''}
+            <div class="space-y-3 max-h-96 overflow-y-auto">
+              ${entriesHtml}
+            </div>
+          </div>
+          
+          <div class="flex gap-3 mt-6">
+            <button id="summary-close" class="px-6 py-2 rounded-lg bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-600/50 hover:border-slate-500 transition-colors theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:border-slate-300 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cerrar</button>
+          </div>
+        </div>
+      `);
+      
+      document.getElementById('summary-close').onclick = invCloseModal;
+    } catch (e) {
+      hideBusy();
+      alert('Error al cargar el resumen: ' + e.message);
+      console.error('Error loading item summary:', e);
+    }
   }
 
   // ---- Agregar Stock MASIVO ----

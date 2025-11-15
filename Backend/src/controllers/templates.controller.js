@@ -603,6 +603,15 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
           }
         }
       }
+      
+      // Asegurar que technicianIdentification esté disponible
+      if (!ctx.settlement.technicianIdentification && settlementObj.technicianIdentification) {
+        ctx.settlement.technicianIdentification = settlementObj.technicianIdentification;
+      }
+      
+      // Agregar formattedNow al contexto
+      ctx.now = new Date();
+      ctx.formattedNow = new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     }
   }
   return ctx;

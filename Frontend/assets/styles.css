@@ -1,5 +1,57 @@
 /* Centrar imagen/video en el modal de vista previa */
 .viewer-modal { display: flex; align-items: center; justify-content: center; height: 100%; }
+
+/* Estilos mejorados para checkboxes del reporte */
+.report-checkbox-label {
+  position: relative;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.report-checkbox-label:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.report-section-checkbox {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.report-section-checkbox:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.report-section-checkbox:checked {
+  background: linear-gradient(135deg, #8b5cf6, #6366f1);
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+}
+
+.report-section-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  line-height: 1;
+}
 /* Botones de icono para thumbs en edición de ítem */
 .thumb-btn-wrap { display: flex; align-items: center; gap: 6px; margin: 10px 0; }
 .thumb-label { font-size: 14px; color: #cbd5e1; margin-right: 8px; }

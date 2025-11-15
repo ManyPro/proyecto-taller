@@ -9340,31 +9340,31 @@ function showReport(reportData, fechaDesde, fechaHasta) {
       <div class="mt-4 pt-4 border-t border-blue-500/30">
         <p class="text-blue-100 text-xs mb-3 font-semibold">Selecciona las secciones a incluir en la imagen:</p>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-          <label class="flex items-center gap-2 text-blue-100 text-xs cursor-pointer">
+          <label class="report-checkbox-label flex items-center gap-2 text-blue-100 text-xs cursor-pointer hover:text-white transition-colors">
             <input type="checkbox" class="report-section-checkbox" data-section="resumen" checked>
             <span>Resumen</span>
           </label>
-          <label class="flex items-center gap-2 text-blue-100 text-xs cursor-pointer">
+          <label class="report-checkbox-label flex items-center gap-2 text-blue-100 text-xs cursor-pointer hover:text-white transition-colors">
             <input type="checkbox" class="report-section-checkbox" data-section="cartera" checked>
             <span>Cartera</span>
           </label>
-          <label class="flex items-center gap-2 text-blue-100 text-xs cursor-pointer">
+          <label class="report-checkbox-label flex items-center gap-2 text-blue-100 text-xs cursor-pointer hover:text-white transition-colors">
             <input type="checkbox" class="report-section-checkbox" data-section="ingresos" checked>
             <span>Ingresos</span>
           </label>
-          <label class="flex items-center gap-2 text-blue-100 text-xs cursor-pointer">
+          <label class="report-checkbox-label flex items-center gap-2 text-blue-100 text-xs cursor-pointer hover:text-white transition-colors">
             <input type="checkbox" class="report-section-checkbox" data-section="flujo" checked>
             <span>Flujo Caja</span>
           </label>
-          <label class="flex items-center gap-2 text-blue-100 text-xs cursor-pointer">
+          <label class="report-checkbox-label flex items-center gap-2 text-blue-100 text-xs cursor-pointer hover:text-white transition-colors">
             <input type="checkbox" class="report-section-checkbox" data-section="manoobra" checked>
             <span>Mano Obra</span>
           </label>
-          <label class="flex items-center gap-2 text-blue-100 text-xs cursor-pointer">
+          <label class="report-checkbox-label flex items-center gap-2 text-blue-100 text-xs cursor-pointer hover:text-white transition-colors">
             <input type="checkbox" class="report-section-checkbox" data-section="grafico" checked>
             <span>Gráfico</span>
           </label>
-          <label class="flex items-center gap-2 text-blue-100 text-xs cursor-pointer">
+          <label class="report-checkbox-label flex items-center gap-2 text-blue-100 text-xs cursor-pointer hover:text-white transition-colors">
             <input type="checkbox" class="report-section-checkbox" data-section="restock" checked>
             <span>Restock</span>
           </label>
@@ -9583,6 +9583,375 @@ function ensureHtml2Canvas(){
   });
 }
 
+// Función helper para formatear dinero
+function formatMoneyExport(val) {
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
+}
+
+// Función helper para escapar HTML
+function escapeHtmlExport(str) {
+  if (!str) return '';
+  const div = document.createElement('div');
+  div.textContent = String(str);
+  return div.innerHTML;
+}
+
+// Generar HTML optimizado para exportación como imagen
+function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections) {
+  const periodStr = `${new Date(fechaDesde).toLocaleDateString('es-CO')} - ${new Date(fechaHasta).toLocaleDateString('es-CO')}`;
+  
+  // Determinar layout según secciones seleccionadas
+  const hasResumen = selectedSections.includes('resumen');
+  const hasCartera = selectedSections.includes('cartera');
+  const hasIngresos = selectedSections.includes('ingresos');
+  const hasFlujo = selectedSections.includes('flujo');
+  const hasManoObra = selectedSections.includes('manoobra');
+  const hasGrafico = selectedSections.includes('grafico');
+  const hasRestock = selectedSections.includes('restock');
+  
+  const sectionCount = selectedSections.length;
+  
+  // Calcular columnas según cantidad de secciones
+  let gridCols = 'grid-cols-2';
+  if (sectionCount <= 2) gridCols = 'grid-cols-2';
+  else if (sectionCount <= 4) gridCols = 'grid-cols-2';
+  else if (sectionCount <= 6) gridCols = 'grid-cols-3';
+  else gridCols = 'grid-cols-3';
+  
+  let html = `
+    <div style="
+      width: 11in;
+      min-height: 8.5in;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      padding: 32px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      color: #e5e7eb;
+      box-sizing: border-box;
+    ">
+      <!-- Header -->
+      <div style="
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
+        padding: 24px 32px;
+        border-radius: 16px;
+        margin-bottom: 24px;
+        box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+      ">
+        <h1 style="margin: 0; font-size: 32px; font-weight: 700; color: white; margin-bottom: 8px;">
+          📊 Reporte de Ventas
+        </h1>
+        <p style="margin: 0; font-size: 16px; color: rgba(255, 255, 255, 0.9);">
+          Período: ${periodStr}
+        </p>
+      </div>
+      
+      <div style="display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+  `;
+  
+  // Resumen (siempre arriba si está seleccionado)
+  if (hasResumen) {
+    html += `
+      <div style="
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+        margin-bottom: 8px;
+      ">
+        <div style="
+          background: rgba(30, 41, 59, 0.8);
+          padding: 20px;
+          border-radius: 12px;
+          border: 1px solid rgba(148, 163, 184, 0.2);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        ">
+          <div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px; font-weight: 500;">Total Ventas</div>
+          <div style="font-size: 28px; font-weight: 700; color: white;">${reportData.ventas.total}</div>
+        </div>
+        <div style="
+          background: rgba(30, 41, 59, 0.8);
+          padding: 20px;
+          border-radius: 12px;
+          border: 1px solid rgba(148, 163, 184, 0.2);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        ">
+          <div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px; font-weight: 500;">Ingresos Totales</div>
+          <div style="font-size: 28px; font-weight: 700; color: #10b981;">${formatMoneyExport(reportData.ventas.ingresos)}</div>
+        </div>
+        <div style="
+          background: rgba(30, 41, 59, 0.8);
+          padding: 20px;
+          border-radius: 12px;
+          border: 1px solid rgba(148, 163, 184, 0.2);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        ">
+          <div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px; font-weight: 500;">Valor en Cartera</div>
+          <div style="font-size: 28px; font-weight: 700; color: #fbbf24;">${formatMoneyExport(reportData.cartera.valor)}</div>
+          <div style="font-size: 11px; color: #64748b; margin-top: 4px;">${reportData.cartera.totalDeudores} cuenta(s) pendiente(s)</div>
+        </div>
+        <div style="
+          background: rgba(30, 41, 59, 0.8);
+          padding: 20px;
+          border-radius: 12px;
+          border: 1px solid rgba(148, 163, 184, 0.2);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        ">
+          <div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px; font-weight: 500;">Total Agendas</div>
+          <div style="font-size: 28px; font-weight: 700; color: #60a5fa;">${reportData.agendas.total}</div>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Flujo de Caja (compacto)
+  if (hasFlujo) {
+    html += `
+      <div style="
+        background: rgba(30, 41, 59, 0.8);
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      ">
+        <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 700; color: white;">💵 Flujo de Caja</h3>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+          <div style="background: rgba(16, 185, 129, 0.15); padding: 16px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
+            <div style="font-size: 12px; color: #6ee7b7; margin-bottom: 6px;">Entradas</div>
+            <div style="font-size: 20px; font-weight: 700; color: #10b981;">${formatMoneyExport(reportData.flujoCaja.entrada)}</div>
+          </div>
+          <div style="background: rgba(239, 68, 68, 0.15); padding: 16px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+            <div style="font-size: 12px; color: #fca5a5; margin-bottom: 6px;">Salidas</div>
+            <div style="font-size: 20px; font-weight: 700; color: #ef4444;">${formatMoneyExport(reportData.flujoCaja.salida)}</div>
+          </div>
+          <div style="background: rgba(59, 130, 246, 0.15); padding: 16px; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
+            <div style="font-size: 12px; color: #93c5fd; margin-bottom: 6px;">Neto</div>
+            <div style="font-size: 20px; font-weight: 700; color: #3b82f6;">${formatMoneyExport(reportData.flujoCaja.neto)}</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+  
+  // Ingresos por Cuenta
+  if (hasIngresos) {
+    const ingresosEntries = Object.entries(reportData.ingresosPorCuenta);
+    html += `
+      <div style="
+        background: rgba(30, 41, 59, 0.8);
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      ">
+        <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 700; color: white;">💰 Ingresos por Cuenta</h3>
+        ${ingresosEntries.length > 0 ? `
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            ${ingresosEntries.map(([cuenta, monto]) => `
+              <div style="
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 16px;
+                background: rgba(15, 23, 42, 0.5);
+                border-radius: 8px;
+                border: 1px solid rgba(148, 163, 184, 0.1);
+              ">
+                <span style="font-weight: 600; color: white;">${escapeHtmlExport(cuenta)}</span>
+                <span style="font-weight: 700; color: #10b981; font-size: 16px;">${formatMoneyExport(monto)}</span>
+              </div>
+            `).join('')}
+          </div>
+        ` : '<p style="color: #64748b; text-align: center; padding: 20px;">No hay ingresos registrados</p>'}
+      </div>
+    `;
+  }
+  
+  // Cartera
+  if (hasCartera) {
+    html += `
+      <div style="
+        background: rgba(30, 41, 59, 0.8);
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        ${reportData.cartera.deudores.length > 0 ? 'grid-column: 1 / -1;' : ''}
+      ">
+        <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 700; color: white;">💼 Reporte de Cartera</h3>
+        <div style="
+          background: rgba(251, 191, 36, 0.15);
+          padding: 16px;
+          border-radius: 8px;
+          border: 1px solid rgba(251, 191, 36, 0.3);
+          margin-bottom: 16px;
+        ">
+          <div style="font-size: 13px; color: #fcd34d; margin-bottom: 6px;">Valor Total en Cartera</div>
+          <div style="font-size: 24px; font-weight: 700; color: #fbbf24;">${formatMoneyExport(reportData.cartera.valor)}</div>
+          <div style="font-size: 12px; color: #fbbf24; margin-top: 4px;">${reportData.cartera.totalDeudores} cuenta(s) pendiente(s)</div>
+        </div>
+        ${reportData.cartera.deudores.length > 0 ? `
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+              <thead>
+                <tr style="background: rgba(15, 23, 42, 0.6); border-bottom: 2px solid rgba(148, 163, 184, 0.3);">
+                  <th style="padding: 10px; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Cliente</th>
+                  <th style="padding: 10px; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">ID</th>
+                  <th style="padding: 10px; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Placa</th>
+                  <th style="padding: 10px; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Venta</th>
+                  <th style="padding: 10px; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Total</th>
+                  <th style="padding: 10px; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Pagado</th>
+                  <th style="padding: 10px; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Pendiente</th>
+                  <th style="padding: 10px; text-align: center; color: #cbd5e1; font-weight: 600;">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${reportData.cartera.deudores.slice(0, 10).map(d => `
+                  <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
+                    <td style="padding: 10px; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1);">${escapeHtmlExport(d.cliente)}</td>
+                    <td style="padding: 10px; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1);">${escapeHtmlExport(d.identificacion)}</td>
+                    <td style="padding: 10px; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1); font-family: monospace;">${escapeHtmlExport(d.placa)}</td>
+                    <td style="padding: 10px; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1);">${escapeHtmlExport(d.venta)}</td>
+                    <td style="padding: 10px; text-align: right; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1);">${formatMoneyExport(d.total)}</td>
+                    <td style="padding: 10px; text-align: right; color: #10b981; border-right: 1px solid rgba(148, 163, 184, 0.1);">${formatMoneyExport(d.pagado)}</td>
+                    <td style="padding: 10px; text-align: right; color: #ef4444; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.1);">${formatMoneyExport(d.pendiente)}</td>
+                    <td style="padding: 10px; text-align: center;">
+                      <span style="
+                        padding: 4px 10px;
+                        border-radius: 6px;
+                        font-size: 11px;
+                        font-weight: 600;
+                        ${d.estado === 'Pendiente' ? 'background: rgba(251, 191, 36, 0.2); color: #fbbf24;' : 'background: rgba(59, 130, 246, 0.2); color: #60a5fa;'}
+                      ">${escapeHtmlExport(d.estado)}</span>
+                    </td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : '<p style="color: #64748b; text-align: center; padding: 20px;">No hay cuentas pendientes</p>'}
+      </div>
+    `;
+  }
+  
+  // Mano de Obra
+  if (hasManoObra) {
+    html += `
+      <div style="
+        background: rgba(30, 41, 59, 0.8);
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        ${hasGrafico ? '' : 'grid-column: 1 / -1;'}
+      ">
+        <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 700; color: white;">👷 Mano de Obra por Técnico</h3>
+        ${reportData.manoObra.porTecnico.length > 0 ? `
+          <div style="overflow-x: auto; margin-bottom: 16px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+              <thead>
+                <tr style="background: rgba(15, 23, 42, 0.6); border-bottom: 2px solid rgba(148, 163, 184, 0.3);">
+                  <th style="padding: 10px; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Técnico</th>
+                  <th style="padding: 10px; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Total</th>
+                  <th style="padding: 10px; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">${reportData.manoObra.porcentajeTecnico}% Técnico</th>
+                  <th style="padding: 10px; text-align: right; color: #cbd5e1; font-weight: 600;">${reportData.manoObra.porcentajeEmpresa}% Empresa</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${reportData.manoObra.porTecnico.map(t => `
+                  <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
+                    <td style="padding: 10px; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1);">${escapeHtmlExport(t.tecnico)}</td>
+                    <td style="padding: 10px; text-align: right; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1);">${formatMoneyExport(t.total)}</td>
+                    <td style="padding: 10px; text-align: right; color: #10b981; border-right: 1px solid rgba(148, 163, 184, 0.1);">${formatMoneyExport(t.montoTecnico)}</td>
+                    <td style="padding: 10px; text-align: right; color: #60a5fa;">${formatMoneyExport(t.montoEmpresa)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          <div style="
+            background: rgba(139, 92, 246, 0.15);
+            padding: 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+          ">
+            <div style="font-size: 12px; color: #c4b5fd; margin-bottom: 4px;">Tipo de Mano de Obra Más Usado</div>
+            <div style="font-size: 16px; font-weight: 700; color: #a78bfa;">
+              ${escapeHtmlExport(reportData.manoObra.tipoMasUsado.nombre)} - ${formatMoneyExport(reportData.manoObra.tipoMasUsado.monto)}
+            </div>
+          </div>
+        ` : '<p style="color: #64748b; text-align: center; padding: 20px;">No hay datos de mano de obra</p>'}
+      </div>
+    `;
+  }
+  
+  // Gráfico (si está seleccionado, se agregará después con Chart.js)
+  if (hasGrafico && reportData.manoObra.porTecnico.length > 0) {
+    html += `
+      <div id="chart-container-export" style="
+        background: rgba(30, 41, 59, 0.8);
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 300px;
+      ">
+        <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 700; color: white;">📊 Distribución de Mano de Obra</h3>
+        <canvas id="chart-canvas-export" width="400" height="400"></canvas>
+      </div>
+    `;
+  }
+  
+  // Restock
+  if (hasRestock) {
+    html += `
+      <div style="
+        background: rgba(30, 41, 59, 0.8);
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        grid-column: 1 / -1;
+      ">
+        <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 700; color: white;">⚠️ Ítems que Necesitan Restock</h3>
+        ${reportData.itemsNecesitanRestock.length > 0 ? `
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+              <thead>
+                <tr style="background: rgba(15, 23, 42, 0.6); border-bottom: 2px solid rgba(148, 163, 184, 0.3);">
+                  <th style="padding: 10px; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">SKU</th>
+                  <th style="padding: 10px; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Nombre</th>
+                  <th style="padding: 10px; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Stock Actual</th>
+                  <th style="padding: 10px; text-align: right; color: #cbd5e1; font-weight: 600;">Stock Mínimo</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${reportData.itemsNecesitanRestock.slice(0, 15).map(item => `
+                  <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
+                    <td style="padding: 10px; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1);">${escapeHtmlExport(item.sku)}</td>
+                    <td style="padding: 10px; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1);">${escapeHtmlExport(item.name)}</td>
+                    <td style="padding: 10px; text-align: right; color: #ef4444; border-right: 1px solid rgba(148, 163, 184, 0.1);">${item.stock}</td>
+                    <td style="padding: 10px; text-align: right; color: #fbbf24;">${item.minStock}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        ` : '<p style="color: #64748b; text-align: center; padding: 20px;">Todos los ítems tienen stock suficiente</p>'}
+      </div>
+    `;
+  }
+  
+  html += `
+      </div>
+    </div>
+  `;
+  
+  return html;
+}
+
 async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
   try {
     // Obtener secciones seleccionadas
@@ -9612,51 +9981,20 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       position: fixed;
       left: -9999px;
       top: 0;
-      width: 1200px;
-      background: linear-gradient(to bottom, #1e293b, #0f172a);
-      padding: 40px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      width: 11in;
+      min-height: 8.5in;
+      background: transparent;
     `;
     
-    // Clonar header siempre (solo el título y período)
-    const header = document.querySelector('#report-container .bg-gradient-to-r.from-blue-600');
-    if (header) {
-      // Crear header limpio solo con título y período
-      const headerClone = document.createElement('div');
-      headerClone.className = header.className;
-      headerClone.style.cssText = header.style.cssText;
-      const titleDiv = header.querySelector('div:first-child');
-      if (titleDiv) {
-        headerClone.innerHTML = titleDiv.outerHTML;
-      }
-      exportContainer.appendChild(headerClone);
-    }
-    
-    // Agregar secciones seleccionadas
-    selectedSections.forEach(sectionId => {
-      const section = document.getElementById(`report-section-${sectionId}`);
-      if (section) {
-        const sectionClone = section.cloneNode(true);
-        // Remover scroll y ajustar alturas máximas para que todo se vea
-        const scrollContainers = sectionClone.querySelectorAll('.max-h-96, .max-h-64, .overflow-y-auto');
-        scrollContainers.forEach(container => {
-          container.style.maxHeight = 'none';
-          container.style.overflow = 'visible';
-        });
-        exportContainer.appendChild(sectionClone);
-      }
-    });
-    
+    // Generar HTML optimizado
+    exportContainer.innerHTML = generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections);
     document.body.appendChild(exportContainer);
     
-    // Si hay gráfico seleccionado, recrearlo en el contenedor de exportación
-    if (selectedSections.includes('grafico') && reportData.manoObra.porTecnico.length > 0) {
-      const chartContainer = exportContainer.querySelector('#report-section-grafico');
-      const chartCanvas = chartContainer?.querySelector('#manoObraChart');
-      if (chartCanvas && window.Chart) {
-        // Esperar un momento para que el canvas esté en el DOM
-        await new Promise(resolve => setTimeout(resolve, 300));
-        // Recrear el gráfico
+    // Si hay gráfico seleccionado, crearlo
+    if (selectedSections.includes('grafico') && reportData.manoObra.porTecnico.length > 0 && window.Chart) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      const chartCanvas = exportContainer.querySelector('#chart-canvas-export');
+      if (chartCanvas) {
         const ctx = chartCanvas.getContext('2d');
         const labels = reportData.manoObra.porTecnico.map(t => t.tecnico);
         const data = reportData.manoObra.porTecnico.map(t => t.total);
@@ -9669,41 +10007,43 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
               data: data,
               backgroundColor: [
                 '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
-                '#8b5cf6', '#ec4899', '#06b6d4'
+                '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'
               ]
             }]
           },
           options: {
-            responsive: true,
-            maintainAspectRatio: true,
+            responsive: false,
+            maintainAspectRatio: false,
             plugins: {
               legend: {
                 position: 'bottom',
                 labels: {
                   color: '#e5e7eb',
-                  font: { size: 12 }
+                  font: { size: 12 },
+                  padding: 12
                 }
               }
             }
           }
         });
-        // Esperar a que Chart.js renderice
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 600));
       }
     }
     
-    // Esperar un momento adicional para que todo se renderice
+    // Esperar a que todo se renderice
     await new Promise(resolve => setTimeout(resolve, 500));
     
     // Capturar como imagen
     const canvas = await html2canvas(exportContainer, {
       scale: 2,
-      backgroundColor: '#0f172a',
+      backgroundColor: null,
       useCORS: true,
       allowTaint: true,
       logging: false,
       width: exportContainer.scrollWidth,
-      height: exportContainer.scrollHeight
+      height: exportContainer.scrollHeight,
+      windowWidth: exportContainer.scrollWidth,
+      windowHeight: exportContainer.scrollHeight
     });
     
     // Limpiar
@@ -9712,7 +10052,7 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     // Descargar imagen
     const link = document.createElement('a');
     link.download = `reporte-ventas-${fechaDesde}-${fechaHasta}.png`;
-    link.href = canvas.toDataURL('image/png');
+    link.href = canvas.toDataURL('image/png', 0.95);
     link.click();
     
     if (btn) {

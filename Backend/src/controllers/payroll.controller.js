@@ -1310,10 +1310,11 @@ export const printSettlementHtml = async (req, res) => {
     const periodObj = period ? period.toObject() : null;
     
     // Separar items por tipo para facilitar el template
+    // Asegurar que siempre sean arrays, incluso si están vacíos
     const itemsByType = {
-      earnings: (settlementObj.items || []).filter(i => i.type === 'earning'),
-      deductions: (settlementObj.items || []).filter(i => i.type === 'deduction'),
-      surcharges: (settlementObj.items || []).filter(i => i.type === 'surcharge')
+      earnings: Array.isArray(settlementObj.items) ? settlementObj.items.filter(i => i && i.type === 'earning') : [],
+      deductions: Array.isArray(settlementObj.items) ? settlementObj.items.filter(i => i && i.type === 'deduction') : [],
+      surcharges: Array.isArray(settlementObj.items) ? settlementObj.items.filter(i => i && i.type === 'surcharge') : []
     };
     
     const context = {
@@ -1341,6 +1342,52 @@ export const printSettlementHtml = async (req, res) => {
       formattedNow: new Date().toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     };
     
+    // Calcular días trabajados y agregar al periodo
+    if (context.period && periodObj && periodObj.startDate && periodObj.endDate) {
+      const start = new Date(periodObj.startDate);
+      const end = new Date(periodObj.endDate);
+      const diffTime = Math.abs(end - start);
+      context.period.daysWorked = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    } else if (context.period) {
+      context.period.daysWorked = 0;
+    }
+    
+    // Buscar información del técnico desde Company.technicians
+    if (settlementObj.technicianName) {
+      try {
+        const technicians = company?.technicians || [];
+        const tech = technicians.find(t => {
+          const name = typeof t === 'string' ? t : (t.name || '');
+          return String(name).toUpperCase() === String(settlementObj.technicianName).toUpperCase();
+        });
+        
+        if (tech) {
+          const techInfo = typeof tech === 'string' 
+            ? { name: tech.toUpperCase(), identification: '', basicSalary: null, workHoursPerMonth: null, basicSalaryPerDay: null, contractType: '' }
+            : {
+                name: String(tech.name || '').toUpperCase(),
+                identification: String(tech.identification || '').trim(),
+                basicSalary: tech.basicSalary !== undefined && tech.basicSalary !== null ? Number(tech.basicSalary) : null,
+                workHoursPerMonth: tech.workHoursPerMonth !== undefined && tech.workHoursPerMonth !== null ? Number(tech.workHoursPerMonth) : null,
+                basicSalaryPerDay: tech.basicSalaryPerDay !== undefined && tech.basicSalaryPerDay !== null ? Number(tech.basicSalaryPerDay) : null,
+                contractType: String(tech.contractType || '').trim()
+              };
+          
+          context.settlement.technician = techInfo;
+          if (techInfo.identification) {
+            context.settlement.technicianIdentification = techInfo.identification;
+          }
+        }
+      } catch (e) {
+        console.warn('Error al buscar información del técnico:', e.message);
+      }
+    }
+    
+    // Asegurar que technicianIdentification esté disponible
+    if (!context.settlement.technicianIdentification) {
+      context.settlement.technicianIdentification = settlementObj.technicianIdentification || '';
+    }
+    
     // Debug: verificar que los items se estén pasando correctamente
     if (process.env.NODE_ENV !== 'production') {
       console.log('[printSettlementHtml] Items por tipo:', {
@@ -1364,80 +1411,139 @@ export const printSettlementHtml = async (req, res) => {
         html = `<!-- template error: ${e.message} --><div style="padding:20px;color:red;">Error al renderizar template: ${e.message}</div>`; 
       }
     } else {
-      // Fallback HTML simple con mejor formato
+      // Fallback HTML completo optimizado para media carta con todos los datos
       const formatMoney = (val) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(val || 0);
-      const earningsRows = itemsByType.earnings.map(i => `<tr><td>${i.name}</td><td style="text-align:right">${formatMoney(i.value)}</td></tr>`).join('');
-      const deductionsRows = itemsByType.deductions.map(i => `<tr><td>${i.name}</td><td style="text-align:right">${formatMoney(i.value)}</td></tr>`).join('');
-      const surchargesRows = itemsByType.surcharges.map(i => `<tr><td>${i.name}</td><td style="text-align:right">${formatMoney(i.value)}</td></tr>`).join('');
-      const periodRange = periodObj ? `${new Date(periodObj.startDate).toLocaleDateString('es-CO')} → ${new Date(periodObj.endDate).toLocaleDateString('es-CO')}` : '';
+      
+      // Calcular días trabajados
+      let daysWorked = 0;
+      if (periodObj && periodObj.startDate && periodObj.endDate) {
+        const start = new Date(periodObj.startDate);
+        const end = new Date(periodObj.endDate);
+        const diffTime = Math.abs(end - start);
+        daysWorked = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      }
+      
+      // Obtener información del técnico desde el contexto
+      const technicianInfo = context.settlement.technician || {};
+      const technicianName = context.settlement.technicianName || settlementObj.technicianName || '';
+      const technicianIdentification = context.settlement.technicianIdentification || settlementObj.technicianIdentification || '';
+      
+      // Filas de ingresos con formato correcto
+      const earningsRows = itemsByType.earnings && itemsByType.earnings.length > 0
+        ? itemsByType.earnings.map(i => `<tr><td style="text-align:left;padding:3px 4px;word-wrap:break-word;">${String(i.name || '').trim() || '-'}</td><td style="text-align:center;padding:3px 2px;">-</td><td style="text-align:center;padding:3px 2px;">-</td><td style="text-align:right;padding:3px 2px;">${formatMoney(i.value || 0)}</td></tr>`).join('')
+        : '<tr><td colspan="4" style="text-align:center;padding:4px;color:#666;">Sin ingresos</td></tr>';
+      
+      // Filas de descuentos con formato correcto
+      const deductionsRows = itemsByType.deductions && itemsByType.deductions.length > 0
+        ? itemsByType.deductions.map(i => `<tr><td style="text-align:left;padding:3px 4px;word-wrap:break-word;">${String(i.name || '').trim() || '-'}</td><td style="text-align:center;padding:3px 2px;">-</td><td style="text-align:right;padding:3px 2px;">${formatMoney(i.value || 0)}</td></tr>`).join('')
+        : '<tr><td colspan="3" style="text-align:center;padding:4px;color:#666;">Sin descuentos</td></tr>';
+      
+      const periodRange = periodObj ? `${context.period.formattedStartDate} A ${context.period.formattedEndDate}` : '';
       
       html = `
-        <div style="max-width:800px;margin:0 auto;padding:20px;font-family:Arial,sans-serif;">
-          <h2 style="text-align:center;margin-bottom:20px;">Comprobante de Pago de Nómina</h2>
-          <div style="margin-bottom:20px;">
-            <div><strong>Empresa:</strong> ${context.company.name}</div>
-            <div><strong>Técnico:</strong> ${settlementObj.technicianName||''}</div>
-            ${periodRange ? `<div><strong>Período:</strong> ${periodRange}</div>` : ''}
-            <div><strong>Fecha de liquidación:</strong> ${context.formattedNow}</div>
+        <div style="width:100%;max-width:100%;margin:0;padding:0;font-family:Arial,sans-serif;font-size:9px;line-height:1.2;box-sizing:border-box;">
+          <!-- Logo/Header -->
+          ${context.company.logoUrl ? `<div style="text-align:center;margin-bottom:8px;"><img src="${context.company.logoUrl}" alt="${context.company.name}" style="max-height:50px;max-width:120px;object-fit:contain;" /></div>` : ''}
+          
+          <!-- Información del empleado (izquierda) y resumen (derecha) -->
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;gap:8px;">
+            <!-- Datos del empleado -->
+            <div style="flex:1;border:2px solid #000;padding:4px;">
+              <table style="width:100%;border-collapse:collapse;font-size:9px;">
+                <tr><td style="border:1px solid #000;padding:2px;font-weight:bold;width:40%;word-wrap:break-word;">NOMBRE:</td><td style="border:1px solid #000;padding:2px;word-wrap:break-word;">${technicianName}</td></tr>
+                <tr><td style="border:1px solid #000;padding:2px;font-weight:bold;word-wrap:break-word;">CÉDULA:</td><td style="border:1px solid #000;padding:2px;word-wrap:break-word;">${technicianIdentification}</td></tr>
+                <tr><td style="border:1px solid #000;padding:2px;font-weight:bold;word-wrap:break-word;">PERIODO:</td><td style="border:1px solid #000;padding:2px;word-wrap:break-word;">${periodRange}</td></tr>
+                <tr><td style="border:1px solid #000;padding:2px;font-weight:bold;word-wrap:break-word;">SALARIO BÁSICO ($/MES):</td><td style="border:1px solid #000;padding:2px;word-wrap:break-word;">${technicianInfo.basicSalary ? formatMoney(technicianInfo.basicSalary) : ''}</td></tr>
+                <tr><td style="border:1px solid #000;padding:2px;font-weight:bold;word-wrap:break-word;">HORAS TRABAJO MES:</td><td style="border:1px solid #000;padding:2px;word-wrap:break-word;">${technicianInfo.workHoursPerMonth || ''}</td></tr>
+                <tr><td style="border:1px solid #000;padding:2px;font-weight:bold;word-wrap:break-word;">SALARIO BÁSICO (DÍA):</td><td style="border:1px solid #000;padding:2px;word-wrap:break-word;">${technicianInfo.basicSalaryPerDay ? formatMoney(technicianInfo.basicSalaryPerDay) : ''}</td></tr>
+                <tr><td style="border:1px solid #000;padding:2px;font-weight:bold;word-wrap:break-word;">TIPO CONTRATO:</td><td style="border:1px solid #000;padding:2px;word-wrap:break-word;">${technicianInfo.contractType || ''}</td></tr>
+              </table>
+            </div>
+            
+            <!-- Resumen (derecha) -->
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <div style="border:2px solid #000;padding:6px;text-align:center;min-width:140px;">
+                <div style="font-weight:bold;font-size:9px;margin-bottom:3px;">DÍAS TRABAJADOS</div>
+                <div style="font-size:18px;font-weight:bold;">${daysWorked}</div>
+              </div>
+              <div style="border:2px solid #000;padding:6px;text-align:center;min-width:140px;">
+                <div style="font-weight:bold;font-size:9px;margin-bottom:3px;">TOTAL DEVENGADO</div>
+                <div style="font-size:14px;font-weight:bold;word-wrap:break-word;">${context.settlement.formattedGrossTotal}</div>
+              </div>
+            </div>
           </div>
-          ${earningsRows ? `
-            <h3 style="margin-top:20px;margin-bottom:10px;">Ingresos</h3>
-            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-              <thead>
-                <tr style="background:#f0f0f0;">
-                  <th style="text-align:left;padding:8px;border-bottom:2px solid #ddd;">Concepto</th>
-                  <th style="text-align:right;padding:8px;border-bottom:2px solid #ddd;">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${earningsRows}
-              </tbody>
-            </table>
-          ` : ''}
-          ${surchargesRows ? `
-            <h3 style="margin-top:20px;margin-bottom:10px;">Recargos</h3>
-            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-              <thead>
-                <tr style="background:#f0f0f0;">
-                  <th style="text-align:left;padding:8px;border-bottom:2px solid #ddd;">Concepto</th>
-                  <th style="text-align:right;padding:8px;border-bottom:2px solid #ddd;">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${surchargesRows}
-              </tbody>
-            </table>
-          ` : ''}
-          ${deductionsRows ? `
-            <h3 style="margin-top:20px;margin-bottom:10px;">Descuentos</h3>
-            <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
-              <thead>
-                <tr style="background:#f0f0f0;">
-                  <th style="text-align:left;padding:8px;border-bottom:2px solid #ddd;">Concepto</th>
-                  <th style="text-align:right;padding:8px;border-bottom:2px solid #ddd;">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${deductionsRows}
-              </tbody>
-            </table>
-          ` : ''}
-          <div style="margin-top:30px;padding-top:20px;border-top:2px solid #333;">
-            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-              <strong>Total bruto:</strong>
-              <strong>${formatMoney(settlementObj.grossTotal)}</strong>
+          
+          <!-- Tablas de ingresos y descuentos lado a lado -->
+          <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:8px;">
+            <!-- Tabla de ingresos -->
+            <div style="flex:1;border:2px solid #000;">
+              <table class="payroll-earnings-table" style="width:100%;border-collapse:collapse;border-spacing:0;table-layout:fixed;font-size:9px;">
+                <thead>
+                  <tr>
+                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:38%;word-wrap:break-word;">DESCRIPCIÓN</th>
+                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:12%;word-wrap:break-word;">DÍAS</th>
+                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:15%;word-wrap:break-word;">TRANSP.</th>
+                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:35%;word-wrap:break-word;">DEVENGADO</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${earningsRows}
+                </tbody>
+              </table>
             </div>
-            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-              <strong>Total descuentos:</strong>
-              <strong>${formatMoney(settlementObj.deductionsTotal)}</strong>
+            
+            <!-- Tabla de descuentos -->
+            <div style="flex:1;border:2px solid #000;">
+              <table class="payroll-deductions-table" style="width:100%;border-collapse:collapse;border-spacing:0;table-layout:fixed;font-size:9px;">
+                <thead>
+                  <tr>
+                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:40%;word-wrap:break-word;">DESCRIPCIÓN</th>
+                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:20%;word-wrap:break-word;">VALOR</th>
+                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:40%;word-wrap:break-word;">DESCUENTOS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${deductionsRows}
+                </tbody>
+              </table>
             </div>
-            <div style="display:flex;justify-content:space-between;padding-top:10px;border-top:1px solid #ddd;font-size:18px;">
-              <strong>Neto a pagar:</strong>
-              <strong style="color:#10b981;">${formatMoney(settlementObj.netTotal)}</strong>
+          </div>
+          
+          <!-- Totales -->
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px;gap:8px;">
+            <div style="flex:1;border:2px solid #000;padding:4px;font-weight:bold;font-size:10px;">
+              TOTAL INGRESOS: ${context.settlement.formattedGrossTotal}
+            </div>
+            <div style="flex:1;border:2px solid #000;padding:4px;font-weight:bold;font-size:10px;text-align:right;">
+              TOTAL EGRESOS: ${context.settlement.formattedDeductionsTotal}
+            </div>
+          </div>
+          
+          <!-- Sección de firma -->
+          <div style="display:flex;justify-content:space-between;gap:8px;margin-top:4px;">
+            <div style="flex:1;border:2px solid #000;padding:6px;text-align:center;">
+              <div style="font-weight:bold;font-size:11px;margin-bottom:4px;">RECIBÍ A SATISFACCIÓN</div>
+            </div>
+            <div style="flex:1;border:2px solid #000;padding:4px;font-size:9px;">
+              <div style="padding:1px 0;word-wrap:break-word;"><strong>NOMBRE:</strong> ${technicianName}</div>
+              <div style="padding:1px 0;"><strong>FIRMA:</strong></div>
+              <div style="padding:1px 0;border-top:1px solid #000;margin-top:4px;height:20px;">&nbsp;</div>
+              <div style="padding:1px 0;word-wrap:break-word;"><strong>IDENTIFICACION:</strong> ${technicianIdentification}</div>
+              <div style="padding:1px 0;word-wrap:break-word;"><strong>FECHA:</strong> ${context.formattedNow}</div>
             </div>
           </div>
         </div>`;
-      css = `table td{border-bottom:1px solid #ddd;padding:8px}`;
+      css = `
+        .payroll-earnings-table td, .payroll-deductions-table td {
+          border:1px solid #000 !important;
+          word-wrap:break-word !important;
+          overflow-wrap:break-word !important;
+        }
+        .payroll-earnings-table th, .payroll-deductions-table th {
+          border:2px solid #000 !important;
+          word-wrap:break-word !important;
+        }
+      `;
     }
     // Agregar estilos para media carta y encoding UTF-8 con mejoras para PDF
     const pageStyles = `
@@ -1519,6 +1625,33 @@ export const printSettlementHtml = async (req, res) => {
       .tpl-element {
         margin: 0 !important;
         padding: 0 !important;
+      }
+      /* Asegurar que el contenido quepa en media carta */
+      body > div {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding: 4px !important;
+        margin: 0 !important;
+      }
+      /* Reducir espaciado entre secciones */
+      div[style*="margin-bottom"] {
+        margin-bottom: 4px !important;
+      }
+      div[style*="margin-top"] {
+        margin-top: 2px !important;
+      }
+      /* Asegurar que las tablas se muestren correctamente */
+      table {
+        page-break-inside: avoid !important;
+      }
+      /* Reducir altura de filas de tabla */
+      tr {
+        height: auto !important;
+        min-height: 0 !important;
+      }
+      td, th {
+        line-height: 1.1 !important;
+        padding: 2px 3px !important;
       }
     `;
     
