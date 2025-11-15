@@ -117,28 +117,36 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
         if (item.source === 'price' && item.refId) {
           const pe = priceEntryMap[item.refId.toString()];
           if (pe && pe.type === 'combo') {
-            // Es un combo - buscar productos siguientes que pertenecen a este combo
-            const comboItems = [];
-            let j = i + 1;
-            
-            // Cargar el combo completo con sus productos para identificar correctamente
+            // Es un combo - cargar el combo completo con sus productos
             const fullCombo = await PriceEntry.findOne({ _id: item.refId, companyId })
               .populate('comboProducts.itemId', 'sku name stock salePrice')
               .lean();
             
+            const comboItems = [];
             const comboProductRefIds = new Set();
+            const comboProductNames = new Set();
+            
+            // Primero, construir un mapa de los productos del combo desde PriceEntry
             if (fullCombo && fullCombo.comboProducts) {
               fullCombo.comboProducts.forEach(cp => {
                 if (cp.itemId) {
                   comboProductRefIds.add(String(cp.itemId));
                 }
+                if (cp.name) {
+                  comboProductNames.add(String(cp.name).trim().toUpperCase());
+                }
               });
             }
             
             // Buscar items siguientes que pertenecen a este combo
+            let j = i + 1;
+            const processedComboItemIndices = new Set();
+            
             while (j < saleObj.items.length) {
               const nextItem = saleObj.items[j];
               const nextSku = String(nextItem.sku || '').toUpperCase();
+              const nextName = String(nextItem.name || '').trim().toUpperCase();
+              const nextRefId = nextItem.refId ? String(nextItem.refId) : '';
               
               // Si el SKU empieza con "CP-", es definitivamente parte del combo
               if (nextSku.startsWith('CP-')) {
@@ -152,12 +160,13 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
                   refId: nextItem.refId || null,
                   isNested: true
                 });
+                processedComboItemIndices.add(j);
                 j++;
                 continue;
               }
               
               // Si es un item de inventario y su refId está en los productos del combo
-              if (nextItem.source === 'inventory' && nextItem.refId && comboProductRefIds.has(String(nextItem.refId))) {
+              if (nextItem.source === 'inventory' && nextItem.refId && comboProductRefIds.has(nextRefId)) {
                 comboItems.push({
                   sku: nextItem.sku || '',
                   name: nextItem.name || '',
@@ -168,6 +177,7 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
                   refId: nextItem.refId || null,
                   isNested: true
                 });
+                processedComboItemIndices.add(j);
                 j++;
                 continue;
               }
@@ -177,11 +187,7 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
               if (nextPrice === 0 && nextItem.source === 'price' && 
                   (!nextItem.refId || String(nextItem.refId) !== String(item.refId))) {
                 // Verificar si el nombre coincide con algún producto del combo
-                const matchesComboProduct = fullCombo && fullCombo.comboProducts && 
-                  fullCombo.comboProducts.some(cp => 
-                    String(cp.name || '').trim().toUpperCase() === String(nextItem.name || '').trim().toUpperCase()
-                  );
-                if (matchesComboProduct) {
+                if (comboProductNames.has(nextName)) {
                   comboItems.push({
                     sku: nextItem.sku || '',
                     name: nextItem.name || '',
@@ -192,6 +198,7 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
                     refId: nextItem.refId || null,
                     isNested: true
                   });
+                  processedComboItemIndices.add(j);
                   j++;
                   continue;
                 }
@@ -208,7 +215,7 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
                   break;
                 }
               } else if (nextItem.source === 'inventory' && nextPrice > 0 && 
-                        !comboProductRefIds.has(String(nextItem.refId || ''))) {
+                        !comboProductRefIds.has(nextRefId)) {
                 // Es un producto del inventario con precio > 0 que NO es del combo, parar
                 break;
               } else if (nextItem.source === 'service' || (nextItem.source === 'price' && !nextItem.refId && nextPrice > 0)) {
@@ -217,6 +224,107 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
               } else {
                 // Otro caso, parar por seguridad
                 break;
+              }
+            }
+            
+            // SIEMPRE incluir productos del combo desde el PriceEntry
+            // Esto asegura que siempre se muestren los productos anidados, incluso si no están en el array de items
+            // O si la búsqueda secuencial no los encontró correctamente
+            if (fullCombo && fullCombo.comboProducts) {
+              // Crear un mapa de los items ya encontrados para evitar duplicados
+              const foundItemsMap = new Map();
+              comboItems.forEach((ci, idx) => {
+                if (ci.refId) {
+                  foundItemsMap.set(String(ci.refId), idx);
+                } else if (ci.sku && ci.sku.startsWith('CP-')) {
+                  foundItemsMap.set(ci.sku, idx);
+                } else if (ci.name) {
+                  foundItemsMap.set(String(ci.name).trim().toUpperCase(), idx);
+                }
+              });
+              
+              // Agregar productos desde el PriceEntry que no fueron encontrados en la búsqueda secuencial
+              for (const cp of fullCombo.comboProducts) {
+                if (cp.isOpenSlot) continue; // Saltar slots abiertos
+                
+                const comboQty = itemObj.qty * (cp.qty || 1);
+                let alreadyAdded = false;
+                
+                // Verificar si ya fue agregado
+                if (cp.itemId) {
+                  alreadyAdded = foundItemsMap.has(String(cp.itemId._id));
+                } else if (cp.name) {
+                  alreadyAdded = foundItemsMap.has(String(cp.name).trim().toUpperCase());
+                }
+                
+                if (alreadyAdded) continue; // Ya fue agregado, saltar
+                
+                if (cp.itemId) {
+                  // Producto vinculado - buscar en items para obtener datos reales, o usar datos del PriceEntry
+                  const foundItem = saleObj.items.find(it => 
+                    it.source === 'inventory' && it.refId && String(it.refId) === String(cp.itemId._id)
+                  );
+                  
+                  if (foundItem) {
+                    // Usar datos del item encontrado
+                    comboItems.push({
+                      sku: foundItem.sku || cp.itemId.sku || `CP-${String(cp.itemId._id || '').slice(-6)}`,
+                      name: foundItem.name || cp.name || cp.itemId.name || 'Producto del combo',
+                      qty: Number(foundItem.qty) || comboQty,
+                      unitPrice: Number(foundItem.unitPrice) || cp.unitPrice || cp.itemId.salePrice || 0,
+                      total: Number(foundItem.total) || (comboQty * (cp.unitPrice || cp.itemId.salePrice || 0)),
+                      source: 'inventory',
+                      refId: cp.itemId._id || null,
+                      isNested: true
+                    });
+                  } else {
+                    // Usar datos del PriceEntry
+                    comboItems.push({
+                      sku: cp.itemId.sku || `CP-${String(cp.itemId._id || '').slice(-6)}`,
+                      name: cp.name || cp.itemId.name || 'Producto del combo',
+                      qty: comboQty,
+                      unitPrice: cp.unitPrice || cp.itemId.salePrice || 0,
+                      total: comboQty * (cp.unitPrice || cp.itemId.salePrice || 0),
+                      source: 'inventory',
+                      refId: cp.itemId._id || null,
+                      isNested: true
+                    });
+                  }
+                } else if (cp.name) {
+                  // Producto sin vincular - buscar en items por nombre
+                  const foundItem = saleObj.items.find(it => 
+                    it.source === 'price' && 
+                    !it.refId && 
+                    Number(it.unitPrice || 0) === 0 &&
+                    String(it.name || '').trim().toUpperCase() === String(cp.name).trim().toUpperCase()
+                  );
+                  
+                  if (foundItem) {
+                    // Usar datos del item encontrado
+                    comboItems.push({
+                      sku: foundItem.sku || `CP-${String(cp._id || '').slice(-6)}`,
+                      name: foundItem.name || cp.name,
+                      qty: Number(foundItem.qty) || comboQty,
+                      unitPrice: Number(foundItem.unitPrice) || cp.unitPrice || 0,
+                      total: Number(foundItem.total) || (comboQty * (cp.unitPrice || 0)),
+                      source: 'price',
+                      refId: null,
+                      isNested: true
+                    });
+                  } else {
+                    // Usar datos del PriceEntry
+                    comboItems.push({
+                      sku: `CP-${String(cp._id || '').slice(-6)}`,
+                      name: cp.name,
+                      qty: comboQty,
+                      unitPrice: cp.unitPrice || 0,
+                      total: comboQty * (cp.unitPrice || 0),
+                      source: 'price',
+                      refId: null,
+                      isNested: true
+                    });
+                  }
+                }
               }
             }
             
@@ -229,7 +337,8 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
               items: comboItems // Productos anidados del combo
             });
             
-            i = j; // Saltar los items que ya procesamos
+            // Saltar los items que ya procesamos como parte del combo
+            i = j;
             continue;
           } else {
             // Es un servicio (price pero no combo)
@@ -649,7 +758,7 @@ function normalizeTemplateHtml(html='') {
           const newTbody = `<tbody>
           {{#if sale.itemsGrouped.hasProducts}}
           <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px;">PRODUCTOS</td>
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">PRODUCTOS</td>
           </tr>
           {{#each sale.itemsGrouped.products}}
           <tr>
@@ -663,7 +772,7 @@ function normalizeTemplateHtml(html='') {
           
           {{#if sale.itemsGrouped.hasServices}}
           <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px;">SERVICIOS</td>
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">SERVICIOS</td>
           </tr>
           {{#each sale.itemsGrouped.services}}
           <tr>
@@ -677,7 +786,7 @@ function normalizeTemplateHtml(html='') {
           
           {{#if sale.itemsGrouped.hasCombos}}
           <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px;">COMBOS</td>
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">COMBOS</td>
           </tr>
           {{#each sale.itemsGrouped.combos}}
           <tr>
@@ -711,7 +820,7 @@ function normalizeTemplateHtml(html='') {
           const newTbody = `<tbody>
           {{#if sale.itemsGrouped.hasProducts}}
           <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px;">PRODUCTOS</td>
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">PRODUCTOS</td>
           </tr>
           {{#each sale.itemsGrouped.products}}
           <tr>
@@ -725,7 +834,7 @@ function normalizeTemplateHtml(html='') {
           
           {{#if sale.itemsGrouped.hasServices}}
           <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px;">SERVICIOS</td>
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">SERVICIOS</td>
           </tr>
           {{#each sale.itemsGrouped.services}}
           <tr>
@@ -739,7 +848,7 @@ function normalizeTemplateHtml(html='') {
           
           {{#if sale.itemsGrouped.hasCombos}}
           <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px;">COMBOS</td>
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">COMBOS</td>
           </tr>
           {{#each sale.itemsGrouped.combos}}
           <tr>
