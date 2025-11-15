@@ -1282,7 +1282,10 @@
         
         // Guardar features (solo si hay features para actualizar)
         if (Object.keys(featuresPatch).length > 0) {
-          await req(`/api/v1/admin/company/companies/${company._id}/features`, { method:'PATCH', body: featuresPatch });
+          const featuresResult = await req(`/api/v1/admin/company/companies/${company._id}/features`, { method:'PATCH', body: featuresPatch });
+          if (!featuresResult || !featuresResult.features) {
+            throw new Error('Error al guardar features: respuesta inválida');
+          }
         }
         
         const hiddenAccountsArray = [];
@@ -1297,10 +1300,13 @@
             hiddenAccounts: hiddenAccountsArray
           }
         };
-        await req(`/api/v1/admin/company/companies/${company._id}/restrictions`, { 
+        const restrictionsResult = await req(`/api/v1/admin/company/companies/${company._id}/restrictions`, { 
           method:'PATCH', 
-          body: restrictionsPatch
+          body: restrictionsPatch 
         });
+        if (!restrictionsResult || !restrictionsResult.restrictions) {
+          throw new Error('Error al guardar restrictions: respuesta inválida');
+        }
         
         // Guardar BD compartida (nuevo sistema)
         const sharedList = document.getElementById('sharedDatabaseList');
@@ -1321,10 +1327,13 @@
           }
         });
         
-        await req(`/api/v1/admin/company/companies/${company._id}/shared-database-config`, { 
+        const sharedDbResult = await req(`/api/v1/admin/company/companies/${company._id}/shared-database-config`, { 
           method:'PATCH', 
           body: { sharedWith: sharedWithItems } 
         });
+        if (!sharedDbResult || !sharedDbResult.sharedDatabaseConfig) {
+          throw new Error('Error al guardar configuración de BD compartida: respuesta inválida');
+        }
         
         // Limpiar caché de restrictions para todas las empresas afectadas
         try {
@@ -1361,30 +1370,39 @@
           console.warn('Error limpiando caché:', e);
         }
         
+        // Esperar un momento para asegurar que los cambios se persistan en la BD
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
         // Recargar datos de empresa desde el servidor
         const r = await req('/api/v1/admin/companies');
+        if (!r || !r.items) {
+          throw new Error('Error al recargar datos de empresas');
+        }
+        
         companiesList = r.items || [];
         const updated = companiesList.find(c => String(c._id) === String(company._id));
-        if(updated) {
-          // Actualizar la referencia en companiesList
-          const companyIndex = companiesList.findIndex(c => String(c._id) === String(company._id));
-          if(companyIndex >= 0) {
-            companiesList[companyIndex] = updated;
-          }
-          
-          // Actualizar currentCompanyData también (usar _id para consistencia)
-          if(currentCompanyData && (String(currentCompanyData.id || currentCompanyData._id) === String(updated._id) || currentCompanyData.email === updated.email)) {
-            currentCompanyData = { 
-              ...currentCompanyData, 
-              ...updated,
-              id: updated._id, // Asegurar que id y _id estén sincronizados
-              _id: updated._id
-            };
-          }
-          
-          // Recargar la pestaña de admin con los datos actualizados
-          await loadAdminTab();
+        if(!updated) {
+          throw new Error('No se encontró la empresa actualizada en la respuesta del servidor');
         }
+        
+        // Actualizar la referencia en companiesList
+        const companyIndex = companiesList.findIndex(c => String(c._id) === String(company._id));
+        if(companyIndex >= 0) {
+          companiesList[companyIndex] = updated;
+        }
+        
+        // Actualizar currentCompanyData también (usar _id para consistencia)
+        if(currentCompanyData && (String(currentCompanyData.id || currentCompanyData._id) === String(updated._id) || currentCompanyData.email === updated.email)) {
+          currentCompanyData = { 
+            ...currentCompanyData, 
+            ...updated,
+            id: updated._id, // Asegurar que id y _id estén sincronizados
+            _id: updated._id
+          };
+        }
+        
+        // Recargar la pestaña de admin con los datos actualizados
+        await loadAdminTab();
         
         alert('✅ Todos los cambios guardados correctamente');
       }catch(e){

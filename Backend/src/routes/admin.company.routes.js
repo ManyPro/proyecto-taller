@@ -21,18 +21,23 @@ router.patch('/companies/:id/features', requireAdminRole('developer','admin'), a
   const c = await Company.findById(id);
   if(!c) return res.status(404).json({ error: 'Empresa no encontrada' });
   
-  // Initialize features if not exists
-  if (!c.features) {
-    c.features = {};
-  }
+  // Preparar el objeto features actualizado
+  const currentFeatures = c.features || {};
+  const updatedFeatures = { ...currentFeatures };
   
   // Update features with provided values
   Object.entries(body).forEach(([k,v]) => { 
-    c.features[k] = !!v; 
+    updatedFeatures[k] = !!v; 
   });
   
-  await c.save();
-  res.json({ features: c.features });
+  // Usar updateOne para evitar validación de technicians (solo estamos actualizando features)
+  await Company.updateOne(
+    { _id: id },
+    { $set: { features: updatedFeatures } },
+    { runValidators: false }
+  );
+  
+  res.json({ features: updatedFeatures });
 });
 
 // Patch fine-grained feature options (developer only)
@@ -60,32 +65,44 @@ router.patch('/companies/:id/restrictions', requireAdminRole('developer','admin'
   if(!c) return res.status(404).json({ error: 'Empresa no encontrada' });
   c.restrictions ||= {};
   
+  // Preparar el objeto restrictions actualizado con deep clone
+  const currentRestrictions = c.restrictions || {};
+  const updatedRestrictions = JSON.parse(JSON.stringify(currentRestrictions)); // Deep clone
+  
   // Manejar arrays directamente (como hiddenTabs) y objetos anidados (como cashflow)
   Object.entries(patch).forEach(([key, value]) => {
     if (Array.isArray(value)) {
-      // Si es un array, guardarlo directamente
-      c.restrictions[key] = value;
-    } else if (typeof value === 'object' && value !== null) {
+      // Si es un array, guardarlo directamente (reemplazar completamente)
+      updatedRestrictions[key] = value;
+    } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
       // Si es un objeto, hacer merge profundo preservando propiedades existentes
-      c.restrictions[key] = c.restrictions[key] || {};
+      updatedRestrictions[key] = updatedRestrictions[key] || {};
       Object.entries(value).forEach(([k, v]) => {
         if (Array.isArray(v)) {
-          c.restrictions[key][k] = v;
-        } else if (typeof v === 'object' && v !== null) {
+          // Si el valor es un array, reemplazarlo completamente
+          updatedRestrictions[key][k] = v;
+        } else if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
           // Si es un objeto anidado, hacer merge también
-          c.restrictions[key][k] = { ...(c.restrictions[key][k] || {}), ...v };
+          updatedRestrictions[key][k] = { ...(updatedRestrictions[key][k] || {}), ...v };
         } else {
-          c.restrictions[key][k] = !!v;
+          // Valores primitivos
+          updatedRestrictions[key][k] = !!v;
         }
       });
     } else {
       // Valores primitivos
-      c.restrictions[key] = value;
+      updatedRestrictions[key] = value;
     }
   });
   
-  await c.save();
-  res.json({ restrictions: c.restrictions });
+  // Usar updateOne para evitar validación de technicians (solo estamos actualizando restrictions)
+  await Company.updateOne(
+    { _id: id },
+    { $set: { restrictions: updatedRestrictions } },
+    { runValidators: false }
+  );
+  
+  res.json({ restrictions: updatedRestrictions });
 });
 
 // Patch sharedDatabaseConfig (developer or admin)
