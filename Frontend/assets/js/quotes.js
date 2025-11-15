@@ -467,6 +467,10 @@ export function initQuotes({ getCompanyEmail }) {
       else if (kindUpper === 'COMBO') itemType = 'COMBO';
       else itemType = 'PRODUCTO';
     }
+    // Si tiene comboParent, es un item anidado de combo, asegurar que el tipo sea COMBO
+    if (r.comboParent) {
+      itemType = 'COMBO';
+    }
     row.querySelector('select').value = itemType || 'PRODUCTO';
     row.querySelectorAll('input')[0].value = r.desc  || '';
     row.querySelectorAll('input')[1].value = r.qty   || '';
@@ -534,16 +538,26 @@ export function initQuotes({ getCompanyEmail }) {
         refId = String(refId).trim() || undefined;
       }
       
+      // Si tiene comboParent, es un item anidado de combo, asegurar que el tipo sea COMBO
+      const hasComboParent = r.dataset.comboParent;
+      const finalType = hasComboParent ? 'COMBO' : type;
+      
       const rowData = {
-        type,desc,qty,price,
-        kind: type, // Guardar el tipo como 'kind' para que se preserve en el backend
+        type: finalType,
+        desc,qty,price,
+        kind: finalType, // Guardar el tipo como 'kind' para que se preserve en el backend
         source: r.dataset.source || undefined,
         refId: refId,
         sku: r.dataset.sku || undefined,
         comboParent: r.dataset.comboParent || undefined
       };
       
-      console.log(`[readRows] Agregando fila ${idx + 1}:`, rowData);
+      console.log(`[readRows] Agregando fila ${idx + 1}:`, {
+        ...rowData,
+        hasComboParent: !!hasComboParent,
+        originalType: type,
+        finalType: finalType
+      });
       rows.push(rowData);
     }); 
     
@@ -1953,6 +1967,10 @@ export function initQuotes({ getCompanyEmail }) {
         if (kindUpper === 'SERVICIO') itemType = 'SERVICIO';
         else if (kindUpper === 'COMBO') itemType = 'COMBO';
         else itemType = 'PRODUCTO';
+      }
+      // Si tiene comboParent, es un item anidado de combo, asegurar que el tipo sea COMBO
+      if (r.comboParent) {
+        itemType = 'COMBO';
       }
       row.querySelector('select').value = itemType || 'PRODUCTO';
       row.querySelectorAll('input')[0].value = r.desc  ?? r.description ?? '';

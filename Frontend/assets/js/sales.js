@@ -997,13 +997,25 @@ function mapQuoteItemToSale(it){
   let source = it.source || it.kindSource || '';
   const refId = it.refId || it.refID || it.ref_id || null;
   const kindUpper = String(it.kind || it.type || '').toUpperCase();
+  const hasComboParent = it.comboParent || it.combo_parent;
   
-  // Si es tipo COMBO, siempre usar source='price' con refId
-  if (kindUpper === 'COMBO') {
-    if (refId) {
-      return { source:'price', refId: refId || undefined, qty, unitPrice:unit };
-    }
-    // Si es combo pero no tiene refId, tratar como servicio
+  // Si es tipo COMBO y tiene refId (es el combo principal), usar source='price' con refId
+  // Los items anidados del combo (que también tienen kind='Combo' pero tienen comboParent)
+  // NO deben pasarse como combos separados, sino que el backend los expandirá desde el combo principal
+  if (kindUpper === 'COMBO' && !hasComboParent && refId) {
+    // Es el combo principal, pasarlo como price con refId
+    return { source:'price', refId: refId || undefined, qty, unitPrice:unit };
+  }
+  
+  // Si es un item anidado de combo (tiene comboParent), NO pasarlo
+  // El backend lo expandirá automáticamente desde el combo principal
+  if (hasComboParent) {
+    // Omitir items anidados del combo, el backend los agregará automáticamente
+    return null;
+  }
+  
+  // Si es combo pero no tiene refId ni comboParent, tratar como servicio
+  if (kindUpper === 'COMBO' && !refId) {
     return {
       source:'service',
       name: it.description || it.name || 'Item',
@@ -4786,7 +4798,8 @@ function renderQuoteMini(q){
       // ya tiene los productos del combo desglosados, debemos omitirlos
       // Estrategia: enviar todos los items, pero el backend verificará si un producto
       // ya viene en el batch antes de expandirlo desde el combo
-      const filteredItems = q.items.map(mapQuoteItemToSale);
+      // También omitir items anidados del combo (que tienen comboParent)
+      const filteredItems = q.items.map(mapQuoteItemToSale).filter(item => item !== null);
       
       try {
         current = await API.sales.addItemsBatch(current._id, filteredItems);
