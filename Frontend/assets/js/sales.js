@@ -1255,8 +1255,28 @@ function syncCurrentIntoOpenList() {
   else openSales.unshift(copy);
 }
 
+// Función consolidada para renderizar todos los componentes (elimina duplicación)
+let renderPending = false;
+async function renderAll(options = {}) {
+  const { skipQuote = false, includeMini = true } = options;
+  if (renderPending) return; // Evitar renders simultáneos
+  renderPending = true;
+  
+  try {
+    renderTabs();
+    renderSale();
+    renderWO();
+    if (includeMini) renderMini();
+    if (!skipQuote) {
+      await renderQuoteForCurrentSale();
+    }
+  } finally {
+    renderPending = false;
+  }
+}
+
 async function refreshOpenSales(options = {}) {
-  const { focusId = null, preferCurrent = null } = options;
+  const { focusId = null, preferCurrent = null, skipRender = false } = options;
   try {
     const res = await API.sales.list({ status: 'draft', limit: 100 });
     const items = Array.isArray(res?.items) ? res.items : [];
@@ -1274,20 +1294,34 @@ async function refreshOpenSales(options = {}) {
       }
     }
     if (!current && openSales.length) current = openSales[0];
-    renderTabs();
-    renderSale();
-    renderWO();
-    await renderQuoteForCurrentSale();
+    
+    if (!skipRender) {
+      await renderAll();
+    }
   } catch (err) {
     console.error('refreshOpenSales failed', err);
   }
 }
 
+// Optimizar auto-refresh: solo cuando la pestaña está visible
 function startSalesAutoRefresh() {
   if (salesRefreshTimer) return;
-  salesRefreshTimer = setInterval(() => {
-    refreshOpenSales({ focusId: current?._id || null });
-  }, 10000);
+  
+  // Verificar visibilidad antes de refrescar
+  const refreshIfVisible = () => {
+    if (document.visibilityState === 'visible') {
+      refreshOpenSales({ focusId: current?._id || null });
+    }
+  };
+  
+  salesRefreshTimer = setInterval(refreshIfVisible, 10000);
+  
+  // También refrescar cuando la pestaña se vuelve visible
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      refreshIfVisible();
+    }
+  });
 }
 
 document.addEventListener('DOMContentLoaded', ()=>{
@@ -1313,13 +1347,9 @@ function extractTechnicianName(obj) {
 }
 
 async function ensureCompanyData(){
-  try { 
-    const techs = await API.company.getTechnicians();
-    // Normalizar técnicos: extraer solo los nombres como strings
-    companyTechnicians = Array.isArray(techs) ? techs.map(t => extractTechnicianName(t)).filter(n => n && n.trim() !== '') : [];
-  } catch { 
-    companyTechnicians = []; 
-  }
+  // Usar función optimizada con cache para técnicos
+  await loadTechnicians();
+  
   try { companyPrefs = await API.company.getPreferences(); } catch { companyPrefs = { laborPercents: [] }; }
   try { 
     const response = await API.get('/api/v1/company/tech-config');
@@ -2193,7 +2223,7 @@ async function switchTo(id){
     const sale = await API.sales.get(id);
     current = sale;
     syncCurrentIntoOpenList();
-    renderTabs(); renderSale(); renderWO(); await renderQuoteForCurrentSale();
+    await renderAll();
   }catch(e){ console.error(e); }
 }
 
@@ -2235,19 +2265,47 @@ function renderCapsules(){
   setupTechnicianSelect();
 }
 
+// Cache para técnicos (evita múltiples llamadas al backend)
+let techniciansCache = null;
+let techniciansCacheTime = 0;
+const TECHNICIANS_CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
+async function loadTechnicians(forceRefresh = false) {
+  const now = Date.now();
+  if (!forceRefresh && techniciansCache && (now - techniciansCacheTime) < TECHNICIANS_CACHE_TTL) {
+    return techniciansCache;
+  }
+  
+  try {
+    const techs = await API.company.getTechnicians();
+    companyTechnicians = Array.isArray(techs) ? techs.map(t => extractTechnicianName(t)).filter(n => n && n.trim() !== '') : [];
+    techniciansCache = companyTechnicians;
+    techniciansCacheTime = now;
+    return companyTechnicians;
+  } catch {
+    companyTechnicians = [];
+    techniciansCache = [];
+    techniciansCacheTime = now;
+    return [];
+  }
+}
+
 async function setupTechnicianSelect(){
   const sel = document.getElementById('sales-technician');
   if(!sel) return;
-  // Cargar lista dinámica si aún no cargada
+  
+  // Cargar lista dinámica si aún no cargada (con cache)
   if(!companyTechnicians.length){
-    try { companyTechnicians = await API.company.getTechnicians(); } catch { companyTechnicians = []; }
+    await loadTechnicians();
   }
+  
   sel.innerHTML='';
   sel.appendChild(new Option('— Técnico —',''));
   (companyTechnicians||[]).forEach(t=> sel.appendChild(new Option(t,t)));
   sel.appendChild(new Option('+ Agregar técnico…','__ADD_TECH__'));
   sel.classList.remove('hidden');
   if(current){ sel.value = current.technician || current.initialTechnician || ''; }
+  
   if(!technicianSelectInitialized){
     sel.addEventListener('change', async ()=>{
       if(sel.value === '__ADD_TECH__'){
@@ -2256,13 +2314,19 @@ async function setupTechnicianSelect(){
         if(name){
           try{
             companyTechnicians = await API.company.addTechnician(name);
+            techniciansCache = companyTechnicians; // Actualizar cache
+            techniciansCacheTime = Date.now();
             await setupTechnicianSelect();
             // Reseleccionar el recién agregado si existe
             const upper = String(name).trim().toUpperCase();
             if(companyTechnicians.includes(upper)){
               sel.value = upper;
               if(current?._id){
-                try{ current = await API.sales.setTechnician(current._id, upper); syncCurrentIntoOpenList(); renderCapsules(); }catch{}
+                try{ 
+                  current = await API.sales.setTechnician(current._id, upper); 
+                  syncCurrentIntoOpenList(); 
+                  renderCapsules(); 
+                }catch{}
               }
             }
           }catch(e){ alert(e?.message||'No se pudo agregar'); }
@@ -2580,15 +2644,30 @@ async function renderSale(){
     container.appendChild(tr);
   }
   
+  // Función optimizada para actualizar venta y renderizar (evita llamadas redundantes)
+  async function updateSaleAndRender(updateFn) {
+    try {
+      await updateFn();
+      syncCurrentIntoOpenList();
+      await renderAll();
+    } catch (err) {
+      console.error('Error updating sale:', err);
+      alert(err?.message || 'Error al actualizar');
+    }
+  }
+
   function setupItemActions(tr, it) {
     const qty = tr.querySelector('.qty');
+    // Debounce para cambios de cantidad
+    let qtyTimeout = null;
     qty.addEventListener('change', async () => {
-      const v = Math.max(1, Number(qty.value || 1) || 1);
-      current = await API.sales.updateItem(current._id, it._id, { qty: v });
-      syncCurrentIntoOpenList();
-      renderTabs();
-      renderSale();
-      renderWO();
+      clearTimeout(qtyTimeout);
+      qtyTimeout = setTimeout(async () => {
+        const v = Math.max(1, Number(qty.value || 1) || 1);
+        await updateSaleAndRender(async () => {
+          current = await API.sales.updateItem(current._id, it._id, { qty: v });
+        });
+      }, 300);
     });
 
     const actions = tr.querySelector('td:last-child');
@@ -2604,11 +2683,9 @@ async function renderSale(){
     btnEdit.onclick = async () => {
       const v = prompt('Nuevo precio unitario:', String(it.unitPrice || 0));
       if (v == null) return;
-      current = await API.sales.updateItem(current._id, it._id, { unitPrice: Number(v) || 0 });
-      syncCurrentIntoOpenList();
-      renderTabs();
-      renderSale();
-      renderWO();
+      await updateSaleAndRender(async () => {
+        current = await API.sales.updateItem(current._id, it._id, { unitPrice: Number(v) || 0 });
+      });
     };
     
     const btnZero = document.createElement('button');
@@ -2616,23 +2693,21 @@ async function renderSale(){
     btnZero.className = 'secondary';
     btnZero.style.cssText = 'padding: 6px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; font-weight: 500; background: rgba(100, 116, 139, 0.3); color: white;';
     btnZero.onclick = async () => {
-      current = await API.sales.updateItem(current._id, it._id, { unitPrice: 0 });
-      syncCurrentIntoOpenList();
-      renderTabs();
-      renderSale();
-      renderWO();
+      await updateSaleAndRender(async () => {
+        current = await API.sales.updateItem(current._id, it._id, { unitPrice: 0 });
+      });
     };
     
     const btnDel = tr.querySelector('button.remove');
     if (btnDel) {
       btnDel.style.cssText = 'padding: 6px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; font-weight: 500; background: rgba(239, 68, 68, 0.2); color: #fca5a5;';
       btnDel.onclick = async () => {
-        await API.sales.removeItem(current._id, it._id);
-        current = await API.sales.get(current._id);
-        syncCurrentIntoOpenList();
-        renderTabs();
-        renderSale();
-        renderWO();
+        if (!confirm('¿Eliminar este item?')) return;
+        await updateSaleAndRender(async () => {
+          await API.sales.removeItem(current._id, it._id);
+          // Usar la respuesta del removeItem si está disponible, sino hacer get
+          current = await API.sales.get(current._id);
+        });
       };
     }
     
@@ -2788,9 +2863,7 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
         const result = await API.sales.completeSlot(saleId, slotIndex, itemId, sku);
         current = result.sale;
         syncCurrentIntoOpenList();
-        renderTabs();
-        renderSale();
-        renderWO();
+        await renderAll();
         closeModal();
         playConfirmSound();
         showItemAddedPopup();
@@ -3288,8 +3361,7 @@ function openQR(){
         current = await API.sales.addItem(current._id, { source:'inventory', sku:candidate, qty:1 });
       }
       syncCurrentIntoOpenList();
-      renderTabs();
-      renderSale(); renderWO();
+      await renderAll();
       
       // Reproducir sonido de confirmación
       playConfirmSound();
@@ -3766,9 +3838,7 @@ async function renderPricesView(container, vehicleId) {
           try {
             current = await API.sales.addItem(current._id, { source:'price', refId: pe._id, qty:1 });
             syncCurrentIntoOpenList();
-            renderTabs();
-            renderSale();
-            renderWO();
+            await renderAll();
             // Mostrar feedback
             const btn = card.querySelector('.add-price-btn');
             const originalText = btn.textContent;
@@ -3957,9 +4027,7 @@ async function renderInventoryView(container) {
           try {
             current = await API.sales.addItem(current._id, { source:'inventory', refId: item._id, qty:1 });
             syncCurrentIntoOpenList();
-            renderTabs();
-            renderSale();
-            renderWO();
+            await renderAll();
             // Mostrar feedback
             const btn = card.querySelector('.add-inventory-btn');
             const originalText = btn.textContent;
@@ -4663,9 +4731,7 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
       if (newPrice && newPrice._id) {
         current = await API.sales.addItem(current._id, { source:'price', refId: newPrice._id, qty:1 });
         syncCurrentIntoOpenList();
-        renderTabs();
-        renderSale();
-        renderWO();
+        await renderAll();
       }
       
       closeModal();
@@ -4696,8 +4762,8 @@ function openAddManual(){
     if (!name) return alert('Descripción requerida');
     current = await API.sales.addItem(current._id, { source:'service', sku, name, qty, unitPrice:price });
     syncCurrentIntoOpenList();
-    renderTabs();
-    closeModal(); renderSale(); renderWO();
+    closeModal();
+    await renderAll();
   };
 }
 
@@ -4735,8 +4801,7 @@ async function openPickerInventory(){
       tr.querySelector('button.add').onclick = async ()=>{
         current = await API.sales.addItem(current._id, { source:'inventory', refId: it._id, qty:1 });
         syncCurrentIntoOpenList();
-        renderTabs();
-        renderSale(); renderWO();
+        await renderAll();
       };
       body.appendChild(tr);
     }
@@ -4794,8 +4859,7 @@ async function openPickerPrices(){
       tr.querySelector('button.add').onclick = async ()=>{
         current = await API.sales.addItem(current._id, { source:'price', refId: pe._id, qty:1 });
         syncCurrentIntoOpenList();
-        renderTabs();
-        renderSale(); renderWO();
+        await renderAll();
       };
       body.appendChild(tr);
     }
@@ -4953,16 +5017,14 @@ function renderQuoteMini(q){
         if (!current) {
           current = await API.sales.start();
           syncCurrentIntoOpenList();
-          renderTabs();
+          await renderAll({ skipQuote: true });
         }
         ensureSaleQuoteLink(q);
         try {
           const payload = mapQuoteItemToSale(it);
           current = await API.sales.addItem(current._id, payload);
           syncCurrentIntoOpenList();
-          renderTabs();
-          renderSale();
-          renderWO();
+          await renderAll();
           tr.classList.add('added');
           btn.disabled = true;
           btn.textContent = 'V';
@@ -4990,7 +5052,7 @@ function renderQuoteMini(q){
       if (!current) {
         current = await API.sales.start();
         syncCurrentIntoOpenList();
-        renderTabs();
+        await renderAll({ skipQuote: true });
       }
       ensureSaleQuoteLink(q);
       
@@ -5005,9 +5067,7 @@ function renderQuoteMini(q){
       try {
         current = await API.sales.addItemsBatch(current._id, filteredItems);
         syncCurrentIntoOpenList();
-        renderTabs();
-        renderSale();
-        renderWO();
+        await renderAll();
       } catch (err) {
         alert(err?.message || 'No se pudo agregar items (batch)');
         return;
@@ -5255,7 +5315,7 @@ async function applyQuoteCustomerVehicle(){
     if(!current){
       current = await API.sales.start();
       syncCurrentIntoOpenList();
-      renderTabs();
+      await renderAll({ skipQuote: true });
     }
     const q = lastQuoteLoaded;
     ensureSaleQuoteLink(q);
@@ -5277,7 +5337,7 @@ async function applyQuoteCustomerVehicle(){
     };
     current = await API.sales.setCustomerVehicle(current._id, payload);
     syncCurrentIntoOpenList();
-    renderTabs(); renderMini();
+    await renderAll({ includeMini: true });
   }catch(e){ alert(e?.message||'No se pudo aplicar datos'); }
 }
 
@@ -5780,7 +5840,7 @@ function connectLive(){
       if (event === 'sale:updated'){
         if (current && current._id === data.id){
           API.sales.get(current._id)
-            .then(async (s)=>{ current = s; syncCurrentIntoOpenList(); renderTabs(); renderSale(); renderWO(); await renderQuoteForCurrentSale(); })
+            .then(async (s)=>{ current = s; syncCurrentIntoOpenList(); await renderAll(); })
             .catch((err)=> { console.warn('No se pudo refrescar venta en vivo', err); refreshOpenSales({ focusId: current?._id || null }); });
         } else {
           refreshOpenSales({ focusId: current?._id || null });
@@ -5831,13 +5891,7 @@ export function initSales(){
         if (sale) {
           current = sale;
           syncCurrentIntoOpenList();
-          renderTabs();
-          renderSale();
-          renderMini();
-          renderWO();
-          
-          // Cargar cotización - renderQuoteForCurrentSale ahora verifica localStorage automáticamente
-          await renderQuoteForCurrentSale();
+          await renderAll({ includeMini: true });
         }
       } catch (err) {
         console.error('Error loading sale from calendar:', err);
@@ -5867,11 +5921,7 @@ export function initSales(){
           if (sale) {
             current = sale;
             syncCurrentIntoOpenList();
-            renderTabs();
-            renderSale();
-            renderMini();
-            renderWO();
-            await renderQuoteForCurrentSale();
+            await renderAll({ includeMini: true });
           }
         } catch (err) {
           console.error('Error loading sale from calendar event:', err);
@@ -5893,7 +5943,7 @@ export function initSales(){
       const s = await API.sales.start();
       current = s;
       syncCurrentIntoOpenList();
-        renderTabs(); renderSale(); renderWO(); await renderQuoteForCurrentSale();
+      await renderAll();
       await refreshOpenSales({ focusId: s._id, preferCurrent: s });
     }catch(e){ alert(e?.message||'No se pudo crear la venta'); }
     finally{ starting=false; if(btn) btn.disabled=false; }
@@ -6710,10 +6760,7 @@ export function initSales(){
         stop();
         if (modalOCR) modalOCR.classList.add('hidden');
         
-        renderTabs();
-        renderSale();
-        renderWO();
-        await renderQuoteForCurrentSale();
+        await renderAll();
         await refreshOpenSales({ focusId: s._id, preferCurrent: current });
 
         // Si hay vehículo conectado, abrir automáticamente el modal de agregar items
@@ -7760,6 +7807,9 @@ let historialTotalPages = 1;
 let historialTotal = 0;
 let historialDateFrom = null;
 let historialDateTo = null;
+let historialLoading = false; // Flag para evitar múltiples cargas simultáneas
+let historialCache = null; // Cache simple para evitar recargas innecesarias
+let historialCacheKey = null;
 
 function initInternalNavigation() {
   const btnVentas = document.getElementById('sales-nav-ventas');
@@ -7777,27 +7827,39 @@ function initInternalNavigation() {
     viewHistorial.classList.add('hidden');
   });
 
-  btnHistorial.addEventListener('click', () => {
-    btnHistorial.classList.add('active');
-    btnVentas.classList.remove('active');
-    viewHistorial.classList.remove('hidden');
-    viewVentas.classList.add('hidden');
-    // Cargar historial al cambiar a esa vista
-    loadHistorial();
-  });
+    btnHistorial.addEventListener('click', () => {
+      btnHistorial.classList.add('active');
+      btnVentas.classList.remove('active');
+      viewHistorial.classList.remove('hidden');
+      viewVentas.classList.add('hidden');
+      // Cargar historial al cambiar a esa vista (solo si no está cargado)
+      if (!historialCache || historialCache.length === 0) {
+        loadHistorial();
+      }
+    });
 
-  // Filtros de fecha
+  // Configurar delegación de eventos una sola vez
+  setupHistorialEventDelegation();
+
+  // Filtros de fecha con debounce
   const btnFiltrar = document.getElementById('historial-filtrar');
   const btnLimpiar = document.getElementById('historial-limpiar');
   const fechaDesde = document.getElementById('historial-fecha-desde');
   const fechaHasta = document.getElementById('historial-fecha-hasta');
 
+  let filterTimeout = null;
+  const applyFilters = () => {
+    historialDateFrom = fechaDesde?.value || null;
+    historialDateTo = fechaHasta?.value || null;
+    historialCurrentPage = 1;
+    historialCache = null; // Invalidar cache al cambiar filtros
+    loadHistorial(true);
+  };
+
   if (btnFiltrar) {
     btnFiltrar.addEventListener('click', () => {
-      historialDateFrom = fechaDesde?.value || null;
-      historialDateTo = fechaHasta?.value || null;
-      historialCurrentPage = 1;
-      loadHistorial();
+      clearTimeout(filterTimeout);
+      applyFilters();
     });
   }
 
@@ -7808,7 +7870,8 @@ function initInternalNavigation() {
       historialDateFrom = null;
       historialDateTo = null;
       historialCurrentPage = 1;
-      loadHistorial();
+      historialCache = null; // Invalidar cache al limpiar filtros
+      loadHistorial(true);
     });
   }
 
@@ -7820,7 +7883,7 @@ function initInternalNavigation() {
     btnPrev.addEventListener('click', () => {
       if (historialCurrentPage > 1) {
         historialCurrentPage--;
-        loadHistorial();
+        loadHistorial(true); // Forzar refresh al cambiar página
       }
     });
   }
@@ -7829,20 +7892,52 @@ function initInternalNavigation() {
     btnNext.addEventListener('click', () => {
       if (historialCurrentPage < historialTotalPages) {
         historialCurrentPage++;
-        loadHistorial();
+        loadHistorial(true); // Forzar refresh al cambiar página
       }
     });
   }
 }
 
-async function loadHistorial() {
-  const container = document.getElementById('historial-ventas-container');
+// Función consolidada para actualizar paginación (elimina duplicación)
+function updateHistorialPagination() {
   const paginationInfo = document.getElementById('historial-pagination-info');
   const pageInfo = document.getElementById('historial-page-info');
   const btnPrev = document.getElementById('historial-prev');
   const btnNext = document.getElementById('historial-next');
 
+  if (paginationInfo) {
+    const start = (historialCurrentPage - 1) * historialPageSize + 1;
+    const end = Math.min(historialCurrentPage * historialPageSize, historialTotal);
+    paginationInfo.textContent = `Mostrando ${start} - ${end} de ${historialTotal} ventas`;
+  }
+
+  if (pageInfo) {
+    pageInfo.textContent = `Página ${historialCurrentPage} de ${historialTotalPages}`;
+  }
+
+  if (btnPrev) btnPrev.disabled = historialCurrentPage <= 1;
+  if (btnNext) btnNext.disabled = historialCurrentPage >= historialTotalPages;
+}
+
+// Función helper para formatear fecha de cierre (reutilizable)
+function formatClosedDate(date) {
+  if (!date) return 'Sin fecha';
+  return new Date(date).toLocaleDateString('es-CO', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+async function loadHistorial(forceRefresh = false) {
+  const container = document.getElementById('historial-ventas-container');
   if (!container) return;
+
+  // Evitar múltiples cargas simultáneas
+  if (historialLoading) return;
+  historialLoading = true;
 
   try {
     container.innerHTML = '<div class="text-center py-8 text-slate-400">Cargando ventas...</div>';
@@ -7863,46 +7958,27 @@ async function loadHistorial() {
       params.page = 1;
     }
 
+    // Generar clave de cache
+    const cacheKey = JSON.stringify(params);
+    
+    // Usar cache si está disponible y no se fuerza refresh
+    if (!forceRefresh && historialCache && historialCacheKey === cacheKey) {
+      const sales = historialCache;
+      renderHistorialSales(sales);
+      return;
+    }
+
     const res = await API.sales.list(params);
     const sales = Array.isArray(res?.items) ? res.items : [];
+    
+    // Actualizar cache
+    historialCache = sales;
+    historialCacheKey = cacheKey;
     
     historialTotal = res?.total || sales.length;
     historialTotalPages = res?.pages || Math.ceil(historialTotal / historialPageSize);
 
-    if (sales.length === 0) {
-      container.innerHTML = `
-        <div class="text-center py-12">
-          <div class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-lg mb-2">No se encontraron ventas</div>
-          <div class="text-slate-500 dark:text-slate-500 theme-light:text-slate-500 text-sm">Intenta ajustar los filtros de fecha</div>
-        </div>
-      `;
-      if (paginationInfo) paginationInfo.textContent = '';
-      if (pageInfo) pageInfo.textContent = '';
-      if (btnPrev) btnPrev.disabled = true;
-      if (btnNext) btnNext.disabled = true;
-      return;
-    }
-
-    // Renderizar ventas
-    container.innerHTML = '';
-    sales.forEach(sale => {
-      const card = createHistorialSaleCard(sale);
-      container.appendChild(card);
-    });
-
-    // Actualizar información de paginación
-    if (paginationInfo) {
-      const start = (historialCurrentPage - 1) * historialPageSize + 1;
-      const end = Math.min(historialCurrentPage * historialPageSize, historialTotal);
-      paginationInfo.textContent = `Mostrando ${start} - ${end} de ${historialTotal} ventas`;
-    }
-
-    if (pageInfo) {
-      pageInfo.textContent = `Página ${historialCurrentPage} de ${historialTotalPages}`;
-    }
-
-    if (btnPrev) btnPrev.disabled = historialCurrentPage <= 1;
-    if (btnNext) btnNext.disabled = historialCurrentPage >= historialTotalPages;
+    renderHistorialSales(sales);
 
   } catch (err) {
     console.error('Error loading historial:', err);
@@ -7912,7 +7988,65 @@ async function loadHistorial() {
         <div class="text-slate-500 dark:text-slate-500 theme-light:text-slate-500 text-sm">${err?.message || 'Error desconocido'}</div>
       </div>
     `;
+    updateHistorialPagination();
+  } finally {
+    historialLoading = false;
   }
+}
+
+// Función consolidada para renderizar ventas del historial
+function renderHistorialSales(sales) {
+  const container = document.getElementById('historial-ventas-container');
+  if (!container) return;
+
+  if (sales.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-12">
+        <div class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-lg mb-2">No se encontraron ventas</div>
+        <div class="text-slate-500 dark:text-slate-500 theme-light:text-slate-500 text-sm">Intenta ajustar los filtros de fecha</div>
+      </div>
+    `;
+    updateHistorialPagination();
+    return;
+  }
+
+  // Renderizar ventas usando DocumentFragment para mejor rendimiento
+  const fragment = document.createDocumentFragment();
+  sales.forEach(sale => {
+    const card = createHistorialSaleCard(sale);
+    fragment.appendChild(card);
+  });
+  
+  container.innerHTML = '';
+  container.appendChild(fragment);
+  
+  updateHistorialPagination();
+}
+
+// Optimización: usar delegación de eventos en lugar de listeners individuales
+let historialEventDelegationSetup = false;
+
+function setupHistorialEventDelegation() {
+  if (historialEventDelegationSetup) return;
+  
+  const container = document.getElementById('historial-ventas-container');
+  if (!container) return;
+
+  // Delegación de eventos para todos los botones del historial
+  container.addEventListener('click', (e) => {
+    const saleId = e.target.closest('[data-sale-id]')?.dataset?.saleId;
+    if (!saleId) return;
+
+    if (e.target.closest('.btn-historial-print')) {
+      printSaleFromHistorial(saleId);
+    } else if (e.target.closest('.btn-historial-view')) {
+      viewSaleSummary(saleId);
+    } else if (e.target.closest('.btn-historial-edit')) {
+      openEditCloseModal(saleId);
+    }
+  });
+
+  historialEventDelegationSetup = true;
 }
 
 function createHistorialSaleCard(sale) {
@@ -7922,25 +8056,19 @@ function createHistorialSaleCard(sale) {
   const plate = sale?.vehicle?.plate || 'Sin placa';
   const customer = sale?.customer?.name || 'Sin cliente';
   const totalPaid = calculateTotalPaid(sale);
-  const closedDate = sale?.closedAt ? new Date(sale.closedAt).toLocaleDateString('es-CO', { 
-    year: 'numeric', 
-    month: 'short', 
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  }) : 'Sin fecha';
-  const saleNumber = sale?.number ? String(sale.number).padStart(5, '0') : sale?._id?.slice(-6) || 'N/A';
+  const closedDate = formatClosedDate(sale?.closedAt);
+  const saleNumber = padSaleNumber(sale?.number || sale?._id || '');
 
   card.innerHTML = `
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Placa</div>
-          <div class="text-base font-bold text-white dark:text-white theme-light:text-slate-900">${plate.toUpperCase()}</div>
+          <div class="text-base font-bold text-white dark:text-white theme-light:text-slate-900">${htmlEscape(plate.toUpperCase())}</div>
         </div>
         <div>
           <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Cliente</div>
-          <div class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">${customer}</div>
+          <div class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">${htmlEscape(customer)}</div>
         </div>
         <div>
           <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Valor pagado</div>
@@ -7965,29 +8093,6 @@ function createHistorialSaleCard(sale) {
     </div>
   `;
 
-  // Event listeners para los botones
-  const btnPrint = card.querySelector('.btn-historial-print');
-  const btnView = card.querySelector('.btn-historial-view');
-  const btnEdit = card.querySelector('.btn-historial-edit');
-
-  if (btnPrint) {
-    btnPrint.addEventListener('click', () => {
-      printSaleFromHistorial(btnPrint.dataset.saleId);
-    });
-  }
-
-  if (btnView) {
-    btnView.addEventListener('click', () => {
-      viewSaleSummary(btnView.dataset.saleId);
-    });
-  }
-
-  if (btnEdit) {
-    btnEdit.addEventListener('click', () => {
-      openEditCloseModal(btnEdit.dataset.saleId);
-    });
-  }
-
   return card;
 }
 
@@ -8003,9 +8108,32 @@ function calculateTotalPaid(sale) {
   return Number(sale.total) || 0;
 }
 
+// Cache simple para ventas cargadas (evita múltiples llamadas para la misma venta)
+const saleCache = new Map();
+const SALE_CACHE_TTL = 2 * 60 * 1000; // 2 minutos
+
+async function getSaleWithCache(saleId) {
+  const cached = saleCache.get(saleId);
+  if (cached && (Date.now() - cached.timestamp) < SALE_CACHE_TTL) {
+    return cached.data;
+  }
+  
+  const sale = await API.sales.get(saleId);
+  saleCache.set(saleId, { data: sale, timestamp: Date.now() });
+  
+  // Limpiar cache antiguo (mantener solo últimos 50)
+  if (saleCache.size > 50) {
+    const oldest = Array.from(saleCache.entries())
+      .sort((a, b) => a[1].timestamp - b[1].timestamp)[0];
+    saleCache.delete(oldest[0]);
+  }
+  
+  return sale;
+}
+
 async function printSaleFromHistorial(saleId) {
   try {
-    const sale = await API.sales.get(saleId);
+    const sale = await getSaleWithCache(saleId);
     if (sale) {
       printSaleTicket(sale);
     } else {
@@ -8019,7 +8147,7 @@ async function printSaleFromHistorial(saleId) {
 
 async function viewSaleSummary(saleId) {
   try {
-    const sale = await API.sales.get(saleId);
+    const sale = await getSaleWithCache(saleId);
     if (!sale) {
       alert('No se pudo cargar la venta');
       return;
@@ -8237,7 +8365,7 @@ async function openEditCloseModal(saleId) {
   if (!saleId) return;
   
   try {
-    const sale = await API.sales.get(saleId);
+    const sale = await getSaleWithCache(saleId);
     if (!sale) {
       alert('No se pudo cargar la venta');
       return;
@@ -8785,9 +8913,10 @@ function setupEditCloseModalListeners(sale, payments, commissions) {
       
       setTimeout(() => {
         document.getElementById('modal')?.classList.add('hidden');
-        // Recargar historial si estamos en esa vista
+        // Recargar historial si estamos en esa vista (invalidar cache)
         if (!document.getElementById('sales-view-historial')?.classList.contains('hidden')) {
-          loadHistorial();
+          historialCache = null;
+          loadHistorial(true);
         }
       }, 1500);
 

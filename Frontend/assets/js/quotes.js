@@ -120,7 +120,6 @@ export function initQuotes({ getCompanyEmail }) {
   const iValidDays = $('#q-valid-days');
   const iSpecialNotesList = $('#q-special-notes-list');
   const iAddSpecialNote = $('#q-add-special-note');
-  const iSaveDraft = $('#q-saveDraft');
   const btnClear   = $('#q-clearAll');
   const btnWA      = $('#q-sendWhatsApp');
   const btnPDF     = $('#q-exportPdf');
@@ -505,34 +504,20 @@ export function initQuotes({ getCompanyEmail }) {
     }
     return n;
   }
+  // Función optimizada para leer filas (sin logs de debug innecesarios)
   function readRows(){
     const rows=[]; 
-    // Buscar filas con clase .tr o .q-row-card que no sean el template
     const allRows = rowsBox.querySelectorAll('.tr:not([data-template]), .q-row-card:not([data-template])');
-    console.log('[readRows] Filas encontradas en DOM:', allRows.length);
     
-    allRows.forEach((r, idx) => {
-      console.log(`[readRows] Procesando fila ${idx + 1}:`, {
-        className: r.className,
-        hasSelect: !!r.querySelector('select'),
-        hasInputs: r.querySelectorAll('input').length,
-        descValue: r.querySelectorAll('input')[0]?.value,
-        qtyValue: r.querySelectorAll('input')[1]?.value,
-        priceValue: r.querySelectorAll('input')[2]?.value
-      });
-      
-      const type=r.querySelector('select')?.value || 'PRODUCTO';
-      const desc=r.querySelectorAll('input')[0]?.value?.trim() || '';
+    allRows.forEach((r) => {
+      const type = r.querySelector('select')?.value || 'PRODUCTO';
+      const desc = r.querySelectorAll('input')[0]?.value?.trim() || '';
       const qtyRaw = r.querySelectorAll('input')[1]?.value;
       const qty = qtyRaw === '' || qtyRaw === null || qtyRaw === undefined ? null : Number(qtyRaw);
-      const price=Number(r.querySelectorAll('input')[2]?.value||0);
+      const price = Number(r.querySelectorAll('input')[2]?.value||0);
       
       // Solo filtrar si realmente está vacío (sin descripción Y sin precio Y sin cantidad)
-      // Si tiene descripción O precio O cantidad, incluir el item
-      if(!desc && !price && (!qty || qty === 0)) {
-        console.log(`[readRows] Filtrando fila ${idx + 1} (vacía)`);
-        return;
-      }
+      if(!desc && !price && (!qty || qty === 0)) return;
       
       let refId = r.dataset.refId;
       if (refId && typeof refId === 'string' && refId.includes('[object Object]')) {
@@ -545,26 +530,17 @@ export function initQuotes({ getCompanyEmail }) {
       const hasComboParent = r.dataset.comboParent;
       const finalType = hasComboParent ? 'COMBO' : type;
       
-      const rowData = {
+      rows.push({
         type: finalType,
-        desc,qty,price,
-        kind: finalType, // Guardar el tipo como 'kind' para que se preserve en el backend
+        desc, qty, price,
+        kind: finalType,
         source: r.dataset.source || undefined,
         refId: refId,
         sku: r.dataset.sku || undefined,
         comboParent: r.dataset.comboParent || undefined
-      };
-      
-      console.log(`[readRows] Agregando fila ${idx + 1}:`, {
-        ...rowData,
-        hasComboParent: !!hasComboParent,
-        originalType: type,
-        finalType: finalType
       });
-      rows.push(rowData);
     }); 
     
-    console.log('[readRows] Total de filas válidas:', rows.length);
     return rows;
   }
   
@@ -575,45 +551,31 @@ export function initQuotes({ getCompanyEmail }) {
     r.querySelectorAll('input')[3].value = money(subtotal);
   }
 
+  // Función optimizada para recalcular totales (sin logs innecesarios)
   function recalcAll(){
-    const rows=readRows(); 
-    console.log('[recalcAll] Rows leídos:', rows.length, rows);
+    const rows = readRows(); 
     
-    // Leer datos del cliente y vehículo directamente de los inputs
-    const cliente = iClientName?.value || '';
-    const placa = iPlate?.value || '';
-    const brand = iBrand?.value || '';
-    const line = iLine?.value || '';
-    const year = iYear?.value || '';
-    
-    console.log('[recalcAll] Datos del formulario:', {
-      cliente,
-      placa,
-      brand,
-      line,
-      year,
-      rowsCount: rows.length
+    let subP = 0, subS = 0;
+    rows.forEach(({type, qty, price}) => {
+      const q = qty > 0 ? qty : 1;
+      const st = q * (price || 0);
+      if ((type || 'PRODUCTO') === 'PRODUCTO') subP += st;
+      else subS += st;
     });
     
-    let subP=0, subS=0;
-    rows.forEach(({type,qty,price})=>{
-      const q=qty>0?qty:1; const st=q*(price||0);
-      if((type||'PRODUCTO')==='PRODUCTO') subP+=st; else subS+=st;
-    });
-    const subtotal=subP+subS;
+    const subtotal = subP + subS;
     let discountValue = 0;
     if (currentDiscount.type && currentDiscount.value > 0) {
-      if (currentDiscount.type === 'percent') {
-        discountValue = (subtotal * currentDiscount.value) / 100;
-      } else {
-        discountValue = currentDiscount.value;
-      }
+      discountValue = currentDiscount.type === 'percent' 
+        ? (subtotal * currentDiscount.value) / 100
+        : currentDiscount.value;
     }
     
     const total = subtotal - discountValue;
     
-    if (lblSubtotalProducts) lblSubtotalProducts.textContent=money(subP);
-    if (lblSubtotalServices) lblSubtotalServices.textContent=money(subS);
+    // Actualizar UI de manera eficiente
+    if (lblSubtotalProducts) lblSubtotalProducts.textContent = money(subP);
+    if (lblSubtotalServices) lblSubtotalServices.textContent = money(subS);
     
     if (discountSection) {
       if (discountValue > 0) {
@@ -626,16 +588,13 @@ export function initQuotes({ getCompanyEmail }) {
       }
     }
     
-    if (lblTotal) lblTotal.textContent=money(total);
+    if (lblTotal) lblTotal.textContent = money(total);
     
     // Actualizar preview de WhatsApp
     if (previewWA) {
       const hideTotal = hideTotalState;
-      const previewText = buildWhatsAppText(rows,subP,subS,total, hideTotal);
-      console.log('[recalcAll] Preview WhatsApp generado:', previewText);
+      const previewText = buildWhatsAppText(rows, subP, subS, total, hideTotal);
       previewWA.textContent = previewText;
-    } else {
-      console.warn('[recalcAll] previewWA no encontrado!');
     }
     
     syncSummaryHeight();
@@ -1226,7 +1185,8 @@ export function initQuotes({ getCompanyEmail }) {
                 tableRect.height || 0,
                 table.clientHeight || 0
               );
-              const newTop = tableTop + tableHeight + 10;
+              // Pegar el total directamente a la tabla (sin espacio)
+              const newTop = tableTop + tableHeight;
               
               const body = win.document.body;
               const html = win.document.documentElement;
@@ -1427,7 +1387,8 @@ export function initQuotes({ getCompanyEmail }) {
     });
 
     // ====== Totales y notas ======
-    let y = d.lastAutoTable.finalY + 18;
+    // Pegar el total directamente a la tabla (sin espacio)
+    let y = d.lastAutoTable.finalY + 2;
     
     // Notas especiales
     if (doc.specialNotes && doc.specialNotes.length > 0) {
@@ -1443,8 +1404,8 @@ export function initQuotes({ getCompanyEmail }) {
     d.text('Valores con iva excluido', left, y); y += 14;
   if(doc.validity) d.text(`Validez: ${doc.validity} días`, left, y);
 
-    // Mostrar descuento si existe
-    let totalY = d.lastAutoTable.finalY + 18;
+    // Mostrar descuento si existe (pegado a la tabla)
+    let totalY = d.lastAutoTable.finalY + 2;
     if (discountValue > 0) {
       d.setFont('helvetica','normal'); d.setFontSize(10);
       d.text(`Descuento: ${money(discountValue)}`, pageW - right, totalY, { align:'right' });
@@ -1463,9 +1424,39 @@ export function initQuotes({ getCompanyEmail }) {
 
   // ===== WhatsApp =====
   function openWhatsApp(){
-    const text=previewWA.textContent||''; if(!text.trim()) return;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,'_blank');
-  // No mover correlativo aquí.
+    const text = previewWA.textContent || '';
+    if (!text.trim()) {
+      alert('No hay contenido para enviar por WhatsApp');
+      return;
+    }
+    
+    // Obtener el número de teléfono de la cotización
+    const phone = iClientPhone.value?.trim() || '';
+    if (!phone) {
+      alert('Debes ingresar un número de teléfono en la cotización');
+      return;
+    }
+    
+    // Limpiar el número (remover espacios, guiones, paréntesis, etc.)
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (!cleanPhone) {
+      alert('El número de teléfono no es válido');
+      return;
+    }
+    
+    // Formatear para WhatsApp (agregar código de país si no tiene)
+    let whatsappPhone = cleanPhone;
+    // Si el número no empieza con código de país, asumir Colombia (+57)
+    if (!whatsappPhone.startsWith('57') && whatsappPhone.length === 10) {
+      whatsappPhone = '57' + whatsappPhone;
+    } else if (whatsappPhone.length < 10) {
+      alert('El número de teléfono debe tener al menos 10 dígitos');
+      return;
+    }
+    
+    // Abrir WhatsApp con el número y el texto
+    const whatsappUrl = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(text)}`;
+    window.open(whatsappUrl, '_blank');
     syncSummaryHeight();
   }
   
@@ -1509,13 +1500,6 @@ export function initQuotes({ getCompanyEmail }) {
         unitPrice:Number(r.price||0)
       };
       
-      console.log('[payloadFromUI] Item mapeado:', {
-        kind: base.kind,
-        type: r.type,
-        description: base.description,
-        source: r.source,
-        refId: r.refId
-      });
       // Asegurar que description no sea vacío si hay precio o cantidad
       if(!base.description && (base.unitPrice > 0 || (base.qty && base.qty > 0))) {
         base.description = 'Item sin descripción';
@@ -1554,16 +1538,7 @@ export function initQuotes({ getCompanyEmail }) {
       const creating = !currentQuoteId;
       const payload = payloadFromUI();
       
-      // Log para debugging
-      console.log('[saveToBackend] Payload a guardar:', {
-        itemsCount: payload.items?.length || 0,
-        items: payload.items,
-        customer: payload.customer,
-        vehicle: payload.vehicle,
-        validity: payload.validity,
-        specialNotes: payload.specialNotes,
-        discount: payload.discount
-      });
+      // Preparar payload para guardar
       
       // Validar que haya al menos un item o datos del cliente
       if (!payload.items || payload.items.length === 0) {
@@ -2905,7 +2880,6 @@ export function initQuotes({ getCompanyEmail }) {
         }
       });
     }
-    iSaveDraft?.addEventListener('click',saveDraft);
     btnWA?.addEventListener('click',openWhatsApp);
     btnPDF?.addEventListener('click',()=>{ exportPDF().catch(err=>alert(err?.message||err)); });
     btnSaveBackend?.addEventListener('click', async () => {
