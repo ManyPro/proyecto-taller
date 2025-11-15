@@ -5685,6 +5685,9 @@ export function initSales(){
     }
   });
 
+  // Inicializar navegación interna
+  initInternalNavigation();
+  
   refreshOpenSales();
   startSalesAutoRefresh();
 
@@ -7551,6 +7554,980 @@ export function initSales(){
   });
 
   connectLive();
+}
+
+// ========================
+// NAVEGACIÓN INTERNA Y HISTORIAL
+// ========================
+
+let historialCurrentPage = 1;
+let historialPageSize = 20;
+let historialTotalPages = 1;
+let historialTotal = 0;
+let historialDateFrom = null;
+let historialDateTo = null;
+
+function initInternalNavigation() {
+  const btnVentas = document.getElementById('sales-nav-ventas');
+  const btnHistorial = document.getElementById('sales-nav-historial');
+  const viewVentas = document.getElementById('sales-view-ventas');
+  const viewHistorial = document.getElementById('sales-view-historial');
+
+  if (!btnVentas || !btnHistorial || !viewVentas || !viewHistorial) return;
+
+  // Navegación entre vistas
+  btnVentas.addEventListener('click', () => {
+    btnVentas.classList.add('active');
+    btnHistorial.classList.remove('active');
+    viewVentas.classList.remove('hidden');
+    viewHistorial.classList.add('hidden');
+  });
+
+  btnHistorial.addEventListener('click', () => {
+    btnHistorial.classList.add('active');
+    btnVentas.classList.remove('active');
+    viewHistorial.classList.remove('hidden');
+    viewVentas.classList.add('hidden');
+    // Cargar historial al cambiar a esa vista
+    loadHistorial();
+  });
+
+  // Filtros de fecha
+  const btnFiltrar = document.getElementById('historial-filtrar');
+  const btnLimpiar = document.getElementById('historial-limpiar');
+  const fechaDesde = document.getElementById('historial-fecha-desde');
+  const fechaHasta = document.getElementById('historial-fecha-hasta');
+
+  if (btnFiltrar) {
+    btnFiltrar.addEventListener('click', () => {
+      historialDateFrom = fechaDesde?.value || null;
+      historialDateTo = fechaHasta?.value || null;
+      historialCurrentPage = 1;
+      loadHistorial();
+    });
+  }
+
+  if (btnLimpiar) {
+    btnLimpiar.addEventListener('click', () => {
+      if (fechaDesde) fechaDesde.value = '';
+      if (fechaHasta) fechaHasta.value = '';
+      historialDateFrom = null;
+      historialDateTo = null;
+      historialCurrentPage = 1;
+      loadHistorial();
+    });
+  }
+
+  // Paginación
+  const btnPrev = document.getElementById('historial-prev');
+  const btnNext = document.getElementById('historial-next');
+
+  if (btnPrev) {
+    btnPrev.addEventListener('click', () => {
+      if (historialCurrentPage > 1) {
+        historialCurrentPage--;
+        loadHistorial();
+      }
+    });
+  }
+
+  if (btnNext) {
+    btnNext.addEventListener('click', () => {
+      if (historialCurrentPage < historialTotalPages) {
+        historialCurrentPage++;
+        loadHistorial();
+      }
+    });
+  }
+}
+
+async function loadHistorial() {
+  const container = document.getElementById('historial-ventas-container');
+  const paginationInfo = document.getElementById('historial-pagination-info');
+  const pageInfo = document.getElementById('historial-page-info');
+  const btnPrev = document.getElementById('historial-prev');
+  const btnNext = document.getElementById('historial-next');
+
+  if (!container) return;
+
+  try {
+    container.innerHTML = '<div class="text-center py-8 text-slate-400">Cargando ventas...</div>';
+
+    const params = {
+      status: 'closed',
+      limit: historialPageSize,
+      page: historialCurrentPage
+    };
+
+    // Si hay filtros de fecha, usarlos; si no, cargar últimas 20
+    if (historialDateFrom || historialDateTo) {
+      if (historialDateFrom) params.from = historialDateFrom;
+      if (historialDateTo) params.to = historialDateTo;
+    } else {
+      // Sin filtros: cargar últimas 20 ventas
+      params.limit = 20;
+      params.page = 1;
+    }
+
+    const res = await API.sales.list(params);
+    const sales = Array.isArray(res?.items) ? res.items : [];
+    
+    historialTotal = res?.total || sales.length;
+    historialTotalPages = res?.pages || Math.ceil(historialTotal / historialPageSize);
+
+    if (sales.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-12">
+          <div class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-lg mb-2">No se encontraron ventas</div>
+          <div class="text-slate-500 dark:text-slate-500 theme-light:text-slate-500 text-sm">Intenta ajustar los filtros de fecha</div>
+        </div>
+      `;
+      if (paginationInfo) paginationInfo.textContent = '';
+      if (pageInfo) pageInfo.textContent = '';
+      if (btnPrev) btnPrev.disabled = true;
+      if (btnNext) btnNext.disabled = true;
+      return;
+    }
+
+    // Renderizar ventas
+    container.innerHTML = '';
+    sales.forEach(sale => {
+      const card = createHistorialSaleCard(sale);
+      container.appendChild(card);
+    });
+
+    // Actualizar información de paginación
+    if (paginationInfo) {
+      const start = (historialCurrentPage - 1) * historialPageSize + 1;
+      const end = Math.min(historialCurrentPage * historialPageSize, historialTotal);
+      paginationInfo.textContent = `Mostrando ${start} - ${end} de ${historialTotal} ventas`;
+    }
+
+    if (pageInfo) {
+      pageInfo.textContent = `Página ${historialCurrentPage} de ${historialTotalPages}`;
+    }
+
+    if (btnPrev) btnPrev.disabled = historialCurrentPage <= 1;
+    if (btnNext) btnNext.disabled = historialCurrentPage >= historialTotalPages;
+
+  } catch (err) {
+    console.error('Error loading historial:', err);
+    container.innerHTML = `
+      <div class="text-center py-12">
+        <div class="text-red-400 dark:text-red-400 theme-light:text-red-600 text-lg mb-2">Error al cargar ventas</div>
+        <div class="text-slate-500 dark:text-slate-500 theme-light:text-slate-500 text-sm">${err?.message || 'Error desconocido'}</div>
+      </div>
+    `;
+  }
+}
+
+function createHistorialSaleCard(sale) {
+  const card = document.createElement('div');
+  card.className = 'historial-sale-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4';
+  
+  const plate = sale?.vehicle?.plate || 'Sin placa';
+  const customer = sale?.customer?.name || 'Sin cliente';
+  const totalPaid = calculateTotalPaid(sale);
+  const closedDate = sale?.closedAt ? new Date(sale.closedAt).toLocaleDateString('es-CO', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }) : 'Sin fecha';
+  const saleNumber = sale?.number ? String(sale.number).padStart(5, '0') : sale?._id?.slice(-6) || 'N/A';
+
+  card.innerHTML = `
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Placa</div>
+          <div class="text-base font-bold text-white dark:text-white theme-light:text-slate-900">${plate.toUpperCase()}</div>
+        </div>
+        <div>
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Cliente</div>
+          <div class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">${customer}</div>
+        </div>
+        <div>
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Valor pagado</div>
+          <div class="text-lg font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${money(totalPaid)}</div>
+        </div>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-2">
+        <button class="btn-historial-print px-3 py-2 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" data-sale-id="${sale._id}">
+          🖨️ Imprimir remisión
+        </button>
+        <button class="btn-historial-view px-3 py-2 text-xs bg-blue-600/50 dark:bg-blue-600/50 hover:bg-blue-600 dark:hover:bg-blue-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-blue-500/50 dark:border-blue-500/50" data-sale-id="${sale._id}">
+          👁️ Ver resumen
+        </button>
+        <button class="btn-historial-edit px-3 py-2 text-xs bg-purple-600/50 dark:bg-purple-600/50 hover:bg-purple-600 dark:hover:bg-purple-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-purple-500/50 dark:border-purple-500/50" data-sale-id="${sale._id}">
+          ✏️ Editar cierre
+        </button>
+      </div>
+    </div>
+    <div class="mt-3 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 flex justify-between items-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+      <span>Venta #${saleNumber}</span>
+      <span>Cerrada: ${closedDate}</span>
+    </div>
+  `;
+
+  // Event listeners para los botones
+  const btnPrint = card.querySelector('.btn-historial-print');
+  const btnView = card.querySelector('.btn-historial-view');
+  const btnEdit = card.querySelector('.btn-historial-edit');
+
+  if (btnPrint) {
+    btnPrint.addEventListener('click', () => {
+      printSaleFromHistorial(btnPrint.dataset.saleId);
+    });
+  }
+
+  if (btnView) {
+    btnView.addEventListener('click', () => {
+      viewSaleSummary(btnView.dataset.saleId);
+    });
+  }
+
+  if (btnEdit) {
+    btnEdit.addEventListener('click', () => {
+      openEditCloseModal(btnEdit.dataset.saleId);
+    });
+  }
+
+  return card;
+}
+
+function calculateTotalPaid(sale) {
+  if (!sale) return 0;
+  
+  // Si tiene paymentMethods (multi-pago), sumar todos
+  if (sale.paymentMethods && Array.isArray(sale.paymentMethods) && sale.paymentMethods.length > 0) {
+    return sale.paymentMethods.reduce((sum, pm) => sum + (Number(pm.amount) || 0), 0);
+  }
+  
+  // Fallback al total de la venta
+  return Number(sale.total) || 0;
+}
+
+async function printSaleFromHistorial(saleId) {
+  try {
+    const sale = await API.sales.get(saleId);
+    if (sale) {
+      printSaleTicket(sale);
+    } else {
+      alert('No se pudo cargar la venta');
+    }
+  } catch (err) {
+    console.error('Error printing sale:', err);
+    alert('Error al imprimir: ' + (err?.message || 'Error desconocido'));
+  }
+}
+
+async function viewSaleSummary(saleId) {
+  try {
+    const sale = await API.sales.get(saleId);
+    if (!sale) {
+      alert('No se pudo cargar la venta');
+      return;
+    }
+
+    // Usar la función existente openSaleHistoryDetail si existe, o crear una nueva
+    if (typeof openSaleHistoryDetail === 'function') {
+      openSaleHistoryDetail(saleId);
+    } else {
+      // Crear modal simple con resumen
+      const modal = document.getElementById('modal');
+      const modalBody = document.getElementById('modalBody');
+      if (!modal || !modalBody) return;
+
+      const summary = buildSaleSummaryHTML(sale);
+      modalBody.innerHTML = summary;
+      modal.classList.remove('hidden');
+
+      // Botón cerrar
+      const closeBtn = modalBody.querySelector('#summary-close');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+          modal.classList.add('hidden');
+        });
+      }
+    }
+  } catch (err) {
+    console.error('Error viewing sale summary:', err);
+    alert('Error al cargar resumen: ' + (err?.message || 'Error desconocido'));
+  }
+}
+
+function buildSaleSummaryHTML(sale) {
+  const plate = sale?.vehicle?.plate || 'Sin placa';
+  const customer = sale?.customer?.name || 'Sin cliente';
+  const customerId = sale?.customer?.idNumber || '';
+  const customerPhone = sale?.customer?.phone || '';
+  const total = Number(sale?.total) || 0;
+  const closedDate = sale?.closedAt ? new Date(sale.closedAt).toLocaleDateString('es-CO', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }) : 'Sin fecha';
+  const saleNumber = sale?.number ? String(sale.number).padStart(5, '0') : sale?._id?.slice(-6) || 'N/A';
+  const paymentMethods = sale?.paymentMethods || [];
+  const laborCommissions = sale?.laborCommissions || [];
+
+  let itemsHTML = '';
+  if (sale.items && sale.items.length > 0) {
+    itemsHTML = sale.items.map(item => `
+      <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
+        <td class="py-2 px-3 text-sm text-white dark:text-white theme-light:text-slate-900">${item.name || 'Item'}</td>
+        <td class="py-2 px-3 text-center text-sm text-white dark:text-white theme-light:text-slate-900">${item.qty || 1}</td>
+        <td class="py-2 px-3 text-right text-sm text-white dark:text-white theme-light:text-slate-900">${money(item.unitPrice || 0)}</td>
+        <td class="py-2 px-3 text-right text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">${money((item.qty || 1) * (item.unitPrice || 0))}</td>
+      </tr>
+    `).join('');
+  }
+
+  let paymentsHTML = '';
+  if (paymentMethods.length > 0) {
+    paymentsHTML = paymentMethods.map(pm => `
+      <div class="flex justify-between py-2 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
+        <span class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-700">${pm.method || 'N/A'}</span>
+        <span class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">${money(pm.amount || 0)}</span>
+      </div>
+    `).join('');
+  } else {
+    paymentsHTML = '<div class="text-sm text-slate-400 py-2">Sin información de pago</div>';
+  }
+
+  let commissionsHTML = '';
+  if (laborCommissions.length > 0) {
+    commissionsHTML = laborCommissions.map(comm => `
+      <div class="flex justify-between py-2 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
+        <div>
+          <span class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">${comm.technician || 'N/A'}</span>
+          <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 ml-2">${comm.kind || ''}</span>
+        </div>
+        <span class="text-sm font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${money(comm.share || 0)}</span>
+      </div>
+    `).join('');
+  } else {
+    commissionsHTML = '<div class="text-sm text-slate-400 py-2">Sin comisiones registradas</div>';
+  }
+
+  return `
+    <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900">Resumen de Venta #${saleNumber}</h3>
+        <button id="summary-close" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">
+          ✕ Cerrar
+        </button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 rounded-lg p-4">
+          <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">Cliente</h4>
+          <div class="text-base font-bold text-white dark:text-white theme-light:text-slate-900">${customer}</div>
+          ${customerId ? `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">ID: ${customerId}</div>` : ''}
+          ${customerPhone ? `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Tel: ${customerPhone}</div>` : ''}
+        </div>
+        <div class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 rounded-lg p-4">
+          <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">Vehículo</h4>
+          <div class="text-base font-bold text-white dark:text-white theme-light:text-slate-900">${plate.toUpperCase()}</div>
+          ${sale.vehicle?.brand ? `<div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">${sale.vehicle.brand} ${sale.vehicle.line || ''}</div>` : ''}
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-3">Items</h4>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                <th class="text-left py-2 px-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Descripción</th>
+                <th class="text-center py-2 px-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Cant.</th>
+                <th class="text-right py-2 px-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Unit</th>
+                <th class="text-right py-2 px-3 text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsHTML || '<tr><td colspan="4" class="text-center py-4 text-slate-400">Sin items</td></tr>'}
+            </tbody>
+            <tfoot>
+              <tr class="border-t-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                <td colspan="3" class="text-right py-3 px-3 font-bold text-white dark:text-white theme-light:text-slate-900">Total</td>
+                <td class="text-right py-3 px-3 font-bold text-lg text-white dark:text-white theme-light:text-slate-900">${money(total)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 rounded-lg p-4">
+          <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">Formas de pago</h4>
+          ${paymentsHTML}
+        </div>
+        <div class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 rounded-lg p-4">
+          <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">Comisiones técnicas</h4>
+          ${commissionsHTML}
+        </div>
+      </div>
+
+      <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-center">
+        Cerrada el ${closedDate}
+      </div>
+    </div>
+  `;
+}
+
+// ========================
+// MODAL DE EDICIÓN DE CIERRE DE VENTA
+// ========================
+
+async function openEditCloseModal(saleId) {
+  if (!saleId) return;
+  
+  try {
+    const sale = await API.sales.get(saleId);
+    if (!sale) {
+      alert('No se pudo cargar la venta');
+      return;
+    }
+
+    if (sale.status !== 'closed') {
+      alert('Solo se pueden editar ventas cerradas');
+      return;
+    }
+
+    const modal = document.getElementById('modal');
+    const modalBody = document.getElementById('modalBody');
+    if (!modal || !modalBody) return;
+
+    // Construir contenido del modal similar al de cierre pero para edición
+    const total = sale?.total || 0;
+    const modalContent = buildEditCloseModalContent(sale, total);
+    modalBody.innerHTML = '';
+    modalBody.appendChild(modalContent);
+    modal.classList.remove('hidden');
+
+    // Configurar el modal
+    setupEditCloseModal(sale);
+
+    // Botón cancelar
+    const cancelBtn = document.getElementById('ecv-cancel');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+      });
+    }
+
+  } catch (err) {
+    console.error('Error opening edit close modal:', err);
+    alert('Error al cargar venta: ' + (err?.message || 'Error desconocido'));
+  }
+}
+
+function buildEditCloseModalContent(sale, total) {
+  const wrap = document.createElement('div');
+  wrap.className = 'space-y-4';
+  wrap.innerHTML = `
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 m-0">Editar cierre de venta</h3>
+    </div>
+    <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">
+      Total venta: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(total)}</strong>
+    </div>
+    <div id="ecv-payments-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+      <div class="flex justify-between items-center mb-4">
+        <strong class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">Formas de pago</strong>
+        <button id="ecv-add-payment" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">+ Agregar</button>
+      </div>
+      <table class="w-full text-xs border-collapse" id="ecv-payments-table">
+        <thead>
+          <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
+            <th class="py-2 px-2 text-left text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">Método</th>
+            <th class="py-2 px-2 text-left text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold">Cuenta</th>
+            <th class="py-2 px-2 text-left text-slate-300 dark:text-slate-300 theme-light:text-slate-700 font-semibold w-24">Monto</th>
+            <th class="py-2 px-2 w-8"></th>
+          </tr>
+        </thead>
+        <tbody id="ecv-payments-body"></tbody>
+      </table>
+      <div id="ecv-payments-summary" class="mt-3 text-xs"></div>
+    </div>
+    <div id="ecv-labor-commissions-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Desglose de mano de obra</label>
+          <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Edita las líneas de participación técnica.</p>
+        </div>
+        <button id="ecv-add-commission" type="button" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">+ Agregar línea</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs border-collapse">
+          <thead>
+            <tr class="border-b-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-400 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-200">
+              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Técnico</th>
+              <th class="py-3 px-3 text-left text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Tipo de MO</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Valor MO</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">% Técnico</th>
+              <th class="py-3 px-3 text-right text-slate-200 dark:text-slate-200 theme-light:text-slate-800 font-bold">Participación</th>
+              <th class="py-3 px-3 w-10"></th>
+            </tr>
+          </thead>
+          <tbody id="ecv-comm-body">
+            <tr>
+              <td colspan="6" class="py-8 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">
+                <div class="flex flex-col items-center gap-2">
+                  <span>No hay líneas de participación técnica</span>
+                  <span class="text-xs">Haz clic en "+ Agregar línea" para comenzar</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="md:col-span-2">
+        <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Comprobante (opcional)</label>
+        <div class="relative">
+          <input id="ecv-receipt" type="file" accept="image/*,.pdf" class="w-full px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-600/50 file:text-white file:cursor-pointer hover:file:bg-slate-600" />
+        </div>
+        <div id="ecv-receipt-status" class="mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+          ${sale.paymentReceiptUrl ? `<a href="${sale.paymentReceiptUrl}" target="_blank" class="text-blue-400 hover:text-blue-300">Ver comprobante actual</a>` : 'Sin archivos seleccionados'}
+        </div>
+      </div>
+      <div class="md:col-span-2 flex flex-col sm:flex-row flex-wrap gap-2 sm:gap-3 mt-4">
+        <button id="ecv-confirm" class="w-full sm:flex-1 px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar cambios</button>
+        <button type="button" id="ecv-cancel" class="w-full sm:w-auto px-3 sm:px-4 py-2.5 sm:py-2.5 text-sm sm:text-base bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 font-semibold rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">Cancelar</button>
+      </div>
+      <div id="ecv-msg" class="md:col-span-2 mt-2 text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600"></div>
+    </div>
+  `;
+  return wrap;
+}
+
+async function setupEditCloseModal(sale) {
+  await ensureCompanyData();
+  
+  const payments = [];
+  const commissions = [];
+  
+  // Cargar métodos de pago existentes
+  if (sale.paymentMethods && Array.isArray(sale.paymentMethods) && sale.paymentMethods.length > 0) {
+    sale.paymentMethods.forEach(p => {
+      payments.push({
+        method: p.method || '',
+        amount: Number(p.amount) || 0,
+        accountId: p.accountId || null
+      });
+    });
+  } else if (sale.paymentMethod) {
+    // Fallback al método único legacy
+    payments.push({
+      method: sale.paymentMethod,
+      amount: Number(sale.total) || 0,
+      accountId: null
+    });
+  }
+
+  // Cargar comisiones existentes
+  if (sale.laborCommissions && Array.isArray(sale.laborCommissions) && sale.laborCommissions.length > 0) {
+    sale.laborCommissions.forEach(c => {
+      commissions.push({
+        technician: c.technician || '',
+        kind: c.kind || '',
+        laborValue: Number(c.laborValue) || 0,
+        percent: Number(c.percent) || 0,
+        share: Number(c.share) || 0
+      });
+    });
+  }
+
+  // Renderizar pagos
+  renderEditPayments(payments);
+  
+  // Renderizar comisiones
+  renderEditCommissions(commissions);
+
+  // Event listeners
+  setupEditCloseModalListeners(sale, payments, commissions);
+}
+
+function renderEditPayments(payments) {
+  const body = document.getElementById('ecv-payments-body');
+  const summary = document.getElementById('ecv-payments-summary');
+  if (!body) return;
+
+  body.innerHTML = '';
+  
+  if (payments.length === 0) {
+    body.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-slate-400 text-sm">No hay métodos de pago</td></tr>';
+    if (summary) summary.textContent = '';
+    return;
+  }
+
+  payments.forEach((p, idx) => {
+    const tr = document.createElement('tr');
+    tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200';
+    tr.innerHTML = `
+      <td class="py-2 px-2">
+        <input type="text" class="ecv-payment-method w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs" value="${p.method || ''}" data-idx="${idx}" placeholder="Efectivo, Transferencia, etc." />
+      </td>
+      <td class="py-2 px-2">
+        <select class="ecv-payment-account w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs" data-idx="${idx}">
+          <option value="">Seleccionar cuenta</option>
+        </select>
+      </td>
+      <td class="py-2 px-2">
+        <input type="number" class="ecv-payment-amount w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs text-right" value="${p.amount || 0}" data-idx="${idx}" min="0" step="1" />
+      </td>
+      <td class="py-2 px-2 text-center">
+        <button type="button" class="ecv-remove-payment px-2 py-1 bg-red-600/50 hover:bg-red-600 text-white text-xs rounded" data-idx="${idx}">✕</button>
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+
+  // Cargar cuentas en los selects
+  loadAccountsForEditModal().then(() => {
+    payments.forEach((p, idx) => {
+      const select = body.querySelector(`.ecv-payment-account[data-idx="${idx}"]`);
+      if (select && p.accountId) {
+        select.value = p.accountId;
+      }
+    });
+  });
+
+  updateEditPaymentsSummary(payments);
+}
+
+function renderEditCommissions(commissions) {
+  const body = document.getElementById('ecv-comm-body');
+  if (!body) return;
+
+  body.innerHTML = '';
+
+  if (commissions.length === 0) {
+    body.innerHTML = `
+      <tr>
+        <td colspan="6" class="py-8 text-center text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">
+          <div class="flex flex-col items-center gap-2">
+            <span>No hay líneas de participación técnica</span>
+            <span class="text-xs">Haz clic en "+ Agregar línea" para comenzar</span>
+          </div>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  commissions.forEach((c, idx) => {
+    const tr = document.createElement('tr');
+    tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200';
+    const share = c.share || (c.laborValue * c.percent / 100);
+    tr.innerHTML = `
+      <td class="py-2 px-3">
+        <select class="ecv-comm-technician w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs" data-idx="${idx}">
+          <option value="">Seleccionar técnico</option>
+        </select>
+      </td>
+      <td class="py-2 px-3">
+        <select class="ecv-comm-kind w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs" data-idx="${idx}">
+          <option value="">Seleccionar tipo</option>
+        </select>
+      </td>
+      <td class="py-2 px-3">
+        <input type="number" class="ecv-comm-labor-value w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs text-right" value="${c.laborValue || 0}" data-idx="${idx}" min="0" step="1" />
+      </td>
+      <td class="py-2 px-3">
+        <input type="number" class="ecv-comm-percent w-full px-2 py-1 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded text-white dark:text-white theme-light:text-slate-900 text-xs text-right" value="${c.percent || 0}" data-idx="${idx}" min="0" max="100" step="0.1" />
+      </td>
+      <td class="py-2 px-3 text-right text-sm font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">
+        <span class="ecv-comm-share">${money(share)}</span>
+      </td>
+      <td class="py-2 px-3 text-center">
+        <button type="button" class="ecv-remove-commission px-2 py-1 bg-red-600/50 hover:bg-red-600 text-white text-xs rounded" data-idx="${idx}">✕</button>
+      </td>
+    `;
+    body.appendChild(tr);
+  });
+
+  // Cargar técnicos y tipos de MO
+  loadTechsAndKindsForEditModal().then(() => {
+    commissions.forEach((c, idx) => {
+      const techSelect = body.querySelector(`.ecv-comm-technician[data-idx="${idx}"]`);
+      const kindSelect = body.querySelector(`.ecv-comm-kind[data-idx="${idx}"]`);
+      if (techSelect && c.technician) {
+        techSelect.value = c.technician;
+      }
+      if (kindSelect && c.kind) {
+        kindSelect.value = c.kind;
+      }
+    });
+  });
+
+  // Event listeners para calcular participación
+  body.querySelectorAll('.ecv-comm-labor-value, .ecv-comm-percent').forEach(input => {
+    input.addEventListener('input', () => {
+      const idx = parseInt(input.dataset.idx);
+      updateCommissionShare(idx);
+    });
+  });
+}
+
+async function loadAccountsForEditModal() {
+  try {
+    const accounts = await API.accounts.list();
+    const selects = document.querySelectorAll('.ecv-payment-account');
+    selects.forEach(select => {
+      const currentValue = select.value;
+      select.innerHTML = '<option value="">Seleccionar cuenta</option>';
+      if (Array.isArray(accounts)) {
+        accounts.forEach(acc => {
+          const option = document.createElement('option');
+          option.value = acc._id;
+          option.textContent = acc.name || 'Sin nombre';
+          select.appendChild(option);
+        });
+      }
+      if (currentValue) select.value = currentValue;
+    });
+  } catch (err) {
+    console.error('Error loading accounts:', err);
+  }
+}
+
+async function loadTechsAndKindsForEditModal() {
+  const techSelects = document.querySelectorAll('.ecv-comm-technician');
+  const kindSelects = document.querySelectorAll('.ecv-comm-kind');
+
+  // Cargar técnicos
+  techSelects.forEach(select => {
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">Seleccionar técnico</option>';
+    companyTechnicians.forEach(tech => {
+      const option = document.createElement('option');
+      option.value = tech;
+      option.textContent = tech;
+      select.appendChild(option);
+    });
+    if (currentValue) select.value = currentValue;
+  });
+
+  // Cargar tipos de MO
+  const kinds = techConfig?.laborKinds || [];
+  kindSelects.forEach(select => {
+    const currentValue = select.value;
+    select.innerHTML = '<option value="">Seleccionar tipo</option>';
+    kinds.forEach(kind => {
+      const option = document.createElement('option');
+      option.value = kind;
+      option.textContent = kind;
+      select.appendChild(option);
+    });
+    if (currentValue) select.value = currentValue;
+  });
+}
+
+function updateEditPaymentsSummary(payments) {
+  const summary = document.getElementById('ecv-payments-summary');
+  if (!summary) return;
+  
+  const sum = payments.reduce((a, p) => a + (Number(p.amount) || 0), 0);
+  const total = Number(document.querySelector('#ecv-payments-block')?.closest('.space-y-4')?.querySelector('strong')?.textContent?.replace(/[^0-9]/g, '') || 0);
+  
+  summary.innerHTML = `
+    <div class="flex justify-between items-center">
+      <span class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Suma:</span>
+      <span class="font-semibold ${Math.abs(sum - total) < 0.01 ? 'text-green-400' : 'text-red-400'}">${money(sum)}</span>
+    </div>
+  `;
+}
+
+function updateCommissionShare(idx) {
+  const row = document.querySelector(`.ecv-comm-labor-value[data-idx="${idx}"]`)?.closest('tr');
+  if (!row) return;
+  
+  const laborValue = Number(row.querySelector('.ecv-comm-labor-value')?.value || 0);
+  const percent = Number(row.querySelector('.ecv-comm-percent')?.value || 0);
+  const share = Math.round(laborValue * percent / 100);
+  
+  const shareEl = row.querySelector('.ecv-comm-share');
+  if (shareEl) shareEl.textContent = money(share);
+}
+
+function setupEditCloseModalListeners(sale, payments, commissions) {
+  const saleId = sale._id;
+  const msg = document.getElementById('ecv-msg');
+  
+  // Agregar pago
+  document.getElementById('ecv-add-payment')?.addEventListener('click', () => {
+    payments.push({ method: '', amount: 0, accountId: null });
+    renderEditPayments(payments);
+    setupEditCloseModalListeners(sale, payments, commissions);
+  });
+
+  // Remover pago
+  document.querySelectorAll('.ecv-remove-payment').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx);
+      payments.splice(idx, 1);
+      renderEditPayments(payments);
+      setupEditCloseModalListeners(sale, payments, commissions);
+    });
+  });
+
+  // Actualizar pago
+  document.querySelectorAll('.ecv-payment-method, .ecv-payment-amount').forEach(input => {
+    input.addEventListener('input', () => {
+      const idx = parseInt(input.dataset.idx);
+      if (input.classList.contains('ecv-payment-method')) {
+        payments[idx].method = input.value;
+      } else if (input.classList.contains('ecv-payment-amount')) {
+        payments[idx].amount = Number(input.value) || 0;
+      }
+      updateEditPaymentsSummary(payments);
+    });
+  });
+
+  document.querySelectorAll('.ecv-payment-account').forEach(select => {
+    select.addEventListener('change', () => {
+      const idx = parseInt(select.dataset.idx);
+      payments[idx].accountId = select.value || null;
+    });
+  });
+
+  // Agregar comisión
+  document.getElementById('ecv-add-commission')?.addEventListener('click', () => {
+    commissions.push({ technician: '', kind: '', laborValue: 0, percent: 0, share: 0 });
+    renderEditCommissions(commissions);
+    setupEditCloseModalListeners(sale, payments, commissions);
+  });
+
+  // Remover comisión
+  document.querySelectorAll('.ecv-remove-commission').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx);
+      commissions.splice(idx, 1);
+      renderEditCommissions(commissions);
+      setupEditCloseModalListeners(sale, payments, commissions);
+    });
+  });
+
+  // Actualizar comisión
+  document.querySelectorAll('.ecv-comm-technician, .ecv-comm-kind').forEach(select => {
+    select.addEventListener('change', () => {
+      const idx = parseInt(select.dataset.idx);
+      if (select.classList.contains('ecv-comm-technician')) {
+        commissions[idx].technician = select.value;
+      } else if (select.classList.contains('ecv-comm-kind')) {
+        commissions[idx].kind = select.value;
+      }
+    });
+  });
+
+  // Confirmar guardado
+  document.getElementById('ecv-confirm')?.addEventListener('click', async () => {
+    if (!msg) return;
+    msg.textContent = 'Procesando...';
+    msg.classList.remove('error');
+
+    // Validar suma de pagos
+    const sum = payments.reduce((a, p) => a + (Number(p.amount) || 0), 0);
+    const total = Number(document.querySelector('#ecv-payments-block')?.closest('.space-y-4')?.querySelector('strong')?.textContent?.replace(/[^0-9]/g, '') || 0);
+    
+    if (Math.abs(sum - total) > 0.01) {
+      msg.textContent = 'La suma de pagos no coincide con el total.';
+      msg.classList.add('error');
+      return;
+    }
+
+    const filtered = payments.filter(p => p.method && p.amount > 0);
+    if (!filtered.length) {
+      msg.textContent = 'Agregar al menos una forma de pago válida';
+      msg.classList.add('error');
+      return;
+    }
+
+    try {
+      let receiptUrl = sale.paymentReceiptUrl || '';
+      const file = document.getElementById('ecv-receipt')?.files?.[0];
+      if (file) {
+        const uploadRes = await API.mediaUpload ? API.mediaUpload([file]) : null;
+        if (uploadRes && uploadRes.files && uploadRes.files[0]) {
+          receiptUrl = uploadRes.files[0].url || uploadRes.files[0].path || '';
+        }
+      }
+
+      // Construir comisiones desde la tabla
+      const comm = [];
+      const commBody = document.getElementById('ecv-comm-body');
+      if (commBody) {
+        commBody.querySelectorAll('tr').forEach(tr => {
+          const techSelect = tr.querySelector('.ecv-comm-technician');
+          const kindSelect = tr.querySelector('.ecv-comm-kind');
+          const laborValueInput = tr.querySelector('.ecv-comm-labor-value');
+          const percentInput = tr.querySelector('.ecv-comm-percent');
+          
+          if (techSelect && techSelect.value && (laborValueInput?.value || percentInput?.value)) {
+            const laborValue = Number(laborValueInput?.value || 0);
+            const percent = Number(percentInput?.value || 0);
+            comm.push({
+              technician: techSelect.value,
+              kind: kindSelect?.value || '',
+              laborValue,
+              percent,
+              share: Math.round(laborValue * percent / 100)
+            });
+          }
+        });
+      }
+
+      const payload = {
+        paymentMethods: filtered.map(p => {
+          const method = String(p.method || '').toUpperCase();
+          const isCredit = method === 'CREDITO' || method === 'CRÉDITO';
+          return {
+            method: p.method,
+            amount: Number(p.amount) || 0,
+            accountId: isCredit ? null : (p.accountId || null)
+          };
+        }),
+        laborCommissions: comm,
+        paymentReceiptUrl: receiptUrl
+      };
+
+      await API.sales.updateClose(saleId, payload);
+      msg.textContent = 'Venta actualizada correctamente';
+      msg.classList.remove('error');
+      
+      setTimeout(() => {
+        document.getElementById('modal')?.classList.add('hidden');
+        // Recargar historial si estamos en esa vista
+        if (!document.getElementById('sales-view-historial')?.classList.contains('hidden')) {
+          loadHistorial();
+        }
+      }, 1500);
+
+    } catch (e) {
+      msg.textContent = e?.message || 'Error al actualizar';
+      msg.classList.add('error');
+    }
+  });
+
+  // Actualizar estado del comprobante
+  document.getElementById('ecv-receipt')?.addEventListener('change', (e) => {
+    const status = document.getElementById('ecv-receipt-status');
+    if (status) {
+      if (e.target.files && e.target.files.length > 0) {
+        status.textContent = `Archivo seleccionado: ${e.target.files[0].name}`;
+      } else {
+        status.textContent = sale.paymentReceiptUrl ? `<a href="${sale.paymentReceiptUrl}" target="_blank" class="text-blue-400 hover:text-blue-300">Ver comprobante actual</a>` : 'Sin archivos seleccionados';
+      }
+    }
+  });
 }
 
 

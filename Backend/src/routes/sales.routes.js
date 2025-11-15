@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   startSale, getSale, addItem, updateItem, removeItem,
-  setCustomerVehicle, closeSale, addByQR, listSales, summarySales, cancelSale, getProfileByPlate, getProfileByIdNumber, addItemsBatch, updateTechnician, technicianReport, completeOpenSlot, getSalesByPlate
+  setCustomerVehicle, closeSale, addByQR, listSales, summarySales, cancelSale, getProfileByPlate, getProfileByIdNumber, addItemsBatch, updateTechnician, technicianReport, completeOpenSlot, getSalesByPlate, updateCloseSale
 } from '../controllers/sales.controller.js';
 import { sseHandler } from '../lib/live.js';
 
@@ -37,6 +37,7 @@ router.patch('/:id/technician', updateTechnician);
 // Lifecycle
 router.post('/:id/close', closeSale);
 router.post('/:id/cancel', cancelSale);
+router.patch('/:id/close', updateCloseSale); // Actualizar cierre de venta cerrada
 
 // Open slots
 router.post('/:id/complete-slot', completeOpenSlot);

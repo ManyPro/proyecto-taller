@@ -882,6 +882,191 @@ export const closeSale = async (req, res) => {
   }
 };
 
+// ===== Actualizar cierre de venta (editar métodos de pago, comisiones, comprobante) =====
+export const updateCloseSale = async (req, res) => {
+  const { id } = req.params;
+  const session = await mongoose.startSession();
+  
+  try {
+    await session.withTransaction(async () => {
+      const sale = await Sale.findOne({ _id: id, companyId: req.companyId }).session(session);
+      if (!sale) throw new Error('Sale not found');
+      if (sale.status !== 'closed') throw new Error('Only closed sales can be updated');
+
+      // Importar dependencias necesarias
+      const CashFlowEntry = (await import('../models/CashFlowEntry.js')).default;
+      const AccountReceivable = (await import('../models/AccountReceivable.js')).default;
+      const cashflowModule = await import('./cashflow.controller.js');
+      const registerSaleIncome = cashflowModule.registerSaleIncome;
+      const computeBalance = cashflowModule.computeBalance;
+      const ensureDefaultCashAccount = cashflowModule.ensureDefaultCashAccount;
+      const Account = (await import('../models/Account.js')).default;
+
+      // Guardar valores antiguos para comparar
+      const oldPaymentMethods = sale.paymentMethods || [];
+      const oldLaborCommissions = sale.laborCommissions || [];
+
+      // Actualizar paymentMethods si vienen en el body
+      if (req.body?.paymentMethods !== undefined) {
+        const rawMethods = Array.isArray(req.body.paymentMethods) ? req.body.paymentMethods : [];
+        const cleaned = rawMethods
+          .map(m => ({
+            method: String(m.method || '').trim(),
+            amount: Math.round(Number(m.amount) || 0),
+            accountId: m.accountId ? new mongoose.Types.ObjectId(m.accountId) : null
+          }))
+          .filter(m => m.method && m.amount > 0);
+        
+        // Validar que la suma coincida con el total
+        const sum = cleaned.reduce((a, m) => a + m.amount, 0);
+        const total = Number(sale.total || 0);
+        if (Math.abs(sum - total) > 0.01) {
+          throw new Error(`La suma de pagos (${sum}) no coincide con el total de la venta (${total})`);
+        }
+
+        sale.paymentMethods = cleaned;
+        
+        // Actualizar paymentMethod legacy para compatibilidad
+        if (cleaned.length === 1) {
+          sale.paymentMethod = cleaned[0].method;
+        } else if (cleaned.length > 1) {
+          sale.paymentMethod = 'MULTIPLE';
+        }
+      }
+
+      // Actualizar laborCommissions si vienen en el body
+      if (req.body?.laborCommissions !== undefined) {
+        const rawCommissions = Array.isArray(req.body.laborCommissions) ? req.body.laborCommissions : [];
+        sale.laborCommissions = rawCommissions
+          .map(c => ({
+            technician: String(c.technician || '').trim(),
+            kind: String(c.kind || '').trim(),
+            laborValue: Math.round(Number(c.laborValue) || 0),
+            percent: Number(c.percent) || 0,
+            share: Math.round((Number(c.laborValue) || 0) * (Number(c.percent) || 0) / 100)
+          }))
+          .filter(c => c.technician && (c.laborValue > 0 || c.percent > 0));
+      }
+
+      // Actualizar paymentReceiptUrl si viene en el body
+      if (req.body?.paymentReceiptUrl !== undefined) {
+        sale.paymentReceiptUrl = String(req.body.paymentReceiptUrl || '').trim();
+      }
+
+      await sale.save({ session });
+
+      // Si cambiaron los métodos de pago, actualizar flujo de caja
+      const paymentMethodsChanged = JSON.stringify(oldPaymentMethods) !== JSON.stringify(sale.paymentMethods);
+      
+      if (paymentMethodsChanged) {
+        // Eliminar entradas de flujo de caja existentes relacionadas con esta venta
+        const existingEntries = await CashFlowEntry.find({ 
+          companyId: req.companyId, 
+          source: 'SALE', 
+          sourceRef: sale._id 
+        }).session(session);
+        
+        for (const entry of existingEntries) {
+          await CashFlowEntry.deleteOne({ _id: entry._id }).session(session);
+          // Recalcular balance de la cuenta
+          await computeBalance(entry.accountId, req.companyId);
+        }
+
+        // Verificar si hay crédito en los nuevos métodos
+        const hasCredit = sale.paymentMethods?.some(m => 
+          String(m.method || '').toUpperCase() === 'CREDITO' || 
+          String(m.method || '').toUpperCase() === 'CRÉDITO'
+        );
+
+        if (hasCredit) {
+          // Si hay crédito, verificar/crear cuenta por cobrar
+          const creditAmount = sale.paymentMethods?.find(m => 
+            String(m.method || '').toUpperCase() === 'CREDITO' || 
+            String(m.method || '').toUpperCase() === 'CRÉDITO'
+          )?.amount || sale.total;
+
+          // Buscar cuenta por cobrar existente
+          let receivable = await AccountReceivable.findOne({ 
+            saleId: sale._id, 
+            companyId: req.companyId 
+          }).session(session);
+
+          if (receivable) {
+            // Actualizar monto si cambió
+            receivable.totalAmount = Number(creditAmount);
+            receivable.balance = receivable.totalAmount - receivable.paidAmount;
+            if (receivable.balance <= 0) {
+              receivable.status = 'paid';
+            } else {
+              receivable.status = receivable.paidAmount > 0 ? 'partial' : 'pending';
+            }
+            await receivable.save({ session });
+          } else {
+            // Crear nueva cuenta por cobrar
+            const CompanyAccount = (await import('../models/CompanyAccount.js')).default;
+            let companyAccountId = null;
+            if (sale.vehicle?.plate) {
+              const companyAccount = await CompanyAccount.findOne({
+                companyId: String(req.companyId),
+                active: true,
+                plates: String(sale.vehicle.plate).trim().toUpperCase()
+              }).session(session);
+              if (companyAccount) companyAccountId = companyAccount._id;
+            }
+
+            receivable = await AccountReceivable.create([{
+              companyId: String(req.companyId),
+              saleId: sale._id,
+              saleNumber: String(sale.number || '').padStart(5, '0'),
+              customer: sale.customer || {},
+              vehicle: sale.vehicle || {},
+              companyAccountId,
+              totalAmount: Number(creditAmount),
+              paidAmount: 0,
+              balance: Number(creditAmount),
+              status: 'pending',
+              source: 'sale'
+            }], { session });
+            receivable = receivable[0];
+          }
+        } else {
+          // Si no hay crédito, eliminar cuenta por cobrar si existe
+          const receivable = await AccountReceivable.findOne({ 
+            saleId: sale._id, 
+            companyId: req.companyId 
+          }).session(session);
+          if (receivable) {
+            await AccountReceivable.deleteOne({ _id: receivable._id }).session(session);
+          }
+        }
+
+        // Crear nuevas entradas de flujo de caja solo para métodos que no sean crédito
+        // Nota: registerSaleIncome verifica si ya existen entradas, pero las acabamos de eliminar
+        // así que creará nuevas correctamente
+        const nonCreditMethods = sale.paymentMethods?.filter(m => {
+          const method = String(m.method || '').toUpperCase();
+          return method !== 'CREDITO' && method !== 'CRÉDITO';
+        }) || [];
+
+        if (nonCreditMethods.length > 0) {
+          // Forzar creación ya que eliminamos las entradas anteriores
+          await registerSaleIncome({ companyId: req.companyId, sale, accountId: null, forceCreate: true });
+        }
+      }
+
+      try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+    });
+
+    const updatedSale = await Sale.findOne({ _id: id, companyId: req.companyId });
+    res.json(updatedSale.toObject());
+  } catch (err) {
+    await session.abortTransaction().catch(()=>{});
+    res.status(400).json({ error: err?.message || 'Cannot update sale' });
+  } finally {
+    session.endSession();
+  }
+};
+
 // ===== Cancelar (X de pestaÃ±a) =====
 export const cancelSale = async (req, res) => {
   const { id } = req.params;

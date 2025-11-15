@@ -4,7 +4,7 @@ import Company from '../models/Company.js';
 import mongoose from 'mongoose';
 
 // Helpers
-async function ensureDefaultCashAccount(companyId) {
+export async function ensureDefaultCashAccount(companyId) {
   let acc = await Account.findOne({ companyId, type: 'CASH', name: /caja/i });
   if (!acc) {
     acc = await Account.create({ companyId, name: 'Caja', type: 'CASH', initialBalance: 0 });
@@ -179,11 +179,14 @@ export async function deleteEntry(req, res){
 }
 
 // Utilizada desde cierre de venta
-export async function registerSaleIncome({ companyId, sale, accountId }) {
+export async function registerSaleIncome({ companyId, sale, accountId, forceCreate = false }) {
   if (!sale || !sale._id) return [];
   // Si ya existen entradas para la venta, devolverlas (idempotencia multi)
-  const existing = await CashFlowEntry.find({ companyId, source: 'SALE', sourceRef: sale._id });
-  if (existing.length) return existing;
+  // A menos que forceCreate sea true (para actualizaciones de cierre)
+  if (!forceCreate) {
+    const existing = await CashFlowEntry.find({ companyId, source: 'SALE', sourceRef: sale._id });
+    if (existing.length) return existing;
+  }
 
   // Determinar mÃ©todos de pago: nuevo array o fallback al legacy
   let methods = Array.isArray(sale.paymentMethods) && sale.paymentMethods.length
