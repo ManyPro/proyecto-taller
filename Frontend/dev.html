@@ -313,13 +313,13 @@
             <div class="dev-section-head">
               <div>
                 <h3>Solicitudes de Admin</h3>
-                <p>Aprueba nuevos usuarios y asigna rapidamente las empresas que podran gestionar.</p>
+                <p>Aprueba nuevos usuarios y asigna rápidamente las empresas que podrán gestionar.</p>
               </div>
               <div class="dev-head-actions">
-                <button id="d-refresh" class="secondary">Actualizar</button>
+                <button id="d-refresh" class="secondary" style="padding:10px 18px;border-radius:10px;">🔄 Actualizar</button>
               </div>
             </div>
-            <div id="d-list" class="dev-collection"></div>
+            <div id="d-list" class="dev-collection" style="margin-top:20px;"></div>
           </div>
         </article>
 
@@ -407,6 +407,8 @@
         console.log('Token de desarrollador obtenido:', data);
         document.getElementById('loginSection').classList.add('hidden');
         document.getElementById('appSection').classList.remove('hidden');
+        document.getElementById('requestsCard').style.display = '';
+        document.getElementById('devTabs').style.display = 'flex';
         loadReqs();
         loadAdmins();
       } else {
@@ -421,46 +423,154 @@
   };
   async function loadReqs(){
     const wrap = document.getElementById('d-list');
-    wrap.innerHTML = '<div class="muted">Cargando...</div>';
+    wrap.innerHTML = '<div style="padding:24px;text-align:center;color:rgba(226,232,240,0.7);">Cargando solicitudes...</div>';
     try{
       const r = await req('/api/v1/admin/signup/requests');
       wrap.innerHTML = '';
       const companies = r.companies||[];
       const requests = r.items||[];
       setHeroStat('stat-requests', requests.length);
+      
+      if(!requests.length){
+        wrap.innerHTML = '<div style="padding:32px;text-align:center;color:rgba(226,232,240,0.7);">✅ No hay solicitudes pendientes</div>';
+        return;
+      }
+      
       requests.forEach(item=>{
         const div = document.createElement('div');
-        div.className='card'; div.style.marginBottom='8px';
-        div.innerHTML = `<div class='row between' style='align-items:center;'>
-          <div>
-            <div><strong>${item.email}</strong></div>
-            <div class='muted' style='font-size:12px;'>Estado: ${item.status}</div>
-          </div>
-          <div>
-            <details>
-              <summary>Asignar empresas</summary>
-              <div class='row wrap' style='gap:6px;margin-top:6px;'>
-                ${companies.map(c=>`<label class='chip'><input type='checkbox' data-c='${c._id}' ${item.assignedCompanies?.some?.(ac=>String(ac?._id||ac)===String(c._id))?'checked':''}/> ${c.name||c.email}</label>`).join('')}
+        div.className='card';
+        div.style.cssText = 'margin-bottom:16px;padding:20px;border-radius:16px;background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.25);';
+        
+        const statusColor = item.status === 'pending' ? '#f59e0b' : item.status === 'approved' ? '#10b981' : '#6b7280';
+        const statusText = item.status === 'pending' ? 'Pendiente' : item.status === 'approved' ? 'Aprobada' : 'Completada';
+        const isPending = item.status === 'pending';
+        const assignedIds = (item.assignedCompanies || []).map(ac => String(ac?._id || ac));
+        
+        div.innerHTML = `
+          <div style="display:flex;flex-direction:column;gap:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+              <div style="flex:1;min-width:200px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                  <strong style="font-size:16px;color:#f8fafc;">${item.email}</strong>
+                  <span style="padding:4px 10px;border-radius:8px;font-size:11px;font-weight:600;text-transform:uppercase;background:${statusColor}20;color:${statusColor};border:1px solid ${statusColor}40;">
+                    ${statusText}
+                  </span>
+                </div>
+                <div style="font-size:12px;color:rgba(226,232,240,0.6);">
+                  ${item.createdAt ? `Solicitado: ${new Date(item.createdAt).toLocaleDateString('es-CO', {year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}` : ''}
+                </div>
               </div>
-            </details>
-            <div class='row right' style='gap:6px;margin-top:6px;'>
-              <button class='approve'>Aprobar</button>
+              ${isPending ? `
+                <div style="display:flex;gap:8px;">
+                  <button class="approve-btn" style="padding:10px 20px;border-radius:10px;border:none;background:linear-gradient(135deg,#10b981,#059669);color:#fff;font-weight:600;cursor:pointer;box-shadow:0 4px 12px rgba(16,185,129,0.3);transition:transform 0.2s,box-shadow 0.2s;" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 16px rgba(16,185,129,0.4)'" onmouseout="this.style.transform='';this.style.boxShadow='0 4px 12px rgba(16,185,129,0.3)'">
+                    ✅ Aprobar
+                  </button>
+                </div>
+              ` : item.status === 'approved' ? `
+                <div style="padding:8px 12px;border-radius:8px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);color:#10b981;font-size:12px;">
+                  Esperando confirmación del usuario
+                </div>
+              ` : ''}
             </div>
+            
+            ${isPending ? `
+              <div style="border-top:1px solid rgba(148,163,184,0.2);padding-top:16px;">
+                <div style="margin-bottom:12px;">
+                  <label style="display:block;font-size:13px;font-weight:600;color:rgba(226,232,240,0.9);margin-bottom:8px;">
+                    📋 Asignar empresas (opcional)
+                  </label>
+                  <div style="display:flex;flex-wrap:wrap;gap:8px;max-height:200px;overflow-y:auto;padding:12px;background:rgba(15,23,42,0.4);border-radius:10px;border:1px solid rgba(148,163,184,0.15);">
+                    ${companies.length > 0 ? companies.map(c=>{
+                      const isChecked = assignedIds.includes(String(c._id));
+                      return `
+                        <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:8px;background:${isChecked ? 'rgba(59,130,246,0.2)' : 'rgba(15,23,42,0.6)'};border:1px solid ${isChecked ? 'rgba(59,130,246,0.4)' : 'rgba(148,163,184,0.2)'};cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='rgba(59,130,246,0.15)'" onmouseout="this.style.background='${isChecked ? 'rgba(59,130,246,0.2)' : 'rgba(15,23,42,0.6)'}'">
+                          <input type="checkbox" data-c="${c._id}" ${isChecked ? 'checked' : ''} style="cursor:pointer;accent-color:#3b82f6;" />
+                          <span style="font-size:13px;color:#f8fafc;">${c.name || c.email}</span>
+                        </label>
+                      `;
+                    }).join('') : '<div style="color:rgba(226,232,240,0.6);font-size:12px;">No hay empresas disponibles</div>'}
+                  </div>
+                  <div style="margin-top:8px;font-size:11px;color:rgba(226,232,240,0.5);">
+                    Selecciona las empresas que este admin podrá gestionar. Si no seleccionas ninguna, podrá gestionar todas.
+                  </div>
+                </div>
+              </div>
+            ` : item.assignedCompanies && item.assignedCompanies.length > 0 ? `
+              <div style="border-top:1px solid rgba(148,163,184,0.2);padding-top:16px;">
+                <div style="font-size:12px;color:rgba(226,232,240,0.7);margin-bottom:8px;">Empresas asignadas:</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px;">
+                  ${item.assignedCompanies.map(ac => {
+                    const company = companies.find(c => String(c._id) === String(ac?._id || ac));
+                    return company ? `<span style="padding:4px 10px;border-radius:6px;background:rgba(59,130,246,0.15);color:#60a5fa;font-size:11px;">${company.name || company.email}</span>` : '';
+                  }).filter(Boolean).join('')}
+                </div>
+              </div>
+            ` : ''}
           </div>
-        </div>`;
-        div.querySelector('.approve').onclick = async ()=>{
-          const selected = Array.from(div.querySelectorAll('input[type=checkbox][data-c]:checked')).map(x=>x.dataset.c);
-          try{
-            const res = await req(`/api/v1/admin/signup/requests/${item._id}/approve`, { method:'POST', body:{ companies: selected } });
-            alert(`Codigo generado: ${res.code}\nCompartelo con el solicitante.`);
-            loadReqs();
-          }catch(e){ alert(e.message||'Error'); }
-        };
+        `;
+        
+        const approveBtn = div.querySelector('.approve-btn');
+        if(approveBtn){
+          approveBtn.onclick = async ()=>{
+            if(!confirm(`¿Estás seguro de aprobar la solicitud de ${item.email}?`)) return;
+            
+            const selected = Array.from(div.querySelectorAll('input[type=checkbox][data-c]:checked')).map(x=>x.dataset.c);
+            approveBtn.disabled = true;
+            approveBtn.textContent = 'Procesando...';
+            approveBtn.style.opacity = '0.6';
+            approveBtn.style.cursor = 'not-allowed';
+            
+            try{
+              const res = await req(`/api/v1/admin/signup/requests/${item._id}/approve`, { 
+                method:'POST', 
+                body:{ companies: selected } 
+              });
+              
+              const codeMsg = `✅ Solicitud aprobada exitosamente!\n\n📧 Email: ${item.email}\n🔑 Código de activación: ${res.code}\n\n⚠️ IMPORTANTE: Comparte este código con el solicitante. Necesitará este código para completar su registro.`;
+              
+              // Mostrar modal más bonito
+              const modal = document.createElement('div');
+              modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:10000;backdrop-filter:blur(4px);';
+              modal.innerHTML = `
+                <div style="background:rgba(15,23,42,0.95);border:1px solid rgba(148,163,184,0.3);border-radius:20px;padding:32px;max-width:500px;width:90%;box-shadow:0 24px 60px rgba(0,0,0,0.5);">
+                  <h3 style="margin:0 0 16px;color:#f8fafc;font-size:20px;">✅ Solicitud Aprobada</h3>
+                  <div style="background:rgba(15,23,42,0.6);border-radius:12px;padding:16px;margin-bottom:20px;border:1px solid rgba(148,163,184,0.2);">
+                    <div style="margin-bottom:12px;color:rgba(226,232,240,0.9);">
+                      <strong style="color:#f8fafc;">Email:</strong> ${item.email}
+                    </div>
+                    <div style="margin-bottom:12px;">
+                      <div style="font-size:12px;color:rgba(226,232,240,0.7);margin-bottom:6px;">Código de activación:</div>
+                      <div style="background:rgba(16,185,129,0.15);border:2px solid rgba(16,185,129,0.4);border-radius:10px;padding:12px;font-family:monospace;font-size:24px;font-weight:700;color:#10b981;text-align:center;letter-spacing:4px;">
+                        ${res.code}
+                      </div>
+                    </div>
+                    <div style="padding:10px;background:rgba(245,158,11,0.1);border-left:3px solid #f59e0b;border-radius:6px;font-size:12px;color:#fbbf24;">
+                      ⚠️ Comparte este código con el solicitante. Necesitará este código para completar su registro.
+                    </div>
+                  </div>
+                  <button onclick="this.closest('div[style*=\\'position:fixed\\']').remove()" style="width:100%;padding:12px;border-radius:10px;border:none;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;font-weight:600;cursor:pointer;">
+                    Cerrar
+                  </button>
+                </div>
+              `;
+              document.body.appendChild(modal);
+              modal.onclick = (e) => { if(e.target === modal) modal.remove(); };
+              
+              loadReqs();
+            }catch(e){ 
+              approveBtn.disabled = false;
+              approveBtn.textContent = '✅ Aprobar';
+              approveBtn.style.opacity = '1';
+              approveBtn.style.cursor = 'pointer';
+              alert('❌ Error: ' + (e.message||'Error desconocido')); 
+            }
+          };
+        }
+        
         wrap.appendChild(div);
       });
-      if(!wrap.children.length){ wrap.innerHTML = '<div class="muted">Sin solicitudes pendientes</div>'; }
     }catch(e){
-      wrap.innerHTML = `<div class='muted'>${e.message||'Error'}</div>`;
+      wrap.innerHTML = `<div style="padding:24px;text-align:center;color:#ef4444;">❌ Error: ${e.message||'Error desconocido'}</div>`;
       setHeroStat('stat-requests', 0);
     }
   }
