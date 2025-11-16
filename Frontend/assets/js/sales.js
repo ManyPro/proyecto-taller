@@ -9740,17 +9740,14 @@ function showReport(reportData, fechaDesde, fechaHasta) {
           <p class="text-blue-100 text-sm">Período: ${new Date(fechaDesde).toLocaleDateString('es-CO')} - ${new Date(fechaHasta).toLocaleDateString('es-CO')}</p>
         </div>
         <div class="flex flex-col sm:flex-row gap-2">
-          <button id="report-download-pdf" class="px-4 py-2 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-lg transition-all duration-200 whitespace-nowrap">
-            📥 Descargar PDF
-          </button>
           <button id="report-download-image" class="px-4 py-2 bg-green-600/80 hover:bg-green-600 text-white font-semibold rounded-lg transition-all duration-200 whitespace-nowrap">
-            🖼️ Exportar Imagen
+            🖨️ Imprimir Reporte
           </button>
         </div>
       </div>
-      <!-- Opciones de selección para exportar imagen -->
+      <!-- Opciones de selección para imprimir reporte -->
       <div class="mt-4 pt-4 border-t border-blue-500/30">
-        <p class="text-blue-100 text-xs mb-3 font-semibold">Selecciona las secciones a incluir en la imagen:</p>
+        <p class="text-blue-100 text-xs mb-3 font-semibold">Selecciona las secciones a incluir en el reporte:</p>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
           <label class="report-checkbox-label flex items-center gap-2 text-blue-100 text-xs cursor-pointer hover:text-white transition-colors">
             <input type="checkbox" class="report-section-checkbox" data-section="resumen" checked>
@@ -9969,10 +9966,6 @@ function showReport(reportData, fechaDesde, fechaHasta) {
     loadHistorial(true);
   });
   
-  document.getElementById('report-download-pdf')?.addEventListener('click', () => {
-    downloadReportPDF(reportData, fechaDesde, fechaHasta);
-  });
-  
   document.getElementById('report-download-image')?.addEventListener('click', () => {
     exportReportAsImage(reportData, fechaDesde, fechaHasta);
   });
@@ -9990,7 +9983,7 @@ function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
   const selectedSections = Array.from(checkboxes).map(cb => cb.dataset.section);
   
   if (selectedSections.length === 0) {
-    alert('Por favor selecciona al menos una sección para exportar');
+    alert('Por favor selecciona al menos una sección para imprimir');
     return;
   }
   
@@ -10014,7 +10007,7 @@ function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     const originalText = btn?.textContent || '';
     if (btn) {
       btn.disabled = true;
-      btn.textContent = '📄 Abriendo página de exportación...';
+      btn.textContent = '📄 Abriendo página de impresión...';
       setTimeout(() => {
         btn.disabled = false;
         btn.textContent = originalText;
