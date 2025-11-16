@@ -10088,14 +10088,26 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
   return html;
 }
 
+// Flag para prevenir múltiples ejecuciones simultáneas
+let isExportingImage = false;
+
 async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
+  // Prevenir múltiples ejecuciones
+  if (isExportingImage) {
+    console.log('⏳ Exportación ya en progreso, esperando...');
+    return;
+  }
+  
   try {
+    isExportingImage = true;
+    
     // Obtener secciones seleccionadas
     const checkboxes = document.querySelectorAll('.report-section-checkbox:checked');
     const selectedSections = Array.from(checkboxes).map(cb => cb.dataset.section);
     
     if (selectedSections.length === 0) {
       alert('Por favor selecciona al menos una sección para exportar');
+      isExportingImage = false;
       return;
     }
     
@@ -10104,30 +10116,45 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     const originalText = btn?.textContent || '';
     if (btn) {
       btn.disabled = true;
-      btn.textContent = '⏳ Generando imagen...';
+      btn.textContent = '⏳ Generando imagen... (esto puede tomar tiempo)';
+    }
+    
+    console.log('🚀 Iniciando exportación de imagen del reporte...');
+    
+    // Limpiar cualquier contenedor anterior que pueda quedar
+    const existingContainer = document.getElementById('report-export-container');
+    if (existingContainer && existingContainer.parentNode) {
+      document.body.removeChild(existingContainer);
+    }
+    
+    // Limpiar gráfico anterior si existe
+    if (window.chartInstance) {
+      window.chartInstance.destroy();
+      window.chartInstance = null;
     }
     
     // Cargar html2canvas
+    console.log('📦 Cargando html2canvas...');
     const html2canvas = await ensureHtml2Canvas();
+    console.log('✅ html2canvas cargado');
     
     // Convertir pulgadas a píxeles (11in x 8.5in a 96 DPI = 1056px x 816px)
-    // Usar una escala más alta para mejor calidad (2x = 2112px x 1632px)
     const targetWidthPx = 1056; // 11in * 96 DPI
     const targetHeightPx = 816; // 8.5in * 96 DPI
     
-    // Crear contenedor temporal para la imagen - SIN estilos que puedan interferir
+    // Crear contenedor temporal fuera de la vista
     const exportContainer = document.createElement('div');
     exportContainer.id = 'report-export-container';
     exportContainer.style.cssText = `
-      position: absolute;
-      left: 0;
+      position: fixed;
+      left: -9999px;
       top: 0;
       width: ${targetWidthPx}px;
       min-height: ${targetHeightPx}px;
       background: transparent;
       overflow: visible;
       z-index: 99999;
-      visibility: hidden;
+      visibility: visible;
     `;
     
     // Crear wrapper para el contenido
@@ -10137,26 +10164,33 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       min-height: ${targetHeightPx}px;
       position: relative;
       background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      box-sizing: border-box;
     `;
     
     // Generar HTML optimizado
+    console.log('📝 Generando HTML del reporte...');
     const htmlContent = generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections);
     wrapper.innerHTML = htmlContent;
     exportContainer.appendChild(wrapper);
     document.body.appendChild(exportContainer);
     
-    // Forzar layout calculation en ambos contenedores
-    void exportContainer.offsetHeight;
-    void wrapper.offsetHeight;
+    console.log('✅ HTML generado e insertado en el DOM');
     
-    // Esperar a que el DOM se actualice completamente
+    // Esperar a que el DOM se actualice completamente - múltiples pasos
+    console.log('⏳ Esperando renderizado inicial del DOM...');
     await new Promise(resolve => {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          resolve();
+          setTimeout(resolve, 500); // Aumentar tiempo de espera inicial
         });
       });
     });
+    
+    // Forzar múltiples reflows
+    void exportContainer.offsetHeight;
+    void wrapper.offsetHeight;
+    void wrapper.scrollHeight;
+    void wrapper.clientHeight;
     
     // Esperar a que todas las imágenes se carguen
     const images = wrapper.querySelectorAll('img');
@@ -10168,27 +10202,34 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
           return Promise.resolve();
         }
         return new Promise((resolve) => {
+          const timeout = setTimeout(() => {
+            console.warn(`⏱️ Timeout esperando imagen ${idx + 1}, continuando...`);
+            resolve();
+          }, 10000); // Aumentar timeout a 10 segundos
+          
           img.onload = () => {
+            clearTimeout(timeout);
             console.log(`✅ Imagen ${idx + 1} cargada`);
             resolve();
           };
           img.onerror = () => {
+            clearTimeout(timeout);
             console.warn(`⚠️ Error cargando imagen ${idx + 1}, continuando...`);
-            resolve(); // Continuar aunque falle la imagen
-          };
-          setTimeout(() => {
-            console.warn(`⏱️ Timeout esperando imagen ${idx + 1}, continuando...`);
             resolve();
-          }, 3000); // Timeout de 3 segundos
+          };
         });
       }));
+      console.log('✅ Todas las imágenes procesadas');
     }
     
-    // Si hay gráfico seleccionado, crearlo
+    // Si hay gráfico seleccionado, crearlo y esperar a que se renderice completamente
     if (selectedSections.includes('grafico') && reportData.manoObra && reportData.manoObra.porTecnico && reportData.manoObra.porTecnico.length > 0 && window.Chart) {
-      await new Promise(resolve => setTimeout(resolve, 300));
+      console.log('📊 Creando gráfico...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const chartContainer = wrapper.querySelector('#chart-container-export');
       const chartCanvas = wrapper.querySelector('#chart-canvas-export');
+      
       if (chartCanvas && chartContainer) {
         const ctx = chartCanvas.getContext('2d', { willReadFrequently: true });
         const labels = reportData.manoObra.porTecnico.map(t => t.tecnico);
@@ -10197,8 +10238,10 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
         // Destruir gráfico anterior si existe
         if (window.chartInstance) {
           window.chartInstance.destroy();
+          window.chartInstance = null;
         }
         
+        // Crear nuevo gráfico
         window.chartInstance = new Chart(ctx, {
           type: 'pie',
           data: {
@@ -10214,6 +10257,9 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
           options: {
             responsive: false,
             maintainAspectRatio: false,
+            animation: {
+              duration: 0 // Desactivar animación para renderizado más rápido
+            },
             plugins: {
               legend: {
                 position: 'bottom',
@@ -10226,72 +10272,72 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
             }
           }
         });
-        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        // Esperar a que el gráfico se renderice completamente
+        console.log('⏳ Esperando renderizado del gráfico...');
+        await new Promise(resolve => {
+          // Esperar múltiples frames para asegurar renderizado completo
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              setTimeout(() => {
+                // Forzar actualización del canvas
+                window.chartInstance.update('none');
+                setTimeout(resolve, 1000); // Esperar 1 segundo adicional para el gráfico
+              }, 500);
+            });
+          });
+        });
+        console.log('✅ Gráfico renderizado');
       }
     }
     
-    // Forzar múltiples reflows para asegurar que todo esté renderizado
+    // Esperar más tiempo para que todos los estilos se apliquen
+    console.log('⏳ Esperando aplicación final de estilos...');
+    await new Promise(resolve => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(resolve, 800); // Aumentar tiempo de espera final
+        });
+      });
+    });
+    
+    // Forzar reflows finales
     void exportContainer.offsetHeight;
     void wrapper.offsetHeight;
     void wrapper.scrollHeight;
     void wrapper.clientHeight;
     
-    // Esperar a que los estilos se apliquen completamente
-    await new Promise(resolve => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setTimeout(resolve, 300);
-        });
-      });
-    });
-    
-    // Obtener dimensiones reales del contenido desde el wrapper
+    // Obtener dimensiones reales del contenido
     const actualWidth = Math.max(wrapper.scrollWidth || wrapper.clientWidth || targetWidthPx, targetWidthPx);
     const actualHeight = Math.max(wrapper.scrollHeight || wrapper.clientHeight || targetHeightPx, targetHeightPx);
     
-    console.log('📐 Dimensiones del contenedor:', {
-      wrapperScrollWidth: wrapper.scrollWidth,
-      wrapperScrollHeight: wrapper.scrollHeight,
-      wrapperClientWidth: wrapper.clientWidth,
-      wrapperClientHeight: wrapper.clientHeight,
-      containerScrollWidth: exportContainer.scrollWidth,
-      containerScrollHeight: exportContainer.scrollHeight,
+    console.log('📐 Dimensiones finales:', {
       actualWidth,
       actualHeight,
-      targetWidth: targetWidthPx,
-      targetHeight: targetHeightPx
+      scrollWidth: wrapper.scrollWidth,
+      scrollHeight: wrapper.scrollHeight
     });
-    
-    // Hacer visible el contenedor justo antes de capturar (pero fuera de la vista)
-    exportContainer.style.visibility = 'visible';
-    exportContainer.style.position = 'fixed';
-    exportContainer.style.left = '-9999px';
-    exportContainer.style.top = '0';
     
     // Asegurar que el wrapper tenga el tamaño correcto
     wrapper.style.width = `${actualWidth}px`;
     wrapper.style.minHeight = `${actualHeight}px`;
     
-    // Forzar un último reflow
+    // Forzar un último reflow antes de capturar
     void wrapper.offsetHeight;
+    void wrapper.scrollHeight;
     
-    // Capturar como imagen con configuración optimizada - capturar el wrapper directamente
-    console.log('📸 Iniciando captura con html2canvas...');
-    console.log('📦 Wrapper dimensions:', {
-      width: wrapper.offsetWidth,
-      height: wrapper.offsetHeight,
-      scrollWidth: wrapper.scrollWidth,
-      scrollHeight: wrapper.scrollHeight,
-      computedStyle: window.getComputedStyle(wrapper).width,
-      computedHeight: window.getComputedStyle(wrapper).height
-    });
+    // Esperar un momento más antes de capturar
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Capturar como imagen
+    console.log('📸 Iniciando captura con html2canvas (esto puede tomar tiempo)...');
     
     const canvas = await html2canvas(wrapper, {
       scale: 2,
       backgroundColor: '#0f172a',
       useCORS: true,
       allowTaint: false,
-      logging: true, // Habilitar logging para debug
+      logging: false, // Desactivar logging para mejor rendimiento
       width: actualWidth,
       height: actualHeight,
       windowWidth: actualWidth,
@@ -10300,22 +10346,19 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       y: 0,
       scrollX: 0,
       scrollY: 0,
-      imageTimeout: 15000,
+      imageTimeout: 30000, // Aumentar timeout a 30 segundos
       removeContainer: false,
       onclone: (clonedDoc, element) => {
         // Asegurar que el clon tenga las dimensiones correctas
         const clonedMain = clonedDoc.getElementById('report-export-main-container');
         if (clonedMain) {
-          clonedMain.style.width = `${actualWidth}px !important`;
-          clonedMain.style.minHeight = `${actualHeight}px !important`;
-          clonedMain.style.maxWidth = `${actualWidth}px !important`;
-          console.log('✅ Clon del contenedor principal preparado');
+          clonedMain.style.width = `${actualWidth}px`;
+          clonedMain.style.minHeight = `${actualHeight}px`;
+          clonedMain.style.maxWidth = `${actualWidth}px`;
         }
-        // Asegurar que el elemento clonado tenga las dimensiones correctas
         if (element) {
           element.style.width = `${actualWidth}px`;
           element.style.minHeight = `${actualHeight}px`;
-          console.log('✅ Elemento clonado preparado');
         }
       }
     });
@@ -10325,20 +10368,25 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       height: canvas.height
     });
     
-    // Limpiar gráfico si existe
+    // Limpiar gráfico
     if (window.chartInstance) {
       window.chartInstance.destroy();
       window.chartInstance = null;
     }
     
-    // Limpiar contenedor y wrapper
+    // Limpiar contenedor
     if (exportContainer && exportContainer.parentNode) {
       document.body.removeChild(exportContainer);
     }
     
+    // Formatear fechas correctamente
+    const dateFrom = fechaDesde instanceof Date ? fechaDesde : new Date(fechaDesde);
+    const dateTo = fechaHasta instanceof Date ? fechaHasta : new Date(fechaHasta);
+    const dateStr = `${dateFrom.toLocaleDateString('es-CO')}_${dateTo.toLocaleDateString('es-CO')}`.replace(/\//g, '-');
+    
     // Descargar imagen
+    console.log('💾 Descargando imagen...');
     const link = document.createElement('a');
-    const dateStr = `${fechaDesde}_${fechaHasta}`.replace(/\//g, '-');
     link.download = `reporte-ventas-${dateStr}.png`;
     link.href = canvas.toDataURL('image/png', 1.0);
     document.body.appendChild(link);
@@ -10353,9 +10401,10 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     console.log('✅ Imagen exportada correctamente');
     
   } catch (error) {
-    console.error('Error exportando imagen:', error);
+    console.error('❌ Error exportando imagen:', error);
     console.error('Stack:', error.stack);
     alert('Error al exportar imagen: ' + (error.message || 'Error desconocido'));
+    
     const btn = document.getElementById('report-download-image');
     if (btn) {
       btn.disabled = false;
@@ -10373,6 +10422,8 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       window.chartInstance.destroy();
       window.chartInstance = null;
     }
+  } finally {
+    isExportingImage = false;
   }
 }
 
