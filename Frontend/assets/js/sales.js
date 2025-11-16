@@ -9611,6 +9611,54 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
   
   const sectionCount = selectedSections.length;
   
+  // Calcular cantidad total de contenido para ajustar fuentes dinámicamente
+  let totalContentRows = 0;
+  if (hasCartera && reportData.cartera.deudores) {
+    totalContentRows += Math.min(reportData.cartera.deudores.length, 10);
+  }
+  if (hasManoObra && reportData.manoObra.porTecnico) {
+    totalContentRows += reportData.manoObra.porTecnico.length;
+  }
+  if (hasRestock && reportData.itemsNecesitanRestock) {
+    totalContentRows += Math.min(reportData.itemsNecesitanRestock.length, 15);
+  }
+  if (hasIngresos && reportData.ingresosPorCuenta) {
+    totalContentRows += Object.keys(reportData.ingresosPorCuenta).length;
+  }
+  
+  // Calcular factores de escala de fuente basados en cantidad de contenido
+  // Más contenido = fuente más pequeña, menos contenido = fuente más grande
+  const baseFontScale = totalContentRows > 20 ? 0.85 : totalContentRows > 10 ? 0.9 : 1.0;
+  const headerFontScale = Math.max(0.8, baseFontScale);
+  const tableFontScale = Math.max(0.75, baseFontScale * 0.9);
+  const cardFontScale = Math.max(0.85, baseFontScale);
+  
+  // Tamaños de fuente base escalados
+  const fontSize = {
+    header: Math.round(32 * headerFontScale),
+    headerSub: Math.round(16 * headerFontScale),
+    sectionTitle: Math.round(18 * cardFontScale),
+    cardLabel: Math.round(13 * cardFontScale),
+    cardValue: Math.round(28 * cardFontScale),
+    cardValueSmall: Math.round(24 * cardFontScale),
+    cardSubtext: Math.round(11 * cardFontScale),
+    tableHeader: Math.round(12 * tableFontScale),
+    tableCell: Math.round(12 * tableFontScale),
+    tableCellSmall: Math.round(11 * tableFontScale),
+    infoText: Math.round(12 * cardFontScale),
+    infoTextSmall: Math.round(10 * cardFontScale)
+  };
+  
+  // Padding y spacing ajustados según contenido
+  const spacing = {
+    padding: totalContentRows > 20 ? '16px' : '20px',
+    paddingSmall: totalContentRows > 20 ? '12px' : '16px',
+    gap: totalContentRows > 20 ? '12px' : '16px',
+    gapSmall: totalContentRows > 20 ? '8px' : '10px',
+    tablePadding: totalContentRows > 20 ? '8px' : '10px',
+    tablePaddingSmall: totalContentRows > 20 ? '6px' : '8px'
+  };
+  
   // Calcular columnas según cantidad de secciones
   let gridCols = 'grid-cols-2';
   if (sectionCount <= 2) gridCols = 'grid-cols-2';
@@ -9623,11 +9671,40 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
       width: 11in;
       min-height: 8.5in;
       background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-      padding: 32px;
+      padding: ${totalContentRows > 20 ? '24px' : '32px'};
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       color: #e5e7eb;
       box-sizing: border-box;
+      overflow: hidden;
     ">
+      <style>
+        /* Estilos globales para prevenir sobreposición de texto */
+        * {
+          box-sizing: border-box;
+        }
+        /* Asegurar que todas las celdas de tabla manejen texto largo correctamente */
+        table {
+          table-layout: fixed;
+          width: 100%;
+        }
+        table td, table th {
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          hyphens: auto;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        /* Mejorar line-height para mejor legibilidad */
+        div, p, span {
+          line-height: 1.4;
+        }
+        /* Asegurar que los números largos se ajusten */
+        .money-value {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      </style>
       <!-- Header -->
       <div style="
         background: linear-gradient(135deg, #2563eb, #1d4ed8);
@@ -9636,10 +9713,10 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
         margin-bottom: 24px;
         box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
       ">
-        <h1 style="margin: 0; font-size: 32px; font-weight: 700; color: white; margin-bottom: 8px;">
+        <h1 style="margin: 0; font-size: ${fontSize.header}px; font-weight: 700; color: white; margin-bottom: 8px; line-height: 1.2;">
           📊 Reporte de Ventas
         </h1>
-        <p style="margin: 0; font-size: 16px; color: rgba(255, 255, 255, 0.9);">
+        <p style="margin: 0; font-size: ${fontSize.headerSub}px; color: rgba(255, 255, 255, 0.9); line-height: 1.3;">
           Período: ${periodStr}
         </p>
       </div>
@@ -9654,49 +9731,49 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
         grid-column: 1 / -1;
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 16px;
+        gap: ${spacing.gap};
         margin-bottom: 8px;
       ">
         <div style="
           background: rgba(30, 41, 59, 0.8);
-          padding: 20px;
+          padding: ${spacing.padding};
           border-radius: 12px;
           border: 1px solid rgba(148, 163, 184, 0.2);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         ">
-          <div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px; font-weight: 500;">Total Ventas</div>
-          <div style="font-size: 28px; font-weight: 700; color: white;">${reportData.ventas.total}</div>
+          <div style="font-size: ${fontSize.cardLabel}px; color: #94a3b8; margin-bottom: 8px; font-weight: 500; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">Total Ventas</div>
+          <div style="font-size: ${fontSize.cardValue}px; font-weight: 700; color: white; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">${reportData.ventas.total}</div>
         </div>
         <div style="
           background: rgba(30, 41, 59, 0.8);
-          padding: 20px;
+          padding: ${spacing.padding};
           border-radius: 12px;
           border: 1px solid rgba(148, 163, 184, 0.2);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         ">
-          <div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px; font-weight: 500;">Ingresos Totales</div>
-          <div style="font-size: 28px; font-weight: 700; color: #10b981;">${formatMoneyExport(reportData.ventas.ingresos)}</div>
+          <div style="font-size: ${fontSize.cardLabel}px; color: #94a3b8; margin-bottom: 8px; font-weight: 500; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">Ingresos Totales</div>
+          <div style="font-size: ${fontSize.cardValue}px; font-weight: 700; color: #10b981; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">${formatMoneyExport(reportData.ventas.ingresos)}</div>
         </div>
         <div style="
           background: rgba(30, 41, 59, 0.8);
-          padding: 20px;
+          padding: ${spacing.padding};
           border-radius: 12px;
           border: 1px solid rgba(148, 163, 184, 0.2);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         ">
-          <div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px; font-weight: 500;">Valor en Cartera</div>
-          <div style="font-size: 28px; font-weight: 700; color: #fbbf24;">${formatMoneyExport(reportData.cartera.valor)}</div>
-          <div style="font-size: 11px; color: #64748b; margin-top: 4px;">${reportData.cartera.totalDeudores} cuenta(s) pendiente(s)</div>
+          <div style="font-size: ${fontSize.cardLabel}px; color: #94a3b8; margin-bottom: 8px; font-weight: 500; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">Valor en Cartera</div>
+          <div style="font-size: ${fontSize.cardValue}px; font-weight: 700; color: #fbbf24; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">${formatMoneyExport(reportData.cartera.valor)}</div>
+          <div style="font-size: ${fontSize.cardSubtext}px; color: #64748b; margin-top: 4px; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">${reportData.cartera.totalDeudores} cuenta(s) pendiente(s)</div>
         </div>
         <div style="
           background: rgba(30, 41, 59, 0.8);
-          padding: 20px;
+          padding: ${spacing.padding};
           border-radius: 12px;
           border: 1px solid rgba(148, 163, 184, 0.2);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         ">
-          <div style="font-size: 13px; color: #94a3b8; margin-bottom: 8px; font-weight: 500;">Total Agendas</div>
-          <div style="font-size: 28px; font-weight: 700; color: #60a5fa;">${reportData.agendas.total}</div>
+          <div style="font-size: ${fontSize.cardLabel}px; color: #94a3b8; margin-bottom: 8px; font-weight: 500; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">Total Agendas</div>
+          <div style="font-size: ${fontSize.cardValue}px; font-weight: 700; color: #60a5fa; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">${reportData.agendas.total}</div>
         </div>
       </div>
     `;
@@ -9707,24 +9784,24 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
     html += `
       <div style="
         background: rgba(30, 41, 59, 0.8);
-        padding: 20px;
+        padding: ${spacing.padding};
         border-radius: 12px;
         border: 1px solid rgba(148, 163, 184, 0.2);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
       ">
-        <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 700; color: white;">💵 Flujo de Caja</h3>
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
-          <div style="background: rgba(16, 185, 129, 0.15); padding: 16px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
-            <div style="font-size: 12px; color: #6ee7b7; margin-bottom: 6px;">Entradas</div>
-            <div style="font-size: 20px; font-weight: 700; color: #10b981;">${formatMoneyExport(reportData.flujoCaja.entrada)}</div>
+        <h3 style="margin: 0 0 ${spacing.gap} 0; font-size: ${fontSize.sectionTitle}px; font-weight: 700; color: white; line-height: 1.2;">💵 Flujo de Caja</h3>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: ${spacing.gapSmall};">
+          <div style="background: rgba(16, 185, 129, 0.15); padding: ${spacing.paddingSmall}; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
+            <div style="font-size: ${fontSize.infoTextSmall}px; color: #6ee7b7; margin-bottom: 6px; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">Entradas</div>
+            <div style="font-size: ${Math.round(fontSize.cardValue * 0.7)}px; font-weight: 700; color: #10b981; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">${formatMoneyExport(reportData.flujoCaja.entrada)}</div>
           </div>
-          <div style="background: rgba(239, 68, 68, 0.15); padding: 16px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
-            <div style="font-size: 12px; color: #fca5a5; margin-bottom: 6px;">Salidas</div>
-            <div style="font-size: 20px; font-weight: 700; color: #ef4444;">${formatMoneyExport(reportData.flujoCaja.salida)}</div>
+          <div style="background: rgba(239, 68, 68, 0.15); padding: ${spacing.paddingSmall}; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+            <div style="font-size: ${fontSize.infoTextSmall}px; color: #fca5a5; margin-bottom: 6px; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">Salidas</div>
+            <div style="font-size: ${Math.round(fontSize.cardValue * 0.7)}px; font-weight: 700; color: #ef4444; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">${formatMoneyExport(reportData.flujoCaja.salida)}</div>
           </div>
-          <div style="background: rgba(59, 130, 246, 0.15); padding: 16px; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
-            <div style="font-size: 12px; color: #93c5fd; margin-bottom: 6px;">Neto</div>
-            <div style="font-size: 20px; font-weight: 700; color: #3b82f6;">${formatMoneyExport(reportData.flujoCaja.neto)}</div>
+          <div style="background: rgba(59, 130, 246, 0.15); padding: ${spacing.paddingSmall}; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
+            <div style="font-size: ${fontSize.infoTextSmall}px; color: #93c5fd; margin-bottom: 6px; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">Neto</div>
+            <div style="font-size: ${Math.round(fontSize.cardValue * 0.7)}px; font-weight: 700; color: #3b82f6; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">${formatMoneyExport(reportData.flujoCaja.neto)}</div>
           </div>
         </div>
       </div>
@@ -9737,30 +9814,30 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
     html += `
       <div style="
         background: rgba(30, 41, 59, 0.8);
-        padding: 20px;
+        padding: ${spacing.padding};
         border-radius: 12px;
         border: 1px solid rgba(148, 163, 184, 0.2);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
       ">
-        <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 700; color: white;">💰 Ingresos por Cuenta</h3>
+        <h3 style="margin: 0 0 ${spacing.gap} 0; font-size: ${fontSize.sectionTitle}px; font-weight: 700; color: white; line-height: 1.2;">💰 Ingresos por Cuenta</h3>
         ${ingresosEntries.length > 0 ? `
-          <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; flex-direction: column; gap: ${spacing.gapSmall};">
             ${ingresosEntries.map(([cuenta, monto]) => `
               <div style="
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                padding: 12px 16px;
+                padding: ${spacing.tablePadding} ${spacing.paddingSmall};
                 background: rgba(15, 23, 42, 0.5);
                 border-radius: 8px;
                 border: 1px solid rgba(148, 163, 184, 0.1);
               ">
-                <span style="font-weight: 600; color: white;">${escapeHtmlExport(cuenta)}</span>
-                <span style="font-weight: 700; color: #10b981; font-size: 16px;">${formatMoneyExport(monto)}</span>
+                <span style="font-weight: 600; color: white; font-size: ${fontSize.infoText}px; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word; flex: 1; margin-right: 8px;">${escapeHtmlExport(cuenta)}</span>
+                <span style="font-weight: 700; color: #10b981; font-size: ${fontSize.infoText}px; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word; flex-shrink: 0;">${formatMoneyExport(monto)}</span>
               </div>
             `).join('')}
           </div>
-        ` : '<p style="color: #64748b; text-align: center; padding: 20px;">No hay ingresos registrados</p>'}
+        ` : `<p style="color: #64748b; text-align: center; padding: ${spacing.padding}; font-size: ${fontSize.infoText}px; line-height: 1.4;">No hay ingresos registrados</p>`}
       </div>
     `;
   }
@@ -9770,55 +9847,59 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
     html += `
       <div style="
         background: rgba(30, 41, 59, 0.8);
-        padding: 20px;
+        padding: ${spacing.padding};
         border-radius: 12px;
         border: 1px solid rgba(148, 163, 184, 0.2);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         ${reportData.cartera.deudores.length > 0 ? 'grid-column: 1 / -1;' : ''}
       ">
-        <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 700; color: white;">💼 Reporte de Cartera</h3>
+        <h3 style="margin: 0 0 ${spacing.gap} 0; font-size: ${fontSize.sectionTitle}px; font-weight: 700; color: white; line-height: 1.2;">💼 Reporte de Cartera</h3>
         <div style="
           background: rgba(251, 191, 36, 0.15);
-          padding: 16px;
+          padding: ${spacing.paddingSmall};
           border-radius: 8px;
           border: 1px solid rgba(251, 191, 36, 0.3);
-          margin-bottom: 16px;
+          margin-bottom: ${spacing.gap};
         ">
-          <div style="font-size: 13px; color: #fcd34d; margin-bottom: 6px;">Valor Total en Cartera</div>
-          <div style="font-size: 24px; font-weight: 700; color: #fbbf24;">${formatMoneyExport(reportData.cartera.valor)}</div>
-          <div style="font-size: 12px; color: #fbbf24; margin-top: 4px;">${reportData.cartera.totalDeudores} cuenta(s) pendiente(s)</div>
+          <div style="font-size: ${fontSize.cardLabel}px; color: #fcd34d; margin-bottom: 6px; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">Valor Total en Cartera</div>
+          <div style="font-size: ${fontSize.cardValueSmall}px; font-weight: 700; color: #fbbf24; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">${formatMoneyExport(reportData.cartera.valor)}</div>
+          <div style="font-size: ${fontSize.infoTextSmall}px; color: #fbbf24; margin-top: 4px; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">${reportData.cartera.totalDeudores} cuenta(s) pendiente(s)</div>
         </div>
         ${reportData.cartera.deudores.length > 0 ? `
           <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: ${fontSize.tableCell}px; table-layout: fixed;">
               <thead>
                 <tr style="background: rgba(15, 23, 42, 0.6); border-bottom: 2px solid rgba(148, 163, 184, 0.3);">
-                  <th style="padding: 10px; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Cliente</th>
-                  <th style="padding: 10px; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">ID</th>
-                  <th style="padding: 10px; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Placa</th>
-                  <th style="padding: 10px; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Venta</th>
-                  <th style="padding: 10px; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Total</th>
-                  <th style="padding: 10px; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Pagado</th>
-                  <th style="padding: 10px; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Pendiente</th>
-                  <th style="padding: 10px; text-align: center; color: #cbd5e1; font-weight: 600;">Estado</th>
+                  <th style="padding: ${spacing.tablePadding}; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2); width: 20%; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">Cliente</th>
+                  <th style="padding: ${spacing.tablePadding}; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2); width: 12%; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">ID</th>
+                  <th style="padding: ${spacing.tablePadding}; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2); width: 10%; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">Placa</th>
+                  <th style="padding: ${spacing.tablePadding}; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2); width: 10%; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">Venta</th>
+                  <th style="padding: ${spacing.tablePadding}; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2); width: 14%; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">Total</th>
+                  <th style="padding: ${spacing.tablePadding}; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2); width: 14%; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">Pagado</th>
+                  <th style="padding: ${spacing.tablePadding}; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2); width: 14%; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">Pendiente</th>
+                  <th style="padding: ${spacing.tablePadding}; text-align: center; color: #cbd5e1; font-weight: 600; width: 6%; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">Estado</th>
                 </tr>
               </thead>
               <tbody>
                 ${reportData.cartera.deudores.slice(0, 10).map(d => `
                   <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
-                    <td style="padding: 10px; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1);">${escapeHtmlExport(d.cliente)}</td>
-                    <td style="padding: 10px; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1);">${escapeHtmlExport(d.identificacion)}</td>
-                    <td style="padding: 10px; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1); font-family: monospace;">${escapeHtmlExport(d.placa)}</td>
-                    <td style="padding: 10px; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1);">${escapeHtmlExport(d.venta)}</td>
-                    <td style="padding: 10px; text-align: right; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1);">${formatMoneyExport(d.total)}</td>
-                    <td style="padding: 10px; text-align: right; color: #10b981; border-right: 1px solid rgba(148, 163, 184, 0.1);">${formatMoneyExport(d.pagado)}</td>
-                    <td style="padding: 10px; text-align: right; color: #ef4444; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.1);">${formatMoneyExport(d.pendiente)}</td>
-                    <td style="padding: 10px; text-align: center;">
+                    <td style="padding: ${spacing.tablePadding}; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1); word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3; vertical-align: top;">${escapeHtmlExport(d.cliente)}</td>
+                    <td style="padding: ${spacing.tablePadding}; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1); word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3; vertical-align: top;">${escapeHtmlExport(d.identificacion)}</td>
+                    <td style="padding: ${spacing.tablePadding}; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1); font-family: monospace; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3; vertical-align: top;">${escapeHtmlExport(d.placa)}</td>
+                    <td style="padding: ${spacing.tablePadding}; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1); word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3; vertical-align: top;">${escapeHtmlExport(d.venta)}</td>
+                    <td style="padding: ${spacing.tablePadding}; text-align: right; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1); word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3; vertical-align: top;">${formatMoneyExport(d.total)}</td>
+                    <td style="padding: ${spacing.tablePadding}; text-align: right; color: #10b981; border-right: 1px solid rgba(148, 163, 184, 0.1); word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3; vertical-align: top;">${formatMoneyExport(d.pagado)}</td>
+                    <td style="padding: ${spacing.tablePadding}; text-align: right; color: #ef4444; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.1); word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3; vertical-align: top;">${formatMoneyExport(d.pendiente)}</td>
+                    <td style="padding: ${spacing.tablePadding}; text-align: center; vertical-align: top;">
                       <span style="
-                        padding: 4px 10px;
+                        padding: 3px 8px;
                         border-radius: 6px;
-                        font-size: 11px;
+                        font-size: ${fontSize.tableCellSmall}px;
                         font-weight: 600;
+                        line-height: 1.3;
+                        word-wrap: break-word;
+                        overflow-wrap: break-word;
+                        display: inline-block;
                         ${d.estado === 'Pendiente' ? 'background: rgba(251, 191, 36, 0.2); color: #fbbf24;' : 'background: rgba(59, 130, 246, 0.2); color: #60a5fa;'}
                       ">${escapeHtmlExport(d.estado)}</span>
                     </td>
@@ -9827,7 +9908,7 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
               </tbody>
             </table>
           </div>
-        ` : '<p style="color: #64748b; text-align: center; padding: 20px;">No hay cuentas pendientes</p>'}
+        ` : `<p style="color: #64748b; text-align: center; padding: ${spacing.padding}; font-size: ${fontSize.infoText}px; line-height: 1.4;">No hay cuentas pendientes</p>`}
       </div>
     `;
   }
@@ -9837,31 +9918,31 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
     html += `
       <div style="
         background: rgba(30, 41, 59, 0.8);
-        padding: 20px;
+        padding: ${spacing.padding};
         border-radius: 12px;
         border: 1px solid rgba(148, 163, 184, 0.2);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         ${hasGrafico ? '' : 'grid-column: 1 / -1;'}
       ">
-        <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 700; color: white;">👷 Mano de Obra por Técnico</h3>
+        <h3 style="margin: 0 0 ${spacing.gap} 0; font-size: ${fontSize.sectionTitle}px; font-weight: 700; color: white; line-height: 1.2;">👷 Mano de Obra por Técnico</h3>
         ${reportData.manoObra.porTecnico.length > 0 ? `
-          <div style="overflow-x: auto; margin-bottom: 16px;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+          <div style="overflow-x: auto; margin-bottom: ${spacing.gap};">
+            <table style="width: 100%; border-collapse: collapse; font-size: ${fontSize.tableCell}px; table-layout: fixed;">
               <thead>
                 <tr style="background: rgba(15, 23, 42, 0.6); border-bottom: 2px solid rgba(148, 163, 184, 0.3);">
-                  <th style="padding: 10px; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Técnico</th>
-                  <th style="padding: 10px; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Total</th>
-                  <th style="padding: 10px; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">${reportData.manoObra.porcentajeTecnico}% Técnico</th>
-                  <th style="padding: 10px; text-align: right; color: #cbd5e1; font-weight: 600;">${reportData.manoObra.porcentajeEmpresa}% Empresa</th>
+                  <th style="padding: ${spacing.tablePadding}; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2); width: 30%; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">Técnico</th>
+                  <th style="padding: ${spacing.tablePadding}; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2); width: 23%; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">Total</th>
+                  <th style="padding: ${spacing.tablePadding}; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2); width: 23%; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">${reportData.manoObra.porcentajeTecnico}% Técnico</th>
+                  <th style="padding: ${spacing.tablePadding}; text-align: right; color: #cbd5e1; font-weight: 600; width: 24%; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">${reportData.manoObra.porcentajeEmpresa}% Empresa</th>
                 </tr>
               </thead>
               <tbody>
                 ${reportData.manoObra.porTecnico.map(t => `
                   <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
-                    <td style="padding: 10px; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1);">${escapeHtmlExport(t.tecnico)}</td>
-                    <td style="padding: 10px; text-align: right; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1);">${formatMoneyExport(t.total)}</td>
-                    <td style="padding: 10px; text-align: right; color: #10b981; border-right: 1px solid rgba(148, 163, 184, 0.1);">${formatMoneyExport(t.montoTecnico)}</td>
-                    <td style="padding: 10px; text-align: right; color: #60a5fa;">${formatMoneyExport(t.montoEmpresa)}</td>
+                    <td style="padding: ${spacing.tablePadding}; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1); word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3; vertical-align: top;">${escapeHtmlExport(t.tecnico)}</td>
+                    <td style="padding: ${spacing.tablePadding}; text-align: right; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1); word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3; vertical-align: top;">${formatMoneyExport(t.total)}</td>
+                    <td style="padding: ${spacing.tablePadding}; text-align: right; color: #10b981; border-right: 1px solid rgba(148, 163, 184, 0.1); word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3; vertical-align: top;">${formatMoneyExport(t.montoTecnico)}</td>
+                    <td style="padding: ${spacing.tablePadding}; text-align: right; color: #60a5fa; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3; vertical-align: top;">${formatMoneyExport(t.montoEmpresa)}</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -9869,16 +9950,16 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
           </div>
           <div style="
             background: rgba(139, 92, 246, 0.15);
-            padding: 14px;
+            padding: ${spacing.paddingSmall};
             border-radius: 8px;
             border: 1px solid rgba(139, 92, 246, 0.3);
           ">
-            <div style="font-size: 12px; color: #c4b5fd; margin-bottom: 4px;">Tipo de Mano de Obra Más Usado</div>
-            <div style="font-size: 16px; font-weight: 700; color: #a78bfa;">
+            <div style="font-size: ${fontSize.infoTextSmall}px; color: #c4b5fd; margin-bottom: 4px; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">Tipo de Mano de Obra Más Usado</div>
+            <div style="font-size: ${fontSize.infoText}px; font-weight: 700; color: #a78bfa; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">
               ${escapeHtmlExport(reportData.manoObra.tipoMasUsado.nombre)} - ${formatMoneyExport(reportData.manoObra.tipoMasUsado.monto)}
             </div>
           </div>
-        ` : '<p style="color: #64748b; text-align: center; padding: 20px;">No hay datos de mano de obra</p>'}
+        ` : `<p style="color: #64748b; text-align: center; padding: ${spacing.padding}; font-size: ${fontSize.infoText}px; line-height: 1.4;">No hay datos de mano de obra</p>`}
       </div>
     `;
   }
@@ -9888,7 +9969,7 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
     html += `
       <div id="chart-container-export" style="
         background: rgba(30, 41, 59, 0.8);
-        padding: 20px;
+        padding: ${spacing.padding};
         border-radius: 12px;
         border: 1px solid rgba(148, 163, 184, 0.2);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -9898,7 +9979,7 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
         justify-content: center;
         min-height: 300px;
       ">
-        <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 700; color: white;">📊 Distribución de Mano de Obra</h3>
+        <h3 style="margin: 0 0 ${spacing.gap} 0; font-size: ${fontSize.sectionTitle}px; font-weight: 700; color: white; line-height: 1.2;">📊 Distribución de Mano de Obra</h3>
         <canvas id="chart-canvas-export" width="400" height="400"></canvas>
       </div>
     `;
@@ -9909,37 +9990,37 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
     html += `
       <div style="
         background: rgba(30, 41, 59, 0.8);
-        padding: 20px;
+        padding: ${spacing.padding};
         border-radius: 12px;
         border: 1px solid rgba(148, 163, 184, 0.2);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         grid-column: 1 / -1;
       ">
-        <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 700; color: white;">⚠️ Ítems que Necesitan Restock</h3>
+        <h3 style="margin: 0 0 ${spacing.gap} 0; font-size: ${fontSize.sectionTitle}px; font-weight: 700; color: white; line-height: 1.2;">⚠️ Ítems que Necesitan Restock</h3>
         ${reportData.itemsNecesitanRestock.length > 0 ? `
           <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: ${fontSize.tableCell}px; table-layout: fixed;">
               <thead>
                 <tr style="background: rgba(15, 23, 42, 0.6); border-bottom: 2px solid rgba(148, 163, 184, 0.3);">
-                  <th style="padding: 10px; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">SKU</th>
-                  <th style="padding: 10px; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Nombre</th>
-                  <th style="padding: 10px; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2);">Stock Actual</th>
-                  <th style="padding: 10px; text-align: right; color: #cbd5e1; font-weight: 600;">Stock Mínimo</th>
+                  <th style="padding: ${spacing.tablePadding}; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2); width: 20%; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">SKU</th>
+                  <th style="padding: ${spacing.tablePadding}; text-align: left; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2); width: 50%; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">Nombre</th>
+                  <th style="padding: ${spacing.tablePadding}; text-align: right; color: #cbd5e1; font-weight: 600; border-right: 1px solid rgba(148, 163, 184, 0.2); width: 15%; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">Stock Actual</th>
+                  <th style="padding: ${spacing.tablePadding}; text-align: right; color: #cbd5e1; font-weight: 600; width: 15%; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3;">Stock Mínimo</th>
                 </tr>
               </thead>
               <tbody>
                 ${reportData.itemsNecesitanRestock.slice(0, 15).map(item => `
                   <tr style="border-bottom: 1px solid rgba(148, 163, 184, 0.1);">
-                    <td style="padding: 10px; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1);">${escapeHtmlExport(item.sku)}</td>
-                    <td style="padding: 10px; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1);">${escapeHtmlExport(item.name)}</td>
-                    <td style="padding: 10px; text-align: right; color: #ef4444; border-right: 1px solid rgba(148, 163, 184, 0.1);">${item.stock}</td>
-                    <td style="padding: 10px; text-align: right; color: #fbbf24;">${item.minStock}</td>
+                    <td style="padding: ${spacing.tablePadding}; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1); word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3; vertical-align: top; font-family: monospace;">${escapeHtmlExport(item.sku)}</td>
+                    <td style="padding: ${spacing.tablePadding}; color: white; border-right: 1px solid rgba(148, 163, 184, 0.1); word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3; vertical-align: top;">${escapeHtmlExport(item.name)}</td>
+                    <td style="padding: ${spacing.tablePadding}; text-align: right; color: #ef4444; border-right: 1px solid rgba(148, 163, 184, 0.1); word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3; vertical-align: top;">${item.stock}</td>
+                    <td style="padding: ${spacing.tablePadding}; text-align: right; color: #fbbf24; word-wrap: break-word; overflow-wrap: break-word; line-height: 1.3; vertical-align: top;">${item.minStock}</td>
                   </tr>
                 `).join('')}
               </tbody>
             </table>
           </div>
-        ` : '<p style="color: #64748b; text-align: center; padding: 20px;">Todos los ítems tienen stock suficiente</p>'}
+        ` : `<p style="color: #64748b; text-align: center; padding: ${spacing.padding}; font-size: ${fontSize.infoText}px; line-height: 1.4;">Todos los ítems tienen stock suficiente</p>`}
       </div>
     `;
   }
