@@ -10157,9 +10157,33 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       visibility: visible;
     `;
     
+    // Calcular totalContentRows para usar en estilos
+    let totalContentRows = 0;
+    if (selectedSections.includes('cartera') && reportData.cartera.deudores) {
+      totalContentRows += Math.min(reportData.cartera.deudores.length, 10);
+    }
+    if (selectedSections.includes('manoobra') && reportData.manoObra.porTecnico) {
+      totalContentRows += reportData.manoObra.porTecnico.length;
+    }
+    if (selectedSections.includes('restock') && reportData.itemsNecesitanRestock) {
+      totalContentRows += Math.min(reportData.itemsNecesitanRestock.length, 15);
+    }
+    if (selectedSections.includes('ingresos') && reportData.ingresosPorCuenta) {
+      totalContentRows += Object.keys(reportData.ingresosPorCuenta).length;
+    }
+    const containerPadding = totalContentRows > 20 ? 20 : 28;
+    
     // Generar HTML optimizado directamente en el contenedor
     console.log('📝 Generando HTML del reporte...');
     const htmlContent = generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections);
+    
+    // Validar que el HTML tenga el contenedor principal
+    if (!htmlContent.includes('report-export-main-container')) {
+      console.error('❌ HTML generado no contiene el contenedor principal');
+      throw new Error('HTML generado inválido: falta contenedor principal');
+    }
+    
+    console.log('📄 Longitud del HTML generado:', htmlContent.length, 'caracteres');
     exportContainer.innerHTML = htmlContent;
     document.body.appendChild(exportContainer);
     
@@ -10168,8 +10192,17 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     // Obtener el contenedor principal del reporte
     const mainContainer = exportContainer.querySelector('#report-export-main-container');
     if (!mainContainer) {
+      console.error('❌ No se encontró el contenedor principal en el DOM');
+      console.error('HTML insertado:', exportContainer.innerHTML.substring(0, 500));
       throw new Error('No se encontró el contenedor principal del reporte');
     }
+    
+    console.log('✅ Contenedor principal encontrado:', {
+      id: mainContainer.id,
+      className: mainContainer.className,
+      hasChildren: mainContainer.children.length,
+      innerHTMLLength: mainContainer.innerHTML.length
+    });
     
     // Esperar a que el DOM se actualice completamente - múltiples pasos
     console.log('⏳ Esperando renderizado inicial del DOM...');
@@ -10315,22 +10348,51 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       clientHeight: mainContainer.clientHeight
     });
     
-    // Asegurar que el contenedor principal tenga el tamaño correcto
-    mainContainer.style.width = `${actualWidth}px`;
-    mainContainer.style.minHeight = `${actualHeight}px`;
-    mainContainer.style.maxWidth = `${actualWidth}px`;
+    // Asegurar que el contenedor principal tenga el tamaño correcto y todos los estilos
+    mainContainer.style.cssText += `
+      width: ${actualWidth}px !important;
+      min-height: ${actualHeight}px !important;
+      max-width: ${actualWidth}px !important;
+      max-height: none !important;
+      display: flex !important;
+      flex-direction: column !important;
+      position: relative !important;
+      box-sizing: border-box !important;
+      overflow: visible !important;
+    `;
     
     // Asegurar que el contenedor de exportación también tenga el tamaño correcto
-    exportContainer.style.width = `${actualWidth}px`;
-    exportContainer.style.minHeight = `${actualHeight}px`;
+    exportContainer.style.cssText += `
+      width: ${actualWidth}px !important;
+      min-height: ${actualHeight}px !important;
+      overflow: visible !important;
+    `;
     
-    // Forzar un último reflow antes de capturar
+    // Forzar múltiples reflows para asegurar que los estilos se apliquen
     void mainContainer.offsetHeight;
     void mainContainer.scrollHeight;
+    void mainContainer.clientHeight;
     void exportContainer.offsetHeight;
+    void exportContainer.scrollHeight;
     
-    // Esperar un momento más antes de capturar
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Verificar estilos aplicados
+    const computedStyle = window.getComputedStyle(mainContainer);
+    console.log('🎨 Estilos computados del contenedor principal:', {
+      width: computedStyle.width,
+      height: computedStyle.height,
+      display: computedStyle.display,
+      backgroundColor: computedStyle.backgroundColor,
+      padding: computedStyle.padding
+    });
+    
+    // Esperar un momento más antes de capturar para asegurar renderizado completo
+    await new Promise(resolve => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(resolve, 800);
+        });
+      });
+    });
     
     // Capturar como imagen - capturar el contenedor principal directamente
     console.log('📸 Iniciando captura con html2canvas (esto puede tomar tiempo)...');
@@ -10347,7 +10409,7 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       backgroundColor: '#0f172a',
       useCORS: true,
       allowTaint: false,
-      logging: false, // Desactivar logging para mejor rendimiento
+      logging: true, // Activar logging temporalmente para debug
       width: actualWidth,
       height: actualHeight,
       windowWidth: actualWidth,
@@ -10356,22 +10418,60 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       y: 0,
       scrollX: 0,
       scrollY: 0,
-      imageTimeout: 30000, // Aumentar timeout a 30 segundos
+      imageTimeout: 30000,
       removeContainer: false,
       onclone: (clonedDoc, element) => {
+        console.log('🔍 onclone callback ejecutado');
+        
         // Asegurar que el clon tenga las dimensiones correctas
         const clonedMain = clonedDoc.getElementById('report-export-main-container');
         if (clonedMain) {
-          clonedMain.style.width = `${actualWidth}px !important`;
-          clonedMain.style.minHeight = `${actualHeight}px !important`;
-          clonedMain.style.maxWidth = `${actualWidth}px !important`;
-          clonedMain.style.maxHeight = 'none !important';
+          // Aplicar estilos directamente al elemento clonado
+          clonedMain.setAttribute('style', `
+            width: ${actualWidth}px !important;
+            min-height: ${actualHeight}px !important;
+            max-width: ${actualWidth}px !important;
+            max-height: none !important;
+            display: flex !important;
+            flex-direction: column !important;
+            position: relative !important;
+            box-sizing: border-box !important;
+            overflow: visible !important;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%) !important;
+            padding: ${containerPadding}px !important;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+            color: #e5e7eb !important;
+          `);
           console.log('✅ Clon del contenedor principal preparado con dimensiones:', actualWidth, 'x', actualHeight);
+          console.log('📋 Estilos aplicados al clon:', clonedMain.getAttribute('style'));
+        } else {
+          console.warn('⚠️ No se encontró el contenedor principal en el clon');
         }
+        
         if (element) {
-          element.style.width = `${actualWidth}px`;
-          element.style.minHeight = `${actualHeight}px`;
+          element.setAttribute('style', `
+            width: ${actualWidth}px !important;
+            min-height: ${actualHeight}px !important;
+            max-width: ${actualWidth}px !important;
+            max-height: none !important;
+            display: flex !important;
+            flex-direction: column !important;
+            position: relative !important;
+            box-sizing: border-box !important;
+            overflow: visible !important;
+          `);
           console.log('✅ Elemento clonado preparado');
+        }
+        
+        // Verificar que todos los estilos se hayan aplicado
+        if (clonedMain) {
+          const clonedStyle = clonedDoc.defaultView.getComputedStyle(clonedMain);
+          console.log('🎨 Estilos computados del clon:', {
+            width: clonedStyle.width,
+            height: clonedStyle.height,
+            display: clonedStyle.display,
+            backgroundColor: clonedStyle.backgroundColor
+          });
         }
       }
     });
