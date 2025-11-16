@@ -437,10 +437,8 @@ async function saveCompany(companyId) {
       return;
     }
     
-    // Obtener placas de la lista actual
-    const plates = window.currentCompanyPlates || [];
-    
     const type = document.getElementById('company-type')?.value || 'recurrente';
+    // Obtener placas de la lista actual (solo para empresas recurrentes)
     const plates = type === 'recurrente' ? (window.currentCompanyPlates || []) : [];
     
     const data = {
