@@ -10157,24 +10157,19 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       visibility: visible;
     `;
     
-    // Crear wrapper para el contenido
-    const wrapper = document.createElement('div');
-    wrapper.style.cssText = `
-      width: ${targetWidthPx}px;
-      min-height: ${targetHeightPx}px;
-      position: relative;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-      box-sizing: border-box;
-    `;
-    
-    // Generar HTML optimizado
+    // Generar HTML optimizado directamente en el contenedor
     console.log('📝 Generando HTML del reporte...');
     const htmlContent = generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections);
-    wrapper.innerHTML = htmlContent;
-    exportContainer.appendChild(wrapper);
+    exportContainer.innerHTML = htmlContent;
     document.body.appendChild(exportContainer);
     
     console.log('✅ HTML generado e insertado en el DOM');
+    
+    // Obtener el contenedor principal del reporte
+    const mainContainer = exportContainer.querySelector('#report-export-main-container');
+    if (!mainContainer) {
+      throw new Error('No se encontró el contenedor principal del reporte');
+    }
     
     // Esperar a que el DOM se actualice completamente - múltiples pasos
     console.log('⏳ Esperando renderizado inicial del DOM...');
@@ -10188,12 +10183,12 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     
     // Forzar múltiples reflows
     void exportContainer.offsetHeight;
-    void wrapper.offsetHeight;
-    void wrapper.scrollHeight;
-    void wrapper.clientHeight;
+    void mainContainer.offsetHeight;
+    void mainContainer.scrollHeight;
+    void mainContainer.clientHeight;
     
     // Esperar a que todas las imágenes se carguen
-    const images = wrapper.querySelectorAll('img');
+    const images = mainContainer.querySelectorAll('img');
     if (images.length > 0) {
       console.log(`📸 Esperando a que ${images.length} imagen(es) se carguen...`);
       await Promise.all(Array.from(images).map((img, idx) => {
@@ -10227,8 +10222,8 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       console.log('📊 Creando gráfico...');
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      const chartContainer = wrapper.querySelector('#chart-container-export');
-      const chartCanvas = wrapper.querySelector('#chart-canvas-export');
+      const chartContainer = mainContainer.querySelector('#chart-container-export');
+      const chartCanvas = mainContainer.querySelector('#chart-canvas-export');
       
       if (chartCanvas && chartContainer) {
         const ctx = chartCanvas.getContext('2d', { willReadFrequently: true });
@@ -10303,36 +10298,51 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     
     // Forzar reflows finales
     void exportContainer.offsetHeight;
-    void wrapper.offsetHeight;
-    void wrapper.scrollHeight;
-    void wrapper.clientHeight;
+    void mainContainer.offsetHeight;
+    void mainContainer.scrollHeight;
+    void mainContainer.clientHeight;
     
-    // Obtener dimensiones reales del contenido
-    const actualWidth = Math.max(wrapper.scrollWidth || wrapper.clientWidth || targetWidthPx, targetWidthPx);
-    const actualHeight = Math.max(wrapper.scrollHeight || wrapper.clientHeight || targetHeightPx, targetHeightPx);
+    // Obtener dimensiones reales del contenido desde el contenedor principal
+    const actualWidth = Math.max(mainContainer.scrollWidth || mainContainer.clientWidth || targetWidthPx, targetWidthPx);
+    const actualHeight = Math.max(mainContainer.scrollHeight || mainContainer.clientHeight || targetHeightPx, targetHeightPx);
     
     console.log('📐 Dimensiones finales:', {
       actualWidth,
       actualHeight,
-      scrollWidth: wrapper.scrollWidth,
-      scrollHeight: wrapper.scrollHeight
+      scrollWidth: mainContainer.scrollWidth,
+      scrollHeight: mainContainer.scrollHeight,
+      clientWidth: mainContainer.clientWidth,
+      clientHeight: mainContainer.clientHeight
     });
     
-    // Asegurar que el wrapper tenga el tamaño correcto
-    wrapper.style.width = `${actualWidth}px`;
-    wrapper.style.minHeight = `${actualHeight}px`;
+    // Asegurar que el contenedor principal tenga el tamaño correcto
+    mainContainer.style.width = `${actualWidth}px`;
+    mainContainer.style.minHeight = `${actualHeight}px`;
+    mainContainer.style.maxWidth = `${actualWidth}px`;
+    
+    // Asegurar que el contenedor de exportación también tenga el tamaño correcto
+    exportContainer.style.width = `${actualWidth}px`;
+    exportContainer.style.minHeight = `${actualHeight}px`;
     
     // Forzar un último reflow antes de capturar
-    void wrapper.offsetHeight;
-    void wrapper.scrollHeight;
+    void mainContainer.offsetHeight;
+    void mainContainer.scrollHeight;
+    void exportContainer.offsetHeight;
     
     // Esperar un momento más antes de capturar
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Capturar como imagen
+    // Capturar como imagen - capturar el contenedor principal directamente
     console.log('📸 Iniciando captura con html2canvas (esto puede tomar tiempo)...');
+    console.log('🎯 Capturando elemento:', {
+      id: mainContainer.id,
+      width: mainContainer.offsetWidth,
+      height: mainContainer.offsetHeight,
+      scrollWidth: mainContainer.scrollWidth,
+      scrollHeight: mainContainer.scrollHeight
+    });
     
-    const canvas = await html2canvas(wrapper, {
+    const canvas = await html2canvas(mainContainer, {
       scale: 2,
       backgroundColor: '#0f172a',
       useCORS: true,
@@ -10352,13 +10362,16 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
         // Asegurar que el clon tenga las dimensiones correctas
         const clonedMain = clonedDoc.getElementById('report-export-main-container');
         if (clonedMain) {
-          clonedMain.style.width = `${actualWidth}px`;
-          clonedMain.style.minHeight = `${actualHeight}px`;
-          clonedMain.style.maxWidth = `${actualWidth}px`;
+          clonedMain.style.width = `${actualWidth}px !important`;
+          clonedMain.style.minHeight = `${actualHeight}px !important`;
+          clonedMain.style.maxWidth = `${actualWidth}px !important`;
+          clonedMain.style.maxHeight = 'none !important';
+          console.log('✅ Clon del contenedor principal preparado con dimensiones:', actualWidth, 'x', actualHeight);
         }
         if (element) {
           element.style.width = `${actualWidth}px`;
           element.style.minHeight = `${actualHeight}px`;
+          console.log('✅ Elemento clonado preparado');
         }
       }
     });
