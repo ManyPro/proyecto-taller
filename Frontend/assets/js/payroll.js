@@ -1,4 +1,5 @@
 import API from './api.esm.js';
+import { periodRangeToISO, isValidDate, compareDates, parseDate } from './dateTime.js';
 const api = API;
 
 function el(id){ return document.getElementById(id); }
@@ -2452,15 +2453,17 @@ async function createPeriod(){
       return;
     }
     
-    const startDate = new Date(start);
-    const endDate = new Date(end);
+    // Usar el util de fechas para crear el rango del período
+    // Esto asegura que el inicio sea 00:00:00 y el fin sea 23:59:59.999
+    const startDate = parseDate(start);
+    const endDate = parseDate(end);
     
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    if (!isValidDate(startDate) || !isValidDate(endDate)) {
       alert('⚠️ Fechas inválidas');
       return;
     }
     
-    if (endDate <= startDate) {
+    if (compareDates(endDate, startDate) <= 0) {
       alert('⚠️ La fecha de fin debe ser posterior a la fecha de inicio');
       endInput?.focus();
       return;
@@ -2478,9 +2481,11 @@ async function createPeriod(){
     if (msgEl) msgEl.innerHTML = '';
     
     try {
+      // Usar el util para crear el rango con horas correctas
+      const periodRange = periodRangeToISO(start, end);
       const r = await api.post('/api/v1/payroll/periods', { 
-        startDate: start, 
-        endDate: end, 
+        startDate: periodRange.start, 
+        endDate: periodRange.end, 
         periodType: type 
       });
       

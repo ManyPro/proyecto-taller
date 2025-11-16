@@ -10,6 +10,7 @@ import StockEntry from '../models/StockEntry.js';
 import CustomerProfile from '../models/CustomerProfile.js';
 import { upsertProfileFromSource } from './profile.helper.js';
 import { publish } from '../lib/live.js';
+import { createDateRange } from '../lib/dateTime.js';
 
 // Helpers
 const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
@@ -680,7 +681,14 @@ export const setCustomerVehicle = async (req, res) => {
   if (typeof notes === 'string') sale.notes = notes;
 
   await sale.save();
-  await upsertCustomerProfile(req.companyId, sale);
+  // Actualizar perfil del cliente con overwrite para que los cambios manuales reemplacen los datos existentes
+  await upsertProfileFromSource(req.companyId, sale, { 
+    source: 'sale',
+    overwriteCustomer: true,  // Sobrescribir datos del cliente si se editaron manualmente
+    overwriteVehicle: true,   // Sobrescribir datos del vehículo si se editaron manualmente
+    overwriteYear: true,      // Sobrescribir año si se editó
+    overwriteMileage: true    // Sobrescribir kilometraje si se editó (solo si es mayor)
+  });
   try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
@@ -1551,8 +1559,9 @@ export const listSales = async (req, res) => {
   if (from || to) {
     // Usar closedAt si está disponible, sino createdAt
     // Para ventas cerradas, es más preciso usar closedAt
-    const fromDate = from ? new Date(from) : null;
-    const toDate = to ? new Date(`${to}T23:59:59.999Z`) : null;
+    const dateRange = createDateRange(from, to);
+    const fromDate = dateRange.from;
+    const toDate = dateRange.to;
     
     // Construir filtro de fecha usando $expr para manejar closedAt o createdAt
     const dateConditions = [];
@@ -1618,9 +1627,10 @@ export const summarySales = async (req, res) => {
   const { from, to, plate } = req.query || {};
   const q = { companyId: req.companyId, status: 'closed' };
   if (from || to) {
+    const dateRange = createDateRange(from, to);
     q.createdAt = {};
-    if (from) q.createdAt.$gte = new Date(from);
-    if (to) q.createdAt.$lte = new Date(`${to}T23:59:59.999Z`);
+    if (dateRange.from) q.createdAt.$gte = dateRange.from;
+    if (dateRange.to) q.createdAt.$lte = dateRange.to;
   }
   if (plate) {
     q['vehicle.plate'] = String(plate).toUpperCase();
@@ -1646,8 +1656,9 @@ export const technicianReport = async (req, res) => {
 
     // Rango de fechas sobre closedAt (fallback updatedAt) usando $expr
     if (from || to) {
-      const gte = from ? new Date(from + 'T00:00:00.000Z') : null;
-      const lte = to ? new Date(to + 'T23:59:59.999Z') : null;
+      const dateRange = createDateRange(from, to);
+      const gte = dateRange.from;
+      const lte = dateRange.to;
       if (gte || lte) {
         match.$expr = {
           $and: [
@@ -1762,8 +1773,9 @@ export const getSalesByPlate = async (req, res) => {
   // Filtro por fechas
   if (from || to) {
     const dateConditions = [];
-    const fromDate = from ? new Date(from) : null;
-    const toDate = to ? new Date(`${to}T23:59:59.999Z`) : null;
+    const dateRange = createDateRange(from, to);
+    const fromDate = dateRange.from;
+    const toDate = dateRange.to;
     
     if (fromDate && toDate) {
       dateConditions.push({

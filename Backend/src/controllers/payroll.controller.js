@@ -11,6 +11,7 @@ import Handlebars from 'handlebars';
 import Company from '../models/Company.js';
 import { computeBalance } from './cashflow.controller.js';
 import mongoose from 'mongoose';
+import { createPeriodRange, parseDate, isValidDate, compareDates } from '../lib/dateTime.js';
 
 export const listConcepts = async (req, res) => {
   try {
@@ -200,14 +201,17 @@ export const createPeriod = async (req, res) => {
       return res.status(400).json({ error: 'startDate y endDate son requeridos' });
     }
     
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    // Usar el util de fechas para crear el rango del período
+    // Esto asegura que el inicio sea 00:00:00 y el fin sea 23:59:59.999
+    const periodRange = createPeriodRange(startDate, endDate);
+    const start = periodRange.start;
+    const end = periodRange.end;
     
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    if (!isValidDate(start) || !isValidDate(end)) {
       return res.status(400).json({ error: 'Fechas inválidas' });
     }
     
-    if (end <= start) {
+    if (compareDates(end, start) <= 0) {
       return res.status(400).json({ error: 'La fecha de fin debe ser posterior a la fecha de inicio' });
     }
     

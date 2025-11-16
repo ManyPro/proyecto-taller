@@ -7872,6 +7872,7 @@ let historialTotalPages = 1;
 let historialTotal = 0;
 let historialDateFrom = null;
 let historialDateTo = null;
+let historialPlate = null; // Filtro por placa
 let historialLoading = false; // Flag para evitar múltiples cargas simultáneas
 let historialCache = null; // Cache simple para evitar recargas innecesarias
 let historialCacheKey = null;
@@ -7906,12 +7907,13 @@ function initInternalNavigation() {
   // Configurar delegación de eventos una sola vez
   setupHistorialEventDelegation();
 
-  // Filtros de fecha con debounce
+  // Filtros de fecha y placa con debounce
   const btnFiltrar = document.getElementById('historial-filtrar');
   const btnLimpiar = document.getElementById('historial-limpiar');
   const btnExportarReporte = document.getElementById('historial-exportar-reporte');
   const fechaDesde = document.getElementById('historial-fecha-desde');
   const fechaHasta = document.getElementById('historial-fecha-hasta');
+  const placaInput = document.getElementById('historial-placa');
   
   // Botón exportar reporte
   if(btnExportarReporte) {
@@ -7924,6 +7926,7 @@ function initInternalNavigation() {
   const applyFilters = () => {
     historialDateFrom = fechaDesde?.value || null;
     historialDateTo = fechaHasta?.value || null;
+    historialPlate = placaInput?.value?.trim().toUpperCase() || null;
     historialCurrentPage = 1;
     historialCache = null; // Invalidar cache al cambiar filtros
     loadHistorial(true);
@@ -7940,11 +7943,23 @@ function initInternalNavigation() {
     btnLimpiar.addEventListener('click', () => {
       if (fechaDesde) fechaDesde.value = '';
       if (fechaHasta) fechaHasta.value = '';
+      if (placaInput) placaInput.value = '';
       historialDateFrom = null;
       historialDateTo = null;
+      historialPlate = null;
       historialCurrentPage = 1;
       historialCache = null; // Invalidar cache al limpiar filtros
       loadHistorial(true);
+    });
+  }
+  
+  // Permitir filtrar con Enter en el campo de placa
+  if (placaInput) {
+    placaInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyFilters();
+      }
     });
   }
 
@@ -8021,10 +8036,11 @@ async function loadHistorial(forceRefresh = false) {
       page: historialCurrentPage
     };
 
-    // Si hay filtros de fecha, usarlos; si no, cargar últimas 20
-    if (historialDateFrom || historialDateTo) {
+    // Si hay filtros de fecha o placa, usarlos; si no, cargar últimas 20
+    if (historialDateFrom || historialDateTo || historialPlate) {
       if (historialDateFrom) params.from = historialDateFrom;
       if (historialDateTo) params.to = historialDateTo;
+      if (historialPlate) params.plate = historialPlate;
     } else {
       // Sin filtros: cargar últimas 20 ventas
       params.limit = 20;
@@ -8073,10 +8089,15 @@ function renderHistorialSales(sales) {
   if (!container) return;
 
   if (sales.length === 0) {
+    const filterText = historialPlate 
+      ? `para la placa "${historialPlate}"` 
+      : historialDateFrom || historialDateTo 
+        ? 'con los filtros de fecha seleccionados' 
+        : '';
     container.innerHTML = `
       <div class="text-center py-12">
         <div class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-lg mb-2">No se encontraron ventas</div>
-        <div class="text-slate-500 dark:text-slate-500 theme-light:text-slate-500 text-sm">Intenta ajustar los filtros de fecha</div>
+        <div class="text-slate-500 dark:text-slate-500 theme-light:text-slate-500 text-sm">${filterText ? `Intenta ajustar los filtros ${filterText}` : 'Intenta ajustar los filtros de fecha o placa'}</div>
       </div>
     `;
     updateHistorialPagination();

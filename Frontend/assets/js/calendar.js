@@ -1,4 +1,5 @@
 import { API } from "./api.esm.js";
+import { formatDateForInput, formatDateTimeForInput, localDateTimeToISO, parseDate, formatDate as formatDateUtil } from "./dateTime.js";
 
 let currentDate = new Date();
 let events = [];
@@ -11,33 +12,9 @@ function htmlEscape(text) {
   return div.innerHTML;
 }
 
-function formatDate(date) {
-  return date.toISOString().split('T')[0];
-}
-
-function formatDateTime(date) {
-  const d = new Date(date);
-  // Usar hora local en lugar de UTC para evitar problemas de zona horaria
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-}
-
-// Función helper para convertir fecha/hora local a ISO correctamente
-// Cuando el usuario ingresa 15:03 hora local, debe guardarse como 15:03 hora local (no UTC)
-// MongoDB guarda fechas como UTC, así que necesitamos convertir correctamente
-function localDateTimeToISO(dateString, timeString) {
-  if (!dateString || !timeString) return null;
-  // Crear fecha en hora local (JavaScript interpreta como hora local)
-  const localDate = new Date(`${dateString}T${timeString}`);
-  // toISOString() convierte correctamente a UTC
-  // Si el usuario está en UTC-5 e ingresa 15:03, esto guardará 20:03 UTC
-  // Cuando MongoDB lo lea y lo convierta de vuelta a hora local, mostrará 15:03 correctamente
-  return localDate.toISOString();
-}
+// Usar funciones del util de fechas
+const formatDate = formatDateUtil;
+const formatDateTime = formatDateTimeForInput;
 
 function getEventsForDate(date) {
   const dateStr = formatDate(date);

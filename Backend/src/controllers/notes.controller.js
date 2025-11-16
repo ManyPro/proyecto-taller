@@ -1,5 +1,6 @@
 import Note from "../models/Note.js";
 import mongoose from "mongoose";
+import { parseDate, createDateRange } from "../lib/dateTime.js";
 
 const ALLOWED_RESP = ['DAVID', 'VALENTIN', 'SEBASTIAN', 'GIOVANNY', 'SANDRA', 'CEDIEL'];
 const normResp = (v) => String(v || '').trim().toUpperCase();
@@ -13,23 +14,7 @@ const validateResponsible = (responsible) => {
   return { valid: true, value: normalized };
 };
 
-// Helper optimizado para parsear fechas
-const parseDate = (dateStr) => {
-  if (!dateStr) return undefined;
-  if (dateStr instanceof Date) return dateStr;
-  
-  // Si es string, intentar parsear directamente
-  const date = new Date(dateStr);
-  // Si el parseo falla, retornar undefined
-  if (isNaN(date.getTime())) return undefined;
-  
-  // Si no tiene timezone, agregar Z para UTC
-  if (typeof dateStr === 'string' && dateStr.includes('T') && !dateStr.includes('Z') && !dateStr.match(/[+-]\d{2}:\d{2}$/)) {
-    return new Date(dateStr + 'Z');
-  }
-  
-  return date;
-};
+// Usar el util de fechas importado
 
 export const listNotes = async (req, res) => {
   const { plate, from, to, page = 1, limit = 50 } = req.query;
@@ -38,9 +23,10 @@ export const listNotes = async (req, res) => {
   if (plate) q.plate = String(plate).toUpperCase().trim();
 
   if (from || to) {
+    const dateRange = createDateRange(from, to);
     q.createdAt = {};
-    if (from) q.createdAt.$gte = new Date(from);
-    if (to) q.createdAt.$lte = new Date(`${to}T23:59:59.999Z`);
+    if (dateRange.from) q.createdAt.$gte = dateRange.from;
+    if (dateRange.to) q.createdAt.$lte = dateRange.to;
   }
 
   const items = await Note.find(q)

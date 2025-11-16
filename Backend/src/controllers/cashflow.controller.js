@@ -2,6 +2,7 @@
 import CashFlowEntry from '../models/CashFlowEntry.js';
 import Company from '../models/Company.js';
 import mongoose from 'mongoose';
+import { createDateRange, now } from '../lib/dateTime.js';
 
 // Helpers
 export async function ensureDefaultCashAccount(companyId) {
@@ -19,13 +20,13 @@ export async function computeBalance(accountId, companyId) {
   
   // Calcular balance usando agregación MongoDB (más eficiente que cargar todas las entradas)
   // Esto asegura que las entradas con fecha futura no afecten el balance actual
-  const now = new Date();
+  const currentDate = now();
   const result = await CashFlowEntry.aggregate([
     {
       $match: {
         companyId: new mongoose.Types.ObjectId(companyId),
         accountId: new mongoose.Types.ObjectId(accountId),
-        date: { $lte: now } // Solo entradas hasta la fecha actual
+        date: { $lte: currentDate } // Solo entradas hasta la fecha actual
       }
     },
     {
@@ -99,10 +100,13 @@ export async function listEntries(req, res) {
   if (accountId) q.accountId = new mongoose.Types.ObjectId(accountId);
   if (kind) q.kind = kind;
   if (source) q.source = source;
-  if (from || to) {
+  
+  // Usar el util de fechas para crear el rango correctamente
+  const dateRange = createDateRange(from, to);
+  if (dateRange.from || dateRange.to) {
     q.date = {};
-    if (from) q.date.$gte = new Date(from + 'T00:00:00.000Z');
-    if (to) q.date.$lte = new Date(to + 'T23:59:59.999Z');
+    if (dateRange.from) q.date.$gte = dateRange.from;
+    if (dateRange.to) q.date.$lte = dateRange.to;
   }
   const [rows, count] = await Promise.all([
     CashFlowEntry.find(q).sort({ date: -1, _id: -1 }).skip((pg - 1) * lim).limit(lim).populate('accountId', 'name type'),

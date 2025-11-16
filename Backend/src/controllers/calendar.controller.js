@@ -8,6 +8,7 @@ import Notification from "../models/Notification.js";
 import { upsertProfileFromSource } from "./profile.helper.js";
 import { publish } from "../lib/live.js";
 import mongoose from "mongoose";
+import { parseDate, localToUTC, createDateRange } from "../lib/dateTime.js";
 
 export const listEvents = async (req, res) => {
   const { from, to } = req.query;
@@ -15,15 +16,20 @@ export const listEvents = async (req, res) => {
   const q = { companyId: new mongoose.Types.ObjectId(req.companyId) };
   
   if (from || to) {
+    // Usar el util de fechas para crear el rango correctamente
+    const dateRange = createDateRange(from || '1970-01-01', to || '2100-12-31');
+    const rangeStart = dateRange.from || new Date('1970-01-01');
+    const rangeEnd = dateRange.to || new Date('2100-12-31');
+    
     q.$or = [
       // Eventos que empiezan en el rango
-      { startDate: { $gte: new Date(from || '1970-01-01'), $lte: new Date(to || '2100-12-31') } },
+      { startDate: { $gte: rangeStart, $lte: rangeEnd } },
       // Eventos que terminan en el rango
-      { endDate: { $gte: new Date(from || '1970-01-01'), $lte: new Date(to || '2100-12-31') } },
+      { endDate: { $gte: rangeStart, $lte: rangeEnd } },
       // Eventos que abarcan el rango completo
       { 
-        startDate: { $lte: new Date(from || '1970-01-01') },
-        endDate: { $gte: new Date(to || '2100-12-31') }
+        startDate: { $lte: rangeStart },
+        endDate: { $gte: rangeEnd }
       }
     ];
   }
@@ -56,14 +62,21 @@ export const createEvent = async (req, res) => {
         {
           customer: {
             name: customer.name || '',
-            phone: customer.phone || ''
+            phone: customer.phone || '',
+            email: customer.email || '',
+            idNumber: customer.idNumber || '',
+            address: customer.address || ''
           },
           vehicle: {
             plate: normalizedPlate,
             vehicleId: vehicleId || null
           }
         },
-        { source: 'calendar' }
+        { 
+          source: 'calendar',
+          overwriteCustomer: true,  // Sobrescribir datos del cliente si se editaron manualmente
+          overwriteVehicle: true    // Sobrescribir datos del vehículo si se editaron manualmente
+        }
       );
     } catch (err) {
       console.error('Error creating/updating customer profile:', err);
@@ -71,37 +84,15 @@ export const createEvent = async (req, res) => {
     }
   }
   
-  // Asegurar que las fechas se interpreten correctamente desde ISO string
-  // Si viene como ISO string (con 'Z' o con offset), se interpreta como UTC
-  // Si viene sin 'Z', JavaScript lo interpreta como hora local, así que forzamos UTC
-  const parseDate = (dateStr) => {
-    if (!dateStr) return undefined;
-    // Si ya es un objeto Date, devolverlo
-    if (dateStr instanceof Date) return dateStr;
-    // Si es string ISO con 'Z', new Date() lo interpreta correctamente como UTC
-    if (typeof dateStr === 'string' && dateStr.includes('Z')) {
-      return new Date(dateStr);
-    }
-    // Si es string ISO sin 'Z', agregar 'Z' para forzar UTC
-    if (typeof dateStr === 'string' && dateStr.includes('T')) {
-      // Si no termina en 'Z' ni tiene offset (+/-), agregar 'Z'
-      if (!dateStr.match(/[+-]\d{2}:\d{2}$/) && !dateStr.endsWith('Z')) {
-        return new Date(dateStr + 'Z');
-      }
-      return new Date(dateStr);
-    }
-    // Fallback: intentar parsear normalmente
-    return new Date(dateStr);
-  };
-
+  // Usar el util de fechas para parsear correctamente
   const event = await CalendarEvent.create({
     title: String(title).trim(),
     description: description || '',
-    startDate: parseDate(startDate),
-    endDate: endDate ? parseDate(endDate) : undefined,
+    startDate: localToUTC(startDate),
+    endDate: endDate ? localToUTC(endDate) : undefined,
     allDay: Boolean(allDay),
     hasNotification: Boolean(hasNotification),
-    notificationAt: hasNotification && notificationAt ? parseDate(notificationAt) : undefined,
+    notificationAt: hasNotification && notificationAt ? localToUTC(notificationAt) : undefined,
     color: color || '#3b82f6',
     eventType: 'event',
     plate: plate ? String(plate).trim().toUpperCase() : '',
@@ -122,25 +113,10 @@ export const updateEvent = async (req, res) => {
   const { id } = req.params;
   const body = { ...req.body };
   
-  // Función helper para parsear fechas correctamente (misma lógica que createEvent)
-  const parseDate = (dateStr) => {
-    if (!dateStr) return undefined;
-    if (dateStr instanceof Date) return dateStr;
-    if (typeof dateStr === 'string' && dateStr.includes('Z')) {
-      return new Date(dateStr);
-    }
-    if (typeof dateStr === 'string' && dateStr.includes('T')) {
-      if (!dateStr.match(/[+-]\d{2}:\d{2}$/) && !dateStr.endsWith('Z')) {
-        return new Date(dateStr + 'Z');
-      }
-      return new Date(dateStr);
-    }
-    return new Date(dateStr);
-  };
-  
-  if (body.startDate) body.startDate = parseDate(body.startDate);
-  if (body.endDate) body.endDate = body.endDate ? parseDate(body.endDate) : null;
-  if (body.notificationAt) body.notificationAt = body.notificationAt ? parseDate(body.notificationAt) : null;
+  // Usar el util de fechas para parsear correctamente
+  if (body.startDate) body.startDate = localToUTC(body.startDate);
+  if (body.endDate) body.endDate = body.endDate ? localToUTC(body.endDate) : null;
+  if (body.notificationAt) body.notificationAt = body.notificationAt ? localToUTC(body.notificationAt) : null;
   if (body.hasNotification !== undefined) body.hasNotification = Boolean(body.hasNotification);
   if (body.allDay !== undefined) body.allDay = Boolean(body.allDay);
   
@@ -164,14 +140,21 @@ export const updateEvent = async (req, res) => {
         {
           customer: {
             name: body.customer.name || '',
-            phone: body.customer.phone || ''
+            phone: body.customer.phone || '',
+            email: body.customer.email || '',
+            idNumber: body.customer.idNumber || '',
+            address: body.customer.address || ''
           },
           vehicle: {
             plate: body.plate,
             vehicleId: body.vehicleId || null
           }
         },
-        { source: 'calendar' }
+        { 
+          source: 'calendar',
+          overwriteCustomer: true,  // Sobrescribir datos del cliente si se editaron manualmente
+          overwriteVehicle: true    // Sobrescribir datos del vehículo si se editaron manualmente
+        }
       );
     } catch (err) {
       console.error('Error updating customer profile:', err);
@@ -203,26 +186,6 @@ export const deleteEvent = async (req, res) => {
 // Sincronizar recordatorios de notas como eventos del calendario
 export const syncNoteReminders = async (req, res) => {
   const companyId = new mongoose.Types.ObjectId(req.companyId);
-  
-  // Helper para parsear fechas (reutilizar lógica)
-  const parseDate = (dateValue) => {
-    if (!dateValue) return undefined;
-    // Si ya es un objeto Date, devolverlo
-    if (dateValue instanceof Date) return dateValue;
-    // Si es string ISO con 'Z', new Date() lo interpreta correctamente como UTC
-    if (typeof dateValue === 'string' && dateValue.includes('Z')) {
-      return new Date(dateValue);
-    }
-    // Si es string ISO sin 'Z', agregar 'Z' para forzar UTC
-    if (typeof dateValue === 'string' && dateValue.includes('T')) {
-      if (!dateValue.match(/[+-]\d{2}:\d{2}$/) && !dateValue.endsWith('Z')) {
-        return new Date(dateValue + 'Z');
-      }
-      return new Date(dateValue);
-    }
-    // Fallback: intentar parsear normalmente
-    return new Date(dateValue);
-  };
   
   // Obtener todas las notas con recordatorios
   const notes = await Note.find({

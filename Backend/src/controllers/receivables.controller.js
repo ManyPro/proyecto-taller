@@ -5,6 +5,7 @@ import CashFlowEntry from '../models/CashFlowEntry.js';
 import Account from '../models/Account.js';
 import { computeBalance, ensureDefaultCashAccount } from './cashflow.controller.js';
 import mongoose from 'mongoose';
+import { createDateRange } from '../lib/dateTime.js';
 
 // ===== Empresas de Cartera =====
 
@@ -168,14 +169,13 @@ export const listReceivables = async (req, res) => {
 
   // Filtro de fechas
   if (from || to) {
+    const dateRange = createDateRange(from, to);
     query.createdAt = {};
-    if (from) {
-      query.createdAt.$gte = new Date(from);
+    if (dateRange.from) {
+      query.createdAt.$gte = dateRange.from;
     }
-    if (to) {
-      const toDate = new Date(to);
-      toDate.setHours(23, 59, 59, 999);
-      query.createdAt.$lte = toDate;
+    if (dateRange.to) {
+      query.createdAt.$lte = dateRange.to;
     }
   }
 

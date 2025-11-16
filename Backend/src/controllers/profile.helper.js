@@ -57,27 +57,50 @@ function merge(base={}, payload, opts={}) {
   const { overwriteCustomer=false, overwriteVehicle=false, overwriteMileage=false, overwriteYear=false } = opts;
   const c = { idNumber:'', name:'', phone:'', email:'', address:'', ...(base.customer||{}) };
   const v = { plate: payload.plate, vehicleId: payload.vehicle.vehicleId || base.vehicle?.vehicleId || null, brand:'', line:'', engine:'', year:null, mileage:null, ...(base.vehicle||{}) };
-  for (const k of Object.keys(payload.customer)) {
-    const val = payload.customer[k];
-    if (!val) continue;
-    if (overwriteCustomer || !c[k]) c[k]=val;
+  
+  // Si overwriteCustomer es true, reemplazar todos los campos del cliente (incluso si están vacíos)
+  if (overwriteCustomer) {
+    for (const k of Object.keys(payload.customer)) {
+      c[k] = payload.customer[k] || '';
+    }
+  } else {
+    // Comportamiento original: solo actualizar si el valor no está vacío
+    for (const k of Object.keys(payload.customer)) {
+      const val = payload.customer[k];
+      if (!val) continue;
+      if (!c[k]) c[k]=val;
+    }
   }
-  for (const k of ['brand','line','engine']) {
-    const val = payload.vehicle[k];
-    if (!val) continue;
-    if (overwriteVehicle || !v[k]) v[k]=val;
+  
+  // Si overwriteVehicle es true, reemplazar todos los campos del vehículo (incluso si están vacíos)
+  if (overwriteVehicle) {
+    for (const k of ['brand','line','engine']) {
+      v[k] = payload.vehicle[k] || '';
+    }
+  } else {
+    // Comportamiento original: solo actualizar si el valor no está vacío
+    for (const k of ['brand','line','engine']) {
+      const val = payload.vehicle[k];
+      if (!val) continue;
+      if (!v[k]) v[k]=val;
+    }
   }
+  
   // Preservar vehicleId si viene en payload
   if (payload.vehicle.vehicleId) {
     v.vehicleId = payload.vehicle.vehicleId;
   }
+  
   if (payload.vehicle.year!=null) {
     if (overwriteYear || v.year==null) v.year = payload.vehicle.year;
   }
+  
   if (payload.vehicle.mileage!=null) {
     if (overwriteMileage || v.mileage==null || payload.vehicle.mileage>v.mileage) v.mileage = payload.vehicle.mileage;
   }
-  v.plate = payload.plate; return { companyId: payload.companyId, plate: payload.plate, customer: c, vehicle: v };
+  
+  v.plate = payload.plate; 
+  return { companyId: payload.companyId, plate: payload.plate, customer: c, vehicle: v };
 }
 
 export async function upsertProfileFromSource(companyId, sourceDoc, options={}) {

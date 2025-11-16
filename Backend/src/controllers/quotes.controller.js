@@ -4,6 +4,7 @@ import Quote from '../models/Quote.js';
 import Vehicle from '../models/Vehicle.js';
 import { upsertProfileFromSource } from './profile.helper.js';
 import CustomerProfile from '../models/CustomerProfile.js';
+import { createDateRange } from '../lib/dateTime.js';
 
 /** Normaliza el tipo recibido desde el Frontend:
  *  'PRODUCTO'|'Servicio' -> 'Producto' ; 'SERVICIO'|'Servicio' -> 'Servicio'
@@ -184,14 +185,23 @@ export async function createQuote(req, res) {
     total
   });
 
-  try { await upsertProfileFromSource(companyId, { customer, vehicle: {
-    plate: vehicle.plate,
-    brand: vehicle.make,
-    line: vehicle.line,
-    engine: vehicle.displacement,
-    year: vehicle.modelYear ? Number(vehicle.modelYear) || null : null,
-    mileage: null
-  }}, { source: 'quote' }); } catch {}
+  // Actualizar perfil del cliente con overwrite para que los cambios manuales reemplacen los datos existentes
+  try { 
+    await upsertProfileFromSource(companyId, { customer, vehicle: {
+      plate: vehicle.plate,
+      brand: vehicle.make,
+      line: vehicle.line,
+      engine: vehicle.displacement,
+      year: vehicle.modelYear ? Number(vehicle.modelYear) || null : null,
+      mileage: null
+    }}, { 
+      source: 'quote',
+      overwriteCustomer: true,  // Sobrescribir datos del cliente si se editaron manualmente
+      overwriteVehicle: true,   // Sobrescribir datos del vehículo si se editaron manualmente
+      overwriteYear: true,      // Sobrescribir año si se editó
+      overwriteMileage: true     // Sobrescribir kilometraje si se editó
+    }); 
+  } catch {}
 
   res.status(201).json(doc);
 }
@@ -254,14 +264,13 @@ export async function listQuotes(req, res) {
   }
 
   if (from || to) {
+    const dateRange = createDateRange(from, to);
     q.createdAt = {};
-    if (from) {
-      const dFrom = new Date(`${from}T00:00:00.000Z`);
-      if (!isNaN(dFrom.getTime())) q.createdAt.$gte = dFrom;
+    if (dateRange.from) {
+      q.createdAt.$gte = dateRange.from;
     }
-    if (to) {
-      const dTo = new Date(`${to}T23:59:59.999Z`);
-      if (!isNaN(dTo.getTime())) q.createdAt.$lte = dTo;
+    if (dateRange.to) {
+      q.createdAt.$lte = dateRange.to;
     }
     if (Object.keys(q.createdAt).length === 0) delete q.createdAt;
   }
@@ -382,14 +391,23 @@ export async function updateQuote(req, res) {
   exists.total = total;
 
   await exists.save();
-  try { await upsertProfileFromSource(companyId, { customer, vehicle: {
-    plate: vehicle.plate,
-    brand: vehicle.make,
-    line: vehicle.line,
-    engine: vehicle.displacement,
-    year: vehicle.modelYear ? Number(vehicle.modelYear) || null : null,
-    mileage: null
-  }}, { source: 'quote' }); } catch {}
+  // Actualizar perfil del cliente con overwrite para que los cambios manuales reemplacen los datos existentes
+  try { 
+    await upsertProfileFromSource(companyId, { customer, vehicle: {
+      plate: vehicle.plate,
+      brand: vehicle.make,
+      line: vehicle.line,
+      engine: vehicle.displacement,
+      year: vehicle.modelYear ? Number(vehicle.modelYear) || null : null,
+      mileage: vehicle.mileage ?? null
+    }}, { 
+      source: 'quote',
+      overwriteCustomer: true,  // Sobrescribir datos del cliente si se editaron manualmente
+      overwriteVehicle: true,   // Sobrescribir datos del vehículo si se editaron manualmente
+      overwriteYear: true,      // Sobrescribir año si se editó
+      overwriteMileage: true    // Sobrescribir kilometraje si se editó
+    }); 
+  } catch {}
   res.json(exists);
 }
 
