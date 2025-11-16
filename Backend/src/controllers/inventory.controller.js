@@ -1049,7 +1049,7 @@ export const getItemStockEntries = async (req, res) => {
   const item = await Item.findOne({ _id: id, companyId: req.companyId });
   if (!item) return res.status(404).json({ error: "Item no encontrado" });
 
-  const stockEntries = await StockEntry.find({
+  let stockEntries = await StockEntry.find({
     companyId: req.companyId,
     itemId: item._id,
     qty: { $gt: 0 } // Solo mostrar entradas con stock disponible
@@ -1057,6 +1057,87 @@ export const getItemStockEntries = async (req, res) => {
   .populate('vehicleIntakeId', 'intakeKind intakeDate purchasePlace brand model engine')
   .sort({ entryDate: 1, _id: 1 })
   .lean();
+
+  // Verificar si necesita sincronización automática
+  const totalInEntries = stockEntries.reduce((sum, se) => sum + (se.qty || 0), 0);
+  const itemStock = item.stock || 0;
+  
+  // Si hay stock pero no hay entradas, o si la suma no coincide, sincronizar automáticamente
+  if (itemStock > 0 && (stockEntries.length === 0 || totalInEntries < itemStock)) {
+    try {
+      // Usar el vehicleIntakeId del item si existe
+      let vehicleIntakeId = item.vehicleIntakeId;
+      
+      // Si no tiene vehicleIntakeId, crear uno por defecto
+      if (!vehicleIntakeId || !mongoose.Types.ObjectId.isValid(vehicleIntakeId)) {
+        // Buscar o crear un VehicleIntake por defecto "GENERAL"
+        let defaultIntake = await VehicleIntake.findOne({
+          companyId: req.companyId,
+          intakeKind: 'purchase',
+          purchasePlace: 'GENERAL'
+        });
+        
+        if (!defaultIntake) {
+          defaultIntake = await VehicleIntake.create({
+            companyId: req.companyId,
+            intakeKind: 'purchase',
+            purchasePlace: 'GENERAL',
+            intakeDate: new Date(),
+            entryPrice: 0
+          });
+        }
+        
+        vehicleIntakeId = defaultIntake._id;
+        
+        // Actualizar el item para que tenga el vehicleIntakeId
+        await Item.updateOne(
+          { _id: item._id, companyId: req.companyId },
+          { $set: { vehicleIntakeId } }
+        );
+      }
+      
+      // Verificar que el vehicleIntakeId existe
+      const vehicleIntake = await VehicleIntake.findOne({
+        _id: vehicleIntakeId,
+        companyId: req.companyId
+      });
+      
+      if (vehicleIntake) {
+        // Calcular la diferencia que falta
+        const difference = itemStock - totalInEntries;
+        
+        if (difference > 0) {
+          // Crear StockEntry para la diferencia
+          await StockEntry.create({
+            companyId: req.companyId,
+            itemId: item._id,
+            vehicleIntakeId,
+            qty: difference,
+            entryPrice: item.entryPrice || null,
+            entryDate: vehicleIntake.intakeDate || item.createdAt || new Date(),
+            meta: {
+              note: 'Sincronización automática - stock sin entrada específica',
+              supplier: vehicleIntake.purchasePlace || '',
+              purchaseOrder: ''
+            }
+          });
+          
+          // Recargar las entradas después de crear la nueva
+          stockEntries = await StockEntry.find({
+            companyId: req.companyId,
+            itemId: item._id,
+            qty: { $gt: 0 }
+          })
+          .populate('vehicleIntakeId', 'intakeKind intakeDate purchasePlace brand model engine')
+          .sort({ entryDate: 1, _id: 1 })
+          .lean();
+        }
+      }
+    } catch (error) {
+      console.error(`Error sincronizando StockEntry para item ${item.sku}:`, error);
+      // Continuar aunque falle la sincronización automática
+    }
+  }
 
   // Enriquecer con información de la entrada
   const enriched = stockEntries.map(se => {
@@ -1069,6 +1150,198 @@ export const getItemStockEntries = async (req, res) => {
   });
 
   res.json({ item: item.toObject(), stockEntries: enriched });
+};
+
+// ===== Sincronizar Stock Entries =====
+// Asigna StockEntry automáticamente a items que tienen stock pero no tienen entrada asociada
+export const syncStockEntries = async (req, res) => {
+  try {
+    const companyId = req.companyId;
+    
+    // Buscar todos los items con stock > 0
+    const itemsWithStock = await Item.find({
+      companyId,
+      stock: { $gt: 0 }
+    }).lean();
+    
+    if (!itemsWithStock || itemsWithStock.length === 0) {
+      return res.json({
+        success: true,
+        message: 'No hay items con stock para sincronizar',
+        processed: 0,
+        created: 0
+      });
+    }
+    
+    let processed = 0;
+    let created = 0;
+    let errors = [];
+    
+    // Procesar cada item
+    for (const item of itemsWithStock) {
+      try {
+        // Verificar si ya tiene StockEntry con stock disponible
+        const existingEntries = await StockEntry.find({
+          companyId,
+          itemId: item._id,
+          qty: { $gt: 0 }
+        }).lean();
+        
+        // Si ya tiene entradas con stock, verificar si la suma coincide
+        if (existingEntries.length > 0) {
+          const totalInEntries = existingEntries.reduce((sum, se) => sum + (se.qty || 0), 0);
+          const itemStock = item.stock || 0;
+          
+          // Si la suma coincide, no hacer nada
+          if (totalInEntries >= itemStock) {
+            continue;
+          }
+          
+          // Si hay diferencia, crear una entrada para la diferencia
+          const difference = itemStock - totalInEntries;
+          if (difference > 0) {
+            // Usar el vehicleIntakeId del item si existe
+            let vehicleIntakeId = item.vehicleIntakeId;
+            
+            // Si no tiene vehicleIntakeId, crear uno por defecto
+            if (!vehicleIntakeId || !mongoose.Types.ObjectId.isValid(vehicleIntakeId)) {
+              // Buscar o crear un VehicleIntake por defecto "GENERAL"
+              let defaultIntake = await VehicleIntake.findOne({
+                companyId,
+                intakeKind: 'purchase',
+                purchasePlace: 'GENERAL'
+              });
+              
+              if (!defaultIntake) {
+                defaultIntake = await VehicleIntake.create({
+                  companyId,
+                  intakeKind: 'purchase',
+                  purchasePlace: 'GENERAL',
+                  intakeDate: new Date(),
+                  entryPrice: 0
+                });
+              }
+              
+              vehicleIntakeId = defaultIntake._id;
+              
+              // Actualizar el item para que tenga el vehicleIntakeId
+              await Item.updateOne(
+                { _id: item._id, companyId },
+                { $set: { vehicleIntakeId } }
+              );
+            }
+            
+            // Verificar que el vehicleIntakeId existe
+            const vehicleIntake = await VehicleIntake.findOne({
+              _id: vehicleIntakeId,
+              companyId
+            });
+            
+            if (!vehicleIntake) {
+              errors.push(`Item ${item.sku}: VehicleIntake no encontrado`);
+              continue;
+            }
+            
+            // Crear StockEntry para la diferencia
+            await StockEntry.create({
+              companyId,
+              itemId: item._id,
+              vehicleIntakeId,
+              qty: difference,
+              entryPrice: item.entryPrice || null,
+              entryDate: vehicleIntake.intakeDate || item.createdAt || new Date(),
+              meta: {
+                note: 'Sincronización automática - stock sin entrada específica',
+                supplier: vehicleIntake.purchasePlace || '',
+                purchaseOrder: ''
+              }
+            });
+            
+            created++;
+          }
+        } else {
+          // No tiene ninguna entrada, crear una nueva
+          let vehicleIntakeId = item.vehicleIntakeId;
+          
+          // Si no tiene vehicleIntakeId, crear uno por defecto
+          if (!vehicleIntakeId || !mongoose.Types.ObjectId.isValid(vehicleIntakeId)) {
+            // Buscar o crear un VehicleIntake por defecto "GENERAL"
+            let defaultIntake = await VehicleIntake.findOne({
+              companyId,
+              intakeKind: 'purchase',
+              purchasePlace: 'GENERAL'
+            });
+            
+            if (!defaultIntake) {
+              defaultIntake = await VehicleIntake.create({
+                companyId,
+                intakeKind: 'purchase',
+                purchasePlace: 'GENERAL',
+                intakeDate: new Date(),
+                entryPrice: 0
+              });
+            }
+            
+            vehicleIntakeId = defaultIntake._id;
+            
+            // Actualizar el item para que tenga el vehicleIntakeId
+            await Item.updateOne(
+              { _id: item._id, companyId },
+              { $set: { vehicleIntakeId } }
+            );
+          }
+          
+          // Verificar que el vehicleIntakeId existe
+          const vehicleIntake = await VehicleIntake.findOne({
+            _id: vehicleIntakeId,
+            companyId
+          });
+          
+          if (!vehicleIntake) {
+            errors.push(`Item ${item.sku}: VehicleIntake no encontrado`);
+            continue;
+          }
+          
+          // Crear StockEntry con todo el stock del item
+          await StockEntry.create({
+            companyId,
+            itemId: item._id,
+            vehicleIntakeId,
+            qty: item.stock || 0,
+            entryPrice: item.entryPrice || null,
+            entryDate: vehicleIntake.intakeDate || item.createdAt || new Date(),
+            meta: {
+              note: 'Sincronización automática - stock sin entrada específica',
+              supplier: vehicleIntake.purchasePlace || '',
+              purchaseOrder: ''
+            }
+          });
+          
+          created++;
+        }
+        
+        processed++;
+      } catch (error) {
+        console.error(`Error procesando item ${item.sku}:`, error);
+        errors.push(`Item ${item.sku}: ${error.message || 'Error desconocido'}`);
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Sincronización completada: ${processed} items procesados, ${created} StockEntries creados`,
+      processed,
+      created,
+      errors: errors.length > 0 ? errors : undefined
+    });
+    
+  } catch (error) {
+    console.error('Error en syncStockEntries:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Error al sincronizar StockEntries'
+    });
+  }
 };
 
 // ===== Publicación MASIVA =====

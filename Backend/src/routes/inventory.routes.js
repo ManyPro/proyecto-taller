@@ -14,6 +14,7 @@ import {
   addItemStock,
   addItemsStockBulk,
   getItemStockEntries,
+  syncStockEntries,
   bulkPublishItems,
   downloadImportTemplate,
   importItemsFromExcel,
@@ -43,6 +44,7 @@ router.post('/items/import/excel', importItemsFromExcel);
 router.get('/items/export/excel', exportInventoryToExcel);
 // Mantenimiento
 router.post('/items/maintenance/unpublish-zero-stock', unpublishZeroStock);
+router.post('/items/maintenance/sync-stock-entries', syncStockEntries);
 
 router.get('/items/:id/qr.png', itemQrPng);
 router.get('/items/:id/stock-entries', getItemStockEntries);
