@@ -1052,9 +1052,10 @@ if(typeof window !== 'undefined' && window.addEventListener) {
       });
       
       notificationSSE.addEventListener('error', (e) => {
-        // Solo loggear errores si realmente hay un problema (no en reconexión normal)
+        // Silenciar errores 404 y otros errores de conexión SSE
+        // Solo reconectar sin mostrar errores en consola
         if(notificationSSE?.readyState === EventSource.CLOSED) {
-          console.warn('SSE notification connection closed, reconnecting...');
+          // Silenciar - no mostrar warning en consola
         }
         // Reconectar después de 5 segundos
         setTimeout(() => {

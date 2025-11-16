@@ -10080,17 +10080,23 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
     marginBottom: totalContentRows > 20 ? '12px' : '16px'
   };
   
-  // Calcular columnas según cantidad de secciones
-  let gridCols = 'grid-cols-2';
-  if (sectionCount <= 2) gridCols = 'grid-cols-2';
-  else if (sectionCount <= 4) gridCols = 'grid-cols-2';
-  else if (sectionCount <= 6) gridCols = 'grid-cols-3';
-  else gridCols = 'grid-cols-3';
+  // Calcular layout inteligente según secciones seleccionadas
+  // Determinar si hay secciones que requieren ancho completo
+  const needsFullWidth = hasCartera || hasRestock || (hasManoObra && !hasGrafico);
+  
+  // Calcular columnas del grid principal de forma más inteligente
+  let mainGridCols = 2; // Por defecto 2 columnas
+  if (sectionCount === 1) mainGridCols = 1;
+  else if (sectionCount === 2 && !needsFullWidth) mainGridCols = 2;
+  else if (sectionCount <= 4 && !needsFullWidth) mainGridCols = 2;
+  else if (sectionCount <= 6) mainGridCols = 3;
+  else mainGridCols = 3;
   
   // Convertir pulgadas a píxeles para el contenedor principal
-  const containerWidthPx = 1056; // 11in * 96 DPI
-  const containerHeightPx = 816; // 8.5in * 96 DPI
-  const containerPadding = totalContentRows > 20 ? 20 : 28;
+  // Usar tamaño más grande para mejor calidad (1200px de ancho)
+  const containerWidthPx = 1200; // Mejor calidad
+  const containerHeightPx = Math.max(816, 400 + (totalContentRows * 35)); // Altura dinámica basada en contenido
+  const containerPadding = totalContentRows > 20 ? 24 : 32;
   
   let html = `
     <div id="report-export-main-container" style="
@@ -10170,7 +10176,7 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
         </p>
       </div>
       
-      <div style="display: grid; gap: ${spacing.gap}; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); width: 100%;">
+      <div style="display: grid; gap: ${spacing.gap}; grid-template-columns: repeat(${mainGridCols}, 1fr); width: 100%; align-items: start;">
   `;
   
   // Resumen (siempre arriba si está seleccionado)
@@ -10276,6 +10282,7 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
   // Ingresos por Cuenta
   if (hasIngresos) {
     const ingresosEntries = Object.entries(reportData.ingresosPorCuenta);
+    const ingresosCount = ingresosEntries.length;
     html += `
       <div style="
         background: rgba(30, 41, 59, 0.8);
@@ -10283,6 +10290,7 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
         border-radius: 12px;
         border: 1px solid rgba(148, 163, 184, 0.2);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        ${ingresosCount > 5 ? 'grid-column: 1 / -1;' : ''}
       ">
         <h3 style="margin: 0 0 ${spacing.gapSmall} 0; font-size: ${fontSize.sectionTitle}px; font-weight: 700; color: white; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">💰 Ingresos por Cuenta</h3>
         ${ingresosEntries.length > 0 ? `
@@ -10381,6 +10389,7 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
   
   // Mano de Obra
   if (hasManoObra) {
+    const manoObraCount = reportData.manoObra?.porTecnico?.length || 0;
     html += `
       <div style="
         background: rgba(30, 41, 59, 0.8);
@@ -10388,7 +10397,7 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
         border-radius: 12px;
         border: 1px solid rgba(148, 163, 184, 0.2);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        ${hasGrafico ? '' : 'grid-column: 1 / -1;'}
+        ${hasGrafico && manoObraCount <= 5 ? '' : 'grid-column: 1 / -1;'}
       ">
         <h3 style="margin: 0 0 ${spacing.gap} 0; font-size: ${fontSize.sectionTitle}px; font-weight: 700; color: white; line-height: 1.2;">👷 Mano de Obra por Técnico</h3>
         ${reportData.manoObra.porTecnico.length > 0 ? `
@@ -10432,6 +10441,7 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
   
   // Gráfico (si está seleccionado, se agregará después con Chart.js)
   if (hasGrafico && reportData.manoObra && reportData.manoObra.porTecnico && reportData.manoObra.porTecnico.length > 0) {
+    const manoObraCount = reportData.manoObra.porTecnico.length;
     html += `
       <div id="chart-container-export" style="
         background: rgba(30, 41, 59, 0.8);
@@ -10443,11 +10453,12 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        min-height: 300px;
+        min-height: ${manoObraCount > 5 ? '400px' : '350px'};
         width: 100%;
+        ${hasManoObra && manoObraCount <= 5 ? '' : 'grid-column: 1 / -1;'}
       ">
         <h3 style="margin: 0 0 ${spacing.gap} 0; font-size: ${fontSize.sectionTitle}px; font-weight: 700; color: white; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">📊 Distribución de Mano de Obra</h3>
-        <canvas id="chart-canvas-export" width="400" height="400" style="max-width: 100%; height: auto;"></canvas>
+        <canvas id="chart-canvas-export" width="450" height="450" style="max-width: 100%; height: auto; display: block;"></canvas>
       </div>
     `;
   }
@@ -10550,9 +10561,24 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     const html2canvas = await ensureHtml2Canvas();
     console.log('✅ html2canvas cargado');
     
-    // Convertir pulgadas a píxeles (11in x 8.5in a 96 DPI = 1056px x 816px)
-    const targetWidthPx = 1056; // 11in * 96 DPI
-    const targetHeightPx = 816; // 8.5in * 96 DPI
+    // Usar dimensiones dinámicas basadas en contenido
+    // Calcular altura estimada basada en secciones seleccionadas
+    let estimatedHeight = 400; // Altura base
+    if (selectedSections.includes('cartera') && reportData.cartera.deudores) {
+      estimatedHeight += Math.min(reportData.cartera.deudores.length, 10) * 40;
+    }
+    if (selectedSections.includes('manoobra') && reportData.manoObra.porTecnico) {
+      estimatedHeight += reportData.manoObra.porTecnico.length * 35;
+    }
+    if (selectedSections.includes('restock') && reportData.itemsNecesitanRestock) {
+      estimatedHeight += Math.min(reportData.itemsNecesitanRestock.length, 15) * 35;
+    }
+    if (selectedSections.includes('grafico')) {
+      estimatedHeight += 350;
+    }
+    
+    const targetWidthPx = 1200; // Mejor calidad de imagen
+    const targetHeightPx = Math.max(816, estimatedHeight + 200); // Altura dinámica con margen
     
     // Crear contenedor temporal fuera de la vista
     const exportContainer = document.createElement('div');
@@ -10563,10 +10589,12 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       top: 0;
       width: ${targetWidthPx}px;
       min-height: ${targetHeightPx}px;
+      max-width: ${targetWidthPx}px;
       background: transparent;
       overflow: visible;
       z-index: 99999;
       visibility: visible;
+      box-sizing: border-box;
     `;
     
     // Calcular totalContentRows para usar en estilos
@@ -10583,7 +10611,7 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     if (selectedSections.includes('ingresos') && reportData.ingresosPorCuenta) {
       totalContentRows += Object.keys(reportData.ingresosPorCuenta).length;
     }
-    const containerPadding = totalContentRows > 20 ? 20 : 28;
+    const containerPadding = totalContentRows > 20 ? 24 : 32;
     
     // Generar HTML optimizado directamente en el contenedor
     console.log('📝 Generando HTML del reporte...');
@@ -10681,7 +10709,8 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
           window.chartInstance = null;
         }
         
-        // Crear nuevo gráfico
+        // Crear nuevo gráfico con mejor tamaño
+        const chartSize = Math.min(450, Math.max(350, labels.length * 50));
         window.chartInstance = new Chart(ctx, {
           type: 'pie',
           data: {
@@ -10690,7 +10719,8 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
               data: data,
               backgroundColor: [
                 '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
-                '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'
+                '#8b5cf6', '#ec4899', '#06b6d4', '#f97316',
+                '#14b8a6', '#f43f5e', '#8b5cf6', '#06b6d4'
               ]
             }]
           },
@@ -10705,13 +10735,19 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
                 position: 'bottom',
                 labels: {
                   color: '#e5e7eb',
-                  font: { size: 12 },
-                  padding: 12
+                  font: { size: Math.max(11, Math.min(14, 14 - labels.length * 0.5)) },
+                  padding: 10,
+                  boxWidth: 15,
+                  boxHeight: 15
                 }
               }
             }
           }
         });
+        
+        // Ajustar tamaño del canvas
+        chartCanvas.width = chartSize;
+        chartCanvas.height = chartSize;
         
         // Esperar a que el gráfico se renderice completamente
         console.log('⏳ Esperando renderizado del gráfico...');
@@ -10761,7 +10797,7 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     });
     
     // Asegurar que el contenedor principal tenga el tamaño correcto y todos los estilos
-    mainContainer.style.cssText += `
+    mainContainer.style.cssText = `
       width: ${actualWidth}px !important;
       min-height: ${actualHeight}px !important;
       max-width: ${actualWidth}px !important;
@@ -10771,13 +10807,22 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       position: relative !important;
       box-sizing: border-box !important;
       overflow: visible !important;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%) !important;
+      padding: ${containerPadding}px !important;
     `;
     
     // Asegurar que el contenedor de exportación también tenga el tamaño correcto
-    exportContainer.style.cssText += `
+    exportContainer.style.cssText = `
+      position: fixed !important;
+      left: -9999px !important;
+      top: 0 !important;
       width: ${actualWidth}px !important;
       min-height: ${actualHeight}px !important;
+      max-width: ${actualWidth}px !important;
       overflow: visible !important;
+      z-index: 99999 !important;
+      visibility: visible !important;
+      box-sizing: border-box !important;
     `;
     
     // Forzar múltiples reflows para asegurar que los estilos se apliquen
@@ -10817,11 +10862,11 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     });
     
     const canvas = await html2canvas(mainContainer, {
-      scale: 2,
+      scale: 2, // Alta calidad
       backgroundColor: '#0f172a',
       useCORS: true,
       allowTaint: false,
-      logging: true, // Activar logging temporalmente para debug
+      logging: false, // Desactivar logging para producción
       width: actualWidth,
       height: actualHeight,
       windowWidth: actualWidth,
@@ -10854,8 +10899,26 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
             color: #e5e7eb !important;
           `);
+          
+          // Asegurar que todas las tablas y elementos se ajusten correctamente
+          const tables = clonedMain.querySelectorAll('table');
+          tables.forEach(table => {
+            table.style.width = '100%';
+            table.style.tableLayout = 'fixed';
+            table.style.borderCollapse = 'separate';
+            table.style.borderSpacing = '0';
+          });
+          
+          // Asegurar que las celdas manejen texto largo
+          const cells = clonedMain.querySelectorAll('td, th');
+          cells.forEach(cell => {
+            cell.style.wordWrap = 'break-word';
+            cell.style.overflowWrap = 'break-word';
+            cell.style.whiteSpace = 'normal';
+            cell.style.overflow = 'hidden';
+          });
+          
           console.log('✅ Clon del contenedor principal preparado con dimensiones:', actualWidth, 'x', actualHeight);
-          console.log('📋 Estilos aplicados al clon:', clonedMain.getAttribute('style'));
         } else {
           console.warn('⚠️ No se encontró el contenedor principal en el clon');
         }
