@@ -9628,35 +9628,41 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
   
   // Calcular factores de escala de fuente basados en cantidad de contenido
   // Más contenido = fuente más pequeña, menos contenido = fuente más grande
-  const baseFontScale = totalContentRows > 20 ? 0.85 : totalContentRows > 10 ? 0.9 : 1.0;
-  const headerFontScale = Math.max(0.8, baseFontScale);
-  const tableFontScale = Math.max(0.75, baseFontScale * 0.9);
-  const cardFontScale = Math.max(0.85, baseFontScale);
+  // Ajustar más agresivamente para mejor legibilidad
+  let baseFontScale = 1.0;
+  if (totalContentRows > 25) baseFontScale = 0.75;
+  else if (totalContentRows > 15) baseFontScale = 0.85;
+  else if (totalContentRows > 8) baseFontScale = 0.95;
   
-  // Tamaños de fuente base escalados
+  const headerFontScale = Math.max(0.75, baseFontScale);
+  const tableFontScale = Math.max(0.7, baseFontScale * 0.85);
+  const cardFontScale = Math.max(0.8, baseFontScale);
+  
+  // Tamaños de fuente base escalados - valores más conservadores
   const fontSize = {
-    header: Math.round(32 * headerFontScale),
-    headerSub: Math.round(16 * headerFontScale),
-    sectionTitle: Math.round(18 * cardFontScale),
-    cardLabel: Math.round(13 * cardFontScale),
-    cardValue: Math.round(28 * cardFontScale),
-    cardValueSmall: Math.round(24 * cardFontScale),
-    cardSubtext: Math.round(11 * cardFontScale),
-    tableHeader: Math.round(12 * tableFontScale),
-    tableCell: Math.round(12 * tableFontScale),
-    tableCellSmall: Math.round(11 * tableFontScale),
-    infoText: Math.round(12 * cardFontScale),
-    infoTextSmall: Math.round(10 * cardFontScale)
+    header: Math.max(24, Math.round(28 * headerFontScale)),
+    headerSub: Math.max(14, Math.round(15 * headerFontScale)),
+    sectionTitle: Math.max(16, Math.round(17 * cardFontScale)),
+    cardLabel: Math.max(11, Math.round(12 * cardFontScale)),
+    cardValue: Math.max(22, Math.round(26 * cardFontScale)),
+    cardValueSmall: Math.max(20, Math.round(22 * cardFontScale)),
+    cardSubtext: Math.max(10, Math.round(10 * cardFontScale)),
+    tableHeader: Math.max(10, Math.round(11 * tableFontScale)),
+    tableCell: Math.max(10, Math.round(11 * tableFontScale)),
+    tableCellSmall: Math.max(9, Math.round(10 * tableFontScale)),
+    infoText: Math.max(11, Math.round(12 * cardFontScale)),
+    infoTextSmall: Math.max(9, Math.round(10 * cardFontScale))
   };
   
-  // Padding y spacing ajustados según contenido
+  // Padding y spacing ajustados según contenido - más espacio para mejor legibilidad
   const spacing = {
-    padding: totalContentRows > 20 ? '16px' : '20px',
-    paddingSmall: totalContentRows > 20 ? '12px' : '16px',
-    gap: totalContentRows > 20 ? '12px' : '16px',
-    gapSmall: totalContentRows > 20 ? '8px' : '10px',
-    tablePadding: totalContentRows > 20 ? '8px' : '10px',
-    tablePaddingSmall: totalContentRows > 20 ? '6px' : '8px'
+    padding: totalContentRows > 20 ? '18px' : '24px',
+    paddingSmall: totalContentRows > 20 ? '14px' : '18px',
+    gap: totalContentRows > 20 ? '14px' : '18px',
+    gapSmall: totalContentRows > 20 ? '10px' : '12px',
+    tablePadding: totalContentRows > 20 ? '9px' : '12px',
+    tablePaddingSmall: totalContentRows > 20 ? '7px' : '9px',
+    marginBottom: totalContentRows > 20 ? '12px' : '16px'
   };
   
   // Calcular columnas según cantidad de secciones
@@ -9670,58 +9676,79 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
     <div style="
       width: 11in;
       min-height: 8.5in;
+      max-width: 11in;
       background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-      padding: ${totalContentRows > 20 ? '24px' : '32px'};
+      padding: ${totalContentRows > 20 ? '20px' : '28px'};
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       color: #e5e7eb;
       box-sizing: border-box;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
     ">
       <style>
         /* Estilos globales para prevenir sobreposición de texto */
         * {
           box-sizing: border-box;
+          margin: 0;
+          padding: 0;
         }
         /* Asegurar que todas las celdas de tabla manejen texto largo correctamente */
         table {
-          table-layout: fixed;
-          width: 100%;
+          table-layout: fixed !important;
+          width: 100% !important;
+          border-collapse: separate !important;
+          border-spacing: 0 !important;
         }
         table td, table th {
-          word-wrap: break-word;
-          overflow-wrap: break-word;
-          hyphens: auto;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+          hyphens: auto !important;
+          overflow: hidden !important;
+          max-width: 0 !important;
+          white-space: normal !important;
         }
         /* Mejorar line-height para mejor legibilidad */
         div, p, span {
-          line-height: 1.4;
+          line-height: 1.4 !important;
         }
         /* Asegurar que los números largos se ajusten */
         .money-value {
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          white-space: normal !important;
+          word-wrap: break-word !important;
+          overflow-wrap: break-word !important;
+        }
+        /* Mejorar espaciado entre elementos */
+        h1, h2, h3 {
+          margin: 0 !important;
+          padding: 0 !important;
+        }
+        /* Asegurar que los contenedores no se desborden */
+        [style*="grid"] {
+          gap: ${spacing.gap} !important;
+        }
+        /* Mejorar el espaciado general */
+        body {
+          overflow-x: hidden;
         }
       </style>
       <!-- Header -->
       <div style="
         background: linear-gradient(135deg, #2563eb, #1d4ed8);
-        padding: 24px 32px;
-        border-radius: 16px;
-        margin-bottom: 24px;
-        box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+        padding: ${spacing.padding} ${spacing.padding};
+        border-radius: 12px;
+        margin-bottom: ${spacing.marginBottom};
+        box-shadow: 0 4px 16px rgba(37, 99, 235, 0.3);
       ">
-        <h1 style="margin: 0; font-size: ${fontSize.header}px; font-weight: 700; color: white; margin-bottom: 8px; line-height: 1.2;">
+        <h1 style="margin: 0; font-size: ${fontSize.header}px; font-weight: 700; color: white; margin-bottom: 6px; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">
           📊 Reporte de Ventas
         </h1>
-        <p style="margin: 0; font-size: ${fontSize.headerSub}px; color: rgba(255, 255, 255, 0.9); line-height: 1.3;">
+        <p style="margin: 0; font-size: ${fontSize.headerSub}px; color: rgba(255, 255, 255, 0.9); line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">
           Período: ${periodStr}
         </p>
       </div>
       
-      <div style="display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+      <div style="display: grid; gap: ${spacing.gap}; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); flex: 1; align-content: start;">
   `;
   
   // Resumen (siempre arriba si está seleccionado)
@@ -9731,49 +9758,65 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
         grid-column: 1 / -1;
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: ${spacing.gap};
-        margin-bottom: 8px;
+        gap: ${spacing.gapSmall};
+        margin-bottom: ${spacing.marginBottom};
       ">
         <div style="
           background: rgba(30, 41, 59, 0.8);
-          padding: ${spacing.padding};
-          border-radius: 12px;
+          padding: ${spacing.paddingSmall};
+          border-radius: 10px;
           border: 1px solid rgba(148, 163, 184, 0.2);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+          min-height: 85px;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-start;
         ">
-          <div style="font-size: ${fontSize.cardLabel}px; color: #94a3b8; margin-bottom: 8px; font-weight: 500; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">Total Ventas</div>
-          <div style="font-size: ${fontSize.cardValue}px; font-weight: 700; color: white; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">${reportData.ventas.total}</div>
+          <div style="font-size: ${fontSize.cardLabel}px; color: #94a3b8; margin-bottom: 8px; font-weight: 500; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word; white-space: nowrap;">Total Ventas</div>
+          <div style="font-size: ${fontSize.cardValue}px; font-weight: 700; color: white; line-height: 1.1; word-wrap: break-word; overflow-wrap: break-word; white-space: nowrap;">${reportData.ventas.total}</div>
         </div>
         <div style="
           background: rgba(30, 41, 59, 0.8);
-          padding: ${spacing.padding};
-          border-radius: 12px;
+          padding: ${spacing.paddingSmall};
+          border-radius: 10px;
           border: 1px solid rgba(148, 163, 184, 0.2);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+          min-height: 85px;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-start;
         ">
-          <div style="font-size: ${fontSize.cardLabel}px; color: #94a3b8; margin-bottom: 8px; font-weight: 500; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">Ingresos Totales</div>
-          <div style="font-size: ${fontSize.cardValue}px; font-weight: 700; color: #10b981; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">${formatMoneyExport(reportData.ventas.ingresos)}</div>
+          <div style="font-size: ${fontSize.cardLabel}px; color: #94a3b8; margin-bottom: 8px; font-weight: 500; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word; white-space: nowrap;">Ingresos Totales</div>
+          <div style="font-size: ${fontSize.cardValue}px; font-weight: 700; color: #10b981; line-height: 1.1; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; hyphens: auto;">${formatMoneyExport(reportData.ventas.ingresos)}</div>
         </div>
         <div style="
           background: rgba(30, 41, 59, 0.8);
-          padding: ${spacing.padding};
-          border-radius: 12px;
+          padding: ${spacing.paddingSmall};
+          border-radius: 10px;
           border: 1px solid rgba(148, 163, 184, 0.2);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+          min-height: 85px;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-start;
         ">
-          <div style="font-size: ${fontSize.cardLabel}px; color: #94a3b8; margin-bottom: 8px; font-weight: 500; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">Valor en Cartera</div>
-          <div style="font-size: ${fontSize.cardValue}px; font-weight: 700; color: #fbbf24; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">${formatMoneyExport(reportData.cartera.valor)}</div>
-          <div style="font-size: ${fontSize.cardSubtext}px; color: #64748b; margin-top: 4px; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">${reportData.cartera.totalDeudores} cuenta(s) pendiente(s)</div>
+          <div style="font-size: ${fontSize.cardLabel}px; color: #94a3b8; margin-bottom: 8px; font-weight: 500; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word; white-space: nowrap;">Valor en Cartera</div>
+          <div style="font-size: ${fontSize.cardValue}px; font-weight: 700; color: #fbbf24; line-height: 1.1; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; margin-bottom: 4px;">${formatMoneyExport(reportData.cartera.valor)}</div>
+          <div style="font-size: ${fontSize.cardSubtext}px; color: #64748b; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word; white-space: nowrap;">${reportData.cartera.totalDeudores} cuenta(s) pendiente(s)</div>
         </div>
         <div style="
           background: rgba(30, 41, 59, 0.8);
-          padding: ${spacing.padding};
-          border-radius: 12px;
+          padding: ${spacing.paddingSmall};
+          border-radius: 10px;
           border: 1px solid rgba(148, 163, 184, 0.2);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+          min-height: 85px;
+          display: flex;
+          flex-direction: column;
+          justify-content: flex-start;
         ">
-          <div style="font-size: ${fontSize.cardLabel}px; color: #94a3b8; margin-bottom: 8px; font-weight: 500; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">Total Agendas</div>
-          <div style="font-size: ${fontSize.cardValue}px; font-weight: 700; color: #60a5fa; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">${reportData.agendas.total}</div>
+          <div style="font-size: ${fontSize.cardLabel}px; color: #94a3b8; margin-bottom: 8px; font-weight: 500; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word; white-space: nowrap;">Total Agendas</div>
+          <div style="font-size: ${fontSize.cardValue}px; font-weight: 700; color: #60a5fa; line-height: 1.1; word-wrap: break-word; overflow-wrap: break-word; white-space: nowrap;">${reportData.agendas.total}</div>
         </div>
       </div>
     `;
@@ -9789,19 +9832,19 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
         border: 1px solid rgba(148, 163, 184, 0.2);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
       ">
-        <h3 style="margin: 0 0 ${spacing.gap} 0; font-size: ${fontSize.sectionTitle}px; font-weight: 700; color: white; line-height: 1.2;">💵 Flujo de Caja</h3>
+        <h3 style="margin: 0 0 ${spacing.gapSmall} 0; font-size: ${fontSize.sectionTitle}px; font-weight: 700; color: white; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">💵 Flujo de Caja</h3>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: ${spacing.gapSmall};">
-          <div style="background: rgba(16, 185, 129, 0.15); padding: ${spacing.paddingSmall}; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
-            <div style="font-size: ${fontSize.infoTextSmall}px; color: #6ee7b7; margin-bottom: 6px; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">Entradas</div>
-            <div style="font-size: ${Math.round(fontSize.cardValue * 0.7)}px; font-weight: 700; color: #10b981; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">${formatMoneyExport(reportData.flujoCaja.entrada)}</div>
+          <div style="background: rgba(16, 185, 129, 0.15); padding: ${spacing.paddingSmall}; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3); min-height: 70px; display: flex; flex-direction: column; justify-content: flex-start;">
+            <div style="font-size: ${fontSize.infoTextSmall}px; color: #6ee7b7; margin-bottom: 6px; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word; white-space: nowrap;">Entradas</div>
+            <div style="font-size: ${Math.max(16, Math.round(fontSize.cardValue * 0.65))}px; font-weight: 700; color: #10b981; line-height: 1.1; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; hyphens: auto;">${formatMoneyExport(reportData.flujoCaja.entrada)}</div>
           </div>
-          <div style="background: rgba(239, 68, 68, 0.15); padding: ${spacing.paddingSmall}; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
-            <div style="font-size: ${fontSize.infoTextSmall}px; color: #fca5a5; margin-bottom: 6px; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">Salidas</div>
-            <div style="font-size: ${Math.round(fontSize.cardValue * 0.7)}px; font-weight: 700; color: #ef4444; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">${formatMoneyExport(reportData.flujoCaja.salida)}</div>
+          <div style="background: rgba(239, 68, 68, 0.15); padding: ${spacing.paddingSmall}; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3); min-height: 70px; display: flex; flex-direction: column; justify-content: flex-start;">
+            <div style="font-size: ${fontSize.infoTextSmall}px; color: #fca5a5; margin-bottom: 6px; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word; white-space: nowrap;">Salidas</div>
+            <div style="font-size: ${Math.max(16, Math.round(fontSize.cardValue * 0.65))}px; font-weight: 700; color: #ef4444; line-height: 1.1; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; hyphens: auto;">${formatMoneyExport(reportData.flujoCaja.salida)}</div>
           </div>
-          <div style="background: rgba(59, 130, 246, 0.15); padding: ${spacing.paddingSmall}; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
-            <div style="font-size: ${fontSize.infoTextSmall}px; color: #93c5fd; margin-bottom: 6px; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">Neto</div>
-            <div style="font-size: ${Math.round(fontSize.cardValue * 0.7)}px; font-weight: 700; color: #3b82f6; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">${formatMoneyExport(reportData.flujoCaja.neto)}</div>
+          <div style="background: rgba(59, 130, 246, 0.15); padding: ${spacing.paddingSmall}; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3); min-height: 70px; display: flex; flex-direction: column; justify-content: flex-start;">
+            <div style="font-size: ${fontSize.infoTextSmall}px; color: #93c5fd; margin-bottom: 6px; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word; white-space: nowrap;">Neto</div>
+            <div style="font-size: ${Math.max(16, Math.round(fontSize.cardValue * 0.65))}px; font-weight: 700; color: #3b82f6; line-height: 1.1; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; hyphens: auto;">${formatMoneyExport(reportData.flujoCaja.neto)}</div>
           </div>
         </div>
       </div>
@@ -9819,25 +9862,26 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
         border: 1px solid rgba(148, 163, 184, 0.2);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
       ">
-        <h3 style="margin: 0 0 ${spacing.gap} 0; font-size: ${fontSize.sectionTitle}px; font-weight: 700; color: white; line-height: 1.2;">💰 Ingresos por Cuenta</h3>
+        <h3 style="margin: 0 0 ${spacing.gapSmall} 0; font-size: ${fontSize.sectionTitle}px; font-weight: 700; color: white; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">💰 Ingresos por Cuenta</h3>
         ${ingresosEntries.length > 0 ? `
           <div style="display: flex; flex-direction: column; gap: ${spacing.gapSmall};">
             ${ingresosEntries.map(([cuenta, monto]) => `
               <div style="
                 display: flex;
                 justify-content: space-between;
-                align-items: center;
+                align-items: flex-start;
                 padding: ${spacing.tablePadding} ${spacing.paddingSmall};
                 background: rgba(15, 23, 42, 0.5);
                 border-radius: 8px;
                 border: 1px solid rgba(148, 163, 184, 0.1);
+                min-height: 40px;
               ">
-                <span style="font-weight: 600; color: white; font-size: ${fontSize.infoText}px; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word; flex: 1; margin-right: 8px;">${escapeHtmlExport(cuenta)}</span>
-                <span style="font-weight: 700; color: #10b981; font-size: ${fontSize.infoText}px; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word; flex-shrink: 0;">${formatMoneyExport(monto)}</span>
+                <span style="font-weight: 600; color: white; font-size: ${fontSize.infoText}px; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word; flex: 1; margin-right: 12px; padding-top: 2px;">${escapeHtmlExport(cuenta)}</span>
+                <span style="font-weight: 700; color: #10b981; font-size: ${fontSize.infoText}px; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word; flex-shrink: 0; text-align: right; white-space: normal;">${formatMoneyExport(monto)}</span>
               </div>
             `).join('')}
           </div>
-        ` : `<p style="color: #64748b; text-align: center; padding: ${spacing.padding}; font-size: ${fontSize.infoText}px; line-height: 1.4;">No hay ingresos registrados</p>`}
+        ` : `<p style="color: #64748b; text-align: center; padding: ${spacing.paddingSmall}; font-size: ${fontSize.infoText}px; line-height: 1.4; word-wrap: break-word; overflow-wrap: break-word;">No hay ingresos registrados</p>`}
       </div>
     `;
   }
@@ -9853,17 +9897,17 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
         ${reportData.cartera.deudores.length > 0 ? 'grid-column: 1 / -1;' : ''}
       ">
-        <h3 style="margin: 0 0 ${spacing.gap} 0; font-size: ${fontSize.sectionTitle}px; font-weight: 700; color: white; line-height: 1.2;">💼 Reporte de Cartera</h3>
+        <h3 style="margin: 0 0 ${spacing.gapSmall} 0; font-size: ${fontSize.sectionTitle}px; font-weight: 700; color: white; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">💼 Reporte de Cartera</h3>
         <div style="
           background: rgba(251, 191, 36, 0.15);
           padding: ${spacing.paddingSmall};
           border-radius: 8px;
           border: 1px solid rgba(251, 191, 36, 0.3);
-          margin-bottom: ${spacing.gap};
+          margin-bottom: ${spacing.gapSmall};
         ">
           <div style="font-size: ${fontSize.cardLabel}px; color: #fcd34d; margin-bottom: 6px; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">Valor Total en Cartera</div>
-          <div style="font-size: ${fontSize.cardValueSmall}px; font-weight: 700; color: #fbbf24; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">${formatMoneyExport(reportData.cartera.valor)}</div>
-          <div style="font-size: ${fontSize.infoTextSmall}px; color: #fbbf24; margin-top: 4px; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word;">${reportData.cartera.totalDeudores} cuenta(s) pendiente(s)</div>
+          <div style="font-size: ${fontSize.cardValueSmall}px; font-weight: 700; color: #fbbf24; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; margin-bottom: 4px;">${formatMoneyExport(reportData.cartera.valor)}</div>
+          <div style="font-size: ${fontSize.infoTextSmall}px; color: #fbbf24; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">${reportData.cartera.totalDeudores} cuenta(s) pendiente(s)</div>
         </div>
         ${reportData.cartera.deudores.length > 0 ? `
           <div style="overflow-x: auto;">
