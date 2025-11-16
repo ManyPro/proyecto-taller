@@ -10,7 +10,14 @@ const CompanyAccountSchema = new mongoose.Schema({
     email: { type: String, default: '' },
     address: { type: String, default: '' }
   },
-  // Placas asociadas a esta empresa
+  // Tipo de empresa: 'recurrente' o 'particular'
+  type: { 
+    type: String, 
+    enum: ['recurrente', 'particular'], 
+    default: 'recurrente',
+    index: true 
+  },
+  // Placas asociadas manualmente (solo para empresas recurrentes)
   plates: [{ type: String, uppercase: true, trim: true }],
   // Estado
   active: { type: Boolean, default: true, index: true },

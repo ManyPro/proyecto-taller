@@ -798,7 +798,28 @@
                     <input id="v-mile" placeholder="Kilometraje" type="number" class="w-full px-4 py-2.5 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
                   </div>
                 </div>
-                <div class="flex justify-end mt-6">
+                <div class="mt-6 p-4 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-slate-100 rounded-lg border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
+                  <div class="flex items-center justify-between mb-2">
+                    <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Asociar a Empresa</label>
+                    <button type="button" id="cv-associate-company" class="px-4 py-2 text-sm bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">
+                      <span id="cv-company-status">Seleccionar empresa</span>
+                    </button>
+                  </div>
+                  <div id="cv-company-info" class="hidden mt-2 p-2 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white rounded text-xs">
+                    <div class="flex items-center justify-between">
+                      <div>
+                        <span class="font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-800" id="cv-company-name">—</span>
+                        <span class="ml-2 px-2 py-0.5 rounded text-xs" id="cv-company-type-badge"></span>
+                      </div>
+                      <button type="button" id="cv-remove-company" class="text-red-400 hover:text-red-300 text-xs">Desvincular</button>
+                    </div>
+                  </div>
+                  <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-2">
+                    Asocia este cliente a una empresa para llevar cuentas y tracking. Las empresas recurrentes vinculan todas las ventas, las particulares solo esta orden.
+                  </p>
+                </div>
+                <div class="flex justify-end gap-3 mt-6">
+                  <button type="button" onclick="document.getElementById('modal').classList.add('hidden')" class="px-6 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200">Cancelar</button>
                   <button id="sales-save-cv" class="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
                 </div>
               </div>
@@ -862,10 +883,9 @@
       </template>
 
             <template id="tpl-sale-history-detail">
-        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 max-w-6xl w-full">
           <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
             <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Detalle de venta</h3>
-            <button class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" data-print>Imprimir remisión</button>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 p-4 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-100 rounded-lg">
             <div>
@@ -893,48 +913,27 @@
           </div>
           <div id="sale-payments" class="mb-6">
             <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">Pagos</h4>
-            <div class="overflow-x-auto">
-              <table class="w-full text-sm">
-                <thead>
-                  <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
-                    <th class="text-left py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Método</th>
-                    <th class="text-left py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cuenta</th>
-                    <th class="text-right py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Monto</th>
-                  </tr>
-                </thead>
-                <tbody data-payments class="text-white dark:text-white theme-light:text-slate-900"></tbody>
-                <tfoot>
-                  <tr class="border-t-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
-                    <td colspan="2" class="text-right py-2 px-3 font-semibold text-white dark:text-white theme-light:text-slate-900">Total pagos</td>
-                    <td class="text-right py-2 px-3 font-bold text-white dark:text-white theme-light:text-slate-900" data-payments-total>$0</td>
-                  </tr>
-                </tfoot>
-              </table>
+            <div class="bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-100 rounded-lg p-4">
+              <div class="space-y-3" data-payments></div>
+              <div class="mt-4 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 flex justify-between items-center">
+                <span class="text-sm font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Total pagos</span>
+                <span class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900" data-payments-total>$0</span>
+              </div>
             </div>
           </div>
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
-                  <th class="text-left py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">SKU</th>
-                  <th class="text-left py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Descripción</th>
-                  <th class="text-center py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cant.</th>
-                  <th class="text-right py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Unit</th>
-                  <th class="text-right py-2 px-3 text-xs font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Total</th>
-                </tr>
-              </thead>
-              <tbody data-items class="text-white dark:text-white theme-light:text-slate-900"></tbody>
-              <tfoot>
-                <tr class="border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
-                  <td colspan="4" class="text-right py-2 px-3 font-semibold text-white dark:text-white theme-light:text-slate-900">Subtotal</td>
-                  <td class="text-right py-2 px-3 font-semibold text-white dark:text-white theme-light:text-slate-900" data-subtotal>$0</td>
-                </tr>
-                <tr class="border-t-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
-                  <td colspan="4" class="text-right py-2 px-3 font-bold text-white dark:text-white theme-light:text-slate-900">Total</td>
-                  <td class="text-right py-2 px-3 font-bold text-lg text-white dark:text-white theme-light:text-slate-900" data-total>$0</td>
-                </tr>
-              </tfoot>
-            </table>
+          <div id="sale-items" class="space-y-4">
+            <h4 class="text-sm font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">Items</h4>
+            <div data-items-grouped class="space-y-4"></div>
+            <div class="mt-6 pt-4 border-t-2 border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+              <div class="flex justify-between items-center mb-2">
+                <span class="text-sm font-semibold text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Subtotal</span>
+                <span class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900" data-subtotal>$0</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-base font-bold text-white dark:text-white theme-light:text-slate-900">Total</span>
+                <span class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900" data-total>$0</span>
+              </div>
+            </div>
           </div>
         </div>
       </template>

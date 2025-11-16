@@ -161,7 +161,68 @@ export const startSale = async (req, res) => {
 export const getSale = async (req, res) => {
   const sale = await Sale.findOne({ _id: req.params.id, companyId: req.companyId });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  res.json(sale.toObject());
+  
+  const saleObj = sale.toObject();
+  
+  // Enriquecer items con información de StockEntry si están linkeados
+  const Account = (await import('../models/Account.js')).default;
+  const VehicleIntake = (await import('../models/VehicleIntake.js')).default;
+  
+  // Obtener información de cuentas para los pagos
+  const accountIds = (saleObj.paymentMethods || [])
+    .map(p => p.accountId)
+    .filter(Boolean);
+  const accounts = accountIds.length > 0 
+    ? await Account.find({ _id: { $in: accountIds }, companyId: req.companyId }).lean()
+    : [];
+  const accountMap = {};
+  accounts.forEach(acc => {
+    accountMap[String(acc._id)] = acc.name;
+  });
+  
+  // Enriquecer paymentMethods con nombres de cuenta
+  if (saleObj.paymentMethods && Array.isArray(saleObj.paymentMethods)) {
+    saleObj.paymentMethods = saleObj.paymentMethods.map(p => ({
+      ...p,
+      accountName: p.accountId ? accountMap[String(p.accountId)] : null,
+      accountId: p.accountId ? String(p.accountId) : null
+    }));
+  }
+  
+  // Enriquecer items con información de compra (StockEntry) si tienen meta.entryId
+  const enrichedItems = await Promise.all((saleObj.items || []).map(async (item) => {
+    if (item.source === 'inventory' && item.meta?.entryId) {
+      try {
+        const stockEntry = await StockEntry.findOne({ 
+          _id: item.meta.entryId, 
+          companyId: req.companyId 
+        }).populate('vehicleIntakeId', 'intakeKind intakeDate purchasePlace brand model engine').lean();
+        
+        if (stockEntry && stockEntry.vehicleIntakeId) {
+          const intake = stockEntry.vehicleIntakeId;
+          return {
+            ...item,
+            purchaseInfo: {
+              stockEntryId: String(stockEntry._id),
+              entryDate: stockEntry.entryDate,
+              entryPrice: stockEntry.entryPrice,
+              intakeKind: intake.intakeKind,
+              intakeDate: intake.intakeDate,
+              purchasePlace: intake.purchasePlace || '',
+              vehicleInfo: intake.brand && intake.model ? `${intake.brand} ${intake.model}` : '',
+              meta: stockEntry.meta || {}
+            }
+          };
+        }
+      } catch (err) {
+        console.warn('Error fetching StockEntry for item:', err);
+      }
+    }
+    return item;
+  }));
+  
+  saleObj.items = enrichedItems;
+  res.json(saleObj);
 };
 
 export const addItem = async (req, res) => {
@@ -789,6 +850,24 @@ export const closeSale = async (req, res) => {
         if (remainingQty > 0) {
           throw new Error(`Insufficient stock in entries for ${target.sku || target.name}. Needed: ${q}, Available: ${q - remainingQty}`);
         }
+        
+        // Guardar información de las entradas usadas en el meta del item para trazabilidad
+        // Si el item ya tiene meta.entryId (de QR), lo preservamos como primaryEntryId
+        // También guardamos todas las entradas usadas
+        if (!it.meta) it.meta = {};
+        if (it.meta.entryId && stockEntriesUsed.length > 0) {
+          // Si ya tenía entryId del QR, guardarlo como primaryEntryId
+          it.meta.primaryEntryId = it.meta.entryId;
+        }
+        // Guardar el primer entryId usado (o el del QR si existe) como entryId principal
+        if (stockEntriesUsed.length > 0) {
+          it.meta.entryId = String(stockEntriesUsed[0].entryId);
+          it.meta.entriesUsed = stockEntriesUsed.map(se => ({
+            entryId: String(se.entryId),
+            qty: se.qty,
+            vehicleIntakeId: se.vehicleIntakeId ? String(se.vehicleIntakeId) : null
+          }));
+        }
 
         // Actualizar stock total del item
         const upd = await Item.updateOne(
@@ -824,6 +903,65 @@ export const closeSale = async (req, res) => {
         }
         affectedItemIds.push(String(target._id));
       }
+
+  // === Verificar si hay link de empresa para esta placa ===
+      let companyAccountId = null;
+      if (sale.vehicle?.plate) {
+        const plate = String(sale.vehicle.plate).trim().toUpperCase();
+        const ClientCompanyLink = (await import('../models/ClientCompanyLink.js')).default;
+        const CompanyAccount = (await import('../models/CompanyAccount.js')).default;
+        
+        // 1. Verificar si hay un link activo existente
+        let link = await ClientCompanyLink.findOne({
+          companyId: String(req.companyId),
+          plate: plate,
+          active: true
+        }).populate('companyAccountId', 'name type').session(session);
+        
+        if (link && link.companyAccountId) {
+          companyAccountId = link.companyAccountId._id;
+          
+          // Si es empresa recurrente, el link es permanente y se aplica a todas las ventas
+          if (link.companyAccountId.type === 'recurrente') {
+            // Link permanente: todas las ventas de esta placa se asocian a la empresa
+            sale.companyAccountId = companyAccountId;
+          } else if (link.companyAccountId.type === 'particular') {
+            // Empresa particular: solo esta venta se asocia
+            if (!link.saleId) {
+              link.saleId = sale._id;
+              await link.save({ session });
+            }
+            sale.companyAccountId = companyAccountId;
+          }
+        } else {
+          // 2. Si no hay link, verificar si la placa está en las placas manuales de una empresa recurrente
+          const companyAccount = await CompanyAccount.findOne({
+            companyId: String(req.companyId),
+            type: 'recurrente',
+            active: true,
+            plates: { $in: [plate] }
+          }).session(session);
+          
+          if (companyAccount) {
+            // Crear link permanente para empresa recurrente
+            link = await ClientCompanyLink.create([{
+              companyId: String(req.companyId),
+              companyAccountId: companyAccount._id,
+              plate: plate,
+              customerIdNumber: sale.customer?.idNumber || '',
+              customerName: sale.customer?.name || '',
+              customerPhone: sale.customer?.phone || '',
+              linkType: 'permanent',
+              active: true
+            }], { session });
+            
+            companyAccountId = companyAccount._id;
+            sale.companyAccountId = companyAccountId;
+          }
+        }
+      }
+      
+      // Asignar empresa a la venta (ya se asignó arriba si se encontró)
 
   // === Datos de cierre adicionales (pago / mano de obra) ===
       const pm = String(req.body?.paymentMethod || '').trim();
@@ -952,18 +1090,8 @@ export const closeSale = async (req, res) => {
           String(m.method || '').toUpperCase() === 'CRÉDITO'
         )?.amount || sale.total;
         
-        // Buscar empresa asociada por placa si existe
-        let companyAccountId = null;
-        if (sale.vehicle?.plate) {
-          const companyAccount = await CompanyAccount.findOne({
-            companyId: String(req.companyId),
-            active: true,
-            plates: String(sale.vehicle.plate).trim().toUpperCase()
-          });
-          if (companyAccount) {
-            companyAccountId = companyAccount._id;
-          }
-        }
+        // Usar companyAccountId de la venta (ya asignado arriba si hay link)
+        const companyAccountId = sale.companyAccountId || null;
         
         receivable = await AccountReceivable.create({
           companyId: String(req.companyId),
@@ -1233,16 +1361,8 @@ export const updateCloseSale = async (req, res) => {
             await receivable.save({ session });
           } else {
             // Crear nueva cuenta por cobrar
-            const CompanyAccount = (await import('../models/CompanyAccount.js')).default;
-            let companyAccountId = null;
-            if (sale.vehicle?.plate) {
-              const companyAccount = await CompanyAccount.findOne({
-                companyId: String(req.companyId),
-                active: true,
-                plates: String(sale.vehicle.plate).trim().toUpperCase()
-              }).session(session);
-              if (companyAccount) companyAccountId = companyAccount._id;
-            }
+            // Usar companyAccountId de la venta (ya asignado si hay link)
+            const companyAccountId = sale.companyAccountId || null;
 
             receivable = await AccountReceivable.create([{
               companyId: String(req.companyId),
@@ -1548,13 +1668,17 @@ export const getProfileByIdNumber = async (req, res) => {
   res.json(primary?.toObject?.() || null);
 };
 export const listSales = async (req, res) => {
-  const { status, from, to, plate, page = 1, limit = 50 } = req.query || {};
+  const { status, from, to, plate, companyAccountId, page = 1, limit = 50 } = req.query || {};
   const q = { companyId: req.companyId };
   if (status) q.status = String(status);
   // Filtrar por placa si se proporciona
   if (plate) {
     const plateUpper = String(plate).trim().toUpperCase();
     q['vehicle.plate'] = plateUpper;
+  }
+  // Filtrar por empresa si se proporciona
+  if (companyAccountId) {
+    q.companyAccountId = new mongoose.Types.ObjectId(companyAccountId);
   }
   if (from || to) {
     // Usar closedAt si está disponible, sino createdAt

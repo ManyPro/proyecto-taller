@@ -1,5 +1,6 @@
 import AccountReceivable from '../models/AccountReceivable.js';
 import CompanyAccount from '../models/CompanyAccount.js';
+import ClientCompanyLink from '../models/ClientCompanyLink.js';
 import Sale from '../models/Sale.js';
 import CashFlowEntry from '../models/CashFlowEntry.js';
 import Account from '../models/Account.js';
@@ -41,14 +42,17 @@ export const createCompanyAccount = async (req, res) => {
   const companyId = req.companyId || req.company?.id;
   if (!companyId) return res.status(400).json({ error: 'Falta companyId' });
 
-  const { name, description, contact, plates, notes } = req.body || {};
+  const { name, description, contact, plates, notes, type } = req.body || {};
 
   if (!name || !name.trim()) {
     return res.status(400).json({ error: 'El nombre es requerido' });
   }
 
-  // Normalizar placas
-  const normalizedPlates = Array.isArray(plates)
+  // Validar tipo
+  const accountType = type === 'particular' ? 'particular' : 'recurrente';
+
+  // Normalizar placas (solo para empresas recurrentes)
+  const normalizedPlates = (accountType === 'recurrente' && Array.isArray(plates))
     ? plates.map(p => String(p).trim().toUpperCase()).filter(p => p)
     : [];
 
@@ -62,6 +66,7 @@ export const createCompanyAccount = async (req, res) => {
       email: String(contact?.email || '').trim(),
       address: String(contact?.address || '').trim()
     },
+    type: accountType,
     plates: normalizedPlates,
     notes: String(notes || '').trim(),
     active: true
@@ -75,7 +80,7 @@ export const updateCompanyAccount = async (req, res) => {
   if (!companyId) return res.status(400).json({ error: 'Falta companyId' });
 
   const { id } = req.params;
-  const { name, description, contact, plates, active, notes } = req.body || {};
+  const { name, description, contact, plates, active, notes, type } = req.body || {};
 
   const account = await CompanyAccount.findOne({
     _id: id,
@@ -94,10 +99,23 @@ export const updateCompanyAccount = async (req, res) => {
       address: String(contact?.address || '').trim()
     };
   }
+  if (type !== undefined) {
+    const accountType = type === 'particular' ? 'particular' : 'recurrente';
+    account.type = accountType;
+    // Si cambia a particular, limpiar placas manuales
+    if (accountType === 'particular') {
+      account.plates = [];
+    }
+  }
   if (plates !== undefined) {
-    account.plates = Array.isArray(plates)
-      ? plates.map(p => String(p).trim().toUpperCase()).filter(p => p)
-      : [];
+    // Solo permitir placas si es recurrente
+    if (account.type === 'recurrente') {
+      account.plates = Array.isArray(plates)
+        ? plates.map(p => String(p).trim().toUpperCase()).filter(p => p)
+        : [];
+    } else {
+      account.plates = [];
+    }
   }
   if (active !== undefined) account.active = String(active).toLowerCase() === 'true';
   if (notes !== undefined) account.notes = String(notes || '').trim();
@@ -466,5 +484,176 @@ export const getReceivablesStats = async (req, res) => {
     paidAmount,
     balance
   });
+};
+
+// ===== Links Cliente-Empresa =====
+
+// Crear link entre cliente/placa y empresa
+export const createClientCompanyLink = async (req, res) => {
+  const companyId = req.companyId || req.company?.id;
+  if (!companyId) return res.status(400).json({ error: 'Falta companyId' });
+
+  const { companyAccountId, plate, customerIdNumber, customerName, customerPhone, saleId, notes } = req.body || {};
+
+  if (!companyAccountId || !plate) {
+    return res.status(400).json({ error: 'companyAccountId y plate son requeridos' });
+  }
+
+  // Verificar que la empresa existe
+  const companyAccount = await CompanyAccount.findOne({
+    _id: companyAccountId,
+    companyId: String(companyId)
+  });
+
+  if (!companyAccount) {
+    return res.status(404).json({ error: 'Empresa no encontrada' });
+  }
+
+  // Determinar tipo de link según tipo de empresa
+  const linkType = companyAccount.type === 'recurrente' ? 'permanent' : 'temporary';
+  const normalizedPlate = String(plate).trim().toUpperCase();
+
+  // Para empresas recurrentes, verificar si ya existe un link activo permanente
+  if (linkType === 'permanent') {
+    const existingLink = await ClientCompanyLink.findOne({
+      companyId: String(companyId),
+      plate: normalizedPlate,
+      active: true,
+      linkType: 'permanent'
+    });
+
+    if (existingLink) {
+      // Si ya existe un link permanente para esta placa, no permitir crear otro
+      return res.status(400).json({ 
+        error: 'Esta placa ya está vinculada a otra empresa recurrente. Debes desvincularla primero.' 
+      });
+    }
+    
+    // Desactivar cualquier link temporal previo si existe
+    await ClientCompanyLink.updateMany(
+      {
+        companyId: String(companyId),
+        plate: normalizedPlate,
+        active: true,
+        linkType: 'temporary'
+      },
+      {
+        $set: {
+          active: false,
+          unlinkedAt: new Date()
+        }
+      }
+    );
+  } else {
+    // Para empresas particulares (temporary), desactivar links temporales previos de la misma placa
+    // pero mantener los permanentes (si los hay, no se tocan)
+    await ClientCompanyLink.updateMany(
+      {
+        companyId: String(companyId),
+        plate: normalizedPlate,
+        active: true,
+        linkType: 'temporary'
+      },
+      {
+        $set: {
+          active: false,
+          unlinkedAt: new Date()
+        }
+      }
+    );
+  }
+
+  // Crear el link
+  const link = await ClientCompanyLink.create({
+    companyId: String(companyId),
+    companyAccountId: new mongoose.Types.ObjectId(companyAccountId),
+    plate: normalizedPlate,
+    customerIdNumber: String(customerIdNumber || '').trim(),
+    customerName: String(customerName || '').trim(),
+    customerPhone: String(customerPhone || '').trim(),
+    linkType,
+    saleId: saleId ? new mongoose.Types.ObjectId(saleId) : null,
+    notes: String(notes || '').trim(),
+    active: true
+  });
+
+  res.status(201).json(link.toObject());
+};
+
+// Listar links activos
+export const listClientCompanyLinks = async (req, res) => {
+  const companyId = req.companyId || req.company?.id;
+  if (!companyId) return res.status(400).json({ error: 'Falta companyId' });
+
+  const { companyAccountId, plate, linkType, active } = req.query || {};
+
+  const query = { companyId: String(companyId) };
+
+  if (companyAccountId) {
+    query.companyAccountId = new mongoose.Types.ObjectId(companyAccountId);
+  }
+  if (plate) {
+    query.plate = String(plate).trim().toUpperCase();
+  }
+  if (linkType) {
+    query.linkType = String(linkType);
+  }
+  if (active !== undefined) {
+    query.active = String(active).toLowerCase() === 'true';
+  } else {
+    query.active = true; // Por defecto solo activos
+  }
+
+  const links = await ClientCompanyLink.find(query)
+    .populate('companyAccountId', 'name type')
+    .populate('saleId', 'number total')
+    .sort({ linkedAt: -1 })
+    .lean();
+
+  res.json(links);
+};
+
+// Obtener link activo por placa
+export const getClientCompanyLinkByPlate = async (req, res) => {
+  const companyId = req.companyId || req.company?.id;
+  if (!companyId) return res.status(400).json({ error: 'Falta companyId' });
+
+  const { plate } = req.params;
+  if (!plate) return res.status(400).json({ error: 'Falta placa' });
+
+  const link = await ClientCompanyLink.findOne({
+    companyId: String(companyId),
+    plate: String(plate).trim().toUpperCase(),
+    active: true,
+    linkType: 'permanent' // Solo links permanentes para empresas recurrentes
+  })
+    .populate('companyAccountId', 'name type')
+    .lean();
+
+  res.json(link || null);
+};
+
+// Eliminar/desvincular link
+export const deleteClientCompanyLink = async (req, res) => {
+  const companyId = req.companyId || req.company?.id;
+  if (!companyId) return res.status(400).json({ error: 'Falta companyId' });
+
+  const { id } = req.params;
+
+  const link = await ClientCompanyLink.findOne({
+    _id: id,
+    companyId: String(companyId)
+  });
+
+  if (!link) {
+    return res.status(404).json({ error: 'Link no encontrado' });
+  }
+
+  // Marcar como inactivo en lugar de eliminar (para historial)
+  link.active = false;
+  link.unlinkedAt = new Date();
+  await link.save();
+
+  res.json({ ok: true });
 };
 

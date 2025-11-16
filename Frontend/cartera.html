@@ -583,50 +583,43 @@
       <!-- ========== CARTERA ========== -->
       <section id="tab-cartera" class="tab active">
         <div class="w-full px-2 sm:px-4 lg:px-6 py-6">
-          <!-- Estadísticas -->
-          <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
-              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total Pendiente</div>
-              <div id="stats-balance" class="text-2xl font-bold text-orange-400 dark:text-orange-400 theme-light:text-orange-600">$0</div>
-            </div>
-            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
-              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Pendientes</div>
-              <div id="stats-pending" class="text-2xl font-bold text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-600">0</div>
-            </div>
-            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
-              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Parciales</div>
-              <div id="stats-partial" class="text-2xl font-bold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">0</div>
-            </div>
-            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
-              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Pagadas</div>
-              <div id="stats-paid" class="text-2xl font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">0</div>
+          <!-- Navegación interna por pestañas -->
+          <div class="mb-6">
+            <div class="flex gap-2 border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+              <button id="cartera-nav-cartera" class="cartera-nav-tab active px-4 py-3 text-sm font-medium text-white bg-orange-600 dark:bg-orange-600 theme-light:bg-orange-500 rounded-t-lg transition-all duration-200">
+                Cartera
+              </button>
+              <button id="cartera-nav-empresas" class="cartera-nav-tab px-4 py-3 text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 hover:text-white dark:hover:text-white theme-light:hover:text-slate-900 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 rounded-t-lg transition-all duration-200">
+                Empresas
+              </button>
             </div>
           </div>
 
-          <!-- Empresas de Cartera -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-6 mb-6">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
-              <h3 class="text-lg sm:text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Empresas de Cartera</h3>
-              <button id="btn-add-company" class="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm sm:text-base">+ Empresa</button>
+          <!-- Vista: Cartera -->
+          <div id="cartera-view-cartera" class="cartera-view">
+            <!-- Estadísticas -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+                <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total Pendiente</div>
+                <div id="stats-balance" class="text-2xl font-bold text-orange-400 dark:text-orange-400 theme-light:text-orange-600">$0</div>
+              </div>
+              <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+                <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Pendientes</div>
+                <div id="stats-pending" class="text-2xl font-bold text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-600">0</div>
+              </div>
+              <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+                <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Parciales</div>
+                <div id="stats-partial" class="text-2xl font-bold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">0</div>
+              </div>
+              <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
+                <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Pagadas</div>
+                <div id="stats-paid" class="text-2xl font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">0</div>
+              </div>
             </div>
-            <div class="max-h-[200px] sm:max-h-[300px] overflow-auto custom-scrollbar">
-              <table class="w-full text-sm">
-                <thead class="sticky top-0 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100">
-                  <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-                    <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Nombre">Nombre</th>
-                    <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Placas">Placas</th>
-                    <th class="px-2 sm:px-4 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Contacto">Contacto</th>
-                    <th class="px-2 sm:px-4 py-2 text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700" data-label="Acciones">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody id="companies-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
-              </table>
-            </div>
-          </div>
 
-          <!-- Cuentas por Cobrar -->
-          <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-6">
-            <h3 class="text-lg sm:text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Cuentas por Cobrar</h3>
+            <!-- Cuentas por Cobrar -->
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-6">
+              <h3 class="text-lg sm:text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Cuentas por Cobrar</h3>
             <div class="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-end mb-4">
               <select id="filter-status" class="w-full sm:w-auto flex-1 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent">
                 <option value="">Todos los estados</option>
@@ -664,6 +657,37 @@
                     </tr>
                   </thead>
                   <tbody id="receivables-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          </div>
+
+          <!-- Vista: Empresas -->
+          <div id="cartera-view-empresas" class="cartera-view hidden">
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 sm:p-6">
+              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 gap-3">
+                <div>
+                  <h3 class="text-lg sm:text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Empresas de Cartera</h3>
+                  <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Gestiona empresas recurrentes y particulares para tracking de ventas y cartera</p>
+                </div>
+                <button id="btn-add-company" class="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm sm:text-base">
+                  + Crear Empresa
+                </button>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                  <thead class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100">
+                    <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                      <th class="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Nombre</th>
+                      <th class="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Tipo</th>
+                      <th class="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Contacto</th>
+                      <th class="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Placas</th>
+                      <th class="px-2 sm:px-4 py-3 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Estado</th>
+                      <th class="px-2 sm:px-4 py-3 text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody id="companies-body" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
                 </table>
               </div>
             </div>

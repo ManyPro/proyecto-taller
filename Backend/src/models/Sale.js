@@ -81,7 +81,14 @@ const SaleSchema = new mongoose.Schema({
     share: { type: Number, default: 0 }               // valor = laborValue * percent/100
   }], default: [] },
   closedAt: { type: Date },
-  cancelledAt: { type: Date }
+  cancelledAt: { type: Date },
+  // Empresa asociada (si la venta está vinculada a una empresa cliente)
+  companyAccountId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'CompanyAccount', 
+    default: null,
+    index: true 
+  }
 }, { timestamps: true });
 
 // Asegurar consistencia de subtotal antes de guardar si falta

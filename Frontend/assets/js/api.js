@@ -385,6 +385,13 @@ const API = {
       update: (id, payload) => http.put(`/api/v1/receivables/companies/${id}`, payload),
       delete: (id) => http.del(`/api/v1/receivables/companies/${id}`)
     },
+    // Links Cliente-Empresa
+    links: {
+      list: (params={}) => http.get(`/api/v1/receivables/links${toQuery(params)}`),
+      getByPlate: (plate) => http.get(`/api/v1/receivables/links/plate/${encodeURIComponent(plate)}`),
+      create: (payload) => http.post('/api/v1/receivables/links', payload),
+      delete: (id) => http.del(`/api/v1/receivables/links/${id}`)
+    },
     // Cuentas por cobrar
     list: (params={}) => http.get(`/api/v1/receivables${toQuery(params)}`),
     get: (id) => http.get(`/api/v1/receivables/${id}`),

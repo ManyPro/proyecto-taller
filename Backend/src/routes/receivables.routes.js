@@ -13,7 +13,12 @@ import {
   createReceivable,
   addPayment,
   cancelReceivable,
-  getReceivablesStats
+  getReceivablesStats,
+  // Links Cliente-Empresa
+  createClientCompanyLink,
+  listClientCompanyLinks,
+  getClientCompanyLinkByPlate,
+  deleteClientCompanyLink
 } from '../controllers/receivables.controller.js';
 
 const router = Router();
@@ -26,6 +31,12 @@ router.get('/companies/:id', getCompanyAccount);
 router.post('/companies', createCompanyAccount);
 router.put('/companies/:id', updateCompanyAccount);
 router.delete('/companies/:id', deleteCompanyAccount);
+
+// Links Cliente-Empresa
+router.get('/links', listClientCompanyLinks);
+router.get('/links/plate/:plate', getClientCompanyLinkByPlate);
+router.post('/links', createClientCompanyLink);
+router.delete('/links/:id', deleteClientCompanyLink);
 
 // Cuentas por cobrar
 router.get('/stats', getReceivablesStats);

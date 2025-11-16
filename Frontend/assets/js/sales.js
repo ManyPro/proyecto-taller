@@ -5747,6 +5747,203 @@ function openEditCV(){
     });
   });
 
+  // Funcionalidad de asociar cliente a empresa
+  let selectedCompanyId = null;
+  let currentLink = null;
+  
+  // Cargar link existente si hay placa
+  const loadExistingLink = async () => {
+    const plate = plateInput?.value?.trim().toUpperCase();
+    if (!plate) {
+      selectedCompanyId = null;
+      currentLink = null;
+      updateCompanyUI();
+      return;
+    }
+    
+    try {
+      const link = await API.receivables?.links?.getByPlate(plate);
+      if (link && link.active) {
+        currentLink = link;
+        selectedCompanyId = link.companyAccountId?._id || link.companyAccountId;
+        updateCompanyUI();
+      } else {
+        selectedCompanyId = null;
+        currentLink = null;
+        updateCompanyUI();
+      }
+    } catch (err) {
+      console.warn('Error loading company link:', err);
+      selectedCompanyId = null;
+      currentLink = null;
+      updateCompanyUI();
+    }
+  };
+  
+  const updateCompanyUI = () => {
+    const companyInfo = $('#cv-company-info', node);
+    const companyName = $('#cv-company-name', node);
+    const companyTypeBadge = $('#cv-company-type-badge', node);
+    const companyStatus = $('#cv-company-status', node);
+    
+    if (selectedCompanyId && currentLink?.companyAccountId) {
+      const company = currentLink.companyAccountId;
+      companyInfo?.classList.remove('hidden');
+      if (companyName) companyName.textContent = company.name || '—';
+      if (companyTypeBadge) {
+        const isRecurrente = company.type === 'recurrente';
+        companyTypeBadge.textContent = isRecurrente ? 'Recurrente' : 'Particular';
+        companyTypeBadge.className = `ml-2 px-2 py-0.5 rounded text-xs font-semibold ${
+          isRecurrente 
+            ? 'bg-green-500/20 text-green-400 dark:text-green-400 theme-light:text-green-700'
+            : 'bg-purple-500/20 text-purple-400 dark:text-purple-400 theme-light:text-purple-700'
+        }`;
+      }
+      if (companyStatus) companyStatus.textContent = 'Cambiar empresa';
+    } else {
+      companyInfo?.classList.add('hidden');
+      if (companyStatus) companyStatus.textContent = 'Seleccionar empresa';
+    }
+  };
+  
+  // Cargar link al cambiar placa
+  if (plateInput) {
+    plateInput.addEventListener('change', loadExistingLink);
+    plateInput.addEventListener('blur', loadExistingLink);
+  }
+  
+  // Cargar link inicial si hay placa
+  if (plateInput?.value) {
+    loadExistingLink();
+  }
+  
+  // Botón para seleccionar empresa
+  $('#cv-associate-company', node)?.addEventListener('click', async () => {
+    try {
+      const companies = await API.receivables?.companies?.list() || [];
+      if (companies.length === 0) {
+        alert('No hay empresas registradas. Ve a Cartera > Empresas para crear una.');
+        return;
+      }
+      
+      // Crear modal de selección
+      const selectModal = document.createElement('div');
+      selectModal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm';
+      selectModal.innerHTML = `
+        <div class="bg-slate-800/95 dark:bg-slate-800/95 theme-light:bg-sky-50 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+          <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Seleccionar Empresa</h3>
+          <div class="space-y-2 mb-4">
+            ${companies.map(c => `
+              <div class="p-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white rounded-lg border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 cursor-pointer hover:bg-slate-800/70 dark:hover:bg-slate-800/70 theme-light:hover:bg-slate-100 transition-colors" data-company-id="${c._id}">
+                <div class="flex items-center justify-between">
+                  <div class="flex-1">
+                    <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${(c.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+                    <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">
+                      ${c.contact?.phone ? `Tel: ${(c.contact.phone || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}` : ''}
+                      ${c.type === 'recurrente' ? ' · Recurrente' : ' · Particular'}
+                    </div>
+                  </div>
+                  <span class="px-2 py-1 rounded text-xs font-semibold ${
+                    c.type === 'recurrente'
+                      ? 'bg-green-500/20 text-green-400 dark:text-green-400 theme-light:text-green-700'
+                      : 'bg-purple-500/20 text-purple-400 dark:text-purple-400 theme-light:text-purple-700'
+                  }">${c.type === 'recurrente' ? 'Recurrente' : 'Particular'}</span>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          <div class="flex justify-end gap-2">
+            <button class="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors" data-cancel>Cancelar</button>
+          </div>
+        </div>
+      `;
+      
+      document.body.appendChild(selectModal);
+      
+      // Event listeners
+      selectModal.querySelectorAll('[data-company-id]').forEach(div => {
+        div.addEventListener('click', async () => {
+          const companyId = div.dataset.companyId;
+          const company = companies.find(c => c._id === companyId);
+          if (!company) return;
+          
+          try {
+            const plate = plateInput?.value?.trim().toUpperCase();
+            const customerName = $('#c-name', node)?.value?.trim() || '';
+            const customerPhone = $('#c-phone', node)?.value?.trim() || '';
+            const customerIdNumber = $('#c-id', node)?.value?.trim() || '';
+            
+            if (!plate) {
+              alert('Debes ingresar una placa primero');
+              document.body.removeChild(selectModal);
+              return;
+            }
+            
+            // Crear link
+            await API.receivables?.links?.create({
+              companyAccountId: companyId,
+              plate: plate,
+              customerName: customerName,
+              customerPhone: customerPhone,
+              customerIdNumber: customerIdNumber,
+              saleId: current?._id || null
+            });
+            
+            selectedCompanyId = companyId;
+            currentLink = { companyAccountId: company };
+            updateCompanyUI();
+            
+            document.body.removeChild(selectModal);
+            // Mostrar notificación de éxito
+            const successMsg = document.createElement('div');
+            successMsg.className = 'fixed top-4 right-4 z-50 px-4 py-3 bg-green-600 text-white rounded-lg shadow-lg';
+            successMsg.textContent = `✅ Cliente asociado a ${company.name}`;
+            document.body.appendChild(successMsg);
+            setTimeout(() => successMsg.remove(), 3000);
+          } catch (err) {
+            console.error('Error associating company:', err);
+            alert(err?.response?.data?.error || err?.message || 'Error al asociar empresa');
+          }
+        });
+      });
+      
+      selectModal.querySelector('[data-cancel]')?.addEventListener('click', () => {
+        document.body.removeChild(selectModal);
+      });
+      
+      selectModal.addEventListener('click', (e) => {
+        if (e.target === selectModal) {
+          document.body.removeChild(selectModal);
+        }
+      });
+    } catch (err) {
+      console.error('Error loading companies:', err);
+      alert('Error al cargar empresas');
+    }
+  });
+  
+  // Botón para desvincular
+  $('#cv-remove-company', node)?.addEventListener('click', async () => {
+    if (!currentLink?._id) return;
+    if (!confirm('¿Desvincular este cliente de la empresa?')) return;
+    
+    try {
+      await API.receivables?.links?.delete(currentLink._id);
+      selectedCompanyId = null;
+      currentLink = null;
+      updateCompanyUI();
+      // Mostrar notificación de éxito
+      const successMsg = document.createElement('div');
+      successMsg.className = 'fixed top-4 right-4 z-50 px-4 py-3 bg-green-600 text-white rounded-lg shadow-lg';
+      successMsg.textContent = '✅ Cliente desvinculado de la empresa';
+      document.body.appendChild(successMsg);
+      setTimeout(() => successMsg.remove(), 3000);
+    } catch (err) {
+      console.error('Error removing link:', err);
+      alert(err?.response?.data?.error || err?.message || 'Error al desvincular');
+    }
+  });
+
   node.querySelector('#sales-save-cv').onclick = async ()=>{
     const payload = {
       customer:{
@@ -5849,48 +6046,242 @@ async function openSaleHistoryDetail(id){
     node.querySelector('[data-status]').textContent = sale.status || 'N/A';
     node.querySelector('[data-customer]').textContent = describeCustomer(sale.customer);
     node.querySelector('[data-vehicle]').textContent = describeVehicle(sale.vehicle);
-    const itemsBody = node.querySelector('[data-items]');
-    itemsBody.innerHTML = '';
-    (sale.items || []).forEach(it => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${it.sku || ''}</td><td>${it.name || ''}</td><td class="t-center">${it.qty || 0}</td><td class="t-right">${money(it.unitPrice || 0)}</td><td class="t-right">${money(it.total || 0)}</td>`;
-      itemsBody.appendChild(tr);
-    });
-    // If no items (e.g., legacy import), show notes as a hint of work done
-    if ((!sale.items || sale.items.length === 0) && sale.notes) {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td colspan="5" class="muted">Notas: ${sale.notes.replace(/\n/g,'<br/>')}</td>`;
-      itemsBody.appendChild(tr);
+    
+    // Agrupar items por tipo (productos, servicios, combos)
+    const itemsGrouped = node.querySelector('[data-items-grouped]');
+    itemsGrouped.innerHTML = '';
+    
+    if (!sale.items || sale.items.length === 0) {
+      if (sale.notes) {
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'p-4 bg-slate-900/30 dark:bg-slate-900/30 theme-light:bg-sky-100 rounded-lg text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600';
+        emptyDiv.innerHTML = `Notas: ${sale.notes.replace(/\n/g,'<br/>')}`;
+        itemsGrouped.appendChild(emptyDiv);
+      }
+    } else {
+      // Determinar tipo de cada item
+      const products = [];
+      const services = [];
+      const combos = [];
+      
+      // Necesitamos identificar combos consultando PriceEntry si tienen source='price'
+      const priceEntryIds = sale.items
+        .filter(item => item.source === 'price' && item.refId)
+        .map(item => item.refId);
+      
+      let priceEntryMap = {};
+      if (priceEntryIds.length > 0) {
+        try {
+          const priceEntries = await Promise.all(
+            priceEntryIds.map(id => API.prices.get(id).catch(() => null))
+          );
+          priceEntries.forEach(pe => {
+            if (pe && pe._id) {
+              priceEntryMap[pe._id] = pe;
+            }
+          });
+        } catch (e) {
+          console.warn('Error fetching price entries:', e);
+        }
+      }
+      
+      sale.items.forEach(item => {
+        if (item.source === 'price' && item.refId && priceEntryMap[item.refId]) {
+          const pe = priceEntryMap[item.refId];
+          if (pe.type === 'combo') {
+            combos.push(item);
+          } else if (pe.type === 'service') {
+            services.push(item);
+          } else {
+            products.push(item);
+          }
+        } else if (item.source === 'inventory') {
+          products.push(item);
+        } else if (item.source === 'service') {
+          services.push(item);
+        } else {
+          // Por defecto, tratar como servicio
+          services.push(item);
+        }
+      });
+      
+      // Renderizar cada grupo con su color
+      if (combos.length > 0) {
+        const comboGroup = createItemGroup('Combos', combos, 'purple');
+        itemsGrouped.appendChild(comboGroup);
+      }
+      if (services.length > 0) {
+        const serviceGroup = createItemGroup('Servicios', services, 'blue');
+        itemsGrouped.appendChild(serviceGroup);
+      }
+      if (products.length > 0) {
+        const productGroup = createItemGroup('Productos', products, 'green');
+        itemsGrouped.appendChild(productGroup);
+      }
     }
+    
     node.querySelector('[data-subtotal]').textContent = money(sale.subtotal || 0);
     node.querySelector('[data-total]').textContent = money(sale.total || 0);
-    // Render pagos (multi-payment)
+    
+    // Render pagos mejorados
     try {
       const payBody = node.querySelector('[data-payments]');
       const payTotalEl = node.querySelector('[data-payments-total]');
       if (payBody && payTotalEl) {
         payBody.innerHTML='';
-        const list = Array.isArray(sale.paymentMethods) && sale.paymentMethods.length ? sale.paymentMethods : (sale.paymentMethod ? [{ method: sale.paymentMethod, amount: sale.total||0, accountId: null }] : []);
+        const list = Array.isArray(sale.paymentMethods) && sale.paymentMethods.length ? sale.paymentMethods : (sale.paymentMethod ? [{ method: sale.paymentMethod, amount: sale.total||0, accountId: null, accountName: null }] : []);
         let acc = 0;
-        list.forEach(p => {
-          const tr = document.createElement('tr');
+        
+        if (list.length === 0) {
+          const emptyDiv = document.createElement('div');
+          emptyDiv.className = 'text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-center py-2';
+          emptyDiv.textContent = 'Sin información de pagos';
+          payBody.appendChild(emptyDiv);
+        } else {
+          list.forEach(p => {
             const method = (p.method||'').toString().toUpperCase();
-            const accountName = p.account?.name || p.accountName || p.accountId || '';
+            const accountName = p.accountName || p.account?.name || 'Sin cuenta';
+            const accountId = p.accountId || p.account?._id;
             const amt = Number(p.amount||0);
             acc += amt;
-            tr.innerHTML = `<td>${method}</td><td>${accountName||'—'}</td><td class="t-right">${money(amt)}</td>`;
-            payBody.appendChild(tr);
-        });
-        payTotalEl.textContent = money(acc);
-        if(!list.length){
-          const tr=document.createElement('tr'); tr.innerHTML='<td colspan="3" class="t-center muted">Sin información de pagos</td>'; payBody.appendChild(tr);
+            
+            const paymentDiv = document.createElement('div');
+            paymentDiv.className = 'flex items-center justify-between p-4 bg-gradient-to-r from-slate-800/70 to-slate-800/50 dark:from-slate-700/70 dark:to-slate-700/50 theme-light:from-white theme-light:to-slate-50 rounded-lg border border-slate-700/40 dark:border-slate-600/40 theme-light:border-slate-200 shadow-sm hover:shadow-md transition-all duration-200';
+            
+            const methodColors = {
+              'EFECTIVO': 'text-green-300 dark:text-green-400 theme-light:text-green-700',
+              'TRANSFERENCIA': 'text-blue-300 dark:text-blue-400 theme-light:text-blue-700',
+              'TARJETA': 'text-purple-300 dark:text-purple-400 theme-light:text-purple-700',
+              'NEQUI': 'text-cyan-300 dark:text-cyan-400 theme-light:text-cyan-700',
+              'DAVIPLATA': 'text-yellow-300 dark:text-yellow-400 theme-light:text-yellow-700'
+            };
+            const methodColor = methodColors[method] || 'text-slate-300 dark:text-slate-300 theme-light:text-slate-700';
+            
+            const leftDiv = document.createElement('div');
+            leftDiv.className = 'flex-1';
+            leftDiv.innerHTML = `
+              <div class="font-bold text-lg ${methodColor} mb-1">${method}</div>
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">
+                ${accountId ? `<span class="cursor-pointer hover:text-blue-400 dark:hover:text-blue-300 theme-light:hover:text-blue-600 hover:underline transition-colors font-medium" data-account-id="${accountId}">💳 ${accountName}</span>` : `<span class="text-slate-500">${accountName}</span>`}
+              </div>
+            `;
+            
+            const rightDiv = document.createElement('div');
+            rightDiv.className = 'text-right';
+            rightDiv.innerHTML = `
+              <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Monto</div>
+              <div class="font-bold text-xl text-white dark:text-white theme-light:text-slate-900">${money(amt)}</div>
+            `;
+            
+            paymentDiv.appendChild(leftDiv);
+            paymentDiv.appendChild(rightDiv);
+            payBody.appendChild(paymentDiv);
+            
+            // Agregar click handler para ir al flujo de caja
+            if (accountId) {
+              const accountLink = leftDiv.querySelector('[data-account-id]');
+              if (accountLink) {
+                accountLink.addEventListener('click', () => {
+                  closeModal();
+                  // Navegar a flujo de caja con filtro por cuenta
+                  if (window.location.pathname.includes('ventas.html')) {
+                    window.location.href = `cashflow.html?accountId=${accountId}`;
+                  } else {
+                    window.location.href = `cashflow.html?accountId=${accountId}`;
+                  }
+                });
+              }
+            }
+          });
         }
+        payTotalEl.textContent = money(acc);
       }
     } catch(e) { console.warn('render pagos historial', e); }
-    const printBtn = node.querySelector('[data-print]');
-    if (printBtn) printBtn.onclick = () => printSaleTicket(sale);
+    
     openModal(node);
   }catch(e){ alert(e?.message || 'No se pudo cargar la venta'); }
+}
+
+function createItemGroup(title, items, color) {
+  // Colores mejorados con mejor contraste y visibilidad
+  const colorConfigs = {
+    purple: {
+      border: 'border-purple-500/60 dark:border-purple-400/60 theme-light:border-purple-500',
+      bg: 'bg-purple-500/15 dark:bg-purple-500/20 theme-light:bg-purple-50',
+      headerText: 'text-purple-200 dark:text-purple-300 theme-light:text-purple-800',
+      headerBg: 'bg-purple-500/20 dark:bg-purple-500/30 theme-light:bg-purple-100',
+      icon: '🟣'
+    },
+    blue: {
+      border: 'border-blue-500/60 dark:border-blue-400/60 theme-light:border-blue-500',
+      bg: 'bg-blue-500/15 dark:bg-blue-500/20 theme-light:bg-blue-50',
+      headerText: 'text-blue-200 dark:text-blue-300 theme-light:text-blue-800',
+      headerBg: 'bg-blue-500/20 dark:bg-blue-500/30 theme-light:bg-blue-100',
+      icon: '🔵'
+    },
+    green: {
+      border: 'border-green-500/60 dark:border-green-400/60 theme-light:border-green-500',
+      bg: 'bg-green-500/15 dark:bg-green-500/20 theme-light:bg-green-50',
+      headerText: 'text-green-200 dark:text-green-300 theme-light:text-green-800',
+      headerBg: 'bg-green-500/20 dark:bg-green-500/30 theme-light:bg-green-100',
+      icon: '🟢'
+    }
+  };
+  
+  const config = colorConfigs[color] || colorConfigs.blue;
+  
+  const groupDiv = document.createElement('div');
+  groupDiv.className = `rounded-xl border-2 ${config.border} ${config.bg} p-4 shadow-lg`;
+  
+  const header = document.createElement('div');
+  header.className = `flex items-center gap-2 font-bold text-sm mb-4 px-3 py-2 rounded-lg ${config.headerBg} ${config.headerText}`;
+  header.innerHTML = `<span>${config.icon}</span><span>${title}</span><span class="ml-auto text-xs opacity-75">(${items.length})</span>`;
+  groupDiv.appendChild(header);
+  
+  const itemsList = document.createElement('div');
+  itemsList.className = 'space-y-3';
+  
+  items.forEach(item => {
+    const itemDiv = document.createElement('div');
+    itemDiv.className = 'bg-slate-900/60 dark:bg-slate-800/60 theme-light:bg-white rounded-lg p-4 border border-slate-700/40 dark:border-slate-600/40 theme-light:border-slate-200 shadow-sm hover:shadow-md transition-shadow';
+    
+    const itemInfo = `
+      <div class="flex justify-between items-start gap-4">
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-base mb-1">${item.name || item.sku || 'Sin nombre'}</div>
+          ${item.sku ? `<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2 font-mono">SKU: ${item.sku}</div>` : ''}
+          ${item.purchaseInfo ? `
+            <div class="mt-3 p-3 bg-slate-800/70 dark:bg-slate-700/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/30 dark:border-slate-600/30 theme-light:border-slate-200">
+              <div class="font-semibold text-slate-200 dark:text-slate-200 theme-light:text-slate-800 mb-2 text-xs uppercase tracking-wide">📦 Información de compra</div>
+              <div class="text-slate-300 dark:text-slate-300 theme-light:text-slate-700 space-y-1.5 text-xs">
+                ${item.purchaseInfo.purchasePlace ? `<div class="flex items-center gap-2"><span class="font-medium">Proveedor:</span><span>${item.purchaseInfo.purchasePlace}</span></div>` : ''}
+                ${item.purchaseInfo.intakeDate ? `<div class="flex items-center gap-2"><span class="font-medium">Fecha:</span><span>${new Date(item.purchaseInfo.intakeDate).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>` : ''}
+                ${item.purchaseInfo.vehicleInfo ? `<div class="flex items-center gap-2"><span class="font-medium">Vehículo:</span><span>${item.purchaseInfo.vehicleInfo}</span></div>` : ''}
+                ${item.purchaseInfo.meta?.supplier ? `<div class="flex items-center gap-2"><span class="font-medium">Proveedor:</span><span>${item.purchaseInfo.meta.supplier}</span></div>` : ''}
+                ${item.purchaseInfo.meta?.purchaseOrder ? `<div class="flex items-center gap-2"><span class="font-medium">Orden:</span><span class="font-mono">${item.purchaseInfo.meta.purchaseOrder}</span></div>` : ''}
+              </div>
+            </div>
+          ` : ''}
+        </div>
+        <div class="text-right ml-4 flex-shrink-0">
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Cantidad</div>
+          <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 mb-3">${item.qty || 0}</div>
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Precio unit.</div>
+          <div class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-3">${money(item.unitPrice || 0)}</div>
+          <div class="pt-2 border-t border-slate-700/30 dark:border-slate-600/30 theme-light:border-slate-200">
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total</div>
+            <div class="font-bold text-lg text-white dark:text-white theme-light:text-slate-900">${money(item.total || 0)}</div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    itemDiv.innerHTML = itemInfo;
+    itemsList.appendChild(itemDiv);
+  });
+  
+  groupDiv.appendChild(itemsList);
+  return groupDiv;
 }
 // ---------- live (SSE) ----------
 function connectLive(){

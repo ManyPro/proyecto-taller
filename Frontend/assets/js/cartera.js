@@ -36,6 +36,34 @@ async function initCartera() {
     await loadReceivables();
     await loadStats();
     
+    // Navegación por pestañas
+    const navCartera = document.getElementById('cartera-nav-cartera');
+    const navEmpresas = document.getElementById('cartera-nav-empresas');
+    const viewCartera = document.getElementById('cartera-view-cartera');
+    const viewEmpresas = document.getElementById('cartera-view-empresas');
+    
+    if (navCartera && navEmpresas && viewCartera && viewEmpresas) {
+      navCartera.addEventListener('click', () => {
+        navCartera.classList.add('active');
+        navCartera.classList.remove('text-slate-300', 'dark:text-slate-300', 'theme-light:text-slate-700');
+        navCartera.classList.add('text-white', 'bg-orange-600', 'dark:bg-orange-600', 'theme-light:bg-orange-500');
+        navEmpresas.classList.remove('active', 'text-white', 'bg-orange-600', 'dark:bg-orange-600', 'theme-light:bg-orange-500');
+        navEmpresas.classList.add('text-slate-300', 'dark:text-slate-300', 'theme-light:text-slate-700');
+        viewCartera.classList.remove('hidden');
+        viewEmpresas.classList.add('hidden');
+      });
+      
+      navEmpresas.addEventListener('click', () => {
+        navEmpresas.classList.add('active');
+        navEmpresas.classList.remove('text-slate-300', 'dark:text-slate-300', 'theme-light:text-slate-700');
+        navEmpresas.classList.add('text-white', 'bg-orange-600', 'dark:bg-orange-600', 'theme-light:bg-orange-500');
+        navCartera.classList.remove('active', 'text-white', 'bg-orange-600', 'dark:bg-orange-600', 'theme-light:bg-orange-500');
+        navCartera.classList.add('text-slate-300', 'dark:text-slate-300', 'theme-light:text-slate-700');
+        viewEmpresas.classList.remove('hidden');
+        viewCartera.classList.add('hidden');
+      });
+    }
+    
     // Event listeners
     const btnRefresh = document.getElementById('btn-refresh');
     if (btnRefresh) {
@@ -100,33 +128,63 @@ function renderCompanies() {
   if (!tbody) return;
   
   if (companies.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" class="px-4 py-4 text-center text-slate-400">No hay empresas registradas</td></tr>';
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="px-4 py-8 text-center">
+          <div class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">No hay empresas registradas</div>
+          <button onclick="showCompanyModal()" class="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-semibold rounded-lg transition-all duration-200 text-sm">
+            + Crear primera empresa
+          </button>
+        </td>
+      </tr>
+    `;
     return;
   }
   
-  tbody.innerHTML = companies.map(company => `
-    <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-100/50">
-      <td class="px-2 sm:px-4 py-2" data-label="Nombre">
-        <div class="font-medium text-sm sm:text-base">${escapeHtml(company.name)}</div>
-        ${company.description ? `<div class="text-xs text-slate-400 mt-1">${escapeHtml(company.description)}</div>` : ''}
+  tbody.innerHTML = companies.map(company => {
+    const typeLabel = company.type === 'particular' ? 'Particular' : 'Recurrente';
+    const typeColor = company.type === 'particular' 
+      ? 'bg-purple-500/20 text-purple-400 dark:text-purple-400 theme-light:text-purple-700 border-purple-500/30'
+      : 'bg-green-500/20 text-green-400 dark:text-green-400 theme-light:text-green-700 border-green-500/30';
+    const statusColor = company.active 
+      ? 'bg-green-500/20 text-green-400 dark:text-green-400 theme-light:text-green-700'
+      : 'bg-red-500/20 text-red-400 dark:text-red-400 theme-light:text-red-700';
+    const statusLabel = company.active ? 'Activa' : 'Inactiva';
+    
+    return `
+    <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-100/50 transition-colors">
+      <td class="px-2 sm:px-4 py-3" data-label="Nombre">
+        <div class="font-semibold text-sm sm:text-base text-white dark:text-white theme-light:text-slate-900">${escapeHtml(company.name)}</div>
+        ${company.description ? `<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">${escapeHtml(company.description)}</div>` : ''}
       </td>
-      <td class="px-2 sm:px-4 py-2" data-label="Placas">
-        ${company.plates && company.plates.length > 0 
-          ? `<div class="flex flex-wrap gap-1 mb-1">${company.plates.map(p => `<span class="inline-block px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 rounded text-xs font-mono">${escapeHtml(p)}</span>`).join('')}</div><div class="text-xs text-slate-400">${company.plates.length} placa${company.plates.length !== 1 ? 's' : ''}</div>`
-          : '<span class="text-slate-400 text-xs">Sin placas</span>'}
+      <td class="px-2 sm:px-4 py-3" data-label="Tipo">
+        <span class="px-2 py-1 rounded text-xs font-semibold border ${typeColor}">${typeLabel}</span>
       </td>
-      <td class="px-2 sm:px-4 py-2" data-label="Contacto">
-        ${company.contact?.name ? `<div class="text-xs sm:text-sm">${escapeHtml(company.contact.name)}</div>` : ''}
-        ${company.contact?.phone ? `<div class="text-xs text-slate-400">${escapeHtml(company.contact.phone)}</div>` : ''}
+      <td class="px-2 sm:px-4 py-3" data-label="Contacto">
+        ${company.contact?.name ? `<div class="text-xs sm:text-sm text-white dark:text-white theme-light:text-slate-900 font-medium">${escapeHtml(company.contact.name)}</div>` : ''}
+        ${company.contact?.phone ? `<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-0.5">📞 ${escapeHtml(company.contact.phone)}</div>` : ''}
+        ${company.contact?.email ? `<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-0.5">✉️ ${escapeHtml(company.contact.email)}</div>` : ''}
       </td>
-      <td class="px-2 sm:px-4 py-2" data-label="Acciones">
+      <td class="px-2 sm:px-4 py-3" data-label="Placas">
+        ${company.type === 'recurrente' && company.plates && company.plates.length > 0 
+          ? `<div class="flex flex-wrap gap-1 mb-1">${company.plates.slice(0, 3).map(p => `<span class="inline-block px-2 py-1 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-200 rounded text-xs font-mono text-white dark:text-white theme-light:text-slate-900">${escapeHtml(p)}</span>`).join('')}</div>${company.plates.length > 3 ? `<div class="text-xs text-slate-400">+${company.plates.length - 3} más</div>` : `<div class="text-xs text-slate-400">${company.plates.length} placa${company.plates.length !== 1 ? 's' : ''}</div>`}`
+          : company.type === 'recurrente' 
+            ? '<span class="text-slate-400 text-xs">Sin placas</span>'
+            : '<span class="text-slate-400 text-xs">-</span>'}
+      </td>
+      <td class="px-2 sm:px-4 py-3" data-label="Estado">
+        <span class="px-2 py-1 rounded text-xs font-semibold ${statusColor}">${statusLabel}</span>
+      </td>
+      <td class="px-2 sm:px-4 py-3" data-label="Acciones">
         <div class="flex flex-col sm:flex-row gap-1 sm:gap-2">
-          <button onclick="editCompany('${company._id}')" class="px-2 sm:px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors whitespace-nowrap">Editar</button>
-          <button onclick="deleteCompany('${company._id}')" class="px-2 sm:px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors whitespace-nowrap">Eliminar</button>
+          <button onclick="viewCompanyHistory('${company._id}')" class="px-2 sm:px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white text-xs rounded transition-colors whitespace-nowrap" title="Ver historial">📊 Historial</button>
+          <button onclick="editCompany('${company._id}')" class="px-2 sm:px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded transition-colors whitespace-nowrap">✏️ Editar</button>
+          <button onclick="deleteCompany('${company._id}')" class="px-2 sm:px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors whitespace-nowrap">🗑️ Eliminar</button>
         </div>
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function updateCompanyFilter() {
@@ -153,6 +211,18 @@ function showCompanyModal(companyId = null) {
           class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500" />
       </div>
       <div>
+        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Tipo de Empresa *</label>
+        <select id="company-type" required
+          class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500">
+          <option value="recurrente" ${company?.type === 'recurrente' || !company ? 'selected' : ''}>Recurrente</option>
+          <option value="particular" ${company?.type === 'particular' ? 'selected' : ''}>Particular</option>
+        </select>
+        <p class="text-xs text-slate-400 mt-1">
+          <strong>Recurrente:</strong> Los vehículos pertenecen a la empresa. Se pueden agregar placas manualmente.<br>
+          <strong>Particular:</strong> La empresa recibe vehículos particulares que no le pertenecen. Los links son temporales.
+        </p>
+      </div>
+      <div>
         <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Descripción</label>
         <textarea id="company-description" rows="2"
           class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500">${company?.description || ''}</textarea>
@@ -170,8 +240,8 @@ function showCompanyModal(companyId = null) {
         <textarea id="company-contact-address" placeholder="Dirección" rows="2" 
           class="w-full mt-2 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500">${company?.contact?.address || ''}</textarea>
       </div>
-      <div>
-        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Placas</label>
+      <div id="company-plates-section" style="display: ${company?.type === 'recurrente' || !company ? 'block' : 'none'};">
+        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Placas (solo para empresas recurrentes)</label>
         <div class="flex gap-2 mb-2">
           <input type="text" id="new-plate-input" placeholder="Ej: ABC123" 
             class="flex-1 px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 uppercase"
@@ -180,7 +250,7 @@ function showCompanyModal(companyId = null) {
             class="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Agregar</button>
         </div>
         <div id="plates-list" class="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar mb-2">
-          ${company?.plates?.map(plate => `
+          ${(company?.type === 'recurrente' && company?.plates) ? company.plates.map(plate => `
             <div class="plate-item flex items-center justify-between p-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-slate-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300" data-plate="${escapeHtml(plate)}">
               <div class="flex-1">
                 <div class="font-mono font-semibold text-white dark:text-white theme-light:text-slate-900">${escapeHtml(plate)}</div>
@@ -189,9 +259,9 @@ function showCompanyModal(companyId = null) {
               <button type="button" onclick="removePlateFromCompany('${escapeHtml(plate)}')" 
                 class="ml-2 px-2 py-1 bg-red-600/20 hover:bg-red-600/40 text-red-400 hover:text-red-300 rounded text-xs transition-colors">Eliminar</button>
             </div>
-          `).join('') || '<p class="text-xs text-slate-400 text-center py-2">No hay placas agregadas</p>'}
+          `).join('') : '<p class="text-xs text-slate-400 text-center py-2">No hay placas agregadas</p>'}
         </div>
-        <p class="text-xs text-slate-400 mt-1">Cuando una de estas placas quede debiendo, se asociará automáticamente a esta empresa</p>
+        <p class="text-xs text-slate-400 mt-1">Agrega las placas de los vehículos que pertenecen a esta empresa. Cuando una de estas placas quede debiendo, se asociará automáticamente a esta empresa.</p>
       </div>
       <div>
         <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Notas</label>
@@ -210,10 +280,28 @@ function showCompanyModal(companyId = null) {
   document.getElementById('modal')?.classList.remove('hidden');
   
   // Inicializar lista de placas
-  window.currentCompanyPlates = company?.plates ? [...company.plates] : [];
+  window.currentCompanyPlates = (company?.type === 'recurrente' && company?.plates) ? [...company.plates] : [];
+  
+  // Manejar cambio de tipo de empresa
+  const typeSelect = document.getElementById('company-type');
+  const platesSection = document.getElementById('company-plates-section');
+  if (typeSelect && platesSection) {
+    typeSelect.addEventListener('change', (e) => {
+      if (e.target.value === 'recurrente') {
+        platesSection.style.display = 'block';
+      } else {
+        platesSection.style.display = 'none';
+        window.currentCompanyPlates = [];
+        const platesList = document.getElementById('plates-list');
+        if (platesList) {
+          platesList.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">No hay placas agregadas</p>';
+        }
+      }
+    });
+  }
   
   // Cargar información de vehículos para las placas existentes
-  if (company?.plates && company.plates.length > 0) {
+  if (company?.type === 'recurrente' && company?.plates && company.plates.length > 0) {
     company.plates.forEach(plate => {
       loadVehicleInfo(plate);
     });
@@ -352,8 +440,12 @@ async function saveCompany(companyId) {
     // Obtener placas de la lista actual
     const plates = window.currentCompanyPlates || [];
     
+    const type = document.getElementById('company-type')?.value || 'recurrente';
+    const plates = type === 'recurrente' ? (window.currentCompanyPlates || []) : [];
+    
     const data = {
       name,
+      type,
       description: document.getElementById('company-description')?.value.trim() || '',
       contact: {
         name: document.getElementById('company-contact-name')?.value.trim() || '',
@@ -399,6 +491,176 @@ window.deleteCompany = async function(companyId) {
     showError(err?.response?.data?.error || 'Error al eliminar empresa');
   }
 };
+
+window.viewCompanyHistory = async function(companyId) {
+  try {
+    const api = getAPI();
+    const company = companies.find(c => c._id === companyId);
+    if (!company) {
+      showError('Empresa no encontrada');
+      return;
+    }
+    
+    // Obtener ventas y cuentas por cobrar de esta empresa
+    const [sales, receivablesData] = await Promise.all([
+      api.sales?.list({ companyAccountId: companyId, status: 'closed', limit: 1000 }) || { items: [] },
+      api.receivables?.list({ companyAccountId: companyId, limit: 1000 }) || []
+    ]);
+    
+    const salesList = sales.items || sales || [];
+    const receivablesList = Array.isArray(receivablesData) ? receivablesData : (receivablesData.items || []);
+    
+    // Calcular estadísticas
+    const totalSales = salesList.length;
+    const totalSalesAmount = salesList.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
+    const totalReceivables = receivablesList.length;
+    const totalReceivablesAmount = receivablesList.reduce((sum, r) => sum + (Number(r.totalAmount) || 0), 0);
+    const totalPaid = receivablesList.reduce((sum, r) => sum + (Number(r.paidAmount) || 0), 0);
+    const totalBalance = receivablesList.reduce((sum, r) => sum + (Number(r.balance) || 0), 0);
+    
+    // Obtener links activos
+    const links = await api.receivables?.links?.list({ companyAccountId: companyId, active: true }) || [];
+    
+    const modalBody = document.getElementById('modalBody');
+    if (!modalBody) return;
+    
+    modalBody.innerHTML = `
+      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6 max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h3 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Historial: ${escapeHtml(company.name)}</h3>
+            <span class="px-2 py-1 rounded text-xs font-semibold ${
+              company.type === 'recurrente'
+                ? 'bg-green-500/20 text-green-400 dark:text-green-400 theme-light:text-green-700'
+                : 'bg-purple-500/20 text-purple-400 dark:text-purple-400 theme-light:text-purple-700'
+            }">${company.type === 'recurrente' ? 'Recurrente' : 'Particular'}</span>
+          </div>
+          <button onclick="document.getElementById('modal').classList.add('hidden')" class="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-colors">✕ Cerrar</button>
+        </div>
+        
+        <!-- Estadísticas -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white rounded-lg p-4 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total Ventas</div>
+            <div class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900">${totalSales}</div>
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">${formatMoney(totalSalesAmount)}</div>
+          </div>
+          <div class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white rounded-lg p-4 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Cuentas por Cobrar</div>
+            <div class="text-2xl font-bold text-orange-400 dark:text-orange-400 theme-light:text-orange-600">${totalReceivables}</div>
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">${formatMoney(totalReceivablesAmount)}</div>
+          </div>
+          <div class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white rounded-lg p-4 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Pagado</div>
+            <div class="text-2xl font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${formatMoney(totalPaid)}</div>
+          </div>
+          <div class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white rounded-lg p-4 border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Saldo Pendiente</div>
+            <div class="text-2xl font-bold text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-600">${formatMoney(totalBalance)}</div>
+          </div>
+        </div>
+        
+        <!-- Links activos (solo para empresas recurrentes) -->
+        ${company.type === 'recurrente' && links.length > 0 ? `
+          <div class="mb-6">
+            <h4 class="text-sm font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-3">Vehículos Vinculados (${links.length})</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+              ${links.map(link => `
+                <div class="p-3 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white rounded-lg border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
+                  <div class="font-mono font-semibold text-white dark:text-white theme-light:text-slate-900">${escapeHtml(link.plate)}</div>
+                  ${link.customerName ? `<div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">${escapeHtml(link.customerName)}</div>` : ''}
+                  <div class="text-xs text-slate-500 dark:text-slate-500 theme-light:text-slate-500 mt-1">Vinculado: ${formatDate(link.linkedAt)}</div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+        
+        <!-- Ventas recientes -->
+        <div class="mb-6">
+          <h4 class="text-sm font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-3">Ventas Recientes</h4>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100">
+                <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Remisión</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Fecha</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Placa</th>
+                  <th class="px-3 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Total</th>
+                </tr>
+              </thead>
+              <tbody class="text-white dark:text-white theme-light:text-slate-900">
+                ${salesList.slice(0, 20).map(sale => `
+                  <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-100/50">
+                    <td class="px-3 py-2 font-mono">${String(sale.number || '').padStart(5, '0')}</td>
+                    <td class="px-3 py-2">${formatDate(sale.closedAt || sale.createdAt)}</td>
+                    <td class="px-3 py-2 font-mono">${escapeHtml(sale.vehicle?.plate || '—')}</td>
+                    <td class="px-3 py-2 text-right font-semibold">${formatMoney(sale.total || 0)}</td>
+                  </tr>
+                `).join('')}
+                ${salesList.length === 0 ? '<tr><td colspan="4" class="px-3 py-4 text-center text-slate-400">No hay ventas registradas</td></tr>' : ''}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Cuentas por cobrar -->
+        <div>
+          <h4 class="text-sm font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-3">Cuentas por Cobrar</h4>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100">
+                <tr class="border-b border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Remisión</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Placa</th>
+                  <th class="px-3 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Total</th>
+                  <th class="px-3 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Pagado</th>
+                  <th class="px-3 py-2 text-right text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Saldo</th>
+                  <th class="px-3 py-2 text-left text-xs font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Estado</th>
+                </tr>
+              </thead>
+              <tbody class="text-white dark:text-white theme-light:text-slate-900">
+                ${receivablesList.map(rec => {
+                  const statusColor = rec.status === 'paid' 
+                    ? 'bg-green-500/20 text-green-400'
+                    : rec.status === 'partial'
+                    ? 'bg-blue-500/20 text-blue-400'
+                    : 'bg-yellow-500/20 text-yellow-400';
+                  return `
+                    <tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-100/50">
+                      <td class="px-3 py-2 font-mono">${escapeHtml(rec.saleNumber || '—')}</td>
+                      <td class="px-3 py-2 font-mono">${escapeHtml(rec.vehicle?.plate || '—')}</td>
+                      <td class="px-3 py-2 text-right">${formatMoney(rec.totalAmount || 0)}</td>
+                      <td class="px-3 py-2 text-right text-green-400">${formatMoney(rec.paidAmount || 0)}</td>
+                      <td class="px-3 py-2 text-right font-semibold text-orange-400">${formatMoney(rec.balance || 0)}</td>
+                      <td class="px-3 py-2">
+                        <span class="px-2 py-1 rounded text-xs font-semibold ${statusColor}">
+                          ${rec.status === 'paid' ? 'Pagada' : rec.status === 'partial' ? 'Parcial' : 'Pendiente'}
+                        </span>
+                      </td>
+                    </tr>
+                  `;
+                }).join('')}
+                ${receivablesList.length === 0 ? '<tr><td colspan="6" class="px-3 py-4 text-center text-slate-400">No hay cuentas por cobrar</td></tr>' : ''}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.getElementById('modal')?.classList.remove('hidden');
+  } catch (err) {
+    console.error('Error loading company history:', err);
+    showError('Error al cargar historial de empresa');
+  }
+};
+
+function formatDate(date) {
+  if (!date) return '—';
+  const d = new Date(date);
+  return d.toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' });
+}
 
 // ========== CUENTAS POR COBRAR ==========
 
