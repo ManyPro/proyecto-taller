@@ -358,20 +358,20 @@
       // Flujo de Caja
       if (hasFlujo) {
         html += `
-          <div class="section-card" style="padding: 32px;">
+          <div class="section-card full-width" style="padding: 32px;">
             <div class="section-title" style="font-size: 20px; margin-bottom: 20px;">💵 Flujo de Caja</div>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
-              <div style="background: rgba(16, 185, 129, 0.15); padding: 24px; border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.3); min-height: 100px;">
-                <div class="metric-label" style="color: #6ee7b7; font-size: 13px; margin-bottom: 10px;">Entradas</div>
-                <div class="metric-value green" style="font-size: 26px; font-weight: 700;">${formatMoney(reportData.flujoCaja.entrada || 0)}</div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 900px; margin: 0 auto;">
+              <div style="background: rgba(16, 185, 129, 0.15); padding: 28px; border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.3); min-height: 120px; display: flex; flex-direction: column; justify-content: center;">
+                <div class="metric-label" style="color: #6ee7b7; font-size: 14px; margin-bottom: 12px; font-weight: 600;">Entradas</div>
+                <div class="metric-value green" style="font-size: 28px; font-weight: 700;">${formatMoney(reportData.flujoCaja.entrada || 0)}</div>
               </div>
-              <div style="background: rgba(239, 68, 68, 0.15); padding: 24px; border-radius: 10px; border: 1px solid rgba(239, 68, 68, 0.3); min-height: 100px;">
-                <div class="metric-label" style="color: #fca5a5; font-size: 13px; margin-bottom: 10px;">Salidas</div>
-                <div class="metric-value" style="font-size: 26px; font-weight: 700; color: #ef4444;">${formatMoney(reportData.flujoCaja.salida || 0)}</div>
+              <div style="background: rgba(239, 68, 68, 0.15); padding: 28px; border-radius: 10px; border: 1px solid rgba(239, 68, 68, 0.3); min-height: 120px; display: flex; flex-direction: column; justify-content: center;">
+                <div class="metric-label" style="color: #fca5a5; font-size: 14px; margin-bottom: 12px; font-weight: 600;">Salidas</div>
+                <div class="metric-value" style="font-size: 28px; font-weight: 700; color: #ef4444;">${formatMoney(reportData.flujoCaja.salida || 0)}</div>
               </div>
-              <div style="background: rgba(59, 130, 246, 0.15); padding: 24px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.3); min-height: 100px;">
-                <div class="metric-label" style="color: #93c5fd; font-size: 13px; margin-bottom: 10px;">Neto</div>
-                <div class="metric-value blue" style="font-size: 26px; font-weight: 700;">${formatMoney(reportData.flujoCaja.neto || 0)}</div>
+              <div style="background: rgba(59, 130, 246, 0.15); padding: 28px; border-radius: 10px; border: 1px solid rgba(59, 130, 246, 0.3); min-height: 120px; display: flex; flex-direction: column; justify-content: center;">
+                <div class="metric-label" style="color: #93c5fd; font-size: 14px; margin-bottom: 12px; font-weight: 600;">Neto</div>
+                <div class="metric-value blue" style="font-size: 28px; font-weight: 700;">${formatMoney(reportData.flujoCaja.neto || 0)}</div>
               </div>
             </div>
           </div>
@@ -423,7 +423,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  ${reportData.cartera.deudores.slice(0, 15).map(d => `
+                  ${reportData.cartera.deudores.slice(0, 8).map(d => `
                     <tr>
                       <td>${escapeHtml(d.cliente || '—')}</td>
                       <td>${escapeHtml(d.identificacion || '—')}</td>
