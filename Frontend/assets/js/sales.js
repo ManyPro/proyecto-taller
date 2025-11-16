@@ -9672,17 +9672,21 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
   else if (sectionCount <= 6) gridCols = 'grid-cols-3';
   else gridCols = 'grid-cols-3';
   
+  // Convertir pulgadas a píxeles para el contenedor principal
+  const containerWidthPx = 1056; // 11in * 96 DPI
+  const containerPadding = totalContentRows > 20 ? 20 : 28;
+  
   let html = `
     <div style="
-      width: 11in;
-      min-height: 8.5in;
-      max-width: 11in;
+      width: ${containerWidthPx}px;
+      min-height: 816px;
+      max-width: ${containerWidthPx}px;
       background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-      padding: ${totalContentRows > 20 ? '20px' : '28px'};
+      padding: ${containerPadding}px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       color: #e5e7eb;
       box-sizing: border-box;
-      overflow: hidden;
+      overflow: visible;
       display: flex;
       flex-direction: column;
     ">
@@ -10009,7 +10013,7 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
   }
   
   // Gráfico (si está seleccionado, se agregará después con Chart.js)
-  if (hasGrafico && reportData.manoObra.porTecnico.length > 0) {
+  if (hasGrafico && reportData.manoObra && reportData.manoObra.porTecnico && reportData.manoObra.porTecnico.length > 0) {
     html += `
       <div id="chart-container-export" style="
         background: rgba(30, 41, 59, 0.8);
@@ -10022,9 +10026,10 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
         align-items: center;
         justify-content: center;
         min-height: 300px;
+        width: 100%;
       ">
-        <h3 style="margin: 0 0 ${spacing.gap} 0; font-size: ${fontSize.sectionTitle}px; font-weight: 700; color: white; line-height: 1.2;">📊 Distribución de Mano de Obra</h3>
-        <canvas id="chart-canvas-export" width="400" height="400"></canvas>
+        <h3 style="margin: 0 0 ${spacing.gap} 0; font-size: ${fontSize.sectionTitle}px; font-weight: 700; color: white; line-height: 1.2; word-wrap: break-word; overflow-wrap: break-word;">📊 Distribución de Mano de Obra</h3>
+        <canvas id="chart-canvas-export" width="400" height="400" style="max-width: 100%; height: auto;"></canvas>
       </div>
     `;
   }
@@ -10099,6 +10104,11 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     // Cargar html2canvas
     const html2canvas = await ensureHtml2Canvas();
     
+    // Convertir pulgadas a píxeles (11in x 8.5in a 96 DPI = 1056px x 816px)
+    // Usar una escala más alta para mejor calidad (2x = 2112px x 1632px)
+    const targetWidthPx = 1056; // 11in * 96 DPI
+    const targetHeightPx = 816; // 8.5in * 96 DPI
+    
     // Crear contenedor temporal para la imagen
     const exportContainer = document.createElement('div');
     exportContainer.id = 'report-export-container';
@@ -10106,25 +10116,50 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       position: fixed;
       left: -9999px;
       top: 0;
-      width: 11in;
-      min-height: 8.5in;
-      background: transparent;
+      width: ${targetWidthPx}px;
+      min-height: ${targetHeightPx}px;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      overflow: visible;
+      z-index: 99999;
     `;
     
     // Generar HTML optimizado
-    exportContainer.innerHTML = generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections);
+    const htmlContent = generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections);
+    exportContainer.innerHTML = htmlContent;
     document.body.appendChild(exportContainer);
     
+    // Esperar a que el DOM se actualice
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Esperar a que todas las imágenes se carguen
+    const images = exportContainer.querySelectorAll('img');
+    if (images.length > 0) {
+      await Promise.all(Array.from(images).map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise((resolve, reject) => {
+          img.onload = resolve;
+          img.onerror = resolve; // Continuar aunque falle la imagen
+          setTimeout(resolve, 3000); // Timeout de 3 segundos
+        });
+      }));
+    }
+    
     // Si hay gráfico seleccionado, crearlo
-    if (selectedSections.includes('grafico') && reportData.manoObra.porTecnico.length > 0 && window.Chart) {
+    if (selectedSections.includes('grafico') && reportData.manoObra && reportData.manoObra.porTecnico && reportData.manoObra.porTecnico.length > 0 && window.Chart) {
       await new Promise(resolve => setTimeout(resolve, 300));
+      const chartContainer = exportContainer.querySelector('#chart-container-export');
       const chartCanvas = exportContainer.querySelector('#chart-canvas-export');
-      if (chartCanvas) {
+      if (chartCanvas && chartContainer) {
         const ctx = chartCanvas.getContext('2d');
         const labels = reportData.manoObra.porTecnico.map(t => t.tecnico);
         const data = reportData.manoObra.porTecnico.map(t => t.total);
         
-        new Chart(ctx, {
+        // Destruir gráfico anterior si existe
+        if (window.chartInstance) {
+          window.chartInstance.destroy();
+        }
+        
+        window.chartInstance = new Chart(ctx, {
           type: 'pie',
           data: {
             labels: labels,
@@ -10151,47 +10186,86 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
             }
           }
         });
-        await new Promise(resolve => setTimeout(resolve, 600));
+        await new Promise(resolve => setTimeout(resolve, 800));
       }
     }
     
-    // Esperar a que todo se renderice
+    // Forzar reflow para asegurar que todo esté renderizado
+    exportContainer.offsetHeight;
+    
+    // Esperar un poco más para asegurar que todo esté renderizado
     await new Promise(resolve => setTimeout(resolve, 500));
     
-    // Capturar como imagen
+    // Obtener dimensiones reales del contenido
+    const actualWidth = Math.max(exportContainer.scrollWidth, targetWidthPx);
+    const actualHeight = Math.max(exportContainer.scrollHeight, targetHeightPx);
+    
+    // Capturar como imagen con configuración optimizada
     const canvas = await html2canvas(exportContainer, {
       scale: 2,
-      backgroundColor: null,
+      backgroundColor: '#0f172a',
       useCORS: true,
-      allowTaint: true,
+      allowTaint: false,
       logging: false,
-      width: exportContainer.scrollWidth,
-      height: exportContainer.scrollHeight,
-      windowWidth: exportContainer.scrollWidth,
-      windowHeight: exportContainer.scrollHeight
+      width: actualWidth,
+      height: actualHeight,
+      windowWidth: actualWidth,
+      windowHeight: actualHeight,
+      x: 0,
+      y: 0,
+      scrollX: 0,
+      scrollY: 0,
+      imageTimeout: 15000,
+      removeContainer: false
     });
     
-    // Limpiar
-    document.body.removeChild(exportContainer);
+    // Limpiar gráfico si existe
+    if (window.chartInstance) {
+      window.chartInstance.destroy();
+      window.chartInstance = null;
+    }
+    
+    // Limpiar contenedor
+    if (exportContainer.parentNode) {
+      document.body.removeChild(exportContainer);
+    }
     
     // Descargar imagen
     const link = document.createElement('a');
-    link.download = `reporte-ventas-${fechaDesde}-${fechaHasta}.png`;
-    link.href = canvas.toDataURL('image/png', 0.95);
+    const dateStr = `${fechaDesde}_${fechaHasta}`.replace(/\//g, '-');
+    link.download = `reporte-ventas-${dateStr}.png`;
+    link.href = canvas.toDataURL('image/png', 1.0);
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
     
     if (btn) {
       btn.disabled = false;
       btn.textContent = originalText;
     }
     
+    console.log('✅ Imagen exportada correctamente');
+    
   } catch (error) {
     console.error('Error exportando imagen:', error);
+    console.error('Stack:', error.stack);
     alert('Error al exportar imagen: ' + (error.message || 'Error desconocido'));
     const btn = document.getElementById('report-download-image');
     if (btn) {
       btn.disabled = false;
       btn.textContent = '🖼️ Exportar Imagen';
+    }
+    
+    // Limpiar contenedor en caso de error
+    const exportContainer = document.getElementById('report-export-container');
+    if (exportContainer && exportContainer.parentNode) {
+      document.body.removeChild(exportContainer);
+    }
+    
+    // Limpiar gráfico si existe
+    if (window.chartInstance) {
+      window.chartInstance.destroy();
+      window.chartInstance = null;
     }
   }
 }

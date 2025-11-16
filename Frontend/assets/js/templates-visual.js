@@ -1323,7 +1323,12 @@
       const matches = result.match(from);
       if (matches) {
         totalReplacements += matches.length;
-        result = result.replace(from, to);
+        // Si to es una función, usarla directamente con replace
+        if (typeof to === 'function') {
+          result = result.replace(from, to);
+        } else {
+          result = result.replace(from, to);
+        }
         console.log(`[shortenHandlebarsVars] Reemplazo ${idx + 1}: ${matches.length} coincidencias`);
       }
     });
@@ -1370,13 +1375,15 @@
       { from: /\{\{#each S\.C\}\}/g, to: '{{#each sale.itemsGrouped.combos}}' },
       // IMPORTANTE: Restaurar variables de payroll ANTES de restaurar {{nom}} genérico
       // Esto asegura que las variables dentro de settlement.itemsByType se restauren correctamente
-      { from: /\{\{#each settlement\.itemsByType\.earnings\}\}([\s\S]*?)\{\{nom\}\}([\s\S]*?)\{\{\/each\}\}/g, 
-        (match, before, after) => {
+      { 
+        from: /\{\{#each settlement\.itemsByType\.earnings\}\}([\s\S]*?)\{\{nom\}\}([\s\S]*?)\{\{\/each\}\}/g, 
+        to: (match, before, after) => {
           return `{{#each settlement.itemsByType.earnings}}${before}{{name}}${after}{{/each}}`;
         }
       },
-      { from: /\{\{#each settlement\.itemsByType\.deductions\}\}([\s\S]*?)\{\{nom\}\}([\s\S]*?)\{\{\/each\}\}/g,
-        (match, before, after) => {
+      { 
+        from: /\{\{#each settlement\.itemsByType\.deductions\}\}([\s\S]*?)\{\{nom\}\}([\s\S]*?)\{\{\/each\}\}/g,
+        to: (match, before, after) => {
           return `{{#each settlement.itemsByType.deductions}}${before}{{name}}${after}{{/each}}`;
         }
       },
@@ -4655,6 +4662,93 @@
             }
           }
         });
+      }
+    }
+    
+    // Verificación específica para tablas de payroll
+    if (templateType === 'payroll') {
+      // Verificar que las tablas de earnings tengan las variables correctas
+      if (content.includes('payroll-earnings-table')) {
+        const earningsTbodyMatches = content.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+        if (earningsTbodyMatches) {
+          earningsTbodyMatches.forEach((match) => {
+            // Si tiene {{name}} pero NO tiene {{#each settlement.itemsByType.earnings}}
+            if (match.includes('{{name}}') && !match.includes('{{#each settlement.itemsByType.earnings}}')) {
+              const tbodyContent = match.replace(/<\/?tbody>/gi, '').trim();
+              const rowsMatch = tbodyContent.match(/<tr>[\s\S]*?<\/tr>/gi);
+              if (rowsMatch && rowsMatch.length > 0) {
+                const itemRow = rowsMatch.find(row => row.includes('{{name}}') && !row.includes('Sin ingresos'));
+                const sinItemsRow = rowsMatch.find(row => row.includes('Sin ingresos'));
+                
+                if (itemRow) {
+                  const newTbody = `<tbody>
+          {{#each settlement.itemsByType.earnings}}
+          ${itemRow}
+          {{else}}
+          ${sinItemsRow || '<tr><td colspan="4" style="text-align: center; color: #666;">Sin ingresos</td></tr>'}
+          {{/each}}
+        </tbody>`;
+                  content = content.replace(match, newTbody);
+                  console.log('🔧 Corregido tbody de earnings sin {{#each settlement.itemsByType.earnings}}');
+                }
+              }
+            }
+          });
+        }
+      }
+      
+      // Verificar que las tablas de deductions tengan las variables correctas
+      if (content.includes('payroll-deductions-table')) {
+        const deductionsTbodyMatches = content.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
+        if (deductionsTbodyMatches) {
+          deductionsTbodyMatches.forEach((match) => {
+            // Si tiene {{name}} pero NO tiene {{#each settlement.itemsByType.deductions}}
+            if (match.includes('{{name}}') && !match.includes('{{#each settlement.itemsByType.deductions}}')) {
+              const tbodyContent = match.replace(/<\/?tbody>/gi, '').trim();
+              const rowsMatch = tbodyContent.match(/<tr>[\s\S]*?<\/tr>/gi);
+              if (rowsMatch && rowsMatch.length > 0) {
+                const itemRow = rowsMatch.find(row => row.includes('{{name}}') && !row.includes('Sin descuentos'));
+                const sinItemsRow = rowsMatch.find(row => row.includes('Sin descuentos'));
+                
+                if (itemRow) {
+                  const newTbody = `<tbody>
+          {{#each settlement.itemsByType.deductions}}
+          ${itemRow}
+          {{else}}
+          ${sinItemsRow || '<tr><td colspan="3" style="text-align: center; color: #666;">Sin descuentos</td></tr>'}
+          {{/each}}
+        </tbody>`;
+                  content = content.replace(match, newTbody);
+                  console.log('🔧 Corregido tbody de deductions sin {{#each settlement.itemsByType.deductions}}');
+                }
+              }
+            }
+          });
+        }
+      }
+      
+      // Asegurar que las variables {{name}} y {{money value}} dentro de settlement.itemsByType NO se acorten
+      // Esto ya está protegido en shortenHandlebarsVars, pero verificamos aquí también
+      if (content.includes('settlement.itemsByType')) {
+        console.log('✅ Verificando variables de payroll en settlement.itemsByType');
+        // Las variables {{name}} y {{money value}} deben mantenerse completas
+        // No deben convertirse en {{nom}} o {{$ val}}
+        if (content.includes('{{nom}}') && content.includes('settlement.itemsByType')) {
+          console.warn('⚠️ Detectado {{nom}} dentro de settlement.itemsByType, restaurando a {{name}}');
+          content = content.replace(/(\{\{#each settlement\.itemsByType\.(?:earnings|deductions)\}\}[\s\S]*?)\{\{nom\}\}([\s\S]*?\{\{\/each\}\})/g, 
+            (match, before, after) => {
+              return before + '{{name}}' + after;
+            }
+          );
+        }
+        if (content.includes('{{$ val}}') && content.includes('settlement.itemsByType')) {
+          console.warn('⚠️ Detectado {{$ val}} dentro de settlement.itemsByType, restaurando a {{money value}}');
+          content = content.replace(/(\{\{#each settlement\.itemsByType\.(?:earnings|deductions)\}\}[\s\S]*?)\{\{\$ val\}\}([\s\S]*?\{\{\/each\}\})/g, 
+            (match, before, after) => {
+              return before + '{{money value}}' + after;
+            }
+          );
+        }
       }
     }
     
