@@ -1223,20 +1223,20 @@
       // Proteger variables dentro de earnings (usar replace con función para capturar todo el bloque)
       html = html.replace(/(\{\{#each settlement\.itemsByType\.earnings\}\})([\s\S]*?)(\{\{\/each\}\})/g, 
         (match, openTag, content, closeTag) => {
-          const protected = content
+          const protectedContent = content
             .replace(/\{\{name\}\}/g, payrollMarkers.earningsName)
             .replace(/\{\{money value\}\}/g, payrollMarkers.earningsValue);
-          return openTag + protected + closeTag;
+          return openTag + protectedContent + closeTag;
         }
       );
       
       // Proteger variables dentro de deductions
       html = html.replace(/(\{\{#each settlement\.itemsByType\.deductions\}\})([\s\S]*?)(\{\{\/each\}\})/g,
         (match, openTag, content, closeTag) => {
-          const protected = content
+          const protectedContent = content
             .replace(/\{\{name\}\}/g, payrollMarkers.deductionsName)
             .replace(/\{\{money value\}\}/g, payrollMarkers.deductionsValue);
-          return openTag + protected + closeTag;
+          return openTag + protectedContent + closeTag;
         }
       );
     }
