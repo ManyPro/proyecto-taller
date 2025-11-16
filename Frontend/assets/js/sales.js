@@ -9598,7 +9598,10 @@ function escapeHtmlExport(str) {
 
 // Generar HTML optimizado para exportación como imagen
 function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections) {
-  const periodStr = `${new Date(fechaDesde).toLocaleDateString('es-CO')} - ${new Date(fechaHasta).toLocaleDateString('es-CO')}`;
+  // Asegurar que las fechas se parseen correctamente
+  const dateFrom = fechaDesde instanceof Date ? fechaDesde : new Date(fechaDesde);
+  const dateTo = fechaHasta instanceof Date ? fechaHasta : new Date(fechaHasta);
+  const periodStr = `${dateFrom.toLocaleDateString('es-CO')} - ${dateTo.toLocaleDateString('es-CO')}`;
   
   // Determinar layout según secciones seleccionadas
   const hasResumen = selectedSections.includes('resumen');
@@ -9755,7 +9758,7 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
         </p>
       </div>
       
-      <div style="display: grid; gap: ${spacing.gap}; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); flex: 1; align-content: start;">
+      <div style="display: grid; gap: ${spacing.gap}; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); width: 100%;">
   `;
   
   // Resumen (siempre arriba si está seleccionado)
@@ -10112,27 +10115,39 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     const targetWidthPx = 1056; // 11in * 96 DPI
     const targetHeightPx = 816; // 8.5in * 96 DPI
     
-    // Crear contenedor temporal para la imagen
+    // Crear contenedor temporal para la imagen - SIN estilos que puedan interferir
     const exportContainer = document.createElement('div');
     exportContainer.id = 'report-export-container';
     exportContainer.style.cssText = `
-      position: fixed;
-      left: -9999px;
+      position: absolute;
+      left: 0;
       top: 0;
       width: ${targetWidthPx}px;
       min-height: ${targetHeightPx}px;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      background: transparent;
       overflow: visible;
       z-index: 99999;
+      visibility: hidden;
+    `;
+    
+    // Crear wrapper para el contenido
+    const wrapper = document.createElement('div');
+    wrapper.style.cssText = `
+      width: ${targetWidthPx}px;
+      min-height: ${targetHeightPx}px;
+      position: relative;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
     `;
     
     // Generar HTML optimizado
     const htmlContent = generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections);
-    exportContainer.innerHTML = htmlContent;
+    wrapper.innerHTML = htmlContent;
+    exportContainer.appendChild(wrapper);
     document.body.appendChild(exportContainer);
     
-    // Forzar layout calculation
+    // Forzar layout calculation en ambos contenedores
     void exportContainer.offsetHeight;
+    void wrapper.offsetHeight;
     
     // Esperar a que el DOM se actualice completamente
     await new Promise(resolve => {
@@ -10144,7 +10159,7 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     });
     
     // Esperar a que todas las imágenes se carguen
-    const images = exportContainer.querySelectorAll('img');
+    const images = wrapper.querySelectorAll('img');
     if (images.length > 0) {
       console.log(`📸 Esperando a que ${images.length} imagen(es) se carguen...`);
       await Promise.all(Array.from(images).map((img, idx) => {
@@ -10172,8 +10187,8 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     // Si hay gráfico seleccionado, crearlo
     if (selectedSections.includes('grafico') && reportData.manoObra && reportData.manoObra.porTecnico && reportData.manoObra.porTecnico.length > 0 && window.Chart) {
       await new Promise(resolve => setTimeout(resolve, 300));
-      const chartContainer = exportContainer.querySelector('#chart-container-export');
-      const chartCanvas = exportContainer.querySelector('#chart-canvas-export');
+      const chartContainer = wrapper.querySelector('#chart-container-export');
+      const chartCanvas = wrapper.querySelector('#chart-canvas-export');
       if (chartCanvas && chartContainer) {
         const ctx = chartCanvas.getContext('2d', { willReadFrequently: true });
         const labels = reportData.manoObra.porTecnico.map(t => t.tecnico);
@@ -10217,8 +10232,9 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     
     // Forzar múltiples reflows para asegurar que todo esté renderizado
     void exportContainer.offsetHeight;
-    void exportContainer.scrollHeight;
-    void exportContainer.clientHeight;
+    void wrapper.offsetHeight;
+    void wrapper.scrollHeight;
+    void wrapper.clientHeight;
     
     // Esperar a que los estilos se apliquen completamente
     await new Promise(resolve => {
@@ -10229,24 +10245,48 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       });
     });
     
-    // Obtener dimensiones reales del contenido
-    const actualWidth = Math.max(exportContainer.scrollWidth || exportContainer.clientWidth || targetWidthPx, targetWidthPx);
-    const actualHeight = Math.max(exportContainer.scrollHeight || exportContainer.clientHeight || targetHeightPx, targetHeightPx);
+    // Obtener dimensiones reales del contenido desde el wrapper
+    const actualWidth = Math.max(wrapper.scrollWidth || wrapper.clientWidth || targetWidthPx, targetWidthPx);
+    const actualHeight = Math.max(wrapper.scrollHeight || wrapper.clientHeight || targetHeightPx, targetHeightPx);
     
     console.log('📐 Dimensiones del contenedor:', {
-      scrollWidth: exportContainer.scrollWidth,
-      scrollHeight: exportContainer.scrollHeight,
-      clientWidth: exportContainer.clientWidth,
-      clientHeight: exportContainer.clientHeight,
+      wrapperScrollWidth: wrapper.scrollWidth,
+      wrapperScrollHeight: wrapper.scrollHeight,
+      wrapperClientWidth: wrapper.clientWidth,
+      wrapperClientHeight: wrapper.clientHeight,
+      containerScrollWidth: exportContainer.scrollWidth,
+      containerScrollHeight: exportContainer.scrollHeight,
       actualWidth,
       actualHeight,
       targetWidth: targetWidthPx,
       targetHeight: targetHeightPx
     });
     
-    // Capturar como imagen con configuración optimizada
+    // Hacer visible el contenedor justo antes de capturar (pero fuera de la vista)
+    exportContainer.style.visibility = 'visible';
+    exportContainer.style.position = 'fixed';
+    exportContainer.style.left = '-9999px';
+    exportContainer.style.top = '0';
+    
+    // Asegurar que el wrapper tenga el tamaño correcto
+    wrapper.style.width = `${actualWidth}px`;
+    wrapper.style.minHeight = `${actualHeight}px`;
+    
+    // Forzar un último reflow
+    void wrapper.offsetHeight;
+    
+    // Capturar como imagen con configuración optimizada - capturar el wrapper directamente
     console.log('📸 Iniciando captura con html2canvas...');
-    const canvas = await html2canvas(exportContainer, {
+    console.log('📦 Wrapper dimensions:', {
+      width: wrapper.offsetWidth,
+      height: wrapper.offsetHeight,
+      scrollWidth: wrapper.scrollWidth,
+      scrollHeight: wrapper.scrollHeight,
+      computedStyle: window.getComputedStyle(wrapper).width,
+      computedHeight: window.getComputedStyle(wrapper).height
+    });
+    
+    const canvas = await html2canvas(wrapper, {
       scale: 2,
       backgroundColor: '#0f172a',
       useCORS: true,
@@ -10262,13 +10302,20 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       scrollY: 0,
       imageTimeout: 15000,
       removeContainer: false,
-      onclone: (clonedDoc) => {
+      onclone: (clonedDoc, element) => {
         // Asegurar que el clon tenga las dimensiones correctas
-        const clonedContainer = clonedDoc.getElementById('report-export-container');
-        if (clonedContainer) {
-          clonedContainer.style.width = `${actualWidth}px`;
-          clonedContainer.style.height = `${actualHeight}px`;
-          console.log('✅ Clon del contenedor preparado');
+        const clonedMain = clonedDoc.getElementById('report-export-main-container');
+        if (clonedMain) {
+          clonedMain.style.width = `${actualWidth}px !important`;
+          clonedMain.style.minHeight = `${actualHeight}px !important`;
+          clonedMain.style.maxWidth = `${actualWidth}px !important`;
+          console.log('✅ Clon del contenedor principal preparado');
+        }
+        // Asegurar que el elemento clonado tenga las dimensiones correctas
+        if (element) {
+          element.style.width = `${actualWidth}px`;
+          element.style.minHeight = `${actualHeight}px`;
+          console.log('✅ Elemento clonado preparado');
         }
       }
     });
@@ -10284,8 +10331,8 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       window.chartInstance = null;
     }
     
-    // Limpiar contenedor
-    if (exportContainer.parentNode) {
+    // Limpiar contenedor y wrapper
+    if (exportContainer && exportContainer.parentNode) {
       document.body.removeChild(exportContainer);
     }
     
@@ -10316,9 +10363,9 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     }
     
     // Limpiar contenedor en caso de error
-    const exportContainer = document.getElementById('report-export-container');
-    if (exportContainer && exportContainer.parentNode) {
-      document.body.removeChild(exportContainer);
+    const exportContainerError = document.getElementById('report-export-container');
+    if (exportContainerError && exportContainerError.parentNode) {
+      document.body.removeChild(exportContainerError);
     }
     
     // Limpiar gráfico si existe
