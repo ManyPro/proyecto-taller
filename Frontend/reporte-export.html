@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reporte de Ventas - Exportar</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+      color: #e5e7eb;
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+    
+    .report-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      background: rgba(30, 41, 59, 0.95);
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+    
+    .report-header {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      padding: 30px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 16px rgba(37, 99, 235, 0.3);
+    }
+    
+    .report-header h1 {
+      font-size: 32px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 8px;
+    }
+    
+    .report-header p {
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.9);
+    }
+    
+    .sections-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .section-card {
+      background: rgba(30, 41, 59, 0.8);
+      padding: 24px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    .section-card.full-width {
+      grid-column: 1 / -1;
+    }
+    
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .metric-card {
+      background: rgba(30, 41, 59, 0.8);
+      padding: 20px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    .metric-label {
+      font-size: 12px;
+      color: #94a3b8;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    
+    .metric-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: white;
+    }
+    
+    .metric-value.green {
+      color: #10b981;
+    }
+    
+    .metric-value.yellow {
+      color: #fbbf24;
+    }
+    
+    .metric-value.blue {
+      color: #60a5fa;
+    }
+    
+    .metric-subtext {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+    
+    table thead {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    
+    table th {
+      padding: 12px;
+      text-align: left;
+      color: #cbd5e1;
+      font-weight: 600;
+      border-bottom: 2px solid rgba(148, 163, 184, 0.3);
+      border-right: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    
+    table th:last-child {
+      border-right: none;
+    }
+    
+    table td {
+      padding: 12px;
+      color: white;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+      border-right: 1px solid rgba(148, 163, 184, 0.1);
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+    
+    table td:last-child {
+      border-right: none;
+    }
+    
+    table tbody tr:hover {
+      background: rgba(148, 163, 184, 0.1);
+    }
+    
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      display: inline-block;
+    }
+    
+    .status-badge.pending {
+      background: rgba(251, 191, 36, 0.2);
+      color: #fbbf24;
+    }
+    
+    .status-badge.partial {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+    }
+    
+    .status-badge.paid {
+      background: rgba(16, 185, 129, 0.2);
+      color: #10b981;
+    }
+    
+    .highlight-box {
+      background: rgba(251, 191, 36, 0.15);
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      margin-bottom: 16px;
+    }
+    
+    .info-box {
+      background: rgba(139, 92, 246, 0.15);
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+    
+    .empty-message {
+      color: #64748b;
+      text-align: center;
+      padding: 24px;
+      font-size: 14px;
+    }
+    
+    .chart-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 400px;
+      padding: 20px;
+    }
+    
+    .chart-container canvas {
+      max-width: 100%;
+      height: auto;
+    }
+    
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+      
+      .report-container {
+        background: white;
+        box-shadow: none;
+        padding: 20px;
+        max-width: 100%;
+      }
+      
+      .section-card, .metric-card {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        page-break-inside: avoid;
+      }
+      
+      .section-title {
+        color: #212529;
+      }
+      
+      table th, table td {
+        color: #212529;
+        border-color: #dee2e6;
+      }
+      
+      .metric-value {
+        color: #212529;
+      }
+      
+      .metric-value.green {
+        color: #198754;
+      }
+      
+      .metric-value.yellow {
+        color: #ffc107;
+      }
+      
+      .metric-value.blue {
+        color: #0d6efd;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="report-container" id="reportContainer">
+    <!-- El contenido se generará dinámicamente con JavaScript -->
+  </div>
+  
+  <script>
+    // Obtener datos del reporte desde localStorage
+    const reportDataStr = sessionStorage.getItem('reportExportData');
+    const selectedSectionsStr = sessionStorage.getItem('reportExportSections');
+    const fechaDesdeStr = sessionStorage.getItem('reportExportFechaDesde');
+    const fechaHastaStr = sessionStorage.getItem('reportExportFechaHasta');
+    
+    if (!reportDataStr || !selectedSectionsStr) {
+      document.body.innerHTML = '<div class="report-container"><h1>Error: No se encontraron datos del reporte</h1></div>';
+    } else {
+      try {
+        const reportData = JSON.parse(reportDataStr);
+        const selectedSections = JSON.parse(selectedSectionsStr);
+        const fechaDesde = fechaDesdeStr ? new Date(fechaDesdeStr) : new Date();
+        const fechaHasta = fechaHastaStr ? new Date(fechaHastaStr) : new Date();
+        
+        renderReport(reportData, fechaDesde, fechaHasta, selectedSections);
+      } catch (error) {
+        console.error('Error parsing report data:', error);
+        document.body.innerHTML = '<div class="report-container"><h1>Error al cargar el reporte</h1></div>';
+      }
+    }
+    
+    function formatMoney(amount) {
+      return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(amount || 0);
+    }
+    
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+    
+    function renderReport(reportData, fechaDesde, fechaHasta, selectedSections) {
+      const container = document.getElementById('reportContainer');
+      const periodStr = `${fechaDesde.toLocaleDateString('es-CO')} - ${fechaHasta.toLocaleDateString('es-CO')}`;
+      
+      // Determinar qué secciones mostrar
+      const hasResumen = selectedSections.includes('resumen');
+      const hasCartera = selectedSections.includes('cartera');
+      const hasIngresos = selectedSections.includes('ingresos');
+      const hasFlujo = selectedSections.includes('flujo');
+      const hasManoObra = selectedSections.includes('manoobra');
+      const hasGrafico = selectedSections.includes('grafico');
+      const hasRestock = selectedSections.includes('restock');
+      
+      let html = `
+        <div class="report-header">
+          <h1>📊 Reporte de Ventas</h1>
+          <p>Período: ${periodStr}</p>
+        </div>
+        
+        <div class="sections-grid">
+      `;
+      
+      // Resumen (siempre arriba si está seleccionado)
+      if (hasResumen) {
+        html += `
+          <div class="section-card full-width">
+            <div class="section-title">📋 Resumen</div>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+              <div class="metric-card">
+                <div class="metric-label">Total Ventas</div>
+                <div class="metric-value">${reportData.ventas.total || 0}</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Ingresos Totales</div>
+                <div class="metric-value green">${formatMoney(reportData.ventas.ingresos || 0)}</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Valor en Cartera</div>
+                <div class="metric-value yellow">${formatMoney(reportData.cartera.valor || 0)}</div>
+                <div class="metric-subtext">${reportData.cartera.totalDeudores || 0} cuenta(s) pendiente(s)</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-label">Total Agendas</div>
+                <div class="metric-value blue">${reportData.agendas.total || 0}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      
+      // Flujo de Caja
+      if (hasFlujo) {
+        html += `
+          <div class="section-card">
+            <div class="section-title">💵 Flujo de Caja</div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;">
+              <div style="background: rgba(16, 185, 129, 0.15); padding: 16px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                <div class="metric-label" style="color: #6ee7b7;">Entradas</div>
+                <div class="metric-value green" style="font-size: 20px;">${formatMoney(reportData.flujoCaja.entrada || 0)}</div>
+              </div>
+              <div style="background: rgba(239, 68, 68, 0.15); padding: 16px; border-radius: 8px; border: 1px solid rgba(239, 68, 68, 0.3);">
+                <div class="metric-label" style="color: #fca5a5;">Salidas</div>
+                <div class="metric-value" style="font-size: 20px; color: #ef4444;">${formatMoney(reportData.flujoCaja.salida || 0)}</div>
+              </div>
+              <div style="background: rgba(59, 130, 246, 0.15); padding: 16px; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                <div class="metric-label" style="color: #93c5fd;">Neto</div>
+                <div class="metric-value blue" style="font-size: 20px;">${formatMoney(reportData.flujoCaja.neto || 0)}</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+      
+      // Ingresos por Cuenta
+      if (hasIngresos) {
+        const ingresosEntries = Object.entries(reportData.ingresosPorCuenta || {});
+        html += `
+          <div class="section-card ${ingresosEntries.length > 5 ? 'full-width' : ''}">
+            <div class="section-title">💰 Ingresos por Cuenta</div>
+            ${ingresosEntries.length > 0 ? `
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+                ${ingresosEntries.map(([cuenta, monto]) => `
+                  <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: rgba(15, 23, 42, 0.5); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.1);">
+                    <span style="font-weight: 600; color: white; font-size: 14px;">${escapeHtml(cuenta)}</span>
+                    <span style="font-weight: 700; color: #10b981; font-size: 14px;">${formatMoney(monto)}</span>
+                  </div>
+                `).join('')}
+              </div>
+            ` : '<div class="empty-message">No hay ingresos registrados</div>'}
+          </div>
+        `;
+      }
+      
+      // Cartera
+      if (hasCartera) {
+        html += `
+          <div class="section-card full-width">
+            <div class="section-title">💼 Reporte de Cartera</div>
+            <div class="highlight-box">
+              <div class="metric-label" style="color: #fcd34d;">Valor Total en Cartera</div>
+              <div class="metric-value yellow" style="font-size: 24px; margin-bottom: 4px;">${formatMoney(reportData.cartera.valor || 0)}</div>
+              <div style="font-size: 12px; color: #fbbf24;">${reportData.cartera.totalDeudores || 0} cuenta(s) pendiente(s)</div>
+            </div>
+            ${reportData.cartera.deudores && reportData.cartera.deudores.length > 0 ? `
+              <table>
+                <thead>
+                  <tr>
+                    <th>Cliente</th>
+                    <th>ID</th>
+                    <th>Placa</th>
+                    <th>Venta</th>
+                    <th style="text-align: right;">Total</th>
+                    <th style="text-align: right;">Pagado</th>
+                    <th style="text-align: right;">Pendiente</th>
+                    <th style="text-align: center;">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${reportData.cartera.deudores.slice(0, 15).map(d => `
+                    <tr>
+                      <td>${escapeHtml(d.cliente || '—')}</td>
+                      <td>${escapeHtml(d.identificacion || '—')}</td>
+                      <td style="font-family: monospace;">${escapeHtml(d.placa || '—')}</td>
+                      <td>${escapeHtml(d.venta || '—')}</td>
+                      <td style="text-align: right;">${formatMoney(d.total || 0)}</td>
+                      <td style="text-align: right; color: #10b981;">${formatMoney(d.pagado || 0)}</td>
+                      <td style="text-align: right; color: #ef4444; font-weight: 600;">${formatMoney(d.pendiente || 0)}</td>
+                      <td style="text-align: center;">
+                        <span class="status-badge ${d.estado === 'Pendiente' ? 'pending' : d.estado === 'Parcial' ? 'partial' : 'paid'}">
+                          ${escapeHtml(d.estado || '—')}
+                        </span>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            ` : '<div class="empty-message">No hay cuentas pendientes</div>'}
+          </div>
+        `;
+      }
+      
+      // Mano de Obra
+      if (hasManoObra) {
+        const manoObraCount = reportData.manoObra?.porTecnico?.length || 0;
+        html += `
+          <div class="section-card ${hasGrafico && manoObraCount <= 5 ? '' : 'full-width'}">
+            <div class="section-title">👷 Mano de Obra por Técnico</div>
+            ${reportData.manoObra.porTecnico && reportData.manoObra.porTecnico.length > 0 ? `
+              <table>
+                <thead>
+                  <tr>
+                    <th>Técnico</th>
+                    <th style="text-align: right;">Total</th>
+                    <th style="text-align: right;">${reportData.manoObra.porcentajeTecnico || 0}% Técnico</th>
+                    <th style="text-align: right;">${reportData.manoObra.porcentajeEmpresa || 0}% Empresa</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${reportData.manoObra.porTecnico.map(t => `
+                    <tr>
+                      <td>${escapeHtml(t.tecnico || '—')}</td>
+                      <td style="text-align: right;">${formatMoney(t.total || 0)}</td>
+                      <td style="text-align: right; color: #10b981;">${formatMoney(t.montoTecnico || 0)}</td>
+                      <td style="text-align: right; color: #60a5fa;">${formatMoney(t.montoEmpresa || 0)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+              <div class="info-box" style="margin-top: 16px;">
+                <div style="font-size: 12px; color: #c4b5fd; margin-bottom: 4px;">Tipo de Mano de Obra Más Usado</div>
+                <div style="font-size: 14px; font-weight: 700; color: #a78bfa;">
+                  ${escapeHtml(reportData.manoObra.tipoMasUsado?.nombre || '—')} - ${formatMoney(reportData.manoObra.tipoMasUsado?.monto || 0)}
+                </div>
+              </div>
+            ` : '<div class="empty-message">No hay datos de mano de obra</div>'}
+          </div>
+        `;
+      }
+      
+      // Gráfico
+      if (hasGrafico && reportData.manoObra && reportData.manoObra.porTecnico && reportData.manoObra.porTecnico.length > 0) {
+        const manoObraCount = reportData.manoObra.porTecnico.length;
+        html += `
+          <div class="section-card ${hasManoObra && manoObraCount <= 5 ? '' : 'full-width'}">
+            <div class="section-title">📊 Distribución de Mano de Obra</div>
+            <div class="chart-container">
+              <canvas id="chartCanvas" width="450" height="450"></canvas>
+            </div>
+          </div>
+        `;
+      }
+      
+      // Restock
+      if (hasRestock) {
+        html += `
+          <div class="section-card full-width">
+            <div class="section-title">⚠️ Ítems que Necesitan Restock</div>
+            ${reportData.itemsNecesitanRestock && reportData.itemsNecesitanRestock.length > 0 ? `
+              <table>
+                <thead>
+                  <tr>
+                    <th>SKU</th>
+                    <th>Nombre</th>
+                    <th style="text-align: right;">Stock Actual</th>
+                    <th style="text-align: right;">Stock Mínimo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${reportData.itemsNecesitanRestock.slice(0, 20).map(item => `
+                    <tr>
+                      <td style="font-family: monospace;">${escapeHtml(item.sku || '—')}</td>
+                      <td>${escapeHtml(item.name || '—')}</td>
+                      <td style="text-align: right; color: #ef4444;">${item.stock || 0}</td>
+                      <td style="text-align: right; color: #fbbf24;">${item.minStock || 0}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            ` : '<div class="empty-message">Todos los ítems tienen stock suficiente</div>'}
+          </div>
+        `;
+      }
+      
+      html += `</div>`;
+      
+      container.innerHTML = html;
+      
+      // Si hay gráfico, crearlo después de que el DOM esté listo
+      if (hasGrafico && reportData.manoObra && reportData.manoObra.porTecnico && reportData.manoObra.porTecnico.length > 0) {
+        // Esperar a que Chart.js esté disponible
+        if (window.Chart) {
+          createChart();
+        } else {
+          // Cargar Chart.js si no está disponible
+          const script = document.createElement('script');
+          script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+          script.onload = createChart;
+          document.head.appendChild(script);
+        }
+      }
+      
+      function createChart() {
+        const canvas = document.getElementById('chartCanvas');
+        if (!canvas || !window.Chart) return;
+        
+        const ctx = canvas.getContext('2d');
+        const labels = reportData.manoObra.porTecnico.map(t => t.tecnico);
+        const data = reportData.manoObra.porTecnico.map(t => t.total);
+        
+        new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: data,
+              backgroundColor: [
+                '#3b82f6', '#10b981', '#f59e0b', '#ef4444',
+                '#8b5cf6', '#ec4899', '#06b6d4', '#f97316',
+                '#14b8a6', '#f43f5e', '#8b5cf6', '#06b6d4'
+              ]
+            }]
+          },
+          options: {
+            responsive: false,
+            maintainAspectRatio: false,
+            animation: {
+              duration: 0
+            },
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: {
+                  color: '#e5e7eb',
+                  font: { size: 12 },
+                  padding: 12,
+                  boxWidth: 15,
+                  boxHeight: 15
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+    
+    // La página está lista para imprimir cuando el usuario lo desee
+    // El usuario puede usar Ctrl+P o Cmd+P para imprimir como PDF o PNG
+  </script>
+</body>
+</html>
+
