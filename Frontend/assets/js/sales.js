@@ -9674,21 +9674,24 @@ function generateExportHTML(reportData, fechaDesde, fechaHasta, selectedSections
   
   // Convertir pulgadas a píxeles para el contenedor principal
   const containerWidthPx = 1056; // 11in * 96 DPI
+  const containerHeightPx = 816; // 8.5in * 96 DPI
   const containerPadding = totalContentRows > 20 ? 20 : 28;
   
   let html = `
-    <div style="
-      width: ${containerWidthPx}px;
-      min-height: 816px;
-      max-width: ${containerWidthPx}px;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
-      padding: ${containerPadding}px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      color: #e5e7eb;
-      box-sizing: border-box;
-      overflow: visible;
-      display: flex;
-      flex-direction: column;
+    <div id="report-export-main-container" style="
+      width: ${containerWidthPx}px !important;
+      min-height: ${containerHeightPx}px !important;
+      max-width: ${containerWidthPx}px !important;
+      max-height: none !important;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%) !important;
+      padding: ${containerPadding}px !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+      color: #e5e7eb !important;
+      box-sizing: border-box !important;
+      overflow: visible !important;
+      display: flex !important;
+      flex-direction: column !important;
+      position: relative !important;
     ">
       <style>
         /* Estilos globales para prevenir sobreposición de texto */
@@ -10128,18 +10131,40 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     exportContainer.innerHTML = htmlContent;
     document.body.appendChild(exportContainer);
     
-    // Esperar a que el DOM se actualice
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Forzar layout calculation
+    void exportContainer.offsetHeight;
+    
+    // Esperar a que el DOM se actualice completamente
+    await new Promise(resolve => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          resolve();
+        });
+      });
+    });
     
     // Esperar a que todas las imágenes se carguen
     const images = exportContainer.querySelectorAll('img');
     if (images.length > 0) {
-      await Promise.all(Array.from(images).map(img => {
-        if (img.complete) return Promise.resolve();
-        return new Promise((resolve, reject) => {
-          img.onload = resolve;
-          img.onerror = resolve; // Continuar aunque falle la imagen
-          setTimeout(resolve, 3000); // Timeout de 3 segundos
+      console.log(`📸 Esperando a que ${images.length} imagen(es) se carguen...`);
+      await Promise.all(Array.from(images).map((img, idx) => {
+        if (img.complete && img.naturalHeight !== 0) {
+          console.log(`✅ Imagen ${idx + 1} ya está cargada`);
+          return Promise.resolve();
+        }
+        return new Promise((resolve) => {
+          img.onload = () => {
+            console.log(`✅ Imagen ${idx + 1} cargada`);
+            resolve();
+          };
+          img.onerror = () => {
+            console.warn(`⚠️ Error cargando imagen ${idx + 1}, continuando...`);
+            resolve(); // Continuar aunque falle la imagen
+          };
+          setTimeout(() => {
+            console.warn(`⏱️ Timeout esperando imagen ${idx + 1}, continuando...`);
+            resolve();
+          }, 3000); // Timeout de 3 segundos
         });
       }));
     }
@@ -10150,7 +10175,7 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       const chartContainer = exportContainer.querySelector('#chart-container-export');
       const chartCanvas = exportContainer.querySelector('#chart-canvas-export');
       if (chartCanvas && chartContainer) {
-        const ctx = chartCanvas.getContext('2d');
+        const ctx = chartCanvas.getContext('2d', { willReadFrequently: true });
         const labels = reportData.manoObra.porTecnico.map(t => t.tecnico);
         const data = reportData.manoObra.porTecnico.map(t => t.total);
         
@@ -10190,23 +10215,43 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       }
     }
     
-    // Forzar reflow para asegurar que todo esté renderizado
-    exportContainer.offsetHeight;
+    // Forzar múltiples reflows para asegurar que todo esté renderizado
+    void exportContainer.offsetHeight;
+    void exportContainer.scrollHeight;
+    void exportContainer.clientHeight;
     
-    // Esperar un poco más para asegurar que todo esté renderizado
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Esperar a que los estilos se apliquen completamente
+    await new Promise(resolve => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setTimeout(resolve, 300);
+        });
+      });
+    });
     
     // Obtener dimensiones reales del contenido
-    const actualWidth = Math.max(exportContainer.scrollWidth, targetWidthPx);
-    const actualHeight = Math.max(exportContainer.scrollHeight, targetHeightPx);
+    const actualWidth = Math.max(exportContainer.scrollWidth || exportContainer.clientWidth || targetWidthPx, targetWidthPx);
+    const actualHeight = Math.max(exportContainer.scrollHeight || exportContainer.clientHeight || targetHeightPx, targetHeightPx);
+    
+    console.log('📐 Dimensiones del contenedor:', {
+      scrollWidth: exportContainer.scrollWidth,
+      scrollHeight: exportContainer.scrollHeight,
+      clientWidth: exportContainer.clientWidth,
+      clientHeight: exportContainer.clientHeight,
+      actualWidth,
+      actualHeight,
+      targetWidth: targetWidthPx,
+      targetHeight: targetHeightPx
+    });
     
     // Capturar como imagen con configuración optimizada
+    console.log('📸 Iniciando captura con html2canvas...');
     const canvas = await html2canvas(exportContainer, {
       scale: 2,
       backgroundColor: '#0f172a',
       useCORS: true,
       allowTaint: false,
-      logging: false,
+      logging: true, // Habilitar logging para debug
       width: actualWidth,
       height: actualHeight,
       windowWidth: actualWidth,
@@ -10216,7 +10261,21 @@ async function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
       scrollX: 0,
       scrollY: 0,
       imageTimeout: 15000,
-      removeContainer: false
+      removeContainer: false,
+      onclone: (clonedDoc) => {
+        // Asegurar que el clon tenga las dimensiones correctas
+        const clonedContainer = clonedDoc.getElementById('report-export-container');
+        if (clonedContainer) {
+          clonedContainer.style.width = `${actualWidth}px`;
+          clonedContainer.style.height = `${actualHeight}px`;
+          console.log('✅ Clon del contenedor preparado');
+        }
+      }
+    });
+    
+    console.log('✅ Canvas capturado:', {
+      width: canvas.width,
+      height: canvas.height
     });
     
     // Limpiar gráfico si existe
