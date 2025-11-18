@@ -2787,39 +2787,62 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
     
     async function fillCams() {
       try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(d => d.kind === 'videoinput');
-        sel.innerHTML = '<option value="">Seleccionar cámara...</option>';
-        
-        // En móviles, buscar y priorizar la cámara trasera
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        let rearCameraId = null;
         
-        videoDevices.forEach((dev, idx) => {
-          const opt = document.createElement('option');
-          opt.value = dev.deviceId;
-          const label = dev.label || `Cámara ${idx + 1}`;
-          opt.textContent = label;
+        // En móviles, no necesitamos enumerar dispositivos, solo usar cámara trasera automáticamente
+        if (isMobile) {
+          const defaultOpt = document.createElement('option');
+          defaultOpt.value = '';
+          defaultOpt.textContent = 'Cámara trasera (automática)';
+          sel.replaceChildren(defaultOpt);
+          sel.value = '';
+          return; // Retornar temprano para móviles
+        }
+        
+        // En desktop, intentar enumerar dispositivos
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const videoDevices = devices.filter(d => d.kind === 'videoinput' && d.label);
           
-          // En móviles, identificar cámara trasera por su label
-          if (isMobile && (label.toLowerCase().includes('back') || 
-              label.toLowerCase().includes('rear') || 
-              label.toLowerCase().includes('environment') ||
-              label.toLowerCase().includes('trasera'))) {
-            rearCameraId = dev.deviceId;
+          if (videoDevices.length === 0) {
+            // Si no hay labels, crear opción por defecto
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = '';
+            defaultOpt.textContent = 'Cámara predeterminada';
+            sel.replaceChildren(defaultOpt);
+            sel.value = '';
+            return;
           }
           
-          sel.appendChild(opt);
-        });
-        
-        // Si encontramos cámara trasera, seleccionarla automáticamente
-        if (rearCameraId) {
-          sel.value = rearCameraId;
-        } else if (videoDevices.length === 1) {
-          sel.value = videoDevices[0].deviceId;
+          sel.innerHTML = '<option value="">Seleccionar cámara...</option>';
+          videoDevices.forEach((dev, idx) => {
+            const opt = document.createElement('option');
+            opt.value = dev.deviceId;
+            opt.textContent = dev.label || `Cámara ${idx + 1}`;
+            sel.appendChild(opt);
+          });
+          
+          // Si solo hay una cámara, seleccionarla automáticamente
+          if (videoDevices.length === 1) {
+            sel.value = videoDevices[0].deviceId;
+          }
+        } catch (enumErr) {
+          console.warn('Error al enumerar dispositivos:', enumErr);
+          // Crear opción por defecto
+          const defaultOpt = document.createElement('option');
+          defaultOpt.value = '';
+          defaultOpt.textContent = 'Cámara predeterminada';
+          sel.replaceChildren(defaultOpt);
+          sel.value = '';
         }
       } catch (err) {
         console.warn('No se pudieron listar cámaras:', err);
+        // Crear opción por defecto
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '';
+        defaultOpt.textContent = 'Cámara predeterminada';
+        sel.replaceChildren(defaultOpt);
+        sel.value = '';
       }
     }
     
@@ -3044,7 +3067,20 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
       }
     });
     
-    fillCams();
+    // Cargar cámaras y luego iniciar automáticamente
+    fillCams().then(() => {
+      // Iniciar cámara automáticamente después de cargar la lista
+      // start() manejará tanto si hay una cámara seleccionada como si no (usará cámara por defecto)
+      setTimeout(() => {
+        start();
+      }, 100); // Pequeño delay para asegurar que el DOM esté listo
+    }).catch(err => {
+      console.warn('Error al cargar cámaras:', err);
+      // Intentar iniciar sin selección específica (usará cámara por defecto)
+      setTimeout(() => {
+        start();
+      }, 100);
+    });
     
     // Limpiar al cerrar modal
     const originalClose = window.closeModal;
