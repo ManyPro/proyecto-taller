@@ -809,6 +809,28 @@ function normalizeTemplateHtml(html='') {
         }
       });
     }
+    
+    // Asegurar que la tabla tenga tfoot con el total si no lo tiene
+    const tableMatches = output.match(/<table[^>]*class="[^"]*remission-table[^"]*"[^>]*>([\s\S]*?)<\/table>/gi);
+    if (tableMatches) {
+      tableMatches.forEach((tableMatch) => {
+        // Verificar si tiene tfoot
+        if (!tableMatch.includes('<tfoot>') && !tableMatch.includes('</tfoot>')) {
+          // Buscar el cierre de tbody para insertar el tfoot después
+          const tfootHtml = `
+        <tfoot>
+          <tr style="border-top: 2px solid #000;">
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">TOTAL</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{$ S.total}}</td>
+          </tr>
+        </tfoot>`;
+          // Insertar tfoot antes del cierre de </table>
+          const newTableMatch = tableMatch.replace('</table>', tfootHtml + '\n      </table>');
+          output = output.replace(tableMatch, newTableMatch);
+          console.log('[normalizeTemplateHtml] ✅ Agregado tfoot con total a tabla de remisión');
+        }
+      });
+    }
   }
   
   // Para cotizaciones

@@ -384,10 +384,14 @@ function printSaleTicket(sale){
                     // Determinar tamaño de página dinámicamente
                     const body = document.body;
                     const html = document.documentElement;
+                    // Calcular altura del contenido de manera más precisa
+                    // Media carta: 5.5" x 8.5" = 139.7mm x 215.9mm
+                    // Con margen de 2.5mm arriba y abajo: altura útil = 215.9mm - 5mm = 210.9mm ≈ 795px (a 96 DPI)
+                    // Usar un valor conservador de 750px para asegurar que realmente quepa
                     const contentHeight = Math.max(
                       body?.scrollHeight || 0, body?.offsetHeight || 0, html?.clientHeight || 0, html?.scrollHeight || 0, html?.offsetHeight || 0
                     );
-                    const mediaCartaMaxHeight = 800;
+                    const mediaCartaMaxHeight = 750; // Reducido para asegurar que realmente quepa en media carta
                     const isMediaCarta = contentHeight <= mediaCartaMaxHeight;
                     const pageSize = isMediaCarta ? 'MEDIA CARTA (5.5" x 8.5")' : 'CARTA COMPLETA (8.5" x 11")';
                     
@@ -596,194 +600,87 @@ function printSaleTicket(sale){
               }
               
               if (contentHeight <= mediaCartaMaxHeight) {
-                // Usar media carta (half-letter) con márgenes mínimos
+                // Usar media carta (half-letter) con márgenes mínimos superiores (0.25 cm = 2.5mm)
                 pageSizeStyle.textContent = `
                   @page {
                     size: 5.5in 8.5in;
-                    margin: 5mm;
+                    margin-top: 2.5mm;
+                    margin-bottom: 2.5mm;
+                    margin-left: 5mm;
+                    margin-right: 5mm;
                   }
                   @media print {
                     body {
                       margin: 0 !important;
-                      padding: 5mm !important;
-                      max-height: 216mm !important;
+                      padding-top: 2.5mm !important;
+                      padding-bottom: 2.5mm !important;
+                      padding-left: 5mm !important;
+                      padding-right: 5mm !important;
+                      max-height: 210.9mm !important;
                     }
                     * {
                       box-sizing: border-box !important;
                     }
                   }
                 `;
-                console.log('[printSaleTicket] ✅ Configurado para MEDIA CARTA (5.5" x 8.5") con márgenes de 0.5cm');
+                console.log('[printSaleTicket] ✅ Configurado para MEDIA CARTA (5.5" x 8.5") con márgenes superiores de 0.25cm');
               } else {
-                // Usar carta completa con márgenes mínimos
+                // Usar carta completa con márgenes mínimos superiores (0.25 cm = 2.5mm)
                 pageSizeStyle.textContent = `
                   @page {
                     size: letter;
-                    margin: 5mm;
+                    margin-top: 2.5mm;
+                    margin-bottom: 2.5mm;
+                    margin-left: 5mm;
+                    margin-right: 5mm;
                   }
                   @media print {
                     body {
                       margin: 0 !important;
-                      padding: 5mm !important;
-                      max-height: 279mm !important;
+                      padding-top: 2.5mm !important;
+                      padding-bottom: 2.5mm !important;
+                      padding-left: 5mm !important;
+                      padding-right: 5mm !important;
+                      max-height: 274mm !important;
                     }
                     * {
                       box-sizing: border-box !important;
                     }
                   }
                 `;
-                console.log('[printSaleTicket] ✅ Configurado para CARTA COMPLETA (8.5" x 11") con márgenes de 0.5cm');
+                console.log('[printSaleTicket] ✅ Configurado para CARTA COMPLETA (8.5" x 11") con márgenes superiores de 0.25cm');
               }
             };
             
-            // Función robusta para ajustar posición del total
-            const adjustTotalPosition = () => {
-              const table = win.document.querySelector('table.remission-table');
-              const totalLine = win.document.querySelector('.tpl-total-line');
-              const totalBox = win.document.querySelector('.tpl-total-box');
-              
-              if (!table) {
-                console.log('[printSaleTicket] Tabla no encontrada aún, reintentando...');
-                return false;
-              }
-              
-              if (!totalLine && !totalBox) {
-                console.log('[printSaleTicket] Total no encontrado aún, reintentando...');
-                return false;
-              }
-              
-              // Detectar tamaño de página primero
-              detectAndSetPageSize();
-              
-              // Método más confiable: obtener posición y altura de la tabla
-              // Usar múltiples métodos para asegurar precisión
-              const tableRect = table.getBoundingClientRect();
-              const scrollTop = win.pageYOffset || win.document.documentElement.scrollTop || win.document.body.scrollTop || 0;
-              const scrollLeft = win.pageXOffset || win.document.documentElement.scrollLeft || win.document.body.scrollLeft || 0;
-              
-              // Obtener posición absoluta: posición relativa al viewport + scroll
-              const tableTop = tableRect.top + scrollTop;
-              const tableLeft = tableRect.left + scrollLeft;
-              
-              // Obtener ancho real de la tabla
-              const tableWidth = Math.max(
-                table.offsetWidth || 0,
-                table.scrollWidth || 0,
-                tableRect.width || 0,
-                table.clientWidth || 0
-              );
-              
-              // Obtener altura real de la tabla (usar el mayor valor para asegurar que incluya todo)
-              const tableHeight = Math.max(
-                table.offsetHeight || 0,
-                table.scrollHeight || 0,
-                tableRect.height || 0,
-                table.clientHeight || 0
-              );
-              
-              // Calcular nueva posición: inicio de tabla + altura + espacio adicional
-              const newTop = tableTop + tableHeight + 10; // 10px de espacio adicional para evitar solapamiento
-              
-              // Obtener altura total del contenido para determinar límite máximo
-              const body = win.document.body;
-              const html = win.document.documentElement;
-              const contentHeight = Math.max(
-                body.scrollHeight,
-                body.offsetHeight,
-                html.clientHeight,
-                html.scrollHeight,
-                html.offsetHeight
-              );
-              
-              // Ajustar límite máximo según tamaño de página detectado
-              const mediaCartaMaxHeight = 800; // px (más tolerante)
-              const maxTop = contentHeight <= mediaCartaMaxHeight ? 700 : 1100; // Límite más bajo para media carta
-              const finalTop = Math.min(newTop, maxTop);
-              
-              console.log('[printSaleTicket] Ajustando total:', {
-                tableRectTop: tableRect.top,
-                scrollTop,
-                tableTop,
-                tableLeft,
-                tableWidth,
-                tableHeight,
-                newTop,
-                finalTop,
-                maxTop,
-                contentHeight,
-                pageSize: contentHeight <= mediaCartaMaxHeight ? 'MEDIA CARTA' : 'CARTA COMPLETA',
-                offsetHeight: table.offsetHeight,
-                scrollHeight: table.scrollHeight,
-                clientHeight: table.clientHeight,
-                rectHeight: tableRect.height
-              });
-              
-              if (totalLine) {
-                totalLine.style.top = `${finalTop}px`;
-                totalLine.style.left = `${tableLeft}px`;
-                totalLine.style.width = `${tableWidth}px`;
-                totalLine.style.position = 'absolute';
-                totalLine.style.zIndex = '1000';
-                totalLine.style.display = 'block';
-                totalLine.style.visibility = 'visible';
-              }
-              if (totalBox) {
-                totalBox.style.top = `${finalTop + 1}px`;
-                totalBox.style.left = `${tableLeft}px`;
-                totalBox.style.width = `${tableWidth}px`;
-                totalBox.style.position = 'absolute';
-                totalBox.style.zIndex = '1000';
-                totalBox.style.display = 'block';
-                totalBox.style.visibility = 'visible';
-              }
-              
-              return true;
-            };
-            
-            // Ajustar posición del total dinámicamente después de que se renderice la tabla
-            // Múltiples intentos para asegurar que funcione
+            // NOTA: El total ahora está dentro de la tabla como tfoot, así que ya no necesitamos ajustar posición separada
+            // Solo detectar y configurar el tamaño de página
             win.addEventListener('DOMContentLoaded', () => {
-              // Intentar inmediatamente
-              setTimeout(() => {
-                if (!adjustTotalPosition()) {
-                  // Si falla, intentar de nuevo con más delay
-                  setTimeout(() => {
-                    if (!adjustTotalPosition()) {
-                      setTimeout(adjustTotalPosition, 500);
-                    }
-                  }, 300);
-                }
-              }, 100);
-              
-              // También intentar después de que las imágenes se carguen
-              setTimeout(adjustTotalPosition, 500);
-              setTimeout(adjustTotalPosition, 1000);
-              setTimeout(adjustTotalPosition, 2000);
+              // Detectar y configurar tamaño de página después de que se renderice el contenido
+              setTimeout(detectAndSetPageSize, 100);
+              setTimeout(detectAndSetPageSize, 500);
             });
             
             // También ajustar cuando la ventana se carga completamente
             win.addEventListener('load', () => {
-              setTimeout(adjustTotalPosition, 100);
-              setTimeout(adjustTotalPosition, 500);
+              setTimeout(detectAndSetPageSize, 100);
+              setTimeout(detectAndSetPageSize, 500);
             });
             
-            // CRÍTICO: Ajustar justo antes de imprimir
+            // CRÍTICO: Detectar tamaño de página justo antes de imprimir
             win.addEventListener('beforeprint', () => {
-              console.log('[printSaleTicket] Evento beforeprint - ajustando total...');
-              adjustTotalPosition();
+              console.log('[printSaleTicket] Evento beforeprint - detectando tamaño de página...');
+              detectAndSetPageSize();
             });
             
-            // El modal ya está en la página de impresión, solo necesitamos ajustar y detectar tamaño
+            // El modal ya está en la página de impresión, solo necesitamos detectar tamaño
             win.focus();
             
-            // Esperar a que se cargue y ajuste todo
+            // Esperar a que se cargue y detectar tamaño
             setTimeout(() => {
-              // Ajustar posición del total
-              adjustTotalPosition();
+              detectAndSetPageSize();
               
               // Esperar un poco más para asegurar que todo esté renderizado
               setTimeout(() => {
-                adjustTotalPosition();
                 detectAndSetPageSize();
               }, 500);
             }, 1000);

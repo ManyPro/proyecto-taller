@@ -2867,114 +2867,14 @@
 
     // Línea horizontal separadora - Pegada arriba
     const horizontalLine = document.createElement('div');
-    horizontalLine.style.cssText = 'position: absolute; left: 19px; right: 19px; top: 105px; height: 1px; background: #000;';
+    horizontalLine.style.cssText = 'position: absolute; left: 19px; right: 19px; top: 97px; height: 1px; background: #000;';
     canvas.appendChild(horizontalLine);
 
-    // Tabla de items - Pegada directamente después de la línea
-    const itemsTable = createRemissionItemsTable({ left: 19, top: 110 });
+    // Tabla de items - Pegada a solo 0.25 cm (9px) de los datos del cliente (88px + 9px = 97px)
+    const itemsTable = createRemissionItemsTable({ left: 19, top: 98 });
     canvas.appendChild(itemsTable);
 
-    // Línea horizontal antes de totales - pegada directamente a la tabla
-    // La tabla empieza en top: 110px, header ~20px, cada fila ~15px
-    // Para que quede pegado, usamos una posición inicial que se ajustará dinámicamente
-    // Posición inicial: 110 (tabla) + 20 (header) + 15 (1 fila mínima) = 145px
-    const totalLine = document.createElement('div');
-    totalLine.className = 'tpl-total-line';
-    totalLine.style.cssText = 'position: absolute; left: 19px; right: 19px; top: 145px; height: 1px; background: #000;';
-    totalLine.setAttribute('data-table-container-id', itemsTable.id);
-    canvas.appendChild(totalLine);
-
-    // TOTAL en caja negra - pegado justo después de la línea (1px después) - Compactado
-    const totalBox = document.createElement('div');
-    totalBox.className = 'tpl-element tpl-total-box';
-    totalBox.id = `element_${visualEditor.nextId++}`;
-    totalBox.style.cssText = 'position: absolute; left: 19px; top: 146px; right: 19px; border: 2px solid #000; padding: 4px 8px; display: flex; align-items: center; justify-content: space-between;';
-    totalBox.innerHTML = '<span contenteditable="true" style="font-size: 10px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">TOTAL</span><span contenteditable="true" style="font-size: 10px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">{{$ S.total}}</span>';
-    totalBox.setAttribute('data-table-container-id', itemsTable.id);
-    makeDraggable(totalBox);
-    makeSelectable(totalBox);
-    canvas.appendChild(totalBox);
-    visualEditor.elements.push({ id: totalBox.id, type: 'text', element: totalBox });
-    
-    // Función para ajustar posición del total después de que la tabla se renderice con datos reales
-    // Esto se ejecutará cuando se renderice el template con datos reales
-    const adjustTotalPosition = () => {
-      const table = itemsTable.querySelector('table.remission-table');
-      if (!table) {
-        console.log('[adjustTotalPosition] Tabla no encontrada aún');
-        return;
-      }
-      
-      // Usar múltiples métodos para obtener la altura real de la tabla (igual que en impresión)
-      const tableRect = table.getBoundingClientRect();
-      const canvasRect = canvas.getBoundingClientRect();
-      
-      // Obtener posición relativa al canvas
-      const tableTop = tableRect.top - canvasRect.top + canvas.scrollTop;
-      const tableLeft = tableRect.left - canvasRect.left + canvas.scrollLeft;
-      const tableWidth = Math.max(
-        table.offsetWidth || 0,
-        table.scrollWidth || 0,
-        tableRect.width || 0,
-        table.clientWidth || 0
-      );
-      
-      // Obtener altura real de la tabla usando el mayor valor disponible
-      const tableHeight = Math.max(
-        table.offsetHeight || 0,
-        table.scrollHeight || 0,
-        tableRect.height || 0,
-        table.clientHeight || 0
-      );
-      
-      // Calcular nueva posición: inicio de tabla + altura + espacio adicional
-      const newTop = tableTop + tableHeight + 10; // 10px de espacio adicional para evitar solapamiento
-      
-      // Asegurar que el total no se salga de la página A4 (altura máxima ~1123px)
-      const maxTop = 1100; // Dejar espacio para márgenes inferiores
-      const finalTop = Math.min(newTop, maxTop);
-      
-      // Ajustar posición vertical y ancho del total para que coincida con la tabla
-      totalLine.style.top = `${finalTop}px`;
-      totalLine.style.left = `${tableLeft}px`;
-      totalLine.style.width = `${tableWidth}px`;
-      
-      totalBox.style.top = `${finalTop + 1}px`;
-      totalBox.style.left = `${tableLeft}px`;
-      totalBox.style.width = `${tableWidth}px`;
-      
-      console.log('[adjustTotalPosition] Total ajustado:', {
-        tableTop,
-        tableLeft,
-        tableWidth,
-        tableHeight,
-        tableOffsetHeight: table.offsetHeight,
-        tableScrollHeight: table.scrollHeight,
-        tableRectHeight: tableRect.height,
-        tableClientHeight: table.clientHeight,
-        newTop,
-        finalTop
-      });
-    };
-    
-    // Ajustar posición cuando se cargue el template con datos
-    // Usar MutationObserver para detectar cambios en la tabla
-    const observer = new MutationObserver(() => {
-      adjustTotalPosition();
-    });
-    if (itemsTable) {
-      observer.observe(itemsTable, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
-    }
-    
-    // También ajustar después de múltiples delays para asegurar que se ejecute cuando la tabla tenga su altura real
-    setTimeout(adjustTotalPosition, 100);
-    setTimeout(adjustTotalPosition, 300);
-    setTimeout(adjustTotalPosition, 500);
-    setTimeout(adjustTotalPosition, 1000);
-    setTimeout(adjustTotalPosition, 2000);
-    
-    // Ajustar también cuando se redimensiona la ventana
-    window.addEventListener('resize', adjustTotalPosition);
+    // NOTA: El total ahora está dentro de la tabla como tfoot, así que ya no necesitamos ajustar posición separada
 
     // Footer con URL (centro abajo) - Removido para que quepa en una página
     // const footer = createEditableElement('text', '[Editar sitio web]', {
@@ -3015,6 +2915,18 @@
         }
         .remission-table tbody {
           display: table-row-group;
+        }
+        .remission-table tfoot {
+          display: table-footer-group;
+        }
+        .remission-table tfoot tr {
+          border-top: 2px solid #000 !important;
+        }
+        .remission-table tfoot td {
+          border: 1px solid #000 !important;
+          padding: 2px 4px !important;
+          font-size: 9px !important;
+          font-weight: bold !important;
         }
         .remission-table th {
           border: 2px solid #000 !important;
@@ -3074,6 +2986,18 @@
           }
           .remission-table tbody {
             display: table-row-group !important;
+          }
+          .remission-table tfoot {
+            display: table-footer-group !important;
+          }
+          .remission-table tfoot tr {
+            border-top: 2px solid #000 !important;
+          }
+          .remission-table tfoot td {
+            border: 1px solid #000 !important;
+            padding: 2px 4px !important;
+            font-size: 9px !important;
+            font-weight: bold !important;
           }
           .remission-table tr {
             page-break-inside: avoid;
@@ -3162,6 +3086,12 @@
           </tr>
           {{/unless}}{{/unless}}{{/unless}}
         </tbody>
+        <tfoot>
+          <tr style="border-top: 2px solid #000;">
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">TOTAL</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{$ S.total}}</td>
+          </tr>
+        </tfoot>
       </table>
     `;
 
@@ -4589,6 +4519,28 @@
                 console.log('🔧 Corregido tbody de remisión sin {{#each}}');
               }
             }
+          }
+        });
+      }
+      
+      // Asegurar que la tabla tenga tfoot con el total si no lo tiene
+      const tableMatches = content.match(/<table[^>]*class="[^"]*remission-table[^"]*"[^>]*>([\s\S]*?)<\/table>/gi);
+      if (tableMatches) {
+        tableMatches.forEach((tableMatch) => {
+          // Verificar si tiene tfoot
+          if (!tableMatch.includes('<tfoot>') && !tableMatch.includes('</tfoot>')) {
+            // Buscar el cierre de tbody para insertar el tfoot después
+            const tfootHtml = `
+        <tfoot>
+          <tr style="border-top: 2px solid #000;">
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">TOTAL</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{$ S.total}}</td>
+          </tr>
+        </tfoot>`;
+            // Insertar tfoot antes del cierre de </table>
+            const newTableMatch = tableMatch.replace('</table>', tfootHtml + '\n      </table>');
+            content = content.replace(tableMatch, newTableMatch);
+            console.log('✅ Agregado tfoot con total a tabla de remisión');
           }
         });
       }
