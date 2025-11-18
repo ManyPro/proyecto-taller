@@ -221,7 +221,7 @@ function printSaleTicket(sale){
         })();
       </script>
     `;
-    win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${modalScript}</head><body><pre>${txt}</pre></body></html>`);
+            win.document.write(`<!doctype html><html><head><meta charset='utf-8'><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">${modalScript}</head><body><pre>${txt}</pre></body></html>`);
     win.document.close(); win.focus();
   }
   // Intento con plantilla activa invoice
@@ -473,9 +473,12 @@ function printSaleTicket(sale){
               </script>
             `;
             
-            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}${debugScript}${modalScript}
+            win.document.write(`<!doctype html><html><head><meta charset='utf-8'><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">${css}${debugScript}${modalScript}
               <style>
                 /* Estilos base para mejor uso del espacio y centrado */
+                * {
+                  box-sizing: border-box;
+                }
                 body {
                   margin: 0;
                   padding: 10mm;
@@ -486,12 +489,15 @@ function printSaleTicket(sale){
                   display: flex;
                   justify-content: center;
                   align-items: flex-start;
+                  width: 100%;
+                  overflow-x: hidden;
                 }
                 
                 /* Contenedor centrado para el contenido de la remisión */
                 .remission-wrapper {
                   max-width: 520px;
                   width: 100%;
+                  min-width: 0;
                   margin: 0 auto;
                   position: relative;
                 }
@@ -598,12 +604,12 @@ function printSaleTicket(sale){
                   .company-data-box table {
                     width: 100% !important;
                     border-collapse: collapse !important;
-                    font-size: 9.5px !important;
+                    font-size: 11px !important;
                   }
                   .client-data-box td,
                   .company-data-box td {
                     border: 1px solid #000 !important;
-                    padding: 3px !important;
+                    padding: 4px !important;
                   }
                 }
               </style>
@@ -670,37 +676,44 @@ function printSaleTicket(sale){
                     .remission-wrapper {
                       max-width: 520px !important;
                       width: 100% !important;
+                      min-width: 0 !important;
                       margin: 0 auto !important;
                       position: relative !important;
+                      padding: 0 5mm !important;
                     }
                     /* Estilos para cuadros de datos del cliente y empresa */
                     .client-data-box,
                     .company-data-box {
                       position: absolute !important;
                       border: 2px solid #000 !important;
-                      padding: 6px !important;
+                      padding: 8px !important;
                       background: white !important;
                       z-index: 10 !important;
                       page-break-inside: avoid !important;
                       overflow: visible !important;
                       visibility: visible !important;
                       opacity: 1 !important;
+                      max-width: calc(50% - 5px) !important;
+                      box-sizing: border-box !important;
                     }
                     .client-data-box {
-                      left: 19px !important;
+                      left: 5mm !important;
                       top: 83px !important;
-                      width: 240px !important;
+                      width: calc(50% - 5px) !important;
+                      margin-right: 5px !important;
                     }
                     .company-data-box {
-                      right: 19px !important;
+                      right: 5mm !important;
+                      left: auto !important;
                       top: 83px !important;
-                      width: 240px !important;
+                      width: calc(50% - 5px) !important;
+                      margin-left: 5px !important;
                     }
                     .client-data-box table,
                     .company-data-box table {
                       width: 100% !important;
                       border-collapse: collapse !important;
-                      font-size: 8px !important;
+                      font-size: 9.5px !important;
                     }
                     .client-data-box td,
                     .company-data-box td {
@@ -738,37 +751,44 @@ function printSaleTicket(sale){
                     .remission-wrapper {
                       max-width: 520px !important;
                       width: 100% !important;
+                      min-width: 0 !important;
                       margin: 0 auto !important;
                       position: relative !important;
+                      padding: 0 5mm !important;
                     }
                     /* Estilos para cuadros de datos del cliente y empresa */
                     .client-data-box,
                     .company-data-box {
                       position: absolute !important;
                       border: 2px solid #000 !important;
-                      padding: 6px !important;
+                      padding: 8px !important;
                       background: white !important;
                       z-index: 10 !important;
                       page-break-inside: avoid !important;
                       overflow: visible !important;
                       visibility: visible !important;
                       opacity: 1 !important;
+                      max-width: calc(50% - 5px) !important;
+                      box-sizing: border-box !important;
                     }
                     .client-data-box {
-                      left: 19px !important;
+                      left: 5mm !important;
                       top: 83px !important;
-                      width: 240px !important;
+                      width: calc(50% - 5px) !important;
+                      margin-right: 5px !important;
                     }
                     .company-data-box {
-                      right: 19px !important;
+                      right: 5mm !important;
+                      left: auto !important;
                       top: 83px !important;
-                      width: 240px !important;
+                      width: calc(50% - 5px) !important;
+                      margin-left: 5px !important;
                     }
                     .client-data-box table,
                     .company-data-box table {
                       width: 100% !important;
                       border-collapse: collapse !important;
-                      font-size: 8px !important;
+                      font-size: 9.5px !important;
                     }
                     .client-data-box td,
                     .company-data-box td {
@@ -935,9 +955,12 @@ function printWorkOrder(){
             const win = window.open('', '_blank');
             if(!win){ fallback(); return; }
             const css = r.css? `<style>${r.css}</style>`:'';
-            win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}
+            win.document.write(`<!doctype html><html><head><meta charset='utf-8'><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">${css}
               <style>
                 /* Estilos base para mejor uso del espacio */
+                * {
+                  box-sizing: border-box;
+                }
                 body {
                   margin: 0;
                   padding: 10mm;
@@ -945,6 +968,8 @@ function printWorkOrder(){
                   font-size: 12px;
                   line-height: 1.4;
                   color: #000;
+                  width: 100%;
+                  overflow-x: hidden;
                 }
                 
                 /* Aumentar tamaño de fuente para mejor legibilidad en carta */
@@ -1012,34 +1037,39 @@ function printWorkOrder(){
                   .company-data-box {
                     position: absolute !important;
                     border: 2px solid #000 !important;
-                    padding: 6px !important;
+                    padding: 8px !important;
                     background: white !important;
                     z-index: 10 !important;
                     page-break-inside: avoid !important;
                     overflow: visible !important;
                     visibility: visible !important;
                     opacity: 1 !important;
+                    max-width: calc(50% - 5px) !important;
+                    box-sizing: border-box !important;
                   }
                   .client-data-box {
-                    left: 19px !important;
+                    left: 0 !important;
                     top: 83px !important;
-                    width: 240px !important;
+                    width: calc(50% - 5px) !important;
+                    margin-right: 5px !important;
                   }
                   .company-data-box {
-                    right: 19px !important;
+                    right: 0 !important;
+                    left: auto !important;
                     top: 83px !important;
-                    width: 240px !important;
+                    width: calc(50% - 5px) !important;
+                    margin-left: 5px !important;
                   }
                   .client-data-box table,
                   .company-data-box table {
                     width: 100% !important;
                     border-collapse: collapse !important;
-                    font-size: 9.5px !important;
+                    font-size: 11px !important;
                   }
                   .client-data-box td,
                   .company-data-box td {
                     border: 1px solid #000 !important;
-                    padding: 3px !important;
+                    padding: 4px !important;
                   }
                 }
               </style>
