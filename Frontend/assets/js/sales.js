@@ -2422,7 +2422,8 @@ async function renderSale(){
       btnComplete.style.cssText = 'padding:6px 12px;border-radius:4px;border:none;cursor:pointer;font-size:12px;';
       btnComplete.onclick = async () => {
         try {
-          await completeOpenSlotWithQR(current._id, slotIdx, slot);
+          // Usar slot.slotIndex que es el índice real del slot en el combo, no el índice del array filtrado
+          await completeOpenSlotWithQR(current._id, slot.slotIndex, slot);
         } catch (err) {
           alert('Error: ' + (err?.message || 'No se pudo completar el slot'));
         }
@@ -2789,13 +2790,34 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
         const devices = await navigator.mediaDevices.enumerateDevices();
         const videoDevices = devices.filter(d => d.kind === 'videoinput');
         sel.innerHTML = '<option value="">Seleccionar cámara...</option>';
+        
+        // En móviles, buscar y priorizar la cámara trasera
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        let rearCameraId = null;
+        
         videoDevices.forEach((dev, idx) => {
           const opt = document.createElement('option');
           opt.value = dev.deviceId;
-          opt.textContent = dev.label || `Cámara ${idx + 1}`;
+          const label = dev.label || `Cámara ${idx + 1}`;
+          opt.textContent = label;
+          
+          // En móviles, identificar cámara trasera por su label
+          if (isMobile && (label.toLowerCase().includes('back') || 
+              label.toLowerCase().includes('rear') || 
+              label.toLowerCase().includes('environment') ||
+              label.toLowerCase().includes('trasera'))) {
+            rearCameraId = dev.deviceId;
+          }
+          
           sel.appendChild(opt);
         });
-        if (videoDevices.length === 1) sel.value = videoDevices[0].deviceId;
+        
+        // Si encontramos cámara trasera, seleccionarla automáticamente
+        if (rearCameraId) {
+          sel.value = rearCameraId;
+        } else if (videoDevices.length === 1) {
+          sel.value = videoDevices[0].deviceId;
+        }
       } catch (err) {
         console.warn('No se pudieron listar cámaras:', err);
       }
@@ -2813,23 +2835,68 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
     async function start() {
       if (running || cameraDisabled) return;
       stop();
-      const deviceId = sel.value;
-      if (!deviceId) {
-        msg.textContent = 'Selecciona una cámara';
-        return;
+      
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      // Construir constraints de video - priorizar cámara trasera en móviles
+      let videoConstraints;
+      
+      if (sel.value && sel.value.trim() !== '') {
+        // Si hay una cámara seleccionada manualmente, usarla
+        videoConstraints = { deviceId: { exact: sel.value } };
+      } else if (isMobile) {
+        // En móviles, forzar cámara trasera (environment) con configuración más específica
+        videoConstraints = { 
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        };
+      } else {
+        // En desktop, usar cualquier cámara disponible
+        videoConstraints = true;
       }
+      
+      const cs = { 
+        video: videoConstraints, 
+        audio: false 
+      };
+      
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { deviceId: { exact: deviceId }, facingMode: 'environment' }
-        });
+        msg.textContent = 'Solicitando acceso a la cámara...';
+        stream = await navigator.mediaDevices.getUserMedia(cs);
+        
+        // Configurar el video para móviles
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        video.muted = true;
         video.srcObject = stream;
-        await video.play();
+        
+        // En móviles, esperar a que el video esté listo
+        if (isMobile) {
+          await new Promise((resolve, reject) => {
+            video.onloadedmetadata = () => {
+              video.play().then(resolve).catch(reject);
+            };
+            video.onerror = reject;
+            setTimeout(() => {
+              if (video.readyState >= 2) {
+                video.play().then(resolve).catch(reject);
+              } else {
+                reject(new Error('Timeout esperando video'));
+              }
+            }, 10000);
+          });
+        } else {
+          await video.play();
+        }
+        
         running = true;
         msg.textContent = `Escaneando para slot: "${slot.slotName}"...`;
         tickNative();
       } catch (err) {
         console.error('Error al iniciar cámara:', err);
-        msg.textContent = 'Error al acceder a la cámara';
+        msg.textContent = 'Error al acceder a la cámara: ' + (err?.message || 'Desconocido');
+        msg.style.color = 'var(--danger, #ef4444)';
       }
     }
     
@@ -2877,8 +2944,49 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
         syncCurrentIntoOpenList();
         await renderAll();
         closeModal();
-        playConfirmSound();
-        showItemAddedPopup();
+        
+        // Reproducir sonido de confirmación
+        try {
+          const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+          const oscillator = audioContext.createOscillator();
+          const gainNode = audioContext.createGain();
+          oscillator.connect(gainNode);
+          gainNode.connect(audioContext.destination);
+          oscillator.frequency.value = 800;
+          oscillator.type = 'sine';
+          gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+          oscillator.start(audioContext.currentTime);
+          oscillator.stop(audioContext.currentTime + 0.1);
+        } catch (err) {
+          console.warn('No se pudo reproducir sonido:', err);
+        }
+        
+        // Mostrar popup de confirmación
+        const popup = document.createElement('div');
+        popup.textContent = '✓ Slot completado!';
+        popup.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: var(--success, #10b981);
+          color: white;
+          padding: 20px 40px;
+          border-radius: 8px;
+          font-size: 18px;
+          font-weight: bold;
+          z-index: 10000;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+          animation: fadeInOut 1.5s ease-in-out;
+        `;
+        document.body.appendChild(popup);
+        setTimeout(() => {
+          if (popup.parentNode) {
+            popup.parentNode.removeChild(popup);
+          }
+        }, 1500);
+        
         resolve(result);
       } catch (err) {
         cameraDisabled = false;

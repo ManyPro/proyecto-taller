@@ -1434,9 +1434,10 @@ export const completeOpenSlot = async (req, res) => {
     return res.status(400).json({ error: 'Esta venta no tiene slots abiertos' });
   }
   
-  const slot = sale.openSlots[slotIndex];
+  // Buscar el slot por su slotIndex (índice en el combo), no por el índice del array
+  const slot = sale.openSlots.find(s => s.slotIndex === slotIndex);
   if (!slot) {
-    return res.status(404).json({ error: 'Slot abierto no encontrado' });
+    return res.status(404).json({ error: `Slot abierto con slotIndex ${slotIndex} no encontrado` });
   }
   
   if (slot.completed) {
@@ -1462,7 +1463,118 @@ export const completeOpenSlot = async (req, res) => {
   // Actualizar el precio estimado con el precio real del item
   const realPrice = item.salePrice || slot.estimatedPrice || 0;
   
-  // Recalcular totales (los slots abiertos no se agregan a items hasta cerrar la venta)
+  // IMPORTANTE: Agregar el item inmediatamente a sale.items para que aparezca en la venta
+  // Buscar el combo principal en los items para agregar el producto después de él
+  const comboItem = sale.items.find(it => 
+    it.source === 'price' && 
+    it.refId && 
+    String(it.refId) === String(slot.comboPriceId)
+  );
+  
+  if (comboItem) {
+    // Encontrar la posición del combo en el array
+    const comboIndex = sale.items.indexOf(comboItem);
+    
+    // Obtener los refIds de los productos del combo para verificar que el item pertenece al combo
+    const PriceEntry = mongoose.model('PriceEntry');
+    const comboPE = await PriceEntry.findOne({ _id: slot.comboPriceId, companyId: req.companyId })
+      .populate('comboProducts.itemId', '_id')
+      .lean();
+    
+    const comboProductRefIds = new Set();
+    if (comboPE && comboPE.comboProducts) {
+      comboPE.comboProducts.forEach(cp => {
+        if (cp.itemId && cp.itemId._id) {
+          comboProductRefIds.add(String(cp.itemId._id));
+        }
+      });
+    }
+    
+    // Verificar que el item realmente pertenece al combo (por refId o por ser slot abierto)
+    // Si el slot es abierto, cualquier item puede agregarse (no hay restricción de refId)
+    const slotInfo = comboPE.comboProducts && comboPE.comboProducts[slot.slotIndex];
+    const isOpenSlot = slotInfo && slotInfo.isOpenSlot;
+    const itemBelongsToCombo = isOpenSlot || comboProductRefIds.has(String(item._id));
+    
+    if (itemBelongsToCombo) {
+      // Buscar la posición donde termina el combo (después de todos sus items)
+      let insertIndex = comboIndex + 1;
+      while (insertIndex < sale.items.length) {
+        const nextItem = sale.items[insertIndex];
+        const nextSku = String(nextItem.sku || '').toUpperCase();
+        
+        // Si encontramos otro combo, parar
+        if (nextSku.startsWith('COMBO-')) {
+          break;
+        }
+        
+        // Si encontramos un item que es parte del combo (SKU CP- o refId en comboProductRefIds), continuar
+        if (nextSku.startsWith('CP-') || 
+            (nextItem.source === 'inventory' && nextItem.refId && comboProductRefIds.has(String(nextItem.refId)))) {
+          insertIndex++;
+          continue;
+        }
+        
+        // Si encontramos otro combo o un item que no es parte de este combo, parar
+        if (nextItem.source === 'price' && nextItem.refId && String(nextItem.refId) !== String(slot.comboPriceId)) {
+          break;
+        }
+        
+        // Si encontramos un item de inventario que no tiene SKU CP- y no está relacionado con el combo, parar
+        if (nextItem.source === 'inventory' && nextItem.sku && !nextItem.sku.startsWith('CP-')) {
+          // Verificar si este item ya está en los slots completados
+          const alreadyInSlots = sale.openSlots.some(s => 
+            s.completed && s.completedItemId && String(s.completedItemId) === String(nextItem.refId)
+          );
+          if (!alreadyInSlots) {
+            break;
+          }
+        }
+        insertIndex++;
+      }
+      
+      // IMPORTANTE: Siempre usar SKU que empiece con "CP-" para que se identifique como parte del combo
+      // Incluso si el item tiene su propio SKU, lo prefijamos con CP- para asegurar que se agrupe correctamente
+      const comboItemSku = item.sku && !item.sku.toUpperCase().startsWith('CP-') 
+        ? `CP-${item.sku}` 
+        : (item.sku || `CP-${String(item._id).slice(-6)}`);
+      
+      // Agregar el item del slot completado como parte del combo
+      sale.items.splice(insertIndex, 0, {
+        source: 'inventory',
+        refId: item._id,
+        sku: comboItemSku,
+        name: item.name || slot.slotName,
+        qty: slot.qty || 1,
+        unitPrice: realPrice,
+        total: Math.round((slot.qty || 1) * realPrice)
+      });
+    } else {
+      // Si el item no pertenece al combo, agregar al final
+      sale.items.push({
+        source: 'inventory',
+        refId: item._id,
+        sku: item.sku || `SLOT-${String(item._id).slice(-6)}`,
+        name: item.name || slot.slotName,
+        qty: slot.qty || 1,
+        unitPrice: realPrice,
+        total: Math.round((slot.qty || 1) * realPrice)
+      });
+    }
+  } else {
+    // Si no encontramos el combo (no debería pasar), agregar al final
+    sale.items.push({
+      source: 'inventory',
+      refId: item._id,
+      sku: item.sku || `SLOT-${String(item._id).slice(-6)}`,
+      name: item.name || slot.slotName,
+      qty: slot.qty || 1,
+      unitPrice: realPrice,
+      total: Math.round((slot.qty || 1) * realPrice)
+    });
+  }
+  
+  // Recalcular totales
   computeTotals(sale);
   await sale.save();
   

@@ -731,6 +731,28 @@ function normalizeTemplateHtml(html='') {
         // Si tiene {{name}} pero NO tiene {{#each sale.items}} ni sale.itemsGrouped, agregar estructura básica
         else if (match.includes('{{name}}') && !match.includes('{{#each sale.items}}') && !match.includes('sale.itemsGrouped')) {
           const newTbody = `<tbody>
+          {{#if sale.itemsGrouped.hasCombos}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">COMBOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.combos}}
+          <tr>
+            <td><strong>{{name}}</strong></td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{#each items}}
+          <tr>
+            <td style="padding-left: 30px;">• {{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{#if unitPrice}}{{money unitPrice}}{{/if}}</td>
+            <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>
+          </tr>
+          {{/each}}
+          {{/each}}
+          {{/if}}
+          
           {{#if sale.itemsGrouped.hasProducts}}
           <tr class="section-header">
             <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">PRODUCTOS</td>
@@ -751,33 +773,11 @@ function normalizeTemplateHtml(html='') {
           </tr>
           {{#each sale.itemsGrouped.services}}
           <tr>
-            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td>{{name}}</td>
             <td class="t-center">{{qty}}</td>
             <td class="t-right">{{money unitPrice}}</td>
             <td class="t-right">{{money total}}</td>
           </tr>
-          {{/each}}
-          {{/if}}
-          
-          {{#if sale.itemsGrouped.hasCombos}}
-          <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">COMBOS</td>
-          </tr>
-          {{#each sale.itemsGrouped.combos}}
-          <tr>
-            <td><strong>{{name}}</strong></td>
-            <td class="t-center">{{qty}}</td>
-            <td class="t-right">{{money unitPrice}}</td>
-            <td class="t-right">{{money total}}</td>
-          </tr>
-          {{#each items}}
-          <tr>
-            <td style="padding-left: 30px;">• {{name}}</td>
-            <td class="t-center">{{qty}}</td>
-            <td class="t-right">{{#if unitPrice}}{{money unitPrice}}{{/if}}</td>
-            <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>
-          </tr>
-          {{/each}}
           {{/each}}
           {{/if}}
           
