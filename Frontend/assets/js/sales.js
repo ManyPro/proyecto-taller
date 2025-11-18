@@ -577,7 +577,7 @@ function printSaleTicket(sale){
               // Media carta: ~816px (21.6cm a 96 DPI) menos márgenes (~20mm = ~76px) = ~740px disponible
               // Carta completa: ~1054px (27.9cm a 96 DPI) menos márgenes = ~978px disponible
               // Ajustar umbrales para mejor detección
-              const mediaCartaMaxHeight = 800; // px (más tolerante)
+              const mediaCartaMaxHeight = 750; // px - Reducido para asegurar que realmente quepa en media carta
               const cartaMaxHeight = 1000; // px
               
               console.log('[printSaleTicket] Detectando tamaño de página:', {
@@ -596,33 +596,43 @@ function printSaleTicket(sale){
               }
               
               if (contentHeight <= mediaCartaMaxHeight) {
-                // Usar media carta (half-letter)
+                // Usar media carta (half-letter) con márgenes mínimos
                 pageSizeStyle.textContent = `
                   @page {
                     size: 5.5in 8.5in;
-                    margin: 10mm;
+                    margin: 5mm;
                   }
                   @media print {
                     body {
+                      margin: 0 !important;
+                      padding: 5mm !important;
                       max-height: 216mm !important;
+                    }
+                    * {
+                      box-sizing: border-box !important;
                     }
                   }
                 `;
-                console.log('[printSaleTicket] ✅ Configurado para MEDIA CARTA (5.5" x 8.5")');
+                console.log('[printSaleTicket] ✅ Configurado para MEDIA CARTA (5.5" x 8.5") con márgenes de 0.5cm');
               } else {
-                // Usar carta completa
+                // Usar carta completa con márgenes mínimos
                 pageSizeStyle.textContent = `
                   @page {
                     size: letter;
-                    margin: 10mm;
+                    margin: 5mm;
                   }
                   @media print {
                     body {
+                      margin: 0 !important;
+                      padding: 5mm !important;
                       max-height: 279mm !important;
+                    }
+                    * {
+                      box-sizing: border-box !important;
                     }
                   }
                 `;
-                console.log('[printSaleTicket] ✅ Configurado para CARTA COMPLETA (8.5" x 11")');
+                console.log('[printSaleTicket] ✅ Configurado para CARTA COMPLETA (8.5" x 11") con márgenes de 0.5cm');
               }
             };
             
@@ -989,7 +999,7 @@ function printWorkOrder(){
               // Media carta: ~816px (21.6cm a 96 DPI) menos márgenes (~20mm = ~76px) = ~740px disponible
               // Carta completa: ~1054px (27.9cm a 96 DPI) menos márgenes = ~978px disponible
               // Ajustar umbrales para mejor detección
-              const mediaCartaMaxHeight = 800; // px (más tolerante)
+              const mediaCartaMaxHeight = 750; // px - Reducido para asegurar que realmente quepa en media carta
               const cartaMaxHeight = 1000; // px
               
               console.log('[printWorkOrder] Detectando tamaño de página:', {

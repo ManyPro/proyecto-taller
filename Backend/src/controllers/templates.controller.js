@@ -675,7 +675,7 @@ function normalizeTemplateHtml(html='') {
           </tr>
           {{#each sale.itemsGrouped.products}}
           <tr>
-            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td>{{name}}</td>
             <td class="t-center">{{qty}}</td>
             <td class="t-right">{{money unitPrice}}</td>
             <td class="t-right">{{money total}}</td>
@@ -710,7 +710,7 @@ function normalizeTemplateHtml(html='') {
           </tr>
           {{#each items}}
           <tr>
-            <td style="padding-left: 30px;">• {{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td style="padding-left: 30px;">• {{name}}</td>
             <td class="t-center">{{qty}}</td>
             <td class="t-right">{{#if unitPrice}}{{money unitPrice}}{{/if}}</td>
             <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>
@@ -737,7 +737,7 @@ function normalizeTemplateHtml(html='') {
           </tr>
           {{#each sale.itemsGrouped.products}}
           <tr>
-            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td>{{name}}</td>
             <td class="t-center">{{qty}}</td>
             <td class="t-right">{{money unitPrice}}</td>
             <td class="t-right">{{money total}}</td>
@@ -772,7 +772,7 @@ function normalizeTemplateHtml(html='') {
           </tr>
           {{#each items}}
           <tr>
-            <td style="padding-left: 30px;">• {{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td style="padding-left: 30px;">• {{name}}</td>
             <td class="t-center">{{qty}}</td>
             <td class="t-right">{{#if unitPrice}}{{money unitPrice}}{{/if}}</td>
             <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>
@@ -841,7 +841,7 @@ function normalizeTemplateHtml(html='') {
           </tr>
           {{#each items}}
           <tr>
-            <td style="padding-left: 30px;">• {{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td style="padding-left: 30px;">• {{name}}</td>
             <td class="t-center">{{qty}}</td>
           </tr>
           {{/each}}
@@ -894,7 +894,7 @@ function normalizeTemplateHtml(html='') {
           </tr>
           {{#each items}}
           <tr>
-            <td style="padding-left: 30px;">• {{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td style="padding-left: 30px;">• {{name}}</td>
             <td class="t-center">{{qty}}</td>
           </tr>
           {{/each}}

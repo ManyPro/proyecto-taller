@@ -2771,30 +2771,29 @@
   function createRemissionTemplate(canvas) {
     console.log('🎨 Creando plantilla de remisión completa...');
     
-    // Título REMISIÓN (arriba izquierda) - Reducido para que quepa en una página
+    // Título REMISIÓN (arriba izquierda) - Compactado para media carta
     const title = createEditableElement('title', 'REMISIÓN', {
-      position: { left: 40, top: 20 },
-      styles: { fontSize: '36px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', letterSpacing: '1px' }
+      position: { left: 19, top: 10 },
+      styles: { fontSize: '28px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', letterSpacing: '0.5px' }
     });
     canvas.appendChild(title);
 
-    // Número de remisión en caja negra - usando helper pad para formatear con ceros a la izquierda
-    // Usar sale.formattedNumber si existe, sino usar pad sale.number, sino mostrar vacío
+    // Número de remisión en caja negra - Compactado
     const numberBox = document.createElement('div');
     numberBox.className = 'tpl-element';
     numberBox.id = `element_${visualEditor.nextId++}`;
-    numberBox.style.cssText = 'position: absolute; left: 40px; top: 70px; border: 2px solid #000; padding: 6px 12px; display: inline-block;';
-    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{#if S.nº}}{{S.nº}}{{else}}[Sin nº]{{/if}}</span>';
+    numberBox.style.cssText = 'position: absolute; left: 19px; top: 45px; border: 2px solid #000; padding: 4px 8px; display: inline-block;';
+    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 11px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{#if S.nº}}{{S.nº}}{{else}}[Sin nº]{{/if}}</span>';
     makeDraggable(numberBox);
     makeSelectable(numberBox);
     canvas.appendChild(numberBox);
     visualEditor.elements.push({ id: numberBox.id, type: 'text', element: numberBox });
 
-    // Logo/empresa (arriba derecha) - editable con imagen o variable - Reducido para que quepa en una página
+    // Logo/empresa (arriba derecha) - Compactado para media carta
     const logoBox = document.createElement('div');
     logoBox.className = 'tpl-element';
     logoBox.id = `element_${visualEditor.nextId++}`;
-    logoBox.style.cssText = 'position: absolute; right: 40px; top: 20px; width: 80px; height: 80px; border: 2px solid #000; padding: 4px; display: flex; align-items: center; justify-content: center; cursor: move; background: white; box-sizing: border-box;';
+    logoBox.style.cssText = 'position: absolute; right: 19px; top: 10px; width: 60px; height: 60px; border: 2px solid #000; padding: 3px; display: flex; align-items: center; justify-content: center; cursor: move; background: white; box-sizing: border-box;';
     logoBox.innerHTML = `
       <div class="image-placeholder" style="width: 100%; height: 100%; background: #f5f5f5; border: 2px dashed #999; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; color: #666; text-align: center; padding: 5px; box-sizing: border-box; position: relative;">
         <div style="display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none;">
@@ -2838,54 +2837,50 @@
     canvas.appendChild(logoBox);
     visualEditor.elements.push({ id: logoBox.id, type: 'image', element: logoBox });
 
-    // Sección DATOS DEL CLIENTE (izquierda) - Compactado
+    // Sección DATOS DEL CLIENTE (izquierda) - Muy compactado y agrupado
     const clientTitle = createEditableElement('text', 'DATOS DEL CLIENTE', {
-      position: { left: 40, top: 120 },
-      styles: { fontSize: '12px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
+      position: { left: 19, top: 75 },
+      styles: { fontSize: '10px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
     });
     canvas.appendChild(clientTitle);
 
-    const clientData = createEditableElement('text', '{{sale.customer.name}}\n{{sale.customer.email}}\n{{sale.customer.phone}}\n{{sale.customer.address}}', {
-      position: { left: 40, top: 140 },
-      styles: { fontSize: '10px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.4' }
+    // Datos del cliente en formato compacto: Nombre | Email | Tel | Dirección
+    const clientData = createEditableElement('text', '{{sale.customer.name}} | {{sale.customer.email}} | {{sale.customer.phone}} | {{sale.customer.address}}', {
+      position: { left: 19, top: 88 },
+      styles: { fontSize: '8px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.2', maxWidth: '280px' }
     });
     canvas.appendChild(clientData);
 
-    // Línea divisoria vertical
-    const divider = document.createElement('div');
-    divider.style.cssText = 'position: absolute; left: 50%; top: 120px; width: 1px; height: 90px; background: #000;';
-    canvas.appendChild(divider);
-
-    // Sección DATOS DE LA EMPRESA (derecha) - alineada correctamente - Compactado
+    // Sección DATOS DE LA EMPRESA (derecha) - Muy compactado y agrupado
     const companyTitle = createEditableElement('text', 'DATOS DE LA EMPRESA', {
-      position: { left: 500, top: 120 },
-      styles: { fontSize: '12px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
+      position: { left: 310, top: 75 },
+      styles: { fontSize: '10px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
     });
     canvas.appendChild(companyTitle);
 
-    // Solo nombre y correo como variables, teléfono y dirección como texto editable
-    const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n[Editar teléfono]\n[Editar dirección]', {
-      position: { left: 500, top: 140 },
-      styles: { fontSize: '10px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.4' }
+    // Datos de la empresa en formato compacto: Nombre | Email | Tel | Dirección
+    const companyData = createEditableElement('text', '{{company.name}} | {{company.email}} | [Editar teléfono] | [Editar dirección]', {
+      position: { left: 310, top: 88 },
+      styles: { fontSize: '8px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.2', maxWidth: '280px' }
     });
     canvas.appendChild(companyData);
 
-    // Línea horizontal separadora
+    // Línea horizontal separadora - Pegada arriba
     const horizontalLine = document.createElement('div');
-    horizontalLine.style.cssText = 'position: absolute; left: 40px; right: 40px; top: 230px; height: 1px; background: #000;';
+    horizontalLine.style.cssText = 'position: absolute; left: 19px; right: 19px; top: 105px; height: 1px; background: #000;';
     canvas.appendChild(horizontalLine);
 
-    // Tabla de items mejorada con diseño similar a la imagen - Compactada
-    const itemsTable = createRemissionItemsTable({ left: 40, top: 250 });
+    // Tabla de items - Pegada directamente después de la línea
+    const itemsTable = createRemissionItemsTable({ left: 19, top: 110 });
     canvas.appendChild(itemsTable);
 
     // Línea horizontal antes de totales - pegada directamente a la tabla
-    // La tabla empieza en top: 250px, header ~30px, cada fila ~25px
+    // La tabla empieza en top: 110px, header ~20px, cada fila ~15px
     // Para que quede pegado, usamos una posición inicial que se ajustará dinámicamente
-    // Posición inicial: 250 (tabla) + 30 (header) + 25 (1 fila mínima) = 305px
+    // Posición inicial: 110 (tabla) + 20 (header) + 15 (1 fila mínima) = 145px
     const totalLine = document.createElement('div');
     totalLine.className = 'tpl-total-line';
-    totalLine.style.cssText = 'position: absolute; left: 40px; right: 40px; top: 305px; height: 1px; background: #000;';
+    totalLine.style.cssText = 'position: absolute; left: 19px; right: 19px; top: 145px; height: 1px; background: #000;';
     totalLine.setAttribute('data-table-container-id', itemsTable.id);
     canvas.appendChild(totalLine);
 
@@ -2893,8 +2888,8 @@
     const totalBox = document.createElement('div');
     totalBox.className = 'tpl-element tpl-total-box';
     totalBox.id = `element_${visualEditor.nextId++}`;
-    totalBox.style.cssText = 'position: absolute; left: 40px; top: 306px; right: 40px; border: 2px solid #000; padding: 8px 16px; display: flex; align-items: center; justify-content: space-between;';
-    totalBox.innerHTML = '<span contenteditable="true" style="font-size: 12px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">TOTAL</span><span contenteditable="true" style="font-size: 12px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">{{$ S.total}}</span>';
+    totalBox.style.cssText = 'position: absolute; left: 19px; top: 146px; right: 19px; border: 2px solid #000; padding: 4px 8px; display: flex; align-items: center; justify-content: space-between;';
+    totalBox.innerHTML = '<span contenteditable="true" style="font-size: 10px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">TOTAL</span><span contenteditable="true" style="font-size: 10px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">{{$ S.total}}</span>';
     totalBox.setAttribute('data-table-container-id', itemsTable.id);
     makeDraggable(totalBox);
     makeSelectable(totalBox);
@@ -3001,9 +2996,9 @@
       top: ${position.top}px;
       border: 2px solid transparent;
       cursor: move;
-      width: 700px;
+      width: calc(100% - ${position.left * 2}px);
+      max-width: 520px;
       background: white;
-      max-width: 100%;
     `;
 
     tableContainer.innerHTML = `
@@ -3023,22 +3018,23 @@
         }
         .remission-table th {
           border: 2px solid #000 !important;
-          padding: 6px 6px;
+          padding: 2px 3px;
           font-weight: bold;
           color: #000;
-          font-size: 10px;
+          font-size: 9px;
           background: white;
           word-wrap: break-word;
           overflow-wrap: break-word;
         }
         .remission-table td {
           border: 1px solid #000 !important;
-          padding: 5px 6px;
+          padding: 1px 3px;
           color: #000;
-          font-size: 10px;
+          font-size: 8px;
           word-wrap: break-word;
           overflow-wrap: break-word;
           vertical-align: top;
+          line-height: 1.2;
         }
         .remission-table th:nth-child(1),
         .remission-table td:nth-child(1) {
@@ -3086,8 +3082,9 @@
           .remission-table th,
           .remission-table td {
             border: 1px solid #000 !important;
-            padding: 4px 5px !important;
-            font-size: 9px !important;
+            padding: 1px 2px !important;
+            font-size: 8px !important;
+            line-height: 1.1 !important;
           }
           .remission-table th {
             border-width: 2px !important;
@@ -3111,7 +3108,7 @@
         <tbody>
           {{#if sale.itemsGrouped.hasCombos}}
           <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 4px 6px; font-size: 10px;">COMBOS</td>
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 9px;">COMBOS</td>
           </tr>
           {{#each sale.itemsGrouped.combos}}
           <tr>
@@ -3122,7 +3119,7 @@
           </tr>
           {{#each items}}
           <tr>
-            <td style="padding-left: 30px;">• {{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td style="padding-left: 30px;">• {{name}}</td>
             <td class="t-center">{{qty}}</td>
             <td class="t-right">{{#if unitPrice}}{{money unitPrice}}{{/if}}</td>
             <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>
@@ -3133,11 +3130,11 @@
           
           {{#if sale.itemsGrouped.hasProducts}}
           <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 4px 6px; font-size: 10px;">PRODUCTOS</td>
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 9px;">PRODUCTOS</td>
           </tr>
           {{#each sale.itemsGrouped.products}}
           <tr>
-            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td>{{name}}</td>
             <td class="t-center">{{qty}}</td>
             <td class="t-right">{{money unitPrice}}</td>
             <td class="t-right">{{money total}}</td>
@@ -3147,11 +3144,11 @@
           
           {{#if sale.itemsGrouped.hasServices}}
           <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 4px 6px; font-size: 10px;">SERVICIOS</td>
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 9px;">SERVICIOS</td>
           </tr>
           {{#each sale.itemsGrouped.services}}
           <tr>
-            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td>{{name}}</td>
             <td class="t-center">{{qty}}</td>
             <td class="t-right">{{money unitPrice}}</td>
             <td class="t-right">{{money total}}</td>
