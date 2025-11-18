@@ -2496,7 +2496,7 @@ async function renderSale(){
           break;
         }
         
-        // Si el SKU empieza con "CP-", es definitivamente parte del combo
+        // Si el SKU empieza con "CP-", es definitivamente parte del combo (sin importar el source)
         if (nextSku.startsWith('CP-')) {
           comboItems.push(nextIt);
           i++;
@@ -2508,6 +2508,33 @@ async function renderSale(){
           comboItems.push(nextIt);
           i++;
           continue;
+        }
+        
+        // Si es un item con source 'price' pero tiene precio 0 y su nombre coincide con algún producto del combo
+        // (productos del combo sin vincular que se agregaron como price)
+        const nextPrice = Number(nextIt.unitPrice) || 0;
+        if (nextIt.source === 'price' && nextPrice === 0 && nextIt.refId && 
+            String(nextIt.refId) !== String(it.refId)) {
+          // Verificar si el nombre coincide con algún producto del combo
+          try {
+            const comboPE = await API.prices.get(it.refId);
+            if (comboPE && comboPE.comboProducts) {
+              const comboProductNames = new Set();
+              comboPE.comboProducts.forEach(cp => {
+                if (cp.name) {
+                  comboProductNames.add(String(cp.name).trim().toUpperCase());
+                }
+              });
+              const nextName = String(nextIt.name || '').trim().toUpperCase();
+              if (comboProductNames.has(nextName)) {
+                comboItems.push(nextIt);
+                i++;
+                continue;
+              }
+            }
+          } catch (err) {
+            console.warn('No se pudo verificar nombre del producto:', err);
+          }
         }
         
         // Si llegamos aquí, el item NO es parte del combo

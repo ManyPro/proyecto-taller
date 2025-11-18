@@ -182,6 +182,23 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
                 continue;
               }
               
+              // Si el SKU empieza con "CP-", es definitivamente parte del combo (sin importar source o precio)
+              if (nextSku.startsWith('CP-')) {
+                comboItems.push({
+                  sku: nextItem.sku || '',
+                  name: nextItem.name || '',
+                  qty: Number(nextItem.qty) || 0,
+                  unitPrice: Number(nextItem.unitPrice) || 0,
+                  total: Number(nextItem.total) || 0,
+                  source: nextItem.source || '',
+                  refId: nextItem.refId || null,
+                  isNested: true
+                });
+                processedComboItemIndices.add(j);
+                j++;
+                continue;
+              }
+              
               // Si tiene precio 0 y es price sin refId o con refId diferente, podría ser producto del combo sin vincular
               const nextPrice = Number(nextItem.unitPrice) || 0;
               if (nextPrice === 0 && nextItem.source === 'price' && 

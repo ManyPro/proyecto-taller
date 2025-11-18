@@ -316,11 +316,14 @@ export const addItem = async (req, res) => {
               total: Math.round(comboQty * (cp.unitPrice || 0))
             });
           } else {
-            // Producto sin vincular: agregar como price
+            // Producto sin vincular: agregar como price con SKU que empiece con CP-
+            // IMPORTANTE: Usar un identificador único basado en el índice del producto en el combo
+            // para asegurar que el SKU siempre empiece con CP- y sea único
+            const comboProductId = cp._id ? String(cp._id).slice(-6) : String(idx).padStart(6, '0');
             sale.items.push({
               source: 'price',
               refId: new mongoose.Types.ObjectId(),
-              sku: `CP-${String(cp._id || new mongoose.Types.ObjectId()).slice(-6)}`,
+              sku: `CP-${comboProductId}`,
               name: cp.name || 'Producto del combo',
               qty: comboQty,
               unitPrice: cp.unitPrice || 0,
@@ -814,7 +817,32 @@ export const closeSale = async (req, res) => {
           }
         }
         if (!target) throw new Error(`Inventory item not found (${it.sku || it.refId || 'sin id'})`);
-        if ((target.stock ?? 0) < q) throw new Error(`Insufficient stock for ${target.sku || target.name}`);
+        
+        // IMPORTANTE: Calcular el stock real desde StockEntries para asegurar que tenemos el stock correcto
+        // El campo stock del Item podría estar desactualizado, así que lo calculamos desde las entradas
+        const stockEntriesForCheck = await StockEntry.find({
+          companyId: req.companyId,
+          itemId: target._id,
+          qty: { $gt: 0 }
+        }).session(session);
+        
+        const actualStockFromEntries = stockEntriesForCheck.reduce((sum, entry) => sum + (entry.qty || 0), 0);
+        const itemStock = target.stock ?? 0;
+        
+        // Usar el stock calculado desde entradas si hay entradas, sino usar el stock del item
+        // Si ambos están disponibles pero difieren, preferir el de las entradas (más preciso)
+        const stockToUse = stockEntriesForCheck.length > 0 
+          ? actualStockFromEntries 
+          : itemStock;
+        
+        // Log para debugging si hay discrepancia
+        if (stockEntriesForCheck.length > 0 && actualStockFromEntries !== itemStock) {
+          console.warn(`[closeSale] Stock desincronizado para ${target.sku || target.name}: Item.stock=${itemStock}, StockEntries=${actualStockFromEntries}. Usando StockEntries.`);
+        }
+        
+        if (stockToUse < q) {
+          throw new Error(`Stock insuficiente para ${target.sku || target.name}. Disponible: ${stockToUse}, Requerido: ${q}`);
+        }
 
         // Descontar usando FIFO: buscar StockEntries ordenados por fecha (más antiguos primero)
         let remainingQty = q;
@@ -1461,8 +1489,11 @@ export const completeOpenSlot = async (req, res) => {
   slot.completedItemId = item._id;
   
   // IMPORTANTE: Usar el precio del slot (estimatedPrice) en lugar del precio del item
-  // El slot abierto tiene un precio estimado que debe respetarse
-  const realPrice = slot.estimatedPrice || item.salePrice || 0;
+  // El slot abierto tiene un precio estimado que debe respetarse, incluso si es 0
+  // Verificar explícitamente si estimatedPrice existe (puede ser 0, que es válido)
+  const realPrice = (slot.estimatedPrice !== undefined && slot.estimatedPrice !== null) 
+    ? slot.estimatedPrice 
+    : (item.salePrice || 0);
   
   // IMPORTANTE: Agregar el item inmediatamente a sale.items para que aparezca en la venta
   // Buscar el combo principal en los items para agregar el producto después de él
