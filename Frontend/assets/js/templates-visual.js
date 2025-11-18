@@ -2872,22 +2872,22 @@
         }
       </style>
       <div style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 5px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 3px;">DATOS DEL CLIENTE</div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: Arial, sans-serif;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: Arial, sans-serif; margin-top: 2px;">
         <tr>
-          <td style="border: 1px solid #000; padding: 4px; font-weight: bold; width: 30%;">Nombre:</td>
-          <td style="border: 1px solid #000; padding: 4px; width: 70%;"><span contenteditable="true">{{sale.customer.name}}</span></td>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold; width: 30%;">Nombre:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px; width: 70%;"><span contenteditable="true">{{sale.customer.name}}</span></td>
         </tr>
         <tr>
-          <td style="border: 1px solid #000; padding: 4px; font-weight: bold;">Email:</td>
-          <td style="border: 1px solid #000; padding: 4px;"><span contenteditable="true">{{sale.customer.email}}</span></td>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Email:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{sale.customer.email}}</span></td>
         </tr>
         <tr>
-          <td style="border: 1px solid #000; padding: 4px; font-weight: bold;">Teléfono:</td>
-          <td style="border: 1px solid #000; padding: 4px;"><span contenteditable="true">{{sale.customer.phone}}</span></td>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Teléfono:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{sale.customer.phone}}</span></td>
         </tr>
         <tr>
-          <td style="border: 1px solid #000; padding: 4px; font-weight: bold;">Dirección:</td>
-          <td style="border: 1px solid #000; padding: 4px;"><span contenteditable="true">{{sale.customer.address}}</span></td>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Dirección:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{sale.customer.address}}</span></td>
         </tr>
       </table>
     `;
@@ -2930,22 +2930,22 @@
         }
       </style>
       <div style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 5px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 3px;">DATOS DE LA EMPRESA</div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: Arial, sans-serif;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: Arial, sans-serif; margin-top: 2px;">
         <tr>
-          <td style="border: 1px solid #000; padding: 4px; font-weight: bold; width: 30%;">Nombre:</td>
-          <td style="border: 1px solid #000; padding: 4px; width: 70%;"><span contenteditable="true">{{company.name}}</span></td>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold; width: 30%;">Nombre:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px; width: 70%;"><span contenteditable="true">{{company.name}}</span></td>
         </tr>
         <tr>
-          <td style="border: 1px solid #000; padding: 4px; font-weight: bold;">Email:</td>
-          <td style="border: 1px solid #000; padding: 4px;"><span contenteditable="true">{{company.email}}</span></td>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Email:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{company.email}}</span></td>
         </tr>
         <tr>
-          <td style="border: 1px solid #000; padding: 4px; font-weight: bold;">Teléfono:</td>
-          <td style="border: 1px solid #000; padding: 4px;"><span contenteditable="true">{{company.phone}}</span></td>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Teléfono:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{company.phone}}</span></td>
         </tr>
         <tr>
-          <td style="border: 1px solid #000; padding: 4px; font-weight: bold;">Dirección:</td>
-          <td style="border: 1px solid #000; padding: 4px;"><span contenteditable="true">{{company.address}}</span></td>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Dirección:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{company.address}}</span></td>
         </tr>
       </table>
     `;
@@ -2956,10 +2956,12 @@
 
     // Calcular la posición de la tabla: después de los cuadros de datos + 0.5cm de separación
     // Los cuadros empiezan en top: 83px
-    // Altura aproximada del cuadro: título (~15px) + tabla 4 filas (~80px) + padding (12px) = ~107px
+    // Altura aproximada del cuadro: título (~18px) + tabla 4 filas (~100px con nuevo padding) + padding (16px) = ~134px
     // 0.5cm = aproximadamente 19px
-    // Posición tabla: 83px + 107px + 19px = 209px
-    const itemsTable = createRemissionItemsTable({ left: 19, top: 209 });
+    // Posición tabla: 83px + 134px + 19px = 236px
+    // Ancho de los cuadros: 331px cada uno, total aproximado: 662px (considerando espacio entre ellos)
+    // La tabla de items debe tener el mismo ancho que los dos cuadros juntos
+    const itemsTable = createRemissionItemsTable({ left: 19, top: 236, width: 682 });
     canvas.appendChild(itemsTable);
 
     // NOTA: El total ahora está dentro de la tabla como tfoot, así que ya no necesitamos ajustar posición separada
@@ -2978,14 +2980,17 @@
     const tableContainer = document.createElement('div');
     tableContainer.className = 'tpl-element items-table';
     tableContainer.id = `element_${visualEditor.nextId++}`;
+    // Si se especifica un ancho, usarlo; sino usar el cálculo original
+    const tableWidth = position.width || `calc(100% - ${position.left * 2}px)`;
+    const maxWidth = position.width ? `${position.width}px` : '520px';
     tableContainer.style.cssText = `
       position: absolute;
       left: ${position.left}px;
       top: ${position.top}px;
       border: 2px solid transparent;
       cursor: move;
-      width: calc(100% - ${position.left * 2}px);
-      max-width: 520px;
+      width: ${tableWidth};
+      max-width: ${maxWidth};
       background: white;
     `;
     

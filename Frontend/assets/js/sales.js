@@ -495,7 +495,7 @@ function printSaleTicket(sale){
                 
                 /* Contenedor centrado para el contenido de la remisión */
                 .remission-wrapper {
-                  max-width: 520px;
+                  max-width: 720px;
                   width: 100%;
                   min-width: 0;
                   margin: 0 auto;
@@ -606,10 +606,14 @@ function printSaleTicket(sale){
                     border-collapse: collapse !important;
                     font-size: 11px !important;
                   }
+                  .client-data-box table,
+                  .company-data-box table {
+                    margin-top: 2px !important;
+                  }
                   .client-data-box td,
                   .company-data-box td {
                     border: 1px solid #000 !important;
-                    padding: 4px !important;
+                    padding: 5px 4px !important;
                   }
                 }
               </style>
@@ -674,12 +678,17 @@ function printSaleTicket(sale){
                       align-items: flex-start !important;
                     }
                     .remission-wrapper {
-                      max-width: 520px !important;
+                      max-width: 720px !important;
                       width: 100% !important;
                       min-width: 0 !important;
                       margin: 0 auto !important;
                       position: relative !important;
                       padding: 0 5mm !important;
+                    }
+                    /* Asegurar que la tabla de items tenga el mismo ancho que los cuadros de datos */
+                    .items-table {
+                      width: 682px !important;
+                      max-width: 682px !important;
                     }
                     /* Estilos para cuadros de datos del cliente y empresa */
                     .client-data-box,
@@ -713,12 +722,13 @@ function printSaleTicket(sale){
                     .company-data-box table {
                       width: 100% !important;
                       border-collapse: collapse !important;
-                      font-size: 9.5px !important;
+                      font-size: 11px !important;
+                      margin-top: 2px !important;
                     }
                     .client-data-box td,
                     .company-data-box td {
                       border: 1px solid #000 !important;
-                      padding: 3px !important;
+                      padding: 5px 4px !important;
                     }
                     * {
                       box-sizing: border-box !important;
@@ -749,12 +759,17 @@ function printSaleTicket(sale){
                       align-items: flex-start !important;
                     }
                     .remission-wrapper {
-                      max-width: 520px !important;
+                      max-width: 720px !important;
                       width: 100% !important;
                       min-width: 0 !important;
                       margin: 0 auto !important;
                       position: relative !important;
                       padding: 0 5mm !important;
+                    }
+                    /* Asegurar que la tabla de items tenga el mismo ancho que los cuadros de datos */
+                    .items-table {
+                      width: 682px !important;
+                      max-width: 682px !important;
                     }
                     /* Estilos para cuadros de datos del cliente y empresa */
                     .client-data-box,
@@ -788,12 +803,13 @@ function printSaleTicket(sale){
                     .company-data-box table {
                       width: 100% !important;
                       border-collapse: collapse !important;
-                      font-size: 9.5px !important;
+                      font-size: 11px !important;
+                      margin-top: 2px !important;
                     }
                     .client-data-box td,
                     .company-data-box td {
                       border: 1px solid #000 !important;
-                      padding: 3px !important;
+                      padding: 5px 4px !important;
                     }
                     * {
                       box-sizing: border-box !important;
@@ -1066,10 +1082,14 @@ function printWorkOrder(){
                     border-collapse: collapse !important;
                     font-size: 11px !important;
                   }
+                  .client-data-box table,
+                  .company-data-box table {
+                    margin-top: 2px !important;
+                  }
                   .client-data-box td,
                   .company-data-box td {
                     border: 1px solid #000 !important;
-                    padding: 4px !important;
+                    padding: 5px 4px !important;
                   }
                 }
               </style>
