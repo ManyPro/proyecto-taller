@@ -2813,7 +2813,12 @@ export function initQuotes({ getCompanyEmail }) {
 
   // ===== Reset de formulario (post-crear) =====
   function resetQuoteForm(){
-    [iClientName,iClientPhone,iClientEmail,iPlate,iBrand,iLine,iYear,iCc,iMileage,iValidDays].forEach(i=>{ if(i) i.value=''; });
+    [iClientName,iClientPhone,iClientEmail,iPlate,iBrand,iLine,iYear,iCc,iMileage,iValidDays].forEach(i=>{ 
+      if(i) {
+        i.value='';
+        if(i === iMileage) delete i.dataset.dirty; // Limpiar flag dirty del kilometraje
+      }
+    });
     specialNotes = [];
     renderSpecialNotes();
     clearRows(); addRow();
@@ -2906,11 +2911,19 @@ export function initQuotes({ getCompanyEmail }) {
     });
     
     // Kilometraje
-    iMileage?.addEventListener('input', recalcAll);
+    iMileage?.addEventListener('input', () => {
+      if(iMileage) iMileage.dataset.dirty = '1';
+      recalcAll();
+    });
     
     btnClear?.addEventListener('click',()=>{
   if(!confirm('¿Borrar todo el contenido de la cotización actual?')) return;
-      [iClientName,iClientPhone,iClientEmail,iPlate,iBrand,iLine,iYear,iCc,iMileage,iValidDays].forEach(i=>i.value='');
+      [iClientName,iClientPhone,iClientEmail,iPlate,iBrand,iLine,iYear,iCc,iMileage,iValidDays].forEach(i=>{
+        if(i) {
+          i.value='';
+          if(i === iMileage) delete i.dataset.dirty; // Limpiar flag dirty del kilometraje
+        }
+      });
       specialNotes = [];
       renderSpecialNotes();
       currentDiscount = { type: null, value: 0 };
@@ -4844,6 +4857,20 @@ export function initQuotes({ getCompanyEmail }) {
           if(!dirty.line && !iLine.value) iLine.value = prof.vehicle.line || iLine.value;
           if(!dirty.year && !iYear.value && prof.vehicle.year) iYear.value = prof.vehicle.year;
           if(!dirty.cc && !iCc.value && prof.vehicle.engine) iCc.value = prof.vehicle.engine; // engine -> cc
+          
+          // NO autocompletar kilometraje - solo mostrar placeholder con último kilometraje si existe
+          if(iMileage) {
+            // Solo limpiar si el campo no ha sido modificado manualmente
+            if(!iMileage.dataset.dirty && !iMileage.value) {
+              iMileage.value = '';
+            }
+            // Mostrar placeholder con último kilometraje si existe
+            if(prof.vehicle.mileage != null && prof.vehicle.mileage !== '') {
+              iMileage.placeholder = `Último: ${prof.vehicle.mileage}`;
+            } else {
+              iMileage.placeholder = '';
+            }
+          }
           
           // Si el perfil tiene vehicleId, cargar y seleccionar el vehículo
           if(prof.vehicle.vehicleId && iVehicleId) {

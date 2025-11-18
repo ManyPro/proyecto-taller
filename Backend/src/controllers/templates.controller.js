@@ -232,14 +232,24 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
             // O si la búsqueda secuencial no los encontró correctamente
             if (fullCombo && fullCombo.comboProducts) {
               // Crear un mapa de los items ya encontrados para evitar duplicados
+              // Usar múltiples claves para identificar items únicos
               const foundItemsMap = new Map();
               comboItems.forEach((ci, idx) => {
+                // Usar refId como clave principal si existe
                 if (ci.refId) {
-                  foundItemsMap.set(String(ci.refId), idx);
-                } else if (ci.sku && ci.sku.startsWith('CP-')) {
-                  foundItemsMap.set(ci.sku, idx);
-                } else if (ci.name) {
-                  foundItemsMap.set(String(ci.name).trim().toUpperCase(), idx);
+                  foundItemsMap.set(`refId:${String(ci.refId)}`, true);
+                }
+                // También usar SKU si empieza con CP-
+                if (ci.sku && ci.sku.startsWith('CP-')) {
+                  foundItemsMap.set(`sku:${ci.sku}`, true);
+                }
+                // También usar nombre normalizado como clave
+                if (ci.name) {
+                  foundItemsMap.set(`name:${String(ci.name).trim().toUpperCase()}`, true);
+                }
+                // Combinación de refId y nombre para mayor seguridad
+                if (ci.refId && ci.name) {
+                  foundItemsMap.set(`refId+name:${String(ci.refId)}:${String(ci.name).trim().toUpperCase()}`, true);
                 }
               });
               
@@ -250,14 +260,24 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
                 const comboQty = itemObj.qty * (cp.qty || 1);
                 let alreadyAdded = false;
                 
-                // Verificar si ya fue agregado
+                // Verificar si ya fue agregado usando múltiples criterios
                 if (cp.itemId) {
-                  alreadyAdded = foundItemsMap.has(String(cp.itemId._id));
+                  const refIdKey = `refId:${String(cp.itemId._id)}`;
+                  const nameKey = cp.name ? `name:${String(cp.name).trim().toUpperCase()}` : null;
+                  const combinedKey = cp.name ? `refId+name:${String(cp.itemId._id)}:${String(cp.name).trim().toUpperCase()}` : null;
+                  
+                  alreadyAdded = foundItemsMap.has(refIdKey) || 
+                                (nameKey && foundItemsMap.has(nameKey)) ||
+                                (combinedKey && foundItemsMap.has(combinedKey));
                 } else if (cp.name) {
-                  alreadyAdded = foundItemsMap.has(String(cp.name).trim().toUpperCase());
+                  const nameKey = `name:${String(cp.name).trim().toUpperCase()}`;
+                  alreadyAdded = foundItemsMap.has(nameKey);
                 }
                 
-                if (alreadyAdded) continue; // Ya fue agregado, saltar
+                if (alreadyAdded) {
+                  // Ya fue agregado, saltar para evitar duplicados
+                  continue;
+                }
                 
                 if (cp.itemId) {
                   // Producto vinculado - buscar en items para obtener datos reales, o usar datos del PriceEntry
@@ -265,9 +285,18 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
                     it.source === 'inventory' && it.refId && String(it.refId) === String(cp.itemId._id)
                   );
                   
+                  // Verificar nuevamente si el foundItem ya está en comboItems antes de agregarlo
+                  const foundItemAlreadyAdded = comboItems.some(ci => 
+                    ci.refId && String(ci.refId) === String(cp.itemId._id)
+                  );
+                  
+                  if (foundItemAlreadyAdded) {
+                    continue; // Ya está agregado, saltar
+                  }
+                  
                   if (foundItem) {
                     // Usar datos del item encontrado
-                    comboItems.push({
+                    const newItem = {
                       sku: foundItem.sku || cp.itemId.sku || `CP-${String(cp.itemId._id || '').slice(-6)}`,
                       name: foundItem.name || cp.name || cp.itemId.name || 'Producto del combo',
                       qty: Number(foundItem.qty) || comboQty,
@@ -276,10 +305,18 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
                       source: 'inventory',
                       refId: cp.itemId._id || null,
                       isNested: true
-                    });
+                    };
+                    comboItems.push(newItem);
+                    // Actualizar el mapa para evitar futuros duplicados
+                    if (newItem.refId) {
+                      foundItemsMap.set(`refId:${String(newItem.refId)}`, true);
+                    }
+                    if (newItem.name) {
+                      foundItemsMap.set(`name:${String(newItem.name).trim().toUpperCase()}`, true);
+                    }
                   } else {
                     // Usar datos del PriceEntry
-                    comboItems.push({
+                    const newItem = {
                       sku: cp.itemId.sku || `CP-${String(cp.itemId._id || '').slice(-6)}`,
                       name: cp.name || cp.itemId.name || 'Producto del combo',
                       qty: comboQty,
@@ -288,7 +325,15 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
                       source: 'inventory',
                       refId: cp.itemId._id || null,
                       isNested: true
-                    });
+                    };
+                    comboItems.push(newItem);
+                    // Actualizar el mapa para evitar futuros duplicados
+                    if (newItem.refId) {
+                      foundItemsMap.set(`refId:${String(newItem.refId)}`, true);
+                    }
+                    if (newItem.name) {
+                      foundItemsMap.set(`name:${String(newItem.name).trim().toUpperCase()}`, true);
+                    }
                   }
                 } else if (cp.name) {
                   // Producto sin vincular - buscar en items por nombre
@@ -299,9 +344,19 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
                     String(it.name || '').trim().toUpperCase() === String(cp.name).trim().toUpperCase()
                   );
                   
+                  // Verificar nuevamente si el foundItem ya está en comboItems antes de agregarlo
+                  const foundItemAlreadyAdded = comboItems.some(ci => 
+                    ci.name && String(ci.name).trim().toUpperCase() === String(cp.name).trim().toUpperCase() &&
+                    !ci.refId && ci.source === 'price'
+                  );
+                  
+                  if (foundItemAlreadyAdded) {
+                    continue; // Ya está agregado, saltar
+                  }
+                  
                   if (foundItem) {
                     // Usar datos del item encontrado
-                    comboItems.push({
+                    const newItem = {
                       sku: foundItem.sku || `CP-${String(cp._id || '').slice(-6)}`,
                       name: foundItem.name || cp.name,
                       qty: Number(foundItem.qty) || comboQty,
@@ -310,10 +365,15 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
                       source: 'price',
                       refId: null,
                       isNested: true
-                    });
+                    };
+                    comboItems.push(newItem);
+                    // Actualizar el mapa para evitar futuros duplicados
+                    if (newItem.name) {
+                      foundItemsMap.set(`name:${String(newItem.name).trim().toUpperCase()}`, true);
+                    }
                   } else {
                     // Usar datos del PriceEntry
-                    comboItems.push({
+                    const newItem = {
                       sku: `CP-${String(cp._id || '').slice(-6)}`,
                       name: cp.name,
                       qty: comboQty,
@@ -322,7 +382,12 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
                       source: 'price',
                       refId: null,
                       isNested: true
-                    });
+                    };
+                    comboItems.push(newItem);
+                    // Actualizar el mapa para evitar futuros duplicados
+                    if (newItem.name) {
+                      foundItemsMap.set(`name:${String(newItem.name).trim().toUpperCase()}`, true);
+                    }
                   }
                 }
               }

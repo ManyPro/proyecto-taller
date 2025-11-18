@@ -411,7 +411,7 @@
           <!-- Las empresas se cargarán aquí dinámicamente -->
         </div>
         <div class="text-center mt-6">
-          <button id="backToAdmin" class="px-4 py-2 text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 theme-light:border-2 theme-light:border-slate-300 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-50 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200">Volver al panel admin</button>
+          <button id="backToAdmin" class="px-4 py-2 text-sm bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 theme-light:border-2 theme-light:border-slate-300 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:hover:bg-slate-50 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200">Volver al portal de acceso</button>
         </div>
       </div>
     </section>
@@ -770,15 +770,33 @@
     }
   }
 
-  // Botón volver al selector
+  // Botón volver al portal de acceso
   const backToAdminBtn = document.getElementById('backToAdmin');
   if(backToAdminBtn) {
-    backToAdminBtn.onclick = () => {
+    backToAdminBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Limpiar token de admin
+      try {
+        if (typeof setToken === 'function') {
+          setToken('');
+        }
+        // También limpiar desde localStorage/sessionStorage
+        localStorage.removeItem('admin:token');
+        sessionStorage.removeItem('admin:token');
+        sessionStorage.removeItem('admin:context');
+        sessionStorage.removeItem('admin:email');
+        sessionStorage.removeItem('admin:company');
+      } catch {}
+      
       // Limpiar datos de empresa actual
       const previousData = currentCompanyData;
       currentCompanyToken = null;
       currentCompanyData = null;
-      API.setActiveCompany('');
+      if (API && API.setActiveCompany) {
+        API.setActiveCompany('');
+      }
       
       // Limpiar localStorage de empresa si existía
       if(previousData?.email) {
@@ -806,9 +824,24 @@
         } catch {}
       }
       
-      if(appSec) appSec.classList.add('hidden');
-      if(header) header.classList.add('hidden');
-      if(companySelectorSec) companySelectorSec.classList.remove('hidden');
+      // Limpiar todas las barras de admin si existen
+      try {
+        const allAdminBars = document.querySelectorAll('#adminIndicatorBar');
+        allAdminBars.forEach(bar => {
+          try {
+            bar.remove();
+          } catch(e) {
+            try {
+              if (bar.parentNode) {
+                bar.parentNode.removeChild(bar);
+              }
+            } catch {}
+          }
+        });
+      } catch {}
+      
+      // Redirigir al portal de acceso (index.html)
+      window.location.href = 'index.html';
     };
   }
 
