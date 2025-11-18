@@ -475,7 +475,7 @@ function printSaleTicket(sale){
             
             win.document.write(`<!doctype html><html><head><meta charset='utf-8'>${css}${debugScript}${modalScript}
               <style>
-                /* Estilos base para mejor uso del espacio */
+                /* Estilos base para mejor uso del espacio y centrado */
                 body {
                   margin: 0;
                   padding: 10mm;
@@ -483,6 +483,17 @@ function printSaleTicket(sale){
                   font-size: 12px;
                   line-height: 1.4;
                   color: #000;
+                  display: flex;
+                  justify-content: center;
+                  align-items: flex-start;
+                }
+                
+                /* Contenedor centrado para el contenido de la remisión */
+                .remission-wrapper {
+                  max-width: 520px;
+                  width: 100%;
+                  margin: 0 auto;
+                  position: relative;
                 }
                 
                 /* Aumentar tamaño de fuente para mejor legibilidad en carta */
@@ -561,7 +572,7 @@ function printSaleTicket(sale){
                   }
                 }
               </style>
-            </head><body>${r.rendered}</body></html>`);
+            </head><body><div class="remission-wrapper">${r.rendered}</div></body></html>`);
             win.document.close(); 
             
             // Función para detectar si el contenido cabe en media carta y ajustar tamaño de página
@@ -617,6 +628,14 @@ function printSaleTicket(sale){
                       padding-left: 5mm !important;
                       padding-right: 5mm !important;
                       max-height: 210.9mm !important;
+                      display: flex !important;
+                      justify-content: center !important;
+                      align-items: flex-start !important;
+                    }
+                    .remission-wrapper {
+                      max-width: 520px !important;
+                      width: 100% !important;
+                      margin: 0 auto !important;
                     }
                     * {
                       box-sizing: border-box !important;
@@ -642,6 +661,14 @@ function printSaleTicket(sale){
                       padding-left: 5mm !important;
                       padding-right: 5mm !important;
                       max-height: 274mm !important;
+                      display: flex !important;
+                      justify-content: center !important;
+                      align-items: flex-start !important;
+                    }
+                    .remission-wrapper {
+                      max-width: 520px !important;
+                      width: 100% !important;
+                      margin: 0 auto !important;
                     }
                     * {
                       box-sizing: border-box !important;
@@ -876,7 +903,7 @@ function printWorkOrder(){
                   }
                 }
               </style>
-            </head><body>${r.rendered}</body></html>`);
+            </head><body><div class="remission-wrapper">${r.rendered}</div></body></html>`);
             win.document.close();
             
             // Función para detectar si el contenido cabe en media carta y ajustar tamaño de página

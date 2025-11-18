@@ -2865,13 +2865,13 @@
     });
     canvas.appendChild(companyData);
 
-    // Línea horizontal separadora - Pegada arriba
+    // Línea horizontal separadora - Con más espacio después de los datos
     const horizontalLine = document.createElement('div');
-    horizontalLine.style.cssText = 'position: absolute; left: 19px; right: 19px; top: 97px; height: 1px; background: #000;';
+    horizontalLine.style.cssText = 'position: absolute; left: 19px; right: 19px; top: 105px; height: 1px; background: #000;';
     canvas.appendChild(horizontalLine);
 
-    // Tabla de items - Pegada a solo 0.25 cm (9px) de los datos del cliente (88px + 9px = 97px)
-    const itemsTable = createRemissionItemsTable({ left: 19, top: 98 });
+    // Tabla de items - Con más espacio después de los datos del cliente (88px + 17px = 105px)
+    const itemsTable = createRemissionItemsTable({ left: 19, top: 106 });
     canvas.appendChild(itemsTable);
 
     // NOTA: El total ahora está dentro de la tabla como tfoot, así que ya no necesitamos ajustar posición separada
@@ -2900,6 +2900,9 @@
       max-width: 520px;
       background: white;
     `;
+    
+    // Agregar clase para centrado en impresión
+    tableContainer.classList.add('remission-content');
 
     tableContainer.innerHTML = `
       <style>
@@ -4761,9 +4764,58 @@
 
     if (isUpdate && !activate) return;
 
-    // Generar CSS optimizado para nómina si es tipo payroll
+    // Generar CSS optimizado según el tipo de template
     let templateCss = '';
-    if (templateType === 'payroll') {
+    
+    // CSS por defecto para remisiones/invoices con centrado y espaciado mejorado
+    if (templateType === 'invoice' || templateType === 'remission') {
+      templateCss = `
+        /* Estilos base para mejor uso del espacio y centrado */
+        body {
+          margin: 0;
+          padding: 10mm;
+          font-family: Arial, sans-serif;
+          font-size: 12px;
+          line-height: 1.4;
+          color: #000;
+          display: flex;
+          justify-content: center;
+          align-items: flex-start;
+        }
+        
+        /* Contenedor centrado para el contenido de la remisión */
+        .remission-wrapper {
+          max-width: 520px;
+          width: 100%;
+          margin: 0 auto;
+          position: relative;
+        }
+        
+        /* Estilos para impresión con centrado */
+        @page {
+          size: auto;
+          margin: 10mm;
+        }
+        
+        @media print {
+          body {
+            margin: 0 !important;
+            padding: 10mm !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: flex-start !important;
+          }
+          .remission-wrapper {
+            max-width: 520px !important;
+            width: 100% !important;
+            margin: 0 auto !important;
+          }
+          * {
+            box-sizing: border-box !important;
+          }
+        }
+      `;
+    } else if (templateType === 'payroll') {
       templateCss = `
         @page {
           size: 5.5in 8.5in;
