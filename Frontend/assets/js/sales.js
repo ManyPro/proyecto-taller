@@ -598,7 +598,7 @@ function printSaleTicket(sale){
                   .company-data-box table {
                     width: 100% !important;
                     border-collapse: collapse !important;
-                    font-size: 8px !important;
+                    font-size: 9.5px !important;
                   }
                   .client-data-box td,
                   .company-data-box td {
@@ -1034,7 +1034,7 @@ function printWorkOrder(){
                   .company-data-box table {
                     width: 100% !important;
                     border-collapse: collapse !important;
-                    font-size: 8px !important;
+                    font-size: 9.5px !important;
                   }
                   .client-data-box td,
                   .company-data-box td {

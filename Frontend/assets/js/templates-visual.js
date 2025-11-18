@@ -2774,7 +2774,7 @@
     // Título REMISIÓN (arriba izquierda) - Compactado para media carta
     const title = createEditableElement('title', 'REMISIÓN', {
       position: { left: 19, top: 10 },
-      styles: { fontSize: '28px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', letterSpacing: '0.5px' }
+      styles: { fontSize: '33px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', letterSpacing: '0.5px' }
     });
     canvas.appendChild(title);
 
@@ -2783,7 +2783,7 @@
     numberBox.className = 'tpl-element';
     numberBox.id = `element_${visualEditor.nextId++}`;
     numberBox.style.cssText = 'position: absolute; left: 19px; top: 45px; border: 2px solid #000; padding: 4px 8px; display: inline-block;';
-    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 11px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{#if S.nº}}{{S.nº}}{{else}}[Sin nº]{{/if}}</span>';
+    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 13.1px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{#if S.nº}}{{S.nº}}{{else}}[Sin nº]{{/if}}</span>';
     makeDraggable(numberBox);
     makeSelectable(numberBox);
     canvas.appendChild(numberBox);
@@ -2871,8 +2871,8 @@
           }
         }
       </style>
-      <div style="font-size: 10px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 4px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 2px;">DATOS DEL CLIENTE</div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 8px; font-family: Arial, sans-serif;">
+      <div style="font-size: 12px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 4px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 2px;">DATOS DEL CLIENTE</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 9.5px; font-family: Arial, sans-serif;">
         <tr>
           <td style="border: 1px solid #000; padding: 3px; font-weight: bold; width: 30%;">Nombre:</td>
           <td style="border: 1px solid #000; padding: 3px; width: 70%;"><span contenteditable="true">{{sale.customer.name}}</span></td>
@@ -2929,8 +2929,8 @@
           }
         }
       </style>
-      <div style="font-size: 10px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 4px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 2px;">DATOS DE LA EMPRESA</div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 8px; font-family: Arial, sans-serif;">
+      <div style="font-size: 12px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 4px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 2px;">DATOS DE LA EMPRESA</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 9.5px; font-family: Arial, sans-serif;">
         <tr>
           <td style="border: 1px solid #000; padding: 3px; font-weight: bold; width: 30%;">Nombre:</td>
           <td style="border: 1px solid #000; padding: 3px; width: 70%;"><span contenteditable="true">{{company.name}}</span></td>
@@ -3016,7 +3016,7 @@
         .remission-table tfoot td {
           border: 1px solid #000 !important;
           padding: 2px 4px !important;
-          font-size: 9px !important;
+          font-size: 10.8px !important;
           font-weight: bold !important;
         }
         .remission-table th {
@@ -3024,7 +3024,7 @@
           padding: 2px 3px;
           font-weight: bold;
           color: #000;
-          font-size: 9px;
+          font-size: 10.8px;
           background: white;
           word-wrap: break-word;
           overflow-wrap: break-word;
@@ -3033,7 +3033,7 @@
           border: 1px solid #000 !important;
           padding: 1px 3px;
           color: #000;
-          font-size: 8px;
+          font-size: 9.5px;
           word-wrap: break-word;
           overflow-wrap: break-word;
           vertical-align: top;
@@ -3087,7 +3087,7 @@
           .remission-table tfoot td {
             border: 1px solid #000 !important;
             padding: 2px 4px !important;
-            font-size: 9px !important;
+            font-size: 10.8px !important;
             font-weight: bold !important;
           }
           .remission-table tr {
@@ -3098,7 +3098,7 @@
           .remission-table td {
             border: 1px solid #000 !important;
             padding: 1px 2px !important;
-            font-size: 8px !important;
+            font-size: 9.5px !important;
             line-height: 1.1 !important;
           }
           .remission-table th {
@@ -3123,7 +3123,7 @@
         <tbody>
           {{#if sale.itemsGrouped.hasCombos}}
           <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 9px;">COMBOS</td>
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 10.8px;">COMBOS</td>
           </tr>
           {{#each sale.itemsGrouped.combos}}
           <tr>
@@ -3145,7 +3145,7 @@
           
           {{#if sale.itemsGrouped.hasProducts}}
           <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 9px;">PRODUCTOS</td>
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 10.8px;">PRODUCTOS</td>
           </tr>
           {{#each sale.itemsGrouped.products}}
           <tr>
@@ -3159,7 +3159,7 @@
           
           {{#if sale.itemsGrouped.hasServices}}
           <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 9px;">SERVICIOS</td>
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 10.8px;">SERVICIOS</td>
           </tr>
           {{#each sale.itemsGrouped.services}}
           <tr>
