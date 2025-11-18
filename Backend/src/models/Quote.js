@@ -9,7 +9,9 @@ const ItemSchema = new mongoose.Schema({
   // Metadatos de origen para reutilizar en ventas
   source:      { type: String, enum: ['inventory', 'price', 'manual'], default: 'manual' },
   refId:       { type: mongoose.Schema.Types.ObjectId }, // Item o PriceEntry según source
-  sku:         { type: String, trim: true }
+  sku:         { type: String, trim: true },
+  // Campo para identificar items anidados de combos
+  comboParent: { type: mongoose.Schema.Types.ObjectId } // refId del combo principal si este item es parte de un combo
 }, { _id: false });
 
 const QuoteSchema = new mongoose.Schema({

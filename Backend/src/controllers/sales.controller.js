@@ -305,11 +305,17 @@ export const addItem = async (req, res) => {
             });
           } else if (cp.itemId) {
             // Producto vinculado: agregar como inventory para que se descuente
+            // CRÍTICO: Usar SKU que empiece con "CP-" para que se identifique como parte del combo
             const comboItem = cp.itemId;
+            const itemSku = comboItem.sku || '';
+            // Asegurar que el SKU empiece con "CP-" para identificación correcta
+            const comboItemSku = itemSku && !itemSku.toUpperCase().startsWith('CP-') 
+              ? `CP-${itemSku}` 
+              : (itemSku || `CP-${String(comboItem._id).slice(-6)}`);
             sale.items.push({
               source: 'inventory',
               refId: comboItem._id,
-              sku: comboItem.sku || `CP-${String(cp._id || '').slice(-6)}`,
+              sku: comboItemSku,
               name: cp.name || 'Producto del combo',
               qty: comboQty,
               unitPrice: cp.unitPrice || 0,
@@ -534,11 +540,17 @@ export const addItemsBatch = async (req, res) => {
                 // Esto asegura que los productos del combo se agreguen incluso si no vienen en la cotización
                 if (!productAlreadyInBatch) {
                   // Producto vinculado: agregar como inventory para que se descuente
+                  // CRÍTICO: Usar SKU que empiece con "CP-" para que se identifique como parte del combo
                   const comboItem = cp.itemId;
+                  const itemSku = comboItem.sku || '';
+                  // Asegurar que el SKU empiece con "CP-" para identificación correcta
+                  const comboItemSku = itemSku && !itemSku.toUpperCase().startsWith('CP-') 
+                    ? `CP-${itemSku}` 
+                    : (itemSku || `CP-${String(comboItem._id).slice(-6)}`);
                   added.push({
                     source: 'inventory',
                     refId: comboItem._id,
-                    sku: comboItem.sku || `CP-${String(cp._id || '').slice(-6)}`,
+                    sku: comboItemSku,
                     name: cp.name || 'Producto del combo',
                     qty: comboQty,
                     unitPrice: cp.unitPrice || 0,

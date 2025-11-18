@@ -111,7 +111,9 @@ async function computeItems(itemsInput = [], companyId = null) {
       subtotal,
       source,
       refId,
-      sku
+      sku,
+      // Guardar comboParent si existe para identificar items anidados de combos
+      comboParent: it.comboParent || it.combo_parent || undefined
     });
     total += subtotal;
   }
