@@ -1460,8 +1460,9 @@ export const completeOpenSlot = async (req, res) => {
   slot.completed = true;
   slot.completedItemId = item._id;
   
-  // Actualizar el precio estimado con el precio real del item
-  const realPrice = item.salePrice || slot.estimatedPrice || 0;
+  // IMPORTANTE: Usar el precio del slot (estimatedPrice) en lugar del precio del item
+  // El slot abierto tiene un precio estimado que debe respetarse
+  const realPrice = slot.estimatedPrice || item.salePrice || 0;
   
   // IMPORTANTE: Agregar el item inmediatamente a sale.items para que aparezca en la venta
   // Buscar el combo principal en los items para agregar el producto después de él
