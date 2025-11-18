@@ -2840,10 +2840,37 @@
     // Sección DATOS DEL CLIENTE (izquierda) - Cuadro organizado en 2x2
     // 1cm de espacio desde el número (45px + 38px = 83px)
     const clientBox = document.createElement('div');
-    clientBox.className = 'tpl-element';
+    clientBox.className = 'tpl-element client-data-box';
     clientBox.id = `element_${visualEditor.nextId++}`;
-    clientBox.style.cssText = 'position: absolute; left: 19px; top: 83px; width: 240px; border: 2px solid #000; padding: 6px; background: white;';
+    clientBox.style.cssText = 'position: absolute; left: 19px; top: 83px; width: 240px; border: 2px solid #000; padding: 6px; background: white; z-index: 10;';
     clientBox.innerHTML = `
+      <style>
+        .client-data-box {
+          position: absolute !important;
+          left: 19px !important;
+          top: 83px !important;
+          width: 240px !important;
+          border: 2px solid #000 !important;
+          padding: 6px !important;
+          background: white !important;
+          z-index: 10 !important;
+          page-break-inside: avoid !important;
+        }
+        @media print {
+          .client-data-box {
+            position: absolute !important;
+            left: 19px !important;
+            top: 83px !important;
+            width: 240px !important;
+            border: 2px solid #000 !important;
+            padding: 6px !important;
+            background: white !important;
+            z-index: 10 !important;
+            page-break-inside: avoid !important;
+            overflow: visible !important;
+          }
+        }
+      </style>
       <div style="font-size: 10px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 4px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 2px;">DATOS DEL CLIENTE</div>
       <table style="width: 100%; border-collapse: collapse; font-size: 8px; font-family: Arial, sans-serif;">
         <tr>
@@ -2871,10 +2898,37 @@
 
     // Sección DATOS DE LA EMPRESA (derecha) - Cuadro organizado en 2x2
     const companyBox = document.createElement('div');
-    companyBox.className = 'tpl-element';
+    companyBox.className = 'tpl-element company-data-box';
     companyBox.id = `element_${visualEditor.nextId++}`;
-    companyBox.style.cssText = 'position: absolute; right: 19px; top: 83px; width: 240px; border: 2px solid #000; padding: 6px; background: white;';
+    companyBox.style.cssText = 'position: absolute; right: 19px; top: 83px; width: 240px; border: 2px solid #000; padding: 6px; background: white; z-index: 10;';
     companyBox.innerHTML = `
+      <style>
+        .company-data-box {
+          position: absolute !important;
+          right: 19px !important;
+          top: 83px !important;
+          width: 240px !important;
+          border: 2px solid #000 !important;
+          padding: 6px !important;
+          background: white !important;
+          z-index: 10 !important;
+          page-break-inside: avoid !important;
+        }
+        @media print {
+          .company-data-box {
+            position: absolute !important;
+            right: 19px !important;
+            top: 83px !important;
+            width: 240px !important;
+            border: 2px solid #000 !important;
+            padding: 6px !important;
+            background: white !important;
+            z-index: 10 !important;
+            page-break-inside: avoid !important;
+            overflow: visible !important;
+          }
+        }
+      </style>
       <div style="font-size: 10px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 4px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 2px;">DATOS DE LA EMPRESA</div>
       <table style="width: 100%; border-collapse: collapse; font-size: 8px; font-family: Arial, sans-serif;">
         <tr>

@@ -570,6 +570,41 @@ function printSaleTicket(sale){
                   table.remission-table tr {
                     page-break-inside: avoid !important;
                   }
+                  
+                  /* Estilos para cuadros de datos del cliente y empresa */
+                  .client-data-box,
+                  .company-data-box {
+                    position: absolute !important;
+                    border: 2px solid #000 !important;
+                    padding: 6px !important;
+                    background: white !important;
+                    z-index: 10 !important;
+                    page-break-inside: avoid !important;
+                    overflow: visible !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                  }
+                  .client-data-box {
+                    left: 19px !important;
+                    top: 83px !important;
+                    width: 240px !important;
+                  }
+                  .company-data-box {
+                    right: 19px !important;
+                    top: 83px !important;
+                    width: 240px !important;
+                  }
+                  .client-data-box table,
+                  .company-data-box table {
+                    width: 100% !important;
+                    border-collapse: collapse !important;
+                    font-size: 8px !important;
+                  }
+                  .client-data-box td,
+                  .company-data-box td {
+                    border: 1px solid #000 !important;
+                    padding: 3px !important;
+                  }
                 }
               </style>
             </head><body><div class="remission-wrapper">${r.rendered}</div></body></html>`);
@@ -636,6 +671,41 @@ function printSaleTicket(sale){
                       max-width: 520px !important;
                       width: 100% !important;
                       margin: 0 auto !important;
+                      position: relative !important;
+                    }
+                    /* Estilos para cuadros de datos del cliente y empresa */
+                    .client-data-box,
+                    .company-data-box {
+                      position: absolute !important;
+                      border: 2px solid #000 !important;
+                      padding: 6px !important;
+                      background: white !important;
+                      z-index: 10 !important;
+                      page-break-inside: avoid !important;
+                      overflow: visible !important;
+                      visibility: visible !important;
+                      opacity: 1 !important;
+                    }
+                    .client-data-box {
+                      left: 19px !important;
+                      top: 83px !important;
+                      width: 240px !important;
+                    }
+                    .company-data-box {
+                      right: 19px !important;
+                      top: 83px !important;
+                      width: 240px !important;
+                    }
+                    .client-data-box table,
+                    .company-data-box table {
+                      width: 100% !important;
+                      border-collapse: collapse !important;
+                      font-size: 8px !important;
+                    }
+                    .client-data-box td,
+                    .company-data-box td {
+                      border: 1px solid #000 !important;
+                      padding: 3px !important;
                     }
                     * {
                       box-sizing: border-box !important;
@@ -669,6 +739,41 @@ function printSaleTicket(sale){
                       max-width: 520px !important;
                       width: 100% !important;
                       margin: 0 auto !important;
+                      position: relative !important;
+                    }
+                    /* Estilos para cuadros de datos del cliente y empresa */
+                    .client-data-box,
+                    .company-data-box {
+                      position: absolute !important;
+                      border: 2px solid #000 !important;
+                      padding: 6px !important;
+                      background: white !important;
+                      z-index: 10 !important;
+                      page-break-inside: avoid !important;
+                      overflow: visible !important;
+                      visibility: visible !important;
+                      opacity: 1 !important;
+                    }
+                    .client-data-box {
+                      left: 19px !important;
+                      top: 83px !important;
+                      width: 240px !important;
+                    }
+                    .company-data-box {
+                      right: 19px !important;
+                      top: 83px !important;
+                      width: 240px !important;
+                    }
+                    .client-data-box table,
+                    .company-data-box table {
+                      width: 100% !important;
+                      border-collapse: collapse !important;
+                      font-size: 8px !important;
+                    }
+                    .client-data-box td,
+                    .company-data-box td {
+                      border: 1px solid #000 !important;
+                      padding: 3px !important;
                     }
                     * {
                       box-sizing: border-box !important;
@@ -900,6 +1005,41 @@ function printWorkOrder(){
                   table.workorder-table tr,
                   table.remission-table tr {
                     page-break-inside: avoid !important;
+                  }
+                  
+                  /* Estilos para cuadros de datos del cliente y empresa */
+                  .client-data-box,
+                  .company-data-box {
+                    position: absolute !important;
+                    border: 2px solid #000 !important;
+                    padding: 6px !important;
+                    background: white !important;
+                    z-index: 10 !important;
+                    page-break-inside: avoid !important;
+                    overflow: visible !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                  }
+                  .client-data-box {
+                    left: 19px !important;
+                    top: 83px !important;
+                    width: 240px !important;
+                  }
+                  .company-data-box {
+                    right: 19px !important;
+                    top: 83px !important;
+                    width: 240px !important;
+                  }
+                  .client-data-box table,
+                  .company-data-box table {
+                    width: 100% !important;
+                    border-collapse: collapse !important;
+                    font-size: 8px !important;
+                  }
+                  .client-data-box td,
+                  .company-data-box td {
+                    border: 1px solid #000 !important;
+                    padding: 3px !important;
                   }
                 }
               </style>
