@@ -845,23 +845,46 @@ export const closeSale = async (req, res) => {
         const actualStockFromEntries = stockEntriesForCheck.reduce((sum, entry) => sum + (entry.qty || 0), 0);
         const itemStock = target.stock ?? 0;
         
-        // Usar el stock calculado desde entradas si hay entradas, sino usar el stock del item
-        // Si ambos están disponibles pero difieren, preferir el de las entradas (más preciso)
+        // Log detallado para debugging
+        console.log(`[closeSale] Verificando stock para ${target.sku || target.name}:`);
+        console.log(`  - Item.stock: ${itemStock}`);
+        console.log(`  - StockEntries encontrados: ${stockEntriesForCheck.length}`);
+        console.log(`  - Stock desde entradas: ${actualStockFromEntries}`);
+        console.log(`  - companyId usado: ${req.companyId}`);
+        if (hasSharedDb) {
+          console.log(`  - originalCompanyId: ${req.originalCompanyId}`);
+          console.log(`  - effectiveCompanyId: ${req.companyId}`);
+          console.log(`  - Filter usado: ${JSON.stringify(stockCompanyFilter)}`);
+        }
+        
+        // Si hay StockEntries, usar su suma (más preciso)
+        // Si NO hay StockEntries pero el Item tiene stock, usar el stock del Item
+        // Esto maneja el caso donde el stock fue agregado sin VehicleIntake (stock inicial, ajustes manuales, etc.)
         const stockToUse = stockEntriesForCheck.length > 0 
           ? actualStockFromEntries 
           : itemStock;
         
         // Log para debugging si hay discrepancia
         if (stockEntriesForCheck.length > 0 && actualStockFromEntries !== itemStock) {
-          console.warn(`[closeSale] Stock desincronizado para ${target.sku || target.name}: Item.stock=${itemStock}, StockEntries=${actualStockFromEntries}. Usando StockEntries.`);
+          console.warn(`[closeSale] ⚠️ Stock desincronizado para ${target.sku || target.name}: Item.stock=${itemStock}, StockEntries=${actualStockFromEntries}. Usando StockEntries.`);
         }
         
-        // Log adicional para debugging de base de datos compartida
-        if (hasSharedDb) {
-          console.log(`[closeSale] Base de datos compartida detectada: originalCompanyId=${req.originalCompanyId}, effectiveCompanyId=${req.companyId}, StockEntries encontrados: ${stockEntriesForCheck.length}`);
+        // Si no hay StockEntries pero el Item tiene stock, es válido usar el stock del Item
+        if (stockEntriesForCheck.length === 0 && itemStock > 0) {
+          console.log(`[closeSale] ℹ️ No hay StockEntries para ${target.sku || target.name}, pero Item.stock=${itemStock}. Usando stock del Item.`);
         }
         
         if (stockToUse < q) {
+          // Log detallado del error
+          console.error(`[closeSale] ❌ Stock insuficiente para ${target.sku || target.name}:`);
+          console.error(`  - Requerido: ${q}`);
+          console.error(`  - Disponible (StockEntries): ${actualStockFromEntries}`);
+          console.error(`  - Disponible (Item.stock): ${itemStock}`);
+          console.error(`  - Stock usado: ${stockToUse}`);
+          console.error(`  - companyId: ${req.companyId}`);
+          if (hasSharedDb) {
+            console.error(`  - originalCompanyId: ${req.originalCompanyId}`);
+          }
           throw new Error(`Stock insuficiente para ${target.sku || target.name}. Disponible: ${stockToUse}, Requerido: ${q}`);
         }
 
@@ -877,28 +900,51 @@ export const closeSale = async (req, res) => {
         .session(session);
 
         const stockEntriesUsed = [];
-        for (const entry of stockEntries) {
-          if (remainingQty <= 0) break;
-          
-          const qtyToDeduct = Math.min(remainingQty, entry.qty);
-          entry.qty -= qtyToDeduct;
-          remainingQty -= qtyToDeduct;
-          
-          stockEntriesUsed.push({
-            entryId: entry._id,
-            qty: qtyToDeduct,
-            vehicleIntakeId: entry.vehicleIntakeId
-          });
-          
-          if (entry.qty <= 0) {
-            await StockEntry.deleteOne({ _id: entry._id }).session(session);
-          } else {
-            await entry.save({ session });
+        
+        // Si hay StockEntries, descontar usando FIFO
+        if (stockEntries.length > 0) {
+          for (const entry of stockEntries) {
+            if (remainingQty <= 0) break;
+            
+            const qtyToDeduct = Math.min(remainingQty, entry.qty);
+            entry.qty -= qtyToDeduct;
+            remainingQty -= qtyToDeduct;
+            
+            stockEntriesUsed.push({
+              entryId: entry._id,
+              qty: qtyToDeduct,
+              vehicleIntakeId: entry.vehicleIntakeId
+            });
+            
+            if (entry.qty <= 0) {
+              await StockEntry.deleteOne({ _id: entry._id }).session(session);
+            } else {
+              await entry.save({ session });
+            }
           }
         }
-
+        
+        // Si aún queda cantidad por descontar y no hay StockEntries pero el Item tiene stock,
+        // significa que el stock fue agregado sin VehicleIntake (stock inicial, ajustes manuales, etc.)
+        // En este caso, solo descontamos del Item.stock sin crear StockEntry
         if (remainingQty > 0) {
-          throw new Error(`Insufficient stock in entries for ${target.sku || target.name}. Needed: ${q}, Available: ${q - remainingQty}`);
+          if (stockEntries.length === 0 && itemStock >= remainingQty) {
+            // No hay StockEntries pero el Item tiene stock suficiente
+            // Solo descontamos del Item.stock (ya se hará abajo con el updateOne)
+            console.log(`[closeSale] ℹ️ Descontando ${remainingQty} unidades de ${target.sku || target.name} sin StockEntry (stock inicial/ajuste manual)`);
+            remainingQty = 0; // Marcamos como completado ya que el Item tiene stock
+          } else {
+            // No hay suficiente stock disponible
+            const availableFromEntries = stockEntries.reduce((sum, e) => sum + (e.qty || 0), 0);
+            const totalAvailable = availableFromEntries + (stockEntries.length === 0 ? itemStock : 0);
+            console.error(`[closeSale] ❌ Stock insuficiente en entradas para ${target.sku || target.name}:`);
+            console.error(`  - Necesario: ${q}`);
+            console.error(`  - Disponible en StockEntries: ${availableFromEntries}`);
+            console.error(`  - Disponible en Item.stock (sin entradas): ${stockEntries.length === 0 ? itemStock : 0}`);
+            console.error(`  - Total disponible: ${totalAvailable}`);
+            console.error(`  - Ya descontado: ${q - remainingQty}`);
+            throw new Error(`Insufficient stock in entries for ${target.sku || target.name}. Needed: ${q}, Available: ${q - remainingQty}`);
+          }
         }
         
         // Guardar información de las entradas usadas en el meta del item para trazabilidad
