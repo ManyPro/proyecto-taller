@@ -2837,41 +2837,75 @@
     canvas.appendChild(logoBox);
     visualEditor.elements.push({ id: logoBox.id, type: 'image', element: logoBox });
 
-    // Sección DATOS DEL CLIENTE (izquierda) - Muy compactado y agrupado
-    const clientTitle = createEditableElement('text', 'DATOS DEL CLIENTE', {
-      position: { left: 19, top: 75 },
-      styles: { fontSize: '10px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
-    });
-    canvas.appendChild(clientTitle);
+    // Sección DATOS DEL CLIENTE (izquierda) - Cuadro organizado en 2x2
+    // 1cm de espacio desde el número (45px + 38px = 83px)
+    const clientBox = document.createElement('div');
+    clientBox.className = 'tpl-element';
+    clientBox.id = `element_${visualEditor.nextId++}`;
+    clientBox.style.cssText = 'position: absolute; left: 19px; top: 83px; width: 240px; border: 2px solid #000; padding: 6px; background: white;';
+    clientBox.innerHTML = `
+      <div style="font-size: 10px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 4px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 2px;">DATOS DEL CLIENTE</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 8px; font-family: Arial, sans-serif;">
+        <tr>
+          <td style="border: 1px solid #000; padding: 3px; font-weight: bold; width: 30%;">Nombre:</td>
+          <td style="border: 1px solid #000; padding: 3px; width: 70%;"><span contenteditable="true">{{sale.customer.name}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 3px; font-weight: bold;">Email:</td>
+          <td style="border: 1px solid #000; padding: 3px;"><span contenteditable="true">{{sale.customer.email}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 3px; font-weight: bold;">Teléfono:</td>
+          <td style="border: 1px solid #000; padding: 3px;"><span contenteditable="true">{{sale.customer.phone}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 3px; font-weight: bold;">Dirección:</td>
+          <td style="border: 1px solid #000; padding: 3px;"><span contenteditable="true">{{sale.customer.address}}</span></td>
+        </tr>
+      </table>
+    `;
+    makeDraggable(clientBox);
+    makeSelectable(clientBox);
+    canvas.appendChild(clientBox);
+    visualEditor.elements.push({ id: clientBox.id, type: 'text', element: clientBox });
 
-    // Datos del cliente en formato compacto: Nombre | Email | Tel | Dirección
-    const clientData = createEditableElement('text', '{{sale.customer.name}} | {{sale.customer.email}} | {{sale.customer.phone}} | {{sale.customer.address}}', {
-      position: { left: 19, top: 88 },
-      styles: { fontSize: '8px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.2', maxWidth: '280px' }
-    });
-    canvas.appendChild(clientData);
+    // Sección DATOS DE LA EMPRESA (derecha) - Cuadro organizado en 2x2
+    const companyBox = document.createElement('div');
+    companyBox.className = 'tpl-element';
+    companyBox.id = `element_${visualEditor.nextId++}`;
+    companyBox.style.cssText = 'position: absolute; right: 19px; top: 83px; width: 240px; border: 2px solid #000; padding: 6px; background: white;';
+    companyBox.innerHTML = `
+      <div style="font-size: 10px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 4px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 2px;">DATOS DE LA EMPRESA</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 8px; font-family: Arial, sans-serif;">
+        <tr>
+          <td style="border: 1px solid #000; padding: 3px; font-weight: bold; width: 30%;">Nombre:</td>
+          <td style="border: 1px solid #000; padding: 3px; width: 70%;"><span contenteditable="true">{{company.name}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 3px; font-weight: bold;">Email:</td>
+          <td style="border: 1px solid #000; padding: 3px;"><span contenteditable="true">{{company.email}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 3px; font-weight: bold;">Teléfono:</td>
+          <td style="border: 1px solid #000; padding: 3px;"><span contenteditable="true">{{company.phone}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 3px; font-weight: bold;">Dirección:</td>
+          <td style="border: 1px solid #000; padding: 3px;"><span contenteditable="true">{{company.address}}</span></td>
+        </tr>
+      </table>
+    `;
+    makeDraggable(companyBox);
+    makeSelectable(companyBox);
+    canvas.appendChild(companyBox);
+    visualEditor.elements.push({ id: companyBox.id, type: 'text', element: companyBox });
 
-    // Sección DATOS DE LA EMPRESA (derecha) - Muy compactado y agrupado
-    const companyTitle = createEditableElement('text', 'DATOS DE LA EMPRESA', {
-      position: { left: 310, top: 75 },
-      styles: { fontSize: '10px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
-    });
-    canvas.appendChild(companyTitle);
-
-    // Datos de la empresa en formato compacto: Nombre | Email | Tel | Dirección
-    const companyData = createEditableElement('text', '{{company.name}} | {{company.email}} | [Editar teléfono] | [Editar dirección]', {
-      position: { left: 310, top: 88 },
-      styles: { fontSize: '8px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.2', maxWidth: '280px' }
-    });
-    canvas.appendChild(companyData);
-
-    // Línea horizontal separadora - Con más espacio después de los datos
-    const horizontalLine = document.createElement('div');
-    horizontalLine.style.cssText = 'position: absolute; left: 19px; right: 19px; top: 105px; height: 1px; background: #000;';
-    canvas.appendChild(horizontalLine);
-
-    // Tabla de items - Con más espacio después de los datos del cliente (88px + 17px = 105px)
-    const itemsTable = createRemissionItemsTable({ left: 19, top: 106 });
+    // Calcular la posición de la tabla: después de los cuadros de datos + 0.5cm de separación
+    // Los cuadros empiezan en top: 83px
+    // Altura aproximada del cuadro: título (~15px) + tabla 4 filas (~80px) + padding (12px) = ~107px
+    // 0.5cm = aproximadamente 19px
+    // Posición tabla: 83px + 107px + 19px = 209px
+    const itemsTable = createRemissionItemsTable({ left: 19, top: 209 });
     canvas.appendChild(itemsTable);
 
     // NOTA: El total ahora está dentro de la tabla como tfoot, así que ya no necesitamos ajustar posición separada
