@@ -3109,6 +3109,28 @@
           </tr>
         </thead>
         <tbody>
+          {{#if sale.itemsGrouped.hasCombos}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 4px 6px; font-size: 10px;">COMBOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.combos}}
+          <tr>
+            <td><strong>{{name}}</strong></td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{#each items}}
+          <tr>
+            <td style="padding-left: 30px;">• {{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{#if unitPrice}}{{money unitPrice}}{{/if}}</td>
+            <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>
+          </tr>
+          {{/each}}
+          {{/each}}
+          {{/if}}
+          
           {{#if sale.itemsGrouped.hasProducts}}
           <tr class="section-header">
             <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 4px 6px; font-size: 10px;">PRODUCTOS</td>
@@ -3134,28 +3156,6 @@
             <td class="t-right">{{money unitPrice}}</td>
             <td class="t-right">{{money total}}</td>
           </tr>
-          {{/each}}
-          {{/if}}
-          
-          {{#if sale.itemsGrouped.hasCombos}}
-          <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 4px 6px; font-size: 10px;">COMBOS</td>
-          </tr>
-          {{#each sale.itemsGrouped.combos}}
-          <tr>
-            <td><strong>{{name}}</strong></td>
-            <td class="t-center">{{qty}}</td>
-            <td class="t-right">{{money unitPrice}}</td>
-            <td class="t-right">{{money total}}</td>
-          </tr>
-          {{#each items}}
-          <tr>
-            <td style="padding-left: 30px;">• {{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
-            <td class="t-center">{{qty}}</td>
-            <td class="t-right">{{#if unitPrice}}{{money unitPrice}}{{/if}}</td>
-            <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>
-          </tr>
-          {{/each}}
           {{/each}}
           {{/if}}
           
