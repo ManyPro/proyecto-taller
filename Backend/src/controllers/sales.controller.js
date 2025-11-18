@@ -806,17 +806,21 @@ export const closeSale = async (req, res) => {
         if (q <= 0) continue;
         let target = null;
         // CRÍTICO: Si hay base de datos compartida, buscar el Item en ambos companyId
-        const itemCompanyIds = [req.companyId];
-        if (req.originalCompanyId && String(req.originalCompanyId) !== String(req.companyId)) {
-          itemCompanyIds.push(req.originalCompanyId);
-        }
+        // Solo usar $in si hay múltiples IDs, sino usar el companyId directamente para mejor rendimiento
+        const itemCompanyId = req.companyId;
+        const hasSharedDb = req.originalCompanyId && 
+                           String(req.originalCompanyId) !== String(req.companyId) && 
+                           req.companyId;
+        const itemCompanyFilter = hasSharedDb 
+          ? { $in: [req.companyId, req.originalCompanyId].filter(Boolean) } 
+          : itemCompanyId;
         
         // Fallback: si no hay refId válido intentar por SKU
         if (it.refId) {
-          target = await Item.findOne({ _id: it.refId, companyId: { $in: itemCompanyIds } }).session(session);
+          target = await Item.findOne({ _id: it.refId, companyId: itemCompanyFilter }).session(session);
         }
         if (!target && it.sku) {
-          target = await Item.findOne({ sku: String(it.sku).trim().toUpperCase(), companyId: { $in: itemCompanyIds } }).session(session);
+          target = await Item.findOne({ sku: String(it.sku).trim().toUpperCase(), companyId: itemCompanyFilter }).session(session);
           // Si lo encontramos por sku y no había refId, opcionalmente lo guardamos para trazabilidad
           if (target && !it.refId) {
             it.refId = target._id; // queda persistido al save posterior
@@ -828,13 +832,12 @@ export const closeSale = async (req, res) => {
         // El campo stock del Item podría estar desactualizado, así que lo calculamos desde las entradas
         // CRÍTICO: Si hay base de datos compartida, los StockEntry pueden estar con el companyId original o efectivo
         // Buscar en ambos companyId para asegurar que encontramos todas las entradas
-        const companyIdsToSearch = [req.companyId];
-        if (req.originalCompanyId && String(req.originalCompanyId) !== String(req.companyId)) {
-          companyIdsToSearch.push(req.originalCompanyId);
-        }
+        const stockCompanyFilter = hasSharedDb 
+          ? { $in: [req.companyId, req.originalCompanyId].filter(Boolean) } 
+          : itemCompanyId;
         
         const stockEntriesForCheck = await StockEntry.find({
-          companyId: { $in: companyIdsToSearch },
+          companyId: stockCompanyFilter,
           itemId: target._id,
           qty: { $gt: 0 }
         }).session(session);
@@ -854,7 +857,7 @@ export const closeSale = async (req, res) => {
         }
         
         // Log adicional para debugging de base de datos compartida
-        if (req.originalCompanyId && String(req.originalCompanyId) !== String(req.companyId)) {
+        if (hasSharedDb) {
           console.log(`[closeSale] Base de datos compartida detectada: originalCompanyId=${req.originalCompanyId}, effectiveCompanyId=${req.companyId}, StockEntries encontrados: ${stockEntriesForCheck.length}`);
         }
         
@@ -866,7 +869,7 @@ export const closeSale = async (req, res) => {
         // CRÍTICO: Buscar en ambos companyId si hay base de datos compartida
         let remainingQty = q;
         const stockEntries = await StockEntry.find({
-          companyId: { $in: companyIdsToSearch },
+          companyId: stockCompanyFilter,
           itemId: target._id,
           qty: { $gt: 0 }
         })
@@ -918,19 +921,14 @@ export const closeSale = async (req, res) => {
 
         // Actualizar stock total del item
         // CRÍTICO: Buscar el Item usando el mismo criterio de companyId (puede ser original o efectivo)
-        const itemCompanyIds = [req.companyId];
-        if (req.originalCompanyId && String(req.originalCompanyId) !== String(req.companyId)) {
-          itemCompanyIds.push(req.originalCompanyId);
-        }
-        
         const upd = await Item.updateOne(
-          { _id: target._id, companyId: { $in: itemCompanyIds }, stock: { $gte: q } },
+          { _id: target._id, companyId: itemCompanyFilter, stock: { $gte: q } },
           { $inc: { stock: -q } }
         ).session(session);
         if (upd.matchedCount === 0) throw new Error(`Stock update failed for ${target.sku || target.name}`);
 
         // Si quedó en 0, despublicar automáticamente para ocultarlo del catálogo
-        const fresh = await Item.findOne({ _id: target._id, companyId: { $in: itemCompanyIds } }).session(session);
+        const fresh = await Item.findOne({ _id: target._id, companyId: itemCompanyFilter }).session(session);
         if ((fresh?.stock || 0) <= 0 && fresh?.published) {
           fresh.published = false;
           await fresh.save({ session });
