@@ -148,19 +148,86 @@ async function getNextSaleNumber(companyId) {
   return c.saleSeq;
 }
 
+// Función auxiliar para obtener el companyId correcto para CREAR ventas
+// Las ventas SIEMPRE se crean con el originalCompanyId (empresa logueada),
+// independientemente de si hay base de datos compartida
+function getSaleCreationCompanyId(req) {
+  // Siempre usar originalCompanyId para crear ventas
+  // Esto asegura que la venta pertenece a la empresa que la crea
+  return req.originalCompanyId || req.companyId || req.company?.id;
+}
+
+// Función auxiliar para obtener el filtro de companyId para BUSCAR ventas
+// Cuando hay base de datos compartida, busca en ambos companyId,
+// pero valida que la venta pertenezca al originalCompanyId del usuario
+function getSaleQueryCompanyFilter(req) {
+  const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
+  const effectiveCompanyId = req.companyId;
+  
+  // Si hay base de datos compartida (originalCompanyId !== effectiveCompanyId),
+  // buscar en ambos, pero priorizar originalCompanyId
+  if (originalCompanyId && effectiveCompanyId && String(originalCompanyId) !== String(effectiveCompanyId)) {
+    return { $in: [originalCompanyId, effectiveCompanyId].filter(Boolean) };
+  }
+  
+  // Si no hay base de datos compartida, usar el companyId normal
+  return originalCompanyId || effectiveCompanyId;
+}
+
+// Función auxiliar para validar que una venta pertenece al originalCompanyId del usuario
+// Esto es importante para seguridad: aunque busquemos en ambos companyId,
+// solo permitimos operaciones en ventas que pertenecen al originalCompanyId
+function validateSaleOwnership(sale, req) {
+  if (!sale) return false;
+  const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
+  const saleCompanyId = String(sale.companyId || '');
+  const userCompanyId = String(originalCompanyId || '');
+  
+  // La venta debe pertenecer al originalCompanyId del usuario
+  return saleCompanyId === userCompanyId;
+}
+
 // ===== CRUD base =====
 export const startSale = async (req, res) => {
+  // CRÍTICO: Las ventas SIEMPRE se crean con el originalCompanyId (empresa logueada),
+  // no con el effectiveCompanyId (empresa compartida). Esto asegura que la venta
+  // pertenece a la empresa que la crea, aunque comparta la base de datos con otra.
+  const creationCompanyId = getSaleCreationCompanyId(req);
+  
+  if (!creationCompanyId) {
+    return res.status(400).json({ error: 'Company ID missing' });
+  }
+  
   // Usa 'draft' para respetar el enum del modelo
   // Asignar número de remisión al crear la venta (no al cerrarla)
-  const saleNumber = await getNextSaleNumber(req.companyId);
-  const sale = await Sale.create({ companyId: req.companyId, status: 'draft', items: [], number: saleNumber });
-  try{ publish(req.companyId, 'sale:started', { id: (sale?._id)||undefined }) }catch{}
+  const saleNumber = await getNextSaleNumber(creationCompanyId);
+  const sale = await Sale.create({ companyId: creationCompanyId, status: 'draft', items: [], number: saleNumber });
+  
+  console.log('[startSale] Venta creada:', {
+    saleId: sale._id?.toString(),
+    companyId: sale.companyId?.toString(),
+    originalCompanyId: req.originalCompanyId?.toString(),
+    effectiveCompanyId: req.companyId?.toString(),
+    saleNumber: sale.number
+  });
+  
+  try{ publish(creationCompanyId, 'sale:started', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
 
 export const getSale = async (req, res) => {
-  const sale = await Sale.findOne({ _id: req.params.id, companyId: req.companyId });
-  if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  // Buscar venta considerando base de datos compartida
+  const companyFilter = getSaleQueryCompanyFilter(req);
+  const sale = await Sale.findOne({ _id: req.params.id, companyId: companyFilter });
+  
+  if (!sale) {
+    return res.status(404).json({ error: 'Sale not found' });
+  }
+  
+  // Validar que la venta pertenece al originalCompanyId del usuario
+  if (!validateSaleOwnership(sale, req)) {
+    return res.status(403).json({ error: 'Sale belongs to different company' });
+  }
   
   const saleObj = sale.toObject();
   
@@ -230,16 +297,20 @@ export const addItem = async (req, res) => {
   const { source, refId, sku, qty = 1, unitPrice } = req.body || {};
 
   // Log para debugging (siempre, no solo en desarrollo)
+  const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
+  const effectiveCompanyId = req.companyId;
+  
   console.log('[addItem] Buscando venta:', { 
     saleId: id, 
-    companyId: req.companyId,
+    originalCompanyId: originalCompanyId?.toString(),
+    effectiveCompanyId: effectiveCompanyId?.toString(),
     companyIdType: typeof req.companyId,
     companyIdFromReq: req.company?.id,
     userId: req.userId
   });
 
   // Validar que tenemos companyId
-  if (!req.companyId) {
+  if (!originalCompanyId) {
     console.error('[addItem] No hay companyId en request:', { 
       saleId: id,
       hasCompany: !!req.company,
@@ -248,27 +319,33 @@ export const addItem = async (req, res) => {
     return res.status(400).json({ error: 'Company ID missing' });
   }
 
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+  // Buscar venta considerando base de datos compartida
+  const companyFilter = getSaleQueryCompanyFilter(req);
+  const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
   
   if (!sale) {
-    // Verificar si la venta existe pero con otro companyId
-    const saleAnyCompany = await Sale.findOne({ _id: id });
-    if (saleAnyCompany) {
-      console.error('[addItem] Venta encontrada pero companyId no coincide:', {
-        saleId: id,
-        expectedCompanyId: req.companyId,
-        actualCompanyId: saleAnyCompany.companyId?.toString(),
-        saleStatus: saleAnyCompany.status,
-        saleNumber: saleAnyCompany.number
-      });
-      return res.status(403).json({ error: 'Sale belongs to different company' });
-    }
-    console.error('[addItem] Venta no encontrada en ninguna empresa:', { 
+    console.error('[addItem] Venta no encontrada:', { 
       saleId: id, 
-      companyId: req.companyId,
+      originalCompanyId: originalCompanyId?.toString(),
+      effectiveCompanyId: effectiveCompanyId?.toString(),
+      companyFilter: companyFilter,
       isValidObjectId: /^[0-9a-fA-F]{24}$/.test(id)
     });
     return res.status(404).json({ error: 'Sale not found' });
+  }
+  
+  // CRÍTICO: Validar que la venta pertenece al originalCompanyId del usuario
+  // Aunque busquemos en ambos companyId, solo permitimos operaciones en ventas
+  // que pertenecen al originalCompanyId (empresa logueada)
+  if (!validateSaleOwnership(sale, req)) {
+    console.error('[addItem] Venta encontrada pero companyId no coincide:', {
+      saleId: id,
+      expectedCompanyId: originalCompanyId?.toString(),
+      actualCompanyId: sale.companyId?.toString(),
+      saleStatus: sale.status,
+      saleNumber: sale.number
+    });
+    return res.status(403).json({ error: 'Sale belongs to different company' });
   }
   
   if (sale.status !== 'draft') {
@@ -462,8 +539,10 @@ export const addItemsBatch = async (req, res) => {
   const list = Array.isArray(req.body?.items) ? req.body.items : [];
   if (!list.length) return res.status(400).json({ error: 'items vacio' });
 
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+  const companyFilter = getSaleQueryCompanyFilter(req);
+  const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!validateSaleOwnership(sale, req)) return res.status(403).json({ error: 'Sale belongs to different company' });
   if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
 
   // Pre-procesar para identificar combos en el batch y sus productos
@@ -695,8 +774,10 @@ export const updateItem = async (req, res) => {
   const { id, itemId } = req.params;
   const { qty, unitPrice } = req.body || {};
 
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+  const companyFilter = getSaleQueryCompanyFilter(req);
+  const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!validateSaleOwnership(sale, req)) return res.status(403).json({ error: 'Sale belongs to different company' });
   if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
   const it = sale.items.id(itemId);
   if (!it) return res.status(404).json({ error: 'Item not found' });
@@ -714,8 +795,10 @@ export const updateItem = async (req, res) => {
 
 export const removeItem = async (req, res) => {
   const { id, itemId } = req.params;
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+  const companyFilter = getSaleQueryCompanyFilter(req);
+  const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!validateSaleOwnership(sale, req)) return res.status(403).json({ error: 'Sale belongs to different company' });
   if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
 
   sale.items.id(itemId)?.deleteOne();
@@ -730,8 +813,10 @@ export const removeItem = async (req, res) => {
 export const updateTechnician = async (req, res) => {
   const { id } = req.params;
   const { technician } = req.body || {};
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+  const companyFilter = getSaleQueryCompanyFilter(req);
+  const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!validateSaleOwnership(sale, req)) return res.status(403).json({ error: 'Sale belongs to different company' });
   if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
   const tech = String(technician || '').trim().toUpperCase();
   sale.technician = tech;
@@ -747,8 +832,10 @@ export const updateTechnician = async (req, res) => {
 export const setCustomerVehicle = async (req, res) => {
   const { id } = req.params;
   const { customer = {}, vehicle = {}, notes } = req.body || {};
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+  const companyFilter = getSaleQueryCompanyFilter(req);
+  const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!validateSaleOwnership(sale, req)) return res.status(403).json({ error: 'Sale belongs to different company' });
   if (sale.status === 'closed') return res.status(400).json({ error: 'Closed sale cannot be edited' });
 
   sale.customer = {
@@ -818,8 +905,16 @@ export const closeSale = async (req, res) => {
   try {
     const affectedItemIds = [];
     await session.withTransaction(async () => {
-      const sale = await Sale.findOne({ _id: id, companyId: req.companyId }).session(session);
+      // Buscar venta considerando base de datos compartida
+      const companyFilter = getSaleQueryCompanyFilter(req);
+      const sale = await Sale.findOne({ _id: id, companyId: companyFilter }).session(session);
       if (!sale) throw new Error('Sale not found');
+      
+      // CRÍTICO: Validar que la venta pertenece al originalCompanyId del usuario
+      if (!validateSaleOwnership(sale, req)) {
+        throw new Error('Sale belongs to different company');
+      }
+      
       if (sale.status !== 'draft') throw new Error('Sale not open (draft)');
       if (!sale.items?.length) throw new Error('Sale has no items');
       
@@ -1134,29 +1229,50 @@ export const closeSale = async (req, res) => {
           accountId: m?.accountId ? new mongoose.Types.ObjectId(m.accountId) : null
         })).filter(m => m.method && m.amount > 0);
         if (cleaned.length) {
-          // Validar suma contra total (luego de computeTotals mÃ¡s abajo)
-          // AÃºn no tenemos total actualizado si items cambiaron durante la sesiÃ³n, asÃ­ que haremos computeTotals antes de validar.
+          // Calcular total desde los items
           computeTotals(sale);
+          const calculatedTotal = Math.round(Number(sale.total || 0));
+          
+          // Si el frontend envía un total, usarlo para validación (puede ser más preciso si hay items recién agregados)
+          const frontendTotal = req.body?.total ? Math.round(Number(req.body.total)) : null;
+          const totalToUse = frontendTotal !== null ? frontendTotal : calculatedTotal;
+          
           const sum = cleaned.reduce((a,b)=> a + b.amount, 0);
-          const total = Math.round(Number(sale.total || 0));
           
           // Log para debugging
           console.log('[closeSale] Validando pagos:', {
             saleId: sale._id?.toString(),
             sum,
-            total,
-            diff: Math.abs(sum - total),
+            calculatedTotal,
+            frontendTotal,
+            totalToUse,
+            diff: Math.abs(sum - totalToUse),
             paymentMethods: cleaned.map(m => ({ method: m.method, amount: m.amount }))
           });
           
-          if (Math.abs(sum - total) > 0.01) {
+          if (Math.abs(sum - totalToUse) > 0.01) {
             console.error('[closeSale] Error de validación:', {
               sum,
-              total,
-              diff: Math.abs(sum - total),
+              calculatedTotal,
+              frontendTotal,
+              totalToUse,
+              diff: Math.abs(sum - totalToUse),
               paymentMethods: cleaned
             });
-            throw new Error(`La suma de los montos de pago (${sum}) no coincide con el total de la venta (${total}). Diferencia: ${Math.abs(sum - total)}`);
+            throw new Error(`La suma de los montos de pago (${sum}) no coincide con el total de la venta (${totalToUse}). Diferencia: ${Math.abs(sum - totalToUse)}`);
+          }
+          
+          // Si el frontend envió un total diferente al calculado, actualizar el total de la venta
+          // Esto puede pasar si hay items que se agregaron/modificaron después de que el frontend cargó la venta
+          if (frontendTotal !== null && Math.abs(frontendTotal - calculatedTotal) > 0.01) {
+            console.warn('[closeSale] Total del frontend difiere del calculado, usando el calculado:', {
+              frontendTotal,
+              calculatedTotal,
+              diff: Math.abs(frontendTotal - calculatedTotal)
+            });
+            // Usar el total calculado (más confiable, viene de los items en la BD)
+            sale.total = calculatedTotal;
+            sale.subtotal = Math.round(Number(sale.subtotal || 0));
           }
           // Redondear montos a enteros para consistencia (COP sin decimales)
           sale.paymentMethods = cleaned.map(m => ({ method: m.method, amount: Math.round(m.amount), accountId: m.accountId }));
@@ -1225,8 +1341,12 @@ export const closeSale = async (req, res) => {
       await sale.save({ session });
     });
     
-    const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
-    await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+    // Buscar venta después de cerrarla (usar originalCompanyId para validación)
+    const originalCompanyId = getSaleCreationCompanyId(req);
+    const sale = await Sale.findOne({ _id: id, companyId: originalCompanyId });
+    if (!sale) throw new Error('Sale not found after closing');
+    if (!validateSaleOwnership(sale, req)) throw new Error('Sale belongs to different company');
+    await upsertCustomerProfile(originalCompanyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
     
     // Verificar alertas de stock después del cierre de venta (una sola vez)
     if (affectedItemIds.length > 0) {
@@ -1304,8 +1424,16 @@ export const updateCloseSale = async (req, res) => {
   
   try {
     await session.withTransaction(async () => {
-      const sale = await Sale.findOne({ _id: id, companyId: req.companyId }).session(session);
+      // Buscar venta considerando base de datos compartida
+      const companyFilter = getSaleQueryCompanyFilter(req);
+      const sale = await Sale.findOne({ _id: id, companyId: companyFilter }).session(session);
       if (!sale) throw new Error('Sale not found');
+      
+      // CRÍTICO: Validar que la venta pertenece al originalCompanyId del usuario
+      if (!validateSaleOwnership(sale, req)) {
+        throw new Error('Sale belongs to different company');
+      }
+      
       if (sale.status !== 'closed') throw new Error('Only closed sales can be updated');
 
       // Importar dependencias necesarias
@@ -1564,7 +1692,11 @@ export const updateCloseSale = async (req, res) => {
       try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
     });
 
-    const updatedSale = await Sale.findOne({ _id: id, companyId: req.companyId });
+    // Buscar venta actualizada (usar originalCompanyId para validación)
+    const originalCompanyId = getSaleCreationCompanyId(req);
+    const updatedSale = await Sale.findOne({ _id: id, companyId: originalCompanyId });
+    if (!updatedSale) throw new Error('Sale not found after update');
+    if (!validateSaleOwnership(updatedSale, req)) throw new Error('Sale belongs to different company');
     res.json(updatedSale.toObject());
   } catch (err) {
     await session.abortTransaction().catch(()=>{});
@@ -1577,8 +1709,10 @@ export const updateCloseSale = async (req, res) => {
 // ===== Cancelar (X de pestaÃ±a) =====
 export const cancelSale = async (req, res) => {
   const { id } = req.params;
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+  const companyFilter = getSaleQueryCompanyFilter(req);
+  const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!validateSaleOwnership(sale, req)) return res.status(403).json({ error: 'Sale belongs to different company' });
   if (sale.status === 'closed') return res.status(400).json({ error: 'Closed sale cannot be cancelled' });
   // PolÃ­tica actual: eliminar; si prefieres histÃ³rico, cambia a status:'cancelled' y setea cancelledAt.
   await Sale.deleteOne({ _id: id, companyId: req.companyId });
@@ -1595,8 +1729,10 @@ export const completeOpenSlot = async (req, res) => {
     return res.status(400).json({ error: 'slotIndex requerido' });
   }
   
-  const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
+  const companyFilter = getSaleQueryCompanyFilter(req);
+  const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
   if (!sale) return res.status(404).json({ error: 'Venta no encontrada' });
+  if (!validateSaleOwnership(sale, req)) return res.status(403).json({ error: 'Sale belongs to different company' });
   if (sale.status !== 'draft') return res.status(400).json({ error: 'La venta no está abierta' });
   
   if (!sale.openSlots || sale.openSlots.length === 0) {
@@ -1776,8 +1912,10 @@ export const addByQR = async (req, res) => {
   const { saleId, payload } = req.body || {};
   if (!saleId || !payload) return res.status(400).json({ error: 'saleId and payload are required' });
 
-  const sale = await Sale.findOne({ _id: saleId, companyId: req.companyId });
+  const companyFilter = getSaleQueryCompanyFilter(req);
+  const sale = await Sale.findOne({ _id: saleId, companyId: companyFilter });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
+  if (!validateSaleOwnership(sale, req)) return res.status(403).json({ error: 'Sale belongs to different company' });
   if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
 
   const s = String(payload || '').trim();
@@ -1954,7 +2092,10 @@ export const getProfileByIdNumber = async (req, res) => {
 };
 export const listSales = async (req, res) => {
   const { status, from, to, plate, companyAccountId, page = 1, limit = 50 } = req.query || {};
-  const q = { companyId: req.companyId };
+  // Para listado de ventas, solo mostrar las que pertenecen al originalCompanyId
+  // (aunque haya base de datos compartida, las ventas siempre pertenecen a quien las crea)
+  const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
+  const q = { companyId: originalCompanyId };
   if (status) q.status = String(status);
   // Filtrar por placa si se proporciona
   if (plate) {
@@ -2129,7 +2270,8 @@ export const technicianReport = async (req, res) => {
 
     // Fallback simple si no se obtuvieron filas pero deberÃ­an existir (debug)
     if (!rows.length) {
-      const quick = await Sale.find({ companyId: req.companyId, status:'closed', laborShare: { $gt: 0 } })
+      const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
+      const quick = await Sale.find({ companyId: originalCompanyId, status:'closed', laborShare: { $gt: 0 } })
         .sort({ closedAt:-1, updatedAt:-1 })
         .limit(lim)
         .lean();

@@ -164,12 +164,28 @@ export const listPrices = async (req, res) => {
 // ============ get single price ============
 export const getPrice = async (req, res) => {
   const { id } = req.params;
-  const price = await PriceEntry.findOne({ _id: id, companyId: req.companyId })
+  
+  // Si hay base de datos compartida, buscar en ambos companyId
+  // Los precios pueden estar en la empresa original o en la empresa compartida
+  const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
+  const effectiveCompanyId = req.companyId;
+  
+  let companyFilter = effectiveCompanyId;
+  if (originalCompanyId && effectiveCompanyId && String(originalCompanyId) !== String(effectiveCompanyId)) {
+    // Buscar en ambos companyId cuando hay base de datos compartida
+    companyFilter = { $in: [originalCompanyId, effectiveCompanyId].filter(Boolean) };
+  }
+  
+  const price = await PriceEntry.findOne({ _id: id, companyId: companyFilter })
     .populate('vehicleId', 'make line displacement modelYear')
     .populate('itemId', 'sku name stock salePrice')
     .populate('comboProducts.itemId', 'sku name stock salePrice')
     .lean();
-  if (!price) return res.status(404).json({ error: 'PriceEntry not found' });
+  
+  if (!price) {
+    return res.status(404).json({ error: 'PriceEntry not found' });
+  }
+  
   res.json(price);
 };
 

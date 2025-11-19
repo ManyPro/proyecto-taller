@@ -2338,6 +2338,23 @@ function fillCloseModal(){
     msg.textContent='Procesando...';
     msg.classList.remove('error');
     
+    // CRÍTICO: Refrescar la venta antes de cerrarla para obtener el total actualizado
+    // Esto asegura que el total que validamos coincida con el que el backend calculará
+    try {
+      const freshSale = await API.sales.get(current._id);
+      if (freshSale) {
+        current = freshSale;
+        syncCurrentIntoOpenList();
+        console.log('[closeSale] Venta refrescada antes de cerrar:', {
+          saleId: current._id,
+          total: current.total,
+          itemsCount: current.items?.length || 0
+        });
+      }
+    } catch (err) {
+      console.warn('[closeSale] Error al refrescar venta, usando total actual:', err);
+    }
+    
     // Asegurar que todos los inputs tengan el valor correcto antes de calcular
     payments.forEach((p, idx) => {
       const row = pmBody.querySelectorAll('tr')[idx];
@@ -2467,7 +2484,8 @@ function fillCloseModal(){
         laborValue: laborValueFromSale,
         laborPercent: laborPercentValue,
         laborCommissions: comm,
-        paymentReceiptUrl: receiptUrl
+        paymentReceiptUrl: receiptUrl,
+        total: total // Enviar el total para que el backend pueda validarlo
       };
       await API.sales.close(current._id, payload);
       alert('Venta cerrada');
