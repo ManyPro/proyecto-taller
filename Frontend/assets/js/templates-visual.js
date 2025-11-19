@@ -3564,29 +3564,29 @@
   function createWorkOrderTemplate(canvas) {
     console.log('🎨 Creando plantilla de orden de trabajo completa...');
     
-    // Título ORDEN DE TRABAJO (arriba izquierda)
+    // Título ORDEN DE TRABAJO (arriba izquierda) - Compactado para media carta
     const title = createEditableElement('title', 'ORDEN DE TRABAJO', {
-      position: { left: 40, top: 30 },
-      styles: { fontSize: '48px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', letterSpacing: '2px' }
+      position: { left: 19, top: 10 },
+      styles: { fontSize: '38px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', letterSpacing: '0.5px' }
     });
     canvas.appendChild(title);
 
-    // Número de orden en caja negra
+    // Número de orden en caja negra - Compactado
     const numberBox = document.createElement('div');
     numberBox.className = 'tpl-element';
     numberBox.id = `element_${visualEditor.nextId++}`;
-    numberBox.style.cssText = 'position: absolute; left: 40px; top: 100px; border: 2px solid #000; padding: 8px 16px; display: inline-block;';
-    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 18px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{#if S.nº}}{{S.nº}}{{else}}[Sin nº]{{/if}}</span>';
+    numberBox.style.cssText = 'position: absolute; left: 19px; top: 45px; border: 2px solid #000; padding: 4px 8px; display: inline-block;';
+    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 15.1px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{#if S.nº}}{{S.nº}}{{else}}[Sin nº]{{/if}}</span>';
     makeDraggable(numberBox);
     makeSelectable(numberBox);
     canvas.appendChild(numberBox);
     visualEditor.elements.push({ id: numberBox.id, type: 'text', element: numberBox });
 
-    // Logo/empresa (arriba derecha) - editable con imagen o variable
+    // Logo/empresa (arriba derecha) - Compactado para media carta
     const logoBox = document.createElement('div');
     logoBox.className = 'tpl-element';
     logoBox.id = `element_${visualEditor.nextId++}`;
-    logoBox.style.cssText = 'position: absolute; right: 40px; top: 30px; width: 100px; height: 100px; border: 2px solid #000; padding: 5px; display: flex; align-items: center; justify-content: center; cursor: move; background: white; box-sizing: border-box;';
+    logoBox.style.cssText = 'position: absolute; right: 19px; top: 10px; width: 60px; height: 60px; border: 2px solid #000; padding: 3px; display: flex; align-items: center; justify-content: center; cursor: move; background: white; box-sizing: border-box;';
     logoBox.innerHTML = `
       <div class="image-placeholder" style="width: 100%; height: 100%; background: #f5f5f5; border: 2px dashed #999; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; color: #666; text-align: center; padding: 5px; box-sizing: border-box; position: relative;">
         <div style="display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none;">
@@ -3630,53 +3630,132 @@
     canvas.appendChild(logoBox);
     visualEditor.elements.push({ id: logoBox.id, type: 'image', element: logoBox });
 
-    // Sección DATOS DEL CLIENTE (izquierda)
-    const clientTitle = createEditableElement('text', 'DATOS DEL CLIENTE', {
-      position: { left: 40, top: 180 },
-      styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
-    });
-    canvas.appendChild(clientTitle);
+    // Sección DATOS DEL CLIENTE (izquierda) - Cuadro organizado en 2x2
+    // 1cm de espacio desde el número (45px + 38px = 83px)
+    const clientBox = document.createElement('div');
+    clientBox.className = 'tpl-element client-data-box';
+    clientBox.id = `element_${visualEditor.nextId++}`;
+    clientBox.style.cssText = 'position: absolute; left: 19px; top: 83px; width: 331px; border: 2px solid #000; padding: 8px; background: white; z-index: 10;';
+    clientBox.innerHTML = `
+      <style>
+        .client-data-box {
+          position: absolute !important;
+          left: 19px !important;
+          top: 83px !important;
+          width: 331px !important;
+          border: 2px solid #000 !important;
+          padding: 8px !important;
+          background: white !important;
+          z-index: 10 !important;
+          page-break-inside: avoid !important;
+        }
+        @media print {
+          .client-data-box {
+            position: absolute !important;
+            left: 19px !important;
+            top: 83px !important;
+            width: 331px !important;
+            border: 2px solid #000 !important;
+            padding: 8px !important;
+            background: white !important;
+            z-index: 10 !important;
+            page-break-inside: avoid !important;
+            overflow: visible !important;
+          }
+        }
+      </style>
+      <div style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 5px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 3px;">DATOS DEL CLIENTE</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: Arial, sans-serif; margin-top: 2px;">
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold; width: 30%;">Nombre:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px; width: 70%;"><span contenteditable="true">{{sale.customer.name}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Email:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{sale.customer.email}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Teléfono:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{sale.customer.phone}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Dirección:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{sale.customer.address}}</span></td>
+        </tr>
+      </table>
+    `;
+    makeDraggable(clientBox);
+    makeSelectable(clientBox);
+    canvas.appendChild(clientBox);
+    visualEditor.elements.push({ id: clientBox.id, type: 'text', element: clientBox });
 
-    const clientData = createEditableElement('text', '{{sale.customer.name}}\n{{sale.customer.email}}\n{{sale.customer.phone}}\n{{sale.customer.address}}', {
-      position: { left: 40, top: 210 },
-      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
-    });
-    canvas.appendChild(clientData);
+    // Sección DATOS DE LA EMPRESA (derecha) - Cuadro organizado en 2x2
+    const companyBox = document.createElement('div');
+    companyBox.className = 'tpl-element company-data-box';
+    companyBox.id = `element_${visualEditor.nextId++}`;
+    companyBox.style.cssText = 'position: absolute; right: 19px; top: 83px; width: 331px; border: 2px solid #000; padding: 8px; background: white; z-index: 10;';
+    companyBox.innerHTML = `
+      <style>
+        .company-data-box {
+          position: absolute !important;
+          right: 19px !important;
+          top: 83px !important;
+          width: 331px !important;
+          border: 2px solid #000 !important;
+          padding: 8px !important;
+          background: white !important;
+          z-index: 10 !important;
+          page-break-inside: avoid !important;
+        }
+        @media print {
+          .company-data-box {
+            position: absolute !important;
+            right: 19px !important;
+            top: 83px !important;
+            width: 331px !important;
+            border: 2px solid #000 !important;
+            padding: 8px !important;
+            background: white !important;
+            z-index: 10 !important;
+            page-break-inside: avoid !important;
+            overflow: visible !important;
+          }
+        }
+      </style>
+      <div style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 5px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 3px;">DATOS DE LA EMPRESA</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: Arial, sans-serif; margin-top: 2px;">
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold; width: 30%;">Nombre:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px; width: 70%;"><span contenteditable="true">{{company.name}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Email:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{company.email}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Teléfono:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{company.phone}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Dirección:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{company.address}}</span></td>
+        </tr>
+      </table>
+    `;
+    makeDraggable(companyBox);
+    makeSelectable(companyBox);
+    canvas.appendChild(companyBox);
+    visualEditor.elements.push({ id: companyBox.id, type: 'text', element: companyBox });
 
-    // Línea divisoria vertical
-    const divider = document.createElement('div');
-    divider.style.cssText = 'position: absolute; left: 50%; top: 180px; width: 1px; height: 120px; background: #000;';
-    canvas.appendChild(divider);
-
-    // Sección DATOS DE LA EMPRESA (derecha) - alineada correctamente
-    const companyTitle = createEditableElement('text', 'DATOS DE LA EMPRESA', {
-      position: { left: 500, top: 180 },
-      styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
-    });
-    canvas.appendChild(companyTitle);
-
-    // Solo nombre y correo como variables, teléfono y dirección como texto editable
-    const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n[Editar teléfono]\n[Editar dirección]', {
-      position: { left: 500, top: 210 },
-      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
-    });
-    canvas.appendChild(companyData);
-
-    // Línea horizontal separadora
-    const horizontalLine = document.createElement('div');
-    horizontalLine.style.cssText = 'position: absolute; left: 40px; right: 40px; top: 320px; height: 1px; background: #000;';
-    canvas.appendChild(horizontalLine);
-
-    // Tabla de items SIN precios (solo Detalle y Cantidad)
-    const itemsTable = createWorkOrderItemsTable({ left: 40, top: 340 });
+    // Calcular la posición de la tabla: después de los cuadros de datos + 1cm de separación
+    // Los cuadros empiezan en top: 83px
+    // Altura aproximada del cuadro: título (~18px) + tabla 4 filas (~100px con nuevo padding) + padding (16px) = ~134px
+    // 1cm = aproximadamente 38px
+    // Posición tabla: 83px + 134px + 38px = 255px (redondeado a 260px para más espacio)
+    // Ancho de los cuadros: 331px cada uno, total aproximado: 662px (considerando espacio entre ellos)
+    // La tabla de items debe tener el mismo ancho que los dos cuadros juntos
+    const itemsTable = createWorkOrderItemsTable({ left: 19, top: 260, width: 682 });
     canvas.appendChild(itemsTable);
-
-    // Footer con URL (centro abajo) - SIN IVA, SIN TOTAL, SIN información de pago
-    const footer = createEditableElement('text', '[Editar sitio web]', {
-      position: { left: 40, top: 500 },
-      styles: { fontSize: '12px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', textAlign: 'center', width: '100%' }
-    });
-    canvas.appendChild(footer);
 
     console.log('✅ Plantilla de orden de trabajo creada con todos los elementos');
   }
@@ -3685,16 +3764,22 @@
     const tableContainer = document.createElement('div');
     tableContainer.className = 'tpl-element items-table';
     tableContainer.id = `element_${visualEditor.nextId++}`;
+    // Si se especifica un ancho, usarlo; sino usar el cálculo original
+    const tableWidth = position.width || `calc(100% - ${position.left * 2}px)`;
+    const maxWidth = position.width ? `${position.width}px` : '520px';
     tableContainer.style.cssText = `
       position: absolute;
       left: ${position.left}px;
       top: ${position.top}px;
       border: 2px solid transparent;
       cursor: move;
-      width: 700px;
+      width: ${tableWidth};
+      max-width: ${maxWidth};
       background: white;
-      max-width: 100%;
     `;
+    
+    // Agregar clase para centrado en impresión
+    tableContainer.classList.add('workorder-content');
 
     tableContainer.innerHTML = `
       <style>
@@ -3711,51 +3796,63 @@
         .workorder-table tbody {
           display: table-row-group;
         }
+        .workorder-table tfoot {
+          display: table-footer-group;
+        }
+        .workorder-table tfoot tr {
+          border-top: 2px solid #000 !important;
+        }
+        .workorder-table tfoot td {
+          border: 1px solid #000 !important;
+          padding: 2px 4px !important;
+          font-size: 12.4px !important;
+          font-weight: bold !important;
+        }
         .workorder-table th {
           border: 2px solid #000 !important;
-          padding: 12px 8px;
+          padding: 2px 3px;
           font-weight: bold;
           color: #000;
-          font-size: 12px;
+          font-size: 12.4px;
           background: white;
           word-wrap: break-word;
           overflow-wrap: break-word;
         }
         .workorder-table td {
           border: 1px solid #000 !important;
-          padding: 10px 8px;
+          padding: 1px 3px;
           color: #000;
-          font-size: 12px;
+          font-size: 11px;
           word-wrap: break-word;
           overflow-wrap: break-word;
           vertical-align: top;
-        }
-        .workorder-table .section-header {
-          background: #f0f0f0 !important;
-        }
-        .workorder-table .section-header td {
-          border-top: 2px solid #000 !important;
-          border-bottom: 2px solid #000 !important;
-          font-weight: bold;
-          font-size: 11px;
-          padding: 8px;
-          background: #f0f0f0 !important;
-        }
-        .workorder-table tr.section-header + tr td {
-          border-top: 1px solid #000 !important;
+          line-height: 1.2;
         }
         .workorder-table th:nth-child(1),
         .workorder-table td:nth-child(1) {
-          width: 70%;
+          width: 45%;
           text-align: left;
         }
         .workorder-table th:nth-child(2),
         .workorder-table td:nth-child(2) {
-          width: 30%;
+          width: 15%;
           text-align: center;
+        }
+        .workorder-table th:nth-child(3),
+        .workorder-table td:nth-child(3) {
+          width: 20%;
+          text-align: center;
+        }
+        .workorder-table th:nth-child(4),
+        .workorder-table td:nth-child(4) {
+          width: 20%;
+          text-align: right;
         }
         .workorder-table .t-center {
           text-align: center !important;
+        }
+        .workorder-table .t-right {
+          text-align: right !important;
         }
         /* Estilos para impresión/PDF */
         @media print {
@@ -3770,6 +3867,18 @@
           .workorder-table tbody {
             display: table-row-group !important;
           }
+          .workorder-table tfoot {
+            display: table-footer-group !important;
+          }
+          .workorder-table tfoot tr {
+            border-top: 2px solid #000 !important;
+          }
+          .workorder-table tfoot td {
+            border: 1px solid #000 !important;
+            padding: 2px 4px !important;
+            font-size: 12.4px !important;
+            font-weight: bold !important;
+          }
           .workorder-table tr {
             page-break-inside: avoid;
             page-break-after: auto;
@@ -3777,20 +3886,13 @@
           .workorder-table th,
           .workorder-table td {
             border: 1px solid #000 !important;
-            padding: 8px !important;
+            padding: 1px 2px !important;
             font-size: 11px !important;
+            line-height: 1.1 !important;
           }
           .workorder-table th {
             border-width: 2px !important;
             background: white !important;
-          }
-          .workorder-table .section-header td {
-            border-top: 2px solid #000 !important;
-            border-bottom: 2px solid #000 !important;
-            font-weight: bold !important;
-            font-size: 11px !important;
-            padding: 8px !important;
-            background: #f0f0f0 !important;
           }
         }
         /* Estilos para vista previa */
@@ -3803,57 +3905,73 @@
           <tr>
             <th>Detalle</th>
             <th>Cantidad</th>
+            <th>Precio</th>
+            <th>Total</th>
           </tr>
         </thead>
         <tbody>
+          {{#if sale.itemsGrouped.hasCombos}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">COMBOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.combos}}
+          <tr>
+            <td><strong>{{name}}</strong></td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{#each items}}
+          <tr>
+            <td style="padding-left: 30px;">• {{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{#if unitPrice}}{{money unitPrice}}{{/if}}</td>
+            <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>
+          </tr>
+          {{/each}}
+          {{/each}}
+          {{/if}}
+          
           {{#if sale.itemsGrouped.hasProducts}}
           <tr class="section-header">
-            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">PRODUCTOS</td>
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">PRODUCTOS</td>
           </tr>
           {{#each sale.itemsGrouped.products}}
           <tr>
-            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td>{{name}}</td>
             <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
           </tr>
           {{/each}}
           {{/if}}
           
           {{#if sale.itemsGrouped.hasServices}}
           <tr class="section-header">
-            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">SERVICIOS</td>
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">SERVICIOS</td>
           </tr>
           {{#each sale.itemsGrouped.services}}
           <tr>
-            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
+            <td>{{name}}</td>
             <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
           </tr>
-          {{/each}}
-          {{/if}}
-          
-          {{#if sale.itemsGrouped.hasCombos}}
-          <tr class="section-header">
-            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">COMBOS</td>
-          </tr>
-          {{#each sale.itemsGrouped.combos}}
-          <tr>
-            <td><strong>{{name}}</strong></td>
-            <td class="t-center">{{qty}}</td>
-          </tr>
-          {{#each items}}
-          <tr>
-            <td style="padding-left: 30px;">• {{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
-            <td class="t-center">{{qty}}</td>
-          </tr>
-          {{/each}}
           {{/each}}
           {{/if}}
           
           {{#unless sale.itemsGrouped.hasProducts}}{{#unless sale.itemsGrouped.hasServices}}{{#unless sale.itemsGrouped.hasCombos}}
           <tr>
-            <td colspan="2" style="text-align: center; color: #666;">Sin ítems</td>
+            <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
           </tr>
           {{/unless}}{{/unless}}{{/unless}}
         </tbody>
+        <tfoot>
+          <tr style="border-top: 2px solid #000;">
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">TOTAL</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{$ S.total}}</td>
+          </tr>
+        </tfoot>
       </table>
     `;
 
