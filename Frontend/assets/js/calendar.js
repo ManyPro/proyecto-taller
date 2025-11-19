@@ -1527,9 +1527,23 @@ async function sendWhatsAppConfirmationFromEvent(event) {
     const encodedMessage = encodeURIComponent(message);
     
     // Número de teléfono del cliente (limpiar formato)
-    const phone = (event.customer?.phone || '').replace(/\D/g, '');
+    let phone = (event.customer?.phone || '').replace(/\D/g, '');
     if (!phone) {
       return alert('No se encontró número de teléfono del cliente');
+    }
+    
+    // Formatear para WhatsApp (agregar código de país +57 si no tiene)
+    // Si el número no empieza con código de país, asumir Colombia (+57)
+    if (!phone.startsWith('57') && phone.length === 10) {
+      phone = '57' + phone;
+    } else if (phone.startsWith('+57')) {
+      // Si tiene +57, remover el + (wa.me no necesita el +)
+      phone = phone.replace('+', '');
+    } else if (phone.startsWith('57') && phone.length === 12) {
+      // Ya tiene 57 y es válido (57 + 10 dígitos)
+      // No hacer nada
+    } else if (phone.length < 10) {
+      return alert('El número de teléfono debe tener al menos 10 dígitos');
     }
     
     // Abrir WhatsApp Web/App

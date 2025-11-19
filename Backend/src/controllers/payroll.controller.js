@@ -1465,15 +1465,15 @@ export const printSettlementHtml = async (req, res) => {
       const technicianName = context.settlement.technicianName || settlementObj.technicianName || '';
       const technicianIdentification = context.settlement.technicianIdentification || settlementObj.technicianIdentification || '';
       
-      // Filas de ingresos con formato correcto
+      // Filas de ingresos con formato correcto (2 columnas: DESCRIPCIÓN y VALOR)
       const earningsRows = itemsByType.earnings && itemsByType.earnings.length > 0
-        ? itemsByType.earnings.map(i => `<tr><td style="text-align:left;padding:3px 4px;word-wrap:break-word;">${String(i.name || '').trim() || '-'}</td><td style="text-align:center;padding:3px 2px;">-</td><td style="text-align:center;padding:3px 2px;">-</td><td style="text-align:right;padding:3px 2px;">${formatMoney(i.value || 0)}</td></tr>`).join('')
-        : '<tr><td colspan="4" style="text-align:center;padding:4px;color:#666;">Sin ingresos</td></tr>';
+        ? itemsByType.earnings.map(i => `<tr><td style="text-align:left;padding:3px 4px;word-wrap:break-word;border:1px solid #000;">${String(i.name || '').trim() || '-'}</td><td style="text-align:right;padding:3px 4px;word-wrap:break-word;border:1px solid #000;">${formatMoney(i.value || 0)}</td></tr>`).join('')
+        : '<tr><td colspan="2" style="text-align:center;padding:8px;color:#666;border:1px solid #000;">Sin ingresos</td></tr>';
       
-      // Filas de descuentos con formato correcto
+      // Filas de descuentos con formato correcto (2 columnas: DESCRIPCIÓN y VALOR)
       const deductionsRows = itemsByType.deductions && itemsByType.deductions.length > 0
-        ? itemsByType.deductions.map(i => `<tr><td style="text-align:left;padding:3px 4px;word-wrap:break-word;">${String(i.name || '').trim() || '-'}</td><td style="text-align:center;padding:3px 2px;">-</td><td style="text-align:right;padding:3px 2px;">${formatMoney(i.value || 0)}</td></tr>`).join('')
-        : '<tr><td colspan="3" style="text-align:center;padding:4px;color:#666;">Sin descuentos</td></tr>';
+        ? itemsByType.deductions.map(i => `<tr><td style="text-align:left;padding:3px 4px;word-wrap:break-word;border:1px solid #000;">${String(i.name || '').trim() || '-'}</td><td style="text-align:right;padding:3px 4px;word-wrap:break-word;border:1px solid #000;">${formatMoney(i.value || 0)}</td></tr>`).join('')
+        : '<tr><td colspan="2" style="text-align:center;padding:8px;color:#666;border:1px solid #000;">Sin descuentos</td></tr>';
       
       const periodRange = periodObj ? `${context.period.formattedStartDate} A ${context.period.formattedEndDate}` : '';
       
@@ -1498,14 +1498,14 @@ export const printSettlementHtml = async (req, res) => {
             </div>
             
             <!-- Resumen (derecha) -->
-            <div style="display:flex;flex-direction:column;gap:6px;">
-              <div style="border:2px solid #000;padding:6px;text-align:center;min-width:140px;">
+            <div style="border:2px solid #000;padding:6px;text-align:center;min-width:180px;">
+              <div style="margin-bottom:8px;">
                 <div style="font-weight:bold;font-size:9px;margin-bottom:3px;">DÍAS TRABAJADOS</div>
-                <div style="font-size:18px;font-weight:bold;">${daysWorked}</div>
+                <div style="font-size:16px;font-weight:bold;">${daysWorked}</div>
               </div>
-              <div style="border:2px solid #000;padding:6px;text-align:center;min-width:140px;">
-                <div style="font-weight:bold;font-size:9px;margin-bottom:3px;">TOTAL DEVENGADO</div>
-                <div style="font-size:14px;font-weight:bold;word-wrap:break-word;">${context.settlement.formattedGrossTotal}</div>
+              <div style="border-top:1px solid #000;padding-top:6px;">
+                <div style="font-weight:bold;font-size:9px;margin-bottom:3px;">TOTAL NETO</div>
+                <div style="font-size:14px;font-weight:bold;word-wrap:break-word;">${context.settlement.formattedNetTotal}</div>
               </div>
             </div>
           </div>
@@ -1517,15 +1517,19 @@ export const printSettlementHtml = async (req, res) => {
               <table class="payroll-earnings-table" style="width:100%;border-collapse:collapse;border-spacing:0;table-layout:fixed;font-size:9px;">
                 <thead>
                   <tr>
-                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:38%;word-wrap:break-word;">DESCRIPCIÓN</th>
-                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:12%;word-wrap:break-word;">DÍAS</th>
-                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:15%;word-wrap:break-word;">TRANSP.</th>
-                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:35%;word-wrap:break-word;">DEVENGADO</th>
+                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:60%;word-wrap:break-word;">DESCRIPCIÓN</th>
+                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:40%;word-wrap:break-word;">VALOR</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${earningsRows}
                 </tbody>
+                <tfoot>
+                  <tr>
+                    <td style="font-weight:bold;border-top:2px solid #000;padding:4px 2px;border:1px solid #000;">TOTAL INGRESOS:</td>
+                    <td style="font-weight:bold;text-align:right;border-top:2px solid #000;padding:4px 4px 4px 2px;border:1px solid #000;">${context.settlement.formattedGrossTotal}</td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
             
@@ -1534,39 +1538,33 @@ export const printSettlementHtml = async (req, res) => {
               <table class="payroll-deductions-table" style="width:100%;border-collapse:collapse;border-spacing:0;table-layout:fixed;font-size:9px;">
                 <thead>
                   <tr>
-                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:40%;word-wrap:break-word;">DESCRIPCIÓN</th>
-                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:20%;word-wrap:break-word;">VALOR</th>
-                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:40%;word-wrap:break-word;">DESCUENTOS</th>
+                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:60%;word-wrap:break-word;">DESCRIPCIÓN</th>
+                    <th style="border:2px solid #000;padding:3px 2px;font-weight:bold;text-align:center;width:40%;word-wrap:break-word;">VALOR</th>
                   </tr>
                 </thead>
                 <tbody>
                   ${deductionsRows}
                 </tbody>
+                <tfoot>
+                  <tr>
+                    <td style="font-weight:bold;border-top:2px solid #000;padding:4px 2px;border:1px solid #000;">TOTAL DESCUENTOS:</td>
+                    <td style="font-weight:bold;text-align:right;border-top:2px solid #000;padding:4px 4px 4px 2px;border:1px solid #000;">${context.settlement.formattedDeductionsTotal}</td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>
           
-          <!-- Totales -->
-          <div style="display:flex;justify-content:space-between;margin-bottom:6px;gap:8px;">
-            <div style="flex:1;border:2px solid #000;padding:4px;font-weight:bold;font-size:10px;">
-              TOTAL INGRESOS: ${context.settlement.formattedGrossTotal}
-            </div>
-            <div style="flex:1;border:2px solid #000;padding:4px;font-weight:bold;font-size:10px;text-align:right;">
-              TOTAL EGRESOS: ${context.settlement.formattedDeductionsTotal}
-            </div>
-          </div>
-          
           <!-- Sección de firma -->
-          <div style="display:flex;justify-content:space-between;gap:8px;margin-top:4px;">
-            <div style="flex:1;border:2px solid #000;padding:6px;text-align:center;">
-              <div style="font-weight:bold;font-size:11px;margin-bottom:4px;">RECIBÍ A SATISFACCIÓN</div>
+          <div style="display:flex;justify-content:space-between;gap:8px;margin-top:8px;">
+            <div style="flex:1;border:2px solid #000;padding:6px;text-align:center;max-width:250px;">
+              <div style="font-weight:bold;font-size:10px;margin-bottom:8px;">RECIBÍ A SATISFACCIÓN</div>
+              <div style="border-top:1px solid #000;margin-top:4px;height:40px;text-align:center;padding-top:2px;font-size:8px;color:#666;">Firma del empleado</div>
             </div>
-            <div style="flex:1;border:2px solid #000;padding:4px;font-size:9px;">
-              <div style="padding:1px 0;word-wrap:break-word;"><strong>NOMBRE:</strong> ${technicianName}</div>
-              <div style="padding:1px 0;"><strong>FIRMA:</strong></div>
-              <div style="padding:1px 0;border-top:1px solid #000;margin-top:4px;height:20px;">&nbsp;</div>
-              <div style="padding:1px 0;word-wrap:break-word;"><strong>IDENTIFICACION:</strong> ${technicianIdentification}</div>
-              <div style="padding:1px 0;word-wrap:break-word;"><strong>FECHA:</strong> ${context.formattedNow}</div>
+            <div style="flex:1;border:2px solid #000;padding:6px;text-align:center;max-width:250px;">
+              <div style="font-weight:bold;text-align:center;margin-bottom:8px;font-size:9px;">FIRMA DE EMPRESA</div>
+              <div style="border-top:1px solid #000;margin-top:4px;height:40px;text-align:center;padding-top:2px;font-size:8px;color:#666;">Firma y sello</div>
+              <div style="margin-top:4px;text-align:center;font-size:8px;">${context.company.name}</div>
             </div>
           </div>
         </div>`;
@@ -1654,34 +1652,33 @@ export const printSettlementHtml = async (req, res) => {
         overflow-wrap: break-word !important;
         max-width: 0 !important;
       }
-      /* Asegurar anchos de columna específicos para tablas de nómina */
+      /* Asegurar anchos de columna específicos para tablas de nómina (2 columnas) */
       .payroll-earnings-table th:nth-child(1),
       .payroll-earnings-table td:nth-child(1) {
-        width: 38% !important;
+        width: 60% !important;
       }
       .payroll-earnings-table th:nth-child(2),
       .payroll-earnings-table td:nth-child(2) {
-        width: 12% !important;
-      }
-      .payroll-earnings-table th:nth-child(3),
-      .payroll-earnings-table td:nth-child(3) {
-        width: 15% !important;
-      }
-      .payroll-earnings-table th:nth-child(4),
-      .payroll-earnings-table td:nth-child(4) {
-        width: 35% !important;
+        width: 40% !important;
       }
       .payroll-deductions-table th:nth-child(1),
       .payroll-deductions-table td:nth-child(1) {
-        width: 40% !important;
+        width: 60% !important;
       }
       .payroll-deductions-table th:nth-child(2),
       .payroll-deductions-table td:nth-child(2) {
-        width: 20% !important;
-      }
-      .payroll-deductions-table th:nth-child(3),
-      .payroll-deductions-table td:nth-child(3) {
         width: 40% !important;
+      }
+      /* Estilos para tfoot */
+      .payroll-earnings-table tfoot,
+      .payroll-deductions-table tfoot {
+        display: table-footer-group !important;
+      }
+      .payroll-earnings-table tfoot td,
+      .payroll-deductions-table tfoot td {
+        border-top: 2px solid #000 !important;
+        font-weight: bold !important;
+        padding: 4px 2px !important;
       }
       /* Reducir márgenes y espaciado */
       * {
