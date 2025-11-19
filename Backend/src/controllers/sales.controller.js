@@ -211,30 +211,34 @@ function validateSaleOwnership(sale, req) {
 }
 
 // Función auxiliar para obtener el filtro de companyId para BUSCAR precios
-// Cuando hay base de datos compartida, busca en ambos companyId
+// Siempre busca en el originalCompanyId primero, y si hay base compartida, también en effectiveCompanyId
 function getPriceQueryCompanyFilter(req) {
   // Obtener IDs: originalCompanyId siempre debería estar definido por el middleware
   const originalCompanyId = req.originalCompanyId || req.company?.id;
   const effectiveCompanyId = req.companyId;
   
-  // Si no hay effectiveCompanyId, usar originalCompanyId (edge case)
-  if (!effectiveCompanyId) {
-    return originalCompanyId || req.company?.id;
-  }
-  
-  // Si no hay originalCompanyId, usar effectiveCompanyId (caso normal sin base compartida)
+  // Si no hay originalCompanyId, usar effectiveCompanyId o req.company?.id como fallback
   if (!originalCompanyId) {
-    return effectiveCompanyId;
+    return effectiveCompanyId || req.company?.id;
   }
   
-  // Si hay base de datos compartida (originalCompanyId !== effectiveCompanyId),
-  // buscar en ambos
-  if (String(originalCompanyId) !== String(effectiveCompanyId)) {
-    return { $in: [originalCompanyId, effectiveCompanyId].filter(Boolean) };
+  // Si no hay effectiveCompanyId, usar solo originalCompanyId
+  if (!effectiveCompanyId) {
+    return originalCompanyId;
   }
   
-  // Si no hay base de datos compartida (son iguales), usar cualquiera de los dos
-  return originalCompanyId;
+  // Normalizar a strings para comparación
+  const origId = String(originalCompanyId);
+  const effId = String(effectiveCompanyId);
+  
+  // Si son iguales, usar solo uno
+  if (origId === effId) {
+    return originalCompanyId;
+  }
+  
+  // Si son diferentes (hay base compartida), buscar en ambos
+  // IMPORTANTE: Siempre incluir originalCompanyId primero para priorizar la empresa logueada
+  return { $in: [originalCompanyId, effectiveCompanyId].filter(Boolean) };
 }
 
 // ===== CRUD base =====
@@ -431,25 +435,33 @@ export const addItem = async (req, res) => {
     };
   } else if (src === 'price') {
     if (refId) {
-      // Usar función auxiliar para obtener el filtro correcto de companyId
-      const priceCompanyFilter = getPriceQueryCompanyFilter(req);
+      // Estrategia de búsqueda robusta:
+      // 1. Buscar primero en originalCompanyId (empresa logueada)
+      // 2. Si no se encuentra y hay base compartida, buscar en effectiveCompanyId
+      // 3. Si aún no se encuentra, devolver error
       
-      logger.info('[addItem] Buscando PriceEntry', {
-        priceId: refId,
-        originalCompanyId: originalCompanyId?.toString(),
-        effectiveCompanyId: effectiveCompanyId?.toString(),
-        priceCompanyFilter: typeof priceCompanyFilter === 'object' ? priceCompanyFilter : priceCompanyFilter?.toString(),
-        hasSharedDb: originalCompanyId && effectiveCompanyId && String(originalCompanyId) !== String(effectiveCompanyId)
-      });
+      let pe = null;
       
-      const pe = await PriceEntry.findOne({ _id: refId, companyId: priceCompanyFilter })
-        .populate('vehicleId', 'make line displacement modelYear')
-        .populate('itemId', 'sku name stock salePrice')
-        .populate('comboProducts.itemId', 'sku name stock salePrice')
-        .lean();
+      // Paso 1: Buscar en originalCompanyId (prioridad)
+      if (originalCompanyId) {
+        pe = await PriceEntry.findOne({ _id: refId, companyId: originalCompanyId })
+          .populate('vehicleId', 'make line displacement modelYear')
+          .populate('itemId', 'sku name stock salePrice')
+          .populate('comboProducts.itemId', 'sku name stock salePrice')
+          .lean();
+      }
       
+      // Paso 2: Si no se encontró y hay base compartida, buscar en effectiveCompanyId
+      if (!pe && effectiveCompanyId && originalCompanyId && String(originalCompanyId) !== String(effectiveCompanyId)) {
+        pe = await PriceEntry.findOne({ _id: refId, companyId: effectiveCompanyId })
+          .populate('vehicleId', 'make line displacement modelYear')
+          .populate('itemId', 'sku name stock salePrice')
+          .populate('comboProducts.itemId', 'sku name stock salePrice')
+          .lean();
+      }
+      
+      // Paso 3: Si aún no se encontró, verificar si existe en alguna empresa (para debugging)
       if (!pe) {
-        // Verificar si el precio existe en alguna empresa (para debugging)
         const priceAnyCompany = await PriceEntry.findOne({ _id: refId }).lean();
         if (priceAnyCompany) {
           logger.warn('[addItem] PriceEntry encontrado pero con companyId diferente', {
@@ -458,13 +470,16 @@ export const addItem = async (req, res) => {
             originalCompanyId: originalCompanyId?.toString(),
             effectiveCompanyId: effectiveCompanyId?.toString()
           });
+          return res.status(403).json({ error: 'PriceEntry belongs to different company' });
         } else {
           logger.warn('[addItem] PriceEntry no encontrado en ninguna empresa', {
             priceId: refId,
-            isValidObjectId: /^[0-9a-fA-F]{24}$/.test(refId)
+            isValidObjectId: /^[0-9a-fA-F]{24}$/.test(refId),
+            originalCompanyId: originalCompanyId?.toString(),
+            effectiveCompanyId: effectiveCompanyId?.toString()
           });
+          return res.status(404).json({ error: 'PriceEntry not found' });
         }
-        return res.status(404).json({ error: 'PriceEntry not found' });
       }
       const q = asNum(qty) || 1;
       const up = Number.isFinite(Number(unitPrice)) ? Number(unitPrice) : asNum(pe.total || pe.price);
@@ -633,17 +648,29 @@ export const addItemsBatch = async (req, res) => {
   const combosInBatch = new Set(); // IDs de combos que vienen en el batch
   const comboProductRefIds = new Map(); // itemId -> comboRefId (para saber a qué combo pertenece)
   
-  // Obtener filtro de companyId para precios (considerando base de datos compartida)
-  const priceCompanyFilter = getPriceQueryCompanyFilter(req);
+  // Obtener IDs para búsqueda de precios
+  const originalCompanyId = req.originalCompanyId || req.company?.id;
+  const effectiveCompanyId = req.companyId;
   
   for (const raw of list) {
     if (!raw || raw.source !== 'price' || !raw.refId) continue;
     try {
-      const pe = await PriceEntry.findOne({ _id: raw.refId, companyId: priceCompanyFilter })
-        .populate('vehicleId', 'make line displacement modelYear')
-        .populate('itemId', 'sku name stock salePrice')
-        .populate('comboProducts.itemId', 'sku name stock salePrice')
-        .lean();
+      // Búsqueda robusta en dos pasos (igual que en addItem)
+      let pe = null;
+      if (originalCompanyId) {
+        pe = await PriceEntry.findOne({ _id: raw.refId, companyId: originalCompanyId })
+          .populate('vehicleId', 'make line displacement modelYear')
+          .populate('itemId', 'sku name stock salePrice')
+          .populate('comboProducts.itemId', 'sku name stock salePrice')
+          .lean();
+      }
+      if (!pe && effectiveCompanyId && originalCompanyId && String(originalCompanyId) !== String(effectiveCompanyId)) {
+        pe = await PriceEntry.findOne({ _id: raw.refId, companyId: effectiveCompanyId })
+          .populate('vehicleId', 'make line displacement modelYear')
+          .populate('itemId', 'sku name stock salePrice')
+          .populate('comboProducts.itemId', 'sku name stock salePrice')
+          .lean();
+      }
       if (pe && pe.type === 'combo' && Array.isArray(pe.comboProducts) && pe.comboProducts.length > 0) {
         combosInBatch.add(String(raw.refId));
         // Marcar los itemIds de los productos del combo y a qué combo pertenecen
@@ -693,11 +720,22 @@ export const addItemsBatch = async (req, res) => {
 
       if (source === 'price') {
         if (raw.refId) {
-          const pe = await PriceEntry.findOne({ _id: raw.refId, companyId: priceCompanyFilter })
-            .populate('vehicleId', 'make line displacement modelYear')
-            .populate('itemId', 'sku name stock salePrice')
-            .populate('comboProducts.itemId', 'sku name stock salePrice')
-            .lean();
+          // Búsqueda robusta en dos pasos (igual que en addItem)
+          let pe = null;
+          if (originalCompanyId) {
+            pe = await PriceEntry.findOne({ _id: raw.refId, companyId: originalCompanyId })
+              .populate('vehicleId', 'make line displacement modelYear')
+              .populate('itemId', 'sku name stock salePrice')
+              .populate('comboProducts.itemId', 'sku name stock salePrice')
+              .lean();
+          }
+          if (!pe && effectiveCompanyId && originalCompanyId && String(originalCompanyId) !== String(effectiveCompanyId)) {
+            pe = await PriceEntry.findOne({ _id: raw.refId, companyId: effectiveCompanyId })
+              .populate('vehicleId', 'make line displacement modelYear')
+              .populate('itemId', 'sku name stock salePrice')
+              .populate('comboProducts.itemId', 'sku name stock salePrice')
+              .lean();
+          }
           if (!pe) throw new Error('PriceEntry not found');
           const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : asNum(pe.total || pe.price);
           // Usar pe.name si existe (nuevo modelo), sino fallback a campos legacy
@@ -1959,10 +1997,21 @@ export const completeOpenSlot = async (req, res) => {
     
     // Obtener los refIds de los productos del combo para verificar que el item pertenece al combo
     const PriceEntry = mongoose.model('PriceEntry');
-    const priceCompanyFilter = getPriceQueryCompanyFilter(req);
-    const comboPE = await PriceEntry.findOne({ _id: slot.comboPriceId, companyId: priceCompanyFilter })
-      .populate('comboProducts.itemId', '_id')
-      .lean();
+    const originalCompanyId = req.originalCompanyId || req.company?.id;
+    const effectiveCompanyId = req.companyId;
+    
+    // Búsqueda robusta en dos pasos (igual que en addItem)
+    let comboPE = null;
+    if (originalCompanyId) {
+      comboPE = await PriceEntry.findOne({ _id: slot.comboPriceId, companyId: originalCompanyId })
+        .populate('comboProducts.itemId', '_id')
+        .lean();
+    }
+    if (!comboPE && effectiveCompanyId && originalCompanyId && String(originalCompanyId) !== String(effectiveCompanyId)) {
+      comboPE = await PriceEntry.findOne({ _id: slot.comboPriceId, companyId: effectiveCompanyId })
+        .populate('comboProducts.itemId', '_id')
+        .lean();
+    }
     
     const comboProductRefIds = new Set();
     if (comboPE && comboPE.comboProducts) {

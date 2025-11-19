@@ -166,34 +166,36 @@ export const listPrices = async (req, res) => {
 export const getPrice = async (req, res) => {
   const { id } = req.params;
   
-  // Si hay base de datos compartida, buscar en ambos companyId
-  // Los precios pueden estar en la empresa original o en la empresa compartida
-  const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
+  // Estrategia de búsqueda robusta (igual que en addItem):
+  // 1. Buscar primero en originalCompanyId (empresa logueada)
+  // 2. Si no se encuentra y hay base compartida, buscar en effectiveCompanyId
+  // 3. Si aún no se encuentra, devolver error
+  
+  const originalCompanyId = req.originalCompanyId || req.company?.id;
   const effectiveCompanyId = req.companyId;
   
-  let companyFilter = effectiveCompanyId;
-  if (originalCompanyId && effectiveCompanyId && String(originalCompanyId) !== String(effectiveCompanyId)) {
-    // Buscar en ambos companyId cuando hay base de datos compartida
-    companyFilter = { $in: [originalCompanyId, effectiveCompanyId].filter(Boolean) };
+  let price = null;
+  
+  // Paso 1: Buscar en originalCompanyId (prioridad)
+  if (originalCompanyId) {
+    price = await PriceEntry.findOne({ _id: id, companyId: originalCompanyId })
+      .populate('vehicleId', 'make line displacement modelYear')
+      .populate('itemId', 'sku name stock salePrice')
+      .populate('comboProducts.itemId', 'sku name stock salePrice')
+      .lean();
   }
   
-  // Log para debugging
-  logger.info('[getPrice] Buscando precio', {
-    priceId: id,
-    originalCompanyId: originalCompanyId?.toString(),
-    effectiveCompanyId: effectiveCompanyId?.toString(),
-    companyFilter: typeof companyFilter === 'object' ? companyFilter : companyFilter?.toString(),
-    hasSharedDb: originalCompanyId && effectiveCompanyId && String(originalCompanyId) !== String(effectiveCompanyId)
-  });
+  // Paso 2: Si no se encontró y hay base compartida, buscar en effectiveCompanyId
+  if (!price && effectiveCompanyId && originalCompanyId && String(originalCompanyId) !== String(effectiveCompanyId)) {
+    price = await PriceEntry.findOne({ _id: id, companyId: effectiveCompanyId })
+      .populate('vehicleId', 'make line displacement modelYear')
+      .populate('itemId', 'sku name stock salePrice')
+      .populate('comboProducts.itemId', 'sku name stock salePrice')
+      .lean();
+  }
   
-  const price = await PriceEntry.findOne({ _id: id, companyId: companyFilter })
-    .populate('vehicleId', 'make line displacement modelYear')
-    .populate('itemId', 'sku name stock salePrice')
-    .populate('comboProducts.itemId', 'sku name stock salePrice')
-    .lean();
-  
+  // Paso 3: Si aún no se encontró, verificar si existe en alguna empresa (para debugging)
   if (!price) {
-    // Verificar si el precio existe en alguna empresa (para debugging)
     const priceAnyCompany = await PriceEntry.findOne({ _id: id }).lean();
     if (priceAnyCompany) {
       logger.warn('[getPrice] Precio encontrado pero con companyId diferente', {
@@ -202,13 +204,16 @@ export const getPrice = async (req, res) => {
         originalCompanyId: originalCompanyId?.toString(),
         effectiveCompanyId: effectiveCompanyId?.toString()
       });
+      return res.status(403).json({ error: 'PriceEntry belongs to different company' });
     } else {
       logger.warn('[getPrice] Precio no encontrado en ninguna empresa', {
         priceId: id,
-        isValidObjectId: /^[0-9a-fA-F]{24}$/.test(id)
+        isValidObjectId: /^[0-9a-fA-F]{24}$/.test(id),
+        originalCompanyId: originalCompanyId?.toString(),
+        effectiveCompanyId: effectiveCompanyId?.toString()
       });
+      return res.status(404).json({ error: 'PriceEntry not found' });
     }
-    return res.status(404).json({ error: 'PriceEntry not found' });
   }
   
   res.json(price);
