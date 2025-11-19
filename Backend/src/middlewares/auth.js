@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { logger } from '../lib/logger.js';
 
 function parseBearer(req) {
   const h = req.headers.authorization || '';
@@ -21,13 +22,21 @@ export function authUser(req, res, next) {
 export function authCompany(req, res, next) {
   try {
     const token = parseBearer(req);
-    if (!token) return res.status(401).json({ error: 'Missing Bearer token' });
+    if (!token) {
+      logger.warn('[authCompany] Missing Bearer token', { path: req.path, method: req.method });
+      return res.status(401).json({ error: 'Missing Bearer token' });
+    }
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    if (!payload.companyId) return res.status(403).json({ error: 'No company in token' });
+    if (!payload.companyId) {
+      logger.warn('[authCompany] No company in token', { path: req.path, method: req.method, userId: payload.sub });
+      return res.status(403).json({ error: 'No company in token' });
+    }
     req.company = { id: payload.companyId };
     req.user = { id: payload.sub, ...payload };
+    logger.debug('[authCompany] Authenticated', { path: req.path, method: req.method, companyId: payload.companyId });
     next();
-  } catch {
+  } catch (err) {
+    logger.warn('[authCompany] Invalid token', { path: req.path, method: req.method, error: err?.message });
     return res.status(401).json({ error: 'Invalid token' });
   }
 }
