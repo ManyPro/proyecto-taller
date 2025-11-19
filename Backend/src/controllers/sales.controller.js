@@ -435,33 +435,34 @@ export const addItem = async (req, res) => {
     };
   } else if (src === 'price') {
     if (refId) {
-      // Estrategia de búsqueda robusta:
-      // Los precios se comparten según shareInventory, no según shareCustomers
-      // Por lo tanto, necesitamos determinar el effectiveCompanyId específico para precios
+      // CRÍTICO: Los precios se comparten según shareInventory, NO según shareCustomers
+      // Aunque estemos en una ruta de sales, los precios pueden estar en la empresa compartida
+      // si shareInventory está activo, incluso si shareCustomers está desactivado
       
       let pe = null;
-      let priceEffectiveCompanyId = effectiveCompanyId;
+      let priceSharedCompanyId = null;
       
-      // Si hay configuración de compartir, verificar si shareInventory está activo
-      // Si shareInventory está activo, los precios pueden estar en la empresa compartida
-      if (req.shareConfig && req.shareConfig.shareInventory && originalCompanyId) {
-        // Obtener el effectiveCompanyId para precios (puede ser diferente al de sales)
+      // Determinar si hay base compartida para INVENTARIO (no para customers)
+      if (originalCompanyId) {
         try {
           const Company = (await import('../models/Company.js')).default;
           const companyDoc = await Company.findById(originalCompanyId).select('sharedDatabaseId sharedDatabaseConfig').lean();
           
-          if (companyDoc?.sharedDatabaseConfig?.sharedFrom?.companyId) {
-            priceEffectiveCompanyId = String(companyDoc.sharedDatabaseConfig.sharedFrom.companyId);
+          if (companyDoc?.sharedDatabaseConfig?.sharedFrom?.shareInventory) {
+            // Si shareInventory está activo, los precios pueden estar en la empresa compartida
+            if (companyDoc.sharedDatabaseConfig.sharedFrom.companyId) {
+              priceSharedCompanyId = String(companyDoc.sharedDatabaseConfig.sharedFrom.companyId);
+            }
           } else if (companyDoc?.sharedDatabaseId) {
-            priceEffectiveCompanyId = String(companyDoc.sharedDatabaseId);
+            // Sistema antiguo: si hay sharedDatabaseId, asumir que shareInventory está activo
+            priceSharedCompanyId = String(companyDoc.sharedDatabaseId);
           }
         } catch (err) {
-          // Si hay error, usar effectiveCompanyId actual
-          priceEffectiveCompanyId = effectiveCompanyId;
+          // Si hay error, continuar sin base compartida
         }
       }
       
-      // Paso 1: Buscar en originalCompanyId (prioridad)
+      // Paso 1: Buscar en originalCompanyId (prioridad - empresa logueada)
       if (originalCompanyId) {
         pe = await PriceEntry.findOne({ _id: refId, companyId: originalCompanyId })
           .populate('vehicleId', 'make line displacement modelYear')
@@ -470,33 +471,31 @@ export const addItem = async (req, res) => {
           .lean();
       }
       
-      // Paso 2: Si no se encontró y hay base compartida para inventario, buscar en priceEffectiveCompanyId
-      if (!pe && priceEffectiveCompanyId && originalCompanyId && String(originalCompanyId) !== String(priceEffectiveCompanyId)) {
-        pe = await PriceEntry.findOne({ _id: refId, companyId: priceEffectiveCompanyId })
+      // Paso 2: Si no se encontró y hay base compartida para inventario, buscar en priceSharedCompanyId
+      if (!pe && priceSharedCompanyId && originalCompanyId && String(originalCompanyId) !== String(priceSharedCompanyId)) {
+        pe = await PriceEntry.findOne({ _id: refId, companyId: priceSharedCompanyId })
           .populate('vehicleId', 'make line displacement modelYear')
           .populate('itemId', 'sku name stock salePrice')
           .populate('comboProducts.itemId', 'sku name stock salePrice')
           .lean();
       }
       
-      // Paso 3: Si aún no se encontró, verificar si existe en alguna empresa
+      // Paso 3: Si aún no se encontró, buscar en CUALQUIER empresa y validar
       if (!pe) {
         const priceAnyCompany = await PriceEntry.findOne({ _id: refId }).lean();
         if (priceAnyCompany) {
           const priceCompanyId = String(priceAnyCompany.companyId || '');
           const origId = String(originalCompanyId || '');
-          const effId = String(priceEffectiveCompanyId || effectiveCompanyId || '');
+          const sharedId = String(priceSharedCompanyId || '');
           
-          // Verificar si el precio está en una empresa permitida:
-          // 1. En originalCompanyId (empresa logueada) - SIEMPRE permitido
-          // 2. En priceEffectiveCompanyId (empresa compartida para inventario) - permitido si shareInventory está activo
+          // Permitir si está en originalCompanyId o priceSharedCompanyId (cuando shareInventory está activo)
           const isInOriginalCompany = priceCompanyId === origId;
-          const isInEffectiveCompany = priceCompanyId === effId && origId !== effId && origId && effId;
+          const isInSharedCompany = priceCompanyId === sharedId && origId !== sharedId && origId && sharedId;
           
-          if (isInOriginalCompany || isInEffectiveCompany) {
-            // El precio está en una empresa permitida, usarlo
+          // Si está en una empresa permitida, usarlo
+          if (isInOriginalCompany || isInSharedCompany) {
             pe = priceAnyCompany;
-            // Hacer populate manualmente ya que priceAnyCompany no tiene populate
+            // Hacer populate manualmente
             if (pe.vehicleId) {
               const Vehicle = mongoose.model('Vehicle');
               pe.vehicleId = await Vehicle.findById(pe.vehicleId).select('make line displacement modelYear').lean();
@@ -515,22 +514,10 @@ export const addItem = async (req, res) => {
             }
           } else {
             // El precio está en una empresa completamente diferente (no permitida)
-            logger.warn('[addItem] PriceEntry encontrado pero con companyId diferente (no permitido)', {
-              priceId: refId,
-              priceCompanyId: priceCompanyId,
-              originalCompanyId: origId,
-              effectiveCompanyId: effId
-            });
             return res.status(403).json({ error: 'PriceEntry belongs to different company' });
           }
         } else {
-          // El precio no existe en ninguna empresa
-          logger.warn('[addItem] PriceEntry no encontrado en ninguna empresa', {
-            priceId: refId,
-            isValidObjectId: /^[0-9a-fA-F]{24}$/.test(refId),
-            originalCompanyId: originalCompanyId?.toString(),
-            effectiveCompanyId: effectiveCompanyId?.toString()
-          });
+          // El precio no existe
           return res.status(404).json({ error: 'PriceEntry not found' });
         }
       }
