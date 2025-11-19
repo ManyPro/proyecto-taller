@@ -176,6 +176,15 @@ export const getPrice = async (req, res) => {
     companyFilter = { $in: [originalCompanyId, effectiveCompanyId].filter(Boolean) };
   }
   
+  // Log para debugging
+  console.log('[getPrice] Buscando precio:', {
+    priceId: id,
+    originalCompanyId: originalCompanyId?.toString(),
+    effectiveCompanyId: effectiveCompanyId?.toString(),
+    companyFilter: typeof companyFilter === 'object' ? companyFilter : companyFilter?.toString(),
+    hasSharedDb: originalCompanyId && effectiveCompanyId && String(originalCompanyId) !== String(effectiveCompanyId)
+  });
+  
   const price = await PriceEntry.findOne({ _id: id, companyId: companyFilter })
     .populate('vehicleId', 'make line displacement modelYear')
     .populate('itemId', 'sku name stock salePrice')
@@ -183,6 +192,21 @@ export const getPrice = async (req, res) => {
     .lean();
   
   if (!price) {
+    // Verificar si el precio existe en alguna empresa (para debugging)
+    const priceAnyCompany = await PriceEntry.findOne({ _id: id }).lean();
+    if (priceAnyCompany) {
+      console.warn('[getPrice] Precio encontrado pero con companyId diferente:', {
+        priceId: id,
+        priceCompanyId: priceAnyCompany.companyId?.toString(),
+        originalCompanyId: originalCompanyId?.toString(),
+        effectiveCompanyId: effectiveCompanyId?.toString()
+      });
+    } else {
+      console.warn('[getPrice] Precio no encontrado en ninguna empresa:', {
+        priceId: id,
+        isValidObjectId: /^[0-9a-fA-F]{24}$/.test(id)
+      });
+    }
     return res.status(404).json({ error: 'PriceEntry not found' });
   }
   

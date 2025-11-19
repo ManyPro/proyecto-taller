@@ -1715,9 +1715,83 @@ export const cancelSale = async (req, res) => {
   if (!validateSaleOwnership(sale, req)) return res.status(403).json({ error: 'Sale belongs to different company' });
   if (sale.status === 'closed') return res.status(400).json({ error: 'Closed sale cannot be cancelled' });
   // PolÃ­tica actual: eliminar; si prefieres histÃ³rico, cambia a status:'cancelled' y setea cancelledAt.
-  await Sale.deleteOne({ _id: id, companyId: req.companyId });
-  try{ publish(req.companyId, 'sale:cancelled', { id: (sale?._id)||undefined }) }catch{}
+  const originalCompanyId = getSaleCreationCompanyId(req);
+  await Sale.deleteOne({ _id: id, companyId: originalCompanyId });
+  try{ publish(originalCompanyId, 'sale:cancelled', { id: (sale?._id)||undefined }) }catch{}
   res.json({ ok: true });
+};
+
+// ===== Eliminar ventas en masa (administrativo) =====
+export const deleteSalesBulk = async (req, res) => {
+  try {
+    const { plate, status, limit = 100, force = false } = req.body || {};
+    const originalCompanyId = getSaleCreationCompanyId(req);
+    
+    if (!originalCompanyId) {
+      return res.status(400).json({ error: 'Company ID missing' });
+    }
+    
+    // Construir filtro de búsqueda
+    const filter = { companyId: originalCompanyId };
+    
+    if (plate) {
+      filter['vehicle.plate'] = String(plate).trim().toUpperCase();
+    }
+    
+    if (status) {
+      filter.status = String(status);
+    } else if (!force) {
+      // Por defecto, solo eliminar ventas en draft (a menos que force=true)
+      filter.status = 'draft';
+    }
+    
+    // Buscar ventas que coincidan
+    const sales = await Sale.find(filter)
+      .limit(Number(limit) || 100)
+      .lean();
+    
+    if (sales.length === 0) {
+      return res.json({ 
+        ok: true, 
+        deleted: 0, 
+        message: 'No se encontraron ventas para eliminar' 
+      });
+    }
+    
+    // Eliminar ventas
+    const saleIds = sales.map(s => s._id);
+    const result = await Sale.deleteMany({ 
+      _id: { $in: saleIds },
+      companyId: originalCompanyId 
+    });
+    
+    console.log('[deleteSalesBulk] Ventas eliminadas:', {
+      companyId: originalCompanyId,
+      plate: plate || 'todas',
+      status: status || 'draft',
+      deleted: result.deletedCount,
+      totalFound: sales.length
+    });
+    
+    // Publicar eventos para cada venta eliminada
+    sales.forEach(sale => {
+      try {
+        publish(originalCompanyId, 'sale:cancelled', { id: sale._id?.toString() });
+      } catch (e) {
+        // Ignorar errores de publicación
+      }
+    });
+    
+    res.json({ 
+      ok: true, 
+      deleted: result.deletedCount,
+      found: sales.length,
+      message: `Se eliminaron ${result.deletedCount} venta(s)` 
+    });
+  } catch (err) {
+    console.error('[deleteSalesBulk] Error:', err);
+    res.status(500).json({ error: err?.message || 'Error al eliminar ventas' });
+  }
 };
 
 // ===== Completar slot abierto mediante QR =====

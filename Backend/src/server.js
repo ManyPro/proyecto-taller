@@ -236,6 +236,7 @@ async function withCompanyDefaults(req, _res, next) {
       const isVehiclesRoute = path.includes('/vehicles');
       const isSalesRoute = path.includes('/sales');
       const isQuotesRoute = path.includes('/quotes');
+      const isPricesRoute = path.includes('/prices');
       
       // Si hay configuración de compartir BD, aplicar reglas
       if (shareConfig) {
@@ -257,6 +258,10 @@ async function withCompanyDefaults(req, _res, next) {
         }
         // Sales y Quotes: compartir si shareCustomers es true (necesitan clientes)
         else if ((isSalesRoute || isQuotesRoute) && !shareConfig.shareCustomers) {
+          effectiveCompanyId = originalCompanyId;
+        }
+        // Prices: compartir si shareInventory es true (los precios están relacionados con inventario)
+        else if (isPricesRoute && !shareConfig.shareInventory) {
           effectiveCompanyId = originalCompanyId;
         }
       }

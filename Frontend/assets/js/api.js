@@ -335,6 +335,9 @@ const API = {
     setCustomerVehicle: (id, payload) =>
       http.put(`/api/v1/sales/${id}/customer-vehicle`, payload),
 
+    deleteBulk: (payload) =>
+      http.post('/api/v1/sales/bulk/delete', payload),
+
     close: (id, payload = {}) =>
       http.post(`/api/v1/sales/${id}/close`, payload),
     updateClose: (id, payload = {}) =>

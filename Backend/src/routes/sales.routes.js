@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   startSale, getSale, addItem, updateItem, removeItem,
-  setCustomerVehicle, closeSale, addByQR, listSales, summarySales, cancelSale, getProfileByPlate, getProfileByIdNumber, addItemsBatch, updateTechnician, technicianReport, completeOpenSlot, getSalesByPlate, updateCloseSale
+  setCustomerVehicle, closeSale, addByQR, listSales, summarySales, cancelSale, getProfileByPlate, getProfileByIdNumber, addItemsBatch, updateTechnician, technicianReport, completeOpenSlot, getSalesByPlate, updateCloseSale, deleteSalesBulk
 } from '../controllers/sales.controller.js';
 import { sseHandler } from '../lib/live.js';
 
@@ -44,6 +44,9 @@ router.post('/:id/complete-slot', completeOpenSlot);
 
 // Misc
 router.post('/addByQR', addByQR);
+
+// Bulk operations (administrativo)
+router.post('/bulk/delete', deleteSalesBulk);
 
 // Read single sale (keep last so it doesn't eat other routes)
 router.get('/:id', getSale);
