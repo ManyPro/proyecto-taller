@@ -215,36 +215,223 @@ router.put('/technicians/:name', async (req, res) => {
 
 router.delete('/technicians/:name', async (req, res) => {
   try {
-    const name = String(req.params.name || '').trim().toUpperCase();
+    const name = decodeURIComponent(String(req.params.name || '').trim());
     if (!name) return res.status(400).json({ error: 'nombre requerido' });
     
-    // Normalizar technicians: convertir strings a objetos si es necesario
-    const technicians = (req.companyDoc.technicians || []).map(t => {
+    // Función auxiliar para extraer nombre de técnico (maneja casos corruptos)
+    const extractTechName = (t) => {
       if (typeof t === 'string') {
-        return { name: t.toUpperCase(), identification: '' };
+        return t.trim();
       }
-      return { name: String(t.name || '').toUpperCase(), identification: String(t.identification || '').trim() };
+      if (t && typeof t === 'object') {
+        if (t.name !== undefined && t.name !== null) {
+          if (typeof t.name === 'string') {
+            return t.name.trim();
+          }
+          if (typeof t.name === 'object') {
+            // String indexado (corrupto)
+            try {
+              const nameKeys = Object.keys(t.name);
+              if (nameKeys.length > 0 && nameKeys.every(k => /^\d+$/.test(k))) {
+                return Object.values(t.name).join('').trim();
+              }
+            } catch (e) {
+              return '';
+            }
+          }
+          return String(t.name).trim();
+        }
+        // Si no tiene name pero tiene claves numéricas, es un string antiguo corrupto
+        const keys = Object.keys(t);
+        if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
+          try {
+            return Object.values(t).join('').trim();
+          } catch (e) {
+            return '';
+          }
+        }
+      }
+      return '';
+    };
+    
+    // Normalizar technicians: convertir strings a objetos si es necesario
+    const technicians = (req.companyDoc.technicians || []).map((t, index) => {
+      const extractedName = extractTechName(t);
+      const normalizedName = extractedName.toUpperCase().trim();
+      
+      if (typeof t === 'string') {
+        return { 
+          _index: index,
+          name: extractedName,
+          normalizedName: normalizedName,
+          original: t,
+          identification: '' 
+        };
+      }
+      return { 
+        _index: index,
+        name: extractedName,
+        normalizedName: normalizedName,
+        original: t,
+        identification: String(t.identification || '').trim(),
+        basicSalary: (t.basicSalary !== undefined && t.basicSalary !== null) ? Number(t.basicSalary) : null,
+        workHoursPerMonth: (t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null) ? Number(t.workHoursPerMonth) : null,
+        basicSalaryPerDay: (t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null) ? Number(t.basicSalaryPerDay) : null,
+        contractType: String(t.contractType || '').trim()
+      };
     });
     
-    // Verificar que el técnico existe
-    if (!technicians.some(t => t.name === name)) {
+    // Buscar técnico por nombre (comparación flexible)
+    const normalizedSearchName = name.toUpperCase().trim();
+    const techToDelete = technicians.find(t => 
+      t.normalizedName === normalizedSearchName || 
+      t.name === name ||
+      t.name.trim() === name.trim()
+    );
+    
+    if (!techToDelete) {
       return res.status(404).json({ error: 'Técnico no encontrado' });
     }
     
-    // Eliminar técnico de la lista
-    req.companyDoc.technicians = technicians.filter(t => t.name !== name);
+    // Eliminar técnico de la lista usando el índice original
+    const updatedTechnicians = req.companyDoc.technicians.filter((t, index) => index !== techToDelete._index);
+    
+    // Normalizar técnicos válidos restantes
+    req.companyDoc.technicians = updatedTechnicians.map(t => {
+      const extractedName = extractTechName(t);
+      if (typeof t === 'string') {
+        return { name: extractedName, identification: '' };
+      }
+      return {
+        name: extractedName,
+        identification: String(t.identification || '').trim(),
+        basicSalary: (t.basicSalary !== undefined && t.basicSalary !== null) ? Number(t.basicSalary) : null,
+        workHoursPerMonth: (t.workHoursPerMonth !== undefined && t.workHoursPerMonth !== null) ? Number(t.workHoursPerMonth) : null,
+        basicSalaryPerDay: (t.basicSalaryPerDay !== undefined && t.basicSalaryPerDay !== null) ? Number(t.basicSalaryPerDay) : null,
+        contractType: String(t.contractType || '').trim()
+      };
+    });
+    
     await req.companyDoc.save();
     
-    // Eliminar todas las asignaciones de este técnico
+    // Eliminar todas las asignaciones de este técnico (por nombre normalizado y original)
     const { default: TechnicianAssignment } = await import('../models/TechnicianAssignment.js');
     await TechnicianAssignment.deleteMany({ 
       companyId: req.companyDoc._id, 
-      technicianName: name 
+      $or: [
+        { technicianName: normalizedSearchName },
+        { technicianName: techToDelete.name },
+        { technicianName: name }
+      ]
     });
     
     res.json({ technicians: req.companyDoc.technicians });
   } catch (err) {
     res.status(500).json({ error: 'Error al eliminar técnico', message: err.message });
+  }
+});
+
+// Endpoint para limpiar técnicos corruptos
+router.delete('/technicians-cleanup/corrupt', async (req, res) => {
+  try {
+    // Función auxiliar para extraer nombre de técnico (maneja casos corruptos)
+    const extractTechName = (t) => {
+      if (typeof t === 'string') {
+        return t.trim();
+      }
+      if (t && typeof t === 'object') {
+        if (t.name !== undefined && t.name !== null) {
+          if (typeof t.name === 'string') {
+            return t.name.trim();
+          }
+          if (typeof t.name === 'object') {
+            try {
+              const nameKeys = Object.keys(t.name);
+              if (nameKeys.length > 0 && nameKeys.every(k => /^\d+$/.test(k))) {
+                return Object.values(t.name).join('').trim();
+              }
+            } catch (e) {
+              return '';
+            }
+          }
+          return String(t.name).trim();
+        }
+        const keys = Object.keys(t);
+        if (keys.length > 0 && keys.every(k => /^\d+$/.test(k))) {
+          try {
+            return Object.values(t).join('').trim();
+          } catch (e) {
+            return '';
+          }
+        }
+      }
+      return '';
+    };
+    
+    const technicians = req.companyDoc.technicians || [];
+    const validTechnicians = [];
+    const corruptNames = [];
+    
+    for (const tech of technicians) {
+      const extractedName = extractTechName(tech);
+      const normalizedName = extractedName.toUpperCase().trim();
+      
+      // Considerar corrupto si: vacío, "SIN NOMBRE", o solo espacios
+      const isCorrupt = !extractedName || 
+                       normalizedName === 'SIN NOMBRE' || 
+                       normalizedName === '' ||
+                       extractedName.length === 0;
+      
+      if (isCorrupt) {
+        corruptNames.push(extractedName || '(vacío)');
+      } else {
+        // Normalizar técnico válido
+        if (typeof tech === 'string') {
+          validTechnicians.push({ name: extractedName, identification: '' });
+        } else {
+          validTechnicians.push({
+            name: extractedName,
+            identification: String(tech.identification || '').trim(),
+            basicSalary: (tech.basicSalary !== undefined && tech.basicSalary !== null) ? Number(tech.basicSalary) : null,
+            workHoursPerMonth: (tech.workHoursPerMonth !== undefined && tech.workHoursPerMonth !== null) ? Number(tech.workHoursPerMonth) : null,
+            basicSalaryPerDay: (tech.basicSalaryPerDay !== undefined && tech.basicSalaryPerDay !== null) ? Number(tech.basicSalaryPerDay) : null,
+            contractType: String(tech.contractType || '').trim()
+          });
+        }
+      }
+    }
+    
+    if (corruptNames.length === 0) {
+      return res.json({ 
+        message: 'No se encontraron técnicos corruptos',
+        cleaned: 0,
+        technicians: req.companyDoc.technicians 
+      });
+    }
+    
+    // Actualizar con solo técnicos válidos
+    req.companyDoc.technicians = validTechnicians;
+    await req.companyDoc.save();
+    
+    // Eliminar asignaciones de técnicos corruptos
+    const { default: TechnicianAssignment } = await import('../models/TechnicianAssignment.js');
+    await TechnicianAssignment.deleteMany({ 
+      companyId: req.companyDoc._id, 
+      $or: [
+        { technicianName: { $in: ['', 'SIN NOMBRE', 'Sin nombre'] } },
+        { technicianName: { $exists: false } },
+        { technicianName: null }
+      ]
+    });
+    
+    res.json({ 
+      message: `Se eliminaron ${corruptNames.length} técnicos corruptos`,
+      cleaned: corruptNames.length,
+      corruptNames: corruptNames,
+      technicians: req.companyDoc.technicians 
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al limpiar técnicos corruptos', message: err.message });
   }
 });
 

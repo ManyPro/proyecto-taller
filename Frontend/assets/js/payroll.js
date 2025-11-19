@@ -453,12 +453,86 @@ async function loadTechnicians(){
               await loadTechnicians();
             } catch (err) {
               console.error('Error eliminando técnico:', err);
-              alert('❌ Error al eliminar técnico: ' + (err.message || 'Error desconocido'));
+              const isCorruptError = err.message && (
+                err.message.includes('no encontrado') || 
+                err.message.includes('Técnico no encontrado') ||
+                name === 'Sin nombre' ||
+                name.trim() === ''
+              );
+              
+              if (isCorruptError) {
+                const useCleanup = confirm(
+                  `❌ No se pudo eliminar el técnico "${name}".\n\n` +
+                  `Este técnico parece estar corrupto.\n\n` +
+                  `¿Deseas limpiar automáticamente todos los técnicos corruptos?`
+                );
+                
+                if (useCleanup) {
+                  try {
+                    await cleanupCorruptTechnicians();
+                  } catch (cleanupErr) {
+                    alert('❌ Error al limpiar técnicos corruptos: ' + (cleanupErr.message || 'Error desconocido'));
+                  }
+                }
+              } else {
+                alert('❌ Error al eliminar técnico: ' + (err.message || 'Error desconocido'));
+              }
+              
               btn.disabled = false;
               btn.textContent = '🗑️ Eliminar';
             }
           });
         });
+        
+        // Detectar si hay técnicos corruptos y agregar botón de limpieza
+        const hasCorruptTechs = normalizedTechs.some(t => 
+          !t.name || 
+          t.name.trim() === '' || 
+          t.name === 'Sin nombre' || 
+          t.name.toUpperCase() === 'SIN NOMBRE'
+        );
+        
+        if (hasCorruptTechs) {
+          const cleanupBtn = document.createElement('div');
+          cleanupBtn.className = 'mt-3 p-3 bg-yellow-600/20 dark:bg-yellow-600/20 theme-light:bg-yellow-50 border border-yellow-600/30 dark:border-yellow-600/30 theme-light:border-yellow-300 rounded-lg';
+          cleanupBtn.innerHTML = `
+            <div class="flex items-center justify-between">
+              <div class="flex-1">
+                <p class="text-sm font-semibold text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-700 mb-1">
+                  ⚠️ Técnicos corruptos detectados
+                </p>
+                <p class="text-xs text-yellow-300 dark:text-yellow-300 theme-light:text-yellow-600">
+                  Hay técnicos con nombres vacíos o corruptos que no se pueden editar ni eliminar individualmente.
+                </p>
+              </div>
+              <button id="cleanup-corrupt-techs-btn" class="ml-3 bg-yellow-600/30 dark:bg-yellow-600/30 hover:bg-yellow-600/40 dark:hover:bg-yellow-600/40 theme-light:bg-yellow-100 theme-light:hover:bg-yellow-200 border border-yellow-600/50 dark:border-yellow-600/50 theme-light:border-yellow-400 text-yellow-300 dark:text-yellow-300 theme-light:text-yellow-700 px-3 py-2 rounded text-xs font-semibold transition-all duration-200 cursor-pointer">
+                🧹 Limpiar técnicos corruptos
+              </button>
+            </div>
+          `;
+          listEl.appendChild(cleanupBtn);
+          
+          // Agregar event listener al botón de limpieza
+          const cleanupBtnEl = document.getElementById('cleanup-corrupt-techs-btn');
+          if (cleanupBtnEl) {
+            cleanupBtnEl.addEventListener('click', async () => {
+              if (!confirm('¿Estás seguro de limpiar todos los técnicos corruptos?\n\n⚠️ Esta acción eliminará:\n- Todos los técnicos con nombres vacíos o "Sin nombre"\n- Todas sus asignaciones personalizadas\n\nEsta acción no se puede deshacer.')) {
+                return;
+              }
+              
+              try {
+                cleanupBtnEl.disabled = true;
+                cleanupBtnEl.textContent = 'Limpiando...';
+                await cleanupCorruptTechnicians();
+              } catch (err) {
+                console.error('Error limpiando técnicos corruptos:', err);
+                alert('❌ Error al limpiar técnicos corruptos: ' + (err.message || 'Error desconocido'));
+                cleanupBtnEl.disabled = false;
+                cleanupBtnEl.textContent = '🧹 Limpiar técnicos corruptos';
+              }
+            });
+          }
+        }
       }
     }
   } catch (err) {
@@ -469,6 +543,24 @@ async function loadTechnicians(){
         ❌ Error al cargar técnicos: ${htmlEscape(err.message || 'Error desconocido')}
       </div>`;
     }
+  }
+}
+
+async function cleanupCorruptTechnicians() {
+  try {
+    const result = await api.del('/api/v1/company/technicians-cleanup/corrupt');
+    const cleaned = result.cleaned || 0;
+    
+    if (cleaned > 0) {
+      alert(`✅ Se limpiaron ${cleaned} técnico(s) corrupto(s) exitosamente.`);
+      await loadTechnicians();
+    } else {
+      alert('ℹ️ No se encontraron técnicos corruptos para limpiar.');
+      await loadTechnicians();
+    }
+  } catch (err) {
+    console.error('Error en cleanupCorruptTechnicians:', err);
+    throw err;
   }
 }
 
