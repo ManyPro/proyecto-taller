@@ -3207,16 +3207,22 @@
     const tableContainer = document.createElement('div');
     tableContainer.className = 'tpl-element items-table';
     tableContainer.id = `element_${visualEditor.nextId++}`;
+    // Si se especifica un ancho, usarlo; sino usar el cálculo original
+    const tableWidth = position.width || `calc(100% - ${position.left * 2}px)`;
+    const maxWidth = position.width ? `${position.width}px` : '520px';
     tableContainer.style.cssText = `
       position: absolute;
       left: ${position.left}px;
       top: ${position.top}px;
       border: 2px solid transparent;
       cursor: move;
-      width: 700px;
+      width: ${tableWidth};
+      max-width: ${maxWidth};
       background: white;
-      max-width: 100%;
     `;
+    
+    // Agregar clase para centrado en impresión
+    tableContainer.classList.add('quote-content');
 
     tableContainer.innerHTML = `
       <style>
@@ -3233,24 +3239,37 @@
         .quote-table tbody {
           display: table-row-group;
         }
+        .quote-table tfoot {
+          display: table-footer-group;
+        }
+        .quote-table tfoot tr {
+          border-top: 2px solid #000 !important;
+        }
+        .quote-table tfoot td {
+          border: 1px solid #000 !important;
+          padding: 2px 4px !important;
+          font-size: 12.4px !important;
+          font-weight: bold !important;
+        }
         .quote-table th {
           border: 2px solid #000 !important;
-          padding: 12px 8px;
+          padding: 2px 3px;
           font-weight: bold;
           color: #000;
-          font-size: 12px;
+          font-size: 12.4px;
           background: white;
           word-wrap: break-word;
           overflow-wrap: break-word;
         }
         .quote-table td {
           border: 1px solid #000 !important;
-          padding: 10px 8px;
+          padding: 1px 3px;
           color: #000;
-          font-size: 12px;
+          font-size: 11px;
           word-wrap: break-word;
           overflow-wrap: break-word;
           vertical-align: top;
+          line-height: 1.2;
         }
         .quote-table th:nth-child(1),
         .quote-table td:nth-child(1) {
@@ -3291,6 +3310,18 @@
           .quote-table tbody {
             display: table-row-group !important;
           }
+          .quote-table tfoot {
+            display: table-footer-group !important;
+          }
+          .quote-table tfoot tr {
+            border-top: 2px solid #000 !important;
+          }
+          .quote-table tfoot td {
+            border: 1px solid #000 !important;
+            padding: 2px 4px !important;
+            font-size: 12.4px !important;
+            font-weight: bold !important;
+          }
           .quote-table tr {
             page-break-inside: avoid;
             page-break-after: auto;
@@ -3298,8 +3329,9 @@
           .quote-table th,
           .quote-table td {
             border: 1px solid #000 !important;
-            padding: 8px !important;
+            padding: 1px 2px !important;
             font-size: 11px !important;
+            line-height: 1.1 !important;
           }
           .quote-table th {
             border-width: 2px !important;
@@ -3321,6 +3353,57 @@
           </tr>
         </thead>
         <tbody>
+          {{#if quote.itemsGrouped.hasCombos}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">COMBOS</td>
+          </tr>
+          {{#each quote.itemsGrouped.combos}}
+          <tr>
+            <td><strong>{{name}}</strong></td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{#each items}}
+          <tr>
+            <td style="padding-left: 30px;">• {{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{#if unitPrice}}{{money unitPrice}}{{/if}}</td>
+            <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>
+          </tr>
+          {{/each}}
+          {{/each}}
+          {{/if}}
+          
+          {{#if quote.itemsGrouped.hasProducts}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">PRODUCTOS</td>
+          </tr>
+          {{#each quote.itemsGrouped.products}}
+          <tr>
+            <td>{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{/each}}
+          {{/if}}
+          
+          {{#if quote.itemsGrouped.hasServices}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">SERVICIOS</td>
+          </tr>
+          {{#each quote.itemsGrouped.services}}
+          <tr>
+            <td>{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{/each}}
+          {{/if}}
+          
+          {{#unless quote.itemsGrouped.hasProducts}}{{#unless quote.itemsGrouped.hasServices}}{{#unless quote.itemsGrouped.hasCombos}}
           {{#each quote.items}}
           <tr>
             <td>{{#if sku}}[{{sku}}] {{/if}}{{description}}</td>
@@ -3334,7 +3417,14 @@
             <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
           </tr>
           {{/unless}}
+          {{/unless}}{{/unless}}{{/unless}}
         </tbody>
+        <tfoot>
+          <tr style="border-top: 2px solid #000;">
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">TOTAL</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{money quote.total}}</td>
+          </tr>
+        </tfoot>
       </table>
     `;
 
@@ -3353,29 +3443,29 @@
   function createQuoteTemplate(canvas) {
     console.log('🎨 Creando plantilla de cotización completa...');
     
-    // Título COTIZACIÓN (arriba izquierda)
+    // Título COTIZACIÓN (arriba izquierda) - Compactado para media carta
     const title = createEditableElement('title', 'COTIZACIÓN', {
-      position: { left: 40, top: 30 },
-      styles: { fontSize: '48px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', letterSpacing: '2px' }
+      position: { left: 19, top: 10 },
+      styles: { fontSize: '38px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', letterSpacing: '0.5px' }
     });
     canvas.appendChild(title);
 
-    // Número de cotización en caja negra
+    // Número de cotización en caja negra - Compactado
     const numberBox = document.createElement('div');
     numberBox.className = 'tpl-element';
     numberBox.id = `element_${visualEditor.nextId++}`;
-    numberBox.style.cssText = 'position: absolute; left: 40px; top: 100px; border: 2px solid #000; padding: 8px 16px; display: inline-block;';
-    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 18px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{quote.number}}</span>';
+    numberBox.style.cssText = 'position: absolute; left: 19px; top: 45px; border: 2px solid #000; padding: 4px 8px; display: inline-block;';
+    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 15.1px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{#if quote.number}}{{quote.number}}{{else}}[Sin nº]{{/if}}</span>';
     makeDraggable(numberBox);
     makeSelectable(numberBox);
     canvas.appendChild(numberBox);
     visualEditor.elements.push({ id: numberBox.id, type: 'text', element: numberBox });
 
-    // Logo/empresa (arriba derecha) - editable con imagen o variable
+    // Logo/empresa (arriba derecha) - Compactado para media carta
     const logoBox = document.createElement('div');
     logoBox.className = 'tpl-element';
     logoBox.id = `element_${visualEditor.nextId++}`;
-    logoBox.style.cssText = 'position: absolute; right: 40px; top: 30px; width: 100px; height: 100px; border: 2px solid #000; padding: 5px; display: flex; align-items: center; justify-content: center; cursor: move; background: white; box-sizing: border-box;';
+    logoBox.style.cssText = 'position: absolute; right: 19px; top: 10px; width: 60px; height: 60px; border: 2px solid #000; padding: 3px; display: flex; align-items: center; justify-content: center; cursor: move; background: white; box-sizing: border-box;';
     logoBox.innerHTML = `
       <div class="image-placeholder" style="width: 100%; height: 100%; background: #f5f5f5; border: 2px dashed #999; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; color: #666; text-align: center; padding: 5px; box-sizing: border-box; position: relative;">
         <div style="display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none;">
@@ -3419,144 +3509,134 @@
     canvas.appendChild(logoBox);
     visualEditor.elements.push({ id: logoBox.id, type: 'image', element: logoBox });
 
-    // Sección DATOS DEL CLIENTE (izquierda)
-    const clientTitle = createEditableElement('text', 'DATOS DEL CLIENTE', {
-      position: { left: 40, top: 180 },
-      styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
-    });
-    canvas.appendChild(clientTitle);
+    // Sección DATOS DEL CLIENTE (izquierda) - Cuadro organizado en 2x2
+    // 1cm de espacio desde el número (45px + 38px = 83px)
+    const clientBox = document.createElement('div');
+    clientBox.className = 'tpl-element client-data-box';
+    clientBox.id = `element_${visualEditor.nextId++}`;
+    clientBox.style.cssText = 'position: absolute; left: 19px; top: 83px; width: 331px; border: 2px solid #000; padding: 8px; background: white; z-index: 10;';
+    clientBox.innerHTML = `
+      <style>
+        .client-data-box {
+          position: absolute !important;
+          left: 19px !important;
+          top: 83px !important;
+          width: 331px !important;
+          border: 2px solid #000 !important;
+          padding: 8px !important;
+          background: white !important;
+          z-index: 10 !important;
+          page-break-inside: avoid !important;
+        }
+        @media print {
+          .client-data-box {
+            position: absolute !important;
+            left: 19px !important;
+            top: 83px !important;
+            width: 331px !important;
+            border: 2px solid #000 !important;
+            padding: 8px !important;
+            background: white !important;
+            z-index: 10 !important;
+            page-break-inside: avoid !important;
+            overflow: visible !important;
+          }
+        }
+      </style>
+      <div style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 5px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 3px;">DATOS DEL CLIENTE</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: Arial, sans-serif; margin-top: 2px;">
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold; width: 30%;">Nombre:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px; width: 70%;"><span contenteditable="true">{{quote.customer.name}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Email:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{quote.customer.email}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Teléfono:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{quote.customer.phone}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Dirección:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{quote.customer.address}}</span></td>
+        </tr>
+      </table>
+    `;
+    makeDraggable(clientBox);
+    makeSelectable(clientBox);
+    canvas.appendChild(clientBox);
+    visualEditor.elements.push({ id: clientBox.id, type: 'text', element: clientBox });
 
-    const clientData = createEditableElement('text', '{{Q.C.nombre}}\n{{Q.C.email}}\n{{Q.C.tel}}', {
-      position: { left: 40, top: 210 },
-      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
-    });
-    canvas.appendChild(clientData);
+    // Sección DATOS DE LA EMPRESA (derecha) - Cuadro organizado en 2x2
+    const companyBox = document.createElement('div');
+    companyBox.className = 'tpl-element company-data-box';
+    companyBox.id = `element_${visualEditor.nextId++}`;
+    companyBox.style.cssText = 'position: absolute; right: 19px; top: 83px; width: 331px; border: 2px solid #000; padding: 8px; background: white; z-index: 10;';
+    companyBox.innerHTML = `
+      <style>
+        .company-data-box {
+          position: absolute !important;
+          right: 19px !important;
+          top: 83px !important;
+          width: 331px !important;
+          border: 2px solid #000 !important;
+          padding: 8px !important;
+          background: white !important;
+          z-index: 10 !important;
+          page-break-inside: avoid !important;
+        }
+        @media print {
+          .company-data-box {
+            position: absolute !important;
+            right: 19px !important;
+            top: 83px !important;
+            width: 331px !important;
+            border: 2px solid #000 !important;
+            padding: 8px !important;
+            background: white !important;
+            z-index: 10 !important;
+            page-break-inside: avoid !important;
+            overflow: visible !important;
+          }
+        }
+      </style>
+      <div style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 5px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 3px;">DATOS DE LA EMPRESA</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: Arial, sans-serif; margin-top: 2px;">
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold; width: 30%;">Nombre:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px; width: 70%;"><span contenteditable="true">{{company.name}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Email:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{company.email}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Teléfono:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{company.phone}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Dirección:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{company.address}}</span></td>
+        </tr>
+      </table>
+    `;
+    makeDraggable(companyBox);
+    makeSelectable(companyBox);
+    canvas.appendChild(companyBox);
+    visualEditor.elements.push({ id: companyBox.id, type: 'text', element: companyBox });
 
-    // Línea divisoria vertical
-    const divider = document.createElement('div');
-    divider.style.cssText = 'position: absolute; left: 50%; top: 180px; width: 1px; height: 120px; background: #000;';
-    canvas.appendChild(divider);
-
-    // Sección DATOS DE LA EMPRESA (derecha) - alineada correctamente
-    const companyTitle = createEditableElement('text', 'DATOS DE LA EMPRESA', {
-      position: { left: 500, top: 180 },
-      styles: { fontSize: '14px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif' }
-    });
-    canvas.appendChild(companyTitle);
-
-    // Solo nombre y correo como variables, teléfono y dirección como texto editable
-    const companyData = createEditableElement('text', '{{company.name}}\n{{company.email}}\n[Editar teléfono]\n[Editar dirección]', {
-      position: { left: 500, top: 210 },
-      styles: { fontSize: '12px', color: '#000', fontFamily: 'Arial, sans-serif', whiteSpace: 'pre-line', lineHeight: '1.6' }
-    });
-    canvas.appendChild(companyData);
-
-    // Línea horizontal separadora
-    const horizontalLine = document.createElement('div');
-    horizontalLine.style.cssText = 'position: absolute; left: 40px; right: 40px; top: 320px; height: 1px; background: #000;';
-    canvas.appendChild(horizontalLine);
-
-    // Tabla de items mejorada con diseño similar a la imagen (usando variables de quote)
-    const itemsTable = createQuoteItemsTable({ left: 40, top: 340 });
+    // Calcular la posición de la tabla: después de los cuadros de datos + 1cm de separación
+    // Los cuadros empiezan en top: 83px
+    // Altura aproximada del cuadro: título (~18px) + tabla 4 filas (~100px con nuevo padding) + padding (16px) = ~134px
+    // 1cm = aproximadamente 38px
+    // Posición tabla: 83px + 134px + 38px = 255px (redondeado a 260px para más espacio)
+    // Ancho de los cuadros: 331px cada uno, total aproximado: 662px (considerando espacio entre ellos)
+    // La tabla de items debe tener el mismo ancho que los dos cuadros juntos
+    const itemsTable = createQuoteItemsTable({ left: 19, top: 260, width: 682 });
     canvas.appendChild(itemsTable);
 
-    // Línea horizontal antes de totales - será ajustada dinámicamente
-    const totalLine = document.createElement('div');
-    totalLine.className = 'tpl-total-line';
-    totalLine.style.cssText = 'position: absolute; left: 40px; right: 40px; top: 580px; height: 1px; background: #000; z-index: 1000;';
-    canvas.appendChild(totalLine);
-
-    // TOTAL en caja negra - será ajustado dinámicamente
-    const totalBox = document.createElement('div');
-    totalBox.className = 'tpl-element tpl-total-box';
-    totalBox.id = `element_${visualEditor.nextId++}`;
-    totalBox.style.cssText = 'position: absolute; left: 40px; top: 590px; right: 40px; border: 2px solid #000; padding: 12px 20px; display: flex; align-items: center; justify-content: space-between; z-index: 1000;';
-    totalBox.innerHTML = '<span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">TOTAL</span><span contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">{{$ Q.total}}</span>';
-    totalBox.setAttribute('data-table-container-id', itemsTable.id);
-    makeDraggable(totalBox);
-    makeSelectable(totalBox);
-    canvas.appendChild(totalBox);
-    visualEditor.elements.push({ id: totalBox.id, type: 'text', element: totalBox });
-    
-    // Función para ajustar posición del total después de que la tabla se renderice con datos reales
-    // Esto se ejecutará cuando se renderice el template con datos reales
-    const adjustTotalPosition = () => {
-      const table = itemsTable.querySelector('table.quote-table');
-      if (!table) {
-        console.log('[adjustTotalPosition Quote] Tabla no encontrada aún');
-        return;
-      }
-      
-      // Usar múltiples métodos para obtener la altura real de la tabla (igual que en impresión)
-      const tableRect = table.getBoundingClientRect();
-      const canvasRect = canvas.getBoundingClientRect();
-      
-      // Obtener posición relativa al canvas
-      const tableTop = tableRect.top - canvasRect.top + canvas.scrollTop;
-      const tableLeft = tableRect.left - canvasRect.left + canvas.scrollLeft;
-      const tableWidth = Math.max(
-        table.offsetWidth || 0,
-        table.scrollWidth || 0,
-        tableRect.width || 0,
-        table.clientWidth || 0
-      );
-      
-      // Obtener altura real de la tabla usando el mayor valor disponible
-      const tableHeight = Math.max(
-        table.offsetHeight || 0,
-        table.scrollHeight || 0,
-        tableRect.height || 0,
-        table.clientHeight || 0
-      );
-      
-      // Calcular nueva posición: inicio de tabla + altura + espacio adicional
-      const newTop = tableTop + tableHeight + 10; // 10px de espacio adicional para evitar solapamiento
-      
-      // Asegurar que el total no se salga de la página A4 (altura máxima ~1123px)
-      const maxTop = 1100; // Dejar espacio para márgenes inferiores
-      const finalTop = Math.min(newTop, maxTop);
-      
-      // Ajustar posición vertical y ancho del total para que coincida con la tabla
-      totalLine.style.top = `${finalTop}px`;
-      totalLine.style.left = `${tableLeft}px`;
-      totalLine.style.width = `${tableWidth}px`;
-      
-      totalBox.style.top = `${finalTop + 1}px`;
-      totalBox.style.left = `${tableLeft}px`;
-      totalBox.style.width = `${tableWidth}px`;
-      
-      console.log('[adjustTotalPosition Quote] Total ajustado:', {
-        tableTop,
-        tableLeft,
-        tableWidth,
-        tableHeight,
-        tableOffsetHeight: table.offsetHeight,
-        tableScrollHeight: table.scrollHeight,
-        tableRectHeight: tableRect.height,
-        tableClientHeight: table.clientHeight,
-        newTop,
-        finalTop
-      });
-    };
-    
-    // Ajustar posición cuando se cargue el template con datos
-    // Usar MutationObserver para detectar cambios en la tabla
-    const observer = new MutationObserver(() => {
-      adjustTotalPosition();
-    });
-    if (itemsTable) {
-      observer.observe(itemsTable, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
-    }
-    
-    // También ajustar después de múltiples delays para asegurar que se ejecute cuando la tabla tenga su altura real
-    setTimeout(adjustTotalPosition, 100);
-    setTimeout(adjustTotalPosition, 300);
-    setTimeout(adjustTotalPosition, 500);
-    setTimeout(adjustTotalPosition, 1000);
-    setTimeout(adjustTotalPosition, 2000);
-    
-    // Ajustar también cuando se redimensiona la ventana
-    window.addEventListener('resize', adjustTotalPosition);
+    // NOTA: El total ahora está dentro de la tabla como tfoot, así que ya no necesitamos ajustar posición separada
 
     console.log('✅ Plantilla de cotización creada con todos los elementos');
   }

@@ -389,28 +389,238 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
       if (!quoteObj.items || !Array.isArray(quoteObj.items)) {
         quoteObj.items = [];
       }
-      // Asegurar que cada item tenga las propiedades necesarias
-      // NO filtrar items vacíos aquí, dejarlos pasar para que el template decida
+      
+      // Procesar items y agrupar por tipo (productos, servicios, combos) - igual que en sales
+      // Primero, identificar qué items son combos consultando PriceEntry
+      const priceEntryIds = quoteObj.items
+        .filter(item => item.source === 'price' && item.refId)
+        .map(item => item.refId);
+      
+      const priceEntries = priceEntryIds.length > 0 
+        ? await PriceEntry.find({ _id: { $in: priceEntryIds }, companyId }).lean()
+        : [];
+      
+      const priceEntryMap = {};
+      priceEntries.forEach(pe => {
+        priceEntryMap[pe._id.toString()] = pe;
+      });
+      
+      // Procesar items y crear estructura jerárquica
+      const processedItems = [];
+      const products = [];
+      const services = [];
+      const combos = [];
+      
+      // Primero, identificar combos y sus productos anidados
+      const comboPriceEntries = priceEntries.filter(pe => pe.type === 'combo');
+      const comboProductItemIds = new Set();
+      comboPriceEntries.forEach(pe => {
+        if (pe.comboProducts && Array.isArray(pe.comboProducts)) {
+          pe.comboProducts.forEach(cp => {
+            if (cp.itemId) {
+              comboProductItemIds.add(String(cp.itemId));
+            }
+          });
+        }
+      });
+      
+      let i = 0;
+      while (i < quoteObj.items.length) {
+        const item = quoteObj.items[i];
+        const itemObj = {
+          sku: item.sku || '',
+          name: item.description || item.name || '',
+          description: item.description || '',
+          qty: Number(item.qty) || 0,
+          unitPrice: Number(item.unitPrice) || 0,
+          total: Number(item.subtotal) || (Number(item.qty) || 0) * (Number(item.unitPrice) || 0),
+          subtotal: Number(item.subtotal) || (Number(item.qty) || 0) * (Number(item.unitPrice) || 0),
+          source: item.source || '',
+          refId: item.refId || null,
+          kind: item.kind || '',
+          isNested: false
+        };
+        
+        // Verificar si es un combo
+        if (item.source === 'price' && item.refId) {
+          const pe = priceEntryMap[item.refId.toString()];
+          if (pe && pe.type === 'combo') {
+            // Es un combo - cargar el combo completo con sus productos
+            const fullCombo = await PriceEntry.findOne({ _id: item.refId, companyId })
+              .populate('comboProducts.itemId', 'sku name stock salePrice')
+              .lean();
+            
+            const comboItems = [];
+            const comboProductRefIds = new Set();
+            const comboProductNames = new Set();
+            
+            // Primero, construir un mapa de los productos del combo desde PriceEntry
+            if (fullCombo && fullCombo.comboProducts) {
+              fullCombo.comboProducts.forEach(cp => {
+                if (cp.itemId) {
+                  comboProductRefIds.add(String(cp.itemId));
+                }
+                if (cp.name) {
+                  comboProductNames.add(String(cp.name).trim().toUpperCase());
+                }
+              });
+            }
+            
+            // Buscar items siguientes que pertenecen a este combo
+            let j = i + 1;
+            const processedComboItemIndices = new Set();
+            
+            while (j < quoteObj.items.length) {
+              const nextItem = quoteObj.items[j];
+              const nextSku = String(nextItem.sku || '').toUpperCase();
+              const nextName = String(nextItem.description || nextItem.name || '').trim().toUpperCase();
+              const nextRefId = nextItem.refId ? String(nextItem.refId) : '';
+              
+              // Si el SKU empieza con "CP-", es definitivamente parte del combo
+              if (nextSku.startsWith('CP-')) {
+                comboItems.push({
+                  sku: nextItem.sku || '',
+                  name: nextItem.description || nextItem.name || '',
+                  description: nextItem.description || '',
+                  qty: Number(nextItem.qty) || 0,
+                  unitPrice: Number(nextItem.unitPrice) || 0,
+                  total: Number(nextItem.subtotal) || 0,
+                  subtotal: Number(nextItem.subtotal) || 0,
+                  source: nextItem.source || '',
+                  refId: nextItem.refId || null,
+                  isNested: true
+                });
+                processedComboItemIndices.add(j);
+                j++;
+                continue;
+              }
+              
+              // Si es un item de inventario y su refId está en los productos del combo
+              if (nextItem.source === 'inventory' && nextItem.refId && comboProductRefIds.has(nextRefId)) {
+                comboItems.push({
+                  sku: nextItem.sku || '',
+                  name: nextItem.description || nextItem.name || '',
+                  description: nextItem.description || '',
+                  qty: Number(nextItem.qty) || 0,
+                  unitPrice: Number(nextItem.unitPrice) || 0,
+                  total: Number(nextItem.subtotal) || 0,
+                  subtotal: Number(nextItem.subtotal) || 0,
+                  source: nextItem.source || '',
+                  refId: nextItem.refId || null,
+                  isNested: true
+                });
+                processedComboItemIndices.add(j);
+                j++;
+                continue;
+              }
+              
+              // Si encontramos otro combo o servicio con precio > 0, parar
+              if (nextItem.source === 'price' && nextItem.refId) {
+                const nextPe = priceEntryMap[nextItem.refId.toString()];
+                if (nextPe && nextPe.type === 'combo') {
+                  // Es otro combo, parar aquí
+                  break;
+                } else if (Number(nextItem.unitPrice || 0) > 0) {
+                  // Es un servicio con precio, parar aquí
+                  break;
+                }
+              } else if (nextItem.source === 'inventory' && Number(nextItem.unitPrice || 0) > 0 && 
+                        !comboProductRefIds.has(nextRefId)) {
+                // Es un producto del inventario con precio > 0 que NO es del combo, parar
+                break;
+              } else if (nextItem.source === 'service' || (nextItem.source === 'price' && !nextItem.refId && Number(nextItem.unitPrice || 0) > 0)) {
+                // Es un servicio independiente, parar
+                break;
+              } else {
+                // Otro caso, parar por seguridad
+                break;
+              }
+            }
+            
+            combos.push({
+              name: itemObj.name,
+              description: itemObj.description,
+              qty: itemObj.qty,
+              unitPrice: itemObj.unitPrice,
+              total: itemObj.total,
+              subtotal: itemObj.subtotal,
+              sku: itemObj.sku,
+              items: comboItems // Productos anidados del combo
+            });
+            
+            // Saltar los items que ya procesamos como parte del combo
+            i = j;
+            continue;
+          } else {
+            // Es un servicio (price pero no combo)
+            services.push(itemObj);
+          }
+        } else if (item.source === 'inventory') {
+          // Es un producto del inventario
+          // Verificar si NO es parte de un combo (no está en comboProductItemIds)
+          const itemRefId = item.refId ? String(item.refId) : '';
+          if (!comboProductItemIds.has(itemRefId)) {
+            products.push(itemObj);
+          }
+          // Si es parte de un combo, ya fue procesado arriba
+        } else if (item.source === 'service') {
+          // Es un servicio explícito
+          services.push(itemObj);
+        } else {
+          // Fallback: tratar como servicio
+          services.push(itemObj);
+        }
+        
+        i++;
+      }
+      
+      // Crear estructura agrupada para el template
+      // IMPORTANTE: Los combos deben ir primero en la cotización
+      quoteObj.itemsGrouped = {
+        combos: combos,
+        products: products,
+        services: services,
+        hasCombos: combos.length > 0,
+        hasProducts: products.length > 0,
+        hasServices: services.length > 0
+      };
+      
+      // Mantener items originales para compatibilidad
       quoteObj.items = quoteObj.items.map(item => ({
         sku: item.sku || '',
         description: item.description || '',
-        qty: item.qty || null,
+        name: item.description || item.name || '',
+        qty: Number(item.qty) || 0,
         unitPrice: Number(item.unitPrice) || 0,
-        subtotal: Number(item.subtotal) || (item.qty ? Number(item.qty) : 1) * (Number(item.unitPrice) || 0)
+        subtotal: Number(item.subtotal) || (Number(item.qty) || 0) * (Number(item.unitPrice) || 0),
+        total: Number(item.subtotal) || (Number(item.qty) || 0) * (Number(item.unitPrice) || 0),
+        source: item.source || '',
+        refId: item.refId || null
       }));
       
-      // Log para depuración
+      // Log después de procesar items
       if (process.env.NODE_ENV !== 'production') {
-        console.log('[buildContext Quote]', {
-          quoteId: quoteObj._id,
-          quoteNumber: quoteObj.number,
-          itemsCount: quoteObj.items.length,
-          items: quoteObj.items.map(i => ({ description: i.description, qty: i.qty, unitPrice: i.unitPrice, subtotal: i.subtotal }))
+        console.log('[buildContext Quote] Items agrupados:', {
+          productsCount: products.length,
+          servicesCount: services.length,
+          combosCount: combos.length,
+          products: products.map(i => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice })),
+          services: services.map(i => ({ name: i.name, qty: i.qty, unitPrice: i.unitPrice })),
+          combos: combos.map(c => ({ name: c.name, itemsCount: c.items.length, items: c.items.map(i => ({ name: i.name, unitPrice: i.unitPrice })) }))
+        });
+        console.log('[buildContext Quote] quote.itemsGrouped creado:', {
+          hasProducts: quoteObj.itemsGrouped.hasProducts,
+          hasServices: quoteObj.itemsGrouped.hasServices,
+          hasCombos: quoteObj.itemsGrouped.hasCombos,
+          productsLength: quoteObj.itemsGrouped.products.length,
+          servicesLength: quoteObj.itemsGrouped.services.length,
+          combosLength: quoteObj.itemsGrouped.combos.length
         });
       }
+      
       // Asegurar que customer esté presente
       if (!quoteObj.customer) {
-        quoteObj.customer = { name: '', phone: '', email: '' };
+        quoteObj.customer = { name: '', phone: '', email: '', address: '' };
       }
       // Asegurar que vehicle esté presente
       if (!quoteObj.vehicle) {
@@ -833,29 +1043,156 @@ function normalizeTemplateHtml(html='') {
     }
   }
   
-  // Para cotizaciones
+  // Para cotizaciones - convertir a estructura agrupada igual que remisiones
   if (output.includes('quote-table')) {
     const tbodyMatches = output.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
     if (tbodyMatches) {
       tbodyMatches.forEach((match) => {
-        if (match.includes('{{description}}') && !match.includes('{{#each quote.items}}')) {
+        // Si tiene {{#each quote.items}} pero NO tiene quote.itemsGrouped, convertir a nueva estructura
+        if (match.includes('{{#each quote.items}}') && !match.includes('quote.itemsGrouped')) {
           const newTbody = `<tbody>
-          {{#each quote.items}}
+          {{#if quote.itemsGrouped.hasCombos}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">COMBOS</td>
+          </tr>
+          {{#each quote.itemsGrouped.combos}}
           <tr>
-            <td>{{#if sku}}[{{sku}}] {{/if}}{{description}}</td>
+            <td><strong>{{name}}</strong></td>
             <td class="t-center">{{qty}}</td>
             <td class="t-right">{{money unitPrice}}</td>
-            <td class="t-right">{{money subtotal}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{#each items}}
+          <tr>
+            <td style="padding-left: 30px;">• {{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{#if unitPrice}}{{money unitPrice}}{{/if}}</td>
+            <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>
           </tr>
           {{/each}}
-          {{#unless quote.items}}
+          {{/each}}
+          {{/if}}
+          
+          {{#if quote.itemsGrouped.hasProducts}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">PRODUCTOS</td>
+          </tr>
+          {{#each quote.itemsGrouped.products}}
+          <tr>
+            <td>{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{/each}}
+          {{/if}}
+          
+          {{#if quote.itemsGrouped.hasServices}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">SERVICIOS</td>
+          </tr>
+          {{#each quote.itemsGrouped.services}}
+          <tr>
+            <td>{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{/each}}
+          {{/if}}
+          
+          {{#unless quote.itemsGrouped.hasProducts}}{{#unless quote.itemsGrouped.hasServices}}{{#unless quote.itemsGrouped.hasCombos}}
           <tr>
             <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
           </tr>
-          {{/unless}}
+          {{/unless}}{{/unless}}{{/unless}}
         </tbody>`;
           output = output.replace(match, newTbody);
-          console.log('[normalizeTemplateHtml] ✅ Corregido tbody de cotización sin {{#each}}');
+          console.log('[normalizeTemplateHtml] ✅ Convertido tbody de cotización de estructura vieja a nueva (quote.itemsGrouped)');
+        } else if (match.includes('{{description}}') && !match.includes('{{#each quote.items}}') && !match.includes('quote.itemsGrouped')) {
+          const newTbody = `<tbody>
+          {{#if quote.itemsGrouped.hasCombos}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">COMBOS</td>
+          </tr>
+          {{#each quote.itemsGrouped.combos}}
+          <tr>
+            <td><strong>{{name}}</strong></td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{#each items}}
+          <tr>
+            <td style="padding-left: 30px;">• {{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{#if unitPrice}}{{money unitPrice}}{{/if}}</td>
+            <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>
+          </tr>
+          {{/each}}
+          {{/each}}
+          {{/if}}
+          
+          {{#if quote.itemsGrouped.hasProducts}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">PRODUCTOS</td>
+          </tr>
+          {{#each quote.itemsGrouped.products}}
+          <tr>
+            <td>{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{/each}}
+          {{/if}}
+          
+          {{#if quote.itemsGrouped.hasServices}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">SERVICIOS</td>
+          </tr>
+          {{#each quote.itemsGrouped.services}}
+          <tr>
+            <td>{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{/each}}
+          {{/if}}
+          
+          {{#unless quote.itemsGrouped.hasProducts}}{{#unless quote.itemsGrouped.hasServices}}{{#unless quote.itemsGrouped.hasCombos}}
+          <tr>
+            <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
+          </tr>
+          {{/unless}}{{/unless}}{{/unless}}
+        </tbody>`;
+          output = output.replace(match, newTbody);
+          console.log('[normalizeTemplateHtml] ✅ Agregado tbody de cotización con estructura nueva (quote.itemsGrouped)');
+        }
+      });
+    }
+    
+    // Asegurar que las tablas de cotización tengan tfoot con total
+    const tableMatches = output.match(/<table[^>]*class="[^"]*quote-table[^"]*"[^>]*>[\s\S]*?<\/table>/gi);
+    if (tableMatches) {
+      tableMatches.forEach((tableHtml) => {
+        if (!tableHtml.includes('<tfoot>')) {
+          // Agregar tfoot si no existe
+          const tbodyEnd = tableHtml.indexOf('</tbody>');
+          if (tbodyEnd !== -1) {
+            const beforeTbodyEnd = tableHtml.substring(0, tbodyEnd + 8);
+            const afterTbodyEnd = tableHtml.substring(tbodyEnd + 8);
+            const newTableHtml = beforeTbodyEnd + `
+        <tfoot>
+          <tr style="border-top: 2px solid #000;">
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">TOTAL</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{money quote.total}}</td>
+          </tr>
+        </tfoot>` + afterTbodyEnd;
+            output = output.replace(tableHtml, newTableHtml);
+            console.log('[normalizeTemplateHtml] ✅ Agregado tfoot con total a tabla de cotización');
+          }
         }
       });
     }
