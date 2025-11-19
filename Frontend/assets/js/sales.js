@@ -2036,6 +2036,22 @@ function fillCloseModal(){
     return accountsCache.map(a=>`<option value="${a._id}" ${a._id===selected?'selected':''}>${a.name}</option>`).join('');
   }
   function recalc(){
+    // Sincronizar valores de inputs con objetos payments antes de calcular
+    payments.forEach((p, idx) => {
+      const rows = pmBody.querySelectorAll('tr');
+      if (rows[idx]) {
+        const amtInput = rows[idx].querySelector('input[data-role=amount]');
+        if (amtInput) {
+          const inputValue = Number(amtInput.value || 0) || 0;
+          p.amount = Math.round(inputValue);
+          // Si el input está vacío o tiene un valor diferente, actualizarlo
+          if (amtInput.value !== String(p.amount)) {
+            amtInput.value = p.amount;
+          }
+        }
+      }
+    });
+    
     // Asegurar que todos los montos sean números enteros redondeados
     const sum = payments.reduce((a,p)=> {
       const amount = Math.round(Number(p.amount) || 0);
@@ -2130,6 +2146,14 @@ function fillCloseModal(){
       <td class="py-2 px-2 text-center"><button data-role="del" type="button" class="px-2 py-1 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 theme-light:bg-red-50 theme-light:hover:bg-red-100 text-red-400 dark:text-red-400 theme-light:text-red-600 rounded transition-colors duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:border-red-300">×</button></td>`;
     pmBody.appendChild(tr);
     bindRowEvents(tr, pay);
+    
+    // Asegurar que el input muestre el valor correcto después de crear la fila
+    const amtInput = tr.querySelector('input[data-role=amount]');
+    if (amtInput && pay.amount) {
+      amtInput.value = Math.round(Number(pay.amount) || 0);
+      // Sincronizar el objeto payment con el valor del input
+      pay.amount = Number(amtInput.value) || 0;
+    }
   }
   addBtn.addEventListener('click', ()=> addPaymentRow({ amount:0 }));
 
@@ -2312,12 +2336,30 @@ function fillCloseModal(){
   document.getElementById('cv-confirm').addEventListener('click', async ()=>{
     if(!current) return;
     msg.textContent='Procesando...';
+    msg.classList.remove('error');
+    
+    // Asegurar que todos los inputs tengan el valor correcto antes de calcular
+    payments.forEach((p, idx) => {
+      const row = pmBody.querySelectorAll('tr')[idx];
+      if (row) {
+        const amtInput = row.querySelector('input[data-role=amount]');
+        if (amtInput) {
+          // Sincronizar el valor del input con el objeto payment
+          const inputValue = Number(amtInput.value || 0) || 0;
+          p.amount = Math.round(inputValue);
+          amtInput.value = p.amount; // Asegurar que el input muestre el valor correcto
+        }
+      }
+    });
+    
     // Validar suma exacta - asegurar que todos los montos sean números enteros
     const sum = payments.reduce((a,p)=> {
       const amount = Math.round(Number(p.amount) || 0);
+      console.log('Sumando pago:', { method: p.method, amount, pAmount: p.amount });
       return a + amount;
     }, 0);
     const total = Math.round(Number(current?.total||0));
+    console.log('Validación de cierre:', { sum, total, diff: Math.abs(sum - total), paymentsCount: payments.length });
     const diff = Math.abs(sum - total);
     if(diff > 0.01){ 
       msg.textContent=`La suma de pagos (${money(sum)}) no coincide con el total (${money(total)}). Diferencia: ${money(diff)}.`; 
@@ -2325,7 +2367,11 @@ function fillCloseModal(){
       return; 
     }
     const filtered = payments.filter(p=> p.method && p.amount>0);
-    if(!filtered.length){ msg.textContent='Agregar al menos una forma de pago válida'; return; }
+    if(!filtered.length){ 
+      msg.textContent='Agregar al menos una forma de pago válida'; 
+      msg.classList.add('error');
+      return; 
+    }
     try{
       let receiptUrl='';
       const file = document.getElementById('cv-receipt').files?.[0];
@@ -2382,19 +2428,41 @@ function fillCloseModal(){
       const laborPercentValue = comm.length === 0 ? (Number(percSel.value || manualPercentInput.value || 0) || 0) : 0;
       const laborValueFromSale = Number(current?.laborValue || 0);
       
+      // Asegurar que todos los montos estén correctamente parseados antes de enviar
+      const paymentMethodsToSend = filtered.map(p=>{
+        // Obtener el valor directamente del input para asegurar que está actualizado
+        const row = Array.from(pmBody.querySelectorAll('tr')).find(tr => {
+          const rowPay = payments.find(pay => pay === p);
+          return rowPay === p;
+        });
+        let finalAmount = Math.round(Number(p.amount) || 0);
+        if (row) {
+          const amtInput = row.querySelector('input[data-role=amount]');
+          if (amtInput) {
+            const inputValue = Number(amtInput.value || 0) || 0;
+            finalAmount = Math.round(inputValue);
+            // Sincronizar el objeto payment
+            p.amount = finalAmount;
+          }
+        }
+        const method = String(p.method || '').toUpperCase();
+        const isCredit = method === 'CREDITO';
+        console.log('Preparando pago para enviar:', { method, amount: finalAmount, originalAmount: p.amount });
+        return { 
+          method: p.method, 
+          amount: finalAmount, 
+          accountId: isCredit ? null : (p.accountId||null) 
+        };
+      });
+      
+      console.log('Payload de cierre:', { 
+        paymentMethods: paymentMethodsToSend, 
+        total: current?.total,
+        sum: paymentMethodsToSend.reduce((a, p) => a + p.amount, 0)
+      });
+      
       const payload = {
-        paymentMethods: filtered.map(p=>{
-          const method = String(p.method || '').toUpperCase();
-          const isCredit = method === 'CREDITO';
-          // Asegurar que el monto sea un número entero válido
-          const amount = Math.round(Number(p.amount) || 0);
-          // No enviar accountId si es crédito (va a cartera, no a flujo de caja)
-          return { 
-            method: p.method, 
-            amount: amount, 
-            accountId: isCredit ? null : (p.accountId||null) 
-          };
-        }),
+        paymentMethods: paymentMethodsToSend,
         technician: techSel.value||'',
         laborValue: laborValueFromSale,
         laborPercent: laborPercentValue,

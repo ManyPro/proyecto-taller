@@ -3,6 +3,7 @@ import multer from 'multer';
 
 import {
   listPrices,
+  getPrice,
   createPrice,
   updatePrice,
   deletePrice,
@@ -21,6 +22,7 @@ const r = Router();
 
 // CRUD básico
 r.get('/', listPrices);
+r.get('/:id', getPrice);
 r.post('/', createPrice);
 r.put('/:id', updatePrice);
 r.delete('/:id', deletePrice);

@@ -1130,7 +1130,7 @@ export const closeSale = async (req, res) => {
         // Normalizar y filtrar vÃ¡lidos
         const cleaned = rawMethods.map(m => ({
           method: String(m?.method || '').trim().toUpperCase(),
-          amount: Number(m?.amount || 0) || 0,
+          amount: Math.round(Number(m?.amount || 0) || 0), // Redondear a entero
           accountId: m?.accountId ? new mongoose.Types.ObjectId(m.accountId) : null
         })).filter(m => m.method && m.amount > 0);
         if (cleaned.length) {
@@ -1138,8 +1138,26 @@ export const closeSale = async (req, res) => {
           // AÃºn no tenemos total actualizado si items cambiaron durante la sesiÃ³n, asÃ­ que haremos computeTotals antes de validar.
           computeTotals(sale);
           const sum = cleaned.reduce((a,b)=> a + b.amount, 0);
-          const total = Number(sale.total || 0);
-            if (Math.abs(sum - total) > 0.01) throw new Error('La suma de los montos de pago no coincide con el total de la venta');
+          const total = Math.round(Number(sale.total || 0));
+          
+          // Log para debugging
+          console.log('[closeSale] Validando pagos:', {
+            saleId: sale._id?.toString(),
+            sum,
+            total,
+            diff: Math.abs(sum - total),
+            paymentMethods: cleaned.map(m => ({ method: m.method, amount: m.amount }))
+          });
+          
+          if (Math.abs(sum - total) > 0.01) {
+            console.error('[closeSale] Error de validación:', {
+              sum,
+              total,
+              diff: Math.abs(sum - total),
+              paymentMethods: cleaned
+            });
+            throw new Error(`La suma de los montos de pago (${sum}) no coincide con el total de la venta (${total}). Diferencia: ${Math.abs(sum - total)}`);
+          }
           // Redondear montos a enteros para consistencia (COP sin decimales)
           sale.paymentMethods = cleaned.map(m => ({ method: m.method, amount: Math.round(m.amount), accountId: m.accountId }));
           // Mantener legacy paymentMethod con el primero (para compatibilidad con reportes antiguos)

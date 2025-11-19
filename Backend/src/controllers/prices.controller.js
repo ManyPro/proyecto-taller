@@ -161,6 +161,18 @@ export const listPrices = async (req, res) => {
   res.json({ items, page: pg, limit: lim, total, pages: Math.ceil(total / lim) });
 };
 
+// ============ get single price ============
+export const getPrice = async (req, res) => {
+  const { id } = req.params;
+  const price = await PriceEntry.findOne({ _id: id, companyId: req.companyId })
+    .populate('vehicleId', 'make line displacement modelYear')
+    .populate('itemId', 'sku name stock salePrice')
+    .populate('comboProducts.itemId', 'sku name stock salePrice')
+    .lean();
+  if (!price) return res.status(404).json({ error: 'PriceEntry not found' });
+  res.json(price);
+};
+
 // ============ create ============
 export const createPrice = async (req, res) => {
   const { vehicleId, name, type = 'service', serviceId, variables = {}, total: totalRaw, itemId, comboProducts = [], yearFrom, yearTo, laborValue, laborKind } = req.body || {};

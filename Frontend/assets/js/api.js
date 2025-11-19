@@ -269,6 +269,14 @@ const API = {
   serviceDelete: (id) => http.del(`/api/v1/services/${id}`),
 
   // --- Lista de precios ---
+  prices: {
+    list: (params = {}) => http.get(`/api/v1/prices${toQuery(params)}`),
+    get: (id) => http.get(`/api/v1/prices/${id}`),
+    create: (payload) => http.post('/api/v1/prices', payload),
+    update: (id, body) => http.put(`/api/v1/prices/${id}`, body),
+    delete: (id) => http.del(`/api/v1/prices/${id}`),
+  },
+  // Mantener compatibilidad con nombres antiguos
   pricesList: (params = {}) => http.get(`/api/v1/prices${toQuery(params)}`),
   priceCreate: (payload) => http.post('/api/v1/prices', payload),
   priceUpdate: (id, body) => http.put(`/api/v1/prices/${id}`, body),
