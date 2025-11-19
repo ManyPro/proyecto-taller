@@ -966,61 +966,69 @@ function normalizeTemplateHtml(html='') {
     }
     
     // Para orden de trabajo, siempre usar 2 columnas (sin precios) y sin items individuales de combos
-    // Eliminar cualquier loop de items dentro de combos ({{#each items}})
+    // Solo aplicar cambios dentro de la tabla workorder-table, no a otras tablas
     if (output.includes('workorder-table')) {
-      output = output.replace(/{{#each\s+items}}[\s\S]*?{{\/each}}/g, '');
-      
-      // Eliminar columnas de precio y total del thead
-      const theadMatches = output.match(/<thead>([\s\S]*?)<\/thead>/gi);
-      if (theadMatches) {
-        theadMatches.forEach((match) => {
-          // Si tiene más de 2 columnas (Precio, Total), reducirlas a 2
-          if (match.includes('Precio') || match.includes('Total') || match.includes('Price') || (match.match(/<th>/g) || []).length > 2) {
-            const newThead = `<thead>
+      // Extraer solo la sección de la tabla workorder-table para procesarla
+      // Buscar la tabla completa incluyendo el tag de apertura y cierre
+      const tableMatch = output.match(/<table[^>]*class="[^"]*workorder-table[^"]*"[^>]*>[\s\S]*?<\/table>/gi);
+      if (tableMatch) {
+        tableMatch.forEach((tableHtml) => {
+          let processedTable = tableHtml;
+          
+          // Eliminar cualquier loop de items dentro de combos ({{#each items}})
+          processedTable = processedTable.replace(/{{#each\s+items}}[\s\S]*?{{\/each}}/g, '');
+          
+          // Eliminar columnas de precio y total del thead (solo dentro de esta tabla)
+          processedTable = processedTable.replace(/<thead>([\s\S]*?)<\/thead>/gi, (theadMatch) => {
+            if (theadMatch.includes('Precio') || theadMatch.includes('Total') || theadMatch.includes('Price') || (theadMatch.match(/<th>/g) || []).length > 2) {
+              return `<thead>
           <tr>
             <th>Detalle</th>
             <th>Cantidad</th>
           </tr>
         </thead>`;
-            output = output.replace(match, newThead);
-            console.log('[normalizeTemplateHtml] ✅ Corregido thead de orden de trabajo a 2 columnas');
-          }
+            }
+            return theadMatch;
+          });
+          
+          // Eliminar columnas de precio y total de las filas (solo dentro de esta tabla)
+          processedTable = processedTable.replace(/<td[^>]*class="[^"]*t-right[^"]*"[^>]*>[\s\S]*?<\/td>/g, '');
+          processedTable = processedTable.replace(/<td[^>]*>\s*{{\/?money[^}]*}}[\s\S]*?<\/td>/gi, '');
+          processedTable = processedTable.replace(/<td[^>]*>\s*{{\$[^}]*}}[\s\S]*?<\/td>/gi, '');
+          
+          // Asegurar que los section-headers tengan colspan="2" (solo dentro de esta tabla)
+          processedTable = processedTable.replace(/<tr[^>]*class="[^"]*section-header[^"]*"[^>]*>[\s\S]*?<td[^>]*colspan="[^"]*"[^>]*>/g, (match) => {
+            return match.replace(/colspan="[^"]*"/g, 'colspan="2"');
+          });
+          
+          // Buscar y corregir filas que tengan más de 2 columnas (solo dentro de esta tabla)
+          processedTable = processedTable.replace(/<tr[^>]*>[\s\S]*?<td[^>]*>[\s\S]*?<\/td>[\s\S]*?<td[^>]*>[\s\S]*?<\/td>[\s\S]*?<td[^>]*>[\s\S]*?<\/td>/g, (match) => {
+            // Si es un section-header, mantenerlo con colspan="2"
+            if (match.includes('section-header') || match.includes('PRODUCTOS') || match.includes('SERVICIOS') || match.includes('COMBOS')) {
+              return match.replace(/colspan="[^"]*"/g, 'colspan="2"');
+            }
+            // Si tiene más de 2 td, eliminar los extras (Precio y Total)
+            const tdMatches = match.match(/<td[^>]*>[\s\S]*?<\/td>/g);
+            if (tdMatches && tdMatches.length > 2) {
+              // Mantener solo los primeros 2 td
+              const firstTwo = tdMatches.slice(0, 2);
+              return match.replace(/<td[^>]*>[\s\S]*?<\/td>/g, (m, i) => {
+                if (i < 2) return firstTwo[i];
+                return '';
+              }).replace(/<tr[^>]*>/, '<tr>').replace(/<\/tr>/, '</tr>');
+            }
+            return match;
+          });
+          
+          // Eliminar tfoot si existe (no debe haber total en orden de trabajo)
+          processedTable = processedTable.replace(/<tfoot>[\s\S]*?<\/tfoot>/gi, '');
+          
+          // Reemplazar la tabla original con la procesada
+          output = output.replace(tableHtml, processedTable);
         });
+        
+        console.log('[normalizeTemplateHtml] ✅ Orden de trabajo configurado a 2 columnas (sin precios, sin items de combos)');
       }
-      
-      // Eliminar columnas de precio y total de todas las filas
-      output = output.replace(/<td[^>]*class="[^"]*t-right[^"]*"[^>]*>[\s\S]*?<\/td>/g, '');
-      output = output.replace(/<td[^>]*>\s*{{\/?money[^}]*}}[\s\S]*?<\/td>/gi, '');
-      output = output.replace(/<td[^>]*>\s*{{\$[^}]*}}[\s\S]*?<\/td>/gi, '');
-      
-      // Asegurar que los section-headers tengan colspan="2"
-      output = output.replace(/<tr[^>]*class="[^"]*section-header[^"]*"[^>]*>[\s\S]*?<td[^>]*colspan="[^"]*"[^>]*>/g, (match) => {
-        return match.replace(/colspan="[^"]*"/g, 'colspan="2"');
-      });
-      
-      // Buscar y corregir filas que tengan más de 2 columnas
-      output = output.replace(/<tr[^>]*>[\s\S]*?<td[^>]*>[\s\S]*?<\/td>[\s\S]*?<td[^>]*>[\s\S]*?<\/td>[\s\S]*?<td[^>]*>[\s\S]*?<\/td>/g, (match) => {
-        // Si es un section-header, mantenerlo con colspan="2"
-        if (match.includes('section-header') || match.includes('PRODUCTOS') || match.includes('SERVICIOS') || match.includes('COMBOS')) {
-          return match.replace(/colspan="[^"]*"/g, 'colspan="2"');
-        }
-        // Si tiene más de 2 td, eliminar los extras (Precio y Total)
-        const tdMatches = match.match(/<td[^>]*>[\s\S]*?<\/td>/g);
-        if (tdMatches && tdMatches.length > 2) {
-          // Mantener solo los primeros 2 td
-          const firstTwo = tdMatches.slice(0, 2);
-          return match.replace(/<td[^>]*>[\s\S]*?<\/td>/g, (m, i) => {
-            if (i < 2) return firstTwo[i];
-            return '';
-          }).replace(/<tr[^>]*>/, '<tr>').replace(/<\/tr>/, '</tr>');
-        }
-        return match;
-      });
-      
-      // Eliminar tfoot si existe (no debe haber total en orden de trabajo)
-      output = output.replace(/<tfoot>[\s\S]*?<\/tfoot>/gi, '');
-      
-      console.log('[normalizeTemplateHtml] ✅ Orden de trabajo configurado a 2 columnas (sin precios, sin items de combos)');
     }
   }
   
