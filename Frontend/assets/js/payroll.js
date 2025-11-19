@@ -1,5 +1,5 @@
 import API from './api.esm.js';
-import { periodRangeToISO, isValidDate, compareDates, parseDate } from './dateTime.js';
+import { periodRangeToISO, isValidDate, compareDates, parseDate, datetimeLocalToISO } from './dateTime.js';
 const api = API;
 
 function el(id){ return document.getElementById(id); }
@@ -1690,12 +1690,12 @@ function updateSettlementInfo(){
   // Autocompletar fecha y hora actual
   if (dateInput) {
     const now = new Date();
-    // Formato para datetime-local: YYYY-MM-DDTHH:mm
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
+    // Formato para datetime-local: YYYY-MM-DDTHH:mm (en UTC)
+    const year = now.getUTCFullYear();
+    const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(now.getUTCDate()).padStart(2, '0');
+    const hours = String(now.getUTCHours()).padStart(2, '0');
+    const minutes = String(now.getUTCMinutes()).padStart(2, '0');
     dateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
   }
   
@@ -1910,14 +1910,11 @@ async function pay(){
     // La fecha se autocompleta automáticamente, usar la fecha actual si no está definida
     let date = null;
     if (dateInput && dateInput.value) {
-      // Convertir datetime-local a ISO string para enviar al backend
-      const dateObj = new Date(dateInput.value);
-      if (isNaN(dateObj.getTime())) {
+      // Convertir datetime-local a ISO string en UTC
+      date = datetimeLocalToISO(dateInput.value);
+      if (!date) {
         // Si la fecha es inválida, usar la fecha actual
         date = new Date().toISOString();
-      } else {
-        // Enviar en formato ISO para que el backend lo interprete correctamente
-        date = dateObj.toISOString();
       }
     } else {
       // Si no hay fecha, usar la fecha actual

@@ -1,4 +1,5 @@
 ﻿import { API } from './api.esm.js';
+import { dateInputToISO, datetimeLocalToISO } from './dateTime.js';
 
 const money = (n)=>'$'+Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 let cfState = { page:1, pages:1, limit:50 };
@@ -463,11 +464,11 @@ function openNewLoanModal(){
   const techSel = div.querySelector('#nloan-tech');
   const dateInput = div.querySelector('#nloan-date');
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  const hours = String(now.getHours()).padStart(2, '0');
-  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(now.getUTCDate()).padStart(2, '0');
+  const hours = String(now.getUTCHours()).padStart(2, '0');
+  const minutes = String(now.getUTCMinutes()).padStart(2, '0');
   dateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
   
   API.accounts.list().then(list=>{ 
@@ -510,10 +511,8 @@ function openNewLoanModal(){
       const loanDateInput = div.querySelector('#nloan-date').value;
       let loanDate = null;
       if (loanDateInput) {
-        const dateObj = new Date(loanDateInput);
-        if (!isNaN(dateObj.getTime())) {
-          loanDate = dateObj.toISOString();
-        }
+        // Usar función helper que interpreta como UTC
+        loanDate = dateInputToISO(loanDateInput);
       }
       if (!loanDate) {
         loanDate = new Date().toISOString();

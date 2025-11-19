@@ -11,7 +11,7 @@ import Handlebars from 'handlebars';
 import Company from '../models/Company.js';
 import { computeBalance } from './cashflow.controller.js';
 import mongoose from 'mongoose';
-import { createPeriodRange, parseDate, isValidDate, compareDates } from '../lib/dateTime.js';
+import { createPeriodRange, parseDate, isValidDate, compareDates, localToUTC } from '../lib/dateTime.js';
 
 export const listConcepts = async (req, res) => {
   try {
@@ -1146,7 +1146,7 @@ export const paySettlement = async (req, res) => {
     
     // Procesar cada pago
     const createdEntries = [];
-    const paymentDate = date ? new Date(date) : new Date();
+    const paymentDate = date ? localToUTC(date) : new Date();
     // Rastrear balances por cuenta para pagos múltiples a la misma cuenta
     const accountBalances = new Map();
     
@@ -1203,7 +1203,7 @@ export const paySettlement = async (req, res) => {
     const entry = await CashFlowEntry.create({
       companyId: req.companyId,
         accountId: payAccountId,
-        date: payDate ? new Date(payDate) : paymentDate,
+        date: payDate ? localToUTC(payDate) : paymentDate,
       kind: 'OUT',
       source: 'MANUAL',
       sourceRef: settlementId,

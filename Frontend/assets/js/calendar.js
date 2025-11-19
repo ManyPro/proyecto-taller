@@ -211,11 +211,11 @@ function openNewEventModal(date = null) {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           <div>
             <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">Fecha <span class="text-red-400">*</span></label>
-            <input id="event-start-date" type="date" value="${formatDate(defaultDate)}" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input id="event-start-date" type="date" value="${formatDateForInput(defaultDate)}" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
             <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">Hora <span class="text-red-400">*</span></label>
-            <input id="event-start-time" type="time" value="${String(defaultDate.getHours()).padStart(2, '0')}:${String(defaultDate.getMinutes()).padStart(2, '0')}" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <input id="event-start-time" type="time" value="${String(defaultDate.getUTCHours()).padStart(2, '0')}:${String(defaultDate.getUTCMinutes()).padStart(2, '0')}" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
         </div>
         
@@ -225,7 +225,7 @@ function openNewEventModal(date = null) {
         </div>
         
         <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-sky-100/50 p-2 rounded">
-          <strong>Vista previa:</strong> <span id="event-datetime-preview" class="font-semibold">${new Date(defaultDate).toLocaleString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+          <strong>Vista previa:</strong> <span id="event-datetime-preview" class="font-semibold">${new Date(defaultDate).toLocaleString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} (UTC)</span>
         </div>
       </div>
       
@@ -326,20 +326,26 @@ function openNewEventModal(date = null) {
     }
   });
   
-  // Actualizar vista previa de fecha/hora
+  // Actualizar vista previa de fecha/hora (en UTC)
   function updateDateTimePreview() {
     const date = startDateEl.value;
     const time = startTimeEl.value;
     if (date && time) {
-      const dateTime = new Date(`${date}T${time}`);
+      // Crear fecha interpretando como UTC
+      const [hours, minutes] = time.split(':').map(Number);
+      const [year, month, day] = date.split('-').map(Number);
+      const dateTime = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
+      
+      // Mostrar en UTC (GMT+0)
       datetimePreviewEl.textContent = dateTime.toLocaleString('es-CO', { 
         weekday: 'long', 
         year: 'numeric', 
         month: 'long', 
         day: 'numeric', 
         hour: '2-digit', 
-        minute: '2-digit' 
-      });
+        minute: '2-digit',
+        timeZone: 'UTC'
+      }) + ' (UTC)';
       
       // Actualizar campo datetime-local oculto si existe
       const startEl = document.getElementById('event-start');
@@ -674,7 +680,7 @@ function openEventModal(event) {
       
       <div class="text-sm">
         <div class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Fecha y hora de inicio:</div>
-        <div class="text-white dark:text-white theme-light:text-slate-900 font-semibold">${startDate.toLocaleString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+        <div class="text-white dark:text-white theme-light:text-slate-900 font-semibold">${startDate.toLocaleString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} (UTC)</div>
       </div>
       
       ${endDate ? `
@@ -887,11 +893,11 @@ function openEditEventModal(event) {
   const endDate = event.endDate ? new Date(event.endDate) : null;
   const notificationAt = event.notificationAt ? new Date(event.notificationAt) : null;
   
-  // Preparar valores para los campos nuevos usando hora local
-  const eventStartDate = formatDate(startDate);
-  // Usar getHours() y getMinutes() para obtener hora local, no UTC
-  const eventStartHours = String(startDate.getHours()).padStart(2, '0');
-  const eventStartMinutes = String(startDate.getMinutes()).padStart(2, '0');
+  // Preparar valores para los campos nuevos usando UTC
+  const eventStartDate = formatDateForInput(startDate);
+  // Usar getUTCHours() y getUTCMinutes() para obtener hora UTC
+  const eventStartHours = String(startDate.getUTCHours()).padStart(2, '0');
+  const eventStartMinutes = String(startDate.getUTCMinutes()).padStart(2, '0');
   const eventStartTime = `${eventStartHours}:${eventStartMinutes}`;
   
   body.innerHTML = `

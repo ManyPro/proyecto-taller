@@ -27,20 +27,21 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cloudinary": "1.41.3",
+    "compression": "^1.7.4",
     "cors": "^2.8.5",
+    "date-fns": "^4.1.0",
     "dotenv": "^16.4.5",
-    "handlebars": "^4.7.8",
     "express": "^4.19.2",
     "express-async-errors": "^3.1.1",
+    "handlebars": "^4.7.8",
     "helmet": "^7.1.0",
-    "compression": "^1.7.4",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.6.0",
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "multer-storage-cloudinary": "4.0.0",
-    "xlsx": "0.18.5",
     "pdfkit": "^0.13.0",
-    "qrcode": "^1.5.0"
+    "qrcode": "^1.5.0",
+    "xlsx": "0.18.5"
   }
 }

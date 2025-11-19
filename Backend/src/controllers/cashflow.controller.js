@@ -2,7 +2,7 @@
 import CashFlowEntry from '../models/CashFlowEntry.js';
 import Company from '../models/Company.js';
 import mongoose from 'mongoose';
-import { createDateRange, now } from '../lib/dateTime.js';
+import { createDateRange, now, localToUTC } from '../lib/dateTime.js';
 
 // Helpers
 export async function ensureDefaultCashAccount(companyId) {
@@ -137,7 +137,7 @@ export async function createEntry(req, res) {
     amount: amt,
     description,
     source: 'MANUAL',
-    date: date ? new Date(date) : new Date(),
+    date: date ? localToUTC(date) : new Date(),
     balanceAfter: newBal
   });
   res.json(entry);

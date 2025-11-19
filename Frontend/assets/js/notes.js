@@ -1,6 +1,7 @@
 import { API } from "./api.esm.js";
 import { plateColor, fmt, upper } from "./utils.js";
 import { initCalendar } from "./calendar.js";
+import { datetimeLocalToISO, formatDateTimeForInput } from "./dateTime.js";
 
 const notesState = { page: 1, limit: 50, lastFilters: {} };
 
@@ -284,7 +285,7 @@ export function initNotes() {
 
         <div>
           <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">⏰ Recordatorio (opcional)</label>
-          <input id="e-reminder" type="datetime-local" value="${row.reminderAt ? new Date(row.reminderAt).toISOString().slice(0, 16) : ""}" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <input id="e-reminder" type="datetime-local" value="${row.reminderAt ? formatDateTimeForInput(new Date(row.reminderAt)) : ""}" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500" />
           <p class="text-xs text-slate-500 dark:text-slate-500 theme-light:text-slate-400 mt-1">Se te notificará cuando llegue la fecha y hora del recordatorio</p>
         </div>
 
@@ -331,7 +332,8 @@ export function initNotes() {
         if (!body.responsible) return alert("Selecciona la persona encargada");
 
         if (eReminder?.value) {
-          body.reminderAt = eReminder.value;
+          // Convertir datetime-local a ISO en UTC
+          body.reminderAt = datetimeLocalToISO(eReminder.value);
         } else {
           body.reminderAt = null;
         }
@@ -387,7 +389,8 @@ export function initNotes() {
         if (nPayMethod?.value) payload.text += ` [PAGO: ${nPayMethod.value}]`;
       }
       if (nReminder?.value) {
-        payload.reminderAt = nReminder.value;
+        // Convertir datetime-local a ISO en UTC
+        payload.reminderAt = datetimeLocalToISO(nReminder.value);
       }
 
       await API.notesCreate(payload);
