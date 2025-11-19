@@ -8,7 +8,7 @@ import Notification from "../models/Notification.js";
 import { upsertProfileFromSource } from "./profile.helper.js";
 import { publish } from "../lib/live.js";
 import mongoose from "mongoose";
-import { parseDate, localToUTC, createDateRange } from "../lib/dateTime.js";
+import { parseDate, localToUTC, createDateRange, now } from "../lib/dateTime.js";
 
 export const listEvents = async (req, res) => {
   const { from, to } = req.query;
@@ -397,10 +397,19 @@ export const updateSettings = async (req, res) => {
 // Función para verificar y disparar notificaciones de eventos del calendario
 export const checkCalendarNotifications = async () => {
   try {
-    const now = new Date();
+    // Usar now() del dateTime util para garantizar UTC
+    // notificationAt está guardado en UTC, así que comparamos en UTC
+    const currentTime = now();
+    
     // Buscar eventos con notificación pendiente (hasta 5 minutos después de la hora programada)
-    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
-    const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+    // Ventana de 10 minutos: 5 minutos antes y 5 minutos después de la hora programada
+    const fiveMinutesAgo = new Date(currentTime.getTime() - 5 * 60 * 1000);
+    const fiveMinutesFromNow = new Date(currentTime.getTime() + 5 * 60 * 1000);
+    
+    // Debug: Log de la ventana de tiempo (solo en desarrollo)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[checkCalendarNotifications] Buscando notificaciones entre ${fiveMinutesAgo.toISOString()} y ${fiveMinutesFromNow.toISOString()}`);
+    }
     
     const eventsToNotify = await CalendarEvent.find({
       hasNotification: true,
@@ -445,7 +454,9 @@ export const checkCalendarNotifications = async () => {
           createdAt: notification.createdAt
         });
         
-        console.log(`[checkCalendarNotifications] Notificación creada para evento ${event._id} de empresa ${event.companyId}`);
+        // Log con información de la hora para debugging
+        const notificationTime = event.notificationAt ? new Date(event.notificationAt).toISOString() : 'N/A';
+        console.log(`[checkCalendarNotifications] Notificación creada para evento ${event._id} de empresa ${event.companyId} - Hora programada: ${notificationTime}`);
       } catch (err) {
         console.error(`[checkCalendarNotifications] Error procesando evento ${event._id}:`, err);
       }

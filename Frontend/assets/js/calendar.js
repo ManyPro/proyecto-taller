@@ -539,7 +539,10 @@ function openNewEventModal(date = null) {
       const date = startDateEl.value;
       const time = startTimeEl.value;
       if (date && time) {
-        const startDateTime = new Date(`${date}T${time}`);
+        // Crear fecha interpretando como UTC
+        const [hours, minutes] = time.split(':').map(Number);
+        const [year, month, day] = date.split('-').map(Number);
+        const startDateTime = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
         // Solo actualizar automáticamente si el usuario no ha configurado manualmente la hora
         if (!notificationTimeManuallySet && !notificationAtEl.value) {
           // Usar la misma hora de la cita (no restar 1 hora)
@@ -686,14 +689,14 @@ function openEventModal(event) {
       ${endDate ? `
         <div class="text-sm">
           <div class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Fecha y hora de fin:</div>
-          <div class="text-white dark:text-white theme-light:text-slate-900 font-semibold">${endDate.toLocaleString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+          <div class="text-white dark:text-white theme-light:text-slate-900 font-semibold">${endDate.toLocaleString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} (UTC)</div>
         </div>
       ` : ''}
       
       ${event.hasNotification && notificationAt ? `
         <div class="text-sm">
           <div class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Notificación:</div>
-          <div class="text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-600">⏰ ${notificationAt.toLocaleString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
+          <div class="text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-600">⏰ ${notificationAt.toLocaleString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'UTC' })} (UTC)</div>
         </div>
       ` : ''}
       
@@ -1123,7 +1126,10 @@ function openEditEventModal(event) {
       const date = startDateEl.value;
       const time = startTimeEl.value;
       if (date && time) {
-        const startDateTime = new Date(`${date}T${time}`);
+        // Crear fecha interpretando como UTC
+        const [hours, minutes] = time.split(':').map(Number);
+        const [year, month, day] = date.split('-').map(Number);
+        const startDateTime = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
         // Solo actualizar automáticamente si el usuario no ha configurado manualmente la hora
         if (!editNotificationTimeManuallySet && !notificationAtEl.value) {
           // Usar la misma hora de la cita (no restar 1 hora)
