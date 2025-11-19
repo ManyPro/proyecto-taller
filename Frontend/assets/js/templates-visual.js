@@ -2954,14 +2954,14 @@
     canvas.appendChild(companyBox);
     visualEditor.elements.push({ id: companyBox.id, type: 'text', element: companyBox });
 
-    // Calcular la posición de la tabla: después de los cuadros de datos + 0.5cm de separación
+    // Calcular la posición de la tabla: después de los cuadros de datos + 1cm de separación
     // Los cuadros empiezan en top: 83px
     // Altura aproximada del cuadro: título (~18px) + tabla 4 filas (~100px con nuevo padding) + padding (16px) = ~134px
-    // 0.5cm = aproximadamente 19px
-    // Posición tabla: 83px + 134px + 19px = 236px
+    // 1cm = aproximadamente 38px
+    // Posición tabla: 83px + 134px + 38px = 255px (redondeado a 260px para más espacio)
     // Ancho de los cuadros: 331px cada uno, total aproximado: 662px (considerando espacio entre ellos)
     // La tabla de items debe tener el mismo ancho que los dos cuadros juntos
-    const itemsTable = createRemissionItemsTable({ left: 19, top: 236, width: 682 });
+    const itemsTable = createRemissionItemsTable({ left: 19, top: 260, width: 682 });
     canvas.appendChild(itemsTable);
 
     // NOTA: El total ahora está dentro de la tabla como tfoot, así que ya no necesitamos ajustar posición separada
