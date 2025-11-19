@@ -1435,7 +1435,7 @@
         setTimeout(setupCatalogButton, 100);
         return;
       }
-      const token = API.token.get() || '';
+      const token = (API?.token?.get && typeof API.token.get === 'function') ? API.token.get() : '';
       if(!token){ btn.disabled=true; btn.title='Inicia sesión para usar el catálogo'; return; }
       (API.companyMe ? API.companyMe() : Promise.reject(new Error('API no disponible')))
         .then(body => {

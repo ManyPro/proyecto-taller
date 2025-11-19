@@ -1989,8 +1989,12 @@ function fillCloseModal(){
     return accountsCache.map(a=>`<option value="${a._id}" ${a._id===selected?'selected':''}>${a.name}</option>`).join('');
   }
   function recalc(){
-    const sum = payments.reduce((a,p)=> a + (Number(p.amount)||0), 0);
-    const total = Number(current?.total||0);
+    // Asegurar que todos los montos sean números enteros redondeados
+    const sum = payments.reduce((a,p)=> {
+      const amount = Math.round(Number(p.amount) || 0);
+      return a + amount;
+    }, 0);
+    const total = Math.round(Number(current?.total||0));
     const diff = total - sum;
     let html = `Suma: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(sum)}</strong> / Total: <span class="text-white dark:text-white theme-light:text-slate-900">${money(total)}</span>.`;
     if(Math.abs(diff) > 0.01){
@@ -2042,7 +2046,23 @@ function fillCloseModal(){
       recalc(); 
     });
     aSel.addEventListener('change', ()=>{ pay.accountId = aSel.value||null; });
-    amt.addEventListener('input', ()=>{ pay.amount = Number(amt.value||0)||0; recalc(); });
+    amt.addEventListener('input', ()=>{ 
+      // Asegurar que el valor sea un número válido
+      const rawValue = amt.value || '0';
+      // Remover cualquier carácter no numérico excepto el punto decimal (aunque no debería haber decimales)
+      const cleanValue = rawValue.toString().replace(/[^0-9.]/g, '');
+      const numValue = Number(cleanValue) || 0;
+      pay.amount = Math.round(numValue); // Redondear a entero
+      amt.value = pay.amount; // Asegurar que el input muestre el valor correcto
+      recalc(); 
+    });
+    // También actualizar cuando el usuario sale del campo (blur)
+    amt.addEventListener('blur', ()=>{ 
+      const numValue = Number(amt.value||0)||0;
+      pay.amount = Math.round(numValue);
+      amt.value = pay.amount; // Asegurar formato correcto
+      recalc(); 
+    });
     del.addEventListener('click', ()=>{
       payments = payments.filter(p => p !== pay);
       tr.remove(); recalc();
@@ -2245,10 +2265,18 @@ function fillCloseModal(){
   document.getElementById('cv-confirm').addEventListener('click', async ()=>{
     if(!current) return;
     msg.textContent='Procesando...';
-    // Validar suma exacta
-    const sum = payments.reduce((a,p)=> a + (Number(p.amount)||0), 0);
-    const total = Number(current?.total||0);
-    if(Math.abs(sum-total) > 0.01){ msg.textContent='La suma de pagos no coincide con el total.'; return; }
+    // Validar suma exacta - asegurar que todos los montos sean números enteros
+    const sum = payments.reduce((a,p)=> {
+      const amount = Math.round(Number(p.amount) || 0);
+      return a + amount;
+    }, 0);
+    const total = Math.round(Number(current?.total||0));
+    const diff = Math.abs(sum - total);
+    if(diff > 0.01){ 
+      msg.textContent=`La suma de pagos (${money(sum)}) no coincide con el total (${money(total)}). Diferencia: ${money(diff)}.`; 
+      msg.classList.add('error');
+      return; 
+    }
     const filtered = payments.filter(p=> p.method && p.amount>0);
     if(!filtered.length){ msg.textContent='Agregar al menos una forma de pago válida'; return; }
     try{
@@ -2311,10 +2339,12 @@ function fillCloseModal(){
         paymentMethods: filtered.map(p=>{
           const method = String(p.method || '').toUpperCase();
           const isCredit = method === 'CREDITO';
+          // Asegurar que el monto sea un número entero válido
+          const amount = Math.round(Number(p.amount) || 0);
           // No enviar accountId si es crédito (va a cartera, no a flujo de caja)
           return { 
             method: p.method, 
-            amount: Number(p.amount)||0, 
+            amount: amount, 
             accountId: isCredit ? null : (p.accountId||null) 
           };
         }),
