@@ -154,6 +154,7 @@ async function getNextSaleNumber(companyId) {
 function getSaleCreationCompanyId(req) {
   // Siempre usar originalCompanyId para crear ventas
   // Esto asegura que la venta pertenece a la empresa que la crea
+  // Si originalCompanyId no está definido (edge case), usar companyId como fallback
   return req.originalCompanyId || req.companyId || req.company?.id;
 }
 
@@ -161,17 +162,29 @@ function getSaleCreationCompanyId(req) {
 // Cuando hay base de datos compartida, busca en ambos companyId,
 // pero valida que la venta pertenezca al originalCompanyId del usuario
 function getSaleQueryCompanyFilter(req) {
-  const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
+  // Obtener IDs: originalCompanyId siempre debería estar definido por el middleware
+  // pero usamos fallbacks por seguridad
+  const originalCompanyId = req.originalCompanyId || req.company?.id;
   const effectiveCompanyId = req.companyId;
+  
+  // Si no hay effectiveCompanyId, usar originalCompanyId (edge case)
+  if (!effectiveCompanyId) {
+    return originalCompanyId || req.company?.id;
+  }
+  
+  // Si no hay originalCompanyId, usar effectiveCompanyId (caso normal sin base compartida)
+  if (!originalCompanyId) {
+    return effectiveCompanyId;
+  }
   
   // Si hay base de datos compartida (originalCompanyId !== effectiveCompanyId),
   // buscar en ambos, pero priorizar originalCompanyId
-  if (originalCompanyId && effectiveCompanyId && String(originalCompanyId) !== String(effectiveCompanyId)) {
+  if (String(originalCompanyId) !== String(effectiveCompanyId)) {
     return { $in: [originalCompanyId, effectiveCompanyId].filter(Boolean) };
   }
   
-  // Si no hay base de datos compartida, usar el companyId normal
-  return originalCompanyId || effectiveCompanyId;
+  // Si no hay base de datos compartida (son iguales), usar cualquiera de los dos
+  return originalCompanyId;
 }
 
 // Función auxiliar para validar que una venta pertenece al originalCompanyId del usuario
@@ -179,9 +192,18 @@ function getSaleQueryCompanyFilter(req) {
 // solo permitimos operaciones en ventas que pertenecen al originalCompanyId
 function validateSaleOwnership(sale, req) {
   if (!sale) return false;
-  const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
+  
+  // Obtener originalCompanyId (empresa logueada)
+  const originalCompanyId = req.originalCompanyId || req.company?.id;
+  if (!originalCompanyId) {
+    // Si no hay originalCompanyId, usar companyId como fallback
+    const fallbackId = req.companyId || req.company?.id;
+    if (!fallbackId) return false;
+    return String(sale.companyId || '') === String(fallbackId);
+  }
+  
   const saleCompanyId = String(sale.companyId || '');
-  const userCompanyId = String(originalCompanyId || '');
+  const userCompanyId = String(originalCompanyId);
   
   // La venta debe pertenecer al originalCompanyId del usuario
   return saleCompanyId === userCompanyId;
@@ -190,17 +212,28 @@ function validateSaleOwnership(sale, req) {
 // Función auxiliar para obtener el filtro de companyId para BUSCAR precios
 // Cuando hay base de datos compartida, busca en ambos companyId
 function getPriceQueryCompanyFilter(req) {
-  const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
+  // Obtener IDs: originalCompanyId siempre debería estar definido por el middleware
+  const originalCompanyId = req.originalCompanyId || req.company?.id;
   const effectiveCompanyId = req.companyId;
+  
+  // Si no hay effectiveCompanyId, usar originalCompanyId (edge case)
+  if (!effectiveCompanyId) {
+    return originalCompanyId || req.company?.id;
+  }
+  
+  // Si no hay originalCompanyId, usar effectiveCompanyId (caso normal sin base compartida)
+  if (!originalCompanyId) {
+    return effectiveCompanyId;
+  }
   
   // Si hay base de datos compartida (originalCompanyId !== effectiveCompanyId),
   // buscar en ambos
-  if (originalCompanyId && effectiveCompanyId && String(originalCompanyId) !== String(effectiveCompanyId)) {
+  if (String(originalCompanyId) !== String(effectiveCompanyId)) {
     return { $in: [originalCompanyId, effectiveCompanyId].filter(Boolean) };
   }
   
-  // Si no hay base de datos compartida, usar el companyId normal
-  return originalCompanyId || effectiveCompanyId;
+  // Si no hay base de datos compartida (son iguales), usar cualquiera de los dos
+  return originalCompanyId;
 }
 
 // ===== CRUD base =====
@@ -313,24 +346,28 @@ export const addItem = async (req, res) => {
   const { source, refId, sku, qty = 1, unitPrice } = req.body || {};
 
   // Log para debugging (siempre, no solo en desarrollo)
-  const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
+  const originalCompanyId = req.originalCompanyId || req.company?.id;
   const effectiveCompanyId = req.companyId;
   
-  console.log('[addItem] Buscando venta:', { 
+  console.log('[addItem] Iniciando addItem:', { 
     saleId: id, 
     originalCompanyId: originalCompanyId?.toString(),
     effectiveCompanyId: effectiveCompanyId?.toString(),
     companyIdType: typeof req.companyId,
     companyIdFromReq: req.company?.id,
-    userId: req.userId
+    userId: req.userId,
+    hasSharedDb: originalCompanyId && effectiveCompanyId && String(originalCompanyId) !== String(effectiveCompanyId),
+    body: { source, refId, sku, qty, unitPrice }
   });
 
   // Validar que tenemos companyId
-  if (!originalCompanyId) {
+  if (!effectiveCompanyId) {
     console.error('[addItem] No hay companyId en request:', { 
       saleId: id,
       hasCompany: !!req.company,
-      companyId: req.company?.id 
+      companyId: req.company?.id,
+      originalCompanyId: originalCompanyId?.toString(),
+      effectiveCompanyId: effectiveCompanyId?.toString()
     });
     return res.status(400).json({ error: 'Company ID missing' });
   }
@@ -400,7 +437,8 @@ export const addItem = async (req, res) => {
         priceId: refId,
         originalCompanyId: originalCompanyId?.toString(),
         effectiveCompanyId: effectiveCompanyId?.toString(),
-        priceCompanyFilter: typeof priceCompanyFilter === 'object' ? priceCompanyFilter : priceCompanyFilter?.toString()
+        priceCompanyFilter: typeof priceCompanyFilter === 'object' ? priceCompanyFilter : priceCompanyFilter?.toString(),
+        hasSharedDb: originalCompanyId && effectiveCompanyId && String(originalCompanyId) !== String(effectiveCompanyId)
       });
       
       const pe = await PriceEntry.findOne({ _id: refId, companyId: priceCompanyFilter })
