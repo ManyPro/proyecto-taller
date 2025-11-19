@@ -866,146 +866,111 @@ function normalizeTemplateHtml(html='') {
     const tbodyMatches = output.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
     if (tbodyMatches) {
       tbodyMatches.forEach((match) => {
-        // Verificar si el thead tiene 4 columnas (Precio, Total) o solo 2
-        const theadMatch = output.match(/<thead>([\s\S]*?)<\/thead>/gi);
-        const has4Columns = theadMatch && (theadMatch[0].includes('Precio') || theadMatch[0].includes('Total') || (theadMatch[0].match(/<th>/g) || []).length >= 4);
-        
+        // Para orden de trabajo, siempre usar 2 columnas (sin precios) y sin items individuales de combos
         // Si tiene {{#each sale.items}} pero NO tiene sale.itemsGrouped, convertir a nueva estructura
         if (match.includes('{{#each sale.items}}') && !match.includes('sale.itemsGrouped')) {
-          const colspan = has4Columns ? '4' : '2';
-          const priceCols = has4Columns ? `
-            <td class="t-right">{{money unitPrice}}</td>
-            <td class="t-right">{{money total}}</td>` : '';
-          const priceColsItems = has4Columns ? `
-            <td class="t-right">{{#if unitPrice}}{{money unitPrice}}{{/if}}</td>
-            <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>` : '';
-          const priceColsEmpty = has4Columns ? `
-            <td></td>
-            <td></td>` : '';
-          
           const newTbody = `<tbody>
           {{#if sale.itemsGrouped.hasCombos}}
           <tr class="section-header">
-            <td colspan="${colspan}" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">COMBOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">COMBOS</td>
           </tr>
           {{#each sale.itemsGrouped.combos}}
           <tr>
             <td><strong>{{name}}</strong></td>
-            <td class="t-center">{{qty}}</td>${priceCols}
+            <td class="t-center">{{qty}}</td>
           </tr>
-          {{#each items}}
-          <tr>
-            <td style="padding-left: 30px;">• {{name}}</td>
-            <td class="t-center">{{qty}}</td>${priceColsItems}
-          </tr>
-          {{/each}}
           {{/each}}
           {{/if}}
           
           {{#if sale.itemsGrouped.hasProducts}}
           <tr class="section-header">
-            <td colspan="${colspan}" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">PRODUCTOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">PRODUCTOS</td>
           </tr>
           {{#each sale.itemsGrouped.products}}
           <tr>
             <td>{{name}}</td>
-            <td class="t-center">{{qty}}</td>${priceCols}
+            <td class="t-center">{{qty}}</td>
           </tr>
           {{/each}}
           {{/if}}
           
           {{#if sale.itemsGrouped.hasServices}}
           <tr class="section-header">
-            <td colspan="${colspan}" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">SERVICIOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">SERVICIOS</td>
           </tr>
           {{#each sale.itemsGrouped.services}}
           <tr>
             <td>{{name}}</td>
-            <td class="t-center">{{qty}}</td>${priceCols}
+            <td class="t-center">{{qty}}</td>
           </tr>
           {{/each}}
           {{/if}}
           
           {{#unless sale.itemsGrouped.hasProducts}}{{#unless sale.itemsGrouped.hasServices}}{{#unless sale.itemsGrouped.hasCombos}}
           <tr>
-            <td colspan="${colspan}" style="text-align: center; color: #666;">Sin ítems</td>
+            <td colspan="2" style="text-align: center; color: #666;">Sin ítems</td>
           </tr>
           {{/unless}}{{/unless}}{{/unless}}
         </tbody>`;
           output = output.replace(match, newTbody);
-          console.log(`[normalizeTemplateHtml] ✅ Convertido tbody de orden de trabajo a estructura agrupada (${has4Columns ? '4' : '2'} columnas)`);
+          console.log('[normalizeTemplateHtml] ✅ Convertido tbody de orden de trabajo a estructura agrupada (2 columnas, sin items de combos)');
         } else if (match.includes('{{name}}') && !match.includes('{{#each sale.items}}') && !match.includes('sale.itemsGrouped')) {
           // Template sin estructura, agregar estructura agrupada
-          const colspan = has4Columns ? '4' : '2';
-          const priceCols = has4Columns ? `
-            <td class="t-right">{{money unitPrice}}</td>
-            <td class="t-right">{{money total}}</td>` : '';
-          const priceColsItems = has4Columns ? `
-            <td class="t-right">{{#if unitPrice}}{{money unitPrice}}{{/if}}</td>
-            <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>` : '';
-          
           const newTbody = `<tbody>
           {{#if sale.itemsGrouped.hasCombos}}
           <tr class="section-header">
-            <td colspan="${colspan}" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">COMBOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">COMBOS</td>
           </tr>
           {{#each sale.itemsGrouped.combos}}
           <tr>
             <td><strong>{{name}}</strong></td>
-            <td class="t-center">{{qty}}</td>${priceCols}
+            <td class="t-center">{{qty}}</td>
           </tr>
-          {{#each items}}
-          <tr>
-            <td style="padding-left: 30px;">• {{name}}</td>
-            <td class="t-center">{{qty}}</td>${priceColsItems}
-          </tr>
-          {{/each}}
           {{/each}}
           {{/if}}
           
           {{#if sale.itemsGrouped.hasProducts}}
           <tr class="section-header">
-            <td colspan="${colspan}" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">PRODUCTOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">PRODUCTOS</td>
           </tr>
           {{#each sale.itemsGrouped.products}}
           <tr>
             <td>{{name}}</td>
-            <td class="t-center">{{qty}}</td>${priceCols}
+            <td class="t-center">{{qty}}</td>
           </tr>
           {{/each}}
           {{/if}}
           
           {{#if sale.itemsGrouped.hasServices}}
           <tr class="section-header">
-            <td colspan="${colspan}" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">SERVICIOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">SERVICIOS</td>
           </tr>
           {{#each sale.itemsGrouped.services}}
           <tr>
             <td>{{name}}</td>
-            <td class="t-center">{{qty}}</td>${priceCols}
+            <td class="t-center">{{qty}}</td>
           </tr>
           {{/each}}
           {{/if}}
           
           {{#unless sale.itemsGrouped.hasProducts}}{{#unless sale.itemsGrouped.hasServices}}{{#unless sale.itemsGrouped.hasCombos}}
           <tr>
-            <td colspan="${colspan}" style="text-align: center; color: #666;">Sin ítems</td>
+            <td colspan="2" style="text-align: center; color: #666;">Sin ítems</td>
           </tr>
           {{/unless}}{{/unless}}{{/unless}}
         </tbody>`;
           output = output.replace(match, newTbody);
-          console.log(`[normalizeTemplateHtml] ✅ Agregado estructura agrupada a orden de trabajo (${has4Columns ? '4' : '2'} columnas)`);
+          console.log('[normalizeTemplateHtml] ✅ Agregado estructura agrupada a orden de trabajo (2 columnas, sin items de combos)');
         }
       });
     }
     
-    // Verificar si la tabla de orden de trabajo tiene variables de precio/total ({{money}})
-    // Si las tiene, mantener 4 columnas; si no, convertir a 2 columnas
-    const hasPriceColumns = output.includes('{{money') || output.includes('{{$') || output.includes('Precio') || output.includes('Total');
-    
-    if (!hasPriceColumns) {
-      // Solo convertir a 2 columnas si NO tiene variables de precio/total
-      // Buscar y corregir el thead para que solo tenga 2 columnas
+    // Para orden de trabajo, siempre usar 2 columnas (sin precios) y sin items individuales de combos
+    // Eliminar cualquier loop de items dentro de combos ({{#each items}})
+    if (output.includes('workorder-table')) {
+      output = output.replace(/{{#each\s+items}}[\s\S]*?{{\/each}}/g, '');
+      
+      // Eliminar columnas de precio y total del thead
       const theadMatches = output.match(/<thead>([\s\S]*?)<\/thead>/gi);
       if (theadMatches) {
         theadMatches.forEach((match) => {
@@ -1022,6 +987,16 @@ function normalizeTemplateHtml(html='') {
           }
         });
       }
+      
+      // Eliminar columnas de precio y total de todas las filas
+      output = output.replace(/<td[^>]*class="[^"]*t-right[^"]*"[^>]*>[\s\S]*?<\/td>/g, '');
+      output = output.replace(/<td[^>]*>\s*{{\/?money[^}]*}}[\s\S]*?<\/td>/gi, '');
+      output = output.replace(/<td[^>]*>\s*{{\$[^}]*}}[\s\S]*?<\/td>/gi, '');
+      
+      // Asegurar que los section-headers tengan colspan="2"
+      output = output.replace(/<tr[^>]*class="[^"]*section-header[^"]*"[^>]*>[\s\S]*?<td[^>]*colspan="[^"]*"[^>]*>/g, (match) => {
+        return match.replace(/colspan="[^"]*"/g, 'colspan="2"');
+      });
       
       // Buscar y corregir filas que tengan más de 2 columnas
       output = output.replace(/<tr[^>]*>[\s\S]*?<td[^>]*>[\s\S]*?<\/td>[\s\S]*?<td[^>]*>[\s\S]*?<\/td>[\s\S]*?<td[^>]*>[\s\S]*?<\/td>/g, (match) => {
@@ -1042,19 +1017,10 @@ function normalizeTemplateHtml(html='') {
         return match;
       });
       
-      // Limpiar cualquier referencia a columnas de precio o total en las filas de items
-      // Eliminar columnas con clase t-right (precio/total)
-      output = output.replace(/<td[^>]*class="[^"]*t-right[^"]*"[^>]*>[\s\S]*?<\/td>/g, '');
-      // Eliminar columnas con $ (precio)
-      output = output.replace(/<td[^>]*>\s*\$[\s\S]*?<\/td>/g, '');
-      // Eliminar columnas con {{money}} (precio/total)
-      output = output.replace(/<td[^>]*>\s*{{money[^}]*}}[\s\S]*?<\/td>/g, '');
-    } else {
-      // Si tiene variables de precio/total, asegurar que los section-headers tengan colspan="4"
-      output = output.replace(/<tr[^>]*class="[^"]*section-header[^"]*"[^>]*>[\s\S]*?<td[^>]*colspan="2"[^>]*>/g, (match) => {
-        return match.replace(/colspan="2"/g, 'colspan="4"');
-      });
-      console.log('[normalizeTemplateHtml] ✅ Mantenidas 4 columnas en orden de trabajo (tiene precios/totales)');
+      // Eliminar tfoot si existe (no debe haber total en orden de trabajo)
+      output = output.replace(/<tfoot>[\s\S]*?<\/tfoot>/gi, '');
+      
+      console.log('[normalizeTemplateHtml] ✅ Orden de trabajo configurado a 2 columnas (sin precios, sin items de combos)');
     }
   }
   

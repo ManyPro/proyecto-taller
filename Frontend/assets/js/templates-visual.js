@@ -3830,23 +3830,13 @@
         }
         .workorder-table th:nth-child(1),
         .workorder-table td:nth-child(1) {
-          width: 45%;
+          width: 70%;
           text-align: left;
         }
         .workorder-table th:nth-child(2),
         .workorder-table td:nth-child(2) {
-          width: 15%;
+          width: 30%;
           text-align: center;
-        }
-        .workorder-table th:nth-child(3),
-        .workorder-table td:nth-child(3) {
-          width: 20%;
-          text-align: center;
-        }
-        .workorder-table th:nth-child(4),
-        .workorder-table td:nth-child(4) {
-          width: 20%;
-          text-align: right;
         }
         .workorder-table .t-center {
           text-align: center !important;
@@ -3905,73 +3895,51 @@
           <tr>
             <th>Detalle</th>
             <th>Cantidad</th>
-            <th>Precio</th>
-            <th>Total</th>
           </tr>
         </thead>
         <tbody>
           {{#if sale.itemsGrouped.hasCombos}}
           <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">COMBOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">COMBOS</td>
           </tr>
           {{#each sale.itemsGrouped.combos}}
           <tr>
             <td><strong>{{name}}</strong></td>
             <td class="t-center">{{qty}}</td>
-            <td class="t-right">{{money unitPrice}}</td>
-            <td class="t-right">{{money total}}</td>
           </tr>
-          {{#each items}}
-          <tr>
-            <td style="padding-left: 30px;">• {{name}}</td>
-            <td class="t-center">{{qty}}</td>
-            <td class="t-right">{{#if unitPrice}}{{money unitPrice}}{{/if}}</td>
-            <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>
-          </tr>
-          {{/each}}
           {{/each}}
           {{/if}}
           
           {{#if sale.itemsGrouped.hasProducts}}
           <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">PRODUCTOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">PRODUCTOS</td>
           </tr>
           {{#each sale.itemsGrouped.products}}
           <tr>
             <td>{{name}}</td>
             <td class="t-center">{{qty}}</td>
-            <td class="t-right">{{money unitPrice}}</td>
-            <td class="t-right">{{money total}}</td>
           </tr>
           {{/each}}
           {{/if}}
           
           {{#if sale.itemsGrouped.hasServices}}
           <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">SERVICIOS</td>
+            <td colspan="2" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">SERVICIOS</td>
           </tr>
           {{#each sale.itemsGrouped.services}}
           <tr>
             <td>{{name}}</td>
             <td class="t-center">{{qty}}</td>
-            <td class="t-right">{{money unitPrice}}</td>
-            <td class="t-right">{{money total}}</td>
           </tr>
           {{/each}}
           {{/if}}
           
           {{#unless sale.itemsGrouped.hasProducts}}{{#unless sale.itemsGrouped.hasServices}}{{#unless sale.itemsGrouped.hasCombos}}
           <tr>
-            <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
+            <td colspan="2" style="text-align: center; color: #666;">Sin ítems</td>
           </tr>
           {{/unless}}{{/unless}}{{/unless}}
         </tbody>
-        <tfoot>
-          <tr style="border-top: 2px solid #000;">
-            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">TOTAL</td>
-            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{$ S.total}}</td>
-          </tr>
-        </tfoot>
       </table>
     `;
 
