@@ -1379,6 +1379,38 @@ function syncCurrentIntoOpenList() {
   else openSales.unshift(copy);
 }
 
+// Función auxiliar para validar y refrescar la venta actual antes de operaciones
+async function ensureCurrentSale() {
+  if (!current || !current._id) {
+    throw new Error('No hay venta activa. Por favor, crea una venta primero.');
+  }
+  
+  try {
+    // Refrescar la venta actual para asegurar que tenemos el ID correcto y está abierta
+    const freshSale = await API.sales.get(current._id);
+    if (!freshSale) {
+      current = null;
+      await refreshOpenSales();
+      throw new Error('La venta no existe o fue cerrada. Por favor, crea una nueva venta.');
+    }
+    if (freshSale.status !== 'draft') {
+      current = null;
+      await refreshOpenSales();
+      throw new Error('La venta ya fue cerrada. Por favor, crea una nueva venta.');
+    }
+    current = freshSale;
+    syncCurrentIntoOpenList();
+    return current;
+  } catch (err) {
+    if (err.message && (err.message.includes('No hay venta') || err.message.includes('no existe') || err.message.includes('cerrada'))) {
+      throw err;
+    }
+    // Si es un error de red u otro, intentar continuar con la venta actual
+    console.warn('Error al refrescar venta, continuando con venta actual:', err);
+    return current;
+  }
+}
+
 // Función consolidada para renderizar todos los componentes (elimina duplicación)
 let renderPending = false;
 async function renderAll(options = {}) {
@@ -3982,11 +4014,19 @@ function openQR(){
 }
 
 // ---------- agregar unificado (QR + Manual) ----------
-function openAddUnified(){
+async function openAddUnified(){
   console.log('openAddUnified llamada, current:', current);
   if (!current) {
     console.warn('No hay venta actual');
     alert('Crea primero una venta');
+    return;
+  }
+  
+  // Validar y refrescar la venta antes de abrir el modal
+  try {
+    await ensureCurrentSale();
+  } catch (err) {
+    alert(err.message || 'Error al validar la venta');
     return;
   }
   
@@ -4260,6 +4300,7 @@ async function renderPricesView(container, vehicleId) {
         
         card.querySelector('.add-price-btn').onclick = async () => {
           try {
+            await ensureCurrentSale();
             current = await API.sales.addItem(current._id, { source:'price', refId: pe._id, qty:1 });
             syncCurrentIntoOpenList();
             await renderAll();
@@ -4449,6 +4490,7 @@ async function renderInventoryView(container) {
         
         card.querySelector('.add-inventory-btn').onclick = async () => {
           try {
+            await ensureCurrentSale();
             current = await API.sales.addItem(current._id, { source:'inventory', refId: item._id, qty:1 });
             syncCurrentIntoOpenList();
             await renderAll();

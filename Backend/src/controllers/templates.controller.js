@@ -896,6 +896,13 @@ function normalizeTemplateHtml(html='') {
         // Si tiene {{#each sale.items}} pero NO tiene sale.itemsGrouped, convertir a nueva estructura
         if (match.includes('{{#each sale.items}}') && !match.includes('sale.itemsGrouped')) {
           const newTbody = `<tbody>
+          {{#if sale.vehicle}}
+          <tr style="background: #e8f4f8; font-weight: bold; border-bottom: 2px solid #000;">
+            <td colspan="4" style="padding: 3px 6px; font-size: 11px;">
+              {{#if sale.vehicle.brand}}{{sale.vehicle.brand}}{{/if}}{{#if sale.vehicle.line}} {{sale.vehicle.line}}{{/if}}{{#if sale.vehicle.year}} - Año: {{sale.vehicle.year}}{{/if}}{{#if sale.vehicle.mileage}} - Kilometraje: {{sale.vehicle.mileage}} km{{/if}}
+            </td>
+          </tr>
+          {{/if}}
           {{#if sale.itemsGrouped.hasProducts}}
           <tr class="section-header">
             <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">PRODUCTOS</td>

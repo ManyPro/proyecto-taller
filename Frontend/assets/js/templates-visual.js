@@ -3126,6 +3126,13 @@
           </tr>
         </thead>
         <tbody>
+          {{#if sale.vehicle}}
+          <tr style="background: #e8f4f8; font-weight: bold; border-bottom: 2px solid #000;">
+            <td colspan="4" style="padding: 3px 6px; font-size: 11px;">
+              {{#if sale.vehicle.brand}}{{sale.vehicle.brand}}{{/if}}{{#if sale.vehicle.line}} {{sale.vehicle.line}}{{/if}}{{#if sale.vehicle.year}} - Año: {{sale.vehicle.year}}{{/if}}{{#if sale.vehicle.mileage}} - Kilometraje: {{sale.vehicle.mileage}} km{{/if}}
+            </td>
+          </tr>
+          {{/if}}
           {{#if sale.itemsGrouped.hasCombos}}
           <tr class="section-header">
             <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">COMBOS</td>
