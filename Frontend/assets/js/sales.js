@@ -4338,7 +4338,17 @@ async function renderPricesView(container, vehicleId) {
               throw new Error('ID de venta inválido. Por favor, crea una nueva venta.');
             }
             
-            console.log('Agregando item a venta:', { saleId, priceId: pe._id });
+            // Verificar que la venta todavía existe y está abierta antes de agregar
+            console.log('Verificando venta antes de agregar item:', { saleId, priceId: pe._id, currentStatus: current.status });
+            const verifySale = await API.sales.get(saleId);
+            if (!verifySale) {
+              throw new Error('La venta no existe. Por favor, crea una nueva venta.');
+            }
+            if (verifySale.status !== 'draft') {
+              throw new Error(`La venta está en estado "${verifySale.status}" y no se pueden agregar items. Por favor, crea una nueva venta.`);
+            }
+            
+            console.log('Agregando item a venta:', { saleId, priceId: pe._id, saleStatus: verifySale.status });
             current = await API.sales.addItem(saleId, { source:'price', refId: pe._id, qty:1 });
             syncCurrentIntoOpenList();
             await renderAll();

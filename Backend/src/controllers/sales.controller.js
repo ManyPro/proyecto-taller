@@ -229,9 +229,51 @@ export const addItem = async (req, res) => {
   const { id } = req.params;
   const { source, refId, sku, qty = 1, unitPrice } = req.body || {};
 
+  // Log para debugging (siempre, no solo en desarrollo)
+  console.log('[addItem] Buscando venta:', { 
+    saleId: id, 
+    companyId: req.companyId,
+    companyIdType: typeof req.companyId,
+    companyIdFromReq: req.company?.id,
+    userId: req.userId
+  });
+
+  // Validar que tenemos companyId
+  if (!req.companyId) {
+    console.error('[addItem] No hay companyId en request:', { 
+      saleId: id,
+      hasCompany: !!req.company,
+      companyId: req.company?.id 
+    });
+    return res.status(400).json({ error: 'Company ID missing' });
+  }
+
   const sale = await Sale.findOne({ _id: id, companyId: req.companyId });
-  if (!sale) return res.status(404).json({ error: 'Sale not found' });
-  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
+  
+  if (!sale) {
+    // Verificar si la venta existe pero con otro companyId
+    const saleAnyCompany = await Sale.findOne({ _id: id });
+    if (saleAnyCompany) {
+      console.error('[addItem] Venta encontrada pero companyId no coincide:', {
+        saleId: id,
+        expectedCompanyId: req.companyId,
+        actualCompanyId: saleAnyCompany.companyId?.toString(),
+        saleStatus: saleAnyCompany.status,
+        saleNumber: saleAnyCompany.number
+      });
+      return res.status(403).json({ error: 'Sale belongs to different company' });
+    }
+    console.error('[addItem] Venta no encontrada en ninguna empresa:', { 
+      saleId: id, 
+      companyId: req.companyId,
+      isValidObjectId: /^[0-9a-fA-F]{24}$/.test(id)
+    });
+    return res.status(404).json({ error: 'Sale not found' });
+  }
+  
+  if (sale.status !== 'draft') {
+    return res.status(400).json({ error: `Sale not open (draft). Current status: ${sale.status}` });
+  }
 
   let itemData = null;
 
