@@ -1385,15 +1385,26 @@ async function ensureCurrentSale() {
     throw new Error('No hay venta activa. Por favor, crea una venta primero.');
   }
   
+  // Asegurar que el ID es un string válido
+  const saleId = String(current._id || '').trim();
+  if (!saleId || saleId.length < 10) {
+    console.error('ID de venta inválido:', current._id);
+    current = null;
+    await refreshOpenSales();
+    throw new Error('ID de venta inválido. Por favor, crea una nueva venta.');
+  }
+  
   try {
     // Refrescar la venta actual para asegurar que tenemos el ID correcto y está abierta
-    const freshSale = await API.sales.get(current._id);
+    const freshSale = await API.sales.get(saleId);
     if (!freshSale) {
+      console.error('Venta no encontrada en backend:', saleId);
       current = null;
       await refreshOpenSales();
       throw new Error('La venta no existe o fue cerrada. Por favor, crea una nueva venta.');
     }
     if (freshSale.status !== 'draft') {
+      console.warn('Venta no está en estado draft:', freshSale.status);
       current = null;
       await refreshOpenSales();
       throw new Error('La venta ya fue cerrada. Por favor, crea una nueva venta.');
@@ -1402,11 +1413,15 @@ async function ensureCurrentSale() {
     syncCurrentIntoOpenList();
     return current;
   } catch (err) {
-    if (err.message && (err.message.includes('No hay venta') || err.message.includes('no existe') || err.message.includes('cerrada'))) {
+    if (err.message && (err.message.includes('No hay venta') || err.message.includes('no existe') || err.message.includes('cerrada') || err.message.includes('inválido'))) {
       throw err;
     }
     // Si es un error de red u otro, intentar continuar con la venta actual
     console.warn('Error al refrescar venta, continuando con venta actual:', err);
+    // Aún así validar que tenemos un ID válido
+    if (!current || !current._id) {
+      throw new Error('No se pudo validar la venta. Por favor, crea una nueva venta.');
+    }
     return current;
   }
 }
@@ -3810,11 +3825,15 @@ function openQR(){
     const li=document.createElement('li'); li.textContent=text; list.prepend(li);
     const parsed = parseInventoryCode(text);
     try{
+      // Validar y refrescar la venta antes de agregar
+      await ensureCurrentSale();
+      const saleId = String(current._id).trim();
+      
       if (parsed.itemId){
-        current = await API.sales.addItem(current._id, { source:'inventory', refId: parsed.itemId, qty:1 });
+        current = await API.sales.addItem(saleId, { source:'inventory', refId: parsed.itemId, qty:1 });
       } else {
         const candidate = (parsed.sku || text).toUpperCase();
-        current = await API.sales.addItem(current._id, { source:'inventory', sku:candidate, qty:1 });
+        current = await API.sales.addItem(saleId, { source:'inventory', sku:candidate, qty:1 });
       }
       syncCurrentIntoOpenList();
       await renderAll();
@@ -4299,16 +4318,33 @@ async function renderPricesView(container, vehicleId) {
         `;
         
         card.querySelector('.add-price-btn').onclick = async () => {
+          const btn = card.querySelector('.add-price-btn');
+          const originalText = btn.textContent;
           try {
+            btn.disabled = true;
+            btn.textContent = 'Agregando...';
+            
+            // Validar y refrescar la venta
             await ensureCurrentSale();
-            current = await API.sales.addItem(current._id, { source:'price', refId: pe._id, qty:1 });
+            
+            // Verificar nuevamente que tenemos un ID válido
+            if (!current || !current._id) {
+              throw new Error('No hay venta activa. Por favor, crea una venta primero.');
+            }
+            
+            // Asegurar que el ID es un string válido
+            const saleId = String(current._id).trim();
+            if (!saleId || saleId.length < 10) {
+              throw new Error('ID de venta inválido. Por favor, crea una nueva venta.');
+            }
+            
+            console.log('Agregando item a venta:', { saleId, priceId: pe._id });
+            current = await API.sales.addItem(saleId, { source:'price', refId: pe._id, qty:1 });
             syncCurrentIntoOpenList();
             await renderAll();
-            // Mostrar feedback
-            const btn = card.querySelector('.add-price-btn');
-            const originalText = btn.textContent;
+            
+            // Mostrar feedback de éxito
             btn.textContent = '✓ Agregado';
-            btn.disabled = true;
             btn.style.background = 'var(--success, #10b981)';
             setTimeout(() => {
               btn.textContent = originalText;
@@ -4316,7 +4352,10 @@ async function renderPricesView(container, vehicleId) {
               btn.style.background = '';
             }, 2000);
           } catch (err) {
-            alert('Error: ' + (err?.message || 'No se pudo agregar'));
+            console.error('Error al agregar item:', err);
+            btn.disabled = false;
+            btn.textContent = originalText;
+            alert('Error: ' + (err?.message || 'No se pudo agregar el item. Verifica que la venta esté abierta.'));
           }
         };
         
@@ -4489,16 +4528,33 @@ async function renderInventoryView(container) {
         `;
         
         card.querySelector('.add-inventory-btn').onclick = async () => {
+          const btn = card.querySelector('.add-inventory-btn');
+          const originalText = btn.textContent;
           try {
+            btn.disabled = true;
+            btn.textContent = 'Agregando...';
+            
+            // Validar y refrescar la venta
             await ensureCurrentSale();
-            current = await API.sales.addItem(current._id, { source:'inventory', refId: item._id, qty:1 });
+            
+            // Verificar nuevamente que tenemos un ID válido
+            if (!current || !current._id) {
+              throw new Error('No hay venta activa. Por favor, crea una venta primero.');
+            }
+            
+            // Asegurar que el ID es un string válido
+            const saleId = String(current._id).trim();
+            if (!saleId || saleId.length < 10) {
+              throw new Error('ID de venta inválido. Por favor, crea una nueva venta.');
+            }
+            
+            console.log('Agregando item de inventario a venta:', { saleId, itemId: item._id });
+            current = await API.sales.addItem(saleId, { source:'inventory', refId: item._id, qty:1 });
             syncCurrentIntoOpenList();
             await renderAll();
-            // Mostrar feedback
-            const btn = card.querySelector('.add-inventory-btn');
-            const originalText = btn.textContent;
+            
+            // Mostrar feedback de éxito
             btn.textContent = '✓ Agregado';
-            btn.disabled = true;
             btn.style.background = 'var(--success, #10b981)';
             setTimeout(() => {
               btn.textContent = originalText;
@@ -4506,7 +4562,10 @@ async function renderInventoryView(container) {
               btn.style.background = '';
             }, 2000);
           } catch (err) {
-            alert('Error: ' + (err?.message || 'No se pudo agregar'));
+            console.error('Error al agregar item:', err);
+            btn.disabled = false;
+            btn.textContent = originalText;
+            alert('Error: ' + (err?.message || 'No se pudo agregar el item. Verifica que la venta esté abierta.'));
           }
         };
         
