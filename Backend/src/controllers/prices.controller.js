@@ -3,6 +3,7 @@ import Service from '../models/Service.js';
 import Vehicle from '../models/Vehicle.js';
 import Item from '../models/Item.js';
 import xlsx from 'xlsx'; // 0.18.x
+import { logger } from '../lib/logger.js';
 
 // ============ helpers ============
 function cleanStr(v) {
@@ -177,7 +178,7 @@ export const getPrice = async (req, res) => {
   }
   
   // Log para debugging
-  console.log('[getPrice] Buscando precio:', {
+  logger.info('[getPrice] Buscando precio', {
     priceId: id,
     originalCompanyId: originalCompanyId?.toString(),
     effectiveCompanyId: effectiveCompanyId?.toString(),
@@ -195,14 +196,14 @@ export const getPrice = async (req, res) => {
     // Verificar si el precio existe en alguna empresa (para debugging)
     const priceAnyCompany = await PriceEntry.findOne({ _id: id }).lean();
     if (priceAnyCompany) {
-      console.warn('[getPrice] Precio encontrado pero con companyId diferente:', {
+      logger.warn('[getPrice] Precio encontrado pero con companyId diferente', {
         priceId: id,
         priceCompanyId: priceAnyCompany.companyId?.toString(),
         originalCompanyId: originalCompanyId?.toString(),
         effectiveCompanyId: effectiveCompanyId?.toString()
       });
     } else {
-      console.warn('[getPrice] Precio no encontrado en ninguna empresa:', {
+      logger.warn('[getPrice] Precio no encontrado en ninguna empresa', {
         priceId: id,
         isValidObjectId: /^[0-9a-fA-F]{24}$/.test(id)
       });

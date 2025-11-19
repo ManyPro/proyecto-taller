@@ -11,6 +11,7 @@ import CustomerProfile from '../models/CustomerProfile.js';
 import { upsertProfileFromSource } from './profile.helper.js';
 import { publish } from '../lib/live.js';
 import { createDateRange } from '../lib/dateTime.js';
+import { logger } from '../lib/logger.js';
 
 // Helpers
 const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
@@ -252,7 +253,7 @@ export const startSale = async (req, res) => {
   const saleNumber = await getNextSaleNumber(creationCompanyId);
   const sale = await Sale.create({ companyId: creationCompanyId, status: 'draft', items: [], number: saleNumber });
   
-  console.log('[startSale] Venta creada:', {
+  logger.info('[startSale] Venta creada', {
     saleId: sale._id?.toString(),
     companyId: sale.companyId?.toString(),
     originalCompanyId: req.originalCompanyId?.toString(),
@@ -331,7 +332,7 @@ export const getSale = async (req, res) => {
           };
         }
       } catch (err) {
-        console.warn('Error fetching StockEntry for item:', err);
+        logger.warn('Error fetching StockEntry for item', { error: err?.message, stack: err?.stack });
       }
     }
     return item;
@@ -349,7 +350,7 @@ export const addItem = async (req, res) => {
   const originalCompanyId = req.originalCompanyId || req.company?.id;
   const effectiveCompanyId = req.companyId;
   
-  console.log('[addItem] Iniciando addItem:', { 
+  logger.info('[addItem] Iniciando addItem', { 
     saleId: id, 
     originalCompanyId: originalCompanyId?.toString(),
     effectiveCompanyId: effectiveCompanyId?.toString(),
@@ -362,7 +363,7 @@ export const addItem = async (req, res) => {
 
   // Validar que tenemos companyId
   if (!effectiveCompanyId) {
-    console.error('[addItem] No hay companyId en request:', { 
+    logger.error('[addItem] No hay companyId en request', { 
       saleId: id,
       hasCompany: !!req.company,
       companyId: req.company?.id,
@@ -377,7 +378,7 @@ export const addItem = async (req, res) => {
   const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
   
   if (!sale) {
-    console.error('[addItem] Venta no encontrada:', { 
+    logger.error('[addItem] Venta no encontrada', { 
       saleId: id, 
       originalCompanyId: originalCompanyId?.toString(),
       effectiveCompanyId: effectiveCompanyId?.toString(),
@@ -391,7 +392,7 @@ export const addItem = async (req, res) => {
   // Aunque busquemos en ambos companyId, solo permitimos operaciones en ventas
   // que pertenecen al originalCompanyId (empresa logueada)
   if (!validateSaleOwnership(sale, req)) {
-    console.error('[addItem] Venta encontrada pero companyId no coincide:', {
+    logger.error('[addItem] Venta encontrada pero companyId no coincide', {
       saleId: id,
       expectedCompanyId: originalCompanyId?.toString(),
       actualCompanyId: sale.companyId?.toString(),
@@ -433,7 +434,7 @@ export const addItem = async (req, res) => {
       // Usar función auxiliar para obtener el filtro correcto de companyId
       const priceCompanyFilter = getPriceQueryCompanyFilter(req);
       
-      console.log('[addItem] Buscando PriceEntry:', {
+      logger.info('[addItem] Buscando PriceEntry', {
         priceId: refId,
         originalCompanyId: originalCompanyId?.toString(),
         effectiveCompanyId: effectiveCompanyId?.toString(),
@@ -451,14 +452,14 @@ export const addItem = async (req, res) => {
         // Verificar si el precio existe en alguna empresa (para debugging)
         const priceAnyCompany = await PriceEntry.findOne({ _id: refId }).lean();
         if (priceAnyCompany) {
-          console.warn('[addItem] PriceEntry encontrado pero con companyId diferente:', {
+          logger.warn('[addItem] PriceEntry encontrado pero con companyId diferente', {
             priceId: refId,
             priceCompanyId: priceAnyCompany.companyId?.toString(),
             originalCompanyId: originalCompanyId?.toString(),
             effectiveCompanyId: effectiveCompanyId?.toString()
           });
         } else {
-          console.warn('[addItem] PriceEntry no encontrado en ninguna empresa:', {
+          logger.warn('[addItem] PriceEntry no encontrado en ninguna empresa', {
             priceId: refId,
             isValidObjectId: /^[0-9a-fA-F]{24}$/.test(refId)
           });
@@ -1080,16 +1081,16 @@ export const closeSale = async (req, res) => {
         const itemStock = target.stock ?? 0;
         
         // Log detallado para debugging
-        console.log(`[closeSale] Verificando stock para ${target.sku || target.name}:`);
-        console.log(`  - Item.stock: ${itemStock}`);
-        console.log(`  - StockEntries encontrados: ${stockEntriesForCheck.length}`);
-        console.log(`  - Stock desde entradas: ${actualStockFromEntries}`);
-        console.log(`  - companyId usado: ${req.companyId}`);
-        if (hasSharedDb) {
-          console.log(`  - originalCompanyId: ${req.originalCompanyId}`);
-          console.log(`  - effectiveCompanyId: ${req.companyId}`);
-          console.log(`  - Filter usado: ${JSON.stringify(stockCompanyFilter)}`);
-        }
+        logger.info('[closeSale] Verificando stock', {
+          sku: target.sku || target.name,
+          itemStock,
+          stockEntriesCount: stockEntriesForCheck.length,
+          stockFromEntries: actualStockFromEntries,
+          companyId: req.companyId,
+          originalCompanyId: hasSharedDb ? req.originalCompanyId : undefined,
+          effectiveCompanyId: hasSharedDb ? req.companyId : undefined,
+          stockCompanyFilter: hasSharedDb ? stockCompanyFilter : undefined
+        });
         
         // Si hay StockEntries, usar su suma (más preciso)
         // Si NO hay StockEntries pero el Item tiene stock, usar el stock del Item
@@ -1100,25 +1101,33 @@ export const closeSale = async (req, res) => {
         
         // Log para debugging si hay discrepancia
         if (stockEntriesForCheck.length > 0 && actualStockFromEntries !== itemStock) {
-          console.warn(`[closeSale] ⚠️ Stock desincronizado para ${target.sku || target.name}: Item.stock=${itemStock}, StockEntries=${actualStockFromEntries}. Usando StockEntries.`);
+          logger.warn('[closeSale] Stock desincronizado', {
+            sku: target.sku || target.name,
+            itemStock,
+            stockFromEntries: actualStockFromEntries,
+            using: 'StockEntries'
+          });
         }
         
         // Si no hay StockEntries pero el Item tiene stock, es válido usar el stock del Item
         if (stockEntriesForCheck.length === 0 && itemStock > 0) {
-          console.log(`[closeSale] ℹ️ No hay StockEntries para ${target.sku || target.name}, pero Item.stock=${itemStock}. Usando stock del Item.`);
+          logger.info('[closeSale] Usando stock del Item (sin StockEntries)', {
+            sku: target.sku || target.name,
+            itemStock
+          });
         }
         
         if (stockToUse < q) {
           // Log detallado del error
-          console.error(`[closeSale] ❌ Stock insuficiente para ${target.sku || target.name}:`);
-          console.error(`  - Requerido: ${q}`);
-          console.error(`  - Disponible (StockEntries): ${actualStockFromEntries}`);
-          console.error(`  - Disponible (Item.stock): ${itemStock}`);
-          console.error(`  - Stock usado: ${stockToUse}`);
-          console.error(`  - companyId: ${req.companyId}`);
-          if (hasSharedDb) {
-            console.error(`  - originalCompanyId: ${req.originalCompanyId}`);
-          }
+          logger.error('[closeSale] Stock insuficiente', {
+            sku: target.sku || target.name,
+            requerido: q,
+            disponibleStockEntries: actualStockFromEntries,
+            disponibleItemStock: itemStock,
+            stockUsado: stockToUse,
+            companyId: req.companyId,
+            originalCompanyId: hasSharedDb ? req.originalCompanyId : undefined
+          });
           throw new Error(`Stock insuficiente para ${target.sku || target.name}. Disponible: ${stockToUse}, Requerido: ${q}`);
         }
 
@@ -1165,18 +1174,23 @@ export const closeSale = async (req, res) => {
           if (stockEntries.length === 0 && itemStock >= remainingQty) {
             // No hay StockEntries pero el Item tiene stock suficiente
             // Solo descontamos del Item.stock (ya se hará abajo con el updateOne)
-            console.log(`[closeSale] ℹ️ Descontando ${remainingQty} unidades de ${target.sku || target.name} sin StockEntry (stock inicial/ajuste manual)`);
+            logger.info('[closeSale] Descontando sin StockEntry (stock inicial/ajuste manual)', {
+              sku: target.sku || target.name,
+              cantidad: remainingQty
+            });
             remainingQty = 0; // Marcamos como completado ya que el Item tiene stock
           } else {
             // No hay suficiente stock disponible
             const availableFromEntries = stockEntries.reduce((sum, e) => sum + (e.qty || 0), 0);
             const totalAvailable = availableFromEntries + (stockEntries.length === 0 ? itemStock : 0);
-            console.error(`[closeSale] ❌ Stock insuficiente en entradas para ${target.sku || target.name}:`);
-            console.error(`  - Necesario: ${q}`);
-            console.error(`  - Disponible en StockEntries: ${availableFromEntries}`);
-            console.error(`  - Disponible en Item.stock (sin entradas): ${stockEntries.length === 0 ? itemStock : 0}`);
-            console.error(`  - Total disponible: ${totalAvailable}`);
-            console.error(`  - Ya descontado: ${q - remainingQty}`);
+            logger.error('[closeSale] Stock insuficiente en entradas', {
+              sku: target.sku || target.name,
+              necesario: q,
+              disponibleStockEntries: availableFromEntries,
+              disponibleItemStock: stockEntries.length === 0 ? itemStock : 0,
+              totalDisponible: totalAvailable,
+              yaDescontado: q - remainingQty
+            });
             throw new Error(`Insufficient stock in entries for ${target.sku || target.name}. Needed: ${q}, Available: ${q - remainingQty}`);
           }
         }
@@ -1325,7 +1339,7 @@ export const closeSale = async (req, res) => {
           const sum = cleaned.reduce((a,b)=> a + b.amount, 0);
           
           // Log para debugging
-          console.log('[closeSale] Validando pagos:', {
+          logger.info('[closeSale] Validando pagos', {
             saleId: sale._id?.toString(),
             sum,
             calculatedTotal,
@@ -1336,7 +1350,7 @@ export const closeSale = async (req, res) => {
           });
           
           if (Math.abs(sum - totalToUse) > 0.01) {
-            console.error('[closeSale] Error de validación:', {
+            logger.error('[closeSale] Error de validación', {
               sum,
               calculatedTotal,
               frontendTotal,
@@ -1350,7 +1364,7 @@ export const closeSale = async (req, res) => {
           // Si el frontend envió un total diferente al calculado, actualizar el total de la venta
           // Esto puede pasar si hay items que se agregaron/modificaron después de que el frontend cargó la venta
           if (frontendTotal !== null && Math.abs(frontendTotal - calculatedTotal) > 0.01) {
-            console.warn('[closeSale] Total del frontend difiere del calculado, usando el calculado:', {
+            logger.warn('[closeSale] Total del frontend difiere del calculado, usando el calculado', {
               frontendTotal,
               calculatedTotal,
               diff: Math.abs(frontendTotal - calculatedTotal)
@@ -1438,7 +1452,7 @@ export const closeSale = async (req, res) => {
       try {
         await checkLowStockForMany(req.companyId, affectedItemIds);
       } catch (e) {
-        console.error('Error checking stock alerts after sale close:', e?.message);
+        logger.error('Error checking stock alerts after sale close', { error: e?.message, stack: e?.stack });
       }
     }
     
@@ -1481,7 +1495,7 @@ export const closeSale = async (req, res) => {
           source: 'sale'
         });
       } catch(e) { 
-        console.warn('createReceivable failed:', e?.message||e); 
+        logger.warn('createReceivable failed', { error: e?.message || e, stack: e?.stack }); 
       }
     } else {
       // Solo registrar en flujo de caja si NO es crédito
@@ -1489,7 +1503,7 @@ export const closeSale = async (req, res) => {
         const accountId = req.body?.accountId; // opcional desde frontend
         const resEntries = await registerSaleIncome({ companyId: req.companyId, sale, accountId });
         cashflowEntries = Array.isArray(resEntries) ? resEntries : (resEntries ? [resEntries] : []);
-      } catch(e) { console.warn('registerSaleIncome failed:', e?.message||e); }
+      } catch(e) { logger.warn('registerSaleIncome failed', { error: e?.message || e, stack: e?.stack }); }
     }
     
     try{ publish(req.companyId, 'sale:closed', { id: (sale?._id)||undefined }) }catch{}
@@ -1850,7 +1864,7 @@ export const deleteSalesBulk = async (req, res) => {
       companyId: originalCompanyId 
     });
     
-    console.log('[deleteSalesBulk] Ventas eliminadas:', {
+    logger.info('[deleteSalesBulk] Ventas eliminadas', {
       companyId: originalCompanyId,
       plate: plate || 'todas',
       status: status || 'draft',
@@ -1874,7 +1888,7 @@ export const deleteSalesBulk = async (req, res) => {
       message: `Se eliminaron ${result.deletedCount} venta(s)` 
     });
   } catch (err) {
-    console.error('[deleteSalesBulk] Error:', err);
+    logger.error('[deleteSalesBulk] Error', { error: err?.message, stack: err?.stack });
     res.status(500).json({ error: err?.message || 'Error al eliminar ventas' });
   }
 };
@@ -2452,7 +2466,7 @@ export const technicianReport = async (req, res) => {
       items: rows
     });
   } catch (err) {
-    console.error('technicianReport error:', err);
+    logger.error('technicianReport error', { error: err?.message, stack: err?.stack });
     return res.status(500).json({ error: 'Error generando reporte tÃ©cnico' });
   }
 };
