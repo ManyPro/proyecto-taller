@@ -1389,7 +1389,7 @@ async function renderAll(options = {}) {
   try {
     renderTabs();
     renderSale();
-    renderWO();
+    await renderWO();
     if (includeMini) renderMini();
     if (!skipQuote) {
       await renderQuoteForCurrentSale();
@@ -3234,7 +3234,7 @@ async function completeOpenSlotWithQR(saleId, slotIndex, slot) {
   });
 }
 
-function renderWO(){
+async function renderWO(){
   const b = document.getElementById('sv-wo-body'); if (!b) return;
   b.innerHTML = '';
   
@@ -3246,33 +3246,98 @@ function renderWO(){
   }
   
   const items = current.items || [];
-  const services = items.filter(it => {
-    const sku = String(it.sku || '').toUpperCase();
-    return it.source === 'service' || sku.startsWith('SRV-');
-  });
-  const products = items.filter(it => {
-    const sku = String(it.sku || '').toUpperCase();
-    return !(it.source === 'service' || sku.startsWith('SRV-'));
+  
+  // Identificar combos consultando PriceEntry
+  const priceEntryIds = items
+    .filter(item => item.source === 'price' && item.refId)
+    .map(item => item.refId);
+  
+  let priceEntryMap = {};
+  if (priceEntryIds.length > 0) {
+    try {
+      const priceEntries = await Promise.all(
+        priceEntryIds.map(id => API.prices.get(id).catch(() => null))
+      );
+      priceEntries.forEach(pe => {
+        if (pe && pe._id) {
+          priceEntryMap[pe._id] = pe;
+        }
+      });
+    } catch (e) {
+      console.warn('Error fetching price entries:', e);
+    }
+  }
+  
+  // Identificar productos que son parte de combos (para excluirlos)
+  const comboProductRefIds = new Set();
+  Object.values(priceEntryMap).forEach(pe => {
+    if (pe.type === 'combo' && pe.comboProducts && Array.isArray(pe.comboProducts)) {
+      pe.comboProducts.forEach(cp => {
+        if (cp.itemId) {
+          comboProductRefIds.add(String(cp.itemId));
+        }
+      });
+    }
   });
   
-  // Sección de Servicios
-  if (services.length > 0) {
+  // Agrupar items
+  const combos = [];
+  const products = [];
+  const services = [];
+  
+  items.forEach(item => {
+    // Verificar si es parte de un combo (producto anidado)
+    const itemRefId = item.refId ? String(item.refId) : '';
+    if (comboProductRefIds.has(itemRefId)) {
+      // Es un producto anidado de un combo, no lo incluimos aquí
+      return;
+    }
+    
+    // Verificar si el SKU empieza con "CP-" (producto de combo)
+    const sku = String(item.sku || '').toUpperCase();
+    if (sku.startsWith('CP-')) {
+      // Es un producto anidado de un combo, no lo incluimos aquí
+      return;
+    }
+    
+    // Clasificar el item
+    if (item.source === 'price' && item.refId && priceEntryMap[item.refId]) {
+      const pe = priceEntryMap[item.refId];
+      if (pe.type === 'combo') {
+        combos.push(item);
+      } else if (pe.type === 'service') {
+        services.push(item);
+      } else {
+        products.push(item);
+      }
+    } else if (item.source === 'inventory') {
+      products.push(item);
+    } else if (item.source === 'service') {
+      services.push(item);
+    } else {
+      // Por defecto, tratar como servicio
+      services.push(item);
+    }
+  });
+  
+  // Renderizar Combos primero (morado)
+  if (combos.length > 0) {
     const headerRow = document.createElement('tr');
     headerRow.className = 'wo-section-header';
     headerRow.innerHTML = `
-      <td colspan="2" class="py-2 px-1 bg-blue-600/20 dark:bg-blue-600/20 theme-light:bg-blue-50 border-b border-blue-600/30 dark:border-blue-600/30 theme-light:border-blue-200">
+      <td colspan="2" class="py-2 px-1" style="background: #9333ea; color: white; border-bottom: 2px solid #7e22ce;">
         <div class="flex items-center gap-2">
-          <span class="text-lg">🔧</span>
-          <span class="font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-700">Servicios</span>
-          <span class="text-xs text-blue-300 dark:text-blue-300 theme-light:text-blue-600">(${services.length})</span>
+          <span class="text-lg">🎁</span>
+          <span class="font-semibold">Combos</span>
+          <span class="text-xs opacity-90">(${combos.length})</span>
         </div>
       </td>
     `;
     b.appendChild(headerRow);
     
-    services.forEach(it => {
+    combos.forEach(it => {
       const tr = document.createElement('tr');
-      tr.className = 'wo-item wo-service';
+      tr.className = 'wo-item wo-combo';
       tr.innerHTML = `
         <td class="py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900">${it.name||''}</td>
         <td class="t-center py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900 font-medium">${String(it.qty||1)}</td>
@@ -3281,9 +3346,9 @@ function renderWO(){
     });
   }
   
-  // Sección de Productos
+  // Renderizar Productos (verde)
   if (products.length > 0) {
-    if (services.length > 0) {
+    if (combos.length > 0) {
       const spacerRow = document.createElement('tr');
       spacerRow.innerHTML = `<td colspan="2" class="py-2"></td>`;
       b.appendChild(spacerRow);
@@ -3292,11 +3357,11 @@ function renderWO(){
     const headerRow = document.createElement('tr');
     headerRow.className = 'wo-section-header';
     headerRow.innerHTML = `
-      <td colspan="2" class="py-2 px-1 bg-green-600/20 dark:bg-green-600/20 theme-light:bg-green-50 border-b border-green-600/30 dark:border-green-600/30 theme-light:border-green-200">
+      <td colspan="2" class="py-2 px-1" style="background: #22c55e; color: white; border-bottom: 2px solid #16a34a;">
         <div class="flex items-center gap-2">
           <span class="text-lg">📦</span>
-          <span class="font-semibold text-green-400 dark:text-green-400 theme-light:text-green-700">Productos</span>
-          <span class="text-xs text-green-300 dark:text-green-300 theme-light:text-green-600">(${products.length})</span>
+          <span class="font-semibold">Productos</span>
+          <span class="text-xs opacity-90">(${products.length})</span>
         </div>
       </td>
     `;
@@ -3305,6 +3370,38 @@ function renderWO(){
     products.forEach(it => {
       const tr = document.createElement('tr');
       tr.className = 'wo-item wo-product';
+      tr.innerHTML = `
+        <td class="py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900">${it.name||''}</td>
+        <td class="t-center py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900 font-medium">${String(it.qty||1)}</td>
+      `;
+      b.appendChild(tr);
+    });
+  }
+  
+  // Renderizar Servicios (azul)
+  if (services.length > 0) {
+    if (combos.length > 0 || products.length > 0) {
+      const spacerRow = document.createElement('tr');
+      spacerRow.innerHTML = `<td colspan="2" class="py-2"></td>`;
+      b.appendChild(spacerRow);
+    }
+    
+    const headerRow = document.createElement('tr');
+    headerRow.className = 'wo-section-header';
+    headerRow.innerHTML = `
+      <td colspan="2" class="py-2 px-1" style="background: #3b82f6; color: white; border-bottom: 2px solid #2563eb;">
+        <div class="flex items-center gap-2">
+          <span class="text-lg">🔧</span>
+          <span class="font-semibold">Servicios</span>
+          <span class="text-xs opacity-90">(${services.length})</span>
+        </div>
+      </td>
+    `;
+    b.appendChild(headerRow);
+    
+    services.forEach(it => {
+      const tr = document.createElement('tr');
+      tr.className = 'wo-item wo-service';
       tr.innerHTML = `
         <td class="py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900">${it.name||''}</td>
         <td class="t-center py-1.5 px-1 text-white dark:text-white theme-light:text-slate-900 font-medium">${String(it.qty||1)}</td>
