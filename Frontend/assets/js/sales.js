@@ -6008,9 +6008,20 @@ async function sendWhatsAppConfirmation(sale, calendarEventId) {
     try {
       // Buscar evento por ID (necesitamos obtenerlo de alguna manera)
       // Por ahora, usaremos la fecha/hora actual o la fecha de creación de la venta
+      // CRÍTICO: Usar timeZone: 'UTC' para mostrar la hora exacta (sin conversión de zona horaria)
       const saleDate = sale.createdAt ? new Date(sale.createdAt) : new Date();
-      eventDate = saleDate.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-      eventTime = saleDate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+      eventDate = saleDate.toLocaleDateString('es-CO', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        timeZone: 'UTC'  // Forzar UTC para que coincida con la hora de la cita
+      });
+      eventTime = saleDate.toLocaleTimeString('es-CO', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        timeZone: 'UTC'  // Forzar UTC para que coincida con la hora de la cita
+      });
       
       // Intentar obtener el evento del calendario si tenemos el ID
       if (calendarEventId) {
@@ -6025,8 +6036,19 @@ async function sendWhatsAppConfirmation(sale, calendarEventId) {
           const event = events.items?.find(e => String(e._id) === String(calendarEventId));
           if (event && event.startDate) {
             const eventDateObj = new Date(event.startDate);
-            eventDate = eventDateObj.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            eventTime = eventDateObj.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+            // CRÍTICO: Usar timeZone: 'UTC' para mostrar la hora exacta de la cita (sin conversión de zona horaria)
+            eventDate = eventDateObj.toLocaleDateString('es-CO', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric',
+              timeZone: 'UTC'  // Forzar UTC para que coincida con la hora de la cita
+            });
+            eventTime = eventDateObj.toLocaleTimeString('es-CO', { 
+              hour: '2-digit', 
+              minute: '2-digit',
+              timeZone: 'UTC'  // Forzar UTC para que coincida con la hora de la cita
+            });
           }
         } catch (err) {
           console.warn('No se pudo obtener evento del calendario:', err);
@@ -6034,8 +6056,20 @@ async function sendWhatsAppConfirmation(sale, calendarEventId) {
       }
     } catch (err) {
       console.error('Error getting event date:', err);
-      eventDate = new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-      eventTime = new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+      // CRÍTICO: Usar timeZone: 'UTC' también en el fallback
+      const fallbackDate = new Date();
+      eventDate = fallbackDate.toLocaleDateString('es-CO', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        timeZone: 'UTC'
+      });
+      eventTime = fallbackDate.toLocaleTimeString('es-CO', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        timeZone: 'UTC'
+      });
     }
     
     const customerName = sale.customer?.name || 'Cliente';

@@ -1513,9 +1513,20 @@ async function sendWhatsAppConfirmationFromEvent(event) {
     const settings = await API.calendar.getSettings();
     
     // Obtener fecha y hora del evento
+    // CRÍTICO: Usar timeZone: 'UTC' para mostrar la hora exacta de la cita (sin conversión de zona horaria)
     const eventDateObj = new Date(event.startDate);
-    const eventDate = eventDateObj.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    const eventTime = eventDateObj.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    const eventDate = eventDateObj.toLocaleDateString('es-CO', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      timeZone: 'UTC'  // Forzar UTC para que coincida con la hora de la cita
+    });
+    const eventTime = eventDateObj.toLocaleTimeString('es-CO', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      timeZone: 'UTC'  // Forzar UTC para que coincida con la hora de la cita
+    });
     
     const customerName = event.customer?.name || 'Cliente';
     const companyName = settings.companyName || 'Nuestra empresa';
