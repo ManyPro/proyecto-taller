@@ -2800,39 +2800,111 @@ export function initQuotes({ getCompanyEmail }) {
       items: d.items
     });
     
+    // Calcular subtotales y total
     const subP=(d.items||[]).filter(i=>i.kind!=='SERVICIO' && i.kind!=='Servicio').reduce((a,i)=>a+((i.qty||1)*(i.unitPrice||0)),0);
     const subS=(d.items||[]).filter(i=>i.kind==='SERVICIO' || i.kind==='Servicio').reduce((a,i)=>a+((i.qty||1)*(i.unitPrice||0)),0);
-    const total=subP+subS;
+    
+    // Aplicar descuento si existe
+    let total = subP + subS;
+    if (d?.discount && d.discount.value > 0) {
+      if (d.discount.type === 'percent') {
+        total = total - (total * d.discount.value / 100);
+      } else {
+        total = total - d.discount.value;
+      }
+    }
 
-    const prev = (()=>{
-      const rows=(d.items||[]).map(it=>({
-        type:(it.kind==='SERVICIO' || it.kind==='Servicio')?'SERVICIO':'PRODUCTO',
-        desc:it.description || '', qty:it.qty, price:it.unitPrice || 0,
+    // Preparar rows con la estructura correcta para buildWhatsAppText
+    const rows=(d.items||[]).map(it=>{
+      // Determinar el tipo correcto - el backend usa 'Producto', 'Servicio', 'Combo' (con mayúscula inicial)
+      let itemType = 'PRODUCTO';
+      const kindUpper = String(it.kind || '').toUpperCase();
+      if (kindUpper === 'SERVICIO') {
+        itemType = 'SERVICIO';
+      } else if (kindUpper === 'COMBO') {
+        itemType = 'COMBO';
+      }
+      
+      // Convertir refId y comboParent a string si son ObjectId
+      const refId = it.refId ? String(it.refId) : undefined;
+      const comboParent = it.comboParent ? String(it.comboParent) : undefined;
+      
+      return {
+        type: itemType,
+        desc: it.description || '', 
+        qty: it.qty, 
+        price: it.unitPrice || 0,
         source: it.source || undefined,
-        refId: it.refId || undefined,
-        comboParent: it.comboParent || undefined
-      })).filter(row => row.desc || row.price > 0 || (row.qty && row.qty > 0));
-      // Usar specialNotes global si existe, sino usar un array vacío
-      const currentSpecialNotes = typeof specialNotes !== 'undefined' ? specialNotes : [];
-      const bak={ n:iNumber.value, c:iClientName.value, b:iBrand.value, l:iLine.value, y:iYear.value, p:iPlate.value, cc:iCc.value, m:iMileage.value, v:iValidDays.value, sn:currentSpecialNotes };
-      iNumber.value=d.number||iNumber.value;
-      iClientName.value=d.customer?.name||'';
-      iBrand.value=d.vehicle?.make||''; iLine.value=d.vehicle?.line||''; iYear.value=d.vehicle?.modelYear||''; iPlate.value=d.vehicle?.plate||''; iCc.value=d.vehicle?.displacement||''; iMileage.value=d.vehicle?.mileage||''; iValidDays.value=d.validity||'';
-      // Solo asignar specialNotes si está definido en el scope global
-      if (typeof specialNotes !== 'undefined') {
-        specialNotes=d.specialNotes||[];
-      }
-      const hideTotal = hideTotalState;
-      const text=buildWhatsAppText(rows,subP,subS,total, hideTotal);
-      iNumber.value=bak.n; iClientName.value=bak.c; iBrand.value=bak.b; iLine.value=bak.l; iYear.value=bak.y; iPlate.value=bak.p; iCc.value=bak.cc; iMileage.value=bak.m; iValidDays.value=bak.v;
-      // Solo restaurar specialNotes si está definido en el scope global
-      if (typeof specialNotes !== 'undefined') {
-        specialNotes=bak.sn;
-      }
-      return text;
-    })();
-
-    window.open(`https://wa.me/?text=${encodeURIComponent(prev)}`,'_blank');
+        refId: refId,
+        comboParent: comboParent
+      };
+    }).filter(row => row.desc || row.price > 0 || (row.qty && row.qty > 0));
+    
+    // Guardar valores actuales de la UI
+    const currentSpecialNotes = typeof specialNotes !== 'undefined' ? specialNotes : [];
+    const bak={ 
+      n:iNumber.value, 
+      c:iClientName.value, 
+      b:iBrand.value, 
+      l:iLine.value, 
+      y:iYear.value, 
+      p:iPlate.value, 
+      cc:iCc.value, 
+      m:iMileage.value, 
+      v:iValidDays.value, 
+      sn:currentSpecialNotes,
+      discount: currentDiscount
+    };
+    
+    // Cargar datos del documento en la UI temporalmente
+    const numStr = d?.number ? (typeof d.number === 'string' ? d.number : String(d.number)) : '';
+    iNumber.value = numStr.padStart(5, '0');
+    iClientName.value = d.customer?.name || '';
+    iBrand.value = d.vehicle?.make || ''; 
+    iLine.value = d.vehicle?.line || ''; 
+    iYear.value = d.vehicle?.modelYear || ''; 
+    iPlate.value = d.vehicle?.plate || ''; 
+    iCc.value = d.vehicle?.displacement || ''; 
+    iMileage.value = d.vehicle?.mileage || ''; 
+    iValidDays.value = d.validity || '';
+    
+    // Cargar descuento si existe
+    if (d?.discount && d.discount.value > 0) {
+      currentDiscount = {
+        type: d.discount.type,
+        value: d.discount.value
+      };
+    } else {
+      currentDiscount = { type: null, value: 0 };
+    }
+    
+    // Solo asignar specialNotes si está definido en el scope global
+    if (typeof specialNotes !== 'undefined') {
+      specialNotes = d.specialNotes || [];
+    }
+    
+    // Usar buildWhatsAppText que ya tiene la lógica correcta para anidar combos
+    const hideTotal = hideTotalState;
+    const text = buildWhatsAppText(rows, subP, subS, total, hideTotal);
+    
+    // Restaurar valores originales de la UI
+    iNumber.value = bak.n; 
+    iClientName.value = bak.c; 
+    iBrand.value = bak.b; 
+    iLine.value = bak.l; 
+    iYear.value = bak.y; 
+    iPlate.value = bak.p; 
+    iCc.value = bak.cc; 
+    iMileage.value = bak.m; 
+    iValidDays.value = bak.v;
+    currentDiscount = bak.discount;
+    
+    // Solo restaurar specialNotes si está definido en el scope global
+    if (typeof specialNotes !== 'undefined') {
+      specialNotes = bak.sn;
+    }
+    
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,'_blank');
   }
 
   // ===== Reset de formulario (post-crear) =====
