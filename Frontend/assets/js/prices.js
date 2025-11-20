@@ -480,15 +480,18 @@ export function initPrices(){
       ? (activeTabVehicleId ? selectedVehicles.find(v => v._id === activeTabVehicleId) : selectedVehicles[0])
       : selectedVehicle;
     
-    if(!vehicleToUse) {
-      head.innerHTML = '<tr><th colspan="5" style="text-align:center;padding:24px;color:var(--muted);">Selecciona un vehículo para ver sus servicios y productos</th></tr>';
-      return;
-    }
+    // Mostrar headers siempre (incluso para precios generales)
     const tr=document.createElement('tr');
     ['Tipo', 'Nombre', 'Item vinculado / Productos', 'Precio', 'Acciones'].forEach(txt=>{
       const th=document.createElement('th'); th.textContent=txt; tr.appendChild(th);
     });
     head.appendChild(tr);
+    
+    // Si no hay vehículo, mostrar mensaje informativo en el body (no en el header)
+    if(!vehicleToUse) {
+      // El mensaje se mostrará en el body si no hay precios
+      return;
+    }
   }
 
   const rowTemplateId='tpl-price-edit-row';
@@ -502,7 +505,7 @@ export function initPrices(){
       return fallback;
     }
     
-    // Mostrar tipo
+    // Mostrar tipo y badge de general si aplica
     const vehicleCell = tr.querySelector('[data-vehicle]');
     if (vehicleCell) {
       let typeBadge = '';
@@ -512,6 +515,11 @@ export function initPrices(){
         typeBadge = '<span class="inline-block px-2 py-0.5 bg-blue-600 dark:bg-blue-600 theme-light:bg-blue-500 text-white text-xs font-semibold rounded">PRODUCTO</span>';
       } else {
         typeBadge = '<span class="inline-block px-2 py-0.5 bg-green-600 dark:bg-green-600 theme-light:bg-green-500 text-white text-xs font-semibold rounded">SERVICIO</span>';
+      }
+      // Agregar badge de general si no tiene vehicleId
+      const isGeneral = !r.vehicleId || r.isGeneral;
+      if (isGeneral) {
+        typeBadge += ' <span class="inline-block px-2 py-0.5 bg-cyan-600 dark:bg-cyan-600 theme-light:bg-cyan-500 text-white text-xs font-semibold rounded ml-1">🌐 GENERAL</span>';
       }
       vehicleCell.innerHTML = typeBadge;
     }
@@ -647,17 +655,46 @@ export function initPrices(){
         type: currentFilters.type || undefined
       };
     }
-    const r = await API.pricesList(params);
-    const rows = Array.isArray(r?.items) ? r.items : (Array.isArray(r) ? r : []);
-    paging = {
-      page: r.page || 1,
-      limit: r.limit || 10,
-      total: r.total || 0,
-      pages: r.pages || 1
-    };
-    body.replaceChildren(...rows.map(rowToNode));
-    renderTableHeader();
-    renderPagination();
+    try {
+      const r = await API.pricesList(params);
+      const rows = Array.isArray(r?.items) ? r.items : (Array.isArray(r) ? r : []);
+      paging = {
+        page: r.page || 1,
+        limit: r.limit || 10,
+        total: r.total || 0,
+        pages: r.pages || 1
+      };
+      
+      // Renderizar header primero
+      renderTableHeader();
+      
+      // Si no hay precios y no hay vehículo seleccionado, mostrar mensaje informativo
+      if (rows.length === 0 && !selectedVehicle && selectedVehicles.length === 0) {
+        body.replaceChildren();
+        const emptyRow = document.createElement('tr');
+        emptyRow.innerHTML = `<td colspan="5" style="text-align:center;padding:24px;color:var(--muted);">
+          <div style="margin-bottom:8px;">🌐 No hay precios generales disponibles</div>
+          <div style="font-size:12px;">Usa los botones de arriba para crear precios generales (🌐 Servicio general, 🌐 Producto general, 🌐 Combo general)</div>
+        </td>`;
+        body.appendChild(emptyRow);
+      } else if (rows.length === 0) {
+        body.replaceChildren();
+        const emptyRow = document.createElement('tr');
+        emptyRow.innerHTML = `<td colspan="5" style="text-align:center;padding:24px;color:var(--muted);">No hay precios que coincidan con los filtros.</td>`;
+        body.appendChild(emptyRow);
+      } else {
+        body.replaceChildren(...rows.map(rowToNode));
+      }
+      
+      renderPagination();
+    } catch (err) {
+      console.error('Error loading prices:', err);
+      renderTableHeader();
+      body.replaceChildren();
+      const errorRow = document.createElement('tr');
+      errorRow.innerHTML = `<td colspan="5" style="text-align:center;padding:24px;color:var(--danger);">Error al cargar precios: ${err?.message || 'Error desconocido'}</td>`;
+      body.appendChild(errorRow);
+    }
   }
   
   function renderVehicleTabs() {
@@ -733,6 +770,14 @@ export function initPrices(){
       if (fMakesGrid) {
         fMakesGrid.innerHTML = '<div class="text-center py-6 text-red-400">Error al cargar marcas</div>';
       }
+    }
+  }
+  
+  // Cargar precios generales al iniciar si no hay vehículo seleccionado
+  function loadGeneralPricesOnInit() {
+    if (!selectedVehicle && selectedVehicles.length === 0) {
+      renderTableHeader();
+      loadPrices();
     }
   }
 
@@ -1268,15 +1313,20 @@ export function initPrices(){
       // Mostrar barra de acciones siempre para permitir crear precios generales
       if (actionsBar) actionsBar.style.display = 'flex';
       const filtersEl = $('#pe-filters');
-      if (filtersEl) filtersEl.style.display = 'none';
+      if (filtersEl) filtersEl.style.display = 'flex'; // Mostrar filtros también para precios generales
       if (vehicleTabsContainer) {
         vehicleTabsContainer.style.display = 'none';
         vehicleTabsContainer.innerHTML = '';
       }
-      body.replaceChildren();
+      // Cargar precios generales automáticamente cuando no hay vehículo seleccionado
+      currentPage = 1;
+      currentFilters = { name: '', type: '' };
+      const filterName = $('#pe-filter-name');
+      const filterType = $('#pe-filter-type');
+      if (filterName) filterName.value = '';
+      if (filterType) filterType.value = '';
       renderTableHeader();
-      const paginationEl = $('#pe-pagination');
-      if (paginationEl) paginationEl.innerHTML = '';
+      loadPrices(); // Cargar precios generales automáticamente
     } else {
       // Hay vehículos seleccionados (1 o más)
       if (selectedVehicles.length === 1) {
@@ -1405,18 +1455,17 @@ export function initPrices(){
       vehicleTabsContainer.style.display = 'none';
       vehicleTabsContainer.innerHTML = '';
     }
-    body.replaceChildren();
-    renderTableHeader();
-    const paginationEl = $('#pe-pagination');
-    if (paginationEl) paginationEl.innerHTML = '';
     const filtersEl = $('#pe-filters');
-    if (filtersEl) filtersEl.style.display = 'none';
+    if (filtersEl) filtersEl.style.display = 'flex'; // Mostrar filtros para precios generales
     currentPage = 1;
     currentFilters = { name: '', type: '' };
     const filterName = $('#pe-filter-name');
     const filterType = $('#pe-filter-type');
     if (filterName) filterName.value = '';
     if (filterType) filterType.value = '';
+    // Cargar precios generales automáticamente
+    renderTableHeader();
+    loadPrices();
   }
 
   // Event listeners para el nuevo sistema de menús colapsables
@@ -1518,6 +1567,8 @@ export function initPrices(){
 
   // Cargar marcas al iniciar
   loadMakes();
+  // Cargar precios generales al iniciar si no hay vehículo seleccionado
+  loadGeneralPricesOnInit();
 
   // Filtros
   const filterName = $('#pe-filter-name');
@@ -3044,6 +3095,12 @@ export function initPrices(){
   // Inicializar gestión de vehículos
   initVehicles();
 
-  // Renderizar tabla vacía inicialmente
+  // Renderizar tabla vacía inicialmente y cargar precios generales si no hay vehículo
   renderTableHeader();
+  // Cargar precios generales automáticamente al iniciar si no hay vehículo seleccionado
+  setTimeout(() => {
+    if (!selectedVehicle && selectedVehicles.length === 0) {
+      loadPrices();
+    }
+  }, 500); // Pequeño delay para asegurar que todo esté inicializado
 }

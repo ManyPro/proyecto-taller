@@ -122,7 +122,40 @@ async function processComboProducts(comboProducts, req) {
 // ============ list ============
 export const listPrices = async (req, res) => {
   const { serviceId, vehicleId, type, brand, line, engine, year, name, page = 1, limit = 10, vehicleYear, includeGeneral = true } = req.query || {};
-  const q = { companyId: req.companyId };
+  
+  // Determinar companyIds a buscar (considerando BD compartida)
+  const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
+  let companyIdsToSearch = [originalCompanyId];
+  
+  // Siempre verificar si hay empresas que comparten la BD (tanto si es principal como secundaria)
+  if (originalCompanyId) {
+    try {
+      const Company = (await import('../models/Company.js')).default;
+      const companyDoc = await Company.findById(originalCompanyId).select('sharedDatabaseConfig').lean();
+      
+      if (companyDoc?.sharedDatabaseConfig?.sharedWith && companyDoc.sharedDatabaseConfig.sharedWith.length > 0) {
+        // Esta empresa es principal, incluir todas las empresas secundarias
+        companyIdsToSearch = [
+          originalCompanyId, // La empresa principal
+          ...companyDoc.sharedDatabaseConfig.sharedWith.map(sw => String(sw.companyId)) // Empresas secundarias
+        ];
+      } else if (companyDoc?.sharedDatabaseConfig?.sharedFrom?.companyId) {
+        // Esta empresa es secundaria, incluir la empresa principal
+        companyIdsToSearch = [
+          originalCompanyId, // La empresa secundaria
+          String(companyDoc.sharedDatabaseConfig.sharedFrom.companyId) // La empresa principal
+        ];
+      }
+    } catch (err) {
+      // Si hay error, usar solo originalCompanyId
+      console.error('Error verificando BD compartida en listPrices:', err);
+    }
+  }
+  
+  // Construir query con companyIds (si hay más de uno, usar $in)
+  const q = companyIdsToSearch.length > 1 
+    ? { companyId: { $in: companyIdsToSearch } }
+    : { companyId: companyIdsToSearch[0] };
   
   // Nuevo modelo: vehicleId es prioritario
   // Si se proporciona vehicleId, buscar precios de ese vehículo Y precios generales (vehicleId: null)
@@ -220,19 +253,17 @@ export const listPrices = async (req, res) => {
 export const getPrice = async (req, res) => {
   const { id } = req.params;
   
-  const originalCompanyId = req.originalCompanyId || req.company?.id;
-  const effectiveCompanyId = req.companyId;
-  const hasSharedDatabase = req.hasSharedDatabase;
-  
-  // Determinar qué companyIds incluir en la búsqueda
+  // Determinar companyIds a buscar (considerando BD compartida)
+  const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
   let companyIdsToSearch = [originalCompanyId];
   
-  // Si hay base de datos compartida, incluir todas las empresas que comparten la BD
-  if (hasSharedDatabase && originalCompanyId && effectiveCompanyId) {
+  // Siempre verificar si hay empresas que comparten la BD (tanto si es principal como secundaria)
+  if (originalCompanyId) {
     try {
+      const Company = (await import('../models/Company.js')).default;
       const companyDoc = await Company.findById(originalCompanyId).select('sharedDatabaseConfig').lean();
       
-      if (companyDoc?.sharedDatabaseConfig?.sharedWith) {
+      if (companyDoc?.sharedDatabaseConfig?.sharedWith && companyDoc.sharedDatabaseConfig.sharedWith.length > 0) {
         // Esta empresa es principal, incluir todas las empresas secundarias
         companyIdsToSearch = [
           originalCompanyId, // La empresa principal
@@ -256,16 +287,16 @@ export const getPrice = async (req, res) => {
         }
       }
     } catch (err) {
-      logger.error('[getPrice] Error obteniendo empresas compartidas:', err);
+      console.error('[getPrice] Error obteniendo empresas compartidas:', err);
       // En caso de error, usar solo originalCompanyId
       companyIdsToSearch = [originalCompanyId];
     }
   }
   
-  // Buscar el precio en todas las empresas que comparten la BD
-  const companyFilter = companyIdsToSearch.length === 1 
-    ? companyIdsToSearch[0]
-    : { $in: companyIdsToSearch };
+  // Construir query con companyIds
+  const companyFilter = companyIdsToSearch.length > 1 
+    ? { $in: companyIdsToSearch }
+    : companyIdsToSearch[0];
   
   const price = await PriceEntry.findOne({ _id: id, companyId: companyFilter })
     .populate('vehicleId', 'make line displacement modelYear')
@@ -373,8 +404,17 @@ export const createPrice = async (req, res) => {
     return res.status(400).json({ error: 'yearFrom no puede ser mayor que yearTo' });
   }
 
+  // CRÍTICO: Los precios SIEMPRE se crean con el originalCompanyId (empresa logueada),
+  // no con el effectiveCompanyId (empresa compartida). Esto asegura que el precio
+  // pertenece a la empresa que lo crea, aunque comparta la base de datos con otra.
+  const creationCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
+  
+  if (!creationCompanyId) {
+    return res.status(400).json({ error: 'Company ID missing' });
+  }
+  
   const doc = {
-    companyId: req.companyId,
+    companyId: creationCompanyId,
     vehicleId: vehicle?._id || null, // null para precios generales
     name: String(name).trim(),
     type: type === 'combo' ? 'combo' : (type === 'product' ? 'product' : 'service'),
@@ -405,7 +445,7 @@ export const createPrice = async (req, res) => {
     // Si ya existe por índice único, intenta actualizar
     if (e?.code === 11000) {
       const filter = {
-        companyId: req.companyId,
+        companyId: creationCompanyId,
         vehicleId: vehicle?._id || null,
         name: doc.name,
         type: doc.type
