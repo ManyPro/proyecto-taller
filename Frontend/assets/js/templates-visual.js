@@ -3118,6 +3118,16 @@
       </style>
       <table class="remission-table">
         <thead>
+          {{#if sale.vehicle}}
+          <tr style="background: #e8f4f8; font-weight: bold; border: 2px solid #000; border-bottom: 1px solid #000;">
+            <th style="padding: 3px 6px; font-size: 11px; border-right: 1px solid #000; width: 50%; text-align: left;">
+              {{#if sale.vehicle.brand}}{{sale.vehicle.brand}}{{/if}}{{#if sale.vehicle.line}} {{sale.vehicle.line}}{{/if}}{{#if sale.vehicle.displacement}} {{sale.vehicle.displacement}}{{/if}}
+            </th>
+            <th style="padding: 3px 6px; font-size: 11px; width: 50%; text-align: left;">
+              {{#if sale.vehicle.mileage}}Kilometraje: {{sale.vehicle.mileage}} km{{/if}}
+            </th>
+          </tr>
+          {{/if}}
           <tr>
             <th>Detalle</th>
             <th>Cantidad</th>
@@ -3126,13 +3136,6 @@
           </tr>
         </thead>
         <tbody>
-          {{#if sale.vehicle}}
-          <tr style="background: #e8f4f8; font-weight: bold; border-bottom: 2px solid #000;">
-            <td colspan="4" style="padding: 3px 6px; font-size: 11px;">
-              {{#if sale.vehicle.brand}}{{sale.vehicle.brand}}{{/if}}{{#if sale.vehicle.line}} {{sale.vehicle.line}}{{/if}}{{#if sale.vehicle.year}} - Año: {{sale.vehicle.year}}{{/if}}{{#if sale.vehicle.mileage}} - Kilometraje: {{sale.vehicle.mileage}} km{{/if}}
-            </td>
-          </tr>
-          {{/if}}
           {{#if sale.itemsGrouped.hasCombos}}
           <tr class="section-header">
             <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">COMBOS</td>

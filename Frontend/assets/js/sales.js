@@ -4393,25 +4393,15 @@ function showManualView(parentNode) {
 async function renderPricesView(container, vehicleId) {
   container.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">Cargando...</div>';
   
-  if (!vehicleId) {
-    container.innerHTML = `
-      <div style="text-align:center;padding:48px;">
-        <div style="font-size:48px;margin-bottom:16px;">🚗</div>
-        <h4 style="margin-bottom:8px;">No hay vehículo vinculado</h4>
-        <p style="color:var(--muted);margin-bottom:16px;">Vincula un vehículo a la venta para ver los precios disponibles.</p>
-        <button id="edit-vehicle-btn" class="primary" style="padding:8px 16px;">Editar vehículo</button>
-      </div>
-    `;
-    container.querySelector('#edit-vehicle-btn')?.addEventListener('click', () => {
-      closeModal();
-      openEditCV();
-    });
-    return;
-  }
+  // Si no hay vehicleId, mostrar solo precios generales
+  const isGeneralOnly = !vehicleId;
   
   try {
-    // Obtener información del vehículo
-    const vehicle = await API.vehicles.get(vehicleId);
+    // Obtener información del vehículo si existe
+    let vehicle = null;
+    if (vehicleId) {
+      vehicle = await API.vehicles.get(vehicleId);
+    }
     
     // Variables de estado para filtros y paginación
     let currentPage = 1;
@@ -4424,10 +4414,19 @@ async function renderPricesView(container, vehicleId) {
       try {
     const vehicleYear = current?.vehicle?.year || null;
         const pricesParams = { 
-          vehicleId, 
           page: currentPage, 
-          limit: pageSize 
+          limit: pageSize,
+          includeGeneral: true // Siempre incluir precios generales
         };
+        
+        // Si hay vehicleId, incluirlo para obtener precios del vehículo Y generales
+        if (vehicleId) {
+          pricesParams.vehicleId = vehicleId;
+        } else {
+          // Si no hay vehicleId, buscar solo precios generales
+          pricesParams.vehicleId = null;
+        }
+        
     if (vehicleYear) {
       pricesParams.vehicleYear = vehicleYear;
     }
@@ -4464,6 +4463,7 @@ async function renderPricesView(container, vehicleId) {
         const card = document.createElement('div');
         card.style.cssText = 'padding:12px;background:var(--card-alt);border:1px solid var(--border);border-radius:8px;display:flex;justify-content:space-between;align-items:center;';
         
+        const isGeneral = !pe.vehicleId;
         let typeBadge = '';
         if (pe.type === 'combo') {
           typeBadge = '<span style="background:#9333ea;color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">COMBO</span>';
@@ -4473,9 +4473,11 @@ async function renderPricesView(container, vehicleId) {
           typeBadge = '<span style="background:var(--success,#10b981);color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">SERVICIO</span>';
         }
         
+        const generalBadge = isGeneral ? '<span style="background:#06b6d4;color:white;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px;">🌐 GENERAL</span>' : '';
+        
         card.innerHTML = `
           <div style="flex:1;">
-            ${typeBadge}
+            ${typeBadge}${generalBadge}
             <span style="font-weight:600;">${pe.name || 'Sin nombre'}</span>
           </div>
           <div style="margin:0 16px;font-weight:600;color:var(--primary);">${money(pe.total || pe.price || 0)}</div>
@@ -4555,11 +4557,19 @@ async function renderPricesView(container, vehicleId) {
     }
     
     container.innerHTML = `
+      ${vehicle ? `
       <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;">
         <div style="font-weight:600;margin-bottom:4px;">${vehicle?.make || ''} ${vehicle?.line || ''}</div>
         <div style="font-size:12px;color:var(--muted);">Cilindraje: ${vehicle?.displacement || ''}${vehicle?.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}</div>
       </div>
+      ` : `
+      <div style="margin-bottom:16px;padding:12px;background:var(--card-alt);border-radius:8px;border-left:4px solid #06b6d4;">
+        <div style="font-weight:600;margin-bottom:4px;">🌐 Precios Generales</div>
+        <div style="font-size:12px;color:var(--muted);">Precios disponibles para todos los vehículos</div>
+      </div>
+      `}
       <div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;">
+        ${vehicleId ? `
         <button id="create-service-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;">
           ➕ Crear servicio
         </button>
@@ -4569,6 +4579,9 @@ async function renderPricesView(container, vehicleId) {
         <button id="create-combo-btn" class="secondary" style="flex:1;min-width:120px;padding:10px;border-radius:8px;font-weight:600;background:#9333ea;color:white;border:none;">
           🎁 Crear combo
         </button>
+        ` : `
+        <p style="text-align:center;color:var(--muted);font-size:13px;padding:8px;">Los precios generales se crean desde la sección de Lista de precios</p>
+        `}
       </div>
       <div style="margin-bottom:12px;">
         <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
@@ -5527,13 +5540,16 @@ async function openPickerPrices(){
   
   async function load(reset=false){
     if(reset){ body.innerHTML=''; page=1; }
-    const params = { serviceId: svc.value||'', page, limit };
+    const params = { serviceId: svc.value||'', page, limit, includeGeneral: true };
     if (currentVehicleId) {
       params.vehicleId = currentVehicleId;
       const vehicleYear = current?.vehicle?.year || null;
       if (vehicleYear) {
         params.vehicleYear = vehicleYear;
       }
+    } else {
+      // Si no hay vehículo, buscar solo precios generales
+      params.vehicleId = null;
     }
     const rows = await API.pricesList(params);
     cnt.textContent = rows.length;
@@ -5542,7 +5558,13 @@ async function openPickerPrices(){
       const tr = clone('tpl-price-row');
       const vehicleCell = tr.querySelector('[data-vehicle]') || tr.querySelector('td');
       if (vehicleCell) {
-        if (pe.vehicleId && pe.vehicleId.make) {
+        if (!pe.vehicleId) {
+          // Precio general
+          vehicleCell.innerHTML = `
+            <div style="font-weight:600;color:#06b6d4;">🌐 General</div>
+            <div style="font-size:12px;color:var(--muted);">Disponible para todos</div>
+          `;
+        } else if (pe.vehicleId && pe.vehicleId.make) {
           vehicleCell.innerHTML = `
             <div style="font-weight:600;">${pe.vehicleId.make} ${pe.vehicleId.line}</div>
             <div style="font-size:12px;color:var(--muted);">Cilindraje: ${pe.vehicleId.displacement}${pe.vehicleId.modelYear ? ` | Modelo: ${pe.vehicleId.modelYear}` : ''}</div>

@@ -2374,13 +2374,13 @@ export const listSales = async (req, res) => {
   // Determinar qué companyIds incluir en el filtro
   let companyIdsToSearch = [originalCompanyId];
   
-  // Si hay base de datos compartida, incluir todas las empresas que comparten la BD
-  if (hasSharedDatabase && originalCompanyId && effectiveCompanyId) {
+  // Siempre verificar si hay empresas que comparten la BD (tanto si es principal como secundaria)
+  if (originalCompanyId) {
     try {
       const Company = (await import('../models/Company.js')).default;
       const companyDoc = await Company.findById(originalCompanyId).select('sharedDatabaseConfig').lean();
       
-      if (companyDoc?.sharedDatabaseConfig?.sharedWith) {
+      if (companyDoc?.sharedDatabaseConfig?.sharedWith && companyDoc.sharedDatabaseConfig.sharedWith.length > 0) {
         // Esta empresa es principal, incluir todas las empresas secundarias
         companyIdsToSearch = [
           originalCompanyId, // La empresa principal

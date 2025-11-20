@@ -890,19 +890,41 @@ function normalizeTemplateHtml(html='') {
   // CORREGIR: Convertir templates antiguos que usan {{#each sale.items}} a la nueva estructura con sale.itemsGrouped
   // Para remisiones/invoices
   if (output.includes('remission-table') || output.includes('items-table')) {
+    // Primero, agregar fila de vehículo al thead si existe y no la tiene
+    const theadMatches = output.match(/<thead>([\s\S]*?)<\/thead>/gi);
+    if (theadMatches) {
+      theadMatches.forEach((match) => {
+        // Si el thead no tiene la fila del vehículo, agregarla antes de la fila de encabezados
+        if (!match.includes('sale.vehicle.brand') && !match.includes('sale.vehicle.line')) {
+          const vehicleRow = `          {{#if sale.vehicle}}
+          <tr style="background: #e8f4f8; font-weight: bold; border: 2px solid #000; border-bottom: 1px solid #000;">
+            <th style="padding: 3px 6px; font-size: 11px; border-right: 1px solid #000; width: 50%; text-align: left;">
+              {{#if sale.vehicle.brand}}{{sale.vehicle.brand}}{{/if}}{{#if sale.vehicle.line}} {{sale.vehicle.line}}{{/if}}{{#if sale.vehicle.displacement}} {{sale.vehicle.displacement}}{{/if}}
+            </th>
+            <th style="padding: 3px 6px; font-size: 11px; width: 50%; text-align: left;">
+              {{#if sale.vehicle.mileage}}Kilometraje: {{sale.vehicle.mileage}} km{{/if}}
+            </th>
+          </tr>
+          {{/if}}
+          `;
+          // Insertar antes de la fila de encabezados (Detalle, Cantidad, etc.)
+          const updatedThead = match.replace(/(<thead>[\s\S]*?)(<tr>[\s\S]*?<th>Detalle)/i, `$1${vehicleRow}$2`);
+          if (updatedThead !== match) {
+            output = output.replace(match, updatedThead);
+            console.log('[normalizeTemplateHtml] ✅ Agregada fila de vehículo al thead de remisión');
+          }
+        }
+      });
+    }
+    
     const tbodyMatches = output.match(/<tbody>([\s\S]*?)<\/tbody>/gi);
     if (tbodyMatches) {
       tbodyMatches.forEach((match) => {
         // Si tiene {{#each sale.items}} pero NO tiene sale.itemsGrouped, convertir a nueva estructura
         if (match.includes('{{#each sale.items}}') && !match.includes('sale.itemsGrouped')) {
+          // Remover la fila del vehículo del tbody si existe (ya estará en el thead)
+          let cleanedTbody = match.replace(/{{#if sale\.vehicle}}[\s\S]*?{{\/if}}/g, '');
           const newTbody = `<tbody>
-          {{#if sale.vehicle}}
-          <tr style="background: #e8f4f8; font-weight: bold; border-bottom: 2px solid #000;">
-            <td colspan="4" style="padding: 3px 6px; font-size: 11px;">
-              {{#if sale.vehicle.brand}}{{sale.vehicle.brand}}{{/if}}{{#if sale.vehicle.line}} {{sale.vehicle.line}}{{/if}}{{#if sale.vehicle.year}} - Año: {{sale.vehicle.year}}{{/if}}{{#if sale.vehicle.mileage}} - Kilometraje: {{sale.vehicle.mileage}} km{{/if}}
-            </td>
-          </tr>
-          {{/if}}
           {{#if sale.itemsGrouped.hasProducts}}
           <tr class="section-header">
             <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">PRODUCTOS</td>

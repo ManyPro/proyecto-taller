@@ -121,13 +121,33 @@ async function processComboProducts(comboProducts, req) {
 
 // ============ list ============
 export const listPrices = async (req, res) => {
-  const { serviceId, vehicleId, type, brand, line, engine, year, name, page = 1, limit = 10, vehicleYear } = req.query || {};
+  const { serviceId, vehicleId, type, brand, line, engine, year, name, page = 1, limit = 10, vehicleYear, includeGeneral = true } = req.query || {};
   const q = { companyId: req.companyId };
   
   // Nuevo modelo: vehicleId es prioritario
+  // Si se proporciona vehicleId, buscar precios de ese vehículo Y precios generales (vehicleId: null)
   if (vehicleId) {
-    q.vehicleId = vehicleId;
+    if (includeGeneral === 'true' || includeGeneral === true) {
+      // Incluir precios del vehículo específico Y precios generales
+      q.$or = [
+        { vehicleId: vehicleId },
+        { vehicleId: null }
+      ];
+    } else {
+      // Solo precios del vehículo específico
+      q.vehicleId = vehicleId;
+    }
   } else {
+    // Si no se proporciona vehicleId, buscar solo precios generales por defecto
+    // Pero permitir buscar todos si se especifica includeGeneral=false
+    if (includeGeneral === 'false' || includeGeneral === false) {
+      // Buscar todos los precios (sin filtro de vehicleId)
+      // No agregar condición de vehicleId
+    } else {
+      // Por defecto, buscar solo precios generales cuando no hay vehicleId
+      q.vehicleId = null;
+    }
+    
     // Filtros legacy (mantener compatibilidad)
     if (serviceId) q.serviceId = serviceId;
     if (brand) q.brand = cleanStr(brand);
@@ -281,16 +301,18 @@ export const getPrice = async (req, res) => {
 
 // ============ create ============
 export const createPrice = async (req, res) => {
-  const { vehicleId, name, type = 'service', serviceId, variables = {}, total: totalRaw, itemId, comboProducts = [], yearFrom, yearTo, laborValue, laborKind } = req.body || {};
+  const { vehicleId, name, type = 'service', serviceId, variables = {}, total: totalRaw, itemId, comboProducts = [], yearFrom, yearTo, laborValue, laborKind, isGeneral = false } = req.body || {};
   
-  // Nuevo modelo: vehicleId y name son requeridos
-  if (!vehicleId) return res.status(400).json({ error: 'vehicleId requerido' });
+  // name es siempre requerido
   if (!name || !name.trim()) return res.status(400).json({ error: 'name requerido' });
   
-  // Validar vehículo
-  const vehicle = await Vehicle.findById(vehicleId);
-  if (!vehicle) return res.status(404).json({ error: 'Vehículo no encontrado' });
-  if (!vehicle.active) return res.status(400).json({ error: 'Vehículo inactivo' });
+  // vehicleId es opcional: si isGeneral es true o vehicleId es null/undefined, crear precio general
+  let vehicle = null;
+  if (vehicleId && !isGeneral) {
+    vehicle = await Vehicle.findById(vehicleId);
+    if (!vehicle) return res.status(404).json({ error: 'Vehículo no encontrado' });
+    if (!vehicle.active) return res.status(400).json({ error: 'Vehículo inactivo' });
+  }
 
   // Si hay serviceId, validar servicio (opcional)
   let svc = null;
@@ -353,7 +375,7 @@ export const createPrice = async (req, res) => {
 
   const doc = {
     companyId: req.companyId,
-    vehicleId: vehicle._id,
+    vehicleId: vehicle?._id || null, // null para precios generales
     name: String(name).trim(),
     type: type === 'combo' ? 'combo' : (type === 'product' ? 'product' : 'service'),
     serviceId: svc?._id || null,
@@ -361,9 +383,9 @@ export const createPrice = async (req, res) => {
     comboProducts: type === 'combo' ? processedComboProducts : [],
     yearFrom: yearFromNum,
     yearTo: yearToNum,
-    brand: vehicle.make,
-    line: vehicle.line,
-    engine: vehicle.displacement,
+    brand: vehicle?.make || '',
+    line: vehicle?.line || '',
+    engine: vehicle?.displacement || '',
     year: null,
     variables: variables || {},
     total,
@@ -384,7 +406,7 @@ export const createPrice = async (req, res) => {
     if (e?.code === 11000) {
       const filter = {
         companyId: req.companyId,
-        vehicleId: vehicle._id,
+        vehicleId: vehicle?._id || null,
         name: doc.name,
         type: doc.type
       };

@@ -1540,10 +1540,11 @@ export function initPrices(){
   if (fClear) fClear.onclick  = ()=> { clearFilters(); };
   
   // Modal para crear/editar servicio/producto
-  function openCreateModal(type, existingPrice = null) {
-    // Verificar que haya al menos un vehículo seleccionado (único o múltiple)
-    if (!selectedVehicle && selectedVehicles.length === 0) {
-      return alert('Selecciona un vehículo primero');
+  function openCreateModal(type, existingPrice = null, isGeneral = false) {
+    // Si es precio general, no requiere vehículo
+    // Si no es precio general, verificar que haya al menos un vehículo seleccionado
+    if (!isGeneral && !existingPrice?.vehicleId && !selectedVehicle && selectedVehicles.length === 0) {
+      return alert('Selecciona un vehículo primero o crea un precio general');
     }
     const body=$('#modalBody'), closeBtn=$('#modalClose');
     
@@ -1554,17 +1555,26 @@ export function initPrices(){
     const linkedItem = existingPrice?.itemId;
     const comboProducts = existingPrice?.comboProducts || [];
     
+    // Determinar si es precio general
+    const isGeneralPrice = isGeneral || (existingPrice && !existingPrice.vehicleId);
+    
     // Determinar qué vehículos usar para la creación
+    // Si es precio general, no usar vehículos
     // Si hay múltiples vehículos seleccionados, usar todos para creación en bulk
     // Si hay un solo vehículo, usar ese
-    const vehiclesForCreation = selectedVehicles.length > 0 ? selectedVehicles : (selectedVehicle ? [selectedVehicle] : []);
+    const vehiclesForCreation = isGeneralPrice ? [] : (selectedVehicles.length > 0 ? selectedVehicles : (selectedVehicle ? [selectedVehicle] : []));
     const isBulkCreation = vehiclesForCreation.length > 1;
     
     const node = document.createElement('div');
     node.className = 'bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6';
     node.innerHTML = `
       <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6">${isEdit ? 'Editar' : 'Nuevo'} ${type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto')}</h3>
-      ${isBulkCreation ? `
+      ${isGeneralPrice ? `
+      <div class="mb-4 p-3 bg-purple-500/10 dark:bg-purple-500/10 theme-light:bg-purple-50 rounded-lg border-2 border-purple-500 dark:border-purple-500 theme-light:border-purple-400">
+        <div class="text-sm font-semibold text-purple-400 dark:text-purple-400 theme-light:text-purple-700 mb-2">🌐 Precio General</div>
+        <div class="text-xs text-white dark:text-white theme-light:text-slate-900 mb-2">Este ${type === 'combo' ? 'combo' : (type === 'service' ? 'servicio' : 'producto')} estará disponible para todos los vehículos y se puede usar sin seleccionar un vehículo específico.</div>
+      </div>
+      ` : isBulkCreation ? `
       <div class="mb-4 p-3 bg-blue-500/10 dark:bg-blue-500/10 theme-light:bg-blue-50 rounded-lg border-2 border-blue-500 dark:border-blue-500 theme-light:border-blue-400">
         <div class="text-sm font-semibold text-blue-400 dark:text-blue-400 theme-light:text-blue-700 mb-2">📋 Creación en bulk para ${vehiclesForCreation.length} vehículos</div>
         <div class="text-xs text-white dark:text-white theme-light:text-slate-900 mb-2">Se creará este ${type === 'combo' ? 'combo' : (type === 'service' ? 'servicio' : 'producto')} para todos los vehículos seleccionados:</div>
@@ -2726,6 +2736,26 @@ export function initPrices(){
           }
         }
         
+        // Si es precio general, no requiere vehículo
+        if (isGeneralPrice) {
+          const payload = {
+            ...basePayload,
+            isGeneral: true,
+            vehicleId: null
+          };
+          
+          if (isEdit) {
+            await API.priceUpdate(existingPrice._id, payload);
+          } else {
+            await API.priceCreate(payload);
+          }
+          
+          closeModal();
+          currentPage = 1;
+          loadPrices();
+          return;
+        }
+        
         // Si hay múltiples vehículos, crear un precio para cada uno
         let vehiclesToProcess = [];
         if (isEdit) {
@@ -2736,7 +2766,7 @@ export function initPrices(){
         }
         
         if (vehiclesToProcess.length === 0) {
-          msgEl.textContent = 'Debes seleccionar al menos un vehículo';
+          msgEl.textContent = 'Debes seleccionar al menos un vehículo o crear un precio general';
           msgEl.style.color = 'var(--danger, #ef4444)';
           saveBtn.disabled = false;
           saveBtn.textContent = isEdit ? '💾 Actualizar' : '💾 Guardar';
@@ -2808,6 +2838,22 @@ export function initPrices(){
   const btnNewCombo = $('#pe-new-combo');
   if (btnNewCombo) {
     btnNewCombo.onclick = () => openCreateModal('combo');
+  }
+  
+  // Crear precios generales
+  const btnNewServiceGeneral = $('#pe-new-service-general');
+  if (btnNewServiceGeneral) {
+    btnNewServiceGeneral.onclick = () => openCreateModal('service', null, true);
+  }
+  
+  const btnNewProductGeneral = $('#pe-new-product-general');
+  if (btnNewProductGeneral) {
+    btnNewProductGeneral.onclick = () => openCreateModal('product', null, true);
+  }
+  
+  const btnNewComboGeneral = $('#pe-new-combo-general');
+  if (btnNewComboGeneral) {
+    btnNewComboGeneral.onclick = () => openCreateModal('combo', null, true);
   }
 
   // Import / Export
