@@ -677,8 +677,11 @@ export function initQuotes({ getCompanyEmail }) {
     
     // Segunda pasada: identificar combos principales (que tienen items asociados)
     rows.forEach(row => {
+      // Un combo principal debe tener: source='price', refId definido, y NO tener comboParent
+      // También puede tener kind='COMBO' pero no es estrictamente necesario
       if (!row.comboParent && row.source === 'price' && row.refId) {
         const refId = String(row.refId).trim();
+        // Verificar si este refId coincide con algún comboParent de items anidados
         if (comboMap.has(refId)) {
           // Este es el combo principal que tiene items asociados
           comboMap.get(refId).main = row;
@@ -2255,8 +2258,11 @@ export function initQuotes({ getCompanyEmail }) {
       
       // Segunda pasada: identificar combos principales (que tienen items asociados)
       rows.forEach(row => {
+        // Un combo principal debe tener: source='price', refId definido, y NO tener comboParent
+        // También puede tener kind='COMBO' pero no es estrictamente necesario
         if (!row.comboParent && row.source === 'price' && row.refId) {
           const refId = String(row.refId).trim();
+          // Verificar si este refId coincide con algún comboParent de items anidados
           if (comboMap.has(refId)) {
             comboMap.get(refId).main = row;
           } else {
@@ -2823,7 +2829,7 @@ export function initQuotes({ getCompanyEmail }) {
         desc:it.description||'',
         qty:it.qty??'',
         price:it.unitPrice||0,
-        source, refId:it.refId, sku:it.sku
+        source, refId:it.refId, sku:it.sku, comboParent:it.comboParent
       });
     });
     recalcAll();
@@ -2947,16 +2953,25 @@ export function initQuotes({ getCompanyEmail }) {
       specialNotes = d.specialNotes || [];
     }
     
-    // Log para debugging - verificar estructura de rows
+    // Log para debugging - verificar estructura de rows y agrupación de combos
+    const rowsWithComboParent = rows.filter(r => r.comboParent);
+    const rowsWithRefId = rows.filter(r => r.refId && r.source === 'price');
+    const comboParentIds = new Set(rowsWithComboParent.map(r => String(r.comboParent).trim()));
+    const refIds = new Set(rowsWithRefId.map(r => String(r.refId).trim()));
+    const matchingCombos = Array.from(comboParentIds).filter(id => refIds.has(id));
+    
     console.log('[openWAFromDoc] Rows preparados para buildWhatsAppText:', {
       totalRows: rows.length,
-      rowsWithComboParent: rows.filter(r => r.comboParent).length,
-      rowsWithRefId: rows.filter(r => r.refId).length,
-      sampleRows: rows.slice(0, 3).map(r => ({
+      rowsWithComboParent: rowsWithComboParent.length,
+      rowsWithRefId: rowsWithRefId.length,
+      comboParentIds: Array.from(comboParentIds),
+      refIds: Array.from(refIds),
+      matchingCombos: matchingCombos,
+      sampleRows: rows.slice(0, 5).map(r => ({
         desc: r.desc?.substring(0, 30),
         type: r.type,
-        comboParent: r.comboParent,
-        refId: r.refId,
+        comboParent: r.comboParent ? String(r.comboParent).trim() : null,
+        refId: r.refId ? String(r.refId).trim() : null,
         source: r.source
       }))
     });
