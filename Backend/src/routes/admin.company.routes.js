@@ -106,7 +106,7 @@ router.patch('/companies/:id/restrictions', requireAdminRole('developer','admin'
 });
 
 // Patch sharedDatabaseConfig (developer or admin)
-// Permite agregar/quitar empresas secundarias y configurar qué compartir
+// Permite agregar/quitar empresas secundarias que compartirán TODA la base de datos
 router.patch('/companies/:id/shared-database-config', requireAdminRole('developer','admin'), async (req, res) => {
   const id = req.params.id;
   const { sharedWith } = req.body || {};
@@ -122,29 +122,27 @@ router.patch('/companies/:id/shared-database-config', requireAdminRole('develope
   if (Array.isArray(sharedWith)) {
     // Validar cada entrada
     for (const item of sharedWith) {
-      if (!item.companyId || !mongoose.Types.ObjectId.isValid(item.companyId)) {
-        return res.status(400).json({ error: `companyId inválido: ${item.companyId}` });
+      const companyId = typeof item === 'string' ? item : item.companyId;
+      if (!companyId || !mongoose.Types.ObjectId.isValid(companyId)) {
+        return res.status(400).json({ error: `companyId inválido: ${companyId}` });
       }
       // No permitir compartir consigo misma
-      if (String(id) === String(item.companyId)) {
+      if (String(id) === String(companyId)) {
         return res.status(400).json({ error: 'No se puede compartir base de datos consigo misma' });
       }
       // Verificar que la empresa destino existe
-      const targetCompany = await Company.findById(item.companyId);
+      const targetCompany = await Company.findById(companyId);
       if (!targetCompany) {
-        return res.status(404).json({ error: `Empresa destino no encontrada: ${item.companyId}` });
+        return res.status(404).json({ error: `Empresa destino no encontrada: ${companyId}` });
       }
       
       // Actualizar sharedFrom en la empresa secundaria usando updateOne para evitar validación de technicians
       await Company.updateOne(
-        { _id: item.companyId },
+        { _id: companyId },
         {
           $set: {
             'sharedDatabaseConfig.sharedFrom': {
-              companyId: new mongoose.Types.ObjectId(id),
-              shareCustomers: item.shareCustomers !== false,
-              shareInventory: item.shareInventory !== false,
-              shareCalendar: item.shareCalendar === true
+              companyId: new mongoose.Types.ObjectId(id)
             }
           },
           $setOnInsert: {
@@ -155,12 +153,9 @@ router.patch('/companies/:id/shared-database-config', requireAdminRole('develope
       );
     }
     
-    // Actualizar sharedWith en la empresa principal
+    // Actualizar sharedWith en la empresa principal (solo companyId, sin flags)
     c.sharedDatabaseConfig.sharedWith = sharedWith.map(item => ({
-      companyId: new mongoose.Types.ObjectId(item.companyId),
-      shareCustomers: item.shareCustomers !== false,
-      shareInventory: item.shareInventory !== false,
-      shareCalendar: item.shareCalendar === true
+      companyId: new mongoose.Types.ObjectId(typeof item === 'string' ? item : item.companyId)
     }));
   } else if (sharedWith === null || sharedWith === undefined) {
     // Si se envía null, limpiar todas las empresas compartidas

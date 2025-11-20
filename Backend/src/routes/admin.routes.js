@@ -204,6 +204,40 @@ router.patch('/admins/:id/companies', authAdmin, requireAdminRole('developer'), 
   res.json({ ok: true, user: { id: user._id, email: user.email, companies: user.companies } });
 });
 
+// Delete admin user (developer only) - Also removes shared database config
+router.delete('/admins/:id', authAdmin, requireAdminRole('developer'), async (req, res) => {
+  const id = req.params.id;
+  const user = await AdminUser.findById(id);
+  if(!user) return res.status(404).json({ error: 'Admin no encontrado' });
+  if(user.role !== 'admin') return res.status(400).json({ error: 'Solo se pueden eliminar usuarios admin' });
+  
+  // Eliminar compartimiento de BD de todas las empresas asignadas a este admin
+  if(user.companies && user.companies.length > 0) {
+    for(const companyId of user.companies) {
+      try {
+        const company = await Company.findById(companyId);
+        if(company) {
+          // Limpiar sharedDatabaseConfig.sharedFrom si esta empresa es secundaria
+          if(company.sharedDatabaseConfig?.sharedFrom?.companyId) {
+            company.sharedDatabaseConfig.sharedFrom = { companyId: null };
+          }
+          // Limpiar sharedDatabaseId (sistema antiguo)
+          if(company.sharedDatabaseId) {
+            company.sharedDatabaseId = null;
+          }
+          await company.save();
+        }
+      } catch(err) {
+        console.error(`Error limpiando BD compartida para empresa ${companyId}:`, err);
+      }
+    }
+  }
+  
+  // Eliminar el admin
+  await AdminUser.deleteOne({ _id: id });
+  res.json({ ok: true, message: 'Admin eliminado y compartimiento de BD limpiado' });
+});
+
 // Impersonate company - Get company token for admin (developer or admin)
 router.post('/impersonate/:companyId', authAdmin, requireAdminRole('developer','admin'), async (req, res) => {
   const companyId = req.params.companyId;

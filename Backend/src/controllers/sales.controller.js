@@ -241,6 +241,36 @@ function getPriceQueryCompanyFilter(req) {
   return { $in: [originalCompanyId, effectiveCompanyId].filter(Boolean) };
 }
 
+// Función auxiliar para obtener el filtro de companyId para BUSCAR items de inventario
+// Si hay base de datos compartida, busca en ambos companyId (se comparte TODA la data)
+async function getItemQueryCompanyFilter(req) {
+  const originalCompanyId = req.originalCompanyId || req.company?.id;
+  const effectiveCompanyId = req.companyId;
+  
+  // Si no hay originalCompanyId, usar effectiveCompanyId o req.company?.id como fallback
+  if (!originalCompanyId) {
+    return effectiveCompanyId || req.company?.id;
+  }
+  
+  // Si no hay effectiveCompanyId, usar solo originalCompanyId
+  if (!effectiveCompanyId) {
+    return originalCompanyId;
+  }
+  
+  // Normalizar a strings para comparación
+  const origId = String(originalCompanyId);
+  const effId = String(effectiveCompanyId);
+  
+  // Si son iguales, usar solo uno (no hay base compartida)
+  if (origId === effId) {
+    return originalCompanyId;
+  }
+  
+  // Si son diferentes, hay base compartida - buscar en ambos companyId
+  // Cuando se comparte BD, se comparte TODA la data (inventario, clientes, ventas, etc.)
+  return { $in: [originalCompanyId, effectiveCompanyId].filter(Boolean) };
+}
+
 // ===== CRUD base =====
 export const startSale = async (req, res) => {
   // CRÍTICO: Las ventas SIEMPRE se crean con el originalCompanyId (empresa logueada),
@@ -265,7 +295,7 @@ export const startSale = async (req, res) => {
     saleNumber: sale.number
   });
   
-  try{ publish(creationCompanyId, 'sale:started', { id: (sale?._id)||undefined }) }catch{}
+  try{ await publish(creationCompanyId, 'sale:started', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
 
@@ -416,9 +446,11 @@ export const addItem = async (req, res) => {
   const src = (source === 'service') ? 'price' : source;
 
   if (src === 'inventory') {
+    // CRÍTICO: Buscar items en ambos companyId si hay base compartida (se comparte TODA la data)
+    const itemCompanyFilter = await getItemQueryCompanyFilter(req);
     let it = null;
-    if (refId) it = await Item.findOne({ _id: refId, companyId: req.companyId });
-    if (!it && sku) it = await Item.findOne({ sku: String(sku).trim().toUpperCase(), companyId: req.companyId });
+    if (refId) it = await Item.findOne({ _id: refId, companyId: itemCompanyFilter });
+    if (!it && sku) it = await Item.findOne({ sku: String(sku).trim().toUpperCase(), companyId: itemCompanyFilter });
     if (!it) return res.status(404).json({ error: 'Item not found' });
 
     const q = asNum(qty) || 1;
@@ -435,32 +467,11 @@ export const addItem = async (req, res) => {
     };
   } else if (src === 'price') {
     if (refId) {
-      // CRÍTICO: Los precios se comparten según shareInventory, NO según shareCustomers
-      // Aunque estemos en una ruta de sales, los precios pueden estar en la empresa compartida
-      // si shareInventory está activo, incluso si shareCustomers está desactivado
+      // CRÍTICO: Si hay base compartida, buscar precios en ambas empresas
+      // Cuando se comparte BD, se comparte TODA la data (precios, inventario, clientes, etc.)
       
       let pe = null;
-      let priceSharedCompanyId = null;
-      
-      // Determinar si hay base compartida para INVENTARIO (no para customers)
-      if (originalCompanyId) {
-        try {
-          const Company = (await import('../models/Company.js')).default;
-          const companyDoc = await Company.findById(originalCompanyId).select('sharedDatabaseId sharedDatabaseConfig').lean();
-          
-          if (companyDoc?.sharedDatabaseConfig?.sharedFrom?.shareInventory) {
-            // Si shareInventory está activo, los precios pueden estar en la empresa compartida
-            if (companyDoc.sharedDatabaseConfig.sharedFrom.companyId) {
-              priceSharedCompanyId = String(companyDoc.sharedDatabaseConfig.sharedFrom.companyId);
-            }
-          } else if (companyDoc?.sharedDatabaseId) {
-            // Sistema antiguo: si hay sharedDatabaseId, asumir que shareInventory está activo
-            priceSharedCompanyId = String(companyDoc.sharedDatabaseId);
-          }
-        } catch (err) {
-          // Si hay error, continuar sin base compartida
-        }
-      }
+      const effectiveCompanyId = req.companyId;
       
       // Paso 1: Buscar en originalCompanyId (prioridad - empresa logueada)
       if (originalCompanyId) {
@@ -471,9 +482,9 @@ export const addItem = async (req, res) => {
           .lean();
       }
       
-      // Paso 2: Si no se encontró y hay base compartida para inventario, buscar en priceSharedCompanyId
-      if (!pe && priceSharedCompanyId && originalCompanyId && String(originalCompanyId) !== String(priceSharedCompanyId)) {
-        pe = await PriceEntry.findOne({ _id: refId, companyId: priceSharedCompanyId })
+      // Paso 2: Si no se encontró y hay base compartida, buscar en effectiveCompanyId
+      if (!pe && effectiveCompanyId && originalCompanyId && String(originalCompanyId) !== String(effectiveCompanyId)) {
+        pe = await PriceEntry.findOne({ _id: refId, companyId: effectiveCompanyId })
           .populate('vehicleId', 'make line displacement modelYear')
           .populate('itemId', 'sku name stock salePrice')
           .populate('comboProducts.itemId', 'sku name stock salePrice')
@@ -486,11 +497,11 @@ export const addItem = async (req, res) => {
         if (priceAnyCompany) {
           const priceCompanyId = String(priceAnyCompany.companyId || '');
           const origId = String(originalCompanyId || '');
-          const sharedId = String(priceSharedCompanyId || '');
+          const effId = String(effectiveCompanyId || '');
           
-          // Permitir si está en originalCompanyId o priceSharedCompanyId (cuando shareInventory está activo)
+          // Permitir si está en originalCompanyId o effectiveCompanyId (cuando hay base compartida)
           const isInOriginalCompany = priceCompanyId === origId;
-          const isInSharedCompany = priceCompanyId === sharedId && origId !== sharedId && origId && sharedId;
+          const isInSharedCompany = priceCompanyId === effId && origId !== effId && origId && effId;
           
           // Si está en una empresa permitida, usarlo
           if (isInOriginalCompany || isInSharedCompany) {
@@ -598,7 +609,7 @@ export const addItem = async (req, res) => {
         computeTotals(sale);
         await sale.save();
         await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
-        try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+        try{ await publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
         return res.json(sale.toObject());
       }
       
@@ -741,9 +752,11 @@ export const addItemsBatch = async (req, res) => {
           continue; // Omitir este item, el combo lo agregará
         }
         
+        // CRÍTICO: Buscar items en ambos companyId si hay base compartida (se comparte TODA la data)
+        const itemCompanyFilter = await getItemQueryCompanyFilter(req);
         let it = null;
-        if (raw.refId) it = await Item.findOne({ _id: raw.refId, companyId: req.companyId });
-        if (!it && raw.sku) it = await Item.findOne({ sku: String(raw.sku).trim().toUpperCase(), companyId: req.companyId });
+        if (raw.refId) it = await Item.findOne({ _id: raw.refId, companyId: itemCompanyFilter });
+        if (!it && raw.sku) it = await Item.findOne({ sku: String(raw.sku).trim().toUpperCase(), companyId: itemCompanyFilter });
         if (!it) throw new Error('Inventory item not found');
         const up = Number.isFinite(Number(unitCandidate)) ? Number(unitCandidate) : asNum(it.salePrice);
         added.push({
@@ -930,7 +943,7 @@ export const addItemsBatch = async (req, res) => {
   computeTotals(sale);
   await sale.save();
   await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
-  try { publish(req.companyId, 'sale:updated', { id: (sale?._id) || undefined }); } catch { }
+  try { await publish(req.companyId, 'sale:updated', { id: (sale?._id) || undefined }); } catch { }
   res.json(sale.toObject());
 };
 
@@ -1093,10 +1106,12 @@ export const closeSale = async (req, res) => {
 
       // Procesar slots abiertos completados: agregarlos como items de inventario
       if (sale.openSlots && sale.openSlots.length > 0) {
+        // CRÍTICO: Buscar items en ambos companyId si hay base compartida (se comparte TODA la data)
+        const itemCompanyFilter = await getItemQueryCompanyFilter(req);
         for (const slot of sale.openSlots) {
           if (!slot.completed || !slot.completedItemId) continue;
           
-          const item = await Item.findOne({ _id: slot.completedItemId, companyId: req.companyId }).session(session);
+          const item = await Item.findOne({ _id: slot.completedItemId, companyId: itemCompanyFilter }).session(session);
           if (!item) throw new Error(`Item del inventario no encontrado para slot: ${slot.slotName}`);
           
           // Agregar como item de inventario para que se descuente
@@ -1118,15 +1133,8 @@ export const closeSale = async (req, res) => {
         const q = asNum(it.qty) || 0;
         if (q <= 0) continue;
         let target = null;
-        // CRÍTICO: Si hay base de datos compartida, buscar el Item en ambos companyId
-        // Solo usar $in si hay múltiples IDs, sino usar el companyId directamente para mejor rendimiento
-        const itemCompanyId = req.companyId;
-        const hasSharedDb = req.originalCompanyId && 
-                           String(req.originalCompanyId) !== String(req.companyId) && 
-                           req.companyId;
-        const itemCompanyFilter = hasSharedDb 
-          ? { $in: [req.companyId, req.originalCompanyId].filter(Boolean) } 
-          : itemCompanyId;
+        // CRÍTICO: Buscar items en ambos companyId si hay base compartida (se comparte TODA la data)
+        const itemCompanyFilter = await getItemQueryCompanyFilter(req);
         
         // Fallback: si no hay refId válido intentar por SKU
         if (it.refId) {
@@ -1145,9 +1153,8 @@ export const closeSale = async (req, res) => {
         // El campo stock del Item podría estar desactualizado, así que lo calculamos desde las entradas
         // CRÍTICO: Si hay base de datos compartida, los StockEntry pueden estar con el companyId original o efectivo
         // Buscar en ambos companyId para asegurar que encontramos todas las entradas
-        const stockCompanyFilter = hasSharedDb 
-          ? { $in: [req.companyId, req.originalCompanyId].filter(Boolean) } 
-          : itemCompanyId;
+        // Usar el mismo filtro que para items (ya calculado arriba)
+        const stockCompanyFilter = itemCompanyFilter;
         
         const stockEntriesForCheck = await StockEntry.find({
           companyId: stockCompanyFilter,
@@ -1584,7 +1591,7 @@ export const closeSale = async (req, res) => {
       } catch(e) { logger.warn('registerSaleIncome failed', { error: e?.message || e, stack: e?.stack }); }
     }
     
-    try{ publish(req.companyId, 'sale:closed', { id: (sale?._id)||undefined }) }catch{}
+    try{ await publish(req.companyId, 'sale:closed', { id: (sale?._id)||undefined }) }catch{}
     res.json({ ok: true, sale: sale.toObject(), cashflowEntries, receivable: receivable?.toObject() });
   } catch (err) {
     await session.abortTransaction().catch(()=>{});
@@ -1894,7 +1901,7 @@ export const cancelSale = async (req, res) => {
   // PolÃ­tica actual: eliminar; si prefieres histÃ³rico, cambia a status:'cancelled' y setea cancelledAt.
   const originalCompanyId = getSaleCreationCompanyId(req);
   await Sale.deleteOne({ _id: id, companyId: originalCompanyId });
-  try{ publish(originalCompanyId, 'sale:cancelled', { id: (sale?._id)||undefined }) }catch{}
+  try{ await publish(originalCompanyId, 'sale:cancelled', { id: (sale?._id)||undefined }) }catch{}
   res.json({ ok: true });
 };
 
@@ -1951,13 +1958,13 @@ export const deleteSalesBulk = async (req, res) => {
     });
     
     // Publicar eventos para cada venta eliminada
-    sales.forEach(sale => {
+    for (const sale of sales) {
       try {
-        publish(originalCompanyId, 'sale:cancelled', { id: sale._id?.toString() });
+        await publish(originalCompanyId, 'sale:cancelled', { id: sale._id?.toString() });
       } catch (e) {
         // Ignorar errores de publicación
       }
-    });
+    }
     
     res.json({ 
       ok: true, 
@@ -2000,12 +2007,13 @@ export const completeOpenSlot = async (req, res) => {
     return res.status(400).json({ error: 'Este slot ya está completado' });
   }
   
-  // Buscar item por itemId o SKU
+  // CRÍTICO: Buscar items en ambos companyId si hay base compartida (se comparte TODA la data)
+  const itemCompanyFilter = await getItemQueryCompanyFilter(req);
   let item = null;
   if (itemId) {
-    item = await Item.findOne({ _id: itemId, companyId: req.companyId });
+    item = await Item.findOne({ _id: itemId, companyId: itemCompanyFilter });
   } else if (sku) {
-    item = await Item.findOne({ sku: String(sku).trim().toUpperCase(), companyId: req.companyId });
+    item = await Item.findOne({ sku: String(sku).trim().toUpperCase(), companyId: itemCompanyFilter });
   }
   
   if (!item) {
@@ -2199,7 +2207,9 @@ export const addByQR = async (req, res) => {
     }
 
     if (itemId) {
-      const it = await Item.findOne({ _id: itemId, companyId: req.companyId });
+      // CRÍTICO: Buscar items en ambos companyId si hay base compartida (se comparte TODA la data)
+      const itemCompanyFilter = await getItemQueryCompanyFilter(req);
+      const it = await Item.findOne({ _id: itemId, companyId: itemCompanyFilter });
       if (!it) return res.status(404).json({ error: 'Item not found for QR' });
 
       // Si hay entryId, validar que existe y tiene stock disponible
@@ -2242,7 +2252,9 @@ export const addByQR = async (req, res) => {
   }
 
   // Fallback: tratar como SKU
-  const it = await Item.findOne({ sku: s.toUpperCase(), companyId: req.companyId });
+  // CRÍTICO: Buscar items en ambos companyId si hay base compartida (se comparte TODA la data)
+  const itemCompanyFilter = await getItemQueryCompanyFilter(req);
+  const it = await Item.findOne({ sku: s.toUpperCase(), companyId: itemCompanyFilter });
   if (!it) return res.status(404).json({ error: 'SKU not found' });
 
   const q = 1;

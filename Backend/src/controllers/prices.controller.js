@@ -2,6 +2,7 @@ import PriceEntry from '../models/PriceEntry.js';
 import Service from '../models/Service.js';
 import Vehicle from '../models/Vehicle.js';
 import Item from '../models/Item.js';
+import Company from '../models/Company.js';
 import xlsx from 'xlsx'; // 0.18.x
 import { logger } from '../lib/logger.js';
 
@@ -43,11 +44,44 @@ function computeTotal(service, variables = {}) {
   return safeEval(formula, map);
 }
 
+// Función auxiliar para obtener el filtro de companyId para BUSCAR items de inventario
+// Si hay base de datos compartida, busca en ambos companyId (se comparte TODA la data)
+async function getItemQueryCompanyFilter(req) {
+  const originalCompanyId = req.originalCompanyId || req.company?.id;
+  const effectiveCompanyId = req.companyId;
+  
+  // Si no hay originalCompanyId, usar effectiveCompanyId o req.company?.id como fallback
+  if (!originalCompanyId) {
+    return effectiveCompanyId || req.company?.id;
+  }
+  
+  // Si no hay effectiveCompanyId, usar solo originalCompanyId
+  if (!effectiveCompanyId) {
+    return originalCompanyId;
+  }
+  
+  // Normalizar a strings para comparación
+  const origId = String(originalCompanyId);
+  const effId = String(effectiveCompanyId);
+  
+  // Si son iguales, usar solo uno (no hay base compartida)
+  if (origId === effId) {
+    return originalCompanyId;
+  }
+  
+  // Si son diferentes, hay base compartida - buscar en ambos companyId
+  // Cuando se comparte BD, se comparte TODA la data (inventario, clientes, ventas, etc.)
+  return { $in: [originalCompanyId, effectiveCompanyId].filter(Boolean) };
+}
+
 // Helper para procesar productos de combo (evita duplicación)
-async function processComboProducts(comboProducts, companyId) {
+async function processComboProducts(comboProducts, req) {
   if (!Array.isArray(comboProducts) || comboProducts.length === 0) {
     return { error: 'Un combo debe incluir al menos un producto', products: null };
   }
+  
+  // CRÍTICO: Obtener filtro de companyId para buscar items
+  const itemCompanyFilter = await getItemQueryCompanyFilter(req);
   
   const processed = [];
   for (let idx = 0; idx < comboProducts.length; idx++) {
@@ -72,7 +106,7 @@ async function processComboProducts(comboProducts, companyId) {
     
     // Si tiene itemId y NO es slot abierto, validar que existe
     if (!isOpenSlot && cp.itemId) {
-      const comboItem = await Item.findOne({ _id: cp.itemId, companyId });
+      const comboItem = await Item.findOne({ _id: cp.itemId, companyId: itemCompanyFilter });
       if (!comboItem) {
         return { error: `Item del inventario no encontrado para producto: ${comboProduct.name}`, products: null };
       }
@@ -240,16 +274,18 @@ export const createPrice = async (req, res) => {
   }
 
   // Si es producto y tiene itemId, validar item del inventario
+  // CRÍTICO: Buscar items en ambos companyId si hay base compartida (se comparte TODA la data)
   let item = null;
   if (type === 'product' && itemId) {
-    item = await Item.findOne({ _id: itemId, companyId: req.companyId });
+    const itemCompanyFilter = await getItemQueryCompanyFilter(req);
+    item = await Item.findOne({ _id: itemId, companyId: itemCompanyFilter });
     if (!item) return res.status(404).json({ error: 'Item del inventario no encontrado' });
   }
 
   // Si es combo, validar y procesar productos del combo
   let processedComboProducts = [];
   if (type === 'combo') {
-    const result = await processComboProducts(comboProducts, req.companyId);
+    const result = await processComboProducts(comboProducts, req);
     if (result.error) {
       return res.status(400).json({ error: result.error });
     }
@@ -376,7 +412,9 @@ export const updatePrice = async (req, res) => {
     if (itemId === null || itemId === '') {
       row.itemId = null;
     } else {
-      const item = await Item.findOne({ _id: itemId, companyId: req.companyId });
+      // CRÍTICO: Buscar items en ambos companyId si hay base compartida (se comparte TODA la data)
+      const itemCompanyFilter = await getItemQueryCompanyFilter(req);
+      const item = await Item.findOne({ _id: itemId, companyId: itemCompanyFilter });
       if (!item) return res.status(404).json({ error: 'Item del inventario no encontrado' });
       row.itemId = item._id;
     }
@@ -384,7 +422,7 @@ export const updatePrice = async (req, res) => {
   
   // Actualizar comboProducts si se proporciona (solo para combos)
   if (comboProducts !== undefined && row.type === 'combo') {
-    const result = await processComboProducts(comboProducts, req.companyId);
+    const result = await processComboProducts(comboProducts, req);
     if (result.error) {
       return res.status(400).json({ error: result.error });
     }

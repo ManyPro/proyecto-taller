@@ -601,8 +601,9 @@
               ${companies.map(c=>`<label class='chip'><input type='checkbox' data-c='${c._id}' ${u.companies?.some?.(ac=>String(ac)===String(c._id))?'checked':''}/> ${c.name||c.email}</label>`).join('')}
             </div>
           </div>
-          <div>
+          <div style='display:flex;gap:8px;'>
             <button class='save secondary'>Guardar</button>
+            <button class='delete-admin' style='padding:8px 16px;border-radius:8px;border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.1);color:#ef4444;cursor:pointer;'>Eliminar</button>
           </div>
         </div>`;
         div.querySelector('.save').onclick = async ()=>{
@@ -610,7 +611,16 @@
           try{
             await req(`/api/v1/admin/admins/${u._id}/companies`, { method:'PATCH', body:{ companies: selected } });
             alert('Guardado');
+            loadAdmins(); // Recargar lista
           }catch(e){ alert(e.message||'Error'); }
+        };
+        div.querySelector('.delete-admin').onclick = async ()=>{
+          if(!confirm(`¿Estás seguro de eliminar el admin ${u.email}?\n\nEsto eliminará:\n- El acceso del admin\n- Cualquier compartimiento de BD configurado para sus empresas`)) return;
+          try{
+            await req(`/api/v1/admin/admins/${u._id}`, { method:'DELETE' });
+            alert('Admin eliminado exitosamente');
+            loadAdmins(); // Recargar lista
+          }catch(e){ alert('Error: ' + (e.message||'Error desconocido')); }
         };
         wrap.appendChild(div);
       });
