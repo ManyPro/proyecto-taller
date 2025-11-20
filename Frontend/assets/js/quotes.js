@@ -241,12 +241,14 @@ export function initQuotes({ getCompanyEmail }) {
     }
   }
 
-  function ensureInit(){
+  async function ensureInit(){
     if(inited) return; inited = true;
 
   emailScope = (getCompanyEmail?.()||API.getActiveCompany?.()||'').trim().toLowerCase();
 
-    iNumber.value = nextNumber();
+    // Obtener el último número del backend para mantener continuidad
+    const lastNumber = await getLastQuoteNumber();
+    iNumber.value = pad5(Number(lastNumber.replace(/^0+/, '') || '0') + 1);
     iNumberBig.textContent = iNumber.value;
     iDatetime.value = todayIso();
 
@@ -330,6 +332,51 @@ export function initQuotes({ getCompanyEmail }) {
     const raw = localStorage.getItem(kLast());
     let n = Number(raw||0); n = isNaN(n)?0:n;
     return pad5(n+1);
+  }
+  
+  // Obtener el último número de cotización del backend
+  async function getLastQuoteNumber(){
+    try {
+      // Obtener las últimas cotizaciones ordenadas por seq descendente
+      // Pedir más de 1 para asegurar que obtenemos la más reciente incluso si hay problemas de ordenamiento
+      // El backend acepta sort=-seq para ordenar por seq descendente
+      const res = await API.quotesListRaw('?limit=50&sort=-seq');
+      const quotes = Array.isArray(res) ? res : (res?.items || res?.data || []);
+      
+      if (quotes && quotes.length > 0) {
+        // Ordenar por seq descendente para obtener la más reciente (por si acaso el backend no ordenó correctamente)
+        const sortedQuotes = [...quotes].sort((a, b) => {
+          const seqA = a.seq || 0;
+          const seqB = b.seq || 0;
+          return seqB - seqA;
+        });
+        
+        const lastQuote = sortedQuotes[0];
+        
+        // Si tiene seq, usarlo directamente (más confiable)
+        if (typeof lastQuote.seq === 'number' && lastQuote.seq > 0) {
+          localStorage.setItem(kLast(), String(lastQuote.seq));
+          return pad5(lastQuote.seq);
+        }
+        
+        // Si no tiene seq, intentar extraer del number
+        if (lastQuote?.number) {
+          const numStr = String(lastQuote.number);
+          const num = Number(numStr.replace(/^0+/, '') || '0');
+          if (!isNaN(num) && num > 0) {
+            localStorage.setItem(kLast(), String(num));
+            return pad5(num);
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[getLastQuoteNumber] Error obteniendo último número:', err);
+    }
+    // Fallback: usar localStorage
+    const raw = localStorage.getItem(kLast());
+    let n = Number(raw||0); 
+    n = isNaN(n)?0:n;
+    return pad5(n);
   }
   function advanceNumber(){
     const shown = Number(iNumber.value||'1');
