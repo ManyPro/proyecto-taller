@@ -2715,6 +2715,55 @@ async function renderSale(){
   let i = 0;
   const comboProductsCountCache = new Map();
   
+  // Cache global para PriceEntry (evita múltiples llamadas y bucles)
+  if (!window.priceEntryCache) {
+    window.priceEntryCache = new Map();
+  }
+  const priceEntryCache = window.priceEntryCache;
+  
+  // Cache de errores para evitar intentos repetidos
+  if (!window.priceEntryErrors) {
+    window.priceEntryErrors = new Set();
+  }
+  const priceEntryErrors = window.priceEntryErrors;
+  
+  // Función helper para obtener PriceEntry con cache
+  async function getPriceEntryCached(refId) {
+    if (!refId) return null;
+    const refIdStr = String(refId);
+    
+    // Si ya está en cache, retornar inmediatamente
+    if (priceEntryCache.has(refIdStr)) {
+      return priceEntryCache.get(refIdStr);
+    }
+    
+    // Si ya sabemos que hay un error, no intentar de nuevo
+    if (priceEntryErrors.has(refIdStr)) {
+      return null;
+    }
+    
+    try {
+      const pe = await API.prices.get(refId);
+      if (pe && pe._id) {
+        // Guardar en cache
+        priceEntryCache.set(refIdStr, pe);
+        return pe;
+      }
+    } catch (err) {
+      // Si es 404, marcar como error para no intentar de nuevo
+      if (err?.status === 404 || err?.message?.includes('404') || err?.message?.includes('Not Found')) {
+        priceEntryErrors.add(refIdStr);
+        console.warn(`[PriceEntry Cache] No se encontró PriceEntry ${refIdStr}, evitando futuros intentos`);
+      } else {
+        // Para otros errores, solo loguear pero no cachear el error
+        console.warn(`[PriceEntry Cache] Error al obtener PriceEntry ${refIdStr}:`, err);
+      }
+      return null;
+    }
+    
+    return null;
+  }
+  
   while (i < items.length) {
     const it = items[i];
     const sku = String(it.sku || '').toUpperCase();
@@ -2749,18 +2798,14 @@ async function renderSale(){
       // Obtener los refIds de los productos del combo para verificar
       let comboProductRefIds = new Set();
       if (it.refId) {
-        try {
-          // Intentar obtener el PriceEntry del combo para saber qué productos tiene
-          const comboPE = await API.prices.get(it.refId);
-          if (comboPE && comboPE.comboProducts) {
-            comboPE.comboProducts.forEach(cp => {
-              if (cp.itemId && cp.itemId._id) {
-                comboProductRefIds.add(String(cp.itemId._id));
-              }
-            });
-          }
-        } catch (err) {
-          console.warn('No se pudo obtener productos del combo:', err);
+        // Usar cache para evitar múltiples llamadas
+        const comboPE = await getPriceEntryCached(it.refId);
+        if (comboPE && comboPE.comboProducts) {
+          comboPE.comboProducts.forEach(cp => {
+            if (cp.itemId && cp.itemId._id) {
+              comboProductRefIds.add(String(cp.itemId._id));
+            }
+          });
         }
       }
       
@@ -2793,24 +2838,21 @@ async function renderSale(){
         if (nextIt.source === 'price' && nextPrice === 0 && nextIt.refId && 
             String(nextIt.refId) !== String(it.refId)) {
           // Verificar si el nombre coincide con algún producto del combo
-          try {
-            const comboPE = await API.prices.get(it.refId);
-            if (comboPE && comboPE.comboProducts) {
-              const comboProductNames = new Set();
-              comboPE.comboProducts.forEach(cp => {
-                if (cp.name) {
-                  comboProductNames.add(String(cp.name).trim().toUpperCase());
-                }
-              });
-              const nextName = String(nextIt.name || '').trim().toUpperCase();
-              if (comboProductNames.has(nextName)) {
-                comboItems.push(nextIt);
-                i++;
-                continue;
+          // Usar cache para evitar múltiples llamadas
+          const comboPE = await getPriceEntryCached(it.refId);
+          if (comboPE && comboPE.comboProducts) {
+            const comboProductNames = new Set();
+            comboPE.comboProducts.forEach(cp => {
+              if (cp.name) {
+                comboProductNames.add(String(cp.name).trim().toUpperCase());
               }
+            });
+            const nextName = String(nextIt.name || '').trim().toUpperCase();
+            if (comboProductNames.has(nextName)) {
+              comboItems.push(nextIt);
+              i++;
+              continue;
             }
-          } catch (err) {
-            console.warn('No se pudo verificar nombre del producto:', err);
           }
         }
         
@@ -3410,7 +3452,44 @@ async function renderWO(){
   
   const items = current.items || [];
   
-  // Identificar combos consultando PriceEntry
+  // Identificar combos consultando PriceEntry (usar cache global)
+  if (!window.priceEntryCache) {
+    window.priceEntryCache = new Map();
+  }
+  if (!window.priceEntryErrors) {
+    window.priceEntryErrors = new Set();
+  }
+  const priceEntryCache = window.priceEntryCache;
+  const priceEntryErrors = window.priceEntryErrors;
+  
+  async function getPriceEntryCached(refId) {
+    if (!refId) return null;
+    const refIdStr = String(refId);
+    
+    if (priceEntryCache.has(refIdStr)) {
+      return priceEntryCache.get(refIdStr);
+    }
+    
+    if (priceEntryErrors.has(refIdStr)) {
+      return null;
+    }
+    
+    try {
+      const pe = await API.prices.get(refId);
+      if (pe && pe._id) {
+        priceEntryCache.set(refIdStr, pe);
+        return pe;
+      }
+    } catch (err) {
+      if (err?.status === 404 || err?.message?.includes('404') || err?.message?.includes('Not Found')) {
+        priceEntryErrors.add(refIdStr);
+      }
+      return null;
+    }
+    
+    return null;
+  }
+  
   const priceEntryIds = items
     .filter(item => item.source === 'price' && item.refId)
     .map(item => item.refId);
@@ -3419,7 +3498,7 @@ async function renderWO(){
   if (priceEntryIds.length > 0) {
     try {
       const priceEntries = await Promise.all(
-        priceEntryIds.map(id => API.prices.get(id).catch(() => null))
+        priceEntryIds.map(id => getPriceEntryCached(id))
       );
       priceEntries.forEach(pe => {
         if (pe && pe._id) {
@@ -6700,6 +6779,44 @@ async function openSaleHistoryDetail(id){
       const combos = [];
       
       // Necesitamos identificar combos consultando PriceEntry si tienen source='price'
+      // Usar cache global para evitar múltiples llamadas
+      if (!window.priceEntryCache) {
+        window.priceEntryCache = new Map();
+      }
+      if (!window.priceEntryErrors) {
+        window.priceEntryErrors = new Set();
+      }
+      const priceEntryCache = window.priceEntryCache;
+      const priceEntryErrors = window.priceEntryErrors;
+      
+      async function getPriceEntryCached(refId) {
+        if (!refId) return null;
+        const refIdStr = String(refId);
+        
+        if (priceEntryCache.has(refIdStr)) {
+          return priceEntryCache.get(refIdStr);
+        }
+        
+        if (priceEntryErrors.has(refIdStr)) {
+          return null;
+        }
+        
+        try {
+          const pe = await API.prices.get(refId);
+          if (pe && pe._id) {
+            priceEntryCache.set(refIdStr, pe);
+            return pe;
+          }
+        } catch (err) {
+          if (err?.status === 404 || err?.message?.includes('404') || err?.message?.includes('Not Found')) {
+            priceEntryErrors.add(refIdStr);
+          }
+          return null;
+        }
+        
+        return null;
+      }
+      
       const priceEntryIds = sale.items
         .filter(item => item.source === 'price' && item.refId)
         .map(item => item.refId);
@@ -6708,7 +6825,7 @@ async function openSaleHistoryDetail(id){
       if (priceEntryIds.length > 0) {
         try {
           const priceEntries = await Promise.all(
-            priceEntryIds.map(id => API.prices.get(id).catch(() => null))
+            priceEntryIds.map(id => getPriceEntryCached(id))
           );
           priceEntries.forEach(pe => {
             if (pe && pe._id) {

@@ -609,7 +609,7 @@ export const addItem = async (req, res) => {
         computeTotals(sale);
         await sale.save();
         await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
-        try{ await publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+        try{ await publish(sale.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
         return res.json(sale.toObject());
       }
       
@@ -672,7 +672,7 @@ export const addItem = async (req, res) => {
   computeTotals(sale);
   await sale.save();
   await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
-  try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+  try{ await publish(sale.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
 
@@ -943,7 +943,7 @@ export const addItemsBatch = async (req, res) => {
   computeTotals(sale);
   await sale.save();
   await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
-  try { await publish(req.companyId, 'sale:updated', { id: (sale?._id) || undefined }); } catch { }
+  try { await publish(sale.companyId, 'sale:updated', { id: (sale?._id) || undefined }); } catch { }
   res.json(sale.toObject());
 };
 
@@ -966,7 +966,7 @@ export const updateItem = async (req, res) => {
   computeTotals(sale);
   await sale.save();
   await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
-  try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+  try{ await publish(sale.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
 
@@ -982,7 +982,7 @@ export const removeItem = async (req, res) => {
   computeTotals(sale);
   await sale.save();
   await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
-  try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+  try{ await publish(sale.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
 
@@ -1071,7 +1071,7 @@ export const setCustomerVehicle = async (req, res) => {
     overwriteYear: true,      // Sobrescribir año si se editó
     overwriteMileage: true    // Sobrescribir kilometraje si se editó (solo si es mayor)
   });
-  try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+  try{ await publish(sale.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   res.json(sale.toObject());
 };
 
@@ -1591,7 +1591,7 @@ export const closeSale = async (req, res) => {
       } catch(e) { logger.warn('registerSaleIncome failed', { error: e?.message || e, stack: e?.stack }); }
     }
     
-    try{ await publish(req.companyId, 'sale:closed', { id: (sale?._id)||undefined }) }catch{}
+    try{ await publish(sale.companyId, 'sale:closed', { id: (sale?._id)||undefined }) }catch{}
     res.json({ ok: true, sale: sale.toObject(), cashflowEntries, receivable: receivable?.toObject() });
   } catch (err) {
     await session.abortTransaction().catch(()=>{});
@@ -1873,7 +1873,7 @@ export const updateCloseSale = async (req, res) => {
 
       }
 
-      try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+      try{ await publish(sale.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
     });
 
     // Buscar venta actualizada (usar originalCompanyId para validación)
@@ -2159,7 +2159,7 @@ export const completeOpenSlot = async (req, res) => {
   await sale.save();
   
   await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
-  try{ publish(req.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+  try{ await publish(sale.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
   
   res.json({ 
     ok: true, 

@@ -200,47 +200,73 @@ export const listPrices = async (req, res) => {
 export const getPrice = async (req, res) => {
   const { id } = req.params;
   
-  // Estrategia de búsqueda robusta (igual que en addItem):
-  // 1. Buscar primero en originalCompanyId (empresa logueada)
-  // 2. Si no se encuentra y hay base compartida, buscar en effectiveCompanyId
-  // 3. Si aún no se encuentra, devolver error
-  
   const originalCompanyId = req.originalCompanyId || req.company?.id;
   const effectiveCompanyId = req.companyId;
+  const hasSharedDatabase = req.hasSharedDatabase;
   
-  let price = null;
+  // Determinar qué companyIds incluir en la búsqueda
+  let companyIdsToSearch = [originalCompanyId];
   
-  // Paso 1: Buscar en originalCompanyId (prioridad)
-  if (originalCompanyId) {
-    price = await PriceEntry.findOne({ _id: id, companyId: originalCompanyId })
-      .populate('vehicleId', 'make line displacement modelYear')
-      .populate('itemId', 'sku name stock salePrice')
-      .populate('comboProducts.itemId', 'sku name stock salePrice')
-      .lean();
+  // Si hay base de datos compartida, incluir todas las empresas que comparten la BD
+  if (hasSharedDatabase && originalCompanyId && effectiveCompanyId) {
+    try {
+      const companyDoc = await Company.findById(originalCompanyId).select('sharedDatabaseConfig').lean();
+      
+      if (companyDoc?.sharedDatabaseConfig?.sharedWith) {
+        // Esta empresa es principal, incluir todas las empresas secundarias
+        companyIdsToSearch = [
+          originalCompanyId, // La empresa principal
+          ...companyDoc.sharedDatabaseConfig.sharedWith.map(sw => String(sw.companyId)) // Empresas secundarias
+        ];
+      } else if (companyDoc?.sharedDatabaseConfig?.sharedFrom?.companyId) {
+        // Esta empresa es secundaria, incluir la principal y otras secundarias
+        const mainCompanyId = String(companyDoc.sharedDatabaseConfig.sharedFrom.companyId);
+        const mainCompany = await Company.findById(mainCompanyId).select('sharedDatabaseConfig').lean();
+        
+        companyIdsToSearch = [mainCompanyId]; // La empresa principal
+        if (mainCompany?.sharedDatabaseConfig?.sharedWith) {
+          // Agregar todas las empresas secundarias (incluyendo esta)
+          mainCompany.sharedDatabaseConfig.sharedWith.forEach(sw => {
+            companyIdsToSearch.push(String(sw.companyId));
+          });
+        }
+        // Asegurar que la empresa actual también esté incluida
+        if (!companyIdsToSearch.includes(String(originalCompanyId))) {
+          companyIdsToSearch.push(String(originalCompanyId));
+        }
+      }
+    } catch (err) {
+      logger.error('[getPrice] Error obteniendo empresas compartidas:', err);
+      // En caso de error, usar solo originalCompanyId
+      companyIdsToSearch = [originalCompanyId];
+    }
   }
   
-  // Paso 2: Si no se encontró y hay base compartida, buscar en effectiveCompanyId
-  if (!price && effectiveCompanyId && originalCompanyId && String(originalCompanyId) !== String(effectiveCompanyId)) {
-    price = await PriceEntry.findOne({ _id: id, companyId: effectiveCompanyId })
-      .populate('vehicleId', 'make line displacement modelYear')
-      .populate('itemId', 'sku name stock salePrice')
-      .populate('comboProducts.itemId', 'sku name stock salePrice')
-      .lean();
-  }
+  // Buscar el precio en todas las empresas que comparten la BD
+  const companyFilter = companyIdsToSearch.length === 1 
+    ? companyIdsToSearch[0]
+    : { $in: companyIdsToSearch };
   
-  // Paso 3: Si aún no se encontró, verificar si existe en alguna empresa (para debugging)
+  const price = await PriceEntry.findOne({ _id: id, companyId: companyFilter })
+    .populate('vehicleId', 'make line displacement modelYear')
+    .populate('itemId', 'sku name stock salePrice')
+    .populate('comboProducts.itemId', 'sku name stock salePrice')
+    .lean();
+  
   if (!price) {
+    // Verificar si existe en alguna empresa (para debugging)
     const priceAnyCompany = await PriceEntry.findOne({ _id: id }).lean();
     if (priceAnyCompany) {
-      logger.warn('[getPrice] Precio encontrado pero con companyId diferente', {
+      logger.warn('[getPrice] Precio encontrado pero no está en empresas compartidas', {
         priceId: id,
         priceCompanyId: priceAnyCompany.companyId?.toString(),
         originalCompanyId: originalCompanyId?.toString(),
-        effectiveCompanyId: effectiveCompanyId?.toString()
+        effectiveCompanyId: effectiveCompanyId?.toString(),
+        companyIdsToSearch: companyIdsToSearch.map(String)
       });
       return res.status(403).json({ error: 'PriceEntry belongs to different company' });
     } else {
-      logger.warn('[getPrice] Precio no encontrado en ninguna empresa', {
+      logger.warn('[getPrice] Precio no encontrado', {
         priceId: id,
         isValidObjectId: /^[0-9a-fA-F]{24}$/.test(id),
         originalCompanyId: originalCompanyId?.toString(),
