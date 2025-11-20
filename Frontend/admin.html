@@ -1110,15 +1110,32 @@
   // Cargar pestaña ADMIN
   async function loadAdminTab(){
     // Buscar empresa por _id o email, usando currentCompanyData o companiesList
-    const companyId = currentCompanyData?.id || currentCompanyData?._id;
-    const companyEmail = currentCompanyData?.email;
-    const company = companiesList.find(c => 
+    let companyId = currentCompanyData?.id || currentCompanyData?._id;
+    let companyEmail = currentCompanyData?.email;
+    let company = companiesList.find(c => 
       (companyId && (String(c._id) === String(companyId))) || 
       (companyEmail && c.email === companyEmail)
     );
     if(!company) {
-      console.warn('No se encontró la empresa en companiesList', { companyId, companyEmail, companiesList: companiesList.length });
-      return;
+      console.warn('No se encontró la empresa en companiesList, recargando...', { companyId, companyEmail, companiesList: companiesList.length });
+      // Recargar companiesList si está vacío
+      try {
+        const r = await req('/api/v1/admin/companies');
+        companiesList = r.items || [];
+        company = companiesList.find(c => 
+          (companyId && (String(c._id) === String(companyId))) || 
+          (companyEmail && c.email === companyEmail)
+        );
+        if(!company) {
+          console.error('No se pudo encontrar la empresa después de recargar');
+          appSec.innerHTML = '<div class="p-6 text-center text-red-400">Error: No se encontró la empresa seleccionada</div>';
+          return;
+        }
+      } catch(e) {
+        console.error('Error recargando empresas:', e);
+        appSec.innerHTML = '<div class="p-6 text-center text-red-400">Error al cargar datos de la empresa</div>';
+        return;
+      }
     }
     
     // Recargar lista de empresas para el selector de BD compartida
@@ -1231,7 +1248,7 @@
             </div>
             
             <!-- Manejo de Bases de Datos -->
-            <div class="border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 pt-6">
+            <div id="databaseManagementSection" class="border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 pt-6">
               <h4 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-3">🗄️ Manejo de Bases de Datos</h4>
               <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">Configura qué empresas comparten base de datos. Cuando se comparte BD, se comparte <strong>TODA</strong> la data (ventas, calendario, inventario, clientes, etc.).</p>
               
