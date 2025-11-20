@@ -5007,9 +5007,12 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
             </div>
           `;
           itemSelected.style.display = 'block';
-          if (!totalInput.value || totalInput.value === '0') {
-            totalInput.value = item.salePrice || 0;
+          // Establecer el nombre del producto con el nombre del item
+          if (nameInput && item.name) {
+            nameInput.value = item.name;
           }
+          // Establecer el precio siempre como 0 cuando se linkea a un item del inventario
+          totalInput.value = 0;
         }
       } catch (err) {
         console.error('Error al buscar items:', err);
@@ -5074,9 +5077,12 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
             </div>
           `;
           itemSelected.style.display = 'block';
-          if (!totalInput.value || totalInput.value === '0') {
-            totalInput.value = item.salePrice || 0;
+          // Establecer el nombre del producto con el nombre del item
+          if (nameInput && item.name) {
+            nameInput.value = item.name;
           }
+          // Establecer el precio siempre como 0 cuando se linkea a un item del inventario
+          totalInput.value = 0;
         } else {
           alert('Item no encontrado');
         }
@@ -5222,10 +5228,14 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
                 };
               }
               dropdown.remove();
-              const priceInput = row.querySelector('.combo-product-price');
-              if (!priceInput.value || priceInput.value === '0') {
-                priceInput.value = item.salePrice || 0;
+              // Establecer el nombre del combo product con el nombre del item
+              const nameInput = row.querySelector('.combo-product-name');
+              if (nameInput && item.name) {
+                nameInput.value = item.name;
               }
+              // Establecer el precio siempre como 0 cuando se linkea a un item del inventario
+              const priceInput = row.querySelector('.combo-product-price');
+              priceInput.value = 0;
               updateComboTotal();
             });
             div.addEventListener('mouseenter', () => { div.style.background = 'var(--hover, rgba(0,0,0,0.05))'; });
@@ -5289,10 +5299,14 @@ async function createPriceFromSale(type, vehicleId, vehicle) {
                     itemSelected.style.display = 'none';
                   };
                 }
-                const priceInput = row.querySelector('.combo-product-price');
-                if (!priceInput.value || priceInput.value === '0') {
-                  priceInput.value = item.salePrice || 0;
+                // Establecer el nombre del combo product con el nombre del item
+                const nameInput = row.querySelector('.combo-product-name');
+                if (nameInput && item.name) {
+                  nameInput.value = item.name;
                 }
+                // Establecer el precio siempre como 0 cuando se linkea a un item del inventario
+                const priceInput = row.querySelector('.combo-product-price');
+                priceInput.value = 0;
                 updateComboTotal();
                 return;
               }

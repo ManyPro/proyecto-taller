@@ -3934,8 +3934,13 @@ export function initQuotes({ getCompanyEmail }) {
           };
         }
         
-        if (!totalInput.value || totalInput.value === '0') {
-          totalInput.value = item.salePrice || 0;
+        // Establecer el nombre del producto con el nombre del item
+        if (nameInput && item.name) {
+          nameInput.value = item.name;
+        }
+        // Establecer el precio siempre como 0 cuando se linkea a un item del inventario
+        if (totalInput) {
+          totalInput.value = 0;
         }
       }
       
@@ -4239,10 +4244,14 @@ export function initQuotes({ getCompanyEmail }) {
                 };
               }
               dropdown.remove();
-              const priceInput = row.querySelector('.combo-product-price');
-              if (!priceInput.value || priceInput.value === '0') {
-                priceInput.value = item.salePrice || 0;
+              // Establecer el nombre del combo product con el nombre del item
+              const nameInput = row.querySelector('.combo-product-name');
+              if (nameInput && item.name) {
+                nameInput.value = item.name;
               }
+              // Establecer el precio siempre como 0 cuando se linkea a un item del inventario
+              const priceInput = row.querySelector('.combo-product-price');
+              priceInput.value = 0;
               updateComboTotal();
             });
             return div;
