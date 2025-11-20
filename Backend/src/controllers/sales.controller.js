@@ -1081,6 +1081,52 @@ export const closeSale = async (req, res) => {
   const session = await mongoose.startSession();
   try {
     const affectedItemIds = [];
+    // CRÍTICO: Determinar si hay base de datos compartida ANTES del loop
+    // Esto debe estar definido fuera del loop para evitar errores de scope
+    const originalCompanyId = req.originalCompanyId || req.company?.id;
+    const effectiveCompanyId = req.companyId;
+    const hasSharedDb = req.hasSharedDatabase || (originalCompanyId && 
+                       effectiveCompanyId && 
+                       String(originalCompanyId) !== String(effectiveCompanyId));
+    
+    // Obtener todas las empresas que comparten la BD para publicar eventos
+    let allSharedCompanyIds = [originalCompanyId || effectiveCompanyId];
+    if (hasSharedDb && originalCompanyId) {
+      try {
+        const Company = (await import('../models/Company.js')).default;
+        const companyDoc = await Company.findById(originalCompanyId).select('sharedDatabaseConfig').lean();
+        
+        if (companyDoc?.sharedDatabaseConfig?.sharedFrom?.companyId) {
+          // Es empresa secundaria: incluir la principal y otras secundarias
+          const mainCompanyId = String(companyDoc.sharedDatabaseConfig.sharedFrom.companyId);
+          allSharedCompanyIds = [mainCompanyId, originalCompanyId];
+          
+          // Obtener la empresa principal para ver todas las secundarias
+          const mainCompany = await Company.findById(mainCompanyId).select('sharedDatabaseConfig').lean();
+          if (mainCompany?.sharedDatabaseConfig?.sharedWith) {
+            mainCompany.sharedDatabaseConfig.sharedWith.forEach(sw => {
+              const secId = String(sw.companyId);
+              if (!allSharedCompanyIds.includes(secId)) {
+                allSharedCompanyIds.push(secId);
+              }
+            });
+          }
+        } else if (companyDoc?.sharedDatabaseConfig?.sharedWith?.length > 0) {
+          // Es empresa principal: incluir todas las secundarias
+          allSharedCompanyIds = [originalCompanyId];
+          companyDoc.sharedDatabaseConfig.sharedWith.forEach(sw => {
+            const secId = String(sw.companyId);
+            if (!allSharedCompanyIds.includes(secId)) {
+              allSharedCompanyIds.push(secId);
+            }
+          });
+        }
+      } catch (err) {
+        // Si hay error, usar solo la empresa actual
+        logger.warn('[closeSale] Error obteniendo empresas compartidas', { error: err?.message });
+      }
+    }
+    
     await session.withTransaction(async () => {
       // Buscar venta considerando base de datos compartida
       const companyFilter = getSaleQueryCompanyFilter(req);
@@ -1591,7 +1637,16 @@ export const closeSale = async (req, res) => {
       } catch(e) { logger.warn('registerSaleIncome failed', { error: e?.message || e, stack: e?.stack }); }
     }
     
-    try{ await publish(sale.companyId, 'sale:closed', { id: (sale?._id)||undefined }) }catch{}
+    // CRÍTICO: Publicar evento a todas las empresas que comparten la BD
+    // Esto asegura que todos los usuarios vean la venta cerrada
+    for (const companyId of allSharedCompanyIds) {
+      try {
+        await publish(companyId, 'sale:closed', { id: (sale?._id)||undefined });
+      } catch (e) {
+        logger.warn('[closeSale] Error publicando evento a empresa', { companyId, error: e?.message });
+      }
+    }
+    
     res.json({ ok: true, sale: sale.toObject(), cashflowEntries, receivable: receivable?.toObject() });
   } catch (err) {
     await session.abortTransaction().catch(()=>{});
@@ -1607,6 +1662,51 @@ export const updateCloseSale = async (req, res) => {
   const session = await mongoose.startSession();
   
   try {
+    // CRÍTICO: Determinar si hay base de datos compartida
+    const originalCompanyId = req.originalCompanyId || req.company?.id;
+    const effectiveCompanyId = req.companyId;
+    const hasSharedDb = req.hasSharedDatabase || (originalCompanyId && 
+                       effectiveCompanyId && 
+                       String(originalCompanyId) !== String(effectiveCompanyId));
+    
+    // Obtener todas las empresas que comparten la BD para publicar eventos
+    let allSharedCompanyIds = [originalCompanyId || effectiveCompanyId];
+    if (hasSharedDb && originalCompanyId) {
+      try {
+        const Company = (await import('../models/Company.js')).default;
+        const companyDoc = await Company.findById(originalCompanyId).select('sharedDatabaseConfig').lean();
+        
+        if (companyDoc?.sharedDatabaseConfig?.sharedFrom?.companyId) {
+          // Es empresa secundaria: incluir la principal y otras secundarias
+          const mainCompanyId = String(companyDoc.sharedDatabaseConfig.sharedFrom.companyId);
+          allSharedCompanyIds = [mainCompanyId, originalCompanyId];
+          
+          // Obtener la empresa principal para ver todas las secundarias
+          const mainCompany = await Company.findById(mainCompanyId).select('sharedDatabaseConfig').lean();
+          if (mainCompany?.sharedDatabaseConfig?.sharedWith) {
+            mainCompany.sharedDatabaseConfig.sharedWith.forEach(sw => {
+              const secId = String(sw.companyId);
+              if (!allSharedCompanyIds.includes(secId)) {
+                allSharedCompanyIds.push(secId);
+              }
+            });
+          }
+        } else if (companyDoc?.sharedDatabaseConfig?.sharedWith?.length > 0) {
+          // Es empresa principal: incluir todas las secundarias
+          allSharedCompanyIds = [originalCompanyId];
+          companyDoc.sharedDatabaseConfig.sharedWith.forEach(sw => {
+            const secId = String(sw.companyId);
+            if (!allSharedCompanyIds.includes(secId)) {
+              allSharedCompanyIds.push(secId);
+            }
+          });
+        }
+      } catch (err) {
+        // Si hay error, usar solo la empresa actual
+        logger.warn('[updateCloseSale] Error obteniendo empresas compartidas', { error: err?.message });
+      }
+    }
+    
     await session.withTransaction(async () => {
       // Buscar venta considerando base de datos compartida
       const companyFilter = getSaleQueryCompanyFilter(req);
@@ -1872,15 +1972,24 @@ export const updateCloseSale = async (req, res) => {
         }
 
       }
-
-      try{ await publish(sale.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
     });
 
     // Buscar venta actualizada (usar originalCompanyId para validación)
-    const originalCompanyId = getSaleCreationCompanyId(req);
-    const updatedSale = await Sale.findOne({ _id: id, companyId: originalCompanyId });
+    const saleCompanyId = getSaleCreationCompanyId(req);
+    const updatedSale = await Sale.findOne({ _id: id, companyId: saleCompanyId });
     if (!updatedSale) throw new Error('Sale not found after update');
     if (!validateSaleOwnership(updatedSale, req)) throw new Error('Sale belongs to different company');
+    
+    // CRÍTICO: Publicar evento a todas las empresas que comparten la BD
+    // Esto asegura que todos los usuarios vean la venta actualizada
+    for (const companyId of allSharedCompanyIds) {
+      try {
+        await publish(companyId, 'sale:updated', { id: (updatedSale?._id)||undefined });
+      } catch (e) {
+        logger.warn('[updateCloseSale] Error publicando evento a empresa', { companyId, error: e?.message });
+      }
+    }
+    
     res.json(updatedSale.toObject());
   } catch (err) {
     await session.abortTransaction().catch(()=>{});
