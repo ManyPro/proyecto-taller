@@ -10477,10 +10477,11 @@ async function generateReport(fechaDesde, fechaHasta) {
     const inventoryItems = Array.isArray(inventoryData) ? inventoryData : [];
     const appointments = Array.isArray(calendarData) ? calendarData : [];
     const technicians = Array.isArray(techniciansData) ? techniciansData : [];
+    const currentCashBalances = Array.isArray(accountsBalances?.balances) ? accountsBalances.balances : [];
     const currentCashTotal = accountsBalances?.total || 0;
     
     // Procesar datos
-    const reportData = processReportData(sales, cashflowEntries, receivables, inventoryItems, appointments, technicians, fechaDesde, fechaHasta, currentCashTotal);
+    const reportData = processReportData(sales, cashflowEntries, receivables, inventoryItems, appointments, technicians, fechaDesde, fechaHasta, currentCashBalances, currentCashTotal);
     
     // Mostrar reporte
     showReport(reportData, fechaDesde, fechaHasta);
@@ -10493,7 +10494,7 @@ async function generateReport(fechaDesde, fechaHasta) {
   }
 }
 
-function processReportData(sales, cashflowEntries, receivables, inventoryItems, appointments, technicians, fechaDesde, fechaHasta, currentCashTotal = 0) {
+function processReportData(sales, cashflowEntries, receivables, inventoryItems, appointments, technicians, fechaDesde, fechaHasta, currentCashBalances = [], currentCashTotal = 0) {
   const money = (n) => '$' + Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
   
   // 1. Estadísticas de ventas
@@ -10641,6 +10642,11 @@ function processReportData(sales, cashflowEntries, receivables, inventoryItems, 
       total: totalAgendas
     },
     valoresCajaActuales: {
+      cuentas: currentCashBalances.map(acc => ({
+        nombre: acc.name || 'Sin nombre',
+        balance: Number(acc.balance) || 0,
+        tipo: acc.type || 'CASH'
+      })),
       total: currentCashTotal
     }
   };
@@ -10802,7 +10808,16 @@ function showReport(reportData, fechaDesde, fechaHasta) {
     <!-- Valores de Caja Actuales -->
     <div id="report-section-caja-actual" class="report-section bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
       <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">💵 Valores de Caja Actuales</h3>
-      <div class="p-4 bg-blue-600/20 dark:bg-blue-600/20 theme-light:bg-blue-50 rounded-lg border border-blue-600/30">
+      <div class="space-y-2 mb-4">
+        ${(reportData.valoresCajaActuales?.cuentas || []).map(cuenta => `
+          <div class="flex justify-between items-center p-3 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-white rounded-lg">
+            <span class="text-white dark:text-white theme-light:text-slate-900 font-medium">${escapeHtmlReport(cuenta.nombre)}</span>
+            <span class="text-blue-400 dark:text-blue-400 theme-light:text-blue-600 font-semibold">${money(cuenta.balance)}</span>
+          </div>
+        `).join('')}
+        ${(!reportData.valoresCajaActuales?.cuentas || reportData.valoresCajaActuales.cuentas.length === 0) ? '<p class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-center py-4">No hay cuentas registradas</p>' : ''}
+      </div>
+      <div class="p-4 bg-blue-600/20 dark:bg-blue-600/20 theme-light:bg-blue-50 rounded-lg border border-blue-600/30 mt-4">
         <div class="text-sm text-blue-400 dark:text-blue-400 theme-light:text-blue-600 mb-1">Total en Caja</div>
         <div class="text-2xl font-bold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${money(reportData.valoresCajaActuales?.total || 0)}</div>
       </div>
