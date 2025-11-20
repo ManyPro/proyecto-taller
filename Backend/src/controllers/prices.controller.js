@@ -312,7 +312,6 @@ export const getPrice = async (req, res) => {
         priceId: id,
         priceCompanyId: priceAnyCompany.companyId?.toString(),
         originalCompanyId: originalCompanyId?.toString(),
-        effectiveCompanyId: effectiveCompanyId?.toString(),
         companyIdsToSearch: companyIdsToSearch.map(String)
       });
       return res.status(403).json({ error: 'PriceEntry belongs to different company' });
@@ -321,7 +320,7 @@ export const getPrice = async (req, res) => {
         priceId: id,
         isValidObjectId: /^[0-9a-fA-F]{24}$/.test(id),
         originalCompanyId: originalCompanyId?.toString(),
-        effectiveCompanyId: effectiveCompanyId?.toString()
+        companyIdsToSearch: companyIdsToSearch.map(String)
       });
       return res.status(404).json({ error: 'PriceEntry not found' });
     }
