@@ -10454,7 +10454,7 @@ async function generateReport(fechaDesde, fechaHasta) {
   
   try {
     // Recopilar todos los datos en paralelo
-    const [salesData, cashflowData, receivablesData, inventoryData, calendarData, techniciansData] = await Promise.all([
+    const [salesData, cashflowData, receivablesData, inventoryData, calendarData, techniciansData, accountsBalances] = await Promise.all([
       // Ventas
       API.sales.list({ status: 'closed', from: fechaDesde, to: fechaHasta, limit: 10000 }),
       // Flujo de caja
@@ -10466,7 +10466,9 @@ async function generateReport(fechaDesde, fechaHasta) {
       // Calendario/Agendas
       API.calendar.list({ from: fechaDesde, to: fechaHasta }),
       // Técnicos
-      API.company.getTechnicians()
+      API.company.getTechnicians(),
+      // Valores de caja actuales (balances de todas las cuentas)
+      API.accounts.balances()
     ]);
     
     const sales = Array.isArray(salesData?.items) ? salesData.items : [];
@@ -10475,9 +10477,10 @@ async function generateReport(fechaDesde, fechaHasta) {
     const inventoryItems = Array.isArray(inventoryData) ? inventoryData : [];
     const appointments = Array.isArray(calendarData) ? calendarData : [];
     const technicians = Array.isArray(techniciansData) ? techniciansData : [];
+    const currentCashTotal = accountsBalances?.total || 0;
     
     // Procesar datos
-    const reportData = processReportData(sales, cashflowEntries, receivables, inventoryItems, appointments, technicians, fechaDesde, fechaHasta);
+    const reportData = processReportData(sales, cashflowEntries, receivables, inventoryItems, appointments, technicians, fechaDesde, fechaHasta, currentCashTotal);
     
     // Mostrar reporte
     showReport(reportData, fechaDesde, fechaHasta);
@@ -10490,7 +10493,7 @@ async function generateReport(fechaDesde, fechaHasta) {
   }
 }
 
-function processReportData(sales, cashflowEntries, receivables, inventoryItems, appointments, technicians, fechaDesde, fechaHasta) {
+function processReportData(sales, cashflowEntries, receivables, inventoryItems, appointments, technicians, fechaDesde, fechaHasta, currentCashTotal = 0) {
   const money = (n) => '$' + Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
   
   // 1. Estadísticas de ventas
@@ -10636,6 +10639,9 @@ function processReportData(sales, cashflowEntries, receivables, inventoryItems, 
     },
     agendas: {
       total: totalAgendas
+    },
+    valoresCajaActuales: {
+      total: currentCashTotal
     }
   };
 }
@@ -10790,6 +10796,15 @@ function showReport(reportData, fechaDesde, fechaHasta) {
           </div>
         `).join('')}
         ${Object.keys(reportData.ingresosPorCuenta).length === 0 ? '<p class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-center py-4">No hay ingresos registrados</p>' : ''}
+      </div>
+    </div>
+    
+    <!-- Valores de Caja Actuales -->
+    <div id="report-section-caja-actual" class="report-section bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">💵 Valores de Caja Actuales</h3>
+      <div class="p-4 bg-blue-600/20 dark:bg-blue-600/20 theme-light:bg-blue-50 rounded-lg border border-blue-600/30">
+        <div class="text-sm text-blue-400 dark:text-blue-400 theme-light:text-blue-600 mb-1">Total en Caja</div>
+        <div class="text-2xl font-bold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${money(reportData.valoresCajaActuales?.total || 0)}</div>
       </div>
     </div>
     

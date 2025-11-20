@@ -219,13 +219,31 @@
     }
     
     @media print {
+      /* Preservar colores en impresión */
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+      
+      /* Detectar modo oscuro/claro desde el body */
       body {
-        background: white;
         padding: 0;
       }
       
+      /* Si el body tiene clase dark, mantener colores oscuros */
+      body.dark,
+      body.dark .report-container {
+        background: #0f172a !important;
+        color: #e5e7eb !important;
+      }
+      
+      /* Si no tiene dark, usar colores claros */
+      body:not(.dark) .report-container {
+        background: white !important;
+      }
+      
       .report-container {
-        background: white;
         box-shadow: none;
         padding: 12px;
         max-width: 100%;
@@ -249,9 +267,20 @@
         margin-bottom: 8px;
       }
       
+      /* Preservar colores de las tarjetas según el modo */
+      body.dark .section-card {
+        background: rgba(30, 41, 59, 0.8) !important;
+        border: 1px solid rgba(148, 163, 184, 0.2) !important;
+        color: #e5e7eb !important;
+      }
+      
+      body:not(.dark) .section-card {
+        background: #f8f9fa !important;
+        border: 1px solid #dee2e6 !important;
+        color: #212529 !important;
+      }
+      
       .section-card {
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
         padding: 10px;
         page-break-inside: avoid;
       }
@@ -275,15 +304,32 @@
         page-break-before: always !important;
       }
       
+      body.dark .metric-card {
+        background: rgba(30, 41, 59, 0.8) !important;
+        border: 1px solid rgba(148, 163, 184, 0.2) !important;
+        color: #e5e7eb !important;
+      }
+      
+      body:not(.dark) .metric-card {
+        background: #f8f9fa !important;
+        border: 1px solid #dee2e6 !important;
+        color: #212529 !important;
+      }
+      
       .metric-card {
-        background: #f8f9fa;
-        border: 1px solid #dee2e6;
         padding: 10px;
         page-break-inside: avoid;
       }
       
+      body.dark .section-title {
+        color: #e5e7eb !important;
+      }
+      
+      body:not(.dark) .section-title {
+        color: #212529 !important;
+      }
+      
       .section-title {
-        color: #212529;
         font-size: 14px;
         margin-bottom: 10px;
       }
@@ -292,9 +338,16 @@
         font-size: 10px;
       }
       
+      body.dark .metric-value {
+        color: #e5e7eb !important;
+      }
+      
+      body:not(.dark) .metric-value {
+        color: #212529 !important;
+      }
+      
       .metric-value {
         font-size: 18px;
-        color: #212529;
       }
       
       table {
@@ -306,28 +359,63 @@
         font-size: 9px;
       }
       
+      body.dark table td {
+        color: #e5e7eb !important;
+        border-color: rgba(148, 163, 184, 0.2) !important;
+      }
+      
+      body:not(.dark) table td {
+        color: #212529 !important;
+        border-color: #dee2e6 !important;
+      }
+      
       table td {
         padding: 6px;
         font-size: 9px;
-        color: #212529;
-        border-color: #dee2e6;
       }
       
-      table th {
-        color: #212529;
-        border-color: #dee2e6;
+      body.dark table th {
+        color: #e5e7eb !important;
+        border-color: rgba(148, 163, 184, 0.2) !important;
       }
       
-      .metric-value.green {
-        color: #198754;
+      body:not(.dark) table th {
+        color: #212529 !important;
+        border-color: #dee2e6 !important;
       }
       
-      .metric-value.yellow {
-        color: #ffc107;
+      /* Preservar colores de valores según modo */
+      body.dark .metric-value.green {
+        color: #10b981 !important;
       }
       
-      .metric-value.blue {
-        color: #0d6efd;
+      body:not(.dark) .metric-value.green {
+        color: #198754 !important;
+      }
+      
+      body.dark .metric-value.yellow {
+        color: #fbbf24 !important;
+      }
+      
+      body:not(.dark) .metric-value.yellow {
+        color: #ffc107 !important;
+      }
+      
+      body.dark .metric-value.blue {
+        color: #60a5fa !important;
+      }
+      
+      body:not(.dark) .metric-value.blue {
+        color: #0d6efd !important;
+      }
+      
+      /* Asegurar que el grid de Ingresos y Caja Actual se mantenga en impresión */
+      @media print {
+        div[style*="grid-template-columns: 2fr 1fr"] {
+          display: grid !important;
+          grid-template-columns: 2fr 1fr !important;
+          gap: 12px !important;
+        }
       }
     }
   </style>
@@ -448,22 +536,31 @@
         `;
       }
       
-      // Ingresos por Cuenta
+      // Ingresos por Cuenta y Valores de Caja Actuales (lado a lado)
       if (hasIngresos) {
         const ingresosEntries = Object.entries(reportData.ingresosPorCuenta || {});
         html += `
-          <div class="section-card ${ingresosEntries.length > 5 ? 'full-width' : ''}">
-            <div class="section-title">💰 Ingresos por Cuenta</div>
-            ${ingresosEntries.length > 0 ? `
-              <div style="display: flex; flex-direction: column; gap: 10px;">
-                ${ingresosEntries.map(([cuenta, monto]) => `
-                  <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(15, 23, 42, 0.5); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.1);">
-                    <span style="font-weight: 600; color: white; font-size: 12px;">${escapeHtml(cuenta)}</span>
-                    <span style="font-weight: 700; color: #10b981; font-size: 12px;">${formatMoney(monto)}</span>
-                  </div>
-                `).join('')}
+          <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px; grid-column: 1 / -1;">
+            <div class="section-card">
+              <div class="section-title">💰 Ingresos por Cuenta</div>
+              ${ingresosEntries.length > 0 ? `
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                  ${ingresosEntries.map(([cuenta, monto]) => `
+                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(15, 23, 42, 0.5); border-radius: 8px; border: 1px solid rgba(148, 163, 184, 0.1);">
+                      <span style="font-weight: 600; color: white; font-size: 12px;">${escapeHtml(cuenta)}</span>
+                      <span style="font-weight: 700; color: #10b981; font-size: 12px;">${formatMoney(monto)}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : '<div class="empty-message">No hay ingresos registrados</div>'}
+            </div>
+            <div class="section-card">
+              <div class="section-title">💵 Valores de Caja Actuales</div>
+              <div style="padding: 12px; background: rgba(59, 130, 246, 0.15); border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3); margin-top: 10px;">
+                <div style="font-size: 10px; color: #93c5fd; margin-bottom: 5px; font-weight: 600;">Total en Caja</div>
+                <div style="font-size: 18px; font-weight: 700; color: #60a5fa;">${formatMoney(reportData.valoresCajaActuales?.total || 0)}</div>
               </div>
-            ` : '<div class="empty-message">No hay ingresos registrados</div>'}
+            </div>
           </div>
         `;
       }
@@ -660,8 +757,34 @@
       }
     }
     
-    // La página está lista para imprimir cuando el usuario lo desee
-    // El usuario puede usar Ctrl+P o Cmd+P para imprimir como PDF o PNG
+    // Detectar modo oscuro/claro y aplicar clase al body
+    function detectTheme() {
+      // Verificar si hay una preferencia guardada en localStorage
+      const savedTheme = localStorage.getItem('theme') || localStorage.getItem('darkMode');
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      
+      // Si hay tema guardado, usarlo; sino usar preferencia del sistema
+      if (savedTheme === 'dark' || savedTheme === 'true') {
+        document.body.classList.add('dark');
+      } else if (savedTheme === 'light' || savedTheme === 'false') {
+        document.body.classList.remove('dark');
+      } else if (prefersDark) {
+        document.body.classList.add('dark');
+      } else {
+        document.body.classList.remove('dark');
+      }
+    }
+    
+    // Detectar tema al cargar
+    detectTheme();
+    
+    // Abrir diálogo de impresión automáticamente después de que la página se cargue
+    window.addEventListener('load', () => {
+      // Esperar un momento para que todo se renderice
+      setTimeout(() => {
+        window.print();
+      }, 500);
+    });
   </script>
 </body>
 </html>
