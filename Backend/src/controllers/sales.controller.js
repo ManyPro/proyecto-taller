@@ -1572,11 +1572,12 @@ export const closeSale = async (req, res) => {
     });
     
     // Buscar venta después de cerrarla (usar originalCompanyId para validación)
-    const originalCompanyId = getSaleCreationCompanyId(req);
-    const sale = await Sale.findOne({ _id: id, companyId: originalCompanyId });
+    // Nota: originalCompanyId ya está definido al inicio de la función
+    const saleCompanyId = getSaleCreationCompanyId(req);
+    const sale = await Sale.findOne({ _id: id, companyId: saleCompanyId });
     if (!sale) throw new Error('Sale not found after closing');
     if (!validateSaleOwnership(sale, req)) throw new Error('Sale belongs to different company');
-    await upsertCustomerProfile(originalCompanyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
+    await upsertCustomerProfile(saleCompanyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });
     
     // Verificar alertas de stock después del cierre de venta (una sola vez)
     if (affectedItemIds.length > 0) {
