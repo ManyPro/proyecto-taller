@@ -2500,14 +2500,34 @@ function fillCloseModal(){
     });
     
     const total = Math.round(Number(current?.total||0));
-    console.log('Validación de cierre:', { sum, total, diff: Math.abs(sum - total), paymentsCount: payments.length });
+    console.log('Validación de cierre:', { sum, total, diff: Math.abs(sum - total), paymentsCount: payments.length, rowsCount: rows.length });
     const diff = Math.abs(sum - total);
     if(diff > 0.01){ 
       msg.textContent=`La suma de pagos (${money(sum)}) no coincide con el total (${money(total)}). Diferencia: ${money(diff)}.`; 
       msg.classList.add('error');
       return; 
     }
-    const filtered = payments.filter(p=> p.method && p.amount>0);
+    
+    // CRÍTICO: Filtrar pagos leyendo directamente de los inputs, no del objeto payments
+    // Esto asegura que solo se incluyan pagos con valores válidos en los inputs
+    const filtered = [];
+    rows.forEach((row, idx) => {
+      const amtInput = row.querySelector('input[data-role=amount]');
+      const methodSelect = row.querySelector('select[data-role=method]');
+      if (amtInput && methodSelect) {
+        const rawValue = String(amtInput.value || '0').replace(/[^0-9]/g, '');
+        const amount = Math.round(Number(rawValue) || 0);
+        const method = String(methodSelect.value || '').trim().toUpperCase();
+        if (method && amount > 0) {
+          // Sincronizar el objeto payment correspondiente
+          if (payments[idx]) {
+            payments[idx].amount = amount;
+            payments[idx].method = method;
+          }
+          filtered.push(payments[idx] || { method, amount: amount, accountId: null });
+        }
+      }
+    });
     if(!filtered.length){ 
       msg.textContent='Agregar al menos una forma de pago válida'; 
       msg.classList.add('error');
@@ -2570,17 +2590,21 @@ function fillCloseModal(){
       const laborValueFromSale = Number(current?.laborValue || 0);
       
       // CRÍTICO: Leer valores directamente de los inputs para garantizar precisión
-      // Asegurar que todos los montos estén correctamente parseados antes de enviar
+      // Ya filtramos usando los inputs, ahora solo necesitamos mapear y limpiar
       const paymentMethodsToSend = filtered.map(p=>{
-        // Buscar la fila correspondiente al payment
-        const row = Array.from(pmBody.querySelectorAll('tr')).find(tr => {
-          const rowPay = payments.find(pay => pay === p);
-          return rowPay === p;
-        });
-        
+        // Buscar la fila correspondiente al payment por índice
+        const rowIndex = payments.indexOf(p);
         let finalAmount = Math.round(Number(p.amount) || 0);
-        if (row) {
+        let method = String(p.method || '').toUpperCase();
+        let accountId = p.accountId || null;
+        
+        // Si encontramos la fila, leer directamente del input para garantizar precisión
+        if (rowIndex >= 0 && rowIndex < rows.length) {
+          const row = rows[rowIndex];
           const amtInput = row.querySelector('input[data-role=amount]');
+          const methodSelect = row.querySelector('select[data-role=method]');
+          const accountSelect = row.querySelector('select[data-role=account]');
+          
           if (amtInput) {
             // Limpiar y parsear el valor directamente del input
             const rawValue = String(amtInput.value || '0').replace(/[^0-9]/g, '');
@@ -2590,14 +2614,24 @@ function fillCloseModal(){
             // Asegurar que el input tenga el valor correcto
             amtInput.value = finalAmount;
           }
+          
+          if (methodSelect) {
+            method = String(methodSelect.value || '').trim().toUpperCase();
+            p.method = method;
+          }
+          
+          if (accountSelect) {
+            accountId = accountSelect.value || null;
+            p.accountId = accountId;
+          }
         }
-        const method = String(p.method || '').toUpperCase();
+        
         const isCredit = method === 'CREDITO';
-        console.log('Preparando pago para enviar:', { method, amount: finalAmount, originalAmount: p.amount });
+        console.log('Preparando pago para enviar:', { method, amount: finalAmount, accountId, isCredit });
         return { 
-          method: p.method, 
+          method: method, 
           amount: finalAmount, 
-          accountId: isCredit ? null : (p.accountId||null) 
+          accountId: isCredit ? null : accountId
         };
       });
       
@@ -10015,7 +10049,28 @@ function updateEditPaymentsSummary(payments) {
   const summary = document.getElementById('ecv-payments-summary');
   if (!summary) return;
   
-  const sum = payments.reduce((a, p) => a + (Number(p.amount) || 0), 0);
+  // CRÍTICO: Leer valores directamente de los inputs para garantizar precisión
+  const body = document.getElementById('ecv-payments-body');
+  if (!body) return;
+  
+  const rows = body.querySelectorAll('tr');
+  let sum = 0;
+  rows.forEach((row) => {
+    const amtInput = row.querySelector('.ecv-payment-amount');
+    if (amtInput) {
+      // Limpiar y parsear el valor directamente del input
+      const rawValue = String(amtInput.value || '0').replace(/[^0-9]/g, '');
+      const amount = Math.round(Number(rawValue) || 0);
+      sum += amount;
+      
+      // Sincronizar el objeto payment correspondiente
+      const idx = parseInt(amtInput.dataset.idx);
+      if (idx >= 0 && idx < payments.length) {
+        payments[idx].amount = amount;
+      }
+    }
+  });
+  
   const total = Number(document.querySelector('#ecv-payments-block')?.closest('.space-y-4')?.querySelector('strong')?.textContent?.replace(/[^0-9]/g, '') || 0);
   
   summary.innerHTML = `
@@ -10088,7 +10143,23 @@ function setupEditCloseModalListeners(sale, payments, commissions) {
   document.querySelectorAll('.ecv-payment-amount').forEach(input => {
     input.addEventListener('input', () => {
       const idx = parseInt(input.dataset.idx);
-      payments[idx].amount = Number(input.value) || 0;
+      // CRÍTICO: Limpiar el valor removiendo cualquier carácter no numérico
+      const rawValue = String(input.value || '0').replace(/[^0-9]/g, '');
+      const numValue = Math.round(Number(rawValue) || 0);
+      payments[idx].amount = numValue;
+      // Asegurar que el input muestre el valor limpio
+      if (input.value !== String(numValue)) {
+        input.value = numValue;
+      }
+      updateEditPaymentsSummary(payments);
+    });
+    input.addEventListener('blur', () => {
+      const idx = parseInt(input.dataset.idx);
+      // CRÍTICO: Limpiar el valor al salir del campo también
+      const rawValue = String(input.value || '0').replace(/[^0-9]/g, '');
+      const numValue = Math.round(Number(rawValue) || 0);
+      payments[idx].amount = numValue;
+      input.value = numValue;
       updateEditPaymentsSummary(payments);
     });
   });
@@ -10135,17 +10206,54 @@ function setupEditCloseModalListeners(sale, payments, commissions) {
     msg.textContent = 'Procesando...';
     msg.classList.remove('error');
 
-    // Validar suma de pagos
-    const sum = payments.reduce((a, p) => a + (Number(p.amount) || 0), 0);
+    // CRÍTICO: Leer valores directamente de los inputs para validar
+    const body = document.getElementById('ecv-payments-body');
+    if (!body) {
+      msg.textContent = 'Error: No se encontró el cuerpo de pagos';
+      msg.classList.add('error');
+      return;
+    }
+    
+    const rows = body.querySelectorAll('tr');
+    let sum = 0;
+    const validPayments = [];
+    
+    rows.forEach((row, idx) => {
+      const amtInput = row.querySelector('.ecv-payment-amount');
+      const methodSelect = row.querySelector('.ecv-payment-method');
+      const accountSelect = row.querySelector('.ecv-payment-account');
+      
+      if (amtInput && methodSelect) {
+        // Limpiar y parsear el valor directamente del input
+        const rawValue = String(amtInput.value || '0').replace(/[^0-9]/g, '');
+        const amount = Math.round(Number(rawValue) || 0);
+        const method = String(methodSelect.value || '').trim().toUpperCase();
+        
+        // Sincronizar el objeto payment
+        if (idx < payments.length) {
+          payments[idx].amount = amount;
+          payments[idx].method = method;
+          if (accountSelect) {
+            payments[idx].accountId = accountSelect.value || null;
+          }
+        }
+        
+        if (method && amount > 0) {
+          sum += amount;
+          validPayments.push(payments[idx] || { method, amount, accountId: null });
+        }
+      }
+    });
+    
     const total = Number(document.querySelector('#ecv-payments-block')?.closest('.space-y-4')?.querySelector('strong')?.textContent?.replace(/[^0-9]/g, '') || 0);
     
     if (Math.abs(sum - total) > 0.01) {
-      msg.textContent = 'La suma de pagos no coincide con el total.';
+      msg.textContent = `La suma de pagos (${money(sum)}) no coincide con el total (${money(total)}). Diferencia: ${money(Math.abs(sum - total))}.`;
       msg.classList.add('error');
       return;
     }
 
-    const filtered = payments.filter(p => p.method && p.amount > 0);
+    const filtered = validPayments;
     if (!filtered.length) {
       msg.textContent = 'Agregar al menos una forma de pago válida';
       msg.classList.add('error');
@@ -10186,16 +10294,31 @@ function setupEditCloseModalListeners(sale, payments, commissions) {
         });
       }
 
-      const payload = {
-        paymentMethods: filtered.map(p => {
-          const method = String(p.method || '').toUpperCase();
+      // CRÍTICO: Leer valores directamente de los inputs una vez más antes de enviar
+      const paymentMethodsToSend = [];
+      rows.forEach((row, idx) => {
+        const amtInput = row.querySelector('.ecv-payment-amount');
+        const methodSelect = row.querySelector('.ecv-payment-method');
+        const accountSelect = row.querySelector('.ecv-payment-account');
+        
+        if (amtInput && methodSelect) {
+          const rawValue = String(amtInput.value || '0').replace(/[^0-9]/g, '');
+          const amount = Math.round(Number(rawValue) || 0);
+          const method = String(methodSelect.value || '').trim().toUpperCase();
           const isCredit = method === 'CREDITO' || method === 'CRÉDITO';
-          return {
-            method: p.method,
-            amount: Number(p.amount) || 0,
-            accountId: isCredit ? null : (p.accountId || null)
-          };
-        }),
+          
+          if (method && amount > 0) {
+            paymentMethodsToSend.push({
+              method: method,
+              amount: amount,
+              accountId: isCredit ? null : (accountSelect?.value || null)
+            });
+          }
+        }
+      });
+      
+      const payload = {
+        paymentMethods: paymentMethodsToSend,
         laborCommissions: comm,
         paymentReceiptUrl: receiptUrl
       };
