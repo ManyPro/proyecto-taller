@@ -3,12 +3,14 @@ import Notification from '../models/Notification.js';
 
 export const listNotifications = async (req, res) => {
   try {
-    if (!req.companyId) {
+    // Asegurar que req.companyId esté disponible (debería estar establecido por withCompanyDefaults)
+    const companyId = req.companyId || req.company?.id || req.originalCompanyId;
+    if (!companyId) {
       return res.status(403).json({ error: 'Company ID is required' });
     }
     const { unread, limit } = req.query;
     const lim = Math.min(parseInt(limit || '30', 10), 100);
-    const filter = { companyId: new mongoose.Types.ObjectId(req.companyId) };
+    const filter = { companyId: new mongoose.Types.ObjectId(companyId) };
     if(unread) filter.read = false;
     const data = await Notification.find(filter).sort({ createdAt: -1 }).limit(lim);
     res.json({ data });

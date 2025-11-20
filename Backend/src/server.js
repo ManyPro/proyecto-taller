@@ -212,31 +212,40 @@ async function withCompanyDefaults(req, _res, next) {
       const Company = (await import('./models/Company.js')).default;
       const companyDoc = await Company.findById(originalCompanyId).select('sharedDatabaseId sharedDatabaseConfig').lean();
       
-      // Determinar qué companyId usar según el nuevo sistema o el antiguo (compatibilidad)
-      let effectiveCompanyId = originalCompanyId;
-      let hasSharedDatabase = false;
-      
-      // Nuevo sistema: sharedDatabaseConfig.sharedFrom
-      if (companyDoc?.sharedDatabaseConfig?.sharedFrom?.companyId) {
-        effectiveCompanyId = String(companyDoc.sharedDatabaseConfig.sharedFrom.companyId);
-        hasSharedDatabase = true;
+      // Si la empresa no existe, usar el ID original y continuar
+      if (!companyDoc) {
+        req.companyId = originalCompanyId;
+        req.originalCompanyId = originalCompanyId;
+        req.hasSharedDatabase = false;
+      } else {
+        // Determinar qué companyId usar según el nuevo sistema o el antiguo (compatibilidad)
+        let effectiveCompanyId = originalCompanyId;
+        let hasSharedDatabase = false;
+        
+        // Nuevo sistema: sharedDatabaseConfig.sharedFrom
+        if (companyDoc?.sharedDatabaseConfig?.sharedFrom?.companyId) {
+          effectiveCompanyId = String(companyDoc.sharedDatabaseConfig.sharedFrom.companyId);
+          hasSharedDatabase = true;
+        }
+        // Sistema antiguo: sharedDatabaseId (compatibilidad)
+        else if (companyDoc?.sharedDatabaseId) {
+          effectiveCompanyId = String(companyDoc.sharedDatabaseId);
+          hasSharedDatabase = true;
+        }
+        
+        // Cuando hay base compartida, se comparte TODA la data (ventas, calendario, inventario, clientes, etc.)
+        // No hay restricciones por tipo de ruta
+        
+        req.companyId = effectiveCompanyId;
+        req.originalCompanyId = originalCompanyId;
+        req.hasSharedDatabase = hasSharedDatabase;
       }
-      // Sistema antiguo: sharedDatabaseId (compatibilidad)
-      else if (companyDoc?.sharedDatabaseId) {
-        effectiveCompanyId = String(companyDoc.sharedDatabaseId);
-        hasSharedDatabase = true;
-      }
-      
-      // Cuando hay base compartida, se comparte TODA la data (ventas, calendario, inventario, clientes, etc.)
-      // No hay restricciones por tipo de ruta
-      
-      req.companyId = effectiveCompanyId;
-      req.originalCompanyId = originalCompanyId;
-      req.hasSharedDatabase = hasSharedDatabase;
     } catch (err) {
-      // Si hay error, usar el ID original
+      // Si hay error, usar el ID original y loguear el error
+      console.error('[withCompanyDefaults] Error obteniendo información de empresa:', err);
       req.companyId = originalCompanyId;
       req.originalCompanyId = originalCompanyId;
+      req.hasSharedDatabase = false;
     }
     
     if (req.user?.id) req.userId = String(req.user.id);
@@ -248,6 +257,13 @@ async function withCompanyDefaults(req, _res, next) {
       req.body ||= {};
       if (!req.body.companyId) req.body.companyId = req.companyId;
       if (!req.body.userId && req.userId) req.body.userId = req.userId;
+    }
+  } else {
+    // Si no hay req.company.id, asegurar que req.companyId esté definido si es necesario
+    // Esto puede pasar en algunos endpoints que no requieren autenticación completa
+    if (!req.companyId && req.company?.id) {
+      req.companyId = String(req.company.id);
+      req.originalCompanyId = String(req.company.id);
     }
   }
   next();

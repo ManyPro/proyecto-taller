@@ -79,9 +79,17 @@ router.post('/login', async (req, res) => {
  * header: Authorization: Bearer <token>
  */
 router.get('/me', authCompany, async (req, res) => {
-  const company = await Company.findById(req.company.id).lean();
-  if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
-  res.json({ company: { id: company._id, name: company.name, email: company.email } });
+  try {
+    if (!req.company?.id) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
+    const company = await Company.findById(req.company.id).lean();
+    if (!company) return res.status(404).json({ error: 'Empresa no encontrada' });
+    res.json({ company: { id: company._id, name: company.name, email: company.email } });
+  } catch (err) {
+    console.error('[auth/company/me] Error:', err);
+    res.status(500).json({ error: 'Error al obtener información de empresa' });
+  }
 });
 
 // Modo local: endpoint placeholder que siempre responde ok (no envÃ­a nada)
