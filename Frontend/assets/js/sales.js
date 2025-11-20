@@ -4490,7 +4490,7 @@ async function renderPricesView(container, vehicleId) {
         const addBtn = card.querySelector('.add-price-btn');
         if (!addBtn) {
           console.error('No se encontró el botón add-price-btn');
-          continue;
+          return; // En forEach, usar return en lugar de continue
         }
         
         addBtn.onclick = async () => {
