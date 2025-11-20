@@ -9106,6 +9106,7 @@ let historialTotal = 0;
 let historialDateFrom = null;
 let historialDateTo = null;
 let historialPlate = null; // Filtro por placa
+let historialTechnician = null; // Filtro por técnico
 let historialLoading = false; // Flag para evitar múltiples cargas simultáneas
 let historialCache = null; // Cache simple para evitar recargas innecesarias
 let historialCacheKey = null;
@@ -9140,13 +9141,38 @@ function initInternalNavigation() {
   // Configurar delegación de eventos una sola vez
   setupHistorialEventDelegation();
 
-  // Filtros de fecha y placa con debounce
+  // Filtros de fecha, placa y técnico con debounce
   const btnFiltrar = document.getElementById('historial-filtrar');
   const btnLimpiar = document.getElementById('historial-limpiar');
   const btnExportarReporte = document.getElementById('historial-exportar-reporte');
   const fechaDesde = document.getElementById('historial-fecha-desde');
   const fechaHasta = document.getElementById('historial-fecha-hasta');
   const placaInput = document.getElementById('historial-placa');
+  const tecnicoSelect = document.getElementById('historial-tecnico');
+  
+  // Cargar lista de técnicos al inicializar
+  async function loadTechniciansForHistorial() {
+    try {
+      const technicians = await API.company.getTechnicians();
+      if (tecnicoSelect && Array.isArray(technicians)) {
+        tecnicoSelect.innerHTML = '<option value="">Todos los técnicos</option>';
+        technicians.forEach(tech => {
+          const name = typeof tech === 'string' ? tech : (tech?.name || '');
+          if (name) {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            tecnicoSelect.appendChild(option);
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('Error cargando técnicos para historial:', err);
+    }
+  }
+  
+  // Cargar técnicos al inicializar
+  loadTechniciansForHistorial();
   
   // Botón exportar reporte
   if(btnExportarReporte) {
@@ -9160,6 +9186,7 @@ function initInternalNavigation() {
     historialDateFrom = fechaDesde?.value || null;
     historialDateTo = fechaHasta?.value || null;
     historialPlate = placaInput?.value?.trim().toUpperCase() || null;
+    historialTechnician = tecnicoSelect?.value?.trim() || null;
     historialCurrentPage = 1;
     historialCache = null; // Invalidar cache al cambiar filtros
     loadHistorial(true);
@@ -9177,9 +9204,11 @@ function initInternalNavigation() {
       if (fechaDesde) fechaDesde.value = '';
       if (fechaHasta) fechaHasta.value = '';
       if (placaInput) placaInput.value = '';
+      if (tecnicoSelect) tecnicoSelect.value = '';
       historialDateFrom = null;
       historialDateTo = null;
       historialPlate = null;
+      historialTechnician = null;
       historialCurrentPage = 1;
       historialCache = null; // Invalidar cache al limpiar filtros
       loadHistorial(true);
@@ -9269,11 +9298,12 @@ async function loadHistorial(forceRefresh = false) {
       page: historialCurrentPage
     };
 
-    // Si hay filtros de fecha o placa, usarlos; si no, cargar últimas 20
-    if (historialDateFrom || historialDateTo || historialPlate) {
+    // Si hay filtros de fecha, placa o técnico, usarlos; si no, cargar últimas 20
+    if (historialDateFrom || historialDateTo || historialPlate || historialTechnician) {
       if (historialDateFrom) params.from = historialDateFrom;
       if (historialDateTo) params.to = historialDateTo;
       if (historialPlate) params.plate = historialPlate;
+      if (historialTechnician) params.technician = historialTechnician;
     } else {
       // Sin filtros: cargar últimas 20 ventas
       params.limit = 20;
@@ -9291,14 +9321,28 @@ async function loadHistorial(forceRefresh = false) {
     }
 
     const res = await API.sales.list(params);
-    const sales = Array.isArray(res?.items) ? res.items : [];
+    let sales = Array.isArray(res?.items) ? res.items : [];
+    
+    // Filtrar por técnico en el frontend si está especificado
+    if (historialTechnician) {
+      sales = sales.filter(sale => {
+        const tech = sale?.technician || sale?.closingTechnician || sale?.initialTechnician || '';
+        return String(tech).trim().toUpperCase() === String(historialTechnician).trim().toUpperCase();
+      });
+    }
     
     // Actualizar cache
     historialCache = sales;
     historialCacheKey = cacheKey;
     
-    historialTotal = res?.total || sales.length;
-    historialTotalPages = res?.pages || Math.ceil(historialTotal / historialPageSize);
+    // Ajustar totales si se filtró por técnico
+    if (historialTechnician) {
+      historialTotal = sales.length;
+      historialTotalPages = Math.ceil(historialTotal / historialPageSize);
+    } else {
+      historialTotal = res?.total || sales.length;
+      historialTotalPages = res?.pages || Math.ceil(historialTotal / historialPageSize);
+    }
 
     renderHistorialSales(sales);
 
@@ -9376,6 +9420,38 @@ function setupHistorialEventDelegation() {
   historialEventDelegationSetup = true;
 }
 
+// Función helper para extraer servicios y combos de una venta (solo nombres, sin precios)
+function extractServicesAndCombos(sale) {
+  if (!sale?.items || !Array.isArray(sale.items)) return { services: [], combos: [] };
+  
+  const services = [];
+  const combos = [];
+  const processedComboSkus = new Set();
+  
+  sale.items.forEach(item => {
+    const sku = String(item.sku || '').toUpperCase();
+    const name = item.name || '';
+    const source = item.source || '';
+    
+    // Detectar combos: SKU que empieza con COMBO- o source='price' con SKU que contiene COMBO
+    if (sku.startsWith('COMBO-') || (source === 'price' && sku.includes('COMBO'))) {
+      // Evitar duplicados de combos
+      if (!processedComboSkus.has(sku) && name) {
+        combos.push(name);
+        processedComboSkus.add(sku);
+      }
+    }
+    // Detectar servicios: source='service' o SKU que empieza con SRV-
+    else if (source === 'service' || sku.startsWith('SRV-')) {
+      if (name && !services.includes(name)) {
+        services.push(name);
+      }
+    }
+  });
+  
+  return { services, combos };
+}
+
 function createHistorialSaleCard(sale) {
   const card = document.createElement('div');
   card.className = 'historial-sale-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4';
@@ -9385,21 +9461,29 @@ function createHistorialSaleCard(sale) {
   const totalPaid = calculateTotalPaid(sale);
   const closedDate = formatClosedDate(sale?.closedAt);
   const saleNumber = padSaleNumber(sale?.number || sale?._id || '');
+  const technician = sale?.technician || sale?.closingTechnician || 'Sin asignar';
+  const { services, combos } = extractServicesAndCombos(sale);
+  
+  // Crear resumen de servicios y combos
+  const summaryItems = [...services, ...combos];
+  const summaryText = summaryItems.length > 0 
+    ? summaryItems.join(', ') 
+    : 'Sin servicios ni combos';
 
   card.innerHTML = `
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <div class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>
           <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Placa</div>
-          <div class="text-base font-bold text-white dark:text-white theme-light:text-slate-900">${htmlEscape(plate.toUpperCase())}</div>
+          <div class="text-sm font-bold text-white dark:text-white theme-light:text-slate-900">${htmlEscape(plate.toUpperCase())}</div>
         </div>
         <div>
           <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Cliente</div>
-          <div class="text-base font-semibold text-white dark:text-white theme-light:text-slate-900">${htmlEscape(customer)}</div>
+          <div class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 truncate">${htmlEscape(customer)}</div>
         </div>
         <div>
           <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Valor pagado</div>
-          <div class="text-lg font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${money(totalPaid)}</div>
+          <div class="text-sm font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${money(totalPaid)}</div>
         </div>
       </div>
       <div class="flex flex-col sm:flex-row gap-2">
@@ -9414,9 +9498,21 @@ function createHistorialSaleCard(sale) {
         </button>
       </div>
     </div>
-    <div class="mt-3 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 flex justify-between items-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
-      <span>Venta #${saleNumber}</span>
-      <span>Cerrada: ${closedDate}</span>
+    <div class="mt-3 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 space-y-2">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Resumen:</span>
+          <span class="text-white dark:text-white theme-light:text-slate-900 font-medium">${htmlEscape(summaryText)}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Técnico:</span>
+          <span class="text-blue-400 dark:text-blue-400 theme-light:text-blue-600 font-semibold">${htmlEscape(technician)}</span>
+        </div>
+      </div>
+      <div class="flex justify-between items-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+        <span>Venta #${saleNumber}</span>
+        <span>Cerrada: ${closedDate}</span>
+      </div>
     </div>
   `;
 
