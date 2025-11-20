@@ -4647,21 +4647,30 @@ async function renderPricesView(container, vehicleId) {
       loadPrices();
     });
     
-    // Botones de crear
-    container.querySelector('#create-service-btn').onclick = () => {
-      closeModal();
-      createPriceFromSale('service', vehicleId, vehicle);
-    };
+    // Botones de crear (solo si hay vehículo seleccionado)
+    const createServiceBtn = container.querySelector('#create-service-btn');
+    if (createServiceBtn) {
+      createServiceBtn.onclick = () => {
+        closeModal();
+        createPriceFromSale('service', vehicleId, vehicle);
+      };
+    }
     
-    container.querySelector('#create-product-btn').onclick = () => {
-      closeModal();
-      createPriceFromSale('product', vehicleId, vehicle);
-    };
+    const createProductBtn = container.querySelector('#create-product-btn');
+    if (createProductBtn) {
+      createProductBtn.onclick = () => {
+        closeModal();
+        createPriceFromSale('product', vehicleId, vehicle);
+      };
+    }
     
-    container.querySelector('#create-combo-btn').onclick = () => {
-      closeModal();
-      createPriceFromSale('combo', vehicleId, vehicle);
-    };
+    const createComboBtn = container.querySelector('#create-combo-btn');
+    if (createComboBtn) {
+      createComboBtn.onclick = () => {
+        closeModal();
+        createPriceFromSale('combo', vehicleId, vehicle);
+      };
+    }
     
     // Cargar precios iniciales
     await loadPrices();

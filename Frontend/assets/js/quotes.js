@@ -2315,7 +2315,15 @@ export function initQuotes({ getCompanyEmail }) {
     }
 
     // ---- cargar datos ----
-    iNumber.value = (doc?.number || '').toString().padStart(5,'0');
+    // Asegurar que el número se muestre correctamente (usar el número del documento si existe, sino usar el siguiente)
+    if (doc?.number) {
+      // Si el número viene como string, usarlo directamente; si viene como número, formatearlo
+      const numStr = typeof doc.number === 'string' ? doc.number : String(doc.number);
+      iNumber.value = numStr.padStart(5, '0');
+    } else {
+      // Si no hay número, usar el siguiente número disponible
+      iNumber.value = nextNumber();
+    }
     iDatetime.value = doc?.createdAt ? new Date(doc.createdAt).toLocaleString() : todayIso();
     iName.value  = doc?.customer?.name  || '';
     iPhone.value = doc?.customer?.phone || '';
@@ -2667,7 +2675,13 @@ export function initQuotes({ getCompanyEmail }) {
             return item.description || item.unitPrice > 0 || (item.qty && item.qty > 0);
           })
         };
-        await API.quotePatch(doc._id, payload);
+        const updatedDoc = await API.quotePatch(doc._id, payload);
+        
+        // Actualizar el número si el backend lo devuelve
+        if (updatedDoc?.number) {
+          const numStr = typeof updatedDoc.number === 'string' ? updatedDoc.number : String(updatedDoc.number);
+          iNumber.value = numStr.padStart(5, '0');
+        }
         
         // Mostrar mensaje de confirmación elegante
         showSuccessMessage('Cotización actualizada correctamente');
@@ -2694,7 +2708,13 @@ export function initQuotes({ getCompanyEmail }) {
 
   function setUIFromQuote(d){
     currentQuoteId = d?._id || null;
-    iNumber.value = d?.number || nextNumber();
+    // Asegurar que el número se muestre correctamente
+    if (d?.number) {
+      const numStr = typeof d.number === 'string' ? d.number : String(d.number);
+      iNumber.value = numStr.padStart(5, '0');
+    } else {
+      iNumber.value = nextNumber();
+    }
     iNumberBig.textContent = iNumber.value;
     // Usar formato ISO para compatibilidad con exportPDF
     if (d?.createdAt) {
