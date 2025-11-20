@@ -103,6 +103,88 @@ async function computeItems(itemsInput = [], companyId = null) {
       itemKind = 'Combo'; // Marcar como Combo para items anidados
     }
 
+    // Si es un combo (source='price' con refId y tipo='combo'), expandirlo automáticamente
+    // PERO solo si el frontend no ya expandió los items (verificar si hay items con comboParent que apunten a este refId)
+    if (source === 'price' && refId && itemKind === 'Combo' && PriceEntry && companyId) {
+      // Verificar si ya hay items expandidos para este combo en el input
+      const alreadyExpanded = itemsInput.some(otherIt => {
+        const otherComboParent = otherIt.comboParent || otherIt.combo_parent;
+        return otherComboParent && String(otherComboParent).trim() === String(refId).trim();
+      });
+      
+      // Solo expandir si no está ya expandido
+      if (!alreadyExpanded) {
+        let pe = priceEntryCache.get(String(refId));
+        if (!pe) {
+          try {
+            pe = await PriceEntry.findOne({ _id: refId, companyId })
+              .populate('vehicleId', 'make line displacement modelYear')
+              .populate('itemId', 'sku name stock salePrice')
+              .populate('comboProducts.itemId', 'sku name stock salePrice')
+              .lean();
+            if (pe) priceEntryCache.set(String(refId), pe);
+          } catch (err) {
+            // Continuar si hay error
+          }
+        }
+        
+        // Si se encontró el PriceEntry y es un combo con productos, expandirlo
+        if (pe && pe.type === 'combo' && pe.comboProducts && Array.isArray(pe.comboProducts) && pe.comboProducts.length > 0) {
+          // Agregar el combo principal
+          items.push({
+            kind: 'Combo',
+            description: String(it.description || pe.name || '').trim(),
+            qty,
+            unitPrice,
+            subtotal,
+            source: 'price',
+            refId,
+            sku,
+            comboParent: undefined // El combo principal no tiene comboParent
+          });
+          total += subtotal;
+          
+          // Agregar cada producto del combo como item anidado
+          pe.comboProducts.forEach(cp => {
+            const comboItemQty = (cp.qty || 1) * multiplier; // Multiplicar por la cantidad del combo
+            const comboItemUnitPrice = cp.unitPrice || 0;
+            const comboItemSubtotal = comboItemQty * comboItemUnitPrice;
+            
+            // Determinar source y refId del item anidado
+            let comboItemSource = 'price';
+            let comboItemRefId = undefined;
+            let comboItemSku = undefined;
+            
+            if (cp.itemId) {
+              // Si tiene itemId, es un item del inventario
+              comboItemSource = 'inventory';
+              comboItemRefId = typeof cp.itemId === 'object' && cp.itemId._id ? cp.itemId._id : cp.itemId;
+              if (typeof cp.itemId === 'object' && cp.itemId.sku) {
+                comboItemSku = cp.itemId.sku;
+              }
+            }
+            
+            items.push({
+              kind: 'Combo', // Items anidados también son tipo Combo
+              description: String(cp.name || '').trim(),
+              qty: comboItemQty,
+              unitPrice: comboItemUnitPrice,
+              subtotal: comboItemSubtotal,
+              source: comboItemSource,
+              refId: comboItemRefId,
+              sku: comboItemSku,
+              // Establecer comboParent como el refId del combo principal
+              comboParent: refId
+            });
+            total += comboItemSubtotal;
+          });
+          
+          // Continuar con el siguiente item (ya procesamos este combo)
+          continue;
+        }
+      }
+    }
+
     items.push({
       kind: itemKind,
       description: String(it.description || '').trim(),

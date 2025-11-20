@@ -1564,6 +1564,10 @@ export function initQuotes({ getCompanyEmail }) {
         base.refId = r.refId.trim();
       }
       if(r.sku){ base.sku=r.sku; }
+      // Incluir comboParent si existe para identificar items anidados de combos
+      if(r.comboParent && typeof r.comboParent === 'string' && !r.comboParent.includes('[object Object]')){
+        base.comboParent = r.comboParent.trim();
+      }
       return base;
     }).filter(item => {
       // Filtrar solo items completamente vacíos (sin descripción, sin precio, sin cantidad)
@@ -2909,6 +2913,48 @@ export function initQuotes({ getCompanyEmail }) {
         comboParent: comboParent
       };
     }).filter(row => row.desc || row.price > 0 || (row.qty && row.qty > 0));
+    
+    // Si ningún item tiene comboParent pero hay combos principales, intentar reconstruir la relación
+    // Esto es para cotizaciones antiguas que no tienen comboParent guardado
+    const hasComboParent = rows.some(r => r.comboParent);
+    if (!hasComboParent) {
+      // Buscar combos principales (source='price', tipo='COMBO', tiene refId, sin comboParent)
+      const comboMains = rows.filter(r => r.source === 'price' && r.type === 'COMBO' && r.refId && !r.comboParent);
+      
+      if (comboMains.length > 0) {
+        // Para cada combo principal, intentar encontrar sus items anidados
+        // Los items anidados vienen después del combo principal en el array
+        comboMains.forEach(comboMain => {
+          const comboIndex = rows.indexOf(comboMain);
+          if (comboIndex >= 0) {
+            // Buscar items siguientes que podrían ser parte del combo
+            // Se detiene cuando encuentra otro combo principal o un item con source='price' y refId diferente
+            for (let i = comboIndex + 1; i < rows.length; i++) {
+              const nextItem = rows[i];
+              
+              // Si encontramos otro combo principal, detener
+              if (nextItem.source === 'price' && nextItem.type === 'COMBO' && nextItem.refId && !nextItem.comboParent) {
+                break;
+              }
+              
+              // Si el item no es el combo principal mismo y no tiene comboParent, asignarlo
+              if (nextItem !== comboMain && !nextItem.comboParent) {
+                // Verificar que no sea otro combo principal
+                if (!(nextItem.source === 'price' && nextItem.type === 'COMBO' && nextItem.refId)) {
+                  nextItem.comboParent = comboMain.refId;
+                } else {
+                  // Si es otro combo principal, detener
+                  break;
+                }
+              } else if (nextItem.comboParent) {
+                // Si ya tiene comboParent, continuar (podría ser de otro combo)
+                continue;
+              }
+            }
+          }
+        });
+      }
+    }
     
     // Guardar valores actuales de la UI
     const currentSpecialNotes = typeof specialNotes !== 'undefined' ? specialNotes : [];

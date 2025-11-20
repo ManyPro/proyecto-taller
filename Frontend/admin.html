@@ -1140,7 +1140,7 @@
         if(!company) {
           console.error('No se pudo encontrar la empresa después de recargar');
           appSec.innerHTML = '<div class="p-6 text-center text-red-400">Error: No se encontró la empresa seleccionada</div>';
-          return;
+      return;
         }
       } catch(e) {
         console.error('Error recargando empresas:', e);
@@ -1294,10 +1294,10 @@
                   return `
                     <label class="flex items-center gap-3 p-3 bg-slate-700/20 dark:bg-slate-700/20 theme-light:bg-white rounded-lg border border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 cursor-pointer hover:bg-slate-700/30 dark:hover:bg-slate-700/30 theme-light:hover:bg-slate-100 transition-colors">
                       <input type="checkbox" data-shared-company-id="${c._id}" ${isShared ? 'checked' : ''} class="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"/>
-                      <div class="flex-1">
+                        <div class="flex-1">
                         <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${c.name || c.email}</div>
                         <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${isShared ? 'Comparte esta BD' : 'No comparte BD'}</div>
-                      </div>
+                          </div>
                     </label>
                   `;
                 }).join('')}
