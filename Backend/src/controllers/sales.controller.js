@@ -2367,10 +2367,53 @@ export const getProfileByIdNumber = async (req, res) => {
 };
 export const listSales = async (req, res) => {
   const { status, from, to, plate, companyAccountId, page = 1, limit = 50 } = req.query || {};
-  // Para listado de ventas, solo mostrar las que pertenecen al originalCompanyId
-  // (aunque haya base de datos compartida, las ventas siempre pertenecen a quien las crea)
   const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
-  const q = { companyId: originalCompanyId };
+  const effectiveCompanyId = req.companyId;
+  const hasSharedDatabase = req.hasSharedDatabase;
+  
+  // Determinar qué companyIds incluir en el filtro
+  let companyIdsToSearch = [originalCompanyId];
+  
+  // Si hay base de datos compartida, incluir todas las empresas que comparten la BD
+  if (hasSharedDatabase && originalCompanyId && effectiveCompanyId) {
+    try {
+      const Company = (await import('../models/Company.js')).default;
+      const companyDoc = await Company.findById(originalCompanyId).select('sharedDatabaseConfig').lean();
+      
+      if (companyDoc?.sharedDatabaseConfig?.sharedWith) {
+        // Esta empresa es principal, incluir todas las empresas secundarias
+        companyIdsToSearch = [
+          originalCompanyId, // La empresa principal
+          ...companyDoc.sharedDatabaseConfig.sharedWith.map(sw => String(sw.companyId)) // Empresas secundarias
+        ];
+      } else if (companyDoc?.sharedDatabaseConfig?.sharedFrom?.companyId) {
+        // Esta empresa es secundaria, incluir la principal y otras secundarias
+        const mainCompanyId = String(companyDoc.sharedDatabaseConfig.sharedFrom.companyId);
+        const mainCompany = await Company.findById(mainCompanyId).select('sharedDatabaseConfig').lean();
+        
+        companyIdsToSearch = [mainCompanyId]; // La empresa principal
+        if (mainCompany?.sharedDatabaseConfig?.sharedWith) {
+          // Agregar todas las empresas secundarias (incluyendo esta)
+          mainCompany.sharedDatabaseConfig.sharedWith.forEach(sw => {
+            companyIdsToSearch.push(String(sw.companyId));
+          });
+        }
+        // Asegurar que la empresa actual también esté incluida
+        if (!companyIdsToSearch.includes(String(originalCompanyId))) {
+          companyIdsToSearch.push(String(originalCompanyId));
+        }
+      }
+    } catch (err) {
+      console.error('[listSales] Error obteniendo empresas compartidas:', err);
+      // En caso de error, usar solo originalCompanyId
+      companyIdsToSearch = [originalCompanyId];
+    }
+  }
+  
+  // Crear el filtro de companyId
+  const q = companyIdsToSearch.length === 1 
+    ? { companyId: companyIdsToSearch[0] }
+    : { companyId: { $in: companyIdsToSearch } };
   if (status) q.status = String(status);
   // Filtrar por placa si se proporciona
   if (plate) {
