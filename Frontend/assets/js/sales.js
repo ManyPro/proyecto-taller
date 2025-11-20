@@ -4,6 +4,91 @@ import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } fro
 const $  = (s, r=document)=>r.querySelector(s);
 const clone = (id)=>document.getElementById(id)?.content?.firstElementChild?.cloneNode(true);
 const money = (n)=> new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n||0));
+
+// Cache global para PriceEntry (inicializar una sola vez al cargar el módulo)
+if (typeof window !== 'undefined') {
+  if (!window.priceEntryCache) {
+    window.priceEntryCache = new Map();
+  }
+  if (!window.priceEntryErrors) {
+    window.priceEntryErrors = new Set();
+  }
+  if (!window.priceEntryPending) {
+    window.priceEntryPending = new Map(); // Promesas pendientes para evitar llamadas duplicadas
+  }
+}
+
+// Función helper global para obtener PriceEntry con cache
+async function getPriceEntryCached(refId) {
+  if (!refId) return null;
+  const refIdStr = String(refId);
+  
+  // Si ya está en cache, retornar inmediatamente
+  if (window.priceEntryCache.has(refIdStr)) {
+    return window.priceEntryCache.get(refIdStr);
+  }
+  
+  // Si ya sabemos que hay un error, no intentar de nuevo
+  if (window.priceEntryErrors.has(refIdStr)) {
+    return null;
+  }
+  
+  // Si hay una llamada pendiente para este ID, esperar a que termine
+  if (window.priceEntryPending.has(refIdStr)) {
+    try {
+      return await window.priceEntryPending.get(refIdStr);
+    } catch {
+      return null;
+    }
+  }
+  
+  // Crear una nueva promesa para esta llamada
+  const promise = (async () => {
+    try {
+      const pe = await API.prices.get(refId);
+      if (pe && pe._id) {
+        // Guardar en cache
+        window.priceEntryCache.set(refIdStr, pe);
+        return pe;
+      }
+      return null;
+    } catch (err) {
+      // Detectar 404 por mensaje o status (api.js lanza Error con message, no status)
+      const errorMsg = String(err?.message || err || '').toLowerCase();
+      const is404 = err?.status === 404 || 
+                    errorMsg.includes('404') || 
+                    errorMsg.includes('not found') || 
+                    errorMsg.includes('priceentry not found') ||
+                    errorMsg.includes('price entry not found') ||
+                    errorMsg.includes('no encontrado') ||
+                    errorMsg.includes('no existe');
+      
+      if (is404) {
+        window.priceEntryErrors.add(refIdStr);
+        // Solo loguear una vez para evitar spam en consola
+        if (!window.priceEntryErrorsLogged) {
+          window.priceEntryErrorsLogged = new Set();
+        }
+        if (!window.priceEntryErrorsLogged.has(refIdStr)) {
+          window.priceEntryErrorsLogged.add(refIdStr);
+          console.warn(`[PriceEntry Cache] No se encontró PriceEntry ${refIdStr}, evitando futuros intentos`);
+        }
+      } else {
+        // Para otros errores, solo loguear pero no cachear el error (puede ser temporal)
+        console.warn(`[PriceEntry Cache] Error al obtener PriceEntry ${refIdStr}:`, err);
+      }
+      return null;
+    } finally {
+      // Limpiar la promesa pendiente
+      window.priceEntryPending.delete(refIdStr);
+    }
+  })();
+  
+  // Guardar la promesa pendiente
+  window.priceEntryPending.set(refIdStr, promise);
+  
+  return await promise;
+}
 const htmlEscape = (str) => {
   const div = document.createElement('div');
   div.textContent = str || '';
@@ -2715,55 +2800,6 @@ async function renderSale(){
   let i = 0;
   const comboProductsCountCache = new Map();
   
-  // Cache global para PriceEntry (evita múltiples llamadas y bucles)
-  if (!window.priceEntryCache) {
-    window.priceEntryCache = new Map();
-  }
-  const priceEntryCache = window.priceEntryCache;
-  
-  // Cache de errores para evitar intentos repetidos
-  if (!window.priceEntryErrors) {
-    window.priceEntryErrors = new Set();
-  }
-  const priceEntryErrors = window.priceEntryErrors;
-  
-  // Función helper para obtener PriceEntry con cache
-  async function getPriceEntryCached(refId) {
-    if (!refId) return null;
-    const refIdStr = String(refId);
-    
-    // Si ya está en cache, retornar inmediatamente
-    if (priceEntryCache.has(refIdStr)) {
-      return priceEntryCache.get(refIdStr);
-    }
-    
-    // Si ya sabemos que hay un error, no intentar de nuevo
-    if (priceEntryErrors.has(refIdStr)) {
-      return null;
-    }
-    
-    try {
-      const pe = await API.prices.get(refId);
-      if (pe && pe._id) {
-        // Guardar en cache
-        priceEntryCache.set(refIdStr, pe);
-        return pe;
-      }
-    } catch (err) {
-      // Si es 404, marcar como error para no intentar de nuevo
-      if (err?.status === 404 || err?.message?.includes('404') || err?.message?.includes('Not Found')) {
-        priceEntryErrors.add(refIdStr);
-        console.warn(`[PriceEntry Cache] No se encontró PriceEntry ${refIdStr}, evitando futuros intentos`);
-      } else {
-        // Para otros errores, solo loguear pero no cachear el error
-        console.warn(`[PriceEntry Cache] Error al obtener PriceEntry ${refIdStr}:`, err);
-      }
-      return null;
-    }
-    
-    return null;
-  }
-  
   while (i < items.length) {
     const it = items[i];
     const sku = String(it.sku || '').toUpperCase();
@@ -3453,42 +3489,6 @@ async function renderWO(){
   const items = current.items || [];
   
   // Identificar combos consultando PriceEntry (usar cache global)
-  if (!window.priceEntryCache) {
-    window.priceEntryCache = new Map();
-  }
-  if (!window.priceEntryErrors) {
-    window.priceEntryErrors = new Set();
-  }
-  const priceEntryCache = window.priceEntryCache;
-  const priceEntryErrors = window.priceEntryErrors;
-  
-  async function getPriceEntryCached(refId) {
-    if (!refId) return null;
-    const refIdStr = String(refId);
-    
-    if (priceEntryCache.has(refIdStr)) {
-      return priceEntryCache.get(refIdStr);
-    }
-    
-    if (priceEntryErrors.has(refIdStr)) {
-      return null;
-    }
-    
-    try {
-      const pe = await API.prices.get(refId);
-      if (pe && pe._id) {
-        priceEntryCache.set(refIdStr, pe);
-        return pe;
-      }
-    } catch (err) {
-      if (err?.status === 404 || err?.message?.includes('404') || err?.message?.includes('Not Found')) {
-        priceEntryErrors.add(refIdStr);
-      }
-      return null;
-    }
-    
-    return null;
-  }
   
   const priceEntryIds = items
     .filter(item => item.source === 'price' && item.refId)
@@ -6779,43 +6779,7 @@ async function openSaleHistoryDetail(id){
       const combos = [];
       
       // Necesitamos identificar combos consultando PriceEntry si tienen source='price'
-      // Usar cache global para evitar múltiples llamadas
-      if (!window.priceEntryCache) {
-        window.priceEntryCache = new Map();
-      }
-      if (!window.priceEntryErrors) {
-        window.priceEntryErrors = new Set();
-      }
-      const priceEntryCache = window.priceEntryCache;
-      const priceEntryErrors = window.priceEntryErrors;
-      
-      async function getPriceEntryCached(refId) {
-        if (!refId) return null;
-        const refIdStr = String(refId);
-        
-        if (priceEntryCache.has(refIdStr)) {
-          return priceEntryCache.get(refIdStr);
-        }
-        
-        if (priceEntryErrors.has(refIdStr)) {
-          return null;
-        }
-        
-        try {
-          const pe = await API.prices.get(refId);
-          if (pe && pe._id) {
-            priceEntryCache.set(refIdStr, pe);
-            return pe;
-          }
-        } catch (err) {
-          if (err?.status === 404 || err?.message?.includes('404') || err?.message?.includes('Not Found')) {
-            priceEntryErrors.add(refIdStr);
-          }
-          return null;
-        }
-        
-        return null;
-      }
+      // Usar cache global (función getPriceEntryCached definida al inicio del módulo)
       
       const priceEntryIds = sale.items
         .filter(item => item.source === 'price' && item.refId)
