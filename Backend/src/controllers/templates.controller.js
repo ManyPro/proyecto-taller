@@ -898,10 +898,10 @@ function normalizeTemplateHtml(html='') {
         if (!match.includes('sale.vehicle.brand') && !match.includes('sale.vehicle.line')) {
           const vehicleRow = `          {{#if sale.vehicle}}
           <tr style="background: #e8f4f8; font-weight: bold; border: 2px solid #000; border-bottom: 1px solid #000;">
-            <th style="padding: 3px 6px; font-size: 11px; border-right: 1px solid #000; width: 50%; text-align: left;">
+            <th colspan="2" style="padding: 3px 6px; font-size: 11px; border-right: 1px solid #000; text-align: left;">
               {{#if sale.vehicle.brand}}{{sale.vehicle.brand}}{{/if}}{{#if sale.vehicle.line}} {{sale.vehicle.line}}{{/if}}{{#if sale.vehicle.displacement}} {{sale.vehicle.displacement}}{{/if}}
             </th>
-            <th style="padding: 3px 6px; font-size: 11px; width: 50%; text-align: left;">
+            <th colspan="2" style="padding: 3px 6px; font-size: 11px; text-align: left;">
               {{#if sale.vehicle.mileage}}Kilometraje: {{sale.vehicle.mileage}} km{{/if}}
             </th>
           </tr>
@@ -923,39 +923,10 @@ function normalizeTemplateHtml(html='') {
         // Si tiene {{#each sale.items}} pero NO tiene sale.itemsGrouped, convertir a nueva estructura
         if (match.includes('{{#each sale.items}}') && !match.includes('sale.itemsGrouped')) {
           // Remover la fila del vehículo del tbody si existe (ya estará en el thead)
-          let cleanedTbody = match.replace(/{{#if sale\.vehicle}}[\s\S]*?{{\/if}}/g, '');
           const newTbody = `<tbody>
-          {{#if sale.itemsGrouped.hasProducts}}
-          <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">PRODUCTOS</td>
-          </tr>
-          {{#each sale.itemsGrouped.products}}
-          <tr>
-            <td>{{name}}</td>
-            <td class="t-center">{{qty}}</td>
-            <td class="t-right">{{money unitPrice}}</td>
-            <td class="t-right">{{money total}}</td>
-          </tr>
-          {{/each}}
-          {{/if}}
-          
-          {{#if sale.itemsGrouped.hasServices}}
-          <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">SERVICIOS</td>
-          </tr>
-          {{#each sale.itemsGrouped.services}}
-          <tr>
-            <td>{{#if sku}}[{{sku}}] {{/if}}{{name}}</td>
-            <td class="t-center">{{qty}}</td>
-            <td class="t-right">{{money unitPrice}}</td>
-            <td class="t-right">{{money total}}</td>
-          </tr>
-          {{/each}}
-          {{/if}}
-          
           {{#if sale.itemsGrouped.hasCombos}}
           <tr class="section-header">
-            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 8px; border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 11px;">COMBOS</td>
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">COMBOS</td>
           </tr>
           {{#each sale.itemsGrouped.combos}}
           <tr>
@@ -972,6 +943,34 @@ function normalizeTemplateHtml(html='') {
             <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>
           </tr>
           {{/each}}
+          {{/each}}
+          {{/if}}
+          
+          {{#if sale.itemsGrouped.hasProducts}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">PRODUCTOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.products}}
+          <tr>
+            <td>{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{/each}}
+          {{/if}}
+          
+          {{#if sale.itemsGrouped.hasServices}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">SERVICIOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.services}}
+          <tr>
+            <td>{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
           {{/each}}
           {{/if}}
           
