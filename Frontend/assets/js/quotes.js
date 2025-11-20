@@ -2267,27 +2267,34 @@ export function initQuotes({ getCompanyEmail }) {
         }
       });
       
-      // Procesar combos primero
+      // Procesar combos primero (igual que buildWhatsAppText)
       comboMap.forEach((combo, refId) => {
         if (combo.main && combo.items.length > 0) {
           const {type,desc,qty,price} = combo.main;
           const q=qty>0?qty:1; const st=q*(price||0);
           const cantSuffix=(qty&&Number(qty)>0)?` x${q}`:'';
-          lines.push(`*${desc||'Combo'}${cantSuffix}*`);
+          // Mostrar combo con precio en la misma línea
           if (st > 0) {
-            lines.push(`${money(st)}`);
+            lines.push(`*${desc||'Combo'}${cantSuffix}* - ${money(st)}`);
+          } else {
+            lines.push(`*${desc||'Combo'}${cantSuffix}*`);
           }
           
-          // Agregar items del combo anidados
+          // Agregar items del combo anidados con mejor indentación
           combo.items.forEach(item => {
             const itemQ = item.qty>0?item.qty:1;
             const itemSt = itemQ*(item.price||0);
             const itemCantSuffix = (item.qty&&Number(item.qty)>0)?` x${item.qty}`:'';
-            lines.push(`     *${item.desc||'Item'}${itemCantSuffix}*`);
+            // Mostrar item anidado con precio en la misma línea y mejor indentación
             if (itemSt > 0) {
-              lines.push(`     ${money(itemSt)}`);
+              lines.push(`  └─ *${item.desc||'Item'}${itemCantSuffix}* - ${money(itemSt)}`);
+            } else {
+              lines.push(`  └─ *${item.desc||'Item'}${itemCantSuffix}*`);
             }
           });
+        } else if (combo.items.length > 0 && !combo.main) {
+          // Items huérfanos (tienen comboParent pero no se encontró el combo principal)
+          combo.items.forEach(item => regularRows.push(item));
         } else {
           if (combo.main) regularRows.push(combo.main);
           if (combo.items.length > 0) regularRows.push(...combo.items);
@@ -2299,8 +2306,12 @@ export function initQuotes({ getCompanyEmail }) {
         const q=qty>0?qty:1; const st=q*(price||0);
         const tipo=(type==='SERVICIO')?'Servicio':'Producto';
         const cantSuffix=(qty&&Number(qty)>0)?` x${q}`:'';
-  lines.push(`• ${desc||tipo}${cantSuffix}`);
-        lines.push(`${money(st)}`);
+        // Mostrar item con precio en la misma línea
+        if (st > 0) {
+          lines.push(`• ${desc||tipo}${cantSuffix} - ${money(st)}`);
+        } else {
+          lines.push(`• ${desc||tipo}${cantSuffix}`);
+        }
       });
       
       // Agregar notas especiales si existen
@@ -2657,7 +2668,13 @@ export function initQuotes({ getCompanyEmail }) {
       recalc();
     });
     q('#m-wa')?.addEventListener('click',()=>{
-      const text = buildWAText(); if(!text.trim()) return; window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,'_blank');
+      const text = buildWAText(); if(!text.trim()) return;
+      // Obtener número del cliente si está disponible
+      const clientPhone = (iClientPhone?.value || '').trim().replace(/\D/g, '');
+      const waUrl = clientPhone 
+        ? `https://wa.me/${clientPhone}?text=${encodeURIComponent(text)}`
+        : `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(waUrl,'_blank');
     });
     q('#m-pdf')?.addEventListener('click',()=>{
       // Usar exportPDF que ya maneja templates correctamente
@@ -2930,6 +2947,20 @@ export function initQuotes({ getCompanyEmail }) {
       specialNotes = d.specialNotes || [];
     }
     
+    // Log para debugging - verificar estructura de rows
+    console.log('[openWAFromDoc] Rows preparados para buildWhatsAppText:', {
+      totalRows: rows.length,
+      rowsWithComboParent: rows.filter(r => r.comboParent).length,
+      rowsWithRefId: rows.filter(r => r.refId).length,
+      sampleRows: rows.slice(0, 3).map(r => ({
+        desc: r.desc?.substring(0, 30),
+        type: r.type,
+        comboParent: r.comboParent,
+        refId: r.refId,
+        source: r.source
+      }))
+    });
+    
     // Usar buildWhatsAppText que ya tiene la lógica correcta para anidar combos
     const hideTotal = hideTotalState;
     const text = buildWhatsAppText(rows, subP, subS, total, hideTotal);
@@ -2951,7 +2982,12 @@ export function initQuotes({ getCompanyEmail }) {
       specialNotes = bak.sn;
     }
     
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`,'_blank');
+    // Obtener número del cliente de la cotización
+    const clientPhone = (d.customer?.phone || '').trim().replace(/\D/g, '');
+    const waUrl = clientPhone 
+      ? `https://wa.me/${clientPhone}?text=${encodeURIComponent(text)}`
+      : `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(waUrl,'_blank');
   }
 
   // ===== Reset de formulario (post-crear) =====
