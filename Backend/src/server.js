@@ -205,68 +205,87 @@ app.use('/api/v1/admin', adminRouter);
 app.use('/api/v1/admin/company', adminCompanyRouter);
 
 async function withCompanyDefaults(req, _res, next) {
-  if (req.company?.id) {
-    const originalCompanyId = String(req.company.id);
-    
-    try {
-      const Company = (await import('./models/Company.js')).default;
-      const companyDoc = await Company.findById(originalCompanyId).select('sharedDatabaseId sharedDatabaseConfig').lean();
+  try {
+    if (req.company?.id) {
+      const originalCompanyId = String(req.company.id);
       
-      // Si la empresa no existe, usar el ID original y continuar
-      if (!companyDoc) {
+      try {
+        const Company = (await import('./models/Company.js')).default;
+        const companyDoc = await Company.findById(originalCompanyId).select('sharedDatabaseId sharedDatabaseConfig').lean();
+        
+        // Si la empresa no existe, usar el ID original y continuar
+        if (!companyDoc) {
+          req.companyId = originalCompanyId;
+          req.originalCompanyId = originalCompanyId;
+          req.hasSharedDatabase = false;
+        } else {
+          // Determinar qué companyId usar según el nuevo sistema o el antiguo (compatibilidad)
+          let effectiveCompanyId = originalCompanyId;
+          let hasSharedDatabase = false;
+          
+          // Nuevo sistema: sharedDatabaseConfig.sharedFrom
+          if (companyDoc?.sharedDatabaseConfig?.sharedFrom?.companyId) {
+            effectiveCompanyId = String(companyDoc.sharedDatabaseConfig.sharedFrom.companyId);
+            hasSharedDatabase = true;
+          }
+          // Sistema antiguo: sharedDatabaseId (compatibilidad)
+          else if (companyDoc?.sharedDatabaseId) {
+            effectiveCompanyId = String(companyDoc.sharedDatabaseId);
+            hasSharedDatabase = true;
+          }
+          
+          // Cuando hay base compartida, se comparte TODA la data (ventas, calendario, inventario, clientes, etc.)
+          // No hay restricciones por tipo de ruta
+          
+          req.companyId = effectiveCompanyId;
+          req.originalCompanyId = originalCompanyId;
+          req.hasSharedDatabase = hasSharedDatabase;
+        }
+      } catch (err) {
+        // Si hay error, usar el ID original y loguear el error
+        logger.error('[withCompanyDefaults] Error obteniendo información de empresa', { 
+          error: err?.message, 
+          stack: err?.stack,
+          companyId: originalCompanyId 
+        });
         req.companyId = originalCompanyId;
         req.originalCompanyId = originalCompanyId;
         req.hasSharedDatabase = false;
-      } else {
-        // Determinar qué companyId usar según el nuevo sistema o el antiguo (compatibilidad)
-        let effectiveCompanyId = originalCompanyId;
-        let hasSharedDatabase = false;
-        
-        // Nuevo sistema: sharedDatabaseConfig.sharedFrom
-        if (companyDoc?.sharedDatabaseConfig?.sharedFrom?.companyId) {
-          effectiveCompanyId = String(companyDoc.sharedDatabaseConfig.sharedFrom.companyId);
-          hasSharedDatabase = true;
-        }
-        // Sistema antiguo: sharedDatabaseId (compatibilidad)
-        else if (companyDoc?.sharedDatabaseId) {
-          effectiveCompanyId = String(companyDoc.sharedDatabaseId);
-          hasSharedDatabase = true;
-        }
-        
-        // Cuando hay base compartida, se comparte TODA la data (ventas, calendario, inventario, clientes, etc.)
-        // No hay restricciones por tipo de ruta
-        
-        req.companyId = effectiveCompanyId;
-        req.originalCompanyId = originalCompanyId;
-        req.hasSharedDatabase = hasSharedDatabase;
       }
-    } catch (err) {
-      // Si hay error, usar el ID original y loguear el error
-      console.error('[withCompanyDefaults] Error obteniendo información de empresa:', err);
-      req.companyId = originalCompanyId;
-      req.originalCompanyId = originalCompanyId;
-      req.hasSharedDatabase = false;
-    }
-    
-    if (req.user?.id) req.userId = String(req.user.id);
+      
+      if (req.user?.id) req.userId = String(req.user.id);
 
-    if (req.method === 'GET') {
-      req.query = { ...req.query, companyId: req.companyId };
+      if (req.method === 'GET') {
+        req.query = { ...req.query, companyId: req.companyId };
+      }
+      if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+        req.body ||= {};
+        if (!req.body.companyId) req.body.companyId = req.companyId;
+        if (!req.body.userId && req.userId) req.body.userId = req.userId;
+      }
+    } else {
+      // Si no hay req.company.id, asegurar que req.companyId esté definido si es necesario
+      // Esto puede pasar en algunos endpoints que no requieren autenticación completa
+      if (!req.companyId && req.company?.id) {
+        req.companyId = String(req.company.id);
+        req.originalCompanyId = String(req.company.id);
+      }
     }
-    if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
-      req.body ||= {};
-      if (!req.body.companyId) req.body.companyId = req.companyId;
-      if (!req.body.userId && req.userId) req.body.userId = req.userId;
-    }
-  } else {
-    // Si no hay req.company.id, asegurar que req.companyId esté definido si es necesario
-    // Esto puede pasar en algunos endpoints que no requieren autenticación completa
-    if (!req.companyId && req.company?.id) {
+    next();
+  } catch (err) {
+    // Capturar cualquier error no esperado en el middleware
+    logger.error('[withCompanyDefaults] Error crítico en middleware', { 
+      error: err?.message, 
+      stack: err?.stack 
+    });
+    // Continuar con valores por defecto para no romper la aplicación
+    if (req.company?.id) {
       req.companyId = String(req.company.id);
       req.originalCompanyId = String(req.company.id);
+      req.hasSharedDatabase = false;
     }
+    next();
   }
-  next();
 }
 
 app.use('/api/v1/notes', authCompany, withCompanyDefaults, notesRouter);

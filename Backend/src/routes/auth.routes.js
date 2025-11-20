@@ -59,10 +59,10 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'email y password son requeridos' });
     }
     const company = await Company.findOne({ email });
-    if (!company) return res.status(401).json({ error: 'Credenciales invÃ¡lidas' });
+    if (!company) return res.status(401).json({ error: 'Credenciales inválidas' });
 
     const ok = await bcrypt.compare(password, company.passwordHash);
-    if (!ok) return res.status(401).json({ error: 'Credenciales invÃ¡lidas' });
+    if (!ok) return res.status(401).json({ error: 'Credenciales inválidas' });
 
     const token = signCompany(company);
     return res.json({
@@ -70,6 +70,7 @@ router.post('/login', async (req, res) => {
       company: { id: company._id, name: company.name, email: company.email }
     });
   } catch (e) {
+    console.error('[auth/company/login] Error:', e);
     return res.status(500).json({ error: 'Error en login' });
   }
 });
