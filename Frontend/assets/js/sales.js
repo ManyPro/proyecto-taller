@@ -4450,8 +4450,11 @@ async function renderPricesView(container, vehicleId) {
     }
     
     function renderPricesList(prices) {
-    const pricesList = container.querySelector('#prices-list');
-      if (!pricesList) return;
+      const pricesList = container.querySelector('#prices-list');
+      if (!pricesList) {
+        console.error('No se encontró el elemento #prices-list');
+        return;
+      }
     
     if (prices.length === 0) {
         pricesList.innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted);">No hay precios que coincidan con los filtros.</div>';
@@ -4484,7 +4487,13 @@ async function renderPricesView(container, vehicleId) {
           <button class="add-price-btn primary" data-price-id="${pe._id}" style="padding:6px 16px;border-radius:6px;border:none;cursor:pointer;font-weight:600;">Agregar</button>
         `;
         
-        card.querySelector('.add-price-btn').onclick = async () => {
+        const addBtn = card.querySelector('.add-price-btn');
+        if (!addBtn) {
+          console.error('No se encontró el botón add-price-btn');
+          continue;
+        }
+        
+        addBtn.onclick = async () => {
           const btn = card.querySelector('.add-price-btn');
           const originalText = btn.textContent;
           try {
@@ -5717,14 +5726,14 @@ function renderQuoteMini(q){
     const type = it.type || (it.source === 'service' || String(sku || '').toUpperCase().startsWith('SRV-') ? 'SERVICIO' : 'PRODUCTO');
     const typeLabel = type === 'SERVICIO' ? 'Servicio' : 'Producto';
     const tr = document.createElement('tr');
-    tr.className = 'border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors';
+    tr.className = 'bg-white dark:bg-white theme-light:bg-white border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300 hover:bg-slate-50 dark:hover:bg-slate-50 theme-light:hover:bg-slate-50 transition-colors';
     tr.innerHTML = `
-      <td class="py-1 px-0.5 text-xs text-white dark:text-white theme-light:text-slate-900 align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${typeLabel}</td>
-      <td class="py-1 px-0.5 text-xs text-white dark:text-white theme-light:text-slate-900 break-words align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${htmlEscape(name || 'Item')}</td>
-      <td class="py-1 px-0.5 text-center text-[10px] text-white dark:text-white theme-light:text-slate-900 align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${qty}</td>
-      <td class="py-1 px-0.5 text-right text-[10px] text-white dark:text-white theme-light:text-slate-900 font-medium whitespace-nowrap align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(unit)}</td>
-      <td class="py-1 px-0.5 text-right text-[10px] text-white dark:text-white theme-light:text-slate-900 font-semibold whitespace-nowrap align-top border-r border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(total)}</td>
-      <td class="py-1 px-0.5 text-center align-top border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">
+      <td class="py-1 px-0.5 text-xs text-slate-900 dark:text-slate-900 theme-light:text-slate-900 align-top border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">${typeLabel}</td>
+      <td class="py-1 px-0.5 text-xs text-slate-900 dark:text-slate-900 theme-light:text-slate-900 break-words align-top border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">${htmlEscape(name || 'Item')}</td>
+      <td class="py-1 px-0.5 text-center text-[10px] text-slate-900 dark:text-slate-900 theme-light:text-slate-900 align-top border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">${qty}</td>
+      <td class="py-1 px-0.5 text-right text-[10px] text-slate-900 dark:text-slate-900 theme-light:text-slate-900 font-medium whitespace-nowrap align-top border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">${money(unit)}</td>
+      <td class="py-1 px-0.5 text-right text-[10px] text-slate-900 dark:text-slate-900 theme-light:text-slate-900 font-semibold whitespace-nowrap align-top border-r border-slate-300 dark:border-slate-300 theme-light:border-slate-300 border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">${money(total)}</td>
+      <td class="py-1 px-0.5 text-center align-top border-b border-slate-300 dark:border-slate-300 theme-light:border-slate-300">
         <button class="add w-5 h-5 flex items-center justify-center text-[10px] bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-bold rounded transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30 theme-light:bg-blue-50 theme-light:text-blue-600 theme-light:hover:bg-blue-100 theme-light:border-blue-300 disabled:opacity-50 disabled:cursor-not-allowed" type="button" title="Agregar">+</button>
       </td>
     `;
@@ -5831,8 +5840,6 @@ async function openPostServiceConfigModal() {
 
 Espero todo haya sido de tu agrado, seria genial que nos dieras tu opinion por este medio: {link calificanos}
 
-{Qr calificanos}
-
 Muchas gracias!</pre>
         </div>
         
@@ -5852,28 +5859,6 @@ Muchas gracias!</pre>
           </p>
         </div>
         
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">
-            QR de calificación (imagen)
-          </label>
-          <div class="mb-2">
-            <input 
-              id="ps-rating-qr-file" 
-              type="file" 
-              accept="image/*"
-              class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-600/50 file:text-white file:cursor-pointer hover:file:bg-slate-600"
-            />
-          </div>
-          ${currentConfig.ratingQrImageUrl ? `
-            <div class="mt-3 p-3 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
-              <p class="text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">Imagen actual:</p>
-              <img src="${htmlEscape(currentConfig.ratingQrImageUrl)}" alt="QR de calificación" class="max-w-[200px] max-h-[200px] rounded border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" />
-            </div>
-          ` : ''}
-          <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">
-            Esta imagen reemplazará {Qr calificanos} en el mensaje
-          </p>
-        </div>
         
         <div class="flex flex-wrap gap-3 mt-6 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
           <button id="ps-save" class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
@@ -5910,30 +5895,24 @@ Muchas gracias!</pre>
         saveBtn.onclick = async () => {
           try {
             const linkInput = document.getElementById('ps-rating-link');
-            const fileInput = document.getElementById('ps-rating-qr-file');
             
             if (!linkInput || !linkInput.value.trim()) {
               return alert('El link de calificación es obligatorio');
             }
             
-            let qrImageUrl = currentConfig.ratingQrImageUrl || '';
-            
-            // Subir imagen si se seleccionó una nueva
-            if (fileInput && fileInput.files && fileInput.files[0]) {
-              const uploadRes = await API.mediaUpload([fileInput.files[0]]);
-              if (uploadRes && uploadRes.files && uploadRes.files[0]) {
-                qrImageUrl = uploadRes.files[0].url || uploadRes.files[0].path || '';
-              }
-            }
-            
-            // Guardar configuración
+            // Guardar configuración (solo link, sin QR)
             const prefs = await API.company.getPreferences();
             prefs.postServiceMessage = {
-              ratingLink: linkInput.value.trim(),
-              ratingQrImageUrl: qrImageUrl
+              ratingLink: linkInput.value.trim()
             };
             
             await API.company.setPreferences(prefs);
+            
+            // Ocultar el botón de configuración después de guardar
+            const configurePostServiceBtn = document.getElementById('sales-configure-post-service');
+            if (configurePostServiceBtn) {
+              configurePostServiceBtn.style.display = 'none';
+            }
             
             alert('Configuración guardada exitosamente');
             modal.classList.add('hidden');
@@ -5975,29 +5954,6 @@ async function sendPostServiceSurvey(sale) {
     // Construir mensaje reemplazando variables
     let message = `Hola ${customerName}, ha sido un placer atenderte en nuestras instalaciones.\n\n`;
     message += `Espero todo haya sido de tu agrado, seria genial que nos dieras tu opinion por este medio: ${config.ratingLink}\n\n`;
-    
-    // Agregar imagen QR si existe
-    // IMPORTANTE: WhatsApp Web/App no muestra imágenes automáticamente desde URLs cuando se usa wa.me
-    // Sin embargo, si la URL está en una línea separada y es accesible públicamente,
-    // WhatsApp puede mostrar una vista previa en algunos casos (depende del servicio de hosting)
-    if (config.ratingQrImageUrl) {
-      const qrUrl = config.ratingQrImageUrl.trim();
-      // Asegurar que la URL sea HTTPS (requerido por WhatsApp)
-      let finalUrl = qrUrl;
-      if (qrUrl.startsWith('http://')) {
-        // Convertir HTTP a HTTPS (Cloudinary soporta HTTPS)
-        finalUrl = qrUrl.replace('http://', 'https://');
-      } else if (!qrUrl.startsWith('https://') && !qrUrl.startsWith('http://')) {
-        // Si no es una URL completa, intentar agregar https://
-        finalUrl = `https://${qrUrl}`;
-      }
-      
-      // Colocar la URL en una línea separada para maximizar las posibilidades de que WhatsApp la detecte
-      // Nota: WhatsApp puede mostrar una vista previa si la URL es de un servicio conocido
-      // (como Cloudinary) y la imagen es accesible públicamente
-      message += `\n${finalUrl}\n\n`;
-    }
-    
     message += 'Muchas gracias!';
     
     // Codificar mensaje para URL
@@ -8914,12 +8870,25 @@ export function initSales(){
   
   // Botón de configurar mensaje post-servicio - Configurar para móvil y desktop
   // Configurar botón de configuración post-servicio con retry
-  function setupConfigurePostServiceButton() {
+  async function setupConfigurePostServiceButton() {
     const configurePostServiceBtn = document.getElementById('sales-configure-post-service');
     if (!configurePostServiceBtn) {
       // Retry después de un pequeño delay si el botón no existe aún
       setTimeout(setupConfigurePostServiceButton, 100);
       return;
+    }
+    
+    // Verificar si ya hay configuración y ocultar el botón si está configurado
+    try {
+      const prefs = await API.company.getPreferences();
+      const config = prefs.postServiceMessage || {};
+      if (config.ratingLink && config.ratingLink.trim()) {
+        configurePostServiceBtn.style.display = 'none';
+        return; // No configurar eventos si el botón está oculto
+      }
+    } catch (err) {
+      console.error('Error checking post-service config:', err);
+      // Continuar con la configuración del botón aunque haya error
     }
     
     // Remover listeners anteriores si existen

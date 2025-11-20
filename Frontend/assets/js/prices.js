@@ -590,7 +590,8 @@ export function initPrices(){
 
   function renderPagination() {
     const paginationEl = $('#pe-pagination');
-    if (!paginationEl || !selectedVehicle) return;
+    if (!paginationEl) return;
+    // Mostrar paginación incluso si no hay vehículo seleccionado (para precios generales)
     
     if (paging.pages <= 1) {
       paginationEl.innerHTML = '';
@@ -624,19 +625,28 @@ export function initPrices(){
       ? (activeTabVehicleId ? selectedVehicles.find(v => v._id === activeTabVehicleId) : selectedVehicles[0])
       : selectedVehicle;
     
+    // Si no hay vehículo seleccionado, cargar solo precios generales
     if (!vehicleToUse) {
-      body.replaceChildren();
-      renderTableHeader();
-      return;
+      params = { 
+        ...(params||{}), 
+        vehicleId: null,
+        includeGeneral: true,
+        page: currentPage,
+        limit: 10,
+        name: currentFilters.name,
+        type: currentFilters.type || undefined
+      };
+    } else {
+      params = { 
+        ...(params||{}), 
+        vehicleId: vehicleToUse._id,
+        includeGeneral: true, // Incluir precios generales incluso cuando hay vehículo seleccionado
+        page: currentPage,
+        limit: 10,
+        name: currentFilters.name,
+        type: currentFilters.type || undefined
+      };
     }
-    params = { 
-      ...(params||{}), 
-      vehicleId: vehicleToUse._id,
-      page: currentPage,
-      limit: 10,
-      name: currentFilters.name,
-      type: currentFilters.type || undefined
-    };
     const r = await API.pricesList(params);
     const rows = Array.isArray(r?.items) ? r.items : (Array.isArray(r) ? r : []);
     paging = {
@@ -1255,7 +1265,8 @@ export function initPrices(){
       if (fVehicleName) fVehicleName.textContent = '';
       if (fVehicleSelected) fVehicleSelected.style.display = 'none';
       if (fLinesContainer) fLinesContainer.style.display = 'none';
-      if (actionsBar) actionsBar.style.display = 'none';
+      // Mostrar barra de acciones siempre para permitir crear precios generales
+      if (actionsBar) actionsBar.style.display = 'flex';
       const filtersEl = $('#pe-filters');
       if (filtersEl) filtersEl.style.display = 'none';
       if (vehicleTabsContainer) {
@@ -1388,7 +1399,8 @@ export function initPrices(){
     if (fMakeSelect) fMakeSelect.value = '';
     fVehicleSelected.style.display = 'none';
     fLinesContainer.style.display = 'none';
-    actionsBar.style.display = 'none';
+    // Mostrar barra de acciones siempre para permitir crear precios generales
+    if (actionsBar) actionsBar.style.display = 'flex';
     if (vehicleTabsContainer) {
       vehicleTabsContainer.style.display = 'none';
       vehicleTabsContainer.innerHTML = '';

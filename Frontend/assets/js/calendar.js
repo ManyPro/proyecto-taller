@@ -1624,6 +1624,13 @@ function openCalendarSettings() {
       await API.calendar.updateSettings({ address, mapsLink });
       modal.classList.add("hidden");
       body.innerHTML = "";
+      
+      // Ocultar el botón de configuración si ambos campos están configurados
+      const settingsBtn = document.getElementById('calendar-settings');
+      if (settingsBtn && address && mapsLink) {
+        settingsBtn.style.display = 'none';
+      }
+      
       alert('Configuración guardada exitosamente');
     } catch (err) {
       alert('Error: ' + (err.message || 'No se pudo guardar la configuración'));
@@ -1681,6 +1688,18 @@ export function initCalendar() {
   const settingsBtn = document.getElementById('calendar-settings');
   if (settingsBtn) {
     settingsBtn.onclick = () => openCalendarSettings();
+    
+    // Verificar si hay configuración y ocultar el botón si está configurado
+    (async () => {
+      try {
+        const settings = await API.calendar.getSettings();
+        if (settings.address && settings.mapsLink) {
+          settingsBtn.style.display = 'none';
+        }
+      } catch (err) {
+        console.error('Error checking calendar settings:', err);
+      }
+    })();
   }
   
   // Cargar eventos y renderizar calendario

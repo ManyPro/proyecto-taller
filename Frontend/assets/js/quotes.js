@@ -651,20 +651,23 @@ export function initQuotes({ getCompanyEmail }) {
         const {type,desc,qty,price} = combo.main;
         const q=qty>0?qty:1; const st=q*(price||0);
         const cantSuffix=(qty&&Number(qty)>0)?` x${q}`:'';
-        lines.push(`*${desc||'Combo'}${cantSuffix}*`);
+        // Mostrar combo con precio en la misma línea
         if (st > 0) {
-          lines.push(`${money(st)}`);
+          lines.push(`*${desc||'Combo'}${cantSuffix}* - ${money(st)}`);
+        } else {
+          lines.push(`*${desc||'Combo'}${cantSuffix}*`);
         }
         
-        // Agregar items del combo anidados
+        // Agregar items del combo anidados con mejor indentación
         combo.items.forEach(item => {
           const itemQ = item.qty>0?item.qty:1;
           const itemSt = itemQ*(item.price||0);
           const itemCantSuffix = (item.qty&&Number(item.qty)>0)?` x${item.qty}`:'';
-          lines.push(`     *${item.desc||'Item'}${itemCantSuffix}*`);
-          // Solo mostrar precio si es mayor a 0
+          // Mostrar item anidado con precio en la misma línea y mejor indentación
           if (itemSt > 0) {
-            lines.push(`     ${money(itemSt)}`);
+            lines.push(`  └─ *${item.desc||'Item'}${itemCantSuffix}* - ${money(itemSt)}`);
+          } else {
+            lines.push(`  └─ *${item.desc||'Item'}${itemCantSuffix}*`);
           }
         });
       } else if (combo.items.length > 0 && !combo.main) {
@@ -679,10 +682,11 @@ export function initQuotes({ getCompanyEmail }) {
       const q=qty>0?qty:1; const st=q*(price||0);
       const tipo=(type==='SERVICIO')?'Servicio':'Producto';
       const cantSuffix=(qty&&Number(qty)>0)?` x${q}`:'';
-      lines.push(`• ${desc||tipo}${cantSuffix}`);
-      // Solo mostrar precio si es mayor a 0
+      // Mostrar item con precio en la misma línea
       if (st > 0) {
-        lines.push(`${money(st)}`);
+        lines.push(`• ${desc||tipo}${cantSuffix} - ${money(st)}`);
+      } else {
+        lines.push(`• ${desc||tipo}${cantSuffix}`);
       }
     });
     
