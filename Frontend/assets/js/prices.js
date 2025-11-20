@@ -775,7 +775,13 @@ export function initPrices(){
   
   // Cargar precios generales al iniciar si no hay vehículo seleccionado
   function loadGeneralPricesOnInit() {
+    // Asegurar que la barra de acciones esté siempre visible
+    if (actionsBar) actionsBar.style.display = 'flex';
+    
     if (!selectedVehicle && selectedVehicles.length === 0) {
+      // Mostrar filtros también
+      const filtersEl = $('#pe-filters');
+      if (filtersEl) filtersEl.style.display = 'flex';
       renderTableHeader();
       loadPrices();
     }
@@ -3095,11 +3101,19 @@ export function initPrices(){
   // Inicializar gestión de vehículos
   initVehicles();
 
+  // Mostrar barra de acciones siempre (para permitir crear precios generales)
+  if (actionsBar) actionsBar.style.display = 'flex';
+  
   // Renderizar tabla vacía inicialmente y cargar precios generales si no hay vehículo
   renderTableHeader();
   // Cargar precios generales automáticamente al iniciar si no hay vehículo seleccionado
   setTimeout(() => {
     if (!selectedVehicle && selectedVehicles.length === 0) {
+      // Asegurar que la barra de acciones esté visible
+      if (actionsBar) actionsBar.style.display = 'flex';
+      // Mostrar filtros también
+      const filtersEl = $('#pe-filters');
+      if (filtersEl) filtersEl.style.display = 'flex';
       loadPrices();
     }
   }, 500); // Pequeño delay para asegurar que todo esté inicializado
