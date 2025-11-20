@@ -1452,12 +1452,18 @@ export const closeSale = async (req, res) => {
       // Validamos y persistimos en sale.paymentMethods antes de guardar.
       let rawMethods = Array.isArray(req.body?.paymentMethods) ? req.body.paymentMethods : [];
       if (rawMethods.length) {
-        // Normalizar y filtrar vÃ¡lidos
-        const cleaned = rawMethods.map(m => ({
-          method: String(m?.method || '').trim().toUpperCase(),
-          amount: Math.round(Number(m?.amount || 0) || 0), // Redondear a entero
-          accountId: m?.accountId ? new mongoose.Types.ObjectId(m.accountId) : null
-        })).filter(m => m.method && m.amount > 0);
+        // CRÍTICO: Normalizar y filtrar válidos - asegurar que los montos sean números enteros
+        const cleaned = rawMethods.map(m => {
+          // Limpiar el amount: convertir a string, remover caracteres no numéricos, parsear y redondear
+          const rawAmount = String(m?.amount || '0');
+          const cleanAmount = rawAmount.replace(/[^0-9]/g, ''); // Remover cualquier carácter no numérico
+          const amount = Math.round(Number(cleanAmount) || 0);
+          return {
+            method: String(m?.method || '').trim().toUpperCase(),
+            amount: amount, // Redondear a entero
+            accountId: m?.accountId ? new mongoose.Types.ObjectId(m.accountId) : null
+          };
+        }).filter(m => m.method && m.amount > 0);
         if (cleaned.length) {
           // Calcular total desde los items
           computeTotals(sale);
@@ -1467,7 +1473,11 @@ export const closeSale = async (req, res) => {
           const frontendTotal = req.body?.total ? Math.round(Number(req.body.total)) : null;
           const totalToUse = frontendTotal !== null ? frontendTotal : calculatedTotal;
           
-          const sum = cleaned.reduce((a,b)=> a + b.amount, 0);
+          // CRÍTICO: Calcular suma asegurando que todos los amounts sean números enteros
+          const sum = cleaned.reduce((a, b) => {
+            const amount = Math.round(Number(b.amount) || 0);
+            return a + amount;
+          }, 0);
           
           // Log para debugging
           logger.info('[closeSale] Validando pagos', {
@@ -1738,16 +1748,26 @@ export const updateCloseSale = async (req, res) => {
       // Actualizar paymentMethods si vienen en el body
       if (req.body?.paymentMethods !== undefined) {
         const rawMethods = Array.isArray(req.body.paymentMethods) ? req.body.paymentMethods : [];
+        // CRÍTICO: Normalizar y filtrar válidos - asegurar que los montos sean números enteros
         const cleaned = rawMethods
-          .map(m => ({
-            method: String(m.method || '').trim(),
-            amount: Math.round(Number(m.amount) || 0),
-            accountId: m.accountId ? new mongoose.Types.ObjectId(m.accountId) : null
-          }))
+          .map(m => {
+            // Limpiar el amount: convertir a string, remover caracteres no numéricos, parsear y redondear
+            const rawAmount = String(m?.amount || '0');
+            const cleanAmount = rawAmount.replace(/[^0-9]/g, ''); // Remover cualquier carácter no numérico
+            const amount = Math.round(Number(cleanAmount) || 0);
+            return {
+              method: String(m.method || '').trim(),
+              amount: amount,
+              accountId: m.accountId ? new mongoose.Types.ObjectId(m.accountId) : null
+            };
+          })
           .filter(m => m.method && m.amount > 0);
         
-        // Validar que la suma coincida con el total
-        const sum = cleaned.reduce((a, m) => a + m.amount, 0);
+        // CRÍTICO: Validar que la suma coincida con el total - asegurar que todos los amounts sean números enteros
+        const sum = cleaned.reduce((a, m) => {
+          const amount = Math.round(Number(m.amount) || 0);
+          return a + amount;
+        }, 0);
         const total = Number(sale.total || 0);
         if (Math.abs(sum - total) > 0.01) {
           throw new Error(`La suma de pagos (${sum}) no coincide con el total de la venta (${total})`);

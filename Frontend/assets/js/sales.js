@@ -2121,27 +2121,38 @@ function fillCloseModal(){
     return accountsCache.map(a=>`<option value="${a._id}" ${a._id===selected?'selected':''}>${a.name}</option>`).join('');
   }
   function recalc(){
+    // CRÍTICO: Leer valores directamente de los inputs para evitar problemas de sincronización
     // Sincronizar valores de inputs con objetos payments antes de calcular
     payments.forEach((p, idx) => {
       const rows = pmBody.querySelectorAll('tr');
       if (rows[idx]) {
         const amtInput = rows[idx].querySelector('input[data-role=amount]');
         if (amtInput) {
-          const inputValue = Number(amtInput.value || 0) || 0;
-          p.amount = Math.round(inputValue);
-          // Si el input está vacío o tiene un valor diferente, actualizarlo
-          if (amtInput.value !== String(p.amount)) {
-            amtInput.value = p.amount;
+          // Limpiar el valor: remover cualquier carácter no numérico
+          const rawValue = String(amtInput.value || '0').replace(/[^0-9]/g, '');
+          const inputValue = Math.round(Number(rawValue) || 0);
+          p.amount = inputValue;
+          // Sincronizar el input con el valor limpio
+          if (amtInput.value !== String(inputValue)) {
+            amtInput.value = inputValue;
           }
         }
       }
     });
     
-    // Asegurar que todos los montos sean números enteros redondeados
-    const sum = payments.reduce((a,p)=> {
-      const amount = Math.round(Number(p.amount) || 0);
-      return a + amount;
-    }, 0);
+    // CRÍTICO: Calcular suma leyendo directamente de los inputs para garantizar precisión
+    const rows = pmBody.querySelectorAll('tr');
+    let sum = 0;
+    rows.forEach((row) => {
+      const amtInput = row.querySelector('input[data-role=amount]');
+      if (amtInput) {
+        // Limpiar y parsear el valor directamente del input
+        const rawValue = String(amtInput.value || '0').replace(/[^0-9]/g, '');
+        const amount = Math.round(Number(rawValue) || 0);
+        sum += amount;
+      }
+    });
+    
     const total = Math.round(Number(current?.total||0));
     const diff = total - sum;
     let html = `Suma: <strong class="text-white dark:text-white theme-light:text-slate-900">${money(sum)}</strong> / Total: <span class="text-white dark:text-white theme-light:text-slate-900">${money(total)}</span>.`;
@@ -2195,20 +2206,26 @@ function fillCloseModal(){
     });
     aSel.addEventListener('change', ()=>{ pay.accountId = aSel.value||null; });
     amt.addEventListener('input', ()=>{ 
-      // Asegurar que el valor sea un número válido
-      const rawValue = amt.value || '0';
-      // Remover cualquier carácter no numérico excepto el punto decimal (aunque no debería haber decimales)
-      const cleanValue = rawValue.toString().replace(/[^0-9.]/g, '');
-      const numValue = Number(cleanValue) || 0;
-      pay.amount = Math.round(numValue); // Redondear a entero
-      amt.value = pay.amount; // Asegurar que el input muestre el valor correcto
+      // CRÍTICO: Limpiar el valor removiendo cualquier carácter no numérico
+      const rawValue = String(amt.value || '0');
+      // Remover cualquier carácter no numérico (incluyendo puntos, comas, espacios, etc.)
+      const cleanValue = rawValue.replace(/[^0-9]/g, '');
+      const numValue = Math.round(Number(cleanValue) || 0);
+      pay.amount = numValue;
+      // Asegurar que el input muestre el valor limpio
+      if (amt.value !== String(numValue)) {
+        amt.value = numValue;
+      }
       recalc(); 
     });
     // También actualizar cuando el usuario sale del campo (blur)
     amt.addEventListener('blur', ()=>{ 
-      const numValue = Number(amt.value||0)||0;
-      pay.amount = Math.round(numValue);
-      amt.value = pay.amount; // Asegurar formato correcto
+      // CRÍTICO: Limpiar el valor removiendo cualquier carácter no numérico
+      const rawValue = String(amt.value || '0');
+      const cleanValue = rawValue.replace(/[^0-9]/g, '');
+      const numValue = Math.round(Number(cleanValue) || 0);
+      pay.amount = numValue;
+      amt.value = numValue; // Asegurar formato correcto
       recalc(); 
     });
     del.addEventListener('click', ()=>{
@@ -2430,36 +2447,58 @@ function fillCloseModal(){
       if (freshSale) {
         current = freshSale;
         syncCurrentIntoOpenList();
+        // Asegurar que el total esté calculado correctamente
+        if (!current.total && current.items && current.items.length > 0) {
+          const calculatedSubtotal = current.items.reduce((sum, it) => sum + (Number(it.total) || 0), 0);
+          current.total = Math.round(calculatedSubtotal);
+        }
         console.log('[closeSale] Venta refrescada antes de cerrar:', {
           saleId: current._id,
           total: current.total,
-          itemsCount: current.items?.length || 0
+          itemsCount: current.items?.length || 0,
+          calculatedTotal: current.items?.reduce((sum, it) => sum + (Number(it.total) || 0), 0) || 0
         });
       }
     } catch (err) {
       console.warn('[closeSale] Error al refrescar venta, usando total actual:', err);
+      // Si no se puede refrescar, calcular el total desde los items
+      if (current && current.items && current.items.length > 0) {
+        const calculatedSubtotal = current.items.reduce((sum, it) => sum + (Number(it.total) || 0), 0);
+        current.total = Math.round(calculatedSubtotal);
+        console.log('[closeSale] Total calculado desde items:', current.total);
+      }
     }
     
+    // CRÍTICO: Leer valores directamente de los inputs para evitar problemas de sincronización
     // Asegurar que todos los inputs tengan el valor correcto antes de calcular
     payments.forEach((p, idx) => {
       const row = pmBody.querySelectorAll('tr')[idx];
       if (row) {
         const amtInput = row.querySelector('input[data-role=amount]');
         if (amtInput) {
-          // Sincronizar el valor del input con el objeto payment
-          const inputValue = Number(amtInput.value || 0) || 0;
-          p.amount = Math.round(inputValue);
-          amtInput.value = p.amount; // Asegurar que el input muestre el valor correcto
+          // Limpiar el valor: remover cualquier carácter no numérico
+          const rawValue = String(amtInput.value || '0').replace(/[^0-9]/g, '');
+          const inputValue = Math.round(Number(rawValue) || 0);
+          p.amount = inputValue;
+          amtInput.value = inputValue; // Asegurar que el input muestre el valor correcto
         }
       }
     });
     
-    // Validar suma exacta - asegurar que todos los montos sean números enteros
-    const sum = payments.reduce((a,p)=> {
-      const amount = Math.round(Number(p.amount) || 0);
-      console.log('Sumando pago:', { method: p.method, amount, pAmount: p.amount });
-      return a + amount;
-    }, 0);
+    // CRÍTICO: Calcular suma leyendo directamente de los inputs para garantizar precisión
+    const rows = pmBody.querySelectorAll('tr');
+    let sum = 0;
+    rows.forEach((row) => {
+      const amtInput = row.querySelector('input[data-role=amount]');
+      if (amtInput) {
+        // Limpiar y parsear el valor directamente del input
+        const rawValue = String(amtInput.value || '0').replace(/[^0-9]/g, '');
+        const amount = Math.round(Number(rawValue) || 0);
+        sum += amount;
+        console.log('Sumando pago desde input:', { amount, rawValue: amtInput.value });
+      }
+    });
+    
     const total = Math.round(Number(current?.total||0));
     console.log('Validación de cierre:', { sum, total, diff: Math.abs(sum - total), paymentsCount: payments.length });
     const diff = Math.abs(sum - total);
@@ -2530,21 +2569,26 @@ function fillCloseModal(){
       const laborPercentValue = comm.length === 0 ? (Number(percSel.value || manualPercentInput.value || 0) || 0) : 0;
       const laborValueFromSale = Number(current?.laborValue || 0);
       
+      // CRÍTICO: Leer valores directamente de los inputs para garantizar precisión
       // Asegurar que todos los montos estén correctamente parseados antes de enviar
       const paymentMethodsToSend = filtered.map(p=>{
-        // Obtener el valor directamente del input para asegurar que está actualizado
+        // Buscar la fila correspondiente al payment
         const row = Array.from(pmBody.querySelectorAll('tr')).find(tr => {
           const rowPay = payments.find(pay => pay === p);
           return rowPay === p;
         });
+        
         let finalAmount = Math.round(Number(p.amount) || 0);
         if (row) {
           const amtInput = row.querySelector('input[data-role=amount]');
           if (amtInput) {
-            const inputValue = Number(amtInput.value || 0) || 0;
-            finalAmount = Math.round(inputValue);
+            // Limpiar y parsear el valor directamente del input
+            const rawValue = String(amtInput.value || '0').replace(/[^0-9]/g, '');
+            finalAmount = Math.round(Number(rawValue) || 0);
             // Sincronizar el objeto payment
             p.amount = finalAmount;
+            // Asegurar que el input tenga el valor correcto
+            amtInput.value = finalAmount;
           }
         }
         const method = String(p.method || '').toUpperCase();
