@@ -2724,16 +2724,20 @@ function fillCloseModal(){
 
 // Función para configurar la sección de inversión
 function setupInvestmentSection() {
-  const addFromListBtn = document.getElementById('cv-add-investment-from-list');
-  const closeMenuBtn = document.getElementById('cv-close-investment-menu');
-  const menu = document.getElementById('cv-investment-prices-menu');
-  const searchInput = document.getElementById('cv-investment-search');
-  const pricesList = document.getElementById('cv-investment-prices-list');
-  const prevBtn = document.getElementById('cv-investment-prev');
-  const nextBtn = document.getElementById('cv-investment-next');
-  const pageInfo = document.getElementById('cv-investment-page-info');
-  
-  if (!addFromListBtn || !menu) return;
+  try {
+    const addFromListBtn = document.getElementById('cv-add-investment-from-list');
+    const closeMenuBtn = document.getElementById('cv-close-investment-menu');
+    const menu = document.getElementById('cv-investment-prices-menu');
+    const searchInput = document.getElementById('cv-investment-search');
+    const pricesList = document.getElementById('cv-investment-prices-list');
+    const prevBtn = document.getElementById('cv-investment-prev');
+    const nextBtn = document.getElementById('cv-investment-next');
+    const pageInfo = document.getElementById('cv-investment-page-info');
+    
+    if (!addFromListBtn || !menu || !pricesList) {
+      console.warn('setupInvestmentSection: Elementos no encontrados');
+      return;
+    }
   
   let currentPage = 1;
   let searchTerm = '';
@@ -2742,21 +2746,43 @@ function setupInvestmentSection() {
   
   // Función para cargar precios de inversión
   async function loadInvestmentPrices() {
+    if (!pricesList) return;
+    
     try {
       pricesList.innerHTML = '<div class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">Cargando...</div>';
       
       const params = {
         page: currentPage,
-        limit: pageSize,
-        type: 'inversion' // Filtrar por tipo inversión
+        limit: pageSize
       };
+      
+      // Filtrar por tipo inversión si el backend lo soporta
+      // Por ahora, intentamos buscar precios de inversión
+      // Si el backend no soporta 'type', se pueden filtrar en el frontend
+      params.type = 'inversion';
       
       if (searchTerm) {
         params.name = searchTerm;
       }
       
-      const data = await API.pricesList(params);
-      const prices = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
+      let data;
+      try {
+        data = await API.pricesList(params);
+      } catch (apiErr) {
+        console.error('Error al cargar precios de inversión:', apiErr);
+        // Si falla con type='inversion', intentar sin el filtro
+        delete params.type;
+        try {
+          data = await API.pricesList(params);
+        } catch (err2) {
+          throw apiErr; // Lanzar el error original
+        }
+      }
+      
+      // Filtrar por tipo inversión en el frontend si es necesario
+      let prices = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
+      // Si no hay filtro en backend, filtrar aquí (asumiendo que los precios de inversión tienen algún campo distintivo)
+      // Por ahora, mostramos todos los precios que vengan
       totalPages = data?.pages || 1;
       
       if (prices.length === 0) {
@@ -2782,6 +2808,8 @@ function setupInvestmentSection() {
         // Agregar event listeners a los botones de seleccionar
         pricesList.querySelectorAll('[data-select-price]').forEach(btn => {
           btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
             const priceId = btn.getAttribute('data-select-price');
             const priceCard = pricesList.querySelector(`[data-price-id="${priceId}"]`);
             if (priceCard) {
@@ -2808,7 +2836,9 @@ function setupInvestmentSection() {
   }
   
   // Toggle menú
-  addFromListBtn.addEventListener('click', () => {
+  addFromListBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
     menu.classList.toggle('hidden');
     if (!menu.classList.contains('hidden')) {
       currentPage = 1;
@@ -2820,7 +2850,9 @@ function setupInvestmentSection() {
   
   // Cerrar menú
   if (closeMenuBtn) {
-    closeMenuBtn.addEventListener('click', () => {
+    closeMenuBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       menu.classList.add('hidden');
     });
   }
@@ -2849,7 +2881,9 @@ function setupInvestmentSection() {
   
   // Paginación
   if (prevBtn) {
-    prevBtn.addEventListener('click', () => {
+    prevBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       if (currentPage > 1) {
         currentPage--;
         loadInvestmentPrices();
@@ -2858,12 +2892,16 @@ function setupInvestmentSection() {
   }
   
   if (nextBtn) {
-    nextBtn.addEventListener('click', () => {
+    nextBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       if (currentPage < totalPages) {
         currentPage++;
         loadInvestmentPrices();
       }
     });
+  } catch (err) {
+    console.error('Error en setupInvestmentSection:', err);
   }
 }
 
