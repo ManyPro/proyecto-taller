@@ -211,13 +211,13 @@ npm run fix:payroll:index  # Si hay problemas con índices
 
 ```bash
 # Merge develop a main
-./scripts/merge-develop-to-main.sh
+    ./scripts/merge-develop-to-main.sh
 
-# Deploy completo a producción
-./scripts/prod-deploy.sh
+    # Deploy completo a producción
+    ./scripts/prod-deploy.sh
 
-# Reiniciar servicios
-./scripts/restart-both.sh
+    # Reiniciar servicios
+    ./scripts/restart-both.sh
 ```
 
 ---

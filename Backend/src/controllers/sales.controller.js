@@ -13,7 +13,6 @@ import { publish } from '../lib/live.js';
 import { createDateRange } from '../lib/dateTime.js';
 import { logger } from '../lib/logger.js';
 import { getAllSharedCompanyIds as getAllSharedCompanyIdsHelper } from '../lib/sharedDatabase.js';
-import { getAllSharedCompanyIds as getAllSharedCompanyIdsHelper } from '../lib/sharedDatabase.js';
 
 // Helpers
 const asNum = (n) => Number.isFinite(Number(n)) ? Number(n) : 0;
@@ -480,7 +479,7 @@ export const addItem = async (req, res) => {
       // Esto asegura consistencia entre addItem y getPrice
       
       // Obtener TODOS los companyIds que comparten la BD (igual que getPrice)
-      const companyIdsToSearch = await getAllSharedCompanyIds(req);
+      const companyIdsToSearch = await getAllSharedCompanyIdsHelper(originalCompanyId);
       
       // Construir query con companyIds
       const companyFilter = companyIdsToSearch.length > 1 
