@@ -464,9 +464,6 @@ export function initPrices(){
   const vehicleTabsContainer=$('#pe-vehicle-tabs');
   
   // Declarar funciones que se usarán más adelante (se definirán después)
-  let loadPrices, loadGeneralPrices, switchSubTab;
-  
-  // Declarar funciones que se usarán más adelante (se definirán después)
   let loadPrices, loadGeneralPrices;
   
   // Función para cambiar entre tabs (definirla temprano para que esté disponible)
