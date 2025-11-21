@@ -1705,6 +1705,32 @@ function buildCloseModalContent(){
         </table>
       </div>
     </div>
+    <div id="cv-investment-block" class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-4 mb-4">
+      <div class="flex justify-between items-center mb-4">
+        <label class="block text-base font-bold text-white dark:text-white theme-light:text-slate-900 mb-1">Inversión</label>
+      </div>
+      <div class="flex gap-2 mb-3">
+        <input id="cv-investment-amount" type="number" min="0" step="0.01" placeholder="Valor de inversión (opcional)" class="flex-1 px-3 py-2 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-sky-50 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400" />
+        <button id="cv-add-investment-from-list" type="button" class="px-4 py-2 bg-gradient-to-r from-orange-600 to-orange-700 dark:from-orange-600 dark:to-orange-700 theme-light:from-orange-500 theme-light:to-orange-600 hover:from-orange-700 hover:to-orange-800 dark:hover:from-orange-700 dark:hover:to-orange-800 theme-light:hover:from-orange-600 theme-light:hover:to-orange-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm whitespace-nowrap">📋 Desde lista</button>
+      </div>
+      <div id="cv-investment-prices-menu" class="hidden mt-4 p-4 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+        <div class="flex justify-between items-center mb-3">
+          <h4 class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900">Lista de precios de inversión</h4>
+          <button id="cv-close-investment-menu" type="button" class="px-3 py-1.5 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">✕ Cerrar</button>
+        </div>
+        <div class="mb-3">
+          <input id="cv-investment-search" type="text" placeholder="Buscar por nombre..." class="w-full px-3 py-2 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400" />
+        </div>
+        <div id="cv-investment-prices-list" class="space-y-2 mb-3 max-h-64 overflow-y-auto custom-scrollbar">
+          <div class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">Cargando...</div>
+        </div>
+        <div id="cv-investment-pagination" class="flex justify-between items-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+          <button id="cv-investment-prev" class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>← Anterior</button>
+          <span id="cv-investment-page-info">Página 1 de 1</span>
+          <button id="cv-investment-next" class="px-3 py-1.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-sky-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-700 rounded-lg transition-colors duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Siguiente →</button>
+        </div>
+      </div>
+    </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div class="hidden">
         <label class="block text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 mb-2">Técnico (cierre)</label>
@@ -1832,6 +1858,9 @@ function fillCloseModal(){
   
   // Actualizar preview inicial
   updateLaborSharePreview();
+
+  // Setup inversión
+  setupInvestmentSection();
 
   // Listener para actualizar estado del archivo
   const receiptInput = document.getElementById('cv-receipt');
@@ -2669,6 +2698,10 @@ function fillCloseModal(){
         sum: paymentMethodsToSend.reduce((a, p) => a + p.amount, 0)
       });
       
+      // Obtener valor de inversión
+      const investmentInput = document.getElementById('cv-investment-amount');
+      const investmentAmount = investmentInput ? Number(investmentInput.value || 0) : 0;
+      
       const payload = {
         paymentMethods: paymentMethodsToSend,
         technician: techSel.value||'',
@@ -2676,6 +2709,7 @@ function fillCloseModal(){
         laborPercent: laborPercentValue,
         laborCommissions: comm,
         paymentReceiptUrl: receiptUrl,
+        investment: investmentAmount > 0 ? investmentAmount : undefined,
         total: total // Enviar el total para que el backend pueda validarlo
       };
       await API.sales.close(current._id, payload);
@@ -2686,6 +2720,159 @@ function fillCloseModal(){
       await refreshOpenSales();
     }catch(e){ msg.textContent = e?.message||'Error'; msg.classList.add('error'); }
   });
+}
+
+// Función para configurar la sección de inversión
+function setupInvestmentSection() {
+  const addFromListBtn = document.getElementById('cv-add-investment-from-list');
+  const closeMenuBtn = document.getElementById('cv-close-investment-menu');
+  const menu = document.getElementById('cv-investment-prices-menu');
+  const searchInput = document.getElementById('cv-investment-search');
+  const pricesList = document.getElementById('cv-investment-prices-list');
+  const prevBtn = document.getElementById('cv-investment-prev');
+  const nextBtn = document.getElementById('cv-investment-next');
+  const pageInfo = document.getElementById('cv-investment-page-info');
+  
+  if (!addFromListBtn || !menu) return;
+  
+  let currentPage = 1;
+  let searchTerm = '';
+  const pageSize = 5;
+  let totalPages = 1;
+  
+  // Función para cargar precios de inversión
+  async function loadInvestmentPrices() {
+    try {
+      pricesList.innerHTML = '<div class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">Cargando...</div>';
+      
+      const params = {
+        page: currentPage,
+        limit: pageSize,
+        type: 'inversion' // Filtrar por tipo inversión
+      };
+      
+      if (searchTerm) {
+        params.name = searchTerm;
+      }
+      
+      const data = await API.pricesList(params);
+      const prices = Array.isArray(data?.items) ? data.items : (Array.isArray(data) ? data : []);
+      totalPages = data?.pages || 1;
+      
+      if (prices.length === 0) {
+        pricesList.innerHTML = '<div class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">No hay precios de inversión disponibles</div>';
+      } else {
+        pricesList.innerHTML = prices.map(price => {
+          const priceValue = price.total || price.price || 0;
+          return `
+            <div class="p-3 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-slate-100 cursor-pointer transition-colors" data-price-id="${price._id}" data-price-value="${priceValue}">
+              <div class="flex justify-between items-center">
+                <div>
+                  <div class="font-semibold text-white dark:text-white theme-light:text-slate-900 text-sm">${escapeHtml(price.name || 'Sin nombre')}</div>
+                  <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mt-1">${money(priceValue)}</div>
+                </div>
+                <button class="px-3 py-1.5 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold rounded-lg transition-colors" data-select-price="${price._id}">
+                  Seleccionar
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+        
+        // Agregar event listeners a los botones de seleccionar
+        pricesList.querySelectorAll('[data-select-price]').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const priceId = btn.getAttribute('data-select-price');
+            const priceCard = pricesList.querySelector(`[data-price-id="${priceId}"]`);
+            if (priceCard) {
+              const priceValue = Number(priceCard.getAttribute('data-price-value') || 0);
+              const investmentInput = document.getElementById('cv-investment-amount');
+              if (investmentInput) {
+                investmentInput.value = priceValue;
+              }
+              menu.classList.add('hidden');
+            }
+          });
+        });
+      }
+      
+      // Actualizar paginación
+      if (pageInfo) pageInfo.textContent = `Página ${currentPage} de ${totalPages}`;
+      if (prevBtn) prevBtn.disabled = currentPage <= 1;
+      if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+      
+    } catch (err) {
+      console.error('Error loading investment prices:', err);
+      pricesList.innerHTML = '<div class="text-center py-4 text-red-400 dark:text-red-400 theme-light:text-red-600 text-sm">Error al cargar precios</div>';
+    }
+  }
+  
+  // Toggle menú
+  addFromListBtn.addEventListener('click', () => {
+    menu.classList.toggle('hidden');
+    if (!menu.classList.contains('hidden')) {
+      currentPage = 1;
+      searchTerm = '';
+      if (searchInput) searchInput.value = '';
+      loadInvestmentPrices();
+    }
+  });
+  
+  // Cerrar menú
+  if (closeMenuBtn) {
+    closeMenuBtn.addEventListener('click', () => {
+      menu.classList.add('hidden');
+    });
+  }
+  
+  // Búsqueda
+  if (searchInput) {
+    let searchTimeout;
+    searchInput.addEventListener('input', (e) => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        searchTerm = e.target.value.trim();
+        currentPage = 1;
+        loadInvestmentPrices();
+      }, 300);
+    });
+    
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        searchTerm = e.target.value.trim();
+        currentPage = 1;
+        loadInvestmentPrices();
+      }
+    });
+  }
+  
+  // Paginación
+  if (prevBtn) {
+    prevBtn.addEventListener('click', () => {
+      if (currentPage > 1) {
+        currentPage--;
+        loadInvestmentPrices();
+      }
+    });
+  }
+  
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      if (currentPage < totalPages) {
+        currentPage++;
+        loadInvestmentPrices();
+      }
+    });
+  }
+}
+
+// Función helper para escapar HTML
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 function stopSalesAutoRefresh() {
@@ -9947,7 +10134,7 @@ async function openEditNameModal(item, tr) {
             />
           </div>
           <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
-            ⚠️ Este cambio solo se aplica a esta venta y no se guarda en el backend.
+            ℹ️ Este cambio se guarda solo para esta venta. Al agregar este item a otra venta, se usará el nombre original.
           </p>
         </div>
         
@@ -9995,7 +10182,7 @@ async function openEditNameModal(item, tr) {
     document.addEventListener('keydown', escHandler);
     
     // Guardar cambios
-    saveBtn.onclick = () => {
+    saveBtn.onclick = async () => {
       const newName = nameInput.value.trim();
       
       if (!newName) {
@@ -10003,35 +10190,30 @@ async function openEditNameModal(item, tr) {
         return;
       }
       
-      // Actualizar el nombre solo en el objeto current (no en el backend)
-      if (current.items && Array.isArray(current.items)) {
-        const itemIndex = current.items.findIndex(i => i._id === item._id);
-        if (itemIndex !== -1) {
-          current.items[itemIndex].name = newName;
-          
-          // Actualizar la celda de descripción en la tabla
-          const nameCell = tr.querySelector('[data-name]');
-          if (nameCell) {
-            // Mantener el badge si existe
-            const existingBadge = nameCell.querySelector('.service-badge, .product-badge, .combo-badge');
-            nameCell.textContent = '';
-            if (existingBadge) {
-              nameCell.appendChild(existingBadge);
-            }
-            nameCell.appendChild(document.createTextNode(newName));
-          }
-          
-          // Sincronizar con la lista de ventas abiertas
-          syncCurrentIntoOpenList();
-          
-          // Cerrar modal
-          closeModal();
-          document.removeEventListener('keydown', escHandler);
-        } else {
-          alert('No se pudo encontrar el item en la venta');
-        }
-      } else {
-        alert('Error: La venta no tiene items');
+      // Validar que tenemos una venta activa
+      if (!current || !current._id) {
+        alert('No hay venta activa');
+        return;
+      }
+      
+      try {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Guardando...';
+        
+        // Guardar el nombre en el backend usando updateItem
+        // El backend guardará este nombre solo para esta venta específica
+        await updateSaleAndRender(async () => {
+          current = await API.sales.updateItem(current._id, item._id, { name: newName });
+        });
+        
+        // Cerrar modal
+        closeModal();
+        document.removeEventListener('keydown', escHandler);
+      } catch (err) {
+        console.error('Error al guardar nombre:', err);
+        alert('Error al guardar descripción: ' + (err?.message || 'Error desconocido'));
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Guardar';
       }
     };
     
@@ -11239,6 +11421,12 @@ function processReportData(sales, cashflowEntries, receivables, inventoryItems, 
   const totalVentas = sales.length;
   const totalIngresos = sales.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
   
+  // Calcular total de inversiones
+  const totalInversiones = sales.reduce((sum, s) => sum + (Number(s.investment) || 0), 0);
+  
+  // Ingresos netos (después de inversión)
+  const ingresosNetos = totalIngresos - totalInversiones;
+  
   // 2. Ingresos por cuenta
   const ingresosPorCuenta = {};
   cashflowEntries
@@ -11352,7 +11540,9 @@ function processReportData(sales, cashflowEntries, receivables, inventoryItems, 
     periodo: { desde: fechaDesde, hasta: fechaHasta },
     ventas: {
       total: totalVentas,
-      ingresos: totalIngresos
+      ingresos: totalIngresos,
+      inversiones: totalInversiones,
+      ingresosNetos: ingresosNetos
     },
     ingresosPorCuenta,
     cartera: {
@@ -11469,8 +11659,17 @@ function showReport(reportData, fechaDesde, fechaHasta) {
         <div class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900">${reportData.ventas.total}</div>
       </div>
       <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
-        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Ingresos Totales</div>
+        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Ingresos Brutos</div>
         <div class="text-2xl font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${money(reportData.ventas.ingresos)}</div>
+        ${reportData.ventas.inversiones > 0 ? `
+          <div class="text-xs text-orange-400 dark:text-orange-400 theme-light:text-orange-600 mt-1">
+            - Inversión: ${money(reportData.ventas.inversiones)}
+          </div>
+          <div class="text-sm text-white dark:text-white theme-light:text-slate-900 mt-2 pt-2 border-t border-slate-700/50">
+            <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Ingresos Netos</div>
+            <div class="text-xl font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${money(reportData.ventas.ingresosNetos)}</div>
+          </div>
+        ` : ''}
       </div>
       <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
         <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Valor en Cartera</div>

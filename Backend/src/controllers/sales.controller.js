@@ -949,7 +949,7 @@ export const addItemsBatch = async (req, res) => {
 
 export const updateItem = async (req, res) => {
   const { id, itemId } = req.params;
-  const { qty, unitPrice } = req.body || {};
+  const { qty, unitPrice, name } = req.body || {};
 
   const companyFilter = getSaleQueryCompanyFilter(req);
   const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
@@ -961,6 +961,10 @@ export const updateItem = async (req, res) => {
 
   if (qty != null && Number.isFinite(Number(qty))) it.qty = asNum(qty);
   if (unitPrice != null && Number.isFinite(Number(unitPrice))) it.unitPrice = asNum(unitPrice);
+  // Permitir actualizar el nombre solo para esta venta (no afecta el nombre original del inventario/precio)
+  if (name != null && typeof name === 'string' && name.trim() !== '') {
+    it.name = name.trim();
+  }
   it.total = Math.round(asNum(it.qty) * asNum(it.unitPrice));
 
   computeTotals(sale);

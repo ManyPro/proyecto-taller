@@ -432,11 +432,59 @@ export function openQRForItem() {
 // Función para cambiar entre tabs
 function switchSubTab(name) {
   document.querySelectorAll('.payroll-tabs button[data-subtab]').forEach(b => {
-    b.classList.toggle('active', b.dataset.subtab === name);
+    const isActive = b.dataset.subtab === name;
+    b.classList.toggle('active', isActive);
+    b.classList.toggle('bg-blue-600', isActive);
+    b.classList.toggle('text-white', isActive);
+    b.classList.toggle('bg-slate-700/50', !isActive);
   });
   document.querySelectorAll('[data-subsection]').forEach(sec => {
     sec.classList.toggle('hidden', sec.dataset.subsection !== name);
   });
+  
+  // Mostrar/ocultar elementos según la pestaña activa
+  const isVehicular = name === 'prices-vehicular';
+  const isGeneral = name === 'prices-general';
+  const isInversion = name === 'prices-inversion';
+  
+  // Botones de acciones
+  const actionsBarVehicular = $('#pe-actions-bar-vehicular');
+  const actionsBarGeneral = $('#pe-actions-bar-general');
+  if (actionsBarVehicular) actionsBarVehicular.style.display = isVehicular ? 'flex' : 'none';
+  if (actionsBarGeneral) actionsBarGeneral.style.display = isGeneral ? 'flex' : 'none';
+  
+  // Lista de vehículos y marcas (solo en vehicular)
+  const vehiclesContainer = $('#pf-vehicles-container');
+  const makesToggle = $('#pf-makes-toggle')?.parentElement;
+  if (vehiclesContainer) vehiclesContainer.style.display = isVehicular ? 'block' : 'none';
+  if (makesToggle) makesToggle.style.display = isVehicular ? 'block' : 'none';
+  
+  // Filtros y tablas
+  const filtersVehicular = $('#pe-filters');
+  const filtersGeneral = $('#pe-filters-general');
+  const tableVehicular = $('#pe-table')?.closest('div');
+  const tableGeneral = $('#pe-table-general')?.closest('div');
+  
+  if (filtersVehicular) filtersVehicular.style.display = isVehicular ? 'flex' : 'none';
+  if (filtersGeneral) filtersGeneral.style.display = isGeneral ? 'flex' : 'none';
+  if (tableVehicular) tableVehicular.style.display = isVehicular ? 'block' : 'none';
+  if (tableGeneral) tableGeneral.style.display = isGeneral ? 'block' : 'none';
+  
+  // Cargar precios según la pestaña
+  if (isVehicular) {
+    // Cargar precios vehiculares (lógica existente)
+    loadPrices();
+  } else if (isGeneral) {
+    // Cargar precios generales (sin vehículo)
+    selectedVehicle = null;
+    selectedVehicles = [];
+    selectedMake = null;
+    currentPage = 1;
+    loadGeneralPrices();
+  } else if (isInversion) {
+    // Por ahora no hacer nada, se implementará en siguiente tarea
+    // Los endpoints están abiertos para la siguiente implementación
+  }
 }
 
 export function initPrices(){
@@ -457,8 +505,11 @@ export function initPrices(){
   const fLinesContainer=$('#pf-lines-container'), fLinesGrid=$('#pf-lines-grid');
   const fSearch=$('#pf-search'), fClear=$('#pf-clear');
   const btnNewService=$('#pe-new-service'), btnNewProduct=$('#pe-new-product');
-  const actionsBar=$('#pe-actions-bar');
+  const actionsBar=$('#pe-actions-bar'); // Legacy, mantener para compatibilidad
+  const actionsBarVehicular=$('#pe-actions-bar-vehicular');
+  const actionsBarGeneral=$('#pe-actions-bar-general');
   const head=$('#pe-head'), body=$('#pe-body');
+  const headGeneral=$('#pe-head-general'), bodyGeneral=$('#pe-body-general');
   const vehicleTabsContainer=$('#pe-vehicle-tabs');
 
   let selectedVehicle = null; // Mantener para compatibilidad con código existente
@@ -578,7 +629,13 @@ export function initPrices(){
           total: normalizeNumber(inPrice?.value || 0)
         };
         await API.priceUpdate(r._id, payload); 
-        loadPrices();
+        // Recargar según la pestaña activa
+        const activeSubTab = document.querySelector('.payroll-tabs button[data-subtab].active')?.dataset.subtab;
+        if (activeSubTab === 'prices-general') {
+          loadGeneralPrices();
+        } else {
+          loadPrices();
+        }
       });
     }
     
@@ -589,7 +646,13 @@ export function initPrices(){
       newDeleteBtn.addEventListener('click', async ()=>{ 
         if(confirm('¿Borrar este servicio/producto?')){ 
           await API.priceDelete(r._id); 
-          loadPrices(); 
+          // Recargar según la pestaña activa
+          const activeSubTab = document.querySelector('.payroll-tabs button[data-subtab].active')?.dataset.subtab;
+          if (activeSubTab === 'prices-general') {
+            loadGeneralPrices();
+          } else {
+            loadPrices();
+          }
         } 
       });
     }
@@ -625,6 +688,102 @@ export function initPrices(){
         loadPrices();
       }
     });
+  }
+
+  // Función para cargar precios generales
+  async function loadGeneralPrices(params={}) {
+    // Obtener filtros de la pestaña general
+    const filterNameGeneral = $('#pe-filter-name-general');
+    const filterTypeGeneral = $('#pe-filter-type-general');
+    const nameFilter = filterNameGeneral?.value || '';
+    const typeFilter = filterTypeGeneral?.value || '';
+    
+    params = { 
+      ...(params||{}), 
+      vehicleId: null,
+      includeGeneral: true,
+      page: currentPage,
+      limit: 10,
+      name: nameFilter,
+      type: typeFilter || undefined
+    };
+    
+    try {
+      const r = await API.pricesList(params);
+      const rows = Array.isArray(r?.items) ? r.items : (Array.isArray(r) ? r : []);
+      paging = {
+        page: r.page || 1,
+        limit: r.limit || 10,
+        total: r.total || 0,
+        pages: r.pages || 1
+      };
+      
+      // Renderizar header en tabla general
+      if (headGeneral && bodyGeneral) {
+        const tr = document.createElement('tr');
+        ['Tipo', 'Nombre', 'Item vinculado / Productos', 'Precio', 'Acciones'].forEach(txt => {
+          const th = document.createElement('th');
+          th.textContent = txt;
+          tr.appendChild(th);
+        });
+        headGeneral.replaceChildren(tr);
+        
+        if (rows.length === 0) {
+          bodyGeneral.replaceChildren();
+          const emptyRow = document.createElement('tr');
+          emptyRow.innerHTML = `<td colspan="5" style="text-align:center;padding:24px;color:var(--muted);">
+            <div style="margin-bottom:8px;">🌐 No hay precios generales disponibles</div>
+            <div style="font-size:12px;">Usa los botones de arriba para crear precios generales</div>
+          </td>`;
+          bodyGeneral.appendChild(emptyRow);
+        } else {
+          bodyGeneral.replaceChildren(...rows.map(rowToNode));
+        }
+      }
+      
+      // Renderizar paginación general
+      const paginationGeneral = $('#pe-pagination-general');
+      if (paginationGeneral) {
+        if (paging.pages <= 1) {
+          paginationGeneral.innerHTML = '';
+        } else {
+          let html = '<div style="display:flex;align-items:center;gap:8px;justify-content:center;padding:12px;">';
+          html += `<button class="secondary" ${paging.page <= 1 ? 'disabled' : ''} id="pe-prev-general">← Anterior</button>`;
+          html += `<span style="color:var(--muted);font-size:13px;">Página ${paging.page} de ${paging.pages} (${paging.total} total)</span>`;
+          html += `<button class="secondary" ${paging.page >= paging.pages ? 'disabled' : ''} id="pe-next-general">Siguiente →</button>`;
+          html += '</div>';
+          paginationGeneral.innerHTML = html;
+          
+          $('#pe-prev-general')?.addEventListener('click', () => {
+            if (paging.page > 1) {
+              currentPage = paging.page - 1;
+              loadGeneralPrices();
+            }
+          });
+          $('#pe-next-general')?.addEventListener('click', () => {
+            if (paging.page < paging.pages) {
+              currentPage = paging.page + 1;
+              loadGeneralPrices();
+            }
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error loading general prices:', err);
+      if (headGeneral && bodyGeneral) {
+        const tr = document.createElement('tr');
+        ['Tipo', 'Nombre', 'Item vinculado / Productos', 'Precio', 'Acciones'].forEach(txt => {
+          const th = document.createElement('th');
+          th.textContent = txt;
+          tr.appendChild(th);
+        });
+        headGeneral.replaceChildren(tr);
+        bodyGeneral.replaceChildren();
+        const errorRow = document.createElement('tr');
+        errorRow.innerHTML = `<td colspan="5" style="text-align:center;padding:24px;color:var(--danger);">Error al cargar precios: ${err?.message || 'Error desconocido'}</td>`;
+        bodyGeneral.appendChild(errorRow);
+      }
+    }
   }
 
   async function loadPrices(params={}){
@@ -2821,7 +2980,13 @@ export function initPrices(){
           
           closeModal();
           currentPage = 1;
-          loadPrices();
+          // Recargar según la pestaña activa
+          const activeSubTab = document.querySelector('.payroll-tabs button[data-subtab].active')?.dataset.subtab;
+          if (activeSubTab === 'prices-general') {
+            loadGeneralPrices();
+          } else {
+            loadPrices();
+          }
           return;
         }
         
@@ -2863,7 +3028,13 @@ export function initPrices(){
         closeModal();
         currentPage = 1;
         if (vehiclesToProcess.length === 1) {
-          loadPrices();
+          // Recargar según la pestaña activa
+          const activeSubTab = document.querySelector('.payroll-tabs button[data-subtab].active')?.dataset.subtab;
+          if (activeSubTab === 'prices-general') {
+            loadGeneralPrices();
+          } else {
+            loadPrices();
+          }
         } else {
           // Si hay múltiples vehículos, mostrar mensaje de éxito
           alert(`✓ Precio creado exitosamente para ${vehiclesToProcess.length} vehículos`);
@@ -3093,28 +3264,44 @@ export function initPrices(){
     };
   }
 
-  // Tabs internas (Lista de precios / Vehículos)
+  // Tabs internas (Lista de precios vehicular / general / inversión / Vehículos)
   document.querySelectorAll('.payroll-tabs button[data-subtab]').forEach(b => {
     b.addEventListener('click', () => switchSubTab(b.dataset.subtab));
   });
 
+  // Event listeners para filtros de la pestaña general
+  const filterNameGeneral = $('#pe-filter-name-general');
+  const filterTypeGeneral = $('#pe-filter-type-general');
+  const searchBtnGeneral = $('#pf-search-general');
+  
+  if (searchBtnGeneral) {
+    searchBtnGeneral.addEventListener('click', () => {
+      currentFilters.name = filterNameGeneral?.value || '';
+      currentFilters.type = filterTypeGeneral?.value || '';
+      currentPage = 1;
+      loadGeneralPrices();
+    });
+  }
+  
+  if (filterNameGeneral) {
+    filterNameGeneral.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        searchBtnGeneral?.click();
+      }
+    });
+  }
+
   // Inicializar gestión de vehículos
   initVehicles();
 
-  // Mostrar barra de acciones siempre (para permitir crear precios generales)
-  if (actionsBar) actionsBar.style.display = 'flex';
+  // Inicializar con la pestaña vehicular activa
+  switchSubTab('prices-vehicular');
   
-  // Renderizar tabla vacía inicialmente y cargar precios generales si no hay vehículo
+  // Renderizar tabla vacía inicialmente
   renderTableHeader();
-  // Cargar precios generales automáticamente al iniciar si no hay vehículo seleccionado
+  
+  // Cargar precios vehiculares al iniciar
   setTimeout(() => {
-    if (!selectedVehicle && selectedVehicles.length === 0) {
-      // Asegurar que la barra de acciones esté visible
-      if (actionsBar) actionsBar.style.display = 'flex';
-      // Mostrar filtros también
-      const filtersEl = $('#pe-filters');
-      if (filtersEl) filtersEl.style.display = 'flex';
-      loadPrices();
-    }
+    loadPrices();
   }, 500); // Pequeño delay para asegurar que todo esté inicializado
 }
