@@ -2839,17 +2839,17 @@ function setupInvestmentSection() {
     
     // Toggle menú
     addFromListBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    menu.classList.toggle('hidden');
-    if (!menu.classList.contains('hidden')) {
-      currentPage = 1;
-      searchTerm = '';
-      if (searchInput) searchInput.value = '';
-      loadInvestmentPrices();
-    }
-  });
-  
+      e.preventDefault();
+      e.stopPropagation();
+      menu.classList.toggle('hidden');
+      if (!menu.classList.contains('hidden')) {
+        currentPage = 1;
+        searchTerm = '';
+        if (searchInput) searchInput.value = '';
+        loadInvestmentPrices();
+      }
+    });
+    
     // Cerrar menú
     if (closeMenuBtn) {
       closeMenuBtn.addEventListener('click', (e) => {
