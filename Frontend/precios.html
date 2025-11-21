@@ -562,6 +562,60 @@
             </div>
           </div>
 
+          <!-- Tab: Lista de precios general -->
+          <div data-subsection="prices-general" class="hidden prices-subsection bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6">Lista de precios general</h3>
+            
+            <!-- Barra de acciones - Solo botones generales -->
+            <div id="pe-actions-bar-general" class="mb-6 flex flex-wrap gap-2">
+              <button id="pe-new-service-general" class="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">🌐 Nuevo servicio general</button>
+              <button id="pe-new-product-general" class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">🌐 Nuevo producto general</button>
+              <button id="pe-new-combo-general" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 text-sm">🌐 Nuevo combo general</button>
+            </div>
+
+            <!-- Filtros de búsqueda -->
+            <div id="pe-filters-general" class="mb-6 flex flex-wrap gap-3">
+              <div class="flex-1 min-w-[200px]">
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Buscar por nombre</label>
+                <input id="pe-filter-name-general" placeholder="Nombre del servicio/producto..." class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" />
+              </div>
+              <div class="min-w-[150px]">
+                <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Tipo</label>
+                <select id="pe-filter-type-general" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-50 border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+                  <option value="">Todos</option>
+                  <option value="service">Servicios</option>
+                  <option value="product">Productos</option>
+                  <option value="combo">Combos</option>
+                </select>
+              </div>
+              <div class="flex items-end">
+                <button id="pf-search-general" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300">🔍 Buscar</button>
+              </div>
+            </div>
+
+            <!-- Tabla de precios generales -->
+            <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 mt-4">
+              <div class="overflow-x-auto custom-scrollbar">
+                <table class="w-full text-sm mobile-as-cards" id="pe-table-general">
+                  <thead id="pe-head-general" class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100"></thead>
+                  <tbody id="pe-body-general" class="text-white dark:text-white theme-light:text-slate-900"></tbody>
+                </table>
+              </div>
+              <div id="pe-pagination-general" class="mt-4"></div>
+            </div>
+          </div>
+
+          <!-- Tab: Lista de precios de inversión -->
+          <div data-subsection="prices-inversion" class="hidden prices-subsection bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
+            <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6">Lista de precios de inversión</h3>
+            <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-6">Gestiona los precios de inversión que se aplicarán por defecto al cerrar ventas para calcular la inversión contra el cobro total y determinar la ganancia neta después de inversión.</p>
+            
+            <!-- Placeholder para funcionalidad futura -->
+            <div class="bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-sky-100 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 p-8 text-center">
+              <p class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">La funcionalidad completa de precios de inversión se implementará próximamente.</p>
+            </div>
+          </div>
+
           <!-- Tab: Vehículos -->
           <div data-subsection="vehicles" class="hidden bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
             <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">Base de datos de vehículos</h3>

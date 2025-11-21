@@ -516,10 +516,13 @@ export function initPrices(){
       selectedVehicles = [];
       selectedMake = null;
       currentPage = 1;
+      currentFilters = { name: '', type: '' }; // Resetear filtros
+      console.log('[switchSubTab] Cargando precios generales...');
       loadGeneralPrices();
     } else if (isInversion) {
       // Por ahora no hacer nada, se implementará en siguiente tarea
       // Los endpoints están abiertos para la siguiente implementación
+      console.log('[switchSubTab] Pestaña de inversión seleccionada (funcionalidad pendiente)');
     }
   };
 
@@ -695,6 +698,7 @@ export function initPrices(){
 
   // Función para cargar precios generales
   loadGeneralPrices = async function(params={}) {
+    console.log('[loadGeneralPrices] Iniciando carga de precios generales...');
     // Obtener filtros de la pestaña general
     const filterNameGeneral = $('#pe-filter-name-general');
     const filterTypeGeneral = $('#pe-filter-type-general');
@@ -705,14 +709,18 @@ export function initPrices(){
       ...(params||{}), 
       vehicleId: null,
       includeGeneral: true,
+      isGeneral: true, // Filtrar solo precios generales
       page: currentPage,
       limit: 10,
       name: nameFilter,
       type: typeFilter || undefined
     };
     
+    console.log('[loadGeneralPrices] Parámetros:', params);
+    
     try {
       const r = await API.pricesList(params);
+      console.log('[loadGeneralPrices] Respuesta de API:', r);
       const rows = Array.isArray(r?.items) ? r.items : (Array.isArray(r) ? r : []);
       paging = {
         page: r.page || 1,
