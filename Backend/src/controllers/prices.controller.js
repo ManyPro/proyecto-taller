@@ -259,39 +259,98 @@ export const getPrice = async (req, res) => {
   const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
   const companyIdsToSearch = await getAllSharedCompanyIds(originalCompanyId);
   
+  // Validar que tenemos companyIds para buscar
+  if (!companyIdsToSearch || companyIdsToSearch.length === 0) {
+    logger.error('[getPrice] No hay companyIds para buscar', {
+      priceId: id,
+      originalCompanyId: originalCompanyId?.toString()
+    });
+    return res.status(404).json({ error: 'PriceEntry not found' });
+  }
+  
   // Construir query con companyIds
   // CRÍTICO: Siempre usar $in para asegurar que funcione correctamente con ObjectIds
   // Convertir todos los IDs a ObjectIds de mongoose para la búsqueda
   const mongoose = (await import('mongoose')).default;
-  const companyFilter = companyIdsToSearch.length > 1 
-    ? { $in: companyIdsToSearch.map(id => new mongoose.Types.ObjectId(id)) }
-    : new mongoose.Types.ObjectId(companyIdsToSearch[0]);
   
-  const price = await PriceEntry.findOne({ _id: id, companyId: companyFilter })
+  // Normalizar todos los IDs a ObjectIds
+  const companyIdsAsObjectIds = companyIdsToSearch.map(id => {
+    try {
+      return new mongoose.Types.ObjectId(id);
+    } catch (err) {
+      logger.warn('[getPrice] Error convirtiendo companyId a ObjectId', { id, error: err?.message });
+      return null;
+    }
+  }).filter(Boolean);
+  
+  if (companyIdsAsObjectIds.length === 0) {
+    logger.error('[getPrice] No hay companyIds válidos después de conversión', {
+      priceId: id,
+      companyIdsToSearch: companyIdsToSearch.map(String)
+    });
+    return res.status(404).json({ error: 'PriceEntry not found' });
+  }
+  
+  const companyFilter = companyIdsAsObjectIds.length > 1 
+    ? { $in: companyIdsAsObjectIds }
+    : companyIdsAsObjectIds[0];
+  
+  // Intentar buscar el precio
+  let price = await PriceEntry.findOne({ _id: id, companyId: companyFilter })
     .populate('vehicleId', 'make line displacement modelYear')
     .populate('itemId', 'sku name stock salePrice')
     .populate('comboProducts.itemId', 'sku name stock salePrice')
     .lean();
   
+  // Si no se encontró, verificar si existe en alguna empresa (para debugging y diagnóstico)
   if (!price) {
-    // Verificar si existe en alguna empresa (para debugging y diagnóstico)
     const priceAnyCompany = await PriceEntry.findOne({ _id: id }).lean();
     if (priceAnyCompany) {
       const priceCompanyId = priceAnyCompany.companyId?.toString();
       const origId = originalCompanyId?.toString();
+      const companyIdsStr = companyIdsToSearch.map(String);
+      const companyIdsObjectIdsStr = companyIdsAsObjectIds.map(id => id.toString());
       
-      // Si el precio existe pero no está en las empresas compartidas, es un problema de configuración
-      logger.error('[getPrice] Precio encontrado pero no está en empresas compartidas - PROBLEMA DE CONFIGURACIÓN sharedDB', {
+      // Verificar si el companyId del precio está en la lista de companyIds buscados (comparar como strings)
+      const isInSearchList = companyIdsStr.includes(priceCompanyId) || companyIdsObjectIdsStr.includes(priceCompanyId);
+      
+      logger.error('[getPrice] Precio encontrado pero no está en empresas compartidas', {
         priceId: id,
         priceCompanyId: priceCompanyId,
         originalCompanyId: origId,
-        companyIdsToSearch: companyIdsToSearch.map(String),
-        message: 'El precio existe pero no está accesible. Verificar configuración de sharedDatabaseConfig.'
+        companyIdsToSearch: companyIdsStr,
+        companyIdsAsObjectIds: companyIdsObjectIdsStr,
+        isInSearchList: isInSearchList,
+        message: isInSearchList 
+          ? 'El precio está en la lista pero no se encontró (posible problema de conversión ObjectId)'
+          : 'El precio existe pero no está accesible. Verificar configuración de sharedDatabaseConfig.'
       });
       
-      // En lugar de devolver 403, intentar buscar si hay alguna relación de sharedDB que no se detectó
-      // Esto puede pasar si la configuración cambió después de crear el precio
-      // Por ahora, devolver 403 pero con mensaje más descriptivo
+      // Si el precio está en la lista pero no se encontró, podría ser un problema de conversión
+      // Intentar buscar directamente con el companyId del precio
+      if (isInSearchList) {
+        try {
+          price = await PriceEntry.findOne({ 
+            _id: id, 
+            companyId: new mongoose.Types.ObjectId(priceCompanyId) 
+          })
+            .populate('vehicleId', 'make line displacement modelYear')
+            .populate('itemId', 'sku name stock salePrice')
+            .populate('comboProducts.itemId', 'sku name stock salePrice')
+            .lean();
+          
+          if (price) {
+            logger.info('[getPrice] Precio encontrado con búsqueda directa por companyId', {
+              priceId: id,
+              priceCompanyId: priceCompanyId
+            });
+            return res.json(price);
+          }
+        } catch (err) {
+          logger.error('[getPrice] Error en búsqueda directa', { error: err?.message });
+        }
+      }
+      
       return res.status(403).json({ 
         error: 'PriceEntry belongs to different company',
         message: 'El precio existe pero no está accesible desde la empresa actual. Verificar configuración de sharedDatabaseConfig.',
