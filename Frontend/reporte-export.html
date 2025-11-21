@@ -110,6 +110,10 @@
       color: #60a5fa;
     }
     
+    .metric-value.orange {
+      color: #f97316;
+    }
+    
     .metric-subtext {
       font-size: 11px;
       color: #64748b;
@@ -409,6 +413,14 @@
         color: #0d6efd !important;
       }
       
+      body.dark .metric-value.orange {
+        color: #f97316 !important;
+      }
+      
+      body:not(.dark) .metric-value.orange {
+        color: #fd7e14 !important;
+      }
+      
       /* Asegurar que el grid de Ingresos y Caja Actual se mantenga en impresión */
       @media print {
         div[style*="grid-template-columns: 2fr 1fr"] {
@@ -515,10 +527,12 @@
       
       // Flujo de Caja
       if (hasFlujo) {
+        const hasInversion = reportData.flujoCaja?.inversion > 0;
+        const gridCols = hasInversion ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)';
         html += `
           <div class="section-card full-width" style="padding: 14px;">
             <div class="section-title" style="font-size: 14px; margin-bottom: 10px;">💵 Flujo de Caja</div>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 700px; margin: 0 auto;">
+            <div style="display: grid; grid-template-columns: ${gridCols}; gap: 10px; max-width: ${hasInversion ? '900px' : '700px'}; margin: 0 auto;">
               <div style="background: rgba(16, 185, 129, 0.15); padding: 12px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3); min-height: 70px; display: flex; flex-direction: column; justify-content: center;">
                 <div class="metric-label" style="color: #6ee7b7; font-size: 10px; margin-bottom: 5px; font-weight: 600;">Entradas</div>
                 <div class="metric-value green" style="font-size: 18px; font-weight: 700;">${formatMoney(reportData.flujoCaja.entrada || 0)}</div>
@@ -527,6 +541,12 @@
                 <div class="metric-label" style="color: #fca5a5; font-size: 10px; margin-bottom: 5px; font-weight: 600;">Salidas</div>
                 <div class="metric-value" style="font-size: 18px; font-weight: 700; color: #ef4444;">${formatMoney(reportData.flujoCaja.salida || 0)}</div>
               </div>
+              ${hasInversion ? `
+              <div style="background: rgba(249, 115, 22, 0.15); padding: 12px; border-radius: 6px; border: 1px solid rgba(249, 115, 22, 0.3); min-height: 70px; display: flex; flex-direction: column; justify-content: center;">
+                <div class="metric-label" style="color: #fdba74; font-size: 10px; margin-bottom: 5px; font-weight: 600;">Inversión</div>
+                <div class="metric-value" style="font-size: 18px; font-weight: 700; color: #f97316;">-${formatMoney(reportData.flujoCaja.inversion || 0)}</div>
+              </div>
+              ` : ''}
               <div style="background: rgba(59, 130, 246, 0.15); padding: 12px; border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.3); min-height: 70px; display: flex; flex-direction: column; justify-content: center;">
                 <div class="metric-label" style="color: #93c5fd; font-size: 10px; margin-bottom: 5px; font-weight: 600;">Neto</div>
                 <div class="metric-value blue" style="font-size: 18px; font-weight: 700;">${formatMoney(reportData.flujoCaja.neto || 0)}</div>

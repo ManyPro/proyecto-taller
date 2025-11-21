@@ -11546,7 +11546,8 @@ function processReportData(sales, cashflowEntries, receivables, inventoryItems, 
     flujoCaja: {
       entrada: dineroEntrado,
       salida: dineroSalido,
-      neto: dineroEntrado - dineroSalido
+      inversion: totalInversiones, // Inversión como valor positivo (se mostrará como negativo)
+      neto: dineroEntrado - dineroSalido - totalInversiones // Neto incluyendo inversión
     },
     manoObra: {
       porTecnico: manoObraDetalle,
@@ -11754,7 +11755,7 @@ function showReport(reportData, fechaDesde, fechaHasta) {
     <!-- Flujo de caja -->
     <div id="report-section-flujo" class="report-section bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6">
       <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">💵 Flujo de Caja</h3>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="p-4 bg-green-600/20 dark:bg-green-600/20 theme-light:bg-green-50 rounded-lg border border-green-600/30">
           <div class="text-sm text-green-400 dark:text-green-400 theme-light:text-green-600 mb-1">Entradas</div>
           <div class="text-xl font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${money(reportData.flujoCaja.entrada)}</div>
@@ -11763,6 +11764,12 @@ function showReport(reportData, fechaDesde, fechaHasta) {
           <div class="text-sm text-red-400 dark:text-red-400 theme-light:text-red-600 mb-1">Salidas</div>
           <div class="text-xl font-bold text-red-400 dark:text-red-400 theme-light:text-red-600">${money(reportData.flujoCaja.salida)}</div>
         </div>
+        ${reportData.flujoCaja.inversion > 0 ? `
+        <div class="p-4 bg-orange-600/20 dark:bg-orange-600/20 theme-light:bg-orange-50 rounded-lg border border-orange-600/30">
+          <div class="text-sm text-orange-400 dark:text-orange-400 theme-light:text-orange-600 mb-1">Inversión</div>
+          <div class="text-xl font-bold text-orange-400 dark:text-orange-400 theme-light:text-orange-600">-${money(reportData.flujoCaja.inversion)}</div>
+        </div>
+        ` : ''}
         <div class="p-4 bg-blue-600/20 dark:bg-blue-600/20 theme-light:bg-blue-50 rounded-lg border border-blue-600/30">
           <div class="text-sm text-blue-400 dark:text-blue-400 theme-light:text-blue-600 mb-1">Neto</div>
           <div class="text-xl font-bold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${money(reportData.flujoCaja.neto)}</div>
@@ -12568,6 +12575,13 @@ function downloadReportPDF(reportData, fechaDesde, fechaHasta) {
   yPos += 6;
   doc.text(`Salidas: ${money(reportData.flujoCaja.salida)}`, 14, yPos);
   yPos += 6;
+  // Mostrar inversión si existe
+  if (reportData.flujoCaja.inversion > 0) {
+    doc.setTextColor(249, 115, 22); // Color naranja
+    doc.text(`Inversión: -${money(reportData.flujoCaja.inversion)}`, 14, yPos);
+    doc.setTextColor(0, 0, 0); // Volver a negro
+    yPos += 6;
+  }
   doc.text(`Neto: ${money(reportData.flujoCaja.neto)}`, 14, yPos);
   yPos += 10;
   
