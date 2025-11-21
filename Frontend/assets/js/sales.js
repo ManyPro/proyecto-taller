@@ -11413,7 +11413,8 @@ function processReportData(sales, cashflowEntries, receivables, inventoryItems, 
   const totalIngresos = sales.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
   
   // Calcular total de inversiones
-  const totalInversiones = sales.reduce((sum, s) => sum + (Number(s.investment) || 0), 0);
+  // El campo en la BD es 'investmentAmount', pero también puede venir como 'investment' desde el frontend
+  const totalInversiones = sales.reduce((sum, s) => sum + (Number(s.investmentAmount || s.investment) || 0), 0);
   
   // Ingresos netos (después de inversión)
   const ingresosNetos = totalIngresos - totalInversiones;
