@@ -9,8 +9,8 @@ const PriceEntrySchema = new mongoose.Schema({
   
   // Nombre del servicio/producto (opcional para compatibilidad legacy)
   name: { type: String, trim: true, default: '' },
-  // Tipo: 'service', 'product' o 'combo'
-  type: { type: String, enum: ['service', 'product', 'combo'], default: 'service', index: true },
+  // Tipo: 'service', 'product', 'combo' o 'inversion'
+  type: { type: String, enum: ['service', 'product', 'combo', 'inversion'], default: 'service', index: true },
   
   // Vincular producto con item del inventario (solo para type: 'product')
   itemId: { type: mongoose.Schema.Types.ObjectId, ref: 'Item', default: null, index: true },

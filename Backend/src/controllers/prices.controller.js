@@ -351,9 +351,15 @@ export const createPrice = async (req, res) => {
   // name es siempre requerido
   if (!name || !name.trim()) return res.status(400).json({ error: 'name requerido' });
   
-  // vehicleId es opcional: si isGeneral es true o vehicleId es null/undefined, crear precio general
+  // Para precios de inversión, vehicleId debe ser null (siempre generales)
+  const isInversion = type === 'inversion';
+  if (isInversion && vehicleId) {
+    return res.status(400).json({ error: 'Los precios de inversión no pueden estar vinculados a un vehículo' });
+  }
+  
+  // vehicleId es opcional: si isGeneral es true, isInversion es true, o vehicleId es null/undefined, crear precio general
   let vehicle = null;
-  if (vehicleId && !isGeneral) {
+  if (vehicleId && !isGeneral && !isInversion) {
     vehicle = await Vehicle.findById(vehicleId);
     if (!vehicle) return res.status(404).json({ error: 'Vehículo no encontrado' });
     if (!vehicle.active) return res.status(400).json({ error: 'Vehículo inactivo' });
@@ -429,22 +435,22 @@ export const createPrice = async (req, res) => {
   
   const doc = {
     companyId: creationCompanyId,
-    vehicleId: vehicle?._id || null, // null para precios generales
+    vehicleId: (isInversion || isGeneral) ? null : (vehicle?._id || null), // null para precios generales e inversión
     name: String(name).trim(),
-    type: type === 'combo' ? 'combo' : (type === 'product' ? 'product' : 'service'),
-    serviceId: svc?._id || null,
-    itemId: (type === 'product' && item) ? item._id : null,
-    comboProducts: type === 'combo' ? processedComboProducts : [],
+    type: isInversion ? 'inversion' : (type === 'combo' ? 'combo' : (type === 'product' ? 'product' : 'service')),
+    serviceId: isInversion ? null : (svc?._id || null),
+    itemId: (isInversion || type !== 'product') ? null : ((item) ? item._id : null),
+    comboProducts: (isInversion || type !== 'combo') ? [] : processedComboProducts,
     yearFrom: yearFromNum,
     yearTo: yearToNum,
-    brand: vehicle?.make || '',
-    line: vehicle?.line || '',
-    engine: vehicle?.displacement || '',
+    brand: (isInversion || isGeneral) ? '' : (vehicle?.make || ''),
+    line: (isInversion || isGeneral) ? '' : (vehicle?.line || ''),
+    engine: (isInversion || isGeneral) ? '' : (vehicle?.displacement || ''),
     year: null,
-    variables: variables || {},
+    variables: isInversion ? {} : (variables || {}),
     total,
-    laborValue: (laborValue !== undefined && laborValue !== null && laborValue !== '') ? Math.max(0, num(laborValue)) : 0,
-    laborKind: (laborKind !== undefined && laborKind !== null && laborKind !== '') ? String(laborKind).trim() : ''
+    laborValue: (isInversion || laborValue === undefined || laborValue === null || laborValue === '') ? 0 : Math.max(0, num(laborValue)),
+    laborKind: (isInversion || laborKind === undefined || laborKind === null || laborKind === '') ? '' : String(laborKind).trim()
   };
   
   try {
@@ -490,16 +496,33 @@ export const updatePrice = async (req, res) => {
   // Actualizar nombre y tipo si se proporcionan
   if (name !== undefined && name !== null) row.name = String(name).trim();
   if (type !== undefined && type !== null) {
-    const newType = type === 'combo' ? 'combo' : (type === 'product' ? 'product' : 'service');
+    const newType = type === 'inversion' ? 'inversion' : (type === 'combo' ? 'combo' : (type === 'product' ? 'product' : 'service'));
     row.type = newType;
     
     // Limpiar campos según el tipo
-    if (newType !== 'product') row.itemId = null;
-    if (newType !== 'combo') row.comboProducts = [];
+    if (newType === 'inversion') {
+      // Para inversión, limpiar todos los campos relacionados
+      row.vehicleId = null;
+      row.serviceId = null;
+      row.itemId = null;
+      row.comboProducts = [];
+      row.variables = {};
+      row.laborValue = 0;
+      row.laborKind = '';
+      row.brand = '';
+      row.line = '';
+      row.engine = '';
+    } else {
+      if (newType !== 'product') row.itemId = null;
+      if (newType !== 'combo') row.comboProducts = [];
+    }
   }
   
-  // Actualizar serviceId si se proporciona
-  if (serviceId !== undefined) {
+  // Para precios de inversión, no permitir actualizar serviceId, itemId ni comboProducts
+  const isInversion = row.type === 'inversion';
+  
+  // Actualizar serviceId si se proporciona (solo si no es inversión)
+  if (serviceId !== undefined && !isInversion) {
     if (serviceId === null || serviceId === '') {
       row.serviceId = null;
     } else {
@@ -509,8 +532,8 @@ export const updatePrice = async (req, res) => {
     }
   }
   
-  // Actualizar itemId si se proporciona (solo para productos)
-  if (itemId !== undefined && row.type === 'product') {
+  // Actualizar itemId si se proporciona (solo para productos, no para inversión)
+  if (itemId !== undefined && row.type === 'product' && !isInversion) {
     if (itemId === null || itemId === '') {
       row.itemId = null;
     } else {
@@ -522,8 +545,8 @@ export const updatePrice = async (req, res) => {
     }
   }
   
-  // Actualizar comboProducts si se proporciona (solo para combos)
-  if (comboProducts !== undefined && row.type === 'combo') {
+  // Actualizar comboProducts si se proporciona (solo para combos, no para inversión)
+  if (comboProducts !== undefined && row.type === 'combo' && !isInversion) {
     const result = await processComboProducts(comboProducts, req);
     if (result.error) {
       return res.status(400).json({ error: result.error });

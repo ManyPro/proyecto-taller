@@ -452,6 +452,7 @@ export function initPrices(){
   const actionsBarGeneral=$('#pe-actions-bar-general');
   const head=$('#pe-head'), body=$('#pe-body');
   const headGeneral=$('#pe-head-general'), bodyGeneral=$('#pe-body-general');
+  const headInversion=$('#pe-head-inversion'), bodyInversion=$('#pe-body-inversion');
   
   // Declarar variables que se usarán en las funciones
   let selectedVehicle = null; // Mantener para compatibilidad con código existente
@@ -464,7 +465,7 @@ export function initPrices(){
   const vehicleTabsContainer=$('#pe-vehicle-tabs');
   
   // Declarar funciones que se usarán más adelante (se definirán después)
-  let loadPrices, loadGeneralPrices;
+  let loadPrices, loadGeneralPrices, loadInversionPrices;
   
   // Función para cambiar entre tabs (definirla temprano para que esté disponible)
   // Se asignará completamente después de que loadPrices y loadGeneralPrices estén definidas
@@ -500,13 +501,19 @@ export function initPrices(){
     // Filtros y tablas
     const filtersVehicular = $('#pe-filters');
     const filtersGeneral = $('#pe-filters-general');
+    const filtersInversion = $('#pe-filters-inversion');
     const tableVehicular = $('#pe-table')?.closest('div');
     const tableGeneral = $('#pe-table-general')?.closest('div');
+    const tableInversion = $('#pe-table-inversion')?.closest('div');
+    const actionsBarInversion = $('#pe-actions-bar-inversion');
     
     if (filtersVehicular) filtersVehicular.style.display = isVehicular ? 'flex' : 'none';
     if (filtersGeneral) filtersGeneral.style.display = isGeneral ? 'flex' : 'none';
+    if (filtersInversion) filtersInversion.style.display = isInversion ? 'flex' : 'none';
     if (tableVehicular) tableVehicular.style.display = isVehicular ? 'block' : 'none';
     if (tableGeneral) tableGeneral.style.display = isGeneral ? 'block' : 'none';
+    if (tableInversion) tableInversion.style.display = isInversion ? 'block' : 'none';
+    if (actionsBarInversion) actionsBarInversion.style.display = isInversion ? 'flex' : 'none';
     
     // Cargar precios según la pestaña (solo si las funciones están definidas)
     if (isVehicular && loadPrices) {
@@ -519,10 +526,14 @@ export function initPrices(){
       currentFilters = { name: '', type: '' }; // Resetear filtros
       console.log('[switchSubTab] Cargando precios generales...');
       loadGeneralPrices();
-    } else if (isInversion) {
-      // Por ahora no hacer nada, se implementará en siguiente tarea
-      // Los endpoints están abiertos para la siguiente implementación
-      console.log('[switchSubTab] Pestaña de inversión seleccionada (funcionalidad pendiente)');
+    } else if (isInversion && loadInversionPrices) {
+      selectedVehicle = null;
+      selectedVehicles = [];
+      selectedMake = null;
+      currentPage = 1;
+      currentFilters = { name: '', type: '' }; // Resetear filtros
+      console.log('[switchSubTab] Cargando precios de inversión...');
+      loadInversionPrices();
     }
   };
 
@@ -695,6 +706,186 @@ export function initPrices(){
       }
     });
   }
+
+  // Función para cargar precios de inversión
+  loadInversionPrices = async function(params={}) {
+    console.log('[loadInversionPrices] Iniciando carga de precios de inversión...');
+    // Obtener filtros de la pestaña de inversión
+    const filterNameInversion = $('#pe-filter-name-inversion');
+    const nameFilter = filterNameInversion?.value || '';
+    
+    params = { 
+      ...(params||{}), 
+      vehicleId: null,
+      type: 'inversion', // Filtrar solo precios de inversión
+      page: currentPage,
+      limit: 10,
+      name: nameFilter
+    };
+    
+    console.log('[loadInversionPrices] Parámetros:', params);
+    
+    try {
+      const r = await API.pricesList(params);
+      console.log('[loadInversionPrices] Respuesta de API:', r);
+      const rows = Array.isArray(r?.items) ? r.items : (Array.isArray(r) ? r : []);
+      paging = {
+        page: r.page || 1,
+        limit: r.limit || 10,
+        total: r.total || 0,
+        pages: r.pages || 1
+      };
+      
+      // Renderizar header en tabla de inversión
+      if (headInversion && bodyInversion) {
+        const tr = document.createElement('tr');
+        ['Nombre', 'Precio', 'Acciones'].forEach(txt => {
+          const th = document.createElement('th');
+          th.textContent = txt;
+          tr.appendChild(th);
+        });
+        headInversion.replaceChildren(tr);
+        
+        if (rows.length === 0) {
+          bodyInversion.replaceChildren();
+          const emptyRow = document.createElement('tr');
+          emptyRow.innerHTML = `<td colspan="3" style="text-align:center;padding:24px;color:var(--muted);">
+            <div style="margin-bottom:8px;">💼 No hay precios de inversión disponibles</div>
+            <div style="font-size:12px;">Usa el botón de arriba para crear precios de inversión</div>
+          </td>`;
+          bodyInversion.appendChild(emptyRow);
+        } else {
+          bodyInversion.replaceChildren(...rows.map(r => {
+            const tr = clone(rowTemplateId);
+            if (!tr) {
+              const fallback = document.createElement('tr');
+              fallback.innerHTML = `<td colspan="3">Error: Template no disponible</td>`;
+              return fallback;
+            }
+            
+            // Configurar celdas para inversión (más simple que otros tipos)
+            const nameCell = tr.querySelector('[data-name]');
+            if (nameCell) nameCell.textContent = r.name || '';
+            
+            const priceCell = tr.querySelector('[data-price]');
+            if (priceCell) {
+              const priceInput = priceCell.querySelector('input');
+              if (priceInput) priceInput.value = r.total || 0;
+            }
+            
+            // Ocultar celdas que no aplican para inversión
+            const vehicleCell = tr.querySelector('[data-vehicle]');
+            if (vehicleCell) {
+              vehicleCell.innerHTML = '<span class="inline-block px-2 py-0.5 bg-orange-600 dark:bg-orange-600 theme-light:bg-orange-500 text-white text-xs font-semibold rounded">💼 INVERSIÓN</span>';
+            }
+            
+            const itemInfoCell = tr.querySelector('[data-item-info]');
+            if (itemInfoCell) itemInfoCell.textContent = '-';
+            
+            // Configurar botones de acciones
+            const editBtn = tr.querySelector('button.edit');
+            const saveBtn = tr.querySelector('button.save');
+            const deleteBtn = tr.querySelector('button.delete');
+            
+            if (editBtn) {
+              const newEditBtn = editBtn.cloneNode(true);
+              editBtn.parentNode.replaceChild(newEditBtn, editBtn);
+              newEditBtn.addEventListener('click', () => {
+                const priceInput = tr.querySelector('input[data-price]');
+                if (priceInput) {
+                  priceInput.disabled = false;
+                  priceInput.focus();
+                  newEditBtn.style.display = 'none';
+                  if (saveBtn) saveBtn.style.display = 'inline-block';
+                }
+              });
+            }
+            
+            if (saveBtn) {
+              const newSaveBtn = saveBtn.cloneNode(true);
+              saveBtn.parentNode.replaceChild(newSaveBtn, saveBtn);
+              newSaveBtn.style.display = 'none';
+              newSaveBtn.addEventListener('click', async () => {
+                const priceInput = tr.querySelector('input[data-price]');
+                if (priceInput) {
+                  const newPrice = Number(priceInput.value || 0);
+                  try {
+                    await API.priceUpdate(r._id, { total: newPrice });
+                    priceInput.disabled = true;
+                    newSaveBtn.style.display = 'none';
+                    if (editBtn) editBtn.style.display = 'inline-block';
+                    loadInversionPrices();
+                  } catch (err) {
+                    alert('Error al actualizar: ' + (err?.message || 'Error desconocido'));
+                  }
+                }
+              });
+            }
+            
+            if (deleteBtn) {
+              const newDeleteBtn = deleteBtn.cloneNode(true);
+              deleteBtn.parentNode.replaceChild(newDeleteBtn, deleteBtn);
+              newDeleteBtn.addEventListener('click', async () => {
+                if (confirm('¿Borrar este precio de inversión?')) {
+                  try {
+                    await API.priceDelete(r._id);
+                    loadInversionPrices();
+                  } catch (err) {
+                    alert('Error al borrar: ' + (err?.message || 'Error desconocido'));
+                  }
+                }
+              });
+            }
+            
+            return tr;
+          }));
+        }
+      }
+      
+      // Renderizar paginación de inversión
+      const paginationInversion = $('#pe-pagination-inversion');
+      if (paginationInversion) {
+        if (paging.pages <= 1) {
+          paginationInversion.innerHTML = '';
+        } else {
+          let html = '<div style="display:flex;align-items:center;gap:8px;justify-content:center;padding:12px;">';
+          html += `<button class="secondary" ${paging.page <= 1 ? 'disabled' : ''} id="pe-prev-inversion">← Anterior</button>`;
+          html += `<span style="color:var(--muted);font-size:13px;">Página ${paging.page} de ${paging.pages} (${paging.total} total)</span>`;
+          html += `<button class="secondary" ${paging.page >= paging.pages ? 'disabled' : ''} id="pe-next-inversion">Siguiente →</button>`;
+          html += '</div>';
+          paginationInversion.innerHTML = html;
+          
+          $('#pe-prev-inversion')?.addEventListener('click', () => {
+            if (paging.page > 1) {
+              currentPage = paging.page - 1;
+              loadInversionPrices();
+            }
+          });
+          $('#pe-next-inversion')?.addEventListener('click', () => {
+            if (paging.page < paging.pages) {
+              currentPage = paging.page + 1;
+              loadInversionPrices();
+            }
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error loading inversion prices:', err);
+      if (headInversion && bodyInversion) {
+        const tr = document.createElement('tr');
+        ['Nombre', 'Precio', 'Acciones'].forEach(txt => {
+          const th = document.createElement('th');
+          th.textContent = txt;
+          tr.appendChild(th);
+        });
+        headInversion.replaceChildren(tr);
+        bodyInversion.replaceChildren();
+        const errorRow = document.createElement('tr');
+        errorRow.innerHTML = `<td colspan="3" style="text-align:center;padding:24px;color:var(--danger);">Error al cargar precios: ${err?.message || 'Error desconocido'}</td>`;
+        bodyInversion.appendChild(errorRow);
+      }
+    }
+  };
 
   // Función para cargar precios generales
   loadGeneralPrices = async function(params={}) {
@@ -1779,23 +1970,24 @@ export function initPrices(){
   if (fClear) fClear.onclick  = ()=> { clearFilters(); };
   
   // Modal para crear/editar servicio/producto
-  function openCreateModal(type, existingPrice = null, isGeneral = false) {
-    // Si es precio general, no requiere vehículo
-    // Si no es precio general, verificar que haya al menos un vehículo seleccionado
-    if (!isGeneral && !existingPrice?.vehicleId && !selectedVehicle && selectedVehicles.length === 0) {
+  function openCreateModal(type, existingPrice = null, isGeneral = false, isInversion = false) {
+    // Si es precio general o inversión, no requiere vehículo
+    const isInversionPrice = isInversion || type === 'inversion';
+    // Si no es precio general ni inversión, verificar que haya al menos un vehículo seleccionado
+    if (!isGeneral && !isInversionPrice && !existingPrice?.vehicleId && !selectedVehicle && selectedVehicles.length === 0) {
       return alert('Selecciona un vehículo primero o crea un precio general');
     }
     const body=$('#modalBody'), closeBtn=$('#modalClose');
     
     const isEdit = !!existingPrice;
-    const isProduct = type === 'product';
-    const isCombo = type === 'combo';
-    const isService = type === 'service';
+    const isProduct = type === 'product' && !isInversionPrice;
+    const isCombo = type === 'combo' && !isInversionPrice;
+    const isService = type === 'service' && !isInversionPrice;
     const linkedItem = existingPrice?.itemId;
     const comboProducts = existingPrice?.comboProducts || [];
     
-    // Determinar si es precio general
-    const isGeneralPrice = isGeneral || (existingPrice && !existingPrice.vehicleId);
+    // Determinar si es precio general o inversión
+    const isGeneralPrice = (isGeneral || isInversionPrice) || (existingPrice && !existingPrice.vehicleId && existingPrice.type !== 'inversion');
     
     // Determinar qué vehículos usar para la creación
     // Si es precio general, no usar vehículos
@@ -1806,9 +1998,15 @@ export function initPrices(){
     
     const node = document.createElement('div');
     node.className = 'bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6';
+    const isInversionPrice = isInversion || type === 'inversion';
     node.innerHTML = `
-      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6">${isEdit ? 'Editar' : 'Nuevo'} ${type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto')}</h3>
-      ${isGeneralPrice ? `
+      <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6">${isEdit ? 'Editar' : 'Nuevo'} ${isInversionPrice ? 'Precio de Inversión' : (type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto'))}</h3>
+      ${isInversionPrice ? `
+      <div class="mb-4 p-3 bg-orange-500/10 dark:bg-orange-500/10 theme-light:bg-orange-50 rounded-lg border-2 border-orange-500 dark:border-orange-500 theme-light:border-orange-400">
+        <div class="text-sm font-semibold text-orange-400 dark:text-orange-400 theme-light:text-orange-700 mb-2">💼 Precio de Inversión</div>
+        <div class="text-xs text-white dark:text-white theme-light:text-slate-900 mb-2">Este precio se aplicará por defecto al cerrar ventas para calcular la inversión contra el cobro total y determinar la ganancia neta después de inversión.</div>
+      </div>
+      ` : isGeneralPrice ? `
       <div class="mb-4 p-3 bg-purple-500/10 dark:bg-purple-500/10 theme-light:bg-purple-50 rounded-lg border-2 border-purple-500 dark:border-purple-500 theme-light:border-purple-400">
         <div class="text-sm font-semibold text-purple-400 dark:text-purple-400 theme-light:text-purple-700 mb-2">🌐 Precio General</div>
         <div class="text-xs text-white dark:text-white theme-light:text-slate-900 mb-2">Este ${type === 'combo' ? 'combo' : (type === 'service' ? 'servicio' : 'producto')} estará disponible para todos los vehículos y se puede usar sin seleccionar un vehículo específico.</div>
@@ -1832,8 +2030,14 @@ export function initPrices(){
       `}
       <div class="mb-4">
         <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Nombre</label>
-        <input id="pe-modal-name" placeholder="${type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire')}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" value="${existingPrice?.name || ''}" />
+        <input id="pe-modal-name" placeholder="${isInversionPrice ? 'Ej: Inversión en repuestos' : (type === 'combo' ? 'Ej: Combo mantenimiento completo' : (type === 'service' ? 'Ej: Cambio de aceite' : 'Ej: Filtro de aire'))}" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" value="${existingPrice?.name || ''}" />
       </div>
+      ${isInversionPrice ? `
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1.5">Precio de inversión</label>
+        <input id="pe-modal-price" type="number" step="0.01" min="0" placeholder="Ej: 50000" class="w-full px-4 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200" value="${existingPrice?.total || ''}" />
+      </div>
+      ` : ''}
       ${isCombo ? `
       <div class="mb-4">
         <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-3">Productos del combo</label>
@@ -2975,11 +3179,12 @@ export function initPrices(){
           }
         }
         
-        // Si es precio general, no requiere vehículo
-        if (isGeneralPrice) {
+        // Si es precio general o inversión, no requiere vehículo
+        if (isGeneralPrice || isInversionPrice) {
           const payload = {
             ...basePayload,
-            isGeneral: true,
+            type: isInversionPrice ? 'inversion' : basePayload.type,
+            isGeneral: isGeneralPrice && !isInversionPrice,
             vehicleId: null
           };
           
@@ -2995,6 +3200,8 @@ export function initPrices(){
           const activeSubTab = document.querySelector('.payroll-tabs button[data-subtab].active')?.dataset.subtab;
           if (activeSubTab === 'prices-general') {
             loadGeneralPrices();
+          } else if (activeSubTab === 'prices-inversion') {
+            loadInversionPrices();
           } else {
             loadPrices();
           }
@@ -3300,6 +3507,34 @@ export function initPrices(){
       if (e.key === 'Enter') {
         searchBtnGeneral?.click();
       }
+    });
+  }
+
+  // Event listeners para filtros de la pestaña de inversión
+  const filterNameInversion = $('#pe-filter-name-inversion');
+  const searchBtnInversion = $('#pf-search-inversion');
+  
+  if (searchBtnInversion) {
+    searchBtnInversion.addEventListener('click', () => {
+      currentFilters.name = filterNameInversion?.value || '';
+      currentPage = 1;
+      loadInversionPrices();
+    });
+  }
+  
+  if (filterNameInversion) {
+    filterNameInversion.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        searchBtnInversion?.click();
+      }
+    });
+  }
+
+  // Event listener para botón de crear precio de inversión
+  const btnNewInversion = $('#pe-new-inversion');
+  if (btnNewInversion) {
+    btnNewInversion.addEventListener('click', () => {
+      openCreateModal('inversion', null, false, true);
     });
   }
 
