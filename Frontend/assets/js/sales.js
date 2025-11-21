@@ -3154,11 +3154,7 @@ async function renderSale(){
     btnEdit.className = 'secondary';
     btnEdit.style.cssText = 'padding: 6px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; font-weight: 500; background: rgba(100, 116, 139, 0.3); color: white;';
     btnEdit.onclick = async () => {
-      const v = prompt('Nuevo precio unitario:', String(it.unitPrice || 0));
-      if (v == null) return;
-      await updateSaleAndRender(async () => {
-        current = await API.sales.updateItem(current._id, it._id, { unitPrice: Number(v) || 0 });
-      });
+      await openEditPriceModal(it);
     };
     
     const btnZero = document.createElement('button');
@@ -9679,6 +9675,167 @@ async function viewSaleSummary(saleId) {
   }
 }
 
+async function openEditPriceModal(item) {
+  try {
+    if (!current || !current._id) {
+      alert('No hay venta activa');
+      return;
+    }
+    
+    const currentPrice = Number(item.unitPrice || 0);
+    const itemName = item.name || 'Item';
+    
+    // Crear modal HTML
+    const modal = document.getElementById('modal');
+    const modalBody = document.getElementById('modalBody');
+    const modalClose = document.getElementById('modalClose');
+    
+    if (!modal || !modalBody) {
+      alert('Error: No se pudo abrir el modal');
+      return;
+    }
+    
+    // Construir HTML del modal
+    modalBody.innerHTML = `
+      <div class="space-y-6">
+        <div>
+          <h2 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">
+            Editar precio unitario
+          </h2>
+          <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+            ${htmlEscape(itemName)}
+          </p>
+        </div>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">
+              Precio actual
+            </label>
+            <div class="px-4 py-2 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg text-sm text-white dark:text-white theme-light:text-slate-900">
+              ${money(currentPrice)}
+            </div>
+          </div>
+          
+          <div>
+            <label for="edit-price-input" class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">
+              Nuevo precio unitario
+            </label>
+            <input 
+              type="number" 
+              id="edit-price-input" 
+              step="1"
+              min="0"
+              value="${currentPrice}"
+              class="w-full px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-lg"
+              placeholder="Ingrese el nuevo precio"
+              autofocus
+            />
+          </div>
+        </div>
+        
+        <div class="flex gap-3 justify-end pt-4 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
+          <button 
+            id="edit-price-cancel" 
+            class="px-6 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200"
+          >
+            Cancelar
+          </button>
+          <button 
+            id="edit-price-save" 
+            class="px-6 py-2.5 bg-blue-600 dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-700 theme-light:bg-blue-500 theme-light:hover:bg-blue-600 text-white font-semibold rounded-lg transition-all duration-200"
+          >
+            Guardar
+          </button>
+        </div>
+      </div>
+    `;
+    
+    // Mostrar modal
+    modal.classList.remove('hidden');
+    
+    // Referencias a elementos
+    const priceInput = document.getElementById('edit-price-input');
+    const cancelBtn = document.getElementById('edit-price-cancel');
+    const saveBtn = document.getElementById('edit-price-save');
+    
+    // Función para cerrar modal
+    const closeModal = () => {
+      modal.classList.add('hidden');
+    };
+    
+    // Event listeners
+    cancelBtn.addEventListener('click', closeModal);
+    modalClose.addEventListener('click', closeModal);
+    
+    // Cerrar con ESC
+    const escHandler = (e) => {
+      if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+        closeModal();
+        document.removeEventListener('keydown', escHandler);
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+    
+    // Guardar precio
+    const savePrice = async () => {
+      const newPrice = Number(priceInput.value || 0);
+      
+      if (newPrice < 0) {
+        alert('El precio no puede ser negativo');
+        priceInput.focus();
+        return;
+      }
+      
+      try {
+        // Función para actualizar y renderizar
+        async function updateSaleAndRender(updateFn) {
+          try {
+            await updateFn();
+            syncCurrentIntoOpenList();
+            await renderAll();
+          } catch (err) {
+            console.error('Error updating sale:', err);
+            alert(err?.message || 'Error al actualizar');
+          }
+        }
+        
+        await updateSaleAndRender(async () => {
+          current = await API.sales.updateItem(current._id, item._id, { unitPrice: newPrice });
+        });
+        
+        closeModal();
+        document.removeEventListener('keydown', escHandler);
+      } catch (err) {
+        console.error('Error actualizando precio:', err);
+        alert('Error al actualizar precio: ' + (err?.message || 'Error desconocido'));
+      }
+    };
+    
+    saveBtn.addEventListener('click', savePrice);
+    
+    // Permitir guardar con Enter
+    priceInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        savePrice();
+      }
+    });
+    
+    // Enfocar el input y seleccionar todo el texto
+    setTimeout(() => {
+      priceInput.focus();
+      priceInput.select();
+    }, 100);
+    
+  } catch (err) {
+    console.error('Error en openEditPriceModal:', err);
+    alert('Error: ' + (err?.message || 'Error desconocido'));
+    const modal = document.getElementById('modal');
+    if (modal) modal.classList.add('hidden');
+  }
+}
+
 async function editTechnicianFromHistorial(saleId) {
   try {
     // Cargar técnicos si no están cargados
@@ -9693,58 +9850,177 @@ async function editTechnicianFromHistorial(saleId) {
     }
     
     const currentTechnician = sale?.technician || sale?.closingTechnician || '';
+    const saleNumber = padSaleNumber(sale?.number || sale?._id || '');
     
-    // Crear opciones para el select
-    const options = ['-- Ninguno --', ...companyTechnicians, '+ Agregar técnico…'];
+    // Crear modal HTML
+    const modal = document.getElementById('modal');
+    const modalBody = document.getElementById('modalBody');
+    const modalClose = document.getElementById('modalClose');
     
-    // Mostrar prompt con select (usando un modal simple)
-    const technicianName = prompt(
-      `Editar técnico para venta #${padSaleNumber(sale?.number || sale?._id || '')}\n\n` +
-      `Técnico actual: ${currentTechnician || 'Sin asignar'}\n\n` +
-      `Ingrese el nombre del técnico (o deje vacío para quitar):`,
-      currentTechnician
-    );
-    
-    if (technicianName === null) {
-      // Usuario canceló
+    if (!modal || !modalBody) {
+      alert('Error: No se pudo abrir el modal');
       return;
     }
     
-    const newTechnician = String(technicianName || '').trim().toUpperCase();
+    // Construir HTML del modal
+    modalBody.innerHTML = `
+      <div class="space-y-6">
+        <div>
+          <h2 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">
+            Editar técnico
+          </h2>
+          <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+            Venta #${saleNumber}
+          </p>
+        </div>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">
+              Técnico actual
+            </label>
+            <div class="px-4 py-2 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg text-sm text-white dark:text-white theme-light:text-slate-900">
+              ${currentTechnician || 'Sin asignar'}
+            </div>
+          </div>
+          
+          <div>
+            <label for="edit-tech-select" class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">
+              Seleccionar técnico
+            </label>
+            <select 
+              id="edit-tech-select" 
+              class="w-full px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            >
+              <option value="">-- Ninguno --</option>
+              ${(companyTechnicians || []).map(t => 
+                `<option value="${htmlEscape(t)}" ${t === currentTechnician ? 'selected' : ''}>${htmlEscape(t)}</option>`
+              ).join('')}
+              <option value="__ADD_TECH__">+ Agregar técnico nuevo…</option>
+            </select>
+          </div>
+          
+          <div id="edit-tech-add-section" class="hidden space-y-2">
+            <label for="edit-tech-new-name" class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700">
+              Nombre del nuevo técnico
+            </label>
+            <input 
+              type="text" 
+              id="edit-tech-new-name" 
+              placeholder="Ingrese el nombre del técnico"
+              class="w-full px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            />
+          </div>
+        </div>
+        
+        <div class="flex gap-3 justify-end pt-4 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
+          <button 
+            id="edit-tech-cancel" 
+            class="px-6 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200"
+          >
+            Cancelar
+          </button>
+          <button 
+            id="edit-tech-save" 
+            class="px-6 py-2.5 bg-blue-600 dark:bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-700 theme-light:bg-blue-500 theme-light:hover:bg-blue-600 text-white font-semibold rounded-lg transition-all duration-200"
+          >
+            Guardar
+          </button>
+        </div>
+      </div>
+    `;
     
-    // Si el técnico no está en la lista y no está vacío, ofrecer agregarlo
-    if (newTechnician && !companyTechnicians.includes(newTechnician)) {
-      const addTech = confirm(`El técnico "${newTechnician}" no está en la lista.\n¿Desea agregarlo?`);
-      if (addTech) {
+    // Mostrar modal
+    modal.classList.remove('hidden');
+    
+    // Referencias a elementos
+    const selectEl = document.getElementById('edit-tech-select');
+    const addSectionEl = document.getElementById('edit-tech-add-section');
+    const newNameInputEl = document.getElementById('edit-tech-new-name');
+    const cancelBtn = document.getElementById('edit-tech-cancel');
+    const saveBtn = document.getElementById('edit-tech-save');
+    
+    // Manejar selección de "Agregar técnico nuevo"
+    selectEl.addEventListener('change', () => {
+      if (selectEl.value === '__ADD_TECH__') {
+        addSectionEl.classList.remove('hidden');
+        newNameInputEl.focus();
+      } else {
+        addSectionEl.classList.add('hidden');
+      }
+    });
+    
+    // Función para cerrar modal
+    const closeModal = () => {
+      modal.classList.add('hidden');
+    };
+    
+    // Event listeners
+    cancelBtn.addEventListener('click', closeModal);
+    modalClose.addEventListener('click', closeModal);
+    
+    // Cerrar con ESC
+    const escHandler = (e) => {
+      if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+        closeModal();
+        document.removeEventListener('keydown', escHandler);
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+    
+    // Guardar técnico
+    saveBtn.addEventListener('click', async () => {
+      let newTechnician = '';
+      
+      if (selectEl.value === '__ADD_TECH__') {
+        // Agregar nuevo técnico
+        const newName = String(newNameInputEl.value || '').trim();
+        if (!newName) {
+          alert('Por favor ingrese un nombre para el técnico');
+          newNameInputEl.focus();
+          return;
+        }
+        
+        newTechnician = newName.toUpperCase();
+        
+        // Agregar técnico a la lista
         try {
           companyTechnicians = await API.company.addTechnician(newTechnician);
           techniciansCache = companyTechnicians;
           techniciansCacheTime = Date.now();
         } catch (err) {
-          console.warn('Error agregando técnico:', err);
-          // Continuar de todas formas
+          console.error('Error agregando técnico:', err);
+          alert('Error al agregar técnico: ' + (err?.message || 'Error desconocido'));
+          return;
         }
+      } else {
+        // Usar técnico seleccionado
+        newTechnician = String(selectEl.value || '').trim().toUpperCase();
       }
-    }
+      
+      // Actualizar técnico en la venta cerrada
+      try {
+        await API.sales.updateClose(saleId, { technician: newTechnician });
+        
+        // Invalidar cache de la venta para que se recargue
+        saleCache.delete(saleId);
+        
+        // Recargar el historial para mostrar el cambio
+        await loadHistorial(true);
+        
+        closeModal();
+        document.removeEventListener('keydown', escHandler);
+      } catch (err) {
+        console.error('Error actualizando técnico:', err);
+        alert('Error al actualizar técnico: ' + (err?.message || 'Error desconocido'));
+      }
+    });
     
-    // Actualizar técnico en la venta cerrada usando updateClose
-    try {
-      await API.sales.updateClose(saleId, { technician: newTechnician });
-      
-      // Invalidar cache de la venta para que se recargue
-      saleCache.delete(saleId);
-      
-      // Recargar el historial para mostrar el cambio
-      await loadHistorial(true);
-      
-      alert('Técnico actualizado correctamente');
-    } catch (err) {
-      console.error('Error actualizando técnico:', err);
-      alert('Error al actualizar técnico: ' + (err?.message || 'Error desconocido'));
-    }
   } catch (err) {
     console.error('Error en editTechnicianFromHistorial:', err);
     alert('Error: ' + (err?.message || 'Error desconocido'));
+    const modal = document.getElementById('modal');
+    if (modal) modal.classList.add('hidden');
   }
 }
 
