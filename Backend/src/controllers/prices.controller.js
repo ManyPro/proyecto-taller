@@ -5,6 +5,7 @@ import Item from '../models/Item.js';
 import Company from '../models/Company.js';
 import xlsx from 'xlsx'; // 0.18.x
 import { logger } from '../lib/logger.js';
+import { getAllSharedCompanyIds } from '../lib/sharedDatabase.js';
 
 // ============ helpers ============
 function cleanStr(v) {
@@ -254,44 +255,9 @@ export const getPrice = async (req, res) => {
   const { id } = req.params;
   
   // Determinar companyIds a buscar (considerando BD compartida)
+  // Usar la función helper compartida para asegurar consistencia
   const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
-  let companyIdsToSearch = [originalCompanyId];
-  
-  // Siempre verificar si hay empresas que comparten la BD (tanto si es principal como secundaria)
-  if (originalCompanyId) {
-    try {
-      const Company = (await import('../models/Company.js')).default;
-      const companyDoc = await Company.findById(originalCompanyId).select('sharedDatabaseConfig').lean();
-      
-      if (companyDoc?.sharedDatabaseConfig?.sharedWith && companyDoc.sharedDatabaseConfig.sharedWith.length > 0) {
-        // Esta empresa es principal, incluir todas las empresas secundarias
-        companyIdsToSearch = [
-          originalCompanyId, // La empresa principal
-          ...companyDoc.sharedDatabaseConfig.sharedWith.map(sw => String(sw.companyId)) // Empresas secundarias
-        ];
-      } else if (companyDoc?.sharedDatabaseConfig?.sharedFrom?.companyId) {
-        // Esta empresa es secundaria, incluir la principal y otras secundarias
-        const mainCompanyId = String(companyDoc.sharedDatabaseConfig.sharedFrom.companyId);
-        const mainCompany = await Company.findById(mainCompanyId).select('sharedDatabaseConfig').lean();
-        
-        companyIdsToSearch = [mainCompanyId]; // La empresa principal
-        if (mainCompany?.sharedDatabaseConfig?.sharedWith) {
-          // Agregar todas las empresas secundarias (incluyendo esta)
-          mainCompany.sharedDatabaseConfig.sharedWith.forEach(sw => {
-            companyIdsToSearch.push(String(sw.companyId));
-          });
-        }
-        // Asegurar que la empresa actual también esté incluida
-        if (!companyIdsToSearch.includes(String(originalCompanyId))) {
-          companyIdsToSearch.push(String(originalCompanyId));
-        }
-      }
-    } catch (err) {
-      console.error('[getPrice] Error obteniendo empresas compartidas:', err);
-      // En caso de error, usar solo originalCompanyId
-      companyIdsToSearch = [originalCompanyId];
-    }
-  }
+  const companyIdsToSearch = await getAllSharedCompanyIds(originalCompanyId);
   
   // Construir query con companyIds
   const companyFilter = companyIdsToSearch.length > 1 

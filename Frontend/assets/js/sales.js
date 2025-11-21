@@ -44,67 +44,13 @@ async function getPriceEntryCached(refId) {
       if (pe && pe._id) {
         // Guardar en cache
         window.priceEntryCache.set(refIdStr, pe);
-        // Si estaba en errores, limpiarlo (puede haber sido un problema temporal)
-        if (window.priceEntryErrors.has(refIdStr)) {
-          window.priceEntryErrors.delete(refIdStr);
-        }
         return pe;
       }
       return null;
     } catch (err) {
-      // Detectar tipo de error
-      const errorMsg = String(err?.message || err || '').toLowerCase();
-      const is404 = err?.status === 404 || 
-                    errorMsg.includes('404') || 
-                    errorMsg.includes('not found') || 
-                    errorMsg.includes('priceentry not found') ||
-                    errorMsg.includes('price entry not found') ||
-                    errorMsg.includes('no encontrado') ||
-                    errorMsg.includes('no existe');
-      
-      const is403 = err?.status === 403 || 
-                    errorMsg.includes('403') || 
-                    errorMsg.includes('forbidden') ||
-                    errorMsg.includes('belongs to different company') ||
-                    errorMsg.includes('pertenece a otra empresa');
-      
-      // NO cachear errores 403 - indican problema de configuración de sharedDB que debe resolverse
-      // Solo cachear 404 después de varios intentos fallidos
-      if (is403) {
-        // Error 403: el precio existe pero está en otra empresa (problema de sharedDB)
-        // No cachear este error, permitir reintentos
-        console.error(`[PriceEntry Cache] Error 403 al obtener PriceEntry ${refIdStr}: El precio existe pero pertenece a otra empresa. Verificar configuración de sharedDB.`, err);
-        return null;
-      } else if (is404) {
-        // Error 404: el precio no existe
-        // Solo cachear después de verificar que realmente no existe
-        // No cachear inmediatamente, permitir algunos reintentos
-        const errorCount = window.priceEntryErrorCount || new Map();
-        const currentCount = (errorCount.get(refIdStr) || 0) + 1;
-        errorCount.set(refIdStr, currentCount);
-        window.priceEntryErrorCount = errorCount;
-        
-        // Solo cachear después de 3 intentos fallidos
-        if (currentCount >= 3) {
-          window.priceEntryErrors.add(refIdStr);
-          // Solo loguear una vez para evitar spam en consola
-          if (!window.priceEntryErrorsLogged) {
-            window.priceEntryErrorsLogged = new Set();
-          }
-          if (!window.priceEntryErrorsLogged.has(refIdStr)) {
-            window.priceEntryErrorsLogged.add(refIdStr);
-            console.warn(`[PriceEntry Cache] PriceEntry ${refIdStr} no encontrado después de ${currentCount} intentos. Verificar que el precio existe en la empresa actual o en sharedDB.`);
-          }
-        } else {
-          // Log solo en el primer intento
-          if (currentCount === 1) {
-            console.warn(`[PriceEntry Cache] PriceEntry ${refIdStr} no encontrado (intento ${currentCount}/3). Reintentando...`);
-          }
-        }
-      } else {
-        // Para otros errores (red, servidor, etc.), no cachear (puede ser temporal)
-        console.warn(`[PriceEntry Cache] Error temporal al obtener PriceEntry ${refIdStr}:`, err);
-      }
+      // Los errores deben mostrarse para diagnóstico
+      // El problema real está en el backend, no aquí
+      console.error(`[PriceEntry Cache] Error al obtener PriceEntry ${refIdStr}:`, err);
       return null;
     } finally {
       // Limpiar la promesa pendiente
