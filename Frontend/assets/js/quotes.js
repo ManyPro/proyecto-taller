@@ -1476,42 +1476,107 @@ export function initQuotes({ getCompanyEmail }) {
     d.save(`cotizacion_${doc.number || 'sin_numero'}.pdf`);
   }
 
+  // ===== WhatsApp Helper =====
+  // Función helper para formatear número de teléfono y abrir WhatsApp
+  // Esta función asegura que el número siempre tenga el formato correcto (+57) y que el mensaje aparezca en el chat
+  function openWhatsAppWithPhone(phone, text) {
+    if (!text || !text.trim()) {
+      alert('No hay contenido para enviar por WhatsApp');
+      return false;
+    }
+    
+    if (!phone || !phone.trim()) {
+      alert('Debes ingresar un número de teléfono');
+      return false;
+    }
+    
+    // Limpiar el número (remover espacios, guiones, paréntesis, +, etc.)
+    // IMPORTANTE: Remover TODO excepto dígitos
+    let cleanPhone = phone.trim().replace(/\D/g, '');
+    
+    if (!cleanPhone) {
+      alert('El número de teléfono no es válido');
+      return false;
+    }
+    
+    // Formatear para WhatsApp (agregar código de país 57 si no tiene)
+    // CRÍTICO: Siempre agregar 57 si el número tiene 10 dígitos (Colombia)
+    // Si ya tiene 57 y 12 dígitos, usar tal cual
+    // Si tiene menos de 10 dígitos, es inválido
+    if (cleanPhone.length === 10) {
+      // Número colombiano sin código de país (10 dígitos), agregar 57
+      cleanPhone = '57' + cleanPhone;
+    } else if (cleanPhone.length === 12 && cleanPhone.startsWith('57')) {
+      // Ya tiene código de país 57 (12 dígitos), usar tal cual
+      // No hacer nada
+    } else if (cleanPhone.length === 11 && cleanPhone.startsWith('57')) {
+      // Tiene 57 pero solo 11 dígitos totales, podría estar incompleto
+      // Usar tal cual pero validar
+    } else if (cleanPhone.length < 10) {
+      alert('El número de teléfono debe tener al menos 10 dígitos');
+      return false;
+    } else if (cleanPhone.length > 12) {
+      // Número muy largo, podría tener código de país diferente
+      // Si no empieza con 57, podría ser otro país, usar tal cual
+      // Si empieza con 57 pero tiene más de 12 dígitos, podría tener un error
+      if (cleanPhone.startsWith('57') && cleanPhone.length > 12) {
+        // Truncar a 12 dígitos si es muy largo y empieza con 57
+        cleanPhone = cleanPhone.substring(0, 12);
+      }
+    }
+    
+    // Validar que el número final tenga el formato correcto
+    if (cleanPhone.length < 12 || !cleanPhone.startsWith('57')) {
+      // Si después de todo el procesamiento no tiene 12 dígitos o no empieza con 57,
+      // intentar agregar 57 si tiene 10 dígitos
+      if (cleanPhone.length === 10) {
+        cleanPhone = '57' + cleanPhone;
+      } else {
+        console.warn('[openWhatsAppWithPhone] Número con formato inesperado:', cleanPhone);
+      }
+    }
+    
+    // Limpiar el texto (remover espacios al inicio y final)
+    const cleanText = text.trim();
+    
+    // Codificar el mensaje correctamente para WhatsApp
+    // encodeURIComponent codifica correctamente todos los caracteres especiales, incluyendo saltos de línea
+    // WhatsApp automáticamente convierte %0A a saltos de línea en el mensaje
+    const encodedText = encodeURIComponent(cleanText);
+    
+    // Construir URL de WhatsApp
+    // CRÍTICO: wa.me requiere:
+    // 1. El número SIN el símbolo + (solo dígitos)
+    // 2. El mensaje codificado con encodeURIComponent
+    // 3. El formato: https://wa.me/NUMERO?text=MENSAJE_CODIFICADO
+    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedText}`;
+    
+    // Log para debugging (solo en desarrollo)
+    if (window.DEBUG) {
+      console.log('[openWhatsAppWithPhone] Abriendo WhatsApp', {
+        phoneOriginal: phone,
+        phoneFormatted: cleanPhone,
+        textLength: cleanText.length,
+        urlLength: whatsappUrl.length,
+        url: whatsappUrl.substring(0, 100) + '...'
+      });
+    }
+    
+    // Abrir WhatsApp en nueva pestaña
+    // Usar window.open para abrir en nueva pestaña/ventana
+    window.open(whatsappUrl, '_blank');
+    
+    return true;
+  }
+  
   // ===== WhatsApp =====
   function openWhatsApp(){
     const text = previewWA.textContent || '';
-    if (!text.trim()) {
-      alert('No hay contenido para enviar por WhatsApp');
-      return;
-    }
-    
-    // Obtener el número de teléfono de la cotización
     const phone = iClientPhone.value?.trim() || '';
-    if (!phone) {
-      alert('Debes ingresar un número de teléfono en la cotización');
-      return;
-    }
     
-    // Limpiar el número (remover espacios, guiones, paréntesis, etc.)
-    const cleanPhone = phone.replace(/\D/g, '');
-    if (!cleanPhone) {
-      alert('El número de teléfono no es válido');
-      return;
+    if (openWhatsAppWithPhone(phone, text)) {
+      syncSummaryHeight();
     }
-    
-    // Formatear para WhatsApp (agregar código de país si no tiene)
-    let whatsappPhone = cleanPhone;
-    // Si el número no empieza con código de país, asumir Colombia (+57)
-    if (!whatsappPhone.startsWith('57') && whatsappPhone.length === 10) {
-      whatsappPhone = '57' + whatsappPhone;
-    } else if (whatsappPhone.length < 10) {
-      alert('El número de teléfono debe tener al menos 10 dígitos');
-      return;
-    }
-    
-    // Abrir WhatsApp con el número y el texto
-    const whatsappUrl = `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(text)}`;
-    window.open(whatsappUrl, '_blank');
-    syncSummaryHeight();
   }
   
   // Event listener para el botón de ocultar total (toggle)
@@ -2678,13 +2743,18 @@ export function initQuotes({ getCompanyEmail }) {
       recalc();
     });
     q('#m-wa')?.addEventListener('click',()=>{
-      const text = buildWAText(); if(!text.trim()) return;
+      const text = buildWAText(); 
+      if(!text.trim()) return;
+      
       // Obtener número del cliente si está disponible
-      const clientPhone = (iClientPhone?.value || '').trim().replace(/\D/g, '');
-      const waUrl = clientPhone 
-        ? `https://wa.me/${clientPhone}?text=${encodeURIComponent(text)}`
-        : `https://wa.me/?text=${encodeURIComponent(text)}`;
-      window.open(waUrl,'_blank');
+      const clientPhone = (iClientPhone?.value || '').trim();
+      if (clientPhone) {
+        openWhatsAppWithPhone(clientPhone, text);
+      } else {
+        // Si no hay teléfono, abrir WhatsApp sin número (solo con el mensaje)
+        const encodedText = encodeURIComponent(text.trim());
+        window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+      }
     });
     q('#m-pdf')?.addEventListener('click',()=>{
       // Usar exportPDF que ya maneja templates correctamente
@@ -3043,12 +3113,17 @@ export function initQuotes({ getCompanyEmail }) {
       specialNotes = bak.sn;
     }
     
-    // Obtener número del cliente de la cotización
-    const clientPhone = (d.customer?.phone || '').trim().replace(/\D/g, '');
-    const waUrl = clientPhone 
-      ? `https://wa.me/${clientPhone}?text=${encodeURIComponent(text)}`
-      : `https://wa.me/?text=${encodeURIComponent(text)}`;
-    window.open(waUrl,'_blank');
+    // Obtener número del cliente de la cotización y abrir WhatsApp
+    const clientPhone = (d.customer?.phone || '').trim();
+    if (clientPhone) {
+      openWhatsAppWithPhone(clientPhone, text);
+    } else {
+      // Si no hay teléfono, abrir WhatsApp sin número (solo con el mensaje)
+      // CRÍTICO: Codificar el mensaje correctamente para que aparezca en el chat
+      const cleanText = text.trim();
+      const encodedText = encodeURIComponent(cleanText);
+      window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+    }
   }
 
   // ===== Reset de formulario (post-crear) =====

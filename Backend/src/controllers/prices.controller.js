@@ -257,7 +257,26 @@ export const getPrice = async (req, res) => {
   // Determinar companyIds a buscar (considerando BD compartida)
   // Usar la función helper compartida para asegurar consistencia
   const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
+  const effectiveCompanyId = req.companyId;
+  
+  // Logging detallado para diagnóstico
+  logger.info('[getPrice] Iniciando búsqueda', {
+    priceId: id,
+    originalCompanyId: originalCompanyId?.toString(),
+    effectiveCompanyId: effectiveCompanyId?.toString(),
+    reqCompanyId: req.company?.id?.toString(),
+    hasOriginalCompanyId: !!req.originalCompanyId,
+    hasEffectiveCompanyId: !!req.companyId
+  });
+  
   const companyIdsToSearch = await getAllSharedCompanyIds(originalCompanyId);
+  
+  logger.info('[getPrice] CompanyIds a buscar', {
+    priceId: id,
+    originalCompanyId: originalCompanyId?.toString(),
+    companyIdsToSearch: companyIdsToSearch.map(String),
+    companyIdsCount: companyIdsToSearch.length
+  });
   
   // Validar que tenemos companyIds para buscar
   if (!companyIdsToSearch || companyIdsToSearch.length === 0) {
@@ -276,6 +295,10 @@ export const getPrice = async (req, res) => {
   // Normalizar todos los IDs a ObjectIds
   const companyIdsAsObjectIds = companyIdsToSearch.map(id => {
     try {
+      // Si ya es un ObjectId, retornarlo directamente
+      if (id instanceof mongoose.Types.ObjectId) {
+        return id;
+      }
       return new mongoose.Types.ObjectId(id);
     } catch (err) {
       logger.warn('[getPrice] Error convirtiendo companyId a ObjectId', { id, error: err?.message });
@@ -291,9 +314,16 @@ export const getPrice = async (req, res) => {
     return res.status(404).json({ error: 'PriceEntry not found' });
   }
   
-  const companyFilter = companyIdsAsObjectIds.length > 1 
-    ? { $in: companyIdsAsObjectIds }
-    : companyIdsAsObjectIds[0];
+  // CRÍTICO: Siempre usar $in para consistencia, incluso con un solo elemento
+  // Esto asegura que la búsqueda funcione correctamente
+  const companyFilter = { $in: companyIdsAsObjectIds };
+  
+  logger.debug('[getPrice] Buscando precio con filtro', {
+    priceId: id,
+    companyFilter: companyFilter,
+    companyIdsCount: companyIdsAsObjectIds.length,
+    companyIds: companyIdsAsObjectIds.map(id => id.toString())
+  });
   
   // Intentar buscar el precio
   let price = await PriceEntry.findOne({ _id: id, companyId: companyFilter })
@@ -304,6 +334,12 @@ export const getPrice = async (req, res) => {
   
   // Si no se encontró, verificar si existe en alguna empresa (para debugging y diagnóstico)
   if (!price) {
+    logger.warn('[getPrice] Precio no encontrado con filtro, buscando sin filtro', {
+      priceId: id,
+      companyFilter: companyFilter,
+      companyIdsToSearch: companyIdsToSearch.map(String)
+    });
+    
     const priceAnyCompany = await PriceEntry.findOne({ _id: id }).lean();
     if (priceAnyCompany) {
       const priceCompanyId = priceAnyCompany.companyId?.toString();
@@ -318,18 +354,22 @@ export const getPrice = async (req, res) => {
         priceId: id,
         priceCompanyId: priceCompanyId,
         originalCompanyId: origId,
+        effectiveCompanyId: effectiveCompanyId?.toString(),
         companyIdsToSearch: companyIdsStr,
         companyIdsAsObjectIds: companyIdsObjectIdsStr,
         isInSearchList: isInSearchList,
+        priceCompanyIdInList: companyIdsStr.includes(priceCompanyId),
+        priceCompanyIdInObjectIdsList: companyIdsObjectIdsStr.includes(priceCompanyId),
         message: isInSearchList 
           ? 'El precio está en la lista pero no se encontró (posible problema de conversión ObjectId)'
           : 'El precio existe pero no está accesible. Verificar configuración de sharedDatabaseConfig.'
       });
       
       // Si el precio está en la lista pero no se encontró, podría ser un problema de conversión
-      // Intentar buscar directamente con el companyId del precio
+      // Intentar buscar directamente con el companyId del precio (como ObjectId y como string)
       if (isInSearchList) {
         try {
+          // Intentar con ObjectId
           price = await PriceEntry.findOne({ 
             _id: id, 
             companyId: new mongoose.Types.ObjectId(priceCompanyId) 
@@ -340,14 +380,32 @@ export const getPrice = async (req, res) => {
             .lean();
           
           if (price) {
-            logger.info('[getPrice] Precio encontrado con búsqueda directa por companyId', {
+            logger.info('[getPrice] Precio encontrado con búsqueda directa por companyId (ObjectId)', {
+              priceId: id,
+              priceCompanyId: priceCompanyId
+            });
+            return res.json(price);
+          }
+          
+          // Intentar con string (por si acaso)
+          price = await PriceEntry.findOne({ 
+            _id: id, 
+            companyId: priceCompanyId 
+          })
+            .populate('vehicleId', 'make line displacement modelYear')
+            .populate('itemId', 'sku name stock salePrice')
+            .populate('comboProducts.itemId', 'sku name stock salePrice')
+            .lean();
+          
+          if (price) {
+            logger.info('[getPrice] Precio encontrado con búsqueda directa por companyId (string)', {
               priceId: id,
               priceCompanyId: priceCompanyId
             });
             return res.json(price);
           }
         } catch (err) {
-          logger.error('[getPrice] Error en búsqueda directa', { error: err?.message });
+          logger.error('[getPrice] Error en búsqueda directa', { error: err?.message, stack: err?.stack });
         }
       }
       
@@ -363,11 +421,18 @@ export const getPrice = async (req, res) => {
         priceId: id,
         isValidObjectId: /^[0-9a-fA-F]{24}$/.test(id),
         originalCompanyId: originalCompanyId?.toString(),
+        effectiveCompanyId: effectiveCompanyId?.toString(),
         companyIdsToSearch: companyIdsToSearch.map(String)
       });
       return res.status(404).json({ error: 'PriceEntry not found' });
     }
   }
+  
+  logger.info('[getPrice] Precio encontrado exitosamente', {
+    priceId: id,
+    priceCompanyId: price.companyId?.toString(),
+    originalCompanyId: originalCompanyId?.toString()
+  });
   
   res.json(price);
 };

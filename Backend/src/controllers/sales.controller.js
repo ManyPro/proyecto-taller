@@ -484,9 +484,26 @@ export const addItem = async (req, res) => {
       // Construir query con companyIds
       // CRÍTICO: Siempre usar $in para asegurar que funcione correctamente con ObjectIds
       // Convertir todos los IDs a ObjectIds de mongoose para la búsqueda
-      const companyFilter = companyIdsToSearch.length > 1 
-        ? { $in: companyIdsToSearch.map(id => new mongoose.Types.ObjectId(id)) }
-        : new mongoose.Types.ObjectId(companyIdsToSearch[0]);
+      const companyIdsAsObjectIds = companyIdsToSearch.map(id => {
+        try {
+          if (id instanceof mongoose.Types.ObjectId) return id;
+          return new mongoose.Types.ObjectId(id);
+        } catch (err) {
+          logger.warn('[addItem] Error convirtiendo companyId a ObjectId', { id, error: err?.message });
+          return null;
+        }
+      }).filter(Boolean);
+      
+      if (companyIdsAsObjectIds.length === 0) {
+        logger.error('[addItem] No hay companyIds válidos después de conversión', {
+          refId: refId,
+          companyIdsToSearch: companyIdsToSearch.map(String)
+        });
+        return res.status(404).json({ error: 'PriceEntry not found' });
+      }
+      
+      // Siempre usar $in para consistencia
+      const companyFilter = { $in: companyIdsAsObjectIds };
       
       // Buscar el precio en todas las empresas compartidas
       let pe = await PriceEntry.findOne({ _id: refId, companyId: companyFilter })
@@ -767,9 +784,26 @@ export const addItemsBatch = async (req, res) => {
           // Construir query con companyIds
           // CRÍTICO: Siempre usar $in para asegurar que funcione correctamente con ObjectIds
           // Convertir todos los IDs a ObjectIds de mongoose para la búsqueda
-          const companyFilter = companyIdsToSearch.length > 1 
-            ? { $in: companyIdsToSearch.map(id => new mongoose.Types.ObjectId(id)) }
-            : new mongoose.Types.ObjectId(companyIdsToSearch[0]);
+          const companyIdsAsObjectIds = companyIdsToSearch.map(id => {
+            try {
+              if (id instanceof mongoose.Types.ObjectId) return id;
+              return new mongoose.Types.ObjectId(id);
+            } catch (err) {
+              logger.warn('[addItemsBatch] Error convirtiendo companyId a ObjectId', { id, error: err?.message });
+              return null;
+            }
+          }).filter(Boolean);
+          
+          if (companyIdsAsObjectIds.length === 0) {
+            logger.error('[addItemsBatch] No hay companyIds válidos después de conversión', {
+              refId: raw.refId,
+              companyIdsToSearch: companyIdsToSearch.map(String)
+            });
+            throw new Error('PriceEntry not found');
+          }
+          
+          // Siempre usar $in para consistencia
+          const companyFilter = { $in: companyIdsAsObjectIds };
           
           // Buscar el precio en todas las empresas compartidas
           let pe = await PriceEntry.findOne({ _id: raw.refId, companyId: companyFilter })
