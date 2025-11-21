@@ -9361,7 +9361,7 @@ async function loadHistorial(forceRefresh = false) {
 }
 
 // Función consolidada para renderizar ventas del historial
-function renderHistorialSales(sales) {
+async function renderHistorialSales(sales) {
   const container = document.getElementById('historial-ventas-container');
   if (!container) return;
 
@@ -9381,15 +9381,17 @@ function renderHistorialSales(sales) {
     return;
   }
 
-  // Renderizar ventas usando DocumentFragment para mejor rendimiento
-  const fragment = document.createDocumentFragment();
-  sales.forEach(sale => {
-    const card = createHistorialSaleCard(sale);
-    fragment.appendChild(card);
-  });
-  
+  // Renderizar ventas de forma async
   container.innerHTML = '';
-  container.appendChild(fragment);
+  
+  // Crear todas las tarjetas en paralelo
+  const cardPromises = sales.map(sale => createHistorialSaleCard(sale));
+  const cards = await Promise.all(cardPromises);
+  
+  // Agregar todas las tarjetas al contenedor
+  cards.forEach(card => {
+    container.appendChild(card);
+  });
   
   updateHistorialPagination();
 }
@@ -9414,6 +9416,8 @@ function setupHistorialEventDelegation() {
       viewSaleSummary(saleId);
     } else if (e.target.closest('.btn-historial-edit')) {
       openEditCloseModal(saleId);
+    } else if (e.target.closest('.btn-historial-edit-technician')) {
+      editTechnicianFromHistorial(saleId);
     }
   });
 
@@ -9421,98 +9425,170 @@ function setupHistorialEventDelegation() {
 }
 
 // Función helper para extraer servicios y combos de una venta (solo nombres, sin precios)
-function extractServicesAndCombos(sale) {
+// IMPORTANTE: Excluye productos (source='inventory' o source='price' con type='product')
+async function extractServicesAndCombos(sale) {
   if (!sale?.items || !Array.isArray(sale.items)) return { services: [], combos: [] };
   
   const services = [];
   const combos = [];
   const processedComboSkus = new Set();
   
+  // Obtener PriceEntries para items con source='price' y refId
+  const priceEntryIds = sale.items
+    .filter(item => item.source === 'price' && item.refId)
+    .map(item => item.refId);
+  
+  const priceEntryMap = {};
+  if (priceEntryIds.length > 0) {
+    try {
+      const priceEntries = await Promise.all(
+        priceEntryIds.map(id => getPriceEntryCached(id))
+      );
+      priceEntries.forEach(pe => {
+        if (pe && pe._id) {
+          priceEntryMap[String(pe._id)] = pe;
+        }
+      });
+    } catch (e) {
+      console.warn('Error fetching price entries in extractServicesAndCombos:', e);
+    }
+  }
+  
+  // Identificar productos que son parte de combos (para excluirlos)
+  const comboProductRefIds = new Set();
+  Object.values(priceEntryMap).forEach(pe => {
+    if (pe.type === 'combo' && pe.comboProducts && Array.isArray(pe.comboProducts)) {
+      pe.comboProducts.forEach(cp => {
+        if (cp.itemId) {
+          comboProductRefIds.add(String(cp.itemId));
+        }
+      });
+    }
+  });
+  
   sale.items.forEach(item => {
     const sku = String(item.sku || '').toUpperCase();
     const name = item.name || '';
     const source = item.source || '';
+    const refId = item.refId ? String(item.refId) : '';
     
-    // Detectar combos: SKU que empieza con COMBO- o source='price' con SKU que contiene COMBO
-    if (sku.startsWith('COMBO-') || (source === 'price' && sku.includes('COMBO'))) {
-      // Evitar duplicados de combos
+    // Excluir productos que son parte de combos (productos anidados)
+    if (comboProductRefIds.has(refId)) {
+      return; // Es un producto anidado de un combo, no incluirlo
+    }
+    
+    // Excluir productos con SKU que empieza con "CP-" (producto de combo)
+    if (sku.startsWith('CP-')) {
+      return; // Es un producto anidado de un combo, no incluirlo
+    }
+    
+    // Clasificar el item
+    if (source === 'price' && refId && priceEntryMap[refId]) {
+      const pe = priceEntryMap[refId];
+      if (pe.type === 'combo') {
+        // Es un combo
+        if (!processedComboSkus.has(sku) && name) {
+          combos.push({ name, sku });
+          processedComboSkus.add(sku);
+        }
+      } else if (pe.type === 'service') {
+        // Es un servicio
+        if (name && !services.find(s => s.name === name)) {
+          services.push({ name, sku });
+        }
+      }
+      // Si pe.type === 'product', no hacer nada (excluir productos)
+    } else if (source === 'inventory') {
+      // source='inventory' siempre es producto, excluir
+      return;
+    } else if (source === 'service') {
+      // source='service' siempre es servicio
+      if (name && !services.find(s => s.name === name)) {
+        services.push({ name, sku });
+      }
+    } else if (sku.startsWith('COMBO-')) {
+      // SKU que empieza con COMBO- es un combo
       if (!processedComboSkus.has(sku) && name) {
-        combos.push(name);
+        combos.push({ name, sku });
         processedComboSkus.add(sku);
       }
-    }
-    // Detectar servicios: source='service' o SKU que empieza con SRV-
-    else if (source === 'service' || sku.startsWith('SRV-')) {
-      if (name && !services.includes(name)) {
-        services.push(name);
+    } else if (sku.startsWith('SRV-')) {
+      // SKU que empieza con SRV- es un servicio
+      if (name && !services.find(s => s.name === name)) {
+        services.push({ name, sku });
       }
     }
+    // Por defecto, si no se puede determinar, no incluirlo (evitar mostrar productos)
   });
   
-  return { services, combos };
+  return { 
+    services: services.map(s => s.name), 
+    combos: combos.map(c => c.name) 
+  };
 }
 
-function createHistorialSaleCard(sale) {
+async function createHistorialSaleCard(sale) {
   const card = document.createElement('div');
   card.className = 'historial-sale-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4';
   
   const plate = sale?.vehicle?.plate || 'Sin placa';
-  const customer = sale?.customer?.name || 'Sin cliente';
-  const totalPaid = calculateTotalPaid(sale);
   const closedDate = formatClosedDate(sale?.closedAt);
   const saleNumber = padSaleNumber(sale?.number || sale?._id || '');
   const technician = sale?.technician || sale?.closingTechnician || 'Sin asignar';
-  const { services, combos } = extractServicesAndCombos(sale);
+  const { services, combos } = await extractServicesAndCombos(sale);
   
-  // Crear resumen de servicios y combos
+  // Crear resumen de servicios y combos como tarjetas pequeñas
   const summaryItems = [...services, ...combos];
-  const summaryText = summaryItems.length > 0 
-    ? summaryItems.join(', ') 
-    : 'Sin servicios ni combos';
+  
+  // Generar HTML de tarjetas pequeñas para cada item del resumen
+  const summaryCardsHTML = summaryItems.length > 0
+    ? summaryItems.map(item => `
+        <div class="inline-flex items-center px-2 py-1 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-sky-100 rounded-md text-xs text-white dark:text-white theme-light:text-slate-900 font-medium border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300/50">
+          ${htmlEscape(item)}
+        </div>
+      `).join('')
+    : '<span class="text-slate-500 dark:text-slate-500 theme-light:text-slate-500 text-xs italic">Sin servicios ni combos</span>';
 
   card.innerHTML = `
-    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-      <div class="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div>
-          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Placa</div>
-          <div class="text-sm font-bold text-white dark:text-white theme-light:text-slate-900">${htmlEscape(plate.toUpperCase())}</div>
+    <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+      <!-- Placa a la izquierda -->
+      <div class="flex-shrink-0">
+        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Placa</div>
+        <div class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900">${htmlEscape(plate.toUpperCase())}</div>
+      </div>
+      
+      <!-- Resumen en el medio con tarjetas -->
+      <div class="flex-1 min-w-0">
+        <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-2">Resumen</div>
+        <div class="flex flex-wrap gap-2">
+          ${summaryCardsHTML}
         </div>
-        <div>
-          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Cliente</div>
-          <div class="text-sm font-semibold text-white dark:text-white theme-light:text-slate-900 truncate">${htmlEscape(customer)}</div>
-        </div>
-        <div>
-          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Valor pagado</div>
-          <div class="text-sm font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${money(totalPaid)}</div>
+        <!-- Técnico debajo del resumen -->
+        <div class="flex items-center gap-2 mt-3">
+          <span class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Técnico:</span>
+          <span class="text-sm text-blue-400 dark:text-blue-400 theme-light:text-blue-600 font-semibold">${htmlEscape(technician)}</span>
+          <button class="btn-historial-edit-technician ml-1 p-1 text-blue-400 dark:text-blue-400 theme-light:text-blue-600 hover:text-blue-300 dark:hover:text-blue-300 theme-light:hover:text-blue-700 transition-colors" data-sale-id="${sale._id}" title="Editar técnico">
+            ✏️
+          </button>
         </div>
       </div>
-      <div class="flex flex-col sm:flex-row gap-2">
-        <button class="btn-historial-print px-3 py-2 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" data-sale-id="${sale._id}">
-          🖨️ Imprimir remisión
+      
+      <!-- Botones hamburguesa a la derecha -->
+      <div class="flex-shrink-0 flex flex-col gap-2">
+        <button class="btn-historial-print px-3 py-2 text-xs bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300" data-sale-id="${sale._id}" title="Imprimir remisión">
+          🖨️
         </button>
-        <button class="btn-historial-view px-3 py-2 text-xs bg-blue-600/50 dark:bg-blue-600/50 hover:bg-blue-600 dark:hover:bg-blue-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-blue-500/50 dark:border-blue-500/50" data-sale-id="${sale._id}">
-          👁️ Ver resumen
+        <button class="btn-historial-view px-3 py-2 text-xs bg-blue-600/50 dark:bg-blue-600/50 hover:bg-blue-600 dark:hover:bg-blue-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-blue-500/50 dark:border-blue-500/50" data-sale-id="${sale._id}" title="Ver resumen">
+          👁️
         </button>
-        <button class="btn-historial-edit px-3 py-2 text-xs bg-purple-600/50 dark:bg-purple-600/50 hover:bg-purple-600 dark:hover:bg-purple-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-purple-500/50 dark:border-purple-500/50" data-sale-id="${sale._id}">
-          ✏️ Editar cierre
+        <button class="btn-historial-edit px-3 py-2 text-xs bg-purple-600/50 dark:bg-purple-600/50 hover:bg-purple-600 dark:hover:bg-purple-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-purple-500/50 dark:border-purple-500/50" data-sale-id="${sale._id}" title="Editar cierre">
+          ✏️
         </button>
       </div>
     </div>
-    <div class="mt-3 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 space-y-2">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs">
-        <div class="flex items-center gap-2">
-          <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Resumen:</span>
-          <span class="text-white dark:text-white theme-light:text-slate-900 font-medium">${htmlEscape(summaryText)}</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Técnico:</span>
-          <span class="text-blue-400 dark:text-blue-400 theme-light:text-blue-600 font-semibold">${htmlEscape(technician)}</span>
-        </div>
-      </div>
-      <div class="flex justify-between items-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
-        <span>Venta #${saleNumber}</span>
-        <span>Cerrada: ${closedDate}</span>
-      </div>
+    <div class="mt-3 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 flex justify-between items-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+      <span>Venta #${saleNumber}</span>
+      <span>Cerrada: ${closedDate}</span>
     </div>
   `;
 
@@ -9600,6 +9676,75 @@ async function viewSaleSummary(saleId) {
   } catch (err) {
     console.error('Error viewing sale summary:', err);
     alert('Error al cargar resumen: ' + (err?.message || 'Error desconocido'));
+  }
+}
+
+async function editTechnicianFromHistorial(saleId) {
+  try {
+    // Cargar técnicos si no están cargados
+    if (!companyTechnicians || companyTechnicians.length === 0) {
+      await loadTechnicians();
+    }
+    
+    const sale = await getSaleWithCache(saleId);
+    if (!sale) {
+      alert('No se pudo cargar la venta');
+      return;
+    }
+    
+    const currentTechnician = sale?.technician || sale?.closingTechnician || '';
+    
+    // Crear opciones para el select
+    const options = ['-- Ninguno --', ...companyTechnicians, '+ Agregar técnico…'];
+    
+    // Mostrar prompt con select (usando un modal simple)
+    const technicianName = prompt(
+      `Editar técnico para venta #${padSaleNumber(sale?.number || sale?._id || '')}\n\n` +
+      `Técnico actual: ${currentTechnician || 'Sin asignar'}\n\n` +
+      `Ingrese el nombre del técnico (o deje vacío para quitar):`,
+      currentTechnician
+    );
+    
+    if (technicianName === null) {
+      // Usuario canceló
+      return;
+    }
+    
+    const newTechnician = String(technicianName || '').trim().toUpperCase();
+    
+    // Si el técnico no está en la lista y no está vacío, ofrecer agregarlo
+    if (newTechnician && !companyTechnicians.includes(newTechnician)) {
+      const addTech = confirm(`El técnico "${newTechnician}" no está en la lista.\n¿Desea agregarlo?`);
+      if (addTech) {
+        try {
+          companyTechnicians = await API.company.addTechnician(newTechnician);
+          techniciansCache = companyTechnicians;
+          techniciansCacheTime = Date.now();
+        } catch (err) {
+          console.warn('Error agregando técnico:', err);
+          // Continuar de todas formas
+        }
+      }
+    }
+    
+    // Actualizar técnico en la venta cerrada usando updateClose
+    try {
+      await API.sales.updateClose(saleId, { technician: newTechnician });
+      
+      // Invalidar cache de la venta para que se recargue
+      saleCache.delete(saleId);
+      
+      // Recargar el historial para mostrar el cambio
+      await loadHistorial(true);
+      
+      alert('Técnico actualizado correctamente');
+    } catch (err) {
+      console.error('Error actualizando técnico:', err);
+      alert('Error al actualizar técnico: ' + (err?.message || 'Error desconocido'));
+    }
+  } catch (err) {
+    console.error('Error en editTechnicianFromHistorial:', err);
+    alert('Error: ' + (err?.message || 'Error desconocido'));
   }
 }
 

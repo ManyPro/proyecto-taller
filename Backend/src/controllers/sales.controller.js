@@ -1823,6 +1823,25 @@ export const updateCloseSale = async (req, res) => {
         sale.paymentReceiptUrl = String(req.body.paymentReceiptUrl || '').trim();
       }
 
+      // Actualizar técnico si viene en el body (para ventas cerradas)
+      if (req.body?.technician !== undefined) {
+        const technician = String(req.body.technician || '').trim().toUpperCase();
+        sale.technician = technician;
+        // También actualizar closingTechnician para mantener consistencia
+        sale.closingTechnician = technician;
+        // Si no hay initialTechnician, establecerlo
+        if (technician && !sale.initialTechnician) {
+          sale.initialTechnician = technician;
+          if (!sale.technicianAssignedAt) {
+            sale.technicianAssignedAt = new Date();
+          }
+        }
+        // Actualizar timestamp de cierre del técnico
+        if (technician) {
+          sale.technicianClosedAt = new Date();
+        }
+      }
+
       await sale.save({ session });
 
       // Si cambiaron los métodos de pago, actualizar flujo de caja
