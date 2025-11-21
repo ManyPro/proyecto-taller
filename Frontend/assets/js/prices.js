@@ -1998,7 +1998,6 @@ export function initPrices(){
     
     const node = document.createElement('div');
     node.className = 'bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-white/90 rounded-xl shadow-xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-6';
-    const isInversionPrice = isInversion || type === 'inversion';
     node.innerHTML = `
       <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-6">${isEdit ? 'Editar' : 'Nuevo'} ${isInversionPrice ? 'Precio de Inversión' : (type === 'combo' ? 'Combo' : (type === 'service' ? 'Servicio' : 'Producto'))}</h3>
       ${isInversionPrice ? `
