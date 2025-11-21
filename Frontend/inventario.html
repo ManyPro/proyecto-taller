@@ -69,6 +69,31 @@
     body.theme-light .text-slate-800 {
       color: #000000 !important;
     }
+    /* Asegurar que el contenido de inventario ocupe máximo espacio */
+    body[data-page="inventario"] main,
+    body[data-page="inventario"] #appSection,
+    body[data-page="inventario"] #tab-inventario {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+    body[data-page="inventario"] #tab-inventario > div {
+      width: 100% !important;
+      max-width: 100% !important;
+      padding-left: 0.5rem !important;
+      padding-right: 0.5rem !important;
+    }
+    @media (min-width: 1024px) {
+      body[data-page="inventario"] #tab-inventario > div {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+      }
+    }
+    @media (min-width: 1280px) {
+      body[data-page="inventario"] #tab-inventario > div {
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+      }
+    }
     /* Mejorar contraste en modales - Forzar texto negro */
     body.theme-light #modal,
     body.theme-light #modal *:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700):not(.bg-purple-600):not(.bg-purple-700) {
@@ -583,7 +608,7 @@
     <div class="topbar sticky top-0 z-[1000] hidden" id="appHeader">
       <!-- Top Bar - Header Principal -->
       <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
-        <div class="w-full max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div class="flex items-center justify-between h-16 md:h-20">
             <!-- Logo y Nombre de Empresa -->
             <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
@@ -619,8 +644,8 @@
 
         <!-- Navegación Principal (Desktop) -->
         <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
-          <div class="w-full px-4 sm:px-6 lg:px-8">
-            <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
               <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inicio</button>
               <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
               <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>

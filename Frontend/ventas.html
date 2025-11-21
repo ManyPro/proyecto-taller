@@ -72,6 +72,31 @@
       transform: translateY(-2px);
       box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
     }
+    /* Asegurar que el contenido de ventas ocupe máximo espacio */
+    body[data-page="ventas"] main,
+    body[data-page="ventas"] #appSection,
+    body[data-page="ventas"] #tab-ventas {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+    body[data-page="ventas"] #tab-ventas > div {
+      width: 100% !important;
+      max-width: 100% !important;
+      padding-left: 0.5rem !important;
+      padding-right: 0.5rem !important;
+    }
+    @media (min-width: 1024px) {
+      body[data-page="ventas"] #tab-ventas > div {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+      }
+    }
+    @media (min-width: 1280px) {
+      body[data-page="ventas"] #tab-ventas > div {
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+      }
+    }
     /* Estilos para modo claro - Sobrescribir colores de Tailwind */
     body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
     body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
@@ -475,7 +500,7 @@
   <div class="topbar sticky top-0 z-[1000] hidden" id="appHeader">
     <!-- Top Bar - Header Principal -->
     <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
-      <div class="w-full max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex items-center justify-between h-16 md:h-20">
           <!-- Logo y Nombre de Empresa -->
           <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
@@ -511,7 +536,7 @@
 
       <!-- Navegación Principal (Desktop) -->
       <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
-        <div class="w-full max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
             <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inicio</button>
             <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
