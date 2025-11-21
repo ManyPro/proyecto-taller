@@ -898,8 +898,11 @@ function normalizeTemplateHtml(html='') {
         if (!match.includes('sale.vehicle.brand') && !match.includes('sale.vehicle.line')) {
           const vehicleRow = `          {{#if sale.vehicle}}
           <tr style="background: #e8f4f8; font-weight: bold; border: 2px solid #000; border-bottom: 1px solid #000;">
-            <th colspan="2" style="padding: 3px 6px; font-size: 11px; border-right: 1px solid #000; text-align: left;">
-              {{#if sale.vehicle.plate}}Placa: {{sale.vehicle.plate}} — {{/if}}{{#if sale.vehicle.brand}}{{sale.vehicle.brand}}{{/if}}{{#if sale.vehicle.line}} {{sale.vehicle.line}}{{/if}}{{#if sale.vehicle.engine}} {{sale.vehicle.engine}}{{/if}}
+            <th style="padding: 3px 6px; font-size: 11px; border-right: 1px solid #000; text-align: left;">
+              {{#if sale.vehicle.brand}}{{sale.vehicle.brand}}{{/if}}{{#if sale.vehicle.line}} {{sale.vehicle.line}}{{/if}}{{#if sale.vehicle.engine}} {{sale.vehicle.engine}}{{/if}}
+            </th>
+            <th style="padding: 3px 6px; font-size: 11px; border-right: 1px solid #000; text-align: center; background: #fff; border: 2px solid #000;">
+              {{#if sale.vehicle.plate}}<strong>{{sale.vehicle.plate}}</strong>{{else}}—{{/if}}
             </th>
             <th colspan="2" style="padding: 3px 6px; font-size: 11px; text-align: left;">
               {{#if sale.vehicle.mileage}}Kilometraje: {{sale.vehicle.mileage}} km{{/if}}

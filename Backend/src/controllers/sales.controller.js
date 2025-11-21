@@ -950,23 +950,34 @@ export const addItemsBatch = async (req, res) => {
 export const updateItem = async (req, res) => {
   const { id, itemId } = req.params;
   const { qty, unitPrice, name } = req.body || {};
-
+  
   const companyFilter = getSaleQueryCompanyFilter(req);
   const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
   if (!sale) return res.status(404).json({ error: 'Sale not found' });
   if (!validateSaleOwnership(sale, req)) return res.status(403).json({ error: 'Sale belongs to different company' });
-  if (sale.status !== 'draft') return res.status(400).json({ error: 'Sale not open (draft)' });
+  
+  // Si solo se está actualizando el nombre, permitir en ventas cerradas también
+  const isOnlyNameUpdate = name != null && qty == null && unitPrice == null;
+  if (!isOnlyNameUpdate && sale.status !== 'draft') {
+    return res.status(400).json({ error: 'Solo se puede editar el nombre en ventas cerradas' });
+  }
+  
   const it = sale.items.id(itemId);
   if (!it) return res.status(404).json({ error: 'Item not found' });
-
-  if (qty != null && Number.isFinite(Number(qty))) it.qty = asNum(qty);
-  if (unitPrice != null && Number.isFinite(Number(unitPrice))) it.unitPrice = asNum(unitPrice);
-  // Permitir actualizar el nombre solo para esta venta (no afecta el nombre original del inventario/precio)
+  
+  // Solo permitir actualizar cantidad y precio en ventas abiertas
+  if (sale.status === 'draft') {
+    if (qty != null && Number.isFinite(Number(qty))) it.qty = asNum(qty);
+    if (unitPrice != null && Number.isFinite(Number(unitPrice))) it.unitPrice = asNum(unitPrice);
+  }
+  
+  // Permitir actualizar el nombre en cualquier estado (solo para esta venta, no afecta inventario/precio)
   if (name != null && typeof name === 'string' && name.trim() !== '') {
     it.name = name.trim();
   }
+  
   it.total = Math.round(asNum(it.qty) * asNum(it.unitPrice));
-
+  
   computeTotals(sale);
   await sale.save();
   await upsertCustomerProfile(req.companyId, { customer: sale.customer, vehicle: sale.vehicle }, { source: 'sale' });

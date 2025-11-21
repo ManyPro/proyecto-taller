@@ -10243,9 +10243,13 @@ async function openEditNameModal(item, tr) {
         
         // Guardar el nombre en el backend usando updateItem
         // El backend guardará este nombre solo para esta venta específica
-        await updateSaleAndRender(async () => {
-          current = await API.sales.updateItem(current._id, item._id, { name: newName });
-        });
+        current = await API.sales.updateItem(current._id, item._id, { name: newName });
+        
+        // Sincronizar con la lista de ventas abiertas
+        syncCurrentIntoOpenList();
+        
+        // Re-renderizar la venta para mostrar el cambio
+        await renderAll();
         
         // Cerrar modal
         closeModal();
