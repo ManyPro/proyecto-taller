@@ -1582,6 +1582,16 @@ export const closeSale = async (req, res) => {
         }
       }
       if (paymentReceiptUrl) sale.paymentReceiptUrl = paymentReceiptUrl;
+      
+      // Procesar inversión si viene en el body (acepta 'investment' o 'investmentAmount')
+      const investmentAmount = req.body?.investment || req.body?.investmentAmount;
+      if (investmentAmount != null) {
+        const investment = Number(investmentAmount);
+        if (Number.isFinite(investment) && investment >= 0) {
+          sale.investmentAmount = Math.round(investment);
+        }
+      }
+      
       await sale.save({ session });
     });
     

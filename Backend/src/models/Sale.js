@@ -80,6 +80,7 @@ const SaleSchema = new mongoose.Schema({
     percent: { type: Number, default: 0 },            // % de participación
     share: { type: Number, default: 0 }               // valor = laborValue * percent/100
   }], default: [] },
+  investmentAmount: { type: Number, default: 0 },      // inversión aplicada al cierre de venta
   closedAt: { type: Date },
   cancelledAt: { type: Date },
   // Empresa asociada (si la venta está vinculada a una empresa cliente)
