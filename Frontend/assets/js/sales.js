@@ -2739,16 +2739,16 @@ function setupInvestmentSection() {
       return;
     }
   
-  let currentPage = 1;
-  let searchTerm = '';
-  const pageSize = 5;
-  let totalPages = 1;
+    let currentPage = 1;
+    let searchTerm = '';
+    const pageSize = 5;
+    let totalPages = 1;
   
-  // Función para cargar precios de inversión
-  async function loadInvestmentPrices() {
-    if (!pricesList) return;
-    
-    try {
+    // Función para cargar precios de inversión
+    async function loadInvestmentPrices() {
+      if (!pricesList) return;
+      
+      try {
       pricesList.innerHTML = '<div class="text-center py-4 text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-sm">Cargando...</div>';
       
       const params = {
@@ -2830,13 +2830,15 @@ function setupInvestmentSection() {
       if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
       
     } catch (err) {
-      console.error('Error loading investment prices:', err);
-      pricesList.innerHTML = '<div class="text-center py-4 text-red-400 dark:text-red-400 theme-light:text-red-600 text-sm">Error al cargar precios</div>';
+        console.error('Error loading investment prices:', err);
+        if (pricesList) {
+          pricesList.innerHTML = '<div class="text-center py-4 text-red-400 dark:text-red-400 theme-light:text-red-600 text-sm">Error al cargar precios</div>';
+        }
+      }
     }
-  }
-  
-  // Toggle menú
-  addFromListBtn.addEventListener('click', (e) => {
+    
+    // Toggle menú
+    addFromListBtn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
     menu.classList.toggle('hidden');
@@ -2848,58 +2850,59 @@ function setupInvestmentSection() {
     }
   });
   
-  // Cerrar menú
-  if (closeMenuBtn) {
-    closeMenuBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      menu.classList.add('hidden');
-    });
-  }
-  
-  // Búsqueda
-  if (searchInput) {
-    let searchTimeout;
-    searchInput.addEventListener('input', (e) => {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
-        searchTerm = e.target.value.trim();
-        currentPage = 1;
-        loadInvestmentPrices();
-      }, 300);
-    });
-    
-    searchInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
+    // Cerrar menú
+    if (closeMenuBtn) {
+      closeMenuBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        searchTerm = e.target.value.trim();
-        currentPage = 1;
-        loadInvestmentPrices();
-      }
-    });
-  }
-  
-  // Paginación
-  if (prevBtn) {
-    prevBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (currentPage > 1) {
-        currentPage--;
-        loadInvestmentPrices();
-      }
-    });
-  }
-  
-  if (nextBtn) {
-    nextBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (currentPage < totalPages) {
-        currentPage++;
-        loadInvestmentPrices();
-      }
-    });
+        e.stopPropagation();
+        menu.classList.add('hidden');
+      });
+    }
+    
+    // Búsqueda
+    if (searchInput) {
+      let searchTimeout;
+      searchInput.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          searchTerm = e.target.value.trim();
+          currentPage = 1;
+          loadInvestmentPrices();
+        }, 300);
+      });
+      
+      searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          searchTerm = e.target.value.trim();
+          currentPage = 1;
+          loadInvestmentPrices();
+        }
+      });
+    }
+    
+    // Paginación
+    if (prevBtn) {
+      prevBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (currentPage > 1) {
+          currentPage--;
+          loadInvestmentPrices();
+        }
+      });
+    }
+    
+    if (nextBtn) {
+      nextBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (currentPage < totalPages) {
+          currentPage++;
+          loadInvestmentPrices();
+        }
+      });
+    }
   } catch (err) {
     console.error('Error en setupInvestmentSection:', err);
   }
