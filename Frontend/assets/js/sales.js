@@ -9176,6 +9176,14 @@ function initInternalNavigation() {
       openReportModal();
     });
   }
+  
+  // Botón reporte de técnicos
+  const btnReporteTecnicos = document.getElementById('historial-reporte-tecnicos');
+  if(btnReporteTecnicos) {
+    btnReporteTecnicos.addEventListener('click', () => {
+      openTechnicianReportModal();
+    });
+  }
 
   let filterTimeout = null;
   const applyFilters = () => {
@@ -11495,6 +11503,525 @@ function exportReportAsImage(reportData, fechaDesde, fechaHasta) {
     console.error('Error al exportar reporte:', error);
     alert('Error al exportar reporte: ' + (error.message || 'Error desconocido'));
   }
+}
+
+// ========== REPORTE DE TÉCNICOS ==========
+
+function openTechnicianReportModal() {
+  const modal = document.getElementById('modal');
+  const modalBody = document.getElementById('modalBody');
+  if (!modal || !modalBody) return;
+  
+  const div = document.createElement('div');
+  div.className = 'space-y-4';
+  
+  div.innerHTML = `<div class="space-y-4">
+    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">👷 Generar Reporte de Técnicos</h3>
+    <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-4">
+      Selecciona el rango de fechas y el técnico para generar un reporte con todas las ventas en las que participó.
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Fecha desde</label>
+        <input id='tech-report-fecha-desde' type='date' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Fecha hasta</label>
+        <input id='tech-report-fecha-hasta' type='date' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
+      </div>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Técnico</label>
+      <select id='tech-report-tecnico' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200">
+        <option value="">Cargando técnicos...</option>
+      </select>
+    </div>
+    <div class="flex gap-2 mt-6">
+      <button id='tech-report-generar' class="flex-1 px-4 py-2.5 bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 hover:from-purple-700 hover:to-purple-800 dark:hover:from-purple-700 dark:hover:to-purple-800 theme-light:hover:from-purple-600 theme-light:hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">👷 Generar Reporte</button>
+      <button id='tech-report-cancel' class="px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-slate-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+    </div>
+    <div id='tech-report-msg' class="mt-2 text-xs text-slate-300 dark:text-slate-300 theme-light:text-slate-600"></div>
+  </div>`;
+  
+  modalBody.innerHTML = '';
+  modalBody.appendChild(div);
+  modal.classList.remove('hidden');
+  
+  const fechaDesdeInput = div.querySelector('#tech-report-fecha-desde');
+  const fechaHastaInput = div.querySelector('#tech-report-fecha-hasta');
+  const tecnicoSelect = div.querySelector('#tech-report-tecnico');
+  const msgEl = div.querySelector('#tech-report-msg');
+  const generarBtn = div.querySelector('#tech-report-generar');
+  const cancelBtn = div.querySelector('#tech-report-cancel');
+  
+  // Cargar técnicos
+  (async () => {
+    try {
+      const technicians = await API.company.getTechnicians();
+      tecnicoSelect.innerHTML = '<option value="">Selecciona un técnico</option>';
+      if (Array.isArray(technicians)) {
+        technicians.forEach(tech => {
+          const name = typeof tech === 'string' ? tech : (tech?.name || '');
+          if (name) {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            tecnicoSelect.appendChild(option);
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Error cargando técnicos:', err);
+      tecnicoSelect.innerHTML = '<option value="">Error al cargar técnicos</option>';
+    }
+  })();
+  
+  // Establecer fechas por defecto (último mes)
+  const hoy = new Date();
+  const haceUnMes = new Date();
+  haceUnMes.setMonth(haceUnMes.getMonth() - 1);
+  
+  fechaDesdeInput.value = haceUnMes.toISOString().split('T')[0];
+  fechaHastaInput.value = hoy.toISOString().split('T')[0];
+  
+  cancelBtn.onclick = () => modal.classList.add('hidden');
+  
+  generarBtn.onclick = async () => {
+    const desde = fechaDesdeInput?.value;
+    const hasta = fechaHastaInput?.value;
+    const tecnico = tecnicoSelect?.value;
+    
+    if(!desde || !hasta) {
+      msgEl.textContent = '⚠️ Selecciona ambas fechas';
+      msgEl.style.color = '#ef4444';
+      return;
+    }
+    
+    if(!tecnico) {
+      msgEl.textContent = '⚠️ Selecciona un técnico';
+      msgEl.style.color = '#ef4444';
+      return;
+    }
+    
+    if(new Date(desde) > new Date(hasta)) {
+      msgEl.textContent = '⚠️ La fecha desde debe ser anterior a la fecha hasta';
+      msgEl.style.color = '#ef4444';
+      return;
+    }
+    
+    msgEl.textContent = 'Generando reporte...';
+    msgEl.style.color = '#3b82f6';
+    generarBtn.disabled = true;
+    
+    try {
+      await generateTechnicianReport(desde, hasta, tecnico);
+      modal.classList.add('hidden');
+    } catch(err) {
+      msgEl.textContent = '❌ ' + (err?.message || 'Error al generar reporte');
+      msgEl.style.color = '#ef4444';
+      generarBtn.disabled = false;
+    }
+  };
+}
+
+async function generateTechnicianReport(fechaDesde, fechaHasta, tecnico) {
+  const viewHistorial = document.getElementById('sales-view-historial');
+  if(!viewHistorial) return;
+  
+  const loadingDiv = document.createElement('div');
+  loadingDiv.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm';
+  loadingDiv.innerHTML = `
+    <div class="bg-slate-800 rounded-xl p-8 shadow-2xl border border-slate-700">
+      <div class="text-center">
+        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mb-4"></div>
+        <div class="text-white text-lg font-semibold">Generando reporte de técnico...</div>
+        <div class="text-slate-400 text-sm mt-2">Esto puede tomar unos momentos</div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(loadingDiv);
+  
+  try {
+    // Obtener todas las ventas cerradas en el rango de fechas
+    const salesData = await API.sales.list({ 
+      status: 'closed', 
+      from: fechaDesde, 
+      to: fechaHasta, 
+      limit: 10000 
+    });
+    
+    const allSales = Array.isArray(salesData?.items) ? salesData.items : [];
+    
+    // Filtrar ventas donde el técnico participó
+    const technicianSales = allSales.filter(sale => {
+      const saleTechnician = sale.technician || sale.closingTechnician || '';
+      return saleTechnician.toLowerCase() === tecnico.toLowerCase();
+    });
+    
+    // Mostrar reporte
+    showTechnicianReport(technicianSales, fechaDesde, fechaHasta, tecnico);
+    
+  } catch(err) {
+    console.error('Error generando reporte de técnico:', err);
+    alert('Error al generar reporte: ' + (err?.message || 'Error desconocido'));
+  } finally {
+    loadingDiv.remove();
+  }
+}
+
+async function showTechnicianReport(sales, fechaDesde, fechaHasta, tecnico) {
+  const viewHistorial = document.getElementById('sales-view-historial');
+  if(!viewHistorial) return;
+  
+  const money = (n) => '$' + Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  
+  // Calcular estadísticas
+  const totalVentas = sales.length;
+  const totalMonto = sales.reduce((sum, sale) => sum + (Number(sale.total) || 0), 0);
+  
+  // Crear contenedor del reporte
+  const reportContainer = document.createElement('div');
+  reportContainer.id = 'technician-report-container';
+  reportContainer.className = 'space-y-6';
+  
+  reportContainer.innerHTML = `
+    <!-- Header del reporte -->
+    <div class="bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 rounded-xl shadow-lg border border-purple-500/50 p-6 mb-6">
+      <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
+        <div>
+          <h2 class="text-2xl font-bold text-white mb-2">👷 Reporte de Técnico</h2>
+          <p class="text-purple-100 text-sm mb-1">Técnico: <strong>${escapeHtmlReport(tecnico)}</strong></p>
+          <p class="text-purple-100 text-sm">Período: ${new Date(fechaDesde).toLocaleDateString('es-CO')} - ${new Date(fechaHasta).toLocaleDateString('es-CO')}</p>
+        </div>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <button id="tech-report-print" class="px-4 py-2 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-lg transition-all duration-200 whitespace-nowrap">
+            🖨️ Imprimir Reporte
+          </button>
+        </div>
+      </div>
+      
+      <!-- Estadísticas -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 pt-4 border-t border-purple-500/30">
+        <div class="bg-white/10 rounded-lg p-4">
+          <div class="text-purple-100 text-sm mb-1">Total de Ventas</div>
+          <div class="text-3xl font-bold text-white">${totalVentas}</div>
+        </div>
+        <div class="bg-white/10 rounded-lg p-4">
+          <div class="text-purple-100 text-sm mb-1">Total Generado</div>
+          <div class="text-3xl font-bold text-white">${money(totalMonto)}</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Lista de ventas -->
+    <div id="technician-sales-list" class="space-y-4">
+      ${sales.length === 0 ? `
+        <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-8 text-center">
+          <p class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-lg">No se encontraron ventas para este técnico en el período seleccionado</p>
+        </div>
+      ` : ''}
+    </div>
+    
+    <!-- Botón para volver -->
+    <div class="flex justify-center">
+      <button id="tech-report-volver" class="px-6 py-3 bg-slate-700/50 hover:bg-slate-700 text-white font-semibold rounded-lg transition-all duration-200">
+        ← Volver al Historial
+      </button>
+    </div>
+  `;
+  
+  // Reemplazar contenido del historial con el reporte
+  viewHistorial.innerHTML = '';
+  viewHistorial.appendChild(reportContainer);
+  
+  // Renderizar ventas
+  const salesListContainer = document.getElementById('technician-sales-list');
+  if (salesListContainer && sales.length > 0) {
+    for (const sale of sales) {
+      const saleCard = await createTechnicianReportSaleCard(sale);
+      salesListContainer.appendChild(saleCard);
+    }
+  }
+  
+  // Configurar eventos
+  document.getElementById('tech-report-volver')?.addEventListener('click', () => {
+    loadHistorial(true);
+  });
+  
+  document.getElementById('tech-report-print')?.addEventListener('click', () => {
+    printTechnicianReport(sales, fechaDesde, fechaHasta, tecnico);
+  });
+}
+
+async function createTechnicianReportSaleCard(sale) {
+  const card = document.createElement('div');
+  card.className = 'technician-sale-card bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4 cursor-pointer transition-all duration-200 hover:bg-slate-800/70 dark:hover:bg-slate-800/70 theme-light:hover:bg-sky-100';
+  card.dataset.saleId = sale._id;
+  
+  const plate = sale?.vehicle?.plate || 'Sin placa';
+  const closedDate = sale?.closedAt ? new Date(sale.closedAt).toLocaleDateString('es-CO', { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }) : 'Sin fecha';
+  const saleNumber = sale?.number ? String(sale.number).padStart(5, '0') : sale?._id?.slice(-6) || 'N/A';
+  const total = Number(sale?.total) || 0;
+  const money = (n) => '$' + Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  
+  const { services, combos } = await extractServicesAndCombos(sale);
+  const summaryItems = [...services, ...combos];
+  
+  const summaryCardsHTML = summaryItems.length > 0
+    ? summaryItems.map(item => `
+        <div class="inline-flex items-center px-2 py-1 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-sky-100 rounded-md text-xs text-white dark:text-white theme-light:text-slate-900 font-medium border border-slate-600/30 dark:border-slate-600/30 theme-light:border-slate-300/50">
+          ${escapeHtmlReport(item.name || item)}
+        </div>
+      `).join('')
+    : '<span class="text-slate-500 dark:text-slate-500 theme-light:text-slate-500 text-xs italic">Sin servicios ni combos</span>';
+  
+  card.innerHTML = `
+    <div class="flex items-start justify-between gap-4">
+      <div class="flex-1">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="text-lg font-bold text-white dark:text-white theme-light:text-slate-900">${escapeHtmlReport(plate.toUpperCase())}</div>
+          <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Venta #${saleNumber}</div>
+          <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">${closedDate}</div>
+        </div>
+        <div class="mb-2">
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Servicios y Combos:</div>
+          <div class="flex flex-wrap gap-2">${summaryCardsHTML}</div>
+        </div>
+        <div class="text-right mt-2">
+          <div class="text-lg font-bold text-green-400 dark:text-green-400 theme-light:text-green-600">${money(total)}</div>
+        </div>
+      </div>
+      <div class="flex-shrink-0">
+        <button class="btn-tech-view-detail px-3 py-2 text-xs bg-blue-600/50 dark:bg-blue-600/50 hover:bg-blue-600 dark:hover:bg-blue-600 text-white dark:text-white font-medium rounded-lg transition-all duration-200 border border-blue-500/50 dark:border-blue-500/50" data-sale-id="${sale._id}" title="Ver detalle">
+          👁️ Ver Detalle
+        </button>
+      </div>
+    </div>
+    <div id="tech-sale-detail-${sale._id}" class="hidden mt-4 pt-4 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30">
+      <!-- El detalle se cargará aquí cuando se expanda -->
+    </div>
+  `;
+  
+  // Event listener para expandir/colapsar
+  const viewBtn = card.querySelector('.btn-tech-view-detail');
+  const detailDiv = card.querySelector(`#tech-sale-detail-${sale._id}`);
+  
+  viewBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    
+    if (detailDiv.classList.contains('hidden')) {
+      // Expandir
+      if (!detailDiv.dataset.loaded) {
+        try {
+          const fullSale = await getSaleWithCache(sale._id);
+          const summary = buildSaleSummaryHTML(fullSale);
+          detailDiv.innerHTML = summary;
+          detailDiv.dataset.loaded = 'true';
+        } catch (err) {
+          console.error('Error cargando detalle de venta:', err);
+          detailDiv.innerHTML = '<p class="text-red-400">Error al cargar el detalle</p>';
+        }
+      }
+      detailDiv.classList.remove('hidden');
+      viewBtn.textContent = '👁️ Ocultar Detalle';
+    } else {
+      // Colapsar
+      detailDiv.classList.add('hidden');
+      viewBtn.textContent = '👁️ Ver Detalle';
+    }
+  });
+  
+  return card;
+}
+
+async function printTechnicianReport(sales, fechaDesde, fechaHasta, tecnico) {
+  const money = (n) => '$' + Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  
+  // Crear ventana de impresión
+  const printWindow = window.open('', '_blank');
+  if (!printWindow) {
+    alert('Por favor permite ventanas emergentes para imprimir el reporte');
+    return;
+  }
+  
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Reporte de Técnico - ${escapeHtmlReport(tecnico)}</title>
+      <style>
+        @page {
+          margin: 1cm;
+        }
+        body {
+          font-family: Arial, sans-serif;
+          font-size: 12px;
+          color: #000;
+          margin: 0;
+          padding: 20px;
+        }
+        .header {
+          text-align: center;
+          margin-bottom: 20px;
+          border-bottom: 2px solid #000;
+          padding-bottom: 10px;
+        }
+        .header h1 {
+          margin: 0;
+          font-size: 18px;
+        }
+        .header p {
+          margin: 5px 0;
+          font-size: 11px;
+        }
+        .stats {
+          display: flex;
+          justify-content: space-around;
+          margin: 20px 0;
+          padding: 15px;
+          background: #f0f0f0;
+          border-radius: 5px;
+        }
+        .stat-item {
+          text-align: center;
+        }
+        .stat-label {
+          font-size: 11px;
+          color: #666;
+        }
+        .stat-value {
+          font-size: 16px;
+          font-weight: bold;
+          margin-top: 5px;
+        }
+        .sale-card {
+          margin: 15px 0;
+          padding: 15px;
+          border: 1px solid #ddd;
+          border-radius: 5px;
+          page-break-inside: avoid;
+        }
+        .sale-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 10px;
+          padding-bottom: 10px;
+          border-bottom: 1px solid #ddd;
+        }
+        .sale-plate {
+          font-size: 16px;
+          font-weight: bold;
+        }
+        .sale-info {
+          font-size: 10px;
+          color: #666;
+        }
+        .sale-total {
+          font-size: 14px;
+          font-weight: bold;
+          color: #2563eb;
+        }
+        .services-combos {
+          margin: 10px 0;
+        }
+        .service-tag {
+          display: inline-block;
+          padding: 4px 8px;
+          margin: 3px;
+          background: #e5e7eb;
+          border: 1px solid #d1d5db;
+          border-radius: 4px;
+          font-size: 10px;
+        }
+        .technician {
+          margin-top: 10px;
+          padding-top: 10px;
+          border-top: 1px solid #ddd;
+          font-size: 11px;
+          color: #666;
+        }
+        .technician strong {
+          color: #000;
+        }
+        @media print {
+          .sale-card {
+            page-break-inside: avoid;
+          }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>👷 Reporte de Técnico</h1>
+        <p><strong>Técnico:</strong> ${escapeHtmlReport(tecnico)}</p>
+        <p><strong>Período:</strong> ${new Date(fechaDesde).toLocaleDateString('es-CO')} - ${new Date(fechaHasta).toLocaleDateString('es-CO')}</p>
+      </div>
+      
+      <div class="stats">
+        <div class="stat-item">
+          <div class="stat-label">Total de Ventas</div>
+          <div class="stat-value">${sales.length}</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Total Generado</div>
+          <div class="stat-value">${money(sales.reduce((sum, s) => sum + (Number(s.total) || 0), 0))}</div>
+        </div>
+      </div>
+  `);
+  
+  // Agregar cada venta
+  const cardsHTML = await Promise.all(sales.map(async (sale) => {
+    const { services, combos } = await extractServicesAndCombos(sale);
+    const summaryItems = [...services, ...combos];
+    const plate = sale?.vehicle?.plate || 'Sin placa';
+    const saleNumber = sale?.number ? String(sale.number).padStart(5, '0') : sale?._id?.slice(-6) || 'N/A';
+    const total = Number(sale?.total) || 0;
+    const closedDate = sale?.closedAt ? new Date(sale.closedAt).toLocaleDateString('es-CO', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    }) : 'Sin fecha';
+    const technician = sale?.technician || sale?.closingTechnician || tecnico;
+    
+    const tagsHTML = summaryItems.length > 0
+      ? summaryItems.map(item => `<span class="service-tag">${escapeHtmlReport(item.name || item)}</span>`).join('')
+      : '<span style="font-style: italic; color: #999;">Sin servicios ni combos</span>';
+    
+    return `
+      <div class="sale-card">
+        <div class="sale-header">
+          <div>
+            <div class="sale-plate">${escapeHtmlReport(plate.toUpperCase())}</div>
+            <div class="sale-info">Venta #${saleNumber} - ${closedDate}</div>
+          </div>
+          <div class="sale-total">${money(total)}</div>
+        </div>
+        <div class="services-combos">
+          ${tagsHTML}
+        </div>
+        <div class="technician">
+          <strong>Técnico:</strong> ${escapeHtmlReport(technician)}
+        </div>
+      </div>
+    `;
+  }));
+  
+  printWindow.document.write(cardsHTML.join(''));
+  printWindow.document.write('</body></html>');
+  printWindow.document.close();
+  
+  setTimeout(() => {
+    printWindow.print();
+  }, 250);
 }
 
 function createManoObraChart(manoObraData) {
