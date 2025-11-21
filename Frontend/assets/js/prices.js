@@ -429,64 +429,6 @@ export function openQRForItem() {
   });
 }
 
-// Función para cambiar entre tabs
-function switchSubTab(name) {
-  document.querySelectorAll('.payroll-tabs button[data-subtab]').forEach(b => {
-    const isActive = b.dataset.subtab === name;
-    b.classList.toggle('active', isActive);
-    b.classList.toggle('bg-blue-600', isActive);
-    b.classList.toggle('text-white', isActive);
-    b.classList.toggle('bg-slate-700/50', !isActive);
-  });
-  document.querySelectorAll('[data-subsection]').forEach(sec => {
-    sec.classList.toggle('hidden', sec.dataset.subsection !== name);
-  });
-  
-  // Mostrar/ocultar elementos según la pestaña activa
-  const isVehicular = name === 'prices-vehicular';
-  const isGeneral = name === 'prices-general';
-  const isInversion = name === 'prices-inversion';
-  
-  // Botones de acciones
-  const actionsBarVehicular = $('#pe-actions-bar-vehicular');
-  const actionsBarGeneral = $('#pe-actions-bar-general');
-  if (actionsBarVehicular) actionsBarVehicular.style.display = isVehicular ? 'flex' : 'none';
-  if (actionsBarGeneral) actionsBarGeneral.style.display = isGeneral ? 'flex' : 'none';
-  
-  // Lista de vehículos y marcas (solo en vehicular)
-  const vehiclesContainer = $('#pf-vehicles-container');
-  const makesToggle = $('#pf-makes-toggle')?.parentElement;
-  if (vehiclesContainer) vehiclesContainer.style.display = isVehicular ? 'block' : 'none';
-  if (makesToggle) makesToggle.style.display = isVehicular ? 'block' : 'none';
-  
-  // Filtros y tablas
-  const filtersVehicular = $('#pe-filters');
-  const filtersGeneral = $('#pe-filters-general');
-  const tableVehicular = $('#pe-table')?.closest('div');
-  const tableGeneral = $('#pe-table-general')?.closest('div');
-  
-  if (filtersVehicular) filtersVehicular.style.display = isVehicular ? 'flex' : 'none';
-  if (filtersGeneral) filtersGeneral.style.display = isGeneral ? 'flex' : 'none';
-  if (tableVehicular) tableVehicular.style.display = isVehicular ? 'block' : 'none';
-  if (tableGeneral) tableGeneral.style.display = isGeneral ? 'block' : 'none';
-  
-  // Cargar precios según la pestaña
-  if (isVehicular) {
-    // Cargar precios vehiculares (lógica existente)
-    loadPrices();
-  } else if (isGeneral) {
-    // Cargar precios generales (sin vehículo)
-    selectedVehicle = null;
-    selectedVehicles = [];
-    selectedMake = null;
-    currentPage = 1;
-    loadGeneralPrices();
-  } else if (isInversion) {
-    // Por ahora no hacer nada, se implementará en siguiente tarea
-    // Los endpoints están abiertos para la siguiente implementación
-  }
-}
-
 export function initPrices(){
   const tab = $('#tab-precios'); if(!tab) return;
 
@@ -510,8 +452,8 @@ export function initPrices(){
   const actionsBarGeneral=$('#pe-actions-bar-general');
   const head=$('#pe-head'), body=$('#pe-body');
   const headGeneral=$('#pe-head-general'), bodyGeneral=$('#pe-body-general');
-  const vehicleTabsContainer=$('#pe-vehicle-tabs');
-
+  
+  // Declarar variables que se usarán en las funciones
   let selectedVehicle = null; // Mantener para compatibilidad con código existente
   let selectedVehicles = []; // Array para selección múltiple
   let activeTabVehicleId = null; // ID del vehículo activo en las pestañas (cuando hay múltiples seleccionados)
@@ -519,6 +461,70 @@ export function initPrices(){
   let currentPage = 1;
   let currentFilters = { name: '', type: '' };
   let paging = { page: 1, limit: 10, total: 0, pages: 1 };
+  const vehicleTabsContainer=$('#pe-vehicle-tabs');
+  
+  // Declarar funciones que se usarán más adelante (se definirán después)
+  let loadPrices, loadGeneralPrices, switchSubTab;
+  
+  // Declarar funciones que se usarán más adelante (se definirán después)
+  let loadPrices, loadGeneralPrices;
+  
+  // Función para cambiar entre tabs (definirla temprano para que esté disponible)
+  // Se asignará completamente después de que loadPrices y loadGeneralPrices estén definidas
+  let switchSubTab = function(name) {
+    document.querySelectorAll('.payroll-tabs button[data-subtab]').forEach(b => {
+      const isActive = b.dataset.subtab === name;
+      b.classList.toggle('active', isActive);
+      b.classList.toggle('bg-blue-600', isActive);
+      b.classList.toggle('text-white', isActive);
+      b.classList.toggle('bg-slate-700/50', !isActive);
+    });
+    document.querySelectorAll('[data-subsection]').forEach(sec => {
+      sec.classList.toggle('hidden', sec.dataset.subsection !== name);
+    });
+    
+    // Mostrar/ocultar elementos según la pestaña activa
+    const isVehicular = name === 'prices-vehicular';
+    const isGeneral = name === 'prices-general';
+    const isInversion = name === 'prices-inversion';
+    
+    // Botones de acciones
+    const actionsBarVehicular = $('#pe-actions-bar-vehicular');
+    const actionsBarGeneral = $('#pe-actions-bar-general');
+    if (actionsBarVehicular) actionsBarVehicular.style.display = isVehicular ? 'flex' : 'none';
+    if (actionsBarGeneral) actionsBarGeneral.style.display = isGeneral ? 'flex' : 'none';
+    
+    // Lista de vehículos y marcas (solo en vehicular)
+    const vehiclesContainer = $('#pf-vehicles-container');
+    const makesToggle = $('#pf-makes-toggle')?.parentElement;
+    if (vehiclesContainer) vehiclesContainer.style.display = isVehicular ? 'block' : 'none';
+    if (makesToggle) makesToggle.style.display = isVehicular ? 'block' : 'none';
+    
+    // Filtros y tablas
+    const filtersVehicular = $('#pe-filters');
+    const filtersGeneral = $('#pe-filters-general');
+    const tableVehicular = $('#pe-table')?.closest('div');
+    const tableGeneral = $('#pe-table-general')?.closest('div');
+    
+    if (filtersVehicular) filtersVehicular.style.display = isVehicular ? 'flex' : 'none';
+    if (filtersGeneral) filtersGeneral.style.display = isGeneral ? 'flex' : 'none';
+    if (tableVehicular) tableVehicular.style.display = isVehicular ? 'block' : 'none';
+    if (tableGeneral) tableGeneral.style.display = isGeneral ? 'block' : 'none';
+    
+    // Cargar precios según la pestaña (solo si las funciones están definidas)
+    if (isVehicular && loadPrices) {
+      loadPrices();
+    } else if (isGeneral && loadGeneralPrices) {
+      selectedVehicle = null;
+      selectedVehicles = [];
+      selectedMake = null;
+      currentPage = 1;
+      loadGeneralPrices();
+    } else if (isInversion) {
+      // Por ahora no hacer nada, se implementará en siguiente tarea
+      // Los endpoints están abiertos para la siguiente implementación
+    }
+  };
 
   // Botones de importar/exportar (ya están en el HTML ahora)
   const btnImport=$('#pe-import');
@@ -691,7 +697,7 @@ export function initPrices(){
   }
 
   // Función para cargar precios generales
-  async function loadGeneralPrices(params={}) {
+  loadGeneralPrices = async function(params={}) {
     // Obtener filtros de la pestaña general
     const filterNameGeneral = $('#pe-filter-name-general');
     const filterTypeGeneral = $('#pe-filter-type-general');
@@ -786,7 +792,7 @@ export function initPrices(){
     }
   }
 
-  async function loadPrices(params={}){
+  loadPrices = async function(params={}){
     // Determinar qué vehículo usar: si hay múltiples seleccionados, usar el activo en las pestañas
     const vehicleToUse = selectedVehicles.length > 1 
       ? (activeTabVehicleId ? selectedVehicles.find(v => v._id === activeTabVehicleId) : selectedVehicles[0])
@@ -3263,6 +3269,7 @@ export function initPrices(){
       closeBtn.onclick = () => { cleanup?.(); closeModal(); };
     };
   }
+
 
   // Tabs internas (Lista de precios vehicular / general / inversión / Vehículos)
   document.querySelectorAll('.payroll-tabs button[data-subtab]').forEach(b => {
