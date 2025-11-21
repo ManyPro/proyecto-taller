@@ -482,9 +482,11 @@ export const addItem = async (req, res) => {
       const companyIdsToSearch = await getAllSharedCompanyIdsHelper(originalCompanyId);
       
       // Construir query con companyIds
+      // CRÍTICO: Siempre usar $in para asegurar que funcione correctamente con ObjectIds
+      // Convertir todos los IDs a ObjectIds de mongoose para la búsqueda
       const companyFilter = companyIdsToSearch.length > 1 
-        ? { $in: companyIdsToSearch }
-        : companyIdsToSearch[0];
+        ? { $in: companyIdsToSearch.map(id => new mongoose.Types.ObjectId(id)) }
+        : new mongoose.Types.ObjectId(companyIdsToSearch[0]);
       
       // Buscar el precio en todas las empresas compartidas
       let pe = await PriceEntry.findOne({ _id: refId, companyId: companyFilter })
@@ -760,12 +762,14 @@ export const addItemsBatch = async (req, res) => {
       if (source === 'price') {
         if (raw.refId) {
           // CRÍTICO: Usar la misma lógica que getPrice y addItem para buscar precios en todas las empresas compartidas
-          const companyIdsToSearch = await getAllSharedCompanyIds(req);
+          const companyIdsToSearch = await getAllSharedCompanyIdsHelper(originalCompanyId);
           
           // Construir query con companyIds
+          // CRÍTICO: Siempre usar $in para asegurar que funcione correctamente con ObjectIds
+          // Convertir todos los IDs a ObjectIds de mongoose para la búsqueda
           const companyFilter = companyIdsToSearch.length > 1 
-            ? { $in: companyIdsToSearch }
-            : companyIdsToSearch[0];
+            ? { $in: companyIdsToSearch.map(id => new mongoose.Types.ObjectId(id)) }
+            : new mongoose.Types.ObjectId(companyIdsToSearch[0]);
           
           // Buscar el precio en todas las empresas compartidas
           let pe = await PriceEntry.findOne({ _id: raw.refId, companyId: companyFilter })

@@ -260,9 +260,12 @@ export const getPrice = async (req, res) => {
   const companyIdsToSearch = await getAllSharedCompanyIds(originalCompanyId);
   
   // Construir query con companyIds
+  // CRÍTICO: Siempre usar $in para asegurar que funcione correctamente con ObjectIds
+  // Convertir todos los IDs a ObjectIds de mongoose para la búsqueda
+  const mongoose = (await import('mongoose')).default;
   const companyFilter = companyIdsToSearch.length > 1 
-    ? { $in: companyIdsToSearch }
-    : companyIdsToSearch[0];
+    ? { $in: companyIdsToSearch.map(id => new mongoose.Types.ObjectId(id)) }
+    : new mongoose.Types.ObjectId(companyIdsToSearch[0]);
   
   const price = await PriceEntry.findOne({ _id: id, companyId: companyFilter })
     .populate('vehicleId', 'make line displacement modelYear')
