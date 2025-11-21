@@ -450,8 +450,30 @@
       try {
         const reportData = JSON.parse(reportDataStr);
         const selectedSections = JSON.parse(selectedSectionsStr);
-        const fechaDesde = fechaDesdeStr ? new Date(fechaDesdeStr) : new Date();
-        const fechaHasta = fechaHastaStr ? new Date(fechaHastaStr) : new Date();
+        // Parsear fechas correctamente sin problemas de timezone
+        let fechaDesde, fechaHasta;
+        if (fechaDesdeStr) {
+          // Si es un string YYYY-MM-DD, parsearlo en zona horaria local
+          if (fechaDesdeStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month, day] = fechaDesdeStr.split('-').map(Number);
+            fechaDesde = new Date(year, month - 1, day);
+          } else {
+            fechaDesde = new Date(fechaDesdeStr);
+          }
+        } else {
+          fechaDesde = new Date();
+        }
+        if (fechaHastaStr) {
+          // Si es un string YYYY-MM-DD, parsearlo en zona horaria local
+          if (fechaHastaStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month, day] = fechaHastaStr.split('-').map(Number);
+            fechaHasta = new Date(year, month - 1, day);
+          } else {
+            fechaHasta = new Date(fechaHastaStr);
+          }
+        } else {
+          fechaHasta = new Date();
+        }
         
         renderReport(reportData, fechaDesde, fechaHasta, selectedSections);
       } catch (error) {
@@ -475,9 +497,38 @@
       return div.innerHTML;
     }
     
+    // Helper para formatear fechas sin problemas de timezone
+    // Cuando el usuario ingresa "2024-01-15", queremos mostrar "15/01/2024" sin que se convierta al día anterior
+    function formatDateForDisplay(dateStr) {
+      if (!dateStr) return '';
+      // Si es un string YYYY-MM-DD, parsearlo directamente en zona horaria local
+      if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        // Crear fecha en zona horaria local para evitar problemas de conversión UTC
+        const date = new Date(year, month - 1, day);
+        return date.toLocaleDateString('es-CO');
+      }
+      // Si ya es un objeto Date, usar directamente
+      if (dateStr instanceof Date) {
+        return dateStr.toLocaleDateString('es-CO');
+      }
+      // Intentar parsear como fecha
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+        // Si es un string ISO sin timezone, parsearlo en local
+        if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}T/)) {
+          const [datePart] = dateStr.split('T');
+          const [y, m, d] = datePart.split('-').map(Number);
+          return new Date(y, m - 1, d).toLocaleDateString('es-CO');
+        }
+        return date.toLocaleDateString('es-CO');
+      }
+      return dateStr;
+    }
+    
     function renderReport(reportData, fechaDesde, fechaHasta, selectedSections) {
       const container = document.getElementById('reportContainer');
-      const periodStr = `${fechaDesde.toLocaleDateString('es-CO')} - ${fechaHasta.toLocaleDateString('es-CO')}`;
+      const periodStr = `${formatDateForDisplay(fechaDesde)} - ${formatDateForDisplay(fechaHasta)}`;
       
       // Determinar qué secciones mostrar
       const hasResumen = selectedSections.includes('resumen');

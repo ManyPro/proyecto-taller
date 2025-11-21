@@ -11584,6 +11584,35 @@ function escapeHtmlReport(str) {
     .replace(/'/g, '&#039;');
 }
 
+// Helper para formatear fechas sin problemas de timezone
+// Cuando el usuario ingresa "2024-01-15", queremos mostrar "15/01/2024" sin que se convierta al día anterior
+function formatDateForDisplay(dateStr) {
+  if (!dateStr) return '';
+  // Si es un string YYYY-MM-DD, parsearlo directamente en zona horaria local
+  if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    // Crear fecha en zona horaria local para evitar problemas de conversión UTC
+    const date = new Date(year, month - 1, day);
+    return date.toLocaleDateString('es-CO');
+  }
+  // Si ya es un objeto Date, usar directamente
+  if (dateStr instanceof Date) {
+    return dateStr.toLocaleDateString('es-CO');
+  }
+  // Intentar parsear como fecha
+  const date = new Date(dateStr);
+  if (!isNaN(date.getTime())) {
+    // Si es un string ISO sin timezone, parsearlo en local
+    if (typeof dateStr === 'string' && dateStr.match(/^\d{4}-\d{2}-\d{2}T/)) {
+      const [datePart] = dateStr.split('T');
+      const [y, m, d] = datePart.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString('es-CO');
+    }
+    return date.toLocaleDateString('es-CO');
+  }
+  return dateStr;
+}
+
 function showReport(reportData, fechaDesde, fechaHasta) {
   const viewHistorial = document.getElementById('sales-view-historial');
   if(!viewHistorial) return;
@@ -11601,7 +11630,7 @@ function showReport(reportData, fechaDesde, fechaHasta) {
       <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
         <div>
           <h2 class="text-2xl font-bold text-white mb-2">📊 Reporte de Ventas</h2>
-          <p class="text-blue-100 text-sm">Período: ${new Date(fechaDesde).toLocaleDateString('es-CO')} - ${new Date(fechaHasta).toLocaleDateString('es-CO')}</p>
+          <p class="text-blue-100 text-sm">Período: ${formatDateForDisplay(fechaDesde)} - ${formatDateForDisplay(fechaHasta)}</p>
         </div>
         <div class="flex flex-col sm:flex-row gap-2">
           <button id="report-download-image" class="px-4 py-2 bg-green-600/80 hover:bg-green-600 text-white font-semibold rounded-lg transition-all duration-200 whitespace-nowrap">
@@ -12102,7 +12131,7 @@ async function showTechnicianReport(sales, fechaDesde, fechaHasta, tecnico) {
         <div>
           <h2 class="text-2xl font-bold text-white mb-3">👷 Reporte de Técnico</h2>
           <p class="text-purple-100 text-xl font-semibold mb-2">Técnico: <strong class="text-white">${escapeHtmlReport(tecnico)}</strong></p>
-          <p class="text-purple-100 text-xl font-semibold">Período: <strong class="text-white">${new Date(fechaDesde).toLocaleDateString('es-CO')} - ${new Date(fechaHasta).toLocaleDateString('es-CO')}</strong></p>
+          <p class="text-purple-100 text-xl font-semibold">Período: <strong class="text-white">${formatDateForDisplay(fechaDesde)} - ${formatDateForDisplay(fechaHasta)}</strong></p>
         </div>
         <div class="flex flex-col sm:flex-row gap-2">
           <button id="tech-report-print" class="px-4 py-2 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-lg transition-all duration-200 whitespace-nowrap">
@@ -12401,7 +12430,7 @@ async function printTechnicianReport(sales, fechaDesde, fechaHasta, tecnico) {
       <div class="header">
         <h1>👷 Reporte de Técnico</h1>
         <p><strong>Técnico:</strong> ${escapeHtmlReport(tecnico)}</p>
-        <p><strong>Período:</strong> ${new Date(fechaDesde).toLocaleDateString('es-CO')} - ${new Date(fechaHasta).toLocaleDateString('es-CO')}</p>
+        <p><strong>Período:</strong> ${formatDateForDisplay(fechaDesde)} - ${formatDateForDisplay(fechaHasta)}</p>
       </div>
       
       <div class="stats">
@@ -12526,7 +12555,7 @@ function downloadReportPDF(reportData, fechaDesde, fechaHasta) {
   yPos += 10;
   
   doc.setFontSize(12);
-  doc.text(`Período: ${new Date(fechaDesde).toLocaleDateString('es-CO')} - ${new Date(fechaHasta).toLocaleDateString('es-CO')}`, 105, yPos, { align: 'center' });
+  doc.text(`Período: ${formatDateForDisplay(fechaDesde)} - ${formatDateForDisplay(fechaHasta)}`, 105, yPos, { align: 'center' });
   yPos += 15;
   
   // Resumen general
