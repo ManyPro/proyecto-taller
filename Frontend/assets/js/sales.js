@@ -28,11 +28,6 @@ async function getPriceEntryCached(refId) {
     return window.priceEntryCache.get(refIdStr);
   }
   
-  // Si ya sabemos que hay un error, no intentar de nuevo
-  if (window.priceEntryErrors.has(refIdStr)) {
-    return null;
-  }
-  
   // Si hay una llamada pendiente para este ID, esperar a que termine
   if (window.priceEntryPending.has(refIdStr)) {
     try {
@@ -49,11 +44,15 @@ async function getPriceEntryCached(refId) {
       if (pe && pe._id) {
         // Guardar en cache
         window.priceEntryCache.set(refIdStr, pe);
+        // Si estaba en errores, limpiarlo (puede haber sido un problema temporal)
+        if (window.priceEntryErrors.has(refIdStr)) {
+          window.priceEntryErrors.delete(refIdStr);
+        }
         return pe;
       }
       return null;
     } catch (err) {
-      // Detectar 404 por mensaje o status (api.js lanza Error con message, no status)
+      // Detectar tipo de error
       const errorMsg = String(err?.message || err || '').toLowerCase();
       const is404 = err?.status === 404 || 
                     errorMsg.includes('404') || 
@@ -63,19 +62,48 @@ async function getPriceEntryCached(refId) {
                     errorMsg.includes('no encontrado') ||
                     errorMsg.includes('no existe');
       
-      if (is404) {
-        window.priceEntryErrors.add(refIdStr);
-        // Solo loguear una vez para evitar spam en consola
-        if (!window.priceEntryErrorsLogged) {
-          window.priceEntryErrorsLogged = new Set();
-        }
-        if (!window.priceEntryErrorsLogged.has(refIdStr)) {
-          window.priceEntryErrorsLogged.add(refIdStr);
-          console.warn(`[PriceEntry Cache] No se encontró PriceEntry ${refIdStr}, evitando futuros intentos`);
+      const is403 = err?.status === 403 || 
+                    errorMsg.includes('403') || 
+                    errorMsg.includes('forbidden') ||
+                    errorMsg.includes('belongs to different company') ||
+                    errorMsg.includes('pertenece a otra empresa');
+      
+      // NO cachear errores 403 - indican problema de configuración de sharedDB que debe resolverse
+      // Solo cachear 404 después de varios intentos fallidos
+      if (is403) {
+        // Error 403: el precio existe pero está en otra empresa (problema de sharedDB)
+        // No cachear este error, permitir reintentos
+        console.error(`[PriceEntry Cache] Error 403 al obtener PriceEntry ${refIdStr}: El precio existe pero pertenece a otra empresa. Verificar configuración de sharedDB.`, err);
+        return null;
+      } else if (is404) {
+        // Error 404: el precio no existe
+        // Solo cachear después de verificar que realmente no existe
+        // No cachear inmediatamente, permitir algunos reintentos
+        const errorCount = window.priceEntryErrorCount || new Map();
+        const currentCount = (errorCount.get(refIdStr) || 0) + 1;
+        errorCount.set(refIdStr, currentCount);
+        window.priceEntryErrorCount = errorCount;
+        
+        // Solo cachear después de 3 intentos fallidos
+        if (currentCount >= 3) {
+          window.priceEntryErrors.add(refIdStr);
+          // Solo loguear una vez para evitar spam en consola
+          if (!window.priceEntryErrorsLogged) {
+            window.priceEntryErrorsLogged = new Set();
+          }
+          if (!window.priceEntryErrorsLogged.has(refIdStr)) {
+            window.priceEntryErrorsLogged.add(refIdStr);
+            console.warn(`[PriceEntry Cache] PriceEntry ${refIdStr} no encontrado después de ${currentCount} intentos. Verificar que el precio existe en la empresa actual o en sharedDB.`);
+          }
+        } else {
+          // Log solo en el primer intento
+          if (currentCount === 1) {
+            console.warn(`[PriceEntry Cache] PriceEntry ${refIdStr} no encontrado (intento ${currentCount}/3). Reintentando...`);
+          }
         }
       } else {
-        // Para otros errores, solo loguear pero no cachear el error (puede ser temporal)
-        console.warn(`[PriceEntry Cache] Error al obtener PriceEntry ${refIdStr}:`, err);
+        // Para otros errores (red, servidor, etc.), no cachear (puede ser temporal)
+        console.warn(`[PriceEntry Cache] Error temporal al obtener PriceEntry ${refIdStr}:`, err);
       }
       return null;
     } finally {
@@ -2796,10 +2824,21 @@ async function setupTechnicianSelect(){
 
 function renderMini(){
   const lp = document.getElementById('sv-mini-plate'), ln = document.getElementById('sv-mini-name'), lr = document.getElementById('sv-mini-phone');
+  const vy = document.getElementById('sv-mini-vehicle-year'), vm = document.getElementById('sv-mini-vehicle-mileage');
   const c = current?.customer || {}, v = current?.vehicle || {};
   if (lp) lp.textContent = v.plate || '—';
   if (ln) ln.textContent = `Cliente: ${c.name || '—'}`;
   if (lr) lr.textContent = `Cel: ${c.phone || '—'}`;
+  
+  // Información del vehículo: año y kilometraje
+  if (vy) {
+    const year = v.year || v.modelYear || '—';
+    vy.textContent = `Año: ${year}`;
+  }
+  if (vm) {
+    const mileage = v.mileage ? `${Number(v.mileage).toLocaleString('es-CO')} km` : '—';
+    vm.textContent = `Kilometraje: ${mileage}`;
+  }
   
   // Verificar si la venta viene de un evento del calendario
   const fromCalendarEventId = localStorage.getItem('sales:fromCalendarEvent');
@@ -3149,6 +3188,14 @@ async function renderSale(){
     actions.style.gap = '4px';
     actions.style.alignItems = 'stretch';
     
+    const btnEditName = document.createElement('button');
+    btnEditName.innerHTML = '✏️ Editar Nombre';
+    btnEditName.className = 'secondary';
+    btnEditName.style.cssText = 'padding: 6px 10px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.2s; font-weight: 500; background: rgba(34, 197, 94, 0.3); color: #86efac;';
+    btnEditName.onclick = async () => {
+      await openEditNameModal(it, tr);
+    };
+    
     const btnEdit = document.createElement('button');
     btnEdit.textContent = 'Editar $';
     btnEdit.className = 'secondary';
@@ -3181,6 +3228,7 @@ async function renderSale(){
     }
     
     actions.innerHTML = '';
+    actions.appendChild(btnEditName);
     actions.appendChild(btnEdit);
     actions.appendChild(btnZero);
     if (btnDel) actions.appendChild(btnDel);
@@ -9844,6 +9892,171 @@ async function openEditPriceModal(item) {
   }
 }
 
+async function openEditNameModal(item, tr) {
+  try {
+    if (!current || !current._id) {
+      alert('No hay venta activa');
+      return;
+    }
+    
+    const currentName = item.name || 'Item';
+    
+    // Crear modal HTML
+    const modal = document.getElementById('modal');
+    const modalBody = document.getElementById('modalBody');
+    const modalClose = document.getElementById('modalClose');
+    
+    if (!modal || !modalBody) {
+      alert('Error: No se pudo abrir el modal');
+      return;
+    }
+    
+    // Construir HTML del modal
+    modalBody.innerHTML = `
+      <div class="space-y-6">
+        <div>
+          <h2 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-2">
+            ✏️ Editar descripción
+          </h2>
+          <p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+            SKU: ${htmlEscape(item.sku || '—')}
+          </p>
+        </div>
+        
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">
+              Descripción actual
+            </label>
+            <div class="px-4 py-2 bg-slate-700/30 dark:bg-slate-700/30 theme-light:bg-slate-100 rounded-lg text-sm text-white dark:text-white theme-light:text-slate-900">
+              ${htmlEscape(currentName)}
+            </div>
+          </div>
+          
+          <div>
+            <label for="edit-name-input" class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">
+              Nueva descripción
+            </label>
+            <input 
+              type="text" 
+              id="edit-name-input" 
+              value="${htmlEscape(currentName)}"
+              class="w-full px-4 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 text-lg"
+              placeholder="Ingrese la nueva descripción"
+              autofocus
+            />
+          </div>
+          <p class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
+            ⚠️ Este cambio solo se aplica a esta venta y no se guarda en el backend.
+          </p>
+        </div>
+        
+        <div class="flex gap-3 justify-end pt-4 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300">
+          <button 
+            id="edit-name-cancel" 
+            class="px-6 py-2.5 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 theme-light:bg-slate-200 theme-light:hover:bg-slate-300 text-white dark:text-white theme-light:text-slate-900 font-semibold rounded-lg transition-all duration-200"
+          >
+            Cancelar
+          </button>
+          <button 
+            id="edit-name-save" 
+            class="px-6 py-2.5 bg-green-600 dark:bg-green-600 hover:bg-green-700 dark:hover:bg-green-700 theme-light:bg-green-500 theme-light:hover:bg-green-600 text-white font-semibold rounded-lg transition-all duration-200"
+          >
+            Guardar
+          </button>
+        </div>
+      </div>
+    `;
+    
+    // Mostrar modal
+    modal.classList.remove('hidden');
+    
+    // Obtener elementos
+    const nameInput = document.getElementById('edit-name-input');
+    const cancelBtn = document.getElementById('edit-name-cancel');
+    const saveBtn = document.getElementById('edit-name-save');
+    
+    // Función para cerrar modal
+    const closeModal = () => {
+      modal.classList.add('hidden');
+    };
+    
+    // Event listeners
+    cancelBtn.onclick = closeModal;
+    modalClose.onclick = closeModal;
+    
+    // Cerrar con ESC
+    const escHandler = (e) => {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', escHandler);
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+    
+    // Guardar cambios
+    saveBtn.onclick = () => {
+      const newName = nameInput.value.trim();
+      
+      if (!newName) {
+        alert('La descripción no puede estar vacía');
+        return;
+      }
+      
+      // Actualizar el nombre solo en el objeto current (no en el backend)
+      if (current.items && Array.isArray(current.items)) {
+        const itemIndex = current.items.findIndex(i => i._id === item._id);
+        if (itemIndex !== -1) {
+          current.items[itemIndex].name = newName;
+          
+          // Actualizar la celda de descripción en la tabla
+          const nameCell = tr.querySelector('[data-name]');
+          if (nameCell) {
+            // Mantener el badge si existe
+            const existingBadge = nameCell.querySelector('.service-badge, .product-badge, .combo-badge');
+            nameCell.textContent = '';
+            if (existingBadge) {
+              nameCell.appendChild(existingBadge);
+            }
+            nameCell.appendChild(document.createTextNode(newName));
+          }
+          
+          // Sincronizar con la lista de ventas abiertas
+          syncCurrentIntoOpenList();
+          
+          // Cerrar modal
+          closeModal();
+          document.removeEventListener('keydown', escHandler);
+        } else {
+          alert('No se pudo encontrar el item en la venta');
+        }
+      } else {
+        alert('Error: La venta no tiene items');
+      }
+    };
+    
+    // Permitir guardar con Enter
+    nameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        saveBtn.click();
+      }
+    });
+    
+    // Focus en el input
+    setTimeout(() => {
+      nameInput.focus();
+      nameInput.select();
+    }, 100);
+    
+  } catch (err) {
+    console.error('Error en openEditNameModal:', err);
+    alert('Error al editar descripción: ' + (err?.message || 'Error desconocido'));
+    const modal = document.getElementById('modal');
+    if (modal) modal.classList.add('hidden');
+  }
+}
+
 async function editTechnicianFromHistorial(saleId) {
   try {
     // Cargar técnicos si no están cargados
@@ -11689,9 +11902,9 @@ async function showTechnicianReport(sales, fechaDesde, fechaHasta, tecnico) {
     <div class="bg-gradient-to-r from-purple-600 to-purple-700 dark:from-purple-600 dark:to-purple-700 theme-light:from-purple-500 theme-light:to-purple-600 rounded-xl shadow-lg border border-purple-500/50 p-6 mb-6">
       <div class="flex flex-col sm:flex-row justify-between items-start gap-4">
         <div>
-          <h2 class="text-2xl font-bold text-white mb-2">👷 Reporte de Técnico</h2>
-          <p class="text-purple-100 text-sm mb-1">Técnico: <strong>${escapeHtmlReport(tecnico)}</strong></p>
-          <p class="text-purple-100 text-sm">Período: ${new Date(fechaDesde).toLocaleDateString('es-CO')} - ${new Date(fechaHasta).toLocaleDateString('es-CO')}</p>
+          <h2 class="text-2xl font-bold text-white mb-3">👷 Reporte de Técnico</h2>
+          <p class="text-purple-100 text-xl font-semibold mb-2">Técnico: <strong class="text-white">${escapeHtmlReport(tecnico)}</strong></p>
+          <p class="text-purple-100 text-xl font-semibold">Período: <strong class="text-white">${new Date(fechaDesde).toLocaleDateString('es-CO')} - ${new Date(fechaHasta).toLocaleDateString('es-CO')}</strong></p>
         </div>
         <div class="flex flex-col sm:flex-row gap-2">
           <button id="tech-report-print" class="px-4 py-2 bg-white/20 hover:bg-white/30 text-white font-semibold rounded-lg transition-all duration-200 whitespace-nowrap">
@@ -11843,6 +12056,20 @@ async function createTechnicianReportSaleCard(sale) {
 async function printTechnicianReport(sales, fechaDesde, fechaHasta, tecnico) {
   const money = (n) => '$' + Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
   
+  // Detectar tema actual
+  const isLightTheme = document.body.classList.contains('theme-light');
+  const bgColor = isLightTheme ? '#e0f2fe' : '#1e293b';
+  const textColor = isLightTheme ? '#000000' : '#ffffff';
+  const cardBg = isLightTheme ? '#ffffff' : '#334155';
+  const borderColor = isLightTheme ? '#cbd5e1' : '#475569';
+  const headerBg = isLightTheme ? '#a855f7' : '#7c3aed';
+  const headerText = '#ffffff';
+  const statBg = isLightTheme ? '#f1f5f9' : '#475569';
+  const statText = isLightTheme ? '#000000' : '#ffffff';
+  const tagBg = isLightTheme ? '#e0f2fe' : '#475569';
+  const tagBorder = isLightTheme ? '#bae6fd' : '#64748b';
+  const tagText = isLightTheme ? '#000000' : '#ffffff';
+  
   // Crear ventana de impresión
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
@@ -11862,30 +12089,41 @@ async function printTechnicianReport(sales, fechaDesde, fechaHasta, tecnico) {
         body {
           font-family: Arial, sans-serif;
           font-size: 12px;
-          color: #000;
+          color: ${textColor};
+          background-color: ${bgColor};
           margin: 0;
           padding: 20px;
         }
         .header {
           text-align: center;
           margin-bottom: 20px;
-          border-bottom: 2px solid #000;
-          padding-bottom: 10px;
+          background: ${headerBg};
+          color: ${headerText};
+          padding: 20px;
+          border-radius: 8px;
+          border-bottom: 3px solid ${isLightTheme ? '#9333ea' : '#6d28d9'};
         }
         .header h1 {
           margin: 0;
-          font-size: 18px;
+          font-size: 24px;
+          font-weight: bold;
+          margin-bottom: 15px;
         }
         .header p {
-          margin: 5px 0;
-          font-size: 11px;
+          margin: 8px 0;
+          font-size: 18px;
+          font-weight: 600;
+        }
+        .header strong {
+          font-size: 20px;
+          font-weight: bold;
         }
         .stats {
           display: flex;
           justify-content: space-around;
           margin: 20px 0;
           padding: 15px;
-          background: #f0f0f0;
+          background: ${statBg};
           border-radius: 5px;
         }
         .stat-item {
@@ -11893,17 +12131,19 @@ async function printTechnicianReport(sales, fechaDesde, fechaHasta, tecnico) {
         }
         .stat-label {
           font-size: 11px;
-          color: #666;
+          color: ${isLightTheme ? '#475569' : '#cbd5e1'};
         }
         .stat-value {
           font-size: 16px;
           font-weight: bold;
           margin-top: 5px;
+          color: ${statText};
         }
         .sale-card {
           margin: 15px 0;
           padding: 15px;
-          border: 1px solid #ddd;
+          background: ${cardBg};
+          border: 1px solid ${borderColor};
           border-radius: 5px;
           page-break-inside: avoid;
         }
@@ -11913,20 +12153,21 @@ async function printTechnicianReport(sales, fechaDesde, fechaHasta, tecnico) {
           align-items: center;
           margin-bottom: 10px;
           padding-bottom: 10px;
-          border-bottom: 1px solid #ddd;
+          border-bottom: 1px solid ${borderColor};
         }
         .sale-plate {
           font-size: 16px;
           font-weight: bold;
+          color: ${textColor};
         }
         .sale-info {
           font-size: 10px;
-          color: #666;
+          color: ${isLightTheme ? '#64748b' : '#94a3b8'};
         }
         .sale-total {
           font-size: 14px;
           font-weight: bold;
-          color: #2563eb;
+          color: ${isLightTheme ? '#2563eb' : '#60a5fa'};
         }
         .services-combos {
           margin: 10px 0;
@@ -11935,20 +12176,21 @@ async function printTechnicianReport(sales, fechaDesde, fechaHasta, tecnico) {
           display: inline-block;
           padding: 4px 8px;
           margin: 3px;
-          background: #e5e7eb;
-          border: 1px solid #d1d5db;
+          background: ${tagBg};
+          border: 1px solid ${tagBorder};
           border-radius: 4px;
           font-size: 10px;
+          color: ${tagText};
         }
         .technician {
           margin-top: 10px;
           padding-top: 10px;
-          border-top: 1px solid #ddd;
+          border-top: 1px solid ${borderColor};
           font-size: 11px;
-          color: #666;
+          color: ${isLightTheme ? '#64748b' : '#94a3b8'};
         }
         .technician strong {
-          color: #000;
+          color: ${textColor};
         }
         @media print {
           .sale-card {

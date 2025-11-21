@@ -305,18 +305,33 @@ export const getPrice = async (req, res) => {
     .lean();
   
   if (!price) {
-    // Verificar si existe en alguna empresa (para debugging)
+    // Verificar si existe en alguna empresa (para debugging y diagnóstico)
     const priceAnyCompany = await PriceEntry.findOne({ _id: id }).lean();
     if (priceAnyCompany) {
-      logger.warn('[getPrice] Precio encontrado pero no está en empresas compartidas', {
+      const priceCompanyId = priceAnyCompany.companyId?.toString();
+      const origId = originalCompanyId?.toString();
+      
+      // Si el precio existe pero no está en las empresas compartidas, es un problema de configuración
+      logger.error('[getPrice] Precio encontrado pero no está en empresas compartidas - PROBLEMA DE CONFIGURACIÓN sharedDB', {
         priceId: id,
-        priceCompanyId: priceAnyCompany.companyId?.toString(),
-        originalCompanyId: originalCompanyId?.toString(),
-        companyIdsToSearch: companyIdsToSearch.map(String)
+        priceCompanyId: priceCompanyId,
+        originalCompanyId: origId,
+        companyIdsToSearch: companyIdsToSearch.map(String),
+        message: 'El precio existe pero no está accesible. Verificar configuración de sharedDatabaseConfig.'
       });
-      return res.status(403).json({ error: 'PriceEntry belongs to different company' });
+      
+      // En lugar de devolver 403, intentar buscar si hay alguna relación de sharedDB que no se detectó
+      // Esto puede pasar si la configuración cambió después de crear el precio
+      // Por ahora, devolver 403 pero con mensaje más descriptivo
+      return res.status(403).json({ 
+        error: 'PriceEntry belongs to different company',
+        message: 'El precio existe pero no está accesible desde la empresa actual. Verificar configuración de sharedDatabaseConfig.',
+        priceCompanyId: priceCompanyId,
+        originalCompanyId: origId
+      });
     } else {
-      logger.warn('[getPrice] Precio no encontrado', {
+      // El precio realmente no existe
+      logger.warn('[getPrice] Precio no encontrado en ninguna empresa', {
         priceId: id,
         isValidObjectId: /^[0-9a-fA-F]{24}$/.test(id),
         originalCompanyId: originalCompanyId?.toString(),
