@@ -1277,6 +1277,12 @@ export const closeSale = async (req, res) => {
         }
         if (!target) throw new Error(`Inventory item not found (${it.sku || it.refId || 'sin id'})`);
         
+        // IMPORTANTE: Asegurar que el Item tenga el stock actualizado antes de validar
+        // Recargar el Item dentro de la transacción para obtener el stock más reciente
+        const freshTarget = await Item.findOne({ _id: target._id, companyId: itemCompanyFilter }).session(session);
+        if (!freshTarget) throw new Error(`Item not found after reload (${target.sku || target.name})`);
+        target = freshTarget; // Usar la versión fresca
+        
         // IMPORTANTE: Calcular el stock real desde StockEntries para asegurar que tenemos el stock correcto
         // El campo stock del Item podría estar desactualizado, así que lo calculamos desde las entradas
         // CRÍTICO: Si hay base de datos compartida, los StockEntry pueden estar con el companyId original o efectivo
@@ -1291,14 +1297,19 @@ export const closeSale = async (req, res) => {
         }).session(session);
         
         const actualStockFromEntries = stockEntriesForCheck.reduce((sum, entry) => sum + (entry.qty || 0), 0);
-        const itemStock = target.stock ?? 0;
+        // Asegurar que itemStock sea un número válido y positivo
+        const itemStock = Math.max(Number(target.stock) || 0, 0);
         
         // Log detallado para debugging
         logger.info('[closeSale] Verificando stock', {
           sku: target.sku || target.name,
+          itemId: target._id?.toString(),
           itemStock,
+          itemStockType: typeof target.stock,
+          itemStockRaw: target.stock,
           stockEntriesCount: stockEntriesForCheck.length,
           stockFromEntries: actualStockFromEntries,
+          requerido: q,
           companyId: req.companyId,
           originalCompanyId: hasSharedDb ? req.originalCompanyId : undefined,
           effectiveCompanyId: hasSharedDb ? req.companyId : undefined,
@@ -1309,9 +1320,10 @@ export const closeSale = async (req, res) => {
         // Si hay StockEntries pero todas tienen qty 0, usar el stock del Item
         // Si NO hay StockEntries pero el Item tiene stock, usar el stock del Item
         // Esto maneja el caso donde el stock fue agregado sin VehicleIntake (stock inicial, ajustes manuales, etc.)
+        // IMPORTANTE: Siempre priorizar el stock del Item si las StockEntries están vacías o tienen qty 0
         const stockToUse = (stockEntriesForCheck.length > 0 && actualStockFromEntries > 0)
           ? actualStockFromEntries 
-          : itemStock;
+          : Math.max(itemStock, 0); // Asegurar que sea >= 0
         
         // Log para debugging si hay discrepancia
         if (stockEntriesForCheck.length > 0 && actualStockFromEntries > 0 && actualStockFromEntries !== itemStock) {
@@ -1340,16 +1352,30 @@ export const closeSale = async (req, res) => {
           });
         }
         
+        // Log antes de validar
+        logger.info('[closeSale] Stock calculado', {
+          sku: target.sku || target.name,
+          stockToUse,
+          itemStock,
+          actualStockFromEntries,
+          stockEntriesCount: stockEntriesForCheck.length,
+          requerido: q,
+          tieneStockSuficiente: stockToUse >= q
+        });
+        
         if (stockToUse < q) {
           // Log detallado del error
           logger.error('[closeSale] Stock insuficiente', {
             sku: target.sku || target.name,
+            itemId: target._id?.toString(),
             requerido: q,
             disponibleStockEntries: actualStockFromEntries,
             disponibleItemStock: itemStock,
             stockUsado: stockToUse,
             companyId: req.companyId,
-            originalCompanyId: hasSharedDb ? req.originalCompanyId : undefined
+            originalCompanyId: hasSharedDb ? req.originalCompanyId : undefined,
+            itemStockRaw: target.stock,
+            itemStockType: typeof target.stock
           });
           throw new Error(`Stock insuficiente para ${target.sku || target.name}. Disponible: ${stockToUse}, Requerido: ${q}`);
         }
@@ -1390,31 +1416,38 @@ export const closeSale = async (req, res) => {
           }
         }
         
-        // Si aún queda cantidad por descontar y no hay StockEntries pero el Item tiene stock,
+        // Si aún queda cantidad por descontar y no hay StockEntries (o todas tienen qty 0) pero el Item tiene stock,
         // significa que el stock fue agregado sin VehicleIntake (stock inicial, ajustes manuales, etc.)
         // En este caso, solo descontamos del Item.stock sin crear StockEntry
         if (remainingQty > 0) {
-          if (stockEntries.length === 0 && itemStock >= remainingQty) {
-            // No hay StockEntries pero el Item tiene stock suficiente
+          // Calcular stock disponible en entradas
+          const availableFromEntries = stockEntries.reduce((sum, e) => sum + (e.qty || 0), 0);
+          
+          // Si no hay StockEntries con stock, o todas tienen qty 0, usar el stock del Item
+          if ((stockEntries.length === 0 || availableFromEntries === 0) && itemStock >= remainingQty) {
+            // No hay StockEntries con stock pero el Item tiene stock suficiente
             // Solo descontamos del Item.stock (ya se hará abajo con el updateOne)
             logger.info('[closeSale] Descontando sin StockEntry (stock inicial/ajuste manual)', {
               sku: target.sku || target.name,
-              cantidad: remainingQty
+              cantidad: remainingQty,
+              itemStock,
+              stockEntriesCount: stockEntries.length,
+              availableFromEntries
             });
             remainingQty = 0; // Marcamos como completado ya que el Item tiene stock
           } else {
             // No hay suficiente stock disponible
-            const availableFromEntries = stockEntries.reduce((sum, e) => sum + (e.qty || 0), 0);
-            const totalAvailable = availableFromEntries + (stockEntries.length === 0 ? itemStock : 0);
+            const totalAvailable = availableFromEntries + ((stockEntries.length === 0 || availableFromEntries === 0) ? itemStock : 0);
             logger.error('[closeSale] Stock insuficiente en entradas', {
               sku: target.sku || target.name,
               necesario: q,
               disponibleStockEntries: availableFromEntries,
-              disponibleItemStock: stockEntries.length === 0 ? itemStock : 0,
+              disponibleItemStock: (stockEntries.length === 0 || availableFromEntries === 0) ? itemStock : 0,
               totalDisponible: totalAvailable,
-              yaDescontado: q - remainingQty
+              yaDescontado: q - remainingQty,
+              remainingQty
             });
-            throw new Error(`Insufficient stock in entries for ${target.sku || target.name}. Needed: ${q}, Available: ${q - remainingQty}`);
+            throw new Error(`Stock insuficiente para ${target.sku || target.name}. Disponible: ${totalAvailable}, Requerido: ${q}`);
           }
         }
         
@@ -1438,11 +1471,33 @@ export const closeSale = async (req, res) => {
 
         // Actualizar stock total del item
         // CRÍTICO: Buscar el Item usando el mismo criterio de companyId (puede ser original o efectivo)
+        // IMPORTANTE: Si no hay StockEntries o todas tienen qty 0, el stock ya está validado arriba
+        // Solo validamos que el stock sea >= q si hay StockEntries con stock, sino confiamos en la validación previa
+        const stockCondition = (stockEntries.length > 0 && stockEntries.reduce((sum, e) => sum + (e.qty || 0), 0) > 0)
+          ? { stock: { $gte: q } }  // Solo validar stock si hay StockEntries con stock
+          : {};  // Si no hay StockEntries con stock, confiar en la validación previa que ya verificó itemStock
+        
         const upd = await Item.updateOne(
-          { _id: target._id, companyId: itemCompanyFilter, stock: { $gte: q } },
+          { _id: target._id, companyId: itemCompanyFilter, ...stockCondition },
           { $inc: { stock: -q } }
         ).session(session);
-        if (upd.matchedCount === 0) throw new Error(`Stock update failed for ${target.sku || target.name}`);
+        if (upd.matchedCount === 0) {
+          // Si falló, puede ser porque el stock cambió entre la validación y el update
+          // Re-verificar el stock actual
+          const currentItem = await Item.findOne({ _id: target._id, companyId: itemCompanyFilter }).session(session);
+          const currentStock = currentItem?.stock ?? 0;
+          if (currentStock < q) {
+            throw new Error(`Stock insuficiente para ${target.sku || target.name}. Disponible: ${currentStock}, Requerido: ${q}`);
+          }
+          // Si tiene stock suficiente, intentar de nuevo sin la condición de stock
+          const upd2 = await Item.updateOne(
+            { _id: target._id, companyId: itemCompanyFilter },
+            { $inc: { stock: -q } }
+          ).session(session);
+          if (upd2.matchedCount === 0) {
+            throw new Error(`Stock update failed for ${target.sku || target.name}`);
+          }
+        }
 
         // Si quedó en 0, despublicar automáticamente para ocultarlo del catálogo
         const fresh = await Item.findOne({ _id: target._id, companyId: itemCompanyFilter }).session(session);
