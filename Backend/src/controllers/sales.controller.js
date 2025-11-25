@@ -1279,9 +1279,39 @@ export const closeSale = async (req, res) => {
         
         // IMPORTANTE: Asegurar que el Item tenga el stock actualizado antes de validar
         // Recargar el Item dentro de la transacción para obtener el stock más reciente
-        const freshTarget = await Item.findOne({ _id: target._id, companyId: itemCompanyFilter }).session(session);
+        // Usar .lean() para obtener el valor plano del stock sin problemas de conversión
+        const freshTarget = await Item.findOne({ _id: target._id, companyId: itemCompanyFilter }).session(session).lean();
         if (!freshTarget) throw new Error(`Item not found after reload (${target.sku || target.name})`);
-        target = freshTarget; // Usar la versión fresca
+        
+        // IMPORTANTE: Leer el stock del Item PRIMERO y asegurarse de que sea un número válido
+        // Usar el objeto plano (lean) para evitar problemas de conversión de Mongoose
+        let itemStock = 0;
+        const rawStock = freshTarget.stock;
+        
+        if (rawStock !== null && rawStock !== undefined) {
+          const stockNum = Number(rawStock);
+          if (!isNaN(stockNum) && stockNum >= 0) {
+            itemStock = stockNum;
+          }
+        }
+        
+        // Si itemStock sigue siendo 0 pero rawStock existe, forzar la conversión
+        if (itemStock === 0 && rawStock !== null && rawStock !== undefined && rawStock !== 0) {
+          const forcedStock = parseFloat(rawStock);
+          if (!isNaN(forcedStock) && forcedStock > 0) {
+            itemStock = forcedStock;
+            logger.warn('[closeSale] Stock forzado después de conversión inicial fallida', {
+              sku: freshTarget.sku || freshTarget.name,
+              forcedStock,
+              rawStock,
+              rawStockType: typeof rawStock
+            });
+          }
+        }
+        
+        // Actualizar target para usar el objeto fresco (pero mantener como documento para operaciones posteriores)
+        target = await Item.findOne({ _id: freshTarget._id, companyId: itemCompanyFilter }).session(session);
+        if (!target) throw new Error(`Item not found after second reload (${freshTarget.sku || freshTarget.name})`);
         
         // IMPORTANTE: Calcular el stock real desde StockEntries para asegurar que tenemos el stock correcto
         // El campo stock del Item podría estar desactualizado, así que lo calculamos desde las entradas
@@ -1296,34 +1326,37 @@ export const closeSale = async (req, res) => {
           qty: { $gt: 0 }
         }).session(session);
         
-        const actualStockFromEntries = stockEntriesForCheck.reduce((sum, entry) => sum + (entry.qty || 0), 0);
-        // Asegurar que itemStock sea un número válido y positivo
-        const itemStock = Math.max(Number(target.stock) || 0, 0);
+        const actualStockFromEntries = stockEntriesForCheck.reduce((sum, entry) => sum + (Number(entry.qty) || 0), 0);
         
-        // Log detallado para debugging
-        logger.info('[closeSale] Verificando stock', {
+        // Log detallado para debugging - INCLUIR TODO EL OBJETO TARGET PARA DEBUGGING
+        logger.info('[closeSale] Verificando stock - DETALLES COMPLETOS', {
           sku: target.sku || target.name,
           itemId: target._id?.toString(),
           itemStock,
           itemStockType: typeof target.stock,
           itemStockRaw: target.stock,
+          itemStockConverted: Number(target.stock),
+          itemStockIsNaN: isNaN(Number(target.stock)),
+          targetStockField: target.stock,
+          targetToObject: target.toObject ? target.toObject() : 'no toObject method',
           stockEntriesCount: stockEntriesForCheck.length,
           stockFromEntries: actualStockFromEntries,
           requerido: q,
           companyId: req.companyId,
           originalCompanyId: hasSharedDb ? req.originalCompanyId : undefined,
           effectiveCompanyId: hasSharedDb ? req.companyId : undefined,
-          stockCompanyFilter: hasSharedDb ? stockCompanyFilter : undefined
+          stockCompanyFilter: hasSharedDb ? stockCompanyFilter : undefined,
+          itemCompanyFilter: itemCompanyFilter
         });
         
-        // Si hay StockEntries con stock > 0, usar su suma (más preciso)
-        // Si hay StockEntries pero todas tienen qty 0, usar el stock del Item
-        // Si NO hay StockEntries pero el Item tiene stock, usar el stock del Item
+        // LÓGICA SIMPLIFICADA Y CORREGIDA:
+        // 1. Si hay StockEntries con stock > 0, usar su suma (más preciso)
+        // 2. Si NO hay StockEntries con stock > 0, SIEMPRE usar el stock del Item
         // Esto maneja el caso donde el stock fue agregado sin VehicleIntake (stock inicial, ajustes manuales, etc.)
-        // IMPORTANTE: Siempre priorizar el stock del Item si las StockEntries están vacías o tienen qty 0
+        // IMPORTANTE: El stock del Item es la fuente de verdad cuando no hay StockEntries con stock disponible
         const stockToUse = (stockEntriesForCheck.length > 0 && actualStockFromEntries > 0)
           ? actualStockFromEntries 
-          : Math.max(itemStock, 0); // Asegurar que sea >= 0
+          : itemStock; // SIEMPRE usar itemStock si no hay StockEntries con stock
         
         // Log para debugging si hay discrepancia
         if (stockEntriesForCheck.length > 0 && actualStockFromEntries > 0 && actualStockFromEntries !== itemStock) {
@@ -1363,23 +1396,42 @@ export const closeSale = async (req, res) => {
           tieneStockSuficiente: stockToUse >= q
         });
         
-        if (stockToUse < q) {
+        // VALIDACIÓN FINAL CON FALLBACK: Si stockToUse es 0 pero itemStock > 0, usar itemStock
+        let finalStockToUse = stockToUse;
+        if (stockToUse === 0 && itemStock > 0) {
+          logger.warn('[closeSale] StockToUse es 0 pero itemStock > 0, usando itemStock como fallback', {
+            sku: target.sku || target.name,
+            stockToUse,
+            itemStock,
+            stockEntriesCount: stockEntriesForCheck.length,
+            actualStockFromEntries
+          });
+          finalStockToUse = itemStock;
+        }
+        
+        if (finalStockToUse < q) {
           // Log detallado del error
-          logger.error('[closeSale] Stock insuficiente', {
+          logger.error('[closeSale] Stock insuficiente - ERROR FINAL', {
             sku: target.sku || target.name,
             itemId: target._id?.toString(),
             requerido: q,
             disponibleStockEntries: actualStockFromEntries,
             disponibleItemStock: itemStock,
             stockUsado: stockToUse,
+            finalStockToUse,
             companyId: req.companyId,
             originalCompanyId: hasSharedDb ? req.originalCompanyId : undefined,
             itemStockRaw: target.stock,
-            itemStockType: typeof target.stock
+            itemStockType: typeof target.stock,
+            targetCompanyId: target.companyId?.toString(),
+            itemCompanyFilter: typeof itemCompanyFilter === 'object' ? JSON.stringify(itemCompanyFilter) : itemCompanyFilter?.toString()
           });
-          throw new Error(`Stock insuficiente para ${target.sku || target.name}. Disponible: ${stockToUse}, Requerido: ${q}`);
+          throw new Error(`Stock insuficiente para ${target.sku || target.name}. Disponible: ${finalStockToUse}, Requerido: ${q}`);
         }
 
+        // Actualizar qty a descontar usando finalStockToUse para consistencia
+        // (aunque esto no debería cambiar nada, es para mantener consistencia)
+        
         // Descontar usando FIFO: buscar StockEntries ordenados por fecha (más antiguos primero)
         // CRÍTICO: Buscar en ambos companyId si hay base de datos compartida
         let remainingQty = q;
