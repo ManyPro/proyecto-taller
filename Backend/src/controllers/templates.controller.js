@@ -352,6 +352,20 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
         saleObj.formattedNumber = '';
       }
       
+      // Agregar fecha formateada de la venta (usar createdAt si no hay closedAt)
+      const saleDate = saleObj.closedAt || saleObj.createdAt || new Date();
+      saleObj.date = saleDate;
+      saleObj.formattedDate = new Date(saleDate).toLocaleDateString('es-CO', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric' 
+      });
+      
+      // Asegurar que specialNotes esté presente
+      if (!saleObj.specialNotes || !Array.isArray(saleObj.specialNotes)) {
+        saleObj.specialNotes = [];
+      }
+      
       // Log para depuración
       if (process.env.NODE_ENV !== 'production') {
         console.log('[buildContext Sale]', {

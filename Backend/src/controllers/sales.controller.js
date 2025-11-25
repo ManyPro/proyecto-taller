@@ -1039,6 +1039,36 @@ export const removeItem = async (req, res) => {
 };
 
 // ===== TÃ©cnico asignado =====
+export const updateSale = async (req, res) => {
+  const { id } = req.params;
+  const { specialNotes, ...otherFields } = req.body || {};
+  
+  // Buscar venta considerando base de datos compartida
+  const companyFilter = getSaleQueryCompanyFilter(req);
+  const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
+  
+  if (!sale) {
+    return res.status(404).json({ error: 'Sale not found' });
+  }
+  
+  // Validar que la venta pertenece al originalCompanyId del usuario
+  if (!validateSaleOwnership(sale, req)) {
+    return res.status(403).json({ error: 'Sale belongs to different company' });
+  }
+  
+  // Actualizar specialNotes si viene en el body
+  if (specialNotes !== undefined) {
+    sale.specialNotes = Array.isArray(specialNotes) ? specialNotes : [];
+  }
+  
+  // Permitir actualizar otros campos permitidos si es necesario
+  // Por ahora solo permitimos specialNotes
+  
+  await sale.save();
+  try{ await publish(sale.companyId, 'sale:updated', { id: (sale?._id)||undefined }) }catch{}
+  res.json(sale.toObject());
+};
+
 export const updateTechnician = async (req, res) => {
   const { id } = req.params;
   const { technician } = req.body || {};

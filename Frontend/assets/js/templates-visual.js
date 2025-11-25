@@ -2789,6 +2789,17 @@
     canvas.appendChild(numberBox);
     visualEditor.elements.push({ id: numberBox.id, type: 'text', element: numberBox });
 
+    // Fecha de venta (debajo del número de remisión)
+    const dateBox = document.createElement('div');
+    dateBox.className = 'tpl-element';
+    dateBox.id = `element_${visualEditor.nextId++}`;
+    dateBox.style.cssText = 'position: absolute; left: 19px; top: 70px; padding: 2px 0; display: inline-block;';
+    dateBox.innerHTML = '<span contenteditable="true" style="font-size: 11px; color: #000; font-family: Arial, sans-serif;">Fecha: {{#if sale.formattedDate}}{{sale.formattedDate}}{{else}}{{date sale.date}}{{/if}}</span>';
+    makeDraggable(dateBox);
+    makeSelectable(dateBox);
+    canvas.appendChild(dateBox);
+    visualEditor.elements.push({ id: dateBox.id, type: 'text', element: dateBox });
+
     // Logo/empresa (arriba derecha) - Compactado para media carta
     const logoBox = document.createElement('div');
     logoBox.className = 'tpl-element';
@@ -3202,6 +3213,16 @@
           </tr>
         </tfoot>
       </table>
+      {{#if sale.specialNotes}}
+      {{#if sale.specialNotes.length}}
+      <div style="margin-top: 10px; padding: 8px; border: 1px solid #000; background: #f9f9f9;">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #000; font-family: Arial, sans-serif;">NOTAS ESPECIALES:</div>
+        {{#each sale.specialNotes}}
+        <div style="font-size: 10px; color: #000; font-family: Arial, sans-serif; margin-bottom: 3px; padding-left: 10px;">• {{this}}</div>
+        {{/each}}
+      </div>
+      {{/if}}
+      {{/if}}
     `;
 
     makeDraggable(tableContainer);

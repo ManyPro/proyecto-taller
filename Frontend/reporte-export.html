@@ -553,23 +553,28 @@
         html += `
           <div class="section-card full-width">
             <div class="section-title">📋 Resumen</div>
-            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
               <div class="metric-card">
                 <div class="metric-label">Total Ventas</div>
                 <div class="metric-value">${reportData.ventas.total || 0}</div>
               </div>
               <div class="metric-card">
-                <div class="metric-label">Ingresos Totales</div>
+                <div class="metric-label">Ingresos Brutos</div>
                 <div class="metric-value green">${formatMoney(reportData.ventas.ingresos || 0)}</div>
+                ${reportData.ventas.inversiones > 0 ? `
+                  <div class="metric-subtext" style="color: #f97316; margin-top: 4px;">
+                    - Inversión: ${formatMoney(reportData.ventas.inversiones || 0)}
+                  </div>
+                  <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(148, 163, 184, 0.2);">
+                    <div class="metric-label" style="font-size: 9px;">Ingresos Netos</div>
+                    <div class="metric-value green" style="font-size: 16px;">${formatMoney(reportData.ventas.ingresosNetos || 0)}</div>
+                  </div>
+                ` : ''}
               </div>
               <div class="metric-card">
                 <div class="metric-label">Valor en Cartera</div>
                 <div class="metric-value yellow">${formatMoney(reportData.cartera.valor || 0)}</div>
                 <div class="metric-subtext">${reportData.cartera.totalDeudores || 0} cuenta(s) pendiente(s)</div>
-              </div>
-              <div class="metric-card">
-                <div class="metric-label">Total Agendas</div>
-                <div class="metric-value blue">${reportData.agendas.total || 0}</div>
               </div>
             </div>
           </div>

@@ -6252,6 +6252,172 @@ Muchas gracias!</pre>
   }
 }
 
+// Abrir modal de notas especiales
+async function openSpecialNotesModal() {
+  if (!current) return;
+  
+  const modal = document.getElementById('modal');
+  const body = document.getElementById('modalBody');
+  const close = document.getElementById('modalClose');
+  if (!modal || !body || !close) return;
+  
+  try {
+    // Obtener venta actualizada para tener las notas especiales más recientes
+    const freshSale = await API.sales.get(current._id);
+    const currentNotes = freshSale.specialNotes || [];
+    
+    body.innerHTML = `
+      <div class="space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar pr-2">
+        <h3 class="text-lg font-semibold text-white dark:text-white theme-light:text-slate-900 mb-4">📝 Notas Especiales</h3>
+        
+        <div class="bg-slate-800/30 dark:bg-slate-800/30 theme-light:bg-sky-100/50 p-4 rounded-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 mb-4">
+          <p class="text-sm text-slate-300 dark:text-slate-300 theme-light:text-slate-800 mb-2">
+            Las notas especiales aparecerán en la remisión debajo del total. Puedes agregar múltiples notas.
+          </p>
+        </div>
+        
+        <div class="mb-4">
+          <div class="flex gap-2 mb-3">
+            <input 
+              id="sn-note-input" 
+              type="text" 
+              class="flex-1 p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500 dark:placeholder-slate-500 theme-light:placeholder-slate-400" 
+              placeholder="Escribe una nota especial..."
+            />
+            <button 
+              id="sn-add-note" 
+              class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200 whitespace-nowrap"
+            >
+              ➕ Agregar
+            </button>
+          </div>
+          <div id="sn-notes-list" class="space-y-2"></div>
+        </div>
+        
+        <div class="flex flex-wrap gap-3 mt-6 pt-4 border-t border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300">
+          <button id="sn-save" class="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-600 dark:to-blue-700 theme-light:from-blue-500 theme-light:to-blue-600 hover:from-blue-700 hover:to-blue-800 dark:hover:from-blue-700 dark:hover:to-blue-800 theme-light:hover:from-blue-600 theme-light:hover:to-blue-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Guardar</button>
+          <button id="sn-cancel" class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-800 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+        </div>
+      </div>
+    `;
+    
+    modal.classList.remove('hidden');
+    
+    // Configurar botón de cerrar del modal
+    close.onclick = () => {
+      modal.classList.add('hidden');
+      body.innerHTML = '';
+    };
+    
+    // Estado local de notas
+    let specialNotes = [...currentNotes];
+    
+    // Función para renderizar las notas
+    function renderNotes() {
+      const notesList = document.getElementById('sn-notes-list');
+      if (!notesList) return;
+      
+      notesList.innerHTML = '';
+      
+      if (specialNotes.length === 0) {
+        notesList.innerHTML = '<p class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-center py-4">No hay notas especiales. Agrega una arriba.</p>';
+        return;
+      }
+      
+      specialNotes.forEach((note, index) => {
+        const noteDiv = document.createElement('div');
+        noteDiv.className = 'flex items-center gap-3 p-3 bg-gradient-to-r from-slate-800/50 to-slate-700/50 dark:from-slate-800/50 dark:to-slate-700/50 theme-light:from-slate-100 theme-light:to-slate-50 rounded-lg border-l-4 border-blue-500 shadow-sm transition-all duration-200';
+        noteDiv.innerHTML = `
+          <div class="flex-1 flex items-center gap-2">
+            <span class="text-base">•</span>
+            <span class="flex-1 leading-relaxed text-white dark:text-white theme-light:text-slate-900">${htmlEscape(note)}</span>
+          </div>
+          <button type="button" data-index="${index}" class="sn-remove-note text-xs px-3 py-1.5 rounded bg-red-600 hover:bg-red-700 text-white border-0 cursor-pointer transition-colors duration-200 whitespace-nowrap">Eliminar</button>
+        `;
+        notesList.appendChild(noteDiv);
+      });
+      
+      // Agregar event listeners a los botones de eliminar
+      notesList.querySelectorAll('.sn-remove-note').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const index = parseInt(btn.getAttribute('data-index'));
+          specialNotes.splice(index, 1);
+          renderNotes();
+        });
+      });
+    }
+    
+    // Renderizar notas iniciales
+    renderNotes();
+    
+    // Event listeners con setTimeout para asegurar que los elementos existan
+    setTimeout(() => {
+      const cancelBtn = document.getElementById('sn-cancel');
+      const saveBtn = document.getElementById('sn-save');
+      const addBtn = document.getElementById('sn-add-note');
+      const input = document.getElementById('sn-note-input');
+      
+      if (cancelBtn) {
+        cancelBtn.onclick = () => {
+          modal.classList.add('hidden');
+          body.innerHTML = '';
+        };
+        cancelBtn.style.cursor = 'pointer';
+        cancelBtn.style.pointerEvents = 'auto';
+        cancelBtn.style.touchAction = 'manipulation';
+      }
+      
+      if (addBtn && input) {
+        const addNote = () => {
+          const noteText = input.value.trim();
+          if (!noteText) return;
+          
+          specialNotes.push(noteText);
+          input.value = '';
+          renderNotes();
+          input.focus();
+        };
+        
+        addBtn.onclick = addNote;
+        addBtn.style.cursor = 'pointer';
+        addBtn.style.pointerEvents = 'auto';
+        addBtn.style.touchAction = 'manipulation';
+        
+        input.addEventListener('keypress', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            addNote();
+          }
+        });
+      }
+      
+      if (saveBtn) {
+        saveBtn.onclick = async () => {
+          try {
+            // Actualizar la venta con las notas especiales
+            await API.sales.update(current._id, { specialNotes });
+            
+            // Actualizar current local
+            current.specialNotes = specialNotes;
+            
+            alert('Notas especiales guardadas exitosamente');
+            modal.classList.add('hidden');
+            body.innerHTML = '';
+          } catch (err) {
+            alert('Error al guardar notas especiales: ' + (err.message || 'Error desconocido'));
+          }
+        };
+        saveBtn.style.cursor = 'pointer';
+        saveBtn.style.pointerEvents = 'auto';
+        saveBtn.style.touchAction = 'manipulation';
+      }
+    }, 50);
+  } catch (err) {
+    console.error('Error opening special notes modal:', err);
+    alert('Error al cargar notas especiales: ' + (err.message || 'Error desconocido'));
+  }
+}
+
 // Enviar encuesta post-servicio por WhatsApp
 async function sendPostServiceSurvey(sale) {
   try {
@@ -9310,6 +9476,11 @@ export function initSales(){
     }catch(e){ alert(e?.message||'No se pudo imprimir'); }
   });
 
+  document.getElementById('sales-special-notes')?.addEventListener('click', async ()=>{
+    if (!current) return;
+    openSpecialNotesModal();
+  });
+
   connectLive();
 }
 
@@ -11410,14 +11581,10 @@ function processReportData(sales, cashflowEntries, receivables, inventoryItems, 
   
   // 1. Estadísticas de ventas
   const totalVentas = sales.length;
-  const totalIngresos = sales.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
   
   // Calcular total de inversiones
   // El campo en la BD es 'investmentAmount', pero también puede venir como 'investment' desde el frontend
   const totalInversiones = sales.reduce((sum, s) => sum + (Number(s.investmentAmount || s.investment) || 0), 0);
-  
-  // Ingresos netos (después de inversión)
-  const ingresosNetos = totalIngresos - totalInversiones;
   
   // 2. Ingresos por cuenta
   const ingresosPorCuenta = {};
@@ -11482,6 +11649,7 @@ function processReportData(sales, cashflowEntries, receivables, inventoryItems, 
     }));
   
   // 7. Dinero que entró y salió (flujo de caja)
+  // CRÍTICO: Este es el dinero que REALMENTE entró en caja, no lo que se facturó
   const dineroEntrado = cashflowEntries
     .filter(e => e.kind === 'IN')
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
@@ -11489,6 +11657,12 @@ function processReportData(sales, cashflowEntries, receivables, inventoryItems, 
   const dineroSalido = cashflowEntries
     .filter(e => e.kind === 'OUT')
     .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+  
+  // Ingresos brutos = dinero que realmente entró en caja (no el total facturado)
+  const ingresosBrutos = dineroEntrado;
+  
+  // Ingresos netos (después de inversión)
+  const ingresosNetos = ingresosBrutos - totalInversiones;
   
   // 8. Mano de obra por técnico
   const manoObraPorTecnico = {};
@@ -11532,7 +11706,7 @@ function processReportData(sales, cashflowEntries, receivables, inventoryItems, 
     periodo: { desde: fechaDesde, hasta: fechaHasta },
     ventas: {
       total: totalVentas,
-      ingresos: totalIngresos,
+      ingresos: ingresosBrutos, // Dinero que realmente entró en caja (consistente con flujo de caja)
       inversiones: totalInversiones,
       ingresosNetos: ingresosNetos
     },
@@ -11675,7 +11849,7 @@ function showReport(reportData, fechaDesde, fechaHasta) {
     </div>
     
     <!-- Resumen general -->
-    <div id="report-section-resumen" class="report-section grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div id="report-section-resumen" class="report-section grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
         <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total Ventas</div>
         <div class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900">${reportData.ventas.total}</div>
@@ -11697,10 +11871,6 @@ function showReport(reportData, fechaDesde, fechaHasta) {
         <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Valor en Cartera</div>
         <div class="text-2xl font-bold text-yellow-400 dark:text-yellow-400 theme-light:text-yellow-600">${money(reportData.cartera.valor)}</div>
         <div class="text-xs text-slate-500 dark:text-slate-500 theme-light:text-slate-500 mt-1">${reportData.cartera.totalDeudores} cuenta(s) pendiente(s)</div>
-      </div>
-      <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-4">
-        <div class="text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Total Agendas</div>
-        <div class="text-2xl font-bold text-blue-400 dark:text-blue-400 theme-light:text-blue-600">${reportData.agendas.total}</div>
       </div>
     </div>
     

@@ -54,6 +54,7 @@ const SaleSchema = new mongoose.Schema({
     mileage: { type: Number, default: null }
   },
   notes: { type: String, default: '' },
+  specialNotes: { type: [String], default: [] }, // Notas especiales para la remisión
   subtotal: { type: Number, default: 0 },
   tax: { type: Number, default: 0 },
   total: { type: Number, default: 0 },

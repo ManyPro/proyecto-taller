@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   startSale, getSale, addItem, updateItem, removeItem,
-  setCustomerVehicle, closeSale, addByQR, listSales, summarySales, cancelSale, getProfileByPlate, getProfileByIdNumber, addItemsBatch, updateTechnician, technicianReport, completeOpenSlot, getSalesByPlate, updateCloseSale, deleteSalesBulk
+  setCustomerVehicle, closeSale, addByQR, listSales, summarySales, cancelSale, getProfileByPlate, getProfileByIdNumber, addItemsBatch, updateTechnician, technicianReport, completeOpenSlot, getSalesByPlate, updateCloseSale, deleteSalesBulk, updateSale
 } from '../controllers/sales.controller.js';
 import { sseHandler } from '../lib/live.js';
 
@@ -31,6 +31,8 @@ router.delete('/:id/items/:itemId', removeItem);
 
 // Customer & vehicle on sale
 router.put('/:id/customer-vehicle', setCustomerVehicle);
+// Update sale (generic update for allowed fields)
+router.patch('/:id', updateSale);
 // Technician
 router.patch('/:id/technician', updateTechnician);
 
