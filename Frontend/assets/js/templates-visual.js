@@ -2789,11 +2789,11 @@
     canvas.appendChild(numberBox);
     visualEditor.elements.push({ id: numberBox.id, type: 'text', element: numberBox });
 
-    // Fecha de venta (debajo del número de remisión)
+    // Fecha de venta (al lado del número de remisión, a la derecha)
     const dateBox = document.createElement('div');
     dateBox.className = 'tpl-element';
     dateBox.id = `element_${visualEditor.nextId++}`;
-    dateBox.style.cssText = 'position: absolute; left: 19px; top: 70px; padding: 2px 0; display: inline-block;';
+    dateBox.style.cssText = 'position: absolute; left: 180px; top: 45px; padding: 4px 8px; display: inline-block;';
     dateBox.innerHTML = '<span contenteditable="true" style="font-size: 11px; color: #000; font-family: Arial, sans-serif;">Fecha: {{#if sale.formattedDate}}{{sale.formattedDate}}{{else}}{{date sale.date}}{{/if}}</span>';
     makeDraggable(dateBox);
     makeSelectable(dateBox);

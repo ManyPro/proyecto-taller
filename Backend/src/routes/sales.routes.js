@@ -31,15 +31,16 @@ router.delete('/:id/items/:itemId', removeItem);
 
 // Customer & vehicle on sale
 router.put('/:id/customer-vehicle', setCustomerVehicle);
-// Update sale (generic update for allowed fields)
-router.patch('/:id', updateSale);
-// Technician
+// Technician (debe ir antes de la ruta genérica)
 router.patch('/:id/technician', updateTechnician);
 
 // Lifecycle
 router.post('/:id/close', closeSale);
 router.post('/:id/cancel', cancelSale);
 router.patch('/:id/close', updateCloseSale); // Actualizar cierre de venta cerrada
+
+// Update sale (generic update for allowed fields - debe ir DESPUÉS de rutas más específicas)
+router.patch('/:id', updateSale);
 
 // Open slots
 router.post('/:id/complete-slot', completeOpenSlot);
