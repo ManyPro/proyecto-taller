@@ -2860,7 +2860,7 @@
           position: absolute !important;
           left: 19px !important;
           top: 83px !important;
-          width: 331px !important;
+          width: 336px !important;
           border: 2px solid #000 !important;
           padding: 8px !important;
           background: white !important;
@@ -2872,7 +2872,7 @@
             position: absolute !important;
             left: 19px !important;
             top: 83px !important;
-            width: 331px !important;
+            width: 336px !important;
             border: 2px solid #000 !important;
             padding: 8px !important;
             background: white !important;
@@ -2916,9 +2916,10 @@
       <style>
         .company-data-box {
           position: absolute !important;
-          right: 19px !important;
+          left: 365px !important;
+          right: auto !important;
           top: 83px !important;
-          width: 331px !important;
+          width: 336px !important;
           border: 2px solid #000 !important;
           padding: 8px !important;
           background: white !important;
@@ -2928,9 +2929,10 @@
         @media print {
           .company-data-box {
             position: absolute !important;
-            right: 19px !important;
+            left: 365px !important;
+          right: auto !important;
             top: 83px !important;
-            width: 331px !important;
+            width: 336px !important;
             border: 2px solid #000 !important;
             padding: 8px !important;
             background: white !important;
@@ -2970,8 +2972,8 @@
     // Altura aproximada del cuadro: título (~18px) + tabla 4 filas (~100px con nuevo padding) + padding (16px) = ~134px
     // 1cm = aproximadamente 38px
     // Posición tabla: 83px + 134px + 38px = 255px (redondeado a 260px para más espacio)
-    // Ancho de los cuadros: 331px cada uno, total aproximado: 662px (considerando espacio entre ellos)
-    // La tabla de items debe tener el mismo ancho que los dos cuadros juntos
+    // Ancho del canvas: 720px, margen: 19px cada lado
+    // Ancho de la tabla: 720 - 19 - 19 = 682px (mismo margen izquierdo y derecho)
     const itemsTable = createRemissionItemsTable({ left: 19, top: 260, width: 682 });
     canvas.appendChild(itemsTable);
 
@@ -3555,7 +3557,7 @@
           position: absolute !important;
           left: 19px !important;
           top: 83px !important;
-          width: 331px !important;
+          width: 336px !important;
           border: 2px solid #000 !important;
           padding: 8px !important;
           background: white !important;
@@ -3567,7 +3569,7 @@
             position: absolute !important;
             left: 19px !important;
             top: 83px !important;
-            width: 331px !important;
+            width: 336px !important;
             border: 2px solid #000 !important;
             padding: 8px !important;
             background: white !important;
@@ -3611,9 +3613,10 @@
       <style>
         .company-data-box {
           position: absolute !important;
-          right: 19px !important;
+          left: 365px !important;
+          right: auto !important;
           top: 83px !important;
-          width: 331px !important;
+          width: 336px !important;
           border: 2px solid #000 !important;
           padding: 8px !important;
           background: white !important;
@@ -3623,9 +3626,10 @@
         @media print {
           .company-data-box {
             position: absolute !important;
-            right: 19px !important;
+            left: 365px !important;
+          right: auto !important;
             top: 83px !important;
-            width: 331px !important;
+            width: 336px !important;
             border: 2px solid #000 !important;
             padding: 8px !important;
             background: white !important;
@@ -3756,7 +3760,7 @@
           position: absolute !important;
           left: 19px !important;
           top: 83px !important;
-          width: 331px !important;
+          width: 336px !important;
           border: 2px solid #000 !important;
           padding: 8px !important;
           background: white !important;
@@ -3768,7 +3772,7 @@
             position: absolute !important;
             left: 19px !important;
             top: 83px !important;
-            width: 331px !important;
+            width: 336px !important;
             border: 2px solid #000 !important;
             padding: 8px !important;
             background: white !important;
@@ -3812,9 +3816,10 @@
       <style>
         .company-data-box {
           position: absolute !important;
-          right: 19px !important;
+          left: 365px !important;
+          right: auto !important;
           top: 83px !important;
-          width: 331px !important;
+          width: 336px !important;
           border: 2px solid #000 !important;
           padding: 8px !important;
           background: white !important;
@@ -3824,9 +3829,10 @@
         @media print {
           .company-data-box {
             position: absolute !important;
-            right: 19px !important;
+            left: 365px !important;
+          right: auto !important;
             top: 83px !important;
-            width: 331px !important;
+            width: 336px !important;
             border: 2px solid #000 !important;
             padding: 8px !important;
             background: white !important;

@@ -767,15 +767,15 @@ function printSaleTicket(sale){
                     .client-data-box {
                       left: 5mm !important;
                       top: 83px !important;
-                      width: calc(50% - 5px) !important;
-                      margin-right: 5px !important;
+                      width: 336px !important;
+                      margin-right: 10px !important;
                     }
                     .company-data-box {
-                      right: 5mm !important;
-                      left: auto !important;
+                      left: 365px !important;
+                      right: auto !important;
                       top: 83px !important;
-                      width: calc(50% - 5px) !important;
-                      margin-left: 5px !important;
+                      width: 336px !important;
+                      margin-left: 0 !important;
                     }
                     .client-data-box table,
                     .company-data-box table {
