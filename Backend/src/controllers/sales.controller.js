@@ -1160,6 +1160,15 @@ export const setCustomerVehicle = async (req, res) => {
 // ===== Cierre: descuenta inventario con transacciÃ³n =====
 export const closeSale = async (req, res) => {
   const { id } = req.params;
+  
+  // LOG INMEDIATO AL INICIO - FORZAR SALIDA
+  console.log('========================================');
+  console.log(`[closeSale] INICIANDO CIERRE DE VENTA`);
+  console.log(`[closeSale] Sale ID: ${id}`);
+  console.log(`[closeSale] Timestamp: ${new Date().toISOString()}`);
+  console.log('========================================');
+  process.stdout.write(`[closeSale] INICIANDO - Sale ID: ${id}\n`);
+  
   const session = await mongoose.startSession();
   try {
     const affectedItemIds = [];
@@ -1801,8 +1810,20 @@ export const closeSale = async (req, res) => {
       }
     }
     
+    console.log(`[closeSale] ===== VENTA CERRADA EXITOSAMENTE =====`);
+    console.log(`[closeSale] Sale ID: ${id}`);
+    console.log(`[closeSale] Sale Number: ${sale.number}`);
+    process.stdout.write(`[closeSale] VENTA CERRADA: ${id}, Number: ${sale.number}\n`);
+    
     res.json({ ok: true, sale: sale.toObject(), cashflowEntries, receivable: receivable?.toObject() });
   } catch (err) {
+    console.error(`[closeSale] ===== ERROR AL CERRAR VENTA =====`);
+    console.error(`[closeSale] Sale ID: ${id}`);
+    console.error(`[closeSale] Error: ${err?.message}`);
+    console.error(`[closeSale] Stack: ${err?.stack}`);
+    process.stderr.write(`[closeSale] ERROR: ${err?.message}\n`);
+    process.stderr.write(`[closeSale] Stack: ${err?.stack}\n`);
+    
     await session.abortTransaction().catch(()=>{});
     res.status(400).json({ error: err?.message || 'Cannot close sale' });
   } finally {
