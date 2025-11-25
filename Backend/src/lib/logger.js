@@ -21,10 +21,15 @@ function emit(payload){
     // Escribir JSON estructurado para herramientas de log
     process.stdout.write(JSON.stringify(payload) + '\n');
     // También escribir formato legible para debugging en Docker
+    // FORZAR salida inmediata sin buffering
     const readable = `[${payload.ts}] ${payload.level.toUpperCase()}: ${payload.msg}${payload.extra ? ' ' + JSON.stringify(payload.extra) : ''}`;
+    process.stdout.write(readable + '\n');
+    // También usar console.log para asegurar que se vea
     console.log(readable);
   } catch(e){
-    // fallback
+    // fallback - forzar salida
+    const fallback = JSON.stringify(payload);
+    process.stdout.write(fallback + '\n');
     console.log(payload);
   }
 }
