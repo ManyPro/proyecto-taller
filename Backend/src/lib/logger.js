@@ -18,7 +18,11 @@ function basePayload(level, msg, extra){
 
 function emit(payload){
   try {
+    // Escribir JSON estructurado para herramientas de log
     process.stdout.write(JSON.stringify(payload) + '\n');
+    // También escribir formato legible para debugging en Docker
+    const readable = `[${payload.ts}] ${payload.level.toUpperCase()}: ${payload.msg}${payload.extra ? ' ' + JSON.stringify(payload.extra) : ''}`;
+    console.log(readable);
   } catch(e){
     // fallback
     console.log(payload);

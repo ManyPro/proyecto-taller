@@ -1265,6 +1265,7 @@ export const closeSale = async (req, res) => {
         const itemCompanyFilter = await getItemQueryCompanyFilter(req);
         
         // Log antes de buscar el Item
+        console.log(`[closeSale] Buscando Item: SKU=${it.sku}, RefId=${it.refId?.toString()}, Qty=${q}`);
         logger.info('[closeSale] Buscando Item', {
           refId: it.refId?.toString(),
           sku: it.sku,
@@ -1296,8 +1297,14 @@ export const closeSale = async (req, res) => {
         // El stock es un Number según el schema, así que lo leemos directamente
         const itemStock = Number(target.stock) || 0;
         
-        // Log después de encontrar el Item
-        console.log(`[closeSale] Item encontrado: SKU=${target.sku}, Stock=${itemStock}, Requerido=${q}`);
+        // Log después de encontrar el Item - FORZAR salida a consola
+        console.log(`[closeSale] ===== Item encontrado =====`);
+        console.log(`[closeSale] SKU: ${target.sku}`);
+        console.log(`[closeSale] ItemId: ${target._id?.toString()}`);
+        console.log(`[closeSale] Stock (raw): ${target.stock}`);
+        console.log(`[closeSale] Stock (number): ${itemStock}`);
+        console.log(`[closeSale] Requerido: ${q}`);
+        console.log(`[closeSale] CompanyId: ${target.companyId?.toString()}`);
         logger.info('[closeSale] Item encontrado', {
           itemId: target._id?.toString(),
           sku: target.sku,
@@ -1326,7 +1333,15 @@ export const closeSale = async (req, res) => {
           ? actualStockFromEntries 
           : itemStock; // SIEMPRE usar itemStock si no hay StockEntries con stock
         
-        console.log(`[closeSale] Stock verificado: SKU=${target.sku}, ItemStock=${itemStock}, StockEntries=${actualStockFromEntries}, StockToUse=${stockToUse}, Requerido=${q}`);
+        // Log detallado de verificación de stock
+        console.log(`[closeSale] ===== Verificación de Stock =====`);
+        console.log(`[closeSale] SKU: ${target.sku}`);
+        console.log(`[closeSale] ItemStock: ${itemStock}`);
+        console.log(`[closeSale] StockEntries encontradas: ${stockEntriesForCheck.length}`);
+        console.log(`[closeSale] Stock desde Entries: ${actualStockFromEntries}`);
+        console.log(`[closeSale] Stock a usar: ${stockToUse}`);
+        console.log(`[closeSale] Requerido: ${q}`);
+        console.log(`[closeSale] Tiene stock suficiente: ${stockToUse >= q}`);
         logger.info('[closeSale] Stock verificado', {
           sku: target.sku,
           itemStock,
