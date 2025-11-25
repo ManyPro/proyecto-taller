@@ -1264,6 +1264,14 @@ export const closeSale = async (req, res) => {
         // CRÍTICO: Buscar items en ambos companyId si hay base compartida (se comparte TODA la data)
         const itemCompanyFilter = await getItemQueryCompanyFilter(req);
         
+        // Log antes de buscar el Item
+        logger.info('[closeSale] Buscando Item', {
+          refId: it.refId?.toString(),
+          sku: it.sku,
+          qty: q,
+          itemCompanyFilter: typeof itemCompanyFilter === 'object' ? JSON.stringify(itemCompanyFilter) : itemCompanyFilter?.toString()
+        });
+        
         // Fallback: si no hay refId válido intentar por SKU
         if (it.refId) {
           target = await Item.findOne({ _id: it.refId, companyId: itemCompanyFilter }).session(session);
@@ -1275,43 +1283,84 @@ export const closeSale = async (req, res) => {
             it.refId = target._id; // queda persistido al save posterior
           }
         }
-        if (!target) throw new Error(`Inventory item not found (${it.sku || it.refId || 'sin id'})`);
+        if (!target) {
+          logger.error('[closeSale] Item no encontrado', {
+            refId: it.refId?.toString(),
+            sku: it.sku,
+            itemCompanyFilter: typeof itemCompanyFilter === 'object' ? JSON.stringify(itemCompanyFilter) : itemCompanyFilter?.toString()
+          });
+          throw new Error(`Inventory item not found (${it.sku || it.refId || 'sin id'})`);
+        }
+        
+        // Log después de encontrar el Item
+        logger.info('[closeSale] Item encontrado', {
+          itemId: target._id?.toString(),
+          sku: target.sku,
+          stock: target.stock,
+          stockType: typeof target.stock,
+          companyId: target.companyId?.toString()
+        });
         
         // IMPORTANTE: Asegurar que el Item tenga el stock actualizado antes de validar
         // Recargar el Item dentro de la transacción para obtener el stock más reciente
-        // Usar .lean() para obtener el valor plano del stock sin problemas de conversión
-        const freshTarget = await Item.findOne({ _id: target._id, companyId: itemCompanyFilter }).session(session).lean();
+        // NO usar .lean() aquí porque necesitamos el documento de Mongoose para operaciones posteriores
+        const freshTarget = await Item.findOne({ _id: target._id, companyId: itemCompanyFilter }).session(session);
         if (!freshTarget) throw new Error(`Item not found after reload (${target.sku || target.name})`);
+        target = freshTarget; // Usar la versión fresca
         
-        // IMPORTANTE: Leer el stock del Item PRIMERO y asegurarse de que sea un número válido
-        // Usar el objeto plano (lean) para evitar problemas de conversión de Mongoose
+        // IMPORTANTE: Leer el stock del Item de múltiples formas para asegurar que lo capturamos
+        // El stock puede estar como Number, String, o en diferentes propiedades del documento
         let itemStock = 0;
-        const rawStock = freshTarget.stock;
         
-        if (rawStock !== null && rawStock !== undefined) {
-          const stockNum = Number(rawStock);
+        // Método 1: Leer directamente del documento
+        const directStock = target.stock;
+        if (directStock !== null && directStock !== undefined) {
+          const stockNum = Number(directStock);
           if (!isNaN(stockNum) && stockNum >= 0) {
             itemStock = stockNum;
           }
         }
         
-        // Si itemStock sigue siendo 0 pero rawStock existe, forzar la conversión
-        if (itemStock === 0 && rawStock !== null && rawStock !== undefined && rawStock !== 0) {
-          const forcedStock = parseFloat(rawStock);
-          if (!isNaN(forcedStock) && forcedStock > 0) {
-            itemStock = forcedStock;
-            logger.warn('[closeSale] Stock forzado después de conversión inicial fallida', {
-              sku: freshTarget.sku || freshTarget.name,
-              forcedStock,
-              rawStock,
-              rawStockType: typeof rawStock
-            });
+        // Método 2: Si sigue siendo 0, intentar con toObject()
+        if (itemStock === 0 && target.toObject) {
+          try {
+            const targetObj = target.toObject();
+            const objStock = targetObj.stock;
+            if (objStock !== null && objStock !== undefined) {
+              const stockNum = Number(objStock);
+              if (!isNaN(stockNum) && stockNum > 0) {
+                itemStock = stockNum;
+                logger.info('[closeSale] Stock leído desde toObject()', {
+                  sku: target.sku || target.name,
+                  itemStock,
+                  objStock
+                });
+              }
+            }
+          } catch (e) {
+            // Ignorar errores de toObject
           }
         }
         
-        // Actualizar target para usar el objeto fresco (pero mantener como documento para operaciones posteriores)
-        target = await Item.findOne({ _id: freshTarget._id, companyId: itemCompanyFilter }).session(session);
-        if (!target) throw new Error(`Item not found after second reload (${freshTarget.sku || freshTarget.name})`);
+        // Método 3: Si sigue siendo 0, intentar con get()
+        if (itemStock === 0 && target.get) {
+          try {
+            const getStock = target.get('stock');
+            if (getStock !== null && getStock !== undefined) {
+              const stockNum = Number(getStock);
+              if (!isNaN(stockNum) && stockNum > 0) {
+                itemStock = stockNum;
+                logger.info('[closeSale] Stock leído desde get()', {
+                  sku: target.sku || target.name,
+                  itemStock,
+                  getStock
+                });
+              }
+            }
+          } catch (e) {
+            // Ignorar errores de get
+          }
+        }
         
         // IMPORTANTE: Calcular el stock real desde StockEntries para asegurar que tenemos el stock correcto
         // El campo stock del Item podría estar desactualizado, así que lo calculamos desde las entradas
@@ -1329,6 +1378,7 @@ export const closeSale = async (req, res) => {
         const actualStockFromEntries = stockEntriesForCheck.reduce((sum, entry) => sum + (Number(entry.qty) || 0), 0);
         
         // Log detallado para debugging - INCLUIR TODO EL OBJETO TARGET PARA DEBUGGING
+        const targetObjForLog = target.toObject ? target.toObject() : {};
         logger.info('[closeSale] Verificando stock - DETALLES COMPLETOS', {
           sku: target.sku || target.name,
           itemId: target._id?.toString(),
@@ -1338,15 +1388,16 @@ export const closeSale = async (req, res) => {
           itemStockConverted: Number(target.stock),
           itemStockIsNaN: isNaN(Number(target.stock)),
           targetStockField: target.stock,
-          targetToObject: target.toObject ? target.toObject() : 'no toObject method',
+          targetObjStock: targetObjForLog.stock,
+          targetCompanyId: target.companyId?.toString(),
           stockEntriesCount: stockEntriesForCheck.length,
           stockFromEntries: actualStockFromEntries,
           requerido: q,
           companyId: req.companyId,
           originalCompanyId: hasSharedDb ? req.originalCompanyId : undefined,
           effectiveCompanyId: hasSharedDb ? req.companyId : undefined,
-          stockCompanyFilter: hasSharedDb ? stockCompanyFilter : undefined,
-          itemCompanyFilter: itemCompanyFilter
+          stockCompanyFilter: typeof stockCompanyFilter === 'object' ? JSON.stringify(stockCompanyFilter) : stockCompanyFilter?.toString(),
+          itemCompanyFilter: typeof itemCompanyFilter === 'object' ? JSON.stringify(itemCompanyFilter) : itemCompanyFilter?.toString()
         });
         
         // LÓGICA SIMPLIFICADA Y CORREGIDA:
