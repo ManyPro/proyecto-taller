@@ -1305,20 +1305,30 @@ export const closeSale = async (req, res) => {
           stockCompanyFilter: hasSharedDb ? stockCompanyFilter : undefined
         });
         
-        // Si hay StockEntries, usar su suma (más preciso)
+        // Si hay StockEntries con stock > 0, usar su suma (más preciso)
+        // Si hay StockEntries pero todas tienen qty 0, usar el stock del Item
         // Si NO hay StockEntries pero el Item tiene stock, usar el stock del Item
         // Esto maneja el caso donde el stock fue agregado sin VehicleIntake (stock inicial, ajustes manuales, etc.)
-        const stockToUse = stockEntriesForCheck.length > 0 
+        const stockToUse = (stockEntriesForCheck.length > 0 && actualStockFromEntries > 0)
           ? actualStockFromEntries 
           : itemStock;
         
         // Log para debugging si hay discrepancia
-        if (stockEntriesForCheck.length > 0 && actualStockFromEntries !== itemStock) {
+        if (stockEntriesForCheck.length > 0 && actualStockFromEntries > 0 && actualStockFromEntries !== itemStock) {
           logger.warn('[closeSale] Stock desincronizado', {
             sku: target.sku || target.name,
             itemStock,
             stockFromEntries: actualStockFromEntries,
             using: 'StockEntries'
+          });
+        }
+        
+        // Si hay StockEntries pero todas tienen qty 0, usar el stock del Item
+        if (stockEntriesForCheck.length > 0 && actualStockFromEntries === 0 && itemStock > 0) {
+          logger.info('[closeSale] StockEntries vacías, usando stock del Item', {
+            sku: target.sku || target.name,
+            itemStock,
+            stockEntriesCount: stockEntriesForCheck.length
           });
         }
         
