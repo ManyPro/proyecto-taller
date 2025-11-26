@@ -2972,8 +2972,8 @@
     // Altura aproximada del cuadro: título (~18px) + tabla 4 filas (~100px con nuevo padding) + padding (16px) = ~134px
     // 1cm = aproximadamente 38px
     // Posición tabla: 83px + 134px + 38px = 255px (redondeado a 260px para más espacio)
-    // Ancho del canvas: 720px, margen: 19px cada lado
-    // Ancho de la tabla: 720 - 19 - 19 = 682px (mismo margen izquierdo y derecho)
+    // Ancho de los cuadros: Cliente (336px) + gap (10px) + Empresa (336px) = 682px
+    // La tabla debe tener el mismo ancho total que los dos cuadros juntos
     const itemsTable = createRemissionItemsTable({ left: 19, top: 260, width: 682 });
     canvas.appendChild(itemsTable);
 

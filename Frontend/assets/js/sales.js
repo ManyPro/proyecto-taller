@@ -740,12 +740,6 @@ function printSaleTicket(sale){
                     position: relative !important;
                     padding: 0 5mm !important;
                   }
-                  /* Asegurar que la tabla de items se ajuste proporcionalmente */
-                  .items-table,
-                  table {
-                    width: 100% !important;
-                    max-width: 100% !important;
-                  }
                   /* Estilos para cuadros de datos del cliente y empresa */
                   .client-data-box,
                   .company-data-box {
@@ -761,17 +755,26 @@ function printSaleTicket(sale){
                     box-sizing: border-box !important;
                   }
                   .client-data-box {
-                    left: 5mm !important;
+                    left: 19px !important;
                     top: 83px !important;
-                    width: calc(50% - 5px) !important;
-                    margin-right: 5px !important;
+                    width: 336px !important;
                   }
                   .company-data-box {
-                    right: 5mm !important;
-                    left: auto !important;
+                    left: 365px !important;
+                    right: auto !important;
                     top: 83px !important;
-                    width: calc(50% - 5px) !important;
-                    margin-left: 5px !important;
+                    width: 336px !important;
+                  }
+                  /* Asegurar que la tabla de items esté alineada con los cuadros */
+                  .items-table {
+                    left: 19px !important;
+                    width: 682px !important;
+                    max-width: 682px !important;
+                  }
+                  .remission-table,
+                  .items-table table {
+                    width: 100% !important;
+                    max-width: 100% !important;
                   }
                   .client-data-box table,
                   .company-data-box table {
