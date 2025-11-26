@@ -2503,12 +2503,17 @@ function fillCloseModal(){
     });
     
     const total = Math.round(Number(current?.total||0));
-    console.log('Validación de cierre:', { sum, total, diff: Math.abs(sum - total), paymentsCount: payments.length, rowsCount: rows.length });
-    const diff = Math.abs(sum - total);
-    if(diff > 0.01){ 
-      msg.textContent=`La suma de pagos (${money(sum)}) no coincide con el total (${money(total)}). Diferencia: ${money(diff)}.`; 
-      msg.classList.add('error');
-      return; 
+    const hasZeroTotal = total === 0;
+    console.log('Validación de cierre:', { sum, total, diff: Math.abs(sum - total), paymentsCount: payments.length, rowsCount: rows.length, hasZeroTotal });
+    
+    // Si el total es 0, no validar formas de pago ni suma
+    if (!hasZeroTotal) {
+      const diff = Math.abs(sum - total);
+      if(diff > 0.01){ 
+        msg.textContent=`La suma de pagos (${money(sum)}) no coincide con el total (${money(total)}). Diferencia: ${money(diff)}.`; 
+        msg.classList.add('error');
+        return; 
+      }
     }
     
     // CRÍTICO: Filtrar pagos leyendo directamente de los inputs, no del objeto payments
@@ -2531,7 +2536,9 @@ function fillCloseModal(){
         }
       }
     });
-    if(!filtered.length){ 
+    
+    // Solo validar formas de pago si el total NO es 0
+    if(!hasZeroTotal && !filtered.length){ 
       msg.textContent='Agregar al menos una forma de pago válida'; 
       msg.classList.add('error');
       return; 
@@ -2594,7 +2601,8 @@ function fillCloseModal(){
       
       // CRÍTICO: Leer valores directamente de los inputs para garantizar precisión
       // Ya filtramos usando los inputs, ahora solo necesitamos mapear y limpiar
-      const paymentMethodsToSend = filtered.map(p=>{
+      // Si el total es 0, paymentMethodsToSend será un array vacío
+      const paymentMethodsToSend = hasZeroTotal ? [] : filtered.map(p=>{
         // Buscar la fila correspondiente al payment por índice
         const rowIndex = payments.indexOf(p);
         let finalAmount = Math.round(Number(p.amount) || 0);
@@ -11328,15 +11336,20 @@ function setupEditCloseModalListeners(sale, payments, commissions) {
     });
     
     const total = Number(document.querySelector('#ecv-payments-block')?.closest('.space-y-4')?.querySelector('strong')?.textContent?.replace(/[^0-9]/g, '') || 0);
+    const hasZeroTotal = total === 0;
     
-    if (Math.abs(sum - total) > 0.01) {
-      msg.textContent = `La suma de pagos (${money(sum)}) no coincide con el total (${money(total)}). Diferencia: ${money(Math.abs(sum - total))}.`;
-      msg.classList.add('error');
-      return;
+    // Si el total es 0, no validar formas de pago ni suma
+    if (!hasZeroTotal) {
+      if (Math.abs(sum - total) > 0.01) {
+        msg.textContent = `La suma de pagos (${money(sum)}) no coincide con el total (${money(total)}). Diferencia: ${money(Math.abs(sum - total))}.`;
+        msg.classList.add('error');
+        return;
+      }
     }
 
     const filtered = validPayments;
-    if (!filtered.length) {
+    // Solo validar formas de pago si el total NO es 0
+    if (!hasZeroTotal && !filtered.length) {
       msg.textContent = 'Agregar al menos una forma de pago válida';
       msg.classList.add('error');
       return;
@@ -11377,27 +11390,31 @@ function setupEditCloseModalListeners(sale, payments, commissions) {
       }
 
       // CRÍTICO: Leer valores directamente de los inputs una vez más antes de enviar
-      const paymentMethodsToSend = [];
-      rows.forEach((row, idx) => {
-        const amtInput = row.querySelector('.ecv-payment-amount');
-        const methodSelect = row.querySelector('.ecv-payment-method');
-        const accountSelect = row.querySelector('.ecv-payment-account');
-        
-        if (amtInput && methodSelect) {
-          const rawValue = String(amtInput.value || '0').replace(/[^0-9]/g, '');
-          const amount = Math.round(Number(rawValue) || 0);
-          const method = String(methodSelect.value || '').trim().toUpperCase();
-          const isCredit = method === 'CREDITO' || method === 'CRÉDITO';
+      // Si el total es 0, no procesar formas de pago
+      const paymentMethodsToSend = hasZeroTotal ? [] : (() => {
+        const methods = [];
+        rows.forEach((row, idx) => {
+          const amtInput = row.querySelector('.ecv-payment-amount');
+          const methodSelect = row.querySelector('.ecv-payment-method');
+          const accountSelect = row.querySelector('.ecv-payment-account');
           
-          if (method && amount > 0) {
-            paymentMethodsToSend.push({
-              method: method,
-              amount: amount,
-              accountId: isCredit ? null : (accountSelect?.value || null)
-            });
+          if (amtInput && methodSelect) {
+            const rawValue = String(amtInput.value || '0').replace(/[^0-9]/g, '');
+            const amount = Math.round(Number(rawValue) || 0);
+            const method = String(methodSelect.value || '').trim().toUpperCase();
+            const isCredit = method === 'CREDITO' || method === 'CRÉDITO';
+            
+            if (method && amount > 0) {
+              methods.push({
+                method: method,
+                amount: amount,
+                accountId: isCredit ? null : (accountSelect?.value || null)
+              });
+            }
           }
-        }
-      });
+        });
+        return methods;
+      })();
       
       const payload = {
         paymentMethods: paymentMethodsToSend,
