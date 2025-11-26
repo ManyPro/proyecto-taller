@@ -532,7 +532,8 @@ function printSaleTicket(sale){
               </script>
             `;
             
-            win.document.write(`<!doctype html><html><head><meta charset='utf-8'><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">${css}${debugScript}${modalScript}
+            // Aplicar estilos dinámicos inmediatamente después de escribir el documento
+            win.document.write(`<!doctype html><html><head><meta charset='utf-8'><meta name="viewport" content="width=device-width, initial-scale=1.0">${css}${debugScript}${modalScript}
               <style>
                 /* Estilos base para mejor uso del espacio y centrado */
                 * {
@@ -554,7 +555,6 @@ function printSaleTicket(sale){
                 
                 /* Contenedor centrado para el contenido de la remisión */
                 .remission-wrapper {
-                  max-width: 720px;
                   width: 100%;
                   min-width: 0;
                   margin: 0 auto;
@@ -598,6 +598,14 @@ function printSaleTicket(sale){
                     font-size: 12px !important;
                   }
                   
+                  .remission-wrapper {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    min-width: 0 !important;
+                    margin: 0 auto !important;
+                    position: relative !important;
+                  }
+                  
                   /* Aumentar tamaño de fuente en impresión */
                   h1, h2 {
                     font-size: 2em !important;
@@ -605,6 +613,7 @@ function printSaleTicket(sale){
                   
                   table {
                     font-size: 11px !important;
+                    width: 100% !important;
                   }
                   
                   table th, table td {
@@ -652,12 +661,12 @@ function printSaleTicket(sale){
                   .client-data-box {
                     left: 19px !important;
                     top: 83px !important;
-                    width: 240px !important;
+                    width: calc(50% - 10px) !important;
                   }
                   .company-data-box {
                     right: 19px !important;
                     top: 83px !important;
-                    width: 240px !important;
+                    width: calc(50% - 10px) !important;
                   }
                   .client-data-box table,
                   .company-data-box table {
@@ -677,36 +686,10 @@ function printSaleTicket(sale){
                 }
               </style>
             </head><body><div class="remission-wrapper">${r.rendered}</div></body></html>`);
-            win.document.close(); 
+            win.document.close();
             
-            // Función para detectar si el contenido cabe en media carta y ajustar tamaño de página
-            const detectAndSetPageSize = () => {
-              const body = win.document.body;
-              const html = win.document.documentElement;
-              
-              // Obtener altura total del contenido
-              const contentHeight = Math.max(
-                body.scrollHeight,
-                body.offsetHeight,
-                html.clientHeight,
-                html.scrollHeight,
-                html.offsetHeight
-              );
-              
-              // Media carta: ~816px (21.6cm a 96 DPI) menos márgenes (~20mm = ~76px) = ~740px disponible
-              // Carta completa: ~1054px (27.9cm a 96 DPI) menos márgenes = ~978px disponible
-              // Ajustar umbrales para mejor detección
-              const mediaCartaMaxHeight = 750; // px - Reducido para asegurar que realmente quepa en media carta
-              const cartaMaxHeight = 1000; // px
-              
-              console.log('[printSaleTicket] Detectando tamaño de página:', {
-                contentHeight,
-                mediaCartaMaxHeight,
-                cartaMaxHeight,
-                fitsMediaCarta: contentHeight <= mediaCartaMaxHeight
-              });
-              
-              // Crear o actualizar estilo para tamaño de página
+            // Aplicar estilos dinámicos inmediatamente para evitar que se vea pequeño
+            const applyDynamicStyles = () => {
               let pageSizeStyle = win.document.getElementById('dynamic-page-size');
               if (!pageSizeStyle) {
                 pageSizeStyle = win.document.createElement('style');
@@ -714,169 +697,114 @@ function printSaleTicket(sale){
                 win.document.head.appendChild(pageSizeStyle);
               }
               
-              if (contentHeight <= mediaCartaMaxHeight) {
-                // Usar media carta (half-letter) con márgenes mínimos superiores (0.25 cm = 2.5mm)
-                pageSizeStyle.textContent = `
-                  @page {
-                    size: 5.5in 8.5in;
-                    margin-top: 2.5mm;
-                    margin-bottom: 2.5mm;
-                    margin-left: 5mm;
-                    margin-right: 5mm;
+              // Estilos base para asegurar que el contenido se vea proporcional
+              pageSizeStyle.textContent = `
+                body {
+                  width: 100% !important;
+                  max-width: 100% !important;
+                }
+                .remission-wrapper {
+                  width: 100% !important;
+                  max-width: 100% !important;
+                  min-width: 0 !important;
+                }
+                table {
+                  width: 100% !important;
+                  max-width: 100% !important;
+                }
+                @page {
+                  size: auto;
+                  margin-top: 2.5mm;
+                  margin-bottom: 2.5mm;
+                  margin-left: 5mm;
+                  margin-right: 5mm;
+                }
+                @media print {
+                  body {
+                    margin: 0 !important;
+                    padding-top: 2.5mm !important;
+                    padding-bottom: 2.5mm !important;
+                    padding-left: 5mm !important;
+                    padding-right: 5mm !important;
+                    display: flex !important;
+                    justify-content: center !important;
+                    align-items: flex-start !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
                   }
-                  @media print {
-                    body {
-                      margin: 0 !important;
-                      padding-top: 2.5mm !important;
-                      padding-bottom: 2.5mm !important;
-                      padding-left: 5mm !important;
-                      padding-right: 5mm !important;
-                      max-height: 210.9mm !important;
-                      display: flex !important;
-                      justify-content: center !important;
-                      align-items: flex-start !important;
-                    }
-                    .remission-wrapper {
-                      max-width: 720px !important;
-                      width: 100% !important;
-                      min-width: 0 !important;
-                      margin: 0 auto !important;
-                      position: relative !important;
-                      padding: 0 5mm !important;
-                    }
-                    /* Asegurar que la tabla de items tenga el mismo ancho que los cuadros de datos */
-                    .items-table {
-                      width: 682px !important;
-                      max-width: 682px !important;
-                    }
-                    /* Estilos para cuadros de datos del cliente y empresa */
-                    .client-data-box,
-                    .company-data-box {
-                      position: absolute !important;
-                      border: 2px solid #000 !important;
-                      padding: 8px !important;
-                      background: white !important;
-                      z-index: 10 !important;
-                      page-break-inside: avoid !important;
-                      overflow: visible !important;
-                      visibility: visible !important;
-                      opacity: 1 !important;
-                      max-width: calc(50% - 5px) !important;
-                      box-sizing: border-box !important;
-                    }
-                    .client-data-box {
-                      left: 5mm !important;
-                      top: 83px !important;
-                      width: 336px !important;
-                      margin-right: 10px !important;
-                    }
-                    .company-data-box {
-                      left: 365px !important;
-                      right: auto !important;
-                      top: 83px !important;
-                      width: 336px !important;
-                      margin-left: 0 !important;
-                    }
-                    .client-data-box table,
-                    .company-data-box table {
-                      width: 100% !important;
-                      border-collapse: collapse !important;
-                      font-size: 11px !important;
-                      margin-top: 2px !important;
-                    }
-                    .client-data-box td,
-                    .company-data-box td {
-                      border: 1px solid #000 !important;
-                      padding: 5px 4px !important;
-                    }
-                    * {
-                      box-sizing: border-box !important;
-                    }
+                  .remission-wrapper {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    min-width: 0 !important;
+                    margin: 0 auto !important;
+                    position: relative !important;
+                    padding: 0 5mm !important;
                   }
-                `;
-                console.log('[printSaleTicket] ✅ Configurado para MEDIA CARTA (5.5" x 8.5") con márgenes superiores de 0.25cm');
-              } else {
-                // Usar carta completa con márgenes mínimos superiores (0.25 cm = 2.5mm)
-                pageSizeStyle.textContent = `
-                  @page {
-                    size: letter;
-                    margin-top: 2.5mm;
-                    margin-bottom: 2.5mm;
-                    margin-left: 5mm;
-                    margin-right: 5mm;
+                  /* Asegurar que la tabla de items se ajuste proporcionalmente */
+                  .items-table,
+                  table {
+                    width: 100% !important;
+                    max-width: 100% !important;
                   }
-                  @media print {
-                    body {
-                      margin: 0 !important;
-                      padding-top: 2.5mm !important;
-                      padding-bottom: 2.5mm !important;
-                      padding-left: 5mm !important;
-                      padding-right: 5mm !important;
-                      max-height: 274mm !important;
-                      display: flex !important;
-                      justify-content: center !important;
-                      align-items: flex-start !important;
-                    }
-                    .remission-wrapper {
-                      max-width: 720px !important;
-                      width: 100% !important;
-                      min-width: 0 !important;
-                      margin: 0 auto !important;
-                      position: relative !important;
-                      padding: 0 5mm !important;
-                    }
-                    /* Asegurar que la tabla de items tenga el mismo ancho que los cuadros de datos */
-                    .items-table {
-                      width: 682px !important;
-                      max-width: 682px !important;
-                    }
-                    /* Estilos para cuadros de datos del cliente y empresa */
-                    .client-data-box,
-                    .company-data-box {
-                      position: absolute !important;
-                      border: 2px solid #000 !important;
-                      padding: 8px !important;
-                      background: white !important;
-                      z-index: 10 !important;
-                      page-break-inside: avoid !important;
-                      overflow: visible !important;
-                      visibility: visible !important;
-                      opacity: 1 !important;
-                      max-width: calc(50% - 5px) !important;
-                      box-sizing: border-box !important;
-                    }
-                    .client-data-box {
-                      left: 5mm !important;
-                      top: 83px !important;
-                      width: calc(50% - 5px) !important;
-                      margin-right: 5px !important;
-                    }
-                    .company-data-box {
-                      right: 5mm !important;
-                      left: auto !important;
-                      top: 83px !important;
-                      width: calc(50% - 5px) !important;
-                      margin-left: 5px !important;
-                    }
-                    .client-data-box table,
-                    .company-data-box table {
-                      width: 100% !important;
-                      border-collapse: collapse !important;
-                      font-size: 11px !important;
-                      margin-top: 2px !important;
-                    }
-                    .client-data-box td,
-                    .company-data-box td {
-                      border: 1px solid #000 !important;
-                      padding: 5px 4px !important;
-                    }
-                    * {
-                      box-sizing: border-box !important;
-                    }
+                  /* Estilos para cuadros de datos del cliente y empresa */
+                  .client-data-box,
+                  .company-data-box {
+                    position: absolute !important;
+                    border: 2px solid #000 !important;
+                    padding: 8px !important;
+                    background: white !important;
+                    z-index: 10 !important;
+                    page-break-inside: avoid !important;
+                    overflow: visible !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                    box-sizing: border-box !important;
                   }
-                `;
-                console.log('[printSaleTicket] ✅ Configurado para CARTA COMPLETA (8.5" x 11") con márgenes superiores de 0.25cm');
-              }
+                  .client-data-box {
+                    left: 5mm !important;
+                    top: 83px !important;
+                    width: calc(50% - 5px) !important;
+                    margin-right: 5px !important;
+                  }
+                  .company-data-box {
+                    right: 5mm !important;
+                    left: auto !important;
+                    top: 83px !important;
+                    width: calc(50% - 5px) !important;
+                    margin-left: 5px !important;
+                  }
+                  .client-data-box table,
+                  .company-data-box table {
+                    width: 100% !important;
+                    border-collapse: collapse !important;
+                    font-size: 11px !important;
+                    margin-top: 2px !important;
+                  }
+                  .client-data-box td,
+                  .company-data-box td {
+                    border: 1px solid #000 !important;
+                    padding: 5px 4px !important;
+                  }
+                  * {
+                    box-sizing: border-box !important;
+                  }
+                }
+              `;
+            };
+            
+            // Aplicar estilos inmediatamente
+            try {
+              applyDynamicStyles();
+            } catch (e) {
+              console.warn('[printSaleTicket] Error aplicando estilos iniciales:', e);
+            }
+            
+            // Función para configurar estilos de impresión proporcionales
+            // Esta función actualiza los estilos dinámicos para asegurar consistencia
+            const detectAndSetPageSize = () => {
+              // Reutilizar la función applyDynamicStyles para mantener consistencia
+              applyDynamicStyles();
+              console.log('[printSaleTicket] ✅ Estilos dinámicos aplicados para tamaño automático proporcional');
             };
             
             // NOTA: El total ahora está dentro de la tabla como tfoot, así que ya no necesitamos ajustar posición separada

@@ -902,15 +902,28 @@ function normalizeTemplateHtml(html='') {
   output = output.replace(/&amp;#125;&amp;#125;/g, '}}');
   
   // CORREGIR: Convertir templates antiguos que usan {{#each sale.items}} a la nueva estructura con sale.itemsGrouped
-  // Para remisiones/invoices
-  if (output.includes('remission-table') || output.includes('items-table')) {
+  // Para remisiones/invoices y workOrder
+  if (output.includes('remission-table') || output.includes('items-table') || output.includes('workorder-table')) {
     // Primero, agregar fila de vehículo al thead si existe y no la tiene
     const theadMatches = output.match(/<thead>([\s\S]*?)<\/thead>/gi);
     if (theadMatches) {
       theadMatches.forEach((match) => {
         // Si el thead no tiene la fila del vehículo, agregarla antes de la fila de encabezados
         if (!match.includes('sale.vehicle.brand') && !match.includes('sale.vehicle.line')) {
-          const vehicleRow = `          {{#if sale.vehicle}}
+          // Para workOrder, la tabla solo tiene 2 columnas (Detalle, Cantidad)
+          // Para remisiones, tiene 4 columnas (Detalle, Cantidad, Precio, Total)
+          const isWorkOrder = output.includes('workorder-table');
+          const vehicleRow = isWorkOrder ? `          {{#if sale.vehicle}}
+          <tr style="background: #e8f4f8; font-weight: bold; border: 2px solid #000; border-bottom: 1px solid #000;">
+            <th style="padding: 3px 6px; font-size: 11px; border-right: 1px solid #000; text-align: left;">
+              {{#if sale.vehicle.brand}}{{sale.vehicle.brand}}{{/if}}{{#if sale.vehicle.line}} {{sale.vehicle.line}}{{/if}}{{#if sale.vehicle.engine}} {{sale.vehicle.engine}}{{/if}}
+            </th>
+            <th style="padding: 3px 6px; font-size: 11px; text-align: left;">
+              {{#if sale.vehicle.plate}}<strong>{{sale.vehicle.plate}}</strong>{{else}}—{{/if}}{{#if sale.vehicle.mileage}} | Kilometraje: {{sale.vehicle.mileage}} km{{/if}}
+            </th>
+          </tr>
+          {{/if}}
+          ` : `          {{#if sale.vehicle}}
           <tr style="background: #e8f4f8; font-weight: bold; border: 2px solid #000; border-bottom: 1px solid #000;">
             <th style="padding: 3px 6px; font-size: 11px; border-right: 1px solid #000; text-align: left;">
               {{#if sale.vehicle.brand}}{{sale.vehicle.brand}}{{/if}}{{#if sale.vehicle.line}} {{sale.vehicle.line}}{{/if}}{{#if sale.vehicle.engine}} {{sale.vehicle.engine}}{{/if}}
@@ -928,7 +941,8 @@ function normalizeTemplateHtml(html='') {
           const updatedThead = match.replace(/(<thead>[\s\S]*?)(<tr>[\s\S]*?<th>Detalle)/i, `$1${vehicleRow}$2`);
           if (updatedThead !== match) {
             output = output.replace(match, updatedThead);
-            console.log('[normalizeTemplateHtml] ✅ Agregada fila de vehículo al thead de remisión');
+            const templateType = isWorkOrder ? 'orden de trabajo' : 'remisión';
+            console.log(`[normalizeTemplateHtml] ✅ Agregada fila de vehículo al thead de ${templateType}`);
           }
         }
       });

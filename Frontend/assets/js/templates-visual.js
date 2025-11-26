@@ -4012,6 +4012,16 @@
       </style>
       <table class="workorder-table">
         <thead>
+          {{#if sale.vehicle}}
+          <tr style="background: #e8f4f8; font-weight: bold; border: 2px solid #000; border-bottom: 1px solid #000;">
+            <th style="padding: 3px 6px; font-size: 11px; border-right: 1px solid #000; text-align: left;">
+              {{#if sale.vehicle.brand}}{{sale.vehicle.brand}}{{/if}}{{#if sale.vehicle.line}} {{sale.vehicle.line}}{{/if}}{{#if sale.vehicle.engine}} {{sale.vehicle.engine}}{{/if}}
+            </th>
+            <th style="padding: 3px 6px; font-size: 11px; text-align: left;">
+              {{#if sale.vehicle.plate}}<strong>{{sale.vehicle.plate}}</strong>{{else}}—{{/if}}{{#if sale.vehicle.mileage}} | Kilometraje: {{sale.vehicle.mileage}} km{{/if}}
+            </th>
+          </tr>
+          {{/if}}
           <tr>
             <th>Detalle</th>
             <th>Cantidad</th>
@@ -5093,7 +5103,6 @@
         
         /* Contenedor centrado para el contenido de la remisión */
         .remission-wrapper {
-          max-width: 520px;
           width: 100%;
           margin: 0 auto;
           position: relative;
@@ -5114,8 +5123,8 @@
             align-items: flex-start !important;
           }
           .remission-wrapper {
-            max-width: 520px !important;
             width: 100% !important;
+            max-width: 100% !important;
             margin: 0 auto !important;
           }
           * {
