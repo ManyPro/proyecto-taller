@@ -1343,17 +1343,6 @@ export const closeSale = async (req, res) => {
           }
         }
         
-        // Si aún queda cantidad por descontar después de usar StockEntries
-        // Esto significa que no hay StockEntries o no tenían suficiente stock
-        // En este caso, el stock ya fue validado arriba (itemStock >= q)
-        // Solo marcamos remainingQty como 0 porque el descuento del Item.stock se hará abajo
-        if (remainingQty > 0) {
-          // Ya validamos arriba que hay stock suficiente (stockToUse >= q)
-          // Si llegamos aquí, significa que no hay StockEntries o no tenían suficiente
-          // El stock del Item es suficiente (ya validado), así que solo marcamos como completado
-          remainingQty = 0;
-        }
-        
         // Guardar información de las entradas usadas en el meta del item para trazabilidad
         // Si el item ya tiene meta.entryId (de QR), lo preservamos como primaryEntryId
         // También guardamos todas las entradas usadas
@@ -1373,16 +1362,46 @@ export const closeSale = async (req, res) => {
         }
 
         // Actualizar stock total del item
-        // Ya validamos que hay stock suficiente, así que descontamos
-        // Si hay StockEntries, ya las descontamos arriba
-        // También descontamos del Item.stock para mantener consistencia
-        const upd = await Item.updateOne(
-          { _id: target._id, companyId: itemCompanyFilter },
-          { $inc: { stock: -q } }
-        ).session(session);
-        
-        if (upd.matchedCount === 0) {
-          throw new Error(`No se pudo actualizar el stock para ${target.sku || target.name}`);
+        // CRÍTICO: El Item.stock debe reflejar el stock total disponible
+        // Si hay StockEntries, calculamos el stock total desde ellas después del descuento
+        // Si no hay StockEntries, descontamos directamente del Item.stock
+        if (stockEntries.length > 0) {
+          // Si hay StockEntries, calcular el stock total desde las StockEntries restantes
+          // Esto asegura que Item.stock = suma de todas las StockEntries restantes
+          const remainingEntries = await StockEntry.find({
+            companyId: stockCompanyFilter,
+            itemId: target._id,
+            qty: { $gt: 0 }
+          }).session(session);
+          
+          const totalFromEntries = remainingEntries.reduce((sum, e) => sum + (e.qty || 0), 0);
+          
+          // Si quedó cantidad por descontar que no se pudo descontar de StockEntries,
+          // descontarla del Item.stock y luego sincronizar
+          if (remainingQty > 0) {
+            // Descontar remainingQty del Item.stock
+            await Item.updateOne(
+              { _id: target._id, companyId: itemCompanyFilter },
+              { $inc: { stock: -remainingQty } }
+            ).session(session);
+          }
+          
+          // Sincronizar Item.stock con la suma de StockEntries restantes
+          // Esto asegura que Item.stock refleje el stock real disponible
+          await Item.updateOne(
+            { _id: target._id, companyId: itemCompanyFilter },
+            { $set: { stock: totalFromEntries } }
+          ).session(session);
+        } else {
+          // Si no hay StockEntries, descontar directamente del Item.stock
+          const upd = await Item.updateOne(
+            { _id: target._id, companyId: itemCompanyFilter },
+            { $inc: { stock: -q } }
+          ).session(session);
+          
+          if (upd.matchedCount === 0) {
+            throw new Error(`No se pudo actualizar el stock para ${target.sku || target.name}`);
+          }
         }
 
         // Si quedó en 0, despublicar automáticamente para ocultarlo del catálogo
