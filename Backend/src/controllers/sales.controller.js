@@ -1483,8 +1483,17 @@ export const closeSale = async (req, res) => {
       // ---- Multi-payment (nuevo) ----
       // Frontend envÃ­a paymentMethods: [{ method, amount, accountId } ... ]
       // Validamos y persistimos en sale.paymentMethods antes de guardar.
+      // IMPORTANTE: Si el total es 0, no validar métodos de pago (no son necesarios)
+      
+      // Calcular total primero para verificar si es 0
+      computeTotals(sale);
+      const calculatedTotal = Math.round(Number(sale.total || 0));
+      const hasZeroTotal = calculatedTotal === 0;
+      
       let rawMethods = Array.isArray(req.body?.paymentMethods) ? req.body.paymentMethods : [];
-      if (rawMethods.length) {
+      
+      // Solo validar métodos de pago si el total NO es 0
+      if (rawMethods.length && !hasZeroTotal) {
         // CRÍTICO: Normalizar y filtrar válidos - asegurar que los montos sean números enteros
         const cleaned = rawMethods.map(m => {
           // Limpiar el amount: convertir a string, remover caracteres no numéricos, parsear y redondear
@@ -1497,11 +1506,8 @@ export const closeSale = async (req, res) => {
             accountId: m?.accountId ? new mongoose.Types.ObjectId(m.accountId) : null
           };
         }).filter(m => m.method && m.amount > 0);
+        
         if (cleaned.length) {
-          // Calcular total desde los items
-          computeTotals(sale);
-          const calculatedTotal = Math.round(Number(sale.total || 0));
-          
           // Si el frontend envía un total, usarlo para validación (puede ser más preciso si hay items recién agregados)
           const frontendTotal = req.body?.total ? Math.round(Number(req.body.total)) : null;
           const totalToUse = frontendTotal !== null ? frontendTotal : calculatedTotal;
@@ -1536,7 +1542,7 @@ export const closeSale = async (req, res) => {
           }
           
           // Si el frontend envió un total diferente al calculado, actualizar el total de la venta
-          // Esto puede pasar si hay items que se agregaron/modificaron después de que el frontend cargó la venta
+          // Esto puede pasar si hay items que se agregaron/modificados después de que el frontend cargó la venta
           if (frontendTotal !== null && Math.abs(frontendTotal - calculatedTotal) > 0.01) {
             logger.warn('[closeSale] Total del frontend difiere del calculado, usando el calculado', {
               frontendTotal,
@@ -1552,6 +1558,10 @@ export const closeSale = async (req, res) => {
           // Mantener legacy paymentMethod con el primero (para compatibilidad con reportes antiguos)
           if (sale.paymentMethods.length) sale.paymentMethod = sale.paymentMethods[0].method;
         }
+      } else if (hasZeroTotal) {
+        // Si el total es 0, no se requieren métodos de pago
+        sale.paymentMethods = [];
+        sale.paymentMethod = '';
       }
 
       const laborValue = Number(laborValueRaw);
@@ -1644,51 +1654,58 @@ export const closeSale = async (req, res) => {
     let cashflowEntries = [];
     let receivable = null;
     
-    // Verificar si algún método de pago es CREDITO
-    const hasCredit = sale.paymentMethods?.some(m => 
-      String(m.method || '').toUpperCase() === 'CREDITO' || 
-      String(m.method || '').toUpperCase() === 'CRÉDITO'
-    ) || String(sale.paymentMethod || '').toUpperCase() === 'CREDITO' ||
-       String(sale.paymentMethod || '').toUpperCase() === 'CRÉDITO';
+    // IMPORTANTE: Si el total de la venta es 0, no crear entradas de flujo de caja ni cuentas por cobrar
+    // Solo cerrar la venta, descontar stock y guardar en historial
+    const saleTotal = Number(sale.total || 0);
+    const hasZeroTotal = saleTotal === 0;
     
-    if (hasCredit) {
-      // Si hay crédito, crear cuenta por cobrar en lugar de flujo de caja
-      try {
-        const AccountReceivable = (await import('../models/AccountReceivable.js')).default;
-        const CompanyAccount = (await import('../models/CompanyAccount.js')).default;
-        
-        // Calcular monto de crédito
-        const creditAmount = sale.paymentMethods?.find(m => 
-          String(m.method || '').toUpperCase() === 'CREDITO' || 
-          String(m.method || '').toUpperCase() === 'CRÉDITO'
-        )?.amount || sale.total;
-        
-        // Usar companyAccountId de la venta (ya asignado arriba si hay link)
-        const companyAccountId = sale.companyAccountId || null;
-        
-        receivable = await AccountReceivable.create({
-          companyId: String(req.companyId),
-          saleId: sale._id,
-          saleNumber: String(sale.number || '').padStart(5, '0'),
-          customer: sale.customer || {},
-          vehicle: sale.vehicle || {},
-          companyAccountId,
-          totalAmount: Number(creditAmount),
-          paidAmount: 0,
-          balance: Number(creditAmount),
-          status: 'pending',
-          source: 'sale'
-        });
-      } catch(e) { 
-        logger.warn('createReceivable failed', { error: e?.message || e, stack: e?.stack }); 
+    if (!hasZeroTotal) {
+      // Verificar si algún método de pago es CREDITO
+      const hasCredit = sale.paymentMethods?.some(m => 
+        String(m.method || '').toUpperCase() === 'CREDITO' || 
+        String(m.method || '').toUpperCase() === 'CRÉDITO'
+      ) || String(sale.paymentMethod || '').toUpperCase() === 'CREDITO' ||
+         String(sale.paymentMethod || '').toUpperCase() === 'CRÉDITO';
+      
+      if (hasCredit) {
+        // Si hay crédito, crear cuenta por cobrar en lugar de flujo de caja
+        try {
+          const AccountReceivable = (await import('../models/AccountReceivable.js')).default;
+          const CompanyAccount = (await import('../models/CompanyAccount.js')).default;
+          
+          // Calcular monto de crédito
+          const creditAmount = sale.paymentMethods?.find(m => 
+            String(m.method || '').toUpperCase() === 'CREDITO' || 
+            String(m.method || '').toUpperCase() === 'CRÉDITO'
+          )?.amount || sale.total;
+          
+          // Usar companyAccountId de la venta (ya asignado arriba si hay link)
+          const companyAccountId = sale.companyAccountId || null;
+          
+          receivable = await AccountReceivable.create({
+            companyId: String(req.companyId),
+            saleId: sale._id,
+            saleNumber: String(sale.number || '').padStart(5, '0'),
+            customer: sale.customer || {},
+            vehicle: sale.vehicle || {},
+            companyAccountId,
+            totalAmount: Number(creditAmount),
+            paidAmount: 0,
+            balance: Number(creditAmount),
+            status: 'pending',
+            source: 'sale'
+          });
+        } catch(e) { 
+          logger.warn('createReceivable failed', { error: e?.message || e, stack: e?.stack }); 
+        }
+      } else {
+        // Solo registrar en flujo de caja si NO es crédito y el total NO es 0
+        try {
+          const accountId = req.body?.accountId; // opcional desde frontend
+          const resEntries = await registerSaleIncome({ companyId: req.companyId, sale, accountId });
+          cashflowEntries = Array.isArray(resEntries) ? resEntries : (resEntries ? [resEntries] : []);
+        } catch(e) { logger.warn('registerSaleIncome failed', { error: e?.message || e, stack: e?.stack }); }
       }
-    } else {
-      // Solo registrar en flujo de caja si NO es crédito
-      try {
-        const accountId = req.body?.accountId; // opcional desde frontend
-        const resEntries = await registerSaleIncome({ companyId: req.companyId, sale, accountId });
-        cashflowEntries = Array.isArray(resEntries) ? resEntries : (resEntries ? [resEntries] : []);
-      } catch(e) { logger.warn('registerSaleIncome failed', { error: e?.message || e, stack: e?.stack }); }
     }
     
     // CRÍTICO: Publicar evento a todas las empresas que comparten la BD
