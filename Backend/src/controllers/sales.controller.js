@@ -1286,8 +1286,10 @@ export const closeSale = async (req, res) => {
           throw new Error(`Inventory item not found (${it.sku || it.refId || 'sin id'})`);
         }
         
-        // CRÍTICO: Leer el stock del Item de forma robusta
-        // El stock puede ser Number, String, null, undefined - normalizar a número
+        // CRÍTICO: Leer el stock del Item de forma robusta.
+        // El campo stock del Item es la FUENTE DE VERDAD para validar si se puede vender.
+        // Si el Item tiene stock >= cantidad de la venta, se debe permitir cerrar,
+        // independientemente de cómo estén las StockEntries.
         let itemStock = 0;
         if (target.stock !== null && target.stock !== undefined) {
           const stockValue = Number(target.stock);
@@ -1295,39 +1297,18 @@ export const closeSale = async (req, res) => {
             itemStock = stockValue;
           }
         }
-        
-        // Buscar StockEntries con stock disponible
+
+        // VALIDACIÓN PRINCIPAL: usar SIEMPRE el stock del Item.
+        // Si el Item tiene stock suficiente, se permite cerrar la venta.
+        if (itemStock < q) {
+          throw new Error(`Stock insuficiente para ${target.sku || target.name}. Disponible: ${itemStock}, Requerido: ${q}`);
+        }
+
+        // A partir de aquí solo nos encargamos de DESCONTAR el inventario,
+        // pero ya sabemos que hay stock suficiente gracias a itemStock.
+
+        // Descontar primero usando FIFO sobre las StockEntries (si existen).
         const stockCompanyFilter = itemCompanyFilter;
-        const stockEntriesForCheck = await StockEntry.find({
-          companyId: stockCompanyFilter,
-          itemId: target._id,
-          qty: { $gt: 0 }
-        }).session(session);
-        
-        const actualStockFromEntries = stockEntriesForCheck.reduce((sum, entry) => {
-          const entryQty = Number(entry.qty) || 0;
-          return sum + (entryQty > 0 ? entryQty : 0);
-        }, 0);
-        
-        // LÓGICA CORREGIDA Y SIMPLIFICADA:
-        // PRIORIDAD 1: Si hay StockEntries con stock > 0, usar su suma
-        // PRIORIDAD 2: Si NO hay StockEntries o todas tienen qty 0, usar el stock del Item
-        // El stock del Item ES VÁLIDO y debe usarse cuando no hay StockEntries
-        let stockToUse = 0;
-        if (stockEntriesForCheck.length > 0 && actualStockFromEntries > 0) {
-          stockToUse = actualStockFromEntries;
-        } else {
-          // NO hay StockEntries con stock, usar el stock del Item
-          stockToUse = itemStock;
-        }
-        
-        // VALIDACIÓN: Verificar que hay stock suficiente
-        if (stockToUse < q) {
-          throw new Error(`Stock insuficiente para ${target.sku || target.name}. Disponible: ${stockToUse}, Requerido: ${q}`);
-        }
-        
-        // Descontar usando FIFO: buscar StockEntries ordenados por fecha (más antiguos primero)
-        // CRÍTICO: Buscar en ambos companyId si hay base de datos compartida
         let remainingQty = q;
         const stockEntries = await StockEntry.find({
           companyId: stockCompanyFilter,
