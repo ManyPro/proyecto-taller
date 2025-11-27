@@ -2677,9 +2677,9 @@
         createQuoteTemplate(canvas);
         showQuickNotification('💰 Plantilla de Cotización cargada', 'success');
       } else if (documentType === 'invoice-factura') {
-        // Factura usa la misma plantilla que remisión por ahora
-        createRemissionTemplate(canvas);
-        showQuickNotification('📄 Plantilla de Factura cargada (usa plantilla de remisión)', 'success');
+        // Factura usa plantilla específica con IVA
+        createInvoiceTemplate(canvas);
+        showQuickNotification('📄 Plantilla de Factura cargada', 'success');
       } else if (documentType === 'sticker-qr') {
         createStickerTemplate(canvas, documentType);
         showQuickNotification('🏷️ Plantilla de Sticker cargada', 'success');
@@ -2972,8 +2972,8 @@
     // Altura aproximada del cuadro: título (~18px) + tabla 4 filas (~100px con nuevo padding) + padding (16px) = ~134px
     // 1cm = aproximadamente 38px
     // Posición tabla: 83px + 134px + 38px = 255px (redondeado a 260px para más espacio)
-    // Ancho del canvas: 720px, margen: 19px cada lado
-    // Ancho de la tabla: 720 - 19 - 19 = 682px (mismo margen izquierdo y derecho)
+    // Ancho de los cuadros: Cliente (336px) + gap (10px) + Empresa (336px) = 682px
+    // La tabla debe tener el mismo ancho total que los dos cuadros juntos
     const itemsTable = createRemissionItemsTable({ left: 19, top: 260, width: 682 });
     canvas.appendChild(itemsTable);
 
@@ -3239,6 +3239,389 @@
     return tableContainer;
   }
 
+  function createInvoiceTemplate(canvas) {
+    // Duplicar createRemissionTemplate pero con título FACTURA y IVA en el total
+    console.log('🎨 Creando plantilla de factura completa...');
+    
+    // Título FACTURA (arriba izquierda)
+    const title = createEditableElement('title', 'FACTURA', {
+      position: { left: 19, top: 10 },
+      styles: { fontSize: '38px', fontWeight: 'bold', color: '#000', fontFamily: 'Arial, sans-serif', letterSpacing: '0.5px' }
+    });
+    canvas.appendChild(title);
+
+    // Número de factura en caja negra
+    const numberBox = document.createElement('div');
+    numberBox.className = 'tpl-element';
+    numberBox.id = `element_${visualEditor.nextId++}`;
+    numberBox.style.cssText = 'position: absolute; left: 19px; top: 45px; border: 2px solid #000; padding: 4px 8px; display: inline-block;';
+    numberBox.innerHTML = '<span contenteditable="true" style="font-size: 15.1px; font-weight: bold; color: #000; font-family: Arial, sans-serif;">Nº: {{#if S.nº}}{{S.nº}}{{else}}[Sin nº]{{/if}}</span>';
+    makeDraggable(numberBox);
+    makeSelectable(numberBox);
+    canvas.appendChild(numberBox);
+    visualEditor.elements.push({ id: numberBox.id, type: 'text', element: numberBox });
+
+    // Fecha
+    const dateBox = document.createElement('div');
+    dateBox.className = 'tpl-element';
+    dateBox.id = `element_${visualEditor.nextId++}`;
+    dateBox.style.cssText = 'position: absolute; left: 180px; top: 45px; padding: 4px 8px; display: inline-block;';
+    dateBox.innerHTML = '<span contenteditable="true" style="font-size: 11px; color: #000; font-family: Arial, sans-serif;">Fecha: {{#if sale.formattedDate}}{{sale.formattedDate}}{{else}}{{date sale.date}}{{/if}}</span>';
+    makeDraggable(dateBox);
+    makeSelectable(dateBox);
+    canvas.appendChild(dateBox);
+    visualEditor.elements.push({ id: dateBox.id, type: 'text', element: dateBox });
+
+    // Logo/empresa
+    const logoBox = document.createElement('div');
+    logoBox.className = 'tpl-element';
+    logoBox.id = `element_${visualEditor.nextId++}`;
+    logoBox.style.cssText = 'position: absolute; right: 19px; top: 10px; width: 60px; height: 60px; border: 2px solid #000; padding: 3px; display: flex; align-items: center; justify-content: center; cursor: move; background: white; box-sizing: border-box;';
+    logoBox.innerHTML = `
+      <div class="image-placeholder" style="width: 100%; height: 100%; background: #f5f5f5; border: 2px dashed #999; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 11px; color: #666; text-align: center; padding: 5px; box-sizing: border-box; position: relative;">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none;">
+          <div style="font-size: 24px;">🖼️</div>
+          <div>Haz clic para<br>agregar logo</div>
+        </div>
+        <div style="position: absolute; bottom: 2px; left: 2px; right: 2px; font-size: 9px; color: #999; pointer-events: none; text-align: center;">o edita para usar:<br>{{company.logoUrl}}</div>
+      </div>
+      <div class="logo-text-editable" contenteditable="true" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: 0; cursor: text; z-index: 10; font-size: 10px; padding: 5px; word-break: break-all;" title="Haz doble clic para editar y usar variable {{company.logoUrl}}"></div>
+    `;
+    // Permitir edición de texto para usar variables
+    const textEditor = logoBox.querySelector('.logo-text-editable');
+    if (textEditor) {
+      textEditor.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        textEditor.style.opacity = '1';
+        textEditor.style.background = 'rgba(255,255,255,0.95)';
+        textEditor.focus();
+        textEditor.textContent = '{{company.logoUrl}}';
+      });
+      textEditor.addEventListener('blur', () => {
+        const content = textEditor.textContent.trim();
+        if (content && content.includes('{{')) {
+          // Si tiene variable, crear imagen con esa variable
+          const placeholder = logoBox.querySelector('.image-placeholder');
+          if (placeholder) {
+            placeholder.innerHTML = `<img src="${content}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'padding: 10px; text-align: center; font-size: 10px; color: #999;\\'>Variable: ${content}</div>';" />`;
+            placeholder.style.border = 'none';
+            placeholder.style.background = 'transparent';
+          }
+        }
+        textEditor.style.opacity = '0';
+        textEditor.style.background = 'transparent';
+      });
+    }
+    
+    makeDraggable(logoBox);
+    makeSelectable(logoBox);
+    setupImageUpload(logoBox);
+    canvas.appendChild(logoBox);
+    visualEditor.elements.push({ id: logoBox.id, type: 'image', element: logoBox });
+
+    // Sección DATOS DEL CLIENTE (izquierda) - Cuadro organizado en 2x2
+    // 1cm de espacio desde el número (45px + 38px = 83px)
+    const clientBox = document.createElement('div');
+    clientBox.className = 'tpl-element client-data-box';
+    clientBox.id = `element_${visualEditor.nextId++}`;
+    clientBox.style.cssText = 'position: absolute; left: 19px; top: 83px; width: 331px; border: 2px solid #000; padding: 8px; background: white; z-index: 10;';
+    clientBox.innerHTML = `
+      <style>
+        .client-data-box {
+          position: absolute !important;
+          left: 19px !important;
+          top: 83px !important;
+          width: 336px !important;
+          border: 2px solid #000 !important;
+          padding: 8px !important;
+          background: white !important;
+          z-index: 10 !important;
+          page-break-inside: avoid !important;
+        }
+        @media print {
+          .client-data-box {
+            position: absolute !important;
+            left: 19px !important;
+            top: 83px !important;
+            width: 336px !important;
+            border: 2px solid #000 !important;
+            padding: 8px !important;
+            background: white !important;
+            z-index: 10 !important;
+            page-break-inside: avoid !important;
+            overflow: visible !important;
+          }
+        }
+      </style>
+      <div style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 5px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 3px;">DATOS DEL CLIENTE</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: Arial, sans-serif; margin-top: 2px;">
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold; width: 30%;">Nombre:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px; width: 70%;"><span contenteditable="true">{{sale.customer.name}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Email:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{sale.customer.email}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Teléfono:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{sale.customer.phone}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Dirección:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{sale.customer.address}}</span></td>
+        </tr>
+      </table>
+    `;
+    makeDraggable(clientBox);
+    makeSelectable(clientBox);
+    canvas.appendChild(clientBox);
+    visualEditor.elements.push({ id: clientBox.id, type: 'text', element: clientBox });
+
+    // Sección DATOS DE LA EMPRESA (derecha) - Cuadro organizado en 2x2
+    const companyBox = document.createElement('div');
+    companyBox.className = 'tpl-element company-data-box';
+    companyBox.id = `element_${visualEditor.nextId++}`;
+    companyBox.style.cssText = 'position: absolute; right: 19px; top: 83px; width: 331px; border: 2px solid #000; padding: 8px; background: white; z-index: 10;';
+    companyBox.innerHTML = `
+      <style>
+        .company-data-box {
+          position: absolute !important;
+          left: 365px !important;
+          right: auto !important;
+          top: 83px !important;
+          width: 336px !important;
+          border: 2px solid #000 !important;
+          padding: 8px !important;
+          background: white !important;
+          z-index: 10 !important;
+          page-break-inside: avoid !important;
+        }
+        @media print {
+          .company-data-box {
+            position: absolute !important;
+            left: 365px !important;
+          right: auto !important;
+            top: 83px !important;
+            width: 336px !important;
+            border: 2px solid #000 !important;
+            padding: 8px !important;
+            background: white !important;
+            z-index: 10 !important;
+            page-break-inside: avoid !important;
+            overflow: visible !important;
+          }
+        }
+      </style>
+      <div style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 5px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 3px;">DATOS DE LA EMPRESA</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: Arial, sans-serif; margin-top: 2px;">
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold; width: 30%;">Nombre:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px; width: 70%;"><span contenteditable="true">{{company.name}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Email:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{company.email}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Teléfono:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{company.phone}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Dirección:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{company.address}}</span></td>
+        </tr>
+      </table>
+    `;
+    makeDraggable(companyBox);
+    makeSelectable(companyBox);
+    canvas.appendChild(companyBox);
+    visualEditor.elements.push({ id: companyBox.id, type: 'text', element: companyBox });
+
+    // Calcular la posición de la tabla: después de los cuadros de datos + 1cm de separación
+    // Los cuadros empiezan en top: 83px
+    // Altura aproximada del cuadro: título (~18px) + tabla 4 filas (~100px con nuevo padding) + padding (16px) = ~134px
+    // 1cm = aproximadamente 38px
+    // Posición tabla: 83px + 134px + 38px = 255px (redondeado a 260px para más espacio)
+    // Ancho de los cuadros: Cliente (336px) + gap (10px) + Empresa (336px) = 682px
+    // La tabla debe tener el mismo ancho total que los dos cuadros juntos
+    const itemsTable = createInvoiceItemsTable({ left: 19, top: 260, width: 682 });
+    canvas.appendChild(itemsTable);
+
+    // NOTA: El total ahora está dentro de la tabla como tfoot, así que ya no necesitamos ajustar posición separada
+
+    console.log('✅ Plantilla de factura creada con todos los elementos');
+  }
+
+  function createInvoiceItemsTable(position) {
+    const tableContainer = document.createElement('div');
+    tableContainer.className = 'tpl-element items-table';
+    tableContainer.id = `element_${visualEditor.nextId++}`;
+    // Si se especifica un ancho, usarlo; sino usar el cálculo original
+    const tableWidth = position.width || `calc(100% - ${position.left * 2}px)`;
+    const maxWidth = position.width ? `${position.width}px` : '520px';
+    tableContainer.style.cssText = `
+      position: absolute;
+      left: ${position.left}px;
+      top: ${position.top}px;
+      border: 2px solid transparent;
+      cursor: move;
+      width: ${tableWidth};
+      max-width: ${maxWidth};
+      background: white;
+    `;
+    
+    // Agregar clase para centrado en impresión
+    tableContainer.classList.add('remission-content');
+
+    tableContainer.innerHTML = `
+      <style>
+        .remission-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-family: Arial, sans-serif;
+          table-layout: fixed;
+          margin: 0;
+        }
+        .remission-table thead { display: table-header-group; }
+        .remission-table tbody { display: table-row-group; }
+        .remission-table tfoot { display: table-footer-group; }
+        .remission-table tfoot tr { border-top: 2px solid #000 !important; }
+        .remission-table tfoot td { border: 1px solid #000 !important; padding: 2px 4px !important; font-size: 12.4px !important; font-weight: bold !important; }
+        .remission-table th { border: 2px solid #000 !important; padding: 2px 3px; font-weight: bold; color: #000; font-size: 12.4px; background: white; word-wrap: break-word; overflow-wrap: break-word; }
+        .remission-table td { border: 1px solid #000 !important; padding: 1px 3px; color: #000; font-size: 11px; word-wrap: break-word; overflow-wrap: break-word; vertical-align: top; line-height: 1.2; }
+        .remission-table th:nth-child(1), .remission-table td:nth-child(1) { width: 45%; text-align: left; }
+        .remission-table th:nth-child(2), .remission-table td:nth-child(2) { width: 15%; text-align: center; }
+        .remission-table th:nth-child(3), .remission-table td:nth-child(3) { width: 20%; text-align: center; }
+        .remission-table th:nth-child(4), .remission-table td:nth-child(4) { width: 20%; text-align: right; }
+        .remission-table .t-center { text-align: center !important; }
+        .remission-table .t-right { text-align: right !important; }
+        @media print {
+          .remission-table { page-break-inside: auto; border-collapse: collapse !important; width: 100% !important; }
+          .remission-table thead { display: table-header-group !important; }
+          .remission-table tbody { display: table-row-group !important; }
+          .remission-table tfoot { display: table-footer-group !important; }
+          .remission-table tfoot tr { border-top: 2px solid #000 !important; }
+          .remission-table tfoot td { border: 1px solid #000 !important; padding: 2px 4px !important; font-size: 12.4px !important; font-weight: bold !important; }
+          .remission-table tr { page-break-inside: avoid; page-break-after: auto; }
+          .remission-table th, .remission-table td { border: 1px solid #000 !important; padding: 1px 2px !important; font-size: 11px !important; line-height: 1.1 !important; }
+          .remission-table th { border-width: 2px !important; background: white !important; }
+        }
+        .remission-table { border: 2px solid #000; }
+      </style>
+      <table class="remission-table">
+        <thead>
+          {{#if sale.vehicle}}
+          <tr style="background: #e8f4f8; font-weight: bold; border: 2px solid #000; border-bottom: 1px solid #000;">
+            <th style="padding: 3px 6px; font-size: 11px; border-right: 1px solid #000; text-align: left;">
+              {{#if sale.vehicle.brand}}{{sale.vehicle.brand}}{{/if}}{{#if sale.vehicle.line}} {{sale.vehicle.line}}{{/if}}{{#if sale.vehicle.displacement}} {{sale.vehicle.displacement}}{{/if}}
+            </th>
+            <th style="padding: 3px 6px; font-size: 11px; border-right: 1px solid #000; text-align: center; background: #fff; border: 2px solid #000;">
+              {{#if sale.vehicle.plate}}<strong>{{sale.vehicle.plate}}</strong>{{else}}—{{/if}}
+            </th>
+            <th colspan="2" style="padding: 3px 6px; font-size: 11px; text-align: left;">
+              {{#if sale.vehicle.mileage}}Kilometraje: {{sale.vehicle.mileage}} km{{/if}}
+            </th>
+          </tr>
+          {{/if}}
+          <tr>
+            <th>Detalle</th>
+            <th>Cantidad</th>
+            <th>Precio</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#if sale.itemsGrouped.hasCombos}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">COMBOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.combos}}
+          <tr>
+            <td><strong>{{name}}</strong></td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{#each items}}
+          <tr>
+            <td style="padding-left: 30px;">• {{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{#if unitPrice}}{{money unitPrice}}{{/if}}</td>
+            <td class="t-right">{{#if total}}{{money total}}{{/if}}</td>
+          </tr>
+          {{/each}}
+          {{/each}}
+          {{/if}}
+          {{#if sale.itemsGrouped.hasProducts}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">PRODUCTOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.products}}
+          <tr>
+            <td>{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{/each}}
+          {{/if}}
+          {{#if sale.itemsGrouped.hasServices}}
+          <tr class="section-header">
+            <td colspan="4" style="font-weight: bold; background: #f0f0f0; padding: 1px 3px; font-size: 12.4px;">SERVICIOS</td>
+          </tr>
+          {{#each sale.itemsGrouped.services}}
+          <tr>
+            <td>{{name}}</td>
+            <td class="t-center">{{qty}}</td>
+            <td class="t-right">{{money unitPrice}}</td>
+            <td class="t-right">{{money total}}</td>
+          </tr>
+          {{/each}}
+          {{/if}}
+          {{#unless sale.itemsGrouped.hasProducts}}{{#unless sale.itemsGrouped.hasServices}}{{#unless sale.itemsGrouped.hasCombos}}
+          <tr>
+            <td colspan="4" style="text-align: center; color: #666;">Sin ítems</td>
+          </tr>
+          {{/unless}}{{/unless}}{{/unless}}
+        </tbody>
+        <tfoot>
+          <tr style="border-top: 2px solid #000;">
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px;">SUBTOTAL</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px;">{{$ S.subtotal}}</td>
+          </tr>
+          <tr>
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px;">IVA (19%)</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px;">{{$ S.iva}}</td>
+          </tr>
+          <tr style="border-top: 2px solid #000;">
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px;">TOTAL</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px;">{{$ S.total}}</td>
+          </tr>
+        </tfoot>
+      </table>
+      {{#if sale.specialNotes}}
+      {{#if sale.specialNotes.length}}
+      <div style="margin-top: 10px; padding: 8px; border: 1px solid #000; background: #f9f9f9;">
+        <div style="font-size: 11px; font-weight: bold; margin-bottom: 5px; color: #000; font-family: Arial, sans-serif;">NOTAS ESPECIALES:</div>
+        {{#each sale.specialNotes}}
+        <div style="font-size: 10px; color: #000; font-family: Arial, sans-serif; margin-bottom: 3px; padding-left: 10px;">• {{this}}</div>
+        {{/each}}
+      </div>
+      {{/if}}
+      {{/if}}
+    `;
+
+    makeDraggable(tableContainer);
+    makeSelectable(tableContainer);
+    visualEditor.elements.push({
+      id: tableContainer.id,
+      type: 'items-table',
+      element: tableContainer
+    });
+    return tableContainer;
+  }
+
   function createQuoteItemsTable(position) {
     const tableContainer = document.createElement('div');
     tableContainer.className = 'tpl-element items-table';
@@ -3381,6 +3764,19 @@
       </style>
       <table class="quote-table">
         <thead>
+          {{#if quote.vehicle}}
+          <tr style="background: #e8f4f8; font-weight: bold; border: 2px solid #000; border-bottom: 1px solid #000;">
+            <th style="padding: 3px 6px; font-size: 11px; border-right: 1px solid #000; text-align: left;">
+              {{#if quote.vehicle.brand}}{{quote.vehicle.brand}}{{/if}}{{#if quote.vehicle.line}} {{quote.vehicle.line}}{{/if}}{{#if quote.vehicle.displacement}} {{quote.vehicle.displacement}}{{/if}}
+            </th>
+            <th style="padding: 3px 6px; font-size: 11px; border-right: 1px solid #000; text-align: center; background: #fff; border: 2px solid #000;">
+              {{#if quote.vehicle.plate}}<strong>{{quote.vehicle.plate}}</strong>{{else}}—{{/if}}
+            </th>
+            <th colspan="2" style="padding: 3px 6px; font-size: 11px; text-align: left;">
+              {{#if quote.vehicle.mileage}}Kilometraje: {{quote.vehicle.mileage}} km{{/if}}
+            </th>
+          </tr>
+          {{/if}}
           <tr>
             <th>Detalle</th>
             <th>Cantidad</th>
@@ -3456,9 +3852,19 @@
           {{/unless}}{{/unless}}{{/unless}}
         </tbody>
         <tfoot>
+          {{#if quote.ivaEnabled}}
+          <tr style="border-top: 2px solid #000;">
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">SUBTOTAL</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{money Q.subtotal}}</td>
+          </tr>
+          <tr>
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">IVA (19%)</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{money Q.iva}}</td>
+          </tr>
+          {{/if}}
           <tr style="border-top: 2px solid #000;">
             <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">TOTAL</td>
-            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{money quote.total}}</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{#if quote.ivaEnabled}}{{money Q.total}}{{else}}{{money quote.total}}{{/if}}</td>
           </tr>
         </tfoot>
       </table>
@@ -3496,6 +3902,17 @@
     makeSelectable(numberBox);
     canvas.appendChild(numberBox);
     visualEditor.elements.push({ id: numberBox.id, type: 'text', element: numberBox });
+
+    // Fecha de cotización (al lado del número de cotización, a la derecha)
+    const dateBox = document.createElement('div');
+    dateBox.className = 'tpl-element';
+    dateBox.id = `element_${visualEditor.nextId++}`;
+    dateBox.style.cssText = 'position: absolute; left: 180px; top: 45px; padding: 4px 8px; display: inline-block;';
+    dateBox.innerHTML = '<span contenteditable="true" style="font-size: 11px; color: #000; font-family: Arial, sans-serif;">Fecha: {{#if quote.formattedDate}}{{quote.formattedDate}}{{else}}{{date quote.date}}{{/if}}</span>';
+    makeDraggable(dateBox);
+    makeSelectable(dateBox);
+    canvas.appendChild(dateBox);
+    visualEditor.elements.push({ id: dateBox.id, type: 'text', element: dateBox });
 
     // Logo/empresa (arriba derecha) - Compactado para media carta
     const logoBox = document.createElement('div');
@@ -4012,6 +4429,16 @@
       </style>
       <table class="workorder-table">
         <thead>
+          {{#if sale.vehicle}}
+          <tr style="background: #e8f4f8; font-weight: bold; border: 2px solid #000; border-bottom: 1px solid #000;">
+            <th style="padding: 3px 6px; font-size: 11px; border-right: 1px solid #000; text-align: left;">
+              {{#if sale.vehicle.brand}}{{sale.vehicle.brand}}{{/if}}{{#if sale.vehicle.line}} {{sale.vehicle.line}}{{/if}}{{#if sale.vehicle.engine}} {{sale.vehicle.engine}}{{/if}}
+            </th>
+            <th style="padding: 3px 6px; font-size: 11px; text-align: left;">
+              {{#if sale.vehicle.plate}}<strong>{{sale.vehicle.plate}}</strong>{{else}}—{{/if}}{{#if sale.vehicle.mileage}} | Kilometraje: {{sale.vehicle.mileage}} km{{/if}}
+            </th>
+          </tr>
+          {{/if}}
           <tr>
             <th>Detalle</th>
             <th>Cantidad</th>
@@ -5093,7 +5520,6 @@
         
         /* Contenedor centrado para el contenido de la remisión */
         .remission-wrapper {
-          max-width: 520px;
           width: 100%;
           margin: 0 auto;
           position: relative;
@@ -5114,8 +5540,8 @@
             align-items: flex-start !important;
           }
           .remission-wrapper {
-            max-width: 520px !important;
             width: 100% !important;
+            max-width: 100% !important;
             margin: 0 auto !important;
           }
           * {

@@ -30,8 +30,8 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
 
   const effective = sampleType || type;
 
-  // Venta (invoice/workOrder comparten sale)
-  if (['invoice','workOrder','sale'].includes(effective)) {
+  // Venta (invoice/invoice-factura/workOrder comparten sale)
+  if (['invoice','invoice-factura','workOrder','sale'].includes(effective)) {
     let sale = null;
     if (sampleId) {
       sale = await Sale.findOne({ _id: sampleId, companyId });
@@ -381,6 +381,36 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
       }
       
       ctx.sale = saleObj;
+      
+      // Para facturas (invoice-factura), calcular subtotal, IVA y total
+      // El total de la venta es el subtotal, calcular IVA (19%) y total con IVA
+      if (effective === 'invoice-factura') {
+        const subtotal = Number(saleObj.total) || 0;
+        const iva = subtotal * 0.19;
+        const totalWithIva = subtotal + iva;
+        
+        // Crear objeto S con valores calculados para facturas
+        ctx.S = {
+          subtotal: subtotal,
+          iva: iva,
+          total: totalWithIva,
+          'nº': saleObj.formattedNumber || saleObj.number || '',
+          fecha: saleObj.date || saleObj.createdAt || new Date(),
+          P: saleObj.itemsGrouped?.hasProducts || false,
+          S: saleObj.itemsGrouped?.hasServices || false,
+          C: saleObj.itemsGrouped?.hasCombos || false
+        };
+      } else {
+        // Para remisiones, S.total es igual al total de la venta (sin IVA)
+        ctx.S = {
+          total: Number(saleObj.total) || 0,
+          'nº': saleObj.formattedNumber || saleObj.number || '',
+          fecha: saleObj.date || saleObj.createdAt || new Date(),
+          P: saleObj.itemsGrouped?.hasProducts || false,
+          S: saleObj.itemsGrouped?.hasServices || false,
+          C: saleObj.itemsGrouped?.hasCombos || false
+        };
+      }
     } else {
       // Log si no se encontró la venta
       if (process.env.NODE_ENV !== 'production') {
@@ -641,6 +671,36 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
         quoteObj.vehicle = { plate: '', make: '', line: '', modelYear: '', displacement: '' };
       }
       ctx.quote = quoteObj;
+      
+      // Para cotizaciones con IVA habilitado, calcular subtotal, IVA y total
+      // Similar a como se hace para facturas en ventas
+      if (quoteObj.ivaEnabled) {
+        const subtotal = Number(quoteObj.total) || 0;
+        const iva = subtotal * 0.19;
+        const totalWithIva = subtotal + iva;
+        
+        // Crear objeto Q con valores calculados para cotizaciones con IVA
+        ctx.Q = {
+          subtotal: subtotal,
+          iva: iva,
+          total: totalWithIva,
+          'nº': quoteObj.number || '',
+          fecha: quoteObj.date || quoteObj.createdAt || new Date(),
+          P: quoteObj.itemsGrouped?.hasProducts || false,
+          S: quoteObj.itemsGrouped?.hasServices || false,
+          C: quoteObj.itemsGrouped?.hasCombos || false
+        };
+      } else {
+        // Para cotizaciones sin IVA, Q.total es igual al total de la cotización
+        ctx.Q = {
+          total: Number(quoteObj.total) || 0,
+          'nº': quoteObj.number || '',
+          fecha: quoteObj.date || quoteObj.createdAt || new Date(),
+          P: quoteObj.itemsGrouped?.hasProducts || false,
+          S: quoteObj.itemsGrouped?.hasServices || false,
+          C: quoteObj.itemsGrouped?.hasCombos || false
+        };
+      }
     }
   }
   // Pedido (order)
@@ -784,6 +844,15 @@ function ensureHB() {
     if (!Array.isArray(items)) return false;
     return items.length > 0;
   });
+  // Helper $ para formatear valores numéricos como dinero
+  // Uso: {{$ S.subtotal}} o {{$ Q.total}}
+  // En Handlebars, S.subtotal se evalúa primero, luego se pasa el valor al helper
+  Handlebars.registerHelper('$', function(value) {
+    // El valor ya viene evaluado desde el contexto (ej: S.subtotal)
+    if (value === undefined || value === null) return '';
+    const n = Number(value || 0);
+    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+  });
   hbInitialized = true;
 }
 
@@ -902,15 +971,28 @@ function normalizeTemplateHtml(html='') {
   output = output.replace(/&amp;#125;&amp;#125;/g, '}}');
   
   // CORREGIR: Convertir templates antiguos que usan {{#each sale.items}} a la nueva estructura con sale.itemsGrouped
-  // Para remisiones/invoices
-  if (output.includes('remission-table') || output.includes('items-table')) {
+  // Para remisiones/invoices y workOrder
+  if (output.includes('remission-table') || output.includes('items-table') || output.includes('workorder-table')) {
     // Primero, agregar fila de vehículo al thead si existe y no la tiene
     const theadMatches = output.match(/<thead>([\s\S]*?)<\/thead>/gi);
     if (theadMatches) {
       theadMatches.forEach((match) => {
         // Si el thead no tiene la fila del vehículo, agregarla antes de la fila de encabezados
         if (!match.includes('sale.vehicle.brand') && !match.includes('sale.vehicle.line')) {
-          const vehicleRow = `          {{#if sale.vehicle}}
+          // Para workOrder, la tabla solo tiene 2 columnas (Detalle, Cantidad)
+          // Para remisiones, tiene 4 columnas (Detalle, Cantidad, Precio, Total)
+          const isWorkOrder = output.includes('workorder-table');
+          const vehicleRow = isWorkOrder ? `          {{#if sale.vehicle}}
+          <tr style="background: #e8f4f8; font-weight: bold; border: 2px solid #000; border-bottom: 1px solid #000;">
+            <th style="padding: 3px 6px; font-size: 11px; border-right: 1px solid #000; text-align: left;">
+              {{#if sale.vehicle.brand}}{{sale.vehicle.brand}}{{/if}}{{#if sale.vehicle.line}} {{sale.vehicle.line}}{{/if}}{{#if sale.vehicle.engine}} {{sale.vehicle.engine}}{{/if}}
+            </th>
+            <th style="padding: 3px 6px; font-size: 11px; text-align: left;">
+              {{#if sale.vehicle.plate}}<strong>{{sale.vehicle.plate}}</strong>{{else}}—{{/if}}{{#if sale.vehicle.mileage}} | Kilometraje: {{sale.vehicle.mileage}} km{{/if}}
+            </th>
+          </tr>
+          {{/if}}
+          ` : `          {{#if sale.vehicle}}
           <tr style="background: #e8f4f8; font-weight: bold; border: 2px solid #000; border-bottom: 1px solid #000;">
             <th style="padding: 3px 6px; font-size: 11px; border-right: 1px solid #000; text-align: left;">
               {{#if sale.vehicle.brand}}{{sale.vehicle.brand}}{{/if}}{{#if sale.vehicle.line}} {{sale.vehicle.line}}{{/if}}{{#if sale.vehicle.engine}} {{sale.vehicle.engine}}{{/if}}
@@ -928,7 +1010,8 @@ function normalizeTemplateHtml(html='') {
           const updatedThead = match.replace(/(<thead>[\s\S]*?)(<tr>[\s\S]*?<th>Detalle)/i, `$1${vehicleRow}$2`);
           if (updatedThead !== match) {
             output = output.replace(match, updatedThead);
-            console.log('[normalizeTemplateHtml] ✅ Agregada fila de vehículo al thead de remisión');
+            const templateType = isWorkOrder ? 'orden de trabajo' : 'remisión';
+            console.log(`[normalizeTemplateHtml] ✅ Agregada fila de vehículo al thead de ${templateType}`);
           }
         }
       });

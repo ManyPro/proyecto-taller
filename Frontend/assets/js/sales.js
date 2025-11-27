@@ -188,7 +188,7 @@ function describeVehicle(vehicle){
   return parts.join(' | ') || 'N/A';
 }
 
-function printSaleTicket(sale){
+function printSaleTicket(sale, documentType = 'remission'){
   if(!sale) return;
   function fallback(){
     const number = padSaleNumber(sale.number || sale._id || '');
@@ -283,9 +283,15 @@ function printSaleTicket(sale){
             win.document.write(`<!doctype html><html><head><meta charset='utf-8'><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">${modalScript}</head><body><pre>${txt}</pre></body></html>`);
     win.document.close(); win.focus();
   }
-  // Intento con plantilla activa invoice
+  // Determinar tipo de plantilla según documentType
+  // Si es 'invoice', usar 'invoice-factura' para obtener la plantilla de factura con IVA
+  // Si es 'remission', usar 'invoice' para obtener la plantilla de remisión
+  const templateType = documentType === 'invoice' ? 'invoice-factura' : 'invoice';
+  
+  // Intento con plantilla activa
   if(API?.templates?.active){
-    API.templates.active('invoice')
+    // Usar el tipo correcto según documentType
+    API.templates.active(templateType)
       .then(tpl=>{
         console.log('[printSaleTicket] Template activo recibido:', {
           hasTemplate: !!tpl,
@@ -293,13 +299,44 @@ function printSaleTicket(sale){
           contentHtmlLength: tpl?.contentHtml?.length || 0,
           hasContentCss: !!(tpl?.contentCss),
           templateId: tpl?._id,
-          templateName: tpl?.name
+          templateName: tpl?.name,
+          templateType: templateType
         });
-        if(!tpl || !tpl.contentHtml){ 
+        // Si no hay plantilla para invoice-factura, intentar usar la de invoice como respaldo
+        if((!tpl || !tpl.contentHtml) && templateType === 'invoice-factura'){
+          console.warn('[printSaleTicket] No hay template activo para invoice-factura, intentando usar invoice como respaldo');
+          return API.templates.active('invoice')
+            .then(invoiceTpl => {
+              if(invoiceTpl && invoiceTpl.contentHtml){
+                console.log('[printSaleTicket] Usando template de invoice como respaldo para factura');
+                return processTemplate(invoiceTpl);
+              } else {
+                console.warn('[printSaleTicket] No hay template activo o contentHtml está vacío, usando fallback');
+                fallback();
+              }
+            })
+            .catch(err => {
+              console.error('[printSaleTicket] Error al cargar template de respaldo:', err);
+              fallback();
+            });
+        } else if(!tpl || !tpl.contentHtml){ 
           console.warn('[printSaleTicket] No hay template activo o contentHtml está vacío, usando fallback');
           fallback(); 
-          return; 
+        } else {
+          // Continuar con el procesamiento
+          return processTemplate(tpl);
         }
+      })
+      .catch(err => {
+        console.error('[printSaleTicket] Error al cargar template:', err);
+        fallback();
+      });
+  } else {
+    fallback();
+  }
+  
+  // Función auxiliar para procesar el template
+  function processTemplate(tpl){
         console.log('[printSaleTicket] Usando template guardado:', tpl.name || tpl._id);
         console.log('[printSaleTicket] HTML del template (primeros 500 chars):', tpl.contentHtml?.substring(0, 500));
         
@@ -348,7 +385,11 @@ function printSaleTicket(sale){
         } else {
           console.warn('[printSaleTicket] ⚠️ NO se encontraron tablas <tbody> en el template guardado!');
         }
-        return API.templates.preview({ type:'invoice', contentHtml: restoredHtml, contentCss: tpl.contentCss || '', sampleId: sale._id })
+        // Usar el tipo correcto para la API según documentType
+        // sampleType debe coincidir con los tipos reconocidos por el backend: ['invoice', 'invoice-factura', 'workOrder', 'sale']
+        // Para remisiones, usar 'invoice'; para facturas con IVA, usar 'invoice-factura'
+        const sampleTypeValue = documentType === 'invoice' ? 'invoice-factura' : 'invoice';
+        return API.templates.preview({ type: templateType, contentHtml: restoredHtml, contentCss: tpl.contentCss || '', sampleId: sale._id, sampleType: sampleTypeValue })
           .then(r=>{
             console.log('[printSaleTicket] ===== PREVIEW RECIBIDO =====');
             console.log('[printSaleTicket] Has rendered:', !!r.rendered);
@@ -532,7 +573,8 @@ function printSaleTicket(sale){
               </script>
             `;
             
-            win.document.write(`<!doctype html><html><head><meta charset='utf-8'><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">${css}${debugScript}${modalScript}
+            // Aplicar estilos dinámicos inmediatamente después de escribir el documento
+            win.document.write(`<!doctype html><html><head><meta charset='utf-8'><meta name="viewport" content="width=device-width, initial-scale=1.0">${css}${debugScript}${modalScript}
               <style>
                 /* Estilos base para mejor uso del espacio y centrado */
                 * {
@@ -554,7 +596,6 @@ function printSaleTicket(sale){
                 
                 /* Contenedor centrado para el contenido de la remisión */
                 .remission-wrapper {
-                  max-width: 720px;
                   width: 100%;
                   min-width: 0;
                   margin: 0 auto;
@@ -598,6 +639,14 @@ function printSaleTicket(sale){
                     font-size: 12px !important;
                   }
                   
+                  .remission-wrapper {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    min-width: 0 !important;
+                    margin: 0 auto !important;
+                    position: relative !important;
+                  }
+                  
                   /* Aumentar tamaño de fuente en impresión */
                   h1, h2 {
                     font-size: 2em !important;
@@ -605,6 +654,7 @@ function printSaleTicket(sale){
                   
                   table {
                     font-size: 11px !important;
+                    width: 100% !important;
                   }
                   
                   table th, table td {
@@ -652,12 +702,12 @@ function printSaleTicket(sale){
                   .client-data-box {
                     left: 19px !important;
                     top: 83px !important;
-                    width: 240px !important;
+                    width: calc(50% - 10px) !important;
                   }
                   .company-data-box {
                     right: 19px !important;
                     top: 83px !important;
-                    width: 240px !important;
+                    width: calc(50% - 10px) !important;
                   }
                   .client-data-box table,
                   .company-data-box table {
@@ -677,36 +727,10 @@ function printSaleTicket(sale){
                 }
               </style>
             </head><body><div class="remission-wrapper">${r.rendered}</div></body></html>`);
-            win.document.close(); 
+            win.document.close();
             
-            // Función para detectar si el contenido cabe en media carta y ajustar tamaño de página
-            const detectAndSetPageSize = () => {
-              const body = win.document.body;
-              const html = win.document.documentElement;
-              
-              // Obtener altura total del contenido
-              const contentHeight = Math.max(
-                body.scrollHeight,
-                body.offsetHeight,
-                html.clientHeight,
-                html.scrollHeight,
-                html.offsetHeight
-              );
-              
-              // Media carta: ~816px (21.6cm a 96 DPI) menos márgenes (~20mm = ~76px) = ~740px disponible
-              // Carta completa: ~1054px (27.9cm a 96 DPI) menos márgenes = ~978px disponible
-              // Ajustar umbrales para mejor detección
-              const mediaCartaMaxHeight = 750; // px - Reducido para asegurar que realmente quepa en media carta
-              const cartaMaxHeight = 1000; // px
-              
-              console.log('[printSaleTicket] Detectando tamaño de página:', {
-                contentHeight,
-                mediaCartaMaxHeight,
-                cartaMaxHeight,
-                fitsMediaCarta: contentHeight <= mediaCartaMaxHeight
-              });
-              
-              // Crear o actualizar estilo para tamaño de página
+            // Aplicar estilos dinámicos inmediatamente para evitar que se vea pequeño
+            const applyDynamicStyles = () => {
               let pageSizeStyle = win.document.getElementById('dynamic-page-size');
               if (!pageSizeStyle) {
                 pageSizeStyle = win.document.createElement('style');
@@ -714,169 +738,117 @@ function printSaleTicket(sale){
                 win.document.head.appendChild(pageSizeStyle);
               }
               
-              if (contentHeight <= mediaCartaMaxHeight) {
-                // Usar media carta (half-letter) con márgenes mínimos superiores (0.25 cm = 2.5mm)
-                pageSizeStyle.textContent = `
-                  @page {
-                    size: 5.5in 8.5in;
-                    margin-top: 2.5mm;
-                    margin-bottom: 2.5mm;
-                    margin-left: 5mm;
-                    margin-right: 5mm;
+              // Estilos base para asegurar que el contenido se vea proporcional
+              pageSizeStyle.textContent = `
+                body {
+                  width: 100% !important;
+                  max-width: 100% !important;
+                }
+                .remission-wrapper {
+                  width: 100% !important;
+                  max-width: 100% !important;
+                  min-width: 0 !important;
+                }
+                table {
+                  width: 100% !important;
+                  max-width: 100% !important;
+                }
+                @page {
+                  size: auto;
+                  margin-top: 2.5mm;
+                  margin-bottom: 2.5mm;
+                  margin-left: 5mm;
+                  margin-right: 5mm;
+                }
+                @media print {
+                  body {
+                    margin: 0 !important;
+                    padding-top: 2.5mm !important;
+                    padding-bottom: 2.5mm !important;
+                    padding-left: 5mm !important;
+                    padding-right: 5mm !important;
+                    display: flex !important;
+                    justify-content: center !important;
+                    align-items: flex-start !important;
+                    width: 100% !important;
+                    max-width: 100% !important;
                   }
-                  @media print {
-                    body {
-                      margin: 0 !important;
-                      padding-top: 2.5mm !important;
-                      padding-bottom: 2.5mm !important;
-                      padding-left: 5mm !important;
-                      padding-right: 5mm !important;
-                      max-height: 210.9mm !important;
-                      display: flex !important;
-                      justify-content: center !important;
-                      align-items: flex-start !important;
-                    }
-                    .remission-wrapper {
-                      max-width: 720px !important;
-                      width: 100% !important;
-                      min-width: 0 !important;
-                      margin: 0 auto !important;
-                      position: relative !important;
-                      padding: 0 5mm !important;
-                    }
-                    /* Asegurar que la tabla de items tenga el mismo ancho que los cuadros de datos */
-                    .items-table {
-                      width: 682px !important;
-                      max-width: 682px !important;
-                    }
-                    /* Estilos para cuadros de datos del cliente y empresa */
-                    .client-data-box,
-                    .company-data-box {
-                      position: absolute !important;
-                      border: 2px solid #000 !important;
-                      padding: 8px !important;
-                      background: white !important;
-                      z-index: 10 !important;
-                      page-break-inside: avoid !important;
-                      overflow: visible !important;
-                      visibility: visible !important;
-                      opacity: 1 !important;
-                      max-width: calc(50% - 5px) !important;
-                      box-sizing: border-box !important;
-                    }
-                    .client-data-box {
-                      left: 5mm !important;
-                      top: 83px !important;
-                      width: 336px !important;
-                      margin-right: 10px !important;
-                    }
-                    .company-data-box {
-                      left: 365px !important;
-                      right: auto !important;
-                      top: 83px !important;
-                      width: 336px !important;
-                      margin-left: 0 !important;
-                    }
-                    .client-data-box table,
-                    .company-data-box table {
-                      width: 100% !important;
-                      border-collapse: collapse !important;
-                      font-size: 11px !important;
-                      margin-top: 2px !important;
-                    }
-                    .client-data-box td,
-                    .company-data-box td {
-                      border: 1px solid #000 !important;
-                      padding: 5px 4px !important;
-                    }
-                    * {
-                      box-sizing: border-box !important;
-                    }
+                  .remission-wrapper {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                    min-width: 0 !important;
+                    margin: 0 auto !important;
+                    position: relative !important;
+                    padding: 0 5mm !important;
                   }
-                `;
-                console.log('[printSaleTicket] ✅ Configurado para MEDIA CARTA (5.5" x 8.5") con márgenes superiores de 0.25cm');
-              } else {
-                // Usar carta completa con márgenes mínimos superiores (0.25 cm = 2.5mm)
-                pageSizeStyle.textContent = `
-                  @page {
-                    size: letter;
-                    margin-top: 2.5mm;
-                    margin-bottom: 2.5mm;
-                    margin-left: 5mm;
-                    margin-right: 5mm;
+                  /* Estilos para cuadros de datos del cliente y empresa */
+                  .client-data-box,
+                  .company-data-box {
+                    position: absolute !important;
+                    border: 2px solid #000 !important;
+                    padding: 8px !important;
+                    background: white !important;
+                    z-index: 10 !important;
+                    page-break-inside: avoid !important;
+                    overflow: visible !important;
+                    visibility: visible !important;
+                    opacity: 1 !important;
+                    box-sizing: border-box !important;
                   }
-                  @media print {
-                    body {
-                      margin: 0 !important;
-                      padding-top: 2.5mm !important;
-                      padding-bottom: 2.5mm !important;
-                      padding-left: 5mm !important;
-                      padding-right: 5mm !important;
-                      max-height: 274mm !important;
-                      display: flex !important;
-                      justify-content: center !important;
-                      align-items: flex-start !important;
-                    }
-                    .remission-wrapper {
-                      max-width: 720px !important;
-                      width: 100% !important;
-                      min-width: 0 !important;
-                      margin: 0 auto !important;
-                      position: relative !important;
-                      padding: 0 5mm !important;
-                    }
-                    /* Asegurar que la tabla de items tenga el mismo ancho que los cuadros de datos */
-                    .items-table {
-                      width: 682px !important;
-                      max-width: 682px !important;
-                    }
-                    /* Estilos para cuadros de datos del cliente y empresa */
-                    .client-data-box,
-                    .company-data-box {
-                      position: absolute !important;
-                      border: 2px solid #000 !important;
-                      padding: 8px !important;
-                      background: white !important;
-                      z-index: 10 !important;
-                      page-break-inside: avoid !important;
-                      overflow: visible !important;
-                      visibility: visible !important;
-                      opacity: 1 !important;
-                      max-width: calc(50% - 5px) !important;
-                      box-sizing: border-box !important;
-                    }
-                    .client-data-box {
-                      left: 5mm !important;
-                      top: 83px !important;
-                      width: calc(50% - 5px) !important;
-                      margin-right: 5px !important;
-                    }
-                    .company-data-box {
-                      right: 5mm !important;
-                      left: auto !important;
-                      top: 83px !important;
-                      width: calc(50% - 5px) !important;
-                      margin-left: 5px !important;
-                    }
-                    .client-data-box table,
-                    .company-data-box table {
-                      width: 100% !important;
-                      border-collapse: collapse !important;
-                      font-size: 11px !important;
-                      margin-top: 2px !important;
-                    }
-                    .client-data-box td,
-                    .company-data-box td {
-                      border: 1px solid #000 !important;
-                      padding: 5px 4px !important;
-                    }
-                    * {
-                      box-sizing: border-box !important;
-                    }
+                  .client-data-box {
+                    left: 19px !important;
+                    top: 83px !important;
+                    width: 336px !important;
                   }
-                `;
-                console.log('[printSaleTicket] ✅ Configurado para CARTA COMPLETA (8.5" x 11") con márgenes superiores de 0.25cm');
-              }
+                  .company-data-box {
+                    left: 365px !important;
+                    right: auto !important;
+                    top: 83px !important;
+                    width: 336px !important;
+                  }
+                  /* Asegurar que la tabla de items esté alineada con los cuadros */
+                  .items-table {
+                    left: 19px !important;
+                    width: 682px !important;
+                    max-width: 682px !important;
+                  }
+                  .remission-table,
+                  .items-table table {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                  }
+                  .client-data-box table,
+                  .company-data-box table {
+                    width: 100% !important;
+                    border-collapse: collapse !important;
+                    font-size: 11px !important;
+                    margin-top: 2px !important;
+                  }
+                  .client-data-box td,
+                  .company-data-box td {
+                    border: 1px solid #000 !important;
+                    padding: 5px 4px !important;
+                  }
+                  * {
+                    box-sizing: border-box !important;
+                  }
+                }
+              `;
+            };
+            
+            // Aplicar estilos inmediatamente
+            try {
+              applyDynamicStyles();
+            } catch (e) {
+              console.warn('[printSaleTicket] Error aplicando estilos iniciales:', e);
+            }
+            
+            // Función para configurar estilos de impresión proporcionales
+            // Esta función actualiza los estilos dinámicos para asegurar consistencia
+            const detectAndSetPageSize = () => {
+              // Reutilizar la función applyDynamicStyles para mantener consistencia
+              applyDynamicStyles();
+              console.log('[printSaleTicket] ✅ Estilos dinámicos aplicados para tamaño automático proporcional');
             };
             
             // NOTA: El total ahora está dentro de la tabla como tfoot, así que ya no necesitamos ajustar posición separada
@@ -916,12 +888,7 @@ function printSaleTicket(sale){
             console.error('[printSaleTicket] Error en preview:', err);
             fallback();
           });
-      })
-      .catch((err)=>{
-        console.error('[printSaleTicket] Error obteniendo template activo:', err);
-        fallback();
-      });
-  } else fallback();
+  }
 }
 
 // Imprimir Orden de Trabajo usando plantilla workOrder si existe
@@ -1268,6 +1235,7 @@ function printWorkOrder(){
 
 let es = null;
 let current = null;
+let ivaEnabled = false;
 let openSales = [];
 let companyTechnicians = [];
 let technicianSelectInitialized = false;
@@ -1363,6 +1331,12 @@ async function renderQuoteForCurrentSale(){
     if(token !== saleQuoteRequestToken) return;
     if(quote){
       renderQuoteMini(quote);
+      // Activar IVA automáticamente si la cotización tiene IVA habilitado
+      if(quote.ivaEnabled && !ivaEnabled){
+        ivaEnabled = true;
+        updateIvaButton();
+        renderSale();
+      }
     } else {
       setSaleQuoteLink(saleId, null);
       renderQuoteMini(null);
@@ -2503,12 +2477,17 @@ function fillCloseModal(){
     });
     
     const total = Math.round(Number(current?.total||0));
-    console.log('Validación de cierre:', { sum, total, diff: Math.abs(sum - total), paymentsCount: payments.length, rowsCount: rows.length });
-    const diff = Math.abs(sum - total);
-    if(diff > 0.01){ 
-      msg.textContent=`La suma de pagos (${money(sum)}) no coincide con el total (${money(total)}). Diferencia: ${money(diff)}.`; 
-      msg.classList.add('error');
-      return; 
+    const hasZeroTotal = total === 0;
+    console.log('Validación de cierre:', { sum, total, diff: Math.abs(sum - total), paymentsCount: payments.length, rowsCount: rows.length, hasZeroTotal });
+    
+    // Si el total es 0, no validar formas de pago ni suma
+    if (!hasZeroTotal) {
+      const diff = Math.abs(sum - total);
+      if(diff > 0.01){ 
+        msg.textContent=`La suma de pagos (${money(sum)}) no coincide con el total (${money(total)}). Diferencia: ${money(diff)}.`; 
+        msg.classList.add('error');
+        return; 
+      }
     }
     
     // CRÍTICO: Filtrar pagos leyendo directamente de los inputs, no del objeto payments
@@ -2531,7 +2510,9 @@ function fillCloseModal(){
         }
       }
     });
-    if(!filtered.length){ 
+    
+    // Solo validar formas de pago si el total NO es 0
+    if(!hasZeroTotal && !filtered.length){ 
       msg.textContent='Agregar al menos una forma de pago válida'; 
       msg.classList.add('error');
       return; 
@@ -2594,7 +2575,8 @@ function fillCloseModal(){
       
       // CRÍTICO: Leer valores directamente de los inputs para garantizar precisión
       // Ya filtramos usando los inputs, ahora solo necesitamos mapear y limpiar
-      const paymentMethodsToSend = filtered.map(p=>{
+      // Si el total es 0, paymentMethodsToSend será un array vacío
+      const paymentMethodsToSend = hasZeroTotal ? [] : filtered.map(p=>{
         // Buscar la fila correspondiente al payment por índice
         const rowIndex = payments.indexOf(p);
         let finalAmount = Math.round(Number(p.amount) || 0);
@@ -3408,7 +3390,25 @@ async function renderSale(){
     if (btnDel) actions.appendChild(btnDel);
   }
 
-  if (total) total.textContent = money(current?.total||0);
+  // Calcular total con IVA si está habilitado
+  let displayTotal = current?.total || 0;
+  const ivaRow = document.getElementById('sales-iva-row');
+  const ivaAmount = document.getElementById('sales-iva-amount');
+  
+  if (ivaEnabled && current?.total) {
+    const subtotal = current.total;
+    const ivaValue = subtotal * 0.19;
+    displayTotal = subtotal + ivaValue;
+    
+    if (ivaRow) {
+      ivaRow.classList.remove('hidden');
+      if (ivaAmount) ivaAmount.textContent = money(ivaValue);
+    }
+  } else {
+    if (ivaRow) ivaRow.classList.add('hidden');
+  }
+  
+  if (total) total.textContent = money(displayTotal);
   renderMini(); renderCapsules(); setupTechnicianSelect();
 
   // Leyenda dinámica de orígenes
@@ -9472,9 +9472,32 @@ export function initSales(){
     if (!current) return;
     try{
       const fresh = await API.sales.get(current._id);
-      printSaleTicket(fresh);
+      // Si IVA está activado, imprimir factura; si no, imprimir remisión
+      printSaleTicket(fresh, ivaEnabled ? 'invoice' : 'remission');
     }catch(e){ alert(e?.message||'No se pudo imprimir'); }
   });
+  
+  // Event listener para el botón toggle de IVA
+  const btnIvaToggle = document.getElementById('sales-iva-toggle');
+  if (btnIvaToggle) {
+    btnIvaToggle.addEventListener('click', () => {
+      ivaEnabled = !ivaEnabled;
+      updateIvaButton();
+      renderSale();
+    });
+    updateIvaButton();
+  }
+  
+  function updateIvaButton() {
+    if (!btnIvaToggle) return;
+    if (ivaEnabled) {
+      btnIvaToggle.classList.remove('bg-slate-700/50', 'dark:bg-slate-700/50', 'theme-light:bg-sky-200', 'theme-light:text-slate-700');
+      btnIvaToggle.classList.add('bg-gradient-to-r', 'from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600', 'hover:from-green-700', 'hover:to-green-800', 'dark:hover:from-green-700', 'dark:hover:to-green-800', 'theme-light:hover:from-green-600', 'theme-light:hover:to-green-700', 'text-white', 'shadow-md', 'hover:shadow-lg');
+    } else {
+      btnIvaToggle.classList.remove('bg-gradient-to-r', 'from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600', 'hover:from-green-700', 'hover:to-green-800', 'dark:hover:from-green-700', 'dark:hover:to-green-800', 'theme-light:hover:from-green-600', 'theme-light:hover:to-green-700', 'text-white', 'shadow-md', 'hover:shadow-lg');
+      btnIvaToggle.classList.add('bg-slate-700/50', 'dark:bg-slate-700/50', 'hover:bg-slate-700', 'dark:hover:bg-slate-700', 'text-white', 'dark:text-white', 'theme-light:bg-sky-200', 'theme-light:text-slate-700', 'theme-light:hover:bg-slate-300', 'theme-light:hover:text-slate-900');
+    }
+  }
 
   document.getElementById('sales-special-notes')?.addEventListener('click', async ()=>{
     if (!current) return;
@@ -9983,9 +10006,9 @@ async function createHistorialSaleCard(sale) {
         </button>
       </div>
     </div>
-    <div class="mt-3 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 flex justify-between items-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
-      <span>Venta #${saleNumber}</span>
-      <span>Cerrada: ${closedDate}</span>
+    <div class="mt-3 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 flex justify-between items-center">
+      <span class="text-base font-bold text-white dark:text-white theme-light:text-slate-900">Venta #${saleNumber}</span>
+      <span class="text-sm font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Cerrada: ${closedDate}</span>
     </div>
   `;
 
@@ -11328,15 +11351,20 @@ function setupEditCloseModalListeners(sale, payments, commissions) {
     });
     
     const total = Number(document.querySelector('#ecv-payments-block')?.closest('.space-y-4')?.querySelector('strong')?.textContent?.replace(/[^0-9]/g, '') || 0);
+    const hasZeroTotal = total === 0;
     
-    if (Math.abs(sum - total) > 0.01) {
-      msg.textContent = `La suma de pagos (${money(sum)}) no coincide con el total (${money(total)}). Diferencia: ${money(Math.abs(sum - total))}.`;
-      msg.classList.add('error');
-      return;
+    // Si el total es 0, no validar formas de pago ni suma
+    if (!hasZeroTotal) {
+      if (Math.abs(sum - total) > 0.01) {
+        msg.textContent = `La suma de pagos (${money(sum)}) no coincide con el total (${money(total)}). Diferencia: ${money(Math.abs(sum - total))}.`;
+        msg.classList.add('error');
+        return;
+      }
     }
 
     const filtered = validPayments;
-    if (!filtered.length) {
+    // Solo validar formas de pago si el total NO es 0
+    if (!hasZeroTotal && !filtered.length) {
       msg.textContent = 'Agregar al menos una forma de pago válida';
       msg.classList.add('error');
       return;
@@ -11377,27 +11405,31 @@ function setupEditCloseModalListeners(sale, payments, commissions) {
       }
 
       // CRÍTICO: Leer valores directamente de los inputs una vez más antes de enviar
-      const paymentMethodsToSend = [];
-      rows.forEach((row, idx) => {
-        const amtInput = row.querySelector('.ecv-payment-amount');
-        const methodSelect = row.querySelector('.ecv-payment-method');
-        const accountSelect = row.querySelector('.ecv-payment-account');
-        
-        if (amtInput && methodSelect) {
-          const rawValue = String(amtInput.value || '0').replace(/[^0-9]/g, '');
-          const amount = Math.round(Number(rawValue) || 0);
-          const method = String(methodSelect.value || '').trim().toUpperCase();
-          const isCredit = method === 'CREDITO' || method === 'CRÉDITO';
+      // Si el total es 0, no procesar formas de pago
+      const paymentMethodsToSend = hasZeroTotal ? [] : (() => {
+        const methods = [];
+        rows.forEach((row, idx) => {
+          const amtInput = row.querySelector('.ecv-payment-amount');
+          const methodSelect = row.querySelector('.ecv-payment-method');
+          const accountSelect = row.querySelector('.ecv-payment-account');
           
-          if (method && amount > 0) {
-            paymentMethodsToSend.push({
-              method: method,
-              amount: amount,
-              accountId: isCredit ? null : (accountSelect?.value || null)
-            });
+          if (amtInput && methodSelect) {
+            const rawValue = String(amtInput.value || '0').replace(/[^0-9]/g, '');
+            const amount = Math.round(Number(rawValue) || 0);
+            const method = String(methodSelect.value || '').trim().toUpperCase();
+            const isCredit = method === 'CREDITO' || method === 'CRÉDITO';
+            
+            if (method && amount > 0) {
+              methods.push({
+                method: method,
+                amount: amount,
+                accountId: isCredit ? null : (accountSelect?.value || null)
+              });
+            }
           }
-        }
-      });
+        });
+        return methods;
+      })();
       
       const payload = {
         paymentMethods: paymentMethodsToSend,

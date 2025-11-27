@@ -108,10 +108,46 @@ export async function listEntries(req, res) {
     if (dateRange.from) q.date.$gte = dateRange.from;
     if (dateRange.to) q.date.$lte = dateRange.to;
   }
-  const [rows, count] = await Promise.all([
-    CashFlowEntry.find(q).sort({ date: -1, _id: -1 }).skip((pg - 1) * lim).limit(lim).populate('accountId', 'name type'),
-    CashFlowEntry.countDocuments(q)
-  ]);
+  // Obtener movimientos con populate de cuenta y venta (si aplica)
+  const rows = await CashFlowEntry.find(q)
+    .sort({ date: -1, _id: -1 })
+    .skip((pg - 1) * lim)
+    .limit(lim)
+    .populate('accountId', 'name type')
+    .lean();
+  
+  // Enriquecer movimientos de venta con información de la venta
+  const Sale = (await import('../models/Sale.js')).default;
+  const saleIds = rows
+    .filter(r => r.source === 'SALE' && r.sourceRef)
+    .map(r => r.sourceRef);
+  
+  if (saleIds.length > 0) {
+    const sales = await Sale.find({ _id: { $in: saleIds } })
+      .select('number vehicle.plate')
+      .lean();
+    const saleMap = {};
+    sales.forEach(s => {
+      saleMap[String(s._id)] = {
+        saleNumber: s.number,
+        salePlate: s.vehicle?.plate || ''
+      };
+    });
+    
+    // Agregar información de venta a los movimientos
+    rows.forEach(row => {
+      if (row.source === 'SALE' && row.sourceRef) {
+        const saleInfo = saleMap[String(row.sourceRef)];
+        if (saleInfo) {
+          if (!row.meta) row.meta = {};
+          row.meta.saleNumber = saleInfo.saleNumber;
+          row.meta.salePlate = saleInfo.salePlate;
+        }
+      }
+    });
+  }
+  
+  const count = await CashFlowEntry.countDocuments(q);
   // Totales en el rango
   const agg = await CashFlowEntry.aggregate([
     { $match: q },
@@ -309,7 +345,11 @@ export async function registerSaleIncome({ companyId, sale, accountId, forceCrea
       amount,
       balanceAfter: newBal,
       date: saleDate,
-      meta: { saleNumber: sale.number, paymentMethod: m.method }
+      meta: { 
+        saleNumber: sale.number, 
+        salePlate: sale.vehicle?.plate || '',
+        paymentMethod: m.method 
+      }
     });
   }
   

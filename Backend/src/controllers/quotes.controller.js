@@ -216,8 +216,23 @@ export async function createQuote(req, res) {
   const seq = counter.quoteSeq;
   const number = String(seq).padStart(5, '0');
 
-  const { customer = {}, vehicle = {}, validity = '', specialNotes = [], items: itemsInput = [] } = req.body || {};
-  const { items, total } = await computeItems(itemsInput, companyId);
+  const { customer = {}, vehicle = {}, validity = '', specialNotes = [], items: itemsInput = [], discount = null, ivaEnabled = false } = req.body || {};
+  const { items, total: subtotal } = await computeItems(itemsInput, companyId);
+  
+  // Aplicar descuento si existe
+  let totalAfterDiscount = subtotal;
+  if (discount && discount.value > 0) {
+    if (discount.type === 'percent') {
+      totalAfterDiscount = subtotal - (subtotal * discount.value / 100);
+    } else {
+      totalAfterDiscount = subtotal - discount.value;
+    }
+  }
+  
+  // IMPORTANTE: Guardar solo el subtotal (sin IVA) en el campo total
+  // El IVA se calculará en el template renderer cuando ivaEnabled=true
+  // Esto es consistente con cómo funcionan las ventas (total = subtotal, IVA se calcula en template)
+  const total = totalAfterDiscount;
 
   // Si se proporciona vehicleId, obtener datos del vehículo
   let vehicleData = {
@@ -265,6 +280,8 @@ export async function createQuote(req, res) {
     vehicle: vehicleData,
     validity,
     specialNotes: Array.isArray(specialNotes) ? specialNotes : [],
+    discount: discount && discount.value > 0 ? discount : null,
+    ivaEnabled: ivaEnabled || false,
     items,
     total
   });
@@ -411,8 +428,23 @@ export async function updateQuote(req, res) {
   const exists = await Quote.findOne({ _id: req.params.id, companyId });
   if (!exists) return res.status(404).json({ error: 'No encontrada' });
 
-  const { customer = {}, vehicle = {}, validity = '', specialNotes = [], items: itemsInput = [], discount = null } = req.body || {};
-  const { items, total } = await computeItems(itemsInput, companyId);
+  const { customer = {}, vehicle = {}, validity = '', specialNotes = [], items: itemsInput = [], discount = null, ivaEnabled = false } = req.body || {};
+  const { items, total: subtotal } = await computeItems(itemsInput, companyId);
+  
+  // Aplicar descuento si existe
+  let totalAfterDiscount = subtotal;
+  if (discount && discount.value > 0) {
+    if (discount.type === 'percent') {
+      totalAfterDiscount = subtotal - (subtotal * discount.value / 100);
+    } else {
+      totalAfterDiscount = subtotal - discount.value;
+    }
+  }
+  
+  // IMPORTANTE: Guardar solo el subtotal (sin IVA) en el campo total
+  // El IVA se calculará en el template renderer cuando ivaEnabled=true
+  // Esto es consistente con cómo funcionan las ventas (total = subtotal, IVA se calcula en template)
+  const total = totalAfterDiscount;
 
   exists.customer = {
     name:  customer.name  ?? exists.customer.name,
@@ -471,6 +503,12 @@ export async function updateQuote(req, res) {
       };
     }
   }
+  
+  // Actualizar IVA si se proporciona
+  if (ivaEnabled !== undefined) {
+    exists.ivaEnabled = ivaEnabled || false;
+  }
+  
   exists.items = items;
   exists.total = total;
 

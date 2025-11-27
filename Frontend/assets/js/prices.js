@@ -1987,7 +1987,8 @@ export function initPrices(){
     const comboProducts = existingPrice?.comboProducts || [];
     
     // Determinar si es precio general o inversión
-    const isGeneralPrice = (isGeneral || isInversionPrice) || (existingPrice && !existingPrice.vehicleId && existingPrice.type !== 'inversion');
+    // IMPORTANTE: isInversionPrice y isGeneralPrice son mutuamente excluyentes
+    const isGeneralPrice = isInversionPrice ? false : ((isGeneral) || (existingPrice && !existingPrice.vehicleId && existingPrice.type !== 'inversion'));
     
     // Determinar qué vehículos usar para la creación
     // Si es precio general, no usar vehículos

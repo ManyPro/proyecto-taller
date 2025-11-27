@@ -146,20 +146,33 @@ async function loadMovements(reset=false){
         const outAmt = x.kind==='OUT'? money(x.amount):'';
         const date = formatDate(x.date||x.createdAt);
         const accName = escapeHtml(x.accountId?.name||x.accountName||'');
-        const desc = escapeHtml(x.description||'');
-        const source = escapeHtml(x.source||'');
+        let desc = escapeHtml(x.description||'');
+        
+        // Si la entrada es de una venta, agregar número de venta y placa a la descripción
+        if (x.source === 'SALE' && x.sourceRef) {
+          const saleNumber = x.meta?.saleNumber ? String(x.meta.saleNumber).padStart(5, '0') : '';
+          const salePlate = x.meta?.salePlate || '';
+          if (saleNumber || salePlate) {
+            const saleInfo = [];
+            if (saleNumber) saleInfo.push(`Venta #${saleNumber}`);
+            if (salePlate) saleInfo.push(`Placa: ${salePlate.toUpperCase()}`);
+            if (saleInfo.length > 0) {
+              desc = `${desc} - ${saleInfo.join(' | ')}`;
+            }
+          }
+        }
+        
         const canEdit = true;
         const rowId = escapeHtml(x._id);
         
         return `<tr data-id='${rowId}' class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors">
-          <td data-label="Fecha" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${date}</td>
-          <td data-label="Cuenta" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${accName}</td>
-          <td data-label="Descripción" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${desc}</td>
-          <td data-label="Fuente" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${source}</td>
-          <td data-label="IN" class='px-4 py-3 text-right text-xs font-semibold text-green-400 dark:text-green-400 theme-light:text-green-600 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 ${x.kind==='IN'?'':'text-slate-500 dark:text-slate-500 theme-light:text-slate-400'}'>${inAmt}</td>
-          <td data-label="OUT" class='px-4 py-3 text-right text-xs font-semibold text-red-400 dark:text-red-400 theme-light:text-red-600 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 ${x.kind==='OUT'?'':'text-slate-500 dark:text-slate-500 theme-light:text-slate-400'}'>${outAmt}</td>
-          <td data-label="Saldo" class='px-4 py-3 text-right text-xs font-medium text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200'>${money(x.balanceAfter||0)}</td>
-          <td class="px-4 py-3" style='white-space:nowrap;'>${canEdit?`<button class='px-3 py-1.5 text-xs bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-medium rounded-lg transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30 theme-light:bg-blue-50 theme-light:text-blue-600 theme-light:hover:bg-blue-100 theme-light:border-blue-300 mr-1' data-act='edit' title='Editar'>Editar</button><button class='px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300' data-act='del' title='Eliminar'>Eliminar</button>`:''}</td>
+          <td data-label="Fecha" class="px-4 py-4 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${date}</td>
+          <td data-label="Cuenta" class="px-4 py-4 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${accName}</td>
+          <td data-label="Descripción" class="px-4 py-4 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${desc}</td>
+          <td data-label="Entrada" class='px-4 py-4 text-right text-xs font-semibold text-green-400 dark:text-green-400 theme-light:text-green-600 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 ${x.kind==='IN'?'':'text-slate-500 dark:text-slate-500 theme-light:text-slate-400'}'>${inAmt}</td>
+          <td data-label="Salida" class='px-4 py-4 text-right text-xs font-semibold text-red-400 dark:text-red-400 theme-light:text-red-600 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 ${x.kind==='OUT'?'':'text-slate-500 dark:text-slate-500 theme-light:text-slate-400'}'>${outAmt}</td>
+          <td data-label="Saldo" class='px-4 py-4 text-right text-xs font-medium text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200'>${money(x.balanceAfter||0)}</td>
+          <td class="px-4 py-4" style='white-space:nowrap;'>${canEdit?`<button class='px-3 py-1.5 text-xs bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-medium rounded-lg transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30 theme-light:bg-blue-50 theme-light:text-blue-600 theme-light:hover:bg-blue-100 theme-light:border-blue-300 mr-1' data-act='edit' title='Editar'>Editar</button><button class='px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300' data-act='del' title='Eliminar'>Eliminar</button>`:''}</td>
         </tr>`;
       }).join('');
       rowsBody.querySelectorAll('tr[data-id]').forEach(tr=>{
@@ -182,7 +195,7 @@ async function loadMovements(reset=false){
           });
         });
       });
-      if(!items.length) rowsBody.innerHTML='<tr><td colspan="8" class="px-4 py-6 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin movimientos</td></tr>';
+      if(!items.length) rowsBody.innerHTML='<tr><td colspan="7" class="px-4 py-6 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin movimientos</td></tr>';
     }
     
     // Actualizar controles de paginación
@@ -196,7 +209,7 @@ async function loadMovements(reset=false){
     if(nextBtn) nextBtn.disabled = cfState.page>=cfState.pages;
   }catch(e){ 
     if(summary) summary.textContent = e?.message||'Error';
-    if(rowsBody) rowsBody.innerHTML='<tr><td colspan="8" class="px-4 py-6 text-center text-xs text-red-400">Error al cargar movimientos</td></tr>';
+    if(rowsBody) rowsBody.innerHTML='<tr><td colspan="7" class="px-4 py-6 text-center text-xs text-red-400">Error al cargar movimientos</td></tr>';
   }
 }
 

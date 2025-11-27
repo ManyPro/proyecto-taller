@@ -402,7 +402,7 @@
         <div class="document-type-card" data-type="invoice-factura">
           <div class="icon">📄</div>
           <h3>Factura</h3>
-          <p>Factura con la misma plantilla de remisión (preparado para futuras mejoras)</p>
+          <p>Factura con IVA incluido. Documento fiscal con cálculo automático de IVA (19%)</p>
         </div>
 
         <div class="document-type-card" data-type="quote">
@@ -638,11 +638,9 @@
             console.log('📡 Guardando formato en servidor...');
             
             // Create minimal template to save
-            // Para invoice-factura, usar 'invoice' en la API ya que comparten la misma plantilla
-            const apiType = selectedDocumentType === 'invoice-factura' ? 'invoice' : selectedDocumentType;
             const newTemplate = await API.templates.create({
               name: selectedFormat.name,
-              type: apiType,
+              type: selectedDocumentType,
               contentHtml: '', // Will be filled in editor
               contentCss: '',
               activate: false // Don't activate until it's complete
@@ -709,14 +707,12 @@
       try {
         // Load formats from API
         if (typeof API !== 'undefined') {
-          // Para invoice-factura, usar 'invoice' en la API ya que comparten la misma plantilla
-          const apiType = selectedDocumentType === 'invoice-factura' ? 'invoice' : selectedDocumentType;
-          const response = await API.templates.getByType(apiType);
+          const response = await API.templates.getByType(selectedDocumentType);
           availableFormats = response || [];
           
           // Get active format
           try {
-            const activeFormat = await API.templates.active(apiType);
+            const activeFormat = await API.templates.active(selectedDocumentType);
             console.log('⭐ Active format for', selectedDocumentType, ':', activeFormat);
             
             // Mark active format
@@ -931,15 +927,13 @@
       
       for (const type of documentTypes) {
         try {
-          // Para invoice-factura, usar 'invoice' en la API ya que comparten la misma plantilla
-          const apiType = type === 'invoice-factura' ? 'invoice' : type;
           const selectElement = document.getElementById(`active-${type === 'invoice-factura' ? 'invoicefactura' : type.replace(/\-/g,'')}-format`);
           if (!selectElement) continue;
           
           // Load all formats for this type
           let formats = [];
           if (typeof API !== 'undefined') {
-            formats = await API.templates.getByType(apiType);
+            formats = await API.templates.getByType(type);
           } else {
             formats = [];
           }
@@ -980,8 +974,6 @@
         console.log(`🔄 Activando formato ${formatId} para tipo ${documentType}`);
         
         if (typeof API !== 'undefined') {
-          // Para invoice-factura, usar 'invoice' en la API ya que comparten la misma plantilla
-          const apiType = documentType === 'invoice-factura' ? 'invoice' : documentType;
           await API.templates.activate(formatId);
           
           // Show success message

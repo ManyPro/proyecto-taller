@@ -122,7 +122,7 @@ async function processComboProducts(comboProducts, req) {
 
 // ============ list ============
 export const listPrices = async (req, res) => {
-  const { serviceId, vehicleId, type, brand, line, engine, year, name, page = 1, limit = 10, vehicleYear, includeGeneral = true } = req.query || {};
+  const { serviceId, vehicleId, type, brand, line, engine, year, name, page = 1, limit = 10, vehicleYear, includeGeneral = true, isGeneral } = req.query || {};
   
   // Determinar companyIds a buscar (considerando BD compartida)
   const originalCompanyId = req.originalCompanyId || req.companyId || req.company?.id;
@@ -162,10 +162,10 @@ export const listPrices = async (req, res) => {
   // Si se proporciona vehicleId, buscar precios de ese vehículo Y precios generales (vehicleId: null)
   if (vehicleId) {
     if (includeGeneral === 'true' || includeGeneral === true) {
-      // Incluir precios del vehículo específico Y precios generales
+      // Incluir precios del vehículo específico Y precios generales (pero NO de inversión)
       q.$or = [
         { vehicleId: vehicleId },
-        { vehicleId: null }
+        { vehicleId: null, type: { $ne: 'inversion' } }
       ];
     } else {
       // Solo precios del vehículo específico
@@ -179,7 +179,11 @@ export const listPrices = async (req, res) => {
       // No agregar condición de vehicleId
     } else {
       // Por defecto, buscar solo precios generales cuando no hay vehicleId
+      // Si isGeneral es true, excluir precios de inversión
       q.vehicleId = null;
+      if (isGeneral === 'true' || isGeneral === true) {
+        q.type = { $ne: 'inversion' };
+      }
     }
     
     // Filtros legacy (mantener compatibilidad)
