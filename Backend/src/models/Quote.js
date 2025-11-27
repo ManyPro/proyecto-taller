@@ -14,6 +14,16 @@ const ItemSchema = new mongoose.Schema({
   comboParent: { type: mongoose.Schema.Types.ObjectId } // refId del combo principal si este item es parte de un combo
 }, { _id: false });
 
+const DiscountSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    enum: ['percent', 'fixed'],
+    default: 'fixed'
+  },
+  value: { type: Number, default: 0, min: 0 },
+  amount: { type: Number, default: 0, min: 0 }
+}, { _id: false });
+
 const QuoteSchema = new mongoose.Schema({
   companyId:  { type: mongoose.Schema.Types.ObjectId, ref: 'Company', required: true, index: true },
   createdBy:  { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -39,6 +49,7 @@ const QuoteSchema = new mongoose.Schema({
   currency:   { type: String, default: 'COP' },
   specialNotes: { type: [String], default: [] }, // Notas especiales para la cotización
   ivaEnabled: { type: Boolean, default: false }, // Si el IVA está incluido en la cotización
+  discount: { type: DiscountSchema, default: null }, // Descuento aplicado a la cotización (puede ser null)
 
   items:      { type: [ItemSchema], default: [] },
   total:      { type: Number, required: true, min: 0 },
