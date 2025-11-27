@@ -3319,11 +3319,124 @@
     canvas.appendChild(logoBox);
     visualEditor.elements.push({ id: logoBox.id, type: 'image', element: logoBox });
 
-    // Datos del cliente y empresa
-    const clientDataBox = createClientDataBox({ left: 19, top: 83 });
-    canvas.appendChild(clientDataBox);
-    const companyDataBox = createCompanyDataBox({ right: 19, top: 83 });
-    canvas.appendChild(companyDataBox);
+    // Sección DATOS DEL CLIENTE (izquierda) - Cuadro organizado en 2x2
+    // 1cm de espacio desde el número (45px + 38px = 83px)
+    const clientBox = document.createElement('div');
+    clientBox.className = 'tpl-element client-data-box';
+    clientBox.id = `element_${visualEditor.nextId++}`;
+    clientBox.style.cssText = 'position: absolute; left: 19px; top: 83px; width: 331px; border: 2px solid #000; padding: 8px; background: white; z-index: 10;';
+    clientBox.innerHTML = `
+      <style>
+        .client-data-box {
+          position: absolute !important;
+          left: 19px !important;
+          top: 83px !important;
+          width: 336px !important;
+          border: 2px solid #000 !important;
+          padding: 8px !important;
+          background: white !important;
+          z-index: 10 !important;
+          page-break-inside: avoid !important;
+        }
+        @media print {
+          .client-data-box {
+            position: absolute !important;
+            left: 19px !important;
+            top: 83px !important;
+            width: 336px !important;
+            border: 2px solid #000 !important;
+            padding: 8px !important;
+            background: white !important;
+            z-index: 10 !important;
+            page-break-inside: avoid !important;
+            overflow: visible !important;
+          }
+        }
+      </style>
+      <div style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 5px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 3px;">DATOS DEL CLIENTE</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: Arial, sans-serif; margin-top: 2px;">
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold; width: 30%;">Nombre:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px; width: 70%;"><span contenteditable="true">{{sale.customer.name}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Email:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{sale.customer.email}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Teléfono:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{sale.customer.phone}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Dirección:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{sale.customer.address}}</span></td>
+        </tr>
+      </table>
+    `;
+    makeDraggable(clientBox);
+    makeSelectable(clientBox);
+    canvas.appendChild(clientBox);
+    visualEditor.elements.push({ id: clientBox.id, type: 'text', element: clientBox });
+
+    // Sección DATOS DE LA EMPRESA (derecha) - Cuadro organizado en 2x2
+    const companyBox = document.createElement('div');
+    companyBox.className = 'tpl-element company-data-box';
+    companyBox.id = `element_${visualEditor.nextId++}`;
+    companyBox.style.cssText = 'position: absolute; right: 19px; top: 83px; width: 331px; border: 2px solid #000; padding: 8px; background: white; z-index: 10;';
+    companyBox.innerHTML = `
+      <style>
+        .company-data-box {
+          position: absolute !important;
+          left: 365px !important;
+          right: auto !important;
+          top: 83px !important;
+          width: 336px !important;
+          border: 2px solid #000 !important;
+          padding: 8px !important;
+          background: white !important;
+          z-index: 10 !important;
+          page-break-inside: avoid !important;
+        }
+        @media print {
+          .company-data-box {
+            position: absolute !important;
+            left: 365px !important;
+          right: auto !important;
+            top: 83px !important;
+            width: 336px !important;
+            border: 2px solid #000 !important;
+            padding: 8px !important;
+            background: white !important;
+            z-index: 10 !important;
+            page-break-inside: avoid !important;
+            overflow: visible !important;
+          }
+        }
+      </style>
+      <div style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif; margin-bottom: 5px; text-align: center; border-bottom: 1px solid #000; padding-bottom: 3px;">DATOS DE LA EMPRESA</div>
+      <table style="width: 100%; border-collapse: collapse; font-size: 11px; font-family: Arial, sans-serif; margin-top: 2px;">
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold; width: 30%;">Nombre:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px; width: 70%;"><span contenteditable="true">{{company.name}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Email:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{company.email}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Teléfono:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{company.phone}}</span></td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #000; padding: 5px 4px; font-weight: bold;">Dirección:</td>
+          <td style="border: 1px solid #000; padding: 5px 4px;"><span contenteditable="true">{{company.address}}</span></td>
+        </tr>
+      </table>
+    `;
+    makeDraggable(companyBox);
+    makeSelectable(companyBox);
+    canvas.appendChild(companyBox);
+    visualEditor.elements.push({ id: companyBox.id, type: 'text', element: companyBox });
 
     // Tabla de items con IVA
     const tablePosition = { left: 19, top: 200, width: 520 };
