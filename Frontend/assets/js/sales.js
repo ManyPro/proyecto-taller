@@ -299,13 +299,44 @@ function printSaleTicket(sale, documentType = 'remission'){
           contentHtmlLength: tpl?.contentHtml?.length || 0,
           hasContentCss: !!(tpl?.contentCss),
           templateId: tpl?._id,
-          templateName: tpl?.name
+          templateName: tpl?.name,
+          templateType: templateType
         });
-        if(!tpl || !tpl.contentHtml){ 
+        // Si no hay plantilla para invoice-factura, intentar usar la de invoice como respaldo
+        if((!tpl || !tpl.contentHtml) && templateType === 'invoice-factura'){
+          console.warn('[printSaleTicket] No hay template activo para invoice-factura, intentando usar invoice como respaldo');
+          return API.templates.active('invoice')
+            .then(invoiceTpl => {
+              if(invoiceTpl && invoiceTpl.contentHtml){
+                console.log('[printSaleTicket] Usando template de invoice como respaldo para factura');
+                return processTemplate(invoiceTpl);
+              } else {
+                console.warn('[printSaleTicket] No hay template activo o contentHtml está vacío, usando fallback');
+                fallback();
+              }
+            })
+            .catch(err => {
+              console.error('[printSaleTicket] Error al cargar template de respaldo:', err);
+              fallback();
+            });
+        } else if(!tpl || !tpl.contentHtml){ 
           console.warn('[printSaleTicket] No hay template activo o contentHtml está vacío, usando fallback');
           fallback(); 
-          return; 
+        } else {
+          // Continuar con el procesamiento
+          return processTemplate(tpl);
         }
+      })
+      .catch(err => {
+        console.error('[printSaleTicket] Error al cargar template:', err);
+        fallback();
+      });
+  } else {
+    fallback();
+  }
+  
+  // Función auxiliar para procesar el template
+  function processTemplate(tpl){
         console.log('[printSaleTicket] Usando template guardado:', tpl.name || tpl._id);
         console.log('[printSaleTicket] HTML del template (primeros 500 chars):', tpl.contentHtml?.substring(0, 500));
         
