@@ -38,6 +38,7 @@ const QuoteSchema = new mongoose.Schema({
   validity:   { type: String, default: '' },
   currency:   { type: String, default: 'COP' },
   specialNotes: { type: [String], default: [] }, // Notas especiales para la cotización
+  ivaEnabled: { type: Boolean, default: false }, // Si el IVA está incluido en la cotización
 
   items:      { type: [ItemSchema], default: [] },
   total:      { type: Number, required: true, min: 0 },

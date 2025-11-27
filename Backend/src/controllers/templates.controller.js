@@ -381,6 +381,36 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
       }
       
       ctx.sale = saleObj;
+      
+      // Para facturas (invoice), calcular subtotal, IVA y total
+      // El total de la venta es el subtotal, calcular IVA (19%) y total con IVA
+      if (effective === 'invoice') {
+        const subtotal = Number(saleObj.total) || 0;
+        const iva = subtotal * 0.19;
+        const totalWithIva = subtotal + iva;
+        
+        // Crear objeto S con valores calculados para facturas
+        ctx.S = {
+          subtotal: subtotal,
+          iva: iva,
+          total: totalWithIva,
+          'nº': saleObj.formattedNumber || saleObj.number || '',
+          fecha: saleObj.date || saleObj.createdAt || new Date(),
+          P: saleObj.itemsGrouped?.hasProducts || false,
+          S: saleObj.itemsGrouped?.hasServices || false,
+          C: saleObj.itemsGrouped?.hasCombos || false
+        };
+      } else {
+        // Para remisiones, S.total es igual al total de la venta (sin IVA)
+        ctx.S = {
+          total: Number(saleObj.total) || 0,
+          'nº': saleObj.formattedNumber || saleObj.number || '',
+          fecha: saleObj.date || saleObj.createdAt || new Date(),
+          P: saleObj.itemsGrouped?.hasProducts || false,
+          S: saleObj.itemsGrouped?.hasServices || false,
+          C: saleObj.itemsGrouped?.hasCombos || false
+        };
+      }
     } else {
       // Log si no se encontró la venta
       if (process.env.NODE_ENV !== 'production') {
@@ -641,6 +671,36 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
         quoteObj.vehicle = { plate: '', make: '', line: '', modelYear: '', displacement: '' };
       }
       ctx.quote = quoteObj;
+      
+      // Para cotizaciones con IVA habilitado, calcular subtotal, IVA y total
+      // Similar a como se hace para facturas en ventas
+      if (quoteObj.ivaEnabled) {
+        const subtotal = Number(quoteObj.total) || 0;
+        const iva = subtotal * 0.19;
+        const totalWithIva = subtotal + iva;
+        
+        // Crear objeto Q con valores calculados para cotizaciones con IVA
+        ctx.Q = {
+          subtotal: subtotal,
+          iva: iva,
+          total: totalWithIva,
+          'nº': quoteObj.number || '',
+          fecha: quoteObj.date || quoteObj.createdAt || new Date(),
+          P: quoteObj.itemsGrouped?.hasProducts || false,
+          S: quoteObj.itemsGrouped?.hasServices || false,
+          C: quoteObj.itemsGrouped?.hasCombos || false
+        };
+      } else {
+        // Para cotizaciones sin IVA, Q.total es igual al total de la cotización
+        ctx.Q = {
+          total: Number(quoteObj.total) || 0,
+          'nº': quoteObj.number || '',
+          fecha: quoteObj.date || quoteObj.createdAt || new Date(),
+          P: quoteObj.itemsGrouped?.hasProducts || false,
+          S: quoteObj.itemsGrouped?.hasServices || false,
+          C: quoteObj.itemsGrouped?.hasCombos || false
+        };
+      }
     }
   }
   // Pedido (order)

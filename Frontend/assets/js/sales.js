@@ -188,7 +188,7 @@ function describeVehicle(vehicle){
   return parts.join(' | ') || 'N/A';
 }
 
-function printSaleTicket(sale){
+function printSaleTicket(sale, documentType = 'remission'){
   if(!sale) return;
   function fallback(){
     const number = padSaleNumber(sale.number || sale._id || '');
@@ -283,8 +283,15 @@ function printSaleTicket(sale){
             win.document.write(`<!doctype html><html><head><meta charset='utf-8'><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">${modalScript}</head><body><pre>${txt}</pre></body></html>`);
     win.document.close(); win.focus();
   }
-  // Intento con plantilla activa invoice
+  // Determinar tipo de plantilla según documentType
+  // Si es 'invoice', usar 'invoice-factura' para obtener la plantilla de factura con IVA
+  // Si es 'remission', usar 'invoice' para obtener la plantilla de remisión
+  const templateType = documentType === 'invoice' ? 'invoice-factura' : 'invoice';
+  
+  // Intento con plantilla activa
   if(API?.templates?.active){
+    // La API usa 'invoice' para ambos, pero necesitamos distinguir
+    // Usar 'invoice' para la API ya que ambos tipos comparten el mismo tipo en backend
     API.templates.active('invoice')
       .then(tpl=>{
         console.log('[printSaleTicket] Template activo recibido:', {
@@ -348,7 +355,9 @@ function printSaleTicket(sale){
         } else {
           console.warn('[printSaleTicket] ⚠️ NO se encontraron tablas <tbody> en el template guardado!');
         }
-        return API.templates.preview({ type:'invoice', contentHtml: restoredHtml, contentCss: tpl.contentCss || '', sampleId: sale._id })
+        // Usar 'invoice' como tipo para la API, pero el backend calculará IVA cuando documentType es 'invoice'
+        const apiType = 'invoice'; // Ambos tipos usan 'invoice' en la API
+        return API.templates.preview({ type: apiType, contentHtml: restoredHtml, contentCss: tpl.contentCss || '', sampleId: sale._id, sampleType: documentType === 'invoice' ? 'invoice' : 'remission' })
           .then(r=>{
             console.log('[printSaleTicket] ===== PREVIEW RECIBIDO =====');
             console.log('[printSaleTicket] Has rendered:', !!r.rendered);
@@ -1199,6 +1208,7 @@ function printWorkOrder(){
 
 let es = null;
 let current = null;
+let ivaEnabled = false;
 let openSales = [];
 let companyTechnicians = [];
 let technicianSelectInitialized = false;
@@ -1294,6 +1304,12 @@ async function renderQuoteForCurrentSale(){
     if(token !== saleQuoteRequestToken) return;
     if(quote){
       renderQuoteMini(quote);
+      // Activar IVA automáticamente si la cotización tiene IVA habilitado
+      if(quote.ivaEnabled && !ivaEnabled){
+        ivaEnabled = true;
+        updateIvaButton();
+        renderSale();
+      }
     } else {
       setSaleQuoteLink(saleId, null);
       renderQuoteMini(null);
@@ -3347,7 +3363,25 @@ async function renderSale(){
     if (btnDel) actions.appendChild(btnDel);
   }
 
-  if (total) total.textContent = money(current?.total||0);
+  // Calcular total con IVA si está habilitado
+  let displayTotal = current?.total || 0;
+  const ivaRow = document.getElementById('sales-iva-row');
+  const ivaAmount = document.getElementById('sales-iva-amount');
+  
+  if (ivaEnabled && current?.total) {
+    const subtotal = current.total;
+    const ivaValue = subtotal * 0.19;
+    displayTotal = subtotal + ivaValue;
+    
+    if (ivaRow) {
+      ivaRow.classList.remove('hidden');
+      if (ivaAmount) ivaAmount.textContent = money(ivaValue);
+    }
+  } else {
+    if (ivaRow) ivaRow.classList.add('hidden');
+  }
+  
+  if (total) total.textContent = money(displayTotal);
   renderMini(); renderCapsules(); setupTechnicianSelect();
 
   // Leyenda dinámica de orígenes
@@ -9411,9 +9445,32 @@ export function initSales(){
     if (!current) return;
     try{
       const fresh = await API.sales.get(current._id);
-      printSaleTicket(fresh);
+      // Si IVA está activado, imprimir factura; si no, imprimir remisión
+      printSaleTicket(fresh, ivaEnabled ? 'invoice' : 'remission');
     }catch(e){ alert(e?.message||'No se pudo imprimir'); }
   });
+  
+  // Event listener para el botón toggle de IVA
+  const btnIvaToggle = document.getElementById('sales-iva-toggle');
+  if (btnIvaToggle) {
+    btnIvaToggle.addEventListener('click', () => {
+      ivaEnabled = !ivaEnabled;
+      updateIvaButton();
+      renderSale();
+    });
+    updateIvaButton();
+  }
+  
+  function updateIvaButton() {
+    if (!btnIvaToggle) return;
+    if (ivaEnabled) {
+      btnIvaToggle.classList.remove('bg-slate-700/50', 'dark:bg-slate-700/50', 'theme-light:bg-sky-200', 'theme-light:text-slate-700');
+      btnIvaToggle.classList.add('bg-gradient-to-r', 'from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600', 'hover:from-green-700', 'hover:to-green-800', 'dark:hover:from-green-700', 'dark:hover:to-green-800', 'theme-light:hover:from-green-600', 'theme-light:hover:to-green-700', 'text-white', 'shadow-md', 'hover:shadow-lg');
+    } else {
+      btnIvaToggle.classList.remove('bg-gradient-to-r', 'from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600', 'hover:from-green-700', 'hover:to-green-800', 'dark:hover:from-green-700', 'dark:hover:to-green-800', 'theme-light:hover:from-green-600', 'theme-light:hover:to-green-700', 'text-white', 'shadow-md', 'hover:shadow-lg');
+      btnIvaToggle.classList.add('bg-slate-700/50', 'dark:bg-slate-700/50', 'hover:bg-slate-700', 'dark:hover:bg-slate-700', 'text-white', 'dark:text-white', 'theme-light:bg-sky-200', 'theme-light:text-slate-700', 'theme-light:hover:bg-slate-300', 'theme-light:hover:text-slate-900');
+    }
+  }
 
   document.getElementById('sales-special-notes')?.addEventListener('click', async ()=>{
     if (!current) return;
@@ -9922,9 +9979,9 @@ async function createHistorialSaleCard(sale) {
         </button>
       </div>
     </div>
-    <div class="mt-3 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 flex justify-between items-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">
-      <span>Venta #${saleNumber}</span>
-      <span>Cerrada: ${closedDate}</span>
+    <div class="mt-3 pt-3 border-t border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300/30 flex justify-between items-center">
+      <span class="text-base font-bold text-white dark:text-white theme-light:text-slate-900">Venta #${saleNumber}</span>
+      <span class="text-sm font-semibold text-slate-300 dark:text-slate-300 theme-light:text-slate-700">Cerrada: ${closedDate}</span>
     </div>
   `;
 

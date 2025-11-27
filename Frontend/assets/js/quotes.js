@@ -83,6 +83,7 @@ export function initQuotes({ getCompanyEmail }) {
   let emailScope = '';
   let currentQuoteId = null;
   let currentDiscount = { type: null, value: 0 };
+  let ivaEnabled = false;
   const dirty = {
     clientName:false, clientPhone:false, clientEmail:false,
     brand:false, line:false, year:false, cc:false
@@ -135,6 +136,9 @@ export function initQuotes({ getCompanyEmail }) {
   const btnDiscountPercent = $('#q-discount-percent');
   const btnDiscountFixed = $('#q-discount-fixed');
   const btnDiscountClear = $('#q-discount-clear');
+  const ivaSection = $('#q-iva-section');
+  const ivaAmount = $('#q-iva-amount');
+  const btnIvaToggle = $('#q-iva-toggle');
   const previewWA = $('#q-whatsappPreview');
   const hideTotalWA = $('#q-hide-total-wa');
   const hideTotalIcon = $('#q-hide-total-icon');
@@ -618,7 +622,15 @@ export function initQuotes({ getCompanyEmail }) {
         : currentDiscount.value;
     }
     
-    const total = subtotal - discountValue;
+    const subtotalAfterDiscount = subtotal - discountValue;
+    
+    // Calcular IVA (19% del subtotal después de descuento)
+    let ivaValue = 0;
+    if (ivaEnabled) {
+      ivaValue = subtotalAfterDiscount * 0.19;
+    }
+    
+    const total = subtotalAfterDiscount + ivaValue;
     
     // Actualizar UI de manera eficiente
     if (lblSubtotalProducts) lblSubtotalProducts.textContent = money(subP);
@@ -635,19 +647,28 @@ export function initQuotes({ getCompanyEmail }) {
       }
     }
     
+    if (ivaSection) {
+      if (ivaEnabled && ivaValue > 0) {
+        ivaSection.style.display = 'flex';
+        if (ivaAmount) ivaAmount.textContent = money(ivaValue);
+      } else {
+        ivaSection.style.display = 'none';
+      }
+    }
+    
     if (lblTotal) lblTotal.textContent = money(total);
     
     // Actualizar preview de WhatsApp
     if (previewWA) {
       const hideTotal = hideTotalState;
-      const previewText = buildWhatsAppText(rows, subP, subS, total, hideTotal);
+      const previewText = buildWhatsAppText(rows, subP, subS, subtotalAfterDiscount, total, hideTotal);
       previewWA.textContent = previewText;
     }
     
     syncSummaryHeight();
   }
 
-  function buildWhatsAppText(rows,subP,subS,total, hideTotal = false){
+  function buildWhatsAppText(rows,subP,subS,subtotalAfterDiscount,total, hideTotal = false){
     const num=iNumber.value;
   const cliente=iClientName.value||'—';
     const veh=`${iBrand.value||''} ${iLine.value||''} ${iYear.value||''}`.trim();
@@ -753,6 +774,12 @@ export function initQuotes({ getCompanyEmail }) {
           ? (subP + subS) * currentDiscount.value / 100 
           : currentDiscount.value;
         lines.push(`Descuento: ${money(discountValue)}`);
+      }
+      
+      // Agregar IVA si está habilitado
+      if (ivaEnabled) {
+        const ivaValue = subtotalAfterDiscount * 0.19;
+        lines.push(`IVA (19%): ${money(ivaValue)}`);
       }
       
       lines.push(`*TOTAL: ${money(total)}*`);
@@ -1365,7 +1392,15 @@ export function initQuotes({ getCompanyEmail }) {
       discountValue = doc.discount.value;
     }
     
-    const tot = subtotal - discountValue;
+    const subtotalAfterDiscount = subtotal - discountValue;
+    
+    // Calcular IVA (19% del subtotal después de descuento)
+    let ivaValue = 0;
+    if (doc.ivaEnabled) {
+      ivaValue = subtotalAfterDiscount * 0.19;
+    }
+    
+    const tot = subtotalAfterDiscount + ivaValue;
 
   // === DETECCIÓN CORRECTA (UMD) ===
     const jsPDFClass = window.jspdf?.jsPDF;
@@ -1463,6 +1498,13 @@ export function initQuotes({ getCompanyEmail }) {
     if (discountValue > 0) {
       d.setFont('helvetica','normal'); d.setFontSize(10);
       d.text(`Descuento: ${money(discountValue)}`, pageW - right, totalY, { align:'right' });
+      totalY += 14;
+    }
+    
+    // Mostrar IVA si está habilitado
+    if (doc.ivaEnabled && ivaValue > 0) {
+      d.setFont('helvetica','normal'); d.setFontSize(10);
+      d.text(`IVA (19%): ${money(ivaValue)}`, pageW - right, totalY, { align:'right' });
       totalY += 14;
     }
 
@@ -1589,6 +1631,28 @@ export function initQuotes({ getCompanyEmail }) {
     // Inicializar estado del botón
     updateHideTotalButton();
   }
+
+  // Event listener para el botón toggle de IVA
+  if (btnIvaToggle) {
+    btnIvaToggle.addEventListener('click', () => {
+      ivaEnabled = !ivaEnabled;
+      updateIvaButton();
+      recalcAll();
+    });
+    // Inicializar estado del botón
+    updateIvaButton();
+  }
+
+  function updateIvaButton() {
+    if (!btnIvaToggle) return;
+    if (ivaEnabled) {
+      btnIvaToggle.classList.remove('bg-slate-700/50', 'dark:bg-slate-700/50', 'theme-light:bg-sky-200', 'theme-light:text-slate-700');
+      btnIvaToggle.classList.add('bg-gradient-to-r', 'from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600', 'hover:from-green-700', 'hover:to-green-800', 'dark:hover:from-green-700', 'dark:hover:to-green-800', 'theme-light:hover:from-green-600', 'theme-light:hover:to-green-700', 'text-white', 'shadow-md', 'hover:shadow-lg');
+    } else {
+      btnIvaToggle.classList.remove('bg-gradient-to-r', 'from-green-600', 'to-green-700', 'dark:from-green-600', 'dark:to-green-700', 'theme-light:from-green-500', 'theme-light:to-green-600', 'hover:from-green-700', 'hover:to-green-800', 'dark:hover:from-green-700', 'dark:hover:to-green-800', 'theme-light:hover:from-green-600', 'theme-light:hover:to-green-700', 'text-white', 'shadow-md', 'hover:shadow-lg');
+      btnIvaToggle.classList.add('bg-slate-700/50', 'dark:bg-slate-700/50', 'hover:bg-slate-700', 'dark:hover:bg-slate-700', 'text-white', 'dark:text-white', 'theme-light:bg-sky-200', 'theme-light:text-slate-700', 'theme-light:hover:bg-slate-300', 'theme-light:hover:text-slate-900');
+    }
+  }
   
   function updateHideTotalButton() {
     if (!hideTotalWA || !hideTotalIcon || !hideTotalText) return;
@@ -1652,7 +1716,8 @@ export function initQuotes({ getCompanyEmail }) {
       validity:iValidDays.value||'',
       specialNotes:specialNotes,
       items,
-      discount: currentDiscount.type && currentDiscount.value > 0 ? currentDiscount : null
+      discount: currentDiscount.type && currentDiscount.value > 0 ? currentDiscount : null,
+      ivaEnabled: ivaEnabled
     };
   }
 
@@ -2887,6 +2952,10 @@ export function initQuotes({ getCompanyEmail }) {
     
     // Cargar descuento
     currentDiscount = d?.discount || { type: null, value: 0 };
+    
+    // Cargar estado de IVA
+    ivaEnabled = d?.ivaEnabled || false;
+    updateIvaButton();
 
     clearRows();
     (d?.items||[]).forEach(it=>{
@@ -2948,15 +3017,27 @@ export function initQuotes({ getCompanyEmail }) {
     const subP=(d.items||[]).filter(i=>i.kind!=='SERVICIO' && i.kind!=='Servicio').reduce((a,i)=>a+((i.qty||1)*(i.unitPrice||0)),0);
     const subS=(d.items||[]).filter(i=>i.kind==='SERVICIO' || i.kind==='Servicio').reduce((a,i)=>a+((i.qty||1)*(i.unitPrice||0)),0);
     
+    // Calcular subtotal antes de descuento
+    const subtotal = subP + subS;
+    
     // Aplicar descuento si existe
-    let total = subP + subS;
+    let subtotalAfterDiscount = subtotal;
     if (d?.discount && d.discount.value > 0) {
       if (d.discount.type === 'percent') {
-        total = total - (total * d.discount.value / 100);
+        subtotalAfterDiscount = subtotal - (subtotal * d.discount.value / 100);
       } else {
-        total = total - d.discount.value;
+        subtotalAfterDiscount = subtotal - d.discount.value;
       }
     }
+    
+    // Calcular IVA si está habilitado
+    let ivaValue = 0;
+    if (d?.ivaEnabled) {
+      ivaValue = subtotalAfterDiscount * 0.19;
+    }
+    
+    // Total final (subtotal después de descuento + IVA)
+    const total = subtotalAfterDiscount + ivaValue;
 
     // Preparar rows con la estructura correcta para buildWhatsAppText
     const rows=(d.items||[]).map(it=>{
@@ -3094,7 +3175,12 @@ export function initQuotes({ getCompanyEmail }) {
     
     // Usar buildWhatsAppText que ya tiene la lógica correcta para anidar combos
     const hideTotal = hideTotalState;
-    const text = buildWhatsAppText(rows, subP, subS, total, hideTotal);
+    // Necesitamos cargar temporalmente el estado de IVA para que buildWhatsAppText lo use
+    const bakIvaEnabled = ivaEnabled;
+    ivaEnabled = d?.ivaEnabled || false;
+    const text = buildWhatsAppText(rows, subP, subS, subtotalAfterDiscount, total, hideTotal);
+    // Restaurar estado de IVA
+    ivaEnabled = bakIvaEnabled;
     
     // Restaurar valores originales de la UI
     iNumber.value = bak.n; 
@@ -5293,6 +5379,7 @@ export function initQuotes({ getCompanyEmail }) {
   setupPlateAutofill();
   setupIdAutofill();
 }
+
 
 
 
