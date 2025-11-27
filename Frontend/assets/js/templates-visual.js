@@ -3287,20 +3287,35 @@
       </div>
       <div class="logo-text-editable" contenteditable="true" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; opacity: 0; cursor: text; z-index: 10; font-size: 10px; padding: 5px; word-break: break-all;" title="Haz doble clic para editar y usar variable {{company.logoUrl}}"></div>
     `;
-    const logoTextEditable = logoBox.querySelector('.logo-text-editable');
-    if (logoTextEditable) {
-      logoTextEditable.addEventListener('dblclick', (e) => {
+    // Permitir edición de texto para usar variables
+    const textEditor = logoBox.querySelector('.logo-text-editable');
+    if (textEditor) {
+      textEditor.addEventListener('dblclick', (e) => {
         e.stopPropagation();
-        logoTextEditable.style.opacity = '1';
-        logoTextEditable.focus();
+        textEditor.style.opacity = '1';
+        textEditor.style.background = 'rgba(255,255,255,0.95)';
+        textEditor.focus();
+        textEditor.textContent = '{{company.logoUrl}}';
       });
-      logoTextEditable.addEventListener('blur', () => {
-        logoTextEditable.style.opacity = '0';
+      textEditor.addEventListener('blur', () => {
+        const content = textEditor.textContent.trim();
+        if (content && content.includes('{{')) {
+          // Si tiene variable, crear imagen con esa variable
+          const placeholder = logoBox.querySelector('.image-placeholder');
+          if (placeholder) {
+            placeholder.innerHTML = `<img src="${content}" alt="Logo" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'padding: 10px; text-align: center; font-size: 10px; color: #999;\\'>Variable: ${content}</div>';" />`;
+            placeholder.style.border = 'none';
+            placeholder.style.background = 'transparent';
+          }
+        }
+        textEditor.style.opacity = '0';
+        textEditor.style.background = 'transparent';
       });
     }
-    setupImagePlaceholder(logoBox);
+    
     makeDraggable(logoBox);
     makeSelectable(logoBox);
+    setupImageUpload(logoBox);
     canvas.appendChild(logoBox);
     visualEditor.elements.push({ id: logoBox.id, type: 'image', element: logoBox });
 
