@@ -844,6 +844,15 @@ function ensureHB() {
     if (!Array.isArray(items)) return false;
     return items.length > 0;
   });
+  // Helper $ para formatear valores numéricos como dinero
+  // Uso: {{$ S.subtotal}} o {{$ Q.total}}
+  // En Handlebars, S.subtotal se evalúa primero, luego se pasa el valor al helper
+  Handlebars.registerHelper('$', function(value) {
+    // El valor ya viene evaluado desde el contexto (ej: S.subtotal)
+    if (value === undefined || value === null) return '';
+    const n = Number(value || 0);
+    return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
+  });
   hbInitialized = true;
 }
 
