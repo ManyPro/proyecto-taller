@@ -1668,7 +1668,7 @@ export const closeSale = async (req, res) => {
          String(sale.paymentMethod || '').toUpperCase() === 'CRÉDITO';
       
       if (hasCredit) {
-        // Si hay crédito, crear cuenta por cobrar en lugar de flujo de caja
+        // Si hay crédito, crear cuenta por cobrar
         try {
           const AccountReceivable = (await import('../models/AccountReceivable.js')).default;
           const CompanyAccount = (await import('../models/CompanyAccount.js')).default;
@@ -1698,13 +1698,17 @@ export const closeSale = async (req, res) => {
         } catch(e) { 
           logger.warn('createReceivable failed', { error: e?.message || e, stack: e?.stack }); 
         }
-      } else {
-        // Solo registrar en flujo de caja si NO es crédito y el total NO es 0
-        try {
-          const accountId = req.body?.accountId; // opcional desde frontend
-          const resEntries = await registerSaleIncome({ companyId: req.companyId, sale, accountId });
-          cashflowEntries = Array.isArray(resEntries) ? resEntries : (resEntries ? [resEntries] : []);
-        } catch(e) { logger.warn('registerSaleIncome failed', { error: e?.message || e, stack: e?.stack }); }
+      }
+      
+      // IMPORTANTE: Siempre registrar en flujo de caja (incluso si hay crédito)
+      // La función registerSaleIncome ya filtra automáticamente los métodos de crédito
+      // y solo registra los pagos en efectivo
+      try {
+        const accountId = req.body?.accountId; // opcional desde frontend
+        const resEntries = await registerSaleIncome({ companyId: req.companyId, sale, accountId });
+        cashflowEntries = Array.isArray(resEntries) ? resEntries : (resEntries ? [resEntries] : []);
+      } catch(e) { 
+        logger.warn('registerSaleIncome failed', { error: e?.message || e, stack: e?.stack }); 
       }
     }
     
@@ -1904,16 +1908,18 @@ export const updateCloseSale = async (req, res) => {
 
       await sale.save({ session });
 
-      // Si cambiaron los métodos de pago, actualizar flujo de caja
-      const paymentMethodsChanged = JSON.stringify(oldPaymentMethods) !== JSON.stringify(sale.paymentMethods);
+      // Verificar si hay entradas de flujo de caja para esta venta
+      const existingEntries = await CashFlowEntry.find({ 
+        companyId: req.companyId, 
+        source: 'SALE', 
+        sourceRef: sale._id 
+      }).session(session);
       
-      if (paymentMethodsChanged) {
-        // Obtener entradas de flujo de caja existentes relacionadas con esta venta
-        const existingEntries = await CashFlowEntry.find({ 
-          companyId: req.companyId, 
-          source: 'SALE', 
-          sourceRef: sale._id 
-        }).session(session);
+      // Si cambiaron los métodos de pago O si no hay entradas en el flujo de caja, actualizar/crear
+      const paymentMethodsChanged = JSON.stringify(oldPaymentMethods) !== JSON.stringify(sale.paymentMethods);
+      const hasNoCashflowEntries = existingEntries.length === 0;
+      
+      if (paymentMethodsChanged || hasNoCashflowEntries) {
         
         // Filtrar métodos que no sean crédito
         const nonCreditMethods = sale.paymentMethods?.filter(m => {
@@ -2096,6 +2102,70 @@ export const updateCloseSale = async (req, res) => {
     res.status(400).json({ error: err?.message || 'Cannot update sale' });
   } finally {
     session.endSession();
+  }
+};
+
+// ===== Registrar flujo de caja para venta cerrada que no tiene entrada =====
+export const registerSaleCashflow = async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    // Buscar venta
+    const companyFilter = getSaleQueryCompanyFilter(req);
+    const sale = await Sale.findOne({ _id: id, companyId: companyFilter });
+    if (!sale) return res.status(404).json({ error: 'Sale not found' });
+    if (!validateSaleOwnership(sale, req)) return res.status(403).json({ error: 'Sale belongs to different company' });
+    if (sale.status !== 'closed') return res.status(400).json({ error: 'Only closed sales can register cashflow' });
+    
+    // Verificar si ya tiene entradas en el flujo de caja
+    const CashFlowEntry = (await import('../models/CashFlowEntry.js')).default;
+    const existingEntries = await CashFlowEntry.find({ 
+      companyId: req.companyId, 
+      source: 'SALE', 
+      sourceRef: sale._id 
+    });
+    
+    if (existingEntries.length > 0) {
+      return res.json({ 
+        message: 'Sale already has cashflow entries', 
+        entries: existingEntries,
+        sale: sale.toObject()
+      });
+    }
+    
+    // Registrar en flujo de caja usando la función existente
+    const accountId = req.body?.accountId; // opcional desde frontend
+    const cashflowModule = await import('./cashflow.controller.js');
+    const registerSaleIncome = cashflowModule.registerSaleIncome;
+    const recomputeAccountBalances = cashflowModule.recomputeAccountBalances;
+    
+    const resEntries = await registerSaleIncome({ 
+      companyId: req.companyId, 
+      sale, 
+      accountId,
+      forceCreate: true // Forzar creación aunque ya existan (pero ya verificamos que no existen)
+    });
+    
+    const cashflowEntries = Array.isArray(resEntries) ? resEntries : (resEntries ? [resEntries] : []);
+    
+    // Recalcular balances de todas las cuentas afectadas
+    const accountsToRecalc = new Set();
+    for (const entry of cashflowEntries) {
+      accountsToRecalc.add(String(entry.accountId));
+    }
+    
+    for (const accIdStr of accountsToRecalc) {
+      await recomputeAccountBalances(req.companyId, new mongoose.Types.ObjectId(accIdStr));
+    }
+    
+    res.json({ 
+      ok: true, 
+      message: 'Cashflow entries created successfully',
+      cashflowEntries: cashflowEntries.map(e => e.toObject ? e.toObject() : e),
+      sale: sale.toObject()
+    });
+  } catch (err) {
+    res.status(400).json({ error: err?.message || 'Cannot register cashflow' });
   }
 };
 

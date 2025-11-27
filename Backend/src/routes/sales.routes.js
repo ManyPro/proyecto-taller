@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   startSale, getSale, addItem, updateItem, removeItem,
-  setCustomerVehicle, closeSale, addByQR, listSales, summarySales, cancelSale, getProfileByPlate, getProfileByIdNumber, addItemsBatch, updateTechnician, technicianReport, completeOpenSlot, getSalesByPlate, updateCloseSale, deleteSalesBulk, updateSale
+  setCustomerVehicle, closeSale, addByQR, listSales, summarySales, cancelSale, getProfileByPlate, getProfileByIdNumber, addItemsBatch, updateTechnician, technicianReport, completeOpenSlot, getSalesByPlate, updateCloseSale, deleteSalesBulk, updateSale, registerSaleCashflow
 } from '../controllers/sales.controller.js';
 import { sseHandler } from '../lib/live.js';
 
@@ -38,6 +38,7 @@ router.patch('/:id/technician', updateTechnician);
 router.post('/:id/close', closeSale);
 router.post('/:id/cancel', cancelSale);
 router.patch('/:id/close', updateCloseSale); // Actualizar cierre de venta cerrada
+router.post('/:id/register-cashflow', registerSaleCashflow); // Registrar flujo de caja para venta cerrada
 
 // Update sale (generic update for allowed fields - debe ir DESPUÉS de rutas más específicas)
 router.patch('/:id', updateSale);
