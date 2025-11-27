@@ -3438,37 +3438,40 @@
     canvas.appendChild(companyBox);
     visualEditor.elements.push({ id: companyBox.id, type: 'text', element: companyBox });
 
-    // Tabla de items con IVA
-    const tablePosition = { left: 19, top: 200, width: 520 };
-    const itemsTable = createInvoiceItemsTable(tablePosition);
+    // Calcular la posición de la tabla: después de los cuadros de datos + 1cm de separación
+    // Los cuadros empiezan en top: 83px
+    // Altura aproximada del cuadro: título (~18px) + tabla 4 filas (~100px con nuevo padding) + padding (16px) = ~134px
+    // 1cm = aproximadamente 38px
+    // Posición tabla: 83px + 134px + 38px = 255px (redondeado a 260px para más espacio)
+    // Ancho de los cuadros: Cliente (336px) + gap (10px) + Empresa (336px) = 682px
+    // La tabla debe tener el mismo ancho total que los dos cuadros juntos
+    const itemsTable = createInvoiceItemsTable({ left: 19, top: 260, width: 682 });
     canvas.appendChild(itemsTable);
 
-    // Total con IVA
-    const totalBox = document.createElement('div');
-    totalBox.className = 'tpl-element tpl-total-box';
-    totalBox.id = `element_${visualEditor.nextId++}`;
-    totalBox.style.cssText = 'position: absolute; right: 19px; bottom: 50px; border: 2px solid #000; padding: 6px 10px; background: white; min-width: 120px;';
-    totalBox.innerHTML = '<div contenteditable="true" style="font-size: 14px; font-weight: bold; color: #000; font-family: Arial, sans-serif; text-align: right;">TOTAL: {{$ S.total}}</div>';
-    makeDraggable(totalBox);
-    makeSelectable(totalBox);
-    canvas.appendChild(totalBox);
-    visualEditor.elements.push({ id: totalBox.id, type: 'text', element: totalBox });
+    // NOTA: El total ahora está dentro de la tabla como tfoot, así que ya no necesitamos ajustar posición separada
+
+    console.log('✅ Plantilla de factura creada con todos los elementos');
   }
 
   function createInvoiceItemsTable(position) {
     const tableContainer = document.createElement('div');
     tableContainer.className = 'tpl-element items-table';
     tableContainer.id = `element_${visualEditor.nextId++}`;
+    // Si se especifica un ancho, usarlo; sino usar el cálculo original
     const tableWidth = position.width || `calc(100% - ${position.left * 2}px)`;
     const maxWidth = position.width ? `${position.width}px` : '520px';
     tableContainer.style.cssText = `
       position: absolute;
       left: ${position.left}px;
       top: ${position.top}px;
+      border: 2px solid transparent;
+      cursor: move;
       width: ${tableWidth};
       max-width: ${maxWidth};
-      cursor: move;
+      background: white;
     `;
+    
+    // Agregar clase para centrado en impresión
     tableContainer.classList.add('remission-content');
 
     tableContainer.innerHTML = `
@@ -3584,16 +3587,16 @@
         </tbody>
         <tfoot>
           <tr style="border-top: 2px solid #000;">
-            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">SUBTOTAL</td>
-            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{$ S.subtotal}}</td>
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px;">SUBTOTAL</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px;">{{$ S.subtotal}}</td>
           </tr>
           <tr>
-            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">IVA (19%)</td>
-            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{$ S.iva}}</td>
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px;">IVA (19%)</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px;">{{$ S.iva}}</td>
           </tr>
           <tr style="border-top: 2px solid #000;">
-            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">TOTAL</td>
-            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{$ S.total}}</td>
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px;">TOTAL</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px;">{{$ S.total}}</td>
           </tr>
         </tfoot>
       </table>
