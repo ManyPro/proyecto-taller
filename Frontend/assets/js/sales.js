@@ -888,12 +888,7 @@ function printSaleTicket(sale, documentType = 'remission'){
             console.error('[printSaleTicket] Error en preview:', err);
             fallback();
           });
-      })
-      .catch((err)=>{
-        console.error('[printSaleTicket] Error obteniendo template activo:', err);
-        fallback();
-      });
-  } else fallback();
+  }
 }
 
 // Imprimir Orden de Trabajo usando plantilla workOrder si existe
