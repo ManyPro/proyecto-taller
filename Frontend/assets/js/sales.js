@@ -290,9 +290,8 @@ function printSaleTicket(sale, documentType = 'remission'){
   
   // Intento con plantilla activa
   if(API?.templates?.active){
-    // La API usa 'invoice' para ambos, pero necesitamos distinguir
-    // Usar 'invoice' para la API ya que ambos tipos comparten el mismo tipo en backend
-    API.templates.active('invoice')
+    // Usar el tipo correcto según documentType
+    API.templates.active(templateType)
       .then(tpl=>{
         console.log('[printSaleTicket] Template activo recibido:', {
           hasTemplate: !!tpl,
@@ -355,9 +354,8 @@ function printSaleTicket(sale, documentType = 'remission'){
         } else {
           console.warn('[printSaleTicket] ⚠️ NO se encontraron tablas <tbody> en el template guardado!');
         }
-        // Usar 'invoice' como tipo para la API, pero el backend calculará IVA cuando documentType es 'invoice'
-        const apiType = 'invoice'; // Ambos tipos usan 'invoice' en la API
-        return API.templates.preview({ type: apiType, contentHtml: restoredHtml, contentCss: tpl.contentCss || '', sampleId: sale._id, sampleType: documentType === 'invoice' ? 'invoice' : 'remission' })
+        // Usar el tipo correcto para la API según documentType
+        return API.templates.preview({ type: templateType, contentHtml: restoredHtml, contentCss: tpl.contentCss || '', sampleId: sale._id, sampleType: documentType === 'invoice' ? 'invoice-factura' : 'remission' })
           .then(r=>{
             console.log('[printSaleTicket] ===== PREVIEW RECIBIDO =====');
             console.log('[printSaleTicket] Has rendered:', !!r.rendered);

@@ -2,7 +2,8 @@ import mongoose from 'mongoose';
 
 // Tipos de documento soportados
 // Agregamos variantes específicas para stickers para facilitar la gestión separada
-const DOC_TYPES = ['quote','invoice','workOrder','sticker','sticker-qr','sticker-brand','payroll'];
+// invoice-factura: factura con IVA (diferente de invoice que es remisión)
+const DOC_TYPES = ['quote','invoice','invoice-factura','workOrder','sticker','sticker-qr','sticker-brand','payroll'];
 
 const TemplateSchema = new mongoose.Schema({
   companyId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true },

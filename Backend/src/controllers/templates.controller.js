@@ -30,8 +30,8 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
 
   const effective = sampleType || type;
 
-  // Venta (invoice/workOrder comparten sale)
-  if (['invoice','workOrder','sale'].includes(effective)) {
+  // Venta (invoice/invoice-factura/workOrder comparten sale)
+  if (['invoice','invoice-factura','workOrder','sale'].includes(effective)) {
     let sale = null;
     if (sampleId) {
       sale = await Sale.findOne({ _id: sampleId, companyId });
@@ -382,9 +382,9 @@ async function buildContext({ companyId, type, sampleType, sampleId }) {
       
       ctx.sale = saleObj;
       
-      // Para facturas (invoice), calcular subtotal, IVA y total
+      // Para facturas (invoice-factura), calcular subtotal, IVA y total
       // El total de la venta es el subtotal, calcular IVA (19%) y total con IVA
-      if (effective === 'invoice') {
+      if (effective === 'invoice-factura') {
         const subtotal = Number(saleObj.total) || 0;
         const iva = subtotal * 0.19;
         const totalWithIva = subtotal + iva;
