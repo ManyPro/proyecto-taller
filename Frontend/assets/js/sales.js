@@ -355,7 +355,10 @@ function printSaleTicket(sale, documentType = 'remission'){
           console.warn('[printSaleTicket] ⚠️ NO se encontraron tablas <tbody> en el template guardado!');
         }
         // Usar el tipo correcto para la API según documentType
-        return API.templates.preview({ type: templateType, contentHtml: restoredHtml, contentCss: tpl.contentCss || '', sampleId: sale._id, sampleType: documentType === 'invoice' ? 'invoice-factura' : 'remission' })
+        // sampleType debe coincidir con los tipos reconocidos por el backend: ['invoice', 'invoice-factura', 'workOrder', 'sale']
+        // Para remisiones, usar 'invoice'; para facturas con IVA, usar 'invoice-factura'
+        const sampleTypeValue = documentType === 'invoice' ? 'invoice-factura' : 'invoice';
+        return API.templates.preview({ type: templateType, contentHtml: restoredHtml, contentCss: tpl.contentCss || '', sampleId: sale._id, sampleType: sampleTypeValue })
           .then(r=>{
             console.log('[printSaleTicket] ===== PREVIEW RECIBIDO =====');
             console.log('[printSaleTicket] Has rendered:', !!r.rendered);
