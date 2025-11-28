@@ -2378,15 +2378,15 @@
             }
             range.insertNode(fragment);
           } else {
-            range.insertNode(document.createTextNode(varText));
+          range.insertNode(document.createTextNode(varText));
           }
           range.collapse(false);
         } else {
           if (containsHTML) {
             // Usar insertAdjacentHTML para insertar HTML correctamente
             contentEl.insertAdjacentHTML('beforeend', varText);
-          } else {
-            contentEl.innerHTML += varText;
+        } else {
+          contentEl.innerHTML += varText;
           }
         }
         return;
@@ -3088,6 +3088,14 @@
             el.style.position = 'absolute';
             el.style.left = `${left}px`;
             el.style.top = `${top}px`;
+            el.style.right = 'auto';
+            el.style.bottom = 'auto';
+            if (computed.transform && computed.transform !== 'none') {
+              el.style.transform = 'none';
+            }
+            if (el.style.margin) {
+              el.style.margin = '0';
+            }
           });
           
           // Re-aplicar eventos a los elementos
@@ -3115,7 +3123,7 @@
         
         // Ajustar altura del canvas al contenido (solo si no es sticker)
         if (!isSticker) {
-          adjustCanvasHeightToContent(canvas);
+        adjustCanvasHeightToContent(canvas);
         }
         
         showQuickNotification(`✅ Formato "${template.name}" cargado correctamente`, 'success');
@@ -6397,10 +6405,10 @@
       let savedTemplate;
       
       const templateData = {
-        name: templateName,
-        contentHtml: content,
-        contentCss: templateCss,
-        activate: activate
+          name: templateName,
+          contentHtml: content,
+          contentCss: templateCss,
+          activate: activate
       };
       
       // Agregar meta solo si hay dimensiones
