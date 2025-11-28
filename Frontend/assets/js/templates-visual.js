@@ -2238,6 +2238,10 @@
     
     // Si contiene HTML de imagen (especialmente QR), crear un contenedor de imagen apropiado
     if (containsHTML && varText.includes('<img')) {
+      // Extraer la variable Handlebars del src
+      const match = varText.match(/src=["']([^"']+)["']/);
+      const handlebarsVar = match ? match[1] : '';
+      
       // Crear contenedor de imagen similar a setupImageUpload
       const imgContainer = document.createElement('div');
       imgContainer.className = 'image-container tpl-element';
@@ -2248,18 +2252,22 @@
       const top = 20 + (visualEditor.elements.length * 30);
       imgContainer.style.cssText = `position: absolute; display: block; padding: 0; margin: 0; line-height: 0; cursor: move; border: 2px solid transparent; min-width: 150px; min-height: 150px; left: ${left}px; top: ${top}px;`;
       
-      // Insertar el HTML directamente en el contenedor (incluyendo la variable Handlebars)
-      imgContainer.innerHTML = varText;
+      // Crear placeholder que muestra la variable pero no intenta cargar la imagen
+      // El HTML real con la variable se preserva en el innerHTML para el backend
+      imgContainer.innerHTML = `
+        <div class="image-placeholder" style="width: 100%; height: 100%; background: #f5f5f5; border: 2px dashed #999; display: flex; align-items: center; justify-content: center; cursor: move; font-size: 11px; color: #666; text-align: center; padding: 5px; box-sizing: border-box; position: relative;">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none;">
+            <div style="font-size: 24px;">📱</div>
+            <div>QR Code</div>
+          </div>
+          <div style="position: absolute; bottom: 2px; left: 2px; right: 2px; font-size: 9px; color: #999; pointer-events: none; text-align: center; word-break: break-all;">${handlebarsVar}</div>
+        </div>
+        <div class="image-html-content" style="display: none;">${varText}</div>
+      `;
       
-      // Ajustar la imagen dentro del contenedor
-      const actualImg = imgContainer.querySelector('img');
-      if (actualImg) {
-        actualImg.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;';
-        actualImg.draggable = false;
-        // Establecer dimensiones del contenedor basadas en un tamaño razonable para QR
-        imgContainer.style.width = '150px';
-        imgContainer.style.height = '150px';
-      }
+      // Establecer dimensiones del contenedor
+      imgContainer.style.width = '150px';
+      imgContainer.style.height = '150px';
       
       parent.appendChild(imgContainer);
       
@@ -2279,8 +2287,7 @@
       
       console.log('✅ Imagen QR agregada como contenedor de imagen:', {
         id: imgContainer.id,
-        hasImg: !!imgContainer.querySelector('img'),
-        html: varText.substring(0, 50)
+        variable: handlebarsVar
       });
       
       return;
@@ -2783,6 +2790,57 @@
               type: 'image',
               element: imgContainer
             });
+          }
+        });
+        
+        // Convertir imágenes con variables Handlebars a placeholders para evitar errores 404
+        const imagesWithHandlebars = canvas.querySelectorAll('img[src*="{{"]');
+        imagesWithHandlebars.forEach(img => {
+          const handlebarsVar = img.getAttribute('src');
+          if (handlebarsVar && handlebarsVar.includes('{{')) {
+            // Encontrar el contenedor padre o crear uno
+            let imgContainer = img.closest('.image-container');
+            if (!imgContainer) {
+              // Si la imagen no está en un contenedor, crear uno
+              imgContainer = document.createElement('div');
+              imgContainer.className = 'image-container tpl-element';
+              imgContainer.id = `element_${visualEditor.nextId++}`;
+              
+              // Copiar estilos de posición de la imagen si tiene
+              const imgRect = img.getBoundingClientRect();
+              const canvasRect = canvas.getBoundingClientRect();
+              const left = img.offsetLeft || 20;
+              const top = img.offsetTop || 20;
+              
+              imgContainer.style.cssText = `position: absolute; display: block; padding: 0; margin: 0; line-height: 0; cursor: move; border: 2px solid transparent; min-width: 150px; min-height: 150px; left: ${left}px; top: ${top}px; width: ${img.width || 150}px; height: ${img.height || 150}px;`;
+              
+              // Reemplazar la imagen con el contenedor
+              img.parentNode.replaceChild(imgContainer, img);
+            }
+            
+            // Guardar el HTML original en un div oculto
+            const originalHtml = img.outerHTML;
+            imgContainer.innerHTML = `
+              <div class="image-placeholder" style="width: 100%; height: 100%; background: #f5f5f5; border: 2px dashed #999; display: flex; align-items: center; justify-content: center; cursor: move; font-size: 11px; color: #666; text-align: center; padding: 5px; box-sizing: border-box; position: relative;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 5px; pointer-events: none;">
+                  <div style="font-size: 24px;">📱</div>
+                  <div>QR Code</div>
+                </div>
+                <div style="position: absolute; bottom: 2px; left: 2px; right: 2px; font-size: 9px; color: #999; pointer-events: none; text-align: center; word-break: break-all;">${handlebarsVar}</div>
+              </div>
+              <div class="image-html-content" style="display: none;">${originalHtml}</div>
+            `;
+            
+            // Asegurar que el contenedor esté en la lista de elementos
+            if (!visualEditor.elements.find(e => e.id === imgContainer.id)) {
+              makeDraggable(imgContainer);
+              makeSelectable(imgContainer);
+              visualEditor.elements.push({
+                id: imgContainer.id,
+                type: 'image',
+                element: imgContainer
+              });
+            }
           }
         });
         
@@ -5477,6 +5535,28 @@
 
     let content = canvas.innerHTML;
     const hasElements = !!canvas.querySelector('.tpl-element');
+    
+    // Reemplazar placeholders de imagen QR con el HTML real que contiene las variables Handlebars
+    const imageContainers = canvas.querySelectorAll('.image-container .image-html-content');
+    imageContainers.forEach(htmlContentDiv => {
+      const imgContainer = htmlContentDiv.closest('.image-container');
+      if (imgContainer) {
+        const realHtml = htmlContentDiv.textContent || htmlContentDiv.innerHTML;
+        // Reemplazar el placeholder completo con el HTML real
+        const placeholder = imgContainer.querySelector('.image-placeholder');
+        if (placeholder && realHtml) {
+          // Reemplazar el placeholder con el HTML real, manteniendo los estilos del contenedor
+          imgContainer.innerHTML = realHtml;
+          // Asegurar que la imagen tenga estilos apropiados
+          const img = imgContainer.querySelector('img');
+          if (img) {
+            img.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;';
+            img.draggable = false;
+          }
+        }
+      }
+    });
+    
     await optimizeCanvasImages(canvas);
     content = canvas.innerHTML;
     
