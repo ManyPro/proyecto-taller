@@ -205,12 +205,11 @@ function renderChatDetails(chat) {
           <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Teléfono</label>
           <input type="text" id="chatCustomerPhone" value="${escapeHtml(chat.customer.phone)}" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900" />
         </div>
-        <div>
+        <div class="relative">
           <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Vehículo</label>
-          <select id="chatVehicleId" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900">
-            <option value="">Seleccionar vehículo</option>
-            ${vehicles.map(v => `<option value="${v._id}" ${chat.vehicle?.vehicleId && String(v._id) === String(chat.vehicle.vehicleId) ? 'selected' : ''}>${v.make} ${v.line} ${v.displacement}</option>`).join('')}
-          </select>
+          <input type="text" id="chatVehicleSearch" placeholder="Buscar vehículo (marca, línea, cilindraje)..." value="${chat.vehicle?.vehicleId ? getVehicleDisplay(chat.vehicle.vehicleId) : ''}" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900" />
+          <input type="hidden" id="chatVehicleId" value="${chat.vehicle?.vehicleId || ''}" />
+          <div id="chatVehicleDropdown" class="hidden absolute z-50 w-full mt-1 bg-slate-800 dark:bg-slate-800 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" style="top: 100%;"></div>
         </div>
         <div>
           <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Año</label>
@@ -280,6 +279,9 @@ function renderChatDetails(chat) {
       addComment();
     }
   });
+  
+  // Inicializar búsqueda de vehículos en detalles
+  initVehicleSearch('chatVehicleSearch', 'chatVehicleDropdown', 'chatVehicleId');
 }
 
 // Renderizar historial de inventario
@@ -411,12 +413,11 @@ function openCreateChatModal() {
           <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Teléfono *</label>
           <input type="text" id="newChatPhone" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900" required />
         </div>
-        <div>
+        <div class="relative">
           <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Vehículo</label>
-          <select id="newChatVehicleId" class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900">
-            <option value="">Seleccionar vehículo</option>
-            ${vehicles.map(v => `<option value="${v._id}">${v.make} ${v.line} ${v.displacement}</option>`).join('')}
-          </select>
+          <input type="text" id="newChatVehicleSearch" placeholder="Buscar vehículo (marca, línea, cilindraje)..." class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900" />
+          <input type="hidden" id="newChatVehicleId" value="" />
+          <div id="newChatVehicleDropdown" class="hidden absolute z-50 w-full mt-1 bg-slate-800 dark:bg-slate-800 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg shadow-lg max-h-60 overflow-y-auto" style="top: 100%;"></div>
         </div>
         <div>
           <label class="block text-xs font-medium text-slate-400 dark:text-slate-400 theme-light:text-slate-600 mb-1">Año</label>
@@ -459,6 +460,9 @@ function openCreateChatModal() {
   });
 
   $('#btnConfirmCreateChat')?.addEventListener('click', createChat);
+  
+  // Inicializar búsqueda de vehículos en modal de creación
+  initVehicleSearch('newChatVehicleSearch', 'newChatVehicleDropdown', 'newChatVehicleId');
 }
 
 // Crear chat
@@ -792,6 +796,100 @@ function getVehicleDisplay(vehicleId) {
   const vehicle = vehicles.find(v => String(v._id) === String(vehicleId));
   if (!vehicle) return '';
   return `${vehicle.make} ${vehicle.line} ${vehicle.displacement}`;
+}
+
+// Inicializar búsqueda de vehículos con autocompletado
+function initVehicleSearch(searchInputId, dropdownId, hiddenInputId) {
+  const searchInput = $(`#${searchInputId}`);
+  const dropdown = $(`#${dropdownId}`);
+  const hiddenInput = $(`#${hiddenInputId}`);
+  
+  if (!searchInput || !dropdown || !hiddenInput) return;
+  
+  let searchTimeout = null;
+  let selectedVehicle = null;
+  
+  // Si hay un vehicleId pero el input de búsqueda está vacío, cargar el vehículo
+  if (hiddenInput.value && !searchInput.value.trim()) {
+    const vehicleId = hiddenInput.value;
+    const vehicle = vehicles.find(v => String(v._id) === String(vehicleId));
+    if (vehicle) {
+      searchInput.value = `${vehicle.make} ${vehicle.line} ${vehicle.displacement}`;
+      selectedVehicle = vehicle;
+    }
+    // Si no está en el array local, el valor ya debería estar en el input desde renderChatDetails
+  }
+  
+  // Función para buscar vehículos
+  async function searchVehicles(query) {
+    if (!query || query.trim().length < 1) {
+      dropdown.classList.add('hidden');
+      return;
+    }
+    
+    try {
+      const result = await API.vehicles.search({ q: query.trim(), limit: 30 });
+      const vehiclesList = Array.isArray(result?.items) ? result.items : [];
+      
+      if (vehiclesList.length === 0) {
+        dropdown.innerHTML = '<div class="p-3 text-center text-sm text-slate-400 dark:text-slate-400 theme-light:text-slate-600">No se encontraron vehículos</div>';
+        dropdown.classList.remove('hidden');
+        return;
+      }
+      
+      dropdown.innerHTML = '';
+      vehiclesList.forEach(v => {
+        const div = document.createElement('div');
+        div.className = 'p-3 cursor-pointer hover:bg-slate-700/50 dark:hover:bg-slate-700/50 theme-light:hover:bg-sky-100 border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-300';
+        div.innerHTML = `
+          <div class="font-semibold text-white dark:text-white theme-light:text-slate-900">${escapeHtml(v.make)} ${escapeHtml(v.line)}</div>
+          <div class="text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Cilindraje: ${escapeHtml(v.displacement)}${v.modelYear ? ` | Modelo: ${escapeHtml(v.modelYear)}` : ''}</div>
+        `;
+        div.addEventListener('click', () => {
+          selectedVehicle = v;
+          hiddenInput.value = v._id;
+          searchInput.value = `${v.make} ${v.line} ${v.displacement}`;
+          dropdown.classList.add('hidden');
+        });
+        dropdown.appendChild(div);
+      });
+      
+      dropdown.classList.remove('hidden');
+    } catch (err) {
+      console.error('Error al buscar vehículos:', err);
+      dropdown.innerHTML = '<div class="p-3 text-center text-sm text-red-400">Error al buscar vehículos</div>';
+      dropdown.classList.remove('hidden');
+    }
+  }
+  
+  // Event listener para input
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(searchTimeout);
+    const query = e.target.value.trim();
+    if (query.length >= 1) {
+      searchTimeout = setTimeout(() => {
+        searchVehicles(query);
+      }, 300);
+    } else {
+      dropdown.classList.add('hidden');
+      hiddenInput.value = '';
+      selectedVehicle = null;
+    }
+  });
+  
+  // Event listener para focus
+  searchInput.addEventListener('focus', () => {
+    if (searchInput.value.trim().length >= 1) {
+      searchVehicles(searchInput.value.trim());
+    }
+  });
+  
+  // Cerrar dropdown al hacer clic fuera
+  document.addEventListener('click', (e) => {
+    if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+      dropdown.classList.add('hidden');
+    }
+  });
 }
 
 // Inicializar cuando el DOM esté listo
