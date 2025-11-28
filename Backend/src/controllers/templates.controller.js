@@ -1656,16 +1656,54 @@ export async function previewTemplate(req, res) {
       console.log('[previewTemplate] Usando quoteData para sobrescribir contexto');
       
       // Procesar items y crear estructura agrupada (igual que en buildContext)
-      const processedItems = [];
+      // CRÍTICO: Calcular subtotal real desde los items (sin IVA)
+      let calculatedSubtotal = 0;
+      
+      // Primero, identificar items de combos (que tienen comboParent o SKU que empieza con "CP-")
+      const comboProductItemIds = new Set();
+      const comboMap = new Map(); // refId del combo -> { main: item, items: [] }
+      
+      // Primera pasada: identificar items de combos
+      (quoteData.items || []).forEach((item, idx) => {
+        const itemSku = String(item.sku || '').toUpperCase();
+        const itemRefId = item.refId ? String(item.refId) : '';
+        const comboParent = item.comboParent ? String(item.comboParent) : '';
+        
+        // Si tiene comboParent, es un item anidado de un combo
+        if (comboParent) {
+          if (!comboMap.has(comboParent)) {
+            comboMap.set(comboParent, { main: null, items: [] });
+          }
+          comboMap.get(comboParent).items.push({ item, idx });
+          comboProductItemIds.add(itemRefId || `idx_${idx}`);
+        }
+        
+        // Si el SKU empieza con "CP-", también es parte de un combo
+        if (itemSku.startsWith('CP-') && item.refId) {
+          const parentId = String(item.refId);
+          if (!comboMap.has(parentId)) {
+            comboMap.set(parentId, { main: null, items: [] });
+          }
+          comboMap.get(parentId).items.push({ item, idx });
+          comboProductItemIds.add(itemRefId || `idx_${idx}`);
+        }
+      });
+      
       const products = [];
       const services = [];
       const combos = [];
       
-      // Procesar items simples (sin agrupación compleja para preview)
-      // CRÍTICO: Calcular subtotal real desde los items (sin IVA)
-      let calculatedSubtotal = 0;
-      
-      (quoteData.items || []).forEach(item => {
+      // Segunda pasada: procesar items y agrupar
+      (quoteData.items || []).forEach((item, idx) => {
+        const itemRefId = item.refId ? String(item.refId) : '';
+        const itemSku = String(item.sku || '').toUpperCase();
+        const comboParent = item.comboParent ? String(item.comboParent) : '';
+        
+        // Si es parte de un combo (tiene comboParent o SKU empieza con "CP-"), saltarlo
+        if (comboParent || (itemSku.startsWith('CP-') && item.refId)) {
+          return; // Ya será procesado como parte del combo
+        }
+        
         // Calcular subtotal del item (usar subtotal si existe, sino calcular)
         const itemQty = item.qty === null || item.qty === undefined || item.qty === '' ? null : Number(item.qty);
         const itemUnitPrice = Number(item.unitPrice) || 0;
@@ -1689,13 +1727,44 @@ export async function previewTemplate(req, res) {
           kind: item.kind || 'SERVICIO'
         };
         
-        const kind = String(item.kind || 'SERVICIO').trim().toUpperCase();
-        if (kind === 'PRODUCTO' || kind === 'PRODUCT') {
-          products.push(itemObj);
-        } else if (kind === 'COMBO') {
-          combos.push(itemObj);
-        } else {
-          services.push(itemObj);
+        // Verificar si es un combo principal (tiene refId y hay items asociados)
+        if (item.refId && comboMap.has(itemRefId)) {
+          const comboData = comboMap.get(itemRefId);
+          // Es un combo principal - agregar items anidados
+          const comboItems = comboData.items.map(({ item: nestedItem }) => {
+            const nestedQty = nestedItem.qty === null || nestedItem.qty === undefined || nestedItem.qty === '' ? null : Number(nestedItem.qty);
+            const nestedUnitPrice = Number(nestedItem.unitPrice) || 0;
+            const nestedQtyForCalc = nestedQty === null ? 1 : (nestedQty > 0 ? nestedQty : 1);
+            const nestedSubtotal = (nestedItem.subtotal !== null && nestedItem.subtotal !== undefined) 
+              ? Number(nestedItem.subtotal) 
+              : (nestedQtyForCalc * nestedUnitPrice);
+            calculatedSubtotal += nestedSubtotal; // Incluir en el subtotal total
+            
+            return {
+              sku: nestedItem.sku || '',
+              name: nestedItem.description || nestedItem.name || '',
+              description: nestedItem.description || '',
+              qty: nestedQty,
+              unitPrice: nestedUnitPrice,
+              total: nestedSubtotal,
+              subtotal: nestedSubtotal,
+              source: nestedItem.source || '',
+              refId: nestedItem.refId || null
+            };
+          });
+          
+          combos.push({
+            ...itemObj,
+            items: comboItems
+          });
+        } else if (!comboProductItemIds.has(itemRefId) && !comboProductItemIds.has(`idx_${idx}`)) {
+          // No es parte de un combo, clasificar por kind
+          const kind = String(item.kind || 'SERVICIO').trim().toUpperCase();
+          if (kind === 'PRODUCTO' || kind === 'PRODUCT') {
+            products.push(itemObj);
+          } else {
+            services.push(itemObj);
+          }
         }
       });
       

@@ -1,5 +1,6 @@
 ﻿import { API } from './api.esm.js';
 import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from './feature-gating.js';
+import { setupNumberInputsPasteHandler, setupNumberInputPasteHandler } from './number-utils.js';
 
 const $  = (s, r=document)=>r.querySelector(s);
 const clone = (id)=>document.getElementById(id)?.content?.firstElementChild?.cloneNode(true);
@@ -7527,6 +7528,28 @@ function connectLive(){
 
 export function initSales(){
   const ventas = document.getElementById('tab-ventas'); if (!ventas) return;
+
+  // Configurar handlers para pegar números con formato de miles en todos los campos numéricos
+  setupNumberInputsPasteHandler('input[type="number"]', ventas);
+  
+  // También aplicar a campos que se crean dinámicamente
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === 1) { // Element node
+          if (node.tagName === 'INPUT' && node.type === 'number') {
+            setupNumberInputPasteHandler(node);
+          }
+          // También buscar inputs dentro del nodo agregado
+          const inputs = node.querySelectorAll?.('input[type="number"]');
+          if (inputs) {
+            inputs.forEach(input => setupNumberInputPasteHandler(input));
+          }
+        }
+      });
+    });
+  });
+  observer.observe(ventas, { childList: true, subtree: true });
 
   (async ()=>{
     await loadFeatureOptionsAndRestrictions();

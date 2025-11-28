@@ -385,6 +385,7 @@ const API = {
     list: () => http.get('/api/v1/cashflow/accounts'),
     create: (payload) => http.post('/api/v1/cashflow/accounts', payload),
     update: (id, body) => http.patch(`/api/v1/cashflow/accounts/${id}`, body),
+    delete: (id) => http.del(`/api/v1/cashflow/accounts/${id}`),
     balances: () => http.get('/api/v1/cashflow/accounts/balances')
   },
   cashflow: {
@@ -392,7 +393,6 @@ const API = {
     create: (payload) => http.post('/api/v1/cashflow/entries', payload),
     update: (id, payload) => http.patch(`/api/v1/cashflow/entries/${id}`, payload),
     delete: (id) => http.del(`/api/v1/cashflow/entries/${id}`),
-    fixBalances: () => http.post('/api/v1/cashflow/entries/fix-balances'),
     // Préstamos a empleados
     loans: {
       list: (params={}) => http.get(`/api/v1/cashflow/loans${toQuery(params)}`),

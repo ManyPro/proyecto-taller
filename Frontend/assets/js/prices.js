@@ -1,5 +1,6 @@
 import { API } from './api.esm.js';
 import { initVehicles } from './vehicles.js';
+import { setupNumberInputsPasteHandler, setupNumberInputPasteHandler } from './number-utils.js';
 
 const $ = (s)=>document.querySelector(s);
 const money = (n)=> new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(Number(n||0));
@@ -3540,6 +3541,28 @@ export function initPrices(){
 
   // Inicializar gestión de vehículos
   initVehicles();
+  
+  // Configurar handlers para pegar números con formato de miles en todos los campos numéricos
+  setupNumberInputsPasteHandler('input[type="number"]', tab);
+  
+  // También aplicar a campos que se crean dinámicamente
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === 1) { // Element node
+          if (node.tagName === 'INPUT' && node.type === 'number') {
+            setupNumberInputPasteHandler(node);
+          }
+          // También buscar inputs dentro del nodo agregado
+          const inputs = node.querySelectorAll?.('input[type="number"]');
+          if (inputs) {
+            inputs.forEach(input => setupNumberInputPasteHandler(input));
+          }
+        }
+      });
+    });
+  });
+  observer.observe(tab, { childList: true, subtree: true });
 
   // Inicializar con la pestaña vehicular activa
   switchSubTab('prices-vehicular');

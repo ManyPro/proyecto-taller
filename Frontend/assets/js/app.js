@@ -11,6 +11,7 @@ import { initSales } from "./sales.js";
 import { initCashFlow } from "./cashflow.js";
 import { initChats } from "./chats.js";
 import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from "./feature-gating.js";
+import { setupAutocorrectForSelector, setupAutocorrect } from "./autocorrect.js";
 
 export { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from "./feature-gating.js";
 
@@ -145,6 +146,30 @@ document.addEventListener('DOMContentLoaded', ()=>{
   initializeLogoutListener();
   initializeAuth();
   applyTheme(detectInitialTheme());
+  
+  // Inicializar autocorrector en todos los campos de texto
+  setupAutocorrectForSelector('input[type="text"], textarea, input:not([type]), [contenteditable="true"]');
+  
+  // Observar campos dinámicos
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === 1) { // Element node
+          if ((node.tagName === 'INPUT' && (node.type === 'text' || !node.type)) || 
+              node.tagName === 'TEXTAREA' || 
+              node.getAttribute('contenteditable') === 'true') {
+            setupAutocorrect(node);
+          }
+          // También buscar inputs dentro del nodo agregado
+          const inputs = node.querySelectorAll?.('input[type="text"], textarea, input:not([type]), [contenteditable="true"]');
+          if (inputs) {
+            inputs.forEach(input => setupAutocorrect(input));
+          }
+        }
+      });
+    });
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
   
   // Usar event delegation para manejar clicks en todos los botones de tema (desktop y mobile)
   document.addEventListener('click', (e) => {

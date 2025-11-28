@@ -2,6 +2,7 @@
 import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from './feature-gating.js';
 import { upper } from "./utils.js";
 import { bindStickersButton, downloadStickersPdf } from './pdf.js';
+import { setupNumberInputsPasteHandler } from './number-utils.js';
 
 const state = {
   intakes: [],
@@ -617,6 +618,28 @@ function getSelectedItems() {
 // Solo ejecutar la lógica de Inventario cuando estamos en esa página
 const __ON_INV_PAGE__ = (document.body?.dataset?.page === 'inventario');
 if (__ON_INV_PAGE__) {
+  // Configurar handlers para pegar números con formato de miles en todos los campos numéricos
+  document.addEventListener('DOMContentLoaded', () => {
+    setupNumberInputsPasteHandler('input[type="number"]');
+  });
+  // También aplicar a campos que se crean dinámicamente
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      mutation.addedNodes.forEach((node) => {
+        if (node.nodeType === 1) { // Element node
+          if (node.tagName === 'INPUT' && node.type === 'number') {
+            setupNumberInputPasteHandler(node);
+          }
+          // También buscar inputs dentro del nodo agregado
+          const inputs = node.querySelectorAll?.('input[type="number"]');
+          if (inputs) {
+            inputs.forEach(input => setupNumberInputPasteHandler(input));
+          }
+        }
+      });
+    });
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
   function getBusyOverlay(){
     let el = document.getElementById('busy-overlay');
     if (el) return el;
@@ -1474,15 +1497,21 @@ if (__ON_INV_PAGE__) {
               const captureSingleBox = async (contentFragment) => {
                 const box = document.createElement('div');
                 box.className = 'sticker-capture';
-                // Usar dimensiones del template guardadas
-                box.style.cssText = `width:${stickerWidthCm}cm;height:${stickerHeightCm}cm;overflow:hidden;background:#fff;`;
+                // Usar dimensiones del template guardadas - CRÍTICO: position relative para que los elementos absolutos se posicionen correctamente
+                const widthPx = Math.round(stickerWidthCm * 37.795275591);
+                const heightPx = Math.round(stickerHeightCm * 37.795275591);
+                box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box;`;
                 const style = document.createElement('style');
                 style.textContent = `\n${(tpl.contentCss || '').toString()}\n` +
                   `/* Ocultar handles y selección del editor durante el render */\n` +
                   `.drag-handle,.resize-handle,.selection-box,.resizer,.handles,.ve-selected,.ce-selected,.selected{display:none!important;}\n` +
                   `.sticker-capture, .sticker-capture *{outline:none!important;-webkit-tap-highlight-color:transparent!important;user-select:none!important;caret-color:transparent!important;}\n` +
                   `.sticker-capture *::selection{background:transparent!important;color:inherit!important;}\n` +
-                  `img,svg,canvas{outline:none!important;border:none!important;-webkit-user-drag:none!important;}`;
+                  `img,svg,canvas{outline:none!important;border:none!important;-webkit-user-drag:none!important;}\n` +
+                  `/* Asegurar que el contenedor wrapper respete las dimensiones */\n` +
+                  `.sticker-wrapper{position: relative !important; width: 100% !important; height: 100% !important; overflow: hidden !important; box-sizing: border-box !important;}\n` +
+                  `/* Asegurar que elementos con position absolute se posicionen relativos al contenedor */\n` +
+                  `.sticker-capture [style*="position: absolute"]{position: absolute !important;}`;
                 box.appendChild(style);
                 const inner = document.createElement('div');
                 if (contentFragment) {
@@ -2668,15 +2697,21 @@ function openMarketplaceHelper(item){
             const captureSingleBox = async () => {
               const box = document.createElement('div');
               box.className = 'sticker-capture';
-              // Usar dimensiones del template guardadas
-              box.style.cssText = `width:${stickerWidthCm}cm;height:${stickerHeightCm}cm;overflow:hidden;background:#fff;`;
+              // Usar dimensiones del template guardadas - CRÍTICO: position relative para que los elementos absolutos se posicionen correctamente
+              const widthPx = Math.round(stickerWidthCm * 37.795275591);
+              const heightPx = Math.round(stickerHeightCm * 37.795275591);
+              box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box;`;
               const style = document.createElement('style');
               style.textContent = `\n${(tpl.contentCss || '').toString()}\n` +
                 `/* Ocultar handles y selección del editor durante el render */\n` +
                 `.drag-handle,.resize-handle,.selection-box,.resizer,.handles,.ve-selected,.ce-selected,.selected{display:none!important;}\n` +
                 `.sticker-capture, .sticker-capture *{outline:none!important;-webkit-tap-highlight-color:transparent!important;user-select:none!important;caret-color:transparent!important;}\n` +
                 `.sticker-capture *::selection{background:transparent!important;color:inherit!important;}\n` +
-                `img,svg,canvas{outline:none!important;border:none!important;-webkit-user-drag:none!important;}`;
+                `img,svg,canvas{outline:none!important;border:none!important;-webkit-user-drag:none!important;}\n` +
+                `/* Asegurar que el contenedor wrapper respete las dimensiones */\n` +
+                `.sticker-wrapper{position: relative !important; width: 100% !important; height: 100% !important; overflow: hidden !important; box-sizing: border-box !important;}\n` +
+                `/* Asegurar que elementos con position absolute se posicionen relativos al contenedor */\n` +
+                `.sticker-capture [style*="position: absolute"]{position: absolute !important;}`;
               box.appendChild(style);
               const inner = document.createElement('div');
               inner.innerHTML = html || '';

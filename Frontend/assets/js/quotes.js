@@ -1,5 +1,6 @@
 ﻿import { API } from "./api.esm.js";
 import { normalizeText, matchesSearch } from "./search-utils.js";
+import { setupNumberInputPasteHandler, setupNumberInputsPasteHandler } from "./number-utils.js";
 
 // Función para restaurar variables Handlebars acortadas antes de enviar al backend
 function restoreHandlebarsVarsForPreview(html) {
@@ -339,6 +340,9 @@ export function initQuotes({ getCompanyEmail }) {
     loadDraft();
     recalcAll();
     bindUI();
+    
+    // Configurar handlers para pegar números con formato de miles en todos los campos numéricos
+    setupNumberInputsPasteHandler('input[type="number"]', tab);
 
     syncSummaryHeight();
     window.addEventListener('resize', syncSummaryHeight);
@@ -622,6 +626,10 @@ export function initQuotes({ getCompanyEmail }) {
     n.classList.remove('hidden'); n.removeAttribute('id'); n.removeAttribute('data-template');
     n.querySelectorAll('input,select').forEach(el=>{
       el.addEventListener('input',()=>{ updateRowSubtotal(n); recalcAll(); });
+      // Configurar handler para pegar números con formato de miles
+      if (el.type === 'number') {
+        setupNumberInputPasteHandler(el);
+      }
     });
     const removeBtn = n.querySelector('button');
     if (removeBtn) {
@@ -857,14 +865,14 @@ export function initQuotes({ getCompanyEmail }) {
       
       // Agregar IVA si está habilitado
       if (ivaEnabled) {
-        const ivaValue = subtotalAfterDiscount * 0.19;
+        const ivaValue = Math.round(subtotalAfterDiscount * 0.19);
         lines.push(`IVA (19%): ${money(ivaValue)}`);
       }
       
       lines.push(`*TOTAL: ${money(total)}*`);
     }
     
-    // Añadir notas especiales antes de "Valores SIN IVA"
+    // Añadir notas especiales antes de "Valores SIN IVA" o "Valores con IVA incluido"
     // Verificar si specialNotes está definido antes de usarlo
     if (typeof specialNotes !== 'undefined' && specialNotes && specialNotes.length > 0) {
       lines.push('');
@@ -874,7 +882,10 @@ export function initQuotes({ getCompanyEmail }) {
       });
     }
     
-    lines.push(`Valores con iva excluido`);
+    // Solo agregar "Valores con iva excluido" si IVA NO está habilitado
+    if (!ivaEnabled) {
+      lines.push(`Valores con iva excluido`);
+    }
     lines.push(val.trim());
     return lines.join('\n').replace(/\n{3,}/g,'\n\n');
   }
@@ -1047,7 +1058,10 @@ export function initQuotes({ getCompanyEmail }) {
               unitPrice: Number(r.price || 0),
               subtotal: (r.qty > 0 ? r.qty : 1) * (r.price || 0),
               sku: r.sku || '',
-              kind: r.type || 'SERVICIO'
+              kind: r.type || 'SERVICIO',
+              source: r.source || undefined,
+              refId: r.refId || undefined,
+              comboParent: r.comboParent || undefined
             })),
             totals: {
               total: parseMoney(lblTotal.textContent) || 0

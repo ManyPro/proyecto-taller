@@ -769,12 +769,22 @@ async function loadStats() {
   }
 }
 
-window.showPaymentModal = function(receivableId) {
+window.showPaymentModal = async function(receivableId) {
   const receivable = receivables.find(r => r._id === receivableId);
   if (!receivable) return;
   
   const modalBody = document.getElementById('modalBody');
   if (!modalBody) return;
+  
+  // Cargar cuentas para el selector
+  let accounts = [];
+  try {
+    const api = getAPI();
+    const accountsData = await api.accounts?.balances();
+    accounts = accountsData?.balances || [];
+  } catch (e) {
+    console.warn('Error cargando cuentas:', e);
+  }
   
   modalBody.innerHTML = `
     <h2 class="text-2xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">Registrar Pago</h2>
@@ -800,6 +810,14 @@ window.showPaymentModal = function(receivableId) {
           <option value="Cheque">Cheque</option>
           <option value="Tarjeta">Tarjeta</option>
           <option value="Otro">Otro</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-1">Cuenta *</label>
+        <select id="payment-account" required
+          class="w-full px-3 py-2 bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500">
+          <option value="">Seleccionar cuenta</option>
+          ${accounts.map(acc => `<option value="${acc.accountId || acc._id || acc.id}">${escapeHtml(acc.name || 'Sin nombre')}</option>`).join('')}
         </select>
       </div>
       <div>
@@ -829,6 +847,7 @@ async function addPayment(receivableId) {
     const api = getAPI();
     const amount = parseFloat(document.getElementById('payment-amount')?.value || 0);
     const paymentMethod = document.getElementById('payment-method')?.value || '';
+    const accountId = document.getElementById('payment-account')?.value || '';
     const notes = document.getElementById('payment-notes')?.value.trim() || '';
     
     if (amount <= 0) {
@@ -836,9 +855,15 @@ async function addPayment(receivableId) {
       return;
     }
     
+    if (!accountId) {
+      showError('Debe seleccionar una cuenta');
+      return;
+    }
+    
     await api.receivables?.addPayment(receivableId, {
       amount,
       paymentMethod,
+      accountId,
       notes
     });
     

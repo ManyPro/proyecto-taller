@@ -112,7 +112,7 @@ async function loadAccounts(){
     const visibleTotal = balances.reduce((sum, acc) => sum + (Number(acc.balance) || 0), 0);
     
     if(body){
-      body.innerHTML = balances.map(a=>`<tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors"><td data-label="Nombre" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtml(a.name)}</td><td data-label="Tipo" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtml(a.type)}</td><td data-label="Saldo" class="px-4 py-3 text-right text-xs font-semibold text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(a.balance)}</td><td class="px-4 py-3"></td></tr>`).join('');
+      body.innerHTML = balances.map(a=>`<tr class="border-b border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 hover:bg-slate-700/20 dark:hover:bg-slate-700/20 theme-light:hover:bg-slate-50 transition-colors"><td data-label="Nombre" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtml(a.name)}</td><td data-label="Tipo" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${escapeHtml(a.type)}</td><td data-label="Saldo" class="px-4 py-3 text-right text-xs font-semibold text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${money(a.balance)}</td><td class="px-4 py-3 text-center"><button onclick="deleteAccount('${a.accountId || a._id || a.id}', '${escapeHtml(a.name)}')" class="px-2 py-1 bg-red-600/50 hover:bg-red-600 text-white text-xs rounded transition-colors" title="Eliminar cuenta y todos sus registros">🗑️</button></td></tr>`).join('');
       if(!balances.length) body.innerHTML='<tr><td colspan="4" class="px-4 py-3 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Sin cuentas</td></tr>';
     }
     if(totalLbl) totalLbl.textContent = 'Total: '+money(visibleTotal);
@@ -781,6 +781,56 @@ async function loadLoans(reset=false){
     if(body) body.innerHTML='<tr><td colspan="8" class="px-4 py-6 text-center text-xs text-slate-400 dark:text-slate-400 theme-light:text-slate-600">Error al cargar préstamos</td></tr>';
     if(summary) summary.textContent = e?.message||'Error';
   }
+}
+
+window.deleteAccount = async function(accountId, accountName) {
+  if (!confirm(`¿Está seguro de eliminar la cuenta "${accountName}"?\n\nEsta acción eliminará la cuenta y TODOS sus registros de flujo de caja. Esta acción NO se puede deshacer.`)) {
+    return;
+  }
+  
+  try {
+    await API.accounts.delete(accountId);
+    showSuccess('Cuenta eliminada correctamente');
+    await loadAccounts();
+    await loadMovements(true);
+  } catch (err) {
+    console.error('Error eliminando cuenta:', err);
+    showError(err?.response?.data?.error || 'Error al eliminar cuenta');
+  }
+};
+
+function showSuccess(message) {
+  // Crear o actualizar mensaje de éxito
+  let msgEl = document.getElementById('cf-msg');
+  if (!msgEl) {
+    msgEl = document.createElement('div');
+    msgEl.id = 'cf-msg';
+    msgEl.className = 'fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 text-white';
+    document.body.appendChild(msgEl);
+  }
+  msgEl.textContent = message;
+  msgEl.className = 'fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 text-white bg-green-600';
+  msgEl.style.display = 'block';
+  setTimeout(() => {
+    msgEl.style.display = 'none';
+  }, 3000);
+}
+
+function showError(message) {
+  // Crear o actualizar mensaje de error
+  let msgEl = document.getElementById('cf-msg');
+  if (!msgEl) {
+    msgEl = document.createElement('div');
+    msgEl.id = 'cf-msg';
+    msgEl.className = 'fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 text-white';
+    document.body.appendChild(msgEl);
+  }
+  msgEl.textContent = message;
+  msgEl.className = 'fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 text-white bg-red-600';
+  msgEl.style.display = 'block';
+  setTimeout(() => {
+    msgEl.style.display = 'none';
+  }, 3000);
 }
 
 if(typeof document!=='undefined'){

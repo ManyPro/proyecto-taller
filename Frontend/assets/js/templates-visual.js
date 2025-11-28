@@ -2630,8 +2630,50 @@
           }
         });
         
-        // Ajustar altura del canvas al contenido
-        adjustCanvasHeightToContent(canvas);
+        // Para stickers, asegurar que el contenido cargado respete las dimensiones del canvas
+        const isSticker = template.type && (template.type.includes('sticker') || template.type === 'sticker-qr' || template.type === 'sticker-brand');
+        if (isSticker && canvas.innerHTML.trim()) {
+          // Verificar si el contenido tiene un contenedor wrapper
+          const hasWrapper = canvas.querySelector('.sticker-wrapper');
+          if (!hasWrapper) {
+            // Si no tiene wrapper, envolver el contenido existente
+            const existingContent = canvas.innerHTML;
+            const canvasWidthCm = template.meta?.width || canvas.getAttribute('data-canvas-width-cm') || '5';
+            const canvasHeightCm = template.meta?.height || canvas.getAttribute('data-canvas-height-cm') || '3';
+            const widthPx = Math.round(parseFloat(canvasWidthCm) * 37.795275591);
+            const heightPx = Math.round(parseFloat(canvasHeightCm) * 37.795275591);
+            canvas.innerHTML = `<div class="sticker-wrapper" style="position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #ffffff; box-sizing: border-box;">${existingContent}</div>`;
+            console.log('📦 Contenido de sticker envuelto en contenedor al cargar:', widthPx, 'x', heightPx);
+            
+            // Re-aplicar eventos a los elementos después de envolver
+            const elementsAfterWrap = canvas.querySelectorAll('.tpl-element');
+            elementsAfterWrap.forEach((el) => {
+              if (!el.id) {
+                el.id = `element_${visualEditor.nextId++}`;
+              }
+              makeDraggable(el);
+              makeSelectable(el);
+            });
+          } else {
+            // Si ya tiene wrapper, actualizar sus dimensiones
+            const wrapper = canvas.querySelector('.sticker-wrapper');
+            const canvasWidthCm = template.meta?.width || canvas.getAttribute('data-canvas-width-cm') || '5';
+            const canvasHeightCm = template.meta?.height || canvas.getAttribute('data-canvas-height-cm') || '3';
+            const widthPx = Math.round(parseFloat(canvasWidthCm) * 37.795275591);
+            const heightPx = Math.round(parseFloat(canvasHeightCm) * 37.795275591);
+            wrapper.style.width = widthPx + 'px';
+            wrapper.style.height = heightPx + 'px';
+            wrapper.style.position = 'relative';
+            wrapper.style.overflow = 'hidden';
+            wrapper.style.boxSizing = 'border-box';
+            console.log('📦 Dimensiones del wrapper actualizadas:', widthPx, 'x', heightPx);
+          }
+        }
+        
+        // Ajustar altura del canvas al contenido (solo si no es sticker)
+        if (!isSticker) {
+          adjustCanvasHeightToContent(canvas);
+        }
         
         showQuickNotification(`✅ Formato "${template.name}" cargado correctamente`, 'success');
       } else {
@@ -5518,6 +5560,28 @@
       // Asegurar que templateType tenga un valor por defecto si no está definido
       templateType = templateType || session?.type || 'invoice';
     }
+    
+    // Para templates de stickers, envolver el contenido en un contenedor con dimensiones fijas
+    const isSticker = templateType && (templateType.includes('sticker') || templateType === 'sticker-qr' || templateType === 'sticker-brand');
+    if (isSticker && content.trim()) {
+      // Obtener dimensiones del canvas
+      const canvasWidthCm = canvas.getAttribute('data-canvas-width-cm') || '5';
+      const canvasHeightCm = canvas.getAttribute('data-canvas-height-cm') || '3';
+      const widthPx = Math.round(parseFloat(canvasWidthCm) * 37.795275591);
+      const heightPx = Math.round(parseFloat(canvasHeightCm) * 37.795275591);
+      
+      // Verificar si ya tiene un contenedor wrapper
+      const hasWrapper = content.trim().startsWith('<div') && 
+                        (content.includes('sticker-wrapper') || 
+                         (content.includes('position: relative') && content.includes('overflow: hidden')));
+      
+      if (!hasWrapper) {
+        // Envolver el contenido en un contenedor con dimensiones fijas
+        content = `<div class="sticker-wrapper" style="position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #ffffff; box-sizing: border-box;">${content}</div>`;
+        console.log('📦 Contenido de sticker envuelto en contenedor con dimensiones:', widthPx, 'x', heightPx);
+      }
+    }
+    
     let isUpdate = session?.action === 'edit';
 
     if (!templateName || session?.action === 'create') {

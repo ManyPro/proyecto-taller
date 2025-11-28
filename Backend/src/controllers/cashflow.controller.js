@@ -81,6 +81,27 @@ export async function updateAccount(req, res) {
   res.json(doc);
 }
 
+export async function deleteAccount(req, res) {
+  const { id } = req.params;
+  const acc = await Account.findOne({ _id: id, companyId: req.companyId });
+  if (!acc) return res.status(404).json({ error: 'account not found' });
+  
+  // Eliminar todos los registros de flujo de caja asociados a esta cuenta
+  await CashFlowEntry.deleteMany({ accountId: acc._id, companyId: req.companyId });
+  
+  // Eliminar la cuenta
+  await Account.deleteOne({ _id: acc._id, companyId: req.companyId });
+  
+  // Publicar evento de actualización en vivo
+  try {
+    await publish(req.companyId, 'cashflow:deleted', { accountId: acc._id, type: 'account' });
+  } catch (e) {
+    // No fallar si no se puede publicar
+  }
+  
+  res.json({ ok: true });
+}
+
 export async function getBalances(req, res) {
   const companyId = req.companyId;
   const accounts = await Account.find({ companyId });
@@ -403,66 +424,4 @@ export async function registerSaleIncome({ companyId, sale, accountId, forceCrea
   return entries;
 }
 
-// Endpoint para corregir balances de una empresa específica
-export async function fixBalances(req, res) {
-  try {
-    const companyId = req.companyId;
-    const accounts = await Account.find({ companyId }).lean();
-    
-    let totalFixed = 0;
-    let totalEntries = 0;
-
-    for (const account of accounts) {
-      const accountId = account._id;
-      const initialBalance = account.initialBalance || 0;
-
-      // Obtener todas las entradas ordenadas por fecha
-      const entries = await CashFlowEntry.find({ companyId, accountId })
-        .sort({ date: 1, _id: 1 })
-        .lean();
-
-      if (entries.length === 0) continue;
-
-      let runningBalance = initialBalance;
-      const updates = [];
-
-      for (const entry of entries) {
-        if (entry.kind === 'IN') {
-          runningBalance += (entry.amount || 0);
-        } else if (entry.kind === 'OUT') {
-          runningBalance -= (entry.amount || 0);
-        }
-
-        // Solo actualizar si el balance es diferente
-        if (entry.balanceAfter !== runningBalance) {
-          updates.push({
-            updateOne: {
-              filter: { _id: entry._id },
-              update: { $set: { balanceAfter: runningBalance } }
-            }
-          });
-          totalFixed++;
-        }
-        totalEntries++;
-      }
-
-      // Ejecutar actualizaciones en batch
-      if (updates.length > 0) {
-        await CashFlowEntry.bulkWrite(updates);
-        // Recalcular balances para asegurar consistencia
-        await recomputeAccountBalances(companyId, accountId);
-      }
-    }
-
-    res.json({ 
-      ok: true, 
-      message: `Corregidos ${totalFixed} balances de ${totalEntries} entradas`,
-      totalFixed,
-      totalEntries
-    });
-  } catch (error) {
-    console.error('Error fixing balances:', error);
-    res.status(500).json({ error: 'Error al corregir balances', message: error.message });
-  }
-}
 
