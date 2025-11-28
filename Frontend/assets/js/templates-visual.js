@@ -2110,8 +2110,17 @@
   }
 
   function createFriendlyButtons(buttons) {
-    return buttons.map(btn => `
-      <button onclick="insertVariableInCanvas('${btn.value.replace(/'/g, "\\'")}', ${btn.multiline || false})" 
+    return buttons.map(btn => {
+      // Escapar correctamente el valor para evitar problemas con comillas y caracteres especiales
+      const escapedValue = btn.value
+        .replace(/\\/g, '\\\\')  // Escapar backslashes primero
+        .replace(/'/g, "\\'")    // Escapar comillas simples
+        .replace(/"/g, '\\"')    // Escapar comillas dobles
+        .replace(/\n/g, '\\n')   // Escapar newlines
+        .replace(/\r/g, '\\r');  // Escapar carriage returns
+      
+      return `
+      <button onclick="insertVariableInCanvas('${escapedValue}', ${btn.multiline || false})" 
               style="
                 width: 100%; 
                 padding: 8px 10px; 
@@ -2133,7 +2142,8 @@
         <span style="flex: 1; font-weight: 500; color: #495057;">${btn.label}</span>
         <span style="font-size: 10px; color: #6c757d;">Clic para agregar</span>
       </button>
-    `).join('');
+    `;
+    }).join('');
   }
 
   window.insertVariableInCanvas = function(varText, isMultiline = false) {
@@ -2187,6 +2197,56 @@
       if (canvas.innerHTML.includes('Haz clic en los botones')) {
         canvas.innerHTML = '';
       }
+    }
+    
+    // Si contiene HTML de imagen (especialmente QR), crear un contenedor de imagen apropiado
+    if (containsHTML && varText.includes('<img')) {
+      // Crear contenedor de imagen similar a setupImageUpload
+      const imgContainer = document.createElement('div');
+      imgContainer.className = 'image-container tpl-element';
+      imgContainer.id = `element_${visualEditor.nextId++}`;
+      
+      // Establecer posición y estilos
+      const left = 20;
+      const top = 20 + (visualEditor.elements.length * 30);
+      imgContainer.style.cssText = `position: absolute; display: block; padding: 0; margin: 0; line-height: 0; cursor: move; border: 2px solid transparent; min-width: 150px; min-height: 150px; left: ${left}px; top: ${top}px;`;
+      
+      // Insertar el HTML directamente en el contenedor (incluyendo la variable Handlebars)
+      imgContainer.innerHTML = varText;
+      
+      // Ajustar la imagen dentro del contenedor
+      const actualImg = imgContainer.querySelector('img');
+      if (actualImg) {
+        actualImg.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;';
+        actualImg.draggable = false;
+        // Establecer dimensiones del contenedor basadas en un tamaño razonable para QR
+        imgContainer.style.width = '150px';
+        imgContainer.style.height = '150px';
+      }
+      
+      parent.appendChild(imgContainer);
+      
+      // Hacer el contenedor arrastrable y seleccionable
+      makeDraggable(imgContainer);
+      makeSelectable(imgContainer);
+      
+      // Agregar a la lista de elementos
+      visualEditor.elements.push({
+        id: imgContainer.id,
+        type: 'image',
+        element: imgContainer
+      });
+      
+      // Seleccionar el elemento recién creado
+      selectElement(imgContainer);
+      
+      console.log('✅ Imagen QR agregada como contenedor de imagen:', {
+        id: imgContainer.id,
+        hasImg: !!imgContainer.querySelector('img'),
+        html: varText.substring(0, 50)
+      });
+      
+      return;
     }
     
     let elementType = 'text';
