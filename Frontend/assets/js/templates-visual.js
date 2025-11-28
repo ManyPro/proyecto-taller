@@ -3048,8 +3048,9 @@
             const canvasHeightCm = template.meta?.height || canvas.getAttribute('data-canvas-height-cm') || '3';
             const widthPx = Math.round(parseFloat(canvasWidthCm) * 37.795275591);
             const heightPx = Math.round(parseFloat(canvasHeightCm) * 37.795275591);
-            canvas.innerHTML = `<div class="sticker-wrapper" style="position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #ffffff; box-sizing: border-box; margin: 0; padding: 0; left: 0; top: 0;">${existingContent}</div>`;
-            console.log('📦 Contenido de sticker envuelto en contenedor al cargar:', widthPx, 'x', heightPx);
+            // CRÍTICO: Crear wrapper con dimensiones EXACTAS en píxeles (no porcentajes)
+            canvas.innerHTML = `<div class="sticker-wrapper" style="position: relative; width: ${widthPx}px; height: ${heightPx}px; max-width: ${widthPx}px; max-height: ${heightPx}px; min-width: ${widthPx}px; min-height: ${heightPx}px; overflow: hidden; background: #ffffff; box-sizing: border-box; margin: 0; padding: 0; left: 0; top: 0;">${existingContent}</div>`;
+            console.log('📦 Contenido de sticker envuelto en contenedor al cargar con dimensiones EXACTAS:', widthPx, 'x', heightPx, 'px');
             
             // Re-aplicar eventos a los elementos después de envolver
             const elementsAfterWrap = canvas.querySelectorAll('.tpl-element');
@@ -3068,22 +3069,16 @@
               makeSelectable(el);
             });
           } else {
-            // Si ya tiene wrapper, actualizar sus dimensiones
+            // Si ya tiene wrapper, actualizar sus dimensiones EXACTAS en píxeles
             const wrapper = canvas.querySelector('.sticker-wrapper');
             const canvasWidthCm = template.meta?.width || canvas.getAttribute('data-canvas-width-cm') || '5';
             const canvasHeightCm = template.meta?.height || canvas.getAttribute('data-canvas-height-cm') || '3';
             const widthPx = Math.round(parseFloat(canvasWidthCm) * 37.795275591);
             const heightPx = Math.round(parseFloat(canvasHeightCm) * 37.795275591);
-            wrapper.style.width = widthPx + 'px';
-            wrapper.style.height = heightPx + 'px';
-            wrapper.style.position = 'relative';
-            wrapper.style.overflow = 'hidden';
-            wrapper.style.boxSizing = 'border-box';
-            wrapper.style.margin = '0';
-            wrapper.style.padding = '0';
-            wrapper.style.left = '0';
-            wrapper.style.top = '0';
-            console.log('📦 Dimensiones del wrapper actualizadas:', widthPx, 'x', heightPx);
+            
+            // CRÍTICO: Establecer dimensiones EXACTAS en píxeles (no porcentajes)
+            wrapper.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important;`;
+            console.log('📦 Dimensiones del wrapper actualizadas a EXACTAS:', widthPx, 'x', heightPx, 'px');
             
             // Asegurar que los elementos absolutos dentro del wrapper se posicionen correctamente
             const absoluteElements = wrapper.querySelectorAll('[style*="position: absolute"]');
@@ -5717,26 +5712,42 @@
     let content = canvas.innerHTML;
     const hasElements = !!canvas.querySelector('.tpl-element');
     
-    // Reemplazar placeholders de imagen QR con el HTML real que contiene las variables Handlebars
-    const imageContainers = canvas.querySelectorAll('.image-container .image-html-content');
-    imageContainers.forEach(htmlContentDiv => {
-      const imgContainer = htmlContentDiv.closest('.image-container');
-      if (imgContainer) {
+    // CRÍTICO: Reemplazar placeholders de imagen QR con el HTML real que contiene las variables Handlebars
+    // Esto debe hacerse ANTES de procesar el contenido para stickers
+    const tempCanvas = document.createElement('div');
+    tempCanvas.innerHTML = content;
+    
+    tempCanvas.querySelectorAll('.image-container').forEach(imgContainer => {
+      const htmlContentDiv = imgContainer.querySelector('.image-html-content');
+      if (htmlContentDiv) {
         const realHtml = htmlContentDiv.textContent || htmlContentDiv.innerHTML;
-        // Reemplazar el placeholder completo con el HTML real
-        const placeholder = imgContainer.querySelector('.image-placeholder');
-        if (placeholder && realHtml) {
-          // Reemplazar el placeholder con el HTML real, manteniendo los estilos del contenedor
-          imgContainer.innerHTML = realHtml;
-          // Asegurar que la imagen tenga estilos apropiados
-          const img = imgContainer.querySelector('img');
-          if (img) {
-            img.style.cssText = 'width: 100%; height: 100%; object-fit: contain; display: block;';
-            img.draggable = false;
+        if (realHtml && realHtml.trim()) {
+          // Extraer el HTML real (debe ser <img src="{{item.qr}}" ... />)
+          const tempImgDiv = document.createElement('div');
+          tempImgDiv.innerHTML = realHtml.trim();
+          const realImg = tempImgDiv.querySelector('img');
+          if (realImg) {
+            // Preservar dimensiones del contenedor
+            const containerStyle = imgContainer.getAttribute('style') || '';
+            const widthMatch = containerStyle.match(/width:\s*([\d.]+)px/);
+            const heightMatch = containerStyle.match(/height:\s*([\d.]+)px/);
+            const width = widthMatch ? widthMatch[1] : '150';
+            const height = heightMatch ? heightMatch[1] : '150';
+            
+            // Aplicar dimensiones a la imagen real
+            realImg.style.cssText = `width: ${width}px; height: ${height}px; object-fit: contain; display: block;`;
+            realImg.draggable = false;
+            
+            // Reemplazar todo el contenido del contenedor con la imagen real
+            // Mantener los estilos del contenedor (posición, etc.)
+            imgContainer.innerHTML = realImg.outerHTML;
+            console.log('✅ Placeholder QR reemplazado con HTML real antes de guardar');
           }
         }
       }
     });
+    
+    content = tempCanvas.innerHTML;
     
     await optimizeCanvasImages(canvas);
     content = canvas.innerHTML;
@@ -6037,6 +6048,41 @@
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = content;
       
+      // CRÍTICO: Reemplazar placeholders de imagen QR con el HTML original antes de guardar
+      tempDiv.querySelectorAll('.image-container').forEach(imgContainer => {
+        const htmlContentDiv = imgContainer.querySelector('.image-html-content');
+        if (htmlContentDiv) {
+          const realHtml = htmlContentDiv.textContent || htmlContentDiv.innerHTML;
+          if (realHtml && realHtml.trim()) {
+            // Extraer el HTML real (debe ser <img src="{{item.qr}}" ... />)
+            const tempImgDiv = document.createElement('div');
+            tempImgDiv.innerHTML = realHtml.trim();
+            const realImg = tempImgDiv.querySelector('img');
+            if (realImg) {
+              // Preservar dimensiones y posición del contenedor
+              const containerStyle = imgContainer.getAttribute('style') || '';
+              const widthMatch = containerStyle.match(/width:\s*([\d.]+)px/);
+              const heightMatch = containerStyle.match(/height:\s*([\d.]+)px/);
+              const leftMatch = containerStyle.match(/left:\s*([\d.]+)px/);
+              const topMatch = containerStyle.match(/top:\s*([\d.]+)px/);
+              
+              const width = widthMatch ? widthMatch[1] : '150';
+              const height = heightMatch ? heightMatch[1] : '150';
+              const left = leftMatch ? leftMatch[1] : '0';
+              const top = topMatch ? topMatch[1] : '0';
+              
+              // Aplicar dimensiones a la imagen real
+              realImg.style.cssText = `width: ${width}px; height: ${height}px; object-fit: contain; display: block;`;
+              
+              // Reemplazar todo el contenido del contenedor con la imagen real
+              // Mantener el contenedor con sus estilos de posición
+              imgContainer.innerHTML = realImg.outerHTML;
+              console.log('✅ Placeholder QR reemplazado con HTML real:', realImg.outerHTML.substring(0, 100));
+            }
+          }
+        }
+      });
+      
       // Eliminar todos los handles y elementos del editor
       tempDiv.querySelectorAll('.rotate-handle, .drag-handle, .resize-handle, .selection-box, .ve-selected, .ce-selected').forEach(el => el.remove());
       
@@ -6062,17 +6108,19 @@
                          (content.includes('position: relative') && content.includes('overflow: hidden')));
       
       if (!hasWrapper) {
-        // Envolver el contenido en un contenedor con dimensiones fijas EXACTAS
-        content = `<div class="sticker-wrapper" style="position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #ffffff; box-sizing: border-box; margin: 0; padding: 0; left: 0; top: 0;">${content}</div>`;
-        console.log('📦 Contenido de sticker envuelto en contenedor con dimensiones:', widthPx, 'x', heightPx);
+        // Envolver el contenido en un contenedor con dimensiones fijas EXACTAS en píxeles
+        content = `<div class="sticker-wrapper" style="position: relative; width: ${widthPx}px; height: ${heightPx}px; max-width: ${widthPx}px; max-height: ${heightPx}px; min-width: ${widthPx}px; min-height: ${heightPx}px; overflow: hidden; background: #ffffff; box-sizing: border-box; margin: 0; padding: 0; left: 0; top: 0;">${content}</div>`;
+        console.log('📦 Contenido de sticker envuelto en contenedor con dimensiones EXACTAS:', widthPx, 'x', heightPx, 'px');
       } else {
-        // Si ya tiene wrapper, actualizar sus dimensiones para que sean exactas
+        // Si ya tiene wrapper, actualizar sus dimensiones para que sean EXACTAS en píxeles (no porcentajes)
         const wrapperMatch = content.match(/<div[^>]*class="sticker-wrapper"[^>]*style="([^"]*)"/);
         if (wrapperMatch) {
+          // Reemplazar cualquier porcentaje o valor relativo con dimensiones exactas
           content = content.replace(
             /<div[^>]*class="sticker-wrapper"[^>]*style="[^"]*"/,
-            `<div class="sticker-wrapper" style="position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #ffffff; box-sizing: border-box; margin: 0; padding: 0; left: 0; top: 0;"`
+            `<div class="sticker-wrapper" style="position: relative; width: ${widthPx}px; height: ${heightPx}px; max-width: ${widthPx}px; max-height: ${heightPx}px; min-width: ${widthPx}px; min-height: ${heightPx}px; overflow: hidden; background: #ffffff; box-sizing: border-box; margin: 0; padding: 0; left: 0; top: 0;"`
           );
+          console.log('📦 Wrapper actualizado con dimensiones EXACTAS:', widthPx, 'x', heightPx, 'px');
         }
       }
     }

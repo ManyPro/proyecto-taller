@@ -1508,8 +1508,8 @@ if (__ON_INV_PAGE__) {
                   `.sticker-capture, .sticker-capture *{outline:none!important;-webkit-tap-highlight-color:transparent!important;user-select:none!important;caret-color:transparent!important;}\n` +
                   `.sticker-capture *::selection{background:transparent!important;color:inherit!important;}\n` +
                   `img,svg,canvas{outline:none!important;border:none!important;-webkit-user-drag:none!important;}\n` +
-                  `/* Asegurar que el contenedor wrapper respete las dimensiones */\n` +
-                  `.sticker-wrapper{position: relative !important; width: 100% !important; height: 100% !important; overflow: hidden !important; box-sizing: border-box !important;}\n` +
+                  `/* CRÍTICO: Wrapper con dimensiones EXACTAS en píxeles (no porcentajes) */\n` +
+                  `.sticker-wrapper{position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important;}\n` +
                   `/* Asegurar que elementos con position absolute se posicionen relativos al contenedor */\n` +
                   `.sticker-capture [style*="position: absolute"]{position: absolute !important;}`;
                 // Insertar el HTML directamente en el box, no en un inner div
@@ -1536,10 +1536,19 @@ if (__ON_INV_PAGE__) {
                       const style = el.getAttribute('style') || '';
                       el.setAttribute('style', style.replace(/display:\s*none/gi, 'display: block'));
                     });
-                  // Asegurar que el sticker-wrapper tenga dimensiones correctas
+                  // CRÍTICO: Asegurar que el sticker-wrapper tenga dimensiones EXACTAS en píxeles (no porcentajes)
                   const wrapper = box.querySelector('.sticker-wrapper');
                   if (wrapper) {
-                    wrapper.style.cssText = `position: relative !important; width: 100% !important; height: 100% !important; overflow: visible !important; box-sizing: border-box !important; display: block !important;`;
+                    wrapper.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; display: block !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important;`;
+                  } else {
+                    // Si no hay wrapper, crear uno con dimensiones exactas
+                    const newWrapper = document.createElement('div');
+                    newWrapper.className = 'sticker-wrapper';
+                    newWrapper.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box; margin: 0; padding: 0;`;
+                    while (box.firstChild) {
+                      newWrapper.appendChild(box.firstChild);
+                    }
+                    box.appendChild(newWrapper);
                   }
                 } catch(_) {}
                 
@@ -1550,14 +1559,17 @@ if (__ON_INV_PAGE__) {
                 
                 // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
                 try { await waitForImages(box, 4000); } catch(_) {}
+                // CRÍTICO: Capturar con dimensiones exactas, escala 1 para que coincida con el canvas
                 const canvas = await html2canvas(box, { 
-                  scale: Math.max(2, window.devicePixelRatio || 2), 
+                  scale: 1, // Escala 1 para dimensiones exactas (sin distorsión)
                   backgroundColor: '#ffffff', 
                   useCORS: true, 
                   allowTaint: true, 
                   imageTimeout: 4000,
-                  width: Math.round(stickerWidthCm * 37.795275591), // Convertir cm a px
-                  height: Math.round(stickerHeightCm * 37.795275591)
+                  width: widthPx,
+                  height: heightPx,
+                  windowWidth: widthPx,
+                  windowHeight: heightPx
                 });
                 images.push(canvas.toDataURL('image/png'));
                 root.removeChild(box);
@@ -1602,12 +1614,21 @@ if (__ON_INV_PAGE__) {
               }
             }
             
-            // Usar dimensiones exactas del template para el PDF - UN STICKER POR PÁGINA
-            const doc = new jsPDF({ orientation: pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait', unit: 'mm', format: [pdfWidthMm, pdfHeightMm] });
-            images.forEach((src, idx) => {
-              if (idx > 0) doc.addPage([pdfWidthMm, pdfHeightMm]);
-              doc.addImage(src, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm);
+            // CRÍTICO: Usar dimensiones EXACTAS del template para el PDF (sin escalado)
+            const doc = new jsPDF({ 
+              orientation: pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait', 
+              unit: 'mm', 
+              format: [pdfWidthMm, pdfHeightMm],
+              compress: false
             });
+            
+            images.forEach((src, idx) => {
+              if (idx > 0) doc.addPage([pdfWidthMm, pdfHeightMm], pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait');
+              // CRÍTICO: Insertar imagen con dimensiones exactas, sin escalado
+              doc.addImage(src, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm, undefined, 'FAST');
+            });
+            
+            console.log(`📄 PDF generado con dimensiones exactas: ${pdfWidthMm}mm x ${pdfHeightMm}mm (${stickerWidthCm}cm x ${stickerHeightCm}cm)`);
             doc.save(`stickers-${it.sku || it._id}.pdf`);
             invCloseModal();
             await refreshItems(state.lastItemsParams);
@@ -2733,20 +2754,39 @@ function openMarketplaceHelper(item){
             const captureSingleBox = async () => {
               const box = document.createElement('div');
               box.className = 'sticker-capture';
-              // Usar dimensiones del template guardadas - CRÍTICO: position relative para que los elementos absolutos se posicionen correctamente
+              // CRÍTICO: Usar dimensiones EXACTAS del template (5cm x 3cm = 189px x 113px)
               const widthPx = Math.round(stickerWidthCm * 37.795275591);
               const heightPx = Math.round(stickerHeightCm * 37.795275591);
-              box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: visible; background: #fff; box-sizing: border-box; display: block;`;
               
-              // Insertar el HTML directamente en el box, no en un inner div
-              // Esto asegura que el .sticker-wrapper (si existe) se posicione correctamente
+              // El box debe tener dimensiones EXACTAS y overflow hidden para que coincida con el canvas
+              box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box; display: block; margin: 0; padding: 0;`;
+              
+              // Insertar el HTML directamente en el box
               const tempDiv = document.createElement('div');
               tempDiv.innerHTML = html || '';
               while (tempDiv.firstChild) {
                 box.appendChild(tempDiv.firstChild);
               }
               
-              // Limpiar elementos problemáticos ANTES de agregar el style
+              // CRÍTICO: Asegurar que el sticker-wrapper tenga dimensiones EXACTAS (no porcentajes)
+              const wrapper = box.querySelector('.sticker-wrapper');
+              if (wrapper) {
+                // Forzar dimensiones exactas en píxeles, iguales al box
+                wrapper.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; display: block !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important;`;
+                console.log(`📐 Wrapper configurado con dimensiones exactas: ${widthPx}px x ${heightPx}px`);
+              } else {
+                // Si no hay wrapper, crear uno con dimensiones exactas
+                const newWrapper = document.createElement('div');
+                newWrapper.className = 'sticker-wrapper';
+                newWrapper.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box; margin: 0; padding: 0;`;
+                while (box.firstChild) {
+                  newWrapper.appendChild(box.firstChild);
+                }
+                box.appendChild(newWrapper);
+                console.log(`📐 Wrapper creado con dimensiones exactas: ${widthPx}px x ${heightPx}px`);
+              }
+              
+              // Limpiar elementos problemáticos
               try {
                 box.querySelectorAll('[contenteditable]')
                   .forEach(el => { el.setAttribute('contenteditable', 'false'); el.removeAttribute('contenteditable'); });
@@ -2756,22 +2796,9 @@ function openMarketplaceHelper(item){
                     const style = el.getAttribute('style') || '';
                     el.setAttribute('style', style.replace(/display:\s*none/gi, 'display: block'));
                   });
-                // Asegurar que el sticker-wrapper tenga dimensiones correctas y sea visible
-                const wrapper = box.querySelector('.sticker-wrapper');
-                if (wrapper) {
-                  wrapper.style.cssText = `position: relative !important; width: 100% !important; height: 100% !important; overflow: visible !important; box-sizing: border-box !important; display: block !important; visibility: visible !important; opacity: 1 !important;`;
-                }
-                // Asegurar que todos los elementos dentro del wrapper sean visibles
-                box.querySelectorAll('.sticker-wrapper *').forEach(el => {
-                  if (el.style) {
-                    if (el.style.display === 'none') el.style.display = 'block';
-                    if (el.style.visibility === 'hidden') el.style.visibility = 'visible';
-                    if (el.style.opacity === '0') el.style.opacity = '1';
-                  }
-                });
               } catch(_) {}
               
-              // ELIMINAR handles de rotación y otros elementos del editor del DOM (no solo ocultarlos)
+              // ELIMINAR handles de rotación y otros elementos del editor del DOM
               box.querySelectorAll('.rotate-handle, .drag-handle, .resize-handle, .selection-box, .ve-selected, .ce-selected').forEach(el => el.remove());
               
               // Agregar el style al final para que tenga prioridad
@@ -2782,45 +2809,53 @@ function openMarketplaceHelper(item){
                 `.sticker-capture, .sticker-capture *{outline:none!important;-webkit-tap-highlight-color:transparent!important;user-select:none!important;caret-color:transparent!important;}\n` +
                 `.sticker-capture *::selection{background:transparent!important;color:inherit!important;}\n` +
                 `img,svg,canvas{outline:none!important;border:none!important;-webkit-user-drag:none!important;}\n` +
-                `/* Asegurar que el contenedor wrapper respete las dimensiones EXACTAS */\n` +
-                `.sticker-wrapper{position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; display: block !important; visibility: visible !important; opacity: 1 !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important;}\n` +
+                `/* CRÍTICO: Wrapper con dimensiones EXACTAS en píxeles (no porcentajes) */\n` +
+                `.sticker-wrapper{position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; display: block !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important;}\n` +
                 `/* Asegurar que elementos con position absolute se posicionen relativos al contenedor */\n` +
-                `.sticker-capture [style*="position: absolute"]{position: absolute !important;}\n` +
+                `.sticker-capture [style*="position: absolute"], .sticker-wrapper [style*="position: absolute"]{position: absolute !important;}\n` +
                 `/* Asegurar que todos los elementos sean visibles y preserven colores */\n` +
                 `.sticker-capture *{visibility: visible !important; opacity: 1 !important;}\n` +
                 `/* Preservar colores correctos - asegurar que el texto negro se vea negro */\n` +
                 `.sticker-capture *{color: inherit !important;}\n` +
-                `*{color: #000000 !important;}\n` +
-                `*[style*="color"]{color: inherit !important;}`;
+                `.sticker-capture *:not([style*="color"]){color: #000000 !important;}`;
               box.appendChild(style);
               
               root.appendChild(box);
               
-              // Forzar reflow para asegurar que el contenido se renderice
+              // Forzar reflow y verificar dimensiones
               box.offsetHeight;
-              
-              // Debug: verificar que el contenido sea visible
-              const hasVisibleContent = box.querySelector('*') !== null;
-              console.log('🔍 Debug sticker capture:', {
-                hasContent: hasVisibleContent,
+              const finalWrapper = box.querySelector('.sticker-wrapper');
+              console.log('🔍 Debug dimensiones finales:', {
                 boxWidth: box.offsetWidth,
                 boxHeight: box.offsetHeight,
-                wrapper: !!box.querySelector('.sticker-wrapper'),
-                children: box.children.length
+                wrapperWidth: finalWrapper ? finalWrapper.offsetWidth : 'N/A',
+                wrapperHeight: finalWrapper ? finalWrapper.offsetHeight : 'N/A',
+                expectedWidth: widthPx,
+                expectedHeight: heightPx
               });
               
               // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
               try { await waitForImages(box, 4000); } catch(_) {}
+              
+              // CRÍTICO: Capturar con dimensiones exactas, sin escala que pueda distorsionar
               const canvas = await html2canvas(box, { 
-                scale: Math.max(2, window.devicePixelRatio || 2), 
+                scale: 1, // Usar escala 1 para dimensiones exactas
                 backgroundColor: '#ffffff', 
                 useCORS: true, 
                 allowTaint: true, 
                 imageTimeout: 4000,
                 width: widthPx,
                 height: heightPx,
-                logging: true
+                windowWidth: widthPx,
+                windowHeight: heightPx,
+                logging: false
               });
+              
+              // Verificar que el canvas tenga las dimensiones correctas
+              if (canvas.width !== widthPx || canvas.height !== heightPx) {
+                console.warn(`⚠️ Canvas capturado tiene dimensiones incorrectas: ${canvas.width}x${canvas.height}, esperado: ${widthPx}x${heightPx}`);
+              }
+              
               images.push(canvas.toDataURL('image/png'));
               root.removeChild(box);
             };
@@ -2851,12 +2886,22 @@ function openMarketplaceHelper(item){
             }
           }
           
-          // Usar dimensiones exactas del template para el PDF
-          const doc = new jsPDF({ orientation: pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait', unit: 'mm', format: [pdfWidthMm, pdfHeightMm] });
-          images.forEach((src, idx) => {
-            if (idx > 0) doc.addPage([pdfWidthMm, pdfHeightMm]);
-            doc.addImage(src, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm);
+          // CRÍTICO: Usar dimensiones EXACTAS del template para el PDF (sin escalado)
+          const doc = new jsPDF({ 
+            orientation: pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait', 
+            unit: 'mm', 
+            format: [pdfWidthMm, pdfHeightMm],
+            compress: false
           });
+          
+          images.forEach((src, idx) => {
+            if (idx > 0) doc.addPage([pdfWidthMm, pdfHeightMm], pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait');
+            // CRÍTICO: Insertar imagen con dimensiones exactas, sin escalado
+            // Las dimensiones de la imagen deben coincidir exactamente con las del PDF
+            doc.addImage(src, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm, undefined, 'FAST');
+          });
+          
+          console.log(`📄 PDF generado con dimensiones exactas: ${pdfWidthMm}mm x ${pdfHeightMm}mm (${stickerWidthCm}cm x ${stickerHeightCm}cm)`);
           doc.save(`stickers.pdf`);
           invCloseModal();
           hideBusy();
