@@ -36,6 +36,7 @@ import adminCompanyRouter from './routes/admin.company.routes.js';
 import vehiclesRouter from './routes/vehicles.routes.js';
 import receivablesRouter from './routes/receivables.routes.js';
 import calendarRouter from './routes/calendar.routes.js';
+import chatsRouter from './routes/chats.routes.js';
 import { checkCalendarNotifications } from './controllers/calendar.controller.js';
 
 const app = express();
@@ -295,6 +296,7 @@ app.use('/api/v1/inventory', authCompany, withCompanyDefaults, inventoryRouter);
 app.use('/api/v1/services', authCompany, withCompanyDefaults, servicesRouter);
 app.use('/api/v1/prices', authCompany, withCompanyDefaults, pricesRoutes);
 app.use('/api/v1/quotes', authCompany, withCompanyDefaults, quotesRouter);
+app.use('/api/v1/chats', authCompany, withCompanyDefaults, chatsRouter);
 app.use('/api/v1/profiles', authCompany, withCompanyDefaults, profilesRouter);
 app.use('/api/v1/company', companyRouter);
 app.use('/api/v1/cashflow', authCompany, withCompanyDefaults, cashflowRouter);

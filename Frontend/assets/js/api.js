@@ -239,6 +239,17 @@ const API = {
     updateSettings: (payload) => http.put('/api/v1/calendar/settings', payload)
   },
 
+  // --- Chats ---
+  chats: {
+    list: (params = {}) => http.get(`/api/v1/chats${toQuery(params)}`),
+    get: (id) => http.get(`/api/v1/chats/${id}`),
+    create: (payload) => http.post('/api/v1/chats', payload),
+    update: (id, payload) => http.patch(`/api/v1/chats/${id}`, payload),
+    delete: (id) => http.del(`/api/v1/chats/${id}`),
+    addInventoryItem: (id, itemId) => http.post(`/api/v1/chats/${id}/inventory`, { itemId }),
+    addComment: (id, text) => http.post(`/api/v1/chats/${id}/comments`, { text })
+  },
+
   // --- Cotizaciones ---
   // --- Cotizaciones ---
   quotesListRaw: async (q = '') => {
@@ -499,10 +510,9 @@ if (typeof window !== 'undefined') {
         es.addEventListener('sale:updated', e => onEvent && onEvent('sale:updated', JSON.parse(e.data || '{}')));
         es.addEventListener('sale:closed', e => onEvent && onEvent('sale:closed', JSON.parse(e.data || '{}')));
         es.addEventListener('sale:cancelled', e => onEvent && onEvent('sale:cancelled', JSON.parse(e.data || '{}')));
-        // Eventos de flujo de caja
-        es.addEventListener('cashflow:created', e => onEvent && onEvent('cashflow:created', JSON.parse(e.data || '{}')));
-        es.addEventListener('cashflow:updated', e => onEvent && onEvent('cashflow:updated', JSON.parse(e.data || '{}')));
-        es.addEventListener('cashflow:deleted', e => onEvent && onEvent('cashflow:deleted', JSON.parse(e.data || '{}')));
+        es.addEventListener('chat:created', e => onEvent && onEvent('chat:created', JSON.parse(e.data || '{}')));
+        es.addEventListener('chat:updated', e => onEvent && onEvent('chat:updated', JSON.parse(e.data || '{}')));
+        es.addEventListener('chat:deleted', e => onEvent && onEvent('chat:deleted', JSON.parse(e.data || '{}')));
         return es;
       }
     };
