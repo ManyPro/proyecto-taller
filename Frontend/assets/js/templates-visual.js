@@ -2060,24 +2060,24 @@
       
       switch(position) {
         case 'nw':
-          newWidth = Math.max(50, startWidth - deltaX);
-          newHeight = Math.max(50, startHeight - deltaY);
+          newWidth = Math.max(10, startWidth - deltaX);
+          newHeight = Math.max(10, startHeight - deltaY);
           newLeft = startLeft + (startWidth - newWidth);
           newTop = startTop + (startHeight - newHeight);
           break;
         case 'ne':
-          newWidth = Math.max(50, startWidth + deltaX);
-          newHeight = Math.max(50, startHeight - deltaY);
+          newWidth = Math.max(10, startWidth + deltaX);
+          newHeight = Math.max(10, startHeight - deltaY);
           newTop = startTop + (startHeight - newHeight);
           break;
         case 'sw':
-          newWidth = Math.max(50, startWidth - deltaX);
-          newHeight = Math.max(50, startHeight + deltaY);
+          newWidth = Math.max(10, startWidth - deltaX);
+          newHeight = Math.max(10, startHeight + deltaY);
           newLeft = startLeft + (startWidth - newWidth);
           break;
         case 'se':
-          newWidth = Math.max(50, startWidth + deltaX);
-          newHeight = Math.max(50, startHeight + deltaY);
+          newWidth = Math.max(10, startWidth + deltaX);
+          newHeight = Math.max(10, startHeight + deltaY);
           break;
       }
       
@@ -2416,7 +2416,7 @@
       // Establecer posición y estilos
       const left = 20;
       const top = 20 + (visualEditor.elements.length * 30);
-      imgContainer.style.cssText = `position: absolute; display: block; padding: 0; margin: 0; line-height: 0; cursor: move; border: 2px solid transparent; min-width: 150px; min-height: 150px; left: ${left}px; top: ${top}px;`;
+      imgContainer.style.cssText = `position: absolute; display: block; padding: 0; margin: 0; line-height: 0; cursor: move; border: 2px solid transparent; min-width: 10px; min-height: 10px; left: ${left}px; top: ${top}px;`;
       
       // Crear placeholder que muestra la variable pero no intenta cargar la imagen
       // El HTML real con la variable se preserva en el innerHTML para el backend
@@ -2984,7 +2984,7 @@
               const left = img.offsetLeft || 20;
               const top = img.offsetTop || 20;
               
-              imgContainer.style.cssText = `position: absolute; display: block; padding: 0; margin: 0; line-height: 0; cursor: move; border: 2px solid transparent; min-width: 150px; min-height: 150px; left: ${left}px; top: ${top}px; width: ${img.width || 150}px; height: ${img.height || 150}px;`;
+              imgContainer.style.cssText = `position: absolute; display: block; padding: 0; margin: 0; line-height: 0; cursor: move; border: 2px solid transparent; min-width: 10px; min-height: 10px; left: ${left}px; top: ${top}px; width: ${img.width || 150}px; height: ${img.height || 150}px;`;
               
               // Reemplazar la imagen con el contenedor
               img.parentNode.replaceChild(imgContainer, img);
