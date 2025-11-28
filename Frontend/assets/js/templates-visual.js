@@ -5729,15 +5729,35 @@
     }
     
     // Obtener dimensiones del canvas para guardarlas en el template
-    const canvasWidthCm = canvas.getAttribute('data-canvas-width-cm') || 
-                          (parseFloat(canvas.style.width) / 37.795275591) || null;
-    const canvasHeightCm = canvas.getAttribute('data-canvas-height-cm') || 
-                           (parseFloat(canvas.style.height) / 37.795275591) || null;
+    // Primero intentar desde data attributes, luego desde style, validando que sea un número válido
+    let canvasWidthCm = canvas.getAttribute('data-canvas-width-cm');
+    if (!canvasWidthCm || isNaN(parseFloat(canvasWidthCm))) {
+      const widthPx = parseFloat(canvas.style.width);
+      if (!isNaN(widthPx) && widthPx > 0) {
+        canvasWidthCm = (widthPx / 37.795275591).toString();
+      } else {
+        canvasWidthCm = null;
+      }
+    }
     
-    // Construir objeto meta con dimensiones del canvas
+    let canvasHeightCm = canvas.getAttribute('data-canvas-height-cm');
+    if (!canvasHeightCm || isNaN(parseFloat(canvasHeightCm))) {
+      const heightPx = parseFloat(canvas.style.height);
+      if (!isNaN(heightPx) && heightPx > 0) {
+        canvasHeightCm = (heightPx / 37.795275591).toString();
+      } else {
+        canvasHeightCm = null;
+      }
+    }
+    
+    // Construir objeto meta con dimensiones del canvas (solo si son válidas)
     const meta = {};
-    if (canvasWidthCm) meta.width = canvasWidthCm;
-    if (canvasHeightCm) meta.height = canvasHeightCm;
+    if (canvasWidthCm && !isNaN(parseFloat(canvasWidthCm))) {
+      meta.width = parseFloat(canvasWidthCm);
+    }
+    if (canvasHeightCm && !isNaN(parseFloat(canvasHeightCm))) {
+      meta.height = parseFloat(canvasHeightCm);
+    }
     
     try {
       showQuickNotification('💾 Guardando plantilla...', 'info');

@@ -1453,8 +1453,23 @@ if (__ON_INV_PAGE__) {
               const pages = (type === 'brand') ? Array.from(tmp.querySelectorAll('.editor-page')) : [];
 
               // Obtener dimensiones del template (5cm x 3cm por defecto para stickers)
-              const stickerWidthCm = (tpl.meta && tpl.meta.width) ? parseFloat(tpl.meta.width) : 5;
-              const stickerHeightCm = (tpl.meta && tpl.meta.height) ? parseFloat(tpl.meta.height) : 3;
+              // Validar que las dimensiones sean numéricas antes de usarlas
+              let stickerWidthCm = 5; // Default: 5cm
+              let stickerHeightCm = 3; // Default: 3cm
+              
+              if (tpl.meta && tpl.meta.width) {
+                const parsedWidth = parseFloat(tpl.meta.width);
+                if (!isNaN(parsedWidth) && parsedWidth > 0) {
+                  stickerWidthCm = parsedWidth;
+                }
+              }
+              
+              if (tpl.meta && tpl.meta.height) {
+                const parsedHeight = parseFloat(tpl.meta.height);
+                if (!isNaN(parsedHeight) && parsedHeight > 0) {
+                  stickerHeightCm = parsedHeight;
+                }
+              }
               
               const captureSingleBox = async (contentFragment) => {
                 const box = document.createElement('div');
@@ -1517,8 +1532,23 @@ if (__ON_INV_PAGE__) {
             if (!images.length) throw new Error('No se pudo rasterizar el contenido de los stickers');
 
             // Obtener dimensiones del template para el PDF (5cm x 3cm por defecto)
-            const pdfWidthMm = (tpl.meta && tpl.meta.width) ? (parseFloat(tpl.meta.width) * 10) : 50;
-            const pdfHeightMm = (tpl.meta && tpl.meta.height) ? (parseFloat(tpl.meta.height) * 10) : 30;
+            // Validar que las dimensiones sean numéricas antes de usarlas
+            let pdfWidthMm = 50; // Default: 5cm
+            let pdfHeightMm = 30; // Default: 3cm
+            
+            if (tpl.meta && tpl.meta.width) {
+              const parsedWidth = parseFloat(tpl.meta.width);
+              if (!isNaN(parsedWidth) && parsedWidth > 0) {
+                pdfWidthMm = parsedWidth * 10; // Convertir cm a mm
+              }
+            }
+            
+            if (tpl.meta && tpl.meta.height) {
+              const parsedHeight = parseFloat(tpl.meta.height);
+              if (!isNaN(parsedHeight) && parsedHeight > 0) {
+                pdfHeightMm = parsedHeight * 10; // Convertir cm a mm
+              }
+            }
             
             // Usar dimensiones exactas del template para el PDF - UN STICKER POR PÁGINA
             const doc = new jsPDF({ orientation: pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait', unit: 'mm', format: [pdfWidthMm, pdfHeightMm] });
@@ -2615,8 +2645,23 @@ function openMarketplaceHelper(item){
             tmp.innerHTML = html || '';
 
             // Obtener dimensiones del template (5cm x 3cm por defecto para stickers)
-            const stickerWidthCm = (tpl.meta && tpl.meta.width) ? parseFloat(tpl.meta.width) : 5;
-            const stickerHeightCm = (tpl.meta && tpl.meta.height) ? parseFloat(tpl.meta.height) : 3;
+            // Validar que las dimensiones sean numéricas antes de usarlas
+            let stickerWidthCm = 5; // Default: 5cm
+            let stickerHeightCm = 3; // Default: 3cm
+            
+            if (tpl.meta && tpl.meta.width) {
+              const parsedWidth = parseFloat(tpl.meta.width);
+              if (!isNaN(parsedWidth) && parsedWidth > 0) {
+                stickerWidthCm = parsedWidth;
+              }
+            }
+            
+            if (tpl.meta && tpl.meta.height) {
+              const parsedHeight = parseFloat(tpl.meta.height);
+              if (!isNaN(parsedHeight) && parsedHeight > 0) {
+                stickerHeightCm = parsedHeight;
+              }
+            }
             const stickerWidthMm = stickerWidthCm * 10; // Convertir cm a mm
             const stickerHeightMm = stickerHeightCm * 10;
             
@@ -2664,8 +2709,23 @@ function openMarketplaceHelper(item){
           if (!images.length) throw new Error('No se pudo rasterizar el contenido de los stickers');
 
           // Obtener dimensiones del template para el PDF (5cm x 3cm por defecto)
-          const pdfWidthMm = (tpl.meta && tpl.meta.width) ? (parseFloat(tpl.meta.width) * 10) : 50;
-          const pdfHeightMm = (tpl.meta && tpl.meta.height) ? (parseFloat(tpl.meta.height) * 10) : 30;
+          // Validar que las dimensiones sean numéricas antes de usarlas
+          let pdfWidthMm = 50; // Default: 5cm
+          let pdfHeightMm = 30; // Default: 3cm
+          
+          if (tpl.meta && tpl.meta.width) {
+            const parsedWidth = parseFloat(tpl.meta.width);
+            if (!isNaN(parsedWidth) && parsedWidth > 0) {
+              pdfWidthMm = parsedWidth * 10; // Convertir cm a mm
+            }
+          }
+          
+          if (tpl.meta && tpl.meta.height) {
+            const parsedHeight = parseFloat(tpl.meta.height);
+            if (!isNaN(parsedHeight) && parsedHeight > 0) {
+              pdfHeightMm = parsedHeight * 10; // Convertir cm a mm
+            }
+          }
           
           // Usar dimensiones exactas del template para el PDF
           const doc = new jsPDF({ orientation: pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait', unit: 'mm', format: [pdfWidthMm, pdfHeightMm] });
