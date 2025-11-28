@@ -506,13 +506,23 @@ if (typeof window !== 'undefined') {
         const url = new URL('/api/v1/sales/stream', base);
         if (__tok) url.searchParams.set('token', __tok);
         const es = new EventSource(url.toString(), { withCredentials: false });
+
+        // Eventos de ventas
         es.addEventListener('sale:started', e => onEvent && onEvent('sale:started', JSON.parse(e.data || '{}')));
         es.addEventListener('sale:updated', e => onEvent && onEvent('sale:updated', JSON.parse(e.data || '{}')));
         es.addEventListener('sale:closed', e => onEvent && onEvent('sale:closed', JSON.parse(e.data || '{}')));
         es.addEventListener('sale:cancelled', e => onEvent && onEvent('sale:cancelled', JSON.parse(e.data || '{}')));
+
+        // Eventos de flujo de caja
+        es.addEventListener('cashflow:created', e => onEvent && onEvent('cashflow:created', JSON.parse(e.data || '{}')));
+        es.addEventListener('cashflow:updated', e => onEvent && onEvent('cashflow:updated', JSON.parse(e.data || '{}')));
+        es.addEventListener('cashflow:deleted', e => onEvent && onEvent('cashflow:deleted', JSON.parse(e.data || '{}')));
+
+        // Eventos de chats
         es.addEventListener('chat:created', e => onEvent && onEvent('chat:created', JSON.parse(e.data || '{}')));
         es.addEventListener('chat:updated', e => onEvent && onEvent('chat:updated', JSON.parse(e.data || '{}')));
         es.addEventListener('chat:deleted', e => onEvent && onEvent('chat:deleted', JSON.parse(e.data || '{}')));
+
         return es;
       }
     };
