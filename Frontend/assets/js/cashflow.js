@@ -16,6 +16,8 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;');
 }
 
+let cfSSE = null; // Variable para mantener la conexión SSE
+
 export function initCashFlow(){
   const tab = document.getElementById('tab-cashflow');
   if(!tab) return;
@@ -25,6 +27,46 @@ export function initCashFlow(){
   }
   loadAccounts();
   loadMovements(true);
+  connectLive(); // Conectar actualizaciones en vivo
+}
+
+function connectLive() {
+  if (!window.API || !window.API.live || !window.API.live.connect) {
+    // Reintentar después de un breve delay si API aún no está disponible
+    setTimeout(connectLive, 500);
+    return;
+  }
+  
+  // Cerrar conexión anterior si existe
+  if (cfSSE) {
+    cfSSE.close();
+    cfSSE = null;
+  }
+  
+  try {
+    cfSSE = window.API.live.connect((eventType, data) => {
+      // Manejar eventos de cashflow
+      if (eventType === 'cashflow:created' || eventType === 'cashflow:updated' || eventType === 'cashflow:deleted') {
+        // Recargar cuentas y movimientos cuando hay cambios
+        loadAccounts();
+        loadMovements();
+      }
+    });
+    
+    // Manejar errores de conexión
+    cfSSE.addEventListener('error', (e) => {
+      console.warn('[CashFlow SSE] Error de conexión, reintentando...', e);
+      // Reintentar después de 3 segundos si la conexión está cerrada
+      setTimeout(() => {
+        if (cfSSE && cfSSE.readyState === EventSource.CLOSED) {
+          connectLive();
+        }
+      }, 3000);
+    });
+    
+  } catch (e) {
+    console.error('[CashFlow SSE] Error al conectar:', e);
+  }
 }
 
 function bind(){
@@ -169,7 +211,7 @@ async function loadMovements(reset=false){
           <td data-label="Fecha" class="px-4 py-4 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${date}</td>
           <td data-label="Cuenta" class="px-4 py-4 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${accName}</td>
           <td data-label="Descripción" class="px-4 py-4 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${desc}</td>
-          <td data-label="Entrada" class='px-4 py-4 text-right text-xs font-semibold text-green-400 dark:text-green-400 theme-light:text-green-600 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 ${x.kind==='IN'?'':'text-slate-500 dark:text-slate-500 theme-light:text-slate-400'}'>${inAmt}</td>
+          <td data-label="Entrada" class='px-4 py-4 text-right text-xs font-semibold text-green-400 dark:text-green-400 ${x.kind==='IN'?'theme-light:text-green-800 theme-light:bg-green-50 theme-light:border-l-4 theme-light:border-green-700':'text-slate-500 dark:text-slate-500 theme-light:text-slate-400'} border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200'>${inAmt}</td>
           <td data-label="Salida" class='px-4 py-4 text-right text-xs font-semibold text-red-400 dark:text-red-400 theme-light:text-red-600 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200 ${x.kind==='OUT'?'':'text-slate-500 dark:text-slate-500 theme-light:text-slate-400'}'>${outAmt}</td>
           <td data-label="Saldo" class='px-4 py-4 text-right text-xs font-medium text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200'>${money(x.balanceAfter||0)}</td>
           <td class="px-4 py-4" style='white-space:nowrap;'>${canEdit?`<button class='px-3 py-1.5 text-xs bg-blue-600/20 dark:bg-blue-600/20 hover:bg-blue-600/40 dark:hover:bg-blue-600/40 text-blue-400 dark:text-blue-400 hover:text-blue-300 dark:hover:text-blue-300 font-medium rounded-lg transition-all duration-200 border border-blue-600/30 dark:border-blue-600/30 theme-light:bg-blue-50 theme-light:text-blue-600 theme-light:hover:bg-blue-100 theme-light:border-blue-300 mr-1' data-act='edit' title='Editar'>Editar</button><button class='px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300' data-act='del' title='Eliminar'>Eliminar</button>`:''}</td>
@@ -435,6 +477,108 @@ function openNewEntryModal(defaultKind='IN'){
   };
 }
 
+function openSettleLoanModal(loanId, loan){
+  const modal = document.getElementById('modal');
+  const body = document.getElementById('modalBody');
+  if(!modal||!body) return;
+  const pending = loan.amount - (loan.paidAmount||0);
+  const div = document.createElement('div');
+  div.innerHTML = `<div class="space-y-4">
+    <h3 class="text-xl font-bold text-white dark:text-white theme-light:text-slate-900 mb-4">💰 Liquidar Préstamo</h3>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Empleado</label>
+      <input type="text" value="${escapeHtml(loan.technicianName)}" disabled class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-100 text-white dark:text-white theme-light:text-slate-900"/>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Monto pendiente</label>
+      <input type="text" value="${money(pending)}" disabled class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-slate-100 text-white dark:text-white theme-light:text-slate-900"/>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Monto a liquidar</label>
+      <input id='settle-amount' type='number' value="${pending}" min="1" max="${pending}" step="1" class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 placeholder-slate-400 dark:placeholder-slate-400 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Cuenta</label>
+      <select id='settle-account' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"></select>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Descripción (opcional)</label>
+      <input id='settle-description' type='text' placeholder='Pago préstamo ${escapeHtml(loan.technicianName)}' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 placeholder-slate-400 dark:placeholder-slate-400 theme-light:placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-slate-300 dark:text-slate-300 theme-light:text-slate-700 mb-2">Fecha</label>
+      <input id='settle-date' type='datetime-local' class="w-full p-3 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 rounded-lg bg-slate-700/50 dark:bg-slate-700/50 theme-light:bg-white text-white dark:text-white theme-light:text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"/>
+    </div>
+    <div class="flex gap-2 justify-end">
+      <button id='settle-cancel' class="px-4 py-2 bg-slate-700/50 dark:bg-slate-700/50 hover:bg-slate-700 dark:hover:bg-slate-700 text-white dark:text-white font-semibold rounded-lg transition-all duration-200 border border-slate-600/50 dark:border-slate-600/50 theme-light:border-slate-300 theme-light:bg-sky-200 theme-light:text-slate-700 theme-light:hover:bg-slate-300 theme-light:hover:text-slate-900">Cancelar</button>
+      <button id='settle-submit' class="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 dark:from-green-600 dark:to-green-700 theme-light:from-green-500 theme-light:to-green-600 hover:from-green-700 hover:to-green-800 dark:hover:from-green-700 dark:hover:to-green-800 theme-light:hover:from-green-600 theme-light:hover:to-green-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200">Liquidar</button>
+    </div>
+  </div>`;
+  body.innerHTML = '';
+  body.appendChild(div);
+  modal.classList.remove('hidden');
+  
+  // Cargar cuentas
+  (async ()=>{
+    try{
+      const list = await API.accounts.balances();
+      const balances = list.balances || [];
+      const sel = document.getElementById('settle-account');
+      if(sel){
+        sel.innerHTML = '<option value="">-- Seleccionar cuenta --</option>' + 
+          balances.map(a=>`<option value="${a.accountId || a._id || a.id}">${escapeHtml(a.name)}</option>`).join('');
+        // Seleccionar la cuenta del préstamo por defecto
+        if(loan.accountId) sel.value = loan.accountId;
+      }
+    }catch(e){
+      console.error('Error cargando cuentas:', e);
+    }
+  })();
+  
+  // Fecha por defecto: ahora
+  const dateInput = document.getElementById('settle-date');
+  if(dateInput){
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    dateInput.value = `${year}-${month}-${day}T${hours}:${minutes}`;
+  }
+  
+  document.getElementById('settle-cancel')?.addEventListener('click', ()=>{ modal.classList.add('hidden'); });
+  document.getElementById('settle-submit')?.addEventListener('click', async ()=>{
+    const amount = Number(document.getElementById('settle-amount')?.value);
+    const accountId = document.getElementById('settle-account')?.value;
+    const description = document.getElementById('settle-description')?.value || '';
+    const date = document.getElementById('settle-date')?.value;
+    
+    if(!accountId){
+      alert('Selecciona una cuenta');
+      return;
+    }
+    if(!amount || amount <= 0){
+      alert('El monto debe ser mayor a 0');
+      return;
+    }
+    if(amount > pending){
+      alert(`El monto no puede ser mayor al pendiente (${money(pending)})`);
+      return;
+    }
+    
+    try{
+      await API.cashflow.loans.settle(loanId, { accountId, amount, description, date });
+      modal.classList.add('hidden');
+      loadAccounts();
+      loadMovements();
+      loadLoans();
+    }catch(err){
+      alert(err?.message||'Error al liquidar préstamo');
+    }
+  });
+}
+
 function openNewLoanModal(){
   const modal = document.getElementById('modal');
   const body = document.getElementById('modalBody');
@@ -586,6 +730,7 @@ async function loadLoans(reset=false){
           <td data-label="Estado" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${statusLabels[loan.status]||loan.status}</td>
           <td data-label="Descripción" class="px-4 py-3 text-xs text-white dark:text-white theme-light:text-slate-900 border-r border-slate-700/30 dark:border-slate-700/30 theme-light:border-slate-200">${loan.description||'-'}</td>
           <td class="px-4 py-3" style='white-space:nowrap;'>
+            ${pending > 0?`<button class='px-3 py-1.5 text-xs bg-green-600/20 dark:bg-green-600/20 hover:bg-green-600/40 dark:hover:bg-green-600/40 text-green-400 dark:text-green-400 hover:text-green-300 dark:hover:text-green-300 font-medium rounded-lg transition-all duration-200 border border-green-600/30 dark:border-green-600/30 theme-light:bg-green-50 theme-light:text-green-600 theme-light:hover:bg-green-100 theme-light:border-green-300 mr-1' data-act='settle' title='Liquidar'>Liquidar</button>`:''}
             ${canDelete?`<button class='px-3 py-1.5 text-xs bg-red-600/20 dark:bg-red-600/20 hover:bg-red-600/40 dark:hover:bg-red-600/40 text-red-400 dark:text-red-400 hover:text-red-300 dark:hover:text-red-300 font-medium rounded-lg transition-all duration-200 border border-red-600/30 dark:border-red-600/30 theme-light:bg-red-50 theme-light:text-red-600 theme-light:hover:bg-red-100 theme-light:border-red-300' data-act='del' title='Eliminar'>Eliminar</button>`:''}
           </td>
         </tr>`;
@@ -594,10 +739,13 @@ async function loadLoans(reset=false){
       // Bind acciones
       body.querySelectorAll('tr[data-id]').forEach(tr=>{
         const id = tr.getAttribute('data-id');
+        const loan = loans.find(l => l._id === id);
         tr.querySelectorAll('button[data-act]').forEach(btn=>{
           btn.addEventListener('click', async (e)=>{
             const act = btn.getAttribute('data-act');
-            if(act==='del'){
+            if(act==='settle'){
+              openSettleLoanModal(id, loan);
+            } else if(act==='del'){
               if(!confirm('¿Eliminar préstamo? Esto también eliminará la salida de caja asociada.')) return;
               try{ 
                 await API.cashflow.loans.delete(id); 

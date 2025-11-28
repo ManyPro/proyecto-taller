@@ -1,7 +1,8 @@
 import EmployeeLoan from '../models/EmployeeLoan.js';
 import CashFlowEntry from '../models/CashFlowEntry.js';
 import Account from '../models/Account.js';
-import { computeBalance } from './cashflow.controller.js';
+import { computeBalance, recomputeAccountBalances } from './cashflow.controller.js';
+import { publish } from '../lib/live.js';
 
 // Crear préstamo y registrar salida en caja
 export const createLoan = async (req, res) => {
@@ -157,6 +158,81 @@ export const updateLoan = async (req, res) => {
   }
 };
 
+// Liquidar préstamo desde flujo de caja
+export const settleLoan = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { accountId, amount, description, date } = req.body;
+
+    const loan = await EmployeeLoan.findOne({ _id: id, companyId: req.companyId });
+    if (!loan) {
+      return res.status(404).json({ error: 'Préstamo no encontrado' });
+    }
+
+    const pendingAmount = loan.amount - (loan.paidAmount || 0);
+    const settleAmount = amount ? Math.round(Number(amount)) : pendingAmount;
+    
+    if (settleAmount <= 0) {
+      return res.status(400).json({ error: 'El monto a liquidar debe ser mayor a 0' });
+    }
+
+    if (settleAmount > pendingAmount) {
+      return res.status(400).json({ error: `El monto a liquidar (${settleAmount}) no puede ser mayor al pendiente (${pendingAmount})` });
+    }
+
+    // Verificar cuenta
+    const account = await Account.findOne({ _id: accountId || loan.accountId, companyId: req.companyId });
+    if (!account) {
+      return res.status(404).json({ error: 'Cuenta no encontrada' });
+    }
+
+    const accId = account._id;
+    const settleDate = date ? new Date(date) : new Date();
+
+    // Crear entrada IN en cashflow
+    const prevBal = await computeBalance(accId, req.companyId);
+    const newBal = prevBal + settleAmount;
+
+    const cashFlowEntry = await CashFlowEntry.create({
+      companyId: req.companyId,
+      accountId: accId,
+      kind: 'IN',
+      amount: settleAmount,
+      description: description || `Pago préstamo ${loan.technicianName}`,
+      source: 'MANUAL',
+      date: settleDate,
+      balanceAfter: newBal,
+      meta: { type: 'loan_settlement', loanId: loan._id, technicianName: loan.technicianName }
+    });
+
+    // Actualizar préstamo
+    const newPaidAmount = (loan.paidAmount || 0) + settleAmount;
+    const newStatus = newPaidAmount >= loan.amount ? 'paid' : 'partially_paid';
+    
+    const updatedLoan = await EmployeeLoan.findByIdAndUpdate(
+      id,
+      {
+        paidAmount: newPaidAmount,
+        status: newStatus,
+        $push: { settlementIds: cashFlowEntry._id }
+      },
+      { new: true }
+    );
+
+    // Publicar evento de actualización en vivo
+    try {
+      await publish(req.companyId, 'cashflow:created', { id: cashFlowEntry._id, accountId: accId });
+    } catch (e) {
+      // No fallar si no se puede publicar
+    }
+
+    res.json({ loan: updatedLoan, entry: cashFlowEntry });
+  } catch (err) {
+    console.error('Error settling loan:', err);
+    res.status(500).json({ error: 'Error al liquidar préstamo', message: err.message });
+  }
+};
+
 // Eliminar préstamo (solo si está pendiente y no tiene liquidaciones asociadas)
 export const deleteLoan = async (req, res) => {
   try {
@@ -174,9 +250,20 @@ export const deleteLoan = async (req, res) => {
       });
     }
 
+    const accId = loan.accountId;
+
     // Eliminar la entrada de flujo de caja asociada
     if (loan.cashFlowEntryId) {
       await CashFlowEntry.findByIdAndDelete(loan.cashFlowEntryId);
+      // Recalcular balances después de eliminar la entrada
+      await recomputeAccountBalances(req.companyId, accId);
+      
+      // Publicar evento de actualización en vivo
+      try {
+        await publish(req.companyId, 'cashflow:deleted', { accountId: accId });
+      } catch (e) {
+        // No fallar si no se puede publicar
+      }
     }
 
     await EmployeeLoan.findByIdAndDelete(id);

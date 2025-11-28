@@ -3854,17 +3854,17 @@
         <tfoot>
           {{#if quote.ivaEnabled}}
           <tr style="border-top: 2px solid #000;">
-            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">SUBTOTAL</td>
-            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{money Q.subtotal}}</td>
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 12.4px;">SUBTOTAL</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 12.4px;">{{money Q.subtotal}}</td>
           </tr>
           <tr>
-            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">IVA (19%)</td>
-            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{money Q.iva}}</td>
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 12.4px;">IVA (19%)</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 12.4px;">{{money Q.iva}}</td>
           </tr>
           {{/if}}
           <tr style="border-top: 2px solid #000;">
-            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">TOTAL</td>
-            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 9px;">{{#if quote.ivaEnabled}}{{money Q.total}}{{else}}{{money quote.total}}{{/if}}</td>
+            <td colspan="3" style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 12.4px;">TOTAL</td>
+            <td style="text-align: right; font-weight: bold; padding: 2px 4px; font-size: 12.4px;">{{#if quote.ivaEnabled}}{{money Q.total}}{{else}}{{money quote.total}}{{/if}}</td>
           </tr>
         </tfoot>
       </table>

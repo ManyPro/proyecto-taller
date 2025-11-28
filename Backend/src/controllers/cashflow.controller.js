@@ -3,6 +3,7 @@ import CashFlowEntry from '../models/CashFlowEntry.js';
 import Company from '../models/Company.js';
 import mongoose from 'mongoose';
 import { createDateRange, now, localToUTC } from '../lib/dateTime.js';
+import { publish } from '../lib/live.js';
 
 // Helpers
 export async function ensureDefaultCashAccount(companyId) {
@@ -176,6 +177,14 @@ export async function createEntry(req, res) {
     date: date ? localToUTC(date) : new Date(),
     balanceAfter: newBal
   });
+  
+  // Publicar evento de actualización en vivo
+  try {
+    await publish(req.companyId, 'cashflow:created', { id: entry._id, accountId: acc._id });
+  } catch (e) {
+    // No fallar si no se puede publicar
+  }
+  
   res.json(entry);
 }
 
@@ -251,6 +260,13 @@ export async function updateEntry(req, res){
     await recomputeAccountBalances(req.companyId, entry.accountId);
   }
   
+  // Publicar evento de actualización en vivo
+  try {
+    await publish(req.companyId, 'cashflow:updated', { id: entry._id, accountId: entry.accountId });
+  } catch (e) {
+    // No fallar si no se puede publicar
+  }
+  
   res.json(entry);
 }
 
@@ -262,6 +278,14 @@ export async function deleteEntry(req, res){
   const accId = entry.accountId;
   await CashFlowEntry.deleteOne({ _id: entry._id, companyId: req.companyId });
   await recomputeAccountBalances(req.companyId, accId);
+  
+  // Publicar evento de actualización en vivo
+  try {
+    await publish(req.companyId, 'cashflow:deleted', { id: entry._id, accountId: accId });
+  } catch (e) {
+    // No fallar si no se puede publicar
+  }
+  
   res.json({ ok: true });
 }
 
@@ -357,8 +381,88 @@ export async function registerSaleIncome({ companyId, sale, accountId, forceCrea
   if (entriesToCreate.length > 0) {
     const created = await CashFlowEntry.insertMany(entriesToCreate);
     entries.push(...created);
+    
+    // Publicar eventos de actualización en vivo para cada entrada creada
+    // Agrupar por accountId para evitar múltiples eventos innecesarios
+    const accountIds = new Set();
+    for (const entry of created) {
+      accountIds.add(String(entry.accountId));
+    }
+    
+    // Intentar publicar para cada cuenta, sin fallar si alguna publicación falla
+    for (const accId of accountIds) {
+      try {
+        await publish(companyId, 'cashflow:created', { accountId: accId });
+      } catch (e) {
+        // No fallar si no se puede publicar para esta cuenta
+        // Continuar con las siguientes cuentas
+      }
+    }
   }
   
   return entries;
+}
+
+// Endpoint para corregir balances de una empresa específica
+export async function fixBalances(req, res) {
+  try {
+    const companyId = req.companyId;
+    const accounts = await Account.find({ companyId }).lean();
+    
+    let totalFixed = 0;
+    let totalEntries = 0;
+
+    for (const account of accounts) {
+      const accountId = account._id;
+      const initialBalance = account.initialBalance || 0;
+
+      // Obtener todas las entradas ordenadas por fecha
+      const entries = await CashFlowEntry.find({ companyId, accountId })
+        .sort({ date: 1, _id: 1 })
+        .lean();
+
+      if (entries.length === 0) continue;
+
+      let runningBalance = initialBalance;
+      const updates = [];
+
+      for (const entry of entries) {
+        if (entry.kind === 'IN') {
+          runningBalance += (entry.amount || 0);
+        } else if (entry.kind === 'OUT') {
+          runningBalance -= (entry.amount || 0);
+        }
+
+        // Solo actualizar si el balance es diferente
+        if (entry.balanceAfter !== runningBalance) {
+          updates.push({
+            updateOne: {
+              filter: { _id: entry._id },
+              update: { $set: { balanceAfter: runningBalance } }
+            }
+          });
+          totalFixed++;
+        }
+        totalEntries++;
+      }
+
+      // Ejecutar actualizaciones en batch
+      if (updates.length > 0) {
+        await CashFlowEntry.bulkWrite(updates);
+        // Recalcular balances para asegurar consistencia
+        await recomputeAccountBalances(companyId, accountId);
+      }
+    }
+
+    res.json({ 
+      ok: true, 
+      message: `Corregidos ${totalFixed} balances de ${totalEntries} entradas`,
+      totalFixed,
+      totalEntries
+    });
+  } catch (error) {
+    console.error('Error fixing balances:', error);
+    res.status(500).json({ error: 'Error al corregir balances', message: error.message });
+  }
 }
 

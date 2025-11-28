@@ -1,8 +1,8 @@
 ﻿import { Router } from 'express';
 import Company from '../models/Company.js';
 import { authCompany } from '../middlewares/auth.js';
-import { listAccounts, createAccount, updateAccount, getBalances, listEntries, createEntry, updateEntry, deleteEntry } from '../controllers/cashflow.controller.js';
-import { createLoan, listLoans, getPendingLoans, updateLoan, deleteLoan } from '../controllers/employeeLoan.controller.js';
+import { listAccounts, createAccount, updateAccount, getBalances, listEntries, createEntry, updateEntry, deleteEntry, fixBalances } from '../controllers/cashflow.controller.js';
+import { createLoan, listLoans, getPendingLoans, updateLoan, deleteLoan, settleLoan } from '../controllers/employeeLoan.controller.js';
 
 const router = Router();
 
@@ -28,12 +28,14 @@ router.get('/entries', listEntries);
 router.post('/entries', createEntry);
 router.patch('/entries/:id', updateEntry);
 router.delete('/entries/:id', deleteEntry);
+router.post('/entries/fix-balances', fixBalances);
 
 // Employee Loans (Préstamos a empleados)
 router.get('/loans', listLoans);
 router.post('/loans', createLoan);
 router.get('/loans/pending', getPendingLoans);
 router.patch('/loans/:id', updateLoan);
+router.post('/loans/:id/settle', settleLoan);
 router.delete('/loans/:id', deleteLoan);
 
 export default router;

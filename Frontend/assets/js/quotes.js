@@ -967,11 +967,13 @@ export function initQuotes({ getCompanyEmail }) {
               qty: r.qty === null || r.qty === undefined || r.qty === '' ? null : Number(r.qty),
               unitPrice: Number(r.price || 0),
               subtotal: (r.qty > 0 ? r.qty : 1) * (r.price || 0),
-              sku: r.sku || ''
+              sku: r.sku || '',
+              kind: r.type || 'SERVICIO'
             })),
             totals: {
               total: parseMoney(lblTotal.textContent) || 0
-            }
+            },
+            ivaEnabled: ivaEnabled || false
           };
           
           // Si hay una cotización guardada, usar su ID para obtener datos reales

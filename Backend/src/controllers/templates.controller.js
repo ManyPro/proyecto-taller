@@ -1654,32 +1654,170 @@ export async function previewTemplate(req, res) {
     // Usar quoteData si no hay sampleId o si los items del contexto están vacíos pero quoteData tiene items
     if (!sampleId || (!hasItemsInContext && hasItemsInData)) {
       console.log('[previewTemplate] Usando quoteData para sobrescribir contexto');
+      
+      // Procesar items y crear estructura agrupada (igual que en buildContext)
+      const processedItems = [];
+      const products = [];
+      const services = [];
+      const combos = [];
+      
+      // Procesar items simples (sin agrupación compleja para preview)
+      // CRÍTICO: Calcular subtotal real desde los items (sin IVA)
+      let calculatedSubtotal = 0;
+      
+      (quoteData.items || []).forEach(item => {
+        // Calcular subtotal del item (usar subtotal si existe, sino calcular)
+        const itemQty = item.qty === null || item.qty === undefined || item.qty === '' ? null : Number(item.qty);
+        const itemUnitPrice = Number(item.unitPrice) || 0;
+        // Si qty es null, usar 1 para cálculo (pero preservar null para display)
+        const qtyForCalc = itemQty === null ? 1 : (itemQty > 0 ? itemQty : 1);
+        // Usar nullish coalescing para preservar 0 si el subtotal es explícitamente 0
+        const itemSubtotal = (item.subtotal !== null && item.subtotal !== undefined) 
+          ? Number(item.subtotal) 
+          : (qtyForCalc * itemUnitPrice);
+        calculatedSubtotal += itemSubtotal;
+        
+        const itemObj = {
+          sku: item.sku || '',
+          name: item.description || '',
+          description: item.description || '',
+          qty: itemQty, // Preservar null si es null, no convertir a 0
+          unitPrice: itemUnitPrice,
+          total: itemSubtotal,
+          subtotal: itemSubtotal,
+          source: item.source || 'service',
+          kind: item.kind || 'SERVICIO'
+        };
+        
+        const kind = String(item.kind || 'SERVICIO').trim().toUpperCase();
+        if (kind === 'PRODUCTO' || kind === 'PRODUCT') {
+          products.push(itemObj);
+        } else if (kind === 'COMBO') {
+          combos.push(itemObj);
+        } else {
+          services.push(itemObj);
+        }
+      });
+      
+      // Crear estructura agrupada
+      const itemsGrouped = {
+        combos: combos,
+        products: products,
+        services: services,
+        hasCombos: combos.length > 0,
+        hasProducts: products.length > 0,
+        hasServices: services.length > 0
+      };
+      
+      const ivaEnabled = quoteData.ivaEnabled || false;
+      const frontendTotal = Number(quoteData.totals?.total || 0);
+      
+      // CRÍTICO: Calcular descuento implícito desde la diferencia entre el subtotal calculado
+      // y el total del frontend (que ya incluye descuento e IVA si aplica)
+      // El frontend aplica: subtotal -> descuento -> subtotalAfterDiscount -> IVA (si aplica) -> total
+      let discountValue = 0;
+      let subtotalAfterDiscount = calculatedSubtotal;
+      
+      if (ivaEnabled && frontendTotal > 0) {
+        // Si IVA está activado: frontendTotal = (subtotal - discount) * 1.19
+        // Entonces: subtotalAfterDiscount = frontendTotal / 1.19
+        // Y: discount = calculatedSubtotal - subtotalAfterDiscount
+        subtotalAfterDiscount = Math.round(frontendTotal / 1.19);
+        discountValue = Math.max(0, Math.round(calculatedSubtotal - subtotalAfterDiscount));
+        // Recalcular subtotalAfterDiscount para evitar errores de redondeo
+        subtotalAfterDiscount = calculatedSubtotal - discountValue;
+      } else if (ivaEnabled && frontendTotal <= 0) {
+        // Si IVA está activado pero el total es 0 o negativo (100% descuento)
+        // El descuento es igual al subtotal calculado
+        discountValue = Math.max(0, calculatedSubtotal);
+        subtotalAfterDiscount = 0;
+      } else {
+        // Si IVA no está activado: frontendTotal = subtotal - discount
+        // Entonces: discount = calculatedSubtotal - frontendTotal
+        discountValue = Math.max(0, Math.round(calculatedSubtotal - frontendTotal));
+        subtotalAfterDiscount = calculatedSubtotal - discountValue;
+      }
+      
+      // Usar subtotalAfterDiscount como el subtotal base para cálculos
+      const subtotal = subtotalAfterDiscount;
+      
       ctx.quote = {
         number: quoteData.number || '',
         createdAt: quoteData.date || new Date(),
+        date: quoteData.date || new Date(),
         customer: {
           name: quoteData.customer?.name || '',
           phone: quoteData.customer?.phone || '',
-          email: quoteData.customer?.email || ''
+          email: quoteData.customer?.email || '',
+          address: quoteData.customer?.address || ''
         },
         vehicle: {
           plate: quoteData.vehicle?.plate || '',
           make: quoteData.vehicle?.make || '',
           line: quoteData.vehicle?.line || '',
           modelYear: quoteData.vehicle?.modelYear || '',
-          displacement: quoteData.vehicle?.displacement || ''
+          displacement: quoteData.vehicle?.displacement || '',
+          brand: quoteData.vehicle?.make || '',
+          mileage: quoteData.vehicle?.mileage || ''
         },
         validity: quoteData.validity || '',
-        items: (quoteData.items || []).map(item => ({
-          description: item.description || '',
-          qty: item.qty || null,
-          unitPrice: Number(item.unitPrice) || 0,
-          subtotal: Number(item.subtotal) || (item.qty > 0 ? Number(item.qty) : 1) * (Number(item.unitPrice) || 0),
-          sku: item.sku || ''
-        })),
-        total: quoteData.totals?.total || 0
+        items: (quoteData.items || []).map(item => {
+          // CRÍTICO: Preservar null qty para consistencia con itemsGrouped
+          const itemQty = item.qty === null || item.qty === undefined || item.qty === '' ? null : Number(item.qty);
+          const itemUnitPrice = Number(item.unitPrice) || 0;
+          const qtyForCalc = itemQty === null ? 1 : (itemQty > 0 ? itemQty : 1);
+          // Usar nullish coalescing para preservar 0 si el subtotal es explícitamente 0
+          const itemSubtotal = (item.subtotal !== null && item.subtotal !== undefined) 
+            ? Number(item.subtotal) 
+            : (qtyForCalc * itemUnitPrice);
+          
+          return {
+            description: item.description || '',
+            qty: itemQty, // Preservar null, no convertir a 0
+            unitPrice: itemUnitPrice,
+            subtotal: itemSubtotal,
+            sku: item.sku || '',
+            name: item.description || '',
+            total: itemSubtotal
+          };
+        }),
+        itemsGrouped: itemsGrouped,
+        total: subtotal,
+        ivaEnabled: ivaEnabled,
+        discount: discountValue > 0 ? { value: discountValue, type: 'fixed' } : null
       };
-      console.log('[previewTemplate] Quote context actualizado con items:', ctx.quote.items?.length || 0);
+      
+      // Calcular IVA si está habilitado (sobre el subtotal después de descuento)
+      if (ivaEnabled) {
+        // Usar el total del frontend directamente para evitar discrepancias por redondeo
+        // El frontend ya calculó el total correctamente: (subtotal - discount) * 1.19
+        const totalWithIva = frontendTotal;
+        // Calcular IVA como la diferencia entre el total y el subtotal para garantizar consistencia
+        // Esto asegura que subtotal + iva = total exactamente
+        const iva = Math.round(totalWithIva - subtotal);
+        
+        ctx.Q = {
+          subtotal: subtotal,
+          iva: iva,
+          total: totalWithIva,
+          'nº': quoteData.number || '',
+          fecha: quoteData.date || new Date(),
+          P: itemsGrouped.hasProducts,
+          S: itemsGrouped.hasServices,
+          C: itemsGrouped.hasCombos
+        };
+      } else {
+        ctx.Q = {
+          total: subtotal,
+          'nº': quoteData.number || '',
+          fecha: quoteData.date || new Date(),
+          P: itemsGrouped.hasProducts,
+          S: itemsGrouped.hasServices,
+          C: itemsGrouped.hasCombos
+        };
+      }
+      
+      console.log('[previewTemplate] Quote context actualizado con items:', ctx.quote.items?.length || 0, 'ivaEnabled:', ivaEnabled);
     }
   }
   

@@ -381,12 +381,14 @@ const API = {
     create: (payload) => http.post('/api/v1/cashflow/entries', payload),
     update: (id, payload) => http.patch(`/api/v1/cashflow/entries/${id}`, payload),
     delete: (id) => http.del(`/api/v1/cashflow/entries/${id}`),
+    fixBalances: () => http.post('/api/v1/cashflow/entries/fix-balances'),
     // Préstamos a empleados
     loans: {
       list: (params={}) => http.get(`/api/v1/cashflow/loans${toQuery(params)}`),
       create: (payload) => http.post('/api/v1/cashflow/loans', payload),
       getPending: (technicianName) => http.get(`/api/v1/cashflow/loans/pending?technicianName=${encodeURIComponent(technicianName)}`),
       update: (id, payload) => http.patch(`/api/v1/cashflow/loans/${id}`, payload),
+      settle: (id, payload) => http.post(`/api/v1/cashflow/loans/${id}/settle`, payload),
       delete: (id) => http.del(`/api/v1/cashflow/loans/${id}`)
     }
   },
@@ -497,6 +499,10 @@ if (typeof window !== 'undefined') {
         es.addEventListener('sale:updated', e => onEvent && onEvent('sale:updated', JSON.parse(e.data || '{}')));
         es.addEventListener('sale:closed', e => onEvent && onEvent('sale:closed', JSON.parse(e.data || '{}')));
         es.addEventListener('sale:cancelled', e => onEvent && onEvent('sale:cancelled', JSON.parse(e.data || '{}')));
+        // Eventos de flujo de caja
+        es.addEventListener('cashflow:created', e => onEvent && onEvent('cashflow:created', JSON.parse(e.data || '{}')));
+        es.addEventListener('cashflow:updated', e => onEvent && onEvent('cashflow:updated', JSON.parse(e.data || '{}')));
+        es.addEventListener('cashflow:deleted', e => onEvent && onEvent('cashflow:deleted', JSON.parse(e.data || '{}')));
         return es;
       }
     };
