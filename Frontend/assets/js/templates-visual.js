@@ -3063,30 +3063,32 @@
           
           // Insertar el contenido en el wrapper
           wrapper.innerHTML = existingContent;
+          canvas.appendChild(wrapper);
+          
+          const normalizePosition = (rawValue, totalPx, fallbackPx) => {
+            if (!rawValue || rawValue === 'auto') return fallbackPx;
+            const percentMatch = rawValue.match(/(-?\d+(?:\.\d+)?)%/);
+            if (percentMatch) return (parseFloat(percentMatch[1]) / 100) * totalPx;
+            const numeric = parseFloat(rawValue);
+            return Number.isFinite(numeric) ? numeric : fallbackPx;
+          };
           
           // CRÍTICO: Resetear y normalizar todas las posiciones absolutas
           const absoluteElements = wrapper.querySelectorAll('[style*="position: absolute"], [style*="position:absolute"]');
           absoluteElements.forEach((el) => {
-            const style = el.getAttribute('style') || '';
-            const leftMatch = style.match(/left:\s*([\d.\-]+)px/);
-            const topMatch = style.match(/top:\s*([\d.\-]+)px/);
-            let left = leftMatch ? parseFloat(leftMatch[1]) : 0;
-            let top = topMatch ? parseFloat(topMatch[1]) : 0;
+            const computed = window.getComputedStyle(el);
+            const styleAttr = el.getAttribute('style') || '';
+            const leftAttr = styleAttr.match(/left:\s*([^;]+)/i)?.[1]?.trim() || el.style.left || computed.left || '';
+            const topAttr = styleAttr.match(/top:\s*([^;]+)/i)?.[1]?.trim() || el.style.top || computed.top || '';
+            const fallbackLeft = Number.isFinite(el.offsetLeft) ? el.offsetLeft : parseFloat(computed.left) || 0;
+            const fallbackTop = Number.isFinite(el.offsetTop) ? el.offsetTop : parseFloat(computed.top) || 0;
+            const left = Math.max(0, Math.min(normalizePosition(leftAttr, widthPx, fallbackLeft), widthPx));
+            const top = Math.max(0, Math.min(normalizePosition(topAttr, heightPx, fallbackTop), heightPx));
             
-            // Asegurar que las posiciones no sean negativas o excesivamente grandes
-            left = Math.max(0, Math.min(left, widthPx));
-            top = Math.max(0, Math.min(top, heightPx));
-            
-            // Actualizar el estilo con posición normalizada
-            const cleanStyle = style
-              .replace(/left:\s*[^;]+;?/gi, '')
-              .replace(/top:\s*[^;]+;?/gi, '')
-              .replace(/position:\s*[^;]+;?/gi, '');
-            el.setAttribute('style', `${cleanStyle} position: absolute; left: ${left}px; top: ${top}px;`.trim());
+            el.style.position = 'absolute';
+            el.style.left = `${left}px`;
+            el.style.top = `${top}px`;
           });
-          
-          // Insertar el wrapper en el canvas
-          canvas.appendChild(wrapper);
           
           // Re-aplicar eventos a los elementos
           const elementsAfterWrap = canvas.querySelectorAll('.tpl-element');

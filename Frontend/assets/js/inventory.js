@@ -1521,8 +1521,15 @@ if (__ON_INV_PAGE__) {
                 } else {
                   const tempDiv = document.createElement('div');
                   tempDiv.innerHTML = html || '';
-                  while (tempDiv.firstChild) {
-                    box.appendChild(tempDiv.firstChild);
+                  const stickerNode = tempDiv.querySelector('.sticker-wrapper');
+                  if (stickerNode) {
+                    box.appendChild(stickerNode);
+                  } else {
+                    const bodyNode = tempDiv.querySelector('body');
+                    const source = bodyNode || tempDiv;
+                    while (source.firstChild) {
+                      box.appendChild(source.firstChild);
+                    }
                   }
                 }
                 
@@ -1562,12 +1569,10 @@ if (__ON_INV_PAGE__) {
                 
                 // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
                 try { await waitForImages(box, 4000); } catch(_) {}
-                // CRÍTICO: Capturar con dimensiones exactas, escala 1 para que coincida con el canvas
-                // CRÍTICO: Capturar con alta calidad y dimensiones exactas
-                // Usar escala 3 para mejor calidad sin distorsión
-                const scale = 3;
+                // Capturar usando escala 1 para que jsPDF no vuelva a escalar la imagen
+                const scale = 1;
                 const canvas = await html2canvas(box, { 
-                  scale: scale, // Escala 3 para alta calidad
+                  scale,
                   backgroundColor: '#ffffff', 
                   useCORS: true, 
                   allowTaint: true, 
@@ -1580,16 +1585,21 @@ if (__ON_INV_PAGE__) {
                     // Asegurar que el clon también tenga las dimensiones correctas
                     const clonedBox = clonedDoc.querySelector('.sticker-capture');
                     if (clonedBox) {
-                      clonedBox.style.width = widthPx + 'px';
-                      clonedBox.style.height = heightPx + 'px';
+                      clonedBox.style.setProperty('width', widthPx + 'px', 'important');
+                      clonedBox.style.setProperty('height', heightPx + 'px', 'important');
                       const clonedWrapper = clonedBox.querySelector('.sticker-wrapper');
                       if (clonedWrapper) {
-                        clonedWrapper.style.width = widthPx + 'px';
-                        clonedWrapper.style.height = heightPx + 'px';
+                        clonedWrapper.style.setProperty('width', widthPx + 'px', 'important');
+                        clonedWrapper.style.setProperty('height', heightPx + 'px', 'important');
                       }
                     }
                   }
                 });
+                const expectedCanvasWidth = Math.round(widthPx * scale);
+                const expectedCanvasHeight = Math.round(heightPx * scale);
+                if (canvas.width !== expectedCanvasWidth || canvas.height !== expectedCanvasHeight) {
+                  console.warn(`⚠️ Canvas capturado tiene dimensiones inesperadas: ${canvas.width}x${canvas.height}, esperado: ${expectedCanvasWidth}x${expectedCanvasHeight}`);
+                }
                 images.push(canvas.toDataURL('image/png'));
                 root.removeChild(box);
               };
@@ -1643,9 +1653,7 @@ if (__ON_INV_PAGE__) {
             
             images.forEach((src, idx) => {
               if (idx > 0) doc.addPage([pdfWidthMm, pdfHeightMm], pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait');
-              // CRÍTICO: Insertar imagen con dimensiones exactas
-              // La imagen ya está capturada a escala 3, así que las dimensiones del canvas son widthPx*3 x heightPx*3
-              // Pero al insertar en el PDF, usamos las dimensiones reales en mm
+              // Insertar la imagen con las dimensiones físicas exactas del sticker
               doc.addImage(src, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm, undefined, 'FAST');
             });
             
@@ -2782,11 +2790,18 @@ function openMarketplaceHelper(item){
               // El box debe tener dimensiones EXACTAS y overflow hidden para que coincida con el canvas
               box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box; display: block; margin: 0; padding: 0;`;
               
-              // Insertar el HTML directamente en el box
+              // Insertar únicamente el contenido relevante del HTML (preferir sticker-wrapper)
               const tempDiv = document.createElement('div');
               tempDiv.innerHTML = html || '';
-              while (tempDiv.firstChild) {
-                box.appendChild(tempDiv.firstChild);
+              const stickerNode = tempDiv.querySelector('.sticker-wrapper');
+              if (stickerNode) {
+                box.appendChild(stickerNode);
+              } else {
+                const bodyNode = tempDiv.querySelector('body');
+                const source = bodyNode || tempDiv;
+                while (source.firstChild) {
+                  box.appendChild(source.firstChild);
+                }
               }
               
               // CRÍTICO: Asegurar que el sticker-wrapper tenga dimensiones EXACTAS (no porcentajes)
@@ -2858,11 +2873,10 @@ function openMarketplaceHelper(item){
               // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
               try { await waitForImages(box, 4000); } catch(_) {}
               
-              // CRÍTICO: Capturar con alta calidad y dimensiones exactas
-              // Usar escala 3 para mejor calidad sin distorsión
-              const scale = 3;
+              // Capturar usando escala 1 para que jsPDF no vuelva a escalar la imagen
+              const scale = 1;
               const canvas = await html2canvas(box, { 
-                scale: scale, // Escala 3 para alta calidad
+                scale,
                 backgroundColor: '#ffffff', 
                 useCORS: true, 
                 allowTaint: true, 
@@ -2876,20 +2890,22 @@ function openMarketplaceHelper(item){
                   // Asegurar que el clon también tenga las dimensiones correctas
                   const clonedBox = clonedDoc.querySelector('.sticker-capture');
                   if (clonedBox) {
-                    clonedBox.style.width = widthPx + 'px';
-                    clonedBox.style.height = heightPx + 'px';
+                    clonedBox.style.setProperty('width', widthPx + 'px', 'important');
+                    clonedBox.style.setProperty('height', heightPx + 'px', 'important');
                     const clonedWrapper = clonedBox.querySelector('.sticker-wrapper');
                     if (clonedWrapper) {
-                      clonedWrapper.style.width = widthPx + 'px';
-                      clonedWrapper.style.height = heightPx + 'px';
+                      clonedWrapper.style.setProperty('width', widthPx + 'px', 'important');
+                      clonedWrapper.style.setProperty('height', heightPx + 'px', 'important');
                     }
                   }
                 }
               });
               
               // Verificar que el canvas tenga las dimensiones correctas
-              if (canvas.width !== widthPx || canvas.height !== heightPx) {
-                console.warn(`⚠️ Canvas capturado tiene dimensiones incorrectas: ${canvas.width}x${canvas.height}, esperado: ${widthPx}x${heightPx}`);
+              const expectedCanvasWidth = Math.round(widthPx * scale);
+              const expectedCanvasHeight = Math.round(heightPx * scale);
+              if (canvas.width !== expectedCanvasWidth || canvas.height !== expectedCanvasHeight) {
+                console.warn(`⚠️ Canvas capturado tiene dimensiones inesperadas: ${canvas.width}x${canvas.height}, esperado: ${expectedCanvasWidth}x${expectedCanvasHeight}`);
               }
               
               images.push(canvas.toDataURL('image/png'));
