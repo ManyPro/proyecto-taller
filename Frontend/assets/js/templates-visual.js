@@ -2221,7 +2221,36 @@
         ])}
       </div>`;
 
-    if (templateType === 'payroll') {
+    if (templateType === 'sticker-qr' || templateType === 'sticker' || templateType === 'sticker-brand') {
+      html += `
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">🏷️ Información del Producto</h4>
+        ${createFriendlyButtons([
+          { label: 'SKU del producto', icon: '🔖', value: '{{item.sku}}' },
+          { label: 'Nombre del producto', icon: '📦', value: '{{item.name}}' },
+          { label: 'QR como imagen', icon: '📱', value: '<img src="{{item.qr}}" alt="QR Code" />' },
+          { label: 'Texto del QR', icon: '🔢', value: '{{item.qrText}}' },
+          { label: 'ID del producto', icon: '🆔', value: '{{item._id}}' }
+        ])}
+      </div>
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">💰 Precios y Stock</h4>
+        ${createFriendlyButtons([
+          { label: 'Precio de venta', icon: '💵', value: '{{money item.salePrice}}' },
+          { label: 'Precio de entrada', icon: '💴', value: '{{money item.entryPrice}}' },
+          { label: 'Stock disponible', icon: '📊', value: '{{item.stock}}' }
+        ])}
+      </div>
+      <div style="margin-bottom: 20px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">📋 Detalles Adicionales</h4>
+        ${createFriendlyButtons([
+          { label: 'Marca', icon: '🏷️', value: '{{item.brand}}' },
+          { label: 'Ubicación', icon: '📍', value: '{{item.location}}' },
+          { label: 'Destino del vehículo', icon: '🚗', value: '{{item.vehicleTarget}}' },
+          { label: 'Es original', icon: '✓', value: '{{#if item.original}}Original{{else}}No original{{/if}}' }
+        ])}
+      </div>`;
+    } else if (templateType === 'payroll') {
       html += `
       <div style="margin-bottom: 20px;">
         <h4 style="margin: 0 0 10px 0; color: #333; font-size: 14px; border-bottom: 1px solid #eee; padding-bottom: 5px;">💰 Datos de Liquidación de Nómina</h4>
