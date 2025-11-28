@@ -1512,19 +1512,42 @@ if (__ON_INV_PAGE__) {
                   `.sticker-wrapper{position: relative !important; width: 100% !important; height: 100% !important; overflow: hidden !important; box-sizing: border-box !important;}\n` +
                   `/* Asegurar que elementos con position absolute se posicionen relativos al contenedor */\n` +
                   `.sticker-capture [style*="position: absolute"]{position: absolute !important;}`;
-                box.appendChild(style);
-                const inner = document.createElement('div');
+                // Insertar el HTML directamente en el box, no en un inner div
                 if (contentFragment) {
-                  inner.appendChild(contentFragment);
+                  box.appendChild(contentFragment);
                 } else {
-                  inner.innerHTML = html || '';
+                  const tempDiv = document.createElement('div');
+                  tempDiv.innerHTML = html || '';
+                  while (tempDiv.firstChild) {
+                    box.appendChild(tempDiv.firstChild);
+                  }
                 }
+                
+                // Agregar el style al final para que tenga prioridad
+                box.appendChild(style);
+                
+                // Limpiar elementos problemáticos
                 try {
-                  inner.querySelectorAll('[contenteditable]')
+                  box.querySelectorAll('[contenteditable]')
                     .forEach(el => { el.setAttribute('contenteditable', 'false'); el.removeAttribute('contenteditable'); });
+                  // Asegurar que todos los elementos sean visibles
+                  box.querySelectorAll('[style*="display: none"]')
+                    .forEach(el => {
+                      const style = el.getAttribute('style') || '';
+                      el.setAttribute('style', style.replace(/display:\s*none/gi, 'display: block'));
+                    });
+                  // Asegurar que el sticker-wrapper tenga dimensiones correctas
+                  const wrapper = box.querySelector('.sticker-wrapper');
+                  if (wrapper) {
+                    wrapper.style.cssText = `position: relative !important; width: 100% !important; height: 100% !important; overflow: visible !important; box-sizing: border-box !important; display: block !important;`;
+                  }
                 } catch(_) {}
-                box.appendChild(inner);
+                
                 root.appendChild(box);
+                
+                // Forzar reflow para asegurar que el contenido se renderice
+                box.offsetHeight;
+                
                 // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
                 try { await waitForImages(box, 4000); } catch(_) {}
                 const canvas = await html2canvas(box, { 
@@ -2669,9 +2692,22 @@ function openMarketplaceHelper(item){
 
           const images = [];
           for (const html of results) {
+            // Validar que el HTML tenga contenido
+            if (!html || !html.trim()) {
+              console.warn('⚠️ HTML renderizado vacío, saltando sticker');
+              continue;
+            }
+            
             // Solo usar sticker-qr (sin páginas múltiples)
             const tmp = document.createElement('div');
             tmp.innerHTML = html || '';
+            
+            // Verificar que el contenido tenga elementos visibles
+            const hasContent = tmp.querySelector('*') !== null;
+            if (!hasContent) {
+              console.warn('⚠️ HTML renderizado no tiene elementos, saltando sticker');
+              continue;
+            }
 
             // Obtener dimensiones del template (5cm x 3cm por defecto para stickers)
             // Validar que las dimensiones sean numéricas antes de usarlas
@@ -2700,7 +2736,42 @@ function openMarketplaceHelper(item){
               // Usar dimensiones del template guardadas - CRÍTICO: position relative para que los elementos absolutos se posicionen correctamente
               const widthPx = Math.round(stickerWidthCm * 37.795275591);
               const heightPx = Math.round(stickerHeightCm * 37.795275591);
-              box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #fff; box-sizing: border-box;`;
+              box.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: visible; background: #fff; box-sizing: border-box; display: block;`;
+              
+              // Insertar el HTML directamente en el box, no en un inner div
+              // Esto asegura que el .sticker-wrapper (si existe) se posicione correctamente
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = html || '';
+              while (tempDiv.firstChild) {
+                box.appendChild(tempDiv.firstChild);
+              }
+              
+              // Limpiar elementos problemáticos ANTES de agregar el style
+              try {
+                box.querySelectorAll('[contenteditable]')
+                  .forEach(el => { el.setAttribute('contenteditable', 'false'); el.removeAttribute('contenteditable'); });
+                // Asegurar que todos los elementos sean visibles
+                box.querySelectorAll('[style*="display: none"]')
+                  .forEach(el => {
+                    const style = el.getAttribute('style') || '';
+                    el.setAttribute('style', style.replace(/display:\s*none/gi, 'display: block'));
+                  });
+                // Asegurar que el sticker-wrapper tenga dimensiones correctas y sea visible
+                const wrapper = box.querySelector('.sticker-wrapper');
+                if (wrapper) {
+                  wrapper.style.cssText = `position: relative !important; width: 100% !important; height: 100% !important; overflow: visible !important; box-sizing: border-box !important; display: block !important; visibility: visible !important; opacity: 1 !important;`;
+                }
+                // Asegurar que todos los elementos dentro del wrapper sean visibles
+                box.querySelectorAll('.sticker-wrapper *').forEach(el => {
+                  if (el.style) {
+                    if (el.style.display === 'none') el.style.display = 'block';
+                    if (el.style.visibility === 'hidden') el.style.visibility = 'visible';
+                    if (el.style.opacity === '0') el.style.opacity = '1';
+                  }
+                });
+              } catch(_) {}
+              
+              // Agregar el style al final para que tenga prioridad
               const style = document.createElement('style');
               style.textContent = `\n${(tpl.contentCss || '').toString()}\n` +
                 `/* Ocultar handles y selección del editor durante el render */\n` +
@@ -2708,19 +2779,29 @@ function openMarketplaceHelper(item){
                 `.sticker-capture, .sticker-capture *{outline:none!important;-webkit-tap-highlight-color:transparent!important;user-select:none!important;caret-color:transparent!important;}\n` +
                 `.sticker-capture *::selection{background:transparent!important;color:inherit!important;}\n` +
                 `img,svg,canvas{outline:none!important;border:none!important;-webkit-user-drag:none!important;}\n` +
-                `/* Asegurar que el contenedor wrapper respete las dimensiones */\n` +
-                `.sticker-wrapper{position: relative !important; width: 100% !important; height: 100% !important; overflow: hidden !important; box-sizing: border-box !important;}\n` +
+                `/* Asegurar que el contenedor wrapper respete las dimensiones y sea visible */\n` +
+                `.sticker-wrapper{position: relative !important; width: 100% !important; height: 100% !important; overflow: visible !important; box-sizing: border-box !important; display: block !important; visibility: visible !important; opacity: 1 !important;}\n` +
                 `/* Asegurar que elementos con position absolute se posicionen relativos al contenedor */\n` +
-                `.sticker-capture [style*="position: absolute"]{position: absolute !important;}`;
+                `.sticker-capture [style*="position: absolute"]{position: absolute !important;}\n` +
+                `/* Asegurar que todos los elementos sean visibles */\n` +
+                `.sticker-capture *{visibility: visible !important; opacity: 1 !important;}`;
               box.appendChild(style);
-              const inner = document.createElement('div');
-              inner.innerHTML = html || '';
-              try {
-                inner.querySelectorAll('[contenteditable]')
-                  .forEach(el => { el.setAttribute('contenteditable', 'false'); el.removeAttribute('contenteditable'); });
-              } catch(_) {}
-              box.appendChild(inner);
+              
               root.appendChild(box);
+              
+              // Forzar reflow para asegurar que el contenido se renderice
+              box.offsetHeight;
+              
+              // Debug: verificar que el contenido sea visible
+              const hasVisibleContent = box.querySelector('*') !== null;
+              console.log('🔍 Debug sticker capture:', {
+                hasContent: hasVisibleContent,
+                boxWidth: box.offsetWidth,
+                boxHeight: box.offsetHeight,
+                wrapper: !!box.querySelector('.sticker-wrapper'),
+                children: box.children.length
+              });
+              
               // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
               try { await waitForImages(box, 4000); } catch(_) {}
               const canvas = await html2canvas(box, { 
@@ -2729,8 +2810,9 @@ function openMarketplaceHelper(item){
                 useCORS: true, 
                 allowTaint: true, 
                 imageTimeout: 4000,
-                width: Math.round(stickerWidthCm * 37.795275591), // Convertir cm a px
-                height: Math.round(stickerHeightCm * 37.795275591)
+                width: widthPx,
+                height: heightPx,
+                logging: true
               });
               images.push(canvas.toDataURL('image/png'));
               root.removeChild(box);
