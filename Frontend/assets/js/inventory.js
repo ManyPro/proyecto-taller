@@ -2,7 +2,7 @@
 import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from './feature-gating.js';
 import { upper } from "./utils.js";
 import { bindStickersButton, downloadStickersPdf } from './pdf.js';
-import { setupNumberInputsPasteHandler } from './number-utils.js';
+import { setupNumberInputsPasteHandler, setupNumberInputPasteHandler } from './number-utils.js';
 
 const state = {
   intakes: [],
@@ -628,11 +628,14 @@ if (__ON_INV_PAGE__) {
       mutation.addedNodes.forEach((node) => {
         if (node.nodeType === 1) { // Element node
           if (node.tagName === 'INPUT' && node.type === 'number') {
-            setupNumberInputPasteHandler(node);
+            // Usar la función individual para elementos individuales
+            if (typeof setupNumberInputPasteHandler === 'function') {
+              setupNumberInputPasteHandler(node);
+            }
           }
           // También buscar inputs dentro del nodo agregado
           const inputs = node.querySelectorAll?.('input[type="number"]');
-          if (inputs) {
+          if (inputs && typeof setupNumberInputPasteHandler === 'function') {
             inputs.forEach(input => setupNumberInputPasteHandler(input));
           }
         }
@@ -2871,10 +2874,13 @@ function openMarketplaceHelper(item){
           // Validar que las dimensiones sean numéricas antes de usarlas
           let pdfWidthMm = 50; // Default: 5cm
           let pdfHeightMm = 30; // Default: 3cm
+          let stickerWidthCm = 5; // Para el log
+          let stickerHeightCm = 3; // Para el log
           
           if (tpl.meta && tpl.meta.width) {
             const parsedWidth = parseFloat(tpl.meta.width);
             if (!isNaN(parsedWidth) && parsedWidth > 0) {
+              stickerWidthCm = parsedWidth;
               pdfWidthMm = parsedWidth * 10; // Convertir cm a mm
             }
           }
@@ -2882,6 +2888,7 @@ function openMarketplaceHelper(item){
           if (tpl.meta && tpl.meta.height) {
             const parsedHeight = parseFloat(tpl.meta.height);
             if (!isNaN(parsedHeight) && parsedHeight > 0) {
+              stickerHeightCm = parsedHeight;
               pdfHeightMm = parsedHeight * 10; // Convertir cm a mm
             }
           }
