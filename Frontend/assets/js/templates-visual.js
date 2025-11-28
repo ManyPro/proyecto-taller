@@ -161,6 +161,8 @@
     try {
       // Setup visual editor
       setupVisualEditor();
+      // Configurar event delegation para botones de variables ANTES de setupVariables
+      setupVarButtonsDelegation();
       setupVariables();
       setupKeyboardShortcuts();
       
@@ -2109,18 +2111,53 @@
     });
   }
 
+  // Event delegation para botones de variables (se configura una vez)
+  let varButtonsDelegateSetup = false;
+  function setupVarButtonsDelegation() {
+    if (varButtonsDelegateSetup) return;
+    varButtonsDelegateSetup = true;
+    
+    const varList = qs('#var-list');
+    if (varList) {
+      varList.addEventListener('click', (e) => {
+        const btn = e.target.closest('.var-insert-btn');
+        if (btn) {
+          e.preventDefault();
+          e.stopPropagation();
+          try {
+            const varValue = btn.getAttribute('data-var-value')
+              .replace(/&quot;/g, '"')
+              .replace(/&#39;/g, "'")
+              .replace(/&lt;/g, '<')
+              .replace(/&gt;/g, '>');
+            const isMultiline = btn.getAttribute('data-var-multiline') === 'true';
+            insertVariableInCanvas(varValue, isMultiline);
+          } catch (err) {
+            console.error('Error insertando variable:', err);
+            alert('Error al insertar variable. Por favor, inténtalo de nuevo.');
+          }
+        }
+      });
+    }
+  }
+
   function createFriendlyButtons(buttons) {
-    return buttons.map(btn => {
-      // Escapar correctamente el valor para evitar problemas con comillas y caracteres especiales
+    // Configurar event delegation la primera vez
+    setupVarButtonsDelegation();
+    
+    return buttons.map((btn, index) => {
+      // Usar data attributes con HTML entities para evitar problemas con comillas
       const escapedValue = btn.value
-        .replace(/\\/g, '\\\\')  // Escapar backslashes primero
-        .replace(/'/g, "\\'")    // Escapar comillas simples
-        .replace(/"/g, '\\"')    // Escapar comillas dobles
-        .replace(/\n/g, '\\n')   // Escapar newlines
-        .replace(/\r/g, '\\r');  // Escapar carriage returns
+        .replace(/&/g, '&amp;')   // Escapar & primero
+        .replace(/"/g, '&quot;')   // Escapar comillas dobles
+        .replace(/'/g, '&#39;')    // Escapar comillas simples
+        .replace(/</g, '&lt;')    // Escapar <
+        .replace(/>/g, '&gt;');   // Escapar >
       
       return `
-      <button onclick="insertVariableInCanvas('${escapedValue}', ${btn.multiline || false})" 
+      <button class="var-insert-btn"
+              data-var-value="${escapedValue}"
+              data-var-multiline="${btn.multiline || false}"
               style="
                 width: 100%; 
                 padding: 8px 10px; 
