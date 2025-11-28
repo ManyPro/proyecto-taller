@@ -1945,32 +1945,37 @@
       handle.className = `resize-handle resize-${position}`;
       handle.style.cssText = `
         position: absolute;
-        width: 8px;
-        height: 8px;
+        width: 10px;
+        height: 10px;
         background: #2563eb;
-        border: 1px solid white;
+        border: 2px solid white;
         cursor: ${position === 'nw' || position === 'se' ? 'nw' : 'ne'}-resize;
         display: none;
-        z-index: 1000;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        z-index: 10000;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+        pointer-events: auto;
+        user-select: none;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
       `;
       
       switch(position) {
         case 'nw': 
-          handle.style.top = '-4px';
-          handle.style.left = '-4px';
+          handle.style.top = '-5px';
+          handle.style.left = '-5px';
           break;
         case 'ne':
-          handle.style.top = '-4px';
-          handle.style.right = '-4px';
+          handle.style.top = '-5px';
+          handle.style.right = '-5px';
           break;
         case 'sw':
-          handle.style.bottom = '-4px';
-          handle.style.left = '-4px';
+          handle.style.bottom = '-5px';
+          handle.style.left = '-5px';
           break;
         case 'se':
-          handle.style.bottom = '-4px';
-          handle.style.right = '-4px';
+          handle.style.bottom = '-5px';
+          handle.style.right = '-5px';
           break;
       }
       
@@ -2005,25 +2010,45 @@
     let isResizing = false;
     let startX, startY, startWidth, startHeight, startLeft, startTop;
     
+    // Prevenir que el drag se active cuando se hace clic en el handle
     handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      
       isResizing = true;
       startX = e.clientX;
       startY = e.clientY;
-      startWidth = parseInt(container.style.width) || 150;
-      startHeight = parseInt(container.style.height) || 150;
-      startLeft = parseInt(container.style.left) || 0;
-      startTop = parseInt(container.style.top) || 0;
       
-      e.preventDefault();
-      e.stopPropagation();
+      // Obtener dimensiones actuales del contenedor
+      const rect = container.getBoundingClientRect();
+      startWidth = rect.width;
+      startHeight = rect.height;
+      
+      // Obtener posición actual
+      const canvas = container.closest('#ce-canvas');
+      if (canvas) {
+        const canvasRect = canvas.getBoundingClientRect();
+        startLeft = rect.left - canvasRect.left;
+        startTop = rect.top - canvasRect.top;
+      } else {
+        startLeft = parseInt(container.style.left) || 0;
+        startTop = parseInt(container.style.top) || 0;
+      }
       
       document.body.style.cursor = handle.style.cursor;
-      document.addEventListener('mousemove', handleResize);
-      document.addEventListener('mouseup', stopResize);
+      document.body.style.userSelect = 'none';
+      
+      // Usar capture phase para asegurar que se ejecute antes que otros listeners
+      document.addEventListener('mousemove', handleResize, true);
+      document.addEventListener('mouseup', stopResize, true);
     });
     
     const handleResize = (e) => {
       if (!isResizing) return;
+      
+      e.preventDefault();
+      e.stopPropagation();
       
       const deltaX = e.clientX - startX;
       const deltaY = e.clientY - startY;
@@ -2060,16 +2085,19 @@
       container.style.height = newHeight + 'px';
       container.style.left = newLeft + 'px';
       container.style.top = newTop + 'px';
-      
-      e.preventDefault();
     };
     
-    const stopResize = () => {
+    const stopResize = (e) => {
       if (isResizing) {
         isResizing = false;
         document.body.style.cursor = '';
-        document.removeEventListener('mousemove', handleResize);
-        document.removeEventListener('mouseup', stopResize);
+        document.body.style.userSelect = '';
+        document.removeEventListener('mousemove', handleResize, true);
+        document.removeEventListener('mouseup', stopResize, true);
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
       }
     };
   }
