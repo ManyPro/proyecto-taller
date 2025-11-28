@@ -2771,20 +2771,27 @@ function openMarketplaceHelper(item){
                 });
               } catch(_) {}
               
+              // ELIMINAR handles de rotación y otros elementos del editor del DOM (no solo ocultarlos)
+              box.querySelectorAll('.rotate-handle, .drag-handle, .resize-handle, .selection-box, .ve-selected, .ce-selected').forEach(el => el.remove());
+              
               // Agregar el style al final para que tenga prioridad
               const style = document.createElement('style');
               style.textContent = `\n${(tpl.contentCss || '').toString()}\n` +
                 `/* Ocultar handles y selección del editor durante el render */\n` +
-                `.drag-handle,.resize-handle,.selection-box,.resizer,.handles,.ve-selected,.ce-selected,.selected{display:none!important;}\n` +
+                `.drag-handle,.resize-handle,.selection-box,.resizer,.handles,.ve-selected,.ce-selected,.selected,.rotate-handle{display:none!important;visibility:hidden!important;opacity:0!important;}\n` +
                 `.sticker-capture, .sticker-capture *{outline:none!important;-webkit-tap-highlight-color:transparent!important;user-select:none!important;caret-color:transparent!important;}\n` +
                 `.sticker-capture *::selection{background:transparent!important;color:inherit!important;}\n` +
                 `img,svg,canvas{outline:none!important;border:none!important;-webkit-user-drag:none!important;}\n` +
-                `/* Asegurar que el contenedor wrapper respete las dimensiones y sea visible */\n` +
-                `.sticker-wrapper{position: relative !important; width: 100% !important; height: 100% !important; overflow: visible !important; box-sizing: border-box !important; display: block !important; visibility: visible !important; opacity: 1 !important;}\n` +
+                `/* Asegurar que el contenedor wrapper respete las dimensiones EXACTAS */\n` +
+                `.sticker-wrapper{position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; display: block !important; visibility: visible !important; opacity: 1 !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important;}\n` +
                 `/* Asegurar que elementos con position absolute se posicionen relativos al contenedor */\n` +
                 `.sticker-capture [style*="position: absolute"]{position: absolute !important;}\n` +
-                `/* Asegurar que todos los elementos sean visibles */\n` +
-                `.sticker-capture *{visibility: visible !important; opacity: 1 !important;}`;
+                `/* Asegurar que todos los elementos sean visibles y preserven colores */\n` +
+                `.sticker-capture *{visibility: visible !important; opacity: 1 !important;}\n` +
+                `/* Preservar colores correctos - asegurar que el texto negro se vea negro */\n` +
+                `.sticker-capture *{color: inherit !important;}\n` +
+                `*{color: #000000 !important;}\n` +
+                `*[style*="color"]{color: inherit !important;}`;
               box.appendChild(style);
               
               root.appendChild(box);

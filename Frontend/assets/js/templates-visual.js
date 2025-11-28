@@ -6027,11 +6027,34 @@
     // Para templates de stickers, envolver el contenido en un contenedor con dimensiones fijas
     const isSticker = templateType && (templateType.includes('sticker') || templateType === 'sticker-qr' || templateType === 'sticker-brand');
     if (isSticker && content.trim()) {
-      // Obtener dimensiones del canvas
+      // Obtener dimensiones del canvas - CRÍTICO: usar exactamente las dimensiones guardadas
       const canvasWidthCm = canvas.getAttribute('data-canvas-width-cm') || '5';
       const canvasHeightCm = canvas.getAttribute('data-canvas-height-cm') || '3';
       const widthPx = Math.round(parseFloat(canvasWidthCm) * 37.795275591);
       const heightPx = Math.round(parseFloat(canvasHeightCm) * 37.795275591);
+      
+      // Eliminar handles de rotación y otros elementos del editor del contenido
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = content;
+      
+      // Eliminar todos los handles y elementos del editor
+      tempDiv.querySelectorAll('.rotate-handle, .drag-handle, .resize-handle, .selection-box, .ve-selected, .ce-selected').forEach(el => el.remove());
+      
+      // Limpiar estilos inline que puedan causar problemas
+      tempDiv.querySelectorAll('[style]').forEach(el => {
+        const style = el.getAttribute('style') || '';
+        // Remover estilos problemáticos pero preservar posición y dimensiones
+        const cleanStyle = style
+          .replace(/display:\s*none/gi, '')
+          .replace(/visibility:\s*hidden/gi, '')
+          .replace(/opacity:\s*0/gi, '')
+          .replace(/z-index:\s*\d+/gi, '');
+        if (cleanStyle.trim()) {
+          el.setAttribute('style', cleanStyle.trim());
+        }
+      });
+      
+      content = tempDiv.innerHTML;
       
       // Verificar si ya tiene un contenedor wrapper
       const hasWrapper = content.trim().startsWith('<div') && 
@@ -6039,9 +6062,18 @@
                          (content.includes('position: relative') && content.includes('overflow: hidden')));
       
       if (!hasWrapper) {
-        // Envolver el contenido en un contenedor con dimensiones fijas
-        content = `<div class="sticker-wrapper" style="position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #ffffff; box-sizing: border-box;">${content}</div>`;
+        // Envolver el contenido en un contenedor con dimensiones fijas EXACTAS
+        content = `<div class="sticker-wrapper" style="position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #ffffff; box-sizing: border-box; margin: 0; padding: 0; left: 0; top: 0;">${content}</div>`;
         console.log('📦 Contenido de sticker envuelto en contenedor con dimensiones:', widthPx, 'x', heightPx);
+      } else {
+        // Si ya tiene wrapper, actualizar sus dimensiones para que sean exactas
+        const wrapperMatch = content.match(/<div[^>]*class="sticker-wrapper"[^>]*style="([^"]*)"/);
+        if (wrapperMatch) {
+          content = content.replace(
+            /<div[^>]*class="sticker-wrapper"[^>]*style="[^"]*"/,
+            `<div class="sticker-wrapper" style="position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #ffffff; box-sizing: border-box; margin: 0; padding: 0; left: 0; top: 0;"`
+          );
+        }
       }
     }
     
@@ -6279,11 +6311,24 @@
     
     // Construir objeto meta con dimensiones del canvas (solo si son válidas)
     const meta = {};
-    if (canvasWidthCm && !isNaN(parseFloat(canvasWidthCm))) {
-      meta.width = parseFloat(canvasWidthCm);
-    }
-    if (canvasHeightCm && !isNaN(parseFloat(canvasHeightCm))) {
-      meta.height = parseFloat(canvasHeightCm);
+    
+    // Para stickers, SIEMPRE guardar dimensiones exactas (5cm x 3cm por defecto)
+    const isStickerForMeta = templateType && (templateType.includes('sticker') || templateType === 'sticker-qr' || templateType === 'sticker-brand');
+    if (isStickerForMeta) {
+      // Usar dimensiones del canvas o valores por defecto
+      const width = canvasWidthCm && !isNaN(parseFloat(canvasWidthCm)) ? parseFloat(canvasWidthCm) : 5;
+      const height = canvasHeightCm && !isNaN(parseFloat(canvasHeightCm)) ? parseFloat(canvasHeightCm) : 3;
+      meta.width = width;
+      meta.height = height;
+      console.log('📐 Dimensiones de sticker guardadas en meta:', meta.width, 'x', meta.height, 'cm');
+    } else {
+      // Para otros formatos, guardar solo si están disponibles
+      if (canvasWidthCm && !isNaN(parseFloat(canvasWidthCm))) {
+        meta.width = parseFloat(canvasWidthCm);
+      }
+      if (canvasHeightCm && !isNaN(parseFloat(canvasHeightCm))) {
+        meta.height = parseFloat(canvasHeightCm);
+      }
     }
     
     try {
