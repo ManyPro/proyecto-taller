@@ -2141,6 +2141,9 @@
     if (!parent) return;
     const selectedEl = visualEditor.selectedElement;
     
+    // Detectar si varText contiene HTML (como <img>)
+    const containsHTML = /<[^>]+>/.test(varText);
+    
     if (selectedEl) {
       const contentEl = selectedEl.querySelector('[contenteditable="true"]');
       if (contentEl) {
@@ -2152,10 +2155,26 @@
         if (selection.rangeCount > 0 && contentEl.contains(selection.anchorNode)) {
           const range = selection.getRangeAt(0);
           range.deleteContents();
-          range.insertNode(document.createTextNode(varText));
+          if (containsHTML) {
+            // Si contiene HTML, crear un fragmento temporal y insertar el HTML
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = varText;
+            const fragment = document.createDocumentFragment();
+            while (tempDiv.firstChild) {
+              fragment.appendChild(tempDiv.firstChild);
+            }
+            range.insertNode(fragment);
+          } else {
+            range.insertNode(document.createTextNode(varText));
+          }
           range.collapse(false);
         } else {
-          contentEl.innerHTML += varText;
+          if (containsHTML) {
+            // Usar insertAdjacentHTML para insertar HTML correctamente
+            contentEl.insertAdjacentHTML('beforeend', varText);
+          } else {
+            contentEl.innerHTML += varText;
+          }
         }
         return;
       }
@@ -2515,6 +2534,13 @@
     canvas.style.margin = '0 auto';
     canvas.style.border = `2px dashed ${borderColor}`;
     canvas.style.background = '#ffffff';
+    canvas.style.position = 'relative';
+    canvas.style.left = 'auto';
+    canvas.style.right = 'auto';
+    canvas.style.top = 'auto';
+    canvas.style.bottom = 'auto';
+    canvas.style.transform = 'none';
+    canvas.style.float = 'none';
     
     // Guardar dimensiones en el canvas como data attributes para referencia
     canvas.setAttribute('data-canvas-width-cm', size.width);
@@ -2556,6 +2582,16 @@
       visualEditor.elements = [];
       visualEditor.nextId = 1;
       
+      // Asegurar que el canvas esté en su posición correcta ANTES de aplicar dimensiones
+      canvas.style.position = 'relative';
+      canvas.style.margin = '0 auto';
+      canvas.style.left = 'auto';
+      canvas.style.right = 'auto';
+      canvas.style.top = 'auto';
+      canvas.style.bottom = 'auto';
+      canvas.style.transform = 'none';
+      canvas.style.float = 'none';
+      
       // Ensure canvas is visible and properly sized
       canvas.style.display = 'block';
       canvas.style.visibility = 'visible';
@@ -2564,6 +2600,16 @@
       
       // Ajustar tamaño del canvas según el formato
       applyCanvasSizeFromFormat(template);
+      
+      // Asegurar que el canvas mantenga su posición después de aplicar dimensiones
+      canvas.style.position = 'relative';
+      canvas.style.margin = '0 auto';
+      canvas.style.left = 'auto';
+      canvas.style.right = 'auto';
+      canvas.style.top = 'auto';
+      canvas.style.bottom = 'auto';
+      canvas.style.transform = 'none';
+      canvas.style.float = 'none';
       
         // SIEMPRE cargar el HTML guardado si existe (formato existente)
         // La plantilla base solo se usa cuando se crea un formato nuevo por primera vez
@@ -2671,7 +2717,7 @@
             const canvasHeightCm = template.meta?.height || canvas.getAttribute('data-canvas-height-cm') || '3';
             const widthPx = Math.round(parseFloat(canvasWidthCm) * 37.795275591);
             const heightPx = Math.round(parseFloat(canvasHeightCm) * 37.795275591);
-            canvas.innerHTML = `<div class="sticker-wrapper" style="position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #ffffff; box-sizing: border-box;">${existingContent}</div>`;
+            canvas.innerHTML = `<div class="sticker-wrapper" style="position: relative; width: ${widthPx}px; height: ${heightPx}px; overflow: hidden; background: #ffffff; box-sizing: border-box; margin: 0; padding: 0; left: 0; top: 0;">${existingContent}</div>`;
             console.log('📦 Contenido de sticker envuelto en contenedor al cargar:', widthPx, 'x', heightPx);
             
             // Re-aplicar eventos a los elementos después de envolver
@@ -2679,6 +2725,13 @@
             elementsAfterWrap.forEach((el) => {
               if (!el.id) {
                 el.id = `element_${visualEditor.nextId++}`;
+              }
+              // Asegurar que los elementos absolutos se posicionen correctamente
+              if (el.style.position === 'absolute') {
+                const left = parseFloat(el.style.left) || 0;
+                const top = parseFloat(el.style.top) || 0;
+                el.style.left = left + 'px';
+                el.style.top = top + 'px';
               }
               makeDraggable(el);
               makeSelectable(el);
@@ -2695,9 +2748,32 @@
             wrapper.style.position = 'relative';
             wrapper.style.overflow = 'hidden';
             wrapper.style.boxSizing = 'border-box';
+            wrapper.style.margin = '0';
+            wrapper.style.padding = '0';
+            wrapper.style.left = '0';
+            wrapper.style.top = '0';
             console.log('📦 Dimensiones del wrapper actualizadas:', widthPx, 'x', heightPx);
+            
+            // Asegurar que los elementos absolutos dentro del wrapper se posicionen correctamente
+            const absoluteElements = wrapper.querySelectorAll('[style*="position: absolute"]');
+            absoluteElements.forEach((el) => {
+              const left = parseFloat(el.style.left) || 0;
+              const top = parseFloat(el.style.top) || 0;
+              el.style.left = left + 'px';
+              el.style.top = top + 'px';
+            });
           }
         }
+        
+        // Asegurar que el canvas mantenga su posición después de cargar contenido
+        canvas.style.position = 'relative';
+        canvas.style.margin = '0 auto';
+        canvas.style.left = 'auto';
+        canvas.style.right = 'auto';
+        canvas.style.top = 'auto';
+        canvas.style.bottom = 'auto';
+        canvas.style.transform = 'none';
+        canvas.style.float = 'none';
         
         // Ajustar altura del canvas al contenido (solo si no es sticker)
         if (!isSticker) {
