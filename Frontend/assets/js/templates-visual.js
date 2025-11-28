@@ -2357,6 +2357,17 @@
   function adjustCanvasHeightToContent(canvas) {
     if (!canvas) return;
     
+    // NO ajustar altura para stickers (deben mantener altura fija)
+    const canvasWidthCm = canvas.getAttribute('data-canvas-width-cm');
+    const canvasHeightCm = canvas.getAttribute('data-canvas-height-cm');
+    const hasFixedHeight = canvas.style.maxHeight && canvas.style.maxHeight === canvas.style.height;
+    const isSticker = canvasWidthCm && canvasHeightCm && (hasFixedHeight || parseFloat(canvasWidthCm) === 5);
+    
+    if (isSticker) {
+      console.log('📏 Sticker detectado - manteniendo altura fija de', canvasHeightCm, 'cm');
+      return;
+    }
+    
     // Calcular la altura máxima de todos los elementos
     let maxBottom = 0;
     
@@ -2447,23 +2458,40 @@
       size = formatSizes['carta'];
     }
     
-    // Aplicar tamaño al canvas - usar min-height para que se ajuste al contenido
+    // Determinar si es un sticker (debe tener altura fija)
+    const isSticker = formatName.includes('sticker') || formatType.includes('sticker');
+    
+    // Aplicar tamaño al canvas
     const widthPx = cmToPx(size.width);
-    const minHeightPx = cmToPx(size.height);
+    const heightPx = cmToPx(size.height);
     
     const isLightMode = document.body.classList.contains('theme-light');
     const borderColor = isLightMode ? '#cbd5e1' : '#475569';
     
     canvas.style.width = widthPx + 'px';
-    canvas.style.minHeight = minHeightPx + 'px'; // Usar min-height en lugar de height fijo
     canvas.style.maxWidth = widthPx + 'px';
-    canvas.style.height = 'auto'; // Altura automática para que se ajuste al contenido
     canvas.style.minWidth = widthPx + 'px';
+    
+    // Para stickers, usar altura fija; para otros formatos, altura automática con min-height
+    if (isSticker) {
+      canvas.style.height = heightPx + 'px';
+      canvas.style.minHeight = heightPx + 'px';
+      canvas.style.maxHeight = heightPx + 'px';
+      canvas.style.overflow = 'hidden'; // Asegurar que no se desborde
+    } else {
+      canvas.style.minHeight = heightPx + 'px';
+      canvas.style.height = 'auto'; // Altura automática para que se ajuste al contenido
+    }
+    
     canvas.style.margin = '0 auto';
     canvas.style.border = `2px dashed ${borderColor}`;
     canvas.style.background = '#ffffff';
     
-    console.log(`📐 Canvas ajustado a: ${size.width} cm de ancho, altura mínima ${size.height} cm (${widthPx} x ${minHeightPx} px)`);
+    // Guardar dimensiones en el canvas como data attributes para referencia
+    canvas.setAttribute('data-canvas-width-cm', size.width);
+    canvas.setAttribute('data-canvas-height-cm', size.height);
+    
+    console.log(`📐 Canvas ajustado a: ${size.width} cm x ${size.height} cm (${widthPx} x ${heightPx} px)${isSticker ? ' [STICKER - altura fija]' : ' [altura automática]'}`);
   }
 
   async function loadExistingFormat(formatId) {
@@ -5016,13 +5044,20 @@
   function createStickerTemplate(canvas, documentType) {
     console.log('🎨 Creando plantilla de sticker simple...');
     
-    // Ajustar tamaño del canvas para sticker (5x3 cm)
+    // Ajustar tamaño del canvas para sticker (5x3 cm) - ALTURA FIJA
     const widthPx = Math.round(5 * 37.795275591); // 5cm
     const heightPx = Math.round(3 * 37.795275591); // 3cm
     canvas.style.width = widthPx + 'px';
     canvas.style.height = heightPx + 'px';
     canvas.style.minWidth = widthPx + 'px';
     canvas.style.minHeight = heightPx + 'px';
+    canvas.style.maxWidth = widthPx + 'px';
+    canvas.style.maxHeight = heightPx + 'px';
+    canvas.style.overflow = 'hidden'; // Asegurar que no se desborde
+    
+    // Guardar dimensiones en el canvas como data attributes
+    canvas.setAttribute('data-canvas-width-cm', '5');
+    canvas.setAttribute('data-canvas-height-cm', '3');
 
     // Título pequeño
     const title = createEditableElement('text', '{{company.name}}', {
@@ -5693,26 +5728,39 @@
       `;
     }
     
+    // Obtener dimensiones del canvas para guardarlas en el template
+    const canvasWidthCm = canvas.getAttribute('data-canvas-width-cm') || 
+                          (parseFloat(canvas.style.width) / 37.795275591) || null;
+    const canvasHeightCm = canvas.getAttribute('data-canvas-height-cm') || 
+                           (parseFloat(canvas.style.height) / 37.795275591) || null;
+    
+    // Construir objeto meta con dimensiones del canvas
+    const meta = {};
+    if (canvasWidthCm) meta.width = canvasWidthCm;
+    if (canvasHeightCm) meta.height = canvasHeightCm;
+    
     try {
       showQuickNotification('💾 Guardando plantilla...', 'info');
       
       let savedTemplate;
       
+      const templateData = {
+        name: templateName,
+        contentHtml: content,
+        contentCss: templateCss,
+        activate: activate
+      };
+      
+      // Agregar meta solo si hay dimensiones
+      if (Object.keys(meta).length > 0) {
+        templateData.meta = meta;
+      }
+      
       if (isUpdate && session?.formatId) {
-        savedTemplate = await API.templates.update(session.formatId, {
-          name: templateName,
-          contentHtml: content,
-          contentCss: templateCss,
-          activate: activate
-        });
+        savedTemplate = await API.templates.update(session.formatId, templateData);
       } else {
-        savedTemplate = await API.templates.create({
-          name: templateName,
-          type: templateType,
-          contentHtml: content,
-          contentCss: templateCss,
-          activate: activate
-        });
+        templateData.type = templateType;
+        savedTemplate = await API.templates.create(templateData);
       }
       
       showQuickNotification(`✅ "${templateName}" guardada correctamente`, 'success');

@@ -1452,10 +1452,15 @@ if (__ON_INV_PAGE__) {
               tmp.innerHTML = html || '';
               const pages = (type === 'brand') ? Array.from(tmp.querySelectorAll('.editor-page')) : [];
 
+              // Obtener dimensiones del template (5cm x 3cm por defecto para stickers)
+              const stickerWidthCm = (tpl.meta && tpl.meta.width) ? parseFloat(tpl.meta.width) : 5;
+              const stickerHeightCm = (tpl.meta && tpl.meta.height) ? parseFloat(tpl.meta.height) : 3;
+              
               const captureSingleBox = async (contentFragment) => {
                 const box = document.createElement('div');
                 box.className = 'sticker-capture';
-                box.style.cssText = 'width:5cm;height:3cm;overflow:hidden;background:#fff;';
+                // Usar dimensiones del template guardadas
+                box.style.cssText = `width:${stickerWidthCm}cm;height:${stickerHeightCm}cm;overflow:hidden;background:#fff;`;
                 const style = document.createElement('style');
                 style.textContent = `\n${(tpl.contentCss || '').toString()}\n` +
                   `/* Ocultar handles y selección del editor durante el render */\n` +
@@ -1478,7 +1483,15 @@ if (__ON_INV_PAGE__) {
                 root.appendChild(box);
                 // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
                 try { await waitForImages(box, 4000); } catch(_) {}
-                const canvas = await html2canvas(box, { scale: Math.max(2, window.devicePixelRatio || 2), backgroundColor: '#ffffff', useCORS: true, allowTaint: true, imageTimeout: 4000 });
+                const canvas = await html2canvas(box, { 
+                  scale: Math.max(2, window.devicePixelRatio || 2), 
+                  backgroundColor: '#ffffff', 
+                  useCORS: true, 
+                  allowTaint: true, 
+                  imageTimeout: 4000,
+                  width: Math.round(stickerWidthCm * 37.795275591), // Convertir cm a px
+                  height: Math.round(stickerHeightCm * 37.795275591)
+                });
                 images.push(canvas.toDataURL('image/png'));
                 root.removeChild(box);
               };
@@ -1503,11 +1516,15 @@ if (__ON_INV_PAGE__) {
 
             if (!images.length) throw new Error('No se pudo rasterizar el contenido de los stickers');
 
-            // Forzar orientación horizontal (5cm ancho x 3cm alto) - UN STICKER POR PÁGINA
-            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [50, 30] });
+            // Obtener dimensiones del template para el PDF (5cm x 3cm por defecto)
+            const pdfWidthMm = (tpl.meta && tpl.meta.width) ? (parseFloat(tpl.meta.width) * 10) : 50;
+            const pdfHeightMm = (tpl.meta && tpl.meta.height) ? (parseFloat(tpl.meta.height) * 10) : 30;
+            
+            // Usar dimensiones exactas del template para el PDF - UN STICKER POR PÁGINA
+            const doc = new jsPDF({ orientation: pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait', unit: 'mm', format: [pdfWidthMm, pdfHeightMm] });
             images.forEach((src, idx) => {
-              if (idx > 0) doc.addPage([50, 30]);
-              doc.addImage(src, 'PNG', 0, 0, 50, 30);
+              if (idx > 0) doc.addPage([pdfWidthMm, pdfHeightMm]);
+              doc.addImage(src, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm);
             });
             doc.save(`stickers-${it.sku || it._id}.pdf`);
             invCloseModal();
@@ -2597,10 +2614,17 @@ function openMarketplaceHelper(item){
             const tmp = document.createElement('div');
             tmp.innerHTML = html || '';
 
+            // Obtener dimensiones del template (5cm x 3cm por defecto para stickers)
+            const stickerWidthCm = (tpl.meta && tpl.meta.width) ? parseFloat(tpl.meta.width) : 5;
+            const stickerHeightCm = (tpl.meta && tpl.meta.height) ? parseFloat(tpl.meta.height) : 3;
+            const stickerWidthMm = stickerWidthCm * 10; // Convertir cm a mm
+            const stickerHeightMm = stickerHeightCm * 10;
+            
             const captureSingleBox = async () => {
               const box = document.createElement('div');
               box.className = 'sticker-capture';
-              box.style.cssText = 'width:5cm;height:3cm;overflow:hidden;background:#fff;';
+              // Usar dimensiones del template guardadas
+              box.style.cssText = `width:${stickerWidthCm}cm;height:${stickerHeightCm}cm;overflow:hidden;background:#fff;`;
               const style = document.createElement('style');
               style.textContent = `\n${(tpl.contentCss || '').toString()}\n` +
                 `/* Ocultar handles y selección del editor durante el render */\n` +
@@ -2619,7 +2643,15 @@ function openMarketplaceHelper(item){
               root.appendChild(box);
               // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
               try { await waitForImages(box, 4000); } catch(_) {}
-              const canvas = await html2canvas(box, { scale: Math.max(2, window.devicePixelRatio || 2), backgroundColor: '#ffffff', useCORS: true, allowTaint: true, imageTimeout: 4000 });
+              const canvas = await html2canvas(box, { 
+                scale: Math.max(2, window.devicePixelRatio || 2), 
+                backgroundColor: '#ffffff', 
+                useCORS: true, 
+                allowTaint: true, 
+                imageTimeout: 4000,
+                width: Math.round(stickerWidthCm * 37.795275591), // Convertir cm a px
+                height: Math.round(stickerHeightCm * 37.795275591)
+              });
               images.push(canvas.toDataURL('image/png'));
               root.removeChild(box);
             };
@@ -2631,11 +2663,15 @@ function openMarketplaceHelper(item){
 
           if (!images.length) throw new Error('No se pudo rasterizar el contenido de los stickers');
 
-          // Forzar orientación horizontal (5cm ancho x 3cm alto)
-          const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [50, 30] });
+          // Obtener dimensiones del template para el PDF (5cm x 3cm por defecto)
+          const pdfWidthMm = (tpl.meta && tpl.meta.width) ? (parseFloat(tpl.meta.width) * 10) : 50;
+          const pdfHeightMm = (tpl.meta && tpl.meta.height) ? (parseFloat(tpl.meta.height) * 10) : 30;
+          
+          // Usar dimensiones exactas del template para el PDF
+          const doc = new jsPDF({ orientation: pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait', unit: 'mm', format: [pdfWidthMm, pdfHeightMm] });
           images.forEach((src, idx) => {
-            if (idx > 0) doc.addPage([50, 30]);
-            doc.addImage(src, 'PNG', 0, 0, 50, 30);
+            if (idx > 0) doc.addPage([pdfWidthMm, pdfHeightMm]);
+            doc.addImage(src, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm);
           });
           doc.save(`stickers.pdf`);
           invCloseModal();
