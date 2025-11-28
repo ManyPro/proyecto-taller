@@ -3036,59 +3036,69 @@
           }
         });
         
-        // Para stickers, asegurar que el contenido cargado respete las dimensiones del canvas
+        // REESCRITO: Para stickers, replantear completamente la carga para evitar desplazamientos
         const isSticker = template.type && (template.type.includes('sticker') || template.type === 'sticker-qr' || template.type === 'sticker-brand');
         if (isSticker && canvas.innerHTML.trim()) {
-          // Verificar si el contenido tiene un contenedor wrapper
-          const hasWrapper = canvas.querySelector('.sticker-wrapper');
-          if (!hasWrapper) {
-            // Si no tiene wrapper, envolver el contenido existente
-            const existingContent = canvas.innerHTML;
-            const canvasWidthCm = template.meta?.width || canvas.getAttribute('data-canvas-width-cm') || '5';
-            const canvasHeightCm = template.meta?.height || canvas.getAttribute('data-canvas-height-cm') || '3';
-            const widthPx = Math.round(parseFloat(canvasWidthCm) * 37.795275591);
-            const heightPx = Math.round(parseFloat(canvasHeightCm) * 37.795275591);
-            // CRÍTICO: Crear wrapper con dimensiones EXACTAS en píxeles (no porcentajes)
-            canvas.innerHTML = `<div class="sticker-wrapper" style="position: relative; width: ${widthPx}px; height: ${heightPx}px; max-width: ${widthPx}px; max-height: ${heightPx}px; min-width: ${widthPx}px; min-height: ${heightPx}px; overflow: hidden; background: #ffffff; box-sizing: border-box; margin: 0; padding: 0; left: 0; top: 0;">${existingContent}</div>`;
-            console.log('📦 Contenido de sticker envuelto en contenedor al cargar con dimensiones EXACTAS:', widthPx, 'x', heightPx, 'px');
-            
-            // Re-aplicar eventos a los elementos después de envolver
-            const elementsAfterWrap = canvas.querySelectorAll('.tpl-element');
-            elementsAfterWrap.forEach((el) => {
-              if (!el.id) {
-                el.id = `element_${visualEditor.nextId++}`;
-              }
-              // Asegurar que los elementos absolutos se posicionen correctamente
-              if (el.style.position === 'absolute') {
-                const left = parseFloat(el.style.left) || 0;
-                const top = parseFloat(el.style.top) || 0;
-                el.style.left = left + 'px';
-                el.style.top = top + 'px';
-              }
-              makeDraggable(el);
-              makeSelectable(el);
-            });
-          } else {
-            // Si ya tiene wrapper, actualizar sus dimensiones EXACTAS en píxeles
-            const wrapper = canvas.querySelector('.sticker-wrapper');
-            const canvasWidthCm = template.meta?.width || canvas.getAttribute('data-canvas-width-cm') || '5';
-            const canvasHeightCm = template.meta?.height || canvas.getAttribute('data-canvas-height-cm') || '3';
-            const widthPx = Math.round(parseFloat(canvasWidthCm) * 37.795275591);
-            const heightPx = Math.round(parseFloat(canvasHeightCm) * 37.795275591);
-            
-            // CRÍTICO: Establecer dimensiones EXACTAS en píxeles (no porcentajes)
-            wrapper.style.cssText = `position: relative !important; width: ${widthPx}px !important; height: ${heightPx}px !important; max-width: ${widthPx}px !important; max-height: ${heightPx}px !important; min-width: ${widthPx}px !important; min-height: ${heightPx}px !important; overflow: hidden !important; box-sizing: border-box !important; margin: 0 !important; padding: 0 !important; left: 0 !important; top: 0 !important;`;
-            console.log('📦 Dimensiones del wrapper actualizadas a EXACTAS:', widthPx, 'x', heightPx, 'px');
-            
-            // Asegurar que los elementos absolutos dentro del wrapper se posicionen correctamente
-            const absoluteElements = wrapper.querySelectorAll('[style*="position: absolute"]');
-            absoluteElements.forEach((el) => {
-              const left = parseFloat(el.style.left) || 0;
-              const top = parseFloat(el.style.top) || 0;
-              el.style.left = left + 'px';
-              el.style.top = top + 'px';
-            });
+          const canvasWidthCm = template.meta?.width || canvas.getAttribute('data-canvas-width-cm') || '5';
+          const canvasHeightCm = template.meta?.height || canvas.getAttribute('data-canvas-height-cm') || '3';
+          const widthPx = Math.round(parseFloat(canvasWidthCm) * 37.795275591);
+          const heightPx = Math.round(parseFloat(canvasHeightCm) * 37.795275591);
+          
+          // Obtener el contenido actual
+          let existingContent = canvas.innerHTML;
+          
+          // Si ya tiene wrapper, extraer solo el contenido interno
+          const existingWrapper = canvas.querySelector('.sticker-wrapper');
+          if (existingWrapper) {
+            existingContent = existingWrapper.innerHTML;
           }
+          
+          // LIMPIAR completamente el canvas
+          canvas.innerHTML = '';
+          
+          // Crear un nuevo wrapper limpio con dimensiones exactas
+          const wrapper = document.createElement('div');
+          wrapper.className = 'sticker-wrapper';
+          wrapper.style.cssText = `position: relative; width: ${widthPx}px; height: ${heightPx}px; max-width: ${widthPx}px; max-height: ${heightPx}px; min-width: ${widthPx}px; min-height: ${heightPx}px; overflow: hidden; background: #ffffff; box-sizing: border-box; margin: 0; padding: 0; left: 0; top: 0;`;
+          
+          // Insertar el contenido en el wrapper
+          wrapper.innerHTML = existingContent;
+          
+          // CRÍTICO: Resetear y normalizar todas las posiciones absolutas
+          const absoluteElements = wrapper.querySelectorAll('[style*="position: absolute"], [style*="position:absolute"]');
+          absoluteElements.forEach((el) => {
+            const style = el.getAttribute('style') || '';
+            const leftMatch = style.match(/left:\s*([\d.\-]+)px/);
+            const topMatch = style.match(/top:\s*([\d.\-]+)px/);
+            let left = leftMatch ? parseFloat(leftMatch[1]) : 0;
+            let top = topMatch ? parseFloat(topMatch[1]) : 0;
+            
+            // Asegurar que las posiciones no sean negativas o excesivamente grandes
+            left = Math.max(0, Math.min(left, widthPx));
+            top = Math.max(0, Math.min(top, heightPx));
+            
+            // Actualizar el estilo con posición normalizada
+            const cleanStyle = style
+              .replace(/left:\s*[^;]+;?/gi, '')
+              .replace(/top:\s*[^;]+;?/gi, '')
+              .replace(/position:\s*[^;]+;?/gi, '');
+            el.setAttribute('style', `${cleanStyle} position: absolute; left: ${left}px; top: ${top}px;`.trim());
+          });
+          
+          // Insertar el wrapper en el canvas
+          canvas.appendChild(wrapper);
+          
+          // Re-aplicar eventos a los elementos
+          const elementsAfterWrap = canvas.querySelectorAll('.tpl-element');
+          elementsAfterWrap.forEach((el) => {
+            if (!el.id) {
+              el.id = `element_${visualEditor.nextId++}`;
+            }
+            makeDraggable(el);
+            makeSelectable(el);
+          });
+          
+          console.log('✅ Sticker cargado correctamente con dimensiones:', widthPx, 'x', heightPx, 'px');
         }
         
         // Asegurar que el canvas mantenga su posición después de cargar contenido

@@ -1563,8 +1563,11 @@ if (__ON_INV_PAGE__) {
                 // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
                 try { await waitForImages(box, 4000); } catch(_) {}
                 // CRÍTICO: Capturar con dimensiones exactas, escala 1 para que coincida con el canvas
+                // CRÍTICO: Capturar con alta calidad y dimensiones exactas
+                // Usar escala 3 para mejor calidad sin distorsión
+                const scale = 3;
                 const canvas = await html2canvas(box, { 
-                  scale: 1, // Escala 1 para dimensiones exactas (sin distorsión)
+                  scale: scale, // Escala 3 para alta calidad
                   backgroundColor: '#ffffff', 
                   useCORS: true, 
                   allowTaint: true, 
@@ -1572,7 +1575,20 @@ if (__ON_INV_PAGE__) {
                   width: widthPx,
                   height: heightPx,
                   windowWidth: widthPx,
-                  windowHeight: heightPx
+                  windowHeight: heightPx,
+                  onclone: (clonedDoc) => {
+                    // Asegurar que el clon también tenga las dimensiones correctas
+                    const clonedBox = clonedDoc.querySelector('.sticker-capture');
+                    if (clonedBox) {
+                      clonedBox.style.width = widthPx + 'px';
+                      clonedBox.style.height = heightPx + 'px';
+                      const clonedWrapper = clonedBox.querySelector('.sticker-wrapper');
+                      if (clonedWrapper) {
+                        clonedWrapper.style.width = widthPx + 'px';
+                        clonedWrapper.style.height = heightPx + 'px';
+                      }
+                    }
+                  }
                 });
                 images.push(canvas.toDataURL('image/png'));
                 root.removeChild(box);
@@ -1627,7 +1643,9 @@ if (__ON_INV_PAGE__) {
             
             images.forEach((src, idx) => {
               if (idx > 0) doc.addPage([pdfWidthMm, pdfHeightMm], pdfWidthMm > pdfHeightMm ? 'landscape' : 'portrait');
-              // CRÍTICO: Insertar imagen con dimensiones exactas, sin escalado
+              // CRÍTICO: Insertar imagen con dimensiones exactas
+              // La imagen ya está capturada a escala 3, así que las dimensiones del canvas son widthPx*3 x heightPx*3
+              // Pero al insertar en el PDF, usamos las dimensiones reales en mm
               doc.addImage(src, 'PNG', 0, 0, pdfWidthMm, pdfHeightMm, undefined, 'FAST');
             });
             
@@ -2840,9 +2858,11 @@ function openMarketplaceHelper(item){
               // Asegurarse que las imágenes (incluido el QR data:URL) estén cargadas
               try { await waitForImages(box, 4000); } catch(_) {}
               
-              // CRÍTICO: Capturar con dimensiones exactas, sin escala que pueda distorsionar
+              // CRÍTICO: Capturar con alta calidad y dimensiones exactas
+              // Usar escala 3 para mejor calidad sin distorsión
+              const scale = 3;
               const canvas = await html2canvas(box, { 
-                scale: 1, // Usar escala 1 para dimensiones exactas
+                scale: scale, // Escala 3 para alta calidad
                 backgroundColor: '#ffffff', 
                 useCORS: true, 
                 allowTaint: true, 
@@ -2851,7 +2871,20 @@ function openMarketplaceHelper(item){
                 height: heightPx,
                 windowWidth: widthPx,
                 windowHeight: heightPx,
-                logging: false
+                logging: false,
+                onclone: (clonedDoc) => {
+                  // Asegurar que el clon también tenga las dimensiones correctas
+                  const clonedBox = clonedDoc.querySelector('.sticker-capture');
+                  if (clonedBox) {
+                    clonedBox.style.width = widthPx + 'px';
+                    clonedBox.style.height = heightPx + 'px';
+                    const clonedWrapper = clonedBox.querySelector('.sticker-wrapper');
+                    if (clonedWrapper) {
+                      clonedWrapper.style.width = widthPx + 'px';
+                      clonedWrapper.style.height = heightPx + 'px';
+                    }
+                  }
+                }
               });
               
               // Verificar que el canvas tenga las dimensiones correctas
