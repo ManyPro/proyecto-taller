@@ -9,6 +9,7 @@ import { API } from "./api.esm.js";
 import { initPrices } from "./prices.js";
 import { initSales } from "./sales.js";
 import { initCashFlow } from "./cashflow.js";
+import { initChats } from "./chats.js";
 import { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from "./feature-gating.js";
 
 export { loadFeatureOptionsAndRestrictions, getFeatureOptions, gateElement } from "./feature-gating.js";
@@ -473,6 +474,9 @@ function refreshActiveTab(tab){
         break;
       case 'notas':
         if(document.getElementById('notes-main')) initNotes();
+        break;
+      case 'chats':
+        if(document.getElementById('tab-chats')) initChats();
         break;
       case 'precios':
         if(document.getElementById('prices-main')) initPrices();

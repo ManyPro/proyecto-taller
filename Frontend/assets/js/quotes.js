@@ -256,6 +256,85 @@ export function initQuotes({ getCompanyEmail }) {
     iNumberBig.textContent = iNumber.value;
     iDatetime.value = todayIso();
 
+    // Leer parámetros URL para prellenar desde chat u otra fuente
+    const urlParams = new URLSearchParams(window.location.search);
+    const customerName = urlParams.get('customerName');
+    const customerPhone = urlParams.get('customerPhone');
+    const vehicleId = urlParams.get('vehicleId');
+    const year = urlParams.get('year');
+    const context = urlParams.get('context');
+    
+    if (customerName && iClientName) {
+      iClientName.value = customerName;
+      markDirty('clientName');
+    }
+    if (customerPhone && iClientPhone) {
+      iClientPhone.value = customerPhone;
+      markDirty('clientPhone');
+    }
+    if (year && iYear) {
+      iYear.value = year;
+      markDirty('year');
+    }
+    if (context && iSpecialNotesList) {
+      // Agregar contexto como nota especial
+      if (!specialNotes.includes(context)) {
+        specialNotes.push(context);
+        renderSpecialNotes();
+      }
+    }
+    
+    // Si hay vehicleId, cargar el vehículo y prellenar campos
+    if (vehicleId && iVehicleId) {
+      try {
+        const vehicle = await API.vehicles.get(vehicleId);
+        if (vehicle) {
+          selectedQuoteVehicle = vehicle;
+          iVehicleId.value = vehicle._id;
+          if (iVehicleSearch) iVehicleSearch.value = `${vehicle.make} ${vehicle.line} ${vehicle.displacement}`;
+          if (iVehicleSelected) {
+            iVehicleSelected.innerHTML = `
+              <span class="text-green-500 dark:text-green-400 theme-light:text-green-600">✓</span> 
+              <strong class="text-white dark:text-white theme-light:text-slate-900">${vehicle.make} ${vehicle.line}</strong> - Cilindraje: ${vehicle.displacement}${vehicle.modelYear ? ` | Modelo: ${vehicle.modelYear}` : ''}
+            `;
+          }
+          if (iBrand) {
+            iBrand.value = vehicle.make || '';
+            markDirty('brand');
+          }
+          if (iLine) {
+            iLine.value = vehicle.line || '';
+            markDirty('line');
+          }
+          if (iCc) {
+            iCc.value = vehicle.displacement || '';
+            markDirty('cc');
+          }
+          if (iYear && !iYear.value) {
+            // Solo si no se estableció desde URL
+            if (vehicle.modelYear) {
+              const yearMatch = vehicle.modelYear.match(/^(\d{4})/);
+              if (yearMatch) {
+                iYear.value = yearMatch[1];
+                markDirty('year');
+              }
+            }
+          }
+          // Validar año si existe
+          if (iYear && iYear.value) {
+            validateQuoteYear();
+          }
+          // Limpiar parámetros URL después de leerlos
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+          // Recargar para actualizar UI con el vehículo seleccionado
+          recalcAll();
+        }
+      } catch (err) {
+        console.warn('[quotes] Error cargando vehículo desde URL:', err);
+      }
+    }
+
     clearRows(); addRow();
     loadDraft();
     recalcAll();

@@ -1,0 +1,1154 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M&M - Chats</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    if(typeof console !== 'undefined' && console.warn) {
+      const originalWarn = console.warn;
+      console.warn = function(...args) {
+        if(args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
+          return;
+        }
+        originalWarn.apply(console, args);
+      };
+    }
+    tailwind.config = {
+      darkMode: ['class', '.theme-light'],
+      theme: {
+        extend: {
+          colors: {
+            'dark-bg': '#0f172a',
+            'dark-card': '#111827',
+            'dark-card-alt': '#0b1220',
+            'dark-text': '#e5e7eb',
+            'dark-muted': '#9ca3af',
+            'dark-border': '#1f2937',
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="assets/styles.css?v=20251010" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <script src="./assets/js/config.js"></script>
+  <style>
+    /* Zoom global del 85% para toda la página */
+    html {
+      zoom: 0.85;
+      -moz-transform: scale(0.85);
+      -moz-transform-origin: 0 0;
+    }
+    @media screen and (-webkit-min-device-pixel-ratio: 0) {
+      html {
+        zoom: 0.85;
+      }
+    }
+    
+    /* Estilos para modo claro - Sobrescribir colores de Tailwind */
+    body.theme-light [class*="from-slate-900"][class*="via-slate-800"][class*="to-slate-900"],
+    body.theme-light [class*="bg-gradient-to-r"][class*="from-slate-900"] {
+      background: linear-gradient(to right, #e0f2fe, #dbeafe, #e0f2fe) !important;
+    }
+    body.theme-light [class*="bg-slate-800/50"],
+    body.theme-light [class*="bg-slate-800"][class*="/50"] {
+      background-color: rgba(224, 242, 254, 0.9) !important;
+    }
+    body.theme-light [class*="bg-slate-800"]:not([class*="/"]):not([class*="hover"]):not([class*="from"]):not([class*="via"]):not([class*="to"]) {
+      background-color: #e0f2fe !important;
+    }
+    body.theme-light .text-white:not(.bg-blue-600):not(.bg-blue-700):not(.bg-purple-600):not(.bg-purple-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700) {
+      color: #000000 !important;
+    }
+    body.theme-light .text-slate-300 {
+      color: #000000 !important;
+    }
+    body.theme-light .text-slate-400 {
+      color: #000000 !important;
+    }
+    body.theme-light .text-slate-500 {
+      color: #000000 !important;
+    }
+    body.theme-light .text-slate-600 {
+      color: #000000 !important;
+    }
+    body.theme-light .text-slate-700 {
+      color: #000000 !important;
+    }
+    body.theme-light .text-slate-800 {
+      color: #000000 !important;
+    }
+    
+    /* Mejorar contraste en modales - Forzar texto negro */
+    body.theme-light #modal,
+    body.theme-light #modal *:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700):not(.bg-yellow-600):not(.bg-yellow-700):not(.bg-purple-600):not(.bg-purple-700) {
+      color: #000000 !important;
+    }
+    body.theme-light #modal label,
+    body.theme-light #modal .text-slate-300,
+    body.theme-light #modal .text-slate-400,
+    body.theme-light #modal .text-slate-500,
+    body.theme-light #modal .text-slate-600,
+    body.theme-light #modal .text-slate-700,
+    body.theme-light #modal .text-slate-800,
+    body.theme-light #modal h1,
+    body.theme-light #modal h2,
+    body.theme-light #modal h3,
+    body.theme-light #modal h4,
+    body.theme-light #modal p,
+    body.theme-light #modal span,
+    body.theme-light #modal div:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700) {
+      color: #000000 !important;
+    }
+    
+    /* Mejorar contraste en selects y dropdowns */
+    body.theme-light select,
+    body.theme-light select option,
+    body.theme-light select.text-slate-300,
+    body.theme-light select.text-slate-400,
+    body.theme-light select.text-slate-500,
+    body.theme-light select.text-slate-600,
+    body.theme-light select.text-slate-700,
+    body.theme-light select.text-slate-800 {
+      color: #000000 !important;
+      background-color: #ffffff !important;
+    }
+    body.theme-light select option {
+      color: #000000 !important;
+      background-color: #ffffff !important;
+    }
+    
+    /* Mejorar contraste en inputs dentro de modales */
+    body.theme-light #modal input,
+    body.theme-light #modal textarea,
+    body.theme-light #modal select {
+      color: #000000 !important;
+    }
+    body.theme-light #modal input::placeholder,
+    body.theme-light #modal textarea::placeholder {
+      color: #666666 !important;
+    }
+    
+    /* Cambiar fondos grises de formularios a blanco/celeste claro */
+    body.theme-light input[class*="bg-slate-900"],
+    body.theme-light textarea[class*="bg-slate-900"],
+    body.theme-light select[class*="bg-slate-900"],
+    body.theme-light input[class*="bg-slate-800"],
+    body.theme-light textarea[class*="bg-slate-800"],
+    body.theme-light select[class*="bg-slate-800"] {
+      background-color: #ffffff !important;
+    }
+    body.theme-light input[class*="bg-slate-900/50"],
+    body.theme-light textarea[class*="bg-slate-900/50"],
+    body.theme-light select[class*="bg-slate-900/50"],
+    body.theme-light input[class*="bg-slate-800/50"],
+    body.theme-light textarea[class*="bg-slate-800/50"],
+    body.theme-light select[class*="bg-slate-800/50"] {
+      background-color: #ffffff !important;
+    }
+    
+    /* Cambiar fondo del modal a blanco */
+    body.theme-light #modal > div,
+    body.theme-light #modal .bg-slate-800:not([class*="hover"]),
+    body.theme-light #modal [class*="bg-slate-800"]:not([class*="hover"]):not([class*="text"]) {
+      background-color: #ffffff !important;
+    }
+    body.theme-light #modal [class*="bg-slate-800/50"],
+    body.theme-light #modal [class*="bg-slate-800"][class*="/50"] {
+      background-color: rgba(255, 255, 255, 0.95) !important;
+    }
+    
+    /* Cambiar todos los inputs, textareas y selects dentro de modales */
+    body.theme-light #modal input:not([type="checkbox"]):not([type="radio"]),
+    body.theme-light #modal textarea,
+    body.theme-light #modal select {
+      background-color: #ffffff !important;
+      border-color: #7dd3fc !important;
+    }
+    
+    /* Cambiar fondos de formularios en toda la página */
+    body.theme-light input:not([type="checkbox"]):not([type="radio"]):not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]),
+    body.theme-light textarea:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]),
+    body.theme-light select:not([class*="bg-blue"]):not([class*="bg-green"]):not([class*="bg-red"]):not([class*="bg-yellow"]):not([class*="bg-purple"]) {
+      background-color: #ffffff !important;
+    }
+    body.theme-light [class*="border-slate-700/50"],
+    body.theme-light [class*="border-slate-700"][class*="/50"] {
+      border-color: rgba(125, 211, 252, 0.5) !important;
+    }
+    body.theme-light [class*="hover:bg-slate-700/50"]:hover,
+    body.theme-light button:hover[class*="hover:bg-slate-700"] {
+      background-color: rgba(186, 230, 253, 0.7) !important;
+    }
+    body.theme-light [class*="hover:text-white"]:hover:not(.bg-blue-600):not(.bg-blue-700):not(.bg-green-600):not(.bg-green-700):not(.bg-red-600):not(.bg-red-700) {
+      color: #000000 !important;
+    }
+    
+    /* Botones en modo claro - Celeste claro */
+    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]),
+    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]) {
+      background-color: #bae6fd !important;
+      color: #000000 !important;
+      border-color: #7dd3fc !important;
+    }
+    body.theme-light button.bg-slate-700\/50:not([class*="from-"]):not([class*="to-"]):hover,
+    body.theme-light button[class*="bg-slate-700/50"]:not([class*="from-"]):not([class*="to-"]):hover {
+      background-color: #93c5fd !important;
+      color: #000000 !important;
+      border-color: #60a5fa !important;
+    }
+    
+    /* Estilos para el fondo de la página */
+    body {
+      background-color: #0f172a;
+      min-height: 100vh;
+    }
+    body.theme-light {
+      background-color: #e0f2fe;
+    }
+    
+    /* Estilos para el modal global */
+    #modal.hidden {
+      display: none !important;
+    }
+    #modal:not(.hidden) {
+      display: flex !important;
+    }
+    #modal {
+      z-index: 9999;
+    }
+    
+    /* Estilos específicos para la página de chats */
+    
+    /* Panel izquierdo - Lista de chats */
+    #chatsList {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+    #chatsList::-webkit-scrollbar {
+      width: 6px;
+    }
+    #chatsList::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #chatsList::-webkit-scrollbar-thumb {
+      background-color: rgba(148, 163, 184, 0.5);
+      border-radius: 3px;
+    }
+    #chatsList::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(148, 163, 184, 0.7);
+    }
+    
+    /* Tarjetas de chats en barra superior */
+    #chatsCardsBar {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+    #chatsCardsBar::-webkit-scrollbar {
+      height: 4px;
+    }
+    #chatsCardsBar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #chatsCardsBar::-webkit-scrollbar-thumb {
+      background-color: rgba(148, 163, 184, 0.5);
+      border-radius: 2px;
+    }
+    #chatsCardsBar::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(148, 163, 184, 0.7);
+    }
+    
+    /* Items de chat en lista */
+    .chat-item {
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+    .chat-item:hover {
+      transform: translateX(2px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .chat-item.ring-2 {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+    }
+    body.theme-light .chat-item {
+      border-color: rgba(203, 213, 225, 0.5);
+    }
+    body.theme-light .chat-item:hover {
+      background-color: #e2e8f0 !important;
+      border-color: rgba(148, 163, 184, 0.8);
+    }
+    
+    /* Tarjetas de chat en barra superior */
+    .chat-card {
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      min-width: 120px;
+    }
+    .chat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .chat-card.ring-2 {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+    }
+    body.theme-light .chat-card {
+      border-color: rgba(203, 213, 225, 0.5);
+    }
+    body.theme-light .chat-card:hover {
+      background-color: #cbd5e1 !important;
+      border-color: rgba(148, 163, 184, 0.8);
+    }
+    
+    /* Panel de detalles del chat */
+    #chatDetailsPanel {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+    #chatDetailsPanel::-webkit-scrollbar {
+      width: 6px;
+    }
+    #chatDetailsPanel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #chatDetailsPanel::-webkit-scrollbar-thumb {
+      background-color: rgba(148, 163, 184, 0.5);
+      border-radius: 3px;
+    }
+    #chatDetailsPanel::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(148, 163, 184, 0.7);
+    }
+    
+    /* Inputs y selects en panel de detalles */
+    #chatDetailsContent input,
+    #chatDetailsContent textarea,
+    #chatDetailsContent select {
+      transition: all 0.2s ease;
+    }
+    #chatDetailsContent input:focus,
+    #chatDetailsContent textarea:focus,
+    #chatDetailsContent select:focus {
+      outline: none;
+      ring: 2px;
+      ring-color: rgba(59, 130, 246, 0.5);
+      border-color: #3b82f6;
+    }
+    body.theme-light #chatDetailsContent input:focus,
+    body.theme-light #chatDetailsContent textarea:focus,
+    body.theme-light #chatDetailsContent select:focus {
+      border-color: #60a5fa !important;
+      box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.3);
+    }
+    
+    /* Historial de inventario */
+    #chatInventoryHistory {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+    #chatInventoryHistory::-webkit-scrollbar {
+      width: 6px;
+    }
+    #chatInventoryHistory::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #chatInventoryHistory::-webkit-scrollbar-thumb {
+      background-color: rgba(148, 163, 184, 0.5);
+      border-radius: 3px;
+    }
+    #chatInventoryHistory::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(148, 163, 184, 0.7);
+    }
+    
+    /* Comentarios */
+    #chatComments {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+    #chatComments::-webkit-scrollbar {
+      width: 6px;
+    }
+    #chatComments::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #chatComments::-webkit-scrollbar-thumb {
+      background-color: rgba(148, 163, 184, 0.5);
+      border-radius: 3px;
+    }
+    #chatComments::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(148, 163, 184, 0.7);
+    }
+    
+    /* Paneles desplegables */
+    #inventoryPanel,
+    #quotesPanel,
+    #agendaPanel {
+      transition: all 0.3s ease;
+      max-height: 0;
+      overflow: hidden;
+    }
+    #inventoryPanel:not(.hidden),
+    #quotesPanel:not(.hidden),
+    #agendaPanel:not(.hidden) {
+      max-height: 1000px;
+      animation: slideDown 0.3s ease;
+    }
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        max-height: 0;
+      }
+      to {
+        opacity: 1;
+        max-height: 1000px;
+      }
+    }
+    
+    /* Botones de toggle de paneles */
+    #toggleInventoryPanel,
+    #toggleQuotesPanel,
+    #toggleAgendaPanel {
+      transition: all 0.2s ease;
+    }
+    #toggleInventoryPanel:hover,
+    #toggleQuotesPanel:hover,
+    #toggleAgendaPanel:hover {
+      background-color: rgba(51, 65, 85, 0.4) !important;
+    }
+    body.theme-light #toggleInventoryPanel:hover,
+    body.theme-light #toggleQuotesPanel:hover,
+    body.theme-light #toggleAgendaPanel:hover {
+      background-color: rgba(186, 230, 253, 0.8) !important;
+    }
+    
+    /* Panel de inventario - Resultados de búsqueda */
+    #inventoryResults {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+    #inventoryResults::-webkit-scrollbar {
+      width: 6px;
+    }
+    #inventoryResults::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #inventoryResults::-webkit-scrollbar-thumb {
+      background-color: rgba(148, 163, 184, 0.5);
+      border-radius: 3px;
+    }
+    #inventoryResults::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(148, 163, 184, 0.7);
+    }
+    
+    /* Items de inventario en resultados */
+    .inventory-item {
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+    .inventory-item:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+    body.theme-light .inventory-item {
+      border-color: rgba(203, 213, 225, 0.5);
+    }
+    body.theme-light .inventory-item:hover {
+      background-color: #e2e8f0 !important;
+      border-color: rgba(148, 163, 184, 0.8);
+    }
+    
+    /* Botones de acción */
+    .btnAddToHistory {
+      transition: all 0.2s ease;
+    }
+    .btnAddToHistory:hover {
+      transform: scale(1.05);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Panel de cotizaciones */
+    #quotesList {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+    #quotesList::-webkit-scrollbar {
+      width: 6px;
+    }
+    #quotesList::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #quotesList::-webkit-scrollbar-thumb {
+      background-color: rgba(148, 163, 184, 0.5);
+      border-radius: 3px;
+    }
+    #quotesList::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(148, 163, 184, 0.7);
+    }
+    
+    /* Panel de agenda */
+    #agendaEventsList {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(148, 163, 184, 0.5) transparent;
+    }
+    #agendaEventsList::-webkit-scrollbar {
+      width: 6px;
+    }
+    #agendaEventsList::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    #agendaEventsList::-webkit-scrollbar-thumb {
+      background-color: rgba(148, 163, 184, 0.5);
+      border-radius: 3px;
+    }
+    #agendaEventsList::-webkit-scrollbar-thumb:hover {
+      background-color: rgba(148, 163, 184, 0.7);
+    }
+    
+    /* Botón de crear chat */
+    #btnCreateChat {
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    #btnCreateChat:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+    }
+    #btnCreateChat:active {
+      transform: translateY(0);
+    }
+    
+    /* Botones de acción en detalles */
+    #btnSaveChat,
+    #btnDeleteChat,
+    #btnEscalateChat {
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    #btnSaveChat:hover,
+    #btnDeleteChat:hover,
+    #btnEscalateChat:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+    }
+    #btnSaveChat:active,
+    #btnDeleteChat:active,
+    #btnEscalateChat:active {
+      transform: translateY(0);
+    }
+    
+    /* Botón de agregar comentario */
+    #btnAddComment {
+      transition: all 0.2s ease;
+    }
+    #btnAddComment:hover {
+      transform: scale(1.02);
+    }
+    
+    /* ========== ESTILOS RESPONSIVE PARA MÓVIL (< 768px) ========== */
+    @media (max-width: 767px) {
+      /* Ajustar zoom para móvil */
+      html {
+        zoom: 1;
+        -moz-transform: scale(1);
+        -moz-transform-origin: 0 0;
+      }
+      
+      /* Layout principal - Cambiar a columna */
+      #tab-chats > div {
+        flex-direction: column !important;
+        height: auto !important;
+        min-height: calc(100vh - 140px);
+        gap: 1rem !important;
+        padding: 0.5rem !important;
+      }
+      
+      /* Panel izquierdo - Ancho completo */
+      #tab-chats .w-1\/3 {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        max-height: 35vh;
+        order: 1;
+      }
+      
+      /* Panel derecho - Ancho completo */
+      #tab-chats .flex-1 {
+        width: 100% !important;
+        min-width: 100% !important;
+        min-height: auto;
+        order: 2;
+      }
+      
+      /* Panel de detalles - Altura ajustada */
+      #chatDetailsPanel {
+        min-height: 40vh;
+        max-height: 50vh;
+      }
+      
+      /* Barra de tarjetas de chats - Scroll horizontal */
+      #chatsCardsBar {
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        -webkit-overflow-scrolling: touch;
+        gap: 0.5rem !important;
+        padding-bottom: 0.5rem;
+      }
+      
+      /* Tarjetas de chat más pequeñas en móvil */
+      .chat-card {
+        min-width: 100px !important;
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.75rem !important;
+      }
+      
+      /* Items de chat más compactos */
+      .chat-item {
+        padding: 0.75rem !important;
+        margin-bottom: 0.5rem !important;
+      }
+      
+      /* Grid de 2 columnas a 1 columna */
+      #chatDetailsContent .grid-cols-2 {
+        grid-template-columns: 1fr !important;
+        gap: 0.75rem !important;
+      }
+      
+      /* Títulos más pequeños */
+      #chatDetailsContent h3 {
+        font-size: 1.125rem !important;
+        line-height: 1.5rem !important;
+      }
+      
+      /* Botones más pequeños */
+      #btnCreateChat,
+      #btnSaveChat,
+      #btnDeleteChat,
+      #btnEscalateChat {
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.875rem !important;
+      }
+      
+      /* Inputs y selects más pequeños */
+      #chatDetailsContent input,
+      #chatDetailsContent textarea,
+      #chatDetailsContent select {
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.875rem !important;
+      }
+      
+      /* Paneles desplegables - Ancho completo */
+      #inventoryPanel,
+      #quotesPanel,
+      #agendaPanel {
+        padding: 0.75rem !important;
+      }
+      
+      /* Botones de paneles más pequeños */
+      #toggleInventoryPanel,
+      #toggleQuotesPanel,
+      #toggleAgendaPanel {
+        padding: 0.75rem !important;
+        font-size: 0.875rem !important;
+      }
+      
+      /* Alturas máximas de scroll más pequeñas */
+      #chatInventoryHistory,
+      #chatComments,
+      #inventoryResults,
+      #quotesList,
+      #agendaEventsList {
+        max-height: 200px !important;
+      }
+      
+      /* Modal más pequeño en móvil */
+      #modal .max-w-4xl {
+        max-width: 95% !important;
+        margin: 0.5rem !important;
+        max-height: 95vh;
+      }
+      
+      /* Padding reducido en modal */
+      #modalBody {
+        padding: 1rem !important;
+      }
+      
+      /* Botones en modal más pequeños */
+      #modal button {
+        padding: 0.5rem 1rem !important;
+        font-size: 0.875rem !important;
+      }
+      
+      /* Inputs en modal más pequeños */
+      #modal input,
+      #modal textarea,
+      #modal select {
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.875rem !important;
+      }
+      
+      /* Lista de chats - Altura ajustada */
+      #chatsList {
+        max-height: 25vh;
+      }
+      
+      /* Título del panel más pequeño */
+      #tab-chats h2 {
+        font-size: 1.125rem !important;
+      }
+    }
+    
+    /* ========== ESTILOS RESPONSIVE PARA TABLETS (768px - 1024px) ========== */
+    @media (min-width: 768px) and (max-width: 1024px) {
+      /* Reducir zoom ligeramente */
+      html {
+        zoom: 0.9;
+        -moz-transform: scale(0.9);
+        -moz-transform-origin: 0 0;
+      }
+      
+      /* Reducir tamaños de fuente generales */
+      html {
+        font-size: 14px !important;
+      }
+      
+      /* Layout principal - Mantener flex pero ajustar */
+      #tab-chats > div {
+        gap: 1rem !important;
+        padding: 0.75rem !important;
+      }
+      
+      /* Panel izquierdo - Ancho reducido */
+      #tab-chats .w-1\/3 {
+        min-width: 280px !important;
+        max-width: 320px !important;
+      }
+      
+      /* Grid de 2 columnas mantenido pero con gap reducido */
+      #chatDetailsContent .grid-cols-2 {
+        gap: 0.75rem !important;
+      }
+      
+      /* Reducir padding en contenedores */
+      #tab-chats .p-4 {
+        padding: 0.75rem !important;
+      }
+      
+      /* Reducir tamaños de títulos */
+      #chatDetailsContent h3 {
+        font-size: 1.25rem !important;
+        line-height: 1.75rem !important;
+      }
+      
+      /* Reducir tamaños de botones */
+      #btnCreateChat,
+      #btnSaveChat,
+      #btnDeleteChat,
+      #btnEscalateChat {
+        padding: 0.5rem 1rem !important;
+        font-size: 0.875rem !important;
+      }
+      
+      /* Reducir padding en inputs */
+      #chatDetailsContent input,
+      #chatDetailsContent textarea,
+      #chatDetailsContent select {
+        padding: 0.5rem 0.75rem !important;
+        font-size: 0.875rem !important;
+      }
+      
+      /* Alturas máximas ajustadas */
+      #chatInventoryHistory,
+      #chatComments {
+        max-height: 180px !important;
+      }
+      
+      #inventoryResults,
+      #quotesList,
+      #agendaEventsList {
+        max-height: 200px !important;
+      }
+      
+      /* Modal ajustado */
+      #modal .max-w-4xl {
+        max-width: 90% !important;
+        margin: 1rem auto !important;
+      }
+      
+      /* Tarjetas de chat ajustadas */
+      .chat-card {
+        min-width: 110px !important;
+        padding: 0.5rem 0.75rem !important;
+      }
+      
+      /* Items de chat ajustados */
+      .chat-item {
+        padding: 0.75rem !important;
+      }
+    }
+    
+    /* ========== ESTILOS RESPONSIVE PARA PANTALLAS GRANDES (> 1024px) ========== */
+    @media (min-width: 1025px) {
+      /* Asegurar que el layout use todo el espacio disponible */
+      #tab-chats > div {
+        max-width: 100%;
+      }
+      
+      /* Panel izquierdo - Ancho fijo cómodo */
+      #tab-chats .w-1\/3 {
+        min-width: 350px;
+        max-width: 400px;
+      }
+      
+      /* Mejorar espaciado en pantallas grandes */
+      #tab-chats .p-4 {
+        padding: 1.5rem !important;
+      }
+      
+      /* Alturas máximas más generosas */
+      #chatInventoryHistory,
+      #chatComments {
+        max-height: 300px !important;
+      }
+      
+      #inventoryResults,
+      #quotesList,
+      #agendaEventsList {
+        max-height: 350px !important;
+      }
+    }
+    
+    /* ========== AJUSTES ADICIONALES PARA ORIENTACIÓN ========== */
+    @media (max-width: 767px) and (orientation: landscape) {
+      /* En modo landscape móvil, ajustar alturas */
+      #tab-chats .w-1\/3 {
+        max-height: 30vh;
+      }
+      
+      #chatDetailsPanel {
+        min-height: 35vh;
+        max-height: 45vh;
+      }
+      
+      #chatsList {
+        max-height: 20vh;
+      }
+    }
+    
+    /* ========== MEJORAS DE TOUCH PARA MÓVIL ========== */
+    @media (max-width: 767px) {
+      /* Áreas de toque más grandes */
+      button,
+      .chat-item,
+      .chat-card {
+        min-height: 44px;
+        min-width: 44px;
+      }
+      
+      /* Mejorar scroll en móvil */
+      #chatsList,
+      #chatDetailsPanel,
+      #chatInventoryHistory,
+      #chatComments,
+      #inventoryResults,
+      #quotesList,
+      #agendaEventsList {
+        -webkit-overflow-scrolling: touch;
+        scroll-behavior: smooth;
+      }
+      
+      /* Prevenir zoom en inputs en iOS */
+      input[type="text"],
+      input[type="number"],
+      input[type="tel"],
+      input[type="email"],
+      textarea,
+      select {
+        font-size: 16px !important;
+      }
+    }
+    
+    /* Mejoras de accesibilidad */
+    button:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible,
+    select:focus-visible {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+    }
+    
+    /* Estados de carga */
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    
+    /* Animaciones suaves */
+    * {
+      transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform;
+      transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+      transition-duration: 150ms;
+    }
+    
+    /* Mejoras para modo claro en paneles específicos */
+    body.theme-light #chatDetailsPanel,
+    body.theme-light #inventoryPanel,
+    body.theme-light #quotesPanel,
+    body.theme-light #agendaPanel {
+      background-color: rgba(255, 255, 255, 0.95) !important;
+    }
+    
+    /* Estilos para items del historial de inventario */
+    #chatInventoryHistory > div {
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+    #chatInventoryHistory > div:hover {
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+    body.theme-light #chatInventoryHistory > div {
+      border-color: rgba(203, 213, 225, 0.5);
+    }
+    
+    /* Estilos para comentarios */
+    #chatComments > div {
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+    #chatComments > div:hover {
+      border-color: rgba(59, 130, 246, 0.2);
+    }
+    body.theme-light #chatComments > div {
+      border-color: rgba(203, 213, 225, 0.3);
+    }
+    
+    /* Estilos para cotizaciones en panel */
+    #quotesList > div {
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      cursor: pointer;
+    }
+    #quotesList > div:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+    body.theme-light #quotesList > div {
+      border-color: rgba(203, 213, 225, 0.5);
+    }
+    
+    /* Estilos para eventos de agenda */
+    #agendaEventsList > div {
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      cursor: pointer;
+    }
+    #agendaEventsList > div:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+    body.theme-light #agendaEventsList > div {
+      border-color: rgba(203, 213, 225, 0.5);
+    }
+    
+    /* Placeholder mejorado */
+    ::placeholder {
+      opacity: 0.6;
+    }
+    body.theme-light ::placeholder {
+      color: #64748b !important;
+      opacity: 0.7;
+    }
+    
+    /* Mejoras en scrollbars para modo claro */
+    body.theme-light #chatsList::-webkit-scrollbar-thumb,
+    body.theme-light #chatDetailsPanel::-webkit-scrollbar-thumb,
+    body.theme-light #chatInventoryHistory::-webkit-scrollbar-thumb,
+    body.theme-light #chatComments::-webkit-scrollbar-thumb {
+      background-color: rgba(100, 116, 139, 0.5);
+    }
+    
+    /* Estados disabled mejorados */
+    button:disabled,
+    input:disabled,
+    textarea:disabled,
+    select:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    /* Iconos de plataforma */
+    .platform-icon {
+      font-size: 1.2em;
+      display: inline-block;
+    }
+  </style>
+</head>
+<body data-page="chats">
+  <main>
+    <div class="topbar sticky top-0 z-[1000] hidden" id="appHeader">
+      <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-b border-slate-700/50 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex items-center justify-between h-16 md:h-20">
+            <div class="flex items-center gap-3 md:gap-4 flex-shrink-0">
+              <img id="brandLogo" src="assets/lightlogo.png" alt="M&M logo" class="h-8 md:h-10 w-auto object-contain" />
+              <div class="hidden sm:flex flex-col">
+                <span class="text-xs text-slate-400 font-medium">Empresa</span>
+                <span id="companyName" class="text-sm md:text-base font-semibold text-white">-</span>
+              </div>
+              <div class="sm:hidden text-white font-semibold text-sm">
+                <span id="companyNameMobile">-</span>
+              </div>
+            </div>
+            <div class="hidden md:flex items-center gap-2">
+              <button id="logoutBtn" class="hidden px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200">Salir</button>
+              <button id="openPublicCatalog" class="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚 Catálogo</button>
+              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+            </div>
+            <div class="md:hidden flex items-center gap-2">
+              <button id="openPublicCatalog" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Abrir catálogo público">📚</button>
+              <button id="themeToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" title="Cambiar tema">🌗</button>
+              <button id="mobileMenuToggle" class="p-2 text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-colors duration-200" aria-label="Menú">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="hidden md:block bg-slate-800/50 border-t border-slate-700/30">
+          <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav class="flex items-center gap-1 overflow-x-auto scrollbar-hide" style="scrollbar-width: none; -ms-overflow-style: none;">
+              <button data-tab="home" data-href="index.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inicio</button>
+              <button data-tab="notas" data-feature="notas" data-href="notas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Notas</button>
+              <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Ventas</button>
+              <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cotizaciones</button>
+              <button data-tab="chats" data-feature="chats" data-href="chats.html" class="nav-tab active px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-t-lg transition-all duration-200 whitespace-nowrap">Chats</button>
+              <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Inventario</button>
+              <button data-tab="precios" data-feature="precios" data-href="precios.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Lista de precios</button>
+              <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Flujo de Caja</button>
+              <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Cartera</button>
+              <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Nómina</button>
+              <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">Formatos</button>
+              <button data-tab="skus" data-feature="skus" data-href="skus.html" class="nav-tab px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-t-lg transition-all duration-200 whitespace-nowrap">SKUs</button>
+            </nav>
+          </div>
+        </div>
+      </div>
+      <div id="mobileMenu" class="md:hidden hidden bg-slate-800 border-t border-slate-700/50 shadow-xl">
+        <div class="px-4 py-3 space-y-1">
+          <button data-tab="home" data-href="index.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inicio</button>
+          <button data-tab="notas" data-feature="notas" data-href="notas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Notas</button>
+          <button data-tab="ventas" data-feature="ventas" data-href="ventas.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Ventas</button>
+          <button data-tab="cotizaciones" data-feature="cotizaciones" data-href="cotizaciones.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cotizaciones</button>
+          <button data-tab="chats" data-feature="chats" data-href="chats.html" class="mobile-nav-tab active w-full text-left px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-lg transition-all duration-200">Chats</button>
+          <button data-tab="inventario" data-feature="inventario" data-href="inventario.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Inventario</button>
+          <button data-tab="precios" data-feature="precios" data-href="precios.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Lista de precios</button>
+          <button data-tab="cashflow" data-feature="cashflow" data-href="cashflow.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Flujo de Caja</button>
+          <button data-tab="cartera" data-feature="receivables" data-href="cartera.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Cartera</button>
+          <button data-tab="nomina" data-feature="payroll" data-href="nomina.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Nómina</button>
+          <button data-tab="formatos" data-feature="templates" data-href="template-selector.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">Formatos</button>
+          <button data-tab="skus" data-feature="skus" data-href="skus.html" class="mobile-nav-tab w-full text-left px-4 py-3 text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-700/50 rounded-lg transition-all duration-200">SKUs</button>
+          <button id="logoutBtnMobile" class="hidden w-full text-left px-4 py-3 text-sm font-medium text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-all duration-200 mt-2 border-t border-slate-700/50 pt-3">Salir</button>
+        </div>
+      </div>
+    </div>
+
+    <section id="appSection" class="hidden">
+      <div id="modal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 dark:bg-black/60 theme-light:bg-black/40 backdrop-blur-sm">
+        <div class="relative bg-slate-800 dark:bg-slate-800 theme-light:bg-sky-50 rounded-2xl shadow-2xl border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 max-w-4xl w-full max-h-[90vh] my-auto overflow-hidden">
+          <button id="modalClose" class="absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center bg-red-600 dark:bg-red-600 theme-light:bg-red-500 hover:bg-red-700 dark:hover:bg-red-700 theme-light:hover:bg-red-600 text-white rounded-lg transition-colors duration-200 text-xl font-bold shadow-lg" title="Cerrar (ESC)">&times;</button>
+          <div id="modalBody" class="p-6 overflow-y-auto max-h-[90vh] custom-scrollbar"></div>
+        </div>
+      </div>
+
+      <section id="tab-chats" class="tab active">
+        <div class="max-w-[100vw] mx-auto px-2 sm:px-4 lg:px-6 py-2 sm:py-4 h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)]">
+          <div class="flex flex-col md:flex-row gap-2 sm:gap-4 h-full">
+            <!-- Panel Izquierdo: Lista de Chats -->
+            <div class="w-full md:w-1/3 md:min-w-[300px] lg:min-w-[350px] bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-2 sm:p-4 flex flex-col">
+              <div class="flex items-center justify-between mb-2 sm:mb-4">
+                <h2 class="text-lg sm:text-xl font-bold text-white dark:text-white theme-light:text-slate-900">Chats</h2>
+                <button id="btnCreateChat" class="px-2 py-1 sm:px-3 sm:py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-semibold rounded-lg transition-colors">+ Nuevo</button>
+              </div>
+              
+              <!-- Barra superior con tarjetas de chats activos -->
+              <div id="chatsCardsBar" class="flex gap-2 mb-4 overflow-x-auto pb-2 custom-scrollbar" style="scrollbar-width: thin;">
+                <!-- Las tarjetas de chats activos se insertarán aquí -->
+              </div>
+
+              <!-- Lista de chats -->
+              <div id="chatsList" class="flex-1 overflow-y-auto custom-scrollbar">
+                <!-- Los chats se insertarán aquí -->
+              </div>
+            </div>
+
+            <!-- Panel Derecho: Detalles del Chat y Paneles Desplegables -->
+            <div class="flex-1 flex flex-col gap-2 sm:gap-4 w-full">
+              <!-- Panel de detalles del chat seleccionado -->
+              <div id="chatDetailsPanel" class="flex-1 bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50 p-2 sm:p-4 overflow-y-auto custom-scrollbar">
+                <div id="chatDetailsContent" class="space-y-4">
+                  <p class="text-slate-400 dark:text-slate-400 theme-light:text-slate-600 text-center py-8">Selecciona un chat para ver los detalles</p>
+                </div>
+              </div>
+
+              <!-- Paneles desplegables (Inventario, Cotizaciones, Agenda) -->
+              <div class="space-y-2">
+                <!-- Panel Inventario -->
+                <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+                  <button id="toggleInventoryPanel" class="w-full px-3 py-2 sm:px-4 sm:py-3 flex items-center justify-between text-left hover:bg-slate-700/30 dark:hover:bg-slate-700/30 theme-light:hover:bg-slate-100 rounded-t-xl transition-colors">
+                    <span class="text-sm sm:text-base font-semibold text-white dark:text-white theme-light:text-slate-900">📦 Inventario</span>
+                    <span id="inventoryPanelIcon" class="text-slate-400 text-xs sm:text-sm">▼</span>
+                  </button>
+                  <div id="inventoryPanel" class="hidden px-3 pb-3 sm:px-4 sm:pb-4">
+                    <div class="space-y-2 sm:space-y-3">
+                      <input type="text" id="inventorySearch" placeholder="Buscar item por SKU o nombre..." class="w-full px-2 py-1.5 sm:px-3 sm:py-2 text-sm sm:text-base bg-slate-900/50 dark:bg-slate-900/50 theme-light:bg-white border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300 rounded-lg text-white dark:text-white theme-light:text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                      <div id="inventoryResults" class="max-h-48 sm:max-h-64 overflow-y-auto custom-scrollbar"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Panel Cotizaciones -->
+                <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+                  <button id="toggleQuotesPanel" class="w-full px-3 py-2 sm:px-4 sm:py-3 flex items-center justify-between text-left hover:bg-slate-700/30 dark:hover:bg-slate-700/30 theme-light:hover:bg-slate-100 rounded-t-xl transition-colors">
+                    <span class="text-sm sm:text-base font-semibold text-white dark:text-white theme-light:text-slate-900">💰 Cotizaciones</span>
+                    <span id="quotesPanelIcon" class="text-slate-400 text-xs sm:text-sm">▼</span>
+                  </button>
+                  <div id="quotesPanel" class="hidden px-3 pb-3 sm:px-4 sm:pb-4">
+                    <div id="quotesPanelContent" class="space-y-2 sm:space-y-3">
+                      <!-- El contenido de cotizaciones se insertará aquí -->
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Panel Agenda -->
+                <div class="bg-slate-800/50 dark:bg-slate-800/50 theme-light:bg-sky-50/90 rounded-xl shadow-lg border border-slate-700/50 dark:border-slate-700/50 theme-light:border-slate-300/50">
+                  <button id="toggleAgendaPanel" class="w-full px-3 py-2 sm:px-4 sm:py-3 flex items-center justify-between text-left hover:bg-slate-700/30 dark:hover:bg-slate-700/30 theme-light:hover:bg-slate-100 rounded-t-xl transition-colors">
+                    <span class="text-sm sm:text-base font-semibold text-white dark:text-white theme-light:text-slate-900">📅 Agenda</span>
+                    <span id="agendaPanelIcon" class="text-slate-400 text-xs sm:text-sm">▼</span>
+                  </button>
+                  <div id="agendaPanel" class="hidden px-3 pb-3 sm:px-4 sm:pb-4">
+                    <div id="agendaPanelContent" class="space-y-2 sm:space-y-3">
+                      <!-- El contenido de agenda se insertará aquí -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="./assets/js/api.js"></script>
+  <script type="module" src="./assets/js/app.js" charset="utf-8"></script>
+  <script type="module" src="./assets/js/chats.js" charset="utf-8"></script>
+</body>
+</html>
+
