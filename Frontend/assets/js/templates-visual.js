@@ -1936,6 +1936,144 @@
     };
   }
 
+  function addResizeHandlesToContainer(container) {
+    const handles = ['nw', 'ne', 'sw', 'se'];
+    const handleElements = {};
+    
+    handles.forEach(position => {
+      const handle = document.createElement('div');
+      handle.className = `resize-handle resize-${position}`;
+      handle.style.cssText = `
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: #2563eb;
+        border: 1px solid white;
+        cursor: ${position === 'nw' || position === 'se' ? 'nw' : 'ne'}-resize;
+        display: none;
+        z-index: 1000;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      `;
+      
+      switch(position) {
+        case 'nw': 
+          handle.style.top = '-4px';
+          handle.style.left = '-4px';
+          break;
+        case 'ne':
+          handle.style.top = '-4px';
+          handle.style.right = '-4px';
+          break;
+        case 'sw':
+          handle.style.bottom = '-4px';
+          handle.style.left = '-4px';
+          break;
+        case 'se':
+          handle.style.bottom = '-4px';
+          handle.style.right = '-4px';
+          break;
+      }
+      
+      container.appendChild(handle);
+      handleElements[position] = handle;
+      setupResizeHandleForContainer(handle, container, position);
+    });
+    
+    const updateHandles = () => {
+      const shouldShow = !!(visualEditor.selectedElement && visualEditor.selectedElement === container);
+      Object.values(handleElements).forEach(h => h.style.display = shouldShow ? 'block' : 'none');
+    };
+
+    // Actualizar cuando se selecciona
+    const checkSelection = () => {
+      if (visualEditor.selectedElement === container) {
+        updateHandles();
+      }
+    };
+    const selectionInterval = setInterval(checkSelection, 100);
+    
+    container.addEventListener('mouseenter', updateHandles);
+    container.addEventListener('mouseleave', updateHandles);
+    
+    container._resizeCleanup = () => {
+      clearInterval(selectionInterval);
+      Object.values(handleElements).forEach(h => h.remove());
+    };
+  }
+
+  function setupResizeHandleForContainer(handle, container, position) {
+    let isResizing = false;
+    let startX, startY, startWidth, startHeight, startLeft, startTop;
+    
+    handle.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      startWidth = parseInt(container.style.width) || 150;
+      startHeight = parseInt(container.style.height) || 150;
+      startLeft = parseInt(container.style.left) || 0;
+      startTop = parseInt(container.style.top) || 0;
+      
+      e.preventDefault();
+      e.stopPropagation();
+      
+      document.body.style.cursor = handle.style.cursor;
+      document.addEventListener('mousemove', handleResize);
+      document.addEventListener('mouseup', stopResize);
+    });
+    
+    const handleResize = (e) => {
+      if (!isResizing) return;
+      
+      const deltaX = e.clientX - startX;
+      const deltaY = e.clientY - startY;
+      
+      let newWidth = startWidth;
+      let newHeight = startHeight;
+      let newLeft = startLeft;
+      let newTop = startTop;
+      
+      switch(position) {
+        case 'nw':
+          newWidth = Math.max(50, startWidth - deltaX);
+          newHeight = Math.max(50, startHeight - deltaY);
+          newLeft = startLeft + (startWidth - newWidth);
+          newTop = startTop + (startHeight - newHeight);
+          break;
+        case 'ne':
+          newWidth = Math.max(50, startWidth + deltaX);
+          newHeight = Math.max(50, startHeight - deltaY);
+          newTop = startTop + (startHeight - newHeight);
+          break;
+        case 'sw':
+          newWidth = Math.max(50, startWidth - deltaX);
+          newHeight = Math.max(50, startHeight + deltaY);
+          newLeft = startLeft + (startWidth - newWidth);
+          break;
+        case 'se':
+          newWidth = Math.max(50, startWidth + deltaX);
+          newHeight = Math.max(50, startHeight + deltaY);
+          break;
+      }
+      
+      container.style.width = newWidth + 'px';
+      container.style.height = newHeight + 'px';
+      container.style.left = newLeft + 'px';
+      container.style.top = newTop + 'px';
+      
+      e.preventDefault();
+    };
+    
+    const stopResize = () => {
+      if (isResizing) {
+        isResizing = false;
+        document.body.style.cursor = '';
+        document.removeEventListener('mousemove', handleResize);
+        document.removeEventListener('mouseup', stopResize);
+      }
+    };
+  }
+
   function setupResizeHandle(handle, container, img, position) {
     let isResizing = false;
     let startX, startY, startWidth, startHeight, aspectRatio;
@@ -2274,6 +2412,9 @@
       // Hacer el contenedor arrastrable y seleccionable
       makeDraggable(imgContainer);
       makeSelectable(imgContainer);
+      
+      // Agregar handles de redimensionamiento
+      addResizeHandlesToContainer(imgContainer);
       
       // Agregar a la lista de elementos
       visualEditor.elements.push({
@@ -2784,6 +2925,9 @@
             makeDraggable(imgContainer);
             makeSelectable(imgContainer);
             
+            // Agregar handles de redimensionamiento
+            addResizeHandlesToContainer(imgContainer);
+            
             // Agregar a la lista de elementos
             visualEditor.elements.push({
               id: imgContainer.id,
@@ -2835,6 +2979,10 @@
             if (!visualEditor.elements.find(e => e.id === imgContainer.id)) {
               makeDraggable(imgContainer);
               makeSelectable(imgContainer);
+              
+              // Agregar handles de redimensionamiento
+              addResizeHandlesToContainer(imgContainer);
+              
               visualEditor.elements.push({
                 id: imgContainer.id,
                 type: 'image',
@@ -3069,6 +3217,11 @@
             }
             makeDraggable(imgContainer);
             makeSelectable(imgContainer);
+            
+            // Agregar handles de redimensionamiento si no los tiene
+            if (!imgContainer.querySelector('.resize-handle')) {
+              addResizeHandlesToContainer(imgContainer);
+            }
           }
         });
         
